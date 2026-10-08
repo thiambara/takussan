@@ -77,8 +77,14 @@ const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
  * 16 → 14 par TCK-591 (`team.remove`, `crm.assign`) et 16 → 14 par TCK-596 (`bookings.refund`,
  * `leases.sign`), chacun sur sa branche : 12 à leur fusion. 14 → 12 par TCK-592
  * (`maintenance.assign`, `maintenance.close`) sur la sienne : 10 à la fusion de 596 avec 592.
+ * 12 à la fusion de TCK-591 dans TCK-594 : chaque branche avait retiré deux lignes et baissé 16 → 14
+ * de son côté ; la fusion, sans conflit textuel, gardait 14 pour un inventaire de 12. 10 à la fusion
+ * de TCK-592 dans TCK-594, pour la même raison (592 lit `maintenance.*`, 594 `payouts.approve` et
+ * `agency.update_billing`).
+ * 8 à la fusion de TCK-594 dans TCK-596 : 596 retire `bookings.refund` et `leases.sign`, 594
+ * `payouts.approve` et `agency.update_billing`, chacun à 10 de son côté.
  */
-const CLIQUET = 10;
+const CLIQUET = 8;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

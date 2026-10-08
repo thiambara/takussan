@@ -57,12 +57,11 @@ class AgencyKindFlipTest extends TestCase
         $fresh = $agency->fresh();
         $this->assertSame(AgencyKind::Standard, $fresh->kind);
 
-        // Legal fields land in metadata.legal_info since Agency has no
-        // first-class columns for them yet.
-        $legal = $fresh->metadata['legal_info'] ?? [];
-        $this->assertSame($request->rc, $legal['rc'] ?? null);
-        $this->assertSame($request->ninea, $legal['ninea'] ?? null);
-        $this->assertSame($request->company_legal_name, $legal['company_legal_name'] ?? null);
+        // TCK-594 (ADR-0039 §7) — les mentions légales sont des colonnes, que le PDF imprime.
+        $this->assertSame($request->rc, $fresh->rccm);
+        $this->assertSame($request->ninea, $fresh->ninea);
+        $this->assertSame($request->company_legal_name, $fresh->legal_name);
+        $this->assertArrayNotHasKey('ninea', $fresh->metadata['legal_info'] ?? []);
 
         // Welcome marker for the frontend.
         $this->assertNotNull($fresh->metadata['welcome']['standard_unlocked_at'] ?? null);
@@ -85,11 +84,12 @@ class AgencyKindFlipTest extends TestCase
         $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])
             ->assertStatus(200);
 
-        $legal = $agency->fresh()->metadata['legal_info'];
-        $this->assertSame('RC-EXISTING', $legal['rc']);
-        $this->assertSame('NINEA-EXISTING', $legal['ninea']);
+        // TCK-594 — la valeur curée d'avant la migration gagne sur la demande, et passe en colonne.
+        $fresh = $agency->fresh();
+        $this->assertSame('RC-EXISTING', $fresh->rccm);
+        $this->assertSame('NINEA-EXISTING', $fresh->ninea);
         // Field that wasn't pre-set should have been backfilled.
-        $this->assertSame($request->company_legal_name, $legal['company_legal_name'] ?? null);
+        $this->assertSame($request->company_legal_name, $fresh->legal_name);
     }
 
     public function test_flip_throws_when_agency_is_already_standard(): void

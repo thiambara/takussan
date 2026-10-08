@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\ReferenceNumberGenerator;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -332,7 +333,8 @@ class EarlyTerminationService
             $dueDate = now()->startOfDay()->addDay();
         }
 
-        return Invoice::create([
+        // TCK-594 (ADR-0039 §7) — créée directement émise : elle reçoit son numéro tout de suite.
+        return app(InvoiceNumberAllocator::class)->allocate(Invoice::create([
             'invoiceable_type' => Lease::class,
             'invoiceable_id' => $lease->id,
             'customer_id' => $lease->tenant_id,
@@ -351,7 +353,7 @@ class EarlyTerminationService
                 'reference' => $lease->reference_number ?? (string) $lease->id,
                 'effective' => $effective->toDateString(),
             ]),
-        ]);
+        ]));
     }
 
     protected function isPenaltyPaid(Lease $lease): bool

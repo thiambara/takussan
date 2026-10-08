@@ -150,6 +150,14 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
     expect(screen.getAllByRole('button', { name: fr.payments.customer.receiptPdf })).toHaveLength(1);
   });
 
+  it('pas de quittance pour une caution rendue (VERIF-594 passe 5, P5-3)', () => {
+    usePaymentsHistory.mockImplementation((params: { status?: string }) =>
+      params.status ? reponse([]) : reponse([ligne({ id: 70, payment_type: 'deposit_refund' })]),
+    );
+    rendre();
+    expect(screen.queryByRole('button', { name: fr.payments.customer.receiptPdf })).toBeNull();
+  });
+
   it('à jour : aucun « Payer », un message clair', () => {
     usePaymentsHistory.mockImplementation((params: { status?: string }) =>
       params.status ? reponse([]) : reponse(HISTORIQUE),

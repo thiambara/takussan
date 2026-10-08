@@ -2,15 +2,21 @@
 
 namespace App\Services\Billing;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\BookingPayment;
+use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\LeasePayment;
 use App\Models\PlatformPayout;
 use App\Models\User;
-use Illuminate\Database\QueryException;
+use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\SegregationOfDuties;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -29,55 +35,133 @@ class PlatformPayoutService
     ];
 
     /**
-     * Closes a billing period for one or all agencies. Idempotent: a second
-     * call for the same `(agency_id, period_end)` returns the existing payout
-     * (or 409 if a non-cancelled one already exists).
+     * Closes a billing period for one or all agencies.
      *
-     * @return array<int, PlatformPayout>
+     * TCK-594 (ADR-0039 §4, §3b) — with an `agency_id`, the historical contract holds: 409 when the
+     * period is already closed, and 422 (`platform_payout.agency_frozen`) for an agency that is
+     * not `active`. Without it, the global close NEVER stops on one agency: each one runs in its
+     * own transaction, and an agency that is not active or already closed is listed in
+     * `excluded` with its reason instead. A race lost on the partial unique index is caught
+     * OUTSIDE the transaction (PostgreSQL pitfall n° 1) and excludes that agency only.
+     *
+     * @return array{created: list<PlatformPayout>, excluded: list<array{agency_id: int, reason: string}>}
      */
     public function closePeriod(?Agency $agency, Carbon $periodEnd, User $actor): array
     {
         $periodEnd = $periodEnd->copy()->endOfDay();
-        $created = [];
 
-        $agencyIds = $agency
-            ? [$agency->id]
-            : $this->agenciesWithUnpaidEligiblePayments($periodEnd);
+        if ($agency !== null) {
+            abort_code_unless($agency->status === AgencyStatus::Active, 422, 'platform_payout.agency_frozen');
 
-        foreach ($agencyIds as $agencyId) {
-            $created[] = DB::transaction(fn () => $this->closeForAgency($agencyId, $periodEnd, $actor));
+            try {
+                $payout = DB::transaction(fn () => $this->closeForAgency($agency->id, $periodEnd, $actor));
+            } catch (UniqueConstraintViolationException) {
+                abort_code(409, 'platform_payout.already_exists');
+            }
+
+            return ['created' => array_values(array_filter([$payout])), 'excluded' => []];
         }
 
-        return array_values(array_filter($created));
+        $created = [];
+        $excluded = [];
+
+        foreach ($this->agenciesWithUnpaidEligiblePayments($periodEnd) as $agencyId) {
+            $status = Agency::query()->whereKey($agencyId)->first(['id', 'status'])?->status;
+            if ($status !== AgencyStatus::Active) {
+                $excluded[] = ['agency_id' => $agencyId, 'reason' => 'agency_not_active'];
+
+                continue;
+            }
+
+            try {
+                $payout = DB::transaction(fn () => $this->closeForAgency($agencyId, $periodEnd, $actor));
+            } catch (UniqueConstraintViolationException) {
+                $excluded[] = ['agency_id' => $agencyId, 'reason' => 'already_closed'];
+
+                continue;
+            } catch (ApiError $e) {
+                if ($e->errorCode !== 'platform_payout.already_exists') {
+                    throw $e;
+                }
+                $excluded[] = ['agency_id' => $agencyId, 'reason' => 'already_closed'];
+
+                continue;
+            }
+
+            if ($payout !== null) {
+                $created[] = $payout;
+            }
+        }
+
+        return ['created' => $created, 'excluded' => $excluded];
     }
 
+    /**
+     * TCK-594 (ADR-0039 §4) — the second gesture. Never the super-admin who closed the period,
+     * never a member of the agency being paid; and only for an agency that is active (frozen
+     * otherwise, even when it was active at closing) and, if `standard`, verified.
+     */
     public function approve(PlatformPayout $payout, User $actor): PlatformPayout
     {
-        $this->assertTransition($payout, PlatformPayoutStatus::Approved);
+        DB::transaction(function () use ($payout, $actor): void {
+            $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+            $this->assertTransition($locked, PlatformPayoutStatus::Approved);
+            $agency = $this->payableAgency($locked);
 
-        $payout->update([
-            'status' => PlatformPayoutStatus::Approved,
-            'approved_by' => $actor->id,
-        ]);
+            abort_code_if(
+                $agency->kind === AgencyKind::Standard && ! $agency->is_verified,
+                422,
+                'platform_payout.agency_unverified',
+            );
 
+            $this->assertNotBeneficiary($actor, $agency, SegregationOfDuties::STEP_APPROVE);
+            SegregationOfDuties::assertDistinct($actor, [$locked->closed_by_id], SegregationOfDuties::STEP_APPROVE);
+
+            $locked->update([
+                'status' => PlatformPayoutStatus::Approved,
+                'approved_by' => $actor->id,
+                'approved_at' => now(),
+            ]);
+        });
+
+        $payout->refresh();
         $this->logAction($payout, $actor, 'super_admin_payout_approved');
 
-        return $payout->refresh();
+        return $payout;
     }
 
-    public function markPaid(PlatformPayout $payout, User $actor, Carbon $processedAt, ?array $metadata = null): PlatformPayout
+    /**
+     * The third gesture: the money left. Never the approver; a payment reference is mandatory;
+     * an agency suspended since the approval is frozen.
+     *
+     * @param  array<string,mixed>|null  $metadata
+     */
+    public function markPaid(PlatformPayout $payout, User $actor, Carbon $processedAt, string $reference, ?array $metadata = null): PlatformPayout
     {
-        $this->assertTransition($payout, PlatformPayoutStatus::Paid);
+        DB::transaction(function () use ($payout, $actor, $processedAt, $reference, $metadata): void {
+            $locked = PlatformPayout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
+            $this->assertTransition($locked, PlatformPayoutStatus::Paid);
+            $agency = $this->payableAgency($locked);
 
-        $payout->update([
-            'status' => PlatformPayoutStatus::Paid,
-            'processed_at' => $processedAt,
-            'metadata' => array_merge($payout->metadata ?? [], $metadata ?? []),
-        ]);
+            $this->assertNotBeneficiary($actor, $agency, SegregationOfDuties::STEP_PAY);
+            SegregationOfDuties::assertDistinct($actor, [$locked->approved_by], SegregationOfDuties::STEP_PAY);
 
-        $this->logAction($payout, $actor, 'super_admin_payout_marked_paid');
+            $reference = trim($reference);
+            abort_code_if($reference === '', 422, 'payout.reference_required');
 
-        return $payout->refresh();
+            $locked->update([
+                'status' => PlatformPayoutStatus::Paid,
+                'processed_at' => $processedAt,
+                'paid_by_id' => $actor->id,
+                'payment_reference' => $reference,
+                'metadata' => array_merge($locked->metadata ?? [], $metadata ?? []),
+            ]);
+        });
+
+        $payout->refresh();
+        $this->logAction($payout, $actor, 'super_admin_payout_marked_paid', ['payment_reference' => $payout->payment_reference]);
+
+        return $payout;
     }
 
     public function cancel(PlatformPayout $payout, User $actor, string $reason): PlatformPayout
@@ -156,8 +240,11 @@ class PlatformPayoutService
             ->lockForUpdate()
             ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency']);
 
+        // VERIF-594 passe 3, P3-2 — une ligne `deposit_refund` payée est une caution RENDUE au
+        // locataire, une sortie : elle n'entre jamais dans ce que la plateforme reverse à l'agence.
         $leasePayments = LeasePayment::query()
             ->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))
+            ->where('payment_type', '!=', LeasePaymentType::DepositRefund->value)
             ->where('status', PaymentStatus::Paid)
             ->whereNotNull('paid_at')
             ->where('paid_at', '<=', $periodEnd)
@@ -188,25 +275,23 @@ class PlatformPayoutService
         $currency = $eligible->first()?->currency;
         $currencyValue = $currency instanceof Currency ? $currency->value : (string) ($currency ?? 'XOF');
 
-        try {
-            $payout = PlatformPayout::query()->create([
-                'agency_id' => $agencyId,
-                'period_start' => $periodStart->toDateString(),
-                'period_end' => $periodEnd->toDateString(),
-                'gross_amount' => round($gross, 2),
-                'platform_fee_amount' => round($fees, 2),
-                'net_amount' => $net,
-                'currency' => $currencyValue,
-                'status' => PlatformPayoutStatus::Pending,
-                'metadata' => [
-                    'booking_payments_count' => $bookingPayments->count(),
-                    'lease_payments_count' => $leasePayments->count(),
-                ],
-            ]);
-        } catch (QueryException $e) {
-            // Race condition with the partial unique index — re-check.
-            abort_code(409, 'platform_payout.already_exists', ['period_end' => $periodEnd->toDateString()]);
-        }
+        // TCK-594 — la course perdue sur l'index unique partiel n'est PAS attrapée ici : PostgreSQL
+        // a déjà abandonné la transaction (piège n° 1). Elle remonte, et `closePeriod` la range.
+        $payout = PlatformPayout::query()->create([
+            'agency_id' => $agencyId,
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'gross_amount' => round($gross, 2),
+            'platform_fee_amount' => round($fees, 2),
+            'net_amount' => $net,
+            'currency' => $currencyValue,
+            'status' => PlatformPayoutStatus::Pending,
+            'closed_by_id' => $actor->id,
+            'metadata' => [
+                'booking_payments_count' => $bookingPayments->count(),
+                'lease_payments_count' => $leasePayments->count(),
+            ],
+        ]);
 
         BookingPayment::query()
             ->whereIn('id', $bookingPayments->pluck('id'))
@@ -243,6 +328,7 @@ class PlatformPayoutService
 
         $leaseAgencies = LeasePayment::query()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->where('lease_payments.payment_type', '!=', LeasePaymentType::DepositRefund->value)
             ->where('lease_payments.status', PaymentStatus::Paid)
             ->whereNotNull('lease_payments.paid_at')
             ->where('lease_payments.paid_at', '<=', $periodEnd)
@@ -267,6 +353,24 @@ class PlatformPayoutService
                 'from' => $current?->value,
                 'to' => $next->value,
             ]);
+        }
+    }
+
+    /** Le gel (ADR-0039 §4) : l'état de l'agence se relit au geste, jamais à la clôture. */
+    private function payableAgency(PlatformPayout $payout): Agency
+    {
+        $agency = Agency::query()->findOrFail($payout->agency_id);
+        abort_code_unless($agency->status === AgencyStatus::Active, 422, 'platform_payout.agency_frozen');
+
+        return $agency;
+    }
+
+    /** Le bénéficiaire d'un reversement plateforme est l'agence : aucun de ses membres ne le tient. */
+    private function assertNotBeneficiary(User $actor, Agency $agency, string $step): void
+    {
+        SegregationOfDuties::assertDistinct($actor, [$agency->primary_admin_id], $step);
+        if (app(MembershipCapabilityResolver::class)->isStaffAt($actor, (int) $agency->id)) {
+            SegregationOfDuties::refuse($step);
         }
     }
 

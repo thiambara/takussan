@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -33,6 +34,9 @@ class DocumentPdfController extends Controller
         // TCK-593 — une quittance atteste un paiement : en délivrer une pour un impayé créerait une
         // preuve contre le bailleur. Même règle que le reçu de réservation.
         abort_code_unless($payment->status === PaymentStatus::Paid, 422, 'lease_payment.receipt_unpaid');
+        // TCK-594 (VERIF-594 passe 5, P5-3) — une caution rendue est l'argent de l'agence vers le
+        // locataire : une « Quittance de loyer » attesterait l'inverse.
+        abort_code_if($payment->payment_type === LeasePaymentType::DepositRefund, 422, 'lease_payment.receipt_not_a_payment');
 
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
 
@@ -53,11 +57,12 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `InvoicePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $invoice);
 
-        $invoice->loadMissing(['customer', 'agency']);
+        $invoice->loadMissing(['customer', 'agency', 'creditedInvoice']);
+        $label = ($invoice->kind?->value ?? 'invoice') === 'credit_note' ? 'Avoir' : 'Facture';
 
         return $this->pdf->stream('pdf.invoices.default', [
-            'title' => 'Facture '.($invoice->reference_number ?? $invoice->id),
-            'document_label' => 'Facture',
+            'title' => $label.' '.($invoice->reference_number ?? $invoice->id),
+            'document_label' => $label,
             'invoice' => $invoice,
             'customer' => $invoice->customer,
             'agency' => $invoice->agency,

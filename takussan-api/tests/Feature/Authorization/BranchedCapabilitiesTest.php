@@ -139,7 +139,10 @@ class BranchedCapabilitiesTest extends ApiTestCase
             $attendu[] = ['capability' => $capability, 'ticket' => $ticket];
         }
         $this->assertSame($attendu, $rendu);
-        $this->assertContains(['capability' => 'payouts.approve', 'ticket' => 'TCK-594'], $rendu);
+        $this->assertContains(['capability' => 'agency.update_kyc', 'ticket' => 'TCK-601'], $rendu);
+        // TCK-594 et TCK-596 — branchées : elles quittent l'inventaire, donc le catalogue des « sans effet ».
+        $this->assertNotContains('payouts.approve', array_column($rendu, 'capability'));
+        $this->assertNotContains('bookings.refund', array_column($rendu, 'capability'));
     }
 
     /** @return array<string, int|Model> */

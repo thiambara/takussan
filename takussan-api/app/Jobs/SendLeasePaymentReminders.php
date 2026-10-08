@@ -113,7 +113,10 @@ class SendLeasePaymentReminders implements ShouldQueue
     private function claim(string $dueDate, string $milestone): array
     {
         $key = "reminder_{$milestone}_sent_at";
+        // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
+        // pas relancé.
         $ids = LeasePayment::query()
+            ->exceptDepositRefunds()
             ->whereIn('status', self::OPEN_STATUSES)
             ->whereDate('due_date', $dueDate)
             ->pluck('id');

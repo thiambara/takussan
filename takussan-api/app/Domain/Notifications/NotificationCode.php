@@ -135,6 +135,17 @@ enum NotificationCode: string
     /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
     case LeaseSignatureCompleted = 'lease.signature_completed';
 
+    // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
+    case PayoutAwaitingApproval = 'payout.awaiting_approval';
+    case PayoutDue = 'payout.due';
+    case PayoutProcessed = 'payout.processed';
+    case PayoutFailed = 'payout.failed';
+    case PayoutMethodAdded = 'payout_method.added';
+    case PayoutMethodUpdated = 'payout_method.updated';
+    case PayoutMethodRemoved = 'payout_method.removed';
+    case PayoutThresholdRelaxRequested = 'payout_threshold.relax_requested';
+    case OwnerStatementAvailable = 'owner_statement.available';
+
     // ─── Avis et signalements (TCK-597, ADR-0043) ───────────────────────────────────────
     case ReviewToModerate = 'review.to_moderate';
     case ReviewReceived = 'review.received';
@@ -202,6 +213,9 @@ enum NotificationCode: string
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
             self::LeaseSignatureCompleted => NotificationType::Lease,
+            self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => NotificationType::Payment,
         };
     }
 
@@ -243,6 +257,12 @@ enum NotificationCode: string
             self::ModerationReportUpheld, self::ModerationReportDismissed,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
+            // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
+            // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
+            // d'un détournement (ADR-0039 §6).
+            self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
+            self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable => null,
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
@@ -311,6 +331,13 @@ enum NotificationCode: string
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
             self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
+            self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
+            // `transaction` et `destination` (forme masquée) valent « — » pour un paiement en espèces.
+            self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],
+            self::PayoutFailed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'reason' => self::PARAM_TEXT],
+            self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved => ['destination' => self::PARAM_TEXT],
+            self::PayoutThresholdRelaxRequested => ['agency' => self::PARAM_TEXT],
+            self::OwnerStatementAvailable => ['period' => self::PARAM_TEXT],
             self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
             self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],

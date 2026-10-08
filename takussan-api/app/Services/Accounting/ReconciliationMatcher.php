@@ -74,7 +74,8 @@ class ReconciliationMatcher
             // Scope by agency — each model has a different FK path.
             $query = match ($modelClass) {
                 BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
-                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId)),
+                // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
+                LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
                 Invoice::class => $query->where('agency_id', $agencyId),
             };
 

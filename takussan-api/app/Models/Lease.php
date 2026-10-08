@@ -6,8 +6,11 @@ use App\Listeners\Lease\CreateTenantOnboardingChecklist;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
+use App\Models\Enums\InvoiceKind;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentFrequency;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -354,14 +357,46 @@ class Lease extends AbstractModel implements HasMedia
     }
 
     /**
-     * Caution restant à rembourser (deposit_amount − deposit_refunded_amount),
+     * Caution restant à rembourser (deposit_amount − deposit_refunded_amount − la retenue vivante),
      * borné à 0. Lecture seule.
+     *
+     * VERIF-594 passe 4 (P4-1, P4-2) — ce qui est retenu est réglé autant que ce qui est rendu : une
+     * restitution partielle retient le reste par une facture, et la caution est soldée. Sans la
+     * retenue, une seconde restitution partielle facturait une retenue de plus, et une restitution
+     * échouée dont la retenue était payée se rendait en entier avec une seconde facture.
      */
     public function getDepositRemainingAttribute(): float
     {
         $total = (float) ($this->deposit_amount ?? 0);
         $refunded = (float) ($this->deposit_refunded_amount ?? 0);
 
-        return max(round($total - $refunded, 2), 0.0);
+        return max(round($total - $refunded - $this->liveDepositRetention(), 2), 0.0);
+    }
+
+    /**
+     * La retenue vivante de la caution : les factures de retenue du bail — celles qu'une restitution a
+     * posées et liées à son reversement (`payouts.metadata.invoice_id`), jamais une autre facture du
+     * bail — ni annulées ni contrepassées. Payée, une retenue reste retenue, même quand la restitution
+     * qui l'a posée a échoué.
+     */
+    public function liveDepositRetention(): float
+    {
+        if ($this->getKey() === null) {
+            return 0.0;
+        }
+
+        $linked = Payout::query()
+            ->where('lease_id', $this->getKey())
+            ->where('payee_role', PayeeRole::Tenant->value)
+            ->whereNotNull('metadata->invoice_id')
+            ->selectRaw("(metadata->>'invoice_id')::bigint");
+
+        return (float) Invoice::query()
+            ->where('invoiceable_type', self::class)
+            ->where('invoiceable_id', $this->getKey())
+            ->where('kind', InvoiceKind::Invoice->value)
+            ->whereIn('status', [InvoiceStatus::Draft->value, InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value, InvoiceStatus::Paid->value])
+            ->whereIn('id', $linked)
+            ->sum('total_amount');
     }
 }

@@ -21,6 +21,7 @@ import type { PlatformPayout } from '@/types/super-admin';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { PayoutStatusPill, formatPeriod, useXof } from './PayoutTable';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useAuth } from '@/context/AuthContext';
 
 export function PayoutDetailPanel({ payoutId, onClose }: { payoutId: number; onClose: () => void }) {
   // Hooks AVANT toute sortie anticipée (React Compiler, ADR-0015).
@@ -51,8 +52,13 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
   const toast = useToast();
   const queryClient = useQueryClient();
   const [processedAt, setProcessedAt] = useState(() => new Date().toISOString().slice(0, 10));
-  const [bankRef, setBankRef] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [reason, setReason] = useState('');
+  // TCK-594 (ADR-0039 §4) — qui clôture n'approuve pas, qui approuve ne paie pas. Le serveur le
+  // refuse (`segregation.*`) ; l'écran ne propose pas le geste et dit pourquoi.
+  const { user } = useAuth();
+  const closedBySelf = user?.id != null && payout.closed_by_id === user.id;
+  const approvedBySelf = user?.id != null && payout.approved_by === user.id;
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['super-admin', 'payouts'] });
@@ -67,7 +73,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
   const markPaid = useMutation({
     mutationFn: () => markAdminPlatformPayoutPaid(payout.id, {
       processed_at: new Date(processedAt).toISOString(),
-      metadata: bankRef ? { bank_ref: bankRef } : undefined,
+      payment_reference: paymentReference.trim(),
     }),
     onSuccess: async () => { toast.add({ title: t('toast.markedPaid'), type: 'success' }); await invalidate(); },
     onError: (error) => toast.add({ title: t('toast.markFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
@@ -97,6 +103,8 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
           <Item label={t('gross')} value={xof(payout.gross_amount, payout.currency)} />
           <Item label={t('commission')} value={xof(payout.platform_fee_amount, payout.currency)} />
           <Item label={t('net')} value={xof(payout.net_amount, payout.currency)} bold />
+          {payout.approved_at ? <Item label={t('approvedAt')} value={fmt.date(payout.approved_at)} /> : null}
+          {payout.payment_reference ? <Item label={t('paymentReference')} value={payout.payment_reference} /> : null}
         </dl>
 
         {breakdown ? (
@@ -111,21 +119,35 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
 
         {payout.status === 'pending' ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" disabled={approve.isPending} onClick={() => approve.mutate()}>
+            <Button type="button" disabled={closedBySelf || approve.isPending} onClick={() => approve.mutate()}>
               {approve.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
               {t('approve')}
             </Button>
+            {closedBySelf ? <p className="text-xs text-muted-foreground">{t('approveSelfRefused')}</p> : null}
           </div>
         ) : null}
 
         {payout.status === 'approved' || payout.status === 'processing' ? (
-          <div className="grid gap-2 md:grid-cols-[160px_1fr_auto]">
-            <DatePicker value={processedAt} onValueChange={setProcessedAt} aria-label={t('processedAtAria')} />
-            <Input placeholder={t('bankRefPlaceholder')} value={bankRef} onChange={(event) => setBankRef(event.target.value)} />
-            <Button type="button" disabled={markPaid.isPending} onClick={() => markPaid.mutate()}>
-              {markPaid.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
-              {t('markPaid')}
-            </Button>
+          <div className="space-y-1">
+            <div className="grid gap-2 md:grid-cols-[160px_1fr_auto]">
+              <DatePicker value={processedAt} onValueChange={setProcessedAt} aria-label={t('processedAtAria')} />
+              <Input
+                aria-label={t('paymentReferenceLabel')}
+                placeholder={t('paymentReferencePlaceholder')}
+                required
+                value={paymentReference}
+                onChange={(event) => setPaymentReference(event.target.value)}
+              />
+              <Button
+                type="button"
+                disabled={approvedBySelf || paymentReference.trim() === '' || markPaid.isPending}
+                onClick={() => markPaid.mutate()}
+              >
+                {markPaid.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
+                {t('markPaid')}
+              </Button>
+            </div>
+            {approvedBySelf ? <p className="text-xs text-muted-foreground">{t('paySelfRefused')}</p> : null}
           </div>
         ) : null}
 

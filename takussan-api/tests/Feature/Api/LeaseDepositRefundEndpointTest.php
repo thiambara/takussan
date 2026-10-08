@@ -77,7 +77,9 @@ class LeaseDepositRefundEndpointTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.state.state', 'partial');
 
-        $this->assertEquals(200000, $response->json('data.state.deposit_remaining'));
+        // VERIF-594 passe 4 (P4-2) — les 200 000 sont retenus, pas restituables : la caution est soldée.
+        $this->assertEquals(0, $response->json('data.state.deposit_remaining'));
+        $this->assertEquals(200000, (float) Invoice::query()->findOrFail($response->json('data.invoice_id'))->total_amount);
 
         $this->assertSame(1, Invoice::query()->where('invoiceable_id', $lease->id)->count());
     }

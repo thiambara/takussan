@@ -37,7 +37,9 @@ class DashboardOwnerService
             ->count();
 
         // Cashflow = sum of paid lease payments on owner leases for the period.
+        // TCK-594 (P4-5) — une caution rendue est une sortie, pas un encaissement.
         $cashflowMonth = (float) LeasePayment::whereHas('lease', fn ($q) => $q->where('landlord_id', $owner->id))
+            ->exceptDepositRefunds()
             ->where('status', PaymentStatus::Paid)
             ->whereBetween('paid_at', [$monthStart, $monthEnd])
             ->sum('amount');
@@ -108,6 +110,7 @@ class DashboardOwnerService
             $labels[] = $from->format('Y-m');
 
             $sum = (float) LeasePayment::whereHas('lease', fn ($q) => $q->where('landlord_id', $owner->id))
+                ->exceptDepositRefunds()
                 ->where('status', PaymentStatus::Paid)
                 ->whereBetween('paid_at', [$from, $to])
                 ->sum('amount');

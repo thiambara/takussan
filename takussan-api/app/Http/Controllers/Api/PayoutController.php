@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\ApprovePayoutRequest;
 use App\Http\Requests\Api\MarkFailedPayoutRequest;
 use App\Http\Requests\Api\MarkProcessedPayoutRequest;
 use App\Http\Requests\Api\StorePayoutRequest;
@@ -22,7 +23,7 @@ class PayoutController extends Controller
     {
         $user = $request->user();
 
-        $base = Payout::query()->with('landlord');
+        $base = Payout::query()->with(['landlord', 'payoutMethod:id,masked_identifier']);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
@@ -61,7 +62,20 @@ class PayoutController extends Controller
         $this->authorize('view', $payout);
 
         return $this->json([
-            'data' => PayoutResource::make($payout->load('landlord'))->toArray($request),
+            // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
+            'data' => PayoutResource::make($payout->load(['landlord', 'issuer', 'payoutMethod:id,masked_identifier']))->toArray($request),
+        ]);
+    }
+
+    /**
+     * TCK-594 (ADR-0039 §4) — le second geste d'un reversement au-dessus du seuil de l'agence.
+     */
+    public function approve(ApprovePayoutRequest $request, Payout $payout): JsonResponse
+    {
+        $payout = $this->payouts->approve($payout, $request->user(), $request->validated('payout_method_id'));
+
+        return $this->json([
+            'data' => PayoutResource::make($payout)->toArray($request),
         ]);
     }
 
@@ -70,7 +84,7 @@ class PayoutController extends Controller
 
         $data = $request->validated();
 
-        $payout = $this->payouts->markProcessed($payout, $data);
+        $payout = $this->payouts->markProcessed($payout, $data, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
@@ -82,7 +96,7 @@ class PayoutController extends Controller
 
         $data = $request->validated();
 
-        $payout = $this->payouts->markFailed($payout, $data);
+        $payout = $this->payouts->markFailed($payout, $data, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
@@ -92,7 +106,7 @@ class PayoutController extends Controller
     public function cancel(Request $request, Payout $payout): JsonResponse
     {
         $this->authorize('update', $payout);
-        $payout = $this->payouts->cancel($payout);
+        $payout = $this->payouts->cancel($payout, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
