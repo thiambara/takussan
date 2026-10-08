@@ -118,14 +118,14 @@ function buildAdminItems(
   items.push({ href: '/admin/agency/kyc', labelKey: 'kyc', icon: ShieldCheck });
   items.push({ href: '/admin/agency/billing', labelKey: 'billing', icon: CreditCard });
   items.push({ href: '/admin/finances', labelKey: 'finances', icon: CreditCard });
-  if (isSuperAdmin(user.roles)) {
-    items.push({
-      href: '/admin/moderation',
-      labelKey: 'reviewModeration',
-      icon: Shield,
-      badge: reviewPendingCount || undefined,
-    });
-  }
+  // TCK-597 (ADR-0043 §1) — l'admin d'agence modère les avis de SON agence ; le compteur est
+  // celui que l'API filtre sur le profil actif.
+  items.push({
+    href: '/admin/moderation',
+    labelKey: 'reviewModeration',
+    icon: Shield,
+    badge: reviewPendingCount || undefined,
+  });
   // TCK-098 — property moderation is accessible to agency_admin + super_admin.
   items.push({
     href: '/admin/moderation/properties',
@@ -240,7 +240,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
     queryKey: ['reviews-moderation', 'pending-count'],
     queryFn: () =>
       fetchModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
-    enabled: Boolean(token) && isSuperAdmin(user.roles),
+    enabled: Boolean(token),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });

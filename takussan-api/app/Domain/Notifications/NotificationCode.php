@@ -117,6 +117,14 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    // ─── Avis et signalements (TCK-597, ADR-0043) ───────────────────────────────────────
+    case ReviewToModerate = 'review.to_moderate';
+    case ReviewReceived = 'review.received';
+    case ModerationPropertyHidden = 'moderation.property_hidden';
+    case ModerationPropertyRemoved = 'moderation.property_removed';
+    case ModerationReportUpheld = 'moderation.report_upheld';
+    case ModerationReportDismissed = 'moderation.report_dismissed';
+
     // ─── Invitations par SMS (TCK-589 : le destinataire n'a souvent pas de compte) ───────
     case InvitationReceived = 'invitation.received';
     case InvitationReminder = 'invitation.reminder';
@@ -137,6 +145,12 @@ enum NotificationCode: string
 
     /** Un lien : jamais tronqué, contrairement à un texte dans un SMS. */
     public const PARAM_URL = 'url';
+
+    /**
+     * TCK-597 (verif-597 m5) — un motif de modération CODÉ (`ModerationReasonCode`), traduit au
+     * rendu sous `moderation.reasons.<code>`, suivi du texte libre `reason` s'il y en a un.
+     */
+    public const PARAM_REASON_CODE = 'reason_code';
 
     public function type(): NotificationType
     {
@@ -161,6 +175,9 @@ enum NotificationCode: string
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected,
             self::PropertyApproved, self::PropertyRejected,
+            self::ReviewToModerate, self::ReviewReceived,
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
+            self::ModerationReportUpheld, self::ModerationReportDismissed,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
@@ -185,6 +202,7 @@ enum NotificationCode: string
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled => 'visit_reminder',
+            self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
@@ -197,6 +215,9 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
+            // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
+            self::ModerationReportUpheld, self::ModerationReportDismissed,
             // TCK-593 — une somme à rembourser : l'admin ne peut pas s'en désabonner.
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             self::InvitationReceived, self::InvitationReminder => null,
@@ -262,6 +283,9 @@ enum NotificationCode: string
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::ReviewToModerate, self::ReviewReceived => ['subject' => self::PARAM_TEXT, 'rating' => self::PARAM_COUNT],
+            self::ModerationPropertyHidden, self::ModerationPropertyRemoved => ['property' => self::PARAM_TEXT, 'reason_code' => self::PARAM_REASON_CODE, 'reason' => self::PARAM_TEXT],
+            self::ModerationReportUpheld, self::ModerationReportDismissed => ['property' => self::PARAM_TEXT],
             // Le nom de l'agence seul, jamais un texte de l'invitant (vérification adverse m1).
             self::InvitationReceived, self::InvitationReminder => ['agency' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
             // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.

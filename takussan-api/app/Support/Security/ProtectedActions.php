@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
+use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\Profile\AgencyRoleController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
@@ -239,6 +241,45 @@ final class ProtectedActions
         SuperAdminTwoFactorController::class.'@enroll' => 'enrôlement de la 2FA du coopté',
         SuperAdminTwoFactorController::class.'@confirm' => 'confirmation de la 2FA du coopté',
     ];
+
+    /**
+     * TCK-597 (verif-597 passe 3, M5 ; ADR-0043 §4) — la modération que la PLATEFORME tranche hors
+     * de `/api/admin/*` : retirer ou trancher un avis de n'importe quelle agence, approuver un bien
+     * (ce qui lève le verrou plateforme) ou le refuser. 2FA exigée des seuls profils plateforme,
+     * comme pour la décision symétrique de `/api/admin/moderation` ; jamais de l'admin d'agence,
+     * qui garde ses gestes d'agence (avis en attente, bien sans verrou) : d'où une liste à part
+     * d'`AGENCY_TWO_FACTOR`. Pas de step-up : la console n'en exige pas non plus.
+     *
+     * Toute action mutante d'un contrôleur de cette liste y figure, ou dans
+     * `PLATFORM_TWO_FACTOR_EXEMPT` avec sa raison (`ProtectedActionsCoverageTest`).
+     *
+     * @var list<string>
+     */
+    public const PLATFORM_TWO_FACTOR = [
+        PropertyModerationController::class.'@approve',
+        PropertyModerationController::class.'@reject',
+        ReviewController::class.'@moderate',
+        ReviewController::class.'@approve',
+        ReviewController::class.'@reject',
+    ];
+
+    /** @var array<string, string> */
+    public const PLATFORM_TWO_FACTOR_EXEMPT = [
+        PropertyModerationController::class.'@resubmit' => "le publieur renvoie son bien en file : rien n'est tranché",
+        ReviewController::class.'@storeForProperty' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForAgency' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForAgent' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForServiceProvider' => "dépôt d'un avis par son auteur",
+        // verif-597 passe 4, n5 — le super-admin y passe encore sans 2FA : à reprendre là-bas.
+        ReviewController::class.'@reply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
+        ReviewController::class.'@deleteReply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
+        ReviewController::class.'@report' => 'un signalement range, il ne tranche rien (ADR-0043 §6)',
+    ];
+
+    public static function requiresPlatformTwoFactor(?string $action): bool
+    {
+        return in_array(self::normalize($action), self::PLATFORM_TWO_FACTOR, true);
+    }
 
     public static function requiresAgencyTwoFactor(?string $action): bool
     {

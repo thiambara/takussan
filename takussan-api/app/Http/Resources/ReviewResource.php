@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class ReviewResource extends BaseResource
     public function toArray(Request $request): array
     {
         $author = $this->resource->author;
+        $viewer = $request->user();
         $authorName = $author
             ? (trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?? 'Anonyme'))
             : 'Anonyme';
@@ -40,6 +42,10 @@ class ReviewResource extends BaseResource
             'reply_content' => $this->reply_content,
             'replied_at' => $this->iso($this->replied_at),
             'created_at' => $this->iso($this->created_at),
+            // verif-597 m1 — les gestes que l'API ACCEPTERA, jugés par la policy : le front ne les
+            // devine plus (il offrait « Répondre » ou « Approuver » que l'API refusait en 403).
+            'can_reply' => $viewer !== null && $viewer->can('reply', $this->resource),
+            'can_moderate' => $viewer !== null && $viewer->can('moderate', $this->resource),
         ];
     }
 
@@ -66,6 +72,17 @@ class ReviewResource extends BaseResource
                 'id' => $target->id,
                 'title' => $target->name,
                 'slug' => $target->slug,
+                'subtitle' => null,
+            ];
+        }
+
+        // TCK-597 — le prestataire est noté sur son profil (ADR-0043 §2).
+        if ($target instanceof ServiceProviderProfile) {
+            return [
+                'type' => 'service_provider',
+                'id' => $target->id,
+                'title' => $target->user?->full_name,
+                'slug' => null,
                 'subtitle' => null,
             ];
         }

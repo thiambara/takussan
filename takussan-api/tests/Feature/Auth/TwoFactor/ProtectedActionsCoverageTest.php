@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Auth\TwoFactor;
 
+use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
@@ -78,6 +80,8 @@ class ProtectedActionsCoverageTest extends TestCase
             ...ProtectedActions::AGENCY_TWO_FACTOR,
             ...ProtectedActions::STEP_UP,
             ...ProtectedActions::STEP_UP_FOR_PLATFORM,
+            ...ProtectedActions::PLATFORM_TWO_FACTOR,
+            ...array_keys(ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT),
             ...array_keys(ProtectedActions::EXEMPT),
             ...array_keys(ProtectedActions::PLATFORM_POWER_EXEMPT),
         ];
@@ -125,6 +129,37 @@ class ProtectedActionsCoverageTest extends TestCase
         }
 
         $this->assertSame([], $oubliees, "Action qui confère un pouvoir plateforme sans step-up :\n".implode("\n", $oubliees));
+    }
+
+    /**
+     * TCK-597 (verif-597 passe 3, M5) — la modération plateforme hors de `/api/admin/*` : toute
+     * route mutante d'un contrôleur de `PLATFORM_TWO_FACTOR` y figure, ou dans
+     * `PLATFORM_TWO_FACTOR_EXEMPT` avec sa raison. Retirer une entrée de la liste la fait tomber
+     * hors des deux : rouge. Une action neuve du contrôleur (un nouveau geste de modération) aussi.
+     */
+    public function test_toute_route_mutante_de_la_moderation_plateforme_est_rangee(): void
+    {
+        $controleurs = [];
+        foreach ([...ProtectedActions::PLATFORM_TWO_FACTOR, ...array_keys(ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT)] as $entree) {
+            $controleurs[explode('@', $entree)[0]] = true;
+        }
+        // Plancher : une liste vidée ne doit pas passer pour un vert.
+        $this->assertArrayHasKey(PropertyModerationController::class, $controleurs);
+        $this->assertArrayHasKey(ReviewController::class, $controleurs);
+
+        $oubliees = [];
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            $action = ProtectedActions::normalize($route->getActionName());
+            if (! isset($controleurs[explode('@', $action)[0]]) || array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']) === []) {
+                continue;
+            }
+            if (! ProtectedActions::requiresPlatformTwoFactor($action)
+                && ! array_key_exists($action, ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT)) {
+                $oubliees[] = implode('|', $route->methods()).' '.$route->uri()." → {$action}";
+            }
+        }
+
+        $this->assertSame([], $oubliees, "Route de modération plateforme absente de PLATFORM_TWO_FACTOR :\n".implode("\n", $oubliees));
     }
 
     public function test_les_alias_sans_nom_sont_couverts(): void

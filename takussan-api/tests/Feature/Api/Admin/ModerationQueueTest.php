@@ -48,6 +48,12 @@ class ModerationQueueTest extends TestCase
         $this->assertSame(2, $response->json('meta.total'));
         $this->assertContains('property', array_column($response->json('data'), 'type'));
         $this->assertContains('review', array_column($response->json('data'), 'type'));
+
+        // TCK-597 — chaque élément porte les décisions valides pour SON type : le front n'en
+        // propose pas d'autre et n'en tient pas de copie.
+        $decisions = collect($response->json('data'))->pluck('decisions', 'source_type')->all();
+        $this->assertSame(['approve', 'reject'], $decisions['property']);
+        $this->assertSame(['approve', 'hide', 'remove'], $decisions['review']);
     }
 
     public function test_agency_admin_is_forbidden(): void
@@ -127,6 +133,7 @@ class ModerationQueueTest extends TestCase
 
         $this->postJson("/api/admin/moderation/review:{$review->id}/decide", [
             'decision' => 'hide',
+            'reason_code' => 'offensive',
             'reason' => 'Contenu injurieux.',
         ])->assertOk()
             ->assertJsonPath('data.subject_id', $review->id);
@@ -154,8 +161,10 @@ class ModerationQueueTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', "property_report:{$report->id}");
 
+        // TCK-597 — `approve` n'est plus une décision de signalement : `reject` le classe sans suite.
         $this->postJson("/api/admin/moderation/property_report:{$report->id}/decide", [
-            'decision' => 'approve',
+            'decision' => 'reject',
+            'reason_code' => 'off_topic',
             'reason' => 'Signalement traité.',
         ])->assertOk();
 

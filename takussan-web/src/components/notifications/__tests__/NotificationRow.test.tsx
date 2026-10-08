@@ -55,6 +55,24 @@ describe('NotificationRow', () => {
     expect(screen.queryByText('Titre écrit par l’API')).not.toBeInTheDocument();
   });
 
+  // TCK-597 (verif-597 m5) — un motif de modération arrive CODÉ : il se lit par son libellé
+  // traduit, jamais « personal_data » en clair ; le complément libre le suit entre parenthèses.
+  it.each([
+    ['fr', {}, /Motif : Données personnelles\./],
+    ['en', {}, /Reason: Personal data\./],
+    ['fr', { reason: 'numéro visible' }, /Motif : Données personnelles \(numéro visible\)\./],
+  ] as const)('traduit le motif de modération (%s)', (locale, extra, corps) => {
+    renderRow(notification({
+      type: 'system',
+      code: 'moderation.property_hidden',
+      params: { property: 'Villa Almadies', reason_code: 'personal_data', reason: null, ...extra },
+      target: null,
+    }), locale);
+
+    const texte = screen.getByText(corps).textContent ?? '';
+    expect(texte).not.toContain('personal_data');
+  });
+
   it('formate le montant et la date, sans « 150000.00 » ni « XOF » bruts', () => {
     renderRow(notification());
 

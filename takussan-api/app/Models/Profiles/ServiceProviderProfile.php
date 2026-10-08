@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
+use App\Models\Review;
 use App\Models\User;
 use Database\Factories\Profiles\ServiceProviderProfileFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,6 +63,15 @@ class ServiceProviderProfile extends AbstractModel
         'active_until', 'metadata',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-597 (ADR-0043 §2) — les avis sur le PROFIL prestataire, pas sur le `User` : un agent qui
+     * est aussi prestataire ne mêle pas ses deux réputations. Moyenne lue à la demande (`withAvg`).
+     */
+    public function reviews(): MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
 
     /**
      * TCK-592 — le carnet d'une agence se filtre par métier, par zone et par statut de collaboration.

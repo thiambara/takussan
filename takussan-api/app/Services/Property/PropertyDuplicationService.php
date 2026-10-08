@@ -55,12 +55,21 @@ class PropertyDuplicationService
                 'reviews_count',
                 'average_rating',
                 'deleted_at',
+                // TCK-597 (verif-597 B1) — une copie n'a jamais été approuvée : elle passe par la
+                // modération d'agence comme tout nouveau bien.
+                'approved_at',
+                'approved_by_user_id',
             ]);
 
             $clone->title = trim(((string) $source->title).($titleSuffix ?? ''));
             $clone->status = PropertyStatus::Draft;
             $clone->visibility = PropertyVisibility::Private;
             $clone->user_id = $actor->id;
+            // TCK-597 (verif-597 B1) — le verrou plateforme SUIT la copie, délibérément : copier
+            // une annonce masquée ne doit pas la remettre en ligne sous un autre identifiant.
+            $clone->platform_hold_at = $source->platform_hold_at;
+            $clone->platform_hold_by_id = $source->platform_hold_by_id;
+            $clone->platform_hold_reason = $source->platform_hold_reason;
             $clone->save();
 
             if ($source->address) {

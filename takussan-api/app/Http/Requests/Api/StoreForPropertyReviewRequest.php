@@ -3,8 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
-use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeaseStatus;
+use App\Services\Review\ReviewEligibility;
 
 /**
  * TCK-305 — extrait de ReviewController::storeForProperty(), où les règles étaient écrites en ligne.
@@ -40,17 +39,9 @@ class StoreForPropertyReviewRequest extends BaseFormRequest
             return true;
         }
 
-        $reservationHonoree = $property->bookings()
-            ->whereIn('status', [BookingStatus::Completed, BookingStatus::Confirmed])
-            ->whereHas('customer', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-
-        $bail = $property->leases()
-            ->whereIn('status', [LeaseStatus::Active, LeaseStatus::Terminated, LeaseStatus::Expired])
-            ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))
-            ->exists();
-
-        return $reservationHonoree || $bail;
+        // TCK-597 — la règle vit dans `ReviewEligibility` (une seule écriture, relue par
+        // `GET /api/me/review-opportunities`), inchangée.
+        return app(ReviewEligibility::class)->forProperty($user, $property) !== null;
     }
 
     /** @return array<string, mixed> */
