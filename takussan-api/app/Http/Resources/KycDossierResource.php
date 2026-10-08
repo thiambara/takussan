@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\KycDossier;
 use App\Services\Kyc\SharedLegalIdentifierDetector;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 
 class KycDossierResource extends BaseResource
@@ -74,7 +75,9 @@ class KycDossierResource extends BaseResource
                 'document_type' => $media->getCustomProperty('document_type'),
                 // TCK-601 (C) — l'échéance de la PIÈCE (`Y-m-d`) ; `expires_at` ci-dessous est celle
                 // du lien signé, depuis TCK-285.
-                'document_expires_at' => $media->getCustomProperty('expires_at'),
+                'document_expires_at' => $this->calendarDate(
+                    is_string($date = $media->getCustomProperty('expires_at')) && $date !== '' ? Carbon::parse($date) : null,
+                ),
                 'signed_url' => URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]),
                 'expires_at' => $this->iso(now()->addMinutes(15)),
             ])->values()->all(),

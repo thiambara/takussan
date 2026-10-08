@@ -73,4 +73,20 @@ class AgencyPolicy
         return $user->activeProfile()?->agency_id === $agency->id
             && $user->canActAt(Capability::TeamRemove, $agency);
     }
+
+    /**
+     * TCK-601 (C) — déposer une pièce KYC d'agence et soumettre le dossier : la capacité
+     * `agency.update_kyc` DANS l'agence de la route, sous le profil actif de cette agence — même
+     * forme que {@see self::removeMember()}. Un rôle personnalisé peut la donner à un membre, la
+     * retirer à un admin ; l'administrateur principal ne s'en enferme pas dehors.
+     */
+    public function updateKyc(User $user, Agency $agency): bool
+    {
+        if ($user->isSuperAdmin() || $agency->primary_admin_id === $user->id) {
+            return true;
+        }
+
+        return $user->activeProfile()?->agency_id === $agency->id
+            && $user->canActAt(Capability::AgencyUpdateKyc, $agency);
+    }
 }

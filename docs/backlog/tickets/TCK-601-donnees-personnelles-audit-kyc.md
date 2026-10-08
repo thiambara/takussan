@@ -747,6 +747,12 @@ Et autour :
 - Trouvé en passant par `DateInventoryByValueTest` : `OwnerProfileResource` (A) rendait ses instants
   en `…000000Z` (ADR-0018) — réécrits par `iso()` ; inscrite au registre (`MODELES_EXPLICITES`), et
   les deux `shared_identifiers` en `CLES_JAMAIS_ATTEINTES` (listes d'agences, aucune date).
+- Rattrapé après coup par les gardes racine (non rejouées au commit de C) : la règle de dépôt vit
+  dans `AgencyPolicy::updateKyc` (forme de `removeMember`, l'administrateur principal ne s'enferme
+  pas dehors) et non dans un helper du contrôleur (`check-controller-authorization`) ;
+  `document_expires_at` passe par `calendarDate()` (`check-resource-date-format`). Ablations : capacité
+  retirée de la policy → rouge ; profil actif à `true` → rouge ; `iso()` au lieu de `calendarDate()`
+  → rouge.
 - Les six codes de notification de C et E (`kyc.expiring_soon`, `governance.*`) : textes API et front
   (`check-notification-codes` vert, 50 codes).
 - Tests : `KycDossierExpiryTest` 3/3, `AgencyKycCapabilityTest` 5/5, `SharedLegalIdentifierTest` 2/2 ;
