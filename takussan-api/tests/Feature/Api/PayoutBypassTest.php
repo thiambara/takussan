@@ -7,9 +7,13 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Capability;
+use App\Models\Enums\InvoiceKind;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Invoice;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\PayoutMethod;
@@ -19,6 +23,7 @@ use App\Notifications\CodedNotification;
 use App\Services\Model\PayoutService;
 use App\Services\Payout\PayoutApprovalRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -699,5 +704,68 @@ class PayoutBypassTest extends TestCase
         $this->postJson($confirm)->assertStatus(422);
         $this->assertEquals(100000, (float) $agency->fresh()->payout_approval_threshold);
         $this->postJson($confirm, ['expected_threshold' => null])->assertOk()->assertJsonPath('data.payout_approval_threshold', null);
+    }
+
+    /**
+     * VERIF-594 passe 3, P3-1 — refuser une restitution partielle annule sa facture de retenue :
+     * sinon la restitution suivante en créait une seconde, et la retenue se facturait deux fois.
+     */
+    public function test_p3_1_a_refused_partial_refund_cancels_its_draft_retention_invoice(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        Sanctum::actingAs($admin);
+
+        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->postJson("/api/payouts/{$first->json('data.payout_id')}/cancel")->assertOk();
+        $this->assertSame(InvoiceStatus::Cancelled, Invoice::query()->findOrFail($first->json('data.invoice_id'))->status);
+
+        $second = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+
+        $live = $this->liveRetentionInvoices($lease);
+        $this->assertSame([$second->json('data.invoice_id')], $live->pluck('id')->all(), 'une seule facture de retenue vivante');
+        $this->assertEquals(100000, (float) $live->sole()->total_amount);
+        $this->assertSame(0, Invoice::query()->where('kind', InvoiceKind::CreditNote->value)->count(), 'un brouillon s\'annule sans avoir');
+    }
+
+    /** VERIF-594 passe 3, P3-1 — émise, la facture de retenue se contrepasse par un avoir. */
+    public function test_p3_1_a_refused_partial_refund_credits_its_issued_retention_invoice(): void
+    {
+        Notification::fake();
+        [$lease, $admin] = $this->endedLeaseWithDeposit(400_000);
+        Sanctum::actingAs($admin);
+
+        $first = $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $invoiceId = $first->json('data.invoice_id');
+        $this->postJson("/api/invoices/{$invoiceId}/send")->assertOk();
+        $this->postJson("/api/payouts/{$first->json('data.payout_id')}/mark-failed", ['failed_reason' => 'numéro erroné'])->assertOk();
+
+        $this->assertSame(InvoiceStatus::Cancelled, Invoice::query()->findOrFail($invoiceId)->status);
+        $credit = Invoice::query()->where('kind', InvoiceKind::CreditNote->value)->sole();
+        $this->assertSame($invoiceId, $credit->credited_invoice_id);
+        $this->assertEquals(100000, (float) $credit->total_amount);
+
+        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 300_000, 'reason' => 'peinture'])->assertCreated();
+        $this->assertEquals(100000, (float) $this->liveRetentionInvoices($lease)->sole()->total_amount);
+    }
+
+    /** @return array{0: Lease, 1: User} */
+    private function endedLeaseWithDeposit(int $deposit): array
+    {
+        $agency = $this->moneyAgency();
+        $lease = $this->leaseOf($agency, $this->landlordOf($agency));
+        $lease->forceFill(['status' => LeaseStatus::Terminated, 'deposit_amount' => $deposit])->save();
+
+        return [$lease, $this->agencyAdmin($agency)];
+    }
+
+    /** @return Collection<int, Invoice> */
+    private function liveRetentionInvoices(Lease $lease): Collection
+    {
+        return Invoice::query()
+            ->where('invoiceable_type', Lease::class)->where('invoiceable_id', $lease->id)
+            ->where('kind', InvoiceKind::Invoice->value)
+            ->whereNotIn('status', [InvoiceStatus::Cancelled->value, InvoiceStatus::Void->value])
+            ->get();
     }
 }

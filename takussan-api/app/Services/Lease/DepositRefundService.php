@@ -96,6 +96,29 @@ class DepositRefundService
                 'notes' => $reason !== '' ? $reason : null,
             ]);
 
+            $invoice = null;
+            if ($retained > 0 && $lease->tenant_id) {
+                $invoice = Invoice::create([
+                    'invoiceable_type' => Lease::class,
+                    'invoiceable_id' => $lease->id,
+                    'customer_id' => $lease->tenant_id,
+                    'issued_by_id' => $issuedBy->id,
+                    'agency_id' => $lease->agency_id,
+                    'reference_number' => ReferenceNumberGenerator::invoice(),
+                    'status' => InvoiceStatus::Draft->value,
+                    'issue_date' => $now->toDateString(),
+                    'due_date' => $now->copy()->addDays(30)->toDateString(),
+                    'subtotal' => $retained,
+                    'tax_rate' => 0,
+                    'tax_amount' => 0,
+                    'total_amount' => $retained,
+                    'currency' => $currency,
+                    'notes' => __('messages.deposit_retention_invoice_line', [
+                        'reason' => $reason,
+                    ]),
+                ]);
+            }
+
             // TCK-594 (VERIF-594 M-3) — rendre la caution est une sortie d'argent : elle naît par le
             // même seuil que tout reversement, jugé sous le verrou de la ligne agence (pris après
             // celui du bail, l'ordre de toute création). Seule la destination du locataire reste hors
@@ -127,30 +150,14 @@ class DepositRefundService
                 'notes' => __('messages.deposit_refund_payout_note', [
                     'reference' => $lease->reference_number,
                 ]),
+                // VERIF-594 passe 3 (P3-1, P3-2) — la restitution porte ses deux pièces : la ligne
+                // `deposit_refund` du bail et la facture de retenue. Refusée ou échouée, elle les défait
+                // par ce lien (`PayoutService::releaseDeposit`), jamais en les cherchant par montant.
+                'metadata' => [
+                    'lease_payment_id' => $payment->id,
+                    'invoice_id' => $invoice?->id,
+                ],
             ]);
-
-            $invoice = null;
-            if ($retained > 0 && $lease->tenant_id) {
-                $invoice = Invoice::create([
-                    'invoiceable_type' => Lease::class,
-                    'invoiceable_id' => $lease->id,
-                    'customer_id' => $lease->tenant_id,
-                    'issued_by_id' => $issuedBy->id,
-                    'agency_id' => $lease->agency_id,
-                    'reference_number' => ReferenceNumberGenerator::invoice(),
-                    'status' => InvoiceStatus::Draft->value,
-                    'issue_date' => $now->toDateString(),
-                    'due_date' => $now->copy()->addDays(30)->toDateString(),
-                    'subtotal' => $retained,
-                    'tax_rate' => 0,
-                    'tax_amount' => 0,
-                    'total_amount' => $retained,
-                    'currency' => $currency,
-                    'notes' => __('messages.deposit_retention_invoice_line', [
-                        'reason' => $reason,
-                    ]),
-                ]);
-            }
 
             $totalRefunded = round((float) ($lease->deposit_refunded_amount ?? 0) + $amount, 2);
             $lease->forceFill([

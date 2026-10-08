@@ -96,7 +96,7 @@ class PayoutController extends Controller
 
         $data = $request->validated();
 
-        $payout = $this->payouts->markFailed($payout, $data);
+        $payout = $this->payouts->markFailed($payout, $data, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
@@ -106,7 +106,7 @@ class PayoutController extends Controller
     public function cancel(Request $request, Payout $payout): JsonResponse
     {
         $this->authorize('update', $payout);
-        $payout = $this->payouts->cancel($payout);
+        $payout = $this->payouts->cancel($payout, $request->user());
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),

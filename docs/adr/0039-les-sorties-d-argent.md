@@ -129,7 +129,12 @@ deux agences ne font pas deux personnes.
   (`mark-failed`) n'a rien rendu : son montant quitte `deposit_refunded_amount` sous le verrou du bail
   (`deposit_refunded_at` à nul si le solde revient à zéro), sa ligne `deposit_refund` passe `failed`,
   l'activité `deposit_refund_reversed` le trace, et elle se rend de nouveau — une seule fois par
-  reversement (VERIF-594 passe 2, N-2 ; défaut hérité de TCK-088 que M-3 rendait courant). L'activation est refusée (422) tant que moins de deux membres actifs détiennent
+  reversement (VERIF-594 passe 2, N-2 ; défaut hérité de TCK-088 que M-3 rendait courant). **Sa
+  facture de retenue tombe avec elle** (VERIF-594 passe 3, P3-1 : la restitution suivante en créait
+  une seconde, et la retenue se facturait deux fois) : la restitution porte `metadata.invoice_id` et
+  `metadata.lease_payment_id`, et le refus ou l'échec annule la facture par le chemin de toute facture
+  (`InvoiceService::cancel`) — un brouillon s'annule, une facture émise se contrepasse par un avoir ;
+  payée, elle reste. L'activation est refusée (422) tant que moins de deux membres actifs détiennent
   `payouts.approve`. Changer le seuil exige `payouts.approve` et se journalise
   (`agency_payout_threshold_changed`). **Le relâcher exige deux personnes** (VERIF-594 M-2 : celui
   qui allait payer le coupait seul, payait seul, puis le remettait) : un passage à `null` ou une

@@ -9,6 +9,7 @@ use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\Currency;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
@@ -16,6 +17,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutMethodKind;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
@@ -311,14 +313,14 @@ class PayoutService
     /**
      * @param  array<string,mixed>  $data
      */
-    public function markFailed(Payout $payout, array $data): Payout
+    public function markFailed(Payout $payout, array $data, ?User $actor = null): Payout
     {
         $reason = isset($data['failed_reason']) ? trim((string) $data['failed_reason']) : '';
 
         // VERIF-594 M-5 — le statut se juge sur la ligne VERROUILLÉE, comme `markProcessed` : jugé
         // sur le modèle lié, un échec concurrent d'un paiement écrasait `completed` et détachait les
         // pièces, qui redevenaient reversables (double paiement).
-        DB::transaction(function () use ($payout, $reason): void {
+        DB::transaction(function () use ($payout, $reason, $actor): void {
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
@@ -336,7 +338,7 @@ class PayoutService
                 'failed_reason' => $reason,
             ]);
             $this->detachItems($locked);
-            $this->releaseDeposit($locked, $previous, 'failed');
+            $this->releaseDeposit($locked, $previous, 'failed', $actor);
         });
 
         $payout->refresh();
@@ -345,10 +347,10 @@ class PayoutService
         return $payout;
     }
 
-    public function cancel(Payout $payout): Payout
+    public function cancel(Payout $payout, ?User $actor = null): Payout
     {
         // VERIF-594 M-5 — jugé sous verrou, comme `markFailed`.
-        DB::transaction(function () use ($payout): void {
+        DB::transaction(function () use ($payout, $actor): void {
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
@@ -361,7 +363,7 @@ class PayoutService
             $previous = $locked->status;
             $locked->update(['status' => PayoutStatus::Cancelled]);
             $this->detachItems($locked);
-            $this->releaseDeposit($locked, $previous, 'cancelled');
+            $this->releaseDeposit($locked, $previous, 'cancelled', $actor);
         });
 
         return $payout->refresh();
@@ -695,7 +697,7 @@ class PayoutService
      * `failed` puis annulé ne la rend pas deux fois. La ligne `deposit_refund` du bail (le journal de
      * TCK-027) passe `failed`, et l'activité `deposit_refund_reversed` trace le retour.
      */
-    private function releaseDeposit(Payout $payout, PayoutStatus $previous, string $outcome): void
+    private function releaseDeposit(Payout $payout, PayoutStatus $previous, string $outcome, ?User $actor): void
     {
         if ($payout->payee_role !== PayeeRole::Tenant || $payout->lease_id === null
             || ! in_array($previous, PayoutStatus::holdingItems(), true)) {
@@ -723,12 +725,39 @@ class PayoutService
             ->orderByDesc('id')
             ->first();
         $line?->update(['status' => PaymentStatus::Failed]);
+        $invoice = $this->releaseRetentionInvoice($payout, $actor);
 
         activity('Lease')
             ->performedOn($lease)
-            ->withProperties(['payout_id' => $payout->id, 'amount' => $amount, 'outcome' => $outcome, 'lease_payment_id' => $line?->id])
+            ->causedBy($actor)
+            ->withProperties([
+                'payout_id' => $payout->id, 'amount' => $amount, 'outcome' => $outcome, 'lease_payment_id' => $line?->id,
+                'invoice_id' => $invoice?->id, 'invoice_status' => $invoice?->status->value,
+            ])
             ->event('deposit_refund_reversed')
             ->log('deposit_refund_reversed');
+    }
+
+    /**
+     * VERIF-594 passe 3, P3-1 — la facture de retenue d'une restitution refusée ou échouée tombe avec
+     * elle : sinon la restitution suivante en créait une seconde, et la retenue se facturait deux fois
+     * au locataire. Elle suit le chemin d'annulation de toute facture ({@see InvoiceService::cancel}) :
+     * un brouillon s'annule, une facture émise se contrepasse par un avoir. Une facture déjà payée ou
+     * annulée reste telle quelle — la restitution n'a pas à défaire un règlement.
+     */
+    private function releaseRetentionInvoice(Payout $payout, ?User $actor): ?Invoice
+    {
+        $invoiceId = $payout->metadata['invoice_id'] ?? null;
+        $invoice = $invoiceId === null ? null : Invoice::query()->find((int) $invoiceId);
+        if ($invoice === null) {
+            return null;
+        }
+
+        if (in_array($invoice->status, [InvoiceStatus::Draft, InvoiceStatus::Sent, InvoiceStatus::Overdue], true)) {
+            return app(InvoiceService::class)->cancel($invoice, $actor);
+        }
+
+        return $invoice;
     }
 
     private function detachItems(Payout $payout): void
