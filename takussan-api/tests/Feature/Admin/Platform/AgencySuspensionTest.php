@@ -11,6 +11,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\RentPeriod;
 use App\Models\KycDossier;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,19 +78,44 @@ class AgencySuspensionTest extends TestCase
         $this->assertTrue($libre->fresh()->shouldBeSearchable());
     }
 
-    /** Les pages publiques de l'agence et de ses agents suivent la même règle. */
-    public function test_la_fiche_publique_de_l_agence_et_le_portefeuille_de_l_agent_disparaissent(): void
+    /**
+     * Les pages publiques de l'agence et de ses agents suivent la même règle (verif-600 M2) : la
+     * fiche, le portefeuille et le contact de l'agent rendent le 404 d'un agent inconnu, et l'index
+     * ne le liste plus — même s'il publie aussi un bien sans agence, qui l'y ferait figurer.
+     */
+    public function test_la_fiche_publique_de_l_agence_et_la_page_de_l_agent_disparaissent(): void
     {
-        $agent = $this->personnel($this->agence, attributes: ['username' => 'moussa-agent']);
-        $this->bien->forceFill(['user_id' => $agent->id])->save();
-        $this->getJson("/api/public/agencies/{$this->agence->slug}")->assertOk();
-        $this->assertContains($this->bien->id, $this->getJson('/api/public/agents/moussa-agent/properties')->json('data.*.id'));
+        foreach ([AgencyStatus::Suspended, AgencyStatus::Inactive] as $statut) {
+            $this->agence->forceFill(['status' => AgencyStatus::Active])->save();
+            $agent = $this->personnel($this->agence, attributes: ['username' => "agent-{$statut->value}"]);
+            $this->bien->forceFill(['user_id' => $agent->id])->save();
+            $this->bienDe(null, $agent);
+            $page = "/api/public/agents/agent-{$statut->value}";
 
-        $this->agence->forceFill(['status' => AgencyStatus::Suspended])->save();
+            $this->getJson("/api/public/agencies/{$this->agence->slug}")->assertOk();
+            $this->getJson($page)->assertOk()->assertJsonPath('data.agency.id', $this->agence->id);
+            $this->assertContains($this->bien->id, $this->getJson("{$page}/properties")->json('data.*.id'));
+            $this->assertContains("agent-{$statut->value}", $this->getJson('/api/public/agents?per_page=48')->json('data.*.slug'));
+            $this->postJson("{$page}/contact-lead", $this->demande())->assertCreated();
 
-        $this->getJson("/api/public/agencies/{$this->agence->slug}")->assertNotFound();
-        $this->getJson("/api/public/agencies/{$this->agence->slug}/properties")->assertNotFound();
-        $this->assertNotContains($this->bien->id, $this->getJson('/api/public/agents/moussa-agent/properties')->json('data.*.id'));
+            $this->agence->forceFill(['status' => $statut])->save();
+
+            $this->getJson("/api/public/agencies/{$this->agence->slug}")->assertNotFound();
+            $this->getJson("/api/public/agencies/{$this->agence->slug}/properties")->assertNotFound();
+            $inconnu = $this->getJson('/api/public/agents/personne-de-tel')->assertNotFound()->getContent();
+            $this->assertSame($inconnu, $this->getJson($page)->assertNotFound()->getContent());
+            $this->getJson("{$page}/properties")->assertNotFound();
+            $this->assertNotContains("agent-{$statut->value}", $this->getJson('/api/public/agents?per_page=48')->json('data.*.slug'));
+            $avant = PropertyContactLead::query()->count();
+            $this->postJson("{$page}/contact-lead", $this->demande())->assertNotFound();
+            $this->assertSame($avant, PropertyContactLead::query()->count(), "aucune demande déposée ({$statut->value})");
+        }
+    }
+
+    /** @return array<string, string> */
+    private function demande(): array
+    {
+        return ['name' => 'Moussa Fall', 'email' => 'moussa@example.test', 'message' => 'Bonjour, je cherche un F3.'];
     }
 
     /** AC2. */
