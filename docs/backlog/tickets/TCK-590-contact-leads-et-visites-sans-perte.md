@@ -473,6 +473,22 @@ pas un formulaire administratif.
       canaux) ; C01 à C03 → rouges ; `ProseLitteraleInterditeTest`,
       `check-notification-codes.mjs` verts.*
 
+### 11. Ajoutés après la quatrième passe de vérification (VERIF-590 passe 4)
+
+- [x] **M7″** — Quand la visite porte une fiche que le lecteur ne lit pas, `PropertyVisitResource`
+      masque aussi `visitor_name`, `visitor_phone` et `visitor_email` (la planification pour une
+      fiche les y recopie), au détail et à l'index. Une visite sans fiche garde les siens. *Preuve :
+      `test_m7seconde_le_bailleur_ne_lit_pas_la_fiche_par_les_champs_visitor` ; M01 → rouge.*
+- [x] **X1** — Une seule définition du personnel pour la lecture aussi :
+      `PropertyVisitPolicy::view` et `update`, la clause d'index (`agencesOuPersonnel`) et le masque
+      de la fiche passent par `PersonnelDeLAgence::estPersonnel`. Un compte de personnel bloqué : 403,
+      absent de l'index. *Preuve : `test_x1_un_compte_de_personnel_bloque_ne_lit_plus_les_visites`
+      ; Y11 (view), Y12 (index), Y13 (update) → rouges.*
+- [x] **X2** — Le rappel `visit.reminder` vers un contact sans compte passe par
+      `VisitNotifier::reminderToContact` : même borne que les autres SMS de visite (numéro × agence,
+      filet par numéro), `mobileBorne` transmis. *Preuve : `test_x2_*` (filet atteint → 0 SMS ;
+      témoin : sous la borne, 1 SMS et compté) ; Z11, Z12 → rouges.*
+
 **Tests** — `tests/Feature/Api/ContactLeadInboxTest`, `ContactLeadConvertTest`,
 `PropertyVisitAssignmentTest`, `PropertyVisitStaffCreateTest`, `PropertyVisitRescheduleTest`,
 `PropertyVisitIsolationTest` (customer_id, agent_id, bailleur de l'agence, avis « agent »),
@@ -656,6 +672,17 @@ rejouée.
       limite générique du canal pour ce numéro est épuisée ; un SMS retenu par la borne ne part par
       aucun canal. Les refus de 590 sont des codes (`abort_code`), ses notifications des codes
       rendus en fr/en/wo.
+
+**Ajoutés après la quatrième passe (VERIF-590 passe 4)** — vérifiés par `ProprietaireDuBienTest` et
+`PlafondSmsDeVisiteTest`, ablation rejouée.
+
+- [x] AC46 **(R)** — Le bailleur actif d'un bien d'agence lit une visite planifiée pour une fiche
+      sans le nom, le téléphone ni l'e-mail de la fiche (`visitor_*` nuls), au détail et à l'index ;
+      une demande publique sans fiche garde ses `visitor_*`.
+- [x] AC47 **(R)** — Un membre du personnel dont le compte est bloqué reçoit 403 sur la visite, ne la
+      voit plus dans la liste et ne peut plus l'écrire.
+- [x] AC48 **(R)** — Le filet par numéro atteint, le rappel de visite vers un contact sans compte ne
+      part par aucun canal mobile ; sous la borne, il part et compte contre le filet.
 
 ## Hors périmètre
 
@@ -844,3 +871,12 @@ test rouge sur `37210bac` et une ablation restaurée par `cp` (section 10 du Del
 - La fixture de `SendLeasePaymentRemindersTest` (588) prenait pour contact principal un
   collaborateur sans profil dans l'agence ; la règle de 590 l'écarte. Fixture corrigée (commit à
   part).
+
+**Étape 10 — quatrième passe (2026-10-08).** VERIF-590 passe 4, sur `f8b88bf0` : 0 bloquant,
+2 majeurs, 1 mineur ; les sept points de la passe 3 fermés. Un commit par point, test rouge sur
+`f8b88bf0`, ablation restaurée par `cp` (section 11 du Delta).
+- X1 élargit au passage la lecture du personnel multi-agences : `staffAgencyId()` ne retenait que
+  l'agence « courante » du compte, `estPersonnel` juge le couple (utilisateur, agence du bien).
+- X2 : la sonde P4-RAPPEL rejouée rend encore 1 rappel mobile, celui de H-1 — 30 h après les
+  coups portés au filet, dont la fenêtre est de 24 h : le filet était revenu à zéro (relevé :
+  `attempts = 0`). Le rappel de J-1, lui, ne part plus (0).
