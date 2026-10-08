@@ -716,6 +716,29 @@ contrôlé, dans un seul script.
 - [x] **m-e** — gardes de P4-ma.b (`FOR UPDATE` exigé), P4-ma.c (`PATCH` croisant une demande de
       signature) et P4-N1p.e (journal `lease_renewed`). — `90723555`. Les trois mutations rougissent.
 
+### 10. Ajoutés après la passe 5 de vérification adverse (verif-596 passe 5, REFUSÉ : 1 majeur, 2 mineurs)
+
+Chaque test de M-E et de m-g est **rouge sur 1f5e3b46** ; ceux de m-f sont des manques de tests (verts
+sur 1f5e3b46, rouges sous la mutation qu'ils gardent). Ablations restaurées par `cp`, md5 contrôlé,
+dans un seul script.
+
+- [x] **M-E** — la relève du parent (fin coupée, échéances de loyer non réglées dues à partir du début
+      de l'enfant passées `cancelled` et tracées, statut `renewed`) se fait à la naissance d'un enfant
+      `active`, et à l'activation d'un enfant `pending_signature` (`completeActivation`) ; d'ici là le
+      parent reste `active`, échéancier intact. Une échéance du chevauchement engagée (réglée, en
+      partie, pénalité payée, checkout ouvert) → 409 `lease.renewal_overlaps_paid_schedule`, au
+      renouvellement comme à l'activation. `PaymentStatus::Cancelled` : refusé à la création, aucun
+      checkout ouvert dessus, un règlement en ligne confirmé dessus marqué double encaissement. Front :
+      statut `cancelled` (fr/en/wo). ADR-0042 §1. — `63dc6689`. Dix ablations, toutes rouges (« ne pas
+      annuler » : 3 ; « ne pas reporter » : 2 ; sans 409 au renouvellement, à l'activation ; sans
+      relève à l'activation : 2 ; checkout, pénalité, acompte ; échéance annulée payable ; webhook).
+- [x] **m-f** — gardes de P5-MT.3, P5-mc.3, P5-mc.4 (`FOR UPDATE` exigé sur `terminate`, `POST` et
+      `DELETE guarantors`), P5-MT.4 (ligne `terminated`, instance liée `active` → 422) et P5-md.5
+      (parent figé par ses seules colonnes). — `fc0d5d99`. Les cinq mutations rougissent.
+- [x] **m-g** — `DELETE /api/guarantors/{id}` refuse en 422 `guarantor.attached_to_open_lease` un garant
+      rattaché (pivot ou ancienne colonne) à un bail `pending_signature` ou `active`. — `bad68acf`.
+      Trois ablations rouges.
+
 ## Critères d'acceptation
 
 - [x] AC1 — Le **locataire de ce bail** voit et ouvre le geste de préavis sur un bail `active`, et
@@ -879,6 +902,26 @@ contrôlé, dans un seul script.
 - [x] AC44 — `PATCH` : un `select … from "leases" … for update` est émis ; croisant une demande de
       signature, il défige ; le journal `lease_renewed` nomme l'indemnité et le plafond renégociés
       (`LeaseContractTermsTest`).
+
+**Ajoutés après la passe 5 (verif-596 passe 5) :**
+
+- [x] AC45 — Renouvellement à mi-terme né `active` : aucun mois facturé deux fois, les échéances non
+      réglées du parent dues à partir du début de l'enfant passent `cancelled` et sont journalisées,
+      `ApplyLateFeesJob` ne les pénalise pas ; parent sans fin renouvelé à la date par défaut du front :
+      aucun doublon ; à terme : inchangé (`LeaseRenewalOverlapTest`, 4 tests).
+- [x] AC46 — Enfant `pending_signature` à mi-terme : parent `active`, fin et échéancier intacts jusqu'à
+      l'activation papier, puis relève sans doublon ; une échéance réglée entre-temps refuse
+      l'activation, rien ne bouge ; échéance réglée, en partie, acompte, pénalité payée ou checkout
+      ouvert dans le chevauchement → 409 `lease.renewal_overlaps_paid_schedule`, aucun enfant
+      (`LeaseRenewalOverlapTest`, 2 tests) ; échéance annulée : 409 `payment.not_payable` au checkout,
+      règlement confirmé marqué double encaissement et signalé (`PaymentCheckoutReuseTest`).
+- [x] AC47 — `terminate`, `POST guarantors`, `DELETE guarantors/{g}` émettent un
+      `select … from "leases" … for update` ; une seconde résiliation sur une ligne déjà résiliée rend
+      422 sans réécrire la première ; un parent figé par ses colonnes seules renouvelé à +50 % →
+      `pending_signature` (`LeaseContractTermsTest`, 3 tests).
+- [x] AC48 — Un garant rattaché à un bail en attente de signature ou en cours ne se supprime pas (422),
+      par le pivot comme par l'ancienne colonne ; un bail brouillon ou résilié ne retient rien
+      (`GuarantorTest`).
 
 ## Hors périmètre
 
