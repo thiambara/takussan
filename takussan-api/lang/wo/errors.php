@@ -299,6 +299,13 @@ return [
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
     ],
+    'platform' => [
+        'ability_missing' => 'Sa daraja operatëer mayu la nga def lii.',
+        'last_super_admin' => 'Mënuñu dindi super-administratëer bu mujj bi.',
+        'operator_not_found' => 'Kont bii du operatëer bu dox.',
+        'operator_self_revoke' => 'Mënuloo dindi sa bopp.',
+        'target_is_operator' => 'Super-administratëer rekk mën a def dara ci kontu operatëer.',
+    ],
     'platform_payout' => [
         'already_exists' => 'Am na reversement ci période bii ba noppi.',
         'status_transition_invalid' => 'Soppi statut reversement plateforme bii nangouñu ko.',

@@ -299,6 +299,13 @@ return [
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
     ],
+    'platform' => [
+        'ability_missing' => 'Votre niveau d\'opérateur ne permet pas ce geste.',
+        'last_super_admin' => 'Le dernier super-administrateur actif ne peut pas être retiré.',
+        'operator_not_found' => 'Ce compte n\'est pas un opérateur actif.',
+        'operator_self_revoke' => 'Vous ne pouvez pas retirer votre propre accès.',
+        'target_is_operator' => 'Seul un super-administrateur peut agir sur le compte d\'un opérateur.',
+    ],
     'platform_payout' => [
         'already_exists' => 'Un reversement existe déjà pour cette période.',
         'status_transition_invalid' => 'Ce changement de statut du reversement plateforme n\'est pas autorisé.',

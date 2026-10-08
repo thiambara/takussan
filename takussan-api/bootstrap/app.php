@@ -2,6 +2,7 @@
 
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
+use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\MaintenanceMode;
@@ -79,6 +80,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'restrict.ip' => RestrictIpMiddleware::class,
             'super-admin' => EnsureSuperAdmin::class,
+            // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
+            'platform-can' => EnsurePlatformAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

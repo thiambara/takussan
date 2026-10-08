@@ -196,6 +196,8 @@ final class ProtectedActions
         SuperAdminInvitationController::class.'@store',
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',
+        // TCK-600 (ADR-0047) — retirer un opérateur actif.
+        SuperAdminInvitationController::class.'@revokeOperator',
         UserImpersonationController::class.'@start',
         // Vérification adverse B1 — lever le verrou d'un compte rouvre son accès.
         UserSupportController::class.'@unlock',

@@ -299,6 +299,13 @@ return [
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
     ],
+    'platform' => [
+        'ability_missing' => 'Your operator level does not allow this action.',
+        'last_super_admin' => 'The last active super administrator cannot be removed.',
+        'operator_not_found' => 'This account is not an active operator.',
+        'operator_self_revoke' => 'You cannot remove your own access.',
+        'target_is_operator' => 'Only a super administrator can act on an operator\'s account.',
+    ],
     'platform_payout' => [
         'already_exists' => 'A payout already exists for this period.',
         'status_transition_invalid' => 'This platform payout status change is not allowed.',

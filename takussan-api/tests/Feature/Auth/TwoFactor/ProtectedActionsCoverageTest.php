@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Auth\TwoFactor;
 
+use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\UserAdminController;
-use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Routing\Router;
@@ -108,7 +108,9 @@ class ProtectedActionsCoverageTest extends TestCase
             $conferent['App\\'.str_replace('/', '\\', $relatif)] = true;
         }
         // Plancher : la recherche qui ne trouve plus rien ne doit pas passer pour un vert.
-        $this->assertArrayHasKey(UserRoleController::class, $conferent);
+        // TCK-600 (ADR-0047 §4) — `UserRoleController` ne confère plus de pouvoir plateforme (sa
+        // branche `super_admin` est retirée) : le plancher passe à la cooptation.
+        $this->assertArrayHasKey(SuperAdminInvitationController::class, $conferent);
         $this->assertArrayHasKey(UserAdminController::class, $conferent);
 
         $oubliees = [];

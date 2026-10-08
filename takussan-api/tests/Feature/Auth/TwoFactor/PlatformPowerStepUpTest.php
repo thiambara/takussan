@@ -65,13 +65,17 @@ class PlatformPowerStepUpTest extends TestCase
         $this->assertSame('Avant', $agence->fresh()->name);
     }
 
-    public function test_avec_step_up_le_super_admin_promeut_et_debloque(): void
+    /**
+     * TCK-600 (ADR-0047 §4) — même avec step-up, la route de rôle ne promeut plus : la cooptation
+     * est le seul chemin d'octroi (`SuperAdminGrantOnlyByCooptationTest`).
+     */
+    public function test_avec_step_up_le_super_admin_debloque_mais_ne_promeut_plus(): void
     {
         $this->actingAsRole('super_admin');
 
-        $this->promouvoir()->assertOk();
+        $this->promouvoir()->assertStatus(422);
         $this->debloquer()->assertOk();
-        $this->assertTrue(PlatformProfile::query()->where('user_id', $this->cible->id)->exists());
+        $this->assertFalse(PlatformProfile::query()->where('user_id', $this->cible->id)->exists());
     }
 
     public function test_l_admin_d_agence_attribue_un_role_dans_son_agence_sans_step_up(): void

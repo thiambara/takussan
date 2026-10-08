@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Admin\MaintenanceController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\NotificationTemplateController;
 use App\Http\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\Admin\PlatformAbilityController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
 use App\Http\Controllers\Api\Admin\ReportingController;
@@ -28,38 +29,54 @@ use App\Http\Controllers\Api\Admin\SystemMetricsController;
 use App\Http\Controllers\Api\Admin\UserDetailController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserSupportController;
+use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Super-admin routes — TCK-144
+| Console plateforme — TCK-144, niveaux d'opérateur TCK-600 (ADR-0047)
 |--------------------------------------------------------------------------
-| Strictly super_admin-only namespace. The `super-admin` middleware probes
-| `hasRole('super_admin')` under `team_id = null`. Any agency-scoped admin
-| capability that should remain accessible to `agency_admin` (property
+| Le middleware `super-admin` laisse ENTRER tout opérateur (PlatformProfile actif, 2FA), et
+| refuse au-dessous du `super_admin` toute route qui ne déclare pas de geste. Un geste se
+| déclare par GROUPE : `platform-can:<PlatformAbility>`. Une route ajoutée ici sans groupe
+| reste donc au `super_admin` — c'est voulu (`PlatformRoutesDefaultDenyTest`).
+|
+| Any agency-scoped admin capability that should remain accessible to `agency_admin` (property
 | moderation queue, booking force-expire, etc.) lives outside this prefix.
 */
 
-Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(function () {
+$geste = fn (PlatformAbility $ability): string => 'platform-can:'.$ability->value;
+
+Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(function () use ($geste) {
+    // TCK-600 — les gestes de l'appelant : la console se filtre avec, sans recopier la matrice.
+    Route::get('me/abilities', PlatformAbilityController::class)
+        ->middleware($geste(PlatformAbility::ConsoleAccess))
+        ->name('admin.me.abilities');
+
     // Agency moderation — list / verify / suspend / unverify (mapped onto
     // AgencyStatus active/suspended/inactive — no `verified_at` column).
-    Route::prefix('agencies')->group(function () {
-        Route::get('/', [AgencyModerationController::class, 'index'])
-            ->name('admin.agencies.index');
+    Route::prefix('agencies')->group(function () use ($geste) {
+        Route::middleware($geste(PlatformAbility::AgenciesView))->group(function () {
+            Route::get('/', [AgencyModerationController::class, 'index'])
+                ->name('admin.agencies.index');
+            Route::get('{agency}', [AgencyDetailController::class, 'show'])
+                ->name('admin.agencies.show');
+            Route::get('{agency}/health', [AgencyDetailController::class, 'health'])
+                ->name('admin.agencies.health');
+            Route::get('{agency}/properties', [AgencyDetailController::class, 'properties'])
+                ->name('admin.agencies.properties');
+            Route::get('{agency}/subscription', [AgencySubscriptionController::class, 'show'])
+                ->name('admin.agencies.subscription.show');
+        });
+        // Les membres d'une agence sont des données personnelles : `support`, pas `viewer`.
+        Route::get('{agency}/team', [AgencyDetailController::class, 'team'])
+            ->middleware($geste(PlatformAbility::UsersView))
+            ->name('admin.agencies.team');
+
         Route::post('/', [AgencyOnboardingController::class, 'store'])
             ->name('admin.agencies.store');
-        Route::get('{agency}', [AgencyDetailController::class, 'show'])
-            ->name('admin.agencies.show');
-        Route::get('{agency}/health', [AgencyDetailController::class, 'health'])
-            ->name('admin.agencies.health');
-        Route::get('{agency}/team', [AgencyDetailController::class, 'team'])
-            ->name('admin.agencies.team');
-        Route::get('{agency}/properties', [AgencyDetailController::class, 'properties'])
-            ->name('admin.agencies.properties');
         Route::get('{agency}/kyc', [KycController::class, 'agency'])
             ->name('admin.agencies.kyc.show');
-        Route::get('{agency}/subscription', [AgencySubscriptionController::class, 'show'])
-            ->name('admin.agencies.subscription.show');
         Route::post('{agency}/subscription', [AgencySubscriptionController::class, 'store'])
             ->name('admin.agencies.subscription.store');
         Route::post('{agency}/subscription/cancel', [AgencySubscriptionController::class, 'cancel'])
@@ -103,26 +120,34 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         ->name('admin.superAdmins.invitations.resend');
     Route::post('super-admins/invitations/{invitation}/revoke', [SuperAdminInvitationController::class, 'revoke'])
         ->name('admin.superAdmins.invitations.revoke');
+    // TCK-600 (ADR-0047 §5) — retirer un opérateur ACTIF (jusque-là : rien, seule une invitation
+    // se révoquait). Step-up : `ProtectedActions::STEP_UP`.
+    Route::post('super-admins/{user}/revoke', [SuperAdminInvitationController::class, 'revokeOperator'])
+        ->name('admin.superAdmins.revoke');
 
-    // User support — cross-tenant list/detail, strictly super_admin.
-    Route::get('users', [UserDetailController::class, 'index'])
-        ->name('admin.users.index');
-    Route::get('users/{user}', [UserDetailController::class, 'show'])
-        ->name('admin.users.show');
-    Route::get('users/{user}/sessions', [UserDetailController::class, 'sessions'])
-        ->name('admin.users.sessions');
-    Route::get('users/{user}/activity', [UserDetailController::class, 'activity'])
-        ->name('admin.users.activity');
-    Route::post('users/{user}/force-password-reset', [UserSupportController::class, 'forcePasswordReset'])
-        ->name('admin.users.force-password-reset');
-    Route::post('users/{user}/unlock', [UserSupportController::class, 'unlock'])
-        ->name('admin.users.unlock');
-    Route::post('users/{user}/reset-2fa', [UserSupportController::class, 'reset2fa'])
-        ->name('admin.users.reset-2fa');
-    Route::post('users/{user}/revoke-sessions', [UserSupportController::class, 'revokeSessions'])
-        ->name('admin.users.revoke-sessions');
-    Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])
-        ->name('admin.users.sessions.destroy');
+    // User support — cross-tenant list/detail (TCK-600 : `support` et au-dessus).
+    Route::middleware($geste(PlatformAbility::UsersView))->group(function () {
+        Route::get('users', [UserDetailController::class, 'index'])
+            ->name('admin.users.index');
+        Route::get('users/{user}', [UserDetailController::class, 'show'])
+            ->name('admin.users.show');
+        Route::get('users/{user}/sessions', [UserDetailController::class, 'sessions'])
+            ->name('admin.users.sessions');
+        Route::get('users/{user}/activity', [UserDetailController::class, 'activity'])
+            ->name('admin.users.activity');
+    });
+    Route::middleware($geste(PlatformAbility::UsersSupport))->group(function () {
+        Route::post('users/{user}/force-password-reset', [UserSupportController::class, 'forcePasswordReset'])
+            ->name('admin.users.force-password-reset');
+        Route::post('users/{user}/unlock', [UserSupportController::class, 'unlock'])
+            ->name('admin.users.unlock');
+        Route::post('users/{user}/reset-2fa', [UserSupportController::class, 'reset2fa'])
+            ->name('admin.users.reset-2fa');
+        Route::post('users/{user}/revoke-sessions', [UserSupportController::class, 'revokeSessions'])
+            ->name('admin.users.revoke-sessions');
+        Route::delete('users/{user}/sessions/{tokenId}', [UserSupportController::class, 'destroySession'])
+            ->name('admin.users.sessions.destroy');
+    });
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'start'])
         ->name('admin.users.impersonate');
     Route::post('users/{user}/data-exports', [DataExportController::class, 'store'])
@@ -132,9 +157,12 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
 
     // Cross-tenant KPIs — single endpoint to avoid fan-out.
     Route::get('system/metrics', [SystemMetricsController::class, 'index'])
+        ->middleware($geste(PlatformAbility::ReportsView))
         ->name('admin.system.metrics');
-    Route::get('health', HealthcheckController::class)->name('admin.health');
-    Route::get('scheduler', SchedulerController::class)->name('admin.scheduler');
+    Route::middleware($geste(PlatformAbility::HealthView))->group(function () {
+        Route::get('health', HealthcheckController::class)->name('admin.health');
+        Route::get('scheduler', SchedulerController::class)->name('admin.scheduler');
+    });
     Route::get('jobs/failed', [FailedJobController::class, 'index'])->name('admin.jobs.failed.index');
     Route::get('jobs/failed/{id}', [FailedJobController::class, 'show'])->name('admin.jobs.failed.show');
     Route::post('jobs/failed/{id}/retry', [FailedJobController::class, 'retry'])->name('admin.jobs.failed.retry');
@@ -145,7 +173,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::get('audit', [CrossTenantAuditController::class, 'index'])
         ->name('admin.audit.index');
 
+    // TCK-600 — `support` LIT la file ; décider reste au `super_admin` (TCK-597 possède la file).
     Route::get('moderation', [ModerationQueueController::class, 'index'])
+        ->middleware($geste(PlatformAbility::ModerationView))
         ->name('admin.moderation.index');
     Route::post('moderation/{id}/decide', [ModerationQueueController::class, 'decide'])
         ->where('id', '.+')
@@ -201,12 +231,14 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::patch('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
     Route::post('announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('admin.announcements.deactivate');
 
-    // TCK-227 — Cross-tenant reporting (read-only super-admin).
-    Route::get('reports/growth', [ReportingController::class, 'growth'])->name('admin.reports.growth');
-    Route::get('reports/revenue', [ReportingController::class, 'revenue'])->name('admin.reports.revenue');
-    Route::get('reports/cohorts', [ReportingController::class, 'cohorts'])->name('admin.reports.cohorts');
-    Route::get('reports/funnel', [ReportingController::class, 'funnel'])->name('admin.reports.funnel');
-    Route::get('reports/{report}/export', [ReportingController::class, 'export'])->name('admin.reports.export');
+    // TCK-227 — Cross-tenant reporting (read-only). TCK-600 : tout niveau.
+    Route::middleware($geste(PlatformAbility::ReportsView))->group(function () {
+        Route::get('reports/growth', [ReportingController::class, 'growth'])->name('admin.reports.growth');
+        Route::get('reports/revenue', [ReportingController::class, 'revenue'])->name('admin.reports.revenue');
+        Route::get('reports/cohorts', [ReportingController::class, 'cohorts'])->name('admin.reports.cohorts');
+        Route::get('reports/funnel', [ReportingController::class, 'funnel'])->name('admin.reports.funnel');
+        Route::get('reports/{report}/export', [ReportingController::class, 'export'])->name('admin.reports.export');
+    });
 
     // TCK-223 — Platform → agency payouts. close-period must come before
     // {payout} bindings to avoid the slug being interpreted as an id.

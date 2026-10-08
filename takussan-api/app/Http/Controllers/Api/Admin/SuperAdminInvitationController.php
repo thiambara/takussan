@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Admin\InviteSuperAdminRequest;
+use App\Http\Requests\Admin\RevokePlatformOperatorRequest;
 use App\Http\Resources\InvitationResource;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\User;
 use App\Services\Auth\SuperAdminCooptationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,9 +37,11 @@ class SuperAdminInvitationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $admins = $this->cooptation->superAdmins()
+        // TCK-600 — tous les opérateurs actifs, avec leur niveau (ADR-0047).
+        $admins = $this->cooptation->operators()
             ->map(fn ($user) => [
                 'id' => $user->id,
+                'level' => $user->platformProfile?->level?->value,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
@@ -87,6 +91,25 @@ class SuperAdminInvitationController extends Controller
             ['data' => InvitationResource::make($invitation)->toArray($request)],
             201,
         );
+    }
+
+    /**
+     * POST /api/admin/super-admins/{user}/revoke
+     *
+     * TCK-600 (ADR-0047 §5) — retirer un opérateur actif. 422 sur soi-même et sur le dernier
+     * `super_admin` actif ; 404 si le compte n'est pas un opérateur actif.
+     */
+    public function revokeOperator(RevokePlatformOperatorRequest $request, User $user): JsonResponse
+    {
+        $profile = $this->cooptation->revokeOperator($request->user(), $user, (string) $request->validated('reason'));
+
+        return $this->json([
+            'data' => [
+                'user_id' => $user->id,
+                'level' => $profile->level->value,
+                'revoked_at' => $profile->revoked_at?->toIso8601String(),
+            ],
+        ]);
     }
 
     /**

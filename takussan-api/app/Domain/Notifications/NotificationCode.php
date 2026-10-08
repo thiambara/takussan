@@ -103,6 +103,20 @@ enum NotificationCode: string
     // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
     case AccountPhoneChanged = 'account.phone_changed';
 
+    // ─── Console plateforme (TCK-600) ───────────────────────────────────────────────────
+    /** À la cible, à la fermeture d'une session d'impersonation, quelle qu'en soit la cause (ADR-0055). */
+    case ImpersonationEnded = 'impersonation.ended';
+    /** Aux admins de l'agence (ADR-0048). */
+    case AgencySuspended = 'agency.suspended';
+    case AgencyReinstated = 'agency.reinstated';
+    /** Au compte bloqué ou réactivé depuis la console. */
+    case AccountBlocked = 'account.blocked';
+    case AccountReactivated = 'account.reactivated';
+    /** Aux admins de l'agence : un bien dépublié parce que son seul contact a été effacé. */
+    case PropertyUnpublishedContactErased = 'property.unpublished_contact_erased';
+    /** Aux autres `super_admin` : un opérateur a été retiré (ADR-0047). */
+    case PlatformOperatorRevoked = 'platform_operator.revoked';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -141,6 +155,9 @@ enum NotificationCode: string
             self::PropertyApproved, self::PropertyRejected,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
+            self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
+            self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
+            self::PlatformOperatorRevoked => NotificationType::System,
             self::ProspectMatchDigest => NotificationType::System,
         };
     }
@@ -179,6 +196,10 @@ enum NotificationCode: string
             self::InvitationReceived, self::InvitationReminder => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
+            // TCK-600 — avis de la plateforme sur le compte ou l'agence : non désactivables.
+            self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
+            self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
+            self::PlatformOperatorRevoked => null,
         };
     }
 
@@ -233,6 +254,12 @@ enum NotificationCode: string
             // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
             self::AccountPhoneChanged => [],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
+            // TCK-600 — le motif est la saisie d'un opérateur, jamais une phrase de l'API.
+            self::ImpersonationEnded => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT, 'started_at' => self::PARAM_DATETIME, 'ended_at' => self::PARAM_DATETIME],
+            self::AgencySuspended, self::AgencyReinstated => ['agency' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::AccountBlocked, self::AccountReactivated => ['reason' => self::PARAM_TEXT],
+            self::PropertyUnpublishedContactErased => ['property' => self::PARAM_TEXT, 'reference' => self::PARAM_TEXT, 'url' => self::PARAM_URL],
+            self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
         };
     }
 

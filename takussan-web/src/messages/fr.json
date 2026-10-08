@@ -8817,6 +8817,14 @@
         "phone_changed": {
           "title": "Numéro de téléphone remplacé",
           "body": "Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n'est pas vous, contactez le support."
+        },
+        "blocked": {
+          "title": "Votre compte est bloqué",
+          "body": "Votre compte Takussan a été bloqué par la plateforme. Motif : {reason}. Contactez le support pour toute question."
+        },
+        "reactivated": {
+          "title": "Votre compte est réactivé",
+          "body": "Votre compte Takussan a été réactivé. Motif : {reason}. Vous pouvez vous reconnecter."
         }
       },
       "invitation": {
@@ -8963,6 +8971,32 @@
         "rejected": {
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
+        },
+        "unpublished_contact_erased": {
+          "title": "Annonce retirée : {property}",
+          "body": "L'annonce {property} ({reference}) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : {url}"
+        }
+      },
+      "impersonation": {
+        "ended": {
+          "title": "Votre compte a été consulté par l'équipe Takussan",
+          "body": "Un membre de l'équipe Takussan, {operator}, a consulté votre compte en lecture seule du {started_at} au {ended_at}. Motif : {reason}. Aucune modification n'a été faite en votre nom."
+        }
+      },
+      "agency": {
+        "suspended": {
+          "title": "Agence suspendue : {agency}",
+          "body": "L'agence {agency} est suspendue par la plateforme. Motif : {reason}. Ses annonces ne sont plus publiées et son espace est en lecture seule."
+        },
+        "reinstated": {
+          "title": "Suspension levée : {agency}",
+          "body": "La suspension de l'agence {agency} est levée. Motif : {reason}. Ses annonces publiques sont de nouveau visibles."
+        }
+      },
+      "platform_operator": {
+        "revoked": {
+          "title": "Opérateur retiré : {operator}",
+          "body": "L'accès de {operator} à la console plateforme a été retiré. Motif : {reason}."
         }
       }
     },

@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -304,13 +305,34 @@ trait HasProfiles
      */
     public function hasActiveSuperAdminProfile(): bool
     {
+        return $this->activePlatformLevel() === PlatformProfileLevel::SuperAdmin;
+    }
+
+    /**
+     * TCK-600 (ADR-0047) — un `PlatformProfile` ACTIF, de quelque niveau que ce soit : la
+     * condition d'entrée dans la console, et ce qui interdit d'impersonner un compte.
+     */
+    public function hasActivePlatformProfile(): bool
+    {
+        return $this->activePlatformLevel() !== null;
+    }
+
+    /** TCK-600 — le niveau du profil plateforme ACTIF, ou `null`. */
+    public function activePlatformLevel(): ?PlatformProfileLevel
+    {
         $profile = $this->relationLoaded('platformProfile')
             ? $this->platformProfile
             : $this->platformProfile()->active()->first();
 
-        return $profile !== null
-            && $profile->isActive()
-            && $profile->level === PlatformProfileLevel::SuperAdmin;
+        return $profile !== null && $profile->isActive() ? $profile->level : null;
+    }
+
+    /** TCK-600 (ADR-0047) — l'opérateur détient-il ce geste de la console ? */
+    public function hasPlatformAbility(PlatformAbility $ability): bool
+    {
+        $level = $this->activePlatformLevel();
+
+        return $level !== null && $ability->grantedTo($level);
     }
 
     /**

@@ -54,23 +54,28 @@ class MembershipCapabilityResolverTest extends TestCase
         $this->assertFalse($this->resolver->allows($user, Capability::ReportsViewGlobal));
     }
 
-    public function test_viewer_only_allows_reports_view_global(): void
+    /**
+     * TCK-600 (ADR-0047 §3) — un `viewer` ou un `support` n'a AUCUNE capacité d'agence : ses
+     * gestes sont ceux de la console (`PlatformAbility`), jamais ceux des routes d'agence.
+     */
+    public function test_viewer_has_no_agency_capability(): void
     {
         $user = User::factory()->create();
         PlatformProfile::factory()->create(['user_id' => $user->id]); // default = viewer
 
-        $this->assertTrue($this->resolver->allows($user, Capability::ReportsViewGlobal));
+        $this->assertFalse($this->resolver->allows($user, Capability::ReportsViewGlobal));
         $this->assertFalse($this->resolver->allows($user, Capability::ReportsExport));
         $this->assertFalse($this->resolver->allows($user, Capability::PropertiesCreate, Agency::factory()->create()));
     }
 
-    public function test_support_has_read_export_subset(): void
+    public function test_support_has_no_agency_capability(): void
     {
         $user = User::factory()->create();
         PlatformProfile::factory()->support()->create(['user_id' => $user->id]);
 
-        $this->assertTrue($this->resolver->allows($user, Capability::CrmViewAll));
-        $this->assertTrue($this->resolver->allows($user, Capability::PaymentsExport));
+        $this->assertFalse($this->resolver->allows($user, Capability::CrmViewAll));
+        $this->assertFalse($this->resolver->allows($user, Capability::PaymentsExport));
+        $this->assertFalse($this->resolver->allows($user, Capability::CrmViewAll, Agency::factory()->create()));
         $this->assertFalse($this->resolver->allows($user, Capability::PaymentsRefund));
         $this->assertFalse($this->resolver->allows($user, Capability::BookingsCancel));
     }

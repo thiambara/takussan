@@ -7,6 +7,7 @@ use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\PropertyResource;
 use App\Models\Agency;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -18,7 +19,9 @@ class AgencyDetailController extends Controller
 {
     public function show(Request $request, Agency $agency): JsonResponse
     {
-        $agency->load(['primaryAdmin', 'addresses']);
+        // TCK-600 (ADR-0047) — l'administrateur principal est une personne : un `viewer` lit
+        // l'agence, pas ses membres.
+        $agency->load(self::readsPeople($request) ? ['primaryAdmin', 'addresses'] : ['addresses']);
 
         return $this->json([
             'data' => (new AgencyDetailResource($agency))->resolve($request),
@@ -151,6 +154,16 @@ class AgencyDetailController extends Controller
 
     public function properties(Request $request, Agency $agency): JsonResponse
     {
+        // TCK-600 (ADR-0047) — `include=owner` ou `collaborators` servirait des personnes à un
+        // `viewer` : ces relations ne se chargent qu'avec la lecture des utilisateurs.
+        if (! self::readsPeople($request)) {
+            $includes = array_filter(
+                explode(',', (string) $request->query('include', '')),
+                fn (string $include): bool => ! in_array(strtok(trim($include), '.'), ['owner', 'collaborators'], true),
+            );
+            $request->query->set('include', implode(',', $includes));
+        }
+
         $query = Property::buildQuery(
             Property::query()->where('agency_id', $agency->id),
             $request,
@@ -159,5 +172,12 @@ class AgencyDetailController extends Controller
         $properties = $query->paginate(min(max((int) $request->query('per_page', 15), 1), 100));
 
         return $this->paginated($properties, PropertyResource::collection($properties)->resolve($request));
+    }
+
+    private static function readsPeople(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user instanceof User && $user->hasPlatformAbility(PlatformAbility::UsersView);
     }
 }
