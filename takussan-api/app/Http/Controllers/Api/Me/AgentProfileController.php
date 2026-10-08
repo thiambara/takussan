@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Me\UpdateSpecializationAgentProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycAgentProfileRequest;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\Capability;
 use App\Models\Profiles\AgentProfile;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -232,6 +233,30 @@ class AgentProfileController extends Controller
                     'phone' => $customer->phone,
                     'pipeline_stage' => $customer->pipeline_stage?->value,
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * TCK-589 (AC13) — les capacités que le RÔLE de ce profil accorde, pour le récap de
+     * l'onboarding. `GET /api/me/capabilities` ne peut plus servir : le profil est encore `draft`
+     * pendant l'assistant, et un profil non actif ne confère rien (ADR-0031 §3, TCK-587). Ce que
+     * la route rend n'est donc PAS un droit présent, c'est la promesse du rôle — qui ne vaut
+     * qu'une fois le profil activé par `complete()`.
+     */
+    public function roleCapabilities(Request $request, AgentProfile $agent_profile): JsonResponse
+    {
+        $this->assertOwner($request, $agent_profile);
+
+        $capabilities = $agent_profile->agencyRole?->capabilityEnums()
+            ->map(fn (Capability $capability): string => $capability->value)
+            ->values()
+            ->all() ?? [];
+
+        return $this->json([
+            'data' => [
+                'agency_id' => $agent_profile->agency_id,
+                'capabilities' => $capabilities,
             ],
         ]);
     }

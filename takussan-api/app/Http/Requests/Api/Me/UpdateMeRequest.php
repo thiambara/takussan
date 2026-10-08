@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Me;
 
 use App\Rules\TelephoneJoignable;
+use App\Services\Auth\PhoneChangeGuard;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -50,6 +51,8 @@ class UpdateMeRequest extends FormRequest
             // réponse à part entière — c'est elle qui empêche de reposer la
             // question à quelqu'un qui a choisi de passer.
             'entry_intent' => ['sometimes', 'nullable', 'string', 'in:search,publish,skipped'],
+            // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
+            ...PhoneChangeGuard::PROOF_RULES,
         ];
     }
 

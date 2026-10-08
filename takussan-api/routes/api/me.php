@@ -123,6 +123,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('agent-profiles/{agent_profile}/first-lead', [MeAgentProfileController::class, 'firstLead'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.first-lead');
+    // TCK-589 (AC13) — la promesse du rôle, lue par le récap de l'onboarding agent.
+    Route::get('agent-profiles/{agent_profile}/role-capabilities', [MeAgentProfileController::class, 'roleCapabilities'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.role-capabilities');
 
     // TCK-262 — Multi-rattachement Service Provider. Listing cross-agences
     // des collaborations du SP authentifié + projection plate "agences".

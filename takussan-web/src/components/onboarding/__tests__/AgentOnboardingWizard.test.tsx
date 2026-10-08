@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import frMessages from '@/messages/fr.json';
 
@@ -86,11 +87,14 @@ vi.mock('@/components/ui/toast', async (importOriginal) => {
 
 import { AgentOnboardingWizard } from '../AgentOnboardingWizard';
 
+// TCK-589 — le récap lit `/api/me/capabilities` par React Query : il lui faut un client.
 function withIntl(node: React.ReactNode) {
   return (
-    <NextIntlClientProvider locale="fr" messages={frMessages}>
-      {node}
-    </NextIntlClientProvider>
+    <QueryClientProvider client={new QueryClient()}>
+      <NextIntlClientProvider locale="fr" messages={frMessages}>
+        {node}
+      </NextIntlClientProvider>
+    </QueryClientProvider>
   );
 }
 

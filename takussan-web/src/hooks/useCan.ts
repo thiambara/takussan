@@ -70,6 +70,20 @@ export function useMyCapabilities(agencyId?: number, enabled = true) {
   );
 }
 
+/**
+ * TCK-589 (AC13) — ce que le RÔLE d'un profil d'agent accordera, pour le récap de l'onboarding.
+ * Pendant l'assistant le profil est `draft`, et un profil non actif ne confère rien (ADR-0031 §3) :
+ * {@link useMyCapabilities} y rend une liste vide, à raison. Ce hook lit la promesse du rôle, pas
+ * un droit présent — ne jamais s'en servir pour proposer un geste.
+ */
+export function useAgentRoleCapabilities(agentProfileId: number) {
+  return useApiQuery<ApiResponse<MeCapabilities>>(
+    ['me', 'agent-profiles', agentProfileId, 'role-capabilities'],
+    `/api/me/agent-profiles/${agentProfileId}/role-capabilities`,
+    { staleTime: 5 * 60 * 1000 },
+  );
+}
+
 export interface UseCanResult {
   /** `false` tant que la réponse n'est pas arrivée — lire `isLoading` avec. */
   readonly can: boolean;

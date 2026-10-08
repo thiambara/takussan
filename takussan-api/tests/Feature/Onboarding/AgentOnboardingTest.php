@@ -11,12 +11,12 @@ use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 /**
@@ -34,7 +34,7 @@ use Tests\TestCase;
  */
 class AgentOnboardingTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -238,7 +238,7 @@ class AgentOnboardingTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $this->assertNotNull($code);
 
         $response = $this->postJson('/api/agent/onboard/complete', [

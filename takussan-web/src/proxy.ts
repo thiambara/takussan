@@ -73,7 +73,11 @@ export function proxy(request: NextRequest): NextResponse {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthPath && token) {
+  // TCK-589 — `/auth/verify-email` est la page d'un compte CONNECTÉ : l'inscription ouvre la
+  // session puis y mène (le renvoi du lien exige le jeton). Renvoyée vers `/app`, elle perdait
+  // l'intention (`redirect`) — mesuré au navigateur, invisible aux tests de la page.
+  const isPageDeCompteConnecte = /^\/auth\/verify-email(?:\/|$)/.test(pathname);
+  if (isAuthPath && token && !isPageDeCompteConnecte) {
     return NextResponse.redirect(new URL('/app', request.url));
   }
 

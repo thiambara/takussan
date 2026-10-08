@@ -5,6 +5,7 @@ import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegraded
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
 import { AgencyQueues } from '@/components/dashboard/admin/AgencyQueues';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
+import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
 import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
@@ -69,6 +70,9 @@ export default async function Page({
       />
 
       <AdminNotice avis={avis} />
+
+      {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
+      <MiseEnService agencyId={agencyId} />
 
       {payload ? (
         <>

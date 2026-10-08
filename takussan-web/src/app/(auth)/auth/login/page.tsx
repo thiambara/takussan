@@ -8,6 +8,8 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { ConnexionParTelephone } from '@/components/auth/ConnexionParTelephone';
+import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { FormInput, FormGlobalError } from '@/components/forms';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas';
@@ -17,13 +19,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { destinationInterne } from '@/lib/redirection-interne';
+import { avecRedirection, destinationInterne } from '@/lib/redirection-interne';
 
 const OAUTH_ERRORS = ['oauth_invalid', 'oauth_failed', 'oauth_unknown'] as const;
 
 function LoginForm() {
   const t = useTranslations('auth.login');
   const t2fa = useTranslations('auth.twoFactorChallenge');
+  const tTelephone = useTranslations('auth.phoneLogin');
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   // TCK-509 — `openSession` et non « poser le cookie puis `setUser` » : ce second chemin
@@ -40,6 +43,10 @@ function LoginForm() {
   // échec Google ramenait sur un formulaire muet, comme si rien ne s'était passé.
   const oauthError = OAUTH_ERRORS.find((code) => code === searchParams.get('error')) ?? null;
   const [showPassword, setShowPassword] = useState(false);
+  // TCK-589 — la connexion par téléphone passe en tête quand l'API la propose (`phone_login`) ;
+  // l'e-mail reste une voie secondaire. Drapeau éteint : l'écran est celui d'avant, à l'identique.
+  const telephoneActif = useConnexionParTelephone();
+  const [voieEmail, setVoieEmail] = useState(false);
 
   // TCK-069 — 2FA challenge. When the first POST returns `requires_2fa`,
   // we keep the credentials in state and render a second form that
@@ -68,7 +75,7 @@ function LoginForm() {
         setChallenge({ email: values.email, password: values.password });
         return;
       }
-      await openSession(result.token, result.user);
+      await openSession(result.token, result.user, result.expires_at);
       router.push(redirectTo);
     },
   });
@@ -93,7 +100,7 @@ function LoginForm() {
         setChallengeError(result.message ?? t2fa('invalidCode'));
         return;
       }
-      await openSession(result.token, result.user);
+      await openSession(result.token, result.user, result.expires_at);
       router.push(redirectTo);
     } catch (err) {
       // Le test structurel `'displayMessage' in err` rendait la CLÉ i18n quand l'erreur en
@@ -102,6 +109,45 @@ function LoginForm() {
     } finally {
       setChallengePending(false);
     }
+  }
+
+  const lienInscription = (
+    <p className="mt-6 text-center text-sm text-muted-foreground">
+      {t('noAccount')}{' '}
+      <Link
+        // TCK-589 — l'intention d'origine suit le détour par l'inscription : sans elle, un
+        // visiteur venu réserver repartait de zéro une fois son compte créé.
+        href={avecRedirection('/auth/register', searchParams.get('redirect'))}
+        className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
+      >
+        {t('registerCta')}
+      </Link>
+    </p>
+  );
+
+  if (telephoneActif && !voieEmail && !challenge) {
+    return (
+      <div>
+        {oauthError ? (
+          <FormGlobalError className="mb-6">{t(`oauthError.${oauthError}`)}</FormGlobalError>
+        ) : null}
+        <ConnexionParTelephone
+          variante="login"
+          // Un compte que ce code vient de créer passe par la question d'orientation, comme les
+          // autres chemins d'inscription (TCK-493) ; l'intention d'origine y est relayée.
+          onConnecte={(nouveauCompte) =>
+            router.push(
+              nouveauCompte
+                ? avecRedirection('/onboarding/intention', searchParams.get('redirect'))
+                : redirectTo,
+            )
+          }
+          onEmail={() => setVoieEmail(true)}
+        />
+        <OAuthButtons separator="before" redirect={searchParams.get('redirect')} />
+        {lienInscription}
+      </div>
+    );
   }
 
   if (challenge) {
@@ -208,7 +254,7 @@ function LoginForm() {
 
       {oauthError ? <FormGlobalError className="mb-6">{t(`oauthError.${oauthError}`)}</FormGlobalError> : null}
 
-      <OAuthButtons separator="after" />
+      <OAuthButtons separator="after" redirect={searchParams.get('redirect')} />
 
       <FormGlobalError>{globalError}</FormGlobalError>
 
@@ -274,15 +320,19 @@ function LoginForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        {t('noAccount')}{' '}
-        <Link
-          href="/auth/register"
-          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
-        >
-          {t('registerCta')}
-        </Link>
-      </p>
+      {telephoneActif ? (
+        <p className="mt-4 text-center">
+          <button
+            type="button"
+            className="min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            onClick={() => setVoieEmail(false)}
+          >
+            {tTelephone('usePhone')}
+          </button>
+        </p>
+      ) : null}
+
+      {lienInscription}
     </div>
   );
 }

@@ -125,10 +125,10 @@ class HostIndividualOnboardingService
     }
 
     /**
-     * Wraps {@see PhoneVerificationService::verifyOtp()} so tests can override
-     * via the container. In `local`/`testing` we also accept a fixed dev
-     * code (`123456`) to keep the wizard exercisable end-to-end without a
-     * real SMS provider — matches the existing OTP-stub pattern.
+     * Wrap PhoneVerificationService so tests can stub via the container.
+     * TCK-589 — aucun code fixe, dans aucun environnement : le code fixe
+     * d'autrefois valait hors `production`, donc pour toute préproduction.
+     * Les tests lisent le vrai code par `Tests\Support\FakeSmsRouter`.
      */
     protected function verifyOtp(User $user, string $code): bool
     {
@@ -136,18 +136,7 @@ class HostIndividualOnboardingService
             return false;
         }
 
-        if ($this->phoneVerification->verifyOtp($user, $code)) {
-            return true;
-        }
-
-        // Dev/test bypass — production never matches because the env check
-        // short-circuits before hash comparison. A real SMS gateway should
-        // replace `PhoneVerificationService::sendSms` in prod.
-        if (! app()->environment('production') && hash_equals('123456', trim($code))) {
-            return true;
-        }
-
-        return false;
+        return $this->phoneVerification->verifyOtp($user, $code);
     }
 
     private function userAlreadyHasIndividualAgency(User $user): bool
@@ -244,7 +233,9 @@ class HostIndividualOnboardingService
             return;
         }
 
-        $user->forceFill(['phone_verified_at' => now()])->save();
+        // TCK-589 — le seul écrivain de `phone_verified_at` : 409 `phone_taken`
+        // si un autre compte a déjà vérifié ce numéro (la transaction se défait).
+        $this->phoneVerification->markVerified($user, (string) $user->phone);
     }
 
     private function uniqueSlug(string $name): string

@@ -64,6 +64,8 @@ vi.mock('@/components/dashboard/admin/AgencyActivityFeed', () => ({
 vi.mock('@/components/dashboard/admin/AgencyRevenueSnapshot', () => ({
   AgencyRevenueSnapshot: () => <div data-testid="bloc-revenus" />,
 }));
+// TCK-589 — la carte « Mise en service » lit l'API par React Query ; éprouvée à part.
+vi.mock('@/components/dashboard/admin/MiseEnService', () => ({ MiseEnService: () => null }));
 
 import Page from '../page';
 

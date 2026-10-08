@@ -63,6 +63,8 @@ vi.mock('@/lib/queries/dashboard-agency', () => ({
   fetchDashboardAgency: async () => null,
 }));
 
+// TCK-589 — la carte « Mise en service » lit l'API par React Query ; éprouvée à part.
+vi.mock('@/components/dashboard/admin/MiseEnService', () => ({ MiseEnService: () => null }));
 vi.mock('@/components/dashboard/admin/AgencyDegradedState', () => ({
   AgencyDegradedState: () => <div data-testid="degraded" />,
 }));

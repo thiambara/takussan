@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
+import { useAgentRoleCapabilities } from '@/hooks/useCan';
 import {
   WizardReprenable,
   type WizardStep,
@@ -65,8 +66,6 @@ import type {
  */
 export type AgentOnboardingWizardProps = {
   agentProfileId: number;
-  /** Role assigned by the inviting admin: agent | agent_senior | agent_manager. */
-  invitedRole?: string | null;
 };
 
 type Specialization = AgentSpecializationPayload['specialization'];
@@ -106,7 +105,6 @@ function relireBrouillon(data: WizardData): WizardData {
 
 export function AgentOnboardingWizard({
   agentProfileId,
-  invitedRole,
 }: AgentOnboardingWizardProps) {
   const t = useTranslations('agents.onboarding');
   const router = useRouter();
@@ -196,11 +194,11 @@ export function AgentOnboardingWizard({
         title: t('steps.welcome.title'),
         subtitle: t('steps.welcome.subtitle'),
         render: () => (
-          <WelcomeStep agentProfileId={agentProfileId} invitedRole={invitedRole} />
+          <WelcomeStep agentProfileId={agentProfileId} />
         ),
       },
     ],
-    [agentProfileId, invitedRole, t],
+    [agentProfileId, t],
   );
 
   return (
@@ -224,7 +222,6 @@ function PhoneStep({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
-  const [debugCode, setDebugCode] = useState<string | null>(null);
 
   const handleSend = () => {
     if (!numeroComposable(data.phone.number)) return;
@@ -243,12 +240,10 @@ function PhoneStep({ data, setData }: StepProps) {
         return;
       }
       setOtpSent(true);
-      setDebugCode(res.data.debug_code ?? null);
       toast.add({
         title: t('sent.title'),
-        description: res.data.debug_code
-          ? t('sent.bodyDebug', { code: res.data.debug_code })
-          : t('sent.body'),
+        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        description: t('sent.body'),
         type: 'success',
       });
     });
@@ -328,11 +323,6 @@ function PhoneStep({ data, setData }: StepProps) {
                 })
               }
             />
-            {debugCode ? (
-              <span className="text-xs text-muted-foreground">
-                {t('devHint', { code: debugCode })}
-              </span>
-            ) : null}
           </div>
           <div className="flex items-end">
             <Button
@@ -551,36 +541,31 @@ function SpecializationStep({
   );
 }
 
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  agent: ['list_properties', 'list_customers', 'create_visits', 'message_customers'],
-  agent_senior: [
-    'list_properties',
-    'list_customers',
-    'create_visits',
-    'message_customers',
-    'edit_properties',
-    'invite_owner',
-  ],
-  agent_manager: [
-    'list_properties',
-    'list_customers',
-    'create_visits',
-    'message_customers',
-    'edit_properties',
-    'invite_owner',
-    'invite_agent',
-    'reassign_leads',
-  ],
-};
+/**
+ * TCK-589 — les capacités RÉELLES de l'agent dans l'agence de l'invitation, groupées par domaine.
+ *
+ * Le récap lisait `ROLE_PERMISSIONS`, une table écrite en dur que rien ne reliait au rôle
+ * effectivement attribué (la page ne passait même pas `invitedRole`) : un rôle personnalisé
+ * affichait les droits d'un agent de base. La source est désormais le rôle du profil
+ * (`GET /api/me/agent-profiles/{id}/role-capabilities`),
+ * libellée par le même dictionnaire que l'éditeur de rôles (`admin.roles.capabilities.*`).
+ */
+function grouperCapacites(capacites: readonly string[]): ReadonlyArray<readonly [string, string[]]> {
+  const groupes = new Map<string, string[]>();
+  for (const capacite of capacites) {
+    const domaine = capacite.split('.')[0] ?? capacite;
+    groupes.set(domaine, [...(groupes.get(domaine) ?? []), capacite]);
+  }
+  return [...groupes.entries()];
+}
 
-function WelcomeStep({
-  agentProfileId,
-  invitedRole,
-}: {
-  agentProfileId: number;
-  invitedRole?: string | null;
-}) {
+function WelcomeStep({ agentProfileId }: { agentProfileId: number }) {
   const t = useTranslations('agents.onboarding.steps.welcome');
+  const tRoles = useTranslations('admin.roles');
+  // Le rôle de CE profil, pas `GET /api/me/capabilities` : le profil est encore `draft` ici, et un
+  // profil non actif ne confère rien (ADR-0031 §3) — la liste y serait vide.
+  const capacitesQuery = useAgentRoleCapabilities(agentProfileId);
+  const groupes = grouperCapacites(capacitesQuery.data?.data.capabilities ?? []);
   const [lead, setLead] = useState<AgentFirstLeadEntry | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
@@ -601,26 +586,41 @@ function WelcomeStep({
     };
   }, [agentProfileId]);
 
-  const role = (invitedRole ?? 'agent') as keyof typeof ROLE_PERMISSIONS;
-  const permissions = ROLE_PERMISSIONS[role] ?? ROLE_PERMISSIONS.agent;
-
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-xl border border-border bg-muted/30 p-5">
+      <div className="rounded-xl border border-border bg-muted/30 p-5" data-testid="agent-capabilities">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('roleLabel')}
+          {t('capabilitiesLabel')}
         </p>
-        <p className="mt-1 text-lg font-semibold text-foreground">
-          {t(`roles.${role}`)}
-        </p>
-        <ul className="mt-3 grid grid-cols-1 gap-1 text-sm text-muted-foreground sm:grid-cols-2">
-          {permissions.map((perm) => (
-            <li key={perm} className="flex items-start gap-2">
-              <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" aria-hidden />
-              <span>{t(`permissions.${perm}`)}</span>
-            </li>
-          ))}
-        </ul>
+        {capacitesQuery.isLoading ? (
+          <p className="mt-2 text-sm text-muted-foreground">…</p>
+        ) : capacitesQuery.isError ? (
+          <p className="mt-2 text-sm text-destructive">{t('capabilitiesError')}</p>
+        ) : groupes.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">{t('capabilitiesEmpty')}</p>
+        ) : (
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {groupes.map(([domaine, capacites]) => (
+              <section key={domaine} aria-label={tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine}>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine}
+                </h3>
+                <ul className="mt-1 space-y-1 text-sm text-muted-foreground">
+                  {capacites.map((capacite) => (
+                    <li key={capacite} className="flex items-start gap-2">
+                      <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                      <span>
+                        {tRoles.has(`capabilities.${capacite}`)
+                          ? tRoles(`capabilities.${capacite}`)
+                          : capacite}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
 
       <div data-testid="agent-first-lead-block">

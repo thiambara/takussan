@@ -67,7 +67,7 @@ export default async function PageDIntention({
       subtitle={t('pageSubtitle')}
       note={t('note')}
     >
-      <QuestionDIntention apres={apres} />
+      <QuestionDIntention apres={apres} retour={destinationInterne(brute, '')} />
     </OnboardingShell>
   );
 }

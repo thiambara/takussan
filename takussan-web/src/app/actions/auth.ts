@@ -59,6 +59,11 @@ export async function updateProfileAction(
     const raw = formData.get('phone');
     payload.phone = typeof raw === 'string' ? raw : null;
   }
+  // TCK-589 p3-1 — la preuve du remplacement d'un numéro vérifié, relayée telle quelle.
+  for (const champ of ['current_password', 'phone_change_code'] as const) {
+    const valeur = formData.get(champ);
+    if (typeof valeur === 'string' && valeur !== '') payload[champ] = valeur;
+  }
 
   const avatarFile = formData.get('avatar') as File | null;
   if (avatarFile && avatarFile.size > 0) {

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\User;
+use App\Services\Auth\LoginLock;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -28,11 +29,18 @@ class UserSupportService
     {
         $this->guardTarget($actor, $target);
         $metadata = $target->metadata ?? [];
+        // Vérification adverse M1 — un verrou par canal : celui du numéro vérifié se lève aussi.
+        $lock = app(LoginLock::class);
+        $numero = $target->phone_verified_at !== null && $target->phone ? (string) $target->phone : null;
+        $numeroVerrouille = $numero !== null && $lock->isNumberLocked($numero);
 
-        abort_code_if(empty($metadata['locked_at']), 409, 'support.account_not_locked');
+        abort_code_if(empty($metadata['locked_at']) && ! $numeroVerrouille, 409, 'support.account_not_locked');
 
-        unset($metadata['locked_at'], $metadata['failed_login_attempts']);
+        unset($metadata['locked_at'], $metadata['failed_login_attempts'], $metadata['failed_login_first_at']);
         $target->forceFill(['metadata' => $metadata])->save();
+        if ($numero !== null) {
+            $lock->clearNumber($numero);
+        }
 
         return $this->log($actor, $target, 'super_admin_account_unlocked', $reason);
     }

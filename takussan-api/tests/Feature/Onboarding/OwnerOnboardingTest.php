@@ -11,12 +11,12 @@ use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReadsPhoneCodes;
 use Tests\TestCase;
 
 /**
@@ -32,7 +32,7 @@ use Tests\TestCase;
  */
 class OwnerOnboardingTest extends TestCase
 {
-    use RefreshDatabase;
+    use ReadsPhoneCodes, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -193,7 +193,7 @@ class OwnerOnboardingTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $code = $this->issuePhoneCode($user);
         $this->assertNotNull($code);
 
         $response = $this->postJson('/api/owner/onboard/complete', [

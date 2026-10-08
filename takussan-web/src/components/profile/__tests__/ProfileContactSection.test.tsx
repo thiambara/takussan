@@ -103,6 +103,7 @@ describe('<ProfileContactSection>', () => {
       ...BASE_USER,
       phone: '+221770000000',
       phone_verified_at: '2026-04-10T00:00:00Z',
+      has_usable_password: true,
     };
     updateProfileMock.mockResolvedValue({
       ok: true,
@@ -115,6 +116,8 @@ describe('<ProfileContactSection>', () => {
     const input = screen.getByTestId('phone-input');
     await user.clear(input);
     await user.type(input, '+221780000000');
+    // TCK-589 p3-1 — remplacer un numéro vérifié exige une preuve (ici le mot de passe).
+    await user.type(screen.getByTestId('phone-change-password'), 'mot-de-passe');
     await user.click(screen.getByTestId('contact-save'));
 
     await waitFor(() =>
@@ -124,7 +127,7 @@ describe('<ProfileContactSection>', () => {
 
   it('opens the OTP flow on "Vérifier" and confirms via phoneVerifyOtpAction', async () => {
     const user = userEvent.setup();
-    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
+    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
     render(withIntl(
@@ -164,7 +167,7 @@ describe('<ProfileContactSection>', () => {
 
   it('syncs the auth context after a successful OTP verification', async () => {
     const user = userEvent.setup();
-    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
+    sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
     render(withIntl(

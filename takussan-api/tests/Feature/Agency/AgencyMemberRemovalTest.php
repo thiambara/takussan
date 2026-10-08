@@ -46,7 +46,11 @@ class AgencyMemberRemovalTest extends ApiTestCase
 
     private function member(string $role): User
     {
-        $user = User::factory()->create();
+        // TCK-589 (fusion) — un admin d'agence agit avec un second facteur : retirer, passer,
+        // déclarer une absence sont des gestes d'équipe protégés (`ProtectedActions`).
+        $user = User::factory()->create($role === 'agency_admin'
+            ? ['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]
+            : []);
         $this->materializeRoleProfile($user, $role, $this->agency);
 
         return $user;
@@ -118,7 +122,7 @@ class AgencyMemberRemovalTest extends ApiTestCase
         $this->remove($this->admin, $this->admin)->assertStatus(422);
 
         $solo = Agency::factory()->create();
-        $onlyAdmin = User::factory()->create();
+        $onlyAdmin = User::factory()->create(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET]);
         $this->materializeRoleProfile($onlyAdmin, 'agency_admin', $solo);
         $this->actingAsApi($onlyAdmin)->deleteJson("/api/agencies/{$solo->id}/members/{$onlyAdmin->id}")->assertStatus(422);
         $this->assertNotSoftDeleted('agency_admin_profiles', ['user_id' => $onlyAdmin->id]);
