@@ -204,6 +204,15 @@ class PublicReportTest extends ApiTestCase
         $this->assertNotSame(VisitorFingerprint::ofIp($a), VisitorFingerprint::ofIp($b));
         $this->assertSame(VisitorFingerprint::ofIp('203.0.113.5'), VisitorFingerprint::ofIp($a));
 
+        // verif-597 passe 3, n1′ — le déballage juge la forme BINAIRE : les écritures hexadécimale,
+        // en majuscules ou développée de la même adresse sont le même visiteur IPv4. Un déballage
+        // textuel (`::ffff:` suivi d'un point) les laissait au `/64` commun.
+        foreach (['::ffff:cb00:7105', '::FFFF:203.0.113.5', '0:0:0:0:0:ffff:cb00:7105'] as $spelling) {
+            $this->assertSame('203.0.113.5', VisitorFingerprint::network($spelling), $spelling);
+            $this->assertSame(VisitorFingerprint::ofIp('203.0.113.5'), VisitorFingerprint::ofIp($spelling), $spelling);
+        }
+        $this->assertNotSame(VisitorFingerprint::ofIp('::ffff:cb00:7105'), VisitorFingerprint::ofIp('::ffff:c633:6409'));
+
         $key = fn (string $ip): string => RateLimiter::limiter('public-report')(
             Request::create('/api/public/reviews/1/report', 'POST', server: ['REMOTE_ADDR' => $ip])
         )->key;
