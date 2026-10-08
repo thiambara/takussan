@@ -14,6 +14,7 @@ use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
+use App\Jobs\SendFavoriteChangeAlerts;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -40,7 +41,15 @@ Schedule::job(new ProcessTrialExpirations)->dailyAt('02:15')->withoutOverlapping
 // silently and reprocessed on the next sweep.
 Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
-Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00');
+// TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
+// `/properties`. Idempotent par la borne `last_notified_at`, RÉSERVÉE avant l'envoi et rendue
+// s'il échoue (verif-599 M1).
+Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00')->withoutOverlapping();
+// TCK-599 — une alerte sans compte non confirmée à 48 h est effacée. Idempotent.
+Schedule::command('search-alerts:purge-unconfirmed')->hourly()->withoutOverlapping();
+// TCK-599 §5 — favoris : baisses de prix et sorties du public, une notification groupée par
+// personne. Idempotent par la base de prix et `unavailable_notified_at`.
+Schedule::job(new SendFavoriteChangeAlerts)->dailyAt('09:15')->withoutOverlapping();
 // TCK-591 — rapprochement prospects ↔ biens arrivés ou repris en prix depuis 24 h : une
 // notification par référent, jamais vide. Idempotent par jour (`data.digest_date`).
 Schedule::job(new SendProspectMatchDigest)->dailyAt('08:30')->withoutOverlapping();

@@ -32,7 +32,7 @@ import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
  * Wraps the existing filter sidebar + toolbar + pagination (reused from
  * Wave 2) with the Wave 3 additions :
  *   - view toggle (list / map)
- *   - `SaveSearchButton` (requires auth)
+ *   - `SaveSearchButton` (account: save + optional alert ; visitor: alert without account, TCK-599)
  *   - canonical {@link PropertyCard} (owns favorites button)
  *
  * The underlying `useSearch` hook (reducer + URL sync) is untouched; it
@@ -473,7 +473,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // TCK-552 — la sauvegarde au BOUT des puces, et seulement s'il y en a (P7, AC5).
               // Son libellé est conservé, et c'est vérifié : `SaveSearchButton` envoie
               // `notification_frequency: 'off'` — elle SAUVEGARDE, elle ne crée aucune alerte.
-              // « Créer une alerte » aurait été le mensonge.
+              // « Créer une alerte » aurait été le mensonge. TCK-599 : l'alerte est une case
+              // décochée dans la boîte, et seule la case cochée l'envoie en `daily`.
               finDesPuces={
                 activeCount > 0 ? (
                   <SaveSearchButton

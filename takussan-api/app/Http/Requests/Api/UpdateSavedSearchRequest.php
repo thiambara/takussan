@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Support\SavedSearchCriteria;
 
 /**
  * TCK-305 — extrait de SavedSearchController::update(), où les règles étaient écrites en ligne.
@@ -42,10 +43,12 @@ class UpdateSavedSearchRequest extends BaseFormRequest
      */
     public function rules(): array
     {
-        return [
-            'name' => ['sometimes', 'string'],
-            'criteria' => ['sometimes', 'array'],
-            'notification_frequency' => ['sometimes', 'in:off,daily,weekly,instant'],
+        // TCK-599 (ADR-0050 §2) — le vocabulaire fermé : la MÊME règle à la création et à la
+        // modification, écrite une seule fois. Toute clé hors `SavedSearchCriteria::KEYS` rend 422.
+        return SavedSearchCriteria::rules('sometimes') + [
+            // verif-599 m12 — 100, comme le front : le titre de la cloche (255) cite le nom.
+            'name' => ['sometimes', 'string', 'max:100'],
+            'notification_frequency' => ['sometimes', 'in:off,daily,weekly'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

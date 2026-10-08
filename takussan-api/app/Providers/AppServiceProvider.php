@@ -373,6 +373,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-report', fn (Request $request) => Limit::perHour(5)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-visit-request', fn (Request $request) => Limit::perHour(10)->by($this->visitorRateLimitKey($request)));
         RateLimiter::for('public-contact-lead', fn (Request $request) => Limit::perMinutes(10, 5)->by($this->visitorRateLimitKey($request)));
+        // TCK-599 (ADR-0050 §4) — l'alerte sans compte, par VISITEUR. La borne par CONTACT vit
+        // dans `PublicSearchAlertController::store()` (verif-599 m2) : posée ici, ses en-têtes
+        // `X-RateLimit-*` sortaient — `ThrottleRequests` garde le plus petit « remaining » de
+        // toutes les limites, et un tiers lisait qu'une autre personne avait visé ce contact.
+        RateLimiter::for('public-search-alert', fn (Request $request) => Limit::perMinutes(10, 10)->by('visitor:'.$this->visitorRateLimitKey($request)));
         // TCK-590 — un clic WhatsApp / Appeler compté. Plus large que le contact (un visiteur
         // hésite et reclique), assez étroit pour qu'un script ne gonfle pas les compteurs.
         RateLimiter::for('public-contact-click', fn (Request $request) => Limit::perMinutes(10, 20)->by($this->visitorRateLimitKey($request)));

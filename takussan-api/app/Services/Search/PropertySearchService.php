@@ -5,6 +5,8 @@ namespace App\Services\Search;
 use App\Http\Resources\PropertyResource;
 use App\Http\Responses\PaginationMeta;
 use App\Models\Property;
+use DateTimeInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Laravel\Scout\EngineManager;
@@ -139,6 +141,60 @@ class PropertySearchService
                 lastPage: max(1, (int) ($result['totalPages'] ?? 1)),
             ),
             'search' => $search,
+        ];
+    }
+
+    /**
+     * TCK-599 (ADR-0050 §1) — ce qu'une alerte de recherche rend : les biens que `/properties`
+     * aurait rendus pour ces critères, publiés dans la fenêtre `]$apres, $jusqua]`.
+     *
+     * - **Le même filtre** que la liste (`buildFilter()`, donc `publicFilter()`), et le régime
+     *   conjonctif SEUL : jamais le repli d'ADR-0024 — une alerte qui relâche un critère prévient
+     *   d'un bien que la personne n'a pas demandé.
+     * - **La fenêtre est dans le moteur** (`published_at`, timestamp filtrable) : filtrer après
+     *   coup paginerait puis jetterait (la raison écrite par TCK-350). Les bornes sont des
+     *   ARGUMENTS, jamais des clés de `criteria`.
+     * - `totalHits` est le total annoncé ; seuls les `$limit` premiers sont rechargés, par
+     *   `Property::public()` au moment de l'envoi — un bien sorti du public entre l'indexation et
+     *   l'envoi n'est jamais décrit (il reste compté : le total est celui du moteur).
+     *
+     * @param  array<string,mixed>  $params  la forme de `SavedSearchCriteria::toSearchParams()`
+     * @return array{properties: Collection<int,Property>, total: int}
+     */
+    public function alertMatches(array $params, ?DateTimeInterface $apres, DateTimeInterface $jusqua, int $limit = 5): array
+    {
+        $term = trim((string) ($params['q'] ?? ''));
+        $filter = $this->buildFilter($params);
+        if ($apres !== null) {
+            $filter[] = 'published_at > '.$apres->getTimestamp();
+        }
+        $filter[] = 'published_at <= '.$jusqua->getTimestamp();
+
+        /** @var array<string,mixed> $result */
+        $result = Property::search($term, function ($index, string $query) use ($filter, $limit) {
+            return $index->search($query, [
+                'filter' => $filter,
+                'page' => 1,
+                'hitsPerPage' => $limit,
+                'sort' => ['published_at:desc'],
+                // ADR-0050 §1 — le régime nominal, et lui seul.
+                'matchingStrategy' => self::STRATEGY_STRICT,
+            ]);
+        })->raw();
+
+        $ids = array_map(static fn (array $hit): int => (int) $hit['id'], $result['hits'] ?? []);
+        $loaded = $ids === [] ? collect() : Property::query()
+            ->public()
+            ->with('address', 'media')
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        return [
+            'properties' => new Collection(
+                collect($ids)->map(fn (int $id) => $loaded->get($id))->filter()->values()->all(),
+            ),
+            'total' => (int) ($result['totalHits'] ?? 0),
         ];
     }
 
@@ -374,6 +430,14 @@ class PropertySearchService
         }
         if (! empty($p['city'])) {
             $filter[] = 'city = '.self::quote((string) $p['city']);
+        }
+        // TCK-599 — `cities`, la forme qu'écrit le formulaire de préférences : OU entre les villes.
+        // Aucun moteur ne la lisait, et l'alerte prévenait donc de toute ville.
+        if (! empty($p['cities']) && is_array($p['cities'])) {
+            $villes = array_values(array_filter(array_map(fn ($v) => trim((string) $v), $p['cities'])));
+            if ($villes !== []) {
+                $filter[] = array_map(fn (string $v) => 'city = '.self::quote($v), $villes);
+            }
         }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
             $filter[] = 'price >= '.(float) $p['price_min'];

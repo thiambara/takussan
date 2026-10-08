@@ -4071,7 +4071,26 @@
       "empty": "Aucun favori pour le moment",
       "emptyHint": "Parcourez les biens et cliquez sur le cœur pour les retrouver ici.",
       "discoverCta": "Découvrir des biens",
-      "error": "Impossible de charger vos favoris pour le moment."
+      "error": "Impossible de charger vos favoris pour le moment.",
+      "availability": {
+        "rented": "Loué",
+        "sold": "Vendu",
+        "unavailable": "Plus disponible",
+        "removed": "Retiré par l'annonceur"
+      },
+      "removedTitle": "Annonce retirée",
+      "remove": "Retirer",
+      "removeError": "Impossible de retirer ce favori. Réessayez.",
+      "similar": "Voir des biens similaires",
+      "note": {
+        "add": "Ajouter une note",
+        "edit": "Modifier",
+        "label": "Note personnelle",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "count": "{count}/{max}",
+        "error": "Impossible d'enregistrer la note. Réessayez."
+      }
     }
   },
   "search": {
@@ -4092,7 +4111,16 @@
       "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez.",
       "noCriteria": "Aucun critère",
       "relaunch": "Relancer",
-      "deleteAria": "Supprimer {name}"
+      "deleteAria": "Supprimer {name}",
+      "frequency": {
+        "off": "Coupée",
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire"
+      },
+      "alertAria": "Alerte de « {name} »",
+      "alertOff": "Aucune alerte : cette recherche ne vous prévient pas.",
+      "alertChannels": "Alerte {channels}.",
+      "alertError": "Impossible de modifier l'alerte. Réessayez."
     },
     "results": {
       "vide_titre": "Élargissez votre recherche",
@@ -4225,7 +4253,71 @@
       "dialogBodyFull": "Retrouvez ces filtres dans votre espace personnel pour les relancer en un clic.",
       "savedFull": "Recherche sauvegardée. Retrouvez-la dans vos recherches sauvegardées.",
       "save": "Enregistrer",
-      "bedroomsShort": "{count} ch"
+      "bedroomsShort": "{count} ch",
+      "alsoAlert": "Me prévenir chaque jour des nouveaux biens correspondants",
+      "alsoAlertHint": "Facultatif. Vous pourrez couper l'alerte ou changer sa fréquence dans vos recherches sauvegardées.",
+      "savedWithAlert": "Recherche sauvegardée, avec une alerte quotidienne : {channels}."
+    },
+    "alertChannels": {
+      "inapp": "dans l'application",
+      "email": "par e-mail",
+      "whatsapp": "par WhatsApp"
+    },
+    "publicAlert": {
+      "dialogTitle": "Me prévenir des nouveaux biens",
+      "dialogBody": "Recevez une fois par jour les nouveaux biens qui correspondent à cette recherche, sans créer de compte.",
+      "channelLegend": "Recevoir par",
+      "channelEmail": "E-mail",
+      "channelWhatsapp": "WhatsApp",
+      "emailLabel": "Adresse e-mail",
+      "phoneLabel": "Numéro WhatsApp",
+      "consent": "J'accepte de recevoir ces alertes. Chaque message permet de me désinscrire.",
+      "privacyLink": "Politique de confidentialité",
+      "submit": "Me prévenir",
+      "submitting": "Envoi…",
+      "emailRequired": "Indiquez votre adresse e-mail.",
+      "phoneRequired": "Indiquez votre numéro WhatsApp.",
+      "consentRequired": "Cochez la case pour accepter de recevoir les alertes.",
+      "invalid": "Vérifiez les informations saisies.",
+      "tooMany": "Trop de demandes. Réessayez un peu plus tard.",
+      "error": "Impossible d'enregistrer l'alerte pour le moment.",
+      "sentEmailTitle": "Vérifiez votre boîte e-mail",
+      "sentEmailBody": "Si cette adresse peut recevoir une alerte, un lien de confirmation vient d'y être envoyé. Rien ne part avant que vous l'ayez ouvert, et une demande non confirmée sous 48 heures est effacée.",
+      "codeTitle": "Saisissez le code reçu sur WhatsApp",
+      "codeBody": "Si ce numéro peut recevoir une alerte, un code vient de lui être envoyé. Il est valable 5 minutes.",
+      "codeLabel": "Code",
+      "confirm": "Confirmer",
+      "invalidCode": "Code incorrect ou expiré.",
+      "confirmedTitle": "Alerte confirmée",
+      "confirmedBody": "Vous recevrez les nouveaux biens correspondants une fois par jour.",
+      "close": "Fermer",
+      "loginInstead": "Vous avez un compte ? Connectez-vous pour sauvegarder la recherche."
+    },
+    "alertPages": {
+      "confirm": {
+        "metaTitle": "Confirmer votre alerte",
+        "title": "Confirmer votre alerte de recherche",
+        "body": "Un clic suffit : vous recevrez ensuite les nouveaux biens qui correspondent à votre recherche.",
+        "button": "Confirmer l'alerte",
+        "working": "Confirmation…",
+        "doneTitle": "Alerte confirmée",
+        "doneBody": "Vous recevrez les nouveaux biens correspondants. Chaque message contient un lien de désinscription."
+      },
+      "unsubscribe": {
+        "metaTitle": "Se désinscrire",
+        "title": "Ne plus recevoir cette alerte",
+        "bodyContact": "Toutes vos alertes sans compte s'arrêtent, et votre adresse est effacée.",
+        "bodyAccount": "L'alerte de cette recherche sera coupée. La recherche reste dans votre espace.",
+        "button": "Me désinscrire",
+        "working": "Désinscription…",
+        "doneTitle": "C'est fait",
+        "doneContact": "Vous ne recevrez plus d'alertes, et votre contact a été effacé.",
+        "doneAccount": "Cette alerte est coupée. Vous pouvez la réactiver depuis vos recherches sauvegardées."
+      },
+      "invalidTitle": "Ce lien ne fonctionne plus",
+      "invalidBody": "Il est incomplet, a déjà servi ou a expiré. Vous pouvez refaire une demande depuis une recherche.",
+      "error": "L'opération n'a pas abouti. Réessayez.",
+      "backToSearch": "Rechercher des biens"
     }
   },
   "wizardDrafts": {
@@ -8664,7 +8756,6 @@
       "frequencyAria": "Fréquence des alertes",
       "manageSavedSearches": "Gérer toutes mes recherches sauvegardées",
       "frequency": {
-        "instant": "Instantané",
         "daily": "Quotidien",
         "weekly": "Hebdomadaire"
       }
@@ -8838,6 +8929,8 @@
         "maintenance_status_changed": "Maintenance — statut",
         "review_received": "Nouvel avis",
         "saved_search_match": "Recherche sauvegardée",
+        "favorite_price_drop": "Favori — baisse de prix",
+        "favorite_unavailable": "Favori — plus disponible",
         "visit_reminder": "Rappel de visite",
         "threshold_alert": "Alerte seuil KPI",
         "lease_payment_received": "Loyer — paiement reçu"

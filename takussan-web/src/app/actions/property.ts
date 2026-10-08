@@ -307,25 +307,3 @@ export async function submitReviewReply(
     return { ok: false, ...(await errorFromApi(e)) };
   }
 }
-
-export async function toggleFavoriteAction(
-  propertyId: number,
-  currentFavoriteId: number | null,
-): Promise<ActionResult<{ favorite_id: number | null }>> {
-  const token = await getToken();
-  if (!token) return authRequise();
-  try {
-    if (currentFavoriteId) {
-      await apiRequest(cheminApi`/api/favorites/${currentFavoriteId}`, { method: 'DELETE', token });
-      return { ok: true, data: { favorite_id: null } };
-    }
-    const res = await apiRequest<{ data: { id: number } }>(`/api/favorites`, {
-      method: 'POST',
-      body: { property_id: propertyId },
-      token,
-    });
-    return { ok: true, data: { favorite_id: res.data.id } };
-  } catch (e) {
-    return { ok: false, ...(await errorFromApi(e)) };
-  }
-}

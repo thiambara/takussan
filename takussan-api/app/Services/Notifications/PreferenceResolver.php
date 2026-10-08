@@ -7,6 +7,7 @@ use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\NewBookingNotification;
+use App\Notifications\SavedSearchMatchesNotification;
 
 /**
  * TCK-070 — Central decision point for "should we send this notification?"
@@ -78,6 +79,10 @@ class PreferenceResolver
         // TCK-266 — J+7 reminder when the move-in inventory is still unsigned
         // (sent to both the tenant and the agent / agency primary admin).
         'tenant_inventory_reminder',
+        // TCK-599 — les alertes de favori, chacune son interrupteur : couper la baisse de prix ne
+        // coupe pas l'indisponibilité.
+        'favorite_price_drop',
+        'favorite_unavailable',
     ];
 
     /**
@@ -104,7 +109,22 @@ class PreferenceResolver
      */
     public const MOBILE_CLASS_EVENTS = [
         NewBookingNotification::EVENT_TYPE,
+        SavedSearchMatchesNotification::EVENT_TYPE,
     ];
+
+    /**
+     * TCK-599 (ADR-0050 §3) — les événements mobiles servis par WhatsApp SEUL (jamais de SMS : la
+     * notification refuse le repli), et seulement quand leur drapeau le dit. Faux : aucune case
+     * mobile n'est proposée, puisqu'aucun envoi ne l'honorerait.
+     *
+     * @return array<string, bool>
+     */
+    public static function whatsappOnlyEvents(): array
+    {
+        return [
+            SavedSearchMatchesNotification::EVENT_TYPE => (bool) config('search_alerts.whatsapp_enabled'),
+        ];
+    }
 
     /**
      * TCK-588 — défauts mobiles par événement (option retenue par défaut, question 1) :
@@ -202,7 +222,12 @@ class PreferenceResolver
             $channels[] = self::CHANNEL_PUSH;
         }
 
-        if (in_array($event, self::mobileEvents(), true)) {
+        $whatsappOnly = self::whatsappOnlyEvents();
+        if (array_key_exists($event, $whatsappOnly)) {
+            if ($whatsappOnly[$event]) {
+                $channels[] = self::CHANNEL_WHATSAPP;
+            }
+        } elseif (in_array($event, self::mobileEvents(), true)) {
             $channels[] = self::CHANNEL_SMS;
             $channels[] = self::CHANNEL_WHATSAPP;
         }

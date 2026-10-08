@@ -38,7 +38,9 @@ export interface SearchEmptyProps {
  *     sinon la même rangée paraîtrait deux fois ;
  *  2. **la sauvegarde**, l'issue positive — c'est précisément à zéro résultat qu'on veut
  *     retrouver cette recherche plus tard. ⚠ Elle SAUVEGARDE (`notification_frequency: 'off'`),
- *     elle ne crée aucune alerte : aucun texte d'ici ne promet d'être prévenu ;
+ *     elle ne crée aucune alerte : aucun texte d'ici ne promet d'être prévenu. Depuis TCK-599,
+ *     l'alerte est une case DÉCOCHÉE dans la boîte qu'elle ouvre, et la confirmation dit ce qui a
+ *     été créé ; le visiteur sans compte y trouve « Me prévenir », qui demande son contact ;
  *  3. **« Effacer tous les filtres »**, en second et en style discret (`ghost`). Il reste offert
  *     sans aucun critère : c'est alors la seule sortie.
  *

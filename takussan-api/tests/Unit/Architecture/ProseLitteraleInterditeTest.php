@@ -21,9 +21,7 @@ class ProseLitteraleInterditeTest extends TestCase
      *
      * @var array<string, array{forms: list<string>, ticket: string}>
      */
-    private const EXEMPTIONS = [
-        'Jobs/SendSavedSearchAlerts.php' => ['forms' => [ProseLitteraleScanner::NOTIFY], 'ticket' => 'TCK-599'],
-    ];
+    private const EXEMPTIONS = [];
 
     /**
      * Positifs attendus sur les fixtures, par fichier et par forme — comptés EXACTEMENT.

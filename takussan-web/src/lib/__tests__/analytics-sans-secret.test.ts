@@ -15,6 +15,14 @@ describe('urlSansSecret — aucun secret vers la mesure d’audience (TCK-602, V
     [`/fr/share/${JETON}`, '/fr/share/[token]'],
     ['/auth/verify-email/12/9f8e7d?expires=1&signature=abc', '/auth/verify-email/[id]/[hash]'],
     ['/auth/reset-password?token=secret&email=awa%40example.sn', '/auth/reset-password'],
+    // TCK-599 — les deux pages des liens d'alerte : le jeton de confirmation, et le jeton ou la
+    // signature de désinscription ; l'identifiant de recherche, lui, n'est pas un secret.
+    [`/fr/search-alerts/confirm?token=${JETON}`, '/fr/search-alerts/confirm'],
+    [
+      '/fr/search-alerts/unsubscribe?search=12&expires=1760000000&signature=9f8e7d6c',
+      '/fr/search-alerts/unsubscribe?search=12',
+    ],
+    [`/fr/search-alerts/unsubscribe?token=${JETON}`, '/fr/search-alerts/unsubscribe'],
   ])('%s → %s', (entree, attendu) => {
     expect(urlSansSecret(entree)).toBe(attendu);
   });

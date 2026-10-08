@@ -77,6 +77,12 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-api/app/Http/Controllers/Api/Me/DataExportController.php:32 — une demande par subDay() ; la date affichée est `available_at` rendu par l\'API',
   'superAdmin.moderation.staleWarning':
     'takussan-web/src/components/admin/super/moderation.tsx:389 — compte calculé (> 7 jours), pas une promesse',
+  // TCK-599 — l'alerte sans compte : le lien de confirmation vaut 48 h (refusé au-delà par
+  // `confirmByToken`, la demande effacée par la purge horaire), le code WhatsApp 5 minutes.
+  'search.publicAlert.sentEmailBody':
+    'takussan-api/config/search_alerts.php:20 — confirmation_ttl_hours = 48, appliqué par PublicSearchAlertController::confirmByToken et search-alerts:purge-unconfirmed',
+  'search.publicAlert.codeBody':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, via sendCodeTo(\'search_alert:…\')',
   // Libellés de PÉRIODE (« ci 12 weer » = « sur 12 mois ») : la tournure wolof ressemble à un délai.
   'dashboard.tenant.upcoming30d': 'période affichée, pas une promesse',
   'dashboard.agency.chartTitle': 'période affichée, pas une promesse',
@@ -115,6 +121,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'superAdmin.pages.users.impersonateDescription': 15,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
+  'search.publicAlert.sentEmailBody': 48,
+  'search.publicAlert.codeBody': 5,
 };
 
 /**

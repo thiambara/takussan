@@ -49,6 +49,10 @@ final class NotificationTarget
         // TCK-597 — la boîte des avis reçus, et la modération des avis de l'agence.
         'reviews' => '/app/reviews',
         'review_moderation' => '/admin/reviews',
+        // TCK-599 — une alerte de recherche ouvre les recherches sauvegardées, une alerte de favori
+        // la liste des favoris.
+        'saved_searches' => '/app/saved-searches',
+        'favorites' => '/app/favorites',
     ];
 
     private function __construct(

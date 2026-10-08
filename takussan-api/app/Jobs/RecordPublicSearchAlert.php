@@ -1,0 +1,131 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\AlertSubscriber;
+use App\Models\SavedSearch;
+use App\Notifications\SearchAlertConfirmationNotification;
+use App\Services\Auth\PhoneVerificationService;
+use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
+use Throwable;
+
+/**
+ * TCK-599 (ADR-0050 §4, décision 13) — la demande d'alerte d'un visiteur, traitée HORS de la
+ * requête.
+ *
+ * La réponse 202 est la même que le contact soit connu ou non ; il faut aussi que son TEMPS le
+ * soit. Tant que la requête comptait les demandes du contact, écrivait l'abonné et envoyait la
+ * confirmation, une borne atteinte (rien à faire) répondait plus vite qu'un contact neuf (un
+ * e-mail synchrone) : le chronomètre disait ce que le corps taisait. La requête ne fait plus que
+ * valider et pousser ce job — le même travail dans tous les cas.
+ *
+ * Chiffré (`ShouldBeEncrypted`) : la charge porte le contact en clair, et la table `jobs` le
+ * garderait lisible jusqu'au passage du worker. Un échec est journalisé sans contact ni message,
+ * et n'est pas rejoué : la demande reste en attente et la purge l'efface à 48 h.
+ */
+class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
+{
+    use Queueable;
+
+    /** La portée des codes WhatsApp d'une demande — relue par la confirmation. */
+    public const SCOPE = 'search_alert:';
+
+    public int $tries = 1;
+
+    /** Demandes par boîte et par heure, toutes adresses IP confondues. */
+    public const PAR_CONTACT_PAR_HEURE = 5;
+
+    /**
+     * @param  array<string, mixed>  $data  la demande validée (`criteria`, `frequency`, `locale`, `name`)
+     */
+    public function __construct(
+        public readonly array $data,
+        public readonly string $channel,
+        public readonly string $contact,
+    ) {}
+
+    public function handle(PhoneVerificationService $codes): void
+    {
+        try {
+            $hash = AlertSubscriber::contactHash($this->channel, $this->contact);
+            // Les plafonds se comptent par BOÎTE : `awa+1@`, `awa+2@`… arrivent chez `awa@`.
+            $boite = AlertSubscriber::mailboxHash($this->channel, $this->contact);
+
+            // La borne par CONTACT (sa boîte), qu'un script qui tourne ses adresses IP ne contourne
+            // pas. Ici, hors de la requête : atteinte, elle se tait (verif-599 m2) — un 429 propre
+            // au contact, et son `Retry-After`, auraient daté la première demande visant la boîte.
+            $cle = 'public-search-alert:contact:'.$boite;
+            if (RateLimiter::tooManyAttempts($cle, self::PAR_CONTACT_PAR_HEURE)) {
+                return;
+            }
+            RateLimiter::hit($cle, 3600);
+
+            $open = AlertSubscriber::query()->where('mailbox_hash', $boite)->count();
+            if ($open < (int) config('search_alerts.max_open_per_contact', 5)) {
+                $this->createAndConfirm($codes, $hash, $boite);
+            }
+        } catch (Throwable $e) {
+            Log::error('search_alert.request_failed', ['channel' => $this->channel]
+                + SafeExceptionContext::of($e));
+        }
+    }
+
+    private function createAndConfirm(PhoneVerificationService $codes, string $hash, string $boite): void
+    {
+        $data = $this->data;
+        $token = $this->channel === AlertSubscriber::CHANNEL_EMAIL ? AlertSubscriber::newToken() : null;
+        $unsubscribe = AlertSubscriber::newToken();
+
+        $subscriber = DB::transaction(function () use ($data, $hash, $boite, $token, $unsubscribe): AlertSubscriber {
+            $subscriber = AlertSubscriber::create([
+                'channel' => $this->channel,
+                'contact' => $this->contact,
+                'contact_hash' => $hash,
+                'mailbox_hash' => $boite,
+                'locale' => $data['locale'],
+                'confirmation_token_hash' => $token !== null ? AlertSubscriber::tokenHash($token) : null,
+                'unsubscribe_token' => $unsubscribe,
+                'unsubscribe_token_hash' => AlertSubscriber::tokenHash($unsubscribe),
+                'consent_at' => now(),
+                'consent_source' => 'public_search_alert',
+                'consent_version' => AlertSubscriber::CONSENT_VERSION,
+            ]);
+            SavedSearch::create([
+                'alert_subscriber_id' => $subscriber->id,
+                'name' => (string) ($data['name'] ?? '') !== '' ? $data['name'] : __('saved_search_alerts.default_name', [], $data['locale']),
+                'criteria' => $data['criteria'],
+                'notification_frequency' => $data['frequency'],
+                'is_active' => true,
+            ]);
+
+            return $subscriber;
+        });
+
+        // Au plus N messages de confirmation au même contact sur 24 h : au-delà, la demande
+        // reste en attente, muette, et la purge l'efface à 48 h.
+        $sent = AlertSubscriber::query()
+            ->where('mailbox_hash', $boite)
+            ->where('confirmation_sent_at', '>=', now()->subDay())
+            ->count();
+        if ($sent >= (int) config('search_alerts.max_confirmations_per_day', 2)) {
+            return;
+        }
+
+        if ($token !== null) {
+            $subscriber->notify(new SearchAlertConfirmationNotification($token));
+            $delivered = true;
+        } else {
+            $delivered = $codes->sendCodeTo(self::SCOPE.$subscriber->id, $this->contact, $subscriber->locale);
+        }
+
+        if ($delivered) {
+            $subscriber->forceFill(['confirmation_sent_at' => now()])->save();
+        }
+    }
+}

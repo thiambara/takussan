@@ -92,12 +92,10 @@ const PLANCHER_FICHIERS = 200;
  * `chemin relatif à takussan-api/::méthode` → le ticket qui corrige le site. Chaque ticket retire
  * son exemption dans le commit qui corrige (coordination de la vague 73, TCK-587 Contraintes 10).
  */
-const EXEMPTIONS = new Map([
-  ['app/Http/Controllers/Api/FavoriteController.php::store', 'TCK-599'],
-]);
+const EXEMPTIONS = new Map([]);
 
 /** Le nombre d'exemptions. Bilatéral : il suit `EXEMPTIONS.size`, dans les deux sens. */
-const CLIQUET = 1;
+const CLIQUET = 0;
 
 /**
  * Des REFUS qui n'accordent rien : `if ($user->agency_id !== $agency->id) return false;` suivi d'un

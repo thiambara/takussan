@@ -31,6 +31,9 @@ vi.mock('@/lib/queries/saved-searches', () => ({
   useCreateSavedSearchMutation: () => ({ mutateAsync, isPending: false }),
   useSavedSearchesQuery: () => useSavedSearchesQuery(),
   useDeleteSavedSearchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-599 — le réglage d'alerte de chaque ligne.
+  useUpdateSavedSearchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  SAVED_SEARCH_FREQUENCIES: ['off', 'daily', 'weekly'],
 }));
 
 const { SaveSearchButton } = await import('@/components/favorites/SaveSearchButton');

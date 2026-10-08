@@ -5,7 +5,6 @@ namespace Tests\Feature\Search;
 use App\Models\Address;
 use App\Models\Property;
 use App\Models\SavedSearch;
-use App\Models\User;
 use App\Services\Model\SearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -202,34 +201,9 @@ class SearchServiceGeoTest extends TestCase
         $this->assertSame($dakar->id, $resultat->getCollection()->first()->id);
     }
 
-    /**
-     * Le chemin réel de la production : `SavedSearch.criteria` → alerte e-mail.
-     *
-     * C'est `getMatchingProperties()` que `SendSavedSearchAlerts` appelle, et
-     * il relit `criteria` depuis le modèle — pas le tableau que le job a
-     * préparé.
-     */
-    public function test_les_criteres_geo_d_une_recherche_sauvegardee_sont_appliques(): void
-    {
-        [$proche] = $this->troisBiensAlignes();
-
-        $recherche = SavedSearch::create([
-            'user_id' => User::factory()->create()->id,
-            'name' => 'Autour de chez moi',
-            'criteria' => [
-                'lat' => self::CENTRE_LAT,
-                'lng' => self::CENTRE_LNG,
-                'radius_km' => 3,
-            ],
-            'notification_frequency' => 'daily',
-            'is_active' => true,
-        ]);
-
-        $correspondances = $this->service()->getMatchingProperties($recherche);
-
-        $this->assertCount(1, $correspondances);
-        $this->assertSame($proche->id, $correspondances->first()->id);
-    }
+    // TCK-599 (ADR-0050 §1) — les alertes ne passent plus par ce service : le rayon d'une
+    // recherche sauvegardée est éprouvé contre le moteur de `/properties`, par
+    // `SavedSearchCriteriaVocabularyTest` (lignes `radius_km`, `lat`, `lng`).
 
     /**
      * Un bien non public ne peut pas atteindre une alerte, filtre géo ou non.

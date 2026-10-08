@@ -63,7 +63,9 @@ class AgencySuspensionAuthenticatedReadsTest extends TestCase
         $this->agence->forceFill(['status' => AgencyStatus::Suspended])->save();
 
         $this->actingAs($autre);
-        $this->postJson('/api/favorites', ['property_id' => $this->bien->id])->assertForbidden();
+        // TCK-599 (contrainte 11) — 404, la réponse d'un identifiant inexistant : un bien non
+        // visible ne se distingue pas d'un bien absent.
+        $this->postJson('/api/favorites', ['property_id' => $this->bien->id])->assertNotFound();
         $this->assertFalse(Favorite::query()->where('user_id', $autre->id)->exists());
     }
 

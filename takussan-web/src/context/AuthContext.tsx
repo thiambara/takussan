@@ -17,8 +17,7 @@ import {
   clear as clearLocalFavorites,
   replace as replaceLocalFavorites,
 } from '@/lib/favoritesStore';
-import { favoritesQueryKeys, type FavoriteItem } from '@/lib/queries/favorites';
-import type { PaginatedResponse } from '@/types/api';
+import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
 
 type AuthContextValue = {
   user: User | null;
@@ -121,12 +120,9 @@ export function AuthProvider({
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiRequest<PaginatedResponse<FavoriteItem>>(
-          '/api/favorites?per_page=100',
-          { token },
-        );
+        const ids = await fetchAllFavoritePropertyIds(token);
         if (cancelled) return;
-        replaceLocalFavorites(res.data.map((f) => f.property_id));
+        replaceLocalFavorites(ids);
         void queryClient.invalidateQueries({ queryKey: favoritesQueryKeys.all });
       } catch {
         // Best-effort — leave the store as-is on failure.

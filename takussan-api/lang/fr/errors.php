@@ -445,6 +445,11 @@ return [
     'role' => [
         'super_admin_grant_forbidden' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
     ],
+    // TCK-599 — l'alerte de recherche sans compte.
+    'search_alert' => [
+        'invalid_token' => 'Ce lien de confirmation n\'est plus valable.',
+        'invalid_code' => 'Code incorrect ou expiré.',
+    ],
     'segregation' => [
         'approve' => 'Vous avez préparé ce reversement, ou en êtes le bénéficiaire : un autre membre doit l\'approuver.',
         'pay' => 'Vous avez approuvé ce reversement, ou en êtes le bénéficiaire : un autre membre doit le marquer payé.',

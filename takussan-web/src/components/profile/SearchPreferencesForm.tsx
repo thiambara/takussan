@@ -29,7 +29,7 @@ import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /** La donnée porte la CLÉ ; le libellé est résolu au rendu (patron TCK-286). */
-const FREQUENCY_VALUES = ['instant', 'daily', 'weekly'] as const;
+const FREQUENCY_VALUES = ['daily', 'weekly'] as const;
 
 const ENABLED_FREQUENCY: SavedSearchNotificationFrequency = 'daily';
 const DISABLED_FREQUENCY: SavedSearchNotificationFrequency = 'off';
@@ -76,7 +76,7 @@ function readInitial(initial: SavedSearch | null): FormValues {
         : '';
   const freq: SavedSearchNotificationFrequency =
     initial?.notification_frequency &&
-    (['off', 'daily', 'weekly', 'instant'] as const).includes(
+    (['off', 'daily', 'weekly'] as const).includes(
       initial.notification_frequency,
     )
       ? initial.notification_frequency
