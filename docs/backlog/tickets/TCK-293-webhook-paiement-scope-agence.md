@@ -293,3 +293,26 @@ Hors dépôt, et hors du périmètre de l'agent (préproduction, production, Dok
    `verify`.
 5. **À relever en préproduction**, ce que l'agent n'a pas pu lire : combien d'intégrations de
    paiement sont actives, et chez quelles agences. C'est la liste des portails à reconfigurer.
+
+### 2026-10-08 — Retouches après la vérification adverse (verif-293 : accepté, 0 B, 1 M, 1 m)
+
+M-1 et m-1 sont antérieurs au ticket et partent en ticket de suite. Deux retouches restent ici,
+parce que c'est ce ticket qui les rendait fausses :
+
+- **ADR-0046 §6.**
+  - La phrase « ces lignes n'existent qu'en préproduction et en développement » était fausse :
+    un payable jamais initié en ligne (espèces, facture neuve) n'a pas d'intégration initiatrice.
+  - §6 dit maintenant la limite connue M-1 : `custom_data` LS sous autorité plateforme, sans
+    contrôle de montant (USD ≠ XOF).
+- **m-1, l'écran.**
+  - Une intégration Lemon Squeezy d'agence n'affiche plus d'adresse ni de consigne. Le pilote ne
+    relie la commande ni au checkout ni à `custom_data`, l'URL ne solderait donc rien.
+  - À la place, une mention neutre (`webhookEndpoint.unsupported`, fr/en/wo). La page ne précharge
+    plus que Wave et OM (`hasWebhookEndpoint`).
+  - `custom_data` n'est **pas** propagé : ce serait ouvrir M-1 dans l'agence.
+  - La « Conséquence » de l'ADR qui invitait l'agence LS à déclarer l'URL est corrigée de même.
+- **Preuves.**
+  - `vitest` admin-settings + `promesses-de-delai` : 80 passed.
+  - eslint 0, tsc 0, `check:i18n` 0/0, `check-i18n-namespaces` vert.
+  - Ablations : G1 (LS invité à coller), G2 (LS dans la liste) et G3 (mention absente) rougissent
+    le nouveau test ; arbre identique avant et après.

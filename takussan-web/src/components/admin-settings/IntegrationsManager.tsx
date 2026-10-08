@@ -22,6 +22,7 @@ import { FormError, FormGlobalError } from '@/components/forms';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
+  hasWebhookEndpoint,
   integrationFormSchema,
   isPaymentProvider,
   isSmsProvider,
@@ -314,12 +315,17 @@ export function IntegrationsManager({
                   <FormError>{rowError.message}</FormError>
                 ) : null}
 
-                {isPaymentProvider(integration.provider) ? (
+                {hasWebhookEndpoint(integration.provider) ? (
                   <IntegrationWebhookEndpoint
                     integrationId={integration.id}
                     provider={integration.provider}
                     initialUrl={initialWebhookUrls[integration.id] ?? null}
                   />
+                ) : isPaymentProvider(integration.provider) ? (
+                  // Lemon Squeezy : pas d'adresse à coller, elle ne solderait rien (TCK-293, m-1).
+                  <p className="text-xs text-pretty text-muted-foreground">
+                    {t('webhookEndpoint.unsupported')}
+                  </p>
                 ) : null}
 
                 <div className="flex flex-wrap gap-2 pt-2">

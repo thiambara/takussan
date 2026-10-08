@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { FormError } from '@/components/forms';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
-import type { PaymentProviderId } from '@/lib/schemas/setting';
+import type { WebhookEndpointProviderId } from '@/lib/schemas/setting';
 import {
   fetchIntegrationWebhookEndpointAction,
   rotateIntegrationWebhookEndpointAction,
@@ -19,8 +19,9 @@ import {
  * TCK-293 (ADR-0046) — l'adresse de notification d'une intégration de paiement.
  *
  * Chaque intégration a la sienne : le jeton qu'elle porte désigne l'intégration dont le secret
- * vérifie la signature, et le rapprochement ne sort pas de son agence. Wave et Lemon Squeezy
- * l'attendent collée dans leur portail ; Orange Money la reçoit à chaque paiement.
+ * vérifie la signature, et le rapprochement ne sort pas de son agence. Wave l'attend collée dans
+ * son portail ; Orange Money la reçoit à chaque paiement. Lemon Squeezy d'agence n'a pas ce bloc
+ * (`hasWebhookEndpoint`) : son adresse ne solderait rien aujourd'hui.
  *
  * L'adresse arrive préchargée par la page ; sinon (intégration créée à l'instant, lecture en
  * échec), un bouton la lit. Régénérer est un geste protégé : le refus de second facteur passe par
@@ -29,15 +30,14 @@ import {
 
 interface IntegrationWebhookEndpointProps {
   readonly integrationId: number;
-  readonly provider: PaymentProviderId;
+  readonly provider: WebhookEndpointProviderId;
   readonly initialUrl?: string | null;
 }
 
 const HINT_KEYS = {
   wave: 'hintWave',
   orange_money: 'hintOrangeMoney',
-  lemon_squeezy: 'hintLemonSqueezy',
-} as const satisfies Record<PaymentProviderId, string>;
+} as const satisfies Record<WebhookEndpointProviderId, string>;
 
 export function IntegrationWebhookEndpoint({
   integrationId,

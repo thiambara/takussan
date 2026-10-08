@@ -70,6 +70,19 @@ describe('<IntegrationsManager />', () => {
     expect(screen.getAllByText('Adresse de notification')).toHaveLength(1);
   });
 
+  it('TCK-293 (m-1) — Lemon Squeezy d’agence : aucune adresse à coller, une mention neutre', () => {
+    const ls = { ...initial[0], id: 44, provider: 'lemon_squeezy' };
+    renderWithIntl(<IntegrationsManager initialIntegrations={[ls]} />);
+
+    expect(
+      screen.getByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Adresse de notification')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: "Afficher l'adresse" })).not.toBeInTheDocument();
+    expect(fetchEndpointMock).not.toHaveBeenCalled();
+    attendAucuneCleBrute();
+  });
+
   it('runs the test action and shows a success message', async () => {
     testMock.mockResolvedValue({
       ok: true,

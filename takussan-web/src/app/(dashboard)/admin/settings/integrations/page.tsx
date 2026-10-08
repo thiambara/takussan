@@ -5,7 +5,7 @@ import {
   fetchIntegrationWebhookEndpointAction,
   fetchIntegrationsAction,
 } from '@/app/actions/admin-settings';
-import { isPaymentProvider } from '@/lib/schemas/setting';
+import { hasWebhookEndpoint } from '@/lib/schemas/setting';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { IntegrationsManager } from '@/components/admin-settings/IntegrationsManager';
 import { SettingsTabs } from '@/components/admin-settings/SettingsTabs';
@@ -41,7 +41,7 @@ export default async function Page() {
     (
       await Promise.all(
         integrations
-          .filter((integration) => isPaymentProvider(integration.provider))
+          .filter((integration) => hasWebhookEndpoint(integration.provider))
           .map(async (integration) => {
             const endpoint = await fetchIntegrationWebhookEndpointAction(integration.id);
             return endpoint.ok && endpoint.data ? [[integration.id, endpoint.data.url] as const] : [];

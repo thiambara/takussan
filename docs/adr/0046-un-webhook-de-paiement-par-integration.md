@@ -111,7 +111,8 @@ SON agence.**
    signature de la **configuration** (`config('lemon-squeezy.signing_secret')`), qui appartient à la
    plateforme : il porte donc l'autorité de la plateforme (`WebhookAuthority::platform`), avec
    l'intégration Lemon Squeezy de la plateforme si elle existe. Le webhook d'un magasin Lemon
-   Squeezy **d'agence** passe par l'URL à jeton de son intégration, signé par son `signing_secret`.
+   Squeezy **d'agence** passe par l'URL à jeton de son intégration, signé par son `signing_secret`
+   — mais n'y solde encore rien (voir Conséquences).
 7. **Régénération.** `POST /api/integrations/{integration}/webhook-endpoint` tire un nouveau jeton
    et **invalide l'ancien dans la même écriture** ; `GET` sur le même chemin rend l'URL. Mêmes
    personnes que pour modifier l'intégration (super-admin, admin de l'agence de l'intégration),
@@ -151,7 +152,10 @@ SON agence.**
 - **Coût opérationnel, accepté par le porteur** : chaque agence qui encaisse par **Wave** doit
   coller l'URL de son intégration dans son portail Wave Business, et le refaire à chaque
   régénération ; l'onboarding d'une agence Wave gagne cette étape manuelle. Orange Money n'en
-  demande aucune. Un magasin Lemon Squeezy d'agence déclare l'URL dans son tableau de bord.
+  demande aucune. **Lemon Squeezy d'agence n'est pas invité à déclarer son URL** : son pilote ne
+  relie la commande ni au checkout initié ni à `custom_data` (vérification adverse de TCK-293,
+  m-1), l'URL ne solderait donc rien. L'écran le dit au lieu d'afficher l'adresse, jusqu'au ticket
+  de suite de M-1.
 - **Une régénération coupe les notifications des checkouts Orange Money déjà ouverts** : leur
   `notif_url` porte l'ancien jeton, qui rend désormais 404. Ils se rattrapent par la vérification
   forcée (`GET …/verify`), comme tout webhook perdu. L'écran le dit avant de régénérer.

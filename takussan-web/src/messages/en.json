@@ -7655,7 +7655,6 @@
         "label": "{provider} notification address",
         "hintWave": "Paste this address into your Wave Business portal, under webhook settings: this is where Wave confirms the payments of this integration.",
         "hintOrangeMoney": "Nothing to paste: Takussan sends this address to Orange Money with every payment.",
-        "hintLemonSqueezy": "Paste this address into the webhooks of your Lemon Squeezy store.",
         "show": "Show address",
         "copy": "Copy",
         "copied": "Copied",
@@ -7665,9 +7664,9 @@
         "rotated": "New address generated. The previous one no longer works.",
         "providers": {
           "wave": "Wave",
-          "orange_money": "Orange Money",
-          "lemon_squeezy": "Lemon Squeezy"
-        }
+          "orange_money": "Orange Money"
+        },
+        "unsupported": "Automatic payment confirmation is not yet supported for this provider."
       }
     },
     "settings": {

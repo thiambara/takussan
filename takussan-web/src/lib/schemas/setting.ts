@@ -86,6 +86,19 @@ export function isPaymentProvider(provider: string): provider is PaymentProvider
   return (PAYMENT_PROVIDER_IDS as readonly string[]).includes(provider);
 }
 
+/**
+ * TCK-293 — ceux dont l'adresse de notification solde réellement un paiement aujourd'hui.
+ * Lemon Squeezy d'agence n'en est pas : son pilote ne relie la commande ni au checkout initié
+ * (identifiants différents) ni à `custom_data` (vérification adverse, m-1). L'écran ne l'invite
+ * donc pas à coller une adresse qui ne solderait rien.
+ */
+export const WEBHOOK_ENDPOINT_PROVIDER_IDS = ['wave', 'orange_money'] as const;
+export type WebhookEndpointProviderId = (typeof WEBHOOK_ENDPOINT_PROVIDER_IDS)[number];
+
+export function hasWebhookEndpoint(provider: string): provider is WebhookEndpointProviderId {
+  return (WEBHOOK_ENDPOINT_PROVIDER_IDS as readonly string[]).includes(provider);
+}
+
 export const integrationFormSchema = z
   .object({
     provider: z
