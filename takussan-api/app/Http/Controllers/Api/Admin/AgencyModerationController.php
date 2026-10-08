@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Admin\ReinstateAgencyRequest;
+use App\Http\Requests\Admin\SuspendAgencyRequest;
 use App\Http\Resources\Api\Admin\AgencyResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
+use App\Services\Lead\ContactLeadService;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +23,12 @@ use Illuminate\Http\Request;
  *   verify   → status=Active,    is_verified=true,  verified_at=now()
  *   suspend  → status=Suspended  (verification flag preserved)
  *   unverify → status=Inactive,  is_verified=false, verified_at=null
+ *   reinstate → status=Active    (TCK-600 : suspended seulement, vérification intacte)
+ *
+ * TCK-600 (ADR-0048) — suspendre et lever exigent un MOTIF, journalisé et adressé aux admins
+ * de l'agence. Les effets de la suspension ne sont pas ici : ils sont LUS en aval, par la
+ * visibilité publique (`Property::scopePublic`), le verrou d'écriture (`EnsureAgencyWritable`),
+ * le résolveur de capacités et l'index (`AgencyObserver`).
  *
  * Each transition writes a `super_admin_agency_*` activity log entry tied to
  * the actor and the target agency.
@@ -176,9 +187,25 @@ class AgencyModerationController extends Controller
         ]);
     }
 
-    public function suspend(Request $request, Agency $agency): JsonResponse
+    public function suspend(SuspendAgencyRequest $request, Agency $agency): JsonResponse
     {
-        return $this->transition($request, $agency, AgencyStatus::Suspended, 'super_admin_agency_suspended');
+        $reason = (string) $request->validated('reason');
+        $response = $this->transition($request, $agency, AgencyStatus::Suspended, 'super_admin_agency_suspended', [], $reason);
+        $this->notifyAdmins($agency, NotificationCode::AgencySuspended, $reason);
+
+        return $response;
+    }
+
+    /** TCK-600 (ADR-0048 §6) — la seule sortie de `suspended` qui ne touche pas à la vérification. */
+    public function reinstate(ReinstateAgencyRequest $request, Agency $agency): JsonResponse
+    {
+        abort_code_unless($agency->status === AgencyStatus::Suspended, 422, 'agency.not_suspended');
+
+        $reason = (string) $request->validated('reason');
+        $response = $this->transition($request, $agency, AgencyStatus::Active, 'super_admin_agency_reinstated', [], $reason);
+        $this->notifyAdmins($agency, NotificationCode::AgencyReinstated, $reason);
+
+        return $response;
     }
 
     public function unverify(Request $request, Agency $agency): JsonResponse
@@ -195,6 +222,7 @@ class AgencyModerationController extends Controller
         AgencyStatus $next,
         string $event,
         array $extra = [],
+        ?string $reason = null,
     ): JsonResponse {
         $previous = $agency->status?->value;
         $agency->fill(['status' => $next] + $extra)->save();
@@ -202,12 +230,25 @@ class AgencyModerationController extends Controller
         activity('Agency')
             ->performedOn($agency)
             ->causedBy($request->user())
-            ->withProperties(['old_status' => $previous, 'new_status' => $next->value])
+            ->withProperties(array_filter(
+                ['old_status' => $previous, 'new_status' => $next->value, 'reason' => $reason],
+                fn ($value) => $value !== null,
+            ))
             ->event($event)
             ->log("Agency {$event}");
 
         return $this->json([
             'data' => (new AgencyResource($agency->refresh()))->resolve($request),
         ]);
+    }
+
+    private function notifyAdmins(Agency $agency, NotificationCode $code, string $reason): void
+    {
+        foreach (app(ContactLeadService::class)->agencyAdmins($agency->id) as $admin) {
+            app(NotificationService::class)->send($admin, $code, [
+                'agency' => (string) $agency->name,
+                'reason' => $reason,
+            ]);
+        }
     }
 }

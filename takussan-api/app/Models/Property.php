@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyCondition;
@@ -441,7 +442,8 @@ class Property extends AbstractModel implements HasMedia
      */
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
-        return $query->with('address', 'tags');
+        // TCK-600 — `shouldBeSearchable()` lit le statut de l'agence (ADR-0048).
+        return $query->with('address', 'tags', 'agency');
     }
 
     public function shouldBeSearchable(): bool
@@ -452,12 +454,32 @@ class Property extends AbstractModel implements HasMedia
                 PropertyStatus::Draft,
                 PropertyStatus::PendingReview,
                 PropertyStatus::Rejected,
-            ], true);
+            ], true)
+            && $this->agencyIsPublic();
+    }
+
+    /**
+     * TCK-600 (ADR-0048) — un bien d'agence n'est public que tant que son agence est `active` :
+     * `suspended` et `inactive` le retirent de la liste, de la fiche, de la réservation et de
+     * l'index. Même règle que l'annuaire des agences. Un bien sans agence n'en dépend pas.
+     */
+    public function agencyIsPublic(): bool
+    {
+        return $this->agency_id === null || $this->agency?->status === AgencyStatus::Active;
+    }
+
+    /** TCK-600 (ADR-0048) — {@see agencyIsPublic()}, en requête. */
+    public function scopeOfPublicAgency(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull($q->qualifyColumn('agency_id'))
+            ->orWhereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', AgencyStatus::Active)));
     }
 
     public function scopePublic(Builder $query): Builder
     {
-        return $query->where('visibility', PropertyVisibility::Public)
+        return $query->ofPublicAgency()
+            ->where('visibility', PropertyVisibility::Public)
             ->where('is_test', false)
             ->whereNotNull('published_at')
             ->whereNotIn('status', [

@@ -5,6 +5,7 @@ namespace App\Services\Membership;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
@@ -177,8 +178,34 @@ class MembershipCapabilityResolver
             return false;
         }
 
+        if ($this->lockedBySuspension($capability, $agency)) {
+            return false;
+        }
+
         return $this->resolveAgencyScoped($user, $capability, $agency);
     }
+
+    /**
+     * TCK-600 (ADR-0048 §4) — dans une agence `suspended`, aucune capacité d'écriture ; la lecture
+     * et l'export restent. C'est le SECOND chemin du verrou : `EnsureAgencyWritable` ne voit que
+     * le profil actif de la requête, et un membre de deux agences qui agirait sur la suspendue
+     * depuis le profil de l'autre (ou sans profil actif) est refusé ici. La délégation passe par
+     * `resolveDirect()` sur le délégant : elle est refusée du même coup.
+     */
+    private function lockedBySuspension(Capability $capability, Agency $agency): bool
+    {
+        return $agency->status === AgencyStatus::Suspended
+            && ! in_array($capability, self::KEPT_WHEN_SUSPENDED, true);
+    }
+
+    /** TCK-600 (ADR-0048 §4) — ce qu'un membre d'une agence suspendue garde : lire et exporter. */
+    private const KEPT_WHEN_SUSPENDED = [
+        Capability::CrmViewAll,
+        Capability::CrmExport,
+        Capability::PaymentsExport,
+        Capability::ReportsViewGlobal,
+        Capability::ReportsExport,
+    ];
 
     /**
      * Branche délégation — TCK-395.

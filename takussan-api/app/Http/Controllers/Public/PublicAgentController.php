@@ -211,7 +211,8 @@ class PublicAgentController extends Controller
         $portfolioBase = fn () => Property::query()
             ->where('user_id', $agent->id)
             ->where('status', PropertyStatus::Available)
-            ->where('visibility', PropertyVisibility::Public);
+            ->where('visibility', PropertyVisibility::Public)
+            ->ofPublicAgency();
 
         $portfolio = $portfolioBase()
             ->with('address')
@@ -361,6 +362,7 @@ class PublicAgentController extends Controller
             ->where('user_id', $agent->id)
             ->where('status', PropertyStatus::Available)
             ->where('visibility', PropertyVisibility::Public)
+            ->ofPublicAgency()
             ->with('address', 'media')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

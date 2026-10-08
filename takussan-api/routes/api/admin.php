@@ -85,6 +85,8 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
             ->name('admin.agencies.verify');
         Route::post('{agency}/suspend', [AgencyModerationController::class, 'suspend'])
             ->name('admin.agencies.suspend');
+        Route::post('{agency}/reinstate', [AgencyModerationController::class, 'reinstate'])
+            ->name('admin.agencies.reinstate');
         Route::post('{agency}/unverify', [AgencyModerationController::class, 'unverify'])
             ->name('admin.agencies.unverify');
     });
