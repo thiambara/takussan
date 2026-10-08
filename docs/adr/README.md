@@ -64,9 +64,12 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 |
 | [0037](0037-plafond-de-travaux-du-bailleur.md) | Le plafond de travaux du bailleur vit sur son profil d'agence ; au-delà, le bailleur tranche (`awaiting_owner`) | Accepté |
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
+| [0039](0039-les-sorties-d-argent.md) | Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission | Accepté |
+| [0043](0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) | Un avis porte sa cible, sa preuve d'éligibilité et l'agence qui le modère ; l'admin d'agence ne modère que les biens et agents de son agence ; une annonce masquée par la plateforme tient à un verrou qu'un seul point défend et que seul un super-admin lève ; la modération d'agence tient au même point ; une décision de la file ne se joue pas deux fois | Accepté |
 | [0047](0047-niveaux-d-operateur-plateforme.md) | Un opérateur plateforme agit par `/api/admin` selon son niveau (`PlatformAbility`) ; toute route qui ne déclare aucun geste reste au `super_admin` ; la cooptation est le seul chemin d'octroi | Accepté |
 | [0048](0048-effet-d-une-suspension-d-agence.md) | Une agence suspendue disparaît du site et ne s'écrit plus ; ses locataires paient encore | Accepté |
 | [0052](0052-cache-public-de-la-fiche-et-ip-du-visiteur.md) | La fiche publique se lit dans un cache de données étiqueté par slug, invalidé par un appel signé ; l'IP du visiteur traverse le serveur Next par la chaîne de confiance et l'adresse interne de l'API | Accepté |
+| [0054](0054-detection-des-doublons-d-annonces.md) | Un doublon d'annonce se soupçonne par le dHash de la photo originale (quatre bandes indexées, seuil 3) et par l'adresse normalisée, entre publieurs différents seulement ; il entre dans la file de la plateforme et n'est jamais masqué seul ; un avis suspect est un drapeau de tri | Accepté |
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |
 
 ## Décisions recensées, pas encore rédigées

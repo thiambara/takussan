@@ -12,9 +12,13 @@ use App\Models\User;
  */
 class PropertyModerationPolicy
 {
+    /**
+     * TCK-597 (ADR-0043 §4) — un bien sous verrou plateforme n'est approuvé que par un super-admin
+     * (qui passe par `Gate::before`) : l'admin d'agence ne défait pas une décision plateforme.
+     */
     public function approve(User $user, Property $property): bool
     {
-        return $this->canModerate($user, $property);
+        return ! $property->isUnderPlatformHold() && $this->canModerate($user, $property);
     }
 
     public function reject(User $user, Property $property): bool

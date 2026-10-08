@@ -3,8 +3,6 @@ import { describe, it, expect } from 'vitest';
 import fr from '@/messages/fr.json';
 
 import {
-  commissionFromRate,
-  computePayoutNet,
   INVOICE_STATUS_TONE,
   PAYMENT_STATUS_TONE,
   PAYOUT_STATUS_TONE,
@@ -19,47 +17,6 @@ import {
 const PAYMENT_STATUS_LABEL = fr.payments.status;
 const INVOICE_STATUS_LABEL = fr.payments.invoiceStatus;
 const PAYOUT_STATUS_LABEL = fr.payments.payoutStatus;
-
-describe('commissionFromRate', () => {
-  it('returns 10% of 100000 as 10000', () => {
-    expect(commissionFromRate(100000, 10)).toBe(10000);
-  });
-
-  it('clamps rate below 0 to 0', () => {
-    expect(commissionFromRate(50000, -5)).toBe(0);
-  });
-
-  it('clamps rate above 100 to 100', () => {
-    expect(commissionFromRate(1000, 250)).toBe(1000);
-  });
-
-  it('returns 0 for non-finite gross or rate', () => {
-    expect(commissionFromRate(Number.NaN, 10)).toBe(0);
-    expect(commissionFromRate(100, Number.NaN)).toBe(0);
-  });
-});
-
-describe('computePayoutNet', () => {
-  it('subtracts commission and fees from gross', () => {
-    expect(computePayoutNet({ gross: 100000, commission: 10000, fees: 2000 })).toBe(
-      88000,
-    );
-  });
-
-  it('defaults commission and fees to 0 when omitted', () => {
-    expect(computePayoutNet({ gross: 50000 })).toBe(50000);
-  });
-
-  it('can produce a negative net when the inputs are invalid', () => {
-    expect(computePayoutNet({ gross: 1000, commission: 2000 })).toBe(-1000);
-  });
-
-  it('returns 0 for a non-finite gross', () => {
-    expect(
-      computePayoutNet({ gross: Number.POSITIVE_INFINITY, commission: 10 }),
-    ).toBe(0);
-  });
-});
 
 describe('status dictionaries', () => {
   it('maps every enum value of every status family to a French label', () => {

@@ -23,6 +23,11 @@ class PlatformPayoutResource extends BaseResource
             'currency' => $this->currency,
             'status' => $this->status?->value,
             'approved_by' => $this->approved_by,
+            // TCK-594 (ADR-0039 §4) — les trois mains : qui a clôturé, approuvé, payé.
+            'closed_by_id' => $this->closed_by_id,
+            'approved_at' => $this->iso($this->approved_at),
+            'paid_by_id' => $this->paid_by_id,
+            'payment_reference' => $this->payment_reference,
             'processed_at' => $this->iso($this->processed_at),
             'failure_reason' => $this->failure_reason,
             'metadata' => $this->metadata ?? [],

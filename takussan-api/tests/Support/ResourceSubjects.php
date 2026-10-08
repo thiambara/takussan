@@ -7,6 +7,7 @@ use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
+use App\Http\Resources\PayoutMethodResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\User;
@@ -53,11 +54,24 @@ final class ResourceSubjects
     public const JOUR = '2026-08-17';
 
     /**
+     * Les ressources qui réservent des clés au TITULAIRE du sujet (`user_id` = l'appelant).
+     * Fabriqué par sa seule factory, le sujet appartient à un autre utilisateur que l'appelant, et
+     * ces branches ne s'exécuteraient jamais : chacune reçoit un second sujet, dont l'appelant est
+     * le titulaire.
+     *
+     * @var list<class-string>
+     */
+    private const RESERVEES_AU_TITULAIRE = [
+        // TCK-594 (ADR-0039 §6) — `account_identifier` et `account_holder_name` en clair.
+        PayoutMethodResource::class,
+    ];
+
+    /**
      * Les sujets d'une ressource, étiquetés pour que le message d'échec les nomme.
      *
      * @return array<string,mixed>
      */
-    public static function pour(string $resource): array
+    public static function pour(string $resource, ?User $appelant = null): array
     {
         if (array_key_exists($resource, ResourceInventory::SUJETS_SUR_MESURE)) {
             return self::surMesure($resource);
@@ -67,6 +81,10 @@ final class ResourceSubjects
 
         foreach (ResourceInventory::modelesPour($resource) as $modele) {
             $sujets[class_basename($modele)] = self::modele($modele, $resource);
+
+            if ($appelant !== null && in_array($resource, self::RESERVEES_AU_TITULAIRE, true)) {
+                $sujets[class_basename($modele).' (titulaire)'] = self::modele($modele, $resource, ['user_id' => $appelant->id]);
+            }
         }
 
         return $sujets;
@@ -82,11 +100,12 @@ final class ResourceSubjects
      * satisfait — la clé est PRÉSENTE — sans inventer de valeur : c'est ce qui permet d'éprouver
      * la forme des dates qu'on y écrit ensuite.
      */
-    private static function modele(string $modele, string $resource): Model
+    /** @param  array<string,mixed>  $attributs */
+    private static function modele(string $modele, string $resource, array $attributs = []): Model
     {
         /** @var Model $instance */
         if (self::aUneFactory($modele)) {
-            $instance = $modele::factory()->create()->refresh();
+            $instance = $modele::factory()->create($attributs)->refresh();
         } else {
             $instance = new $modele;
             $colonnes = Schema::getColumnListing($instance->getTable());
@@ -257,6 +276,37 @@ final class ResourceSubjects
     }
 
     /**
+     * Une ligne de `UnifiedModerationService::hydrateItems()`, clé pour clé. Les dates du `selectRaw`
+     * unifié sont exactement ce que rend le pilote PDO sur une colonne `timestamp` : des CHAÎNES,
+     * jamais passées par un cast Eloquent.
+     *
+     * @param  array<string,mixed>|null  $claim
+     * @return array<string,mixed>
+     */
+    private static function ligneDeModeration(?array $claim): array
+    {
+        return [
+            'id' => 'property:1',
+            'source_type' => 'property',
+            'source_id' => 1,
+            'type' => 'property',
+            'status' => 'pending',
+            'subject_type' => 'property',
+            'subject_id' => 1,
+            'subject' => null,
+            'reporter' => null,
+            'agency' => null,
+            'reason' => 'Bien en attente de validation',
+            'reported_count' => 0,
+            'suspicious' => false,
+            'duplicate' => null,
+            'claim' => $claim,
+            'reported_at' => self::INSTANT,
+            'created_at' => self::INSTANT,
+        ];
+    }
+
+    /**
      * Les cinq ressources qu'aucun modèle n'adosse. Chaque recette reproduit ce que la couche
      * appelante passe RÉELLEMENT — c'est le seul point où la fabrication a le droit d'écrire des
      * valeurs, et écrire autre chose que la réalité ferait mesurer un contrat imaginaire.
@@ -282,22 +332,14 @@ final class ResourceSubjects
                 ),
             ],
             ModerationItemResource::class => [
-                // Exactement ce que rend le pilote PDO sur les colonnes `timestamp` du `selectRaw`
-                // unifié : des CHAÎNES, jamais passées par un cast Eloquent.
-                'selectRaw' => [
-                    'id' => 'property:1',
-                    'type' => 'property',
-                    'status' => 'pending',
-                    'subject_type' => 'property',
-                    'subject_id' => 1,
-                    'subject' => null,
-                    'reporter' => null,
-                    'agency' => null,
-                    'reason' => 'Bien en attente de validation',
-                    'reported_count' => 0,
-                    'reported_at' => self::INSTANT,
-                    'created_at' => self::INSTANT,
-                ],
+                'selectRaw' => self::ligneDeModeration(claim: null),
+                // TCK-597 (ADR-0043 §7) — un élément pris en charge porte deux dates de PLUS, et
+                // celles-là viennent du cast `datetime` de `ModerationClaim` : des Carbon.
+                'selectRaw, pris en charge' => self::ligneDeModeration(claim: [
+                    'by' => ['id' => 1, 'name' => 'Awa Ndiaye'],
+                    'claimed_at' => Carbon::parse(self::INSTANT, 'UTC'),
+                    'expires_at' => Carbon::parse(self::INSTANT, 'UTC')->addMinutes(15),
+                ]),
             ],
             AgencyProvisioningResource::class => [
                 'tableau' => [

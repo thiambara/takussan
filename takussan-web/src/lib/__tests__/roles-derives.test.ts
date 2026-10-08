@@ -45,6 +45,7 @@ function compte(roles: UserRole[]): User {
 }
 
 const hrefs = (roles: UserRole[]) => buildNavItems(compte(roles)).map((i) => i.href);
+const libelles = (roles: UserRole[]) => buildNavItems(compte(roles)).map((i) => i.labelKey);
 
 describe('isCustomer est devenu un plancher, isCustomerOnly le discriminant', () => {
   it('isCustomer répond oui à un agent — et c’est correct, pas un défaut', () => {
@@ -83,17 +84,20 @@ describe('le menu latéral sous les jeux de rôles que l’API émet vraiment', 
 
   it('un bailleur garde SON menu et n’hérite pas de celui de l’acheteur', () => {
     // La régression que `isCustomerOnly` empêche : `/app/properties` disparaît
-    // et `/app/profile/reviews` apparaît si la première branche l'emporte.
+    // et « Mes avis » de l'acheteur apparaît si la première branche l'emporte.
+    // TCK-597 — le LIBELLÉ, plus le href : `/app/profile/reviews` est aussi la boîte des avis
+    // reçus du bailleur (« Avis reçus »), qu'il reçoit à bon droit.
     const menu = hrefs(['owner', 'customer']);
     expect(menu).toContain('/app/properties');
-    expect(menu).not.toContain('/app/profile/reviews');
+    expect(libelles(['owner', 'customer'])).not.toContain('myReviews');
+    expect(libelles(['owner', 'customer'])).toContain('receivedReviews');
   });
 
   it('un agent garde son menu d’agent', () => {
     const menu = hrefs(['agent', 'customer']);
     expect(menu).toContain('/app/properties/new');
     expect(menu).toContain('/app/customers');
-    expect(menu).not.toContain('/app/profile/reviews');
+    expect(libelles(['agent', 'customer'])).not.toContain('myReviews');
   });
 
   it('un bailleur qui loue par ailleurs ne reçoit pas ses baux en double', () => {

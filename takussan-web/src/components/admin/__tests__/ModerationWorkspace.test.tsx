@@ -68,6 +68,7 @@ function makeReview(overrides: Partial<{
   content: string;
   status: string;
   reported_count: number;
+  can_moderate: boolean;
 }> = {}) {
   return {
     id: overrides.id ?? 1,
@@ -81,6 +82,7 @@ function makeReview(overrides: Partial<{
     is_approved: false,
     reported_count: overrides.reported_count ?? 0,
     created_at: '2025-01-01T00:00:00Z',
+    can_moderate: overrides.can_moderate ?? (overrides.status ?? 'pending') === 'pending',
   };
 }
 
@@ -132,44 +134,150 @@ describe('<ModerationWorkspace>', () => {
     await user.click(screen.getByRole('button', { name: /^approuver$/i }));
 
     await waitFor(() => expect(mockModerate).toHaveBeenCalled());
-    expect(mockModerate).toHaveBeenCalledWith(
-      1,
-      { decision: 'approve', reason: undefined },
-      'fake-token',
-    );
+    expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'approve' }, 'fake-token');
   });
 
-  it('requires a reason for a delete decision', async () => {
+  // TCK-597 (ADR-0043 §7) — le motif est un CODE choisi dans une liste traduite ; le texte libre
+  // n'est exigé que pour « Autre motif ».
+  it('requires a reason code for a delete decision, free text optional', async () => {
     mockFetchQueue.mockResolvedValue({
       data: [makeReview({ id: 7 })],
       meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
       links: { first: null, last: null, prev: null, next: null },
     });
+    mockModerate.mockResolvedValue({ data: { id: 7, deleted: true } });
 
     const user = userEvent.setup();
-    render(wrap(<ModerationWorkspace />));
+    // Supprimer est un geste de plateforme (verif-597 M3).
+    render(wrap(<ModerationWorkspace platform />));
 
     await screen.findByTestId('moderation-detail');
     await user.click(screen.getByRole('button', { name: /supprimer/i }));
-
-    // Confirmation pane visible
     expect(await screen.findByTestId('moderation-confirm')).toBeInTheDocument();
 
-    // Confirm without reason triggers validation message, no mutation call
     await user.click(screen.getByRole('button', { name: /confirmer/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/raison est requise/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/choisissez un motif/i);
     expect(mockModerate).not.toHaveBeenCalled();
 
-    // Provide reason and confirm
-    await user.type(screen.getByLabelText(/raison/i), 'contenu offensant');
+    await user.click(screen.getByRole('combobox', { name: 'Motif' }));
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(9);
+    await user.click(screen.getByRole('option', { name: 'Propos injurieux' }));
     await user.click(screen.getByRole('button', { name: /confirmer/i }));
 
     await waitFor(() => expect(mockModerate).toHaveBeenCalled());
     expect(mockModerate).toHaveBeenCalledWith(
       7,
-      { decision: 'delete', reason: 'contenu offensant' },
+      { decision: 'delete', reason_code: 'offensive', reason: undefined },
       'fake-token',
     );
+  });
+
+  it('« Autre motif » exige le complément libre', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [makeReview({ id: 8 })],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+    mockModerate.mockResolvedValue({ data: makeReview({ id: 8 }) });
+
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-detail');
+    await user.click(screen.getByRole('button', { name: /^masquer$/i }));
+    await user.click(screen.getByRole('combobox', { name: 'Motif' }));
+    await user.click(await screen.findByRole('option', { name: 'Autre motif' }));
+    await user.click(screen.getByRole('button', { name: /confirmer/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/raison est requise/i);
+    expect(mockModerate).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/précisez le motif/i), 'Publicité déguisée');
+    await user.click(screen.getByRole('button', { name: /confirmer/i }));
+    await waitFor(() =>
+      expect(mockModerate).toHaveBeenCalledWith(
+        8,
+        { decision: 'hide', reason_code: 'other', reason: 'Publicité déguisée' },
+        'fake-token',
+      ),
+    );
+  });
+
+  // TCK-597 (ADR-0043 §1) — l'admin d'agence voit l'avis porté sur son agence, mais ne le tranche
+  // pas : l'écran le dit, et aucun bouton de décision n'est offert.
+  it('agency view: a review of the agency itself is platform-only, and the screen says so', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [{ ...makeReview({ id: 3, can_moderate: false }), reviewable_type: 'App\\Models\\Agency' }],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
+    expect(screen.getByTestId('moderation-agency-scope')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+  });
+
+  // verif-597 M3 — l'agence ne tranche que l'avis en attente, et seulement approuver ou masquer.
+  it('agency view: a pending review offers approve and hide only', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [makeReview({ id: 4, title: 'En attente', reported_count: 2 })],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-detail');
+    expect(screen.getByRole('button', { name: /^approuver$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^masquer$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /supprimer/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /ignorer/i })).toBeNull();
+  });
+
+  it('agency view: a published review offers no decision, and the screen says why', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [makeReview({ id: 5, title: 'Publié', status: 'approved' })],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/seule la plateforme peut le retirer/i);
+    expect(screen.queryByRole('button', { name: /^masquer$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+  });
+
+  // verif-597 m1 — un avis sur un prestataire, listé dans la file d'agence : l'API rend
+  // `can_moderate: false`, l'écran n'offre aucun bouton et dit que la plateforme le tranche.
+  it('agency view: a review the API says the agency cannot decide offers no button', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [{ ...makeReview({ id: 6, can_moderate: false }), reviewable_type: 'App\\Models\\Profiles\\ServiceProviderProfile' }],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
+    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+  });
+
+  it('platform view: the super-admin decides a review of an agency', async () => {
+    mockFetchQueue.mockResolvedValue({
+      data: [{ ...makeReview({ id: 3 }), reviewable_type: 'App\\Models\\Agency' }],
+      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
+      links: { first: null, last: null, prev: null, next: null },
+    });
+
+    render(wrap(<ModerationWorkspace platform />));
+
+    await screen.findByTestId('moderation-detail');
+    expect(screen.getByRole('button', { name: /^approuver$/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('moderation-platform-only')).toBeNull();
+    expect(screen.queryByTestId('moderation-agency-scope')).toBeNull();
   });
 });
 

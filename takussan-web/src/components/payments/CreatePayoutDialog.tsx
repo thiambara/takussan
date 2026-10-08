@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useWatch } from 'react-hook-form';
 
 import {
   Dialog,
@@ -12,311 +11,373 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import {
-  FormGlobalError,
-  FormInput,
-  FormSelect,
-  FormTextarea,
-  FormDatePicker,
-} from '@/components/forms';
-import { useApiForm } from '@/hooks/useApiForm';
-import { useCreatePayout } from '@/lib/queries/payments';
-import {
-  createPayoutSchema,
-  type CreatePayoutFormValues,
-} from '@/lib/schemas/payment';
-import { formatCurrency } from '@/lib/format';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/context/AuthContext';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { formatCurrency, formatDate } from '@/lib/format';
+import { OWNER_PROFILE_FIELDS, type OwnerProfileSummary } from '@/lib/queries/owners';
+import { useCreatePayout, usePayoutPreparation, useVerifyPayoutMethod } from '@/lib/queries/payments';
+import type { PaginatedResponse } from '@/types/api';
 import type { Locale } from '@/i18n/config';
 
-import {
-  CURRENCY_OPTIONS,
-  PAYMENT_METHOD_VALUES,
-  commissionFromRate,
-  computePayoutNet,
-} from './constants';
+import { PAYMENT_METHOD_VALUES } from './constants';
 
 interface CreatePayoutDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onCreated?: (payoutId: number) => void;
-  /**
-   * Agency commission rate stored in `agencies.commission_rate` (percentage,
-   * 0-100). Pre-fills `commission_rate` and drives the automatic commission
-   * calculation — TCK-063 AC4.
-   */
-  readonly defaultCommissionRate?: number;
 }
 
-const DEFAULT_VALUES_BASE: Omit<CreatePayoutFormValues, 'commission_rate'> = {
-  landlord_id: 0,
-  lease_id: undefined,
-  booking_id: undefined,
-  period_start: '',
-  period_end: '',
-  gross_amount: 0,
-  commission_amount: 0,
-  fees_amount: 0,
-  currency: 'XOF',
-  payment_method: undefined,
-  scheduled_at: '',
-  notes: '',
-};
+const SELECT_CLASS =
+  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
 
-export function CreatePayoutDialog({
-  open,
-  onOpenChange,
-  onCreated,
-  defaultCommissionRate,
-}: CreatePayoutDialogProps) {
+function ownerName(owner: OwnerProfileSummary): string {
+  const first = owner.user?.first_name ?? owner.metadata?.first_name ?? '';
+  const last = owner.user?.last_name ?? owner.metadata?.last_name ?? '';
+  return `${first} ${last}`.trim() || owner.user?.email || owner.metadata?.email || `#${owner.user_id}`;
+}
+
+/**
+ * TCK-594 (ADR-0039 §1) — préparer un reversement, c'est CHOISIR un bailleur et une période, puis
+ * LIRE le calcul : les loyers et réservations encaissés, la commission ligne par ligne, les frais
+ * d'intervention imputés, le net. Aucun montant ne se saisit ; le serveur recalcule tout à la
+ * création depuis les identifiants cités.
+ */
+export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayoutDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payoutDialog');
   const tMethod = useTranslations('payments.methods');
-  const createPayout = useCreatePayout();
+  const tKind = useTranslations('payments.payoutMethodKinds');
+  const messageErreur = useMessageErreurApi();
+  const { user } = useAuth();
+  const agencyId = user?.agency_id ?? null;
 
-  const defaultValues: CreatePayoutFormValues = useMemo(
-    () => ({
-      ...DEFAULT_VALUES_BASE,
-      commission_rate: defaultCommissionRate ?? 0,
-    }),
-    [defaultCommissionRate],
+  const [landlordId, setLandlordId] = useState('');
+  const [periodStart, setPeriodStart] = useState('');
+  const [periodEnd, setPeriodEnd] = useState('');
+  // VERIF-594 N-1 — `null` : pas encore choisie. La destination par défaut du bénéficiaire, si elle
+  // est vérifiée pour l'agence, est alors présélectionnée (le serveur la prend de même).
+  const [payoutMethodChoice, setPayoutMethodId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const owners = useApiQuery<PaginatedResponse<OwnerProfileSummary>>(
+    ['owners', 'payout-dialog', agencyId],
+    '/api/owners',
+    {
+      params: {
+        fields: { owner_profiles: OWNER_PROFILE_FIELDS },
+        include: ['user'],
+        filter: { agency_id: agencyId ?? undefined, status: 'active' },
+        per_page: 100,
+      },
+      enabled: open && agencyId !== null,
+    },
   );
 
-  const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
-    CreatePayoutFormValues,
-    { id: number }
-  >({
-    schema: createPayoutSchema,
-    defaultValues,
-    onSubmit: async (values) => {
-      const res = await createPayout.mutateAsync({
-        landlord_id: values.landlord_id,
-        lease_id: values.lease_id,
-        booking_id: values.booking_id,
-        period_start: values.period_start || undefined,
-        period_end: values.period_end || undefined,
-        gross_amount: values.gross_amount,
-        commission_amount: values.commission_amount,
-        fees_amount: values.fees_amount,
-        currency: values.currency,
-        payment_method: values.payment_method,
-        scheduled_at: values.scheduled_at || undefined,
-        notes: values.notes || undefined,
-      });
-      return { id: res.data.id };
-    },
-    onSuccess: (result) => {
-      form.reset(defaultValues);
-      onOpenChange(false);
-      if (onCreated && result?.id) onCreated(result.id);
-    },
+  const preparation = usePayoutPreparation({
+    landlord_id: landlordId ? Number(landlordId) : undefined,
+    period_start: periodStart || undefined,
+    period_end: periodEnd || undefined,
   });
+  const createPayout = useCreatePayout();
+  const verifyMethod = useVerifyPayoutMethod();
 
-  // TCK-571 — `useWatch`, jamais `form.watch()` lu pendant le rendu : le React Compiler met la
-  // lecture en cache sur l'identité — stable — du formulaire, et le récapitulatif resterait celui
-  // de l'ouverture (cf. `property-form/wizard/steps/StepBien.tsx`, TCK-564). Avec `watch()`, ce
-  // composant ne figeait pas, par DEUX effets de bord (mesuré sous vitest compilé, 2026-09-24) :
-  // l'`eslint-disable` de l'effet ci-dessous fait abandonner le compilateur ; et, sans lui, le
-  // `form.reset` d'`onSuccess` capture `form`, et le compilateur ne met plus en cache ce qui en
-  // dépend. Il ne figeait que si les deux disparaissaient (4/4 rouges) — `useWatch` ne dépend
-  // d'aucun des deux.
-  const gross = useWatch({ control: form.control, name: 'gross_amount' }) ?? 0;
-  const rate = useWatch({ control: form.control, name: 'commission_rate' }) ?? 0;
-  const manualCommission = useWatch({ control: form.control, name: 'commission_amount' });
-  const fees = useWatch({ control: form.control, name: 'fees_amount' }) ?? 0;
-  const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'XOF';
-
-  // Auto-sync commission_amount with rate × gross whenever the user touches
-  // the rate or the gross amount (but allow them to override manually).
-  useEffect(() => {
-    if (!Number.isFinite(gross) || !Number.isFinite(rate)) return;
-    const computed = commissionFromRate(gross, rate);
-    if (computed !== manualCommission) {
-      form.setValue('commission_amount', computed, { shouldValidate: true });
+  const prep = preparation.data?.data;
+  const currency = prep?.currency ?? 'XOF';
+  const money = (amount: number) => formatCurrency(amount, locale, { currency });
+  const lineCount = prep
+    ? prep.lines.lease_payments.length + prep.lines.booking_payments.length + prep.lines.service_provider_bills.length
+    : 0;
+  // TCK-594 (ADR-0039 §6) — l'agence vérifie la destination qu'elle va payer : le titulaire la
+  // déclare, quelqu'un d'autre la confirme (le serveur refuse au titulaire de se vérifier lui-même).
+  const defaultVerified = prep?.payout_methods.find((m) => m.is_default && m.verified);
+  const payoutMethodId = payoutMethodChoice ?? (defaultVerified ? String(defaultVerified.id) : '');
+  const selectedMethod = prep?.payout_methods.find((m) => String(m.id) === payoutMethodId);
+  const verifyDestination = async (id: number) => {
+    setError(null);
+    try {
+      await verifyMethod.mutateAsync({ id });
+    } catch (e) {
+      setError(messageErreur(e, t('verifyFailed')));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gross, rate]);
+  };
+  const canSubmit = prep !== undefined && lineCount > 0 && prep.totals.net >= 0 && !createPayout.isPending;
 
-  // Pas de `useMemo` ici, et pas d'oubli : le React Compiler mémoïse ce calcul (ADR-0015).
-  // Le `useMemo` qui s'y trouvait faisait ABANDONNER la compilation de tout ce composant —
-  // `react-hooks/preserve-manual-memoization` le signalait, et son correctif est de retirer la
-  // mémoïsation manuelle, pas de l'ajuster.
-  const net = computePayoutNet({
-    gross: gross,
-    commission: manualCommission ?? 0,
-    fees,
-  });
+  const reset = () => {
+    setLandlordId('');
+    setPeriodStart('');
+    setPeriodEnd('');
+    setPayoutMethodId(null);
+    setPaymentMethod('');
+    setScheduledAt('');
+    setNotes('');
+    setError(null);
+  };
 
-  useEffect(() => {
-    if (!open) form.reset(defaultValues);
-  }, [open, form, defaultValues]);
+  const submit = async () => {
+    if (!prep) return;
+    setError(null);
+    try {
+      const res = await createPayout.mutateAsync({
+        landlord_id: prep.landlord_id,
+        lease_payment_ids: prep.lines.lease_payments.map((l) => l.id),
+        booking_payment_ids: prep.lines.booking_payments.map((l) => l.id),
+        service_provider_bill_ids: prep.lines.service_provider_bills.map((l) => l.id),
+        period_start: prep.period_start,
+        period_end: prep.period_end,
+        payout_method_id: payoutMethodId ? Number(payoutMethodId) : undefined,
+        payment_method: paymentMethod || undefined,
+        scheduled_at: scheduledAt || undefined,
+        notes: notes || undefined,
+      });
+      reset();
+      onOpenChange(false);
+      onCreated?.(res.data.id);
+    } catch (e) {
+      setError(messageErreur(e, t('createFailed')));
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
-        <form
-          onSubmit={(e) => {
-            void handleSubmit(e);
-          }}
-          className="space-y-4"
-        >
-          <FormGlobalError>{globalError}</FormGlobalError>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="landlord_id"
-              type="number"
-              label={t('landlordId')}
-              required
-              min={1}
-            />
-            <FormSelect<CreatePayoutFormValues>
-              control={form.control}
-              name="currency"
-              label={t('currency')}
-              options={CURRENCY_OPTIONS.map((o) => ({ ...o }))}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="lease_id"
-              type="number"
-              label={t('leaseId')}
-              min={1}
-            />
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="booking_id"
-              type="number"
-              label={t('bookingId')}
-              min={1}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormDatePicker<CreatePayoutFormValues>
-              control={form.control}
-              name="period_start"
-              label={t('periodStart')}
-            />
-            <FormDatePicker<CreatePayoutFormValues>
-              control={form.control}
-              name="period_end"
-              label={t('periodEnd')}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="gross_amount"
-              type="number"
-              min={0}
-              step={100}
-              label={t('grossAmount')}
-              required
-            />
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="commission_rate"
-              type="number"
-              min={0}
-              max={100}
-              step={0.1}
-              label={t('commissionRate')}
-            />
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="commission_amount"
-              type="number"
-              min={0}
-              step={100}
-              label={t('commission')}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FormInput<CreatePayoutFormValues>
-              control={form.control}
-              name="fees_amount"
-              type="number"
-              min={0}
-              step={100}
-              label={t('fees')}
-            />
-            <FormSelect<CreatePayoutFormValues>
-              control={form.control}
-              name="payment_method"
-              label={t('method')}
-              options={[
-                { value: '', label: tMethod('none') },
-                ...PAYMENT_METHOD_VALUES.map((value) => ({
-                  value,
-                  label: tMethod(value),
-                })),
-              ]}
-            />
-            <FormDatePicker<CreatePayoutFormValues>
-              control={form.control}
-              name="scheduled_at"
-              label={t('scheduledAt')}
-            />
-          </div>
-
-          <FormTextarea<CreatePayoutFormValues>
-            control={form.control}
-            name="notes"
-            label={t('notes')}
-            rows={2}
-          />
-
-          <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs sm:grid-cols-4">
-            <div>
-              <dt className="text-muted-foreground">{t('gross')}</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {formatCurrency(gross, locale, { currency })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t('commission')}</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {formatCurrency(manualCommission ?? 0, locale, { currency })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t('fees')}</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {formatCurrency(fees, locale, { currency })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t('net')}</dt>
-              <dd
-                className={`text-sm font-semibold ${
-                  net <= 0 ? 'text-destructive' : 'text-foreground'
-                }`}
+        <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="payout-landlord">{t('landlord')}</Label>
+              <select
+                id="payout-landlord"
+                className={SELECT_CLASS}
+                value={landlordId}
+                disabled={owners.isLoading}
+                onChange={(e) => {
+                  setLandlordId(e.target.value);
+                  setPayoutMethodId(null);
+                }}
               >
-                {formatCurrency(net, locale, { currency })}
-              </dd>
+                <option value="">{t('landlordPlaceholder')}</option>
+                {(owners.data?.data ?? [])
+                  .filter((o) => o.user_id !== null)
+                  .map((o) => (
+                    <option key={o.id} value={String(o.user_id)}>
+                      {ownerName(o)}
+                    </option>
+                  ))}
+              </select>
             </div>
-          </dl>
+            <div className="space-y-2">
+              <Label htmlFor="payout-period-start">{t('periodStart')}</Label>
+              <Input
+                id="payout-period-start"
+                type="date"
+                value={periodStart}
+                onChange={(e) => setPeriodStart(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payout-period-end">{t('periodEnd')}</Label>
+              <Input
+                id="payout-period-end"
+                type="date"
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {preparation.isError ? (
+            <p role="alert" className="rounded-xl bg-card p-3 text-sm text-destructive">
+              {messageErreur(preparation.error, t('preparationFailed'))}
+            </p>
+          ) : preparation.isFetching ? (
+            <div className="h-24 animate-pulse rounded-xl bg-card" aria-busy="true" />
+          ) : prep ? (
+            <section aria-labelledby="payout-calculation" className="space-y-3">
+              <h3 id="payout-calculation" className="text-sm font-semibold text-foreground">
+                {t('calculation')}
+              </h3>
+              {lineCount === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('nothingToPay')}</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-card text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">{t('colItem')}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t('colDate')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('colAmount')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('colCommission')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="tabular-nums">
+                      {prep.lines.lease_payments.map((l) => (
+                        <tr key={`lp-${l.id}`} className="border-t border-border">
+                          <td className="px-3 py-2">
+                            {t('leaseLine', { reference: l.lease_reference ?? `#${l.lease_id}` })}
+                          </td>
+                          <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
+                          <td className="px-3 py-2 text-right">{money(l.amount)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {money(l.commission)}{' '}
+                            <span className="text-xs text-muted-foreground">
+                              {t(l.commission_rate_source === 'lease' ? 'rateFromLease' : 'rateFromAgency', {
+                                rate: l.commission_rate,
+                              })}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {prep.lines.booking_payments.map((l) => (
+                        <tr key={`bp-${l.id}`} className="border-t border-border">
+                          <td className="px-3 py-2">
+                            {t('bookingLine', { reference: l.booking_reference ?? `#${l.booking_id}` })}
+                          </td>
+                          <td className="px-3 py-2">{l.paid_at ? formatDate(l.paid_at, locale) : '—'}</td>
+                          <td className="px-3 py-2 text-right">{money(l.amount)}</td>
+                          <td className="px-3 py-2 text-right">{money(l.commission)}</td>
+                        </tr>
+                      ))}
+                      {prep.lines.service_provider_bills.map((l) => (
+                        <tr key={`sb-${l.id}`} className="border-t border-border">
+                          <td className="px-3 py-2">
+                            {t('billLine', { reference: l.reference_number ?? `#${l.id}` })}
+                          </td>
+                          <td className="px-3 py-2">—</td>
+                          <td className="px-3 py-2 text-right">{money(-l.amount)}</td>
+                          <td className="px-3 py-2 text-right">—</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                {(
+                  [
+                    ['gross', prep.totals.gross],
+                    ['commission', prep.totals.commission],
+                    ['fees', prep.totals.fees],
+                    ['net', prep.totals.net],
+                  ] as const
+                ).map(([key, amount]) => (
+                  <div key={key}>
+                    <dt className="text-muted-foreground">{t(key)}</dt>
+                    <dd className="text-right text-sm font-semibold tabular-nums text-foreground">
+                      {money(amount)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              {prep.requires_approval ? (
+                <p className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
+                  {t('requiresApproval', { threshold: money(prep.approval_threshold ?? 0), days: prep.approval_window_days })}
+                </p>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="payout-destination">{t('destination')}</Label>
+                  <select
+                    id="payout-destination"
+                    className={SELECT_CLASS}
+                    value={payoutMethodId}
+                    onChange={(e) => setPayoutMethodId(e.target.value)}
+                  >
+                    <option value="">{t('destinationNone')}</option>
+                    {prep.payout_methods.map((m) => (
+                      <option key={m.id} value={String(m.id)}>
+                        {t('destinationOption', {
+                          kind: tKind(m.kind),
+                          masked: m.masked_identifier ?? '',
+                          state: m.verified ? t('verified') : t('unverified'),
+                        })}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedMethod && !selectedMethod.verified ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">{t('unverifiedHint')}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={verifyMethod.isPending}
+                        onClick={() => void verifyDestination(selectedMethod.id)}
+                      >
+                        {t('verifyDestination')}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payout-method">{t('method')}</Label>
+                  <select
+                    id="payout-method"
+                    className={SELECT_CLASS}
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="">{tMethod('none')}</option>
+                    {PAYMENT_METHOD_VALUES.map((value) => (
+                      <option key={value} value={value}>
+                        {tMethod(value)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payout-scheduled">{t('scheduledAt')}</Label>
+                  <Input
+                    id="payout-scheduled"
+                    type="date"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payout-notes">{t('notes')}</Label>
+                <Textarea id="payout-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+            </section>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('chooseFirst')}</p>
+          )}
+
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}
             </Button>
-            <Button type="submit" disabled={isSubmitting || net <= 0}>
-              {isSubmitting ? t('creating') : t('submit')}
+            <Button type="button" disabled={!canSubmit} onClick={() => void submit()}>
+              {createPayout.isPending ? t('creating') : t('submit')}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

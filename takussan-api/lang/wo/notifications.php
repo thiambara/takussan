@@ -643,6 +643,94 @@ return [
                 'sms' => 'Takussan : yéenekaay :reference dindi nañu ko, amatul ku ñuy jokkoo.',
             ],
         ],
+        // TCK-594 (ADR-0039) — les sorties d'argent.
+        'payout' => [
+            'awaiting_approval' => [
+                'title' => 'Reversement :reference ngir nangu',
+                'body' => 'Reversement :reference bu :amount mi ngi xaar nga nangu ko.',
+                'sms' => 'Takussan : reversement :reference bu :amount ngir nangu.',
+            ],
+            'due' => [
+                'title' => 'Reversement :reference war na',
+                'body' => 'Reversement :reference bu :amount jot na : def ko, te bind référence bi.',
+                'sms' => 'Takussan : reversement :reference war na.',
+            ],
+            'processed' => [
+                'title' => 'Reversement :reference dem na',
+                'body' => 'Reversement bu :amount dañu la ko yónnee. Référence bu transaction bi : :transaction. Destination : :destination.',
+                'sms' => 'Takussan : reversement bu :amount dem na.',
+            ],
+            'failed' => [
+                'title' => 'Reversement :reference lajj na',
+                'body' => 'Reversement :reference bu :amount demul. Lu ko waral : :reason.',
+                'sms' => 'Takussan : reversement :reference lajj na.',
+            ],
+        ],
+        'payout_method' => [
+            'added' => [
+                'title' => 'Destination de paiement yokk nañu ko',
+                'body' => 'Destination de paiement :destination dañu ko yokk ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi.',
+                'sms' => 'Takussan : destination :destination dañu ko yokk ci sa compte.',
+            ],
+            'updated' => [
+                'title' => 'Destination de paiement soppi nañu ko',
+                'body' => 'Destination de paiement :destination dañu ko soppi ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi.',
+                'sms' => 'Takussan : destination :destination dañu ko soppi ci sa compte.',
+            ],
+            'removed' => [
+                'title' => 'Destination de paiement far nañu ko',
+                'body' => 'Destination de paiement :destination dañu ko far ci sa compte. Su dul yaa ko def, jokkool ak sa agence léegi.',
+                'sms' => 'Takussan : destination :destination dañu ko far ci sa compte.',
+            ],
+        ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Woyofal seuil bu reversement yi, war nañu ko dëggal',
+                'body' => 'Benn ci mbootaayu :agency laaj na ñu woyofal seuil d\'approbation bu reversement yi. Dara du soppiku fii ak benn approbateur bu ñaareel dëggal ko ci réglages bu agence bi.',
+                'sms' => 'Takussan : woyofal seuil bu reversement yu :agency, war nañu ko dëggal.',
+            ],
+        ],
+        'owner_statement' => [
+            'available' => [
+                'title' => 'Sa relevé de gérance :period am na',
+                'body' => 'Sa relevé de gérance bu :period mi ngi ci sa espace.',
+                'sms' => 'Takussan : sa relevé de gérance :period am na.',
+            ],
+        ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Xalaat bu ñuy saytu : :subject',
+                'body' => 'Xalaat bu bees (:rating/5) ci « :subject » mi ngi xaar sa ndigal.',
+                'sms' => 'Takussan : xalaat bu ñuy saytu ci « :subject ».',
+            ],
+            'received' => [
+                'title' => 'Xalaat bu bees : :subject',
+                'body' => 'Xalaat (:rating/5) ci « :subject » génn na. Mën nga ko tontu ci sa boîte xalaat yi.',
+                'sms' => 'Takussan : xalaat bu bees ci « :subject ».',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Yégle bi dindi nañu ko : :property',
+                'body' => 'Platform bi dindi na sa yégle « :property » ci site bi ndax ab signalement. Ngirte : :reason_code. Platform bi rekk mën koo delloo ci internet.',
+                'sms' => 'Takussan : platform bi dindi na yégle « :property ».',
+            ],
+            'property_removed' => [
+                'title' => 'Yégle bi far nañu ko : :property',
+                'body' => 'Platform bi far na sa yégle « :property » ndax ab signalement. Ngirte : :reason_code.',
+                'sms' => 'Takussan : platform bi far na yégle « :property ».',
+            ],
+            'report_upheld' => [
+                'title' => 'Signalement bi defar nañu ko : :property',
+                'body' => 'Jërëjëf : yégle « :property » bi nga signaler, dindi nañu ko ci site bi.',
+                'sms' => 'Takussan : sa signalement ci « :property » nangu nañu ko.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Signalement bi saytu nañu ko : :property',
+                'body' => 'Saytu nañu sa signalement ci yégle « :property », waaye nanguñu ko.',
+                'sms' => 'Takussan : saytu nañu signalement ci « :property ».',
+            ],
+        ],
     ],
 
     // TCK-588 — les e-mails de visite partaient en ANGLAIS à un wolophone (fallback_locale = en).

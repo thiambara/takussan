@@ -215,8 +215,18 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Agenda
 72. [CalendarFeed](#72-calendarfeed-) ✅
 
+#### Modération (TCK-597)
+73. [ModerationClaim](#73-moderationclaim-) 🆕
+74. [MediaFingerprint](#74-mediafingerprint-) 🆕
+75. [DuplicateSuspicion](#75-duplicatesuspicion-) 🆕
+
+#### Sorties d'argent (TCK-594, ADR-0039)
+76. [PayoutMethod](#76-payoutmethod-) 🆕
+77. [ServiceProviderBill](#77-serviceproviderbill-) 🆕
+78. [PayoutMethodVerification](#78-payoutmethodverification-) 🆕
+
 #### Console plateforme
-73. [ImpersonationSession](#73-impersonationsession-) 🆕
+79. [ImpersonationSession](#79-impersonationsession-) 🆕
 
 ### Enums
 
@@ -2970,7 +2980,184 @@ rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
 
 ---
 
-### 73. ImpersonationSession 🆕
+### 73. ModerationClaim 🆕
+
+**Table :** `moderation_claims`
+**Description :** Prise en charge d'un élément de la file de modération super-admin pour
+10 minutes (`ModerationClaim::DURATION_MINUTES`, ADR-0043 §7). Tant qu'elle court, un autre
+modérateur reçoit 409 en décidant ; expirée, elle ne protège plus rien et la prise suivante la
+réécrit. Elle est supprimée avec la décision.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| item_key | string(64) | | | Identifiant de la file (`property:12`, `property_report:3`, `review:7`) |
+| claimed_by_id | FK users | | | Modérateur (`cascadeOnDelete`, `moderation_claims_claimed_by_fk`) |
+| claimed_at | timestamp | | | Début de la prise |
+| expires_at | timestamp | | | Fin de la prise |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :**
+- `item_key` (`moderation_claims_item_key_uniq`)
+
+**Relations :**
+- `claimedBy()` → belongsTo User (via `claimed_by_id`)
+
+---
+
+### 74. MediaFingerprint 🆕
+
+**Table :** `media_fingerprints`
+**Description :** Empreinte dHash 64 bits de la photo **originale** d'un bien (collection `photos`),
+calculée par `ComputePhotoFingerprintJob` sur la file `media` (ADR-0054 §1-2). Sert à soupçonner
+une annonce recopiée par un autre publieur.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| media_id | FK media | | | Photo (`cascadeOnDelete`), unique (`media_fingerprints_media_uniq`) |
+| property_id | FK properties | | | Bien (`cascadeOnDelete`) |
+| agency_id | FK agencies | oui | null | Agence du bien au calcul (`nullOnDelete`) |
+| hash | bigint | | | Les 64 bits du dHash (signés) |
+| band_0 … band_3 | integer | | | Les quatre tranches de 16 bits, chacune indexée |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Index :** `media_fingerprints_property_idx`, `media_fingerprints_band_{0..3}_idx`.
+
+**Relations :** `media()` → belongsTo Media ; `property()` → belongsTo Property.
+
+---
+
+### 75. DuplicateSuspicion 🆕
+
+**Table :** `duplicate_suspicions`
+**Description :** Deux biens de publieurs différents soupçonnés d'être la même annonce (ADR-0054
+§5), remis à la file de modération super-admin (`suspected_duplicate`, décisions `hide` | `reject`).
+Aucune action automatique.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | Bien soupçonné (`cascadeOnDelete`) |
+| matched_property_id | FK properties | | | Bien qu'il recopierait (`cascadeOnDelete`) |
+| signal | string(20) | | | `photo` \| `address` |
+| distance | smallint | oui | null | Distance de Hamming (signal `photo`) |
+| decision | string(20) | oui | null | `hide` \| `reject` |
+| resolved_by_id | FK users | oui | null | Modérateur (`nullOnDelete`) |
+| reason_code | string(40) | oui | null | `ModerationReasonCode` |
+| resolved_at | timestamp | oui | null | `null` = ouverte |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
+
+**Contraintes d'unicité :** la PAIRE, quel que soit l'ordre —
+`duplicate_suspicions_pair_uniq (LEAST(property_id, matched_property_id), GREATEST(…))`.
+
+**Relations :** `property()`, `matchedProperty()` → belongsTo Property ; `resolvedBy()` →
+belongsTo User.
+
+---
+
+> **TCK-594 (VERIF-594 M-2) — trois colonnes d'`agencies`** : `pending_payout_threshold`
+> (decimal(14,2), nullable), `pending_payout_threshold_requested_by_id` (FK users, `nullOnDelete`),
+> `pending_payout_threshold_requested_at` (timestamp, le marqueur d'une demande : une demande de
+> coupure laisse la valeur à `null`). Un relâchement du seuil des quatre yeux y attend la
+> confirmation d'un second détenteur de `payouts.approve`. Description complète par `/sync-specs`.
+
+### 76. PayoutMethod 🆕
+
+> **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la
+> description complète passe par `/sync-specs` après fusion. Source : ADR-0039 §6.
+
+**Table :** `payout_methods`
+**Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
+money ou compte bancaire. Un reversement Wave / Orange Money / Free Money / virement ne se marque
+payé que vers une destination du bénéficiaire **vérifiée par l'agence qui paie** (§78).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Titulaire (`cascadeOnDelete`, `payout_methods_user_fk`) |
+| kind | string(30) | | | `PayoutMethodKind` : `wave`, `orange_money`, `free_money`, `bank_transfer` |
+| account_identifier | text | | | Numéro ou IBAN — cast `encrypted`, `$hidden`, hors `$queryFields` et de la recherche |
+| account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
+| masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`, `PayoutMethod::mask()`, provisoire jusqu'à TCK-601) |
+| is_default | boolean | | false | |
+| deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
+(§78). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
+`verified_by_id` ont été retirées (VERIF-594 M-6) : une vérification globale valait pour toute
+agence.
+
+---
+
+### 78. PayoutMethodVerification 🆕
+
+> **Entrée minimale posée par TCK-594** (VERIF-594 M-6) ; description complète par `/sync-specs`.
+> Source : ADR-0039 §6.
+
+**Table :** `payout_method_verifications`
+**Description :** Une destination de paiement vérifiée **par une agence**. Elle ne vaut que pour
+cette agence : un reversement d'une autre agence ne part pas vers elle. Une destination modifiée
+perd **toutes** ses vérifications.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete`, `pm_verifications_agency_fk` |
+| payout_method_id | FK payout_methods | | | `cascadeOnDelete`, indexé (`pm_verifications_method_idx`) |
+| verified_by_id | FK users | oui | null | Membre de l'agence qui a vérifié (`nullOnDelete`) |
+| verified_at | timestamp | | | Date du dernier geste de vérification |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `(agency_id, payout_method_id)` (`pm_verifications_agency_method_unique`) ;
+une vérification rejouée met à jour la ligne (`upsert`).
+
+---
+
+### 77. ServiceProviderBill 🆕
+
+> **Entrée minimale posée par TCK-594** ; description complète par `/sync-specs`. Source :
+> ADR-0039 §8.
+
+**Table :** `service_provider_bills`
+**Description :** Facture d'intervention **reçue** d'un prestataire, créée quand une demande de
+maintenance passe `completed` avec un prestataire assigné. Validée par l'agence, payée par un
+`Payout` `payee_role = service_provider` ; refacturable au bailleur, elle s'impute sur son
+reversement (`imputed_payout_id`).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| maintenance_request_id | FK maintenance_requests | | | `cascadeOnDelete` |
+| agency_id | FK agencies | oui | null | `nullOnDelete` |
+| property_id | FK properties | oui | null | `nullOnDelete` |
+| provider_id | FK users | | | Prestataire (`restrictOnDelete`) |
+| reference_number | string | | | Unique |
+| provider_reference | string | oui | null | Référence de la facture du prestataire |
+| amount | decimal(14,2) | | | Coût réel, à défaut devis approuvé |
+| currency | string(3) | | 'XOF' | |
+| exceeds_quote | boolean | | false | Coût réel > devis approuvé |
+| status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
+| validated_by_id | FK users | oui | null | |
+| validated_at | timestamp | oui | null | |
+| rejection_reason | text | oui | null | |
+| rechargeable_to_landlord | boolean | | true | |
+| imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** index unique partiel `sp_bills_one_open_per_request` sur `maintenance_request_id`
+`WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande.
+
+**Relations :** `maintenanceRequest()`, `agency()`, `property()`, `provider()`, `validator()`,
+`imputedPayout()` → belongsTo ; `payouts()` → hasMany Payout (`service_provider_bill_id`).
+
+---
+
+### 79. ImpersonationSession 🆕
 
 **Table :** `impersonation_sessions`
 **Description :** Une session d'impersonation (TCK-600,

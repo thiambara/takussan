@@ -43,6 +43,10 @@ final class NotificationTarget
         'kyc_review' => '/super-admin/kyc',
         'finances' => '/admin/finances',
         'team' => '/admin/team',
+        'agency_settings' => '/admin/agency',
+        // TCK-597 — la boîte des avis reçus, et la modération des avis de l'agence.
+        'reviews' => '/app/reviews',
+        'review_moderation' => '/admin/reviews',
     ];
 
     private function __construct(

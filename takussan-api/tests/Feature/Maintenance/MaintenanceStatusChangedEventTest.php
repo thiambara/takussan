@@ -187,10 +187,17 @@ class MaintenanceStatusChangedEventTest extends TestCase
         $this->assertOne(MaintenanceStatus::Completed, MaintenanceStatus::InProgress, $tenant, MaintenanceStatusChanged::CAUSE_CONTESTED);
     }
 
-    /** Le diff ne crée aucun observateur de modèle : TCK-594 en crée un et lit cet événement. */
-    public function test_no_maintenance_request_observer(): void
+    /**
+     * TCK-592 ne crée aucun observateur de modèle. Depuis la fusion de TCK-594, le seul qui existe est
+     * le sien — la facture d'intervention au passage à `completed` —, et il n'écoute pas cet
+     * événement (coordination des deux tickets).
+     */
+    public function test_the_only_maintenance_request_observer_is_the_bill_of_tck_594(): void
     {
-        $this->assertFileDoesNotExist(app_path('Observers/MaintenanceRequestObserver.php'));
+        $source = (string) file_get_contents(app_path('Observers/MaintenanceRequestObserver.php'));
+
+        $this->assertStringContainsString('ServiceProviderBill::query()->insertOrIgnore', $source);
+        $this->assertStringNotContainsString('MaintenanceStatusChanged', $source);
     }
 
     private function assertOne(MaintenanceStatus $from, MaintenanceStatus $to, User $actor, string $cause): void

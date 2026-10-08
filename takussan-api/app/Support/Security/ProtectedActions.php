@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
 use App\Http\Controllers\Api\Admin\PlatformSettingController;
+use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserImpersonationController;
 use App\Http\Controllers\Api\Admin\UserLifecycleController;
@@ -27,9 +28,14 @@ use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\PayoutController;
+use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\Profile\AgencyRoleController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ServiceProviderBillController;
+use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
 use App\Http\Middleware\RequireRecentTwoFactor;
@@ -109,6 +115,10 @@ final class ProtectedActions
      */
     public const AGENCY_TWO_FACTOR = [
         PayoutController::class.'@store',
+        // TCK-594 (ADR-0039 §4, §6) — le second geste des quatre yeux, et la vérification d'une
+        // destination : qui la vérifie décide où l'argent part.
+        PayoutController::class.'@approve',
+        PayoutMethodController::class.'@verify',
         PayoutController::class.'@markProcessed',
         PayoutController::class.'@markFailed',
         PayoutController::class.'@cancel',
@@ -131,6 +141,8 @@ final class ProtectedActions
         // `PATCH agencies/{agency}` (sans nom) porte l'interrupteur
         // `settings.require_team_two_factor` lui-même.
         AgencyController::class.'@update',
+        // TCK-594 (VERIF-594 M-2) — le second geste d'un relâchement du seuil des quatre yeux.
+        AgencyController::class.'@confirmPayoutThreshold',
         AgencyController::class.'@destroy',
         AgencyController::class.'@addAgent',
         AgencyController::class.'@removeAgent',
@@ -203,6 +215,20 @@ final class ProtectedActions
         UserSupportController::class.'@revokeSessions',
         UserSupportController::class.'@destroySession',
 
+        // TCK-594 (ADR-0039 §4, §6, §8) — ce qui décide qu'un argent sort, et vers où : le second
+        // geste des quatre yeux, le marquage payé, le paiement d'une facture d'intervention, et les
+        // destinations du titulaire. Un jeton volé ne les tient plus sans le TOTP. Les gestes
+        // plateforme (`PlatformPayoutController`) sont plus haut.
+        PayoutController::class.'@approve',
+        PayoutController::class.'@markProcessed',
+        ServiceProviderBillController::class.'@pay',
+        MePayoutMethodController::class.'@store',
+        MePayoutMethodController::class.'@update',
+        MePayoutMethodController::class.'@destroy',
+        // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
+        // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
+        PayoutMethodController::class.'@verify',
+
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',
         TwoFactorController::class.'@regenerateRecoveryCodes',
@@ -235,6 +261,53 @@ final class ProtectedActions
         SuperAdminTwoFactorController::class.'@enroll' => 'enrôlement de la 2FA du coopté',
         SuperAdminTwoFactorController::class.'@confirm' => 'confirmation de la 2FA du coopté',
     ];
+
+    /**
+     * TCK-597 (verif-597 passe 3, M5 ; ADR-0043 §4) — la modération que la PLATEFORME tranche hors
+     * de `/api/admin/*` : retirer ou trancher un avis de n'importe quelle agence, approuver un bien
+     * (ce qui lève le verrou plateforme) ou le refuser. 2FA exigée des seuls profils plateforme,
+     * comme pour la décision symétrique de `/api/admin/moderation` ; jamais de l'admin d'agence,
+     * qui garde ses gestes d'agence (avis en attente, bien sans verrou) : d'où une liste à part
+     * d'`AGENCY_TWO_FACTOR`. Pas de step-up : la console n'en exige pas non plus.
+     *
+     * Toute action mutante d'un contrôleur de cette liste y figure, ou dans
+     * `PLATFORM_TWO_FACTOR_EXEMPT` avec sa raison (`ProtectedActionsCoverageTest`).
+     *
+     * @var list<string>
+     */
+    public const PLATFORM_TWO_FACTOR = [
+        PropertyModerationController::class.'@approve',
+        PropertyModerationController::class.'@reject',
+        ReviewController::class.'@moderate',
+        ReviewController::class.'@approve',
+        ReviewController::class.'@reject',
+        // TCK-600 (verif-600 R1) — les réglages génériques : la portée `global` est réservée au
+        // `super_admin` (`setting.global_forbidden`) et règle tout le parc, y compris les clés hors
+        // catalogue que lisent les services métier (`invoice.reminder_offsets_days`,
+        // `lease.require_signature`…). La portée `agency` de l'admin d'agence reste hors de cette
+        // liste : elle ne s'applique qu'aux profils plateforme.
+        SettingController::class.'@store',
+        SettingController::class.'@update',
+        SettingController::class.'@destroy',
+    ];
+
+    /** @var array<string, string> */
+    public const PLATFORM_TWO_FACTOR_EXEMPT = [
+        PropertyModerationController::class.'@resubmit' => "le publieur renvoie son bien en file : rien n'est tranché",
+        ReviewController::class.'@storeForProperty' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForAgency' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForAgent' => "dépôt d'un avis par son auteur",
+        ReviewController::class.'@storeForServiceProvider' => "dépôt d'un avis par son auteur",
+        // verif-597 passe 4, n5 — le super-admin y passe encore sans 2FA : à reprendre là-bas.
+        ReviewController::class.'@reply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
+        ReviewController::class.'@deleteReply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
+        ReviewController::class.'@report' => 'un signalement range, il ne tranche rien (ADR-0043 §6)',
+    ];
+
+    public static function requiresPlatformTwoFactor(?string $action): bool
+    {
+        return in_array(self::normalize($action), self::PLATFORM_TWO_FACTOR, true);
+    }
 
     public static function requiresAgencyTwoFactor(?string $action): bool
     {

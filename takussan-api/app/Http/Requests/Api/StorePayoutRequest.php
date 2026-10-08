@@ -31,22 +31,38 @@ class StorePayoutRequest extends BaseFormRequest
         return $this->user()?->can('create', Payout::class) === true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * TCK-594 (ADR-0039 §3) — le brut n'est plus une saisie. `gross_amount`, `commission_amount`,
+     * `fees_amount` sont `prohibited` : le service les recalcule depuis les pièces citées. `lease_id`
+     * et `booking_id` le sont aussi — ils se déduisent des paiements. Au moins une pièce est exigée.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
+        $oneItem = 'required_without_all:lease_payment_ids,booking_payment_ids,service_provider_bill_ids';
+
         return [
-            'landlord_id' => ['required', 'exists:users,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
-            'booking_id' => ['nullable', 'exists:bookings,id'],
+            'landlord_id' => ['required', 'integer', 'exists:users,id'],
+            'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
+            'lease_payment_ids' => ['nullable', 'array', 'max:500', $oneItem],
+            'lease_payment_ids.*' => ['integer', 'distinct'],
+            'booking_payment_ids' => ['nullable', 'array', 'max:500', $oneItem],
+            'booking_payment_ids.*' => ['integer', 'distinct'],
+            'service_provider_bill_ids' => ['nullable', 'array', 'max:100', $oneItem],
+            'service_provider_bill_ids.*' => ['integer', 'distinct'],
+            'payout_method_id' => ['nullable', 'integer'],
+            'lease_id' => ['prohibited'],
+            'booking_id' => ['prohibited'],
+            'gross_amount' => ['prohibited'],
+            'commission_amount' => ['prohibited'],
+            'fees_amount' => ['prohibited'],
             'period_start' => ['nullable', 'date'],
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
-            'commission_amount' => ['nullable', 'numeric', 'min:0'],
-            'fees_amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'scheduled_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

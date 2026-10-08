@@ -649,6 +649,94 @@ return [
                 'sms' => 'Takussan : l\'annonce :reference est retirée faute de contact.',
             ],
         ],
+        // TCK-594 (ADR-0039) — les sorties d'argent.
+        'payout' => [
+            'awaiting_approval' => [
+                'title' => 'Reversement :reference à approuver',
+                'body' => 'Le reversement :reference de :amount attend votre approbation.',
+                'sms' => 'Takussan : reversement :reference de :amount à approuver.',
+            ],
+            'due' => [
+                'title' => 'Reversement :reference à effectuer',
+                'body' => 'Le reversement :reference de :amount est arrivé à échéance : effectuez-le, puis saisissez sa référence.',
+                'sms' => 'Takussan : reversement :reference à effectuer.',
+            ],
+            'processed' => [
+                'title' => 'Reversement :reference effectué',
+                'body' => 'Un reversement de :amount vous a été versé. Référence de la transaction : :transaction. Destination : :destination.',
+                'sms' => 'Takussan : reversement de :amount effectué.',
+            ],
+            'failed' => [
+                'title' => 'Reversement :reference en échec',
+                'body' => 'Le reversement :reference de :amount n\'a pas abouti. Motif : :reason.',
+                'sms' => 'Takussan : reversement :reference en échec.',
+            ],
+        ],
+        'payout_method' => [
+            'added' => [
+                'title' => 'Destination de paiement ajoutée',
+                'body' => 'La destination de paiement :destination a été ajoutée à votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez votre agence immédiatement.',
+                'sms' => 'Takussan : destination :destination ajoutée à votre compte.',
+            ],
+            'updated' => [
+                'title' => 'Destination de paiement modifiée',
+                'body' => 'La destination de paiement :destination a été modifiée sur votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez votre agence immédiatement.',
+                'sms' => 'Takussan : destination :destination modifiée sur votre compte.',
+            ],
+            'removed' => [
+                'title' => 'Destination de paiement supprimée',
+                'body' => 'La destination de paiement :destination a été supprimée de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez votre agence immédiatement.',
+                'sms' => 'Takussan : destination :destination supprimée de votre compte.',
+            ],
+        ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Assouplissement du seuil des reversements à confirmer',
+                'body' => 'Un membre de l\'agence :agency demande d\'assouplir le seuil d\'approbation des reversements. Rien ne change tant qu\'un second approbateur ne l\'a pas confirmé depuis les réglages de l\'agence.',
+                'sms' => 'Takussan : assouplissement du seuil des reversements de :agency à confirmer.',
+            ],
+        ],
+        'owner_statement' => [
+            'available' => [
+                'title' => 'Relevé de gérance :period disponible',
+                'body' => 'Votre relevé de gérance pour :period est disponible dans votre espace.',
+                'sms' => 'Takussan : relevé de gérance :period disponible.',
+            ],
+        ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Avis à modérer : :subject',
+                'body' => 'Un nouvel avis (:rating/5) sur « :subject » attend votre validation.',
+                'sms' => 'Takussan : avis à modérer sur « :subject ».',
+            ],
+            'received' => [
+                'title' => 'Nouvel avis : :subject',
+                'body' => 'Un avis (:rating/5) sur « :subject » vient d\'être publié. Vous pouvez y répondre depuis votre boîte des avis.',
+                'sms' => 'Takussan : nouvel avis sur « :subject ».',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Annonce retirée : :property',
+                'body' => 'Votre annonce « :property » a été retirée du site par la plateforme à la suite d\'un signalement. Motif : :reason_code. Seule la plateforme peut la remettre en ligne.',
+                'sms' => 'Takussan : annonce « :property » retirée par la plateforme.',
+            ],
+            'property_removed' => [
+                'title' => 'Annonce supprimée : :property',
+                'body' => 'Votre annonce « :property » a été supprimée par la plateforme à la suite d\'un signalement. Motif : :reason_code.',
+                'sms' => 'Takussan : annonce « :property » supprimée par la plateforme.',
+            ],
+            'report_upheld' => [
+                'title' => 'Signalement traité : :property',
+                'body' => 'Merci : l\'annonce « :property » que vous avez signalée a été retirée du site.',
+                'sms' => 'Takussan : votre signalement de « :property » a été retenu.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Signalement examiné : :property',
+                'body' => 'Nous avons examiné votre signalement de l\'annonce « :property » et ne l\'avons pas retenu.',
+                'sms' => 'Takussan : signalement de « :property » examiné.',
+            ],
+        ],
     ],
 
     // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).

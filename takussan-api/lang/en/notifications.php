@@ -644,6 +644,94 @@ return [
                 'sms' => 'Takussan: listing :reference removed, no contact left.',
             ],
         ],
+        // TCK-594 (ADR-0039) — les sorties d'argent.
+        'payout' => [
+            'awaiting_approval' => [
+                'title' => 'Payout :reference to approve',
+                'body' => 'Payout :reference of :amount is awaiting your approval.',
+                'sms' => 'Takussan: payout :reference of :amount to approve.',
+            ],
+            'due' => [
+                'title' => 'Payout :reference is due',
+                'body' => 'Payout :reference of :amount is due: send it, then enter its reference.',
+                'sms' => 'Takussan: payout :reference is due.',
+            ],
+            'processed' => [
+                'title' => 'Payout :reference sent',
+                'body' => 'A payout of :amount has been sent to you. Transaction reference: :transaction. Destination: :destination.',
+                'sms' => 'Takussan: payout of :amount sent.',
+            ],
+            'failed' => [
+                'title' => 'Payout :reference failed',
+                'body' => 'Payout :reference of :amount did not go through. Reason: :reason.',
+                'sms' => 'Takussan: payout :reference failed.',
+            ],
+        ],
+        'payout_method' => [
+            'added' => [
+                'title' => 'Payment destination added',
+                'body' => 'Payment destination :destination was added to your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination added to your account.',
+            ],
+            'updated' => [
+                'title' => 'Payment destination updated',
+                'body' => 'Payment destination :destination was updated on your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination updated on your account.',
+            ],
+            'removed' => [
+                'title' => 'Payment destination removed',
+                'body' => 'Payment destination :destination was removed from your account. If you did not make this change, contact your agency immediately.',
+                'sms' => 'Takussan: destination :destination removed from your account.',
+            ],
+        ],
+        'payout_threshold' => [
+            'relax_requested' => [
+                'title' => 'Payout threshold relaxation to confirm',
+                'body' => 'A member of :agency asks to relax the payout approval threshold. Nothing changes until a second approver confirms it from the agency settings.',
+                'sms' => 'Takussan: payout threshold relaxation at :agency to confirm.',
+            ],
+        ],
+        'owner_statement' => [
+            'available' => [
+                'title' => 'Your :period management statement is available',
+                'body' => 'Your management statement for :period is available in your space.',
+                'sms' => 'Takussan: :period management statement available.',
+            ],
+        ],
+        'review' => [
+            'to_moderate' => [
+                'title' => 'Review to moderate: :subject',
+                'body' => 'A new review (:rating/5) on “:subject” is awaiting your approval.',
+                'sms' => 'Takussan: review to moderate on “:subject”.',
+            ],
+            'received' => [
+                'title' => 'New review: :subject',
+                'body' => 'A review (:rating/5) on “:subject” has just been published. You can reply from your reviews inbox.',
+                'sms' => 'Takussan: new review on “:subject”.',
+            ],
+        ],
+        'moderation' => [
+            'property_hidden' => [
+                'title' => 'Listing taken down: :property',
+                'body' => 'Your listing “:property” was taken down by the platform following a report. Reason: :reason_code. Only the platform can put it back online.',
+                'sms' => 'Takussan: listing “:property” taken down by the platform.',
+            ],
+            'property_removed' => [
+                'title' => 'Listing removed: :property',
+                'body' => 'Your listing “:property” was removed by the platform following a report. Reason: :reason_code.',
+                'sms' => 'Takussan: listing “:property” removed by the platform.',
+            ],
+            'report_upheld' => [
+                'title' => 'Report handled: :property',
+                'body' => 'Thank you: the listing “:property” you reported has been taken down.',
+                'sms' => 'Takussan: your report of “:property” was upheld.',
+            ],
+            'report_dismissed' => [
+                'title' => 'Report reviewed: :property',
+                'body' => 'We reviewed your report of the listing “:property” and did not uphold it.',
+                'sms' => 'Takussan: report of “:property” reviewed.',
+            ],
+        ],
     ],
 
     // TCK-588 — textes des classes Notification qui écrivaient leur prose en dur (français seulement).

@@ -91,6 +91,9 @@ export interface OfferRequestPayload {
 }
 
 export interface ReportPayload {
-  reason: 'spam' | 'misleading' | 'fraud' | 'inappropriate_content' | 'other';
+  /** Un code : celui d'une annonce (`ReportPublicPropertyRequest`) ou d'un avis (`ReviewReportReason`). */
+  reason: string;
   details?: string;
+  /** Pot de miel : vide pour un humain (TCK-597). */
+  company?: string;
 }

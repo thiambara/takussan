@@ -105,9 +105,14 @@ class AdminConsoleValidationTest extends ApiTestCase
     {
         $this->apiActingAsRole('super_admin');
 
+        // TCK-597 — le motif est un code (`reason_code`) ; le texte n'est exigé que pour `other`.
         $this->apiPost('/api/admin/moderation/review-1/decide', [])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['decision', 'reason']);
+            ->assertJsonValidationErrors(['decision', 'reason_code']);
+
+        $this->apiPost('/api/admin/moderation/review-1/decide', ['decision' => 'hide', 'reason_code' => 'other'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['reason']);
 
         $this->apiPost('/api/admin/moderation/review-1/decide', [
             'decision' => 'supprimer',

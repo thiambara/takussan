@@ -74,9 +74,12 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchLeasePayments(Agency $agency, string $query, ?float $amountHint): Collection
     {
+        // TCK-594 (VERIF-594 passe 5, P5-2) — une caution rendue sort du compte : la recherche d'un
+        // encaissement ne la propose pas.
         $base = LeasePayment::query()
             ->whereNull('bank_reconciled_at')
-            ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id));
+            ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
+            ->exceptDepositRefunds();
 
         $this->applySearch($base, $query, $amountHint);
 

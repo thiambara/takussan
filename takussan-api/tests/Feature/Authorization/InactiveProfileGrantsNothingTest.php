@@ -165,12 +165,17 @@ class InactiveProfileGrantsNothingTest extends ApiTestCase
             'status' => PayoutStatus::Pending,
         ]);
 
-        // Témoin : émetteur actif, sans `payouts.create`, il traite le sien.
-        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertOk();
+        // Témoin : émetteur actif, sans `payouts.create`, il traite le sien. Marquer payé est sous
+        // step-up (TCK-594 × TCK-589) : l'émetteur l'a, pour que le refus qui suit soit celui de la
+        // policy, jamais celui du second facteur.
+        $this->actingWithStepUp($emetteur->fresh());
+        $this->postJson("/api/payouts/{$versement()->id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'])->assertOk();
 
         AgentProfile::query()->where('user_id', $emetteur->id)->update(['status' => AgentProfileStatus::Suspended->value]);
 
-        $this->actingAsApi($emetteur->fresh())->postJson("/api/payouts/{$versement()->id}/mark-processed")->assertForbidden();
+        $this->actingWithStepUp($emetteur->fresh());
+        $this->postJson("/api/payouts/{$versement()->id}/mark-processed", ['payment_method' => 'check', 'transaction_id' => 'CHQ-1'])
+            ->assertForbidden()->assertJsonPath('code', 'http.forbidden');
     }
 
     private function assertAgentReadsTheLease(User $agent, bool $expected): void

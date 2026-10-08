@@ -44,7 +44,8 @@ class ApiErrorCodeTest extends ApiTestCase
 
         $response = $this->postJson('/api/payouts', [
             'landlord_id' => $autreBailleur->id,
-            'gross_amount' => 100000,
+            // TCK-594 — le brut ne se saisit plus, il se calcule des pièces citées (ADR-0039 §1).
+            'lease_payment_ids' => [1],
         ], ['Accept-Language' => $locale]);
 
         $response->assertForbidden()

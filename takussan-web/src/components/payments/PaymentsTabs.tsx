@@ -9,28 +9,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCan } from '@/hooks/useCan';
+import { useAuth } from '@/context/AuthContext';
+import { isOwner } from '@/lib/roles';
 
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { CreatePayoutDialog } from './CreatePayoutDialog';
 import { InvoiceDetailDialog } from './InvoiceDetailDialog';
 import { InvoicesTable } from './InvoicesTable';
+import { OwnerStatementPanel } from './OwnerStatementPanel';
 import { PayoutDetailDialog } from './PayoutDetailDialog';
 import { PayoutsTable } from './PayoutsTable';
 import { PaymentsHistoryFilters } from './PaymentsHistoryFilters';
 import { PaymentsHistoryTable } from './PaymentsHistoryTable';
+import { ServiceProviderBillsTable } from './ServiceProviderBillsTable';
 
-const TAB_VALUES = ['history', 'invoices', 'payouts'] as const;
+const TAB_VALUES = ['history', 'invoices', 'payouts', 'approvals', 'bills'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 function isTabValue(value: string | null): value is TabValue {
   return !!value && (TAB_VALUES as readonly string[]).includes(value);
 }
 
-interface PaymentsTabsProps {
-  readonly defaultCommissionRate?: number;
-}
-
-export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
+export function PaymentsTabs() {
   const t = useTranslations('payments');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,9 +45,14 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
   // Les deux appels partagent la même requête (`['me','capabilities','active']`).
   const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
   const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
+  // TCK-594 (ADR-0039 §4) — la file « À approuver » n'existe que pour qui peut approuver.
+  const { can: peutApprouver } = useCan('payouts.approve');
   // Tant que le catalogue n'est pas arrivé, on réserve la place sans rien proposer : un bouton
   // rendu puis retiré (le locataire) ou absent puis apparu (l'agent) se verrait.
   const capacitesEnCours = facturationEnCours || reversementEnCours;
+  // TCK-594 (ADR-0039 §3) — le bailleur trouve son relevé de gérance à côté de ses versements.
+  const { user } = useAuth();
+  const estBailleur = isOwner(user?.roles ?? []);
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -77,6 +82,9 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
             <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
             <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
             <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
+            {peutApprouver ? <TabsTrigger value="approvals">{t('tabs.approvals')}</TabsTrigger> : null}
+            {/* TCK-594 (ADR-0039 §8) — les factures des prestataires, à valider puis à payer. */}
+            {peutReverser ? <TabsTrigger value="bills">{t('tabs.bills')}</TabsTrigger> : null}
           </TabsList>
           {capacitesEnCours ? (
             <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="payments-actions-loading" />
@@ -108,8 +116,21 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
         </TabsContent>
 
         <TabsContent value="payouts" className="space-y-4">
+          {estBailleur ? <OwnerStatementPanel /> : null}
           <PayoutsTable onSelect={setPayoutId} />
         </TabsContent>
+
+        {peutApprouver ? (
+          <TabsContent value="approvals" className="space-y-4">
+            <PayoutsTable onSelect={setPayoutId} status="awaiting_approval" />
+          </TabsContent>
+        ) : null}
+
+        {peutReverser ? (
+          <TabsContent value="bills" className="space-y-4">
+            <ServiceProviderBillsTable mode="agency" onPaid={setPayoutId} />
+          </TabsContent>
+        ) : null}
       </Tabs>
 
       <CreateInvoiceDialog
@@ -121,7 +142,6 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
         open={payoutOpen}
         onOpenChange={setPayoutOpen}
         onCreated={(id) => setPayoutId(id)}
-        defaultCommissionRate={defaultCommissionRate}
       />
       <InvoiceDetailDialog invoiceId={invoiceId} onClose={() => setInvoiceId(null)} />
       <PayoutDetailDialog payoutId={payoutId} onClose={() => setPayoutId(null)} />

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { updatePropertyVisibilityAction } from '@/app/actions/dashboard-properties';
 import { withIntl } from '@/test/intl';
 import type { PropertyDetail } from '@/types/property';
 
@@ -49,5 +50,25 @@ describe('PropertyHeaderActions', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
 
     expect(await screen.findByRole('dialog', { name: 'Supprimer ce bien ?' })).toBeInTheDocument();
+  });
+
+  // TCK-597 (§8) — l'agence modère : publier rend `pending_review`, et l'écran le dit au lieu
+  // d'annoncer « Bien publié ».
+  it.each([
+    ['pending_review', /envoyé pour validation à l'administrateur de l'agence/i],
+    ['available', /^Bien publié\.$/],
+  ])('publier un bien qui revient %s', async (status, attendu) => {
+    vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+      ok: true,
+      data: { id: 47, status, visibility: status === 'available' ? 'public' : 'private' } as unknown as PropertyDetail,
+    });
+    const user = userEvent.setup();
+    const property = { id: 47, title: 'Studio', slug: 'studio', status: 'draft', visibility: 'private' } as unknown as PropertyDetail;
+
+    render(withIntl(<PropertyHeaderActions property={property} />));
+    await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Publier' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(attendu);
   });
 });
