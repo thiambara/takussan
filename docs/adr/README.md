@@ -58,6 +58,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0030](0030-le-courtier-quitte-le-code-et-la-base.md) | Le courtier quitte le code et la base | Accepté |
 | [0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) | Le périmètre d'une agence appartient à son personnel actif ; le bailleur n'a que ses ressources ; un profil non actif ne confère rien ; toute capacité est jugée ou inventoriée | Accepté |
 | [0032](0032-l-api-n-ecrit-plus-de-prose.md) | L'API n'écrit plus de prose : une notification est un code rendu par surface dans la langue du destinataire, une erreur est un code et un message localisé ; un contact sans compte reçoit le transactionnel par WhatsApp ou SMS | Accepté — étend ADR-0019 à l'API |
+| [0043](0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) | Un avis porte sa cible, sa preuve d'éligibilité et l'agence qui le modère ; l'admin d'agence ne modère que les biens et agents de son agence ; une annonce masquée par la plateforme tient à un verrou qu'un seul point défend et que seul un super-admin lève ; la modération d'agence tient au même point ; une décision de la file ne se joue pas deux fois | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
