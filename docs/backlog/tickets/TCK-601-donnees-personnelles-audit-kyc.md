@@ -571,13 +571,20 @@ Et autour :
 - [x] **AC18b** — Front : le journal d'audit de l'agence propose un choix de membre qui envoie
       `filter[causer_id]` ; une ligne sans acteur se lit « Système » dans les trois langues (test de
       composant). Rouge sur le code actuel.
-- [ ] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
+- [x] **AC19** — `./vendor/bin/pint` propre ; `npm run lint` et `npx tsc --noEmit` propres ; tests des
       classes touchées verts ; `php artisan migrate:fresh --seed` passe.
       *(2026-10-08 : Pint, lint, `tsc` propres ; classes touchées vertes (556 + 149 + 364 après la
       fusion de 592) ; toutes les gardes racine vertes. `migrate:fresh --seed` sur base jetable : les
       135+ migrations passent, dont les six de ce ticket, mais le seeder `YearOfActivitySeeder` a été
       coupé à 520 s sous une charge de 33-43 sur 8 cœurs — **à lancer par la session, machine au
       repos**, avec la suite entière.)*
+      *(2026-10-08, 13:40, mesuré par la session sur la tête `1809acd8` : `php artisan migrate:fresh
+      --seed --force` sur une base jetable `takussan_ac19_601` (UTF8, locale C, port 5433), pilotes
+      neutres (`SCOUT_DRIVER=null`, SMS et WhatsApp en `log`, `MAIL_MAILER=log`,
+      `QUEUE_CONNECTION=database`, dompdf, `SEED_DOWNLOAD_MEDIA=false`) → **exit 0 en 259 s**, dont
+      `YearOfActivitySeeder` en 246 s. Toutes les migrations et tous les seeders passent, dont
+      `ActivityLogBackfillSeeder`, ainsi que le contrôle de cohérence référentielle. Charge au départ
+      15 / 26 / 22 sur 8 cœurs. Base supprimée ensuite.)*
 
 ## Hors périmètre
 
