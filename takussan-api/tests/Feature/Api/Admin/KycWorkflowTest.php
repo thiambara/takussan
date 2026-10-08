@@ -61,6 +61,8 @@ class KycWorkflowTest extends TestCase
             $this->postJson("/api/agencies/{$agency->id}/kyc/documents", [
                 'document_type' => $type,
                 'document' => UploadedFile::fake()->create("{$type}.pdf", 10, 'application/pdf'),
+                // TCK-601 (AC7) — la pièce du dirigeant porte son échéance.
+                'expires_at' => $type === 'director_id' ? now()->addYear()->toDateString() : null,
             ])->assertCreated();
         }
 

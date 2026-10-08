@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Services\Kyc\SharedLegalIdentifierDetector;
 use Database\Factories\AgencyUpgradeRequestFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -59,7 +60,15 @@ class AgencyUpgradeRequest extends AbstractModel
         'review_comment',
     ];
 
+    /**
+     * TCK-601 (ADR-0044 §1) — `ninea` et `rib_pro` sont chiffrés (colonnes `text`). Ils restent
+     * rendus en clair par `AgencyUpgradeRequestResource` à leurs seuls lecteurs (admin de l'agence,
+     * super-admin) ; une colonne chiffrée ne se compare pas en SQL — la détection des identifiants
+     * partagés compare en PHP ({@see SharedLegalIdentifierDetector}).
+     */
     protected $casts = [
+        'ninea' => 'encrypted',
+        'rib_pro' => 'encrypted',
         'status' => AgencyUpgradeRequestStatus::class,
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
@@ -72,9 +81,13 @@ class AgencyUpgradeRequest extends AbstractModel
 
     protected static array $requestLoadable = ['agency', 'submitter', 'reviewer', 'documents'];
 
+    /**
+     * TCK-601 (verif-601 M1) — ni `ninea` ni `rib_pro` : un `fields[]` qui les demande est refusé
+     * (400). Sans `fields[]`, `select *` les charge et la Resource les rend masqués.
+     */
     protected static array $queryFields = [
         'id', 'agency_id', 'submitted_by',
-        'rc', 'ninea', 'rib_pro', 'address_fiscale', 'company_legal_name',
+        'rc', 'address_fiscale', 'company_legal_name',
         'planned_agents_count', 'status', 'submitted_at',
         'reviewed_by', 'reviewed_at', 'review_comment',
         'created_at', 'updated_at',

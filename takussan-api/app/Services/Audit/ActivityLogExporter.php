@@ -2,10 +2,13 @@
 
 namespace App\Services\Audit;
 
+use App\Models\Activity;
+use App\Models\Agency;
 use App\Models\User;
+use App\Support\Audit\PropertyRedactor;
+use App\Support\Export\CsvCell;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogExporter
 {
@@ -23,17 +26,22 @@ class ActivityLogExporter
         'ip_address',
     ];
 
-    public function count(User $user, array $filters): int
+    /**
+     * TCK-601 — `$agencyId` est l'agence du profil ACTIF, résolue par l'appelant HTTP et transmise
+     * au job : l'exporteur ne lit jamais `request()`, qui est nul dans un worker (le fichier
+     * asynchrone d'un admin multi-agences sortait vide).
+     */
+    public function count(User $user, array $filters, ?int $agencyId): int
     {
-        return $this->baseQuery($user, $filters)->count();
+        return $this->baseQuery($user, $filters, $agencyId)->count();
     }
 
     /**
      * @return array{columns: list<string>, rows: list<array<string,mixed>>, filename: string}
      */
-    public function buildPayload(User $user, array $filters): array
+    public function buildPayload(User $user, array $filters, ?int $agencyId): array
     {
-        $rows = $this->baseQuery($user, $filters)
+        $rows = $this->baseQuery($user, $filters, $agencyId)
             ->with(['causer', 'causer.platformProfile', 'causer.agencyAdminProfiles', 'causer.agentProfiles', 'causer.ownerProfiles'])
             ->orderByDesc('created_at')
             ->get()
@@ -42,8 +50,9 @@ class ActivityLogExporter
 
         $from = $filters['date_from'] ?? now()->subDays(30)->toDateString();
         $to = $filters['date_to'] ?? now()->toDateString();
-        $agency = $user->agency?->name
-            ? preg_replace('/[^a-z0-9]+/i', '-', strtolower($user->agency->name))
+        $agencyName = $agencyId !== null && ! $user->isSuperAdmin() ? Agency::query()->whereKey($agencyId)->value('name') : null;
+        $agency = $agencyName
+            ? preg_replace('/[^a-z0-9]+/i', '-', strtolower($agencyName))
             : 'platform';
         $filename = "audit-trail-{$agency}-{$from}-{$to}";
 
@@ -54,49 +63,44 @@ class ActivityLogExporter
         ];
     }
 
-    private function baseQuery(User $user, array $filters): Builder
+    /**
+     * TCK-601 (F) — les lignes d'une requête déjà filtrée et déjà bornée par l'appelant (l'audit de
+     * la console filtre par le QueryBuilder de son index), mises en forme comme l'export d'agence :
+     * mêmes colonnes, même expurgation.
+     *
+     * @return array{columns: list<string>, rows: list<array<string,mixed>>, filename: string}
+     */
+    public function payloadForQuery(Builder $query, string $filename): array
     {
-        $query = Activity::query();
+        return [
+            'columns' => self::COLUMNS,
+            'rows' => $query->with('causer')->get()->map(fn (Activity $log) => $this->mapRow($log))->all(),
+            'filename' => $filename,
+        ];
+    }
 
-        $this->scopeForUser($query, $user);
+    /** Le CSV d'un export, BOM UTF-8 compris (Excel sous Windows), en mémoire. */
+    public function csvContent(array $payload): string
+    {
+        $handle = fopen('php://temp', 'w+b');
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, $payload['columns']);
+        foreach ($payload['rows'] as $row) {
+            fputcsv($handle, CsvCell::line(array_map(fn (string $col) => $row[$col] ?? '', $payload['columns'])));
+        }
+        rewind($handle);
+        $content = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return $content;
+    }
+
+    private function baseQuery(User $user, array $filters, ?int $agencyId): Builder
+    {
+        $query = AuditScope::apply(Activity::query(), $user, $agencyId);
         $this->applyFilters($query, $filters);
 
         return $query;
-    }
-
-    private function scopeForUser(Builder $query, User $user): void
-    {
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-
-        // agency_admin sees only logs whose causer belongs to their agency.
-        // Active-profile context drives the agency scope when in HTTP — out
-        // of HTTP we fall back to the legacy single-agency accessor.
-        $agencyId = request()?->activeProfile()?->agency_id ?? $user->agency_id;
-        if (! $agencyId) {
-            $query->whereRaw('0 = 1');
-
-            return;
-        }
-
-        // Use exact morph-class match + correlated subquery on user IDs.
-        // Earlier revisions used `causer_type LIKE '%\Models\User'` which
-        // was unreliable: LIKE treats `\` as the escape character, so the
-        // literal backslashes in the FQCN were eaten and the filter matched
-        // nothing in production (SQLite test runs hid the bug at the time).
-        // The engines named here are gone (ADR-0020) but the trap is NOT
-        // MySQL-specific — PostgreSQL's LIKE escapes with `\` too. Do not
-        // reintroduce the pattern thinking the engine change fixed it.
-        $query->where(function (Builder $q) use ($agencyId): void {
-            $q->where('causer_type', User::class)
-                ->whereIn(
-                    'causer_id',
-                    User::query()->where(function ($q) use ($agencyId) {
-                        $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
-                    })->select('id')
-                );
-        });
     }
 
     private function applyFilters(Builder $query, array $filters): void
@@ -131,7 +135,8 @@ class ActivityLogExporter
     private function mapRow(Activity $log): array
     {
         $causer = $log->causer;
-        $props = $log->properties ?? collect();
+        // TCK-601 (AC13b) — expurgé avant toute mise en forme : la colonne est un JSON libre.
+        $props = collect(PropertyRedactor::redact($log->properties) ?? []);
 
         $hasAttributeDiff = $props->has('attributes') || $props->has('old');
         $changes = $hasAttributeDiff

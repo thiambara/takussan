@@ -11,16 +11,26 @@ import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { demainIso } from '@/lib/kyc-echeance';
+import { KycEcheance } from './KycEcheance';
+import { SharedIdentifiersNotice } from './SharedIdentifiersNotice';
 
 type DocumentType = 'rccm' | 'ninea' | 'director_id';
 
 /** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
 const DOCUMENTS: readonly DocumentType[] = ['rccm', 'ninea', 'director_id'];
+
+/**
+ * TCK-601 — les pièces dont le dépôt EXIGE une échéance (`UploadKycDocumentRequest` :
+ * `expires_at` `required_if:document_type,director_id`). Les autres n'en portent pas.
+ */
+const PIECES_A_ECHEANCE: readonly DocumentType[] = ['director_id'];
 
 export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
   const t = useTranslations('kyc');
@@ -48,6 +58,7 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
       <CardContent className="@container space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={dossier.status} />
+          <KycEcheance kind="dossier" value={dossier.expires_at} />
           {dossier.rejection_reason ? (
             <Badge variant="outline" className="border-destructive/40 text-destructive">
               {t('timeline.reasonAvailable')}
@@ -78,6 +89,7 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
   const toast = useToast();
   const queryClient = useQueryClient();
   const [files, setFiles] = useState<Partial<Record<DocumentType, File>>>({});
+  const [echeances, setEcheances] = useState<Partial<Record<DocumentType, string>>>({});
   const inputs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({});
   const locked = dossier.status === 'verified';
   const documentsByType = useMemo(
@@ -86,8 +98,11 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
   );
 
   const uploadMutation = useMutation({
-    mutationFn: ({ type, file }: { type: DocumentType; file: File }) => uploadAgencyKycDocument(agencyId, type, file),
-    onSuccess: async () => {
+    mutationFn: ({ type, file, expiresAt }: { type: DocumentType; file: File; expiresAt?: string }) =>
+      uploadAgencyKycDocument(agencyId, type, file, expiresAt),
+    onSuccess: async (_, { type }) => {
+      setFiles((current) => ({ ...current, [type]: undefined }));
+      setEcheances((current) => ({ ...current, [type]: undefined }));
       toast.add({ title: t('uploader.toasts.documentAdded'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['agency', agencyId, 'kyc'] });
     },
@@ -111,6 +126,8 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
       <CardContent className="space-y-4">
         {DOCUMENTS.map((type) => {
           const uploaded = documentsByType.get(type);
+          const exigeEcheance = PIECES_A_ECHEANCE.includes(type);
+          const echeanceManquante = exigeEcheance && !echeances[type];
           return (
             // Grille à deux colonnes dès `lg` seulement : à 768 la carte n'a que ~400 px (TCK-505).
             <div key={type} className="grid gap-3 rounded-lg bg-muted/40 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -131,6 +148,27 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
                 ) : (
                   <p className="mt-1 text-xs text-muted-foreground">{t('uploader.accepted')}</p>
                 )}
+                {/* TCK-601 — l'échéance de la PIÈCE (`document_expires_at`), pas celle du lien. */}
+                {uploaded ? <KycEcheance value={uploaded.document_expires_at} className="mt-1" /> : null}
+                {exigeEcheance && !locked ? (
+                  <div className="mt-3 grid max-w-xs gap-1">
+                    <span id={`kyc-expiry-${type}`} className="text-xs font-medium text-foreground">
+                      {t('expiry.fieldLabel')}
+                    </span>
+                    <DatePicker
+                      value={echeances[type] ?? ''}
+                      min={demainIso()}
+                      onValueChange={(value) => setEcheances((current) => ({ ...current, [type]: value }))}
+                      aria-label={t('expiry.fieldAria', { document: t(`documents.${type}`) })}
+                      aria-describedby={`kyc-expiry-${type}-hint`}
+                      buttonClassName="h-10 w-full"
+                      disabled={uploadMutation.isPending}
+                    />
+                    <p id={`kyc-expiry-${type}-hint`} className="text-xs text-muted-foreground">
+                      {t('expiry.fieldHint')}
+                    </p>
+                  </div>
+                ) : null}
               </div>
               {/* Le champ fichier natif affichait « Choose File · No file chosen » — le texte du
                   navigateur, en anglais, dans une interface en français. Il reste le vrai
@@ -165,10 +203,10 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={locked || !files[type] || uploadMutation.isPending}
+                  disabled={locked || !files[type] || echeanceManquante || uploadMutation.isPending}
                   onClick={() => {
                     const file = files[type];
-                    if (file) uploadMutation.mutate({ type, file });
+                    if (file) uploadMutation.mutate({ type, file, expiresAt: echeances[type] });
                   }}
                 >
                   <Upload className="size-4" aria-hidden="true" />
@@ -224,16 +262,21 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
       <CardContent className="@container space-y-4">
         <div className="grid gap-2 @xl:grid-cols-3">
           {DOCUMENTS.map((type) => {
-            const present = dossier.documents.some((doc) => doc.document_type === type);
+            const piece = dossier.documents.find((doc) => doc.document_type === type);
+            const present = piece !== undefined;
             return (
               <div key={type} className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3">
-                <span className="min-w-0 text-sm font-medium">{t(`documents.${type}`)}</span>
+                <span className="flex min-w-0 flex-col items-start gap-0.5">
+                  <span className="text-sm font-medium">{t(`documents.${type}`)}</span>
+                  <KycEcheance value={piece?.document_expires_at} />
+                </span>
                 {present ? <CheckCircle2 className="size-5 shrink-0 text-success" aria-hidden="true" /> : <XCircle className="size-5 shrink-0 text-destructive" aria-hidden="true" />}
                 <span className="sr-only">{present ? t('uploader.provided') : t('uploader.missing')}</span>
               </div>
             );
           })}
         </div>
+        <SharedIdentifiersNotice shared={dossier.shared_identifiers} />
         <Textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}

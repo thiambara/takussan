@@ -8,12 +8,16 @@ use App\Http\Resources\KycDossierResource;
 use App\Models\Agency;
 use App\Models\KycDossier;
 use App\Services\Kyc\KycWorkflowService;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class KycController extends Controller
 {
-    public function __construct(private readonly KycWorkflowService $kyc) {}
+    public function __construct(
+        private readonly KycWorkflowService $kyc,
+        private readonly PersonalDataAccessLogger $accessLog,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -28,13 +32,19 @@ class KycController extends Controller
 
     public function agency(Request $request, Agency $agency): JsonResponse
     {
+        $dossier = $this->kyc->dossierForAgency($agency);
+        // TCK-601 (ADR-0044 §4) — un dossier KYC ouvert depuis la console est une consultation.
+        $this->accessLog->record($request->user(), $dossier, PersonalDataAccessLogger::SURFACE_KYC_DOSSIER);
+
         return $this->json([
-            'data' => (new KycDossierResource($this->kyc->dossierForAgency($agency)))->resolve($request),
+            'data' => (new KycDossierResource($dossier))->resolve($request),
         ]);
     }
 
     public function show(Request $request, KycDossier $dossier): JsonResponse
     {
+        $this->accessLog->record($request->user(), $dossier, PersonalDataAccessLogger::SURFACE_KYC_DOSSIER);
+
         return $this->json([
             'data' => (new KycDossierResource($dossier->load(['subject', 'reviewer'])))->resolve($request),
         ]);

@@ -11,4 +11,8 @@ use Illuminate\Support\Facades\Route;
  */
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('owners', [OwnerProfileController::class, 'index'])->name('owners.index');
+    // TCK-601 (ADR-0044) — valeurs complètes, admin de l'agence du profil, consultation journalisée.
+    Route::get('owners/{ownerProfile}/sensitive', [OwnerProfileController::class, 'sensitive'])
+        ->whereNumber('ownerProfile')
+        ->name('owners.sensitive');
 });

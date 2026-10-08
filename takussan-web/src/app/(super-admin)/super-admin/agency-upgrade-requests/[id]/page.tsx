@@ -19,6 +19,7 @@ import {
 import { useTranslations } from 'next-intl';
 
 import { PdfViewer } from '@/components/files/PdfViewer';
+import { SharedIdentifiersNotice } from '@/components/kyc/SharedIdentifiersNotice';
 import {
   ReviewActionsModal,
   type ReviewMode,
@@ -157,6 +158,9 @@ function RecapSection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDe
             value={detail.planned_agents_count?.toString() ?? null}
           />
         </div>
+
+        {/* TCK-601 — NINEA ou RIB pro déjà portés par une autre agence : un signal, pas un refus. */}
+        <SharedIdentifiersNotice shared={detail.shared_identifiers} />
 
         <div className="space-y-3">
           <p className="flex items-center gap-2 text-sm font-medium text-foreground">

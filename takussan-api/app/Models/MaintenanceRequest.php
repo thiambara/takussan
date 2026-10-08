@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
+use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
@@ -21,7 +22,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
-class MaintenanceRequest extends AbstractModel implements HasMedia
+class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
@@ -197,5 +198,13 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du bien. */
+    public function auditAgencyId(): ?int
+    {
+        $agencyId = $this->property()->value('agency_id');
+
+        return $agencyId !== null ? (int) $agencyId : null;
     }
 }

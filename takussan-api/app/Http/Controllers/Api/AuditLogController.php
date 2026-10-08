@@ -5,14 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\IndexAuditLogRequest;
-use App\Models\User;
+use App\Models\Activity;
+use App\Services\Audit\AuditScope;
 use App\Support\AgencyKindGuard;
+use App\Support\Audit\PropertyRedactor;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -30,11 +32,24 @@ class AuditLogController extends Controller
             $request->activeProfile()?->agency_id ?? $user->agency_id,
         );
 
-        // `Str::studly` handles multi-word slugs (`booking_payment` → `BookingPayment`)
-        // which plain `ucfirst` cannot — the latter would leave the underscore
-        // intact and never match `\App\Models\BookingPayment`.
-        $query = Activity::query()->with('causer')
-            ->where('subject_type', 'like', '%'.Str::studly($entity))
+        // TCK-601 (AD9) — le type est résolu en CLASSE EXACTE. L'ancien `subject_type LIKE
+        // '%<Entity>'` attrapait aussi `PlatformPayout` pour `payout`, et aucun filtre d'agence ne
+        // bornait la lecture : l'historique d'un objet de n'importe quelle agence se lisait en
+        // changeant l'identifiant. `Str::studly` traite les slugs composés (`booking_payment`).
+        $class = 'App\\Models\\'.Str::studly($entity);
+        abort_unless(
+            preg_match('/^[a-z][a-z0-9_-]*$/i', $entity) === 1
+            && class_exists($class) && is_subclass_of($class, Model::class)
+            && ! (new \ReflectionClass($class))->isAbstract(),
+            404,
+        );
+
+        $query = AuditScope::apply(
+            Activity::query()->with('causer'),
+            $user,
+            $request->activeProfile()?->agency_id ?? $user->agency_id,
+        )
+            ->where('subject_type', (new $class)->getMorphClass())
             ->where('subject_id', $id);
 
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
@@ -51,7 +66,7 @@ class AuditLogController extends Controller
                 'causer_id' => $log->causer_id,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => $log->properties,
+                'properties' => PropertyRedactor::redact($log->properties),
                 'created_at' => $log->created_at,
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
@@ -79,22 +94,11 @@ class AuditLogController extends Controller
         // `subject` is intentionally not loaded to avoid N+1 on heterogeneous morphs.
         $baseQuery = Activity::query()->with('causer');
 
-        // TCK-104 — agency_admin sees only logs caused by users from their
-        // agency. super_admin / legacy `admin` retain global visibility.
-        if (! $authedUser->isSuperAdmin() && $authedUser->agency_id !== null && $authedUser->isAgencyAdminAt((int) $authedUser->agency_id)) {
-            $agencyId = $request->activeProfile()?->agency_id ?? $authedUser->agency_id;
-            if (! $agencyId) {
-                $baseQuery->whereRaw('0 = 1');
-            } else {
-                $baseQuery->where('causer_type', User::class)
-                    ->whereIn(
-                        'causer_id',
-                        User::query()->where(function ($q) use ($agencyId) {
-                            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
-                        })->select('id')
-                    );
-            }
-        }
+        // TCK-601 (ADR-0044 §3) — un admin d'agence voit les lignes rattachées à l'agence de son
+        // profil actif, quel qu'en soit l'acteur (un admin, le système, un webhook), et aucune autre.
+        // Le filtre de TCK-104 portait sur l'ACTEUR : il cachait les actes des admins et laissait
+        // passer, chez A, tout ce qu'un bailleur de A et de B faisait chez B.
+        AuditScope::apply($baseQuery, $authedUser, $request->activeProfile()?->agency_id ?? $authedUser->agency_id);
 
         // Flat-param path (back-compat with /api/audit-log callers that predate
         // spatie/query-builder adoption on this endpoint).
@@ -171,7 +175,7 @@ class AuditLogController extends Controller
                 ] : null,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
-                'properties' => $log->properties,
+                'properties' => PropertyRedactor::redact($log->properties),
                 'created_at' => $log->created_at,
             ];
         })->all();
