@@ -1329,3 +1329,43 @@ identiques) : **6/7 rouges**. Le test d'un indicatif ajouté par configuration e
 
 **Exécutions** : 16 fichiers qui envoient un code : 118 verts et 3 rouges, les trois tests de forme
 ci-dessus. Après correction, `PhoneVerificationTest` donne 22 verts et `SmsOtpRelayTest` 7.
+
+#### M4 — familles hors des listes, et une garde qui apparie par contrôleur
+
+**Déjà fait par `d845fcde`** : `profiles.php` dans `FAMILIES`, et
+`AgentProfileController@suspend` / `@destroy` dans `AGENCY_TWO_FACTOR`. La sonde
+`TeamFamilyGapProbeTest` rendait 200 / 204 sur `e59cb8b2` ; elle rend 403 depuis.
+
+**Ce commit :**
+- La garde apparie désormais **par contrôleur**. Les contrôleurs d'une famille sont ceux que
+  déclarent les fichiers de `FAMILIES` (filtrés), plus `FAMILY_CONTROLLERS`. Ensuite, **toute
+  route enregistrée** de l'un d'eux, quel que soit son fichier, doit être dans
+  `AGENCY_TWO_FACTOR` ou dans `EXEMPT`. Un plancher exige `AgentProfileController` et
+  `LeaseDepositRefundController` dans la famille calculée.
+- Décision du porteur : `FAMILY_CONTROLLERS` reçoit `BookingPaymentController` et
+  `LeaseDepositRefundController`. Leurs actions `@refund` et `@store` (caution) entrent dans
+  `AGENCY_TWO_FACTOR`. `BookingPaymentController@store` entre dans `EXEMPT` : c'est le client qui
+  paie, l'argent entre.
+- **Trouvé par l'appariement lui-même** : `DELETE api/auth/account`
+  (`UserAdminController@deleteOwnAccount`, dans `auth.php`). C'est une route d'un contrôleur de
+  famille hors de son fichier, que la garde par fichier ne voyait pas. Elle est exemptée avec son
+  motif : le compte s'efface lui-même.
+
+**Les tests, dans `MoneyOutTwoFactorTest` (4) :**
+- un admin sans 2FA reçoit 403 `two_factor_required` sur `PATCH profiles/{p}/suspend` et
+  `DELETE profiles/{p}`, et le profil reste actif ;
+- même 403 sur `deposit-refund`, sans restitution ;
+- même 403 sur `booking-payments/{p}/refund`, sans remboursement ;
+- avec la 2FA, la caution est restituée (201).
+
+**Rouge avant correctif :**
+- Avec le `ProtectedActions` d'avant ce commit : 2 rouges, les deux remboursements.
+- Avec celui de `e59cb8b2` : 3 rouges, les remboursements et l'équipe.
+
+**Ablations, restaurées par `cp`** : `LeaseDepositRefundController@store` est retiré de la liste.
+- La nouvelle garde (par contrôleur) **rougit** et nomme la route.
+- La garde d'avant (par fichier), rejouée sur la même liste, reste **verte**. C'est l'angle mort
+  que M4 décrivait.
+
+**Exécutions** : 19 fichiers qui touchent un remboursement, un profil ou une suspension donnent
+173 verts. `tests/Feature/Auth/TwoFactor` et 3 fichiers donnent 81 verts.

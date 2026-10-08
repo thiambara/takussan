@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth\TwoFactor;
 
+use App\Http\Controllers\Api\AgentProfileController;
+use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\UserAdminController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Support\Security\ProtectedActions;
@@ -14,35 +16,51 @@ use Tests\TestCase;
  * TCK-589 AC9 — la garde du point 8 : la liste des actions protégées apparie par
  * action de contrôleur, et elle casse dans les DEUX sens.
  *
- *  1. Une route mutante d'une famille protégée (fichier de routes de
- *     `ProtectedActions::FAMILIES`) absente de la liste ET des exemptions : rouge.
- *     C'est ce qui attrape la route ajoutée demain à `integrations.php`.
+ *  1. Une route mutante d'une famille protégée absente de la liste ET des exemptions :
+ *     rouge. La famille se compose par CONTRÔLEUR (vérification adverse M4) : ceux des
+ *     fichiers de `FAMILIES`, plus `FAMILY_CONTROLLERS` ; leurs routes sont cherchées
+ *     dans TOUTE la table. C'est ce qui attrape la route ajoutée demain à
+ *     `integrations.php`, comme celle d'un contrôleur de famille posée ailleurs.
  *  2. Une entrée de liste qui ne résout aucune route enregistrée : rouge — une
  *     action renommée ne laisse pas un trou silencieux.
  *
  * Chaque fichier de famille est rejoué dans un routeur NEUF (façade échangée le
- * temps du `require`) : on sait ainsi exactement quelles routes il déclare, ce que
+ * temps du `require`) : on sait ainsi exactement quels contrôleurs il déclare, ce que
  * la table globale des routes ne dit pas.
  */
 class ProtectedActionsCoverageTest extends TestCase
 {
+    /**
+     * Vérification adverse M4 — la garde apparie par CONTRÔLEUR, plus par fichier : les
+     * contrôleurs d'une famille sont ceux des fichiers de `FAMILIES` (filtrés) et ceux de
+     * `FAMILY_CONTROLLERS` ; puis TOUTE route enregistrée de l'un d'eux, quel que soit son
+     * fichier, doit être listée. Rejouer les seuls fichiers déclarés laissait
+     * `profiles.php` (suspendre, retirer un agent) hors de vue.
+     */
     public function test_chaque_route_mutante_d_une_famille_est_listee(): void
     {
-        $oubliees = [];
+        $famille = array_fill_keys(ProtectedActions::FAMILY_CONTROLLERS, true);
         foreach (ProtectedActions::FAMILIES as $fichier => $controleurs) {
             foreach ($this->routesDeclareesPar($fichier) as $route) {
-                $action = ProtectedActions::normalize($route->getActionName());
-                $classe = explode('@', $action)[0];
-                if ($controleurs !== null && ! in_array($classe, $controleurs, true)) {
-                    continue;
+                $classe = explode('@', ProtectedActions::normalize($route->getActionName()))[0];
+                if ($controleurs === null || in_array($classe, $controleurs, true)) {
+                    $famille[$classe] = true;
                 }
-                if (array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']) === []) {
-                    continue;
-                }
-                if (! in_array($action, ProtectedActions::AGENCY_TWO_FACTOR, true)
-                    && ! array_key_exists($action, ProtectedActions::EXEMPT)) {
-                    $oubliees[] = implode('|', $route->methods()).' '.$route->uri()." ({$fichier}) → {$action}";
-                }
+            }
+        }
+        // Plancher : une famille vide passerait pour un vert.
+        $this->assertArrayHasKey(AgentProfileController::class, $famille);
+        $this->assertArrayHasKey(LeaseDepositRefundController::class, $famille);
+
+        $oubliees = [];
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            $action = ProtectedActions::normalize($route->getActionName());
+            if (! isset($famille[explode('@', $action)[0]]) || array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']) === []) {
+                continue;
+            }
+            if (! in_array($action, ProtectedActions::AGENCY_TWO_FACTOR, true)
+                && ! array_key_exists($action, ProtectedActions::EXEMPT)) {
+                $oubliees[] = implode('|', $route->methods()).' '.$route->uri()." → {$action}";
             }
         }
 

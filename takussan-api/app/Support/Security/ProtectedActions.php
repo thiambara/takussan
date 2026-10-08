@@ -20,8 +20,10 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
+use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\Permissions\RoleDelegationController;
 use App\Http\Controllers\Api\Profile\AgencyRoleController;
@@ -75,6 +77,21 @@ final class ProtectedActions
     ];
 
     /**
+     * Vérification adverse M4 — contrôleurs d'une famille, où que soient leurs routes. La
+     * garde apparie par CONTRÔLEUR : toute route enregistrée dont le contrôleur est ici, ou
+     * dans un fichier de {@see self::FAMILIES}, figure dans une liste. `profiles.php` portait
+     * la gestion d'équipe hors de toute famille, et la garde, qui rejouait les seuls fichiers
+     * déclarés, ne pouvait pas le voir.
+     *
+     * @var list<class-string>
+     */
+    public const FAMILY_CONTROLLERS = [
+        // Décision du porteur : de l'argent qui SORT (remboursement, restitution de caution).
+        BookingPaymentController::class,
+        LeaseDepositRefundController::class,
+    ];
+
+    /**
      * Actions mutantes des familles : 2FA exigée d'un admin d'agence, et du
      * personnel quand l'agence a coché `settings.require_team_two_factor`.
      *
@@ -121,6 +138,10 @@ final class ProtectedActions
         InvitationController::class.'@store',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+
+        // Vérification adverse M4 — de l'argent qui sort.
+        BookingPaymentController::class.'@refund',
+        LeaseDepositRefundController::class.'@store',
     ];
 
     /**
@@ -134,6 +155,11 @@ final class ProtectedActions
         // Qui crée son agence n'en est pas encore l'admin : l'exigence le prend au
         // premier geste protégé, dans l'agence créée.
         AgencyController::class.'@store' => 'création d\'une agence',
+        // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
+        BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
+        // Trouvée par l'appariement par contrôleur (M4) : `DELETE auth/account`, dans
+        // `auth.php`, sert le compte qui s'efface lui-même — aucun geste sur une équipe.
+        UserAdminController::class.'@deleteOwnAccount' => 'suppression de son propre compte',
     ];
 
     /**
