@@ -77,7 +77,11 @@ export interface Agency {
   metadata?: AgencyMetadata | null;
   /** TCK-098 — when true, new property publications require admin approval. */
   moderation_required?: boolean;
-  /** TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé. */
+  /**
+   * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
+   * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni
+   * `payouts.create` dans l'agence.
+   */
   payout_approval_threshold?: number | null;
   /**
    * VERIF-594 M-2 — un relâchement du seuil (coupé, ou relevé) en attente d'un SECOND détenteur de

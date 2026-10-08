@@ -549,6 +549,9 @@ rend **403** avec une clé i18n, jamais une phrase.
 - [x] **m-1** — une agence `individual` ne reverse qu'à son hôte : `PayoutService::create` rend
   422 `payout.individual_third_party` pour un bénéficiaire sans `AgencyAdminProfile` dans l'agence.
   `createForBill` reste permis (exception écrite à l'ADR-0039 §2).
+- [x] **m-2** — `AgencyResource` ne rend `payout_approval_threshold` et
+  `pending_payout_threshold_change` qu'aux détenteurs de `payouts.approve` ou `payouts.create` de
+  l'agence (`rib_pro` relève de TCK-601, non touché).
 - [x] **M-5** — `markFailed` et `cancel` jugent le statut sur la ligne verrouillée ; `Payout::booted`
   refuse toute sortie de `completed`.
 
@@ -756,6 +759,10 @@ rend **403** avec une clé i18n, jamais une phrase.
   prépare un reversement à un autre bailleur de son agence : 422 `payout.individual_third_party`,
   aucun `Payout` écrit. Un super-admin qui reverse à l'hôte lui-même : 201.
   **Preuve** : `PayoutBypassTest::test_m1_an_individual_agency_does_not_pay_a_third_party` (rouge sur 9923b16c : 201). Ablation V-m1 : rouge.
+- [x] **AC-m2 — le bailleur ne lit pas le seuil.** `GET /api/agencies/{id}` par un bailleur de
+  l'agence, puis par l'administrateur d'une autre agence : ni `payout_approval_threshold` ni
+  `pending_payout_threshold_change` dans la réponse. Par l'administrateur de l'agence : 250 000.
+  **Preuve** : `PayoutBypassTest::test_m2_the_threshold_is_not_shown_to_a_landlord` (rouge sur 9923b16c). Ablation V-m2 : rouge.
 - [x] **AC-M5 — un paiement ne se défait pas.** `markFailed` puis `cancel`, appelés avec un modèle
   chargé AVANT un `mark-processed` réussi, rendent 422 (`payout.cannot_fail`, `payout.cannot_cancel`) ;
   le reversement reste `completed` et garde ses pièces. Une écriture directe `completed → failed` ou
@@ -1094,3 +1101,8 @@ nominal tenait ; les contournements passaient. Un commit par point, chacun avec 
   individuelle (`HostIndividualOnboardingService`). La règle se juge après l'appartenance (403
   `payout.landlord_not_in_agency` d'abord) et avant la séparation des tâches. Le prestataire de
   l'hôte reste payable par `createForBill` : c'est la seule chaîne de paiement de sa facture.
+- **m-2 — le seuil lu par le bailleur.** Les deux clés disparaissent de la réponse (et non `null`,
+  qui se lirait « désactivé »). Un étalement conditionnel et non `$this->when()` : `AgencyController`
+  appelle `toArray()` sans `resolve()`, et la clé restait présente — le premier essai l'a montré
+  rouge. L'écran des réglages est déjà gardé par `useCan('payouts.approve')` ; le type front porte
+  l'absence.

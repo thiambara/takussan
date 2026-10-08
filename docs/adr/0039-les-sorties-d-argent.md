@@ -127,7 +127,10 @@ deux agences ne font pas deux personnes.
   hausse reste en attente (`agencies.pending_payout_threshold*`, réponse 202) jusqu'à la
   confirmation d'un **second** détenteur, avisé aussitôt ; le demandeur ne confirme pas sa propre
   demande, et une agence qui n'a qu'un détenteur ne relâche pas son seuil (403). Un resserrement
-  (activation, baisse) reste immédiat et retire la demande en attente. L'approbation est un état (`awaiting_approval`) que
+  (activation, baisse) reste immédiat et retire la demande en attente. **Le seuil ne se lit que par
+  qui prépare ou approuve** les reversements de l'agence (`payouts.create`, `payouts.approve`) :
+  `AgencyResource` ne le rend à personne d'autre, puisque le connaître aide à fractionner sous lui
+  (VERIF-594 m-2). L'approbation est un état (`awaiting_approval`) que
   `mark-processed` et `mark-failed` refusent ; elle ne se rejoue pas (elle n'est permise que depuis
   cet état) ; le net approuvé est figé dans `metadata.approved_net_amount` et un paiement dont le net
   a changé depuis est refusé. **L'approbation couvre aussi la destination** (VERIF-594 M-4) : elle

@@ -443,4 +443,29 @@ class PayoutBypassTest extends TestCase
         $this->postJson('/api/payouts', ['landlord_id' => $host->id, 'agency_id' => $agency->id, 'lease_payment_ids' => [$own->id]])
             ->assertCreated();
     }
+
+    /**
+     * m-2 — le bailleur lisait le seuil des quatre yeux de son agence : le connaître aide à fractionner
+     * sous lui (M-1). Seuls ceux qui préparent ou approuvent les reversements de l'agence le lisent.
+     */
+    public function test_m2_the_threshold_is_not_shown_to_a_landlord(): void
+    {
+        $agency = $this->moneyAgency();
+        $agency->forceFill(['payout_approval_threshold' => 250_000])->save();
+        $other = $this->moneyAgency();
+
+        Sanctum::actingAs($this->landlordOf($agency));
+        $this->getJson("/api/agencies/{$agency->id}")->assertOk()
+            ->assertJsonMissingPath('data.payout_approval_threshold')
+            ->assertJsonMissingPath('data.pending_payout_threshold_change');
+
+        // L'administrateur d'une AUTRE agence ne le lit pas davantage.
+        Sanctum::actingAs($this->agencyAdmin($other));
+        $this->getJson("/api/agencies/{$agency->id}")->assertJsonMissingPath('data.payout_approval_threshold');
+
+        Sanctum::actingAs($this->agencyAdmin($agency));
+        $this->getJson("/api/agencies/{$agency->id}")->assertOk()
+            ->assertJsonPath('data.payout_approval_threshold', 250000)
+            ->assertJsonPath('data.pending_payout_threshold_change', null);
+    }
 }
