@@ -233,8 +233,10 @@ approbation ou non (403, VERIF-594 M-4), le temps que l'avis au titulaire agisse
 vaut pour l'approbateur qui fixe une destination** (VERIF-594 passe 3, P3-3) : s'il l'a vérifiée
 lui-même il y a moins de 24 h, il ne la cite pas en approuvant (403
 `payout.approver_verified_destination_recently`) — sinon il vérifie un numéro neuf, le fixe, et plus
-personne ne le revoit avant le payeur. Une destination vérifiée par un tiers, il la fixe ; approuver
-sans en citer reste permis. Le `rib` du profil bailleur reste une pièce KYC.
+personne ne le revoit avant le payeur. La règle porte sur la destination **fixée**, citée ou non
+(VERIF-594 passe 4, P4-3) : approuver sans rien citer fixe la destination du reversement — la
+destination par défaut, ou celle que le préparateur a citée —, et l'approbateur qui l'a vérifiée
+dans les 24 h ne l'approuve pas davantage. Une destination vérifiée par un tiers, il la fixe. Le `rib` du profil bailleur reste une pièce KYC.
 
 ### 7. Factures : numéro à l'émission, unicité par agence, avoir
 

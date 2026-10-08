@@ -225,8 +225,10 @@ class PayoutService
             // VERIF-594 passe 3, P3-3 — l'approbateur qui FIXE une destination ne l'a pas vérifiée
             // lui-même dans les 24 h : sinon il vérifie un numéro neuf, le fixe, et plus personne ne le
             // revoit avant le payeur. La même règle que pour le payeur (M-4), appliquée au second geste.
+            // Passe 4, P4-3 : la destination fixée, citée ou prise à la préparation — approuver sans
+            // rien citer fixe celle du reversement tout autant.
             abort_code_if(
-                $cited && $this->freshlyVerifiedBy($locked, $destination, $actor),
+                $this->freshlyVerifiedBy($locked, $destination, $actor),
                 403,
                 'payout.approver_verified_destination_recently',
             );

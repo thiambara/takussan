@@ -926,6 +926,51 @@ class PayoutBypassTest extends TestCase
     }
 
     /**
+     * VERIF-594 passe 4, P4-3 — P3-3 se juge sur la destination FIXÉE, citée ou non : l'approbateur qui
+     * a vérifié la destination par défaut, puis approuve sans la citer, la fixe tout autant.
+     */
+    public function test_p4_3_the_approver_does_not_approve_the_default_destination_they_just_verified(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver] = $this->fourEyesAgency();
+        $default = PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payout-methods/{$default->id}/verify")->assertOk();
+
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, null);
+        $this->assertSame($default->id, Payout::query()->findOrFail($id)->payout_method_id);
+
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")
+            ->assertForbidden()->assertJsonPath('code', 'payout.approver_verified_destination_recently');
+        $this->assertSame(PayoutStatus::AwaitingApproval, Payout::query()->findOrFail($id)->status);
+    }
+
+    /**
+     * VERIF-594 passe 4, P4-3 — le préparateur cite un numéro que l'approbateur vient de vérifier :
+     * l'approbation, sans rien citer, le fixerait. Refusée.
+     */
+    public function test_p4_3_the_approver_does_not_approve_a_cited_destination_they_just_verified(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver] = $this->fourEyesAgency();
+        PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => true]);
+        $fresh = PayoutMethod::factory()->create(['user_id' => $landlord->id, 'is_default' => false]);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payout-methods/{$fresh->id}/verify")->assertOk();
+
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $fresh);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")
+            ->assertForbidden()->assertJsonPath('code', 'payout.approver_verified_destination_recently');
+
+        // Passé le délai, la règle se lève.
+        $this->travel(25)->hours();
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk()->assertJsonPath('data.payout_method_id', $fresh->id);
+    }
+
+    /**
      * Le grand livre d'une caution : ce qui sort vers le locataire (restitutions ni refusées ni
      * échouées), et ce qui est retenu (factures de retenue vivantes).
      *
