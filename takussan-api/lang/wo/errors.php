@@ -43,6 +43,7 @@ return [
         'not_in_agency' => 'Jàngalekat bi nekkul ci agence bi.',
         'not_staff' => 'Ajaŋ walla njiitu ajaans bi rekk lañu mën a génne ci ekip bi ; boroom kër bokkul ci.',
         'portfolio_not_empty' => 'Ki nga bëgg a génne am na liggéey yu mu yor : jox ko keneen, walla nangu génne ko te kenn du ko jël.',
+        'handover_conflict' => 'Liggéey yi mu yor soppiku nañu bi ñuy jox : dara jaxasul, def ko ba ñaareel.',
         'user_not_found_by_email' => 'Ngemb bu email bi, jàngalekat amul.',
     ],
     'agency_role' => [
@@ -406,6 +407,7 @@ return [
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
+        'responsible_agent_co_owner' => 'Ku bokk moom kër gi mënul a nekk ajaa bi ko yor.',
         'resubmit_not_rejected' => 'Kër gu ñu bañ rekk lañu mën a yónniwaat.',
     ],
     'quota' => [

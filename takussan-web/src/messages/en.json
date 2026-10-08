@@ -1138,21 +1138,22 @@
         },
         "selectAll": "Select all properties",
         "selectOne": "Select {title}",
-        "agentPrefix": "Agent:",
         "viewsTitle": "Views",
         "favoritesTitle": "Favourites",
+        "ownerPrefix": "Owner:",
+        "responsiblePrefix": "Responsible agent:",
+        "responsibleNone": "none",
         "agentSelf": "{name} (me)",
         "bulkAria": "Bulk actions",
         "bulkSelected": "{count, plural, =1 {# property selected} other {# properties selected}}",
         "bulkArchive": "Archive",
         "bulkUnpublish": "Unpublish",
-        "bulkReassignPlaceholder": "Reassign to…",
-        "bulkAssign": "Assign",
+        "bulkReassignPlaceholder": "Responsible agent…",
+        "bulkAssign": "Change responsible agent",
         "bulkClear": "Clear selection",
         "bulkError": "Bulk action failed.",
         "bulkArchived": "Properties archived.",
         "bulkUnpublished": "Properties unpublished.",
-        "bulkAssigned": "Assigned agent updated.",
         "caption": "Dashboard property list"
       },
       "filters": {
@@ -2791,7 +2792,8 @@
     "bulk": {
       "summary": {
         "archive": "{updated, plural, =0 {No property archived} one {# property archived} other {# properties archived}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}",
-        "unpublish": "{updated, plural, =0 {No property unpublished} one {# property unpublished} other {# properties unpublished}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}"
+        "unpublish": "{updated, plural, =0 {No property unpublished} one {# property unpublished} other {# properties unpublished}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}",
+        "assign": "{updated, plural, =0 {No property changed responsible agent} one {# property changed responsible agent} other {# properties changed responsible agent}}{unchanged, plural, =0 {} one {, # already handled by this agent} other {, # already handled by this agent}}{failed, plural, =0 {.} one { — # refused:} other { — # refused:}}"
       },
       "failure": "{title}: {reason}",
       "reason": {
@@ -2799,7 +2801,7 @@
         "forbidden": "you are not allowed to change it",
         "unchanged": "already in that state",
         "already_archived": "already archived",
-        "invalid_target": "the target is not active staff of the agency",
+        "invalid_target": "this agent cannot be responsible for it (not active staff of the agency, or co-owner of the property)",
         "invalid_status": "it is neither available nor published: nothing to unpublish",
         "other": "refused"
       }
@@ -2815,7 +2817,8 @@
         "maintenance": "Ongoing maintenance",
         "collaborations": "Property collaborations",
         "customers": "Customers they are the lead contact for",
-        "held_properties": "Held properties"
+        "responsible_properties": "Properties they are the responsible agent for",
+        "held_properties": "Properties registered in their name"
       },
       "notTransferable": "not transferable yet",
       "successor": "Successor",

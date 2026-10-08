@@ -178,6 +178,18 @@ export async function bulkPropertyVisibility(token: string, propertyIds: number[
   });
 }
 
+/**
+ * TCK-603 — changer l'agent responsable d'un lot : la cible devient le collaborateur `agent`
+ * principal de chaque bien, jamais son propriétaire (ADR-0036). `unchanged` : la cible l'était déjà.
+ */
+export async function bulkPropertyAssign(token: string, propertyIds: number[], userId: number): Promise<BulkResult> {
+  return apiRequest<BulkResult>('/api/properties/bulk-assign', {
+    method: 'POST',
+    body: { property_ids: propertyIds, user_id: userId },
+    token,
+  });
+}
+
 /** `bulk-archive` (TCK-074) rend `archived` / `archived_ids` : ramené ici à la forme commune. */
 export async function bulkPropertyArchive(token: string, propertyIds: number[]): Promise<BulkResult> {
   const res = await apiRequest<{ archived: number; archived_ids: number[]; failed: BulkResult['failed'] }>(

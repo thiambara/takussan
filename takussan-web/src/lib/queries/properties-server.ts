@@ -56,6 +56,10 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 export const DASHBOARD_PROPERTY_FIELDS = [
   'id',
   'user_id',
+  // TCK-603 — `PropertyResource` ne sert `primary_contact` sur l'index que si `agency_id` et
+  // `user_id` sont chargés : la liste distingue propriétaire et agent responsable. TCK-590 lit
+  // aussi `agency_id` sur la route de détail (`agenceDuBien`), qui l'hérite d'ici.
+  'agency_id',
   'reference_number',
   'title',
   'slug',
@@ -157,11 +161,11 @@ export async function fetchDashboardProperties(
  * l'exemption nommément, pour qu'elle soit un choix et non un oubli.
  */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
-  ...DASHBOARD_PROPERTY_FIELDS,
   // TCK-590 (passe 2, n4 ; passe 3, R2) — « Planifier une visite » se juge sur le profil actif
   // DANS l'agence du bien. La ressource n'émet pas `agency_id` : la colonne est lue pour que le
   // bloc `agency` de la route de détail se résolve, et la page lit `agency.id` (`agenceDuBien`).
-  'agency_id',
+  // Elle vient du spread ci-dessous depuis TCK-603 : la répéter ici l'enverrait deux fois.
+  ...DASHBOARD_PROPERTY_FIELDS,
   'description',
   'bathrooms',
   'furnished',
