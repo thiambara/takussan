@@ -22,6 +22,30 @@ class MaintenanceActualCostTest extends TestCase
     use MaintenanceActors, RefreshDatabase;
 
     /**
+     * Passe 3 (N8, sonde q01) — le REFUS du bailleur posait `quote_decision_by_id` comme son accord :
+     * l'agent inscrivait ensuite le coût réel de 200 000 que le bailleur venait de refuser.
+     */
+    public function test_a_landlord_rejection_is_not_an_agreement(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'agency' => $agency, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested, ['accepted_at' => now()]);
+        $this->threshold($landlord->id, $agency->id, 50000);
+        $agent = $this->agentOf($agency);
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/submit", $this->quoteBody(200000))->assertOk();
+        Sanctum::actingAs($agent);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/approve")->assertOk()->assertJsonPath('data.status', 'awaiting_owner');
+        Sanctum::actingAs($landlord);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/quote/reject", ['reason' => 'Beaucoup trop cher'])->assertOk();
+        $this->assertSame($landlord->id, $mr->refresh()->quote_decision_by_id);
+
+        Sanctum::actingAs($agent);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['actual_cost' => 200000])
+            ->assertUnprocessable()->assertJsonPath('code', 'maintenance.actual_cost_needs_owner');
+        $this->assertNull($mr->refresh()->actual_cost);
+    }
+
+    /**
      * Passe 2 (N5, sonde p05) — `numeric` admettait la notation scientifique, que bcmath refuse au
      * premier plafond lu : `5e5` rendait une 500. Désormais un 422 de validation, et rien d'écrit.
      */

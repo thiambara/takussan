@@ -56,7 +56,11 @@ class OwnerApprovalThreshold
             return;
         }
 
+        // verif-592 passe 3 (N8) — une DÉCISION du bailleur n'est pas un accord : son refus pose
+        // aussi `quote_decision_by_id`, et valait accord pour le montant même qu'il avait refusé.
         $agreedByOwner = $mr->quote_amount !== null
+            && $mr->quote_decision_at !== null
+            && $mr->quote_rejection_reason === null
             && $mr->quote_decision_by_id !== null
             && $this->isLandlord($mr, (int) $mr->quote_decision_by_id)
             && bccomp((string) $amount, (string) $mr->quote_amount, 2) <= 0;
