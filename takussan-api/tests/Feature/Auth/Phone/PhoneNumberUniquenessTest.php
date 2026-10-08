@@ -49,14 +49,15 @@ class PhoneNumberUniquenessTest extends TestCase
         $this->assertNull($this->b->fresh()->phone_verified_at);
     }
 
-    public function test_le_renvoi_refuse_avant_de_depenser_un_sms(): void
+    /** Vérification adverse m4 : la réponse d'un envoi réel, sans SMS (décision du porteur). */
+    public function test_le_renvoi_ne_depense_pas_de_sms_et_ne_dit_rien(): void
     {
         $sms = $this->fakeSms();
         Sanctum::actingAs($this->b);
 
         $this->postJson('/api/auth/phone/send-otp')
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'phone_taken');
+            ->assertOk()
+            ->assertExactJson(['data' => ['sent' => true]]);
         $this->assertSame([], $sms->sent);
     }
 

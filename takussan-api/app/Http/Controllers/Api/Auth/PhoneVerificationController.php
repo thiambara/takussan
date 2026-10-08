@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
 use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
+use App\Models\User;
 use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
@@ -51,6 +52,9 @@ class PhoneVerificationController extends Controller
             if ($incoming !== null && ! PhoneVerificationService::countryAllowed($incoming)) {
                 return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
             }
+            if ($incoming !== null && $this->service->isVerifiedElsewhere($incoming, $user)) {
+                return $this->neutralSend($user);
+            }
             if ($incoming !== null && $incoming !== $user->phone) {
                 $user->forceFill([
                     'phone' => $incoming,
@@ -62,10 +66,10 @@ class PhoneVerificationController extends Controller
         abort_code_if($user->phone_verified_at !== null, 422, 'phone.already_verified');
         abort_code_unless($user->phone !== null, 422, 'phone.missing');
 
-        // TCK-589 — refuser AVANT de dépenser un SMS un numéro qu'un autre
-        // compte a déjà vérifié : le code reçu ne pourrait rien vérifier.
+        // TCK-589 — ne pas dépenser de SMS pour un numéro qu'un autre compte a déjà
+        // vérifié : le code reçu ne pourrait rien vérifier.
         if ($this->service->isVerifiedElsewhere((string) $user->phone, $user)) {
-            return AuthRefusal::response(409, 'phone_taken', 'auth.phone.taken');
+            return $this->neutralSend($user);
         }
 
         abort_code_unless(
@@ -85,6 +89,20 @@ class PhoneVerificationController extends Controller
         if (! $this->service->sendOtp($user)) {
             return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
         }
+
+        return $this->json(['data' => ['sent' => true]]);
+    }
+
+    /**
+     * Vérification adverse m4 (décision du porteur) — un numéro vérifié par un AUTRE compte
+     * reçoit la réponse d'un envoi réel, délai de renvoi compris, sans envoi ni écriture :
+     * `409 phone_taken` disait à tout compte, trois fois par minute, si un numéro est
+     * inscrit. Le refus ferme reste à la vérification (`markVerified`, 409 `phone.taken`).
+     */
+    private function neutralSend(User $user): JsonResponse
+    {
+        abort_code_unless($this->service->canResend($user), 429, 'phone.resend_too_soon');
+        $this->service->holdResendCooldown($user);
 
         return $this->json(['data' => ['sent' => true]]);
     }

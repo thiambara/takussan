@@ -175,8 +175,11 @@ nouveaux, à code stable que le front lit : **403 `two_factor_required`** et
 `commission_rate`, `payment_integration`, `first_member`, `first_published_property`,
 `admin_two_factor`. `TeamController::index` rend un booléen `two_factor_enabled` par membre.
 `login` rend **423 `{code:"account_locked"}`** pendant un verrou. Toute vérification de
-téléphone (profil, onboardings, connexion, invitation) rend **409 `{code:"phone_taken"}`** quand
-le numéro est déjà vérifié sur un autre compte. Le champ **`debug_code` disparaît** de
+téléphone (profil, onboardings, connexion, invitation) rend **409 `{code:"phone.taken"}`** quand
+le numéro est déjà vérifié sur un autre compte (`phone.taken` depuis la fusion de TCK-588).
+**L'envoi, lui, ne refuse pas** (vérification adverse m4, décision du porteur, 2026-10-08) :
+`send-otp` vers un numéro vérifié ailleurs rend la même réponse qu'un envoi réel, délai de renvoi
+compris, sans envoi ni écriture — un 409 à l'envoi était un oracle des numéros inscrits. Le champ **`debug_code` disparaît** de
 `POST /auth/phone/send-otp` et de ses alias, dans **tous** les environnements.
 `GET /api/auth/oauth/providers` gagne `data.phone_login: bool` (reflet du drapeau) : c'est par là
 que le front sait s'il affiche l'entrée par téléphone.
@@ -395,8 +398,9 @@ onboarding). Le ticket passe à `done` à la fusion de la troisième.
       `verify-code` — l'action « déverrouiller » de la console agit enfin sur quelque chose.
 - [x] `PhoneVerificationService::markVerified(User, string $phone)` (contrainte 5 ter) remplace
       les cinq écritures de `phone_verified_at` relevées au § 2 du Contexte ;
-      `PhoneVerificationController::resend` refuse aussi `409 phone_taken` dès l'envoi, avant de
-      dépenser un SMS. Ne dépend pas du drapeau.
+      `PhoneVerificationController::resend` ne dépense pas de SMS pour un numéro vérifié ailleurs.
+      ~~refuse aussi `409 phone_taken` dès l'envoi~~ — corrigé après vérification adverse (m4) :
+      réponse neutre, celle d'un envoi réel, sans envoi ni écriture. Ne dépend pas du drapeau.
 - [x] `App\Services\Account\DeletionStepUpService` : code de step-up par SMS (même envoi qu'au
       §1) pour un compte sans e-mail.
 - [x] Inventaire des chemins qui supposent un e-mail — relevé `grep -rn "Mail::to(" app` : deux
@@ -1518,3 +1522,31 @@ second est vert : il garde contre une révocation trop large, et son ablation le
 
 **Exécutions** : `tests/Feature/Auth/Session`, `AuthLoginTest` et
 `AuthLoginCaseInsensitiveTest` donnent 52 verts.
+
+#### m4 — `send-otp` ne dit plus si un numéro est inscrit
+
+- **Décision du porteur** : réponse neutre. `send-otp` (et `phone/resend`) vers un numéro qu'un
+  **autre** compte a vérifié rend `200 {data:{sent:true}}`, la réponse d'un envoi réel. Rien n'est
+  envoyé, et rien n'est écrit : le numéro saisi n'est pas posé sur le compte.
+- **Le délai de renvoi joue aussi** : `holdResendCooldown()` pose la même clé qu'un envoi. Sans
+  elle, un second appel immédiat rendait 200 sur un numéro pris et 429 sur un numéro libre, ce
+  qui refaisait l'oracle.
+- Le refus ferme reste à la vérification : `markVerified`, 409 `phone.taken`.
+- **Delta §2** est corrigé dans le texte du ticket (API publique), ainsi que la case du §2 (Plan)
+  qui disait « refuse 409 dès l'envoi ».
+- `PhoneNumberUniquenessTest::test_le_renvoi_…` est réécrit selon la décision. Il attend la
+  réponse neutre, et toujours aucun SMS.
+
+**Test `SendOtpNeutralResponseTest` (3)** :
+- même statut et **même corps** qu'un envoi réel, sans SMS au numéro pris, et sans écriture de
+  `phone` ;
+- un numéro déjà saisi sur le compte et pris ailleurs donne la même réponse neutre ;
+- le second appel immédiat rend le même 429 et le même code qu'un envoi réel.
+
+**Rouge sur `89ccdce2`** : 3 rouges (409 contre 200).
+**Ablations, restaurées par `cp`** :
+- sans branche neutre pour un numéro saisi → 1 rouge (le numéro est écrit) ;
+- neutre sans délai de renvoi → 1 rouge.
+
+**Exécutions** : `tests/Feature/Auth/Phone`, `PhoneVerificationTest` et `tests/Feature/Onboarding`
+donnent 97 verts.

@@ -50,6 +50,15 @@ class PhoneVerificationService
     }
 
     /**
+     * Vérification adverse m4 — le délai de renvoi d'un envoi, sans envoi : une réponse
+     * neutre doit se comporter comme un envoi réel, second appel compris.
+     */
+    public function holdResendCooldown(User $user): void
+    {
+        $this->cache->put($this->cooldownKey($this->userSubject($user)), true, self::RESEND_COOLDOWN_SECONDS);
+    }
+
+    /**
      * Émet un code vers le numéro du compte. `false` si aucun numéro, ou si le
      * délai entre deux envois court encore. Ne rend jamais le code.
      */
