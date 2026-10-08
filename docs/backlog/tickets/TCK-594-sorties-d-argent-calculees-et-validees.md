@@ -586,6 +586,22 @@ rend **403** avec une clé i18n, jamais une phrase.
   (présent, nullable) ; une demande en cours différente rend 409 `payout.threshold_request_changed`.
   L'écran envoie la valeur affichée.
 
+### 10. Ajoutés après la passe 3 (VERIF-594 passe 3, 2026-10-08)
+
+- [x] **P3-1** — la restitution porte `metadata.invoice_id` (sa facture de retenue) et
+  `metadata.lease_payment_id` (sa ligne `deposit_refund`) ; refusée ou échouée, sa facture de retenue
+  s'annule par `InvoiceService::cancel` : brouillon annulé, facture émise contrepassée par un avoir,
+  facture payée laissée telle quelle.
+- [x] **P3-2** — la ligne `deposit_refund` se retrouve par `metadata.lease_payment_id`, jamais par
+  son montant : `failed` au refus ou à l'échec, `paid` (avec `paid_at`) au paiement. Payée, elle
+  reste une sortie : `PlatformPayoutService` ne la compte pas parmi les encaissements reversés à
+  l'agence.
+- [x] **P3-3** — l'approbateur qui cite une destination ne l'a pas vérifiée lui-même il y a moins de
+  24 h (403 `payout.approver_verified_destination_recently`, fr, en, wo).
+- [x] **Raccord TCK-589** — approuver, marquer payé, payer une facture d'intervention et gérer ses
+  destinations sont sous step-up (`ProtectedActions::STEP_UP`) ; les actions mutantes ajoutées par 594
+  aux familles protégées sont dans `AGENCY_TWO_FACTOR`.
+
 ### Front (intentionnel)
 
 - [x] Préparation d'un reversement par bailleur et période, montants en lecture seule ; file « À
@@ -850,6 +866,32 @@ rend **403** avec une clé i18n, jamais une phrase.
   `null` : 200, seuil coupé. L'écran envoie la valeur affichée (`null` pour une coupure, 150 000 pour
   une hausse).
   **Preuve** : `PayoutBypassTest::test_n5_a_confirmation_confirms_the_value_it_read` (rouge sur 38495c16) ; front `AgencyConfigForm.test.tsx` (deux). Ablations V-N5a (pas de comparaison), V-N5b (champ facultatif), W-N5 (l'écran envoie `null`) : rouges.
+
+### AC ajoutés après la passe 3 (VERIF-594 passe 3)
+
+- [x] **AC-P3-1 — refuser une restitution annule sa facture de retenue.** Caution 400 000, restitution
+  de 300 000 avec motif (une facture de retenue de 100 000 en brouillon), refusée (`cancel`) : la
+  facture passe `cancelled`, sans avoir ; nouvelle restitution de 300 000 : **une seule** facture de
+  retenue vivante, de 100 000. Variante émise : la facture envoyée (`send`), la restitution échoue
+  (`mark-failed`) : la facture passe `cancelled` et **un avoir** de 100 000 la crédite ; après une
+  nouvelle restitution, une seule facture de retenue vivante.
+  **Preuve** : `PayoutBypassTest::test_p3_1_a_refused_partial_refund_cancels_its_draft_retention_invoice`, `test_p3_1_a_refused_partial_refund_credits_its_issued_retention_invoice` (rouges sur 3dd943df). Ablations P3-1a (rien n'est annulé), P3-1b (le lien `invoice_id` n'est pas posé), P3-1c (seul le brouillon s'annule) : rouges.
+- [x] **AC-P3-2 — la ligne se retrouve par son lien.** Deux restitutions de 100 000 en attente ; on
+  annule la première : c'est SA ligne qui passe `failed`, celle de la seconde reste `pending` ; la
+  seconde payée en espèces : sa ligne passe `paid`, avec `paid_at` ; la clôture plateforme de l'agence
+  ne la prend pas (`created` vide, `platform_payout_id` nul).
+  **Preuve** : `PayoutBypassTest::test_p3_2_the_deposit_refund_line_is_found_by_its_link` (rouge sur 3dd943df). Ablations P3-2a (la ligne la plus récente), P3-2b (le paiement ne solde pas la ligne), P3-2c (la clôture compte la ligne) : rouges.
+- [x] **AC-P3-3 — l'approbateur ne fixe pas ce qu'il vient de vérifier.** Seuil 100 000, reversement
+  `awaiting_approval` ; l'approbateur vérifie une destination neuve du bailleur puis la cite en
+  approuvant : 403 `payout.approver_verified_destination_recently`, toujours `awaiting_approval` ; il
+  cite une destination vérifiée par un tiers il y a une heure : 200, destination fixée.
+  **Preuve** : `PayoutBypassTest::test_p3_3_the_approver_does_not_set_a_destination_they_just_verified` (rouge sur 3dd943df). Ablations P3-3a (pas de contrôle), P3-3b (contrôle sans l'identité du vérificateur) : rouges.
+- [x] **AC-589 — le step-up sur les sorties d'argent.** Une session à deux facteurs dont le step-up a
+  expiré : `approve`, `mark-processed`, `service-provider-bills/{id}/pay` et
+  `me/payout-methods` (`store`, `update`, `destroy`) rendent 403 `two_factor_step_up_required`, et
+  rien ne change ; avec un TOTP frais : 200 / 201. Un titulaire sans 2FA : `two_factor_required`.
+  `ProtectedActionsCoverageTest` garde les huit entrées (gestes plateforme compris).
+  **Preuve** : `PayoutStepUpTest` (trois), `ProtectedActionsCoverageTest::test_les_sorties_d_argent_exigent_le_step_up`. Ablations STEPUP-d1 à d4 (une entrée retirée de `STEP_UP`) : rouges. *Rouge sur 3dd943df* : non exécutable, `ProtectedActions` n'y existe pas (589 non fusionné).
 
 ## Hors périmètre
 
@@ -1266,3 +1308,42 @@ est vert : `payout_method_verifications.agency_id` est la première colonne de
   rejouée après N-5. Elle vit dans `ConfirmPayoutThresholdRequest`, dont `authorize()` délègue à
   `AgencyPolicy::updatePayoutThreshold` (le 403 précède donc toujours la validation). V-N5b rejouée
   sur la règle déplacée : un 200 silencieux au lieu du 422, rouge.
+
+### Corrections après la passe 3 (VERIF-594 passe 3, 2026-10-08)
+
+- **P3-1 — la facture de retenue doublée.** La facture est créée AVANT le reversement dans
+  `DepositRefundService::refund`, pour que le reversement naisse avec ses deux liens
+  (`metadata.invoice_id`, `metadata.lease_payment_id`). `releaseDeposit` appelle
+  `InvoiceService::cancel` — le chemin d'annulation de toute facture : un brouillon s'annule, une
+  facture émise se contrepasse par un avoir numéroté. Une facture déjà payée n'est pas touchée (le
+  refus d'une restitution n'a pas à défaire un règlement) ; dans ce cas, la restitution suivante en
+  crée une autre — limite notée au rapport. L'auteur du `cancel` / `mark-failed` est transmis
+  (`?User $actor`, facultatif : signature publique inchangée) : il signe l'avoir et l'activité.
+  Ordre des verrous : reversement → bail → facture → ligne agence (l'allocateur de numéro), sans
+  cycle avec la restitution (bail → agence) ni l'émission (facture → agence).
+- **P3-2 — la ligne liée par son montant.** `depositRefundLine()` lit `metadata.lease_payment_id`,
+  et ne bouge qu'une ligne `pending` de ce bail et de ce type. Pas de repli par montant : une
+  restitution antérieure à ce correctif, sans lien, ne touche plus aucune ligne (aucune restitution
+  n'a servi en production — l'API n'y a jamais tourné). Payer la ligne (`paid`, `paid_at`) l'a fait
+  entrer dans les requêtes qui lisent « encaissé = `paid` » : la **clôture plateforme** l'aurait
+  reversée à l'agence comme un encaissement — elle exclut maintenant `deposit_refund` (les deux
+  requêtes). Les tableaux de bord (revenu du mois, flux du bailleur), `SystemMetricsController` et
+  les candidats crédit du rapprochement (`ReconciliationMatcher`, une suggestion qu'une personne
+  confirme) la comptent encore : affichage ou suggestion seuls, et déjà vrai d'une ligne `deposit_refund` marquée payée à la
+  main (`LeasePaymentService::markPaid`) — noté pour la session.
+- **P3-3 — l'approbateur qui vérifie puis fixe.** `freshlyVerifiedBy()` porte la règle des 24 h ; le
+  payeur (M-4) et l'approbateur qui CITE une destination la lisent, chacun avec son code. Une
+  destination déjà fixée à la préparation, que l'approbateur aurait vérifiée, n'est pas visée
+  (décision de session : « quand une `payout_method_id` est citée ») — le payeur reste tenu par M-4.
+- **Fusion de `origin/dev` (TCK-589).** Conflits de texte (`NotificationCode`, `AgencyConfigForm`)
+  résolus en gardant les deux côtés. Le step-up de 589 n'est pas un middleware de route : il est
+  global au groupe `api` et lit `ProtectedActions` par action de contrôleur. Le « raccord en une
+  ligne par route » devient donc une entrée de liste par action : `STEP_UP` pour approuver, marquer
+  payé, payer une facture d'intervention et gérer ses destinations ; `AGENCY_TWO_FACTOR` pour les
+  actions mutantes que 594 ajoute aux familles (`approve`, `verify`, `confirmPayoutThreshold`), que
+  `ProtectedActionsCoverageTest` exigeait. La confirmation du seuil n'est pas sous step-up : l'écran
+  la poste par une server action, qui ne passe pas par la garde du front et ne saurait pas rejouer.
+  Conséquence produit : **un bailleur ou un prestataire configure un second facteur avant d'ajouter
+  sa première destination** ; l'écran le résout sur place (`GardeDoubleFacteur`, enrôlement puis
+  rejeu).
+
