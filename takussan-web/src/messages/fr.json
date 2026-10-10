@@ -10519,5 +10519,25 @@
     "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à votre agence.",
     "error": "L'échéance n'a pas pu être chargée. Réessayez dans un instant.",
     "retry": "Réessayer"
+  },
+  "invitationAccept": {
+    "metaTitle": "Accepter une invitation",
+    "title": "Vous êtes invité sur Takussan",
+    "subtitleSignedIn": "Acceptez pour rejoindre l’espace qui vous invite.",
+    "subtitleSignedOut": "Créez votre compte pour rejoindre l’espace qui vous invite.",
+    "accept": "Accepter l’invitation",
+    "accepting": "Un instant…",
+    "firstName": "Prénom",
+    "lastName": "Nom (facultatif)",
+    "password": "Mot de passe",
+    "passwordHint": "8 caractères minimum, avec une lettre et un chiffre.",
+    "create": "Créer mon compte et accepter",
+    "haveAccount": "J’ai déjà un compte",
+    "signIn": "Se connecter",
+    "required": "Indiquez votre prénom et un mot de passe.",
+    "missingToken": "Ce lien d’invitation est incomplet. Rouvrez-le depuis le message reçu.",
+    "errors": {
+      "generic": "L’invitation n’a pas pu être acceptée. Réessayez."
+    }
   }
 }

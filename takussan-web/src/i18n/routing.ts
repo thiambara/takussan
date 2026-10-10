@@ -65,6 +65,8 @@ export const SEGMENTS_NON_LOCALISES: readonly string[] = [
   'auth',
   'onboarding',
   'publish',
+  // TCK-626 — la page qu'ouvre le lien d'invitation : un passage, comme `/onboarding`.
+  'invitations',
   'maintenance',
   // ⚠ Vit dans le groupe `(dashboard)`, donc à la RACINE du chemin — c'est le segment que la
   // première version de cette liste a oublié. Cf. l'en-tête.
