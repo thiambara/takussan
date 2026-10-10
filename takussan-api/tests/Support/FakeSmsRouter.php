@@ -11,7 +11,8 @@ use PHPUnit\Framework\Assert;
  * TCK-589 — faux {@see SmsRouterDriver}, lié dans le conteneur à la place du vrai.
  *
  * C'est le SEUL endroit où un test lit un code à usage unique : l'API ne le rend
- * dans aucune réponse, dans aucun environnement (contrainte 3). Le faux répond
+ * dans aucune réponse (contrainte 3), sauf hors production drapeau allumé —
+ * `otp_preview`, TCK-620, ADR-0060, éprouvé par `OtpPreviewTest`. Le faux répond
  * `sent` à chaque destinataire et garde chaque envoi (numéro, texte, contexte).
  *
  *     $sms = FakeSmsRouter::install();
