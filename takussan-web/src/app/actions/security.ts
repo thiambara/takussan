@@ -17,6 +17,7 @@ import {
   type TwoFactorConfirmResponse,
   type TwoFactorEnableResponse,
 } from '@/lib/security';
+import type { EnvoiCodeSms } from '@/lib/security';
 
 /**
  * TCK-069 — thin server-action wrappers that read the Sanctum token from
@@ -123,7 +124,7 @@ export async function twoFactorRegenerateAction(): Promise<
 
 export async function phoneSendOtpAction(
   phone?: string,
-): Promise<ActionResult<{ sent: boolean }>> {
+): Promise<ActionResult<EnvoiCodeSms>> {
   try {
     const token = await getToken();
     requireToken(token, await jetonManquant());
@@ -135,7 +136,7 @@ export async function phoneSendOtpAction(
 }
 
 /** TCK-589 p3-1 — le code de preuve, envoyé à l'ancien numéro vérifié. */
-export async function phoneChangeCodeAction(): Promise<ActionResult<{ sent: boolean }>> {
+export async function phoneChangeCodeAction(): Promise<ActionResult<EnvoiCodeSms>> {
   try {
     const token = await getToken();
     requireToken(token, await jetonManquant());

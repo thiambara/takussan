@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Label } from '@/components/ui/label';
 import { PhoneInput } from '@/components/ui/phone-input';
 import {
@@ -467,6 +468,8 @@ function PhoneOtpField({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
+  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
+  const [otpApercu, setOtpApercu] = useState<string | null>(null);
   const { location } = useUserLocation();
   const indicatif = normaliserIndicatif(location?.country_calling_code);
   const numeroPret = numeroComposable(data.phone_otp.phone);
@@ -491,9 +494,10 @@ function PhoneOtpField({ data, setData }: StepProps) {
       // into the auth context so the rest of the app stays in sync.
       await refreshUser();
       setOtpSent(true);
+      setOtpApercu(res.data?.codeApercu ?? null);
       toast.add({
         title: t('otp.sentTitle'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
         description: t('otp.sentBody'),
         type: 'success',
       });
@@ -578,38 +582,46 @@ function PhoneOtpField({ data, setData }: StepProps) {
       </div>
 
       {otpSent && !data.phone_otp.verified ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="phone-otp-code">{t('fields.otpCode')}</Label>
-            <Input
-              id="phone-otp-code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              className="tabular-nums tracking-widest"
-              value={data.phone_otp.code}
-              onChange={(e) =>
-                setData({
-                  ...data,
-                  phone_otp: {
-                    ...data.phone_otp,
-                    code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                  },
-                })
-              }
-            />
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="phone-otp-code">{t('fields.otpCode')}</Label>
+              <Input
+                id="phone-otp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                className="tabular-nums tracking-widest"
+                value={data.phone_otp.code}
+                onChange={(e) =>
+                  setData({
+                    ...data,
+                    phone_otp: {
+                      ...data.phone_otp,
+                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                className="h-11 w-full px-4 sm:w-auto"
+                onClick={handleVerify}
+                disabled={verifyPending || data.phone_otp.code.length !== 6}
+              >
+                {verifyPending ? t('otp.verifying') : t('otp.verifyCta')}
+              </Button>
+            </div>
           </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              className="h-11 w-full px-4 sm:w-auto"
-              onClick={handleVerify}
-              disabled={verifyPending || data.phone_otp.code.length !== 6}
-            >
-              {verifyPending ? t('otp.verifying') : t('otp.verifyCta')}
-            </Button>
-          </div>
-        </div>
+          <CodeDePreproduction
+            code={otpApercu}
+            onUtiliser={(code) =>
+              setData({ ...data, phone_otp: { ...data.phone_otp, code } })
+            }
+          />
+        </>
       ) : null}
     </div>
   );

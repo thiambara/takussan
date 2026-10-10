@@ -494,6 +494,11 @@
       "failed": "Une erreur est survenue. Réessayez dans un instant.",
       "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>."
     },
+    "otpPreview": {
+      "title": "Environnement de test",
+      "body": "Code envoyé par SMS :",
+      "use": "Utiliser ce code"
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Authentification — Takussan"

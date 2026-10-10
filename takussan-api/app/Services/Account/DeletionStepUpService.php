@@ -5,6 +5,7 @@ namespace App\Services\Account;
 use App\Http\Requests\Auth\RequestAccountDeletionRequest;
 use App\Models\User;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
+use App\Services\Auth\OtpPreview;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
@@ -91,6 +92,9 @@ class DeletionStepUpService
                 'is_critical' => true,
                 'bypass_quiet_hours' => true,
             ]);
+            // TCK-620 (ADR-0060) — le code parti par SMS revient aussi dans la réponse, hors
+            // production et drapeau allumé. Celui d'un e-mail, jamais.
+            app(OtpPreview::class)->record($code);
         } else {
             $user->notify(new AccountDeletionStepUpCodeNotification(
                 $code,

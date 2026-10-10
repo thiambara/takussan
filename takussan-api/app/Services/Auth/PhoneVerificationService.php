@@ -20,8 +20,9 @@ use Illuminate\Support\Facades\Log;
  *    TCK-596 / TCK-599) — code rangé par portée et par numéro.
  *
  * Le code : 6 chiffres, TTL 5 min, usage unique, HACHÉ en cache, comparé par
- * `hash_equals`, invalidé après 5 échecs. Il n'est rendu à AUCUN appelant, dans
- * aucun environnement : les tests le lisent par `Tests\Support\FakeSmsRouter`.
+ * `hash_equals`, invalidé après 5 échecs. Il n'est rendu à aucun appelant — sauf, hors
+ * production et drapeau allumé, dans la réponse HTTP par {@see OtpPreview} (TCK-620,
+ * ADR-0060). Les tests le lisent par `Tests\Support\FakeSmsRouter`.
  *
  * TCK-589 — l'envoi passe par {@see SmsRouterDriver} directement, jamais par
  * `SmsChannel` : ce canal abandonne sans erreur tout destinataire dont
@@ -209,6 +210,9 @@ class PhoneVerificationService
         $this->cache->put($this->cooldownKey($subject), true, self::RESEND_COOLDOWN_SECONDS);
 
         $this->deliver($phone, $code, $locale);
+        // TCK-620 (ADR-0060) — hors production et drapeau allumé, le code revient aussi dans la
+        // réponse. Résolu à l'appel : `OtpPreview` est SCOPED, ce service ne doit pas le retenir.
+        app(OtpPreview::class)->record($code);
 
         return true;
     }

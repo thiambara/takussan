@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**548 tickets** — 28 ouverts, 518 livrés.
+**549 tickets** — 28 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 518 |
+| ✅ Done | 519 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -74,7 +74,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 518
+## ✅ Done — 519
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>
@@ -955,7 +955,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 18 tickets</summary>
+<summary><strong>Sans vague</strong> — 19 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -975,6 +975,7 @@ _(aucun)_
 - [TCK-354](tickets/TCK-354-dompdf-dependance-de-dev-utilisee-en-production.md) — Le reçu de paiement PDF ne peut pas se générer sur un environnement déployé : `dompdf/dompdf` est une dépendance de dév `S · P1 · bug`
 - [TCK-356](tickets/TCK-356-conversion-preview-sous-resolue.md) — La plus grande image qu'un visiteur puisse recevoir fait 800 × 600, pour des emplacements qui en demandent jusqu'à 2 432 `M · P2 · back`
 - [TCK-390](tickets/TCK-390-agences-filtre-is-verified.md) — Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part `S · P2 · full`
+- [TCK-620](tickets/TCK-620-code-sms-affiche-en-preproduction.md) — En préproduction, aucun numéro ne se vérifie : le code part vers un fournisseur SMS absent et personne ne peut le lire — l'afficher dans l'écran où on le saisit, et allumer la connexion par téléphone `M · P1 · full`
 
 </details>
 
