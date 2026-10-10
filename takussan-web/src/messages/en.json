@@ -403,21 +403,6 @@
         "eyebrow": "For sale",
         "title": "To invest or settle down"
       }
-    },
-    "explore": {
-      "count": "{count, plural, =1 {# listing} other {# listings}}",
-      "cities": {
-        "eyebrow": "By city",
-        "title": "Explore Senegal"
-      },
-      "types": {
-        "eyebrow": "By property type",
-        "title": "What you're looking for"
-      },
-      "neighborhoods": {
-        "eyebrow": "Popular neighbourhoods",
-        "title": "Neighbourhoods of {city}"
-      }
     }
   },
   "auth": {
@@ -4084,6 +4069,10 @@
   "recentlyViewed": {
     "eyebrow": "For you",
     "title": "Recently viewed",
+    "withSimilar": {
+      "eyebrow": "Based on your interests",
+      "title": "Recently viewed and similar homes"
+    },
     "clearHistory": "Clear history",
     "confirmTitle": "Clear history?",
     "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",

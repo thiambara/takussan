@@ -70,6 +70,7 @@ export function PropertyCardCompact({
           {property.title}
         </h3>
         <CardMeta
+          uneLigne
           className="text-[13px] leading-[18px] text-muted-foreground"
           items={[
             quarter,

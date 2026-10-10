@@ -10,8 +10,7 @@ interface EnTeteDeRangeeProps {
 }
 
 /**
- * Le sur-titre et le titre d'une section de l'accueil — rangée de biens (`PropertyRow`) ou bloc de
- * raccourcis (`RaccourcisDeLAccueil`), pour que les deux se lisent comme une même famille.
+ * Le sur-titre et le titre d'une rangée de biens de l'accueil (`PropertyRow`).
  *
  * TCK-628 — resserré : 20/22 px au lieu de 24/30, 12 à 16 px sous le titre au lieu de 24. Les
  * titres de section de l'accueil en prenaient plus que les cartes qu'ils annonçaient.

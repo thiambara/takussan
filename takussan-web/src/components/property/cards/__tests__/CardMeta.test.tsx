@@ -61,3 +61,23 @@ describe('CardMeta — éléments propres à une largeur', () => {
     expect(affiche(ligne, 'mobile')).toBe('3 ch');
   });
 });
+
+// 2026-10-10 — sept cartes par rangée : la ligne de détails passait à la ligne sur une carte sur
+// deux, et les prix ne s'alignaient plus. Les cartes des rangées la demandent sur une ligne.
+describe('CardMeta — une seule ligne', () => {
+  it('rogne au lieu de passer à la ligne, et garde le texte entier au survol', () => {
+    const { container } = render(<CardMeta uneLigne items={['2 ch', '142 m²', 'il y a 2 mois']} />);
+    const ligne = container.firstElementChild as HTMLElement;
+    const classes = ligne.className.split(/\s+/);
+
+    expect(classes).toContain('truncate');
+    expect(classes).not.toContain('flex-wrap');
+    expect(ligne).toHaveAttribute('title', '2 ch • 142 m² • il y a 2 mois');
+    expect(ligne.textContent).toBe('2 ch•142 m²•il y a 2 mois');
+  });
+
+  it('par défaut, la ligne reste libre de passer à la ligne', () => {
+    const { container } = render(<CardMeta items={['2 ch', '142 m²']} />);
+    expect((container.firstElementChild as HTMLElement).className).toContain('flex-wrap');
+  });
+});

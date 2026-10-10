@@ -57,8 +57,13 @@ interface VariantSpec {
  * viewport : la même rangée sert l'accueil (1872 px de contenu à 1920) et la fiche d'un bien
  * (« Récemment consultés », 1216 px au plus), qui n'ont pas la même place à offrir.
  *
- *     contenu   < 512   ≥ 512   ≥ 896   ≥ 1152   ≥ 1440   ≥ 1680 px
- *     cartes     2,15    3,2      4        5        6        7
+ *     contenu   < 512   ≥ 512   ≥ 768   ≥ 960   ≥ 1088   ≥ 1216 px
+ *     cartes     2,15    3,2      4       5        6        7
+ *
+ * Retour du porteur du 2026-10-10, capture d'Airbnb à l'appui : sept cartes dès un écran
+ * d'ordinateur ordinaire, pas seulement à 1920. Les paliers d'origine (7 dès 1680 px de contenu)
+ * n'en donnaient que 5 sur un portable de 1280 à 1440. Une carte mesure donc 160 px au plus étroit
+ * de sept (1216 px de contenu) et 254 px à 1920.
  *
  * Les fractions sous 896 px sont voulues : la carte suivante DÉPASSE, et c'est ce qui dit au
  * doigt que la rangée défile. Au bureau, des colonnes entières et des flèches.
@@ -73,7 +78,7 @@ interface VariantSpec {
 // source, et une classe assemblée à l'exécution n'y figure pas — elle ne serait jamais générée.
 const DISPOSITIONS: Record<VariantSpec['disposition'], string> = {
   rangee:
-    'flex [--colonnes:2.15] @lg:[--colonnes:3.2] @4xl:[--colonnes:4] @6xl:[--colonnes:5] @min-[90rem]:[--colonnes:6] @min-[105rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
+    'flex [--colonnes:2.15] @lg:[--colonnes:3.2] @3xl:[--colonnes:4] @min-[60rem]:[--colonnes:5] @min-[68rem]:[--colonnes:6] @min-[76rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
   'deux-lignes':
     'grid grid-flow-col grid-rows-2 auto-cols-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))] [--colonnes:1.1] @lg:[--colonnes:1.6] @min-[40rem]:[--colonnes:2.1] @4xl:[--colonnes:3] @7xl:[--colonnes:4] @min-[105rem]:[--colonnes:5] [&>*]:w-auto!',
 };
