@@ -340,6 +340,16 @@ describe('la garde d’authentification est intacte', () => {
     expect(cheminDe(r.headers.get('location')!)).toBe('/app');
   });
 
+  it('TCK-624 — /auth avec un jeton rend la destination demandée, assainie', () => {
+    const jeton = { cookies: { [AUTH_COOKIE_NAME]: 'jeton' } };
+    const publier = proxy(requete('/auth/login?redirect=%2Fpublish', jeton));
+    expect(cheminDe(publier.headers.get('location')!)).toBe('/publish');
+    // Une destination hors du site retombe sur la console, jamais ailleurs.
+    const dehors = proxy(requete('/auth/login?redirect=%2F%2Fevil.example', jeton));
+    expect(new URL(dehors.headers.get('location')!).host).toBe('www.takussan.com');
+    expect(cheminDe(dehors.headers.get('location')!)).toBe('/app');
+  });
+
   it('/auth sans jeton passe, et n’est pas préfixé d’une langue', () => {
     const r = proxy(requete('/auth/login'));
     expect(r.status).toBe(200);

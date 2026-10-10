@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   destinationInterne,
   doitPoserLaQuestionDIntention,
+  estUneDestinationExplicite,
 } from '@/lib/redirection-interne';
 
 /**
@@ -120,4 +121,16 @@ describe('doitPoserLaQuestionDIntention', () => {
   it('une réponse vide n’en est pas une', () => {
     expect(doitPoserLaQuestionDIntention('', [])).toBe(true);
   });
+});
+
+describe('estUneDestinationExplicite — TCK-624', () => {
+  it.each(['/publish', '/properties/villa?action=reserver', '/app/properties/new', '/fr/properties'])(
+    '%s dit ce que la personne vient faire',
+    (destination) => expect(estUneDestinationExplicite(destination)).toBe(true),
+  );
+
+  it.each(['', '/', '/fr', '/en/', '/app', '/app/', '/app?tab=1'])(
+    '« %s » est une destination par défaut',
+    (destination) => expect(estUneDestinationExplicite(destination)).toBe(false),
+  );
 });

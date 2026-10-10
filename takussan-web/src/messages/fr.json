@@ -564,15 +564,16 @@
       "resendFailed": "Impossible de renvoyer l'email. Réessayez dans quelques instants.",
       "resend": "Renvoyer l'email de vérification",
       "sending": "Envoi en cours…",
-      "continue": "Continuer vers le tableau de bord"
+      "continue": "Continuer, je vérifierai plus tard"
     },
     "verifyEmailLink": {
       "successTitle": "Adresse email vérifiée",
-      "successBody": "Votre adresse est confirmée. Vous pouvez maintenant accéder à l'ensemble des fonctionnalités de Takussan.",
-      "successCta": "Accéder au tableau de bord",
+      "successBody": "Votre adresse est confirmée.",
+      "successCta": "Continuer",
       "failureTitle": "Vérification impossible",
-      "failureBody": "Ce lien est invalide ou a expiré. Demandez un nouvel email de vérification depuis votre espace.",
-      "failureCta": "Demander un nouveau lien"
+      "failureBody": "Ce lien a expiré ou a déjà servi. Demandez-en un nouveau.",
+      "failureCta": "Demander un nouveau lien",
+      "successCtaSignedOut": "Se connecter"
     },
     "oauthCallback": {
       "title": "Connexion en cours…",
@@ -5124,7 +5125,6 @@
     "intention": {
       "metaTitle": "Que venez-vous faire sur Takussan ?",
       "pageTitle": "Bienvenue, {name}",
-      "pageTitleNoName": "Bienvenue",
       "pageSubtitle": "Une question, et on vous emmène directement au bon endroit. Vous pourrez toujours faire les deux.",
       "legend": "Ce que vous venez faire",
       "options": {
@@ -5141,7 +5141,17 @@
       "submitting": "Un instant…",
       "skip": "Je verrai plus tard",
       "note": "Cette réponse ne vous engage à rien : elle sert seulement à vous montrer les bons écrans en premier.",
-      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape."
+      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape.",
+      "name": {
+        "title": "Comment vous appelez-vous ?",
+        "subtitle": "Votre prénom apparaît sur vos annonces et vos messages.",
+        "firstName": "Prénom",
+        "lastName": "Nom (facultatif)",
+        "submit": "Continuer",
+        "submitting": "Un instant…",
+        "required": "Indiquez votre prénom.",
+        "error": "Nous n’avons pas pu enregistrer votre prénom. Réessayez."
+      }
     },
     "host": {
       "defaults": {
