@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**550 tickets** — 29 ouverts, 519 livrés.
+**551 tickets** — 30 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 3 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 519 |
@@ -64,6 +64,7 @@
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-621](tickets/TCK-621-logo-dans-toutes-les-coques.md) — Le logo seulement sur le site public : les tableaux de bord, la console, l'authentification, les onboardings et les écrans d'erreur écrivent « Takussan » en texte nu, ou rien `S · P1 · front`
+- [TCK-622](tickets/TCK-622-borne-sms-compte-les-envois.md) — « Trop de tentatives » sur un parcours ordinaire : la borne SMS par numéro comptait les requêtes et non les codes envoyés, et le front écrasait tout 429 sous le même message `S · P1 · full`
 
 ## 👀 Review
 

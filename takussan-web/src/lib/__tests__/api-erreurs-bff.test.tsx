@@ -302,3 +302,38 @@ describe('useMessageErreurApi — la surface cliente traduit avec le dictionnair
     attendAucuneCleBrute(document.body);
   });
 });
+
+/**
+ * TCK-622 — un 429 n'est plus toujours « Trop de tentatives ». Mesuré en préproduction le
+ * 2026-10-10 : un clic tombé dans le délai de renvoi d'un code SMS s'affichait ainsi, et faisait
+ * croire à un blocage quand il suffisait d'attendre quelques secondes.
+ */
+describe('429 — dire quoi attendre', () => {
+  /** Comme next-intl : interpole `{nom}` depuis les valeurs. */
+  const avecValeurs =
+    (locale: keyof typeof DICOS) => (cle: string, valeurs?: Record<string, string | number>) =>
+      (resous(DICOS[locale], cle) ?? cle).replace(/\{(\w+)\}/g, (_, nom: string) => String(valeurs?.[nom] ?? `{${nom}}`));
+
+  it('un 429 codé par l\'application rend SA prose, qui dit combien attendre', () => {
+    const prose = 'Un code vient de partir. Vous pourrez en demander un autre dans 42 s.';
+    const err = new ApiError(429, { code: 'phone.resend_too_soon', message: prose, retry_after: 42 });
+    expect(err.codeErreur).toBeUndefined();
+    expect(messageErreurApi(err, avecValeurs('fr'), 'repli')).toBe(prose);
+  });
+
+  it('le 429 du limiteur, avec son délai, dit les minutes', () => {
+    const err = new ApiError(429, {
+      code: 'http.too_many_requests',
+      message: 'Trop de tentatives. Réessayez dans quelques instants.',
+      retry_after: 125,
+    });
+    expect(err.codeErreur).toBe('too_many_requests');
+    expect(messageErreurApi(err, avecValeurs('fr'), 'repli')).toBe('Trop de tentatives. Réessayez dans 3 min.');
+    expect(messageErreurApi(err, avecValeurs('en'), 'repli')).toBe('Too many attempts. Try again in 3 min.');
+  });
+
+  it('sans délai ni code, le libellé générique — comme avant', () => {
+    const err = new ApiError(429, { message: 'Too Many Attempts.' });
+    expect(messageErreurApi(err, avecValeurs('fr'), 'repli')).toBe(resous(fr, 'errors.api.tooManyRequests'));
+  });
+});

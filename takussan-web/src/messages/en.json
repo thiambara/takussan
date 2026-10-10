@@ -2153,6 +2153,7 @@
       "unknownEntity": "This export type does not exist.",
       "serverError": "The server ran into an error. Please try again in a moment.",
       "tooManyRequests": "Too many attempts. Please try again in a few minutes.",
+      "tooManyRequestsIn": "Too many attempts. Try again in {minutes} min.",
       "network": "The connection to the server failed. Check your internet connection and try again.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."

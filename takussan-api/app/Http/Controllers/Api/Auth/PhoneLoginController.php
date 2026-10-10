@@ -33,9 +33,12 @@ class PhoneLoginController extends Controller
 
         $this->login->requestCode($phone, app()->getLocale());
 
+        // TCK-622 — le délai qui reste vraiment, pour le compte à rebours du bouton « Renvoyer ».
+        $codes = app(PhoneVerificationService::class);
+
         return $this->json([
             'message' => __('auth.phone.code_sent'),
-            'data' => ['retry_after' => app(PhoneVerificationService::class)->retryAfter()],
+            'data' => ['retry_after' => $codes->sendToAvailableIn(PhoneLoginService::SCOPE, $phone) ?: $codes->retryAfter()],
         ], 202);
     }
 

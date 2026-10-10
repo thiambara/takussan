@@ -314,6 +314,18 @@ function estSentinelleFramework(message: string): boolean {
   return codeSentinelle(message) !== undefined;
 }
 
+/**
+ * Le `code` qu'a émis Laravel (`abort_code`, ADR-0032), tel quel — `undefined` s'il n'y en a pas.
+ * Les codes `http.*` sont ceux que le backend DÉDUIT du statut, sans rien savoir de plus.
+ */
+function codeLaravel(data: unknown): string | undefined {
+  if (data && typeof data === 'object' && 'code' in data) {
+    const brut = (data as { code?: unknown }).code;
+    if (typeof brut === 'string' && brut.length > 0) return brut;
+  }
+  return undefined;
+}
+
 /** Le `message` du corps, tel quel, sans jugement — `undefined` s'il n'y en a pas. */
 function messageBrut(data: unknown): string | undefined {
   if (data && typeof data === 'object' && 'message' in data) {
@@ -351,6 +363,15 @@ export class ApiError extends Error {
    * `undefined` dans les deux cas où il n'y a rien d'affichable : corps sans `message`, et
    * sentinelle anglaise du 401 — qui n'est traduite nulle part et ne doit jamais atteindre l'écran.
    */
+  /** TCK-622 — les secondes avant de pouvoir réessayer, quand le backend les donne (429). */
+  get retryAfter(): number | undefined {
+    if (this.data && typeof this.data === 'object' && 'retry_after' in this.data) {
+      const brut = (this.data as { retry_after?: unknown }).retry_after;
+      if (typeof brut === 'number' && Number.isFinite(brut) && brut > 0) return brut;
+    }
+    return undefined;
+  }
+
   get proseServeur(): string | undefined {
     const brut = messageBrut(this.data);
     if (brut === undefined || estSentinelleFramework(brut)) return undefined;
@@ -382,7 +403,17 @@ export class ApiError extends Error {
     //    la sentinelle du 401. Et la limitation de débit n'a qu'un sens possible — l'application
     //    n'a rien de plus utile à dire que « trop de tentatives ».
     //    (`src/hooks/__tests__/useApiForm.test.tsx:24`)
-    if (this.status === 429) return 'too_many_requests';
+    //
+    //    ⚠ TCK-622 — SAUF un 429 que l'application a CODÉ elle-même (`phone.resend_too_soon`,
+    //    `phone.send_limit`) : sa prose est localisée et dit quoi attendre (« dans 42 s »). Les
+    //    écraser par « Trop de tentatives » faisait croire à un blocage quand il suffisait
+    //    d'attendre une minute — mesuré en préproduction le 2026-10-10.
+    if (this.status === 429) {
+      const code = codeLaravel(this.data);
+      if (code === undefined || code.startsWith('http.') || messageBrut(this.data) === undefined) {
+        return 'too_many_requests';
+      }
+    }
 
     // 2. **La prose ensuite, AVANT le code déduit du statut.** Un 500 portant « Panne serveur »
     //    doit afficher « Panne serveur », et non le générique « Le serveur a rencontré une
@@ -455,7 +486,7 @@ export class ApiError extends Error {
  * `useTranslations('agents.onboarding.kyc')` ne peut donc PAS s'en servir ici — il lui faut, en
  * plus, un `useTranslations()` sans argument.
  */
-export type TraducteurRacine = (cle: string) => string;
+export type TraducteurRacine = (cle: string, valeurs?: Record<string, string | number>) => string;
 
 /**
  * Traduit une erreur réseau en libellé affichable, dans la langue de l'utilisateur.
@@ -475,6 +506,11 @@ export function messageErreurApi(
 ): string {
   if (erreur instanceof ApiError) {
     const code = erreur.codeErreur;
+    // TCK-622 — « Réessayez dans 12 min » plutôt que « dans quelques minutes », quand on le sait.
+    const attente = erreur.retryAfter;
+    if (code === 'too_many_requests' && attente !== undefined) {
+      return t('errors.api.tooManyRequestsIn', { minutes: Math.max(1, Math.ceil(attente / 60)) });
+    }
     if (code) return t(CLE_I18N_ERREUR_API[code]);
 
     // Pas de code : Laravel a renvoyé de la prose déjà localisée — on la préfère au repli.

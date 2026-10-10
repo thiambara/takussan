@@ -458,11 +458,10 @@ class AppServiceProvider extends ServiceProvider
         // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
         // est de 3/jour/MSISDN) ET par IP (20/h). La vérification est bornée par
         // numéro seul (10/15 min) : changer d'IP ne rouvre pas la force brute.
-        RateLimiter::for('auth-phone-send', fn (Request $request) => [
-            Limit::perMinutes(15, 3)->by('phone:'.$this->phoneRateLimitKey($request)),
-            Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
-            Limit::perHour(20)->by('ip:'.$request->ip()),
-        ]);
+        // TCK-622 — la borne PAR NUMÉRO a quitté ce limiteur pour `PhoneSendQuota` : jugée avant le
+        // contrôleur, elle comptait les requêtes et non les codes envoyés. Reste la borne par IP,
+        // sur toutes les requêtes : elle borne la pulvérisation de numéros, pas un parcours.
+        RateLimiter::for('auth-phone-send', fn (Request $request) => Limit::perHour(20)->by('ip:'.$request->ip()));
         // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
         // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
         // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,

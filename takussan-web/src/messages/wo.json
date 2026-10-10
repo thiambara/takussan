@@ -607,6 +607,7 @@
       "unknownEntity": "Xeetu eksport bii amul.",
       "serverError": "Serwëer bi am na jafe-jafe. Jéemaatal ci kanam tuuti.",
       "tooManyRequests": "Jéem nga lu bare. Jéemaatal ci ay simili.",
+      "tooManyRequestsIn": "Jéem nga lu bare. Jéemaatal ci {minutes} simili.",
       "network": "Jokkoo bi ak serwëer bi antuwul. Seetal sa jokkoo internet te jéemaat.",
       "submitFailed": "Yónnee bi antuwul. Jéemaatal.",
       "unknown": "Am na jafe-jafe. Jéemat."

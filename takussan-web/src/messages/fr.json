@@ -2128,6 +2128,7 @@
       "unknownEntity": "Ce type d'export n'existe pas.",
       "serverError": "Le serveur a rencontré une erreur. Réessayez dans un instant.",
       "tooManyRequests": "Trop de tentatives. Réessayez dans quelques minutes.",
+      "tooManyRequestsIn": "Trop de tentatives. Réessayez dans {minutes} min.",
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
