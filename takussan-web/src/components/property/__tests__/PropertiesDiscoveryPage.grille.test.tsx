@@ -57,8 +57,11 @@ describe('TCK-555 — la grille de /properties', () => {
     // `sm:grid-cols-2` (deux colonnes de 640 à 767 px, contre l'AC1) comme un `lg:grid-cols-4`
     // (le bureau change, contre la contrainte du ticket) — mutants survivants du tour 1.
     const paliers = classes.filter((c) => /(^|:)grid-cols-/.test(c)).sort();
-    // Sous `md` : une colonne. À partir de `md` : les paliers d'avant TCK-555, `md:3 xl:4 2xl:5`.
-    expect(paliers).toEqual(['2xl:grid-cols-5', 'grid-cols-1', 'md:grid-cols-3', 'xl:grid-cols-4']);
+    // Sous `md` : une colonne. À partir de `md` : les paliers d'avant TCK-555, `md:3 xl:4 2xl:5`,
+    // et TCK-628 ajoute une sixième colonne au-delà de 1800 px (conteneur élargi à 1920).
+    expect(paliers).toEqual([
+      '2xl:grid-cols-5', 'grid-cols-1', 'md:grid-cols-3', 'min-[112.5rem]:grid-cols-6', 'xl:grid-cols-4',
+    ]);
   });
 
   it('transmet la transaction filtrée aux cartes', async () => {

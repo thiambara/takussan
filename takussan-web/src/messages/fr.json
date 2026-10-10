@@ -4059,6 +4059,25 @@
       "latest": {
         "eyebrow": "Nouveau",
         "title": "Tout juste publié"
+      },
+      "sale": {
+        "eyebrow": "À vendre",
+        "title": "Pour investir ou t'installer"
+      }
+    },
+    "explore": {
+      "count": "{count, plural, =1 {# annonce} other {# annonces}}",
+      "cities": {
+        "eyebrow": "Par ville",
+        "title": "Explorer le Sénégal"
+      },
+      "types": {
+        "eyebrow": "Par type de bien",
+        "title": "Ce que tu cherches"
+      },
+      "neighborhoods": {
+        "eyebrow": "Quartiers prisés",
+        "title": "Les quartiers de {city}"
       }
     }
   },

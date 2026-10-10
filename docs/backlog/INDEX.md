@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**556 tickets** — 35 ouverts, 519 livrés.
+**557 tickets** — 36 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 8 |
+| 🚧 Doing | 9 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 519 |
@@ -70,6 +70,7 @@
 - [TCK-625](tickets/TCK-625-publier-une-regle-un-choix-d-espace.md) — Devenir publicateur : /publish lâchait les comptes multi-agences sur un /app qui ne lisait rien, « Professionnel » était sans effet et le message de fin annonçait un brouillon inexistant `M · P1 · front`
 - [TCK-626](tickets/TCK-626-page-d-acceptation-d-invitation.md) — Le lien d'invitation (e-mail et SMS) menait à une 404 : /invitations/accept n'avait pas de page, et l'acceptation aucun appelant `S · P1 · front`
 - [TCK-627](tickets/TCK-627-publier-le-bien-publie.md) — « Publier l'annonce » ne publiait pas : le bien partait en pending_review privé, le quota ne se voyait qu'au 422 final et le brouillon n'était pas reprenable `M · P1 · full`
+- [TCK-628](tickets/TCK-628-accueil-dense-et-recherche.md) — Accueil dense et liste des biens : 7 cartes par rangée à 1920 au lieu de 4, des raccourcis par ville, type et quartier lus sur des endpoints existants, 40/60/70 biens par page avec un seul défaut des deux côtés, et la bande de catégories réordonnée `M · P1 · full`
 
 ## 👀 Review
 
