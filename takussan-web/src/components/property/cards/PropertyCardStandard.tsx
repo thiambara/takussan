@@ -86,6 +86,7 @@ export function PropertyCardStandard({
         )}
 
         <CardMeta
+          uneLigne
           className="text-[13px] leading-[18px] text-muted-foreground"
           items={[
             property.bedrooms != null && property.bedrooms > 0 && t('bedroomsShort', { count: property.bedrooms }),

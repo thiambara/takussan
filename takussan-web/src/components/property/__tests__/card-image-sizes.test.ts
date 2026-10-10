@@ -72,14 +72,14 @@ describe('TCK-555 — CARD_SIZES_SEARCH_GRID suit la grille de /properties', () 
 /**
  * TCK-628 — `CARD_SIZES_RANGEE` décrit les rangées de l'accueil, dont la carte vaut une fraction du
  * CONTENEUR (`PropertyRow`) : `max-w-[1920px] px-4 sm:px-6` pour `<main>`, colonnes
- * selon la largeur de contenu (`@lg` 512, `@4xl` 896, `@6xl` 1152, 1440, 1680 px), écart 12 px
+ * selon la largeur de contenu (`@lg` 512, `@3xl` 768, 960, 1088, 1216 px), écart 12 px
  * sous 512 px de contenu, 16 au-delà. Même garde que la grille : majorant, à 20 % près.
  */
 function carteDeRangee(largeur: number): number {
   const gouttiere = largeur >= 640 ? 24 : 16;
   const contenu = Math.min(largeur, 1920) - 2 * gouttiere;
   const colonnes =
-    contenu >= 1680 ? 7 : contenu >= 1440 ? 6 : contenu >= 1152 ? 5 : contenu >= 896 ? 4 : contenu >= 512 ? 3.2 : 2.15;
+    contenu >= 1216 ? 7 : contenu >= 1088 ? 6 : contenu >= 960 ? 5 : contenu >= 768 ? 4 : contenu >= 512 ? 3.2 : 2.15;
   const ecart = contenu >= 512 ? 16 : 12;
   return (contenu - (colonnes - 1) * ecart) / colonnes;
 }
@@ -87,11 +87,13 @@ function carteDeRangee(largeur: number): number {
 describe('TCK-628 — CARD_SIZES_RANGEE suit la largeur des cartes de l’accueil', () => {
   const largeurs = Array.from({ length: 2560 - 320 + 1 }, (_, i) => 320 + i);
 
-  it('témoin : 2 cartes et un bout au téléphone, 5 à 1440 px, 7 à 1920 px', () => {
+  it('témoin : 2 cartes et un bout au téléphone, 7 dès 1264 px, 254 px à 1920', () => {
     // 390 px : 358 px de contenu, 2,15 colonnes.
     expect(carteDeRangee(390)).toBeCloseTo(160.1, 1);
-    // 1440 px : 1392 px de contenu, cinq colonnes.
-    expect(carteDeRangee(1440)).toBeCloseTo(265.6, 1);
+    // 1280 px (portable) : 1232 px de contenu, sept colonnes — il y en avait cinq.
+    expect(carteDeRangee(1280)).toBeCloseTo(162.3, 1);
+    // 1440 px : 1392 px de contenu, sept colonnes.
+    expect(carteDeRangee(1440)).toBeCloseTo(185.1, 1);
     // 1920 px : 1872 px de contenu, sept colonnes.
     expect(carteDeRangee(1920)).toBeCloseTo(253.7, 1);
   });

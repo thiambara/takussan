@@ -332,8 +332,12 @@ const FICHIERS_HORS_JETONS = 5;
  * lien parent). `cards/PropertyCardCompact.tsx` en rend 1 : sa ligne de quartier a rejoint la
  * ligne de détails (`CardMeta`). Relevé en comparant la liste des encres inverses avant et après,
  * numéros de ligne retirés : ce sont les trois seules différences.
+ *
+ * **258 → 256 le 2026-10-10 (retour du porteur sur TCK-628).** `home/RaccourcisDeLAccueil.tsx`
+ * est supprimé avec les tuiles par ville, par type et par quartier : ses deux entrées partent avec
+ * lui. C'est la seule différence.
  */
-const ENCRES_INVERSES = 258;
+const ENCRES_INVERSES = 256;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
