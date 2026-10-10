@@ -68,3 +68,11 @@ Plan d'ensemble : [`docs/plans/2026-10-10-parcours-entrer-publier.md`](../../pla
 
 - vitest : `hooks`, `components/{home,layout,onboarding}`, `data`, `app/{publish,onboarding}` —
   verts. `tsc`, ESLint sur les fichiers touchés, `check:i18n` : verts.
+
+## Régression relevée sur preview (2026-10-10)
+
+`/publish` tombait sur la frontière d'erreur, pour tout compte connecté : la page bascule le profil
+par `useSwitchActiveProfile`, qui annonce la bascule par un toast, et `/publish` ne montait aucun
+fournisseur de toasts (« Base UI error #73 », journal du conteneur front). Les tests de la page
+doublaient le hook ; aucun ne rendait la page dans son layout. Corrigé dans `publish/layout.tsx`,
+gardé par `publish/__tests__/layout.toast.test.tsx` (rouge sans le fournisseur, vérifié par ablation).

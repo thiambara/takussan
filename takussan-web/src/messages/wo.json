@@ -352,21 +352,6 @@
         "eyebrow": "Ngir jaay",
         "title": "Ngir dugal xaalis walla dëkk"
       }
-    },
-    "explore": {
-      "count": "{count} kër",
-      "cities": {
-        "eyebrow": "Ci dëkk",
-        "title": "Wër Senegaal"
-      },
-      "types": {
-        "eyebrow": "Ci xeetu kër",
-        "title": "Li ngay seet"
-      },
-      "neighborhoods": {
-        "eyebrow": "Gox yu ñu bëgg",
-        "title": "Gox yu {city}"
-      }
     }
   },
   "auth": {
@@ -2525,6 +2510,10 @@
   "recentlyViewed": {
     "eyebrow": "Pour toi",
     "title": "Xooloon ci kanam",
+    "withSimilar": {
+      "eyebrow": "Li nga bëgg",
+      "title": "Xooloon ci kanam ak yu ko niru"
+    },
     "clearHistory": "Fommi xooloon bi",
     "confirmTitle": "Fommi xooloon bi ?",
     "confirmBody": "Kër yi nga xool dañu leen jëla ci sa navigateur. Mënuñu ko delloo.",

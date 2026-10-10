@@ -11,13 +11,9 @@ import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCaro
 import { useHomepageDiscovery } from '@/hooks/useHomepageDiscovery';
 import type { HomepageDiscoveryData } from '@/types/property';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
-import { PastillesDeQuartiers, TuilesDeTypes, TuilesDeVilles } from '@/components/home/RaccourcisDeLAccueil';
-import type { RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
+import { AUCUN_RACCOURCI, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
 
 const NO_ITEMS = [] as const;
-
-/** Aucune section de raccourcis : le composant monté sans le serveur (tests, repli) n'en rend pas. */
-const SANS_RACCOURCIS: RaccourcisDeLAccueil = { vente: null, villes: null, types: null, quartiers: null };
 
 /**
  * Deadline on the geo-IP provider.
@@ -46,16 +42,18 @@ function useGeoSettled(geoLoading: boolean): boolean {
  * Homepage publique — TCK-129, câblée sur l'endpoint unique de TCK-247.
  *
  * TCK-628 — densifiée sur le modèle d'Airbnb : plus de grand titre visible entre la barre et la
- * première rangée (le `<h1>` reste, pour les lecteurs d'écran et les robots), des cartes deux fois
- * plus nombreuses par rangée (cf. `PropertyRow`), et quatre sections de plus, toutes lues sur des
- * endpoints existants (cf. `raccourcisDeLAccueil`) : « À vendre », par ville, par type de bien,
- * par quartier.
+ * première rangée (le `<h1>` reste, pour les lecteurs d'écran et les robots), sept cartes par rangée
+ * sur un écran d'ordinateur (cf. `PropertyRow`), et une rangée « À vendre » lue sur la recherche
+ * publique (cf. `raccourcisDeLAccueil`).
  *
- * Les rangées d'origine, une variante de carte par section :
- *  - Standard 4:3   → « Près de toi · À découvrir à Dakar »
- *  - Listing wide   → « À louer · Pour ton prochain logement »
- *  - Cover 3:4      → « Coup de cœur · Sélection de la semaine » (signature)
- *  - Compact 1:1    → « Nouveau · Tout juste publié »
+ * Retour du porteur du 2026-10-10 : TOUTES les sections sont des rangées de cartes. Les tuiles par
+ * ville, par type et par quartier sont retirées, et « À louer » quitte la carte horizontale (deux
+ * par ligne au plus) pour la carte Standard, qui en range sept.
+ *
+ * Les rangées, une variante de carte par section :
+ *  - Standard  → « Près de toi », « À louer », « À vendre », « Récemment consultés »
+ *  - Cover 3:4 → « Coup de cœur · Sélection de la semaine » (signature)
+ *  - Compact   → « Nouveau · Tout juste publié »
  *
  * Pas de hero marketing — l'intention de l'utilisateur est pré-formée. La
  * navbar porte search + catégories ; cette page démarre directement par la
@@ -69,7 +67,7 @@ function useGeoSettled(geoLoading: boolean): boolean {
  */
 export function HomepageDiscovery({
   donneesInitiales = null,
-  raccourcis = SANS_RACCOURCIS,
+  raccourcis = AUCUN_RACCOURCI,
 }: {
   /**
    * Les quatre rangées déjà rendues par le serveur — TCK-432.
@@ -79,8 +77,8 @@ export function HomepageDiscovery({
    */
   readonly donneesInitiales?: HomepageDiscoveryData | null;
   /**
-   * TCK-628 — les sections lues par le SERVEUR seul (« À vendre », villes, types, quartiers).
-   * Une section absente (`null`) n'est pas rendue ; le client ne la redemande pas.
+   * TCK-628 — la section lue par le SERVEUR seul (« À vendre »). Absente (`null`), elle n'est pas
+   * rendue ; le client ne la redemande pas.
    */
   readonly raccourcis?: RaccourcisDeLAccueil;
 } = {}) {
@@ -175,7 +173,7 @@ export function HomepageDiscovery({
           style={{ animationDelay: '120ms' }}
         >
           <PropertyRow
-            variant="listing"
+            variant="standard"
             eyebrow={t('rent.eyebrow')}
             title={t('rent.title')}
             viewAllHref="/properties?contract_type=rent"
@@ -185,8 +183,6 @@ export function HomepageDiscovery({
             error={error}
           />
         </div>
-
-        {raccourcis.villes && <TuilesDeVilles villes={raccourcis.villes} />}
 
         {/* Rangée signature — fond cream + pattern bogolan stylisé (≤5%).
 
@@ -234,8 +230,6 @@ export function HomepageDiscovery({
           />
         )}
 
-        {raccourcis.types && <TuilesDeTypes types={raccourcis.types} />}
-
         <div
           className="animate-section-enter"
           style={{ animationDelay: '280ms' }}
@@ -252,15 +246,13 @@ export function HomepageDiscovery({
           />
         </div>
 
-        {raccourcis.quartiers && <PastillesDeQuartiers quartiers={raccourcis.quartiers} />}
-
         {/* `empty:hidden` : sans historique, le carrousel rend `null` — l'enveloppe vide ne doit
             pas compter pour un enfant du `gap` (cf. `<main>`). */}
         <div
           className="animate-section-enter empty:hidden"
           style={{ animationDelay: '360ms' }}
         >
-          <RecentlyViewedCarousel />
+          <RecentlyViewedCarousel completerParDesSimilaires />
         </div>
       </main>
 

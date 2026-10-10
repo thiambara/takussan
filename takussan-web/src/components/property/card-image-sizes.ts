@@ -136,16 +136,19 @@ export const CARD_SIZES_PORTFOLIO_GRID =
  * | viewport | colonnes | carte | déclaré |
  * |---|---|---|---|
  * | 320 → 543 px | 2,15 | 0,465 vw − 21 px (128 → 232 px) | 47vw |
- * | 544 → 943 px | 3,2 | 0,3125 vw − 21 à 26 px (149 → 269 px) | 31vw |
- * | 944 → 1199 px | 4 | 0,25 vw − 24 px (212 → 276 px) | 25vw |
- * | 1200 → 1487 px | 5 | 0,2 vw − 22 px (218 → 275 px) | 20vw |
- * | 1488 → 1727 px | 6 | vw / 6 − 21 px (227 → 267 px) | 16.7vw |
- * | 1728 → 1919 px | 7 | (vw − 144) / 7 (226 → 254 px) | 13.3vw |
+ * | 544 → 815 px | 3,2 | 0,3125 vw − 21 à 26 px (149 → 229 px) | 31vw |
+ * | 816 → 1007 px | 4 | 0,25 vw − 24 px (180 → 228 px) | 25vw |
+ * | 1008 → 1135 px | 5 | 0,2 vw − 22 px (179 → 205 px) | 20vw |
+ * | 1136 → 1263 px | 6 | vw / 6 − 21 px (168 → 189 px) | 16.7vw |
+ * | 1264 → 1919 px | 7 | (vw − 144) / 7 (160 → 254 px) | 14.3vw |
  * | 1920 px et au-delà | 7, conteneur plafonné | **254 px fixes** | 254px |
+ *
+ * Les paliers ont été resserrés le 2026-10-10 (sept cartes dès 1216 px de contenu, au lieu de
+ * 1680) : cf. `PropertyRow`.
  *
  * ⚠ C'est un MAJORANT calculé, pas un relevé : la même rangée sert aussi « Récemment consultés »
  * sur la fiche d'un bien, dans un conteneur plus étroit — ses cartes y sont plus petites, et la
  * déclaration les sur-estime (le bon sens de l'erreur, cf. l'en-tête de ce module).
  */
 export const CARD_SIZES_RANGEE =
-  '(max-width: 543px) 47vw, (max-width: 943px) 31vw, (max-width: 1199px) 25vw, (max-width: 1487px) 20vw, (max-width: 1727px) 16.7vw, (max-width: 1919px) 13.3vw, 254px';
+  '(max-width: 543px) 47vw, (max-width: 815px) 31vw, (max-width: 1007px) 25vw, (max-width: 1135px) 20vw, (max-width: 1263px) 16.7vw, (max-width: 1919px) 14.3vw, 254px';
