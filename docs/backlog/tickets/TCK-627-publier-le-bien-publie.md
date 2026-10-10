@@ -1,7 +1,7 @@
 ---
 id: TCK-627
 title: "« Publier l'annonce » ne publiait pas : le bien partait en pending_review privé, le quota ne se voyait qu'au 422 final et le brouillon n'était pas reprenable"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M

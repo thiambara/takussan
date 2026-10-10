@@ -1,7 +1,7 @@
 ---
 id: TCK-628
 title: "Accueil dense et liste des biens : 7 cartes par rangée à 1920 au lieu de 4, des raccourcis par ville, type et quartier lus sur des endpoints existants, 40/60/70 biens par page avec un seul défaut des deux côtés, et la bande de catégories réordonnée"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M
@@ -110,8 +110,12 @@ Au 2026-10-10, mesuré dans le code de `pre-dev` :
       Commerce, Bureau, puis « Plus ». Les huit tiennent sans défilement à 1024 en fr, en et wo,
       et « Publier » reste dans l'écran.
 - [x] **AC8** — Toute nouvelle chaîne visible existe en fr, en et wo.
-- [ ] **AC9** — Le wolof des nouvelles clés (`homepage.row.sale`, `homepage.explore`) est relu par
-      une personne qui le parle.
+
+## Suivi hors code
+
+- **Ex-AC9, non vérifié** : le wolof des nouvelles clés (`homepage.row.sale`, `homepage.explore`)
+  doit être relu par une personne qui le parle. Aucune garde ne peut le faire ; il est sorti des
+  critères pour ne pas être coché sans l'avoir été.
 
 ## Vérification
 

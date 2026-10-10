@@ -1,7 +1,7 @@
 ---
 id: TCK-622
 title: "« Trop de tentatives » sur un parcours ordinaire : la borne SMS par numéro comptait les requêtes et non les codes envoyés, et le front écrasait tout 429 sous le même message"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: S

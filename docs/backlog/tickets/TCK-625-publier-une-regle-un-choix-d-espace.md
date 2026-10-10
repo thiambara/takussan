@@ -1,7 +1,7 @@
 ---
 id: TCK-625
 title: "Devenir publicateur : /publish lâchait les comptes multi-agences sur un /app qui ne lisait rien, « Professionnel » était sans effet et le message de fin annonçait un brouillon inexistant"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M

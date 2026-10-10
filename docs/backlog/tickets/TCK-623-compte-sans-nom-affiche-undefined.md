@@ -1,7 +1,7 @@
 ---
 id: TCK-623
 title: "« UNDEFINED » dans la navbar : un compte ouvert par téléphone n'a pas de nom, et l'interface écrivait `''[0]` en toutes lettres — la section contact du profil ne s'enregistrait pas non plus"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: S

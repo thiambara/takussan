@@ -1,7 +1,7 @@
 ---
 id: TCK-626
 title: "Le lien d'invitation (e-mail et SMS) menait à une 404 : /invitations/accept n'avait pas de page, et l'acceptation aucun appelant"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-624
 title: "Entrer : quatre sorties d'authentification qui perdaient la destination, ne demandaient jamais de prénom, et un lien de vérification qui n'ouvrait rien sans session"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M

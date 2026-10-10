@@ -1,7 +1,7 @@
 ---
 id: TCK-621
 title: "Le logo seulement sur le site public : les tableaux de bord, la console, l'authentification, les onboardings et les écrans d'erreur écrivent « Takussan » en texte nu, ou rien"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: S
