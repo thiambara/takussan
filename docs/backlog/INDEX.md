@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**558 tickets** — 28 ouverts, 528 livrés.
+**559 tickets** — 28 ouverts, 529 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 528 |
+| ✅ Done | 529 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -74,7 +74,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 528
+## ✅ Done — 529
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>
@@ -955,7 +955,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 28 tickets</summary>
+<summary><strong>Sans vague</strong> — 29 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -985,6 +985,7 @@ _(aucun)_
 - [TCK-627](tickets/TCK-627-publier-le-bien-publie.md) — « Publier l'annonce » ne publiait pas : le bien partait en pending_review privé, le quota ne se voyait qu'au 422 final et le brouillon n'était pas reprenable `M · P1 · full`
 - [TCK-628](tickets/TCK-628-accueil-dense-et-recherche.md) — Accueil dense et liste des biens : 7 cartes par rangée à 1920 au lieu de 4, des raccourcis par ville, type et quartier lus sur des endpoints existants, 40/60/70 biens par page avec un seul défaut des deux côtés, et la bande de catégories réordonnée `M · P1 · full`
 - [TCK-629](tickets/TCK-629-accueil-sept-cartes-et-similaires.md) — Accueil, retour du porteur sur TCK-628 : sept cartes par rangée dès un écran d'ordinateur, plus de tuiles par ville, type ou quartier, et « Récemment consultés » complété par des biens similaires `S · P1 · front`
+- [TCK-630](tickets/TCK-630-tiroir-de-filtres-en-tete-fixe.md) — Tiroir des filtres sur téléphone : l'en-tête (« Filtres », « Tout effacer », fermer) défilait avec les filtres ; il reste en haut, le corps défile dessous `S · P1 · front`
 
 </details>
 

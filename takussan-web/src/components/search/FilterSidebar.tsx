@@ -507,38 +507,42 @@ export function FilterSidebar({
     </div>
   ) : null;
 
-  const rendreContenu = (rappel?: React.ReactNode) => (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
-        <h2 className="font-display text-base font-semibold text-foreground flex items-center">
-          {t('title')}
-          {activeCount > 0 && (
-            <Badge className="ml-2">{activeCount}</Badge>
-          )}
-        </h2>
-        <div className="flex items-center gap-2">
-          {activeCount > 0 && (
-            <button
-              onClick={reinitialiser}
-              type="button"
-              className="flex min-h-9 items-center gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              {t('clearAll')}
-            </button>
-          )}
+  // L'en-tête est rendu À PART du corps : dans le tiroir mobile, il reste posé en haut pendant
+  // que le corps défile dessous (retour du porteur du 2026-10-10 — il défilait avec le reste, et
+  // « Tout effacer » comme la croix de fermeture sortaient de l'écran).
+  const entete = (
+    <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+      <h2 className="font-display text-base font-semibold text-foreground flex items-center">
+        {t('title')}
+        {activeCount > 0 && (
+          <Badge className="ml-2">{activeCount}</Badge>
+        )}
+      </h2>
+      <div className="flex items-center gap-2">
+        {activeCount > 0 && (
           <button
+            onClick={reinitialiser}
             type="button"
-            onClick={onClose}
-            className="lg:hidden size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
-            aria-label={t('close')}
+            className="flex min-h-9 items-center gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
           >
-            <X className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
+            {t('clearAll')}
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="lg:hidden size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
+          aria-label={t('close')}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
+    </div>
+  );
 
+  const rendreCorps = (rappel?: React.ReactNode) => (
+    <>
       {rappel}
 
       {/* Body */}
@@ -837,7 +841,7 @@ export function FilterSidebar({
         */}
 
       </div>
-    </div>
+    </>
   );
 
   return (
@@ -846,7 +850,10 @@ export function FilterSidebar({
           de 264 px laissait 3 colonnes de 128 px à la grille, prix tronqués (« 28 000 000 F C… »).
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
       <aside className="hidden lg:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
-        {rendreContenu()}
+        <div className="flex flex-col">
+          {entete}
+          {rendreCorps()}
+        </div>
       </aside>
 
       {/* Mobile drawer */}
@@ -857,6 +864,7 @@ export function FilterSidebar({
           onOuverture={surOuvertureDuTiroir}
           onRetour={surRetourDansLeTiroir}
           garderLEntree={seanceAEcrit}
+          entete={entete}
           pied={
             <Button
               onClick={() => {
@@ -875,7 +883,7 @@ export function FilterSidebar({
             </Button>
           }
         >
-          {rendreContenu(rappelDeRecherche)}
+          {rendreCorps(rappelDeRecherche)}
         </TiroirMobile>
       )}
     </>
@@ -933,6 +941,7 @@ function TiroirMobile({
   onOuverture,
   onRetour,
   garderLEntree,
+  entete,
   pied,
   children,
 }: {
@@ -944,6 +953,8 @@ function TiroirMobile({
   readonly onRetour: () => void;
   /** Lu à la fermeture hors retour : la séance a-t-elle écrit dans l'historique ? */
   readonly garderLEntree: () => boolean;
+  /** Posé au-dessus de la zone qui défile : il ne défile pas. */
+  readonly entete: React.ReactNode;
   readonly pied: React.ReactNode;
   readonly children: React.ReactNode;
 }) {
@@ -1039,7 +1050,10 @@ function TiroirMobile({
         tabIndex={-1}
         className="relative w-full md:mx-auto md:max-w-2xl bg-popover rounded-t-3xl max-h-[90dvh] flex flex-col shadow-lg outline-none animate-in slide-in-from-bottom duration-300"
       >
-        <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        {entete}
+        <div data-defilement="tiroir" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {children}
+        </div>
         <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
           {pied}
         </div>
