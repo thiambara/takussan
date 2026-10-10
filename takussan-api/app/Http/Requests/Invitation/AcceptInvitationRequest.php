@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Invitation;
 
 use App\Http\Requests\BaseFormRequest;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * TCK-249 — payload validation for `POST /api/invitations/{token}/accept`.
@@ -29,7 +30,7 @@ class AcceptInvitationRequest extends BaseFormRequest
             // their own stricter rules downstream.
             'first_name' => ['nullable', 'string', 'max:120'],
             'last_name' => ['nullable', 'string', 'max:120'],
-            'password' => ['nullable', 'string', 'min:8'],
+            'password' => ['nullable', 'string', Password::defaults()],
         ];
     }
 }

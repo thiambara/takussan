@@ -537,15 +537,16 @@
       "resendFailed": "Mënunu yónneewaat email bi. Jéematal ci ab saa.",
       "resend": "Yónneewaat email bu seetlu bi",
       "sending": "Yónnee…",
-      "continue": "Toxal ci taablo bi"
+      "continue": "Kontine, dinaa ko seetlu ginaaw"
     },
     "verifyEmailLink": {
       "successTitle": "Email bi seetlu nañu ko",
-      "successBody": "Sa email dëggal nañu ko. Mën nga agsi léegi ci jumtukaay yépp yu Takussan.",
-      "successCta": "Dem ci taablo bi",
+      "successBody": "Sa email dëggal nañu ko.",
+      "successCta": "Kontine",
       "failureTitle": "Seetlu bi antuwul",
-      "failureBody": "Lëkkalekaay bii baaxul walla jeex na. Ñaanal beneen email bu seetlu ci sa bérébu bopp.",
-      "failureCta": "Ñaan beneen lëkkalekaay"
+      "failureBody": "Lëkkalekaay bii jeex na walla jëfandikoo nañu ko. Ñaanal beneen.",
+      "failureCta": "Ñaan beneen lëkkalekaay",
+      "successCtaSignedOut": "Dugg"
     },
     "oauthCallback": {
       "title": "Dugg mi ngi dox…",
@@ -3577,7 +3578,6 @@
     "intention": {
       "metaTitle": "Lan nga ñëw def ci Takussan ?",
       "pageTitle": "Dalal jàmm, {name}",
-      "pageTitleNoName": "Dalal jàmm",
       "pageSubtitle": "Benn laaj rekk, te danu la yóbbu ci bërëb bu baax bi. Man nga def ñaar yi lépp.",
       "legend": "Li nga ñëw def",
       "options": {
@@ -3594,7 +3594,17 @@
       "submitting": "Xaaral tuuti…",
       "skip": "Dinaa ko def ëllëg",
       "note": "Tontu bii du la tëj dara : dafay wone rekk ban ekraan lañu la war a jëkk a wone.",
-      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii."
+      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii.",
+      "name": {
+        "title": "Naka nga tudd?",
+        "subtitle": "Sa tur dina feeñ ci say yéenekaay ak say bataaxal.",
+        "firstName": "Tur",
+        "lastName": "Sant (du war)",
+        "submit": "Kontine",
+        "submitting": "Xaaral tuuti…",
+        "required": "Bindal sa tur.",
+        "error": "Mënunu woon denc sa tur. Jéemaatal."
+      }
     },
     "host": {
       "defaults": {

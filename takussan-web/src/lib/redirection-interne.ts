@@ -69,6 +69,20 @@ export function avecRedirection(chemin: string, brute: string | null | undefined
 }
 
 /**
+ * TCK-624 — une destination qui dit déjà ce que la personne vient faire (`/publish`, une fiche,
+ * `/app/properties/new`) : la question d'orientation n'a rien à lui apprendre, et la poser
+ * détourne de ce qu'elle a demandé. L'accueil (`/`, `/fr`…) et `/app` sont des destinations PAR
+ * DÉFAUT — celles qu'on écrit quand on ne sait rien —, pas des intentions.
+ *
+ * `destination` est déjà assainie (`destinationInterne(brute, '')`).
+ */
+export function estUneDestinationExplicite(destination: string): boolean {
+  if (destination === '') return false;
+  const chemin = destination.split(/[?#]/)[0] ?? '';
+  return !/^\/(?:fr|en|wo)?\/?$/.test(chemin) && !/^\/app\/?$/.test(chemin);
+}
+
+/**
  * Faut-il poser la question d'orientation à ce compte ? (TCK-493)
  *
  * ⚠ **Toute la décision vit ici, et nulle part ailleurs.** Les quatre chemins

@@ -589,15 +589,16 @@
       "resendFailed": "Could not resend the email. Try again in a moment.",
       "resend": "Resend the verification email",
       "sending": "Sending…",
-      "continue": "Continue to the dashboard"
+      "continue": "Continue, I will verify later"
     },
     "verifyEmailLink": {
       "successTitle": "Email address verified",
-      "successBody": "Your address is confirmed. You can now reach every Takussan feature.",
-      "successCta": "Go to the dashboard",
+      "successBody": "Your address is confirmed.",
+      "successCta": "Continue",
       "failureTitle": "Verification failed",
-      "failureBody": "This link is invalid or has expired. Request a new verification email from your workspace.",
-      "failureCta": "Request a new link"
+      "failureBody": "This link has expired or was already used. Request a new one.",
+      "failureCta": "Request a new link",
+      "successCtaSignedOut": "Sign in"
     },
     "oauthCallback": {
       "title": "Signing you in…",
@@ -5124,7 +5125,6 @@
     "intention": {
       "metaTitle": "What brings you to Takussan?",
       "pageTitle": "Welcome, {name}",
-      "pageTitleNoName": "Welcome",
       "pageSubtitle": "One question, and we take you straight to the right place. You can always do both.",
       "legend": "What you came to do",
       "options": {
@@ -5141,7 +5141,17 @@
       "submitting": "One moment…",
       "skip": "I'll decide later",
       "note": "This answer commits you to nothing — it only decides which screens you see first.",
-      "error": "We couldn't save your answer. Try again, or skip this step."
+      "error": "We couldn't save your answer. Try again, or skip this step.",
+      "name": {
+        "title": "What is your name?",
+        "subtitle": "Your first name appears on your listings and messages.",
+        "firstName": "First name",
+        "lastName": "Last name (optional)",
+        "submit": "Continue",
+        "submitting": "One moment…",
+        "required": "Enter your first name.",
+        "error": "We could not save your first name. Try again."
+      }
     },
     "host": {
       "defaults": {

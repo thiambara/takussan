@@ -109,7 +109,10 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(code, '123456');
     await user.click(screen.getByRole('button', { name: 'Valider' }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/properties/x'));
+    // TCK-624 — compte ancien ou neuf, même porte de sortie : elle rend ensuite la destination.
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith('/onboarding/intention?redirect=%2Fproperties%2Fx'),
+    );
     expect(verifier).toHaveBeenCalledWith({ phone: '+221771234567', code: '123456' }, 'fr');
     expect(openSessionMock).toHaveBeenCalledWith('jeton', compte, '2026-11-06T12:00:00Z');
   });
@@ -170,7 +173,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Code à 6 chiffres'), '654321');
     await user.click(screen.getByRole('button', { name: 'Vérifier' }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/app'));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
     expect(verifier).toHaveBeenLastCalledWith(
       { phone: '+221771234567', code: '123456', two_factor_code: '654321' },
       'fr',

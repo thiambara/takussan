@@ -137,6 +137,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 use LemonSqueezy\Laravel\LemonSqueezy;
 use SocialiteProviders\Manager\SocialiteWasCalled;
@@ -197,6 +198,11 @@ class AppServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootRequestMacros();
         $this->bootRateLimiters();
+        // TCK-624 — la règle du mot de passe est CELLE du front (`passwordSchema`) : 8 à 72
+        // caractères, une lettre, un chiffre. L'API n'exigeait que `min:8` : un client qui
+        // contournait le formulaire posait « aaaaaaaa ». Inscription, réinitialisation et
+        // acceptation d'invitation passent toutes par `Password::defaults()`.
+        Password::defaults(fn () => Password::min(8)->max(72)->letters()->numbers());
         // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).
         // Un second `authenticateAccessTokensUsing` écraserait celui-ci : TCK-600 ajoute
         // sa clause DANS `AccessTokenGate`, pas ici.
