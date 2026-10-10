@@ -15,6 +15,7 @@ import {
   type SearchFilters,
   type TraducteursDeFiltre,
 } from '@/types/search';
+import { PER_PAGE_PAR_DEFAUT, PER_PAGE_PROPOSES } from '@/lib/recherche-publique';
 
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
@@ -108,7 +109,14 @@ export function SearchToolbar({
   const t = useTranslations('search.toolbar');
   const tSort = useTranslations('search.sort');
 
-  const perPageOptions = [30, 40, 60, 70].map((n) => ({
+  // TCK-628 — 40, 60, 70. Une URL héritée peut porter une autre taille (`per_page=30`) : l'API la
+  // sert, et le sélecteur l'AFFICHE plutôt que de prétendre en appliquer une autre. Elle n'est pas
+  // proposée pour autant : elle quitte la liste dès qu'on en choisit une.
+  const perPage = filters.per_page ?? PER_PAGE_PAR_DEFAUT;
+  const perPageValues: readonly number[] = (PER_PAGE_PROPOSES as readonly number[]).includes(perPage)
+    ? PER_PAGE_PROPOSES
+    : [...PER_PAGE_PROPOSES, perPage].sort((a, b) => a - b);
+  const perPageOptions = perPageValues.map((n) => ({
     value: String(n),
     label: t('perPageOption', { count: n }),
   }));
@@ -169,7 +177,7 @@ export function SearchToolbar({
               rangée pour un réglage que personne ne cherche sur un téléphone. */}
           <div data-controle="par-page" className="hidden lg:block">
             <Select
-              value={String(filters.per_page ?? 30)}
+              value={String(perPage)}
               onValueChange={(v) => onPerPageChange(Number(v))}
               items={perPageOptions}
             >

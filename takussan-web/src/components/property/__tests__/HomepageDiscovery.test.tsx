@@ -12,6 +12,7 @@ import type {
   PropertyListItem,
 } from '@/types/property';
 import type { UseHomepageDiscoveryParams } from '@/hooks/useHomepageDiscovery';
+import type { RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
 
 /**
  * TCK-247 — the homepage row titles must be DERIVED from the payload.
@@ -134,14 +135,14 @@ function makeRows(near: HomepageDiscoveryData['near']): HomepageDiscoveryData {
 
 const MESSAGES = { fr, en, wo } as const;
 
-function renderPage(locale: keyof typeof MESSAGES = 'fr') {
+function renderPage(locale: keyof typeof MESSAGES = 'fr', raccourcis?: RaccourcisDeLAccueil) {
   return render(
     <NextIntlClientProvider
       locale={locale}
       messages={MESSAGES[locale]}
       timeZone="Africa/Dakar"
     >
-      <HomepageDiscovery />
+      <HomepageDiscovery raccourcis={raccourcis} />
     </NextIntlClientProvider>,
   );
 }
@@ -334,5 +335,48 @@ describe('<HomepageDiscovery> — TCK-247', () => {
         );
       }
     });
+  });
+});
+
+describe('<HomepageDiscovery> — TCK-628', () => {
+  beforeEach(() => {
+    mockRows = makeRows({ items: [makeProperty(1)], city: 'Dakar', requested_city: null, fallback: false });
+    mockLoading = false;
+    mockFailed = false;
+    mockGeoCity = undefined;
+  });
+
+  it('le `<h1>` quitte l’écran, pas la page', () => {
+    renderPage();
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1).toHaveTextContent(fr.homepage.h1);
+    expect(h1.className.split(/\s+/)).toContain('sr-only');
+  });
+
+  it('rend les sections de raccourcis, chacune vers sa page de facette', () => {
+    renderPage('fr', {
+      vente: [makeProperty(50)],
+      villes: [{ valeur: 'Dakar', compte: 40 }, { valeur: 'Thiès', compte: 4 }],
+      types: [{ valeur: 'apartment', compte: 12 }],
+      quartiers: { ville: 'Dakar', items: [{ valeur: 'Mermoz', compte: 8 }] },
+    });
+
+    // « À vendre » : une rangée Standard de plus, vers la liste filtrée.
+    const standards = screen.getAllByTestId('row-standard');
+    expect(standards.map((r) => r.dataset.href)).toContain('/properties?contract_type=sale');
+    expect(screen.getByTestId('card-standard-50')).toBeInTheDocument();
+
+    const lien = (nom: RegExp) => screen.getByRole('link', { name: nom }).getAttribute('href');
+    expect(lien(/^Thiès/)).toBe('/fr/properties?city=Thi%C3%A8s');
+    expect(lien(/^Appartement/)).toBe('/fr/properties?type=apartment');
+    expect(lien(/^Mermoz, 8 annonces$/)).toBe('/fr/properties?city=Dakar&location=Mermoz');
+    expect(screen.getByRole('heading', { level: 2, name: 'Les quartiers de Dakar' })).toBeInTheDocument();
+  });
+
+  it('une section absente n’est pas rendue', () => {
+    renderPage('fr', { vente: null, villes: null, types: null, quartiers: null });
+    expect(screen.getAllByTestId('row-standard')).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'Explorer le Sénégal' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Ce que tu cherches' })).toBeNull();
   });
 });

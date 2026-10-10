@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**553 tickets** — 32 ouverts, 519 livrés.
+**554 tickets** — 33 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 5 |
+| 🚧 Doing | 6 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 519 |
@@ -67,6 +67,7 @@
 - [TCK-622](tickets/TCK-622-borne-sms-compte-les-envois.md) — « Trop de tentatives » sur un parcours ordinaire : la borne SMS par numéro comptait les requêtes et non les codes envoyés, et le front écrasait tout 429 sous le même message `S · P1 · full`
 - [TCK-623](tickets/TCK-623-compte-sans-nom-affiche-undefined.md) — « UNDEFINED » dans la navbar : un compte ouvert par téléphone n'a pas de nom, et l'interface écrivait `''[0]` en toutes lettres — la section contact du profil ne s'enregistrait pas non plus `S · P1 · full`
 - [TCK-624](tickets/TCK-624-une-porte-de-sortie-de-l-authentification.md) — Entrer : quatre sorties d'authentification qui perdaient la destination, ne demandaient jamais de prénom, et un lien de vérification qui n'ouvrait rien sans session `M · P1 · full`
+- [TCK-628](tickets/TCK-628-accueil-dense-et-recherche.md) — Accueil dense et liste des biens : 7 cartes par rangée à 1920 au lieu de 4, des raccourcis par ville, type et quartier lus sur des endpoints existants, 40/60/70 biens par page avec un seul défaut des deux côtés, et la bande de catégories réordonnée `M · P1 · full`
 
 ## 👀 Review
 

@@ -399,6 +399,25 @@
       "latest": {
         "eyebrow": "New",
         "title": "Just listed"
+      },
+      "sale": {
+        "eyebrow": "For sale",
+        "title": "To invest or settle down"
+      }
+    },
+    "explore": {
+      "count": "{count, plural, =1 {# listing} other {# listings}}",
+      "cities": {
+        "eyebrow": "By city",
+        "title": "Explore Senegal"
+      },
+      "types": {
+        "eyebrow": "By property type",
+        "title": "What you're looking for"
+      },
+      "neighborhoods": {
+        "eyebrow": "Popular neighbourhoods",
+        "title": "Neighbourhoods of {city}"
       }
     }
   },

@@ -4,6 +4,7 @@ import { getLocale } from 'next-intl/server';
 import { HomepageDiscovery } from '@/components/property/HomepageDiscovery';
 import { alternatesPubliques } from '@/lib/alternates';
 import { decouverteDeLAccueil } from '@/lib/queries/public-discovery';
+import { raccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
 import { isLocale } from '@/i18n/config';
 
 /**
@@ -23,7 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * L'accueil public — quatre rangées de biens, **présentes dans le HTML de la première réponse**
- * depuis TCK-432.
+ * depuis TCK-432, et depuis TCK-628 quatre sections de plus (« À vendre », villes, types,
+ * quartiers), elles aussi rendues par le serveur.
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  * CE QUI A CHANGÉ, ET CE QUI N'A PAS CHANGÉ
@@ -54,7 +56,12 @@ export default async function Home() {
 
   // `null` en cas de panne — la page reste servable, et le client reprend le comportement
   // d'avant TCK-432 (squelette, appel, message d'erreur traduit). Cf. `decouverteDeLAccueil`.
-  const rangees = await decouverteDeLAccueil(locale);
+  // TCK-628 — les sections de raccourcis, en parallèle ; chacune disparaît seule si son
+  // endpoint tombe. Cf. `raccourcisDeLAccueil`.
+  const [rangees, raccourcis] = await Promise.all([
+    decouverteDeLAccueil(locale),
+    raccourcisDeLAccueil(locale),
+  ]);
 
-  return <HomepageDiscovery donneesInitiales={rangees} />;
+  return <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} />;
 }

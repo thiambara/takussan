@@ -348,6 +348,25 @@
       "latest": {
         "eyebrow": "Bees",
         "title": "Yees yebbi"
+      },
+      "sale": {
+        "eyebrow": "Ngir jaay",
+        "title": "Ngir dugal xaalis walla dëkk"
+      }
+    },
+    "explore": {
+      "count": "{count} kër",
+      "cities": {
+        "eyebrow": "Ci dëkk",
+        "title": "Wër Senegaal"
+      },
+      "types": {
+        "eyebrow": "Ci xeetu kër",
+        "title": "Li ngay seet"
+      },
+      "neighborhoods": {
+        "eyebrow": "Gox yu ñu bëgg",
+        "title": "Gox yu {city}"
       }
     }
   },

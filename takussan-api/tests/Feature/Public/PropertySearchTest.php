@@ -41,6 +41,20 @@ class PropertySearchTest extends TestCase
         $response->assertOk()->assertJsonCount(2, 'data');
     }
 
+    /** TCK-628 — sans `per_page`, la recherche pagine comme la liste publique : 40. */
+    public function test_per_page_par_defaut_est_celui_de_la_liste_publique(): void
+    {
+        $this->published();
+        $this->indexProperties();
+
+        $this->getJson('/api/public/properties/search')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 40);
+        $this->getJson('/api/public/properties/search?per_page=70')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 70);
+    }
+
     public function test_filter_by_location(): void
     {
         $this->published([], 'Almadies');
