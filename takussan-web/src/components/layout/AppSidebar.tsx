@@ -37,6 +37,7 @@ import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { useTranslations } from 'next-intl';
+import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
@@ -614,9 +615,9 @@ export function AppSidebar({
         <Link
           href="/"
           onClick={onNavigate}
-          className={cn('rounded-md px-1 text-xl font-bold tracking-tighter text-foreground', FOCUS_RING)}
+          className={cn('inline-flex rounded-md px-1 py-1', FOCUS_RING)}
         >
-          {tCommon('appName')}
+          <Logo nom={tCommon('appName')} />
         </Link>
       </div>
       <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
