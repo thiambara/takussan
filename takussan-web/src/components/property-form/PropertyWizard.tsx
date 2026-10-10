@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { FormGlobalError } from '@/components/forms';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
@@ -21,6 +22,7 @@ import {
 import {
   createPropertyAction,
   setPropertyTagsAction,
+  updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
@@ -209,6 +211,7 @@ export function PropertyWizard({
   const t = useTranslations('property.wizard');
   const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
+  const toast = useToast();
   const { defaults, loading: geoEnCours } = useGeoSuggestion();
   const brouillon = useWizardDraft<Partial<PropertyFormValues>>(CLE_BROUILLON);
   const { save: sauverBrouillon, flush: viderFileBrouillon, clear: effacerBrouillon } = brouillon;
@@ -239,6 +242,13 @@ export function PropertyWizard({
   const [idCree, setIdCree] = useState<number | null>(null);
   const [tagsEnvoyes, setTagsEnvoyes] = useState(false);
   const [photosEnvoyees, setPhotosEnvoyees] = useState(false);
+  /**
+   * TCK-627 — la quatrième écriture : publier. Le bien naît brouillon ; `PUT …/visibility`
+   * le publie et rend le statut que l'agence décide (`available`, ou `pending_review` quand elle
+   * modère). Un refus (quota, droits) laisse un brouillon BIEN RÉEL : on le dit, on ne le recrée pas.
+   */
+  const [statutPublie, setStatutPublie] = useState<string | null>(null);
+  const [echecPublication, setEchecPublication] = useState(false);
 
   /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
   const terminer = async (id: number) => {
@@ -255,12 +265,13 @@ export function PropertyWizard({
     defaultValues: valeursInitiales(),
     onSubmit: async (values) => {
       setAvertissement(null);
+      setEchecPublication(false);
       // Un bien déjà créé n'est JAMAIS recréé : une reprise après échec partiel rejoue les
       // écritures manquantes, pas la création. C'est l'AC7.
       if (idCree !== null) return { id: idCree } as PropertyDetail;
 
       const resultat = await createPropertyAction(
-        toCreatePayload(values as unknown as PropertyFormPayload, 'submit'),
+        toCreatePayload(values as unknown as PropertyFormPayload),
       );
       if (!resultat.ok) {
         throw new ApiError(resultat.status ?? 500, {
@@ -309,6 +320,27 @@ export function PropertyWizard({
         return;
       }
 
+      // Le bailleur hors personnel PROPOSE : il n'a pas `properties.publish`, l'agence publiera.
+      let statut = statutPublie;
+      if (!proposition && statut === null) {
+        const r = await updatePropertyVisibilityAction(bien.id, 'public');
+        if (!r.ok) {
+          setAvertissement(t('publishFailed', { message: r.message }));
+          setEchecPublication(true);
+          return;
+        }
+        statut = r.data?.status ?? 'available';
+        setStatutPublie(statut);
+      }
+
+      toast.add({
+        title: proposition
+          ? t('outcome.proposal')
+          : statut === 'pending_review'
+            ? t('outcome.review')
+            : t('outcome.live'),
+        type: 'success',
+      });
       await terminer(bien.id);
     },
   });
@@ -570,7 +602,7 @@ export function PropertyWizard({
                 if (idCree !== null) void terminer(idCree);
               }}
             >
-              {t('partial.continueAnyway')}
+              {echecPublication ? t('publishFailedOpen') : t('partial.continueAnyway')}
             </Button>
           </div>
         ) : null}

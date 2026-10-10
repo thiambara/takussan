@@ -984,7 +984,7 @@
     },
     "moderation": {
       "pendingTitle": "Awaiting approval",
-      "pendingBody": "Your property is being reviewed by your agency's administrator. It will go live as soon as it is approved.",
+      "pendingBody": "Your property is being reviewed. It will go live as soon as it is approved.",
       "rejectedTitle": "Publication rejected",
       "resubmit": "Fix and resubmit",
       "resubmitError": "Resubmission failed. Please try again.",
@@ -1418,7 +1418,7 @@
           "subtitle": "Optional — but a listing with photos gets far more views."
         },
         "finition": {
-          "title": "A title, and it is live",
+          "title": "A title, and you are done",
           "subtitle": "We drafted one from your answers. Edit it freely."
         }
       },
@@ -1469,7 +1469,14 @@
         "label": "Virtual tour or video (link)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "A YouTube, Vimeo, Matterport or Kuula link. No video file to upload."
-      }
+      },
+      "outcome": {
+        "live": "Your listing is live.",
+        "review": "Listing sent for review: it will go live once approved.",
+        "proposal": "Proposal sent to your agency."
+      },
+      "publishFailed": "The property is saved as a draft but could not be published: {message} Retry, or open the draft.",
+      "publishFailedOpen": "Open the draft"
     },
     "titleTypes": {
       "bail": "Lease",
@@ -1906,7 +1913,12 @@
       "propertyNew": {
         "metaTitle": "Publish a property",
         "title": "Publish a property",
-        "proposalTitle": "Propose a property to my agency"
+        "proposalTitle": "Propose a property to my agency",
+        "quotaUsage": "{used} of {limit} active listings allowed by your plan.",
+        "quotaReachedTitle": "Listing limit reached",
+        "quotaReachedBody": "You have {used} of {limit} active listings. Archive one or change plan to publish a new one.",
+        "quotaReachedUpgrade": "See plans",
+        "quotaReachedManage": "Manage my listings"
       },
       "privacy": {
         "metaTitle": "Privacy",
@@ -4350,14 +4362,15 @@
       "title": "Pick up where you left off",
       "description": "{count, plural, =1 {You have 1 unfinished flow.} other {You have # unfinished flows.}}",
       "labels": {
-        "host-individual-wizard": "Listing a property",
+        "host-individual-wizard": "Setting up your host space",
         "owner-onboarding": "Owner onboarding",
         "agent-onboarding": "Agent onboarding",
         "customer-onboarding": "Tenant onboarding",
         "owner-kyc": "Owner KYC",
         "agent-kyc": "Agent KYC",
         "sp-onboarding": "Service provider onboarding",
-        "agency-upgrade": "Upgrade to pro"
+        "agency-upgrade": "Upgrade to pro",
+        "property-create-wizard": "Listing a property"
       }
     }
   },

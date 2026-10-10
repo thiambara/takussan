@@ -14,6 +14,7 @@ const geo = vi.hoisted(() => ({
   valeur: { suggestion: null as { city: string; region: string } | null, defaults: {}, loading: false },
 }));
 vi.mock('@/hooks/useGeoSuggestion', () => ({ useGeoSuggestion: () => geo.valeur }));
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
