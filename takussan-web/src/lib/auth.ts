@@ -55,8 +55,9 @@ export type LoginPayload = {
 };
 
 export type UpdateProfilePayload = {
-  first_name: string;
-  last_name: string;
+  /** TCK-623 — absents, les noms restent tels quels : seule la section qui les montre les envoie. */
+  first_name?: string;
+  last_name?: string;
   bio?: string;
   avatar?: File | null;
   avatar_remove?: boolean;
@@ -95,8 +96,8 @@ export async function getMe(token: string, activeProfileId?: string): Promise<Us
 export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<User> {
   const formData = new FormData();
   formData.append('_method', 'PUT');
-  formData.append('first_name', payload.first_name);
-  formData.append('last_name', payload.last_name);
+  if (payload.first_name !== undefined) formData.append('first_name', payload.first_name);
+  if (payload.last_name !== undefined) formData.append('last_name', payload.last_name);
   if (payload.bio !== undefined) formData.append('bio', payload.bio);
   if (payload.avatar) formData.append('avatar', payload.avatar);
   if (payload.avatar_remove) formData.append('avatar_remove', '1');

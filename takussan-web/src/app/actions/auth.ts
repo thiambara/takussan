@@ -48,10 +48,14 @@ export async function updateProfileAction(
   }
 
   const payload: UpdateProfilePayload = {
-    first_name: formData.get('first_name') as string,
-    last_name: formData.get('last_name') as string,
     bio: (formData.get('bio') as string) || undefined,
   };
+  // TCK-623 — un nom absent du formulaire n'est pas un nom vide : `formData.get` rendrait `null`,
+  // envoyé en toutes lettres « null ».
+  for (const champ of ['first_name', 'last_name'] as const) {
+    const valeur = formData.get(champ);
+    if (typeof valeur === 'string') payload[champ] = valeur;
+  }
 
   // Only forward `phone` if the form explicitly carried the field — keeps
   // legacy callers (no phone input) from clearing existing values.

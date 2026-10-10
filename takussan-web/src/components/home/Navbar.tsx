@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition
 import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2, MapPin } from 'lucide-react';
+import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, UserRound, Search, Loader2, MapPin } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { SelecteurDeTransaction, type Transaction } from '@/components/search/SelecteurDeTransaction';
@@ -28,6 +28,7 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
 import { useEntreeSentinelle } from '@/hooks/useEntreeSentinelle';
 import { cn } from '@/lib/utils';
+import { initialesDe, libelleDe, prenomDe } from '@/lib/identite';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
@@ -267,9 +268,11 @@ export function Navbar({ className }: NavbarProps) {
     else router.push(hrefLocalise('/', locale));
   }
 
-  const initials = user
-    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
-    : '';
+  // TCK-623 — un compte ouvert par téléphone n'a pas encore de nom : `''[0]` écrivait « UNDEFINED »
+  // dans la pastille. Sans initiale, une silhouette ; sans nom, ce qui désigne le compte.
+  const initials = initialesDe(user);
+  const libelleCompte = libelleDe(user) ?? t('accountFallback');
+  const contenuAvatar = initials ?? <UserRound className="size-4" aria-hidden="true" />;
 
   // TCK-254 — `Publier` is universal: everyone sees the CTA. The
   // `/publish` page resolves where to send the user (login, host wizard,
@@ -498,18 +501,20 @@ export function Navbar({ className }: NavbarProps) {
                 >
                   <Avatar size="default" className="bg-primary">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {initials}
+                      {contenuAvatar}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
-                    {user.first_name}
+                    {prenomDe(user) ?? t('accountFallback')}
                   </span>
                 </button>
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-52 bg-popover rounded-xl shadow-md border border-border py-1 z-50">
                     <div className="px-4 py-2.5 border-b border-border">
-                      <p className="text-sm font-semibold text-foreground truncate">{user.first_name} {user.last_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{libelleCompte}</p>
+                      {user.email && libelleCompte !== user.email ? (
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      ) : null}
                     </div>
                     <LienLocalise
                       href="/app/profile"
@@ -727,12 +732,14 @@ export function Navbar({ className }: NavbarProps) {
                       <div className="flex items-center gap-3 mb-1">
                         <Avatar size="default" className="bg-primary">
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                            {initials}
+                            {contenuAvatar}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{user.first_name} {user.last_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{libelleCompte}</p>
+                          {user.email && libelleCompte !== user.email ? (
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                          ) : null}
                         </div>
                       </div>
                       <LienLocalise

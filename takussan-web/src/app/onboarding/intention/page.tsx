@@ -27,6 +27,7 @@ import {
   doitPoserLaQuestionDIntention,
 } from '@/lib/redirection-interne';
 import { getToken } from '@/lib/session';
+import { prenomDe } from '@/lib/identite';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,9 +62,10 @@ export default async function PageDIntention({
     redirect(apres);
   }
 
+  const prenom = prenomDe(user);
   return (
     <OnboardingShell
-      title={t('pageTitle', { name: user?.first_name ?? '' })}
+      title={prenom ? t('pageTitle', { name: prenom }) : t('pageTitleNoName')}
       subtitle={t('pageSubtitle')}
       note={t('note')}
     >

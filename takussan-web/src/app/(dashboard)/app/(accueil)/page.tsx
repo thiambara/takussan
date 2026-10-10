@@ -12,6 +12,7 @@ import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboa
 import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
 import { aDesChiffres, fetchDashboardMe } from '@/lib/queries/dashboard-me';
 import { getTranslations } from 'next-intl/server';
+import { prenomDe } from '@/lib/identite';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.home');
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
   }
 
   const payload = await fetchDashboardMe();
+  const prenom = prenomDe(user);
 
   // TCK-270 — Surface a "Personnalisez votre agence" banner when the
   // agency_admin lands on the dashboard right after activation and hasn't
@@ -44,7 +46,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t('greeting', { name: user.first_name })}
+        title={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
         description={t('subtitle')}
       />
 

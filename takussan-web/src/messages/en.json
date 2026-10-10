@@ -94,6 +94,7 @@
     "more": "More",
     "propertiesCount": "{count} listings",
     "userMenuFor": "User menu — {name}",
+    "accountFallback": "My account",
     "administration": "Administration",
     "links": {
       "buy": "Buy",
@@ -1947,6 +1948,7 @@
       "home": {
         "noAgency": "Dashboard",
         "greeting": "Hello {name}",
+        "greetingNoName": "Hello",
         "subtitle": "An overview of your activity",
         "metaTitle": "Dashboard"
       },
@@ -2188,6 +2190,7 @@
       },
       "welcome": {
         "title": "Welcome to Takussan, {firstName}",
+        "titleNoName": "Welcome to Takussan",
         "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
         "cta": "Continue"
       }
@@ -5121,6 +5124,7 @@
     "intention": {
       "metaTitle": "What brings you to Takussan?",
       "pageTitle": "Welcome, {name}",
+      "pageTitleNoName": "Welcome",
       "pageSubtitle": "One question, and we take you straight to the right place. You can always do both.",
       "legend": "What you came to do",
       "options": {
