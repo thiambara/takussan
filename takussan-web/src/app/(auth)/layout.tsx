@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 
 import { IntlProvider } from '@/i18n/IntlProvider';
+import { Logo } from '@/components/brand/Logo';
 import { messagesPour } from '@/i18n/messages';
 import { ArriveeEnHaut } from '@/components/auth/ArriveeEnHaut';
 import { ReinitialiserSessionClient } from '@/components/auth/ReinitialiserSessionClient';
@@ -74,9 +75,10 @@ function AuthPanneau({ children }: { children: ReactNode }) {
         <div className="relative z-10 h-full flex flex-col justify-between p-12 text-white">
           <Link
             href="/"
-            className="self-start rounded-md font-headline font-bold text-2xl tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
+            className="self-start rounded-md py-1 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
           >
-            {tCommon('appName')}
+            {/* TCK-621 — la marque en ton `clair` : posée sur la photo et son voile terracotta. */}
+            <Logo nom={tCommon('appName')} ton="clair" taille="pied" />
           </Link>
           <div>
             <h2 className="font-headline text-4xl font-bold tracking-tight text-balance mb-3 leading-tight">
@@ -114,9 +116,9 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/30 to-background" />
           <Link
             href="/"
-            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-md px-3 font-headline font-bold text-xl tracking-tight text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
+            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-md px-3 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
           >
-            {tCommon('appName')}
+            <Logo nom={tCommon('appName')} ton="clair" />
           </Link>
         </div>
 

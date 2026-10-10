@@ -43,8 +43,22 @@
  * les deux appelants plafonnent à {@link PER_PAGE_PAR_DEFAUT} par défaut.
  */
 
-/** Le `per_page` que la liste demande quand l'URL n'en porte pas. */
-export const PER_PAGE_PAR_DEFAUT = 30;
+/**
+ * Les tailles de page que la liste PROPOSE — TCK-628. « 30 » est retiré : avec des cartes plus
+ * denses, la grille de bureau pose 5 à 6 colonnes, et 30 biens n'en remplissaient que cinq ou six
+ * rangées. L'API, elle, accepte toujours `1..100` (`SearchPublicPropertyRequest`) : un lien hérité
+ * qui porte `per_page=30` reste servi, il n'est simplement plus proposé.
+ */
+export const PER_PAGE_PROPOSES = [40, 60, 70] as const;
+
+/**
+ * Le `per_page` que la liste demande quand l'URL n'en porte pas — la première taille proposée.
+ *
+ * ⚠ L'API a le MÊME défaut (`PropertySearchService::PER_PAGE_PAR_DEFAUT`) depuis TCK-628 : elle
+ * paginait à 20 quand la grille en attendait 30. Le front envoie toujours la valeur, mais un
+ * appelant qui l'omettrait recevrait désormais la même page que la liste.
+ */
+export const PER_PAGE_PAR_DEFAUT = PER_PAGE_PROPOSES[0];
 
 /**
  * Les trois états géographiques que le SERVEUR refuse — TCK-346, **déplacé ici par TCK-432**.
@@ -96,7 +110,8 @@ export function normaliserGeo(params: URLSearchParams): URLSearchParams {
  *    le réseau (TCK-346) ;
  * 2. **l'alias hérité `search=` → `q=`** — la clé `q` possède les deux paramètres depuis TCK-335,
  *    et un lien externe peut parfaitement porter `?search=villa` ;
- * 3. **le `per_page` par défaut** — sans lui, l'API pagine à 20 quand la grille en attend 30.
+ * 3. **le `per_page` par défaut** — posé explicitement, pour que la clef semée par le serveur et
+ *    celle du client portent la même valeur (TCK-559).
  *
  * ⚠️ L'objet reçu n'est PAS muté : la copie est faite ici, une fois, pour que l'appelant serveur
  * puisse passer les `searchParams` de Next sans se demander qui les possède.

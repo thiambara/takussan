@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 
 
+import Link from 'next/link';
+
 import { fetchTagsAction } from '@/app/actions/admin-tags';
+import { fetchListingQuotaAction } from '@/app/actions/dashboard-properties';
+import { buttonVariants } from '@/components/ui/button';
 import { PropertyWizard } from '@/components/property-form';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
@@ -68,10 +72,48 @@ export default async function Page() {
   // TCK-587 — même vocabulaire que la barre latérale : le bailleur hors personnel propose.
   const { roles } = await getMeAction();
   const proposition = !isAgent(roles) && !isAdmin(roles);
+  // TCK-627 — une proposition reste un brouillon de l'agence : elle ne consomme aucun quota.
+  const quota = proposition ? null : await fetchListingQuotaAction();
+
+  if (quota && !quota.can_create) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title={t('title')} />
+        <section
+          role="alert"
+          className="flex max-w-xl flex-col gap-3 rounded-xl border border-border bg-card px-5 py-5"
+          data-testid="quota-atteint"
+        >
+          <h2 className="font-display text-lg font-semibold text-foreground">{t('quotaReachedTitle')}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t('quotaReachedBody', { used: quota.used, limit: quota.limit ?? 0 })}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin(roles) ? (
+              <Link href="/admin/agency/billing" className={buttonVariants({ size: 'sm' })}>
+                {t('quotaReachedUpgrade')}
+              </Link>
+            ) : null}
+            <Link href="/app/properties" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              {t('quotaReachedManage')}
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute inset-0 flex flex-col gap-4 overflow-hidden px-4 py-6 md:px-6 md:py-8">
-      <PageHeader title={proposition ? t('proposalTitle') : t('title')} className="shrink-0" />
+      <PageHeader
+        title={proposition ? t('proposalTitle') : t('title')}
+        description={
+          quota && quota.limit !== null
+            ? t('quotaUsage', { used: quota.used, limit: quota.limit })
+            : undefined
+        }
+        className="shrink-0"
+      />
       <div className="min-h-0 flex-1">
         <PropertyWizard tags={tags} proposition={proposition} />
       </div>

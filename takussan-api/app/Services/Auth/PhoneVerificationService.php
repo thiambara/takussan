@@ -58,7 +58,13 @@ class PhoneVerificationService
      */
     public function holdResendCooldown(User $user): void
     {
-        $this->cache->put($this->cooldownKey($this->userSubject($user)), true, self::RESEND_COOLDOWN_SECONDS);
+        $this->holdCooldown($this->userSubject($user));
+    }
+
+    /** TCK-622 — secondes avant qu'un nouveau code puisse partir vers ce compte (0 : tout de suite). */
+    public function resendAvailableIn(User $user): int
+    {
+        return $this->cooldownRemaining($this->userSubject($user));
     }
 
     /**
@@ -96,6 +102,22 @@ class PhoneVerificationService
         return ! $this->cache->has($this->cooldownKey($this->numberSubject($scope, $phone)));
     }
 
+    /** TCK-622 — secondes avant qu'un nouveau code puisse partir vers ce numéro, sous cette portée. */
+    public function sendToAvailableIn(string $scope, string $phone): int
+    {
+        return $this->cooldownRemaining($this->numberSubject($scope, $phone));
+    }
+
+    /**
+     * TCK-622 — le délai de renvoi d'un envoi, sans envoi, pour un numéro sans compte : la réponse
+     * à un numéro verrouillé doit se comporter comme un envoi réel (même règle que
+     * {@see holdResendCooldown()}).
+     */
+    public function holdCooldownFor(string $scope, string $phone): void
+    {
+        $this->holdCooldown($this->numberSubject($scope, $phone));
+    }
+
     public function sendCodeTo(string $scope, string $phone, ?string $locale = null): bool
     {
         return $this->issue($this->numberSubject($scope, $phone), $phone, $locale);
@@ -111,7 +133,6 @@ class PhoneVerificationService
         return $this->check($this->numberSubject($scope, $phone), $phone, $code, $consume);
     }
 
-    /** Secondes avant qu'un nouvel envoi soit possible vers ce sujet. */
     /**
      * Vérification adverse M1 — un code est-il EN COURS pour ce numéro, sous cette portée ? Sans
      * code, une saisie ne prouve ni ne réfute rien : elle ne compte contre personne.
@@ -207,7 +228,7 @@ class PhoneVerificationService
             'attempts' => 0,
             'expires_at' => now()->addSeconds(self::CODE_TTL_SECONDS)->getTimestamp(),
         ], self::CODE_TTL_SECONDS);
-        $this->cache->put($this->cooldownKey($subject), true, self::RESEND_COOLDOWN_SECONDS);
+        $this->holdCooldown($subject);
 
         $this->deliver($phone, $code, $locale);
         // TCK-620 (ADR-0060) — hors production et drapeau allumé, le code revient aussi dans la
@@ -291,6 +312,32 @@ class PhoneVerificationService
                 'reasons' => array_values(array_map(fn (SmsResult $r) => $r->failureReason, $results)),
             ]);
         }
+    }
+
+    /**
+     * TCK-622 — le délai de renvoi porte son échéance, pour qu'une réponse puisse dire combien de
+     * secondes il reste. Une entrée posée avant (valeur `true`) vaut le délai entier.
+     */
+    private function holdCooldown(string $subject): void
+    {
+        $this->cache->put(
+            $this->cooldownKey($subject),
+            now()->addSeconds(self::RESEND_COOLDOWN_SECONDS)->getTimestamp(),
+            self::RESEND_COOLDOWN_SECONDS,
+        );
+    }
+
+    private function cooldownRemaining(string $subject): int
+    {
+        $until = $this->cache->get($this->cooldownKey($subject));
+        if ($until === null) {
+            return 0;
+        }
+        if (! is_int($until)) {
+            return self::RESEND_COOLDOWN_SECONDS;
+        }
+
+        return max(1, $until - now()->getTimestamp());
     }
 
     private function hash(string $code): string

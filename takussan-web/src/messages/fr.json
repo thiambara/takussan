@@ -94,11 +94,11 @@
     "more": "Plus",
     "propertiesCount": "{count} biens",
     "userMenuFor": "Menu utilisateur — {name}",
+    "accountFallback": "Mon compte",
     "administration": "Administration",
     "links": {
       "buy": "Acheter",
-      "rent": "Louer",
-      "sell": "Vendre"
+      "rent": "Louer"
     },
     "categories": {
       "apartment": "Appartement",
@@ -194,6 +194,7 @@
       "backToPersonal": "Retour à l'espace perso",
       "pendingBadge": "{count} en attente",
       "topbarBrand": "Takussan · Console",
+      "consoleBadge": "Console",
       "skipToContent": "Aller au contenu principal",
       "groups": {
         "overview": "Vue d'ensemble",
@@ -562,15 +563,16 @@
       "resendFailed": "Impossible de renvoyer l'email. Réessayez dans quelques instants.",
       "resend": "Renvoyer l'email de vérification",
       "sending": "Envoi en cours…",
-      "continue": "Continuer vers le tableau de bord"
+      "continue": "Continuer, je vérifierai plus tard"
     },
     "verifyEmailLink": {
       "successTitle": "Adresse email vérifiée",
-      "successBody": "Votre adresse est confirmée. Vous pouvez maintenant accéder à l'ensemble des fonctionnalités de Takussan.",
-      "successCta": "Accéder au tableau de bord",
+      "successBody": "Votre adresse est confirmée.",
+      "successCta": "Continuer",
       "failureTitle": "Vérification impossible",
-      "failureBody": "Ce lien est invalide ou a expiré. Demandez un nouvel email de vérification depuis votre espace.",
-      "failureCta": "Demander un nouveau lien"
+      "failureBody": "Ce lien a expiré ou a déjà servi. Demandez-en un nouveau.",
+      "failureCta": "Demander un nouveau lien",
+      "successCtaSignedOut": "Se connecter"
     },
     "oauthCallback": {
       "title": "Connexion en cours…",
@@ -957,7 +959,7 @@
     },
     "moderation": {
       "pendingTitle": "En attente de validation",
-      "pendingBody": "Votre bien est en cours d'examen par l'administrateur de votre agence. Il sera publié dès qu'il sera approuvé.",
+      "pendingBody": "Votre bien est en cours de vérification. Il sera en ligne dès qu’il sera approuvé.",
       "rejectedTitle": "Publication refusée",
       "resubmit": "Corriger et resoumettre",
       "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
@@ -1391,7 +1393,7 @@
           "subtitle": "Facultatif — mais une annonce avec photos est bien plus consultée."
         },
         "finition": {
-          "title": "Un titre, et c’est publié",
+          "title": "Un titre, et c’est prêt",
           "subtitle": "Nous en avons composé un d’après vos réponses. Corrigez-le librement."
         }
       },
@@ -1442,7 +1444,14 @@
         "label": "Visite virtuelle ou vidéo (lien)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "Un lien YouTube, Vimeo, Matterport ou Kuula. Aucun fichier vidéo à envoyer."
-      }
+      },
+      "outcome": {
+        "live": "Votre annonce est en ligne.",
+        "review": "Annonce envoyée en vérification : elle sera en ligne dès sa validation.",
+        "proposal": "Proposition envoyée à votre agence."
+      },
+      "publishFailed": "Le bien est enregistré en brouillon, mais n’a pas pu être publié : {message} Réessayez, ou ouvrez le brouillon.",
+      "publishFailedOpen": "Ouvrir le brouillon"
     },
     "titleTypes": {
       "bail": "Bail",
@@ -1879,7 +1888,12 @@
       "propertyNew": {
         "metaTitle": "Publier un bien",
         "title": "Publier un bien",
-        "proposalTitle": "Proposer un bien à mon agence"
+        "proposalTitle": "Proposer un bien à mon agence",
+        "quotaUsage": "{used} annonce(s) active(s) sur {limit} permises par votre offre.",
+        "quotaReachedTitle": "Limite d’annonces atteinte",
+        "quotaReachedBody": "Vous avez {used} annonces actives sur {limit}. Archivez-en une ou changez d’offre pour en publier une nouvelle.",
+        "quotaReachedUpgrade": "Voir les offres",
+        "quotaReachedManage": "Gérer mes annonces"
       },
       "privacy": {
         "metaTitle": "Confidentialité",
@@ -1921,6 +1935,7 @@
       "home": {
         "noAgency": "Tableau de bord",
         "greeting": "Bonjour {name}",
+        "greetingNoName": "Bonjour",
         "subtitle": "Vue d'ensemble de votre activité",
         "metaTitle": "Tableau de bord"
       },
@@ -2127,6 +2142,7 @@
       "unknownEntity": "Ce type d'export n'existe pas.",
       "serverError": "Le serveur a rencontré une erreur. Réessayez dans un instant.",
       "tooManyRequests": "Trop de tentatives. Réessayez dans quelques minutes.",
+      "tooManyRequestsIn": "Trop de tentatives. Réessayez dans {minutes} min.",
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
@@ -2161,6 +2177,7 @@
       },
       "welcome": {
         "title": "Bienvenue sur Takussan, {firstName}",
+        "titleNoName": "Bienvenue sur Takussan",
         "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant de plonger dans votre dashboard.",
         "cta": "Continuer"
       }
@@ -4042,6 +4059,25 @@
       "latest": {
         "eyebrow": "Nouveau",
         "title": "Tout juste publié"
+      },
+      "sale": {
+        "eyebrow": "À vendre",
+        "title": "Pour investir ou t'installer"
+      }
+    },
+    "explore": {
+      "count": "{count, plural, =1 {# annonce} other {# annonces}}",
+      "cities": {
+        "eyebrow": "Par ville",
+        "title": "Explorer le Sénégal"
+      },
+      "types": {
+        "eyebrow": "Par type de bien",
+        "title": "Ce que tu cherches"
+      },
+      "neighborhoods": {
+        "eyebrow": "Quartiers prisés",
+        "title": "Les quartiers de {city}"
       }
     }
   },
@@ -4345,14 +4381,15 @@
       "title": "Reprenez là où vous vous étiez arrêté",
       "description": "{count, plural, =1 {Vous avez 1 démarche en cours.} other {Vous avez # démarches en cours.}}",
       "labels": {
-        "host-individual-wizard": "Publication d'un bien",
+        "host-individual-wizard": "Création de votre espace hôte",
         "owner-onboarding": "Onboarding propriétaire",
         "agent-onboarding": "Onboarding agent",
         "customer-onboarding": "Onboarding locataire",
         "owner-kyc": "KYC propriétaire",
         "agent-kyc": "KYC agent",
         "sp-onboarding": "Onboarding prestataire",
-        "agency-upgrade": "Passage en pro"
+        "agency-upgrade": "Passage en pro",
+        "property-create-wizard": "Publication d’un bien"
       }
     }
   },
@@ -5135,7 +5172,17 @@
       "submitting": "Un instant…",
       "skip": "Je verrai plus tard",
       "note": "Cette réponse ne vous engage à rien : elle sert seulement à vous montrer les bons écrans en premier.",
-      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape."
+      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape.",
+      "name": {
+        "title": "Comment vous appelez-vous ?",
+        "subtitle": "Votre prénom apparaît sur vos annonces et vos messages.",
+        "firstName": "Prénom",
+        "lastName": "Nom (facultatif)",
+        "submit": "Continuer",
+        "submitting": "Un instant…",
+        "required": "Indiquez votre prénom.",
+        "error": "Nous n’avons pas pu enregistrer votre prénom. Réessayez."
+      }
     },
     "host": {
       "defaults": {
@@ -5149,8 +5196,9 @@
         "submitTitle": "Publication impossible"
       },
       "success": {
-        "title": "Espace créé",
-        "body": "Votre premier bien est en brouillon. Ajoutez les photos et publiez quand vous êtes prêt."
+        "title": "Votre espace est prêt",
+        "body": "Ajoutons maintenant votre premier bien.",
+        "bodyProfessional": "Demandez maintenant sa transformation en agence."
       },
       "steps": {
         "intent": {
@@ -5168,11 +5216,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Création d'agence professionnelle",
-            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe : nous configurons votre espace avec vous.",
-            "mailSubject": "Demande de création d'agence professionnelle",
-            "contactCta": "Contacter le support",
-            "continueIndividual": "Ou continuer en individuel et basculer plus tard"
+            "title": "En deux temps",
+            "body": "Nous créons votre espace maintenant. Vous demandez ensuite sa transformation en agence : notre équipe vérifie vos documents."
           }
         },
         "identity": {
@@ -9691,7 +9736,15 @@
   },
   "publishRedirect": {
     "title": "Préparation de votre annonce…",
-    "body": "Nous vous emmenons au bon endroit pour publier votre bien."
+    "body": "Nous vous emmenons au bon endroit pour publier votre bien.",
+    "choose": {
+      "title": "Où publier ce bien ?",
+      "body": "Choisissez l’espace qui portera l’annonce.",
+      "personal": "Mon espace personnel",
+      "unnamed": "Agence",
+      "error": "Impossible d’ouvrir cet espace. Réessayez."
+    },
+    "retry": "Réessayer"
   },
   "layout": {
     "nav": {
@@ -10498,5 +10551,25 @@
     "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à votre agence.",
     "error": "L'échéance n'a pas pu être chargée. Réessayez dans un instant.",
     "retry": "Réessayer"
+  },
+  "invitationAccept": {
+    "metaTitle": "Accepter une invitation",
+    "title": "Vous êtes invité sur Takussan",
+    "subtitleSignedIn": "Acceptez pour rejoindre l’espace qui vous invite.",
+    "subtitleSignedOut": "Créez votre compte pour rejoindre l’espace qui vous invite.",
+    "accept": "Accepter l’invitation",
+    "accepting": "Un instant…",
+    "firstName": "Prénom",
+    "lastName": "Nom (facultatif)",
+    "password": "Mot de passe",
+    "passwordHint": "8 caractères minimum, avec une lettre et un chiffre.",
+    "create": "Créer mon compte et accepter",
+    "haveAccount": "J’ai déjà un compte",
+    "signIn": "Se connecter",
+    "required": "Indiquez votre prénom et un mot de passe.",
+    "missingToken": "Ce lien d’invitation est incomplet. Rouvrez-le depuis le message reçu.",
+    "errors": {
+      "generic": "L’invitation n’a pas pu être acceptée. Réessayez."
+    }
   }
 }

@@ -41,19 +41,35 @@ class PhoneLoginService
         private readonly LoginLock $lock,
         private readonly TwoFactorService $twoFactor,
         private readonly SessionTokenIssuer $tokens,
+        private readonly PhoneSendQuota $quota,
     ) {}
 
     /**
      * Émet un code si rien ne s'y oppose. Ne dit RIEN de l'issue : verrou, délai
      * entre deux envois et compte absent produisent la même réponse en amont.
+     *
+     * TCK-622 — seule la borne par numéro ({@see PhoneSendQuota}) peut refuser (429), et elle ne
+     * dépend que des codes partis vers ce numéro. Dans le délai de renvoi, rien ne part et rien ne
+     * compte. Un numéro verrouillé compte comme un envoi, délai de renvoi compris : sinon la borne
+     * le distinguerait d'un numéro libre au quatrième appel.
      */
     public function requestCode(string $phone, ?string $locale): void
     {
+        if (! $this->codes->canSendTo(self::SCOPE, $phone)) {
+            return;
+        }
+        $this->quota->ensureAvailable($phone);
+
         if ($this->lock->isNumberLocked($phone)) {
+            $this->codes->holdCooldownFor(self::SCOPE, $phone);
+            $this->quota->hit($phone);
+
             return;
         }
 
-        $this->codes->sendCodeTo(self::SCOPE, $phone, $locale);
+        if ($this->codes->sendCodeTo(self::SCOPE, $phone, $locale)) {
+            $this->quota->hit($phone);
+        }
     }
 
     /**

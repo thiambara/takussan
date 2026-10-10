@@ -80,7 +80,7 @@ export type PropertyBodyFields = Omit<
 
 export type PropertyCreatePayload = PropertyBodyFields &
   ClesInterditesAuPremierNiveau & {
-    status: 'draft' | 'pending_review';
+    status: 'draft';
     visibility: 'private';
     address?: PropertyAddressBlock;
   };
@@ -128,16 +128,16 @@ function corpsDuBien(
  * TCK-469 — la CRÉATION omet : on n'envoie pas ce qu'on n'a pas, et il n'existe aucune valeur
  * antérieure en base à effacer. Contrat inchangé, éprouvé par les tests d'AC4 de TCK-464.
  */
-export function toCreatePayload(
-  values: PropertyFormPayload,
-  intent: 'draft' | 'submit',
-): PropertyCreatePayload {
+export function toCreatePayload(values: PropertyFormPayload): PropertyCreatePayload {
   const adresse = blocAdresse(values);
 
   return {
     ...corpsDuBien(values, 'omit'),
-    // Reconduit tel quel le comportement d'avant TCK-464 : la modération est hors périmètre.
-    status: intent === 'draft' ? 'draft' : 'pending_review',
+    // TCK-627 — TOUJOURS un brouillon privé. Publier est une seconde écriture
+    // (`PUT …/visibility` → `PropertyController::publish`), qui décide seule du statut rendu :
+    // `available` quand l'agence ne modère pas, `pending_review` quand elle modère. L'ancien
+    // `pending_review` + `private` écrit ici ne publiait jamais rien chez un hôte solo.
+    status: 'draft',
     visibility: 'private',
     ...(adresse ? { address: adresse } : {}),
   };

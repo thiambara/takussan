@@ -111,6 +111,19 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     href: '/onboarding/host',
     i18nKey: 'host-individual-wizard',
   },
+  {
+    // TCK-627 — le brouillon de l'assistant « Ajouter un bien » (`PropertyWizard`, clé
+    // `property-create-wizard`) était écrit à chaque saisie mais jamais proposé à la reprise :
+    // aucune règle ne le reconnaissait. Il revient à l'étape et aux valeurs laissées.
+    kind: 'exact',
+    key: 'property-create-wizard',
+    href: '/app/properties/new',
+    i18nKey: 'property-create-wizard',
+    estVierge: (draft) => {
+      const d = (draft.data ?? {}) as Record<string, unknown>;
+      return !['type', 'title', 'city', 'price'].some((cle) => d[cle] !== undefined && d[cle] !== null && d[cle] !== '');
+    },
+  },
   // TCK-419 — trois règles ont été RETIRÉES ici : `customer-onboarding`
   // (`/app/profile/customer/onboarding`), `owner-kyc` (`/app/profile/owner/kyc`) et `agent-kyc`
   // (`/app/profile/agent/kyc`). Aucune des trois routes n'existe sous `app/(dashboard)/app`, et

@@ -8,6 +8,7 @@ import { UserMenu } from './UserMenu';
 import { GlobalSearch } from '@/components/admin/super/GlobalSearch';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/brand/Logo';
 
 interface SuperAdminTopbarProps {
   user: User;
@@ -43,6 +44,7 @@ interface SuperAdminTopbarProps {
  */
 export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) {
   const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
 
   return (
     <header
@@ -58,11 +60,21 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
       >
         <Menu className="size-5" />
       </button>
+      {/* TCK-621 — la marque, puis le nom de l'espace. Le lien garde son nom accessible d'origine
+          (« Takussan · Console ») : le logo et la pastille se lisent ensemble, pas en deux temps.
+          Ton `encre` : la barre est sous `.dark`, où `--foreground` est déjà le lin. */}
       <Link
         href="/super-admin"
-        className="rounded-md text-lg font-bold tracking-tighter text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={t('superAdmin.topbarBrand')}
+        className="inline-flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {t('superAdmin.topbarBrand')}
+        <Logo nom={tCommon('appName')} nomVisible="des-sm" />
+        <span
+          aria-hidden="true"
+          className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-primary"
+        >
+          {t('superAdmin.consoleBadge')}
+        </span>
       </Link>
       <div className="ml-auto flex items-center gap-2">
         {/* TCK-600 — Ctrl+K depuis toute page de la console ; absente sous le niveau `support`. */}

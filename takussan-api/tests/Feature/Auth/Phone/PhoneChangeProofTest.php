@@ -84,7 +84,7 @@ class PhoneChangeProofTest extends TestCase
         $u = $this->compteSansEmail();
         $this->en($u);
 
-        $this->postJson('/api/auth/phone/change-code')->assertOk()->assertExactJson(['data' => ['sent' => true]]);
+        $this->postJson('/api/auth/phone/change-code')->assertOk()->assertExactJson(['data' => ['sent' => true, 'retry_after' => 60]]);
         $this->assertCount(1, $this->sms->sentTo(self::P));
         $this->assertSame([], $this->sms->sentTo(self::N));
 

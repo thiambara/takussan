@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Logo } from '@/components/brand/Logo';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -17,6 +18,7 @@ import {
   Briefcase,
   Lock,
   Plug,
+  UserRound,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -25,6 +27,7 @@ import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { initialesDe, libelleDe } from '@/lib/identite';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 import { propertyModerationCountQueryOptions } from '@/lib/queries/agency-queues';
@@ -270,20 +273,24 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
     items.map((item) => item.href),
     ADMIN_EXACT_ROOTS,
   );
-  const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
+  // TCK-623 — un compte sans nom : une silhouette, et ce qui désigne le compte.
+  const initials = initialesDe(user);
+  const libelle = libelleDe(user) ?? tNav('accountFallback');
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-foreground text-white', className)}>
       <div className="px-5 py-5">
-        {/* `px-1` : l'anneau posé à l'ouverture du tiroir ne rase plus les glyphes. */}
+        {/* `px-1` : l'anneau posé à l'ouverture du tiroir ne rase plus les glyphes.
+            TCK-621 — le logo, dans le tiroir seulement : à partir de `md`, la barre haute le porte
+            déjà, 60 px au-dessus (même règle qu'`AppSidebar`). */}
         <Link
           href="/"
           onClick={onNavigate}
-          className={`rounded-sm px-1 text-xl font-bold tracking-tighter text-white ${ANNEAU_FOCUS_SORTANT}`}
+          className={`inline-flex rounded-sm px-1 py-1 md:hidden ${ANNEAU_FOCUS_SORTANT}`}
         >
-          {tCommon('appName')}
+          <Logo nom={tCommon('appName')} ton="clair" />
         </Link>
-        <p className="mt-1 px-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
+        <p className="mt-1 px-1 md:mt-0 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
       </div>
       <nav aria-label={t('sectionLabel')} className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => (
@@ -310,11 +317,13 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
           className={`flex items-center gap-3 rounded-md px-3 py-2 hover:bg-white/5 ${ANNEAU_FOCUS_SORTANT}`}
         >
           <Avatar className="size-9">
-            {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-            <AvatarFallback className="bg-white/10 text-white">{initials}</AvatarFallback>
+            {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={libelle} /> : null}
+            <AvatarFallback className="bg-white/10 text-white">
+              {initials ?? <UserRound className="size-4" aria-hidden="true" />}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{user.full_name}</p>
+            <p className="truncate text-sm font-semibold text-white">{libelle}</p>
             <p className="truncate text-xs text-white/60">{tNav('myProfile')}</p>
           </div>
         </Link>

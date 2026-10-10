@@ -3,21 +3,24 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Auth\VerifyEmailLinkRequest;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class EmailVerificationController extends Controller
 {
-    public function verify(EmailVerificationRequest $request): JsonResponse
+    /** TCK-624 — le compte vient du lien signé, pas de la session (cf. `VerifyEmailLinkRequest`). */
+    public function verify(VerifyEmailLinkRequest $request): JsonResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
+        $user = $request->target();
+
+        if ($user->hasVerifiedEmail()) {
             return $this->json(['message' => __('messages.email_already_verified')]);
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            event(new Verified($request->user()));
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
         }
 
         return $this->json(['message' => __('messages.email_verified')]);

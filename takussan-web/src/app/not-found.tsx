@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { Logo } from '@/components/brand/Logo';
 
 /**
  * Le 404 du site (TCK-438).
@@ -84,9 +85,10 @@ export default function NotFound() {
         <div className="mx-auto flex h-16 max-w-[1200px] items-center px-6 md:px-12">
           <LienLocalise
             href="/"
-            className="font-display text-xl font-semibold tracking-tight text-foreground"
+            className="inline-flex rounded-md py-1"
           >
-            {tc('appName')}
+            {/* TCK-621 — la marque, comme la `Navbar` qu'on n'a pas les moyens de charger ici. */}
+            <Logo nom={tc('appName')} />
           </LienLocalise>
         </div>
       </header>

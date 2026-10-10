@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LogOut, ShieldCheck, UserCircle } from 'lucide-react';
+import { LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAdmin } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { initialesDe, libelleDe, prenomDe } from '@/lib/identite';
 
 export interface UserMenuProps {
   readonly user: User;
@@ -37,17 +38,16 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const router = useRouter();
   const { logout } = useAuth();
   const t = useTranslations('nav');
-  // Use `Array.from` so names starting with an emoji or astral character
-  // (surrogate pair) don't produce a broken half-glyph in the avatar.
-  const firstInitial = Array.from(user.first_name ?? '')[0] ?? '';
-  const lastInitial = Array.from(user.last_name ?? '')[0] ?? '';
-  const initials = `${firstInitial}${lastInitial}`.toUpperCase();
+  // TCK-623 — `initialesDe` garde le `Array.from` (un emoji en tête reste entier) et rend `null`
+  // pour un compte sans nom ni e-mail : une silhouette, plutôt qu'une pastille vide.
+  const initials = initialesDe(user);
+  const libelle = libelleDe(user) ?? t('accountFallback');
   const isDark = variant === 'dark';
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={t('userMenuFor', { name: user.full_name })}
+        aria-label={t('userMenuFor', { name: libelle })}
         className={cn(
           'relative inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors after:absolute after:inset-x-0 after:-inset-y-0.5 focus-visible:ring-2 focus-visible:ring-ring/50',
           isDark ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted',
@@ -55,21 +55,21 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
         )}
       >
         <Avatar className="size-8">
-          {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
+          {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={libelle} /> : null}
           <AvatarFallback
             className={cn(
               'text-xs',
               isDark ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary',
             )}
           >
-            {initials}
+            {initials ?? <UserRound className="size-4" aria-hidden="true" />}
           </AvatarFallback>
         </Avatar>
         {/* TCK-505 (#1) — sous `lg`, l'avatar seul : à 768 la barre haute n'a pas la place du prénom. */}
-        <span className="hidden lg:inline">{user.first_name}</span>
+        <span className="hidden lg:inline">{prenomDe(user) ?? t('accountFallback')}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>{user.full_name}</DropdownMenuLabel>
+        <DropdownMenuLabel>{libelle}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push('/app/profile')}>
           <UserCircle className="size-4" aria-hidden="true" />

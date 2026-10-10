@@ -34,18 +34,21 @@ import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 export interface FavoriteButtonProps {
   readonly propertyId: number;
   readonly className?: string;
-  readonly size?: 'sm' | 'md' | 'lg';
+  /** `xs` (28 px) : les cartes denses des rangées de l'accueil (TCK-628). */
+  readonly size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Route to `/auth/login` when logged out; default false (anonymous likes). */
   readonly requireAuth?: boolean;
 }
 
 const SIZE_CLASSES = {
+  xs: 'w-7 h-7',
   sm: 'w-8 h-8',
   md: 'w-10 h-10',
   lg: 'w-12 h-12',
 };
 
 const ICON_CLASSES = {
+  xs: 'w-3.5 h-3.5',
   sm: 'w-4 h-4',
   md: 'w-5 h-5',
   lg: 'w-6 h-6',

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition
 import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search, Loader2, MapPin } from 'lucide-react';
+import { ArrowLeft, Menu, X, ChevronUp, Building2, PlusCircle, HelpCircle, LogOut, UserCircle, UserRound, Search, Loader2, MapPin } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { SelecteurDeTransaction, type Transaction } from '@/components/search/SelecteurDeTransaction';
@@ -13,8 +13,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { navLinks, categories, moreCategories } from '@/data/navigation';
+import { ICONES_DE_CATEGORIE as iconMap } from '@/components/home/icones-de-categorie';
 import { useAuth } from '@/context/AuthContext';
-import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
@@ -28,6 +28,7 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
 import { useEntreeSentinelle } from '@/hooks/useEntreeSentinelle';
 import { cn } from '@/lib/utils';
+import { initialesDe, libelleDe, prenomDe } from '@/lib/identite';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
@@ -53,25 +54,6 @@ function lienActif(href: string, pathname: string, searchParams: URLSearchParams
   }
   return pathname === chemin || pathname.startsWith(`${chemin}/`);
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  apartment: Building2,
-  villa: Home,
-  terrain: TreePine,
-  store: Store,
-  house: Warehouse,
-  business: Briefcase,
-  studio: BedDouble,
-  room: BedDouble,
-  warehouse: Factory,
-  hotel: Hotel,
-  resort: Hotel,
-  garage: Car,
-  parking: ParkingCircle,
-  farm: Tractor,
-  factory: Factory,
-  other: HelpCircle,
-};
 
 export interface NavbarProps {
   readonly className?: string;
@@ -267,18 +249,15 @@ export function Navbar({ className }: NavbarProps) {
     else router.push(hrefLocalise('/', locale));
   }
 
-  const initials = user
-    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
-    : '';
+  // TCK-623 — un compte ouvert par téléphone n'a pas encore de nom : `''[0]` écrivait « UNDEFINED »
+  // dans la pastille. Sans initiale, une silhouette ; sans nom, ce qui désigne le compte.
+  const initials = initialesDe(user);
+  const libelleCompte = libelleDe(user) ?? t('accountFallback');
+  const contenuAvatar = initials ?? <UserRound className="size-4" aria-hidden="true" />;
 
-  // TCK-254 — `Publier` is universal: everyone sees the CTA. The
-  // `/publish` page resolves where to send the user (login, host wizard,
-  // /app/properties/new). Persist intent on click so OAuth round-trips can
-  // resume the flow even when `?redirect=/publish` is dropped by the
-  // provider.
-  const armPublishIntent = useCallback(() => {
-    setPublishIntent();
-  }, []);
+  // TCK-254 — `Publier` is universal: everyone sees the CTA, and `/publish` resolves where to send
+  // the user. TCK-625 — le drapeau `publishIntent` posé au clic n'était relu par personne : le
+  // retour d'OAuth porte déjà la destination (`intentionOAuthMemorisee`), il est retiré.
 
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
@@ -354,8 +333,11 @@ export function Navbar({ className }: NavbarProps) {
       {/* TCK-551 (N7) — `px-4` sous `sm`, la gouttière du contenu des pages sur téléphone (logo à
           x = 24 contre 16 pour le `<h1>` de `/properties`, mesuré à 360 et 390) ; `px-6` dès `sm`,
           comme avant. Les pages qui montent la barre sont en `px-4` sous `sm` elles aussi :
-          `Navbar.gouttiere.test.tsx` le garde. */}
-      <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1440px] mx-auto">
+          `Navbar.gouttiere.test.tsx` le garde.
+          TCK-628 — 1920 px au plus (1440 avant), gouttière inchangée : la barre suit le conteneur
+          de l'accueil et de la liste, qui s'élargissent pour montrer plus de cartes. Restée à
+          1440, son logo serait à 264 px du bord à 1920 quand la première carte est à 24. */}
+      <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1920px] mx-auto">
         {/* Logo */}
         <LienLocalise href="/" className="shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           <Logo nom={tCommon('appName')} nomVisible="des-sm" />
@@ -363,8 +345,10 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop.
             TCK-505 (#2) — la mise en page de bureau attend `lg` : son contenu mesure 869 px, et à
-            768 « Publier » sortait du viewport. Entre 768 et 1023 c'est la barre mobile, qui tient. */}
-        <div className="hidden lg:flex flex-col max-w-xl w-full mx-auto gap-0">
+            768 « Publier » sortait du viewport. Entre 768 et 1023 c'est la barre mobile, qui tient.
+            TCK-628 — `min-w-0` : sans lui, le minimum automatique de la colonne est la largeur de la
+            bande de catégories, qui ne défile donc jamais — à 1024, c'est « Publier » qui sortait. */}
+        <div className="hidden lg:flex flex-col max-w-xl w-full min-w-0 mx-auto gap-0">
           {/* Search Bar — `Accueil.dc.html` : épingle de lieu, champ, « Acheter | Louer » segmenté,
               loupe ronde de 40 px, dans une pilule de 52 px. */}
           <div className="flex h-[52px] items-center gap-2 bg-card border border-border rounded-full pl-1 pr-1.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] hover:shadow-md transition-shadow">
@@ -388,42 +372,47 @@ export function Navbar({ className }: NavbarProps) {
             </button>
           </div>
 
-          {/* Category strip */}
+          {/* Category strip — TCK-628 : huit types visibles, puis « Plus ». Les huit défilent dans
+              leur propre conteneur quand la colonne est trop étroite (1024 px, ou un libellé plus
+              long dans une autre langue) ; « Plus » en reste DEHORS, parce qu'un `overflow-x-auto`
+              rogne aussi en hauteur — le menu déroulant qu'il ouvre y serait coupé. */}
           <div className="flex items-center gap-0 -ml-2">
-            {categories.map((cat) => {
-              const Icon = iconMap[cat.icon] || Building2;
-              const isActive = activeCategory === cat.type;
-              const enAttente = categorieEnAttente === cat.type;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.type)}
-                  aria-pressed={isActive}
-                  aria-busy={enAttente || undefined}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${isActive
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                >
-                  {/* TCK-580 — le pictogramme cède sa place au chargement, à gabarit égal : la
-                      catégorie cliquée dit « c'est pris » sans que la bande ne bouge. */}
-                  {enAttente ? (
-                    <Loader2 data-attente="categorie" className="w-[18px] h-[18px] animate-spin" aria-hidden />
-                  ) : (
-                    <Icon className="w-[18px] h-[18px]" />
-                  )}
-                  <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
-                </button>
-              );
-            })}
+            <div className="flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((cat) => {
+                const Icon = iconMap[cat.icon] || Building2;
+                const isActive = activeCategory === cat.type;
+                const enAttente = categorieEnAttente === cat.type;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryClick(cat.type)}
+                    aria-pressed={isActive}
+                    aria-busy={enAttente || undefined}
+                    className={`flex shrink-0 flex-col items-center gap-1 px-1.5 xl:px-2.5 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${isActive
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                  >
+                    {/* TCK-580 — le pictogramme cède sa place au chargement, à gabarit égal : la
+                        catégorie cliquée dit « c'est pris » sans que la bande ne bouge. */}
+                    {enAttente ? (
+                      <Loader2 data-attente="categorie" className="w-[18px] h-[18px] animate-spin" aria-hidden />
+                    ) : (
+                      <Icon className="w-[18px] h-[18px]" />
+                    )}
+                    <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* More dropdown button */}
-            <div className="relative" ref={moreRef}>
+            <div className="relative shrink-0" ref={moreRef}>
               <button
                 type="button"
                 onClick={() => setMoreOpen((o) => !o)}
                 aria-expanded={moreOpen}
-                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${moreHasActive
+                className={`flex flex-col items-center gap-1 px-1.5 xl:px-2.5 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${moreHasActive
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
@@ -483,7 +472,6 @@ export function Navbar({ className }: NavbarProps) {
             <>
               <LienLocalise
                 href="/publish"
-                onClick={armPublishIntent}
                 className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
@@ -498,18 +486,20 @@ export function Navbar({ className }: NavbarProps) {
                 >
                   <Avatar size="default" className="bg-primary">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {initials}
+                      {contenuAvatar}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
-                    {user.first_name}
+                    {prenomDe(user) ?? t('accountFallback')}
                   </span>
                 </button>
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-52 bg-popover rounded-xl shadow-md border border-border py-1 z-50">
                     <div className="px-4 py-2.5 border-b border-border">
-                      <p className="text-sm font-semibold text-foreground truncate">{user.first_name} {user.last_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{libelleCompte}</p>
+                      {user.email && libelleCompte !== user.email ? (
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      ) : null}
                     </div>
                     <LienLocalise
                       href="/app/profile"
@@ -540,7 +530,6 @@ export function Navbar({ className }: NavbarProps) {
               </LienLocalise>
               <LienLocalise
                 href="/publish"
-                onClick={armPublishIntent}
                 className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
@@ -727,12 +716,14 @@ export function Navbar({ className }: NavbarProps) {
                       <div className="flex items-center gap-3 mb-1">
                         <Avatar size="default" className="bg-primary">
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                            {initials}
+                            {contenuAvatar}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{user.first_name} {user.last_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{libelleCompte}</p>
+                          {user.email && libelleCompte !== user.email ? (
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                          ) : null}
                         </div>
                       </div>
                       <LienLocalise
@@ -747,7 +738,7 @@ export function Navbar({ className }: NavbarProps) {
                       <LienLocalise
                         href="/publish"
                         replace
-                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        onClick={quitterParUnLien}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}
@@ -778,7 +769,7 @@ export function Navbar({ className }: NavbarProps) {
                       <LienLocalise
                         href="/publish"
                         replace
-                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        onClick={quitterParUnLien}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}

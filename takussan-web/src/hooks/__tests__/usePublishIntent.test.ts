@@ -40,7 +40,7 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
   };
 }
 
-describe('decidePublishIntent', () => {
+describe('decidePublishIntent — TCK-625', () => {
   it('returns loading status while data is unresolved', () => {
     const decision = decidePublishIntent(null, undefined, true);
     expect(decision.status).toBe('loading');
@@ -53,57 +53,68 @@ describe('decidePublishIntent', () => {
     expect(decision.target).toBe(PUBLISH_TARGETS.login);
   });
 
-  it('routes a customer with no agency profile to the host wizard stub', () => {
+  it('sans espace où publier : l’assistant hôte', () => {
     const decision = decidePublishIntent(makeUser(), [], false);
     expect(decision.status).toBe('host-needed');
     expect(decision.target).toBe(PUBLISH_TARGETS.hostWizard);
-    expect(decision.agencyIds).toEqual([]);
   });
 
-  it('routes a single-agency user straight to /app/properties/new', () => {
+  it('un prestataire n’a pas d’espace où publier', () => {
     const decision = decidePublishIntent(
-      makeUser({ roles: ['customer', 'agent'] }),
-      [makeProfile({ agency_id: 42 })],
-      false,
-    );
-    expect(decision.status).toBe('single-agency');
-    expect(decision.target).toBe(PUBLISH_TARGETS.newProperty);
-    expect(decision.resolvedAgencyId).toBe(42);
-  });
-
-  it('treats an agency_admin user with agency_id as having one agency', () => {
-    const decision = decidePublishIntent(
-      makeUser({ roles: ['agency_admin'], agency_id: 7 }),
-      [],
-      false,
-    );
-    expect(decision.status).toBe('single-agency');
-    expect(decision.resolvedAgencyId).toBe(7);
-    expect(decision.target).toBe(PUBLISH_TARGETS.newProperty);
-  });
-
-  it('routes a multi-agency user to the profile picker before publishing', () => {
-    const decision = decidePublishIntent(
-      makeUser({ roles: ['agency_admin'], agency_id: 1 }),
-      [makeProfile({ id: 'p_a', agency_id: 1 }), makeProfile({ id: 'p_b', agency_id: 2 })],
-      false,
-    );
-    expect(decision.status).toBe('multi-agency');
-    expect(decision.target).toBe(PUBLISH_TARGETS.profilePicker);
-    expect(decision.agencyIds.sort()).toEqual([1, 2]);
-    expect(decision.resolvedAgencyId).toBeNull();
-  });
-
-  // TCK-495 — le cas portait `broker` ET `service_provider` ; le courtier n'est
-  // plus un `ProfileType` (ADR-0027, ADR-0030). Ce qui est mesuré n'a pas changé : un
-  // profil qui n'autorise pas à publier ne fait pas compter son agence.
-  it('ignores service_provider profiles when scoring agencies', () => {
-    const decision = decidePublishIntent(
-      makeUser(),
-      [makeProfile({ type: 'service_provider', agency_id: 100 })],
+      makeUser({ roles: ['service_provider'] }),
+      [makeProfile({ id: 'service_provider:3', type: 'service_provider', agency_id: 9 })],
       false,
     );
     expect(decision.status).toBe('host-needed');
-    expect(decision.target).toBe(PUBLISH_TARGETS.hostWizard);
+  });
+
+  it('un seul espace, déjà actif : le formulaire, sans bascule', () => {
+    const profil = makeProfile({ id: 'agent:1', type: 'agent', agency_id: 42 });
+    const decision = decidePublishIntent(makeUser(), [profil], false, 'agent:1');
+    expect(decision.status).toBe('single-space');
+    expect(decision.target).toBe(PUBLISH_TARGETS.newProperty);
+    expect(decision.profilABasculer).toBeNull();
+  });
+
+  it('un seul espace, profil actif ailleurs : bascule d’abord', () => {
+    const decision = decidePublishIntent(
+      makeUser(),
+      [
+        makeProfile({ id: 'owner:5', type: 'owner', agency_id: 42 }),
+        makeProfile({ id: 'service_provider:3', type: 'service_provider', agency_id: 9 }),
+      ],
+      false,
+      'service_provider:3',
+    );
+    expect(decision.status).toBe('single-space');
+    expect(decision.profilABasculer).toBe('owner:5');
+  });
+
+  it('le propriétaire compte : un hôte (admin + propriétaire de son espace) a UN espace, sous son profil admin', () => {
+    const decision = decidePublishIntent(
+      makeUser(),
+      [
+        makeProfile({ id: 'owner:8', type: 'owner', agency_id: 7 }),
+        makeProfile({ id: 'agency_admin:2', type: 'agency_admin', agency_id: 7 }),
+      ],
+      false,
+    );
+    expect(decision.espaces).toHaveLength(1);
+    expect(decision.espaces[0]!.profile.id).toBe('agency_admin:2');
+    expect(decision.profilABasculer).toBe('agency_admin:2');
+  });
+
+  it('plusieurs espaces : le choix, sur place — plus de détour par un /app qui ne lit rien', () => {
+    const decision = decidePublishIntent(
+      makeUser(),
+      [
+        makeProfile({ id: 'agent:1', type: 'agent', agency_id: 1 }),
+        makeProfile({ id: 'owner:2', type: 'owner', agency_id: 2 }),
+      ],
+      false,
+    );
+    expect(decision.status).toBe('choose-space');
+    expect(decision.target).toBeNull();
+    expect(decision.espaces.map((e) => e.agencyId).sort()).toEqual([1, 2]);
   });
 });

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ResendPhoneVerificationRequest;
 use App\Http\Requests\Auth\VerifyPhoneVerificationRequest;
 use App\Models\User;
 use App\Services\Auth\AuthRefusal;
 use App\Services\Auth\PhoneChangeGuard;
+use App\Services\Auth\PhoneSendQuota;
 use App\Services\Auth\PhoneVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,7 @@ class PhoneVerificationController extends Controller
     public function __construct(
         private readonly PhoneVerificationService $service,
         private readonly PhoneChangeGuard $phoneChange,
+        private readonly PhoneSendQuota $quota,
     ) {}
 
     public function verify(VerifyPhoneVerificationRequest $request): JsonResponse
@@ -87,15 +90,12 @@ class PhoneVerificationController extends Controller
             return $this->neutralSend($user);
         }
 
-        abort_code_unless(
-            $this->service->canResend($user),
-            429,
-            'phone.resend_too_soon',
-        );
+        $this->refuseWhileCoolingDown($this->service->resendAvailableIn($user));
 
         if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
             return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
         }
+        $this->quota->ensureAvailable((string) $user->phone);
 
         // TCK-589 — le code part par SMS, et les tests le lisent par le faux routeur
         // (`debug_code` retiré). Hors production, drapeau allumé, `ExposeOtpPreview`
@@ -105,8 +105,9 @@ class PhoneVerificationController extends Controller
         if (! $this->service->sendOtp($user)) {
             return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
         }
+        $this->quota->hit((string) $user->phone);
 
-        return $this->json(['data' => ['sent' => true]]);
+        return $this->sent();
     }
 
     /**
@@ -117,16 +118,18 @@ class PhoneVerificationController extends Controller
     {
         $user = $request->user();
         abort_code_unless($user->phone_verified_at !== null && $user->phone !== null, 422, 'phone.no_verified_number');
-        abort_code_unless($this->service->canSendTo(PhoneChangeGuard::SCOPE, (string) $user->phone), 429, 'phone.resend_too_soon');
+        $this->refuseWhileCoolingDown($this->service->sendToAvailableIn(PhoneChangeGuard::SCOPE, (string) $user->phone));
 
         if (! PhoneVerificationService::countryAllowed((string) $user->phone)) {
             return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
         }
+        $this->quota->ensureAvailable((string) $user->phone);
         if (! $this->phoneChange->sendCode($user)) {
             return AuthRefusal::response(503, 'sms_capacity_reached', 'auth.phone.capacity_reached');
         }
+        $this->quota->hit((string) $user->phone);
 
-        return $this->json(['data' => ['sent' => true]]);
+        return $this->sent();
     }
 
     /**
@@ -139,9 +142,31 @@ class PhoneVerificationController extends Controller
      */
     private function neutralSend(User $user): JsonResponse
     {
-        abort_code_unless($this->service->canResend($user), 429, 'phone.resend_too_soon');
+        $this->refuseWhileCoolingDown($this->service->resendAvailableIn($user));
+        // TCK-622 — la borne par numéro compte aussi la réponse neutre : sans quoi un numéro pris
+        // ne fermerait jamais, et le quatrième appel trahirait ce que la réponse tait.
+        $this->quota->ensureAvailable((string) $user->phone);
+        $this->quota->hit((string) $user->phone);
         $this->service->holdResendCooldown($user);
 
-        return $this->json(['data' => ['sent' => true]]);
+        return $this->sent();
+    }
+
+    /** TCK-622 — un envoi réussi dit quand le suivant sera possible (compte à rebours du bouton). */
+    private function sent(): JsonResponse
+    {
+        return $this->json(['data' => ['sent' => true, 'retry_after' => $this->service->retryAfter()]]);
+    }
+
+    /**
+     * TCK-622 — 429 `phone.resend_too_soon` avec les secondes qui restent : le front l'affichait
+     * comme « Trop de tentatives », sans dire qu'il suffisait d'attendre moins d'une minute.
+     */
+    private function refuseWhileCoolingDown(int $seconds): void
+    {
+        if ($seconds > 0) {
+            throw (new ApiError(429, 'phone.resend_too_soon', ['seconds' => $seconds], ['Retry-After' => (string) $seconds]))
+                ->with(['retry_after' => $seconds]);
+        }
     }
 }

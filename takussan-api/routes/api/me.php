@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('data-exports', [DataExportController::class, 'index'])->name('me.data-exports.index');
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
+    Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
 
     // TCK-594 (ADR-0039 §6) — les destinations de paiement du titulaire. `store`, `update` et

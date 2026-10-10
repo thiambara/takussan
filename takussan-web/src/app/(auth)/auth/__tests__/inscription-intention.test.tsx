@@ -135,7 +135,7 @@ describe('la vérification de l’e-mail relaie l’intention à /onboarding/int
   it('« Continuer » porte la destination', () => {
     searchParams = new URLSearchParams({ redirect: '/properties/x?action=reserver' });
     render(withIntl(<VerifyEmailPage />));
-    expect(screen.getByRole('link', { name: 'Continuer vers le tableau de bord' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Continuer, je vérifierai plus tard' })).toHaveAttribute(
       'href',
       `/onboarding/intention?redirect=${encodeURIComponent('/properties/x?action=reserver')}`,
     );
@@ -144,7 +144,7 @@ describe('la vérification de l’e-mail relaie l’intention à /onboarding/int
   it('une destination hors du site n’est pas relayée', () => {
     searchParams = new URLSearchParams({ redirect: '//evil.example' });
     render(withIntl(<VerifyEmailPage />));
-    expect(screen.getByRole('link', { name: 'Continuer vers le tableau de bord' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Continuer, je vérifierai plus tard' })).toHaveAttribute(
       'href',
       '/onboarding/intention',
     );

@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { buttonVariants } from '@/components/ui/button';
 
 /**
@@ -49,22 +50,26 @@ import { buttonVariants } from '@/components/ui/button';
 export default async function VerificationIndisponiblePage() {
   const t = await getTranslations('errors.boundary');
 
+  // TCK-621 — servie hors de la coque de `/app` : elle porte sa propre marque.
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <AlertTriangle className="size-10 text-warning" aria-hidden />
-      <h1 className="font-display text-xl font-semibold tracking-tight text-balance text-foreground">
-        {t('agencyTitle')}
-      </h1>
-      <p className="max-w-md text-sm text-pretty text-muted-foreground">{t('agencyBody')}</p>
-      {/*
-        PAS « Réessayer » : ce lien ne réessaie rien, il ramène au tableau de bord. Or `/app` est
-        AUSSI la destination du refus — « non, votre agence n'y a pas droit » — c'est-à-dire la
-        seule réponse dont cette page existe pour se distinguer. Deux réponses opposées
-        convergeaient vers le même bouton, sous une étiquette qui promettait une troisième chose.
-      */}
-      <Link href="/app" className={buttonVariants()}>
-        {t('backToDashboard')}
-      </Link>
+    <div className="flex min-h-dvh flex-col bg-background">
+      <BarreDeMarque />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <AlertTriangle className="size-10 text-warning" aria-hidden />
+        <h1 className="font-display text-xl font-semibold tracking-tight text-balance text-foreground">
+          {t('agencyTitle')}
+        </h1>
+        <p className="max-w-md text-sm text-pretty text-muted-foreground">{t('agencyBody')}</p>
+        {/*
+          PAS « Réessayer » : ce lien ne réessaie rien, il ramène au tableau de bord. Or `/app` est
+          AUSSI la destination du refus — « non, votre agence n'y a pas droit » — c'est-à-dire la
+          seule réponse dont cette page existe pour se distinguer. Deux réponses opposées
+          convergeaient vers le même bouton, sous une étiquette qui promettait une troisième chose.
+        */}
+        <Link href="/app" className={buttonVariants()}>
+          {t('backToDashboard')}
+        </Link>
+      </div>
     </div>
   );
 }

@@ -216,6 +216,12 @@ class PropertyController extends Controller
             422,
             'property.cannot_publish'
         );
+        // TCK-627 — publier une annonce qui n'occupait pas encore le quota (un brouillon) l'y fait
+        // entrer : la borne se juge ici aussi. Elle n'était jugée qu'à la création, et un
+        // brouillon créé sous la limite se publiait au-delà.
+        if (! in_array($property->status, QuotaResolver::ACTIVE_LISTING_STATUSES, true)) {
+            app(QuotaResolver::class)->assertCanCreateActiveListing($property->agency_id);
+        }
         $property->update([
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,
