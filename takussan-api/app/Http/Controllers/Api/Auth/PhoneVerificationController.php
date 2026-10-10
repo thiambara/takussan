@@ -97,8 +97,9 @@ class PhoneVerificationController extends Controller
             return AuthRefusal::response(422, 'phone_country_not_allowed', 'auth.phone.country_not_allowed');
         }
 
-        // TCK-589 — le code n'est rendu dans AUCUN environnement (`debug_code`
-        // retiré) : il part par SMS, et les tests le lisent par le faux routeur.
+        // TCK-589 — le code part par SMS, et les tests le lisent par le faux routeur
+        // (`debug_code` retiré). Hors production, drapeau allumé, `ExposeOtpPreview`
+        // l'ajoute à la réponse (TCK-620, ADR-0060) — jamais ce contrôleur.
         // Le délai de renvoi est jugé plus haut : un `false` ici, c'est le plafond
         // journalier global (M3).
         if (! $this->service->sendOtp($user)) {

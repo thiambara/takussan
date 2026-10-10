@@ -445,6 +445,11 @@
       "failed": "Am na njuumte. Jéemaatal ci kanam tuuti.",
       "termsNotice": "Su nga wéyee, nangu nga <terms>sàrt yi</terms> ak <privacy>politig sutura gi</privacy>."
     },
+    "otpPreview": {
+      "title": "Barabu test",
+      "body": "Koddu bi ñu yónne ci SMS :",
+      "use": "Jëfandikoo koddu bii"
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Dugg — Takussan"

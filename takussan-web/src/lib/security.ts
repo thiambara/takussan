@@ -9,6 +9,7 @@
 
 import { apiRequest } from './api';
 import { cheminApi } from '@/lib/chemin-api';
+import { codeApercu } from '@/lib/otp-preview';
 
 export type TwoFactorEnableResponse = {
   secret: string;
@@ -64,10 +65,19 @@ export async function twoFactorRegenerateRecoveryCodes(
   return res.data.recovery_codes;
 }
 
+/**
+ * Un envoi de code SMS. `codeApercu` : le code, quand l'API le rend — hors production seulement
+ * (TCK-620, ADR-0060).
+ */
+export interface EnvoiCodeSms {
+  readonly sent: boolean;
+  readonly codeApercu: string | null;
+}
+
 export async function phoneSendOtp(
   token: string,
   phone?: string,
-): Promise<{ sent: boolean }> {
+): Promise<EnvoiCodeSms> {
   const res = await apiRequest<{ data: { sent: boolean } }>(
     '/api/auth/phone/send-otp',
     {
@@ -78,7 +88,7 @@ export async function phoneSendOtp(
       body: phone === undefined ? undefined : { phone },
     },
   );
-  return res.data;
+  return { ...res.data, codeApercu: codeApercu(res) };
 }
 
 /**
@@ -86,12 +96,12 @@ export async function phoneSendOtp(
  * compte n'a pas de mot de passe (ou qu'on préfère le code). Pas de corps : l'API vise le numéro
  * vérifié du compte, jamais un numéro fourni.
  */
-export async function phoneChangeCode(token: string): Promise<{ sent: boolean }> {
+export async function phoneChangeCode(token: string): Promise<EnvoiCodeSms> {
   const res = await apiRequest<{ data: { sent: boolean } }>('/api/auth/phone/change-code', {
     method: 'POST',
     token,
   });
-  return res.data;
+  return { ...res.data, codeApercu: codeApercu(res) };
 }
 
 export async function phoneVerifyOtp(token: string, code: string): Promise<void> {

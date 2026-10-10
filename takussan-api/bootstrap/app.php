@@ -6,6 +6,7 @@ use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\ExposeOtpPreview;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\JournalizeIncomingWebhook;
 use App\Http\Middleware\MaintenanceMode;
@@ -59,6 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->convertEmptyStringsToNull(except: [$brouillon, $mappingCsv]);
 
         $middleware->api(prepend: [
+            // TCK-620 (ADR-0060) — en tête : il voit la réponse finale de la requête.
+            ExposeOtpPreview::class,
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,
             MaintenanceMode::class,

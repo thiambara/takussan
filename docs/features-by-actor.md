@@ -837,12 +837,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Mot de passe oublié et réinitialisation |
 | P0 | §2.1 | Vérification de l'adresse email |
 | P0 | §2.1 | Édition de profil (nom, bio, avatar) |
-| P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) ; le code part réellement par SMS, n'est jamais rendu par l'API ni accepté sous une forme fixe, et s'invalide après 5 essais ; un numéro vérifié n'appartient qu'à un compte (TCK-589) |
+| P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) ; le code part réellement par SMS, n'est jamais accepté sous une forme fixe, et s'invalide après 5 essais ; un numéro vérifié n'appartient qu'à un compte (TCK-589) ; hors production seulement (local, préproduction), derrière un drapeau, l'API rend aussi le code et l'écran l'affiche à côté du champ — connexion, inscription, profil, onboardings, suppression de compte, signature de bail (TCK-620, ADR-0060) |
 | P1 | §2.1 | OAuth Google (Socialite) |
 | P1 | §2.1 | Authentification à deux facteurs (TOTP + codes de récupération) |
 | P1 | §2.1 | Gestion des sessions actives |
 | P1 | §2.1 | Sessions bornées : jeton à durée absolue et expiration par inactivité ; session super-admin courte (`platform.session_max_minutes`) et confirmation 2FA récente (step-up) avant une action sensible de la console (TCK-589) |
-| P1 | §2.1 | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée par environnement après un envoi réel mesuré ; décision par ADR (TCK-589) |
+| P1 | §2.1 | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) |
 | P1 | §2.1 | Verrou de compte après échecs de connexion répétés (mot de passe ou code), levé seul au bout de 15 min ou par le support ; un compte bloqué ou supprimé n'ouvre aucune session, par aucun chemin (TCK-589) |
 | P1 | §2.1 | L'inscription ouvre la session aussitôt (TCK-589) |
 | P2 | §2.1 | Suppression de compte avec anonymisation (RGPD) |

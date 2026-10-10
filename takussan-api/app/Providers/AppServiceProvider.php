@@ -89,6 +89,7 @@ use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
+use App\Services\Auth\OtpPreview;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -177,6 +178,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-597 (verif-597 passe 2 n2) — SCOPED, pour que la policy et le contrôleur partagent la
         // mémoire par requête des prédicats de l'acteur ; remise à zéro entre deux jobs de la file.
         $this->app->scoped(ReviewModerationScope::class);
+
+        // TCK-620 (ADR-0060) — SCOPED : le code SMS émis par la requête courante, que le middleware
+        // `ExposeOtpPreview` rend hors production.
+        $this->app->scoped(OtpPreview::class);
 
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
