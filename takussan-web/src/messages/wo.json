@@ -2803,14 +2803,15 @@
       "title": "Dellusi fa nga taxoon",
       "description": "{count, plural, =1 {Am nga 1 jëf-jëf bu pare.} other {Am nga # jëf-jëf yu pare.}}",
       "labels": {
-        "host-individual-wizard": "Bind ab kër",
+        "host-individual-wizard": "Sos sa barab boroom kër",
         "owner-onboarding": "Tàmbalee borom",
         "agent-onboarding": "Tàmbalee agent",
         "customer-onboarding": "Tàmbalee dëkkkat",
         "owner-kyc": "KYC borom",
         "agent-kyc": "KYC agent",
         "sp-onboarding": "Tàmbalee prestataire",
-        "agency-upgrade": "Yokk ci pro"
+        "agency-upgrade": "Yokk ci pro",
+        "property-create-wizard": "Teg benn kër"
       }
     }
   },
@@ -5190,7 +5191,7 @@
     },
     "moderation": {
       "pendingTitle": "Muy xaar nangu",
-      "pendingBody": "Sa kër dañu koy seet ci njiitu sa ajaas. Dinañu ko génne bu ñu ko nanguwee.",
+      "pendingBody": "Ñu ngi seetlu sa kër. Dina feeñ bu ñu ko nangoo.",
       "rejectedTitle": "Bañ nañu génne ko",
       "resubmit": "Defar te yónneeaat",
       "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
@@ -5651,7 +5652,7 @@
           "subtitle": "Doyul waar — waaye anons bu am nataal, ñu ngi koy gën a xool."
         },
         "finition": {
-          "title": "Benn bopp, te teg na",
+          "title": "Benn bopp, te noppi nga",
           "subtitle": "Jubbanti nanu benn ci sa tontu yi. Man nga koo soppi."
         }
       },
@@ -5702,7 +5703,14 @@
         "label": "Seetlu ci internet walla widewoo (lëkkalekaay)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "Lëkkalekaay YouTube, Vimeo, Matterport walla Kuula. Amul fichier widewoo boo wara yónnee."
-      }
+      },
+      "outcome": {
+        "live": "Sa anons mi ngi ci internet.",
+        "review": "Anons bi yónnee nañu ko ngir seetlu : dina feeñ su ñu ko nangoo.",
+        "proposal": "Yónnee nañu sa proposition ci sa ajaans."
+      },
+      "publishFailed": "Kër gi denc nañu ko ni brouillon, waaye mënunu ko woon a teg : {message} Jéemaat, walla ubbi brouillon bi.",
+      "publishFailedOpen": "Ubbi brouillon bi"
     },
     "titleTypes": {
       "bail": "Contrat",
@@ -8769,7 +8777,12 @@
       "propertyNew": {
         "metaTitle": "Génne benn kër",
         "title": "Génne benn kër",
-        "proposalTitle": "Digle sa ajaans benn kër"
+        "proposalTitle": "Digle sa ajaans benn kër",
+        "quotaUsage": "{used} anons yu dox ci {limit} yi sa abonnement may.",
+        "quotaReachedTitle": "Àgg nga ci li ñu la may ci anons",
+        "quotaReachedBody": "Am nga {used} anons yu dox ci {limit}. Archivéel benn walla soppi sa abonnement ngir teg bu bees.",
+        "quotaReachedUpgrade": "Xool abonnement yi",
+        "quotaReachedManage": "Saytu samay anons"
       },
       "privacy": {
         "metaTitle": "Sutura",

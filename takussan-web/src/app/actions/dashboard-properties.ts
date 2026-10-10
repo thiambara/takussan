@@ -9,6 +9,7 @@ import {
   deleteProperty,
   deletePropertyMedia,
   duplicateProperty,
+  fetchListingQuota,
   fetchPropertyMedia,
   reorderPropertyMedia,
   setPropertyTags,
@@ -16,6 +17,7 @@ import {
   updatePropertyStatus,
   updatePropertyVisibility,
   uploadPropertyPhotos,
+  type ListingQuota,
   type PropertyMediaItem,
 } from '@/lib/queries/properties-server';
 import type {
@@ -154,6 +156,21 @@ export async function updatePropertyStatusAction(
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/**
+ * TCK-627 — le quota d'annonces, lu AVANT l'assistant : une limite atteinte se dit à l'entrée,
+ * pas par un 422 après six étapes. Un échec de lecture rend `null` — l'assistant s'ouvre, et
+ * la publication contrôlera de toute façon (`PropertyController::publish`).
+ */
+export async function fetchListingQuotaAction(): Promise<ListingQuota | null> {
+  const auth = await requireToken();
+  if (!auth.ok) return null;
+  try {
+    return await fetchListingQuota(auth.token);
+  } catch {
+    return null;
   }
 }
 

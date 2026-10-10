@@ -114,6 +114,62 @@ class BillingPlansTest extends TestCase
             ->assertJsonPath('code', 'quota.listings_exceeded');
     }
 
+    /** TCK-627 — la borne se juge aussi à la publication : un brouillon ne la contourne plus. */
+    public function test_publier_un_brouillon_au_dela_du_quota_rend_422(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $this->abonnement($agency, 1);
+        Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
+        $brouillon = Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Draft]);
+
+        $this->postJson("/api/properties/{$brouillon->id}/publish")
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'quota.listings_exceeded');
+        $this->assertSame(PropertyStatus::Draft, $brouillon->fresh()->status);
+    }
+
+    /** TCK-627 — republier une annonce déjà comptée ne la compte pas deux fois. */
+    public function test_republier_une_annonce_deja_comptee_passe_a_la_limite(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $this->abonnement($agency, 1);
+        $enLigne = Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
+
+        $this->postJson("/api/properties/{$enLigne->id}/publish")->assertOk();
+    }
+
+    /** TCK-627 — `GET /api/me/quota` dit la limite et l'usage AVANT l'assistant. */
+    public function test_me_quota_rend_limite_usage_et_possibilite(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->actingAsRole('agency_admin', ['agency' => $agency]);
+
+        $this->getJson('/api/me/quota')
+            ->assertOk()
+            ->assertExactJson(['data' => ['limit' => null, 'used' => 0, 'can_create' => true]]);
+
+        $this->abonnement($agency, 2);
+        Property::factory()->count(2)->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
+        Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Draft]);
+
+        $this->getJson('/api/me/quota')
+            ->assertOk()
+            ->assertExactJson(['data' => ['limit' => 2, 'used' => 2, 'can_create' => false]]);
+    }
+
+    private function abonnement(Agency $agency, int $limite): void
+    {
+        AgencySubscription::query()->create([
+            'agency_id' => $agency->id,
+            'plan_id' => $this->plan('free', ['limits' => ['max_active_listings' => $limite]])->id,
+            'status' => AgencySubscriptionStatus::Active,
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
+    }
+
     public function test_expired_trial_transitions_to_active(): void
     {
         $agency = Agency::factory()->create();

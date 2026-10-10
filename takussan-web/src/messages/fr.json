@@ -959,7 +959,7 @@
     },
     "moderation": {
       "pendingTitle": "En attente de validation",
-      "pendingBody": "Votre bien est en cours d'examen par l'administrateur de votre agence. Il sera publié dès qu'il sera approuvé.",
+      "pendingBody": "Votre bien est en cours de vérification. Il sera en ligne dès qu’il sera approuvé.",
       "rejectedTitle": "Publication refusée",
       "resubmit": "Corriger et resoumettre",
       "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
@@ -1393,7 +1393,7 @@
           "subtitle": "Facultatif — mais une annonce avec photos est bien plus consultée."
         },
         "finition": {
-          "title": "Un titre, et c’est publié",
+          "title": "Un titre, et c’est prêt",
           "subtitle": "Nous en avons composé un d’après vos réponses. Corrigez-le librement."
         }
       },
@@ -1444,7 +1444,14 @@
         "label": "Visite virtuelle ou vidéo (lien)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "Un lien YouTube, Vimeo, Matterport ou Kuula. Aucun fichier vidéo à envoyer."
-      }
+      },
+      "outcome": {
+        "live": "Votre annonce est en ligne.",
+        "review": "Annonce envoyée en vérification : elle sera en ligne dès sa validation.",
+        "proposal": "Proposition envoyée à votre agence."
+      },
+      "publishFailed": "Le bien est enregistré en brouillon, mais n’a pas pu être publié : {message} Réessayez, ou ouvrez le brouillon.",
+      "publishFailedOpen": "Ouvrir le brouillon"
     },
     "titleTypes": {
       "bail": "Bail",
@@ -1881,7 +1888,12 @@
       "propertyNew": {
         "metaTitle": "Publier un bien",
         "title": "Publier un bien",
-        "proposalTitle": "Proposer un bien à mon agence"
+        "proposalTitle": "Proposer un bien à mon agence",
+        "quotaUsage": "{used} annonce(s) active(s) sur {limit} permises par votre offre.",
+        "quotaReachedTitle": "Limite d’annonces atteinte",
+        "quotaReachedBody": "Vous avez {used} annonces actives sur {limit}. Archivez-en une ou changez d’offre pour en publier une nouvelle.",
+        "quotaReachedUpgrade": "Voir les offres",
+        "quotaReachedManage": "Gérer mes annonces"
       },
       "privacy": {
         "metaTitle": "Confidentialité",
@@ -4350,14 +4362,15 @@
       "title": "Reprenez là où vous vous étiez arrêté",
       "description": "{count, plural, =1 {Vous avez 1 démarche en cours.} other {Vous avez # démarches en cours.}}",
       "labels": {
-        "host-individual-wizard": "Publication d'un bien",
+        "host-individual-wizard": "Création de votre espace hôte",
         "owner-onboarding": "Onboarding propriétaire",
         "agent-onboarding": "Onboarding agent",
         "customer-onboarding": "Onboarding locataire",
         "owner-kyc": "KYC propriétaire",
         "agent-kyc": "KYC agent",
         "sp-onboarding": "Onboarding prestataire",
-        "agency-upgrade": "Passage en pro"
+        "agency-upgrade": "Passage en pro",
+        "property-create-wizard": "Publication d’un bien"
       }
     }
   },

@@ -74,12 +74,17 @@ function reduite(f: File): File {
 vi.mock('@/app/actions/dashboard-properties', () => ({
   createPropertyAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
+  updatePropertyVisibilityAction: vi.fn(),
   uploadPropertyPhotosAction: vi.fn(),
 }));
+
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', () => ({ useToast: () => toast }));
 
 import {
   createPropertyAction,
   setPropertyTagsAction,
+  updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 
@@ -124,6 +129,10 @@ beforeEach(() => {
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
   vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true } as never);
+  vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+    ok: true,
+    data: { id: 42, status: 'available' },
+  } as never);
 });
 
 describe('PropertyWizard — composition des étapes', () => {
@@ -593,7 +602,7 @@ describe('PropertyWizard — la soumission', () => {
     expect((envoi.getAll('photos') as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
   });
 
-  it('envoie l’adresse IMBRIQUÉE et une intention de publication, puis ouvre le bien', async () => {
+  it('envoie l’adresse IMBRIQUÉE dans un brouillon (publié ensuite, TCK-627), puis ouvre le bien', async () => {
     const user = userEvent.setup();
     monter();
     await allerJusquAuBout(user);
@@ -602,7 +611,7 @@ describe('PropertyWizard — la soumission', () => {
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
     expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
-      status: 'pending_review',
+      status: 'draft',
       visibility: 'private',
       address: { city: 'Dakar' },
     });
@@ -742,6 +751,79 @@ describe('PropertyWizard — la soumission', () => {
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
     expect(brouillon.etat.clear).toHaveBeenCalledTimes(1);
     expect(createPropertyAction).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * TCK-627 — « Publier l'annonce » PUBLIE. Le bien naît brouillon, puis `PUT …/visibility` le
+ * publie ; le message de fin dit le statut que l'API a rendu, pas celui qu'on espérait.
+ */
+describe('PropertyWizard — la publication (TCK-627)', () => {
+  const COMPLET = {
+    title: 'Villa à Mbour', type: 'villa', contract_type: 'sale', price: 25000000,
+    currency: 'XOF', city: 'Mbour', furnished: false, tag_ids: [],
+  };
+
+  async function publier(proposition = false) {
+    brouillon.etat.draft = { step: 5, data: COMPLET };
+    const user = userEvent.setup();
+    render(withIntl(<PropertyWizard proposition={proposition} />));
+    await screen.findByText('Étape 6 sur 6');
+    await user.click(
+      screen.getByRole('button', { name: proposition ? 'Proposer à mon agence' : /publier/i }),
+    );
+    return user;
+  }
+
+  it('crée un brouillon, PUIS le publie, et annonce « en ligne »', async () => {
+    await publier();
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ status: 'draft' });
+    expect(updatePropertyVisibilityAction).toHaveBeenCalledWith(42, 'public');
+    expect(toast.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Votre annonce est en ligne.' }),
+    );
+  });
+
+  it('une agence qui modère : le message dit « en vérification »', async () => {
+    vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+      ok: true,
+      data: { id: 42, status: 'pending_review' },
+    } as never);
+    await publier();
+
+    await waitFor(() => expect(toast.add).toHaveBeenCalled());
+    expect(vi.mocked(toast.add).mock.calls[0][0].title).toMatch(/vérification/);
+  });
+
+  it('un refus (quota) garde le brouillon, le dit, et réessaie SANS recréer le bien', async () => {
+    vi.mocked(updatePropertyVisibilityAction).mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      message: 'Limite d’annonces atteinte.',
+    } as never);
+    const user = await publier();
+
+    const alerte = await screen.findByRole('alert');
+    expect(alerte).toHaveTextContent(/brouillon/);
+    expect(alerte).toHaveTextContent('Limite d’annonces atteinte.');
+    expect(routeur.push).not.toHaveBeenCalled();
+    expect(toast.add).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Ouvrir le brouillon' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(createPropertyAction).toHaveBeenCalledTimes(1);
+    expect(updatePropertyVisibilityAction).toHaveBeenCalledTimes(2);
+  });
+
+  it('la proposition du bailleur ne publie pas : « proposition envoyée »', async () => {
+    await publier(true);
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(updatePropertyVisibilityAction).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.add).mock.calls[0][0].title).toBe('Proposition envoyée à votre agence.');
   });
 });
 

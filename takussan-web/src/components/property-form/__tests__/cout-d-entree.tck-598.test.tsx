@@ -64,7 +64,7 @@ describe('schéma — bornes de l’API', () => {
 describe('corps de requête', () => {
   it('création, location mensuelle : les quatre champs partent', () => {
     const v = propertyFormSchema.parse({ ...BASE, contract_type: 'rent', rent_period: 'monthly', ...COUT });
-    expect(toCreatePayload(v, 'draft')).toMatchObject(COUT);
+    expect(toCreatePayload(v)).toMatchObject(COUT);
   });
 
   it.each([
@@ -72,7 +72,7 @@ describe('corps de requête', () => {
     ['location à la semaine', { contract_type: 'rent', rent_period: 'weekly' }],
   ])('création, %s : aucun des quatre ne part (sinon 422)', (_cas, contrat) => {
     const v = propertyFormSchema.parse({ ...BASE, ...contrat, ...COUT });
-    const corps = toCreatePayload(v, 'draft');
+    const corps = toCreatePayload(v);
     for (const cle of Object.keys(COUT)) expect(corps).not.toHaveProperty(cle);
   });
 
