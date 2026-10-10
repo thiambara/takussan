@@ -519,6 +519,11 @@
       "failed": "Something went wrong. Please try again in a moment.",
       "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
     },
+    "otpPreview": {
+      "title": "Test environment",
+      "body": "Code sent by SMS:",
+      "use": "Use this code"
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Sign in — Takussan"

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -53,6 +54,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
   const [secondFacteur, setSecondFacteur] = useState('');
   const [codeDeSecours, setCodeDeSecours] = useState(false);
   const [attente, setAttente] = useState(0);
+  const [apercu, setApercu] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -87,8 +89,9 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
     setEnvoi(true);
     setErreur(null);
     try {
-      const secondes = await demanderCodeTelephone(telephone, locale);
-      setAttente(secondes);
+      const demande = await demanderCodeTelephone(telephone, locale);
+      setAttente(demande.attente);
+      setApercu(demande.codeApercu);
       setCode('');
       setEtape('code');
     } catch (err) {
@@ -234,6 +237,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               autoFocus
             />
           </div>
+          <CodeDePreproduction code={apercu} onUtiliser={setCode} />
           <Button
             type="submit"
             disabled={envoi || code.length !== 6}

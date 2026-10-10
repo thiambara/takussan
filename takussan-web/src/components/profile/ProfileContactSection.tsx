@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Button } from '@/components/ui/button';
 import { updateProfileAction } from '@/app/actions/auth';
 import {
@@ -52,6 +53,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   // OTP inline flow
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [otpApercu, setOtpApercu] = useState<string | null>(null);
   const [otpFeedback, setOtpFeedback] = useState<Feedback | null>(null);
   const [otpPending, startOtpTransition] = useTransition();
 
@@ -59,6 +61,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const [proofPassword, setProofPassword] = useState('');
   const [proofCode, setProofCode] = useState('');
   const [proofCodeSent, setProofCodeSent] = useState(false);
+  const [proofApercu, setProofApercu] = useState<string | null>(null);
   const [proofFeedback, setProofFeedback] = useState<Feedback | null>(null);
   const [proofPending, startProofTransition] = useTransition();
 
@@ -119,6 +122,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         return;
       }
       setProofCodeSent(true);
+      setProofApercu(result.data?.codeApercu ?? null);
       setProofFeedback({ ok: true, message: t('changeProofCodeSent') });
     });
   }
@@ -132,9 +136,10 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         return;
       }
       setOtpSent(true);
+      setOtpApercu(result.data?.codeApercu ?? null);
       setOtpFeedback({
         ok: true,
-        // TCK-589 — le code part par SMS ; l'API ne le rend plus.
+        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
         message: t('otpSent'),
       });
     });
@@ -276,6 +281,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 />
               ) : null}
             </div>
+            <CodeDePreproduction code={proofCodeSent ? proofApercu : null} onUtiliser={setProofCode} />
             {proofFeedback ? (
               <p
                 role={proofFeedback.ok ? 'status' : 'alert'}
@@ -344,6 +350,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 </div>
               ) : null}
             </div>
+            <CodeDePreproduction code={otpSent ? otpApercu : null} onUtiliser={setOtpCode} />
             {otpFeedback ? (
               <p
                 role={otpFeedback.ok ? 'status' : 'alert'}

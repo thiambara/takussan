@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 import type { AuthResponse } from './auth';
 import type { Locale } from '@/i18n/config';
+import { codeApercu } from './otp-preview';
 
 /**
  * TCK-589 — connexion (et inscription) par numéro de téléphone vérifié, ADR-0033.
@@ -20,15 +21,25 @@ export async function connexionParTelephoneActive(): Promise<boolean> {
   }
 }
 
-/** `POST /api/auth/phone/request-code` → secondes avant un nouvel envoi. */
-export async function demanderCodeTelephone(phone: string, locale?: Locale): Promise<number> {
+export interface DemandeCodeTelephone {
+  /** Secondes avant un nouvel envoi. */
+  readonly attente: number;
+  /** TCK-620 (ADR-0060) — le code, quand l'API le rend (hors production seulement). */
+  readonly codeApercu: string | null;
+}
+
+/** `POST /api/auth/phone/request-code`. */
+export async function demanderCodeTelephone(phone: string, locale?: Locale): Promise<DemandeCodeTelephone> {
   const res = await apiRequest<{ data?: { retry_after?: unknown } }>('/api/auth/phone/request-code', {
     method: 'POST',
     body: { phone },
     locale,
   });
   const attente = res?.data?.retry_after;
-  return typeof attente === 'number' && Number.isFinite(attente) && attente > 0 ? Math.ceil(attente) : 60;
+  return {
+    attente: typeof attente === 'number' && Number.isFinite(attente) && attente > 0 ? Math.ceil(attente) : 60,
+    codeApercu: codeApercu(res),
+  };
 }
 
 export interface VerificationTelephonePayload {

@@ -19,6 +19,7 @@ import {
   sendAccountDeletionStepUpCodeAction,
 } from '@/app/actions/account-deletion';
 import type { AccountDeletionObligation, AccountDeletionRequest } from '@/lib/account-deletion';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 
 /**
  * TCK-080 / TCK-272 — two-step modal:
@@ -73,6 +74,7 @@ export function AccountDeletionDialog({
   const [reasonText, setReasonText] = useState('');
   const [password, setPassword] = useState('');
   const [stepUpCode, setStepUpCode] = useState('');
+  const [codeApercu, setCodeApercu] = useState<string | null>(null);
   const [codeSent, setCodeSent] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -88,6 +90,7 @@ export function AccountDeletionDialog({
     setPassword('');
     setStepUpCode('');
     setCodeSent(false);
+    setCodeApercu(null);
     setSendingCode(false);
     setTwoFactorCode('');
     setError(null);
@@ -104,6 +107,7 @@ export function AccountDeletionDialog({
       return;
     }
     setCodeSent(true);
+    setCodeApercu(result.data?.codeApercu ?? null);
   }
 
   function handleClose() {
@@ -230,6 +234,7 @@ export function AccountDeletionDialog({
                   value={stepUpCode}
                   onChange={(e) => setStepUpCode(e.target.value.replace(/\D/g, ''))}
                 />
+                <CodeDePreproduction code={codeSent ? codeApercu : null} onUtiliser={setStepUpCode} />
               </div>
             )}
             {twoFactorEnabled ? (

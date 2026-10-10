@@ -88,7 +88,7 @@ describe('drapeau allumé (AC2b)', () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams({ redirect: '/properties/x' });
     actif.mockResolvedValue(true);
-    demander.mockResolvedValue(60);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
     const compte = { id: 3 };
     verifier.mockResolvedValue({ token: 'jeton', expires_at: '2026-11-06T12:00:00Z', user: compte, is_new_account: false });
     await monter(<LoginPage />);
@@ -100,6 +100,8 @@ describe('drapeau allumé (AC2b)', () => {
     // Aucune fuite : le texte est le même que le numéro porte un compte ou non.
     expect(await screen.findByText(/Si ce numéro peut recevoir des SMS/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Renvoyer le code dans 60 s' })).toBeDisabled();
+    // TCK-620 — sans `otp_preview` (la production), aucun code n'est affiché.
+    expect(screen.queryByTestId('code-de-preproduction')).not.toBeInTheDocument();
 
     const code = screen.getByLabelText('Code reçu par SMS');
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
@@ -112,11 +114,31 @@ describe('drapeau allumé (AC2b)', () => {
     expect(openSessionMock).toHaveBeenCalledWith('jeton', compte, '2026-11-06T12:00:00Z');
   });
 
+  it('TCK-620 — hors production, le code rendu par l’API s’affiche et remplit le champ', async () => {
+    const user = userEvent.setup();
+    actif.mockResolvedValue(true);
+    demander.mockResolvedValue({ attente: 60, codeApercu: '482913' });
+    verifier.mockResolvedValue({ token: 'jeton', user: { id: 7 }, is_new_account: false });
+    await monter(<LoginPage />);
+
+    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+
+    const apercu = await screen.findByTestId('code-de-preproduction');
+    expect(apercu).toHaveTextContent('Environnement de test');
+    expect(apercu).toHaveTextContent('482913');
+    await user.click(screen.getByRole('button', { name: 'Utiliser ce code' }));
+    expect(screen.getByLabelText('Code reçu par SMS')).toHaveValue('482913');
+
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await waitFor(() => expect(verifier).toHaveBeenCalledWith({ phone: '+221771234567', code: '482913' }, 'fr'));
+  });
+
   it('compte créé par ce code : la question d’orientation, l’intention relayée', async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams({ redirect: '/properties/x' });
     actif.mockResolvedValue(true);
-    demander.mockResolvedValue(60);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
     verifier.mockResolvedValue({ token: 'jeton', user: { id: 4 }, is_new_account: true });
     await monter(<RegisterPage />);
 
@@ -134,7 +156,7 @@ describe('drapeau allumé (AC2b)', () => {
   it('second facteur : le code de l’application est demandé, puis renvoyé avec le code SMS', async () => {
     const user = userEvent.setup();
     actif.mockResolvedValue(true);
-    demander.mockResolvedValue(60);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
     verifier
       .mockResolvedValueOnce({ requires_2fa: true })
       .mockResolvedValueOnce({ token: 'jeton', user: { id: 5 } });
@@ -162,7 +184,7 @@ describe('drapeau allumé (AC2b)', () => {
   ])('refus %#: un message qui dit quoi faire, aucune session', async (refus, attendu) => {
     const user = userEvent.setup();
     actif.mockResolvedValue(true);
-    demander.mockResolvedValue(60);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
     verifier.mockRejectedValue(refus);
     await monter(<LoginPage />);
 
