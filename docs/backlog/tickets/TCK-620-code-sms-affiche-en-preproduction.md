@@ -56,7 +56,7 @@ production.
   de compte, signature de bail. Rien ne s'affiche sans `otp_preview`.
 - [x] `.env.docker` : `PHONE_LOGIN_ENABLED=true`, `OTP_PREVIEW_ENABLED=true` ; `.env.example` : la
   clé vide ; `phpunit.xml` : `false`.
-- [ ] Préproduction (mesuré après la fusion et la promotion) : les deux clés posées dans Dokploy, l'image déployée, et le parcours mesuré sur
+- [x] Préproduction (mesuré après la fusion et la promotion) : les deux clés posées dans Dokploy, l'image déployée, et le parcours mesuré sur
   `https://preview.api.takussan.com` (`request-code` rend `otp_preview`, `verify-code` ouvre la
   session).
 
@@ -75,3 +75,19 @@ production.
   `otp_preview`), `lib/__tests__/otp-preview.test.ts`.
 - `phpunit.xml` force désormais `PHONE_LOGIN_ENABLED=false` : `.env.docker` l'allume, et deux
   tests (`PhoneLoginFlagTest`, `SmsOtpRelayTest`) en héritaient.
+
+## Mesure en préproduction — 2026-10-10
+
+- Dokploy, `takussan-api-preview` : `PHONE_LOGIN_ENABLED=true`, `OTP_PREVIEW_ENABLED=true` (80 → 82
+  clés, les 80 autres inchangées, relu par `compose.one`).
+- Promotion #355 (`ae23483c`), « Images et déploiement » vert : `https://preview.api.takussan.com/up`
+  et `https://preview.takussan.com/auth/login` rendent tous deux `X-Build-Sha: ae23483c…`.
+- `GET /api/auth/oauth/providers` → `phone_login: true`.
+- `POST /api/auth/phone/request-code` (`+221770000620`) → `202`, clés `data`, `message`,
+  `otp_preview` (6 chiffres) ; `POST /api/auth/phone/verify-code` avec ce code → `200`, jeton émis,
+  `is_new_account: true`, pas d'`otp_preview` ; session fermée (`logout` → `200`).
+- Le bundle de `/auth/login` porte `code-de-preproduction` (1 chunk sur 35).
+- ⚠ La promotion a d'abord rougi sur `Front / Web` : 5486 tests verts, mais une erreur non gérée
+  (minuteur de toast `@base-ui` déclenché après la destruction de jsdom, dans
+  `WizardReprenable.test.tsx`, `document is not defined`). Le fichier n'est pas touché par ce ticket,
+  et la relance du job est verte. Intermittent préexistant, non corrigé ici.
