@@ -5164,8 +5164,9 @@
         "submitTitle": "Publication failed"
       },
       "success": {
-        "title": "Space created",
-        "body": "Your first property is in draft. Add photos and publish whenever you're ready."
+        "title": "Your space is ready",
+        "body": "Now let us add your first property.",
+        "bodyProfessional": "Now request its upgrade to an agency."
       },
       "steps": {
         "intent": {
@@ -5183,11 +5184,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Professional agency creation",
-            "body": "To create an agency with multiple collaborators, contact our team: we set up your space with you.",
-            "mailSubject": "Professional agency creation request",
-            "contactCta": "Contact support",
-            "continueIndividual": "Or continue as individual and upgrade later"
+            "title": "In two steps",
+            "body": "We create your space now. You then request its upgrade to an agency: our team checks your documents."
           }
         },
         "identity": {

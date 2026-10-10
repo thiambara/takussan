@@ -3617,8 +3617,9 @@
         "submitTitle": "Du man a publikoŋ"
       },
       "success": {
-        "title": "Espas yi tax",
-        "body": "Sa biir bu njëkk dafa nekk brouillon. Yokk fototu yi te publi bu nga jëfandikoo."
+        "title": "Sa bérëb pare na",
+        "body": "Léegi nanu yokk sa kër bu njëkk.",
+        "bodyProfessional": "Léegi ñaanal ñu soppi ko ajaans."
       },
       "steps": {
         "intent": {
@@ -3636,11 +3637,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Sos ajaans professionnelle",
-            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip : danuy défar sa espas bi ak yow.",
-            "mailSubject": "Demande sos ajaans professionnelle",
-            "contactCta": "Takkal ak support",
-            "continueIndividual": "Walla continuer ni particulier te upgrader sutura"
+            "title": "Ci ñaari jéego",
+            "body": "Danuy sos sa bérëb léegi. Ginaaw ga nga ñaan ñu soppi ko ajaans: sunu ekip dina seetlu say kayit."
           }
         },
         "identity": {

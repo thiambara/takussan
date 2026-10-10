@@ -5164,8 +5164,9 @@
         "submitTitle": "Publication impossible"
       },
       "success": {
-        "title": "Espace créé",
-        "body": "Votre premier bien est en brouillon. Ajoutez les photos et publiez quand vous êtes prêt."
+        "title": "Votre espace est prêt",
+        "body": "Ajoutons maintenant votre premier bien.",
+        "bodyProfessional": "Demandez maintenant sa transformation en agence."
       },
       "steps": {
         "intent": {
@@ -5183,11 +5184,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Création d'agence professionnelle",
-            "body": "Pour créer une agence avec plusieurs collaborateurs, contactez notre équipe : nous configurons votre espace avec vous.",
-            "mailSubject": "Demande de création d'agence professionnelle",
-            "contactCta": "Contacter le support",
-            "continueIndividual": "Ou continuer en individuel et basculer plus tard"
+            "title": "En deux temps",
+            "body": "Nous créons votre espace maintenant. Vous demandez ensuite sa transformation en agence : notre équipe vérifie vos documents."
           }
         },
         "identity": {

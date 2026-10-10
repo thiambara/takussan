@@ -48,7 +48,8 @@ function utilisateur(roles: UserRole[]): User {
  */
 const ATTENDU: Record<string, string[]> = {
   customer: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
+    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
@@ -59,7 +60,8 @@ const ATTENDU: Record<string, string[]> = {
   // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
   // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
   tenant: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
+    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
