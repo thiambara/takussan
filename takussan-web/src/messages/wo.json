@@ -10519,5 +10519,25 @@
     "notFoundDescription": "Seetal adres bi nga jot, walla laajal sa agence lien bu bees.",
     "error": "Luwaas bi mënul feeñ. Jéemaatal ci kanam.",
     "retry": "Jéemaat"
+  },
+  "invitationAccept": {
+    "metaTitle": "Nangu ab woo",
+    "title": "Woo nañu la ci Takussan",
+    "subtitleSignedIn": "Nangul ngir boole ak bérëb bi la woo.",
+    "subtitleSignedOut": "Sosal sa kont ngir boole ak bérëb bi la woo.",
+    "accept": "Nangu woo bi",
+    "accepting": "Xaaral tuuti…",
+    "firstName": "Tur",
+    "lastName": "Sant (du war)",
+    "password": "Baatu jàll",
+    "passwordHint": "8 araf lu néew, ak benn araf ak benn limu.",
+    "create": "Sos sama kont te nangu",
+    "haveAccount": "Am naa kont ba pare",
+    "signIn": "Dugg",
+    "required": "Bindal sa tur ak benn baatu jàll.",
+    "missingToken": "Lëkkalekaay bii matul. Ubbiwaatal ko ci bataaxal bi nga jot.",
+    "errors": {
+      "generic": "Mënunu nangu woo bi. Jéemaatal."
+    }
   }
 }

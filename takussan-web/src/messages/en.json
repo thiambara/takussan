@@ -10519,5 +10519,25 @@
     "notFoundDescription": "Check the address you received, or ask your agency for a new link.",
     "error": "The instalment could not be loaded. Please try again in a moment.",
     "retry": "Try again"
+  },
+  "invitationAccept": {
+    "metaTitle": "Accept an invitation",
+    "title": "You are invited to Takussan",
+    "subtitleSignedIn": "Accept to join the space that invited you.",
+    "subtitleSignedOut": "Create your account to join the space that invited you.",
+    "accept": "Accept the invitation",
+    "accepting": "One moment…",
+    "firstName": "First name",
+    "lastName": "Last name (optional)",
+    "password": "Password",
+    "passwordHint": "At least 8 characters, with a letter and a digit.",
+    "create": "Create my account and accept",
+    "haveAccount": "I already have an account",
+    "signIn": "Sign in",
+    "required": "Enter your first name and a password.",
+    "missingToken": "This invitation link is incomplete. Open it again from the message you received.",
+    "errors": {
+      "generic": "The invitation could not be accepted. Try again."
+    }
   }
 }

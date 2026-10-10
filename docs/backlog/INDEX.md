@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**554 tickets** — 33 ouverts, 519 livrés.
+**555 tickets** — 34 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 6 |
+| 🚧 Doing | 7 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 519 |
@@ -68,6 +68,7 @@
 - [TCK-623](tickets/TCK-623-compte-sans-nom-affiche-undefined.md) — « UNDEFINED » dans la navbar : un compte ouvert par téléphone n'a pas de nom, et l'interface écrivait `''[0]` en toutes lettres — la section contact du profil ne s'enregistrait pas non plus `S · P1 · full`
 - [TCK-624](tickets/TCK-624-une-porte-de-sortie-de-l-authentification.md) — Entrer : quatre sorties d'authentification qui perdaient la destination, ne demandaient jamais de prénom, et un lien de vérification qui n'ouvrait rien sans session `M · P1 · full`
 - [TCK-625](tickets/TCK-625-publier-une-regle-un-choix-d-espace.md) — Devenir publicateur : /publish lâchait les comptes multi-agences sur un /app qui ne lisait rien, « Professionnel » était sans effet et le message de fin annonçait un brouillon inexistant `M · P1 · front`
+- [TCK-626](tickets/TCK-626-page-d-acceptation-d-invitation.md) — Le lien d'invitation (e-mail et SMS) menait à une 404 : /invitations/accept n'avait pas de page, et l'acceptation aucun appelant `S · P1 · front`
 
 ## 👀 Review
 
