@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
+import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import type { MaintenanceStatusResponse } from '@/types/super-admin';
 
 async function fetchStatus(): Promise<MaintenanceStatusResponse> {
@@ -22,17 +23,21 @@ export default function MaintenancePage() {
     messages?.[locale as keyof typeof messages] || messages?.fr || t('defaultMessage');
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-12 sm:px-6">
-      <section className="w-full max-w-xl rounded-xl bg-card p-6 text-center ring-1 ring-border sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary">{t('eyebrow')}</p>
-        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-balance text-foreground">{t('title')}</h1>
-        <p className="mt-4 text-pretty text-muted-foreground">{message}</p>
-        {window ? (
-          <p className="mt-4 text-sm tabular-nums text-muted-foreground">
-            {t('backAt', { date: new Date(window.ends_at).toLocaleString(`${locale}-SN`) })}
-          </p>
-        ) : null}
-      </section>
-    </main>
+    // TCK-621 — l'écran de maintenance est servi seul, sans coque : il porte sa propre marque.
+    <div className="flex min-h-dvh flex-col bg-background">
+      <BarreDeMarque largeur="max-w-2xl" />
+      <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
+        <section className="w-full max-w-xl rounded-xl bg-card p-6 text-center ring-1 ring-border sm:p-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary">{t('eyebrow')}</p>
+          <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-balance text-foreground">{t('title')}</h1>
+          <p className="mt-4 text-pretty text-muted-foreground">{message}</p>
+          {window ? (
+            <p className="mt-4 text-sm tabular-nums text-muted-foreground">
+              {t('backAt', { date: new Date(window.ends_at).toLocaleString(`${locale}-SN`) })}
+            </p>
+          ) : null}
+        </section>
+      </main>
+    </div>
   );
 }

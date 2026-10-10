@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Logo } from '@/components/brand/Logo';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -275,15 +276,17 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-foreground text-white', className)}>
       <div className="px-5 py-5">
-        {/* `px-1` : l'anneau posé à l'ouverture du tiroir ne rase plus les glyphes. */}
+        {/* `px-1` : l'anneau posé à l'ouverture du tiroir ne rase plus les glyphes.
+            TCK-621 — le logo, dans le tiroir seulement : à partir de `md`, la barre haute le porte
+            déjà, 60 px au-dessus (même règle qu'`AppSidebar`). */}
         <Link
           href="/"
           onClick={onNavigate}
-          className={`rounded-sm px-1 text-xl font-bold tracking-tighter text-white ${ANNEAU_FOCUS_SORTANT}`}
+          className={`inline-flex rounded-sm px-1 py-1 md:hidden ${ANNEAU_FOCUS_SORTANT}`}
         >
-          {tCommon('appName')}
+          <Logo nom={tCommon('appName')} ton="clair" />
         </Link>
-        <p className="mt-1 px-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
+        <p className="mt-1 px-1 md:mt-0 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
       </div>
       <nav aria-label={t('sectionLabel')} className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => (

@@ -10,6 +10,7 @@ import { NotificationBell } from './NotificationBell';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/brand/Logo';
 
 /**
  * TCK-371 (revue adverse) — l'anneau de focus des deux contrôles ÉCRITS À LA MAIN de la barre
@@ -57,11 +58,10 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
         <Menu className="size-5" />
       </button>
 
-      <Link
-        href="/"
-        className={cn('rounded-sm text-lg font-bold tracking-tighter text-white', ANNEAU_FOCUS)}
-      >
-        {tCommon('appName')}
+      {/* TCK-621 — la marque, et non plus le nom en texte nu : ton `clair` sur la barre d'encre. Sous
+          640 px, le symbole seul — la barre porte aussi la recherche (cf. `Logo`, `nomVisible`). */}
+      <Link href="/" className={cn('shrink-0 rounded-sm', ANNEAU_FOCUS)}>
+        <Logo nom={tCommon('appName')} ton="clair" nomVisible="des-sm" />
       </Link>
 
       {/* TCK-505 (#1) — visible dès `lg` seulement, et compressible. À `md` la coque montre déjà

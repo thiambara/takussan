@@ -34,6 +34,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/brand/Logo';
 import {
   queueCountQueryOptions,
   type SuperAdminQueueKey,
@@ -247,6 +248,7 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.superAdmin');
+  const tCommon = useTranslations('common');
   const tGroups = useTranslations('nav.superAdmin.groups');
   const { can } = usePlatformAbilities();
   const groups = navigationPour(can);
@@ -259,6 +261,15 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
       )}
     >
       <div className="shrink-0 px-5 pb-4 pt-6">
+        {/* TCK-621 — dans le tiroir, la barre haute (et sa marque) est recouverte : le logo y revient.
+            À partir de `md`, la barre est visible au-dessus, et il ferait doublon. */}
+        <Link
+          href="/super-admin"
+          onClick={onNavigate}
+          className="-mx-1 mb-4 inline-flex rounded-md px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+        >
+          <Logo nom={tCommon('appName')} />
+        </Link>
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sidebar-primary">{t('eyebrow')}</p>
         <p className="mt-1 text-base font-semibold text-sidebar-foreground">{t('title')}</p>
       </div>
