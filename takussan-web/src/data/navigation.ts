@@ -69,12 +69,11 @@ export const moreCategories: readonly Category[] = [
  * Le sort des deux entrées mortes a été tranché séparément, parce qu'elles ne se ressemblent
  * qu'en surface (TCK-439) :
  *
- * · **`sell` → `/publish`.** La destination existe (`src/app/publish/page.tsx`) et c'est
- *   exactement le parcours que le libellé annonce : « Vendre » sur un site d'annonces, c'est
- *   déposer un bien. La page résout elle-même où envoyer le visiteur (connexion, assistant hôte,
- *   `/app/properties/new`, cf. TCK-254). Le menu porte par ailleurs un bouton « Publier une
- *   annonce » : la redondance est assumée — c'est un couple intention / action, et c'est le
- *   patron des sites du domaine (« Vendre » en navigation, « Déposer une annonce » en CTA).
+ * · **`sell` → `/publish`, puis RETIRÉ (TCK-625).** La redondance avec le bouton « Publier une
+ *   annonce » avait été assumée comme un couple intention / action. Revue du parcours du
+ *   2026-10-10 : dans un menu de trois lignes, c'étaient deux entrées pour un geste, et « Vendre »
+ *   écartait qui voulait mettre en location. Le bouton reste ; la clé `nav.links.sell` part des
+ *   trois dictionnaires.
  *
  * · **`services` → RETIRÉ.** Aucune surface de services n'existe, ni publique ni ticketée. Le
  *   dépôt a des `ServiceProviderProfile` côté API, mais rien qu'un visiteur puisse atteindre :
@@ -86,7 +85,6 @@ export const moreCategories: readonly Category[] = [
 export const navLinks = [
   { labelKey: 'buy',  href: '/properties?contract_type=sale' },
   { labelKey: 'rent', href: '/properties?contract_type=rent' },
-  { labelKey: 'sell', href: '/publish' },
 ] as const;
 
 /** Une entrée de colonne du pied de page : une clé de libellé, un chemin qui doit exister. */

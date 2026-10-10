@@ -98,8 +98,7 @@
     "administration": "Administration",
     "links": {
       "buy": "Acheter",
-      "rent": "Louer",
-      "sell": "Vendre"
+      "rent": "Louer"
     },
     "categories": {
       "apartment": "Appartement",
@@ -9707,7 +9706,15 @@
   },
   "publishRedirect": {
     "title": "Préparation de votre annonce…",
-    "body": "Nous vous emmenons au bon endroit pour publier votre bien."
+    "body": "Nous vous emmenons au bon endroit pour publier votre bien.",
+    "choose": {
+      "title": "Où publier ce bien ?",
+      "body": "Choisissez l’espace qui portera l’annonce.",
+      "personal": "Mon espace personnel",
+      "unnamed": "Agence",
+      "error": "Impossible d’ouvrir cet espace. Réessayez."
+    },
+    "retry": "Réessayer"
   },
   "layout": {
     "nav": {

@@ -14,7 +14,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
@@ -274,14 +273,9 @@ export function Navbar({ className }: NavbarProps) {
   const libelleCompte = libelleDe(user) ?? t('accountFallback');
   const contenuAvatar = initials ?? <UserRound className="size-4" aria-hidden="true" />;
 
-  // TCK-254 — `Publier` is universal: everyone sees the CTA. The
-  // `/publish` page resolves where to send the user (login, host wizard,
-  // /app/properties/new). Persist intent on click so OAuth round-trips can
-  // resume the flow even when `?redirect=/publish` is dropped by the
-  // provider.
-  const armPublishIntent = useCallback(() => {
-    setPublishIntent();
-  }, []);
+  // TCK-254 — `Publier` is universal: everyone sees the CTA, and `/publish` resolves where to send
+  // the user. TCK-625 — le drapeau `publishIntent` posé au clic n'était relu par personne : le
+  // retour d'OAuth porte déjà la destination (`intentionOAuthMemorisee`), il est retiré.
 
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
@@ -486,7 +480,6 @@ export function Navbar({ className }: NavbarProps) {
             <>
               <LienLocalise
                 href="/publish"
-                onClick={armPublishIntent}
                 className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
@@ -545,7 +538,6 @@ export function Navbar({ className }: NavbarProps) {
               </LienLocalise>
               <LienLocalise
                 href="/publish"
-                onClick={armPublishIntent}
                 className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
@@ -754,7 +746,7 @@ export function Navbar({ className }: NavbarProps) {
                       <LienLocalise
                         href="/publish"
                         replace
-                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        onClick={quitterParUnLien}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}
@@ -785,7 +777,7 @@ export function Navbar({ className }: NavbarProps) {
                       <LienLocalise
                         href="/publish"
                         replace
-                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        onClick={quitterParUnLien}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}

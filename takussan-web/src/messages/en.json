@@ -98,8 +98,7 @@
     "administration": "Administration",
     "links": {
       "buy": "Buy",
-      "rent": "Rent",
-      "sell": "Sell"
+      "rent": "Rent"
     },
     "categories": {
       "apartment": "Apartment",
@@ -9707,7 +9706,15 @@
   },
   "publishRedirect": {
     "title": "Preparing your listing…",
-    "body": "We are taking you to the right place to publish your property."
+    "body": "We are taking you to the right place to publish your property.",
+    "choose": {
+      "title": "Where should this listing go?",
+      "body": "Choose the space that will hold the listing.",
+      "personal": "My personal space",
+      "unnamed": "Agency",
+      "error": "We could not open this space. Try again."
+    },
+    "retry": "Try again"
   },
   "layout": {
     "nav": {

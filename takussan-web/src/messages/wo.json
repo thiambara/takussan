@@ -88,8 +88,7 @@
     "administration": "Yoonu njiit",
     "links": {
       "buy": "Jënd",
-      "rent": "Luwaa",
-      "sell": "Jaay"
+      "rent": "Luwaa"
     },
     "categories": {
       "apartment": "Apartama",
@@ -9707,7 +9706,15 @@
   },
   "publishRedirect": {
     "title": "Ñu ngi waajal sa yégle…",
-    "body": "Ñu ngi la yóbbu fi war ngir génne sa kër."
+    "body": "Ñu ngi la yóbbu fi war ngir génne sa kër.",
+    "choose": {
+      "title": "Fan nga bëgg a def yéenekaay bii?",
+      "body": "Tànnal bérëb bi nga bëgg a def yéenekaay bi.",
+      "personal": "Sama bérëb bu bopp",
+      "unnamed": "Ajaans",
+      "error": "Mënunu ubbi bérëb bii. Jéemaatal."
+    },
+    "retry": "Jéemaatal"
   },
   "layout": {
     "nav": {
