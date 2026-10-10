@@ -18,6 +18,10 @@ import { staggerDelay } from '@/components/property/card-stagger';
 /**
  * Listing horizontal — image carrée à gauche, méta à droite.
  * Format adapté aux rangées orientées parcours rapide (« À louer »).
+ *
+ * TCK-628 — vignette de 112 px (128 à partir de `sm`, contre 128 / 170), prix à l'encre comme les
+ * autres variantes : dans `PropertyRow`, la carte est rangée sur deux lignes, sa largeur suit la
+ * colonne.
  */
 export function PropertyCardListing({
   property,
@@ -46,11 +50,11 @@ export function PropertyCardListing({
         <LienDeCarte slug={property.slug} idTitre={idTitre} className="focus-visible:rounded-[20px]" />
 
         <div className="shrink-0">
-          <div className="relative aspect-square w-[128px] sm:w-[170px] rounded-lg overflow-hidden bg-muted">
+          <div className="relative aspect-square w-28 sm:w-32 rounded-lg overflow-hidden bg-muted">
             <PropertyPhoto
               src={property.main_photo_url}
               alt={property.title}
-              sizes="(max-width: 639px) 128px, 170px"
+              sizes="128px"
               priority={priority}
               className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
             />
@@ -75,7 +79,7 @@ export function PropertyCardListing({
           <div className="space-y-1">
             {/* `group-hover` et non `hover` : le lien de la carte couvre désormais le titre, qui
                 ne reçoit plus le survol lui-même. */}
-            <h3 id={idTitre} className={`font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
+            <h3 id={idTitre} className={`font-display text-[15px] leading-5 font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
               {property.title}
             </h3>
 
@@ -101,10 +105,10 @@ export function PropertyCardListing({
               de TCK-555 sur la carte de la liste). `surface="page"` : il est posé sur la carte. */}
           <div className="flex items-end justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[16px] font-bold text-primary tabular-nums leading-tight">
+              <p className="text-[14px] font-semibold text-foreground tabular-nums leading-tight">
                 {formatPrice(property.price, property.currency ?? 'XOF')}
                 {property.contract_type === 'rent' && property.rent_period && (
-                  <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                  <span className="ml-0.5 font-normal text-muted-foreground">
                     /{tPeriods(property.rent_period)}
                   </span>
                 )}

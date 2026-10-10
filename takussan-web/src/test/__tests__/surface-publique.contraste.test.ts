@@ -325,8 +325,15 @@ const FICHIERS_HORS_JETONS = 5;
  * Relevé en vidant la liste des encres inverses : c'est la seule entrée neuve. Recompté après la
  * fusion de TCK-598 (qui garde 256 sur `dev` et y déclare des fonds) : 257 sur
  * l'arbre fusionné, 256 en retirant l'encre de ce seul lien.
+ *
+ * **257 → 258 le 2026-10-10 (TCK-628).** `home/RaccourcisDeLAccueil.tsx`, fichier neuf entré dans
+ * la surface par l'accueil, apporte 2 entrées : les comptes des tuiles et des pastilles de
+ * quartier (`text-muted-foreground` sans fond propre — celui de la tuile, `bg-card`, est sur le
+ * lien parent). `cards/PropertyCardCompact.tsx` en rend 1 : sa ligne de quartier a rejoint la
+ * ligne de détails (`CardMeta`). Relevé en comparant la liste des encres inverses avant et après,
+ * numéros de ligne retirés : ce sont les trois seules différences.
  */
-const ENCRES_INVERSES = 257;
+const ENCRES_INVERSES = 258;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
@@ -371,15 +378,18 @@ describe('surface publique — contraste sur un périmètre dérivé (TCK-458)',
       ['sombre', JETONS_SOMBRE, true],
     ] as const) {
       const { couples } = couplesDuFichier(chip, jetons, sombre);
-      expect(couples.length, `${nom} — aucun couple relevé sur la pastille`).toBeGreaterThan(1);
+      expect(couples.length, `${nom} — aucun couple relevé sur la pastille`).toBeGreaterThan(0);
       expect(
         sousLeSeuil(couples).map(decrire),
         `pastille de contrat, thème ${nom}`,
       ).toEqual([]);
-      // Et la valeur elle-même est consignée, pas seulement le verdict.
-      const location = couples.find((c) => c.fond === 'bg-accent');
-      expect(location, `${nom} — la variante location n'est plus mesurée`).toBeDefined();
-      expect(location!.ratio).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
+      // TCK-628 — les deux variantes partagent UNE plaque claire et OPAQUE (la transaction est
+      // dans le point) : la valeur consignée est celle de cette plaque, et aucun fond translucide
+      // ne doit y revenir — c'est ce qui rendait la variante location dépendante de la photo.
+      const plaque = couples.find((c) => c.fond === 'bg-card');
+      expect(plaque, `${nom} — la plaque de la pastille n'est plus mesurée`).toBeDefined();
+      expect(plaque!.ratio).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
+      expect(couples.filter((c) => c.fond.includes('/')).map(decrire)).toEqual([]);
     }
   });
 

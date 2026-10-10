@@ -57,7 +57,7 @@ class PhoneNumberUniquenessTest extends TestCase
 
         $this->postJson('/api/auth/phone/send-otp')
             ->assertOk()
-            ->assertExactJson(['data' => ['sent' => true]]);
+            ->assertExactJson(['data' => ['sent' => true, 'retry_after' => 60]]);
         $this->assertSame([], $sms->sent);
     }
 

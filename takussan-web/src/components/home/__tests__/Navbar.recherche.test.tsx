@@ -182,13 +182,14 @@ describe('Navbar — un champ, un sens (TCK-439)', () => {
     expect(push).toHaveBeenCalledWith('/fr/properties?contract_type=sale');
   });
 
-  it("AC5 (suite) — « Vendre » mène à /publish, qui n'est PAS localisé", async () => {
+  it("AC5 (suite) — « Publier une annonce » mène à /publish, qui n'est PAS localisé, et « Vendre » ne la double plus (TCK-625)", async () => {
     const user = userEvent.setup();
     monter();
 
     await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    expect(screen.queryByRole('link', { name: 'Vendre' })).toBeNull();
     push.mockReset();
-    await user.click(screen.getByRole('link', { name: 'Vendre' }));
+    await user.click(screen.getByRole('link', { name: 'Publier une annonce' }));
 
     // `/publish` est dans `SEGMENTS_NON_LOCALISES` : `LienLocalise` doit le laisser intact.
     expect(push).toHaveBeenCalledWith('/publish');

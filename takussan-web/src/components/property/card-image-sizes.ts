@@ -44,9 +44,23 @@
  */
 
 /**
- * `/properties` — `grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`, dans
- * `max-w-[1440px] px-4 md:px-8 lg:px-16`, avec un rail de filtres de 264 px + 24 px de
- * gouttière à partir de `lg` (et non de `md` : sous `lg`, les filtres sont un tiroir).
+ * `/properties` — `grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5
+ * min-[112.5rem]:grid-cols-6`, dans `max-w-[1920px] px-4 md:px-8 lg:px-16`, avec un rail de filtres
+ * de 264 px + 24 px de gouttière à partir de `lg` (et non de `md` : sous `lg`, les filtres sont un
+ * tiroir).
+ *
+ * **TCK-628 — le conteneur passe de 1440 à 1920 px et une sixième colonne s'ouvre à 1800 px.**
+ * Jusqu'à 1440 px rien ne change ; au-delà, l'emplacement n'est plus figé :
+ *
+ * | viewport | colonnes | emplacement | déclaré |
+ * |---|---|---|---|
+ * | 1280 → 1535 px | 4 + rail | 0,25 vw − 116 px (204 → 268 px) | 17.5vw |
+ * | 1536 → 1799 px | 5 + rail | 0,2 vw − 96 px (211 → 264 px) | 14.7vw |
+ * | 1800 → 1919 px | 6 + rail | vw / 6 − 83 px (217 → 237 px) | 12.4vw |
+ * | 1920 px et au-delà | 6, conteneur plafonné | **237 px fixes** | 238px |
+ *
+ * Calculé depuis les classes, comme les relevés d'avant — `card-image-sizes.test.ts` le vérifie à
+ * chaque pixel de 320 à 2560. Le tableau ci-dessous est celui de TCK-555, valable jusqu'à 1279 px.
  *
  * **Re-mesuré le 2026-09-23 (TCK-555)**, à 18 largeurs de 320 à 1920 px :
  *
@@ -68,7 +82,7 @@
  * une colonne pleine largeur — la photo passe de 156 × 117 à 328 × 246 px à 360 px.
  */
 export const CARD_SIZES_SEARCH_GRID =
-  '(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1439px) 17vw, (max-width: 1535px) 244px, 192px';
+  '(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1535px) 17.5vw, (max-width: 1799px) 14.7vw, (max-width: 1919px) 12.4vw, 238px';
 
 /**
  * `/favorites` public — `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` dans
@@ -112,8 +126,26 @@ export const CARD_SIZES_PORTFOLIO_GRID =
   '(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 30vw';
 
 /**
- * Largeur native de `PropertyCardStandard` dans une rangée horizontale
- * (`w-[290px] shrink-0`) — la seule surface où un `sizes` en pixels fixes est
- * exact plutôt que majorant.
+ * Les rangées de l'accueil (`PropertyRow`, variantes Standard, Compact et Cover) — TCK-628.
+ *
+ * La carte n'a plus de largeur fixe (290 px pour la Standard, 260 et 210 pour les deux autres) :
+ * elle vaut une fraction du conteneur, `(contenu − (n − 1) × écart) / n`, où `n` dépend de la
+ * largeur du CONTENEUR (cf. `PropertyRow`). Sur l'accueil — `max-w-[1920px] px-4 sm:px-6`, écart
+ * 12 px sous 512 px de contenu et 16 px au-delà — cela donne :
+ *
+ * | viewport | colonnes | carte | déclaré |
+ * |---|---|---|---|
+ * | 320 → 543 px | 2,15 | 0,465 vw − 21 px (128 → 232 px) | 47vw |
+ * | 544 → 943 px | 3,2 | 0,3125 vw − 21 à 26 px (149 → 269 px) | 31vw |
+ * | 944 → 1199 px | 4 | 0,25 vw − 24 px (212 → 276 px) | 25vw |
+ * | 1200 → 1487 px | 5 | 0,2 vw − 22 px (218 → 275 px) | 20vw |
+ * | 1488 → 1727 px | 6 | vw / 6 − 21 px (227 → 267 px) | 16.7vw |
+ * | 1728 → 1919 px | 7 | (vw − 144) / 7 (226 → 254 px) | 13.3vw |
+ * | 1920 px et au-delà | 7, conteneur plafonné | **254 px fixes** | 254px |
+ *
+ * ⚠ C'est un MAJORANT calculé, pas un relevé : la même rangée sert aussi « Récemment consultés »
+ * sur la fiche d'un bien, dans un conteneur plus étroit — ses cartes y sont plus petites, et la
+ * déclaration les sur-estime (le bon sens de l'erreur, cf. l'en-tête de ce module).
  */
-export const CARD_SIZES_STANDARD_ROW = '290px';
+export const CARD_SIZES_RANGEE =
+  '(max-width: 543px) 47vw, (max-width: 943px) 31vw, (max-width: 1199px) 25vw, (max-width: 1487px) 20vw, (max-width: 1727px) 16.7vw, (max-width: 1919px) 13.3vw, 254px';

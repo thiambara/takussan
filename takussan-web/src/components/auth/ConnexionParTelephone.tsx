@@ -178,22 +178,23 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               required
             />
           </div>
-          {variante === 'register' ? (
-            <p className="text-xs text-muted-foreground text-pretty">
-              {t.rich('termsNotice', {
-                terms: (chunks) => (
-                  <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
-                    {chunks}
-                  </LienLocalise>
-                ),
-                privacy: (chunks) => (
-                  <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
-                    {chunks}
-                  </LienLocalise>
-                ),
-              })}
-            </p>
-          ) : null}
+          {/* TCK-624 — sur les DEUX variantes : la connexion par téléphone ouvre un compte au
+              premier code d'un numéro inconnu. Le compte naissait sans que la mention des
+              conditions ait été montrée. */}
+          <p className="text-xs text-muted-foreground text-pretty">
+            {t.rich('termsNotice', {
+              terms: (chunks) => (
+                <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {chunks}
+                </LienLocalise>
+              ),
+              privacy: (chunks) => (
+                <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {chunks}
+                </LienLocalise>
+              ),
+            })}
+          </p>
           <Button
             type="submit"
             disabled={envoi || !numeroComposable(telephone)}

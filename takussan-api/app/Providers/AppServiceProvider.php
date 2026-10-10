@@ -137,6 +137,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 use LemonSqueezy\Laravel\LemonSqueezy;
 use SocialiteProviders\Manager\SocialiteWasCalled;
@@ -197,6 +198,11 @@ class AppServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(base_path('routes/lemon-squeezy.php'));
         $this->bootRequestMacros();
         $this->bootRateLimiters();
+        // TCK-624 — la règle du mot de passe est CELLE du front (`passwordSchema`) : 8 à 72
+        // caractères, une lettre, un chiffre. L'API n'exigeait que `min:8` : un client qui
+        // contournait le formulaire posait « aaaaaaaa ». Inscription, réinitialisation et
+        // acceptation d'invitation passent toutes par `Password::defaults()`.
+        Password::defaults(fn () => Password::min(8)->max(72)->letters()->numbers());
         // TCK-589 — le rappel UNIQUE de Sanctum (statut du compte + bornes de session).
         // Un second `authenticateAccessTokensUsing` écraserait celui-ci : TCK-600 ajoute
         // sa clause DANS `AccessTokenGate`, pas ici.
@@ -458,11 +464,10 @@ class AppServiceProvider extends ServiceProvider
         // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
         // est de 3/jour/MSISDN) ET par IP (20/h). La vérification est bornée par
         // numéro seul (10/15 min) : changer d'IP ne rouvre pas la force brute.
-        RateLimiter::for('auth-phone-send', fn (Request $request) => [
-            Limit::perMinutes(15, 3)->by('phone:'.$this->phoneRateLimitKey($request)),
-            Limit::perDay(5)->by('phone-day:'.$this->phoneRateLimitKey($request)),
-            Limit::perHour(20)->by('ip:'.$request->ip()),
-        ]);
+        // TCK-622 — la borne PAR NUMÉRO a quitté ce limiteur pour `PhoneSendQuota` : jugée avant le
+        // contrôleur, elle comptait les requêtes et non les codes envoyés. Reste la borne par IP,
+        // sur toutes les requêtes : elle borne la pulvérisation de numéros, pas un parcours.
+        RateLimiter::for('auth-phone-send', fn (Request $request) => Limit::perHour(20)->by('ip:'.$request->ip()));
         // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
         // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
         // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,

@@ -51,6 +51,14 @@ class PropertySearchService
     private const STRATEGY_WIDENED = 'last';
 
     /**
+     * TCK-628 — la taille de page quand l'appelant n'en demande pas : la MÊME que celle de la liste
+     * publique (`PER_PAGE_PAR_DEFAUT`, `takussan-web/src/lib/recherche-publique.ts`). Elle valait 20
+     * quand la grille en attendait 30 ; le front envoie toujours la sienne, mais un appelant qui
+     * l'omettrait recevait une autre page que celle de la liste.
+     */
+    public const PER_PAGE_PAR_DEFAUT = 40;
+
+    /**
      * Plafond de sondes par requête.
      *
      * Une sonde par terme utile, dans le MÊME `/multi-search` que la requête
@@ -72,7 +80,7 @@ class PropertySearchService
     {
         $term = trim((string) ($params['q'] ?? $params['search'] ?? ''));
         $page = max(1, (int) ($params['page'] ?? 1));
-        $perPage = min(100, max(1, (int) ($params['per_page'] ?? 20)));
+        $perPage = min(100, max(1, (int) ($params['per_page'] ?? self::PER_PAGE_PAR_DEFAUT)));
 
         $filter = $this->buildFilter($params);
         $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term, $params);

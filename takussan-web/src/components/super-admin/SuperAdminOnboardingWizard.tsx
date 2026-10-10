@@ -3,6 +3,7 @@
 import { useCallback, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Download, Loader2, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -113,114 +114,118 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
     router.replace('/super-admin');
   }, [router]);
 
+  // TCK-621 — l'accueil du super-admin coopté est servi hors de toute coque : il porte la marque.
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
-      <header className="space-y-2 text-center">
-        <ShieldCheck className="mx-auto size-10 text-primary" aria-hidden="true" />
-        <h1 className="text-2xl font-semibold text-foreground">
-          {firstName ? tWizard('titleWithName', { name: firstName }) : tWizard('title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">{tWizard('subtitle')}</p>
-      </header>
+    <div className="flex min-h-dvh flex-col bg-background">
+      <BarreDeMarque largeur="max-w-2xl" />
+      <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-12">
+        <header className="space-y-2 text-center">
+          <ShieldCheck className="mx-auto size-10 text-primary" aria-hidden="true" />
+          <h1 className="text-2xl font-semibold text-foreground">
+            {firstName ? tWizard('titleWithName', { name: firstName }) : tWizard('title')}
+          </h1>
+          <p className="text-sm text-muted-foreground">{tWizard('subtitle')}</p>
+        </header>
 
-      <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-        {stage === 'intro' ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">{t('intro.description')}</p>
-            {error ? <ErrorState message={error} /> : null}
-            <Button onClick={handleStart} disabled={pending}>
-              {pending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  <span>{t('intro.starting')}</span>
-                </>
-              ) : (
-                <span>{t('intro.cta')}</span>
-              )}
-            </Button>
-          </div>
-        ) : null}
-
-        {stage === 'scanning' && setup ? (
-          <form onSubmit={handleConfirm} className="space-y-4">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">{t('scan.title')}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t('scan.description')}</p>
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          {stage === 'intro' ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">{t('intro.description')}</p>
+              {error ? <ErrorState message={error} /> : null}
+              <Button onClick={handleStart} disabled={pending}>
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    <span>{t('intro.starting')}</span>
+                  </>
+                ) : (
+                  <span>{t('intro.cta')}</span>
+                )}
+              </Button>
             </div>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              {setup.qrSvg ? (
-                // eslint-disable-next-line @next/next/no-img-element -- inline SVG data URI.
-                <img
-                  src={setup.qrSvg}
-                  alt={t('scan.qrAlt')}
-                  width={180}
-                  height={180}
-                  className="qr-surface rounded-md border border-border"
+          ) : null}
+
+          {stage === 'scanning' && setup ? (
+            <form onSubmit={handleConfirm} className="space-y-4">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">{t('scan.title')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t('scan.description')}</p>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                {setup.qrSvg ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- inline SVG data URI.
+                  <img
+                    src={setup.qrSvg}
+                    alt={t('scan.qrAlt')}
+                    width={180}
+                    height={180}
+                    className="qr-surface rounded-md border border-border"
+                  />
+                ) : null}
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">{t('scan.manualHint')}</p>
+                  <code className="block break-all rounded-md bg-card px-2 py-1 font-mono text-xs">
+                    {setup.secret}
+                  </code>
+                </div>
+              </div>
+              <WarningBanner role="status" className="rounded-md p-4">
+                <p className="font-semibold">{t('recovery.title')}</p>
+                <p className="mt-1 text-xs">{t('recovery.warning')}</p>
+                <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm">
+                  {setup.recoveryCodes.map((codeValue) => (
+                    <li key={codeValue}>{codeValue}</li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={handleDownloadCodes}>
+                    <Download className="size-4" aria-hidden="true" />
+                    <span>{t('recovery.download')}</span>
+                  </Button>
+                </div>
+              </WarningBanner>
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={acknowledged}
+                  onChange={(event) => setAcknowledged(event.target.checked)}
+                  className="mt-0.5 size-4 cursor-pointer rounded border-input accent-primary"
                 />
-              ) : null}
-              <div className="space-y-2 text-sm">
-                <p className="text-muted-foreground">{t('scan.manualHint')}</p>
-                <code className="block break-all rounded-md bg-card px-2 py-1 font-mono text-xs">
-                  {setup.secret}
-                </code>
-              </div>
-            </div>
-            <WarningBanner role="status" className="rounded-md p-4">
-              <p className="font-semibold">{t('recovery.title')}</p>
-              <p className="mt-1 text-xs">{t('recovery.warning')}</p>
-              <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm">
-                {setup.recoveryCodes.map((codeValue) => (
-                  <li key={codeValue}>{codeValue}</li>
-                ))}
-              </ul>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={handleDownloadCodes}>
-                  <Download className="size-4" aria-hidden="true" />
-                  <span>{t('recovery.download')}</span>
-                </Button>
-              </div>
-            </WarningBanner>
-            <label className="flex items-start gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={acknowledged}
-                onChange={(event) => setAcknowledged(event.target.checked)}
-                className="mt-0.5 size-4 cursor-pointer rounded border-input accent-primary"
-              />
-              <span>{t('recovery.ack')}</span>
-            </label>
-            <div className="space-y-1">
-              <label htmlFor="super-admin-totp-code" className="text-xs font-semibold text-muted-foreground">
-                {t('scan.codeLabel')}
+                <span>{t('recovery.ack')}</span>
               </label>
-              <Input
-                id="super-admin-totp-code"
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                autoComplete="one-time-code"
-                required
-              />
-            </div>
-            {error ? <ErrorState message={error} /> : null}
-            <Button type="submit" disabled={pending || code.length !== 6 || !acknowledged}>
-              {pending ? t('scan.verifying') : t('scan.cta')}
-            </Button>
-          </form>
-        ) : null}
+              <div className="space-y-1">
+                <label htmlFor="super-admin-totp-code" className="text-xs font-semibold text-muted-foreground">
+                  {t('scan.codeLabel')}
+                </label>
+                <Input
+                  id="super-admin-totp-code"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                  required
+                />
+              </div>
+              {error ? <ErrorState message={error} /> : null}
+              <Button type="submit" disabled={pending || code.length !== 6 || !acknowledged}>
+                {pending ? t('scan.verifying') : t('scan.cta')}
+              </Button>
+            </form>
+          ) : null}
 
-        {stage === 'success' ? (
-          <div className="space-y-4 text-center">
-            <ShieldCheck className="mx-auto size-12 text-accent" aria-hidden="true" />
-            <h2 className="text-base font-semibold text-foreground">{t('success.title')}</h2>
-            <p className="text-sm text-muted-foreground">{tWizard('successBody')}</p>
-            <Button onClick={handleFinish}>{t('success.cta')}</Button>
-          </div>
-        ) : null}
-      </section>
+          {stage === 'success' ? (
+            <div className="space-y-4 text-center">
+              <ShieldCheck className="mx-auto size-12 text-accent" aria-hidden="true" />
+              <h2 className="text-base font-semibold text-foreground">{t('success.title')}</h2>
+              <p className="text-sm text-muted-foreground">{tWizard('successBody')}</p>
+              <Button onClick={handleFinish}>{t('success.cta')}</Button>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }

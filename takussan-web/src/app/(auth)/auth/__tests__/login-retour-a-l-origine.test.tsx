@@ -4,7 +4,13 @@
  * `/auth/login` suit `?redirect=` ; le lien « Connexion » l'y pose (`hrefConnexion`). Ces tests
  * éprouvent le bout « lecture » : la recherche filtrée est rendue telle quelle, et une destination
  * qui sortirait du site retombe sur `/app`.
+ *
+ * TCK-624 — la destination passe désormais par la porte unique `/onboarding/intention`, qui la
+ * rend après avoir demandé ce qui manque (un prénom). Le contrat de ces tests ne change pas : la
+ * destination portée est la recherche quittée, et rien de ce qui sortirait du site n'est porté.
  */
+const porte = (destination?: string) =>
+  destination ? `/onboarding/intention?redirect=${encodeURIComponent(destination)}` : '/onboarding/intention';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,19 +64,19 @@ beforeEach(() => {
 describe('la destination après connexion', () => {
   it('rend la recherche quittée, filtres compris', async () => {
     searchParams = new URLSearchParams({ redirect: '/fr/properties?type=office&city=Dakar' });
-    expect(await seConnecter()).toBe('/fr/properties?type=office&city=Dakar');
+    expect(await seConnecter()).toBe(porte('/fr/properties?type=office&city=Dakar'));
   });
 
   it('sans destination, l’espace personnel — comme avant', async () => {
     searchParams = new URLSearchParams();
-    expect(await seConnecter()).toBe('/app');
+    expect(await seConnecter()).toBe(porte());
   });
 
   it.each(['//evil.tld', '/\\evil.tld', 'https://evil.tld'])(
     'ne suit jamais %s hors du site',
     async (brute) => {
       searchParams = new URLSearchParams({ redirect: brute });
-      expect(await seConnecter()).toBe('/app');
+      expect(await seConnecter()).toBe(porte());
     },
   );
 });

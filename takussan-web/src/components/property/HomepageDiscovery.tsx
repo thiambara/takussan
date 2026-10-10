@@ -11,8 +11,13 @@ import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCaro
 import { useHomepageDiscovery } from '@/hooks/useHomepageDiscovery';
 import type { HomepageDiscoveryData } from '@/types/property';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
+import { PastillesDeQuartiers, TuilesDeTypes, TuilesDeVilles } from '@/components/home/RaccourcisDeLAccueil';
+import type { RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
 
 const NO_ITEMS = [] as const;
+
+/** Aucune section de raccourcis : le composant monté sans le serveur (tests, repli) n'en rend pas. */
+const SANS_RACCOURCIS: RaccourcisDeLAccueil = { vente: null, villes: null, types: null, quartiers: null };
 
 /**
  * Deadline on the geo-IP provider.
@@ -39,7 +44,14 @@ function useGeoSettled(geoLoading: boolean): boolean {
 
 /**
  * Homepage publique — TCK-129, câblée sur l'endpoint unique de TCK-247.
- * Quatre rangées scrollables, une variante de carte par section :
+ *
+ * TCK-628 — densifiée sur le modèle d'Airbnb : plus de grand titre visible entre la barre et la
+ * première rangée (le `<h1>` reste, pour les lecteurs d'écran et les robots), des cartes deux fois
+ * plus nombreuses par rangée (cf. `PropertyRow`), et quatre sections de plus, toutes lues sur des
+ * endpoints existants (cf. `raccourcisDeLAccueil`) : « À vendre », par ville, par type de bien,
+ * par quartier.
+ *
+ * Les rangées d'origine, une variante de carte par section :
  *  - Standard 4:3   → « Près de toi · À découvrir à Dakar »
  *  - Listing wide   → « À louer · Pour ton prochain logement »
  *  - Cover 3:4      → « Coup de cœur · Sélection de la semaine » (signature)
@@ -57,6 +69,7 @@ function useGeoSettled(geoLoading: boolean): boolean {
  */
 export function HomepageDiscovery({
   donneesInitiales = null,
+  raccourcis = SANS_RACCOURCIS,
 }: {
   /**
    * Les quatre rangées déjà rendues par le serveur — TCK-432.
@@ -65,6 +78,11 @@ export function HomepageDiscovery({
    * pas) : le composant reprend alors, sans une ligne de moins, le comportement d'avant TCK-432.
    */
   readonly donneesInitiales?: HomepageDiscoveryData | null;
+  /**
+   * TCK-628 — les sections lues par le SERVEUR seul (« À vendre », villes, types, quartiers).
+   * Une section absente (`null`) n'est pas rendue ; le client ne la redemande pas.
+   */
+  readonly raccourcis?: RaccourcisDeLAccueil;
 } = {}) {
   const t = useTranslations('homepage.row');
   const tPage = useTranslations('homepage');
@@ -105,65 +123,51 @@ export function HomepageDiscovery({
       {/* Cale à la hauteur réelle de la navbar fixe, palier par palier. */}
       <NavbarSpacer />
 
-      {/* `flex gap-20` et non `space-y-20` : en Tailwind 4, `space-y` pose sa marge SOUS chaque
+      {/* `flex gap-*` et non `space-y-*` : en Tailwind 4, `space-y` pose sa marge SOUS chaque
           enfant sauf le DERNIER — et le dernier est « Récemment consultés », masqué sans
-          historique. La rangée d'avant gardait donc ses 80 px : 176 px de vide avant le pied de
-          page au lieu de 96, mesuré le 2026-09-28. Un `gap` ignore les enfants masqués. */}
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 pt-12 pb-24 flex flex-col gap-20">
+          historique. La rangée d'avant gardait donc sa marge : 176 px de vide avant le pied de
+          page au lieu de 96, mesuré le 2026-09-28. Un `gap` ignore les enfants masqués.
+
+          TCK-628 — la page commence à 16-24 px sous la barre (elle commençait à 48 px, PUIS le
+          `<h1>` de 40 px et ses 48 px de marge), les sections sont à 40-48 px l'une de l'autre
+          (80 avant), et le conteneur suit celui de la barre : 1920 px au plus, 24 px de gouttière
+          à partir de `sm` (48 avant). La barre et la première carte commencent au même x. */}
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-16 md:pb-20 flex flex-col gap-10 md:gap-12">
         {/*
           TCK-432 — le `<h1>` de l'accueil, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
           sur le HTML servi rendait 0). `docs/design-guidelines.md` § Typographie pose pourtant
           « Hiérarchie stricte : `h1` → titre de page », et c'est de l'accessibilité avant d'être
           du référencement : un lecteur d'écran qui cherche le titre de la page ne le trouvait pas,
-          les quatre `<h2>` des rangées commençant la hiérarchie au deuxième niveau.
+          les `<h2>` des rangées commençant la hiérarchie au deuxième niveau.
 
-          Il dit ce que la page MONTRE — des annonces au Sénégal — et non le nom de la marque, qui
-          vit dans le `<title>` du layout. `font-display` (Bricolage Grotesque) comme le veulent
-          les directives pour `h1`-`h3` ; la taille reste au-dessus des `h2` des rangées
-          (26/30 px) sans rien déplacer d'autre : ce ticket n'ouvre aucune refonte visuelle, et
-          il n'introduit pas le hero marketing que la home refuse depuis TCK-129.
+          TCK-628 — il quitte l'ÉCRAN, pas la page : `sr-only`. Le porteur, comparant l'accueil à
+          celui d'Airbnb : « trop d'espace entre la barre et la première rangée ». Le titre
+          « Annonces immobilières au Sénégal » en occupait environ 136 px (40 px de texte, 48 de marge, et
+          les 48 de `pt-12` au-dessus), pour dire ce que la page montre déjà. Il reste le premier
+          titre de l'arbre d'accessibilité et le seul `<h1>` du HTML servi (`rendu-serveur.test`).
 
-          ⚠⚠ **`-mb-8` ICI CHEVAUCHAIT LA PREMIÈRE RANGÉE, et le motif se reproduira ailleurs.**
-          Écrit pour ramener l'écart de `space-y-20` (80 px) à 48 px, il l'a mis à **−32 px** :
-          en Tailwind v4, `space-y-*` est défini dans un `:where()`, donc à spécificité NULLE.
-          Un utilitaire de marge explicite ne s'y AJOUTE pas, il le REMPLACE. Mesuré dans le
-          navigateur le 2026-08-28 :
-
-              h1        top 181 · bottom 223
-              1re rangée top 191                    ← 32 px de recouvrement
-              margin-top du frère suivant : 0px     ← et non 80px
-
-          Le sur-titre « Près de toi » passait donc SOUS le titre de la page. Corrigé en écrivant
-          l'écart voulu en clair (`mb-12`, 48 px) au lieu de le calculer contre une valeur que la
-          cascade n'applique jamais.
-
-          *Une marge négative écrite pour corriger une autre marge suppose que les deux
+          ⚠⚠ L'histoire du `-mb-8` qui chevauchait la première rangée (TCK-432) est close avec lui :
+          *une marge négative écrite pour corriger une autre marge suppose que les deux
           s'additionnent — et dans une v4 qui pose ses écarts en `:where()`, elles ne
-          s'additionnent pas.* Aucun test ne pouvait le voir : jsdom ne fait pas de mise en page.
+          s'additionnent pas.*
         */}
-        {/* Le titre et la première rangée vont ensemble : 48 px entre eux (`mb-12`), 80 entre les
-            rangées — un `gap` unique ne sait pas écrire deux écarts. */}
-        <div>
-          <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground text-balance mb-12">
-            {tPage('h1')}
-          </h1>
+        <h1 className="sr-only">{tPage('h1')}</h1>
 
-          <div
-            className="animate-section-enter"
-            style={{ animationDelay: '40ms' }}
-          >
-            <PropertyRow
-              variant="standard"
-              eyebrow={nearEyebrow}
-              title={nearTitle}
-              viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
-              viewAllLabel={viewAll}
-              properties={near?.items ?? NO_ITEMS}
-              loading={loading}
-              error={error}
-              priorityCount={2}
-            />
-          </div>
+        <div
+          className="animate-section-enter"
+          style={{ animationDelay: '40ms' }}
+        >
+          <PropertyRow
+            variant="standard"
+            eyebrow={nearEyebrow}
+            title={nearTitle}
+            viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
+            viewAllLabel={viewAll}
+            properties={near?.items ?? NO_ITEMS}
+            loading={loading}
+            error={error}
+            priorityCount={2}
+          />
         </div>
 
         <div
@@ -182,6 +186,8 @@ export function HomepageDiscovery({
           />
         </div>
 
+        {raccourcis.villes && <TuilesDeVilles villes={raccourcis.villes} />}
+
         {/* Rangée signature — fond cream + pattern bogolan stylisé (≤5%).
 
             ⚠ `isolate` PORTE le fond, il n'est pas décoratif. Le fond est en `-z-10` : sans
@@ -189,12 +195,15 @@ export function HomepageDiscovery({
             `bg-background` de la racine. L'animation d'entrée en créait un le temps de jouer
             (opacité < 1, `transform`), puis `backwards` le rendait à la fin — la carte
             s'affichait, puis disparaissait. Mesuré le 2026-09-28 : pendant l'animation le fond
-            est peint ; 2,5 s après, le point au cœur de sa marge renvoie `MAIN`. */}
+            est peint ; 2,5 s après, le point au cœur de sa marge renvoie `MAIN`.
+
+            TCK-628 — le fond déborde de 24 à 32 px au lieu de 32 à 48 : les sections voisines
+            sont plus proches (40 à 48 px), un débord de 48 aurait touché leurs titres. */}
         <section
           className="animate-section-enter relative isolate"
           style={{ animationDelay: '200ms' }}
         >
-          <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">
+          <div className="absolute inset-x-[-12px] inset-y-[-20px] md:inset-x-[-20px] md:inset-y-[-24px] -z-10 rounded-[28px] overflow-hidden bg-card">
             <div className="absolute inset-0 opacity-[0.045] text-foreground">
               <BogolanPattern className="w-full h-full" color="currentColor" />
             </div>
@@ -212,6 +221,21 @@ export function HomepageDiscovery({
           />
         </section>
 
+        {raccourcis.vente && (
+          <PropertyRow
+            variant="standard"
+            eyebrow={t('sale.eyebrow')}
+            title={t('sale.title')}
+            viewAllHref="/properties?contract_type=sale"
+            viewAllLabel={viewAll}
+            properties={raccourcis.vente}
+            loading={false}
+            error={null}
+          />
+        )}
+
+        {raccourcis.types && <TuilesDeTypes types={raccourcis.types} />}
+
         <div
           className="animate-section-enter"
           style={{ animationDelay: '280ms' }}
@@ -227,6 +251,8 @@ export function HomepageDiscovery({
             error={error}
           />
         </div>
+
+        {raccourcis.quartiers && <PastillesDeQuartiers quartiers={raccourcis.quartiers} />}
 
         {/* `empty:hidden` : sans historique, le carrousel rend `null` — l'enveloppe vide ne doit
             pas compter pour un enfant du `gap` (cf. `<main>`). */}

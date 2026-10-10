@@ -36,14 +36,16 @@ export function NewBuildChip({ condition, compact = false, className }: NewBuild
   if (!porteUnBadgeNeuf(condition)) return null;
 
   const sizing = compact
-    ? 'px-1.5 py-0.5 text-xs gap-1'
+    ? 'px-2 py-0.5 text-xs gap-1'
     : 'px-2.5 py-1 text-xs gap-1.5';
 
   return (
     <span
       className={`inline-flex max-w-full min-w-0 items-center rounded-full font-semibold bg-card text-foreground shadow-sm ${sizing} ${className || ''}`}
     >
-      <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+      {/* TCK-628 — un point à l'ENCRE : terracotta et sauge disent désormais la transaction
+          (`ContractTypeChip`), les deux pastilles sont côte à côte sur la même plaque. */}
+      <span className="size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
       {/* Tronqué plutôt que sous le cœur quand la place manque — cf. ContractTypeChip. */}
       <span className="truncate">{t(condition)}</span>
     </span>

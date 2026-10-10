@@ -179,7 +179,7 @@ describe('TCK-432 · AC2 — la page transmet l’URL ENTIÈRE, valeurs répét�
 
     const q = requeteEnvoyee();
     expect(q.get('type')).toBe('villa');
-    expect(q.get('per_page')).toBe('30');
+    expect(q.get('per_page')).toBe('40');
   });
 });
 

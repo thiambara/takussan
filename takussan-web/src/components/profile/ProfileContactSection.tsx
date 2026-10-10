@@ -82,8 +82,9 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     setLoading(true);
     setFeedback(null);
     const fd = new FormData();
-    fd.append('first_name', user.first_name);
-    fd.append('last_name', user.last_name);
+    // TCK-623 — les noms ne partent pas d'ici : cette section ne les montre pas, et un compte
+    // ouvert par téléphone n'en a pas encore. Les renvoyer vides faisait refuser toute la
+    // sauvegarde (422), bio et numéro compris.
     fd.append('bio', bio);
     fd.append('phone', phoneTrimmed);
     if (needsProof) {

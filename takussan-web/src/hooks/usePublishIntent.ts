@@ -1,123 +1,109 @@
 'use client';
 
 /**
- * TCK-254 — Universal "Publier" CTA router.
+ * TCK-254, refondu par TCK-625 — où mène le bouton « Publier ».
  *
- * Evaluates the current user state and returns a routing decision so the
- * `/publish` page (or any caller) can replace the URL accordingly.
+ * La décision, en une règle :
+ * - **anonyme** → la connexion, qui ramène ici ;
+ * - **aucun espace où publier** → l'assistant hôte (`/onboarding/host`), qui en crée un ;
+ * - **un seul espace** → le formulaire du bien, après avoir rendu ce profil actif s'il ne l'est pas ;
+ * - **plusieurs espaces** → le CHOIX de l'espace, sur `/publish` même.
  *
- * Decision matrix:
- * - Anonymous          → /auth/login?redirect=/publish
- * - Authenticated, no agency profile and not agency_admin → /onboarding/host
- *   (placeholder for TCK-255 wizard)
- * - Authenticated, exactly 1 agency      → /app/properties/new
- * - Authenticated, several agencies      → /app?selectProfile=true (sentinel
- *   for the existing profile switcher; the user picks, we re-land here on
- *   next click).
+ * Un « espace où publier » est une agence où l'on porte un profil `agency_admin`, `agent` ou
+ * `owner` (Q5 du relevé du 2026-10-10). Le propriétaire compte : dans une agence standard, il
+ * publie une proposition (`PropertyController::store` la force en brouillon), dans une agence
+ * individuelle il est l'hôte. Pour chaque agence, le profil retenu est le plus capable — admin,
+ * puis agent, puis propriétaire.
  *
- * The hook is read-only: it does NOT navigate, NOR mutate the active profile
- * (TCK-255 owns that side-effect when the wizard creates the agency).
+ * ⚠ Ce qui a été retiré : plusieurs agences menaient à `/app?selectProfile=true&next=/publish`,
+ * qu'aucun écran ne lisait, et l'on atterrissait sur le tableau de bord sans rien publier. La
+ * collecte lisait en outre `user.agency_id`, qui vaut `null` dès qu'on porte des profils dans deux
+ * agences (TCK-142) : elle ne voyait ni l'admin multi-agences, ni le propriétaire.
+ *
+ * Le hook est en lecture seule : la bascule du profil actif est faite par la page.
  */
 
 import { useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useMyProfiles } from '@/hooks/useProfiles';
-import type { Profile } from '@/types/profile';
+import type { Profile, ProfileType } from '@/types/profile';
 import type { User } from '@/types/user';
 
 export type PublishIntentStatus =
   | 'loading'
   | 'anonymous'
   | 'host-needed'
-  | 'single-agency'
-  | 'multi-agency';
+  | 'single-space'
+  | 'choose-space';
+
+/** Un espace où publier : une agence, et le profil sous lequel on y publiera. */
+export type EspaceDePublication = {
+  readonly profile: Profile;
+  readonly agencyId: number;
+};
 
 export type PublishIntentDecision = {
   status: PublishIntentStatus;
-  /**
-   * Where the caller should send the user. `null` only while loading.
-   */
+  /** Où mener la personne ; `null` pendant le chargement et quand elle doit choisir. */
   target: string | null;
+  /** Les espaces où elle peut publier, un par agence, dans l'ordre des profils rendus. */
+  espaces: EspaceDePublication[];
   /**
-   * Distinct agency_ids the user is admin/agent of (post-dedup). Useful for
-   * tests and for the multi-agency picker UX.
+   * Le profil à rendre actif avant de partir (`single-space`), `null` s'il l'est déjà ou s'il n'y
+   * a rien à choisir.
    */
-  agencyIds: number[];
-  /**
-   * The single resolved agency_id when the user has exactly one. `null`
-   * otherwise. Carries the value the caller may want to switch the active
-   * profile to before navigating.
-   */
-  resolvedAgencyId: number | null;
+  profilABasculer: string | null;
 };
 
 const LOGIN_TARGET = '/auth/login?redirect=/publish';
 const HOST_WIZARD_TARGET = '/onboarding/host';
 const NEW_PROPERTY_TARGET = '/app/properties/new';
-const PROFILE_PICKER_TARGET = '/app?selectProfile=true&next=/publish';
 
-/**
- * Collect the agency_ids the user can publish under. We treat any
- * `agent` profile with an agency_id as qualifying, plus — if the user carries
- * the `agency_admin` role and a top-level `agency_id` — that agency too.
- *
- * `service_provider` profiles are intentionally excluded: per §1.12, only
- * agency_admin/agent profiles host listings. (`broker` figurait ici jusqu'au
- * 2026-08-31 ; il n'est plus un `ProfileType` — TCK-495, ADR-0027 — et a
- * quitté le code depuis, ADR-0030.)
- */
-function collectAgencyIds(user: User | null, profiles: Profile[] | undefined): number[] {
-  const ids = new Set<number>();
-  if (user?.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
-    ids.add(user.agency_id);
-  }
+const RANG: Partial<Record<ProfileType, number>> = { agency_admin: 0, agent: 1, owner: 2 };
+
+/** Un espace par agence, le profil le plus capable retenu. */
+export function espacesDePublication(profiles: Profile[] | undefined): EspaceDePublication[] {
+  const parAgence = new Map<number, Profile>();
   for (const p of profiles ?? []) {
-    if (p.type === 'agent' && typeof p.agency_id === 'number') {
-      ids.add(p.agency_id);
-    }
+    const rang = RANG[p.type];
+    if (rang === undefined || typeof p.agency_id !== 'number') continue;
+    const deja = parAgence.get(p.agency_id);
+    if (!deja || rang < (RANG[deja.type] ?? Infinity)) parAgence.set(p.agency_id, p);
   }
-  return Array.from(ids);
+  return Array.from(parAgence, ([agencyId, profile]) => ({ agencyId, profile }));
 }
 
 export function decidePublishIntent(
   user: User | null,
   profiles: Profile[] | undefined,
   isLoading: boolean,
+  activeProfileId: string | null = null,
 ): PublishIntentDecision {
   if (isLoading) {
-    return { status: 'loading', target: null, agencyIds: [], resolvedAgencyId: null };
+    return { status: 'loading', target: null, espaces: [], profilABasculer: null };
   }
   if (!user) {
-    return {
-      status: 'anonymous',
-      target: LOGIN_TARGET,
-      agencyIds: [],
-      resolvedAgencyId: null,
-    };
+    return { status: 'anonymous', target: LOGIN_TARGET, espaces: [], profilABasculer: null };
   }
-  const agencyIds = collectAgencyIds(user, profiles);
-  if (agencyIds.length === 0) {
-    return {
-      status: 'host-needed',
-      target: HOST_WIZARD_TARGET,
-      agencyIds: [],
-      resolvedAgencyId: null,
-    };
+  const espaces = espacesDePublication(profiles);
+  if (espaces.length === 0) {
+    return { status: 'host-needed', target: HOST_WIZARD_TARGET, espaces, profilABasculer: null };
   }
-  if (agencyIds.length === 1) {
+  if (espaces.length === 1) {
+    const { profile, agencyId } = espaces[0]!;
+    // Le profil actif d'une AUTRE agence (un prestataire ailleurs, par exemple) ferait créer le
+    // bien hors de cet espace, ou le refuser (403) : on bascule d'abord. Un profil actif de la
+    // même agence suffit.
+    const actif = profiles?.find((p) => p.id === activeProfileId);
+    const dejaLa = actif !== undefined && actif.agency_id === agencyId && RANG[actif.type] !== undefined;
     return {
-      status: 'single-agency',
+      status: 'single-space',
       target: NEW_PROPERTY_TARGET,
-      agencyIds,
-      resolvedAgencyId: agencyIds[0],
+      espaces,
+      profilABasculer: dejaLa ? null : profile.id,
     };
   }
-  return {
-    status: 'multi-agency',
-    target: PROFILE_PICKER_TARGET,
-    agencyIds,
-    resolvedAgencyId: null,
-  };
+  return { status: 'choose-space', target: null, espaces, profilABasculer: null };
 }
 
 export function usePublishIntent(): PublishIntentDecision {
@@ -130,7 +116,13 @@ export function usePublishIntent(): PublishIntentDecision {
     authLoading || (!!user && profilesQuery.isLoading && !profilesQuery.data);
 
   return useMemo(
-    () => decidePublishIntent(user, profilesQuery.data?.data, isLoading),
+    () =>
+      decidePublishIntent(
+        user,
+        profilesQuery.data?.data,
+        isLoading,
+        profilesQuery.data?.meta?.active_profile_id ?? null,
+      ),
     [user, profilesQuery.data, isLoading],
   );
 }
@@ -141,5 +133,4 @@ export const PUBLISH_TARGETS = {
   login: LOGIN_TARGET,
   hostWizard: HOST_WIZARD_TARGET,
   newProperty: NEW_PROPERTY_TARGET,
-  profilePicker: PROFILE_PICKER_TARGET,
 } as const;

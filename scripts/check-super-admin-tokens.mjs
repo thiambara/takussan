@@ -1761,8 +1761,11 @@ const ESPACES = [
      * ⚠ **25 → 18, le 2026-09-16, re-mesuré sur l'arbre fusionné de la revue design des huit
      * groupes** (`docs/qa/revue-design-2026-09-16/`) : `NotificationBell` et les primitives du
      * socle ont quitté la palette brute. Mesuré par la garde, pas additionné depuis les rapports.
+     *
+     * ⚠ **18 → 17, le 2026-10-10 (TCK-621)** : le lien d'accueil d'`AppTopbar` ne porte plus
+     * `text-white` — le logo en ton `clair` peint son nom par le jeton `--background`.
      */
-    plafondReste: 18,
+    plafondReste: 17,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',
