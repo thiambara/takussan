@@ -3,6 +3,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 
 /** TCK-626 — ce que l'acceptation rend d'utile au front (`InvitationResource`). */
@@ -33,7 +34,7 @@ export async function accepterInvitationAction(
   const session = await getToken();
   try {
     const reponse = await apiRequest<{ data: InvitationAcceptee }>(
-      `/api/invitations/${encodeURIComponent(jeton)}/accept`,
+      cheminApi`/api/invitations/${jeton}/accept`,
       { method: 'POST', body: champs, ...(session ? { token: session } : {}) },
     );
     return { ok: true, invitation: reponse.data };

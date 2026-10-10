@@ -195,7 +195,8 @@ describe('TCK-509 — le jeton client suit la session, sans rechargement', () =>
     await waitFor(() => expect(favorisLocaux()).toEqual([]));
 
     await seConnecter(user, 'agent1@dakarimmo.sn');
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/app'));
+    // TCK-624 — toute connexion sort par la porte unique, qui rend la main à `/app`.
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/onboarding/intention'));
 
     // AC2 — la sonde a été relue, et sous l'identité de B.
     await waitFor(() => expect(screen.getByTestId('sonde')).toHaveTextContent('Bearer jeton-B'));
