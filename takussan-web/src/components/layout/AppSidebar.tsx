@@ -181,6 +181,12 @@ export function buildNavItems(user: User): NavItem[] {
     });
   }
 
+  // TCK-625 — un client (ni bailleur, ni membre d'une agence) peut devenir hôte : rien, dans son
+  // espace, ne le lui disait. L'entrée mène à `/publish`, qui l'emmène à l'assistant hôte.
+  if (isCustomerOnly(roles)) {
+    items.push({ href: '/publish', labelKey: 'publishProperty', icon: PlusCircle, section: 'catalog' });
+  }
+
   // Discovery shortcuts (Wave 3 / TCK-047).
   // TCK-379 — plus « visible for every signed-in user » : chercher un bien, le mettre en
   // favori et enregistrer une recherche sont des gestes de qui occupe ou gère un logement.
