@@ -16,8 +16,12 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            // TCK-623 — les noms ne sont exigés que s'ils sont ENVOYÉS : un compte ouvert par
+            // téléphone ou par OAuth naît sans nom, et la section contact du profil (bio, numéro)
+            // ne doit pas être bloquée par un champ qu'elle ne montre pas. Le prénom envoyé ne
+            // peut pas être vide ; le nom, si.
+            'first_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'bio' => ['nullable', 'string', 'max:1000'],
             'avatar' => ['nullable', 'image', 'max:2048'],
             'avatar_remove' => ['sometimes', 'boolean'],

@@ -161,6 +161,9 @@ class AuthController extends Controller
         $user = $request->user();
 
         $data = $request->only(['first_name', 'last_name', 'bio']);
+        if (array_key_exists('last_name', $data)) {
+            $data['last_name'] = (string) $data['last_name'];
+        }
         $remplace = null;
 
         if ($request->has('phone')) {

@@ -84,6 +84,7 @@
     "buy": "Jënd",
     "rent": "Luwaa",
     "userMenuFor": "Menu jëfandikukat — {name}",
+    "accountFallback": "Sama kont",
     "administration": "Yoonu njiit",
     "links": {
       "buy": "Jënd",
@@ -642,6 +643,7 @@
       },
       "welcome": {
         "title": "Dalal ak jam ci Takussan, {firstName}",
+        "titleNoName": "Dalal ak jam ci Takussan",
         "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
         "cta": "Toxal"
       }
@@ -3575,6 +3577,7 @@
     "intention": {
       "metaTitle": "Lan nga ñëw def ci Takussan ?",
       "pageTitle": "Dalal jàmm, {name}",
+      "pageTitleNoName": "Dalal jàmm",
       "pageSubtitle": "Benn laaj rekk, te danu la yóbbu ci bërëb bu baax bi. Man nga def ñaar yi lépp.",
       "legend": "Li nga ñëw def",
       "options": {
@@ -8801,6 +8804,7 @@
       "home": {
         "noAgency": "Tablo bi",
         "greeting": "Salaam {name}",
+        "greetingNoName": "Salaam",
         "subtitle": "Wonewu say jëf",
         "metaTitle": "Tablo bi"
       },

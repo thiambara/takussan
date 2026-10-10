@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**551 tickets** — 30 ouverts, 519 livrés.
+**552 tickets** — 31 ouverts, 519 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 3 |
+| 🚧 Doing | 4 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 519 |
@@ -65,6 +65,7 @@
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-621](tickets/TCK-621-logo-dans-toutes-les-coques.md) — Le logo seulement sur le site public : les tableaux de bord, la console, l'authentification, les onboardings et les écrans d'erreur écrivent « Takussan » en texte nu, ou rien `S · P1 · front`
 - [TCK-622](tickets/TCK-622-borne-sms-compte-les-envois.md) — « Trop de tentatives » sur un parcours ordinaire : la borne SMS par numéro comptait les requêtes et non les codes envoyés, et le front écrasait tout 429 sous le même message `S · P1 · full`
+- [TCK-623](tickets/TCK-623-compte-sans-nom-affiche-undefined.md) — « UNDEFINED » dans la navbar : un compte ouvert par téléphone n'a pas de nom, et l'interface écrivait `''[0]` en toutes lettres — la section contact du profil ne s'enregistrait pas non plus `S · P1 · full`
 
 ## 👀 Review
 
