@@ -1,13 +1,13 @@
 ---
 id: TCK-631
 title: "Publier un bien : le parcours sort du tableau de bord (une question par écran) et montre l'annonce qui se construit à côté — la piste 6 des maquettes"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M
 wave: null
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 depends_on: []
 blocks: []
 spec_refs:
@@ -58,7 +58,7 @@ de messagerie n'est pas montée. La liste des routes concernées vit dans un seu
 - La barre de progression garde la sémantique `progressbar` sur six étapes. Elle se dessine en
   trois segments.
 
-**Pied.** « Retour » à gauche, « Plus tard » et « Continuer » à droite, dans le pied fixe (AC9 de
+**Pied.** « Précédent » à gauche (le libellé existant, gardé), « Plus tard » et « Continuer » à droite, dans le pied fixe (AC9 de
 TCK-464 inchangée). La flèche de retour du haut disparaît.
 
 **Étape 1.**
@@ -88,22 +88,22 @@ fiche publiée.
 
 ## Critères d'acceptation
 
-- [ ] Sur `/app/properties/new`, ni la barre du haut, ni la barre latérale, ni le lanceur
+- [x] Sur `/app/properties/new`, ni la barre du haut, ni la barre latérale, ni le lanceur
       « Messagerie » ne sont rendus. Sur `/app/properties`, ils le sont.
-- [ ] Le titre de l'étape est le seul `h1`, précédé de la partie (« Partie 1 sur 3 · Le bien »).
-- [ ] À l'étape 1, le contrat précède le type. Neuf types sont visibles et « Plus de types (7) »
+- [x] Le titre de l'étape est le seul `h1`, précédé de la partie (« Partie 1 sur 3 · Le bien »).
+- [x] À l'étape 1, le contrat précède le type. Neuf types sont visibles et « Plus de types (7) »
       montre les sept autres. Un brouillon repris sur un type caché l'affiche ouvert.
-- [ ] Type et contrat restent des groupes de radios : un seul arrêt de tabulation, les flèches
+- [x] Type et contrat restent des groupes de radios : un seul arrêt de tabulation, les flèches
       sélectionnent, et le nom de « Vendre » est « Vendre » (la ligne d'explication est une
       description).
-- [ ] L'aperçu suit le formulaire : un clic sur « Vendre » y change le badge, une ville saisie y
+- [x] L'aperçu suit le formulaire : un clic sur « Vendre » y change le badge, une ville saisie y
       apparaît, et un prix aussi, avec sa période en location.
-- [ ] Sous `lg`, la barre d'aperçu ouvre un tiroir qui contient la carte.
-- [ ] L'en-tête dit « Brouillon enregistré » après une écriture réussie. « Enregistrer et quitter »
+- [x] Sous `lg`, la barre d'aperçu ouvre un tiroir qui contient la carte.
+- [x] L'en-tête dit « Brouillon enregistré » après une écriture réussie. « Enregistrer et quitter »
       garde le contrat de TCK-465 (pas de départ sur une écriture refusée).
-- [ ] Le pied reste hors de la zone qui défile (AC9), avec « Retour » et « Continuer ».
-- [ ] Les clés neuves existent en `fr`, `en` et `wo` (`npm run check:i18n`).
-- [ ] Au navigateur, à 390, 768 et 1366 px : aucun défilement horizontal du document, et le
+- [x] Le pied reste hors de la zone qui défile (AC9), avec « Précédent » et « Continuer ».
+- [x] Les clés neuves existent en `fr`, `en` et `wo` (`npm run check:i18n`).
+- [x] Au navigateur, à 390, 768 et 1366 px : aucun défilement horizontal du document, et le
       pied toujours visible.
 
 ## Hors périmètre
