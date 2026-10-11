@@ -31,6 +31,8 @@ class EmailVerificationController extends Controller
         if ($request->user()->hasVerifiedEmail()) {
             abort_code(422, 'email.already_verified');
         }
+        // TCK-632 — un compte ouvert par téléphone n'a pas d'adresse : rien où envoyer le lien.
+        abort_code_if(blank($request->user()->email), 422, 'email.missing');
 
         $request->user()->sendEmailVerificationNotification();
 

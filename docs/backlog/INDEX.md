@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**559 tickets** — 28 ouverts, 529 livrés.
+**560 tickets** — 29 ouverts, 529 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 529 |
@@ -63,6 +63,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-632](tickets/TCK-632-ajouter-et-verifier-son-email-depuis-le-profil.md) — Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil `S · P1 · full`
 
 ## 👀 Review
 

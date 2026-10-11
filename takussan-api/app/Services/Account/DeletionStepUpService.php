@@ -70,7 +70,9 @@ class DeletionStepUpService
 
         // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
         // SMS, au numéro VÉRIFIÉ, directement par le routeur (jamais `SmsChannel`).
-        $bySms = ($user->email === null || $user->email === '') && $user->phone && $user->phone_verified_at !== null;
+        // TCK-632 — ni d'e-mail VÉRIFIÉ : l'adresse qu'il ajoute depuis son profil ne prend le
+        // relais qu'une fois son lien suivi. Une adresse mal saisie recevrait sinon le code.
+        $bySms = $user->email_verified_at === null && $user->phone && $user->phone_verified_at !== null;
 
         // Passe 2 (p2-2) — ce SMS passe la MÊME porte que tout code : indicatif servi et plafond
         // global du jour. Refusé, rien n'est émis ni rangé ; la réponse reste le 202 invariant.

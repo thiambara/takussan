@@ -140,6 +140,8 @@ return [
     ],
     'email' => [
         'already_verified' => 'Cette adresse e-mail est déjà vérifiée.',
+        'missing' => 'Aucune adresse e-mail n\'est enregistrée sur ce compte.',
+        'change_requires_proof' => 'Une adresse e-mail vérifiée ne se remplace pas encore depuis le profil.',
     ],
     'export' => [
         'forbidden' => 'Vous n\'avez pas le droit d\'exporter ces données.',

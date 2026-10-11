@@ -8128,7 +8128,15 @@
       "changeProofOr": "walla",
       "changeProofSendCode": "Jot benn code ci {phone}",
       "changeProofCodeSent": "Yónne nañu code bi ci sa nimero bi fi nekk. Dafay dox 5 simili.",
-      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk"
+      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk",
+      "emailPlaceholder": "yow@misaal.com",
+      "emailFormatError": "Bindal adrees e-mail bu baax (misaal : yow@misaal.com).",
+      "emailAddHint": "Yokkal adrees e-mail : dinanu la yónne lien ngir nga dëggal ko.",
+      "emailUnverifiedHint": "Mën nga defar adrees bii bala ñu koy dëggal.",
+      "emailVerifiedHint": "Adrees bu ñu dëggal mënuñu ko soppi ci xët wii.",
+      "emailVerifyPrompt": "Ubbil lien bi ñu yónne ci {email} ngir dëggal sa adrees.",
+      "emailResend": "Yónneeti lien bi",
+      "emailLinkSent": "Lien bu dëggal bi yónne nañu ko ci {email}."
     },
     "searchPreferences": {
       "defaultName": "Samay tànneef",
@@ -8181,6 +8189,7 @@
       "emailTitle": "Email",
       "emailVerified": "Sa email ñu ko wóoral na.",
       "emailNotVerified": "Sa email ñu ko wóoralagul. Xoolal sa boyetu jot.",
+      "emailMissing": "Amul benn adrees e-mail ci kont bii. Yokkal ci sa coordonnées, ci kaw.",
       "verified": "Ñu ko wóoral",
       "notVerified": "Ñu ko wóoralul",
       "phone": {
