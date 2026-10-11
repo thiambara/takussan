@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -171,6 +171,40 @@ describe('PropertyWizard — composition des étapes', () => {
   });
 });
 
+describe('PropertyWizard — l’aperçu suit le formulaire (TCK-631)', () => {
+  it('le contrat, la ville et le prix choisis apparaissent dans la carte, au fil des étapes', async () => {
+    const user = userEvent.setup();
+    monter();
+    const apercu = () => within(screen.getByRole('complementary', { name: /aperçu de l’annonce/i }));
+
+    expect(apercu().getByText('Votre annonce')).toBeInTheDocument();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    expect(apercu().getByText('En vente')).toBeInTheDocument();
+    expect(apercu().getByText('Villa')).toBeInTheDocument();
+
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Saly');
+    expect(apercu().getByText('Saly')).toBeInTheDocument();
+    expect(apercu().getByText('Villa à Saly')).toBeInTheDocument();
+  });
+
+  it('la liste « Pour publier » rouvre une étape franchie', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.click(typeBien(/^terrain$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
+
+    const apercu = within(screen.getByRole('complementary', { name: /aperçu de l’annonce/i }));
+    await user.click(apercu.getByRole('button', { name: /revenir à : le type et le contrat/i }));
+
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 1 sur 6' } })).toBeInTheDocument();
+  });
+});
+
 describe('PropertyWizard — ce que la géo-IP pose et ce qu’elle propose', () => {
   it('AC6 — la ville reste vide tant que la suggestion n’est pas acceptée', async () => {
     geo.valeur = { city: 'Dakar', region: 'Dakar', country_code: 'SN', currency: 'XOF' };
@@ -290,10 +324,12 @@ describe('PropertyWizard — le brouillon', () => {
     };
     monter();
 
-    expect(await screen.findByText('Étape 4 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument();
     // TCK-564 — le prix repris se RELIT groupé (espace fine insécable de `fr-SN`).
     expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u202f000\u202f000');
-    expect(screen.getByRole('status')).toHaveTextContent(/brouillon/i);
+    expect(screen.getByText(/repris votre brouillon/i)).toHaveAttribute('role', 'status');
+    // TCK-631 — l'en-tête dit l'état du brouillon : celui-ci existe sur le serveur.
+    expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
   });
 
   /**
@@ -314,11 +350,11 @@ describe('PropertyWizard — le brouillon', () => {
     const user = userEvent.setup();
     monter();
 
-    expect(await screen.findByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
     expect(screen.getByLabelText(/ville/i)).toHaveValue('Mbour');
     await user.click(suivant());
 
-    expect(await screen.findByText('Étape 3 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 3 sur 6' } })).toBeInTheDocument();
     expect(screen.queryByText(/expected string/i)).not.toBeInTheDocument();
   });
 
@@ -329,7 +365,7 @@ describe('PropertyWizard — le brouillon', () => {
     };
     const { container } = monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -356,7 +392,7 @@ describe('PropertyWizard — le brouillon', () => {
     expect(await screen.findByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
     expect(screen.getByRole('button', { name: /masquer la rue/i })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
   });
 
   /**
@@ -386,7 +422,7 @@ describe('PropertyWizard — le brouillon', () => {
       expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false'),
     );
     expect(screen.getByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
-    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
   });
 
   // TCK-574 — AC24 ne citait que le pays : une régression limitée au pays (mutation M-D de la
@@ -417,7 +453,7 @@ describe('PropertyWizard — le brouillon', () => {
     const user = userEvent.setup();
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
 
     await waitFor(() => expect(brouillon.etat.flush).toHaveBeenCalledTimes(1));
     expect(routeur.push).toHaveBeenCalledWith('/app/properties');
@@ -447,7 +483,7 @@ describe('PropertyWizard — le brouillon', () => {
     });
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
 
     await waitFor(() => expect(brouillon.etat.flush).toHaveBeenCalledTimes(1));
     expect(routeur.push).not.toHaveBeenCalled();
@@ -463,7 +499,7 @@ describe('PropertyWizard — le brouillon', () => {
     });
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
     await screen.findByRole('alert');
     expect(routeur.push).not.toHaveBeenCalled();
 
@@ -717,10 +753,10 @@ describe('PropertyWizard — la soumission', () => {
     brouillon.etat.draft = { step: 3, data: BROUILLON_COMPLET };
     const { container } = monter();
 
-    await screen.findByText('Étape 4 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
-    await waitFor(() => expect(screen.getByText('Étape 4 sur 6')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument());
     expect(createPropertyAction).not.toHaveBeenCalled();
   });
 
@@ -728,7 +764,7 @@ describe('PropertyWizard — la soumission', () => {
     brouillon.etat.draft = { step: 5, data: BROUILLON_COMPLET };
     const { container } = monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -768,7 +804,7 @@ describe('PropertyWizard — la publication (TCK-627)', () => {
     brouillon.etat.draft = { step: 5, data: COMPLET };
     const user = userEvent.setup();
     render(withIntl(<PropertyWizard proposition={proposition} />));
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     await user.click(
       screen.getByRole('button', { name: proposition ? 'Proposer à mon agence' : /publier/i }),
     );
@@ -844,7 +880,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
     render(withIntl(<PropertyWizard proposition />));
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     expect(screen.getByTestId('property-proposal-notice')).toHaveTextContent(
       'Votre agence relira ce bien avant de le publier',
     );
@@ -859,7 +895,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     const user = userEvent.setup();
     render(withIntl(<PropertyWizard proposition />));
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     await user.click(screen.getByRole('button', { name: 'Proposer à mon agence' }));
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -870,7 +906,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
     monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     expect(screen.queryByTestId('property-proposal-notice')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /publier/i })).toBeInTheDocument();
   });

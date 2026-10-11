@@ -1401,29 +1401,35 @@
       "steps": {
         "bien": {
           "title": "What are you listing?",
-          "subtitle": "These two answers decide which questions come next."
+          "subtitle": "These two answers decide which questions come next.",
+          "short": "Type and contract"
         },
         "lieu": {
           "title": "Where is it?",
-          "subtitle": "The city is enough to publish. The rest sharpens search results."
+          "subtitle": "The city is enough to publish. The rest sharpens search results.",
+          "short": "Location"
         },
         "caracteristiques": {
           "title": "Tell us about {type}",
           "subtitle": "These are the figures visitors compare first.",
-          "subtitleShort": "A couple of measurements, and that is all we need here."
+          "subtitleShort": "A couple of measurements, and that is all we need here.",
+          "short": "Features"
         },
         "prix": {
           "title": "At what price?",
           "subtitleRent": "The rent, how often it is due, and when the property becomes free.",
-          "subtitleSale": "The asking price. You can change it after publishing."
+          "subtitleSale": "The asking price. You can change it after publishing.",
+          "short": "Price"
         },
         "photos": {
           "title": "Add photos",
-          "subtitle": "Optional — but a listing with photos gets far more views."
+          "subtitle": "Optional — but a listing with photos gets far more views.",
+          "short": "Photos"
         },
         "finition": {
           "title": "A title, and you are done",
-          "subtitle": "We drafted one from your answers. Edit it freely."
+          "subtitle": "We drafted one from your answers. Edit it freely.",
+          "short": "Title"
         }
       },
       "typeArticle": {
@@ -1451,7 +1457,7 @@
         "continueAnyway": "Continue without"
       },
       "publish": "Publish listing",
-      "resumeLater": "Resume later",
+      "resumeLater": "Save and exit",
       "proposalFinish": "Propose to my agency",
       "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
@@ -1480,7 +1486,46 @@
         "proposal": "Proposal sent to your agency."
       },
       "publishFailed": "The property is saved as a draft but could not be published: {message} Retry, or open the draft.",
-      "publishFailedOpen": "Open the draft"
+      "publishFailedOpen": "Open the draft",
+      "partPosition": "Part {current} of {total} · {label}",
+      "parts": {
+        "bien": "The property",
+        "details": "The details",
+        "annonce": "The listing"
+      },
+      "moreTypes": "More types ({count})",
+      "fewerTypes": "Fewer types",
+      "contractHint": {
+        "rent": "A rent and how often it is due, an availability date.",
+        "sale": "An asking price, editable after publishing."
+      },
+      "header": {
+        "publish": "List a property",
+        "proposal": "Propose a property",
+        "draftSaving": "Saving…",
+        "draftSaved": "Draft saved"
+      },
+      "preview": {
+        "label": "Listing preview",
+        "hint": "What visitors will see",
+        "open": "Preview",
+        "openLabel": "Open the listing preview",
+        "empty": "Your listing",
+        "emptyHint": "It fills in as you answer.",
+        "photoLater": "Your photos will go here",
+        "placeLater": "Location to come",
+        "priceLater": "Price to come",
+        "entryTitle": "Move-in cost",
+        "entryAdvance": "{count} months in advance",
+        "entryDeposit": "{count} months of deposit",
+        "entryFee": "{count} months of agency fees",
+        "entryCharges": "{amount} of charges per month",
+        "entryNote": "The total is shown on the published listing.",
+        "checklist": "Before publishing",
+        "current": "in progress",
+        "optional": "optional",
+        "reopen": "Go back to: {step}"
+      }
     },
     "titleTypes": {
       "bail": "Lease",

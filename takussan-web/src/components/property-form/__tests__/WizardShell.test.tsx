@@ -49,7 +49,36 @@ describe('WizardShell', () => {
 
   it('annonce la position dans le parcours', () => {
     monter({ index: 1 });
-    expect(screen.getByText(/2.*3/)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 3' } })).toBeInTheDocument();
+  });
+
+  it('TCK-631 — nomme la PARTIE de l’étape au-dessus de la question, et dessine un segment par partie', () => {
+    const steps = etapes().map((s, i) => ({ ...s, part: i < 2 ? 0 : 1 }));
+    monter({ steps, index: 1, parts: ['Le bien', 'L’annonce'] });
+
+    expect(screen.getByText('Partie 1 sur 2 · Le bien')).toBeInTheDocument();
+    const barre = screen.getByRole('progressbar');
+    expect(barre.children).toHaveLength(2);
+    // Les deux étapes de la première partie sont atteintes : elle est pleine, la seconde vide.
+    expect((barre.children[0].firstChild as HTMLElement).style.width).toBe('100%');
+    expect((barre.children[1].firstChild as HTMLElement).style.width).toBe('0%');
+  });
+
+  it('TCK-631 — l’aperçu : une colonne à part, et une barre pour les écrans étroits', () => {
+    monter({ apercu: <p>carte</p>, barreApercu: <p>barre</p>, entete: <header>en-tête</header> });
+
+    expect(screen.getByRole('complementary', { name: /aperçu de l’annonce/i })).toHaveTextContent('carte');
+    expect(screen.getByText('barre')).toBeInTheDocument();
+    expect(screen.getByText('en-tête')).toBeInTheDocument();
+    // Ni l'un ni l'autre ne vit dans la zone qui défile : ils restent en place pendant la question.
+    const defilante = document.querySelector('[data-wizard-scroll]')!;
+    expect(defilante.contains(screen.getByText('carte'))).toBe(false);
+    expect(defilante.contains(screen.getByText('barre'))).toBe(false);
+  });
+
+  it('TCK-631 — la question est le titre de NIVEAU 1 de la route', () => {
+    monter();
+    expect(screen.getByRole('heading', { level: 1, name: 'Le bien' })).toBeInTheDocument();
   });
 
   it('avance et recule en signalant le SENS — c’est lui qui choisit la transition', async () => {
@@ -127,7 +156,7 @@ describe('WizardShell', () => {
     );
     // Montage initial : le focus reste où l'utilisateur est arrivé sur la page — il ne doit PAS
     // être arraché vers le titre de la première étape.
-    expect(screen.getByRole('heading', { level: 2, name: 'Le bien' })).not.toHaveFocus();
+    expect(screen.getByRole('heading', { level: 1, name: 'Le bien' })).not.toHaveFocus();
 
     rerender(
       withIntl(
@@ -138,7 +167,7 @@ describe('WizardShell', () => {
 
     // Changement d'étape : le nouveau titre reçoit le focus (WCAG 2.4.3), sans entrer dans
     // l'ordre de tabulation (il est atteint par programme, pas par Tab).
-    const titreSuivant = await screen.findByRole('heading', { level: 2, name: 'Où' });
+    const titreSuivant = await screen.findByRole('heading', { level: 1, name: 'Où' });
     await waitFor(() => expect(titreSuivant).toHaveFocus());
     expect(titreSuivant).toHaveAttribute('tabindex', '-1');
   });
@@ -163,6 +192,6 @@ describe('WizardShell', () => {
         )}
       </StrictMode>,
     );
-    expect(screen.getByRole('heading', { level: 2, name: 'Le bien' })).not.toHaveFocus();
+    expect(screen.getByRole('heading', { level: 1, name: 'Le bien' })).not.toHaveFocus();
   });
 });
