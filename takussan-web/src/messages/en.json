@@ -8818,7 +8818,15 @@
       "changeProofOr": "or",
       "changeProofSendCode": "Get a code on {phone}",
       "changeProofCodeSent": "Code sent to your current number. It is valid for 5 minutes.",
-      "changeProofCodeAria": "Code received on your current number"
+      "changeProofCodeAria": "Code received on your current number",
+      "emailPlaceholder": "you@example.com",
+      "emailFormatError": "Enter a valid email address (e.g. you@example.com).",
+      "emailAddHint": "Add an email address: we will send you a link to verify it.",
+      "emailUnverifiedHint": "You can correct this address until it is verified.",
+      "emailVerifiedHint": "A verified address cannot be changed from this page.",
+      "emailVerifyPrompt": "Open the link sent to {email} to verify your address.",
+      "emailResend": "Resend the link",
+      "emailLinkSent": "Verification link sent to {email}."
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -8871,6 +8879,7 @@
       "emailTitle": "Email",
       "emailVerified": "Your email is verified.",
       "emailNotVerified": "Your email is not verified yet. Check your inbox.",
+      "emailMissing": "No email address on this account. Add one in your contact details, above.",
       "verified": "Verified",
       "notVerified": "Not verified",
       "phone": {

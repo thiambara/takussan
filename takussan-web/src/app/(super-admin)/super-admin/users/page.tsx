@@ -174,7 +174,10 @@ function getUserDisplayName(user: SuperAdminUser): string {
   return (
     user.full_name ||
     [user.first_name, user.last_name].filter(Boolean).join(' ').trim() ||
-    user.email
+    // TCK-632 — un compte ouvert par téléphone n'a ni nom ni adresse : c'est son numéro qui le nomme.
+    user.email ||
+    user.phone ||
+    ''
   );
 }
 

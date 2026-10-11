@@ -63,6 +63,9 @@ export async function updateProfileAction(
     const raw = formData.get('phone');
     payload.phone = typeof raw === 'string' ? raw : null;
   }
+  // TCK-632 — comme le numéro : seulement si le formulaire porte le champ.
+  const email = formData.get('email');
+  if (typeof email === 'string') payload.email = email;
   // TCK-589 p3-1 — la preuve du remplacement d'un numéro vérifié, relayée telle quelle.
   for (const champ of ['current_password', 'phone_change_code'] as const) {
     const valeur = formData.get(champ);

@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**560 tickets** — 28 ouverts, 530 livrés.
+**561 tickets** — 28 ouverts, 531 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 530 |
+| ✅ Done | 531 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -74,7 +74,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 530
+## ✅ Done — 531
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>
@@ -955,7 +955,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 30 tickets</summary>
+<summary><strong>Sans vague</strong> — 31 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -987,6 +987,7 @@ _(aucun)_
 - [TCK-629](tickets/TCK-629-accueil-sept-cartes-et-similaires.md) — Accueil, retour du porteur sur TCK-628 : sept cartes par rangée dès un écran d'ordinateur, plus de tuiles par ville, type ou quartier, et « Récemment consultés » complété par des biens similaires `S · P1 · front`
 - [TCK-630](tickets/TCK-630-tiroir-de-filtres-en-tete-fixe.md) — Tiroir des filtres sur téléphone : l'en-tête (« Filtres », « Tout effacer », fermer) défilait avec les filtres ; il reste en haut, le corps défile dessous `S · P1 · front`
 - [TCK-631](tickets/TCK-631-publication-plein-ecran-et-apercu.md) — Publier un bien : le parcours sort du tableau de bord (une question par écran) et montre l'annonce qui se construit à côté — la piste 6 des maquettes `M · P1 · front`
+- [TCK-632](tickets/TCK-632-ajouter-et-verifier-son-email-depuis-le-profil.md) — Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil `S · P1 · full`
 
 </details>
 

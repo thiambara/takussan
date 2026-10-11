@@ -835,7 +835,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Connexion (tokens Sanctum) |
 | P0 | §2.1 | Déconnexion et révocation de token |
 | P0 | §2.1 | Mot de passe oublié et réinitialisation |
-| P0 | §2.1 | Vérification de l'adresse email |
+| P0 | §2.1 | Vérification de l'adresse email ; un compte ouvert par téléphone ajoute son adresse depuis le profil et en reçoit le lien, renvoyable ; une adresse non vérifiée se corrige, une adresse vérifiée ne se remplace pas encore (TCK-632) |
 | P0 | §2.1 | Édition de profil (nom, bio, avatar) |
 | P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) ; le code part réellement par SMS, n'est jamais accepté sous une forme fixe, et s'invalide après 5 essais ; un numéro vérifié n'appartient qu'à un compte (TCK-589) ; hors production seulement (local, préproduction), derrière un drapeau, l'API rend aussi le code et l'écran l'affiche à côté du champ — connexion, inscription, profil, onboardings, suppression de compte, signature de bail (TCK-620, ADR-0060) |
 | P1 | §2.1 | OAuth Google (Socialite) |

@@ -183,6 +183,16 @@ class AuthController extends Controller
             }
         }
 
+        // TCK-632 — ajouter une adresse, ou corriger une adresse jamais vérifiée, est libre ;
+        // remplacer une adresse VÉRIFIÉE ne l'est pas. Elle ouvre le compte (mot de passe
+        // oublié) au même titre qu'un numéro vérifié, et aucune preuve sur l'ancienne boîte
+        // n'existe encore : refusé, plutôt qu'accordé sur la seule session (cf. PhoneChangeGuard).
+        $nouvelleAdresse = null;
+        if ($request->has('email') && $request->input('email') !== $user->email) {
+            abort_code_if($user->email !== null && $user->hasVerifiedEmail(), 403, 'email.change_requires_proof');
+            $nouvelleAdresse = (string) $request->input('email');
+        }
+
         if ($request->boolean('avatar_remove')) {
             $user->clearMediaCollection('avatar');
         }
@@ -193,9 +203,16 @@ class AuthController extends Controller
                 ->toMediaCollection('avatar');
         }
 
+        if ($nouvelleAdresse !== null) {
+            // `email_verified_at` n'est pas assignable en masse, et c'est voulu.
+            $user->forceFill(['email' => $nouvelleAdresse, 'email_verified_at' => null]);
+        }
         $user->update($data);
         if ($remplace !== null) {
             $phoneChange->notifyReplaced($user, $remplace);
+        }
+        if ($nouvelleAdresse !== null) {
+            $user->sendEmailVerificationNotification();
         }
 
         return $this->json(new UserResource($user->fresh()));

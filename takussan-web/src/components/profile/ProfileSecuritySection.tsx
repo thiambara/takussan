@@ -20,6 +20,9 @@ export function ProfileSecuritySection() {
   const t = useTranslations('profile.security');
   const { user } = useAuth();
   const emailVerified = Boolean(user?.email_verified_at);
+  // TCK-632 — un compte ouvert par téléphone n'a pas d'adresse : « consultez votre boîte » y
+  // renvoyait vers une boîte qui n'existe pas. L'ajout se fait dans les coordonnées, plus haut.
+  const sansAdresse = !user?.email;
 
   return (
     <section className="space-y-4 rounded-2xl bg-card p-6">
@@ -35,19 +38,21 @@ export function ProfileSecuritySection() {
           <div>
             <h3 className="text-base font-semibold text-foreground">{t('emailTitle')}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {emailVerified ? t('emailVerified') : t('emailNotVerified')}
+              {emailVerified ? t('emailVerified') : sansAdresse ? t('emailMissing') : t('emailNotVerified')}
             </p>
           </div>
-          <span
-            className={
-              'rounded-full px-2 py-1 text-xs font-semibold ' +
-              (emailVerified
-                ? 'bg-success/15 text-success'
-                : 'bg-card text-primary')
-            }
-          >
-            {emailVerified ? t('verified') : t('notVerified')}
-          </span>
+          {sansAdresse ? null : (
+            <span
+              className={
+                'rounded-full px-2 py-1 text-xs font-semibold ' +
+                (emailVerified
+                  ? 'bg-success/15 text-success'
+                  : 'bg-card text-primary')
+              }
+            >
+              {emailVerified ? t('verified') : t('notVerified')}
+            </span>
+          )}
         </div>
       </div>
 
