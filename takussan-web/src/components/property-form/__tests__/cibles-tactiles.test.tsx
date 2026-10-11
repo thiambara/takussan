@@ -176,9 +176,13 @@ describe('la portée de densité est ouverte par les deux écrans', () => {
 // ── AC1 : aucun champ du parcours n'échappe au régime ────────────────────────
 
 describe('AC1 — publication : tous les champs sont à 44 px, et les pastilles aussi', () => {
-  it('étape Bien — les pastilles (44 px) sont le témoin de référence', () => {
+  it('étape Bien — cartes, tuiles et « Plus de types » sont toutes à 44 px au moins (TCK-631)', () => {
     const { container } = harnais({}, (form) => <StepBien form={form} />);
-    exigePastilles44(container, 'StepBien');
+    const boutons = Array.from(container.querySelectorAll('button'));
+    expect(boutons.length, 'StepBien : aucun bouton trouvé').toBeGreaterThan(0);
+    for (const b of boutons) {
+      expect(b.className, `StepBien : cible sous 44 px — "${b.textContent}"`).toMatch(/(^|\s)min-h-(11|20)(\s|$)/);
+    }
   });
 
   it('étape Lieu — champs texte, y compris ceux du repli « détails »', async () => {
