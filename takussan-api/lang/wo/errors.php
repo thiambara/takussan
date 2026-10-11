@@ -140,6 +140,8 @@ return [
     ],
     'email' => [
         'already_verified' => 'Adrees e-mail bii dëggal nañu ko ba noppi.',
+        'missing' => 'Amul benn adrees e-mail ci kont bii.',
+        'change_requires_proof' => 'Adrees e-mail bu ñu dëggal mënuñu ko soppi ci profil bi léegi.',
     ],
     'export' => [
         'forbidden' => 'Amuloo sañ-sañ génne donne yii.',

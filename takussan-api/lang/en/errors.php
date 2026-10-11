@@ -140,6 +140,8 @@ return [
     ],
     'email' => [
         'already_verified' => 'This email address is already verified.',
+        'missing' => 'No email address is saved on this account.',
+        'change_requires_proof' => 'A verified email address cannot be replaced from the profile yet.',
     ],
     'export' => [
         'forbidden' => 'You are not allowed to export this data.',

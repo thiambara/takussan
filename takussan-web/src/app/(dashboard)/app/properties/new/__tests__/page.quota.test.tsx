@@ -17,7 +17,9 @@ vi.mock('@/app/actions/auth', () => ({ getMeAction: () => mockGetMe() }));
 vi.mock('@/app/actions/admin-tags', () => ({ fetchTagsAction: async () => ({ ok: true, data: { data: [] } }) }));
 vi.mock('@/app/actions/dashboard-properties', () => ({ fetchListingQuotaAction: () => mockQuota() }));
 vi.mock('@/components/property-form', () => ({
-  PropertyWizard: () => <div data-testid="assistant" />,
+  PropertyWizard: ({ quotaNote }: { quotaNote?: string }) => (
+    <div data-testid="assistant">{quotaNote}</div>
+  ),
 }));
 
 import Page from '../page';
@@ -38,12 +40,13 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
     expect(screen.queryByTestId('assistant')).not.toBeInTheDocument();
   });
 
-  it('sous la limite : l’assistant, avec l’usage en sous-titre', async () => {
+  it('sous la limite : l’assistant, qui reçoit l’usage du quota (TCK-631 : plus de titre de page)', async () => {
     mockQuota.mockResolvedValue({ limit: 5, used: 2, can_create: true });
 
     render(withIntl(await Page()));
 
-    expect(screen.getByTestId('assistant')).toBeInTheDocument();
+    expect(screen.getByTestId('assistant')).toHaveTextContent(/annonce\(s\) active\(s\)/);
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByTestId('quota-atteint')).not.toBeInTheDocument();
   });
 

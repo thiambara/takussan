@@ -69,6 +69,12 @@ export type UpdateProfilePayload = {
    */
   phone?: string | null;
   /**
+   * TCK-632 — l'adresse à AJOUTER (compte ouvert par téléphone) ou à corriger tant qu'elle n'est
+   * pas vérifiée. L'API envoie le lien de vérification ; elle refuse (403) de remplacer une
+   * adresse vérifiée. Omise, l'adresse ne bouge pas.
+   */
+  email?: string;
+  /**
    * TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro VÉRIFIÉ : le mot de passe
    * actuel, ou le code reçu sur l'ancien numéro. Sans elle, l'API rend 403
    * `phone.change_requires_proof`.
@@ -102,6 +108,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
   if (payload.avatar) formData.append('avatar', payload.avatar);
   if (payload.avatar_remove) formData.append('avatar_remove', '1');
   if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
+  if (payload.email !== undefined) formData.append('email', payload.email);
   if (payload.current_password) formData.append('current_password', payload.current_password);
   if (payload.phone_change_code) formData.append('phone_change_code', payload.phone_change_code);
 

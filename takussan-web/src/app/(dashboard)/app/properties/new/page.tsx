@@ -7,6 +7,7 @@ import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { fetchListingQuotaAction } from '@/app/actions/dashboard-properties';
 import { buttonVariants } from '@/components/ui/button';
 import { PropertyWizard } from '@/components/property-form';
+import { EnTetePublication } from '@/components/property-form/wizard/EnTetePublication';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { getMeAction } from '@/app/actions/auth';
@@ -57,10 +58,14 @@ export const dynamic = 'force-dynamic';
  * test vert ne dit rien ici, et aucun n'a été écrit pour le prétendre. La vérification se fait
  * au navigateur — cf. le rapport de la tâche.
  *
- * ⚠ La description de `PageHeader` (« Remplissez les informations essentielles ») décrivait le
- * formulaire long ; elle est retirée plutôt que réécrite : le sous-titre de chaque étape porte
- * désormais cette conduite, et la hauteur qu'elle occupait est prise sur la zone défilante du
- * parcours. Le `<h1>`, lui, reste — c'est le seul titre de niveau 1 de la route.
+ * TCK-631 — la route est PLEIN ÉCRAN (`components/layout/plein-ecran.ts`) : `AppShell` n'y rend
+ * ni sa barre du haut ni sa barre latérale, et `<main>` n'a plus de rembourrage à reprendre ici.
+ * La page ne porte plus de `PageHeader` non plus : il disait « Publier un bien » une troisième
+ * fois (menu, titre de page, titre d'étape). Le titre de l'étape devient le `<h1>` de la route,
+ * l'en-tête du parcours dit ce qu'on fait, et le quota passe dans la colonne d'aperçu.
+ *
+ * Le refus de quota, lui, n'a pas de parcours : il reçoit le même en-tête, pour que la route
+ * garde une marque et une sortie maintenant que la console s'est retirée.
  */
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.propertyNew');
@@ -75,48 +80,50 @@ export default async function Page() {
   // TCK-627 — une proposition reste un brouillon de l'agence : elle ne consomme aucun quota.
   const quota = proposition ? null : await fetchListingQuotaAction();
 
+  const titre = proposition ? t('proposalTitle') : t('title');
+
   if (quota && !quota.can_create) {
     return (
-      <div className="flex flex-col gap-6">
-        <PageHeader title={t('title')} />
-        <section
-          role="alert"
-          className="flex max-w-xl flex-col gap-3 rounded-xl border border-border bg-card px-5 py-5"
-          data-testid="quota-atteint"
-        >
-          <h2 className="font-display text-lg font-semibold text-foreground">{t('quotaReachedTitle')}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t('quotaReachedBody', { used: quota.used, limit: quota.limit ?? 0 })}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {isAdmin(roles) ? (
-              <Link href="/admin/agency/billing" className={buttonVariants({ size: 'sm' })}>
-                {t('quotaReachedUpgrade')}
+      <div className="absolute inset-0 flex flex-col overflow-y-auto">
+        <EnTetePublication titre={titre} enregistrement="aucun" />
+        <div className="flex flex-col gap-6 px-4 py-6 sm:px-8 md:py-10">
+          <PageHeader title={titre} />
+          <section
+            role="alert"
+            className="flex max-w-xl flex-col gap-3 rounded-xl border border-border bg-card px-5 py-5"
+            data-testid="quota-atteint"
+          >
+            <h2 className="font-display text-lg font-semibold text-foreground">{t('quotaReachedTitle')}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t('quotaReachedBody', { used: quota.used, limit: quota.limit ?? 0 })}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {isAdmin(roles) ? (
+                <Link href="/admin/agency/billing" className={buttonVariants({ size: 'sm' })}>
+                  {t('quotaReachedUpgrade')}
+                </Link>
+              ) : null}
+              <Link href="/app/properties" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+                {t('quotaReachedManage')}
               </Link>
-            ) : null}
-            <Link href="/app/properties" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
-              {t('quotaReachedManage')}
-            </Link>
-          </div>
-        </section>
+            </div>
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col gap-4 overflow-hidden px-4 py-6 md:px-6 md:py-8">
-      <PageHeader
-        title={proposition ? t('proposalTitle') : t('title')}
-        description={
+    <div className="absolute inset-0">
+      <PropertyWizard
+        tags={tags}
+        proposition={proposition}
+        quotaNote={
           quota && quota.limit !== null
             ? t('quotaUsage', { used: quota.used, limit: quota.limit })
             : undefined
         }
-        className="shrink-0"
       />
-      <div className="min-h-0 flex-1">
-        <PropertyWizard tags={tags} proposition={proposition} />
-      </div>
     </div>
   );
 }

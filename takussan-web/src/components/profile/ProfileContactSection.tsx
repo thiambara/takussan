@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Button } from '@/components/ui/button';
-import { updateProfileAction } from '@/app/actions/auth';
+import { resendVerificationEmailAction, updateProfileAction } from '@/app/actions/auth';
 import {
   phoneChangeCodeAction,
   phoneSendOtpAction,
@@ -21,6 +21,9 @@ interface ProfileContactSectionProps {
 }
 
 type Feedback = { ok: boolean; message: string };
+
+/** Le contrôle de forme du navigateur, sans plus : c'est l'API qui juge (`email`, unicité). */
+const ADRESSE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * TCK-137 — Phone is now editable from the contact tab. The verification
@@ -36,6 +39,11 @@ type Feedback = { ok: boolean; message: string };
  * (`PhoneChangeGuard`, 403 `phone.change_requires_proof` sans elle) : le mot de passe actuel
  * quand le compte en a un, ou un code reçu sur l'ANCIEN numéro. Le bloc de preuve n'apparaît
  * que dans ce cas ; un premier numéro, ou un numéro non vérifié, se change librement.
+ *
+ * TCK-632 — l'adresse e-mail suit la même règle, sans voie de preuve : un compte ouvert par
+ * téléphone l'AJOUTE ici, et une adresse jamais vérifiée se corrige ; une adresse vérifiée reste en
+ * lecture seule (l'API refuserait son remplacement, 403). L'enregistrement envoie le lien, et
+ * « Renvoyer le lien » le renvoie tant qu'il n'a pas été suivi.
  */
 export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const t = useTranslations('profile.contact');
@@ -47,6 +55,11 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const [phoneVerified, setPhoneVerified] = useState(
     Boolean(user.phone_verified_at),
   );
+  const [email, setEmail] = useState(user.email ?? '');
+  const [savedEmail, setSavedEmail] = useState(user.email ?? '');
+  const [emailVerified, setEmailVerified] = useState(Boolean(user.email_verified_at));
+  const [emailFeedback, setEmailFeedback] = useState<Feedback | null>(null);
+  const [emailPending, startEmailTransition] = useTransition();
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -65,7 +78,12 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const [proofFeedback, setProofFeedback] = useState<Feedback | null>(null);
   const [proofPending, startProofTransition] = useTransition();
 
-  const emailVerified = Boolean(user.email_verified_at);
+  // L'API range l'adresse en minuscules : la comparer telle quelle ferait d'une simple variante
+  // de casse une modification, et renverrait un lien à chaque enregistrement.
+  const emailTrimmed = email.trim();
+  const emailDirty = emailTrimmed.toLowerCase() !== savedEmail.toLowerCase();
+  // Vider le champ n'est pas un geste de cette section : une adresse enregistrée ne se retire pas.
+  const emailFormatValid = emailTrimmed.length === 0 ? savedEmail.length === 0 : ADRESSE.test(emailTrimmed);
   const phoneTrimmed = phone.trim();
   const phoneFormatValid = phoneTrimmed.length === 0 || isE164(phoneTrimmed);
   const phoneDirty = phoneTrimmed !== savedPhone;
@@ -74,11 +92,15 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const needsProof = phoneDirty && phoneVerified && savedPhone.length > 0;
   const proofGiven = proofPassword.length > 0 || proofCode.length === 6;
   const canSubmit =
-    phoneFormatValid && (phoneDirty || bioDirty) && !loading && (!needsProof || proofGiven);
+    phoneFormatValid &&
+    emailFormatValid &&
+    (phoneDirty || bioDirty || emailDirty) &&
+    !loading &&
+    (!needsProof || proofGiven);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!phoneFormatValid) return;
+    if (!phoneFormatValid || !emailFormatValid) return;
     setLoading(true);
     setFeedback(null);
     const fd = new FormData();
@@ -87,6 +109,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     // sauvegarde (422), bio et numéro compris.
     fd.append('bio', bio);
     fd.append('phone', phoneTrimmed);
+    if (emailDirty) fd.append('email', emailTrimmed);
     if (needsProof) {
       if (proofPassword.length > 0) fd.append('current_password', proofPassword);
       else fd.append('phone_change_code', proofCode);
@@ -100,6 +123,10 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     setSavedPhone(result.user.phone ?? '');
     setPhone(result.user.phone ?? '');
     setPhoneVerified(Boolean(result.user.phone_verified_at));
+    setSavedEmail(result.user.email ?? '');
+    setEmail(result.user.email ?? '');
+    setEmailVerified(Boolean(result.user.email_verified_at));
+    setEmailFeedback(null);
     setOtpSent(false);
     setOtpCode('');
     setOtpFeedback(null);
@@ -111,7 +138,22 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     // from `useAuth()` (notably `ProfileSecuritySection`) reflect the
     // new phone + reset verification status without a page reload.
     setUser({ ...(contextUser ?? user), ...result.user });
-    setFeedback({ ok: true, message: t('saved') });
+    setFeedback({
+      ok: true,
+      message: emailDirty ? t('emailLinkSent', { email: result.user.email ?? emailTrimmed }) : t('saved'),
+    });
+  }
+
+  function handleResendEmail() {
+    setEmailFeedback(null);
+    startEmailTransition(async () => {
+      const result = await resendVerificationEmailAction();
+      setEmailFeedback(
+        result.ok
+          ? { ok: true, message: t('emailLinkSent', { email: savedEmail }) }
+          : { ok: false, message: result.message ?? t('saveError') },
+      );
+    });
   }
 
   function handleSendProofCode() {
@@ -166,30 +208,83 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   }
 
   const showVerifyControls = savedPhone.length > 0 && !phoneVerified && !phoneDirty;
+  const showEmailVerify = savedEmail.length > 0 && !emailVerified && !emailDirty;
 
   return (
-    <section className="space-y-4 rounded-2xl bg-card p-6">
+    <section id="coordonnees" className="scroll-mt-20 space-y-4 rounded-2xl bg-card p-6">
       <div>
         <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted-foreground">{t('emailLabel')}</label>
+          <label htmlFor="contact-email" className="text-xs font-semibold text-muted-foreground">
+            {t('emailLabel')}
+          </label>
           <div className="flex items-center gap-2">
-            <Input value={user.email} disabled className="bg-card/60" />
-            <span
-              className={
-                'rounded-full px-2 py-1 text-xs font-semibold ' +
-                (emailVerified
-                  ? 'bg-border text-foreground'
-                  : 'bg-card text-primary')
-              }
-            >
-              {emailVerified ? t('verified') : t('notVerified')}
-            </span>
+            <Input
+              id="contact-email"
+              data-testid="email-input"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              readOnly={emailVerified}
+              placeholder={t('emailPlaceholder')}
+              aria-invalid={!emailFormatValid}
+              aria-describedby={!emailFormatValid ? 'email-error' : 'email-hint'}
+              className={emailVerified ? 'bg-card/60' : undefined}
+            />
+            {savedEmail.length > 0 && !emailDirty ? (
+              <span
+                data-testid="email-status-badge"
+                className={
+                  'whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ' +
+                  (emailVerified ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')
+                }
+              >
+                {emailVerified ? t('verified') : t('notVerified')}
+              </span>
+            ) : null}
           </div>
+          {!emailFormatValid ? (
+            <p id="email-error" role="alert" className="text-xs text-destructive">
+              {t('emailFormatError')}
+            </p>
+          ) : (
+            <p id="email-hint" className="text-xs text-muted-foreground">
+              {emailVerified ? t('emailVerifiedHint') : savedEmail.length > 0 ? t('emailUnverifiedHint') : t('emailAddHint')}
+            </p>
+          )}
         </div>
+
+        {showEmailVerify ? (
+          <div
+            data-testid="email-verify-block"
+            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3"
+          >
+            <p className="text-xs text-warning">{t('emailVerifyPrompt', { email: savedEmail })}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResendEmail}
+              disabled={emailPending}
+              data-testid="email-resend"
+            >
+              {emailPending ? t('sending') : t('emailResend')}
+            </Button>
+            {emailFeedback ? (
+              <p
+                role={emailFeedback.ok ? 'status' : 'alert'}
+                className={'text-xs ' + (emailFeedback.ok ? 'text-success' : 'text-destructive')}
+              >
+                {emailFeedback.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="space-y-1">
           <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground">
             {t('phoneLabel')}

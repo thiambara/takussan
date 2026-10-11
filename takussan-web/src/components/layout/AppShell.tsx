@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
@@ -16,6 +17,7 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
+import { estPleinEcran } from './plein-ecran';
 
 interface AppShellProps {
   user: User;
@@ -40,6 +42,10 @@ export function AppShell({
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
+  // TCK-631 — le parcours de publication se montre sans la chrome de la console : il porte son
+  // propre en-tête et sa propre sortie. Les bandeaux (impersonation, suspension, site) restent :
+  // ils disent quelque chose sur la session, pas sur la navigation.
+  const pleinEcran = estPleinEcran(usePathname());
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -86,25 +92,31 @@ export function AppShell({
             ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
         <ImpersonationBanner />
         {agencySuspended ? <AgencySuspendedBanner /> : null}
-        <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+        {pleinEcran ? null : (
+          <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+        )}
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="hidden md:block md:h-full">
-            <AppSidebar
-              user={user}
-              agencyIsStandard={agencyIsStandard}
-              hasPendingUpgrade={hasPendingUpgrade}
-            />
-          </div>
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
-              <AppSidebar
-              user={user}
-              onNavigate={() => setSidebarOpen(false)}
-              agencyIsStandard={agencyIsStandard}
-              hasPendingUpgrade={hasPendingUpgrade}
-            />
-            </SheetContent>
-          </Sheet>
+          {pleinEcran ? null : (
+            <>
+              <div className="hidden md:block md:h-full">
+                <AppSidebar
+                  user={user}
+                  agencyIsStandard={agencyIsStandard}
+                  hasPendingUpgrade={hasPendingUpgrade}
+                />
+              </div>
+              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
+                  <AppSidebar
+                    user={user}
+                    onNavigate={() => setSidebarOpen(false)}
+                    agencyIsStandard={agencyIsStandard}
+                    hasPendingUpgrade={hasPendingUpgrade}
+                  />
+                </SheetContent>
+              </Sheet>
+            </>
+          )}
           <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
             {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
                 ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
