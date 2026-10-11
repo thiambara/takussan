@@ -1,7 +1,7 @@
 ---
 id: TCK-632
 title: "Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: S
@@ -49,17 +49,20 @@ Aucune voie, donc, ni pour ajouter l'adresse ni pour la vérifier.
 
 ## Critères d'acceptation
 
-1. Un compte sans adresse envoie `email` à `PUT /auth/profile` : 200, adresse rangée, non vérifiée,
-   lien envoyé.
-2. Une adresse non vérifiée se corrige ; une adresse vérifiée ne se remplace pas (403, rien
-   d'écrit, aucun lien).
-3. La même adresse renvoyée (casse comprise) n'envoie aucun lien.
-4. Une adresse prise sous une autre casse : 422 sur `email`.
-5. `POST /auth/email/resend` sans adresse : 422.
-6. Le step-up de suppression part par SMS tant que l'adresse n'est pas vérifiée.
-7. Profil : champ modifiable tant que l'adresse n'est pas vérifiée, badge « Non vérifié »,
-   « Renvoyer le lien » ; lecture seule une fois vérifiée.
-8. Chaque test neuf échoue quand on retire le correctif qu'il garde (ablation).
+- [x] Un compte sans adresse envoie `email` à `PUT /auth/profile` : 200, adresse rangée, non vérifiée,
+      lien envoyé.
+- [x] Une adresse non vérifiée se corrige ; une adresse vérifiée ne se remplace pas (403, rien
+      d'écrit, aucun lien).
+- [x] La même adresse renvoyée (casse comprise) n'envoie aucun lien.
+- [x] Une adresse prise sous une autre casse : 422 sur `email`.
+- [x] `POST /auth/email/resend` sans adresse : 422.
+- [x] Le step-up de suppression part par SMS tant que l'adresse n'est pas vérifiée.
+- [x] Profil : champ modifiable tant que l'adresse n'est pas vérifiée, badge « Non vérifié »,
+      « Renvoyer le lien » ; lecture seule une fois vérifiée.
+- [x] Chaque test neuf échoue quand on retire le correctif qu'il garde (ablation).
+- [x] Au navigateur (local) : connexion par téléphone, adresse ajoutée, lien suivi, badge « Vérifié »
+      et alertes e-mail débloquées. La ligne « E-mail » de la sécurité et le lien « Vérifier mon
+      email » des préférences mènent aux coordonnées au lieu d'une boîte inexistante.
 
 ## Hors périmètre
 
