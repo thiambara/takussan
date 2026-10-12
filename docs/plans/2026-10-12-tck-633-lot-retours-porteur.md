@@ -198,3 +198,58 @@ vérification.
 - [ ] Suites entières **par la CI** (PR vers `dev`), pas en local.
 - [ ] Ticket à `done` une fois mergé sur `dev`, critères vérifiés un par un.
 - [ ] Promotion `dev → preview` **seulement sur demande du porteur**. Jamais `master`.
+
+## Addendum — arbitrages de la session après lecture des six plans de lot (2026-10-12)
+
+Les plans de lot ont relevé 147 écarts en lisant le code. Ce qui suit **remplace** la table des
+territoires et celle des fichiers co-tenus là où elles divergent. Les décisions du porteur sont dans
+la section suivante.
+
+### Corrections de fait
+
+- **L'étage n'a jamais refusé un sous-sol** (D, E-1) : PostgreSQL n'a pas de non-signé, les colonnes
+  `unsigned*` sont des `smallint` signés. Le vrai défaut est un **500** sur `parking_spaces = 40000`
+  (débordement), faute de borne à la création. Le ticket le disait à tort ; le lot D corrige les bornes,
+  pas le signe.
+- **`/api/me` n'existe pas** : c'est `GET /api/auth/me` (`UserResource`). Les champs de l'interface C →
+  tous n'y sortent que pour soi (`mergeWhen`), et sont optionnels dans le type front (C, E1).
+- **Le paramètre d'étage est `floor_number`**, pas `floor` (E, écart 1).
+- **La route des étiquettes d'un bien est `POST`** (D, E-3).
+- **La production ne lance aucun seeder** (D, E-2) : référentiel et catalogue se chargent par les
+  commandes idempotentes `geo:sync-referential` et `tags:sync-catalog`, appelées par `docker/release.sh`.
+
+### Territoires étendus
+
+| Lot | Ajouts accordés |
+|---|---|
+| A | `tests/Feature/Api/Admin/FeatureFlagTest.php` (**seul écrivain**, version tolérante aux deux drapeaux ; C n'y touche pas) ; `tests/Support/FiligraneGlobalAllume.php` et une ligne par classe de test média **mesurée** rouge ; `components/home/__tests__/Navbar.transaction.test.tsx` |
+| B | espace i18n réel `nav.admin.*` ; `components/shared/NoAgencyState.tsx` ; les quatre fichiers de B-E5 (layout `/app` et `bandeau-suspension.test.tsx`, `AuthContext.session.test.tsx`, `AppSidebar.test.tsx`) |
+| C | `UserResource.php` et `AuthController::updateProfile` (les deux insertions **[EXT]**) ; espace i18n `publishRedirect.auto.*` ; erreurs `property.publish_contact_incomplete` et groupe `secondary_phone` ; migrations `2026_10_12_300xxx` |
+| D | toute la liste D-E12 (API, front, tests existants, `src/test/doublure-referentiel-geo.ts`, `docker/release.sh`) ; espace i18n `superAdmin.propositions.*` ; migrations `2026_10_12_4000xx`–`4002xx`. **Et, pour E :** `GET /api/public/geo/cities` sans `region` (toutes les villes) et une lecture **publique** du catalogue approuvé : `GET /api/public/amenities` → `{ data: [{ id, name, slug }] }` dans `routes/api/geo.php` |
+| E | `src/test/__tests__/surface-publique.contraste.test.ts` (entrée datée, avec cause) ; commentaires périmés `components/map/PropertyMap.tsx:122`, `lib/queries/properties.ts:168` ; consomme `GET /api/public/amenities` (et non `/api/tags`) |
+| F | collisions C1–C11 de son plan : `ProtectedActions.php`, `routes/console.php`, `MembershipCapabilityResolverTest.php`, `PlatformSettingsCatalogueTest.php`, `PropertyListTest.php`, `CompteurDeVue.tsx`, `types/super-admin.ts`, `platform-settings.tsx`, `NotificationTarget.php`, clés i18n hors espace listées en C9 ; migrations `2026_10_12_5000xx` |
+
+### Fichiers co-tenus ajoutés
+
+| Fichier | Lots |
+|---|---|
+| `app/Http/Resources/PropertyResource.php` | C (`primary_contact.has_whatsapp`), D (adresse `geo_*`), F (`badge`, `badge_until`) |
+| `app/Http/Controllers/Public/PublicPropertyController.php` | C (`contact()`), **E** (`map()` : filtres), F (tri de la liste) |
+| `components/property-form/__tests__/PropertyWizard.test.tsx` | C, D |
+| écran de succès de publication (créé par C) | C, F (`BoostButton`) |
+
+### Règles renforcées
+
+- **Dictionnaires i18n : Edit uniquement, même avec un script « idempotent ».** Le script de la tâche 14
+  du lot D ne s'exécute pas pendant la vague 1 : un script qui réécrit le fichier entier perd les clés
+  qu'un autre lot vient d'insérer, et la parité fr/en/wo reste verte quand la clé disparaît des trois.
+- **`src/i18n/namespaces.json`** : régénéré **par la session seule**, à l'intégration, sur l'arbre final
+  (`node scripts/check-i18n-namespaces.mjs --update`).
+- **Événements C → F** : F écrit ses écouteurs de bienvenue **en dernier** dans son lot, après avoir
+  constaté sur disque `app/Events/Auth/PhoneVerified.php` et `app/Events/Onboarding/SpaceCreated.php`
+  (posés par C, tâche dédiée). Jamais de copie de ces classes par F.
+- **Aucune requête sortante portant une donnée personnelle.** Le lot D a envoyé une fois, pendant sa
+  mesure, une requête Overpass dont l'en-tête `User-Agent` portait une adresse e-mail du porteur.
+  User-Agent imposé : `takussan-geo-extract/1.0 (+https://www.takussan.com)`.
+- **`check-models-spec` est rouge** pendant les lots (modèles neufs de C, D, F) : attendu, levé à
+  l'étape 3, **avant** la PR.
