@@ -54,6 +54,9 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['sometimes', 'nullable', 'string', 'regex:/^(?:\+[1-9]\d{6,14})?$/', new TelephoneJoignable],
             // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
             ...PhoneChangeGuard::PROOF_RULES,
+            // TCK-633 (lot C) — une case WhatsApp par numéro.
+            'phone_whatsapp' => ['sometimes', 'boolean'],
+            'secondary_phone_whatsapp' => ['sometimes', 'boolean'],
         ];
     }
 

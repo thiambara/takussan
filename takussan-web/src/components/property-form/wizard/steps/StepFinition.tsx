@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
@@ -55,7 +55,18 @@ export function VirtualTourField({ form }: { readonly form: UseFormReturn<Proper
  * À la sixième étape, le type, la surface, les chambres et le quartier sont connus : on propose,
  * l'utilisateur corrige. Il n'invente plus, il arbitre.
  */
-export function StepFinition({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
+export function StepFinition({
+  form,
+  children,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  /**
+   * TCK-633 (lot C) — ce que la publication demande en dernier : contacts sur place,
+   * « Vos coordonnées pour les intéressés », la phrase des CGU. `WizardShell` n'a pas d'emplacement
+   * sous le bouton Publier : c'est la fin de la dernière étape, juste au-dessus.
+   */
+  readonly children?: ReactNode;
+}) {
   const t = useTranslations('property.wizard');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const { control, setValue, getValues } = form;
@@ -101,6 +112,7 @@ export function StepFinition({ form }: { readonly form: UseFormReturn<PropertyFo
         {t('descriptionCounter', { count: description.length })}
       </p>
       <VirtualTourField form={form} />
+      {children}
     </>
   );
 }

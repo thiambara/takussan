@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Events\Auth\PhoneVerified;
 use App\Models\User;
 use App\Services\Account\DeletionStepUpService;
 use App\Services\Notifications\Sms\SmsResult;
@@ -153,12 +154,27 @@ class PhoneVerificationService
     // Le seul écrivain de `phone_verified_at` (contrainte 5 ter)
     // -----------------------------------------------------------------
 
+    /**
+     * Ce numéro est-il VÉRIFIÉ sur un autre compte — comme principal, ou (TCK-633, décision 2 du
+     * porteur) comme second numéro ? Un numéro vérifié n'appartient qu'à un compte. Tous les
+     * chemins qui rendent un numéro principal passent par ici : `markVerified` (profil,
+     * onboardings, connexion et inscription par téléphone, invitation), et la réponse neutre de
+     * `send-otp`.
+     */
     public function isVerifiedElsewhere(string $phone, ?User $except = null): bool
     {
-        // Vérification adverse m5 — la forme canonique, celle de l'index d'unicité.
+        // Vérification adverse m5 — la forme canonique, celle de l'index d'unicité. Le second
+        // numéro est déjà rangé sous cette forme par son seul écrivain (`markSecondaryVerified`).
+        $canonique = CanonicalPhone::fold($phone);
+
         return User::query()
-            ->whereRaw(CanonicalPhone::sql('phone').' = ?', [CanonicalPhone::fold($phone)])
-            ->whereNotNull('phone_verified_at')
+            ->where(fn ($q) => $q
+                ->where(fn ($p) => $p
+                    ->whereRaw(CanonicalPhone::sql('phone').' = ?', [$canonique])
+                    ->whereNotNull('phone_verified_at'))
+                ->orWhere(fn ($s) => $s
+                    ->where('secondary_phone', $canonique)
+                    ->whereNotNull('secondary_phone_verified_at')))
             ->when($except !== null, fn ($q) => $q->whereKeyNot($except->getKey()))
             ->exists();
     }
@@ -179,7 +195,76 @@ class PhoneVerificationService
             abort_code(409, 'phone.taken');
         }
 
-        $user->forceFill(['phone' => $phone, 'phone_verified_at' => now()])->save();
+        $attributs = ['phone' => $phone, 'phone_verified_at' => now()];
+        // TCK-633 (lot C) — son PROPRE second numéro devient principal : il quitte les seconds,
+        // sans quoi le même numéro serait listé deux fois. Tour 2 : il emporte sa réponse
+        // WhatsApp — la réponse suit le numéro, celle de l'ancien principal ne vaut plus.
+        if ($this->isOwnSecondary($user, $phone)) {
+            $attributs += [
+                'phone_whatsapp' => (bool) $user->secondary_phone_whatsapp,
+                'secondary_phone' => null, 'secondary_phone_verified_at' => null, 'secondary_phone_whatsapp' => false,
+            ];
+        }
+        $user->forceFill($attributs)->save();
+
+        // TCK-633 (lot C) — l'interface C → F : une vérification RÉELLE (le retour anticipé
+        // ci-dessus n'annonce rien).
+        PhoneVerified::dispatch($user);
+    }
+
+    // -----------------------------------------------------------------
+    // TCK-633 (lot C) — le second numéro (jamais un identifiant de connexion)
+    // -----------------------------------------------------------------
+
+    public const SECONDARY_SCOPE = 'secondary-phone';
+
+    /**
+     * La portée du code d'un second numéro : par COMPTE, distincte de celle du principal
+     * (`userSubject`) et de l'entrée par téléphone. Un code reçu pour un usage ne vaut pour aucun
+     * autre.
+     */
+    public function secondaryScope(User $user): string
+    {
+        return self::SECONDARY_SCOPE.':'.$user->getKey();
+    }
+
+    public function isPrimaryOf(User $user, string $phone): bool
+    {
+        return is_string($user->phone) && $user->phone !== ''
+            && CanonicalPhone::fold($user->phone) === CanonicalPhone::fold($phone);
+    }
+
+    /**
+     * Le seul écrivain de `secondary_phone*`. TESTE avant d'écrire (409 plutôt qu'une violation de
+     * `users_secondary_phone_verified_unique`, qui abandonnerait la transaction — piège n° 1).
+     * N'émet pas `PhoneVerified` : le second numéro n'ouvre rien. Jamais journalisé : aucune
+     * colonne `secondary_*` n'est dans `logOnly` du journal d'activité de `User`.
+     */
+    public function markSecondaryVerified(User $user, string $phone, bool $whatsapp): void
+    {
+        abort_code_if($this->isPrimaryOf($user, $phone), 422, 'secondary_phone.same_as_primary');
+        abort_code_if($this->isVerifiedElsewhere($phone, $user), 409, 'secondary_phone.taken');
+
+        $user->forceFill([
+            'secondary_phone' => CanonicalPhone::fold($phone),
+            'secondary_phone_verified_at' => now(),
+            'secondary_phone_whatsapp' => $whatsapp,
+        ])->save();
+    }
+
+    public function clearSecondary(User $user): void
+    {
+        $user->forceFill([
+            'secondary_phone' => null,
+            'secondary_phone_verified_at' => null,
+            'secondary_phone_whatsapp' => false,
+        ])->save();
+    }
+
+    private function isOwnSecondary(User $user, string $phone): bool
+    {
+        return is_string($user->secondary_phone) && $user->secondary_phone !== ''
+            && $user->secondary_phone === CanonicalPhone::fold($phone);
     }
 
     // -----------------------------------------------------------------

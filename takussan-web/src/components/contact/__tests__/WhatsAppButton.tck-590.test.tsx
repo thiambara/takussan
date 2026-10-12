@@ -49,17 +49,17 @@ describe('<WhatsAppButton> — TCK-590', () => {
   });
 
   it('sans numéro, aucun bouton', () => {
-    const { container } = render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasPhone={false} />));
+    const { container } = render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasWhatsApp={false} />));
     expect(container).toBeEmptyDOMElement();
   });
 
   it('AC19b — la fenêtre est ouverte AVANT que le numéro n’arrive, puis dirigée vers wa.me', async () => {
-    const contact = enAttente<{ phone: string }>();
+    const contact = enAttente<{ data: { phone: string; whatsapp: boolean; label: null; kind: 'primary' }[] }>();
     apiFetch.mockImplementation((path: string) =>
       path.endsWith('/contact') ? contact.promesse : Promise.resolve(undefined),
     );
     const user = userEvent.setup();
-    render(withIntl(<WhatsAppButton slug="villa" title="Villa des Almadies" hasPhone />));
+    render(withIntl(<WhatsAppButton slug="villa" title="Villa des Almadies" hasWhatsApp />));
 
     await user.click(screen.getByRole('button'));
 
@@ -67,7 +67,7 @@ describe('<WhatsAppButton> — TCK-590', () => {
     expect(open).toHaveBeenCalledTimes(1);
     expect(fenetre.location.href).toBe('');
 
-    contact.resoudre({ phone: '+221 77 123 45 67' });
+    contact.resoudre({ data: [{ phone: '+221 77 123 45 67', whatsapp: true, label: null, kind: 'primary' }] });
     await waitFor(() => expect(fenetre.location.href).toMatch(/^https:\/\/wa\.me\/221771234567\?text=/));
     expect(open).toHaveBeenCalledTimes(1);
     expect(fenetre.opener).toBeNull();
@@ -77,10 +77,10 @@ describe('<WhatsAppButton> — TCK-590', () => {
 
   it('AC19 — en anglais, le message prérempli est en anglais', async () => {
     apiFetch.mockImplementation((path: string) =>
-      path.endsWith('/contact') ? Promise.resolve({ phone: '+221771234567' }) : Promise.resolve(undefined),
+      path.endsWith('/contact') ? Promise.resolve({ data: [{ phone: '+221771234567', whatsapp: true, label: null, kind: 'primary' }] }) : Promise.resolve(undefined),
     );
     const user = userEvent.setup();
-    render(withIntl(<WhatsAppButton slug="villa" title="Almadies villa" hasPhone />, 'en'));
+    render(withIntl(<WhatsAppButton slug="villa" title="Almadies villa" hasWhatsApp />, 'en'));
 
     await user.click(screen.getByRole('button'));
 
@@ -96,7 +96,7 @@ describe('<WhatsAppButton> — TCK-590', () => {
       path.endsWith('/contact') ? Promise.reject(new Error('429')) : Promise.resolve(undefined),
     );
     const user = userEvent.setup();
-    render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasPhone />));
+    render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasWhatsApp />));
 
     await user.click(screen.getByRole('button'));
 
@@ -108,10 +108,10 @@ describe('<WhatsAppButton> — TCK-590', () => {
   it('AC20 / AC21 — le clic laisse une trace, avec la source d’arrivée retenue', async () => {
     window.sessionStorage.setItem('takussan.arrivee', JSON.stringify({ source: 'whatsapp', medium: 'share' }));
     apiFetch.mockImplementation((path: string) =>
-      path.endsWith('/contact') ? Promise.resolve({ phone: '+221771234567' }) : Promise.resolve(undefined),
+      path.endsWith('/contact') ? Promise.resolve({ data: [{ phone: '+221771234567', whatsapp: true, label: null, kind: 'primary' }] }) : Promise.resolve(undefined),
     );
     const user = userEvent.setup();
-    render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasPhone />));
+    render(withIntl(<WhatsAppButton slug="villa" title="Villa" hasWhatsApp />));
 
     await user.click(screen.getByRole('button'));
 

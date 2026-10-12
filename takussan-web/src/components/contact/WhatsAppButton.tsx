@@ -1,18 +1,20 @@
 'use client';
 import { useState } from 'react';
-import { apiFetch } from '@/lib/api';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/components/ui/toast';
 import { signalerClic } from '@/lib/contact-click';
+
+import { numerosDuBien, premierNumeroWhatsApp } from './numeros-du-bien';
 
 interface Props {
   slug: string;
   title: string;
   /**
-   * TCK-590 — le contact principal a-t-il un numéro (`primary_contact.has_phone`) ? Sans lui, le
-   * bouton n'est pas rendu : il menait à une erreur.
+   * TCK-633 (lot C) — au moins un numéro du bien est déclaré WhatsApp
+   * (`primary_contact.has_whatsapp`). Sans lui, pas de bouton : il visait un numéro qui n'a
+   * peut-être pas WhatsApp. (TCK-590 le gardait sur `has_phone`.)
    */
-  hasPhone: boolean;
+  hasWhatsApp: boolean;
 }
 
 /**
@@ -25,13 +27,13 @@ interface Props {
  *     en français figé.
  *   · **Plus de boîte d'alerte native** : un toast, et la fenêtre ouverte pour rien est refermée.
  */
-export function WhatsAppButton({ slug, title, hasPhone }: Props) {
+export function WhatsAppButton({ slug, title, hasWhatsApp }: Props) {
   const t = useTranslations('contact.whatsapp');
   const tContact = useTranslations('propertyContact');
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
-  if (!hasPhone) return null;
+  if (!hasWhatsApp) return null;
 
   async function handleContact() {
     // Dans le geste, AVANT tout `await` : c'est la seule ouverture qu'iOS laisse passer.
@@ -39,8 +41,8 @@ export function WhatsAppButton({ slug, title, hasPhone }: Props) {
     setLoading(true);
     signalerClic(slug, 'whatsapp');
     try {
-      const res = await apiFetch<{ phone: string | null }>(`/public/properties/${slug}/contact`);
-      const phone = res.phone?.replace(/\D/g, '') ?? '';
+      const numero = premierNumeroWhatsApp(await numerosDuBien(slug));
+      const phone = numero?.phone.replace(/\D/g, '') ?? '';
       if (!phone) throw new Error('phone');
       const page = `${window.location.origin}${window.location.pathname}`;
       const message = encodeURIComponent(tContact('whatsapp.prefill', { title, url: page }));

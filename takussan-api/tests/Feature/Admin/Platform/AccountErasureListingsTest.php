@@ -78,7 +78,8 @@ class AccountErasureListingsTest extends TestCase
         $agence = $this->agence();
         $this->adminAgence = $this->personnel($agence, 'agency_admin');
         $this->efface = $this->personnel($agence);
-        $this->agentB = $this->personnel($agence);
+        // TCK-633 (lot C, tour 2) — `…/contact` ne sert qu'un numéro principal VÉRIFIÉ.
+        $this->agentB = $this->personnel($agence, attributes: ['phone_verified_at' => now()]);
 
         $this->a = $this->bienDe(null, $this->efface);
         $this->b = $this->bienDe($agence, $this->efface);
@@ -137,7 +138,7 @@ class AccountErasureListingsTest extends TestCase
 
         $this->getJson("/api/public/properties/{$this->c->slug}")->assertOk();
         $this->assertContains($this->c->id, $publics);
-        $this->assertSame($this->agentB->phone, $this->getJson("/api/public/properties/{$this->c->slug}/contact")->json('phone'));
+        $this->assertSame($this->agentB->phone, $this->getJson("/api/public/properties/{$this->c->slug}/contact")->json('data.0.phone'));
 
         $this->assertEqualsCanonicalizing([$this->a->id, $this->b->id], array_values(array_unique($this->moteur->retires)));
 

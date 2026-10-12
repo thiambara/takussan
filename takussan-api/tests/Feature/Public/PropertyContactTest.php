@@ -18,7 +18,8 @@ class PropertyContactTest extends TestCase
      */
     public function test_returns_phone_only(): void
     {
-        $owner = User::factory()->create(['phone' => '+221771234567']);
+        // TCK-633 (lot C, tour 2) — seul un numéro principal VÉRIFIÉ est servi.
+        $owner = User::factory()->create(['phone' => '+221771234567', 'phone_verified_at' => now()]);
         $property = Property::factory()->published()->create([
             'user_id' => $owner->id,
             'title' => 'Appartement Almadies',
@@ -34,7 +35,7 @@ class PropertyContactTest extends TestCase
         $response = $this->getJson("/api/public/properties/{$property->slug}/contact");
 
         $response->assertOk()
-            ->assertExactJson(['phone' => '+221771234567']);
+            ->assertExactJson(['data' => [['phone' => '+221771234567', 'whatsapp' => false, 'label' => null, 'kind' => 'primary']]]);
         $this->assertArrayNotHasKey('message', $response->json());
     }
 

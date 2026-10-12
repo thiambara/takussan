@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Auth\OAuthTwoFactorController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Auth\PhoneLoginController;
 use App\Http\Controllers\Api\Auth\PhoneVerificationController;
+use App\Http\Controllers\Api\Auth\SecondaryPhoneController;
 use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
@@ -78,6 +79,18 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::post('/phone/change-code', [PhoneVerificationController::class, 'changeCode'])
         ->middleware(['throttle:3,1', 'throttle:auth-phone-send'])
         ->name('auth.phone.change-code');
+
+    // TCK-633 (lot C) — le second numéro : jamais un identifiant de connexion (le login par
+    // téléphone ne lit que `phone`). Mêmes bornes que `send-otp` : `auth-phone-send` par IP, et
+    // la borne par numéro (`PhoneSendQuota`) appliquée par le contrôleur au second numéro.
+    Route::post('/secondary-phone/send-otp', [SecondaryPhoneController::class, 'sendOtp'])
+        ->middleware(['throttle:3,1', 'throttle:auth-phone-send'])
+        ->name('auth.secondary-phone.send-otp');
+    Route::post('/secondary-phone/verify', [SecondaryPhoneController::class, 'verify'])
+        ->middleware('throttle:5,1')
+        ->name('auth.secondary-phone.verify');
+    Route::delete('/secondary-phone', [SecondaryPhoneController::class, 'destroy'])
+        ->name('auth.secondary-phone.destroy');
 
     // Two-factor authentication
     // /confirm and /disable both gate on a 6-digit TOTP (or password on

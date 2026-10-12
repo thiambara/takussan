@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentOnboardingController;
+use App\Http\Controllers\HostAutoOnboardController;
 use App\Http\Controllers\HostOnboardingController;
 use App\Http\Controllers\OwnerOnboardingController;
 use App\Http\Controllers\ServiceProviderOnboardingController;
@@ -22,6 +23,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // by step and POSTs to this endpoint on completion.
     Route::post('host/individual/onboard', [HostOnboardingController::class, 'individual'])
         ->name('host.individual.onboard')
+        ->middleware('throttle:5,1');
+
+    // TCK-633 (lot C) — « Publier » sans assistant, derrière `host_auto_space`. Idempotent.
+    Route::post('host/individual/auto-onboard', [HostAutoOnboardController::class, 'store'])
+        ->name('host.individual.auto-onboard')
         ->middleware('throttle:5,1');
 
     // TCK-261 — finalize the post-acceptance Service Provider wizard.

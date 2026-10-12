@@ -59,7 +59,9 @@ class ProprietaireDuBienTest extends ApiTestCase
     /** N3 — le repli du contact principal ne le désigne plus : ni numéro public, ni demande reçue. */
     public function test_n3_l_agent_parti_createur_n_est_plus_contact_principal(): void
     {
-        [$a, $bien] = $this->agentParti(['phone' => '+221770001111']);
+        // TCK-633 (lot C, tour 3) — numéro VÉRIFIÉ : sans lui, il ne sortirait de toute façon
+        // pas (D10), et l'assertion sur `…/contact` ne garderait plus rien.
+        [$a, $bien] = $this->agentParti(['phone' => '+221770001111', 'phone_verified_at' => now()]);
 
         $this->postJson("/api/public/properties/{$bien->slug}/contact-lead", [
             'name' => 'Awa', 'phone' => '+221771234567', 'message' => 'Bonjour, disponible ?',
@@ -69,7 +71,7 @@ class ProprietaireDuBienTest extends ApiTestCase
         $this->assertNotSame($a->id, $lead->recipient_user_id);
         Notification::assertNotSentTo($a, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
         Notification::assertSentTo($this->admin, CodedNotification::class, self::deCode(NotificationCode::LeadReceived));
-        $this->assertNotSame('+221770001111', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
+        $this->assertNotContains('+221770001111', collect($this->getJson("/api/public/properties/{$bien->slug}/contact")->assertOk()->json('data'))->pluck('phone')->all());
 
         $this->postJson("/api/public/properties/{$bien->slug}/visit-request", [
             'visitor_name' => 'Awa', 'visitor_phone' => '+221771234567', 'scheduled_at' => $this->creneau(),
@@ -120,10 +122,11 @@ class ProprietaireDuBienTest extends ApiTestCase
     /** Le bailleur ACTIF de l'agence reste propriétaire : contact principal à défaut d'agent, il lit sa demande. */
     public function test_le_bailleur_actif_reste_proprietaire(): void
     {
-        $b = $this->bailleur($this->x, ['phone' => '+221770002222']);
+        // TCK-633 (lot C, tour 2) — seul un numéro principal VÉRIFIÉ est servi.
+        $b = $this->bailleur($this->x, ['phone' => '+221770002222', 'phone_verified_at' => now()]);
         $bien = $this->bienDe($this->x, $b);
 
-        $this->assertSame('+221770002222', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
+        $this->assertSame('+221770002222', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('data.0.phone'));
         $this->postJson("/api/public/properties/{$bien->slug}/contact-lead", [
             'name' => 'Awa', 'phone' => '+221771234567', 'message' => 'Bonjour, disponible ?',
         ])->assertCreated();
@@ -138,14 +141,16 @@ class ProprietaireDuBienTest extends ApiTestCase
     /** Un bailleur dont le profil n'est plus actif perd la même chose que l'agent parti. */
     public function test_le_bailleur_inactif_n_est_plus_proprietaire(): void
     {
-        $b = $this->bailleur($this->x, ['phone' => '+221770003333']);
+        // TCK-633 (lot C, tour 3) — numéro VÉRIFIÉ, pour que l'assertion sur `…/contact` garde
+        // la règle du propriétaire et non celle de la vérification (D10).
+        $b = $this->bailleur($this->x, ['phone' => '+221770003333', 'phone_verified_at' => now()]);
         $bien = $this->bienDe($this->x, $b);
         $lead = PropertyContactLead::factory()->create([
             'property_id' => $bien->id, 'agency_id' => $this->x->id, 'recipient_user_id' => $b->id,
         ]);
         OwnerProfile::query()->where('user_id', $b->id)->update(['status' => OwnerProfileStatus::Inactive->value]);
 
-        $this->assertNotSame('+221770003333', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
+        $this->assertNotContains('+221770003333', collect($this->getJson("/api/public/properties/{$bien->slug}/contact")->assertOk()->json('data'))->pluck('phone')->all());
         Sanctum::actingAs($b->fresh());
         $this->getJson("/api/contact-leads/{$lead->id}")->assertForbidden();
         $this->assertNotContains($lead->id, collect($this->getJson('/api/contact-leads')->json('data'))->pluck('id')->all());
@@ -154,10 +159,10 @@ class ProprietaireDuBienTest extends ApiTestCase
     /** Un bien SANS agence : le particulier qui l'a créé en est le propriétaire, sans profil. */
     public function test_le_particulier_reste_proprietaire_d_un_bien_sans_agence(): void
     {
-        $p = $this->client(['phone' => '+221770004444']);
+        $p = $this->client(['phone' => '+221770004444', 'phone_verified_at' => now()]);
         $bien = $this->bienDe(null, $p);
 
-        $this->assertSame('+221770004444', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('phone'));
+        $this->assertSame('+221770004444', $this->getJson("/api/public/properties/{$bien->slug}/contact")->json('data.0.phone'));
     }
 
     /** Une visite planifiée par le personnel pour une fiche du CRM de X, sur ce bien. */

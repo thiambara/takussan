@@ -56,7 +56,9 @@ class AuthController extends Controller
             'message' => __('auth.registration_successful'),
             'token' => $issued['token'],
             'expires_at' => $issued['expires_at']->toIso8601String(),
-            'user' => new UserResource($user),
+            // TCK-633 (lot C, tour 2) — les clés « pour soi » comme `/api/auth/me` ; `fresh()` :
+            // relu en base, avec les défauts de colonne (`secondary_phone_whatsapp`).
+            'user' => UserResource::pourSoi($user->fresh()),
         ], 201);
     }
 
@@ -166,6 +168,14 @@ class AuthController extends Controller
         }
         $remplace = null;
 
+        // TCK-633 (lot C) — les cases WhatsApp, une par numéro. `boolean()` lit aussi bien le
+        // JSON (`true`) que le FormData du profil (`'1'`).
+        foreach (['phone_whatsapp', 'secondary_phone_whatsapp'] as $case) {
+            if ($request->has($case)) {
+                $data[$case] = $request->boolean($case);
+            }
+        }
+
         if ($request->has('phone')) {
             $newPhone = $request->input('phone');
             $newPhone = $newPhone === '' ? null : $newPhone;
@@ -208,6 +218,12 @@ class AuthController extends Controller
             $user->forceFill(['email' => $nouvelleAdresse, 'email_verified_at' => null]);
         }
         $user->update($data);
+        // TCK-633 (lot C, tour 3) — une réponse WhatsApp redonnée IDENTIQUE à l'ancienne avec le
+        // nouveau numéro n'est pas « dirty » : le hook de `User` l'a remise à `null` en changeant
+        // de numéro. Elle vaut pourtant pour lui : on la réécrit, numéro déjà posé.
+        if ($request->has('phone_whatsapp') && $user->phone_whatsapp !== $request->boolean('phone_whatsapp')) {
+            $user->forceFill(['phone_whatsapp' => $request->boolean('phone_whatsapp')])->save();
+        }
         if ($remplace !== null) {
             $phoneChange->notifyReplaced($user, $remplace);
         }
