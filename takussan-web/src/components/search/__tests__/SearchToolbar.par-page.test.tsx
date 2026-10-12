@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { PER_PAGE_PAR_DEFAUT } from '@/lib/recherche-publique';
-import { SearchToolbar, type SearchToolbarProps } from '../SearchToolbar';
+import type { SearchFilters } from '@/types/search';
+import { TailleDePage } from '../SearchToolbar';
 
 /**
  * TCK-628 — la liste propose 40, 60 et 70 biens par page, et 40 par défaut.
@@ -11,20 +12,12 @@ import { SearchToolbar, type SearchToolbarProps } from '../SearchToolbar';
  * Le défaut affiché et le défaut DEMANDÉ à l'API sont désormais la même constante : le sélecteur
  * écrivait `30` en dur, `parametresDeRecherche` l'écrivait de son côté — deux écritures du même
  * nombre, qu'aucun test ne reliait.
+ *
+ * TCK-635 — le sélecteur est descendu à côté de la pagination (`TailleDePage`), rendu seulement
+ * avec elle : `PropertiesDiscoveryPage.grille.test.tsx` garde cette condition.
  */
-function monte(surcharge: Partial<SearchToolbarProps> = {}) {
-  const props: SearchToolbarProps = {
-    total: 120,
-    loading: false,
-    filters: {},
-    activeCount: 0,
-    onRemoveFilter: vi.fn(),
-    onSortChange: vi.fn(),
-    onPerPageChange: vi.fn(),
-    onOpenSidebar: vi.fn(),
-    ...surcharge,
-  };
-  return render(withIntl(<SearchToolbar {...props} />));
+function monte(surcharge: { filters?: SearchFilters } = {}) {
+  return render(withIntl(<TailleDePage filters={surcharge.filters ?? {}} onPerPageChange={vi.fn()} />));
 }
 
 const normalise = (s: string | null) => (s ?? '').replace(/[\s  ]+/g, ' ').trim();
@@ -50,5 +43,14 @@ describe('TCK-628 — tailles de page de la recherche', () => {
     monte({ filters: { per_page: 30 } });
     expect(normalise(screen.getByRole('combobox', { name: /par page/i }).textContent)).toMatch(/^30 \/ page/);
     expect(await optionsProposees()).toEqual(['30 / page', '40 / page', '60 / page', '70 / page']);
+  });
+});
+
+describe('TCK-552 · AC4 — la taille de page n’est pas proposée sous lg', () => {
+  it('son conteneur est `hidden lg:block`', () => {
+    monte();
+    const conteneur = screen.getByRole('combobox', { name: /par page/i }).closest('[data-controle="par-page"]');
+    expect(conteneur).not.toBeNull();
+    expect(conteneur!.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'lg:block']));
   });
 });

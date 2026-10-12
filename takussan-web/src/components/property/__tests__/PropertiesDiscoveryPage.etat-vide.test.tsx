@@ -167,27 +167,28 @@ describe('TCK-558 — « Tout effacer » en second, la sauvegarde proposée (AC4
 });
 
 /**
- * Tour 1 de la réfutation — les puces et la sauvegarde ne quittent la barre d'outils QUE là où
- * l'état vide les rend, c'est-à-dire dans la liste, à zéro résultat. Ailleurs, elles restent.
+ * Tour 1 de la réfutation — la sauvegarde ne quitte la barre d'outils QUE là où l'état vide la
+ * rend, c'est-à-dire dans la liste, à zéro résultat. Ailleurs, elle reste.
+ *
+ * TCK-635 — les puces, elles, ont quitté l'en-tête partout (retour du porteur du 2026-10-12) : il
+ * n'en reste que dans l'état vide, où elles sont l'issue proposée. Les critères actifs restent
+ * lisibles dans le panneau de filtres.
  */
 describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide n’est pas rendu', () => {
-  it('au bureau, en vue CARTE à zéro résultat, les puces et la sauvegarde restent à l’écran', async () => {
+  it('au bureau, en vue CARTE à zéro résultat, la sauvegarde reste à l’écran', async () => {
     // `matchMedia` du setup rend `false` : la page se croit au bureau, onglets rendus.
     await monteAZero('q=zzzqqq&contract_type=rent');
     await userEvent.click(screen.getByRole('tab', { name: /^carte$/i }));
     await waitFor(() => expect(screen.getByTestId('carte')).toBeInTheDocument());
 
     expect(document.querySelector('[data-etat="vide-recherche"]')).toBeNull();
-    const rangees = [...document.querySelectorAll('[data-rangee="puces"]')];
-    expect(rangees).toHaveLength(1);
-    expect(within(rangees[0] as HTMLElement).getByRole('button', { name: /zzzqqq/ })).toBeInTheDocument();
-    // Une sauvegarde par largeur : celle du bout des puces (`lg:hidden`) et celle de la rangée
-    // du bureau — jsdom ne lit pas le CSS, d'où le compte par rangée.
-    const bureau = document.querySelector('[data-rangee="vue-bureau"]') as HTMLElement;
-    expect(within(bureau).getByRole('button', { name: /sauvegarder la recherche/i })).not.toBeDisabled();
+    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
+    const sauver = screen.getByRole('button', { name: /sauvegarder la recherche/i });
+    expect(sauver.closest('[data-rangee-outils]')).not.toBeNull();
+    expect(sauver).not.toHaveAttribute('aria-disabled');
   });
 
-  it('page au-delà de la dernière (le total n’est pas nul) : une seule rangée de puces, une seule sauvegarde par rangée', async () => {
+  it('page au-delà de la dernière (le total n’est pas nul) : aucune puce, une seule sauvegarde', async () => {
     mockApiFetch.mockResolvedValue({
       data: [],
       facets: {},
@@ -198,8 +199,9 @@ describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide 
     expect(vide.querySelector('[data-rangee="puces"]')).toBeNull();
     expect(within(vide).queryByRole('button', { name: /sauvegarder la recherche/i })).toBeNull();
     expect(within(vide).getByRole('button', { name: /effacer tous les filtres/i })).toBeInTheDocument();
-    // La barre d'outils, elle, garde les siennes.
-    expect(document.querySelectorAll('[data-rangee="puces"]')).toHaveLength(1);
+    // La barre d'outils, elle, garde la sienne — et TCK-635 n'y met plus de puces.
+    expect(document.querySelectorAll('[data-rangee="puces"]')).toHaveLength(0);
+    expect(screen.getAllByRole('button', { name: /sauvegarder la recherche/i })).toHaveLength(1);
     expect(within(vide).getByRole('heading', { level: 2 }).textContent).not.toMatch(/élargissez/i);
   });
 

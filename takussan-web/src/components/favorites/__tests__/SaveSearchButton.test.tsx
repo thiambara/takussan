@@ -65,3 +65,30 @@ describe('<SaveSearchButton> — le message de validation qui partait en clé br
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * TCK-635 — la forme de l'en-tête des résultats : une icône et « Sauvegarder », et une infobulle
+ * qui dit ce que fait le geste (retour du porteur du 2026-10-12).
+ */
+describe('<SaveSearchButton compact> — TCK-635', () => {
+  it('affiche « Sauvegarder », garde le nom complet, et explique le geste au survol', async () => {
+    const user = userEvent.setup();
+    render(wrap(<SaveSearchButton filters={{ city: 'Dakar' }} activeCount={1} compact />));
+    const bouton = screen.getByRole('button', { name: 'Sauvegarder la recherche' });
+    expect(bouton).toHaveTextContent(/^Sauvegarder$/);
+    await user.hover(bouton);
+    expect(await screen.findByText(/relancer la recherche en un clic/)).toBeInTheDocument();
+  });
+
+  it('sans critère : inactif mais survolable — l’infobulle dit pourquoi, et le clic n’ouvre rien', async () => {
+    const user = userEvent.setup();
+    render(wrap(<SaveSearchButton filters={{}} activeCount={0} compact />));
+    const bouton = screen.getByRole('button', { name: 'Sauvegarder la recherche' });
+    expect(bouton).toHaveAttribute('aria-disabled', 'true');
+    expect(bouton).not.toBeDisabled();
+    await user.hover(bouton);
+    expect(await screen.findByText(/au moins un critère/)).toBeInTheDocument();
+    await user.click(bouton);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});

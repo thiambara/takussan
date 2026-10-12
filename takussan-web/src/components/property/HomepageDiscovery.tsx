@@ -214,6 +214,7 @@ export function HomepageDiscovery({
             properties={rows?.featured.items ?? NO_ITEMS}
             loading={loading}
             error={error}
+            robeVedette
           />
         </section>
 

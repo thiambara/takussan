@@ -698,7 +698,8 @@
       "bedroomsAbbrev": "{count} Ch.",
       "bathroomsShort": "{count} sdb",
       "photoPending": "Photo à venir",
-      "rentNoPeriod": "· loyer"
+      "rentNoPeriod": "· loyer",
+      "robe": { "sponsored": "Sponsorisé", "featured": "En vedette" }, "badge": { "urgent": "Urgent", "priceDrop": "Baisse de prix" }
     },
     "row": {
       "viewAll": "Tout voir",
@@ -1152,7 +1153,8 @@
         "dialogPublish": "Publier",
         "dialogCancel": "Annuler",
         "dialogIncomplete": "Il manque encore des informations pour publier : complétez le bloc ci-dessus, puis cliquez de nouveau sur « Publier ».",
-        "whatsappQuestion": "Votre numéro reçoit-il WhatsApp ?",
+        "whatsappQuestion": "Ce numéro reçoit-il WhatsApp ?",
+        "verifiedBadge": "Vérifié",
         "whatsappYes": "Oui",
         "whatsappNo": "Non"
       }
@@ -4301,8 +4303,7 @@
   },
   "search": {
     "sponsored": {
-      "label": "Annonces sponsorisées",
-      "chip": "Sponsorisé"
+      "label": "Annonces sponsorisées"
     },
     "suggest": {
       "placeholder": "Rechercher une ville, un quartier, un type de bien…",
@@ -4491,6 +4492,9 @@
       "invalidName": "Nom invalide.",
       "error": "Impossible de sauvegarder la recherche.",
       "trigger": "Sauvegarder la recherche",
+      "triggerShort": "Sauvegarder",
+      "triggerHint": "Gardez ces critères dans votre espace pour relancer la recherche en un clic — et, si vous le voulez, soyez prévenu des nouveaux biens qui y répondent.",
+      "triggerHintEmpty": "Choisissez au moins un critère pour pouvoir sauvegarder cette recherche.",
       "dialogTitle": "Sauvegarder cette recherche",
       "dialogBody": "Retrouvez ces filtres dans votre espace personnel.",
       "saved": "Recherche sauvegardée. Retrouvez-la dans votre espace.",

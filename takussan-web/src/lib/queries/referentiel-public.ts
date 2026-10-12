@@ -1,7 +1,7 @@
 'use client';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import type { GeoCity, GeoNeighborhood } from '@/types/geo';
+import type { GeoCity, GeoNeighborhood, GeoRegion } from '@/types/geo';
 
 /**
  * TCK-633 (lot E) — les listes publiques que le panneau de filtres de la recherche propose.
@@ -16,6 +16,7 @@ import type { GeoCity, GeoNeighborhood } from '@/types/geo';
  * Les listes bougent peu : une heure de fraîcheur, et un seul appel pour le rail ET le tiroir.
  */
 
+export type RegionDuReferentiel = GeoRegion;
 export type VilleDuReferentiel = GeoCity;
 export type QuartierDuReferentiel = GeoNeighborhood;
 
@@ -33,10 +34,23 @@ const UNE_HEURE_MS = 60 * 60 * 1000;
 
 export const referentielPublicQueryKeys = {
   all: ['referentiel-public'] as const,
+  regions: () => [...referentielPublicQueryKeys.all, 'regions'] as const,
   villes: () => [...referentielPublicQueryKeys.all, 'villes'] as const,
   quartiers: (villeId: number | null) => [...referentielPublicQueryKeys.all, 'quartiers', villeId] as const,
   equipements: () => [...referentielPublicQueryKeys.all, 'equipements'] as const,
 };
+
+/**
+ * Les 14 régions — TCK-635 (ADR-0062 §8) : leur nom départage les villes homonymes, que la liste
+ * des villes ne porte que par `region_id`.
+ */
+export function useRegionsDuReferentiel() {
+  return useApiQuery<ListeDuReferentiel<RegionDuReferentiel>>(
+    referentielPublicQueryKeys.regions(),
+    '/api/public/geo/regions',
+    { staleTime: UNE_HEURE_MS },
+  );
+}
 
 /** Toutes les villes du référentiel — le panneau ne demande pas de région d'abord. */
 export function useVillesDuReferentiel() {

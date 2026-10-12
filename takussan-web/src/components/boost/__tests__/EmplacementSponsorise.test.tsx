@@ -8,7 +8,9 @@ import { consommerArriveeSponsorisee } from '../arrivee-sponsorisee';
 import { EmplacementsSponsorises } from '../EmplacementSponsorise';
 
 vi.mock('@/components/property/PropertyCard', () => ({
-  PropertyCard: ({ property }: { property: PropertyListItem }) => <a href={`/properties/${property.slug}`}>{property.title}</a>,
+  PropertyCard: ({ property, robe }: { property: PropertyListItem; robe?: string }) => (
+    <a href={`/properties/${property.slug}`} data-robe={robe}>{property.title}</a>
+  ),
 }));
 
 const BIEN = { id: 5, slug: 'villa-saly', title: 'Villa à Saly' } as unknown as PropertyListItem;
@@ -16,9 +18,11 @@ const BIEN = { id: 5, slug: 'villa-saly', title: 'Villa à Saly' } as unknown as
 describe('EmplacementsSponsorises (TCK-633 lot F, ADR-0061 §7)', () => {
   beforeEach(() => sessionStorage.clear());
 
-  it('marque chaque emplacement « Sponsorisé » et rien quand la liste est vide', () => {
+  // TCK-635 — la mention « Sponsorisé » est portée par la robe de la carte (`PropertyCard
+  // robe="sponsorise"`, gardée par `PropertyCard.robe.test.tsx`), plus par une étiquette au-dessus.
+  it('habille chaque emplacement de la robe « sponsorisé », et ne rend rien quand la liste est vide', () => {
     const { container, rerender } = render(withIntl(<EmplacementsSponsorises biens={[BIEN]} />));
-    expect(screen.getByText('Sponsorisé')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Villa à Saly' })).toHaveAttribute('data-robe', 'sponsorise');
     expect(screen.getByRole('region', { name: 'Annonces sponsorisées' })).toBeInTheDocument();
 
     rerender(withIntl(<EmplacementsSponsorises biens={[]} />));

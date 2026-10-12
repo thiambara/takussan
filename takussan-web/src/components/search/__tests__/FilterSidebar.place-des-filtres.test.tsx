@@ -34,6 +34,8 @@ const EXEMPLES: Record<CleFiltrante, SearchFilters | typeof HORS_PANNEAU> = {
   q: HORS_PANNEAU,
   location: { location: 'Almadies' },
   city: { city: 'Dakar' },
+  // TCK-635 — la région d'une ville homonyme se lit dans le champ Ville.
+  region: { city: 'Dinguiraye', region: 'Kolda' },
   radius_km: POINT,
   lat: POINT,
   lng: POINT,
@@ -147,5 +149,20 @@ describe('TCK-633 (D3) — chaque filtre à sa place, et « Plus de filtres » l
     expect(boutonPlus(), `« ${cle} » est replié et actif : le bloc doit s'ouvrir`).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(boutonPlus());
     expect(boutonPlus()).toHaveTextContent(/^Plus de filtres \(1\)$/);
+  });
+});
+
+/**
+ * TCK-635 (AC5) — le rail des filtres défile avec la page (retour du porteur du 2026-10-12). Il
+ * était `sticky top-[145px]` et restait collé pendant que les résultats défilaient.
+ */
+describe('TCK-635 — le rail des filtres n’est pas collant', () => {
+  it('aucune classe `sticky` ni `top-*` sur le rail', () => {
+    monte({});
+    const rail = document.querySelector('[data-rail-filtres]')!;
+    expect(rail).not.toBeNull();
+    const classes = rail.className.split(/\s+/);
+    expect(classes).not.toContain('sticky');
+    expect(classes.filter((c) => /^top-/.test(c))).toEqual([]);
   });
 });

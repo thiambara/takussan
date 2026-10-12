@@ -27,6 +27,16 @@ vi.mock('@/lib/auth', () => ({
   isTwoFactorChallenge: () => false,
 }));
 
+// Ces tests passent par la voie e-mail : le drapeau de la connexion par téléphone est éteint ici.
+// Sans cette doublure, il était lu sur la VRAIE API (`/api/auth/oauth/providers`) — l'API locale
+// de `./dev.sh` le rend actif, la page s'ouvrait sur le téléphone, et les cinq tests rougissaient
+// sauf quand l'API refusait de répondre (limite de débit). La voie téléphone a ses propres tests
+// (`connexion-par-telephone.test.tsx`).
+vi.mock('@/lib/connexion-telephone', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/connexion-telephone')>()),
+  connexionParTelephoneActive: async () => false,
+}));
+
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ openSession: openSessionMock }),
 }));

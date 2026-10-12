@@ -464,6 +464,8 @@ class Property extends AbstractModel implements HasMedia
             'ranked_at' => ($this->ranked_at ?? $this->published_at)?->timestamp,
             'created_at' => $this->created_at?->timestamp,
             'city' => $address?->city,
+            // TCK-635 (ADR-0062 §8) — départage les villes homonymes (Dinguiraye de Kolda ou de Diourbel).
+            'region' => $address?->region,
             'neighborhood' => $address?->neighborhood,
             // TCK-633 (D9, reverif-2 du lot D) — les seuls équipements que la fiche PUBLIQUE montre :
             // un bien ne se trouve pas par une proposition qu'il porte sans la montrer (celle d'un

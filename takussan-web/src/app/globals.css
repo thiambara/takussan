@@ -715,6 +715,21 @@
   html {
     @apply font-sans;
   }
+  /*
+   * TCK-635 — l'échelle du bureau. Le porteur trouvait le site plus net à 90 % de zoom : la taille
+   * de base passe à 90 % à partir de `lg` (64rem), le seuil où la barre de navigation passe en
+   * bureau. Tout ce qui est en rem suit (texte, espacements, rayons Tailwind) ; ce qui est écrit en
+   * px (`text-[13px]`, `w-[264px]`) ne suit pas, et c'est voulu : ce sont des gabarits mesurés.
+   *
+   * ⚠ Jamais sous `lg` : sous 16 px, Safari iOS zoome dans tout champ touché. Et le seuil ne bouge
+   * pas avec la règle : une media query en rem se lit contre la taille INITIALE du navigateur,
+   * jamais contre celle de `html`.
+   */
+  @media (min-width: 64rem) {
+    html {
+      font-size: 90%;
+    }
+  }
 }
 
 /* Une carte reste dans son cadre. Leaflet empile ses calques à 200-700 et ses contrôles à

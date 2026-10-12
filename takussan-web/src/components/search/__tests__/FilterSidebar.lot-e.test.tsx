@@ -146,6 +146,24 @@ describe('TCK-633 — ville, quartier et équipements se choisissent dans des li
     expect(onFilterChange).toHaveBeenCalledWith({ city: 'Dakar', location: 'Almadies', page: 1 });
   });
 
+  /** TCK-635 (ADR-0062 §8) — Dinguiraye de Kolda n'est pas celle de Diourbel. */
+  it('passer d’une homonyme à l’autre pose la région et retire le quartier', () => {
+    const { onFilterChange } = monte({ city: 'Dinguiraye', region: 'Diourbel', location: 'Escale' });
+    expect(screen.getByTestId('choix-ville')).toHaveAttribute('data-region', 'Diourbel');
+    expect(screen.getByTestId('choix-quartier')).toHaveAttribute('data-region', 'Diourbel');
+    fireEvent.click(screen.getByRole('button', { name: 'choisir-ville-Dinguiraye-Kolda' }));
+    expect(onFilterChange).toHaveBeenCalledWith({ city: 'Dinguiraye', region: 'Kolda', location: undefined, page: 1 });
+  });
+
+  it('choisir une ville sans homonyme retire la région de la précédente', () => {
+    const { onFilterChange } = monte({ city: 'Dinguiraye', region: 'Kolda' });
+    fireEvent.click(screen.getByRole('button', { name: 'choisir-ville-Dakar' }));
+    // La clé doit être PRÉSENTE : le patch est fusionné, une région absente survivrait à Dakar.
+    const patch = onFilterChange.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(patch)).toContain('region');
+    expect(patch.region).toBeUndefined();
+  });
+
   it('le quartier reçoit la ville choisie, et se pose par son nom', () => {
     const { onFilterChange } = monte({ city: 'Dakar' });
     expect(screen.getByTestId('choix-quartier')).toHaveAttribute('data-ville', 'Dakar');

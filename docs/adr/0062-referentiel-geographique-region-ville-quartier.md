@@ -128,6 +128,24 @@ rattaché tout de suite et n'est proposé aux autres qu'après validation.
   visibilité (rattachement, retrait, validation, renommage, fusion, rejet) réindexe les biens
   concernés.
 
+### 8. Deux villes du même nom
+
+Ajouté le 2026-10-12 (TCK-635) : le référentiel compte trois paires de communes homonymes, chacune
+dans deux régions — Dinguiraye (Diourbel, Kolda), Missirah (Diourbel, Tambacounda), Vélingara
+(Matam, Kolda). Le nom seul ne désigne donc pas une ville, et le filtre « Ville » de la recherche
+proposait le même nom deux fois pour deux lieux qu'il ne savait pas distinguer.
+
+- **La ville se départage par sa région, pas par son identifiant.** La recherche compare le texte
+  des adresses (§4) ; un filtre par `geo_city_id` exclurait toute adresse non rattachée. La liste
+  et la carte acceptent donc un paramètre `region` (nom canonique), comparé à `addresses.region`
+  comme `city` l'est à `addresses.city`. L'index de recherche porte `region`, filtrable.
+- **Le couple (nom de ville, région) est unique** dans le référentiel ; un test du jeu de données le
+  garde. C'est ce qui rend l'identification sans ambiguïté.
+- **L'interface n'écrit `region` que pour une ville homonyme**, et l'affiche alors à côté du nom
+  (« Dinguiraye (Kolda) ») ; ailleurs, l'URL reste `city=Thiès`. `region` n'a pas de puce propre :
+  elle appartient à celle de la ville, et se retire avec elle.
+- La liste des quartiers d'une ville homonyme se cherche par le couple (ville, région).
+
 ## Conséquences
 
 - **Un jeu de données à tenir.** Il sera incomplet au départ ; la proposition de quartiers et la

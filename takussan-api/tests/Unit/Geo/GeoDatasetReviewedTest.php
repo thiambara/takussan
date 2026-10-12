@@ -398,6 +398,29 @@ class GeoDatasetReviewedTest extends TestCase
         $this->assertGreaterThanOrEqual(self::QUARTIERS_MIN_VILLE_DE_DAKAR, $villeDeDakar, "ville de Dakar : {$villeDeDakar} quartiers — vidée ?");
     }
 
+    /**
+     * TCK-635 (ADR-0062 §8) — le nom seul ne désigne pas une ville (Dinguiraye est à Diourbel ET à
+     * Kolda) : la recherche la départage par sa région. Ce départage n'est sûr que si le couple
+     * (nom de région, nom de ville) est unique, replié comme le compare la base.
+     */
+    public function test_une_ville_se_designe_par_son_nom_et_sa_region(): void
+    {
+        $couples = [];
+        $doublons = [];
+        foreach (self::REGIONS as $code) {
+            $jeu = self::lire($code);
+            foreach ($jeu['cities'] as $ville) {
+                $cle = mb_strtolower($jeu['region']['name']).'|'.mb_strtolower($ville['name']);
+                if (isset($couples[$cle])) {
+                    $doublons[] = "{$ville['name']} ({$jeu['region']['name']})";
+                }
+                $couples[$cle] = true;
+            }
+        }
+
+        $this->assertSame([], $doublons, 'deux villes du même nom dans la même région : la région ne les départage plus');
+    }
+
     #[DataProvider('regions')]
     public function test_chaque_region_tient_le_format(string $code): void
     {

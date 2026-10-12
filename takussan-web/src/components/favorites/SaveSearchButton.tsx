@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { savedSearchPayloadSchema } from '@/lib/schemas/search';
@@ -48,6 +49,13 @@ export interface SaveSearchButtonProps {
   readonly filters: SearchFilters;
   readonly activeCount: number;
   readonly className?: string;
+  /**
+   * TCK-635 — la forme de l'en-tête des résultats : une icône et « Sauvegarder », et une infobulle
+   * qui dit ce que fait le geste. Le nom accessible reste « Sauvegarder la recherche » (il CONTIENT
+   * le mot affiché). Sans critère, le bouton n'est pas `disabled` mais `aria-disabled` : un bouton
+   * désactivé ne reçoit pas le survol, et l'infobulle qui explique pourquoi ne s'ouvrirait jamais.
+   */
+  readonly compact?: boolean;
 }
 
 /**
@@ -103,6 +111,7 @@ export function SaveSearchButton({
   filters,
   activeCount,
   className = '',
+  compact = false,
 }: SaveSearchButtonProps) {
   const t = useTranslations('search.saveSearch');
   const tPublic = useTranslations('search.publicAlert');
@@ -171,15 +180,37 @@ export function SaveSearchButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleOpen}
-        disabled={activeCount === 0}
-        className={`inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
-      >
-        <BookmarkPlus className="w-4 h-4" />
-        <span>{t('trigger')}</span>
-      </button>
+      {compact ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={t('trigger')}
+                aria-disabled={activeCount === 0 || undefined}
+                onClick={() => {
+                  if (activeCount > 0) handleOpen();
+                }}
+                className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50 lg:h-8 ${className}`}
+              />
+            }
+          >
+            <BookmarkPlus className="size-4" aria-hidden />
+            <span className="max-lg:sr-only">{t('triggerShort')}</span>
+          </TooltipTrigger>
+          <TooltipContent>{activeCount > 0 ? t('triggerHint') : t('triggerHintEmpty')}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <button
+          type="button"
+          onClick={handleOpen}
+          disabled={activeCount === 0}
+          className={`inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+        >
+          <BookmarkPlus className="w-4 h-4" />
+          <span>{t('trigger')}</span>
+        </button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

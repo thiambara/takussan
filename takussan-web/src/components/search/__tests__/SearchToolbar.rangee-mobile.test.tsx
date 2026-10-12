@@ -3,7 +3,8 @@ import { render, screen, within } from '@testing-library/react';
 import { withIntl } from '@/test/intl';
 import { formatPrice } from '@/lib/utils';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
-import { SearchToolbar, type SearchToolbarProps } from '../SearchToolbar';
+import { PucesDeFiltres, SearchToolbar, type SearchToolbarProps } from '../SearchToolbar';
+import type { SearchFilters } from '@/types/search';
 
 /**
  * TCK-552 — la barre d'outils de la liste, sous `lg`.
@@ -21,9 +22,7 @@ function monte(surcharge: Partial<SearchToolbarProps> = {}) {
     loading: false,
     filters: {},
     activeCount: 0,
-    onRemoveFilter: vi.fn(),
     onSortChange: vi.fn(),
-    onPerPageChange: vi.fn(),
     onOpenSidebar: vi.fn(),
     ...surcharge,
   };
@@ -60,13 +59,8 @@ describe('TCK-552 — une seule rangée d’outils sous lg : Filtres, tri, bascu
     expect(classes(screen.getByRole('combobox', { name: /trier/i }))).toContain('h-11');
   });
 
-  it('« par page » n’est pas rendu sous lg (AC4) — son conteneur est `hidden lg:block`', () => {
-    monte();
-    const parPage = screen.getByRole('combobox', { name: /par page/i });
-    const conteneur = parPage.closest('[data-controle="par-page"]');
-    expect(conteneur).not.toBeNull();
-    expect(classes(conteneur!)).toEqual(expect.arrayContaining(['hidden', 'lg:block']));
-  });
+  // « par page » (AC4) a quitté cette rangée avec TCK-635 : il est gardé à côté de la pagination,
+  // `SearchToolbar.par-page.test.tsx`.
 
   it('la bascule de vue est rendue en BOUT de rangée, et seulement sous lg', () => {
     monte({ basculeDeVue: <button type="button">bascule</button> });
@@ -93,13 +87,11 @@ describe('TCK-552 — une seule rangée d’outils sous lg : Filtres, tri, bascu
 });
 
 describe('TCK-552 — les contrôles qui n’agissent pas ne sont pas rendus (M4, E1, AC8)', () => {
-  it('`afficherTri={false}` masque le tri ET la taille de page sous lg', () => {
+  it('`afficherTri={false}` masque le tri sous lg', () => {
     monte({ afficherTri: false });
     const tri = screen.getByRole('combobox', { name: /trier/i });
-    const parPage = screen.getByRole('combobox', { name: /par page/i });
-    // Le bureau n'est pas modifié (contrainte du ticket) : masqués SOUS lg, rendus à partir de lg.
+    // Masqué SOUS lg, rendu à partir de lg.
     expect(classes(tri)).toEqual(expect.arrayContaining(['hidden', 'lg:flex']));
-    expect(classes(parPage.closest('[data-controle="par-page"]')!)).toContain('hidden');
   });
 
   it('par défaut, le tri est rendu sous lg', () => {
@@ -108,28 +100,55 @@ describe('TCK-552 — les contrôles qui n’agissent pas ne sont pas rendus (M4
   });
 });
 
-describe('TCK-552 — la sauvegarde vient au bout des puces (P7, AC5)', () => {
-  it('rend `finDesPuces` DANS la rangée des puces, après la dernière', () => {
+/**
+ * TCK-635 — la sauvegarde a quitté le bout des puces (les puces ont quitté l'en-tête) : elle vit
+ * dans la rangée d'outils, entre le tri et la bascule. Son conteneur est `contents` : masqué sous
+ * `lg` sans critère, le bouton n'y laisse pas une gouttière vide.
+ */
+describe('TCK-635 — la sauvegarde est dans la rangée d’outils', () => {
+  it('entre le tri et la bascule', () => {
     monte({
-      filters: { city: 'Dakar', furnished: true },
-      activeCount: 2,
-      finDesPuces: <button type="button">sauver</button>,
+      sauvegarde: <button type="button">sauver</button>,
+      basculeDeVue: <button type="button">bascule</button>,
     });
+    const tri = screen.getByRole('combobox', { name: /trier/i });
+    const sauver = screen.getByRole('button', { name: 'sauver' });
+    const bascule = screen.getByRole('button', { name: 'bascule' });
+    expect(sauver.closest('[data-rangee-outils]')).toBe(tri.closest('[data-rangee-outils]'));
+    expect(tri.compareDocumentPosition(sauver) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sauver.compareDocumentPosition(bascule) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(classes(sauver.closest('[data-controle="sauvegarde"]')!)).toContain('contents');
+  });
+
+  it('absente, rien n’est rendu à sa place', () => {
+    monte();
+    expect(document.querySelector('[data-controle="sauvegarde"]')).toBeNull();
+  });
+});
+
+/** Les puces vivent dans l'état vide (TCK-558) : le composant est gardé seul. */
+function montePuces(filters: SearchFilters, fin?: React.ReactNode) {
+  return render(withIntl(<PucesDeFiltres filters={filters} onRemoveFilter={vi.fn()} fin={fin} />));
+}
+
+describe('TCK-552 — ce qui vient au bout des puces', () => {
+  it('rend `fin` DANS la rangée des puces, après la dernière', () => {
+    montePuces({ city: 'Dakar', furnished: true }, <button type="button">sauver</button>);
     const sauver = screen.getByRole('button', { name: 'sauver' });
     const derniere = screen.getByRole('button', { name: 'Meublé' });
     expect(sauver.closest('[data-rangee="puces"]')).toBe(derniere.closest('[data-rangee="puces"]'));
     expect(derniere.compareDocumentPosition(sauver) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('ne rend PAS `finDesPuces` quand aucune puce n’est posée', () => {
-    monte({ filters: {}, activeCount: 0, finDesPuces: <button type="button">sauver</button> });
+  it('ne rend PAS `fin` quand aucune puce n’est posée', () => {
+    montePuces({}, <button type="button">sauver</button>);
     expect(screen.queryByRole('button', { name: 'sauver' })).toBeNull();
   });
 });
 
 describe('TCK-552 — les puces (P8, AC7)', () => {
   it('la recherche libre est signalée par une ICÔNE, sans guillemet', () => {
-    monte({ filters: { q: 'Dakar' }, activeCount: 1 });
+    montePuces({ q: 'Dakar' });
     const puce = screen.getByRole('button', { name: /Dakar/ });
     expect(puce.textContent).not.toContain('"');
     expect(normalise(puce.textContent ?? '')).toBe('Dakar');
@@ -137,7 +156,7 @@ describe('TCK-552 — les puces (P8, AC7)', () => {
   });
 
   it('la puce de prix écrit le montant par la fonction de formatage des CARTES', () => {
-    monte({ filters: { price_min: 150_000, price_max: 2_000_000 }, activeCount: 2 });
+    montePuces({ price_min: 150_000, price_max: 2_000_000 });
     const textes = screen.getAllByRole('button')
       .map((b) => normalise(b.textContent ?? ''))
       .filter((t) => t.startsWith('≥') || t.startsWith('≤'));
@@ -154,7 +173,7 @@ describe('TCK-552 — les puces (P8, AC7)', () => {
    * est posée sur TOUTES les cartes du site, la puce n'existe qu'ici.
    */
   it.each(['rent', 'sale'] as const)('la puce de transaction `%s` écrit le mot de la pastille des cartes', (type) => {
-    monte({ filters: { contract_type: type }, activeCount: 1 });
+    montePuces({ contract_type: type });
     const puce = document.querySelector('[data-rangee="puces"] button')!;
     const { container } = render(withIntl(<ContractTypeChip type={type} />));
     expect(normalise(puce.textContent ?? '')).toBe(normalise(container.textContent ?? ''));

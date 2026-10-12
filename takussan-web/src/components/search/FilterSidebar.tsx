@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { X, RotateCcw, Search, Star, Loader2, ChevronDown } from 'lucide-react';
+import { X, RotateCcw, Search, Star, Loader2, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { iconeDuType } from '@/components/home/icones-de-categorie';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +20,8 @@ import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="py-5 border-b border-border last:border-0">
-      <h3 className="text-sm font-bold text-foreground mb-3">{title}</h3>
+    <div className="py-4 border-b border-border/70 last:border-0">
+      <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
       {children}
     </div>
   );
@@ -41,13 +42,46 @@ function ChipGroup<T extends string | number>({
   value,
   valeurConfirmee,
   onChange,
+  forme = 'puces',
 }: {
   options: { label: string; value: T }[];
   value: T | undefined;
   /** La valeur dont les résultats affichés sont la réponse (TCK-580). */
   valeurConfirmee: T | undefined;
   onChange: (v: T | undefined) => void;
+  /**
+   * TCK-635 — `segments` : un choix court et exclusif (transaction, chambres) se lit mieux comme
+   * un contrôle segmenté, à parts égales, que comme des puces qui passent à la ligne.
+   */
+  forme?: 'puces' | 'segments';
 }) {
+  if (forme === 'segments') {
+    return (
+      <div data-forme="segments" className="grid grid-flow-col auto-cols-fr gap-1 rounded-xl bg-muted p-1">
+        {options.map(opt => {
+          const isActive = value === opt.value;
+          const attente = enAttente(isActive, valeurConfirmee === opt.value);
+          return (
+            <button
+              key={String(opt.value)}
+              type="button"
+              aria-pressed={isActive}
+              aria-busy={attente || undefined}
+              onClick={() => onChange(isActive ? undefined : opt.value)}
+              className={`relative min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                isActive
+                  ? 'bg-card text-primary shadow-sm ring-1 ring-primary/30'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+              {attente ? <AttenteDePuce /> : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-2">
       {options.map(opt => {
@@ -490,8 +524,9 @@ export function FilterSidebar({
   // que le corps défile dessous (retour du porteur du 2026-10-10 — il défilait avec le reste, et
   // « Tout effacer » comme la croix de fermeture sortaient de l'écran).
   const entete = (
-    <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+    <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-3 border-b border-border">
       <h2 className="font-display text-base font-semibold text-foreground flex items-center">
+        <SlidersHorizontal className="mr-2 size-4 text-primary" aria-hidden="true" />
         {t('title')}
         {activeCount > 0 && (
           <Badge className="ml-2">{activeCount}</Badge>
@@ -538,7 +573,7 @@ export function FilterSidebar({
       {rappel}
 
       {/* Body */}
-      <div className="px-5">
+      <div className="px-4">
 
         {/* 1. Transaction */}
         <Section title={t(`sections.contractType`)}>
@@ -547,13 +582,18 @@ export function FilterSidebar({
             value={filters.contract_type}
             valeurConfirmee={confirmes.contract_type}
             onChange={(v) => set({ contract_type: v as SearchFilters['contract_type'], rent_period: undefined })}
+            forme="segments"
           />
         </Section>
 
         {/* 2. Property type — multi-select */}
+        {/* TCK-635 — des tuiles à pictogramme, sur deux colonnes : seize puces de largeurs
+            inégales passaient sur sept lignes en escalier. Le pictogramme est celui de la bande de
+            catégories (`iconeDuType`) : un type ne porte qu'un dessin sur tout le site. */}
         <Section title={t(`sections.propertyType`)}>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {PROPERTY_TYPE_VALUES.map(opt => {
+              const Icone = iconeDuType(opt);
               const selected = filters.type ?? [];
               const isActive = selected.includes(opt);
               const attente = enAttente(isActive, (confirmes.type ?? []).includes(opt));
@@ -569,13 +609,14 @@ export function FilterSidebar({
                       : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
-                  className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[13px] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     isActive
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
                   }`}
                 >
-                  {tTypes(opt)}
+                  <Icone className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <span className="truncate">{tTypes(opt)}</span>
                   {attente ? <AttenteDePuce /> : null}
                 </button>
               );
@@ -602,10 +643,18 @@ export function FilterSidebar({
           <div className="space-y-2">
             <ChoixDeVille
               valeur={filters.city}
-              onChange={(city) => set({ city, location: city === filters.city ? filters.location : undefined })}
+              region={filters.region}
+              onChange={(city, region) =>
+                set({
+                  city,
+                  region,
+                  location: city === filters.city && region === filters.region ? filters.location : undefined,
+                })
+              }
             />
             <ChoixDeQuartier
               ville={filters.city}
+              region={filters.region}
               valeur={filters.location}
               onChange={(location) => set({ location })}
             />
@@ -650,6 +699,7 @@ export function FilterSidebar({
             value={filters.bedrooms}
             valeurConfirmee={confirmes.bedrooms}
             onChange={(v) => set({ bedrooms: v as number })}
+            forme="segments"
           />
         </Section>
 
@@ -685,6 +735,7 @@ export function FilterSidebar({
               value={filters.bathrooms}
               valeurConfirmee={confirmes.bathrooms}
               onChange={(v) => set({ bathrooms: v as number })}
+              forme="segments"
             />
           </Section>
 
@@ -838,7 +889,9 @@ export function FilterSidebar({
       {/* Desktop sidebar — dès `lg` et non `md` (revue design du 2026-09-16) : à 768 px, le rail
           de 264 px laissait 3 colonnes de 128 px à la grille, prix tronqués (« 28 000 000 F C… »).
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
-      <aside className="hidden lg:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
+      {/* TCK-635 — le rail défile avec la page (retour du porteur du 2026-10-12) : il était
+          `sticky top-[145px]`, et restait collé pendant que les résultats défilaient. */}
+      <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
         <div className="flex flex-col">
           {entete}
           {rendreCorps()}

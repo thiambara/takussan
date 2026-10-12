@@ -216,10 +216,27 @@ export const SEARCH_FILTER_KEYS = {
   },
   city: {
     role: 'filtre',
-    params: ['city'],
+    // TCK-635 — la ville possède sa région : retirer la puce « Dinguiraye » retire aussi `region`,
+    // qui n'aurait plus rien à départager.
+    params: ['city', 'region'],
     lire: (sp: URLSearchParams) => litTexte(sp, 'city'),
     ecrire: (v: string) => v,
     libelle: (v: string) => v,
+  },
+  /**
+   * TCK-635 (ADR-0062 §8) — la région d'une ville HOMONYME : Dinguiraye est à Diourbel et à Kolda,
+   * Missirah à Diourbel et à Tambacounda, Vélingara à Matam et à Kolda. Le sélecteur de ville ne
+   * l'écrit que pour ces villes-là ; partout ailleurs l'URL reste `city=Thiès`.
+   *
+   * Pas de puce propre : elle précise la ville, elle ne filtre pas à côté d'elle (`agregeeDans`,
+   * le mécanisme de `lat`/`lng` sous `radius_km`).
+   */
+  region: {
+    role: 'filtre',
+    params: ['region'],
+    lire: (sp: URLSearchParams) => litTexte(sp, 'region'),
+    ecrire: (v: string) => v,
+    agregeeDans: 'city',
   },
   /**
    * ─── Le rayon, et le point qui lui sert d'origine (TCK-346, ADR-0023) ──────────────────
