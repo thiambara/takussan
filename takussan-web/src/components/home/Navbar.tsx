@@ -59,6 +59,20 @@ export interface NavbarProps {
   readonly className?: string;
 }
 
+/**
+ * TCK-633 (lot E) — la sélection de types après un clic sur une puce de catégorie.
+ *
+ * Deux types ou plus (posés dans le panneau de filtres) : la puce AJOUTE ou RETIRE le sien, elle
+ * n'écrase plus la sélection. Aucun ou un seul : mono-sélection, comme avant — la puce remplace,
+ * ou retire si elle était la seule.
+ */
+export function prochaineSelectionDeTypes(selection: readonly string[], type: string): string[] {
+  if (selection.length >= 2) {
+    return selection.includes(type) ? selection.filter((t) => t !== type) : [...selection, type];
+  }
+  return selection.length === 1 && selection[0] === type ? [] : [type];
+}
+
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -173,29 +187,30 @@ export function Navbar({ className }: NavbarProps) {
   const moreRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Derive selection from URL — single source of truth, stays in sync with
-  // the FilterSidebar on /properties. activeCategory only highlights when
-  // exactly one type is selected; multi-select from the sidebar leaves all
-  // navbar chips neutral by design.
+  // La sélection vient de l'URL — source unique, partagée avec le panneau de filtres de
+  // /properties. TCK-633 : chaque puce dont le type est sélectionné s'allume, sélection multiple
+  // comprise (elles restaient toutes éteintes, et la barre semblait ignorer la sélection).
   const selectedTypes = useMemo(() => {
     const raw = searchParams.get('type');
     return raw ? raw.split(',').map((t) => t.trim()).filter(Boolean) : [];
   }, [searchParams]);
-  const categorieDeLUrl = selectedTypes.length === 1 ? selectedTypes[0] : null;
 
   // Retour d'administration du 2026-09-16 : un clic sur une catégorie ne changeait RIEN à l'écran
   // tant que la page suivante n'était pas servie — la puce ne s'allumait qu'avec la nouvelle URL,
   // et le seul indicateur était en bas de page. La navigation passe donc par une transition : la
   // puce demandée s'allume au clic, et la barre de chargement court sous la navbar tant que la
-  // page n'est pas là. `typeDemande` vaut '' pour « retirer le filtre ».
+  // page n'est pas là. `demande` porte la puce cliquée et la sélection qu'elle demande (vide : retrait).
   const [enNavigation, demarrerNavigation] = useTransition();
-  const [typeDemande, setTypeDemande] = useState<string | null>(null);
-  const activeCategory = enNavigation && typeDemande !== null ? typeDemande || null : categorieDeLUrl;
-  const moreHasActive = activeCategory !== null && moreCategories.some((c) => c.type === activeCategory);
+  const [demande, setDemande] = useState<{ readonly cliquee: string; readonly selection: readonly string[] } | null>(null);
+  // Les types que la barre ALLUME : la sélection demandée tant que la page suivante n'est pas là,
+  // puis celle de l'URL.
+  const typesActifs: readonly string[] = enNavigation && demande !== null ? demande.selection : selectedTypes;
+  const activeCategory = typesActifs.length === 1 ? (typesActifs[0] ?? null) : null;
+  const moreHasActive = moreCategories.some((c) => c.type !== null && typesActifs.includes(c.type));
   // TCK-580 — la catégorie dont la navigation COURT (`undefined` : aucune). Distincte de
   // `activeCategory`, qui retombe sur l'URL : c'est elle qui porte l'indicateur de chargement.
   const categorieEnAttente: string | null | undefined =
-    enNavigation && typeDemande !== null ? typeDemande || null : undefined;
+    enNavigation && demande !== null ? (demande.selection.length > 0 ? demande.cliquee : null) : undefined;
   const plusEnAttente =
     categorieEnAttente !== undefined && moreCategories.some((c) => c.type === categorieEnAttente);
 
@@ -308,22 +323,20 @@ export function Navbar({ className }: NavbarProps) {
   }, [searchParams, transaction, location, activeCategory, locale]);
 
   const handleSearch = useCallback(() => {
-    setTypeDemande(null);
+    setDemande(null);
     demarrerNavigation(() => router.push(buildSearchUrl()));
   }, [router, buildSearchUrl]);
 
   const handleCategoryClick = useCallback((type: string | null) => {
     if (!type) return;
-    // Clicking a chip is mono-select: replace ?type= with this single value,
-    // or clear it if the chip was already the only active type. This is
-    // intentional — the multi-select side lives in the FilterSidebar.
+    // TCK-633 — une sélection MULTIPLE n'est plus écrasée (`prochaineSelectionDeTypes`) ; seule ou
+    // sans sélection, la puce reste mono-sélection.
     //
     // Une puce AJOUTE un critère, elle ne réinterprète pas la saisie : tout le reste de l'URL
     // — `q` compris — vient de `buildSearchUrl`, qui est désormais le seul à l'écrire.
-    const isOnlyActive = selectedTypes.length === 1 && selectedTypes[0] === type;
-    const prochain = isOnlyActive ? '' : type;
-    setTypeDemande(prochain);
-    demarrerNavigation(() => router.push(buildSearchUrl({ [parametreDe('type')]: prochain })));
+    const selection = prochaineSelectionDeTypes(selectedTypes, type);
+    setDemande({ cliquee: type, selection });
+    demarrerNavigation(() => router.push(buildSearchUrl({ [parametreDe('type')]: selection.join(',') })));
   }, [router, buildSearchUrl, selectedTypes]);
 
   return (
@@ -380,7 +393,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((cat) => {
                 const Icon = iconMap[cat.icon] || Building2;
-                const isActive = activeCategory === cat.type;
+                const isActive = cat.type !== null && typesActifs.includes(cat.type);
                 const enAttente = categorieEnAttente === cat.type;
                 return (
                   <button
@@ -432,7 +445,7 @@ export function Navbar({ className }: NavbarProps) {
                 <div className="absolute top-full left-0 mt-2 w-64 bg-popover rounded-2xl shadow-lg border border-border p-2 z-50 grid grid-cols-2 gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
                   {moreCategories.map((cat) => {
                     const Icon = iconMap[cat.icon] || HelpCircle;
-                    const isActive = activeCategory === cat.type;
+                    const isActive = cat.type !== null && typesActifs.includes(cat.type);
                     const count = cat.type ? typeCounts?.[cat.type] : undefined;
                     return (
                       <button

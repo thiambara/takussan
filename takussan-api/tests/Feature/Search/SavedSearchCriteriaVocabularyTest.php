@@ -86,7 +86,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'area_max' => ['area_max', ['area_max' => 150], ['area' => 200], [], null],
             'furnished' => ['furnished', ['furnished' => true], ['furnished' => false], [], null],
             'featured' => ['featured', ['featured' => true], ['featured' => false], [], null],
-            'floor_number' => ['floor_number', ['floor_number' => 2], ['floor_number' => 5], [], null],
+            // TCK-633 — l'étage est un MINIMUM : B doit passer SOUS le seuil pour être écarté.
+            'floor_number' => ['floor_number', ['floor_number' => 2], ['floor_number' => 1], [], null],
             'available_from' => ['available_from', ['available_from' => '2026-11-01'], ['available_from' => '2026-12-01'], [], null],
             'title_type' => ['title_type', ['title_type' => 'titre_foncier'], ['title_type' => 'bail'], [], null],
             'condition' => ['condition', ['condition' => ['renovated', 'new']], ['condition' => 'good'], [], null],

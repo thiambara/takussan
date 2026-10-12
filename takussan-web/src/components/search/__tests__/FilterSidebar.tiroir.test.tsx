@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
+
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('./doublure-choix-du-referentiel'));
 import { FilterSidebar } from '../FilterSidebar';
 
 /**
@@ -25,7 +27,6 @@ function Banc() {
         activeCount={0}
         open={open}
         onClose={() => setOpen(false)}
-        debounceMs={20}
       />
     </>
   );

@@ -25,30 +25,27 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
     // floor_number filter
     // ─────────────────────────────────────────────────────────────────────
 
-    public function test_floor_number_filter_returns_matching_properties(): void
+    /** TCK-633 (lot E) — l'étage est un MINIMUM : « 2e et + » garde le 5e, écarte le 1er. */
+    public function test_floor_number_filter_is_a_minimum(): void
     {
-        Property::factory()->create([
-            'status' => PropertyStatus::Available,
-            'visibility' => PropertyVisibility::Public,
-            'floor_number' => 2,
-            'title' => 'On floor 2',
-            'published_at' => now(),
-        ]);
-        Property::factory()->create([
-            'status' => PropertyStatus::Available,
-            'visibility' => PropertyVisibility::Public,
-            'floor_number' => 5,
-            'title' => 'On floor 5',
-            'published_at' => now(),
-        ]);
+        foreach ([1, 2, 5] as $etage) {
+            Property::factory()->create([
+                'status' => PropertyStatus::Available,
+                'visibility' => PropertyVisibility::Public,
+                'featured' => false,
+                'floor_number' => $etage,
+                'title' => "On floor {$etage}",
+                'published_at' => now(),
+            ]);
+        }
         $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?floor_number=2');
 
         $response->assertOk();
-        $data = $response->json('data');
-        $this->assertCount(1, $data);
-        $this->assertSame('On floor 2', $data[0]['title']);
+        $titres = array_column($response->json('data'), 'title');
+        sort($titres);
+        $this->assertSame(['On floor 2', 'On floor 5'], $titres);
     }
 
     public function test_floor_number_filter_excludes_null_floor(): void

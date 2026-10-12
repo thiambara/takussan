@@ -44,17 +44,33 @@ class SponsoredRotationTest extends TestCase
         ], $this->actingAsRole('super_admin'));
     }
 
+    /**
+     * « Parmi les vedettes FILTRÉES » se prouve sans dépendre du tirage. La graine mêle l'heure et
+     * les identifiants, que `nextval()` ne rejoue jamais (piège PostgreSQL n° 6) : vérifier qu'un
+     * tirage de 2 parmi 5 locations ne contient pas la vente laissait le test vert, une fois sur
+     * trois en moyenne, sous un vivier qui ignore les filtres (six vedettes, vente comprise). Les
+     * deux constats ci-dessous rougissent sous cette régression QUEL QUE SOIT le tirage.
+     */
     public function test_les_emplacements_sortent_hors_pagination_parmi_les_vedettes_filtrees(): void
     {
-        $reponse = $this->getJson('/api/public/properties/search?contract_type=rent&per_page=3')->assertOk();
+        // 1. Une seule vedette satisfait `contract_type=sale` et deux emplacements sont offerts : un
+        //    vivier hors filtres comblerait le second, forcément.
+        $vente = $this->getJson('/api/public/properties/search?contract_type=sale&per_page=3')->assertOk();
+        $this->assertSame([$this->vedetteVente], array_column($vente->json('sponsored'), 'id'), 'la seule vedette qui satisfait les filtres, et elle seule');
 
+        $reponse = $this->getJson('/api/public/properties/search?contract_type=rent&per_page=3')->assertOk();
         $sponsorises = array_column($reponse->json('sponsored'), 'id');
         $this->assertCount(2, $sponsorises);
         $this->assertSame([], array_diff($sponsorises, $this->vedettesLocation));
-        $this->assertNotContains($this->vedetteVente, $sponsorises);
         $this->assertSame(['sponsored', 'sponsored'], array_column($reponse->json('sponsored'), 'placement'));
         $this->assertSame(8, $reponse->json('meta.total'), 'hors total');
         $this->assertCount(3, $reponse->json('data'));
+
+        // 2. Autant d'emplacements que de vedettes : le tirage les sert TOUTES, il ne choisit plus.
+        //    Le vivier filtré rend les cinq locations ; un vivier hors filtres y ajouterait la vente.
+        app(PlatformSettingService::class)->bulkUpdate(['boost.sponsored_slots_per_page' => 10], $this->actingAsRole('super_admin'));
+        $location = $this->getJson('/api/public/properties/search?contract_type=rent&per_page=3')->assertOk();
+        $this->assertEqualsCanonicalizing($this->vedettesLocation, array_column($location->json('sponsored'), 'id'), 'toutes les vedettes filtrées, aucune autre');
     }
 
     public function test_meme_heure_meme_tirage_et_chaque_vedette_passe_a_son_tour(): void
