@@ -88,9 +88,13 @@ describe('<CoordonneesPublication> — TCK-633', () => {
     const user = userEvent.setup();
     render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
 
-    expect(screen.getByText('Votre numéro reçoit-il WhatsApp ?')).toBeInTheDocument();
-    // Le numéro est vérifié : on ne le redemande pas.
+    expect(screen.getByText('Ce numéro reçoit-il WhatsApp ?')).toBeInTheDocument();
+    // Le numéro est vérifié : on ne le redemande pas — mais on le MONTRE, sinon la question ne
+    // dit pas de quel numéro elle parle (TCK-635, retour du porteur).
     expect(screen.queryByLabelText('Votre numéro')).not.toBeInTheDocument();
+    const numero = screen.getByTestId('numero-verifie');
+    expect(numero).toHaveTextContent('+221 77 000 09 01');
+    expect(numero).toHaveTextContent('Vérifié');
     await user.click(screen.getByRole('button', { name: 'Non' }));
 
     await waitFor(() => expect(m.maj).toHaveBeenCalledWith({ phone_whatsapp: false }));

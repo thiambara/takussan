@@ -1182,7 +1182,8 @@
         "dialogPublish": "Publish",
         "dialogCancel": "Cancel",
         "dialogIncomplete": "Some details are still missing: complete the block above, then click “Publish” again.",
-        "whatsappQuestion": "Does your number have WhatsApp?",
+        "whatsappQuestion": "Does this number have WhatsApp?",
+        "verifiedBadge": "Verified",
         "whatsappYes": "Yes",
         "whatsappNo": "No"
       }

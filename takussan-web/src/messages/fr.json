@@ -1153,7 +1153,8 @@
         "dialogPublish": "Publier",
         "dialogCancel": "Annuler",
         "dialogIncomplete": "Il manque encore des informations pour publier : complétez le bloc ci-dessus, puis cliquez de nouveau sur « Publier ».",
-        "whatsappQuestion": "Votre numéro reçoit-il WhatsApp ?",
+        "whatsappQuestion": "Ce numéro reçoit-il WhatsApp ?",
+        "verifiedBadge": "Vérifié",
         "whatsappYes": "Oui",
         "whatsappNo": "Non"
       }

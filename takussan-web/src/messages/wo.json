@@ -5442,7 +5442,8 @@
         "dialogPublish": "Génne",
         "dialogCancel": "Bàyyi",
         "dialogIncomplete": "Am na lu ñàkk ngir génne : matal li nekk ci kaw, te bësaat ci « Génne ».",
-        "whatsappQuestion": "Sa nimero am na WhatsApp ?",
+        "whatsappQuestion": "Nimero bii am na WhatsApp ?",
+        "verifiedBadge": "Wóor na",
         "whatsappYes": "Waaw",
         "whatsappNo": "Déedéet"
       }

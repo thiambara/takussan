@@ -165,6 +165,15 @@ mauvaise. Un test du jeu de données garde l'unicité du couple (région, ville)
 navigateur sur deux biens déplacés le temps de l'essai puis restaurés : 2 biens sans région, 1 par
 région, `region` retirée en passant à Thiès.
 
+**Publication, dernière étape** (retours du porteur, 2026-10-12). *Contacts sur place* : la grille
+alignait ses colonnes par le bas, et l'aide du champ Numéro faisait tomber « Qui ? », la case
+WhatsApp et « Retirer » ; la légende était posée sur la bordure. Chaque contact est une carte, les
+deux champs alignés en haut, puis une ligne WhatsApp / Retirer ; le titre se lit dans le cadre,
+comme celui du bloc voisin. *Vos coordonnées* : un numéro vérifié dont la réponse WhatsApp manque
+voyait la question seule ; le numéro s'affiche au-dessus, avec la mention « Vérifié ». Vérifié au
+navigateur (1440 et 390, sans défilement horizontal) sur un compte local dont la réponse WhatsApp
+a été vidée le temps de l'essai, puis restaurée. Quatre ablations, rouges.
+
 **Ablations** (une mutation, son test, le fichier restauré à l'identique) : quinze, toutes
 rouges. La robe retirée, la robe qui déborde dans la gouttière, le liseré en `ring`, le ruban sans mention, le badge
 absent, la place réservée sans robe, l'emplacement hors grille, l'emplacement sans robe, la taille
