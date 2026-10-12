@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\Conversions\Events\ConversionWillStartEvent;
 use Spatie\MediaLibrary\Conversions\FileManipulator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ use Tests\TestCase;
  */
 class PhotoConversionFormatTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     private const CONVERSIONS = ['thumbnail', 'preview', 'full'];
 

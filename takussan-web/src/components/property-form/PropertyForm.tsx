@@ -19,7 +19,6 @@ import { useWatch } from 'react-hook-form';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { fieldDensityScope } from '@/components/ui/field-density';
-import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import {
   FormAmountInput,
   FormCheckbox,
@@ -50,7 +49,6 @@ import { areaLabelKey, isFieldRelevant, type RelevanceContext } from './field-ma
 import {
   PROPERTY_ENUM_NAMESPACES,
   contractTypeOptions as fabriqueContractTypeOptions,
-  currencyOptions as fabriqueCurrencyOptions,
   propertyTypeOptions as fabriquePropertyTypeOptions,
   rentPeriodOptions as fabriqueRentPeriodOptions,
 } from './options';
@@ -62,6 +60,10 @@ import {
 } from './payload';
 import { EntryCostFields } from './wizard/steps/StepPrix';
 import { VirtualTourField } from './wizard/steps/StepFinition';
+import { NombreEnListe } from './wizard/NombreEnListe';
+import { ChampEquipements } from './ChampEquipements';
+import { ChampsLieu } from './ChampsLieu';
+import { ChampsPosition } from './ChampsPosition';
 
 interface PropertyFormProps {
   readonly mode: 'edit';
@@ -95,6 +97,11 @@ function toDefaults(property: PropertyDetail): PropertyFormValues {
     country: property.location?.country ?? '',
     latitude: property.location?.latitude ?? undefined,
     longitude: property.location?.longitude ?? undefined,
+    // TCK-633 — les identifiants du référentiel lus sur le bien (`PropertyResource`, tâche 13). La
+    // région n'en a pas côté bien : `ChampsLieu` la rapproche de son nom.
+    geo_region_id: null,
+    geo_city_id: property.location?.geo_city_id ?? null,
+    geo_neighborhood_id: property.location?.geo_neighborhood_id ?? null,
     area: property.area ?? undefined,
     bedrooms: property.bedrooms ?? undefined,
     bathrooms: property.bathrooms ?? undefined,
@@ -111,6 +118,8 @@ function toDefaults(property: PropertyDetail): PropertyFormValues {
     tag_ids: Array.isArray(property.tags)
       ? property.tags.filter((t) => t.type === 'amenity').map((t) => t.id)
       : [],
+    // TCK-633 — les équipements proposés pendant CETTE édition ; ceux du bien sont dans `tag_ids`.
+    tag_names: [],
     // TCK-598 — relus depuis le bloc calculé `entry_cost` : la ressource n'émet pas les quatre
     // colonnes au premier niveau. Un bloc `null` (rien de renseigné, ou pas une location
     // mensuelle) laisse les quatre champs vides.
@@ -170,6 +179,20 @@ function withAddressErasures(
   return bloc;
 }
 
+/**
+ * TCK-633 — les équipements du bien, en `Tag` : ceux que le catalogue ne sert pas (une proposition
+ * d'un autre utilisateur, en attente) gardent ainsi leur NOM dans la liste à puces au lieu de
+ * disparaître de l'écran — et d'être détachés au prochain enregistrement.
+ */
+function equipementsDuBien(property: PropertyDetail): Tag[] {
+  return (Array.isArray(property.tags) ? property.tags : [])
+    .filter((t) => t.type === 'amenity')
+    .map((t) => ({
+      id: t.id, name: t.name, slug: t.slug, type: 'amenity', icon: t.icon ?? null, color: t.color ?? null,
+      description: null, status: t.status,
+    }));
+}
+
 const SM_BREAKPOINT_PX = 640;
 /** Hauteur de la barre d'enregistrement (bordure + `pt-4` + bouton `lg` + `pb-4`), mesurée. */
 const SAVE_BAR_HEIGHT_PX = 73;
@@ -181,14 +204,12 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   // l'espace de noms et la fabrique. Les hooks sont posés AVANT toute sortie anticipée.
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const tContractType = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
-  const tCurrency = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
   const tRentPeriod = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
   const tTitleType = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
   const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
   const router = useRouter();
   const propertyTypeOptions = fabriquePropertyTypeOptions(tType);
   const contractTypeOptions = fabriqueContractTypeOptions(tContractType);
-  const currencyOptions = fabriqueCurrencyOptions(tCurrency);
   const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
   const titleTypeOptions = titleTypeValues.map((v) => ({ value: v, label: tTitleType(v) }));
   const conditionOptions = [
@@ -260,7 +281,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           contract: values.contract_type,
         };
         if (isFieldRelevant('tag_ids', contexteCourant)) {
-          const resultatTags = await setPropertyTagsAction(pid, values.tag_ids ?? []);
+          const resultatTags = await setPropertyTagsAction(pid, values.tag_ids ?? [], values.tag_names ?? []);
           if (!resultatTags.ok) {
             // Le bien EST enregistré : quitter la page ou parler d'échec enverrait ressaisir des
             // modifications déjà en base. On reste ici, c'est d'ici qu'on réessaie.
@@ -275,7 +296,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
       },
     });
 
-  const { control, setValue, formState } = form;
+  const { control, formState } = form;
   const dirtyCount = Object.keys(formState.dirtyFields).length;
   // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `wizard/steps/StepBien.tsx`).
   // Dans les étapes du parcours, une lecture `watch()` restait figée une fois compilée. Ici, dans
@@ -283,38 +304,14 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   // compilateur la laisse hors de tout bloc mémoïsé, ce qui n'est pas un contrat : dans
   // `AgencyConfigForm`, la même lecture d'hôte tombe dans un bloc mis en cache, et l'avertissement
   // de changement de devise n'y apparaît jamais (mesuré par exécution, compilateur actif, le
-  // 2026-09-23). La devise, elle, décide des décimales du prix.
-  const [typeDuBien, contractType, descriptionSaisie, latSaisie, lngSaisie, tagIdsSaisis, devise, periode] =
-    useWatch({
-      control,
-      name: ['type', 'contract_type', 'description', 'latitude', 'longitude', 'tag_ids', 'currency', 'rent_period'],
-    });
-  const lat = latSaisie as number | null | undefined;
-  const lng = lngSaisie as number | null | undefined;
+  // 2026-09-23). La devise, elle, décide des décimales du prix. TCK-633 — la position et les
+  // équipements sont lus par leurs propres champs (`ChampsPosition`, `ChampEquipements`).
+  const [typeDuBien, contractType, descriptionSaisie, devise, periode] = useWatch({
+    control,
+    name: ['type', 'contract_type', 'description', 'currency', 'rent_period'],
+  });
   const description = descriptionSaisie ?? '';
-  const tagIds = (tagIdsSaisis ?? []) as number[];
   const ctx: RelevanceContext = { type: typeDuBien, contract: contractType, rentPeriod: periode };
-
-  // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
-  // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
-  // trouvaient faisaient ABANDONNER la compilation de tout ce composant —
-  // `react-hooks/preserve-manual-memoization` les signalait, et son correctif est de retirer la
-  // mémoïsation manuelle, pas de l'ajuster.
-  const handleLocationChange = (newLat: number, newLng: number) => {
-    setValue('latitude', newLat, { shouldDirty: true });
-    setValue('longitude', newLng, { shouldDirty: true });
-  };
-
-  const toggleTag = (tagId: number) => {
-    const current = (form.getValues('tag_ids') ?? []) as number[];
-    setValue(
-      'tag_ids',
-      current.includes(tagId)
-        ? current.filter((id) => id !== tagId)
-        : [...current, tagId],
-      { shouldDirty: true },
-    );
-  };
 
   return (
     /* TCK-468 — même portée de densité que le parcours de publication : les deux écrans qui
@@ -391,7 +388,8 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             {t(contractType === 'rent' ? 'price.hintRent' : 'price.hintSale')}
           </p>
         </header>
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* TCK-633 — la devise ne se choisit plus : le prix se publie en francs CFA (ADR-0061). */}
+        <div className="grid gap-4 md:grid-cols-2">
           <FormAmountInput
             control={control}
             name="price"
@@ -399,12 +397,6 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             required
             currency={devise}
             example={150_000}
-          />
-          <FormSelect
-            control={control}
-            name="currency"
-            label={t('fields.currency')}
-            options={currencyOptions}
           />
           {contractType === 'rent' ? (
             <FormSelect
@@ -420,7 +412,9 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         </div>
         {/* TCK-598 (V9) — d'une location mensuelle seulement : la matrice décide, ici comme à
             l'envoi (où elle efface ces champs hors contexte). */}
-        {isFieldRelevant('deposit_months', ctx) ? <EntryCostFields form={form} devise={devise} /> : null}
+        {isFieldRelevant('deposit_months', ctx) ? (
+          <EntryCostFields form={form} devise={devise} fraisDAgence={property.agency?.kind !== 'individual'} />
+        ) : null}
       </section>
 
       {/* ── Section 3 : Localisation / Adresse ── */}
@@ -429,26 +423,9 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           <h2 className="text-base font-semibold text-foreground">{t('location.title')}</h2>
           <p className="text-xs text-muted-foreground">{t('location.hintFull')}</p>
         </header>
+        {/* TCK-633 (AC9) — région, ville et quartier choisis dans le référentiel, comme au parcours. */}
         <div className="grid gap-4 md:grid-cols-3">
-          <FormInput
-            control={control}
-            name="city"
-            label={t('fields.city')}
-            required
-            placeholder={t('fields.cityPlaceholder')}
-          />
-          <FormInput
-            control={control}
-            name="quarter"
-            label={t('fields.quarter')}
-            placeholder={t('fields.quarterPlaceholder')}
-          />
-          <FormInput
-            control={control}
-            name="region"
-            label={t('fields.region')}
-            placeholder={t('fields.regionPlaceholder')}
-          />
+          <ChampsLieu form={form} />
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
@@ -471,18 +448,8 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             maxLength={2}
           />
         </div>
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            {t('location.gps')}{' '}
-            {lat != null && lng != null && (
-              <span className="text-foreground">
-                ({lat.toFixed(5)}, {lng.toFixed(5)})
-              </span>
-            )}
-          </p>
-          <LocationPickerMapLoader lat={lat} lng={lng} onChange={handleLocationChange} />
-          <p className="text-xs text-muted-foreground">{t('location.mapHint')}</p>
-        </div>
+        {/* TCK-633 (AC9) — position collée, latitude et longitude visibles et modifiables. */}
+        <ChampsPosition form={form} indiceCarte={t('location.mapHint')} />
       </section>
 
       {/*
@@ -512,71 +479,24 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             />
           ) : null}
           {isFieldRelevant('bedrooms', ctx) ? (
-            <FormInput
-              control={control}
-              name="bedrooms"
-              label={t('fields.bedrooms')}
-              type="number"
-              inputMode="numeric"
-              min={0}
-            />
+            <NombreEnListe form={form} name="bedrooms" label={t('fields.bedrooms')} />
           ) : null}
           {isFieldRelevant('bathrooms', ctx) ? (
-            <FormInput
-              control={control}
-              name="bathrooms"
-              label={t('fields.bathrooms')}
-              type="number"
-              inputMode="numeric"
-              min={0}
-            />
+            <NombreEnListe form={form} name="bathrooms" label={t('fields.bathrooms')} />
           ) : null}
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {isFieldRelevant('floor_number', ctx) ? (
-            <FormInput
-              control={control}
-              name="floor_number"
-              label={t('fields.floorNumber')}
-              type="number"
-              inputMode="numeric"
-              min={-5}
-              max={200}
-            />
+            <NombreEnListe form={form} name="floor_number" label={t('fields.floorNumber')} />
           ) : null}
           {isFieldRelevant('total_floors', ctx) ? (
-            <FormInput
-              control={control}
-              name="total_floors"
-              label={t('fields.totalFloors')}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={200}
-            />
+            <NombreEnListe form={form} name="total_floors" label={t('fields.totalFloors')} />
           ) : null}
           {isFieldRelevant('year_built', ctx) ? (
-            <FormInput
-              control={control}
-              name="year_built"
-              label={t('fields.yearBuilt')}
-              type="number"
-              inputMode="numeric"
-              min={1800}
-              max={2100}
-              placeholder="2010"
-            />
+            <NombreEnListe form={form} name="year_built" label={t('fields.yearBuilt')} />
           ) : null}
           {isFieldRelevant('parking_spaces', ctx) ? (
-            <FormInput
-              control={control}
-              name="parking_spaces"
-              label={t('fields.parking')}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              placeholder="2"
-            />
+            <NombreEnListe form={form} name="parking_spaces" label={t('fields.parking')} />
           ) : null}
         </div>
         {isFieldRelevant('furnished', ctx) ? (
@@ -630,39 +550,22 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         TCK-488 — les équipements seedés sont domestiques : les proposer sur un terrain, un garage
         ou un parking n'offre aucun choix pertinent. Le parcours de publication le gardait déjà
         (`StepCaracteristiques`), l'édition ne le gardait pas — alors que l'AC2 de TCK-464 exigeait
-        la vérification « à la création ET à l'édition ». */}
-      {isFieldRelevant('tag_ids', ctx) && tags.length > 0 && (
+        la vérification « à la création ET à l'édition ».
+        TCK-633 (AC10) — une liste à puces, rendue même sans catalogue : un équipement inconnu se
+        propose (`tag_names`). Le libellé du champ est la consigne : le titre de section le nomme. */}
+      {isFieldRelevant('tag_ids', ctx) ? (
         <section className="rounded-xl bg-card p-6 space-y-4">
           <header>
             <h2 className="text-base font-semibold text-foreground">{t('amenities.title')}</h2>
-            <p className="text-xs text-muted-foreground">{t('amenities.hint')}</p>
           </header>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => {
-              const checked = tagIds.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => toggleTag(tag.id)}
-                  aria-pressed={checked}
-                  // TCK-468 — `min-h-11` = 44 px, comme les pastilles de `ChoiceChips` dans le
-                  // parcours de publication. Sans ça, l'édition alignait ses CHAMPS sur 44 px et
-                  // gardait ses pastilles à 28 : l'écart changeait de camp au lieu de disparaître.
-                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors ${
-                    checked
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-transparent text-foreground hover:bg-muted'
-                  }`}
-                >
-                  {tag.icon && <span aria-hidden="true">{tag.icon}</span>}
-                  {tag.name}
-                </button>
-              );
-            })}
-          </div>
+          <ChampEquipements
+            form={form}
+            tags={tags}
+            attaches={equipementsDuBien(property)}
+            label={t('amenities.hint')}
+          />
         </section>
-      )}
+      ) : null}
 
       <div
         style={{ paddingBottom: saveBar.paddingBottom }}

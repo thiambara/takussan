@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -32,7 +33,7 @@ use Tests\TestCase;
  */
 class WatermarkListQueryCountTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     protected function setUp(): void
     {

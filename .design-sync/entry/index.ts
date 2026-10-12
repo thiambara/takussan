@@ -6,6 +6,7 @@ export * from '../../takussan-web/src/components/ui/button';
 export * from '../../takussan-web/src/components/ui/calendar';
 export * from '../../takussan-web/src/components/ui/card';
 export * from '../../takussan-web/src/components/ui/choice-card';
+export * from '../../takussan-web/src/components/ui/combobox';
 export * from '../../takussan-web/src/components/ui/date-picker';
 export * from '../../takussan-web/src/components/ui/date-time-picker';
 export * from '../../takussan-web/src/components/ui/destructive-banner';

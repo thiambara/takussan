@@ -1,0 +1,135 @@
+{
+  "verdict": "refuse — (1) la décision de la session sur D10 (« aucun numéro principal non vérifié servi au public, sur aucune surface ») n'est pas tenue : GET /api/public/agents/{slug} sert `phone` sans condition de vérification, et la page /agents/{slug} le rend en lien `tel:` (ContactSheet) et en `telephone` JSON-LD. La fiche du bien y mène par la carte de contact. Mesuré par exécution pour un particulier, pour un agent d'agence, et même pour un compte actif sans annonce. La correction est la collision n°3 du rapport, hors territoire C : la session doit l'appliquer ; (2) le rejeu de la boîte depuis le menu « Statut » (PUT …/status avec accept_terms) n'est gardé par AUCUN test, ni à l'API ni au front. Ignorer accept_terms dans updateStatus laisse 95 tests API verts, et ne pas l'envoyer dans changePropertyStatusAction laisse 1043 tests front verts : la boîte bouclerait sur un refus, et rien ne le verrait. Les huit défauts du refus précédent sont corrigés et chaque correction rougit sous une ablation différente de celle du rapport.",
+  "preuves": {
+    "charge": "uptime 21,65 / 35,98 / 24,56 au départ (12:00), 3,01 / 8,41 / 14,02 à 12:09, 59,36 / 26,08 / 19,93 puis 62,14 / 31,70 / 22,32 pendant vitest à 12:12, sur 8 cœurs (sysctl hw.ncpu = 8). Un autre vérificateur travaille sur l'arbre. Les durées ne mesurent pas le dépôt.",
+    "md5_avant_apres": "identiques avant et après toutes les ablations : PropertyContactNumbers f8780ebc…, PublishReadiness abbdc0b6…, migration 300000 ac4aa110…, User.php 389e4cca…, PhoneVerificationService 8113e4ec…, AuthController 3cbb085c…, PropertyController 06b38624…, publish-property.ts 9d7aaa4d…, ContactsSurPlaceDuBien 53af93fa…, PropertyHeaderActions eaeecb0f…, AvertissementNumeroNonVerifie 3b38b9bf…, PublicationAvecCoordonnees 13a16b8a… (non ablaté).",
+    "api_lot_c": "php artisan test sur 18 classes : PublishReadiness, ContactPreferences, SecondaryPhone, HostAutoOnboard, PublicContactEndpoint, Public/PropertyContact, PropertyPrimaryContact, PropertyContactClick, SpaceCreatedEvent, AuthRegistration, AccountDeletionExecute, PhoneVerifiedEvent, PrimaryPropertyContactEligibility, PrimaryAgentDesignation, PropertyContacts, AccountErasureListings, ProprietaireDuBien, PropertyCollaborator → 158 passed (882 assertions). Voisines du statut : PropertyCrud, PropertyModerationGate, PropertyAuthorization, PublicPropertyStatus, PropertyBulkArchive → 76 passed.",
+    "web": "npx vitest run src/components/contact src/components/property-dashboard src/app/(dashboard)/app/properties src/components/profile PropertyWizard.publication.tck-633 src/app/[locale]/(public)/properties/[slug]/components → 335 tests, 3 exécutions : 1 rouge puis 2 vertes (335/335). Le rouge est PropertyActions.publication.tck-633 « CGU jamais acceptées … », à 3217 ms, juste au-delà du délai d'attente de 3000 ms, sous charge. Le fichier joué seul trois fois : 10/10 à chaque fois. C'est un intermittent de charge, sur un test du tour 1.",
+    "tsc": "npx tsc --noEmit → sortie 0",
+    "eslint": "npx eslint sur les 11 fichiers web du tour 2 (actions, composants, page, 4 tests) → sortie 0",
+    "i18n": "npm run check:i18n → sortie 0, parité tenue (en 0/0, wo 0/0 sur 8045 clés)",
+    "pint": "./vendor/bin/pint --test sur les 20 fichiers PHP du tour 2 → passed",
+    "sondes_api": {
+      "fichier": "tests/Feature/ZzReverif2LotC/Reverif2LotCTest.php, supprimé ensuite avec son répertoire (absent de git status)",
+      "P1 particulier, numéro NON vérifié, bien en ligne (Property::public()) — 12 URL publiques, recherche de '770009901' dans le corps": "fuite sur /api/public/agents/proprio-nv uniquement (200). Sans fuite : …/{slug}, …/{slug}/contact, …/similar, …/status, /properties, /compare?ids, /by-ids?ids, /agents, /agents/{slug}/properties. Non sondés : /properties/search (500, Meilisearch) et /properties/map (422, sans paramètres). Aucun champ téléphone n'y est sérialisé (grep : seul visitor_phone, PublicPropertyController:821).",
+      "P2 agent d'agence non vérifié, créateur d'un bien en ligne — 7 URL, recherche de '770009912'": "fuite sur /api/public/agents/agent-nv uniquement. Sans fuite : fiche, …/contact, /agents/{slug}/properties, /agencies/{slug}, /agencies/{slug}/properties, /agencies.",
+      "P3 compte actif SANS aucune annonce, numéro non vérifié": "GET /api/public/agents/inconnu-nv → 200, data.phone = '+221770009921'. show() ne filtre que status=active et l'agence hors ligne : n'importe quel username sert son numéro.",
+      "C1 entrée par téléphone (POST /api/auth/phone/verify-code)": "MESURÉ : user ne porte ni phone_whatsapp, ni secondary_phone*, ni terms_accepted_at (clés rendues : id … force_2fa_reconfigure, agency_id, roles, status, preferences, created_at). La collision 1 est confirmée.",
+      "C2 OAuth (GET /api/auth/oauth/google/callback, Socialite simulé)": "MESURÉ : data.user omet les mêmes cinq clés. La collision 2 est confirmée.",
+      "C3 connexion par e-mail": "200, les cinq clés présentes (témoin)",
+      "S1 compte sans CGU, bien retiré par le statut": "PUT …/status available → 422 missing [terms] ; avec accept_terms true → 200, terms_accepted_at daté, le bien revient dans Property::public()",
+      "S2 contact qui a perdu son numéro vérifié": "PUT …/status available, accept_terms true → 422 {code: property.publish_contact_incomplete, missing: [verified_phone], contact_is_self: true}",
+      "H2 PUT /api/auth/profile {phone: nouveau, phone_whatsapp: true}, l'ancienne réponse valant déjà true": "phone_whatsapp = null en réponse et en base. La réponse donnée dans la même requête est perdue, parce qu'elle n'est pas « dirty »."
+    },
+    "sondes_front": {
+      "fichier": "src/components/property-dashboard/__tests__/zz-reverif2-lotc.test.tsx, sur les mocks du test statut, joué sur les deux menus puis supprimé",
+      "a) numéro perdu, CGU acceptées, refus [verified_phone] contact_is_self": "la boîte s'ouvre sur « Vos coordonnées », avec le numéro, la case WhatsApp et « Recevoir un code », sans message brut. TENU.",
+      "b) contexte client périmé (vérifié pour AuthContext, refus serveur [verified_phone])": "la boîte s'ouvre VIDE : « Avant de publier / Annuler / Publier », sans bloc coordonnees-publication. CoordonneesPublication ignore manquantsServeur quand contactEstSoi.",
+      "c) contact = un autre (agent non vérifié)": "« Le contact de ce bien n'a pas encore de prénom ou de numéro vérifié : il doit compléter son profil avant la publication. » TENU."
+    },
+    "chaine_rejeu_statut": "Le front appelle changePropertyStatusAction(47, 'available', {acceptTerms: true}) (test statut, mock). L'action envoie PUT …/status {status, accept_terms} (lu). L'API lit $request->boolean('accept_terms') (lu), puis S1 → 200. Chaque maillon tient pris seul, mais aucun test ne relie l'action à l'API (voir défaut 2)."
+  },
+  "ablations": [
+    { "fichier": "takussan-api/app/Services/Property/PropertyContactNumbers.php::hasWhatsApp", "mutation": "condition principalUtilisable() retirée : `$contact->phone_whatsapp` seul (différente de celle du rapport, qui visait principalUtilisable())", "resultat": "2 rouges : un principal non vérifié ne sort pas ; un agent assigné sans numéro vérifié n'est pas servi" },
+    { "fichier": "takussan-api/app/Services/Property/PublishReadiness.php::statusPutsOnline", "mutation": "`&& $status !== PropertyStatus::Pending` ajouté (seul `pending` passe sans garde)", "resultat": "1 rouge : with data set \"pending\"" },
+    { "fichier": "takussan-api/database/migrations/2026_10_12_300000_enable_host_auto_space_flag.php::down", "mutation": "`whereNull('updated_by_id')` → `orWhereNull` (erreur de priorité qui efface toute ligne jamais touchée par la console)", "resultat": "2 rouges (opérateur conservé ; drapeau voisin conservé)" },
+    { "fichier": "takussan-api/app/Models/User.php (static::updating)", "mutation": "garde `! isDirty('phone_whatsapp')` retirée (toute écriture de numéro efface la réponse)", "resultat": "1 rouge : une réponse donnée avec le nouveau numéro est gardée. SecondaryPhoneTest reste vert : son test de promotion pose le numéro AVANT markVerified, si bien que le hook ne s'applique pas à l'écriture de markVerified." },
+    { "fichier": "takussan-api/app/Services/Auth/PhoneVerificationService.php::markVerified", "mutation": "report `secondary_phone_whatsapp` → réponse de l'ancien principal `phone_whatsapp`", "resultat": "1 rouge : son second devenu principal emporte sa réponse whatsapp" },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php::register", "mutation": "`UserResource::pourSoi(...)` → `new UserResource(...)`", "resultat": "1 rouge : l'inscription rend les préférences pour soi" },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/PropertyController.php::updateStatus", "mutation": "`$accepte = $request->boolean('accept_terms')` → `$accepte = false` (le rejeu de la boîte n'accepte jamais les CGU)", "resultat": "AUCUN ROUGE dans le dépôt : PublishReadinessTest 19/19, PropertyCrud + ModerationGate + Authorization + PublicPropertyStatus + BulkArchive 76/76. Seule ma sonde S1 rougit. → défaut 2" },
+    { "fichier": "takussan-web/src/app/actions/publish-property.ts::changePropertyStatusAction", "mutation": "`accept_terms: acceptTerms` → `accept_terms: false && acceptTerms`", "resultat": "AUCUN ROUGE : vitest src/components/property-dashboard + src/components/contact + src/app → 144 fichiers, 1043/1043 verts. Tous les tests simulent l'action. → défaut 2" },
+    { "fichier": "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx", "mutation": "« Réessayer » : `onClick={() => undefined}` (au lieu de refetch)", "resultat": "1 rouge : une lecture en échec se dit, et « Réessayer » relit" },
+    { "fichier": "takussan-web/src/components/property-dashboard/PropertyHeaderActions.tsx::changeStatus", "mutation": "`publication.changerStatut(status)` → `publication.publier()` (l'en-tête seul)", "resultat": "3 rouges, tous sur « en-tête de la fiche » ; les 3 cas de la ligne restent verts. Les deux menus sont donc gardés séparément." },
+    { "fichier": "takussan-web/src/components/contact/AvertissementNumeroNonVerifie.tsx", "mutation": "`annoncesEnLigne <= 0` → `< 0`", "resultat": "1 rouge : aucune annonce en ligne : rien à dire" },
+    { "fichier": "takussan-api/app/Services/Property/PropertyContactNumbers.php::for (vérification du point 5)", "mutation": "`PrimaryPropertyContact::for($property)` → `$property->owner` (…/contact sert le CRÉATEUR, même parti ou inactif)", "resultat": "ProprietaireDuBienTest 12/12 VERT : n3 (ligne 72) et « bailleur inactif » (ligne 149) n'attrapent plus rien. Contre-épreuve, avec le filtre de vérification retiré en plus : les deux rougissent. Leur pouvoir a donc été perdu au tour 2. Les autres classes attrapent la même ablation (9 rouges dans Eligibility, PrimaryAgentDesignation, PrimaryContact, AccountErasureListings, PublicContactEndpoint). → défaut 4" },
+    { "restauration": "Edit puis Edit inverse pour chacune, jamais cp ; md5 identiques avant et après (preuves.md5_avant_apres). Aucune ablation dans src/messages/*.json ni lang/*. Les deux fichiers de sonde sont supprimés." }
+  ],
+  "corrections_verifiees": {
+    "1_impasse_menu_statut": "tenu au front, pour les deux menus (ablation H : 3 rouges sur le seul en-tête). Indisponible → Disponible sans CGU : la boîte s'ouvre et rejoue PUT status avec acceptTerms true. Numéro perdu : la boîte fait vérifier le numéro (sonde a). Contact tiers : le message le dit (sonde c). À l'API, S1 → 200 avec CGU datées. Réserves : la chaîne action → API n'est pas testée (défaut 2) ; un contexte client périmé ouvre une boîte vide (défaut 6).",
+    "2_principal_non_verifie": "tenu pour …/contact, has_whatsapp et has_phone (ablation A : 2 rouges ; sondes P1/P2 : aucune fuite par la fiche, la liste, la comparaison ou by-ids). NON tenu pour la décision prise en entier : /agents/{slug} (défaut 1).",
+    "3a_published_pending": "tenu (ablation B : rouge sur pending)",
+    "3b_down_epingle": "tenu (ablation C : 2 rouges)",
+    "4a_whatsapp_suit_le_numero": "tenu pour le cas nominal (ablations D et E rouges). Un écart de bord : la même réponse redonnée avec le nouveau numéro est perdue (H2, défaut 5).",
+    "4b_reponse_d_inscription": "tenu pour l'inscription (ablation F). L'entrée par téléphone et OAuth omettent toujours les clés, MESURÉ (C1, C2) : collisions 1 et 2 confirmées (défaut 3).",
+    "4c_panneau_contacts": "tenu (ablation G)",
+    "4d_commentaire": "relu : PropertyController:193 et suivantes décrivent désormais le passage à public sans prétendre que le formulaire renvoie visibility.",
+    "5_neuf_tests_modifies": "aucune assertion retirée. Les ajouts de phone_verified_at sont justifiés : sans eux, le numéro attendu ne sortirait plus. Le passage de `phone` à `data.0.phone` suit le changement de forme du tour 1 ; assertExactJson devient assertJsonPath dans Eligibility et PrimaryAgentDesignation, ce qui affaiblit un peu le contrôle (une entrée en trop n'y serait plus vue). En revanche, deux assertions NÉGATIVES de ProprietaireDuBienTest sont devenues vides au tour 2 (défaut 4)."
+  },
+  "fuites_de_numero": [
+    {
+      "surface": "API publique — fiche de profil GET /api/public/agents/{slug}",
+      "fichier_ligne": "takussan-api/app/Http/Controllers/Public/PublicAgentController.php:281 (`'phone' => $agent->phone`)",
+      "mesure": "P1 (particulier), P2 (agent d'agence), P3 (compte actif sans annonce) : le numéro non vérifié est servi dans data.phone",
+      "correctif": "la collision n°3 du rapport : `'phone' => $agent->phone_verified_at !== null ? $agent->phone : null`, avec un test « numéro non vérifié → data.phone null ». La décision de la session vise « aucune autre surface publique » : elle tranche déjà ce cas."
+    },
+    {
+      "surface": "Page publique /agents/{slug} — bouton d'appel et numéro affiché",
+      "fichier_ligne": "takussan-web/src/app/[locale]/(public)/agents/[slug]/page.tsx:236 (`phone={agent.phone}`) → takussan-web/src/components/public/profile/ContactSheet.tsx:62 (`tel:`) et :152 (numéro en clair)",
+      "mesure": "déduit du code : rend la valeur que P1-P3 ont mesurée à l'API. La fiche du bien y mène par PropertyAgentCard.tsx:96 (`/agents/${contact.slug}`).",
+      "correctif": "aucun au front : le correctif de l'API suffit (ContactSheet ne rend rien quand phone est nul)"
+    },
+    {
+      "surface": "Données structurées JSON-LD de /agents/{slug} (Person et RealEstateAgent)",
+      "fichier_ligne": "takussan-web/src/lib/jsonld-profil.ts:151 et :164 (`telephone: agent.phone ?? undefined`)",
+      "mesure": "déduit du code : même source. Le numéro part aussi aux moteurs de recherche, qui le gardent après correction.",
+      "correctif": "aucun au front : sansVides retire la clé quand phone est nul"
+    },
+    {
+      "surface": "« Mes biens » — texte de l'avertissement",
+      "fichier_ligne": "takussan-web/src/messages/fr.json property.contacts.unverifiedWarning",
+      "mesure": "« il n'est pas affiché sur vos annonces » est vrai pour l'annonce, mais la carte de contact mène en un clic à une page qui l'affiche",
+      "correctif": "tombe avec le correctif de l'API"
+    }
+  ],
+  "surfaces_sans_fuite": [
+    "GET /api/public/properties/{slug} (primary_contact : has_phone, has_whatsapp et phone_verified sont des booléens ; owner = buildUserLite, sans numéro), …/contact, …/similar, …/status, /properties, /compare, /by-ids, /agents (index : pas de numéro, par décision), /agents/{slug}/properties, /agencies, /agencies/{slug}, /agencies/{slug}/properties — mesurés",
+    "/agencies/{slug} sert agency.phone (PublicAgencyController:350) : c'est le numéro professionnel de l'agence, saisi par elle. Il n'est copié depuis aucun compte (HostIndividualOnboardingService:268 ne pose pas de phone), et ce n'est pas le numéro principal d'un contact. Hors D10.",
+    "JSON-LD de l'annonce (jsonLdRealEstateListing), métadonnées et partage (ShareButton) : aucun champ téléphone (grep)",
+    "e-mails et notifications de lead : aucun numéro d'annonceur (grep sur app/Notifications et resources/views ; seuls les numéros des visiteurs, envoyés à l'annonceur)",
+    "WhatsAppButton et « Appeler » (PropertyAgentCard:62) ne lisent que …/contact, qui est filtré"
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Public/PublicAgentController.php:281 (+ front : agents/[slug]/page.tsx:236, jsonld-profil.ts:151,164)",
+      "scenario": "Exécuté (P1, P2, P3). Un particulier ou un agent dont le numéro principal n'est pas vérifié, contact d'une annonce en ligne : la fiche du bien ne sert plus son numéro, mais le lien de la carte de contact mène à /agents/{username}, qui le rend en `tel:`, en clair et en JSON-LD. Même chose pour tout compte actif, annonce ou pas. La décision de la session exclut « toute autre surface publique ».",
+      "gravite": "majeur (décision de la session non tenue)",
+      "correctif": "appliquer la collision n°3 (hors territoire C) et y ajouter un test : numéro non vérifié → data.phone null, et la page ne rend pas de `tel:`. Puis rejouer P1 à P3."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Api/PublishReadinessTest.php ; takussan-web/src/app/actions/publish-property.ts (sans test)",
+      "scenario": "Ablations : `$accepte = false` dans updateStatus → 95 tests API verts ; `accept_terms` jamais envoyé par changePropertyStatusAction → 1043 tests front verts. Dans les deux cas, le « Publier » de la boîte, sur le chemin Statut, renverrait le même refus [terms] sans fin. C'est le chemin qu'ouvrait le défaut 1 du refus précédent, et sa correction n'est éprouvée que jusqu'au mock de l'action.",
+      "gravite": "majeur (la correction centrale du tour n'est pas gardée de bout en bout)",
+      "correctif": "API : un test PUT …/status {available, accept_terms: true} pour un compte sans CGU → 200, terms_accepted_at daté, bien dans Property::public() (c'est la sonde S1). Front : un test de changePropertyStatusAction qui simule apiRequest et vérifie le corps {status, accept_terms: true}, avec le même test pour publishPropertyAction."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Auth/PhoneLoginService.php:130 ; takussan-api/app/Services/Auth/OAuthSessionOpener.php:114",
+      "scenario": "MESURÉ (C1, C2) : l'entrée par téléphone et OAuth rendent un user sans phone_whatsapp ni terms_accepted_at. openSession pose cet objet : la question WhatsApp n'est pas posée (undefined !== null), et la phrase des CGU est proposée à tort jusqu'au premier refreshUser. Le défaut 5 du refus précédent n'est donc corrigé que pour l'inscription.",
+      "gravite": "mineur",
+      "correctif": "les diffs des collisions 1 et 2 (UserResource::pourSoi), chacun avec un test sur les cinq clés"
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Api/ProprietaireDuBienTest.php:72 et :149",
+      "scenario": "Ablation : …/contact sert le créateur (agent parti, bailleur inactif) → les deux tests restent verts, parce que le numéro qu'ils excluent (+221770001111, +221770003333) n'est pas vérifié et ne sortirait plus de toute façon. Avant le tour 2, ils rougissaient (contre-épreuve). Le rapport dit avoir vérifié « le tiers » pour que les tests gardent quelque chose, mais ces deux sites n'ont pas été traités.",
+      "gravite": "mineur (assertion devenue vide)",
+      "correctif": "poser phone_verified_at sur agentParti(['phone' => …]) à n3 et sur bailleur(['phone' => …]) dans « bailleur inactif »"
+    },
+    {
+      "fichier": "takussan-api/app/Models/User.php (static::updating, `! $user->isDirty('phone_whatsapp')`)",
+      "scenario": "Exécuté (H2) : ancienne réponse true, puis PUT /api/auth/profile {phone: nouveau, phone_whatsapp: true} → phone_whatsapp null. Une valeur égale à l'ancienne n'est pas « dirty ». Le rapport affirme pourtant « une réponse donnée dans la même requête que le nouveau numéro est gardée ». Son test ne le vérifie qu'avec une valeur différente (false → true). Aujourd'hui, aucun écran n'envoie les deux champs ensemble (CaseWhatsApp écrit seul) : c'est l'API seule qui est en défaut.",
+      "gravite": "mineur",
+      "correctif": "dans updateProfile et MeController, réappliquer phone_whatsapp APRÈS l'écriture du numéro quand la requête le porte, ou poser un drapeau transitoire lu par le hook ; plus un test avec une valeur égale à l'ancienne"
+    },
+    {
+      "fichier": "takussan-web/src/components/contact/CoordonneesPublication.tsx:54-60",
+      "scenario": "Sonde b : AuthContext croit le numéro vérifié (contexte périmé, numéro changé ailleurs) et l'API refuse [verified_phone] avec contact_is_self. La boîte s'ouvre vide (« Avant de publier / Annuler / Publier ») ; « Publier » ramène le même refus, dit par dialogIncomplete. Le motif date du tour 1 (même composant pour « Publier »), mais le chemin Statut l'expose aussi.",
+      "gravite": "mineur",
+      "correctif": "quand contactEstSoi, joindre manquantsServeur aux manques locaux pour afficher le bloc, ou appeler refreshUser() à la réception d'un refus `missing`"
+    }
+  ],
+  "a_noter": [
+    "L'avertissement de « Mes biens » ne regarde que le numéro du compte connecté. Un administrateur d'agence dont l'agent responsable n'est pas vérifié n'apprend pas que ses annonces n'affichent plus de numéro. C'est l'agent qui est averti, sur sa propre liste.",
+    "PropertyActions.publication.tck-633 (tour 1) a rougi une fois sur trois à 3217 ms sous charge (délai d'attente de 3000 ms), et reste vert seul trois fois sur trois. Intermittent de charge, à surveiller en CI.",
+    "Le message de refus de l'API sort en anglais dans les tests (« To publish, … ») : c'est la locale par défaut de la suite, pas un défaut."
+  ],
+  "resume": "Les huit défauts du refus précédent sont corrigés, et chaque correction rougit sous une ablation différente de celle du rapport ; tsc, eslint, pint et i18n sont verts, comme les 158 tests API et les 335 tests front du lot. Refusé parce que la décision sur D10 n'est pas tenue : /agents/{slug} sert encore un numéro principal non vérifié, à l'API, en `tel:` et en JSON-LD, pour tout compte actif. Et parce que le rejeu de la boîte depuis le menu Statut n'est gardé par aucun test de bout en bout : deux ablations, une par côté, laissent tout vert. Les collisions 1 et 2 sont confirmées par la mesure."
+}

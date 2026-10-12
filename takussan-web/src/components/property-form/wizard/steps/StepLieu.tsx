@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Crosshair, Loader2 } from 'lucide-react';
-import { useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
+import { useFormState, type UseFormReturn } from 'react-hook-form';
 
 import { FormInput } from '@/components/forms';
 import { Button } from '@/components/ui/button';
-import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
-import { cn } from '@/lib/utils';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { useGeoSuggestion } from '@/hooks/useGeoSuggestion';
+import { ChampsLieu } from '../../ChampsLieu';
+import { ChampsPosition } from '../../ChampsPosition';
 import { GeoSuggestionChip } from '../GeoSuggestionChip';
 import { WizardCollapsibleSection } from '../WizardCollapsibleSection';
 
@@ -87,20 +87,19 @@ export function StepLieu({
     if (minuterie.current !== null) window.clearTimeout(minuterie.current);
   }, []);
 
-  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`) : compilée, la
-  // position posée par « Utiliser ma position » n'atteignait jamais la carte.
-  const [latSuivie, lngSuivie] = useWatch({ control, name: ['latitude', 'longitude'] });
-  const lat = latSuivie as number | null | undefined;
-  const lng = lngSuivie as number | null | undefined;
-
   const accepterSuggestion = () => {
     if (!suggestion) return;
     setValue('city', suggestion.city, { shouldDirty: true, shouldValidate: true });
+    // TCK-633 — le texte change : l'identifiant de l'ancien choix ne le décrit plus. `ChampsLieu`
+    // rapproche le nouveau texte du référentiel s'il y nomme une ville.
+    setValue('geo_city_id', null, { shouldDirty: true });
+    setValue('geo_neighborhood_id', null, { shouldDirty: true });
     const remplis: ('city' | 'region')[] = ['city'];
     // La région n'est écrite que si la géo-IP la connaît : `useGeoSuggestion` rend `''` sinon, et
     // poser une chaîne vide effacerait une correction déjà saisie.
     if (suggestion.region) {
       setValue('region', suggestion.region, { shouldDirty: true });
+      setValue('geo_region_id', null, { shouldDirty: true });
       remplis.push('region');
     }
     setSuggestionUtilisee(true);
@@ -152,27 +151,7 @@ export function StepLieu({
         />
       ) : null}
 
-      <FormInput
-        control={control}
-        name="city"
-        label={t('fields.city')}
-        required
-        placeholder={t('placeholders.city')}
-        containerClassName={champsRemplis.includes('city') ? cn('wizard-flash', 'rounded-lg') : undefined}
-      />
-      <FormInput
-        control={control}
-        name="quarter"
-        label={t('fields.quarter')}
-        placeholder={t('placeholders.quarter')}
-      />
-      <FormInput
-        control={control}
-        name="region"
-        label={t('fields.region')}
-        placeholder={t('placeholders.region')}
-        containerClassName={champsRemplis.includes('region') ? cn('wizard-flash', 'rounded-lg') : undefined}
-      />
+      <ChampsLieu form={form} flash={champsRemplis} />
 
       <div>
         <Button
@@ -237,15 +216,7 @@ export function StepLieu({
             {messagePosition}
           </p>
         ) : null}
-        <LocationPickerMapLoader
-          lat={lat}
-          lng={lng}
-          onChange={(nLat, nLng) => {
-            setValue('latitude', nLat, { shouldDirty: true });
-            setValue('longitude', nLng, { shouldDirty: true });
-          }}
-        />
-        <p className="text-xs text-muted-foreground">{t('mapHint')}</p>
+        <ChampsPosition form={form} indiceCarte={t('mapHint')} />
       </div>
     </>
   );

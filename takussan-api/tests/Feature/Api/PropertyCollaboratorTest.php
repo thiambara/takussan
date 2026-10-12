@@ -419,16 +419,18 @@ class PropertyCollaboratorTest extends TestCase
     public function test_le_contact_public_ne_rend_pas_le_telephone_d_un_tiers(): void
     {
         $agence = Agency::factory()->create();
-        $bailleur = User::factory()->create(['phone' => '+221770000001']);
+        // TCK-633 (lot C, tour 2) — les DEUX numéros vérifiés : sans quoi celui du tiers ne
+        // sortirait pas même s'il devenait le contact, et le test ne garderait plus rien.
+        $bailleur = User::factory()->create(['phone' => '+221770000001', 'phone_verified_at' => now()]);
         OwnerProfile::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $agence->id]);
         $property = Property::factory()->published()->create(['user_id' => $bailleur->id, 'agency_id' => $agence->id]);
-        $tiers = User::factory()->create(['phone' => '+221770000002']);
+        $tiers = User::factory()->create(['phone' => '+221770000002', 'phone_verified_at' => now()]);
 
         Sanctum::actingAs($bailleur);
         $this->ajouter($property, $tiers, CollaboratorRole::Agent)->assertStatus(422);
 
         $this->getJson("/api/public/properties/{$property->slug}/contact")
             ->assertOk()
-            ->assertJsonPath('phone', '+221770000001');
+            ->assertJsonPath('data.0.phone', '+221770000001');
     }
 }

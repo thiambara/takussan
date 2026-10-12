@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Archive, Copy, Loader2, MoreHorizontal } from 'lucide-react';
+import { Archive, Copy, Loader2, MoreHorizontal, Rocket } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -32,8 +32,11 @@ import {
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
+import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyListItem } from '@/types/property';
+import { BoostDialog } from '@/components/boost/BoostDialog';
+import { useCan } from '@/hooks/useCan';
 
 /**
  * Quick-action menu for a row in the dashboard property list.
@@ -55,9 +58,13 @@ interface PropertyRowActionsProps {
 
 export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActionsProps) {
   const t = useTranslations('property.dashboard.actions');
+  const tBoost = useTranslations('boost');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
   const { canPublish, canDelete } = useGestesDuBien();
+  // TCK-633 lot F — « Booster » : capacité `boost.spend`, bien public ; le dialogue vit HORS du menu.
+  const { can: canBoost } = useCan('boost.spend');
+  const [boostOpen, setBoostOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,11 +89,26 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
     });
   };
 
+  // TCK-633 (lot C, décision 3) — publier passe par `POST …/publish` : un compte prêt publie au
+  // premier geste, sinon « Vos coordonnées pour les intéressés » s'ouvre en boîte de dialogue.
+  const publication = usePublicationAvecCoordonnees(property.id, {
+    onPublie: (statut, geste) => {
+      setSuccess(
+        statut === 'pending_review'
+          ? t('sentForReview')
+          : geste.type === 'statut'
+            ? t('statusUpdated')
+            : t('published'),
+      );
+      router.refresh();
+    },
+    onEchec: (message) => setError(message || t('error')),
+  });
+
   const publish = () => {
-    runAction(
-      () => updatePropertyVisibilityAction(property.id, 'public'),
-      t('published'),
-    );
+    setError(null);
+    setSuccess(null);
+    publication.publier();
   };
 
   const unpublish = () => {
@@ -96,12 +118,14 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
     );
   };
 
+  // Correction du lot C, tour 2 — un statut affichable REMET EN LIGNE un bien public retiré par
+  // son statut, et l'API le garde comme une publication : son refus ouvre la même boîte que
+  // « Publier », qui rejoue ce statut avec `accept_terms`, au lieu d'un message sans issue.
   const changeStatus = (status: string) => {
     if (status === property.status) return;
-    runAction(
-      () => updatePropertyStatusAction(property.id, status),
-      t('statusUpdated'),
-    );
+    setError(null);
+    setSuccess(null);
+    publication.changerStatut(status);
   };
 
   const archive = () => {
@@ -216,7 +240,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
               {t('unpublish')}
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={publish} disabled={pending}>
+            <DropdownMenuItem onClick={publish} disabled={pending || publication.enCours}>
               {t('publish')}
             </DropdownMenuItem>
           )}
@@ -224,6 +248,12 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
             <Copy className="size-4" aria-hidden="true" />
             {t('duplicate')}
           </DropdownMenuItem>
+          {canBoost && isPublic ? (
+            <DropdownMenuItem onClick={() => setBoostOpen(true)} disabled={pending}>
+              <Rocket className="size-4" aria-hidden="true" />
+              {tBoost('menuItem')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuLabel>{t('statusHeading')}</DropdownMenuLabel>
           {statusActions.map((status) => (
@@ -253,6 +283,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {publication.dialogue}
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
@@ -291,6 +323,10 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {boostOpen ? (
+        <BoostDialog propertyId={property.id} propertyTitle={property.title} open={boostOpen} onOpenChange={setBoostOpen} />
+      ) : null}
     </div>
   );
 }

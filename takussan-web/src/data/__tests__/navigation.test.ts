@@ -97,3 +97,12 @@ describe('bande de catégories (TCK-628)', () => {
     expect(categories.length + moreCategories.length).toBe(16);
   });
 });
+
+describe('menu mobile — « Louer » d’abord (TCK-633, AC5)', () => {
+  it('propose Louer, puis Acheter, chacun vers SA transaction', () => {
+    expect(navLinks.map((l) => [l.labelKey, l.href])).toEqual([
+      ['rent', '/properties?contract_type=rent'],
+      ['buy', '/properties?contract_type=sale'],
+    ]);
+  });
+});

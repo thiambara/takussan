@@ -84,6 +84,11 @@ export interface Agency {
   /** TCK-098 — when true, new property publications require admin approval. */
   moderation_required?: boolean;
   /**
+   * TCK-633 — le filigrane est-il allumé pour la plateforme (`media_watermark`) ? La configuration
+   * d'agence ne propose « Regénérer les filigranes » que s'il l'est. Absent = non.
+   */
+  watermark_available?: boolean;
+  /**
    * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
    * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni
    * `payouts.create` dans l'agence.

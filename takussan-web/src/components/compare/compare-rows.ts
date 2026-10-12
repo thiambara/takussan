@@ -3,6 +3,14 @@ import { type CompareRow, highlightDivergent, type HighlightedRow } from '@/lib/
 import { formatPrice } from '@/lib/utils';
 
 /**
+ * TCK-633 — le libellé d'un équipement à l'écran : `libelleEquipement(tag, t)` (lot D), que le
+ * composant lie à son traducteur du catalogue. Absent (un appelant hors React), le nom en base.
+ */
+export type LibelleDEquipement = (tag: PropertyTag) => string;
+
+const NOM_EN_BASE: LibelleDEquipement = (tag) => tag.name;
+
+/**
  * TCK-082 — transforms the list of fetched properties into a stable set
  * of comparison rows. Keeping the schema centralized here makes the
  * desktop table and the mobile carousel share the exact same dataset.
@@ -43,11 +51,12 @@ export const COMPARE_ROW_DEFS: readonly CompareRowDef[] = [
   { id: 'tags', labelKey: 'tags', category: 'amenities' },
 ] as const;
 
-function amenityNames(tags: PropertyTag[] | undefined): string[] {
+function amenityNames(tags: PropertyTag[] | undefined, libelle: LibelleDEquipement): string[] {
   if (!tags) return [];
+  // Trié sur le libellé AFFICHÉ : l'ordre suit la langue de l'écran, pas le nom français en base.
   return tags
     .filter((tag) => tag.type === 'amenity')
-    .map((tag) => tag.name)
+    .map(libelle)
     .sort((a, b) => a.localeCompare(b));
 }
 
@@ -67,6 +76,7 @@ function otherTagNames(tags: PropertyTag[] | undefined): string[] {
 export function buildCell(
   def: CompareRowDef,
   property: PropertyDetail | null,
+  libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
 ): CompareCell {
   if (!property) return null;
 
@@ -112,7 +122,7 @@ export function buildCell(
     case 'parking_spaces':
       return property.parking_spaces ?? null;
     case 'amenities':
-      return amenityNames(property.tags);
+      return amenityNames(property.tags, libelleEquipement);
     case 'tags':
       return otherTagNames(property.tags);
     default:
@@ -126,10 +136,11 @@ export function buildCell(
  */
 export function buildCompareRows(
   properties: readonly (PropertyDetail | null)[],
+  libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
 ): HighlightedRow<CompareCell>[] {
   const rows: CompareRow<CompareCell>[] = COMPARE_ROW_DEFS.map((def) => ({
     id: def.id,
-    values: properties.map((property) => buildCell(def, property)),
+    values: properties.map((property) => buildCell(def, property, libelleEquipement)),
   })).filter((row) => row.values.some(porteUneValeur));
   return highlightDivergent<CompareCell>(rows);
 }

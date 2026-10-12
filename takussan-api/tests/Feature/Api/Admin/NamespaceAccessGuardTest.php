@@ -6,6 +6,10 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\AlertRule;
 use App\Models\Announcement;
+use App\Models\BoostProduct;
+use App\Models\Enums\BoostKind;
+use App\Models\Enums\BoostStatus;
+use App\Models\GeoNeighborhood;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
 use App\Models\Invitation;
@@ -13,6 +17,9 @@ use App\Models\KycDossier;
 use App\Models\Plan;
 use App\Models\PlatformPayout;
 use App\Models\PrivacyRequest;
+use App\Models\Property;
+use App\Models\PropertyBoost;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +102,20 @@ class NamespaceAccessGuardTest extends TestCase
             'type' => 'access', 'channel' => 'email', 'requester_name' => 'Témoin', 'received_at' => now(),
         ]);
 
+        // TCK-633 — même motif, sur les boosts (`boosts/{boost}/cancel`), le boost offert
+        // (`properties/{property}/offered-boost`), le catalogue (`boost-products/{boostProduct}`),
+        // la modération des quartiers (`geo/neighborhoods/{neighborhood}/…`) et des étiquettes
+        // (`tags/{tag}/…`) : liés avant la garde, un « 1 » qui n'existe pas rendait 404 là où le
+        // test vérifie 403.
+        $property = Property::factory()->published()->create(['agency_id' => $agency->id]);
+        $boost = PropertyBoost::query()->create([
+            'property_id' => $property->id, 'agency_id' => $agency->id, 'kind' => BoostKind::Bump,
+            'price_credits' => 5, 'duration_days' => 0, 'starts_at' => now(), 'status' => BoostStatus::Ended,
+        ]);
+        $boostProduct = BoostProduct::query()->firstOrFail();
+        $neighborhood = GeoNeighborhood::factory()->create();
+        $tag = Tag::factory()->create();
+
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
 
@@ -119,6 +140,11 @@ class NamespaceAccessGuardTest extends TestCase
                     '{invitation}' => (string) $invitation->id,
                     '{webhookLog}' => (string) $webhookLog->id,
                     '{privacyRequest}' => (string) $privacyRequest->id,
+                    '{property}' => (string) $property->id,
+                    '{boost}' => (string) $boost->id,
+                    '{boostProduct}' => (string) $boostProduct->id,
+                    '{neighborhood}' => (string) $neighborhood->id,
+                    '{tag}' => (string) $tag->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

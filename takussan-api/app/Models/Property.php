@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyStatus;
+use App\Models\Enums\BoostBadge;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyCondition;
@@ -86,6 +87,11 @@ class Property extends AbstractModel implements HasMedia
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'platform_hold_at' => 'datetime',
+        // TCK-633 lot F (ADR-0061 §5, §7) — projections des boosts, écrites par `BoostLifecycle` seul.
+        'ranked_at' => 'datetime',
+        'sponsored_until' => 'datetime',
+        'badge' => BoostBadge::class,
+        'badge_until' => 'datetime',
         'metadata' => 'array',
         'deposit_months' => 'integer',
         'advance_months' => 'integer',
@@ -132,6 +138,7 @@ class Property extends AbstractModel implements HasMedia
         'floor_number', 'total_floors', 'year_built', 'condition', 'parking_spaces', 'featured',
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges', 'virtual_tour_url',
+        'ranked_at', 'sponsored_until', 'badge', 'badge_until',
     ];
 
     protected static function booted(): void
@@ -163,6 +170,22 @@ class Property extends AbstractModel implements HasMedia
             if ($m->condition !== null && ! PropertyCondition::appliesTo($m->type)) {
                 $m->condition = null;
             }
+        });
+
+        // TCK-633 lot F (ADR-0061 §7) — l'ordre organique est `ranked_at`. Une (re)publication le
+        // porte à la date de publication, sauf s'il est déjà plus récent (une Remontée) ou s'il est
+        // écrit explicitement dans la même sauvegarde.
+        static::saving(function (self $m) {
+            if ($m->published_at !== null && $m->isDirty('published_at') && ! $m->isDirty('ranked_at')
+                && ($m->ranked_at === null || $m->ranked_at->lt($m->published_at))) {
+                $m->ranked_at = $m->published_at;
+            }
+        });
+
+        // TCK-633 lot F (ADR-0061 §5) — une copie (`PropertyDuplicationService`) n'hérite d'aucune
+        // mise en avant : elles sont attachées à des boosts payés pour l'original.
+        static::replicating(function (self $m) {
+            $m->forceFill(['featured' => false, 'sponsored_until' => null, 'badge' => null, 'badge_until' => null, 'ranked_at' => null]);
         });
 
         // TCK-086 — soft-cascade: detach children when the parent is (soft-)deleted.
@@ -436,10 +459,16 @@ class Property extends AbstractModel implements HasMedia
             'user_id' => $this->user_id,
             'available_from' => $this->available_from?->timestamp,
             'published_at' => $this->published_at?->timestamp,
+            // TCK-633 lot F (ADR-0061 §7) — l'ordre organique ; repli sur la publication pour un
+            // document indexé avant le rattrapage de la migration 500300.
+            'ranked_at' => ($this->ranked_at ?? $this->published_at)?->timestamp,
             'created_at' => $this->created_at?->timestamp,
             'city' => $address?->city,
             'neighborhood' => $address?->neighborhood,
-            'tags' => $this->tags->pluck('name')->all(),
+            // TCK-633 (D9, reverif-2 du lot D) — les seuls équipements que la fiche PUBLIQUE montre :
+            // un bien ne se trouve pas par une proposition qu'il porte sans la montrer (celle d'un
+            // autre auteur, en attente). Même règle que la fiche, et le filtre SQL de la carte.
+            'tags' => $this->tagsVisibles->pluck('name')->all(),
         ];
 
         if ($address && $address->latitude !== null && $address->longitude !== null) {
@@ -462,7 +491,7 @@ class Property extends AbstractModel implements HasMedia
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
         // TCK-600 — `shouldBeSearchable()` lit le statut de l'agence (ADR-0048).
-        return $query->with('address', 'tags', 'agency');
+        return $query->with('address', 'tagsVisibles', 'agency');
     }
 
     public function shouldBeSearchable(): bool
@@ -818,6 +847,12 @@ class Property extends AbstractModel implements HasMedia
         return $this->belongsTo(User::class, 'platform_hold_by_id');
     }
 
+    /** TCK-633 lot F (ADR-0061 §5). */
+    public function boosts(): HasMany
+    {
+        return $this->hasMany(PropertyBoost::class);
+    }
+
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
@@ -843,9 +878,24 @@ class Property extends AbstractModel implements HasMedia
         return $this->morphToMany(Tag::class, 'taggable');
     }
 
+    /**
+     * TCK-633 (D9) — les étiquettes qu'une fiche PUBLIQUE montre ({@see Tag::scopeVisiblesSurUneFiche}) :
+     * c'est ce que la recherche indexe ({@see toSearchableArray()}). Lecture seule — on écrit par `tags()`.
+     */
+    public function tagsVisibles(): MorphToMany
+    {
+        return $this->tags()->visiblesSurUneFiche();
+    }
+
     public function collaborators(): HasMany
     {
         return $this->hasMany(PropertyCollaborator::class);
+    }
+
+    /** TCK-633 (lot C) — les contacts sur place, dans l'ordre choisi (3 au plus). */
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(PropertyContact::class)->orderBy('position');
     }
 
     /** TCK-596 (ADR-0041) — plages `[starts_on, ends_on)` non réservables. */

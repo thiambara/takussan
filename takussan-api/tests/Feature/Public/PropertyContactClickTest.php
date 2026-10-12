@@ -57,7 +57,8 @@ class PropertyContactClickTest extends TestCase
     public function test_la_fiche_dit_si_le_contact_a_un_numero(): void
     {
         $x = $this->agence();
-        $avec = $this->bienDe($x, $this->bailleur($x, ['phone' => '+221770000009']));
+        // TCK-633 (lot C, tour 2) — « a un numéro » = un numéro SERVI : le principal doit être vérifié.
+        $avec = $this->bienDe($x, $this->bailleur($x, ['phone' => '+221770000009', 'phone_verified_at' => now()]));
         $sans = $this->bienDe($x, $this->bailleur($x, ['phone' => null]));
 
         $this->getJson("/api/public/properties/{$avec->slug}")

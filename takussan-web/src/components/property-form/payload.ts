@@ -30,11 +30,24 @@ export type PropertyAddressBlock = {
   postal_code?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** TCK-633 — l'identifiant du référentiel, quand la ville ou le quartier a été CHOISI. */
+  geo_city_id?: number | null;
+  geo_neighborhood_id?: number | null;
 };
 
 const CLES_ADRESSE = [
   'street', 'quarter', 'city', 'region', 'country', 'postal_code', 'latitude', 'longitude',
+  'geo_city_id', 'geo_neighborhood_id',
 ] as const;
+
+/**
+ * TCK-633 — ce que le formulaire porte et que le corps du bien ne porte JAMAIS : la région du
+ * référentiel (un filtre de la liste des villes, sans colonne) et les équipements proposés (même
+ * endpoint que `tag_ids`).
+ */
+const CLES_HORS_CORPS = ['tag_ids', 'tag_names', 'geo_region_id'] as const;
+
+type CleHorsCorps = (typeof CLES_HORS_CORPS)[number];
 
 type CleAdresseFormulaire = (typeof CLES_ADRESSE)[number];
 
@@ -51,12 +64,12 @@ type CleAdresseFormulaire = (typeof CLES_ADRESSE)[number];
  * (`setPropertyTagsAction`), et `UpdatePropertyRequest` ne déclare pas la clé.
  */
 type ClesInterditesAuPremierNiveau = {
-  [K in CleAdresseFormulaire | 'tag_ids']?: never;
+  [K in CleAdresseFormulaire | CleHorsCorps]?: never;
 };
 
 type ChampsDuFormulaireHorsAdresse = Omit<
   PropertyFormPayload,
-  CleAdresseFormulaire | 'tag_ids'
+  CleAdresseFormulaire | CleHorsCorps
 >;
 
 type CleConditionnelleDuCorps = Extract<
@@ -120,7 +133,7 @@ function corpsDuBien(
     mode,
   );
   for (const cle of CLES_ADRESSE) delete corps[cle];
-  delete corps.tag_ids;
+  for (const cle of CLES_HORS_CORPS) delete corps[cle];
   return corps as PropertyBodyFields;
 }
 

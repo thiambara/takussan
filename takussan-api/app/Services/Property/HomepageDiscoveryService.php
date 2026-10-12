@@ -4,6 +4,8 @@ namespace App\Services\Property;
 
 use App\Models\Enums\ContractType;
 use App\Models\Property;
+use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Boost\SponsoredRotation;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -89,9 +91,11 @@ class HomepageDiscoveryService
             ->pluck('id')
             ->all();
 
+        // TCK-633 lot F (ADR-0061 §7) — la rangée vedette TOURNE parmi toutes les vedettes (plafond
+        // du vivier), pas parmi les plus récentes : sinon une vedette ancienne n'y passerait jamais.
         $featuredCandidates = $this->ranked(
             $this->baseQuery()->where('featured', true)
-        )->limit($poolSize)->pluck('id')->all();
+        )->limit(SponsoredRotation::POOL_CAP)->pluck('id')->all();
 
         // Dedup runs near → rent → latest, the order the client used, so the
         // ticket's "one row per property" rule does not silently reshuffle what
@@ -102,9 +106,11 @@ class HomepageDiscoveryService
         $nearIds = $this->claim($near['candidates'], $perRow, $seen);
         $rentIds = $this->claim($rentCandidates, $perRow, $seen);
         $latestIds = $this->claim($latestCandidates, $perRow, $seen);
-        $featuredIds = array_slice($featuredCandidates, 0, $perRow);
+        $featuredIds = SponsoredRotation::pick($featuredCandidates, SponsoredRotation::seed(['surface' => 'homepage.featured']), 1, $perRow);
 
         $properties = $this->hydrate([...$nearIds, ...$rentIds, ...$latestIds, ...$featuredIds]);
+        // TCK-633 lot F (ADR-0061 §10) — la rangée vedette est un emplacement : ses biens servis comptent.
+        app(BoostStatsRecorder::class)->impressions(array_values(array_filter($featuredIds, fn (int $id) => $properties->has($id))));
 
         $nearItems = $this->inOrder($nearIds, $properties);
 
@@ -214,13 +220,14 @@ class HomepageDiscoveryService
 
     private function ranked(Builder $query): Builder
     {
-        // `featured DESC, published_at DESC` matches the public index and the
+        // `ranked_at DESC` (TCK-633 lot F) matches the public index and the
         // empty-query branch of the search service. The `id` tiebreaker is not
         // decoration: seeders and factories publish many rows within the same
         // second, and two engines do not resolve such ties the same way.
+        // TCK-633 lot F (ADR-0061 §7) — `ranked_at`, plus `featured` : la mise en avant passe par
+        // la rotation de la rangée vedette, jamais par l'ordre des autres rangées.
         return $query
-            ->orderByDesc('featured')
-            ->orderByDesc('published_at')
+            ->orderByRaw('ranked_at DESC NULLS LAST')
             ->orderByDesc('id');
     }
 

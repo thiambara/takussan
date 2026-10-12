@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
+import { BoostButton } from '@/components/boost/BoostButton';
 import {
   deletePropertyAction,
   duplicatePropertyAction,
@@ -32,6 +33,7 @@ import {
 } from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
+import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import type { PropertyDetail } from '@/types/property';
 import {
@@ -45,11 +47,13 @@ import {
 
 interface Props {
   readonly property: PropertyDetail;
+  /** TCK-633 — la fiche est ouverte avec `?booster=1` (message de confirmation de publication). */
+  readonly ouvrirBoost?: boolean;
 }
 
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
-export function PropertyHeaderActions({ property }: Props) {
+export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
@@ -78,11 +82,26 @@ export function PropertyHeaderActions({ property }: Props) {
     });
   };
 
+  // TCK-633 (lot C, décision 3) — publier passe par `POST …/publish` : un compte prêt publie au
+  // premier geste, sinon « Vos coordonnées pour les intéressés » s'ouvre en boîte de dialogue.
+  const publication = usePublicationAvecCoordonnees(property.id, {
+    onPublie: (statut, geste) => {
+      setSuccess(
+        statut === 'pending_review'
+          ? t('sentForReview')
+          : geste.type === 'statut'
+            ? t('statusUpdated')
+            : t('published'),
+      );
+      router.refresh();
+    },
+    onEchec: (message) => setError(message || t('error')),
+  });
+
   const publish = () => {
-    runAction(
-      () => updatePropertyVisibilityAction(property.id, 'public'),
-      t('published'),
-    );
+    setError(null);
+    setSuccess(null);
+    publication.publier();
   };
 
   const unpublish = () => {
@@ -92,12 +111,13 @@ export function PropertyHeaderActions({ property }: Props) {
     );
   };
 
+  // Correction du lot C, tour 2 — cf. `PropertyRowActions` : un refus de remise en ligne par le
+  // statut ouvre la boîte « Vos coordonnées », qui rejoue ce statut avec `accept_terms`.
   const changeStatus = (status: string) => {
     if (status === property.status) return;
-    runAction(
-      () => updatePropertyStatusAction(property.id, status),
-      t('statusUpdated'),
-    );
+    setError(null);
+    setSuccess(null);
+    publication.changerStatut(status);
   };
 
   const archive = () => {
@@ -180,6 +200,13 @@ export function PropertyHeaderActions({ property }: Props) {
       {/* Le bouton et le menu ne se séparent pas : à 768 px, l'en-tête passait « ⋯ » seul sur
           une seconde ligne, loin de l'action qu'il prolonge. */}
       <div className="flex shrink-0 items-center gap-2">
+        {/* TCK-633 lot F — « Booster », pour un bien public et qui détient `boost.spend`. */}
+        <BoostButton
+          propertyId={property.id}
+          propertyTitle={property.title}
+          isPublic={Boolean(canViewPublic)}
+          ouvrirDemande={ouvrirBoost}
+        />
         <AddDocumentButton
           documentableType="property"
           documentableId={property.id}
@@ -213,7 +240,7 @@ export function PropertyHeaderActions({ property }: Props) {
                 {t('unpublish')}
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={publish} disabled={pending}>
+              <DropdownMenuItem onClick={publish} disabled={pending || publication.enCours}>
                 {t('publish')}
               </DropdownMenuItem>
             )}
@@ -252,6 +279,7 @@ export function PropertyHeaderActions({ property }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {publication.dialogue}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**561 tickets** — 28 ouverts, 531 livrés.
+**563 tickets** — 29 ouverts, 532 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
+| 📋 Todo | 27 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 531 |
+| ✅ Done | 532 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -59,6 +59,7 @@
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-604](tickets/TCK-604-free-money-quand-la-documentation-marchande-est-versee.md) — Free Money, payé en ligne comme Wave et Orange Money — dès que la documentation marchande est versée au dépôt (suite de TCK-602 §6) `M · P1 · full`
+- [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 
 ## 🚧 Doing
 
@@ -74,7 +75,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 531
+## ✅ Done — 532
+
+<details>
+<summary><strong>Vague 74 — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)</strong> — 1 ticket</summary>
+
+- [TCK-633](tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md) — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits `XL · P1 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>

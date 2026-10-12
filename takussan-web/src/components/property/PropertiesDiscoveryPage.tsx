@@ -20,11 +20,15 @@ import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { filtersToParams, useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
+import { parametresDeLaCarte } from '@/lib/recherche-publique';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
+import { EmplacementsSponsorises } from '@/components/boost/EmplacementSponsorise';
+import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
+import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -250,6 +254,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
 
   const properties = data?.data ?? [];
   const meta = data?.meta;
+  // TCK-633 lot F (ADR-0061 §7) — hors pagination, hors `total`.
+  const sponsorises = lireEmplacements(data);
 
   // TCK-552 — à zéro résultat CONFIRMÉ (ni en chargement, ni en erreur), le tri et la bascule
   // n'agissent sur rien (E1) : ils ne sont pas rendus sous `lg`. Et la vue y retombe sur la
@@ -365,8 +371,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
     }
   };
 
-  // Derive the map filters from the active search filters. We only forward
-  // the subset that the backend's `/map` endpoint supports.
+  // TCK-633 (lot E, AC6) — la carte reçoit TOUS les filtres du panneau, dérivés de la même URL que
+  // la liste (`parametresDeLaCarte`) : un filtre ajouté au panneau n'a plus à être recopié ici.
+  // Restent à la liste seule `q`, le tri, la pagination et son rectangle.
   //
   // TCK-346 — `lat` / `lng` / `radius_km` en font partie DEPUIS ce lot, et leur
   // absence était un défaut que le rayon avait introduit : poser « à moins de
@@ -381,15 +388,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   // ⚠ Pas de `sort` : `/map` n'en déclare aucun, et c'est motivé dans le
   // docblock de `PublicPropertyController::map()` — la sortie est un GeoJSON
   // plafonné, sans pagination, dont l'ordre n'est observable par personne.
-  const mapFilters: Record<string, string | number | undefined> = {
-    type: filters.type?.join(','),
-    contract_type: filters.contract_type,
-    price_min: filters.price_min,
-    price_max: filters.price_max,
-    lat: filters.lat,
-    lng: filters.lng,
-    radius_km: filters.radius_km,
-  };
+  const mapFilters = parametresDeLaCarte(filtersToParams(filters));
 
   return (
     <div className="min-h-screen bg-surface">
@@ -584,6 +583,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 */}
                 {enCours && !(loading && properties.length === 0) ? <ActualisationDesResultats /> : null}
 
+                {!error ? <EmplacementsSponsorises biens={sponsorises} sizes={CARD_SIZES_SEARCH_GRID} /> : null}
+
                 {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
                   id={ID_DES_RESULTATS}
@@ -620,16 +621,29 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                       onReset={resetFilters}
                     />
                   ) : (
-                    properties.map((property, i) => (
-                      <PropertyCard
-                        key={property.id}
-                        property={property}
-                        index={i}
-                        priority={i < 4}
-                        sizes={CARD_SIZES_SEARCH_GRID}
-                        transactionFiltree={filters.contract_type}
-                      />
-                    ))
+                    properties.map((property, i) => {
+                      const carte = (
+                        <PropertyCard
+                          key={property.id}
+                          property={property}
+                          index={i}
+                          priority={i < 4}
+                          sizes={CARD_SIZES_SEARCH_GRID}
+                          transactionFiltree={filters.contract_type}
+                        />
+                      );
+                      // TCK-633 lot F (ADR-0061 §7) — une place réservée porte « En vedette » ; un
+                      // badge acheté se dit aussi. Sinon, la carte nue, comme avant.
+                      const reservee = placementDe(property) === 'reserved';
+                      const badge = badgeDe(property);
+                      if (!reservee && badge === null) return carte;
+                      return (
+                        <div key={property.id} className="flex flex-col gap-2">
+                          <MarquesDeBoost featured={reservee} badge={badge} />
+                          {carte}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 

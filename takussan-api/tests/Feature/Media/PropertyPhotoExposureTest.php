@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -34,7 +35,7 @@ use Tests\TestCase;
  */
 class PropertyPhotoExposureTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     private FilesystemAdapter $public;
 

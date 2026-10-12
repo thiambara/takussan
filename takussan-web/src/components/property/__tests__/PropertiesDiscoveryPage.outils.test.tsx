@@ -25,6 +25,9 @@ vi.mock('@/lib/api', async () => {
 vi.mock('@/components/map', () => ({ PropertyMap: () => <div data-testid="carte" /> }));
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
+// sans `QueryClientProvider`.
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
 // La VRAIE `SaveSearchButton` est rendue — c'est elle que l'AC5 vise. Seule sa mutation, qui
 // exigerait un `QueryClientProvider`, est remplacée.
 vi.mock('@/lib/queries/saved-searches', () => ({

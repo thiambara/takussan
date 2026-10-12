@@ -85,7 +85,7 @@
     "closeMenu": "Close menu",
     "menuTitle": "Menu",
     "searchPlaceholder": "Where are you looking?",
-    "transactionPlaceholder": "Buy / Rent",
+    "transactionPlaceholder": "Rent / Buy",
     "buy": "Buy",
     "rent": "Rent",
     "search": "Search",
@@ -144,6 +144,7 @@
       "statistics": "Statistics",
       "exports": "Exports",
       "agencyView": "Agency view",
+      "credits": "Credits",
       "kpis": "KPIs",
       "alerts": "Alerts",
       "owners": "Owners",
@@ -185,7 +186,9 @@
       "proLocked": "Pro accounts only",
       "pendingBadge": "{count} pending",
       "roles": "Roles",
-      "integrations": "Integrations"
+      "integrations": "Integrations",
+      "mySpace": "My space",
+      "openMySpace": "Open my space"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",
@@ -216,6 +219,8 @@
         "plans": "Plans",
         "payouts": "Payouts",
         "tags": "Tags",
+        "geoProposals": "Proposed neighbourhoods",
+        "tagProposals": "Proposed amenities",
         "enums": "Enums",
         "templates": "Templates",
         "announcements": "Announcements",
@@ -230,7 +235,9 @@
         "maintenance": "Maintenance",
         "scheduler": "Scheduler",
         "privacyRequests": "Rights requests",
-        "payments": "Payments"
+        "payments": "Payments",
+        "credits": "Credits",
+        "boosts": "Promotion"
       }
     },
     "notifications": {
@@ -245,7 +252,7 @@
       "viewAll": "View full history"
     },
     "proUpgrade": {
-      "title": "Go pro",
+      "title": "Become an agency",
       "pendingTitle": "Request in progress",
       "body": "Team, multiple admins and more tools built for pro agencies.",
       "pendingBody": "Our team is reviewing your request; you will receive its decision by email.",
@@ -619,6 +626,43 @@
     }
   },
   "property": {
+    "amenityCatalog": {
+      "piscine": "Swimming pool",
+      "climatisation": "Air conditioning",
+      "ascenseur": "Lift",
+      "parking": "Parking",
+      "garage": "Garage",
+      "balcon": "Balcony",
+      "terrasse": "Terrace",
+      "toit-terrasse": "Roof terrace",
+      "jardin": "Garden",
+      "cuisine-equipee": "Fitted kitchen",
+      "gardien": "Caretaker",
+      "vue-sur-mer": "Sea view",
+      "wifi": "Wi-Fi",
+      "fibre-optique": "Fibre broadband",
+      "tv": "TV",
+      "machine-a-laver": "Washing machine",
+      "seche-linge": "Tumble dryer",
+      "micro-ondes": "Microwave",
+      "lave-vaisselle": "Dishwasher",
+      "securite-247": "24/7 security",
+      "cameras-de-surveillance": "Security cameras",
+      "portail-electrique": "Electric gate",
+      "interphone": "Intercom",
+      "groupe-electrogene": "Backup generator",
+      "panneaux-solaires": "Solar panels",
+      "forage": "Borehole",
+      "surpresseur": "Water booster pump",
+      "citerne-deau": "Water tank",
+      "chauffe-eau": "Water heater",
+      "ventilateurs": "Fans",
+      "moustiquaires": "Mosquito screens",
+      "chambre-de-bonne": "Staff quarters",
+      "dependance": "Annex",
+      "salle-de-sport": "Gym",
+      "aire-de-jeux": "Playground"
+    },
     "list": {
       "title": "Available properties",
       "empty": "No property matches your criteria.",
@@ -1056,7 +1100,33 @@
       "features": {
         "title": "Characteristics",
         "hint": "Optional. Filling in what you know helps your listing stand out.",
-        "hintFull": "Optional. Fill in what tenants and buyers can see."
+        "hintFull": "Optional. Fill in what tenants and buyers can see.",
+        "notSpecified": "Not specified",
+        "floorBasement": "Basement",
+        "floorGround": "Ground floor"
+      },
+      "address": {
+        "region": "Region",
+        "city": "City",
+        "quarter": "Neighbourhood",
+        "regionPlaceholder": "Choose a region",
+        "cityPlaceholder": "Search for a city",
+        "quarterPlaceholder": "Search or type a neighbourhood",
+        "noResults": "No results",
+        "create": "Add “{name}”",
+        "newNeighborhoodHint": "New neighbourhood: our team will review it. Your listing shows it right away.",
+        "osmCredit": "Regions, cities and neighbourhoods: © OpenStreetMap contributors (ODbL)",
+        "pasteLabel": "Paste a link or a location",
+        "pastePlaceholder": "Google Maps link, WhatsApp location, Plus Code or coordinates",
+        "pasteButton": "Place on the map",
+        "pasteApplied": "Location placed on the map. Adjust the marker if needed.",
+        "pasteOutsideSenegal": "This location is outside Senegal. Check it: latitude and longitude may be swapped.",
+        "pasteResolving": "Reading the link…",
+        "pasteLinkFailed": "This link does not lead to a readable location.",
+        "pasteNeedsCity": "Choose the city first: a short Plus Code is read from it.",
+        "pasteUnknown": "Unrecognised format. Paste a Google Maps link, a Plus Code or coordinates.",
+        "latitude": "Latitude",
+        "longitude": "Longitude"
       },
       "description": {
         "title": "Description",
@@ -1066,7 +1136,12 @@
       "amenities": {
         "title": "Amenities",
         "hint": "Select the available amenities and facilities.",
-        "saveFailed": "The property is saved. We could not save the amenities though. Retry."
+        "saveFailed": "The property is saved. We could not save the amenities though. Retry.",
+        "placeholder": "Search or add an amenity",
+        "create": "Add “{name}”",
+        "empty": "No matching amenity.",
+        "pending": "awaiting review",
+        "remove": "Remove {name}"
       },
       "photos": {
         "title": "Photos",
@@ -1082,6 +1157,60 @@
         "saving": "Saving…",
         "submit": "Submit for publication",
         "saveChanges": "Save changes"
+      },
+      "publishContact": {
+        "title": "Your contact details for interested people",
+        "subtitle": "Visitors will reach you at this number. It is only revealed when they ask.",
+        "firstNameLabel": "First name",
+        "lastNameLabel": "Last name",
+        "saveNames": "Save",
+        "phoneLabel": "Your number",
+        "sendCode": "Get a code",
+        "resendCode": "Resend the code",
+        "codeAria": "Code received by SMS",
+        "verifyCode": "Confirm",
+        "whatsapp": "This number has WhatsApp",
+        "codeSent": "Code sent by SMS.",
+        "phoneVerified": "Number verified.",
+        "saved": "Details saved.",
+        "incomplete": "Your contact details are missing: complete the “Your contact details” block, then publish again. Your draft is saved.",
+        "otherContact": "This property’s contact has no first name or verified number yet: they must complete their profile before publication.",
+        "terms": "By publishing, you accept the <lien>terms of use</lien>.",
+        "failed": "Publishing failed. Try again.",
+        "dialogTitle": "Before publishing",
+        "dialogPublish": "Publish",
+        "dialogCancel": "Cancel",
+        "dialogIncomplete": "Some details are still missing: complete the block above, then click “Publish” again.",
+        "whatsappQuestion": "Does your number have WhatsApp?",
+        "whatsappYes": "Yes",
+        "whatsappNo": "No"
+      }
+    },
+    "contacts": {
+      "title": "On-site contacts",
+      "hint": "Up to three numbers (caretaker, neighbour…). They are only revealed with “Call”.",
+      "labelLabel": "Who?",
+      "phoneLabel": "Number",
+      "whatsapp": "WhatsApp",
+      "add": "Add a contact",
+      "remove": "Remove",
+      "removeAria": "Remove contact {index}",
+      "max": "Three contacts at most.",
+      "partial": "the on-site contacts",
+      "save": "Save the contacts",
+      "saved": "On-site contacts saved.",
+      "loadFailed": "The on-site contacts could not be loaded.",
+      "retry": "Try again",
+      "unverifiedWarning": "Your number is not verified: it is not shown on your listings.",
+      "unverifiedLink": "Verify my number",
+      "public": {
+        "listAria": "Numbers to call",
+        "whatsapp": "WhatsApp",
+        "kind": {
+          "primary": "Main number",
+          "secondary": "Second number",
+          "onSite": "On site"
+        }
       }
     },
     "dashboard": {
@@ -1239,8 +1368,8 @@
         "archive": "Archive",
         "delete": "Delete",
         "deleteTitle": "Delete this property?",
-        "deleteBodyRow": "The property <b>{title}</b> will be archived (soft-delete). You will be able to restore it from the admin area.",
-        "deleteBodyDetail": "The property <b>{title}</b> will be removed from your agent portfolio. The record stays restorable from the admin area.",
+        "deleteBodyRow": "The property <b>{title}</b> will be deleted and taken off the site. This action cannot be undone.",
+        "deleteBodyDetail": "The property <b>{title}</b> will be removed from your portfolio and taken off the site. This action cannot be undone.",
         "cancel": "Cancel",
         "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
       },
@@ -1384,7 +1513,7 @@
       },
       "geoSuggestFull": "Use {city}, {region}",
       "geoSuggestCity": "Use {city}",
-      "geoDefaultsNote": "Country and currency are already filled in from your connection. You can correct them.",
+      "geoDefaultsNote": "Listings are published in Senegal: the country is already filled in. Prices are in CFA francs.",
       "addressDetailsShow": "Add street and postal code",
       "addressDetailsHide": "Hide street and postal code",
       "useMyPosition": "Use my current position",
@@ -1482,6 +1611,7 @@
       },
       "outcome": {
         "live": "Your listing is live.",
+        "boost": "Promote this listing",
         "review": "Listing sent for review: it will go live once approved.",
         "proposal": "Proposal sent to your agency."
       },
@@ -1520,7 +1650,8 @@
         "entryDeposit": "{count} months of deposit",
         "entryFee": "{count} months of agency fees",
         "entryCharges": "{amount} of charges per month",
-        "entryNote": "The total is shown on the published listing.",
+        "entryNote": "Indicative amount based on your answers; the published listing is authoritative.",
+        "entryTotal": "Total on move-in: {amount}",
         "checklist": "Before publishing",
         "current": "in progress",
         "optional": "optional",
@@ -4169,6 +4300,10 @@
     }
   },
   "search": {
+    "sponsored": {
+      "label": "Sponsored listings",
+      "chip": "Sponsored"
+    },
     "suggest": {
       "placeholder": "Search a city, neighborhood, property type…",
       "groups": {
@@ -4265,11 +4400,50 @@
       "amenitiesPlaceholder": "pool, parking, terrace…",
       "amenitiesHint": "Separate with commas",
       "floors": {
-        "ground": "Ground",
-        "first": "1st",
-        "second": "2nd",
-        "third": "3rd",
+        "ground": "Ground+",
+        "first": "1st+",
+        "second": "2nd+",
+        "third": "3rd+",
         "fourthPlus": "4th+"
+      },
+      "transaction": {
+        "rent": "Rent",
+        "sale": "Buy"
+      },
+      "chips": {
+        "bedroomsMin": "{n}+ bd",
+        "bathroomsMin": "{n}+ ba",
+        "groundFloorMin": "Ground floor and up",
+        "firstFloorMin": "1st floor and up",
+        "floorMin": "Floor {n} and up"
+      },
+      "furnished": {
+        "title": "Furnished",
+        "any": "Any",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "place": {
+        "city": "City",
+        "cityPlaceholder": "Choose a city",
+        "noCity": "No matching city",
+        "clearCity": "Remove the city",
+        "quarter": "Neighbourhood",
+        "quarterPlaceholder": "Choose a neighbourhood",
+        "quarterNeedsCity": "Choose a city first",
+        "noQuarter": "No matching neighbourhood",
+        "clearQuarter": "Remove the neighbourhood"
+      },
+      "amenityPicker": {
+        "placeholder": "Choose amenities",
+        "empty": "No matching amenity",
+        "remove": "Remove {name}",
+        "hint": "Properties offering all the chosen amenities"
+      },
+      "more": {
+        "show": "More filters",
+        "showCount": "More filters ({count})",
+        "hide": "Fewer filters"
       },
       "titleDeedHint": "Only applies to properties that own their land: houses, villas, plots, warehouses. Not relevant for a flat, an office or a shop."
     },
@@ -4296,7 +4470,7 @@
       "floor": "Floor {n}",
       "availableFrom": "Available from {date}",
       "quarter": "Neighbourhood: {value}",
-      "tags": "Tags: {value}",
+      "tags": "Amenities: {value}",
       "priceMin": "≥ {value}",
       "priceMax": "≤ {value}",
       "bedrooms": "{n} bd",
@@ -5822,7 +5996,8 @@
         "maintenance": "Maintenance",
         "messaging": "Messaging",
         "reports": "Reports",
-        "roles": "Roles"
+        "roles": "Roles",
+        "boost": "Promotion"
       },
       "capabilities": {
         "agency": {
@@ -5896,6 +6071,9 @@
           "create_custom": "Create a custom role",
           "edit_custom": "Edit a custom role",
           "delete_custom": "Delete a custom role"
+        },
+        "boost": {
+          "spend": "Spend credits to promote a listing"
         }
       },
       "role_delegations": {
@@ -6987,6 +7165,114 @@
     }
   },
   "superAdmin": {
+    "boosts": {
+      "title": "Promotion",
+      "subtitle": "Platform boosts, the offer catalogue and slot measurement.",
+      "tabs": { "label": "Promotion screens", "boosts": "Boosts", "catalogue": "Catalogue", "stats": "Statistics" },
+      "statusFilter": "Filter by status",
+      "statuses": { "all": "All", "active": "Active", "paused": "Paused", "ended": "Ended", "cancelled": "Cancelled", "refunded": "Refunded" },
+      "kinds": { "bump": "Bump", "featured": "Featured", "badge": "Badge" },
+      "variants": { "urgent": "Urgent", "price_drop": "Price drop" },
+      "caption": "Platform boosts",
+      "colProperty": "Listing",
+      "colAgency": "Workspace",
+      "colKind": "Kind",
+      "colStatus": "Status",
+      "colEnd": "Ends",
+      "colPrice": "Price",
+      "colActions": "Actions",
+      "offered": "offered",
+      "empty": "No boost for this filter.",
+      "loadError": "Could not load promotions.",
+      "retry": "Retry",
+      "cancel": {
+        "open": "Cancel",
+        "title": "Cancel this boost",
+        "refund": "Refund the remaining full days",
+        "reason": "Cancellation reason",
+        "back": "Back",
+        "submit": "Confirm cancellation",
+        "failed": "The cancellation could not be saved."
+      },
+      "offer": {
+        "title": "Offer a Featured promotion",
+        "property": "Listing number",
+        "product": "Featured duration",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "reason": "Reason",
+        "submit": "Offer",
+        "done": "Featured promotion offered.",
+        "failed": "The Featured promotion could not be offered."
+      },
+      "catalogue": {
+        "caption": "Promotion offers",
+        "colKind": "Offer",
+        "colDuration": "Duration",
+        "colPrice": "Price (credits)",
+        "colActive": "Active",
+        "days": "{count, plural, =0 {instant} one {# day} other {# days}}",
+        "save": "Save",
+        "saved": "Offer saved.",
+        "failed": "The offer could not be saved.",
+        "createTitle": "New offer",
+        "kind": "Kind",
+        "variant": "Variant",
+        "duration": "Duration (days)",
+        "price": "Price (credits)",
+        "create": "Create offer"
+      },
+      "stats": {
+        "from": "From",
+        "to": "To",
+        "apply": "Show",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "ctr": "Click-through rate",
+        "caption": "Slot measurement per day",
+        "colDate": "Day",
+        "empty": "No data for this period.",
+        "loadError": "Could not load statistics."
+      }
+    },
+    "credits": {
+      "title": "Workspace credits",
+      "subtitle": "Balances, lots, and justified, logged adjustments.",
+      "search": "Search a workspace",
+      "searchSubmit": "Search",
+      "caption": "Credit wallets",
+      "colAgency": "Workspace",
+      "colBalance": "Balance",
+      "colNextExpiry": "Next expiry",
+      "open": "Open",
+      "empty": "No workspace has credits yet.",
+      "loadError": "Could not load wallets.",
+      "retry": "Retry",
+      "detail": {
+        "back": "All wallets",
+        "balance": "Balance: {count, plural, =0 {no credits} one {# credit} other {# credits}}",
+        "adjustTitle": "Adjust the balance",
+        "adjustHelp": "A positive amount credits the workspace (offered lot, welcome-offer validity); a negative amount debits it. The reason is logged.",
+        "amount": "Amount (credits)",
+        "reason": "Reason",
+        "adjustSubmit": "Save adjustment",
+        "adjustDone": "Adjustment saved.",
+        "adjustFailed": "The adjustment could not be saved.",
+        "lotsTitle": "Lots",
+        "lotsCaption": "Workspace credit lots",
+        "lotsEmpty": "No lot.",
+        "colOrigin": "Origin",
+        "colRemaining": "Remaining / initial",
+        "colExpires": "Expiry",
+        "noExpiry": "No expiry",
+        "movementsTitle": "Log",
+        "movementsCaption": "Workspace credit movements",
+        "movementsEmpty": "No movement.",
+        "colDate": "Date",
+        "colType": "Operation",
+        "colAmount": "Credits",
+        "colReason": "Reason"
+      }
+    },
     "agencies": {
       "empty_title": "No agency to show",
       "empty_description": "No agency matches the current filters. Widen the search.",
@@ -7168,7 +7454,7 @@
           "deleteTitle": "Delete {count, plural, one {# property} other {# properties}}",
           "unpublishTitle": "Unpublish {count, plural, one {# property} other {# properties}}",
           "archiveDescription": "Archived properties leave the active portfolio. This action is audited.",
-          "deleteDescription": "Deletion is a soft-delete. The properties disappear from the lists but can be restored from the admin.",
+          "deleteDescription": "Deletion takes the property off the lists and the site. This action cannot be undone.",
           "unpublishDescription": "Unpublished properties go back to draft and are no longer publicly visible.",
           "archiveLabel": "Confirm the archiving",
           "deleteLabel": "Confirm the deletion",
@@ -8086,7 +8372,8 @@
       },
       "categories": {
         "currency": "Currencies",
-        "limits": "Technical limits"
+        "limits": "Technical limits",
+        "boost": "Credits and promotion"
       },
       "keys": {
         "currency": {
@@ -8104,6 +8391,16 @@
             "label": "Maximum operator session length",
             "description": "In minutes, from 15 to 1440. Applies to sign-ins opened after saving."
           }
+        },
+        "credits": {
+          "welcome_amount": { "label": "Welcome credits", "description": "Credits offered to a workspace, once per verified phone number." },
+          "welcome_validity_days": { "label": "Offered credits validity", "description": "In days. Applies to future grants and to credits offered from the console." },
+          "expiry_notice_days": { "label": "Expiry notice", "description": "In days before a lot expires. 0 disables the notice." }
+        },
+        "boost": {
+          "bump_cooldown_hours": { "label": "Delay between two bumps", "description": "In hours, for the same listing." },
+          "sponsored_slots_per_page": { "label": "“Sponsored” slots per page", "description": "From 0 to 10. 0 disables the slots." },
+          "reserved_top_results": { "label": "Reserved places at the top of the first page", "description": "From 0 to 10. 0 disables reserved places." }
         }
       }
     },
@@ -8466,6 +8763,30 @@
         "empty_title": "No webhook",
         "empty_description": "Calls received from providers will appear here."
       }
+    },
+    "propositions": {
+      "geoTitle": "Proposed neighbourhoods",
+      "geoDescription": "Neighbourhoods typed in listings and missing from the referential. Approve, rename, merge or reject.",
+      "tagsTitle": "Proposed amenities",
+      "tagsDescription": "Amenities typed in listings and missing from the catalogue. Approve, rename, merge or reject.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rename": "Rename",
+      "merge": "Merge",
+      "newName": "New name",
+      "mergeInto": "Merge into",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "author": "Proposed by {name}",
+      "authorUnknown": "Unknown author",
+      "usage": "{count, plural, =0 {No listing} =1 {# listing} other {# listings}}",
+      "emptyTitle": "No pending proposal",
+      "emptyDescription": "Proposals will appear here as soon as a listing contains one.",
+      "error": "Could not load the proposals.",
+      "retry": "Retry",
+      "done": "Decision saved.",
+      "failed": "The decision could not be saved.",
+      "noTarget": "No match among the approved entries."
     }
   },
   "adminSettings": {
@@ -8826,7 +9147,20 @@
       "emailVerifiedHint": "A verified address cannot be changed from this page.",
       "emailVerifyPrompt": "Open the link sent to {email} to verify your address.",
       "emailResend": "Resend the link",
-      "emailLinkSent": "Verification link sent to {email}."
+      "emailLinkSent": "Verification link sent to {email}.",
+      "whatsappLabel": "This number has WhatsApp",
+      "secondary": {
+        "title": "Second number",
+        "hint": "Another number where people can reach you. It is not used to sign in.",
+        "whatsapp": "This number has WhatsApp",
+        "send": "Get a code",
+        "resend": "Resend the code",
+        "codeAria": "Code received on the second number",
+        "codeSent": "Code sent.",
+        "verified": "Second number verified.",
+        "remove": "Remove",
+        "removed": "Second number removed."
+      }
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -8977,7 +9311,11 @@
       "roleLabel": "Admin role",
       "manageAgency": "Manage the agency",
       "auditLog": "Audit log",
-      "adminSpace": "Administration area"
+      "adminSpace": "Administration area",
+      "titleIndividual": "My space",
+      "subtitleIndividual": "The settings of your listing space.",
+      "roleLabelIndividual": "Your role",
+      "roleIndividual": "Holder of this space"
     },
     "agent": {
       "title": "Professional profile",
@@ -9787,7 +10125,12 @@
       "unnamed": "Agency",
       "error": "We could not open this space. Try again."
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "auto": {
+      "title": "Creating your space…",
+      "body": "Your personal space is being set up: you will publish right after.",
+      "error": "We could not create your space. Try again."
+    }
   },
   "layout": {
     "nav": {
@@ -10523,6 +10866,76 @@
     "reessayer": "Try again",
     "favorisTitre": "Your favorites already viewed on this device",
     "favorisVide": "None of your favorites is available offline on this device."
+  },
+  "boost": {
+    "button": "Promote",
+    "menuItem": "Promote this listing",
+    "kinds": {
+      "bump": "Bump — the listing goes back to the top of results",
+      "featured": "Featured {days} days",
+      "badge": {
+        "urgent": "“Urgent” badge {days} days",
+        "price_drop": "“Price drop” badge {days} days"
+      }
+    },
+    "dialog": {
+      "title": "Promote",
+      "description": "Choose a promotion for “{title}”.",
+      "loading": "Loading offers…",
+      "loadError": "Could not load the offers or the balance.",
+      "retry": "Retry",
+      "balance": "Workspace balance: {count, plural, =0 {no credits} one {# credit} other {# credits}}",
+      "price": "{count, plural, =0 {free} one {# credit} other {# credits}}",
+      "missing": "You are missing {count, plural, one {# credit} other {# credits}} for this offer.",
+      "noPurchase": "Buying credits is coming soon. Meanwhile, choose an offer your balance covers.",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "done": "Done: the promotion is live.",
+      "failed": "The promotion could not be saved."
+    },
+    "marks": {
+      "featured": "Featured",
+      "urgent": "Urgent",
+      "priceDrop": "Price drop"
+    }
+  },
+  "credits": {
+    "metaTitle": "Credits",
+    "title": "Workspace credits",
+    "subtitle": "Your workspace credits pay for promoting your listings.",
+    "balance": "Balance",
+    "balanceValue": "{count, plural, =0 {No credits} one {# credit} other {# credits}}",
+    "lots": {
+      "title": "Available credits",
+      "empty": "No credits available yet.",
+      "expires": "Expires on {date}",
+      "noExpiry": "No expiry",
+      "remaining": "{remaining} of {initial}"
+    },
+    "origins": {
+      "welcome": "Welcome offer",
+      "admin_grant": "Credits offered by Takussan",
+      "refund": "Refund",
+      "purchase": "Purchase"
+    },
+    "movements": {
+      "title": "History",
+      "caption": "Workspace credit history",
+      "empty": "No activity yet.",
+      "colDate": "Date",
+      "colType": "Operation",
+      "colAmount": "Credits",
+      "colReason": "Reason"
+    },
+    "types": {
+      "grant": "Grant",
+      "spend": "Promotion",
+      "refund": "Refund",
+      "expire": "Expiry",
+      "admin_debit": "Debit by Takussan"
+    },
+    "loadError": "Could not load the credits.",
+    "retry": "Retry"
   },
   "commissions": {
     "metaTitle": "Commissions",

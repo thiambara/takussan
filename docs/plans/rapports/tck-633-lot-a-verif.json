@@ -1,0 +1,90 @@
+{
+  "verdict": "refuse — the behavior is correct and every AC goes green when run (including a full HTTP upload + console path I wrote myself). But the « par lots » requirement of the command, which the report says is proven, is not guarded at all (the ablation stays green). The en/wo order of the selector's accessible name is not guarded either. And a restoration promise survives in the super-admin delete modal. All three fixes are small.",
+  "ablation_rejouee": true,
+  "charge": "load averages 8.19 11.16 9.61 at the start (09:43), 6.78 11.43 11.79 then 53.74 41.65 25.98 at the end (10:11), hw.ncpu 8. Other lots were testing at the same time: the durations are not reference figures.",
+  "ac_executes": [
+    {
+      "ac": "AC2 — the dashboard delete modal no longer promises a restoration (row and detail, fr/en/wo)",
+      "commande": "cd takussan-web && npx vitest run src/components/property-dashboard/__tests__/suppression-sans-promesse.test.tsx",
+      "resultat": "6 passed. The three dictionaries were also read: the old values (« restaurer depuis l'administration », « restore it from the admin area », « delloo ci wàllu njiit bi ») are replaced in fr, en and wo by an irreversibility sentence."
+    },
+    {
+      "ac": "AC5 (lot A part) — Louer before Acheter in the selector (order + pill) and in the mobile menu",
+      "commande": "npx vitest run src/components/search/__tests__/SelecteurDeTransaction.test.tsx src/data/__tests__/navigation.test.ts src/components/home/__tests__/Navbar.transaction.test.tsx",
+      "resultat": "47 passed across the 4 lot A files (with the deletion test). Dictionaries: nav.transactionPlaceholder = « Louer / Acheter », « Rent / Buy », « Luwaa / Jënd ». The selector labels come from nav.buy / nav.rent, the same keys as the mobile menu, so there is one vocabulary."
+    },
+    {
+      "ac": "AC7 — flag off: an uploaded photo is served without a watermark; flag on: behavior unchanged",
+      "commande": "php artisan test tests/Feature/Media/WatermarkGlobalFlagTest.php tests/Feature/Api/Admin/FeatureFlagTest.php",
+      "resultat": "15 passed (77 assertions)"
+    },
+    {
+      "ac": "AC7 — real path, my own test (scratchpad/verif-a/VerifLotAAc7Test.php): HTTP upload POST /api/properties/{id}/media with no flag row and an agency set to watermark_enabled=true, then the flag turned on through the console PATCH /api/admin/feature-flags/media_watermark, then a second upload",
+      "commande": "php artisan test <scratchpad>/verif-a/VerifLotAAc7Test.php",
+      "resultat": "1 passed (9 assertions). Off: no ApplyWatermarkJob, trace empty, the public listing serves `full`. Turned on through the console (+ forgetScopedInstances, which stands in for the next request): ApplyWatermarkJob is queued."
+    },
+    {
+      "ac": "Delta — media:regenerate-without-watermark: refused while on, count, idempotent",
+      "commande": "same WatermarkGlobalFlagTest file + php artisan list media",
+      "resultat": "3 tests green, and the command is listed. Idempotence is proven (my ablation B3 turns it red). « Par lots » is NOT proven (ablation B4 stays green)."
+    },
+    {
+      "ac": "Collateral — classes impacted by the lot A files (impact map: AgencyWatermarkContext, WatermarkRequirement, Flag, PublicPhotoUrl, the listener, ApplyWatermarkJob)",
+      "commande": "php artisan test <92 classes in 4 batches of 23> (php bin/impacted-tests.php answers SUITE ENTIÈRE because of config/scout.php, which is another lot's file, so the selection was derived from tests/impact-map.json for lot A's files only)",
+      "resultat": "161 + 302 + 209 + 229 = 901 passed, 0 red"
+    },
+    {
+      "ac": "Collateral front + gates",
+      "commande": "npx vitest run src/components/search src/components/home src/data src/components/property-dashboard ; npx tsc --noEmit ; npx eslint <lot A files> ; npm run check:i18n ; pint --test <lot A PHP> ; node scripts/check-{platform-catalogue-readers,command-prefixes,media-getpath,test-base-classes}.mjs",
+      "resultat": "48 files / 346 tests passed ; tsc 0 ; eslint 0 ; pint passed ; 4 gates green ; check:i18n: key parity en 0/0 and wo 0/0, but RED on hard-coded text in app/properties/new/page.tsx:92 « nouveau bien (frais d'agence) », which is not lot A (see hors_lot)"
+    }
+  ],
+  "ablations": [
+    { "forme": "F1 — SelecteurDeTransaction: render `[...choix].reverse().map` (array kept in order, DOM reversed)", "attendu_rouge": "SelecteurDeTransaction (order, which button emits what) + Navbar.transaction (order)", "constate": "red: 3 failed / 11", "md5": "7e1c5be7… → 1267160a… → 7e1c5be7… (cp)" },
+    { "forme": "F2 — pill only: delete the line `valeur === 'sale' && 'translate-x-full'`", "attendu_rouge": "the slide on Acheter", "constate": "red: 2 failed (SelecteurDeTransaction + Navbar.transaction)", "md5": "7e1c5be7… → aa93de92… → 7e1c5be7…" },
+    { "forme": "F2b — pill: `valeur !== 'rent' && 'translate-x-full'` (also slides when the value is empty)", "attendu_rouge": "nothing required: the pill is invisible (opacity-0) at ''", "constate": "green 11/11. Only effect: from '' the pill fades in under Acheter and then slides. Cosmetic, not counted as a defect", "md5": "7e1c5be7… → d5c572df… → 7e1c5be7…" },
+    { "forme": "F3 — en.json only, deleteBodyDetail: add « An administrator can bring it back later. » and KEEP the irreversibility sentence (Edit, then reverse Edit)", "attendu_rouge": "deletion-test header in en", "constate": "GREEN: the PROMESSE regex catches neither « administrator » nor « bring back ». A contradictory form, so not very plausible: see the low-severity defect", "md5": "en f3161bcb… → 4b5e6c4e… → f3161bcb…" },
+    { "forme": "F4 — wo.json only, deleteBodyRow: drop « Jëf bii mënatul dellu. » with no promise (Edit, then reverse Edit)", "attendu_rouge": "row in wo", "constate": "red: 1 failed (en wo, row)", "md5": "wo aeca81b7… → 2a81cee7… → aeca81b7…" },
+    { "forme": "F5 — en.json only: transactionPlaceholder back to « Buy / Rent » (Edit, then reverse Edit)", "attendu_rouge": "a guard on the order of the group's accessible name in en", "constate": "GREEN: 19 files / 185 tests (search, home/Navbar.transaction, data, deletion). Nothing guards en/wo", "md5": "en f3161bcb… → 770013f8… → f3161bcb…" },
+    { "forme": "B1 — AgencyWatermarkContext: `scopedIf` → `singletonIf` (the worker would never re-read the flag)", "attendu_rouge": "re-read in the next cycle", "constate": "red: 5 failed / 10", "md5": "0e5a027d… → d39fe295… → 0e5a027d…" },
+    { "forme": "B2 — globallyEnabled() reads `FeatureFlag::where(key)->value('enabled') ?? true` (no row = on)", "attendu_rouge": "the cases with the flag off by default", "constate": "red: 2 failed (off_no_agency…, off_an_upload…)", "md5": "0e5a027d… → 2d484794… → 0e5a027d…" },
+    { "forme": "B3 — command: `whereNotNull(custom_properties->watermarked_conversions)` instead of `whereJsonLength > 0` (an emptied trace stays selected)", "attendu_rouge": "idempotence / count", "constate": "red: test_the_command_counts_then_strips…_idempotent", "md5": "2fc2c4f1… → 8e2f755d… → 2fc2c4f1…" },
+    { "forme": "B4 — command: `$query->get()->each` instead of `lazyById($chunk)` (everything in memory, --chunk ignored)", "attendu_rouge": "« par lots » from the delta", "constate": "GREEN 10/10: the message « par lots de 1 » repeats the option, it does not measure the reads", "md5": "2fc2c4f1… → b1b2d6d6… → 2fc2c4f1…" },
+    { "forme": "B5 — PublicPhotoUrl::isServable: an untraced conversion is servable ONLY if it is in EXEMPT_KEY (ignores $watermarkRequired)", "attendu_rouge": "photo waiting for its watermark when the flag goes off", "constate": "red: test_turning_the_flag_off_serves…", "md5": "2546c685… → 283020e1… → 2546c685…" },
+    { "forme": "B6 — listener: copy of the rule `isEnabledInSettings($property->agency?->settings)` instead of requiresWatermark() (bypasses the flag)", "attendu_rouge": "upload with the flag off", "constate": "red: 2 failed (off_an_upload…, command…)", "md5": "4a465e5c… → e6233718… → 4a465e5c…" },
+    { "forme": "B7 — ApplyWatermarkJob: remove the `requiresWatermark()` check at execution time", "attendu_rouge": "job queued before the flag was turned off", "constate": "red: test_a_watermark_job_queued_before…", "md5": "c6b70c7d… → bbd963c6… → c6b70c7d…" },
+    { "forme": "B8 — Flag::catalogue() filters on clientVisible() (media_watermark would disappear from the console, so it could not be turned on) (co-held: Edit, then reverse Edit)", "attendu_rouge": "console catalogue", "constate": "red: FeatureFlagTest::test_the_catalogue_carries_no_label", "md5": "f32ddb87… → b88f248e… → f32ddb87…" }
+  ],
+  "defauts": [
+    {
+      "gravite": "moyenne",
+      "titre": "« Par lots » from the delta is not guarded, and the report says it is",
+      "preuve": "Ablation B4: `lazyById($chunk)` → `get()` keeps the 10 WatermarkGlobalFlagTest tests green. The report's « ablations rouges sur chacune des trois propriétés » covers VALIDATION of --chunk, not its USE. The line `expectsOutputToContain('par lots de 1')` repeats `$chunk` and measures nothing.",
+      "correctif": "In test_the_command_counts…, watermark 2 photos (or 3), run --chunk=1 under DB::enableQueryLog(), and assert the number of `select … from \"media\"` reads (≥ number of photos + 1 with lazyById(1), 1 with get()). Then replay B4: it must go red."
+    },
+    {
+      "gravite": "faible",
+      "titre": "The order of the selector's accessible name is not guarded in en and wo",
+      "preuve": "Ablation F5: en nav.transactionPlaceholder back to « Buy / Rent » → 185/185 green. Navbar.transaction.test.tsx only checks fr (« Louer / Acheter »). AC5 says « avec le même mot » everywhere, and the group's name is what a screen reader announces.",
+      "correctif": "In SelecteurDeTransaction.test.tsx or navigation.test.ts, read nav.transactionPlaceholder from fr/en/wo and assert that it starts with nav.rent and ends with nav.buy in each language."
+    },
+    {
+      "gravite": "moyenne (scope to be settled by the session: outside the letter of the plan, inside the ticket's finding)",
+      "titre": "A restoration promise survives in the super-admin property delete modal",
+      "preuve": "superAdmin.properties.table.confirm.deleteDescription (read by SuperAdminPropertiesTable.tsx:386) = « La suppression est un soft-delete. Les biens disparaissent des listes mais peuvent être restaurés depuis l'admin. » in fr, en (« can be restored from the admin ») and wo (« ñu man na leen a delloosi ci admin bi »). No route restores a property (`grep -rn restore routes/` → document versions only). The ticket's finding says « aucune route ni aucun écran de restauration n'existe, pour personne »; the lot A territory only covered property.dashboard.actions.delete*.",
+      "correctif": "Same treatment for this key in all three languages (no promise, irreversibility sentence), and add it to the PROMESSE assertion of a test on SuperAdminPropertiesTable. Or have the porteur write down that it is excluded."
+    },
+    {
+      "gravite": "faible",
+      "titre": "The deletion test's « promise » regex is a deny-list that misses reworded promises",
+      "preuve": "Ablation F3: « An administrator can bring it back later. » added next to the irreversibility sentence → green. Only the positive IRREVERSIBLE assertion holds the realistic forms (F4 red).",
+      "correctif": "Compare the dialog's text to the exact expected value per language (interpolated key), rather than a deny-list."
+    }
+  ],
+  "hors_lot": [
+    "check:i18n RED: src/app/(dashboard)/app/properties/new/page.tsx:92, hard-coded text « nouveau bien (frais d'agence) » in a file missing from the baseline. Agency fees = lot C, not lot A.",
+    "php bin/impacted-tests.php answers SUITE ENTIÈRE because of config/scout.php (another lot): the lot A selection was rebuilt from tests/impact-map.json.",
+    "en.json / wo.json changed md5 between my restoration (f3161bcb… / aeca81b7… confirmed right after the reverse Edit) and the end of the check (abb54e3e… / 8f8335e2…): other lots are adding keys. I checked that lot A's 3 values are intact in en and wo and that my ablation text (« An administrator… », « Buy / Rent ») is gone.",
+    "Recorded, not counted as defects: E4 (AgencyObserver still queues RegenerateAgencyWatermarksJob with the flag off, wasted work), E5 (turning the flag on does not re-watermark exempted photos), E6 (a segmented flag stays off for everyone, and the console still offers roles/rollout and the per-user « override » with no effect on this flag), E13 (Flag.php class docblock is out of date)."
+  ]
+}

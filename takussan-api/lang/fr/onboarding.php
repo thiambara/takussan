@@ -8,4 +8,9 @@ return [
             'already_onboarded' => 'Vous possédez déjà une agence personnelle.',
         ],
     ],
+    // TCK-633 (lot C) — le nom de l'espace créé sans question (« Publier »).
+    'auto_space' => [
+        'name_with_first_name' => 'Espace de :first_name',
+        'name_default' => 'Mon espace',
+    ],
 ];

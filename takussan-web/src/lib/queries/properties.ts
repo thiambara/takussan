@@ -165,8 +165,10 @@ export function boundsToString(b: MapBounds): string {
 }
 
 /**
- * Fetch clustered markers inside geographic bounds. Accepts the same filter
- * subset as `GET /api/public/properties/map` (type, contract_type, price).
+ * Fetch clustered markers inside geographic bounds. Accepts every filter that
+ * `GET /api/public/properties/map` accepts — since TCK-633, all the filters of
+ * the list (`MapPublicPropertyRequest` inherits its rules), minus `q`, sort and
+ * pagination (`CLES_PROPRES_A_LA_LISTE`).
  */
 export function usePropertyMapQuery(
   bounds: MapBounds | null,

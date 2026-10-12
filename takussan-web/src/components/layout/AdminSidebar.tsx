@@ -4,26 +4,12 @@ import Link from 'next/link';
 import { Logo } from '@/components/brand/Logo';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  LayoutDashboard,
-  Building2,
-  Users,
-  CreditCard,
-  ShieldCheck,
-  FileText,
-  KeyRound,
-  Settings,
-  ArrowLeft,
-  Shield,
-  Briefcase,
-  Lock,
-  Plug,
-  UserRound,
-} from 'lucide-react';
+import { ArrowLeft, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
-import { isSuperAdmin } from '@/lib/roles';
-import { isProRouteLocked } from '@/lib/access/pro-features';
+import { entreesDeMenu, type AccesAdmin } from '@/lib/access/pages-admin';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
+import { ProUpgradeCard, type ApparenceProUpgradeCard } from './ProUpgradeCard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -83,79 +69,70 @@ const ANNEAU_FOCUS =
 /** Le même anneau, décalé vers l'EXTÉRIEUR — pour les liens qu'aucun conteneur ne rogne. */
 const ANNEAU_FOCUS_SORTANT =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+
+/**
+ * TCK-633 — la carte « Passer en agence » (décision 1 du porteur), habillée pour CETTE barre.
+ *
+ * Le vocabulaire de la barre : fonds `white/5` puis `white/10` au survol — ceux d'une entrée — et
+ * l'anneau blanc SORTANT des liens hors du `<nav>` (rien ne le rogne). Mesuré par
+ * `AdminSidebar.a11y.test.tsx` : l'habillage clair de `/app` (`bg-muted`, anneau `--ring`) donnait
+ * ici un anneau à 1,2:1 sur le fond propre de la carte. L'appel est en blanc : `text-primary`
+ * (#a85332) mesure environ 3,3:1 sur cette barre, sous l'AA d'un texte de 11 px.
+ */
+const CARTE_DE_PASSAGE: ApparenceProUpgradeCard = {
+  carte: `border-white/15 bg-white/5 hover:bg-white/10 ${ANNEAU_FOCUS_SORTANT}`,
+  pastille: 'bg-white/10 text-white',
+  titre: 'text-white',
+  corps: 'text-white/70',
+  appel: 'text-white',
+};
 import { ADMIN_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 
 interface NavItem {
   href: string;
-  /** CLÉ de libellé sous `nav.admin`, pas le libellé : `buildAdminItems` est hors composant. */
+  /** CLÉ de libellé sous `nav.admin`, pas le libellé : `PAGES_ADMIN` est hors composant. */
   labelKey: string;
   icon: LucideIcon;
   badge?: number;
-  locked?: boolean;
 }
 
 interface AdminSidebarProps {
   user: User;
   className?: string;
   onNavigate?: () => void;
-  /** `true` when the active agency is on `kind=standard`. Items in
-   *  `PRO_ROUTES` are padlocked when this is `false` (individual) for
-   *  agency_admins; super_admin is never padlocked. */
+  /** `true` quand l'agence active est `standard`. Sert au sondage du compteur de modération des
+   *  biens et au REPLI quand aucun `AccesAdminProvider` n'est monté. */
   agencyIsStandard?: boolean;
+  /** Une demande de passage en agence attend la décision de la plateforme (TCK-267) : la carte
+   *  « Passer en agence » le dit au lieu de la proposer à nouveau. */
+  hasPendingUpgrade?: boolean;
 }
 
-function buildAdminItems(
-  user: User,
+/**
+ * TCK-633 (lot B, AC1) — le menu ne liste QUE les pages que le profil actif peut ouvrir.
+ *
+ * L'ordre, les libellés et les icônes vivent dans `PAGES_ADMIN` (`@/lib/access/pages-admin`), la
+ * table que la garde de chaque page lit aussi : une entrée ne peut plus mener à une page qui renvoie
+ * ailleurs. Les entrées verrouillées de TCK-371 disparaissent avec elle — le ticket veut que l'on
+ * « ne voie que ce qu'on peut ouvrir », et l'incitation à passer en agence est portée par UNE carte
+ * (`ProUpgradeCard`, décision 1 du porteur). Les motifs de chaque ligne (TCK-279, TCK-370,
+ * TCK-597…) sont écrits dans la table.
+ */
+function itemsDuMenu(
+  acces: AccesAdmin,
   reviewPendingCount: number,
   propertyPendingCount: number,
 ): NavItem[] {
-  const items: NavItem[] = [{ href: '/admin', labelKey: 'dashboard', icon: LayoutDashboard }];
-  if (isSuperAdmin(user.roles)) {
-    items.push({ href: '/admin/properties', labelKey: 'properties', icon: Building2 });
-  }
-  items.push({ href: '/admin/team', labelKey: 'team', icon: Users });
-  // TCK-279 — juste sous « Équipe » : c'est depuis la console Équipe qu'on
-  // attribue un rôle, et depuis celle-ci qu'on le définit.
-  items.push({ href: '/admin/roles', labelKey: 'roles', icon: KeyRound });
-  items.push({ href: '/admin/agency', labelKey: 'agency', icon: Briefcase });
-  items.push({ href: '/admin/agency/kyc', labelKey: 'kyc', icon: ShieldCheck });
-  items.push({ href: '/admin/agency/billing', labelKey: 'billing', icon: CreditCard });
-  items.push({ href: '/admin/finances', labelKey: 'finances', icon: CreditCard });
-  // TCK-597 (ADR-0043 §1) — l'admin d'agence modère les avis de SON agence ; le compteur est
-  // celui que l'API filtre sur le profil actif.
-  items.push({
-    href: '/admin/moderation',
-    labelKey: 'reviewModeration',
-    icon: Shield,
-    badge: reviewPendingCount || undefined,
-  });
-  // TCK-098 — property moderation is accessible to agency_admin + super_admin.
-  items.push({
-    href: '/admin/moderation/properties',
-    labelKey: 'propertyModeration',
-    icon: Building2,
-    badge: propertyPendingCount || undefined,
-  });
-  items.push({ href: '/admin/audit', labelKey: 'auditLog', icon: FileText });
-  // TCK-370 — les intégrations suivent ce que l'API autorise, pas ce que le menu supposait.
-  // `routes/api/integrations.php` ne pose qu'`auth:sanctum`, et `IntegrationController::index`
-  // laisse entrer un `agency_admin` sur SON agence (`isAgencyAdminAt`). L'entrée n'existait
-  // nulle part : `/admin/settings/integrations` n'était atteignable que par l'onglet de
-  // `/admin/settings`, page réservée au super-admin — donc par aucun chemin pour un
-  // `agency_admin`. Elle est poussée à tout admin ; le layout `(dashboard)/admin` a déjà
-  // écarté les autres rôles.
-  items.push({
-    href: '/admin/settings/integrations',
-    labelKey: 'integrations',
-    icon: Plug,
-  });
-  // `/api/admin/settings` is super-admin-only at the route middleware level
-  // (`routes/api/admin.php` group), so showing this entry to agency_admin
-  // only leads to a broken page. Restrict to super_admin.
-  if (isSuperAdmin(user.roles)) {
-    items.push({ href: '/admin/settings', labelKey: 'settings', icon: Settings });
-  }
-  return items;
+  const badges: Record<string, number> = {
+    '/admin/moderation': reviewPendingCount,
+    '/admin/moderation/properties': propertyPendingCount,
+  };
+  return entreesDeMenu(acces).map((entree) => ({
+    href: entree.chemin,
+    labelKey: entree.cle,
+    icon: entree.icone,
+    badge: badges[entree.chemin] || undefined,
+  }));
 }
 
 function AdminItem({
@@ -163,48 +140,12 @@ function AdminItem({
   labelKey,
   icon: Icon,
   badge,
-  locked,
   active,
   onNavigate,
 }: NavItem & { active: boolean; onNavigate?: () => void }) {
   const t = useTranslations('nav.admin');
   const label = t(labelKey);
 
-  if (locked) {
-    return (
-      <span
-        role="link"
-        aria-disabled="true"
-        // TCK-371, revue adverse — l'entrée verrouillée est ATTEIGNABLE AU CLAVIER, et sa raison
-        // est LISIBLE par un lecteur d'écran.
-        //
-        // Elle était `aria-disabled` sans `tabIndex` : donc hors de l'ordre de tabulation, et le
-        // `title` — SEUL endroit où la raison du cadenas était écrite — n'est servi qu'à la
-        // souris. L'objectif du ticket (« l'admin LIT ce qu'un passage en standard lui
-        // débloquerait ») n'était atteint qu'au pointeur. `tabIndex={0}` sur un élément
-        // `aria-disabled` est le motif « désactivé mais découvrable » : il reste inopérant — pas
-        // de `href`, pas de `onClick` — mais il s'annonce, et le `sr-only` ci-dessous entre dans
-        // son nom accessible. Le `title` reste pour l'infobulle du pointeur.
-        tabIndex={0}
-        title={t('proLocked')}
-        // TCK-371 — `text-white/40` ET `opacity-60` composaient un alpha effectif de 0,24 :
-        // encre #554f4b sur le fond de la barre (`bg-foreground` = #1f1812), soit **2,18:1**,
-        // très en dessous des 4,5:1 exigés. L'opacité portait l'interdit une troisième fois,
-        // après le cadenas et le curseur. Un seul alpha, plus haut : #9a9794 sur #1f1812 =
-        // **6,04:1**, et l'entrée reste plus sourde que l'item inactif (`text-white/70`,
-        // 9,04:1) qu'elle doit continuer de se distinguer.
-        className={cn(
-          'flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55 max-md:py-2.5',
-          ANNEAU_FOCUS,
-        )}
-      >
-        <Icon className="size-4 shrink-0" />
-        <span className="truncate flex-1">{label}</span>
-        <span className="sr-only">{t('proLocked')}</span>
-        <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
-      </span>
-    );
-  }
   return (
     <Link
       href={href}
@@ -232,18 +173,32 @@ function AdminItem({
   );
 }
 
-export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: AdminSidebarProps) {
+export function AdminSidebar({
+  user,
+  className,
+  onNavigate,
+  agencyIsStandard,
+  hasPendingUpgrade,
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.admin');
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
   const { token } = useAuth();
+  const acces = useAccesAdminOuRepli({
+    roles: user.roles,
+    agencyId: user.agency_id,
+    agencyIsStandard,
+  });
+  // TCK-633 — « Mon espace » chez un admin d'agence `individual`, comme partout ailleurs.
+  const titre = acces.espaceIndividuel ? t('mySpace') : t('sectionLabel');
 
   const { data: modMeta } = useQuery({
     queryKey: ['reviews-moderation', 'pending-count'],
     queryFn: () =>
       fetchModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
-    enabled: Boolean(token),
+    // TCK-633 — on ne sonde pas la file d'une page que le profil ne peut pas ouvrir.
+    enabled: Boolean(token) && acces.chemins.includes('/admin/moderation'),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -258,11 +213,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
     propertyModerationCountQueryOptions(token ?? null, agencyIsStandard),
   );
 
-  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModCount ?? 0)
-    .map((item) => ({
-      ...item,
-      locked: isProRouteLocked(user, agencyIsStandard, item.href),
-    }));
+  const items = itemsDuMenu(acces, modMeta?.pending_count ?? 0, propModCount ?? 0);
   // TCK-377 — la règle « racine par égalité, sous-route par préfixe » vit désormais dans
   // `@/lib/navigation/active-path`, partagée par les trois shells. Le passage à
   // `resolveActiveHref` (le plus long préfixe, et lui seul) corrige au passage un double
@@ -290,9 +241,9 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         >
           <Logo nom={tCommon('appName')} ton="clair" />
         </Link>
-        <p className="mt-1 px-1 md:mt-0 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
+        <p className="mt-1 px-1 md:mt-0 text-xs uppercase tracking-wider text-white/60">{titre}</p>
       </div>
-      <nav aria-label={t('sectionLabel')} className="flex-1 overflow-y-auto space-y-1 px-3">
+      <nav aria-label={titre} className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => (
           <AdminItem
             key={item.href}
@@ -303,6 +254,16 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         ))}
       </nav>
       <div className="space-y-2 px-3 pb-4">
+        {/* TCK-633 — décision 1 du porteur : les cadenas de TCK-371 ne disent plus, entrée par
+            entrée, ce qu'un passage en agence débloquerait ; UNE carte le propose, dans « Mon
+            espace » et seulement là. Hors du `<nav>` : c'est une proposition, pas une page. */}
+        {acces.espaceIndividuel ? (
+          <ProUpgradeCard
+            pending={Boolean(hasPendingUpgrade)}
+            onNavigate={onNavigate}
+            apparence={CARTE_DE_PASSAGE}
+          />
+        ) : null}
         <Link
           href="/app"
           onClick={onNavigate}

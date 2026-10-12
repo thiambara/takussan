@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
+
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('./doublure-choix-du-referentiel'));
 import { FilterSidebar } from '../FilterSidebar';
 import { countActiveFilters, filtersFromSearchParams, filtersToParams } from '@/hooks/useSearch';
 import type { SearchFilters } from '@/types/search';
@@ -76,7 +78,6 @@ function Banc({
         open={open}
         onClose={() => setOpen(false)}
         total={total}
-        debounceMs={20}
       />
     </>
   );
@@ -148,7 +149,7 @@ describe('TCK-556 · AC1 — tiroir ouvert, le retour ferme le tiroir et garde l
     try {
       fireEvent.click(puceDuTiroir('Villa'));
       fireEvent.click(puceDuTiroir('Maison'));
-      fireEvent.click(puceDuTiroir('Vente'));
+      fireEvent.click(puceDuTiroir('Acheter'));
       expect(empile).not.toHaveBeenCalled();
       expect(types()).toBe('villa,house');
     } finally {
@@ -218,20 +219,19 @@ describe('TCK-556 · AC1 — tiroir ouvert, le retour ferme le tiroir et garde l
     }
   });
 
-  it('un brouillon encore en attente d’anti-rebond est gardé, sur l’entrée de la séance', async () => {
+  it('une borne tapée et pas encore validée est gardée, sur l’entrée de la séance', async () => {
     window.history.pushState({}, '', '/properties?bedrooms=2');
     render(withIntl(<Banc />));
     ouvrir();
-    // Frappé, pas encore commité : l'anti-rebond (20 ms ici) n'a pas expiré au moment du retour.
-    fireEvent.change(within(tiroir()).getByPlaceholderText('Ville (ex : Dakar, Mbour…)'), {
-      target: { value: 'Saly' },
-    });
-    expect(new URLSearchParams(window.location.search).has('city')).toBe(false);
+    // TCK-633 — tapée, ni `blur` ni `Enter` : le brouillon n'est pas commité au moment du retour.
+    // (C'était la ville, champ libre sous anti-rebond ; elle se choisit désormais dans une liste.)
+    fireEvent.change(within(tiroir()).getByPlaceholderText('Min'), { target: { value: '150000' } });
+    expect(new URLSearchParams(window.location.search).has('price_min')).toBe(false);
 
     await retour();
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(new URLSearchParams(window.location.search).get('city')).toBe('Saly'));
+    await waitFor(() => expect(new URLSearchParams(window.location.search).get('price_min')).toBe('150000'));
     // Commité sur l'entrée de la SÉANCE : l'entrée d'avant le tiroir est intacte, un retour y mène.
     await retour();
     await waitFor(() => expect(window.location.search).toBe('?bedrooms=2'));
@@ -300,7 +300,7 @@ describe('TCK-556 · AC4 — la recherche libre est rappelée en tête du tiroir
     const premiereSection = within(tiroir()).getByRole('heading', { name: 'Type de transaction' });
     // En TÊTE : avant la première section du tiroir.
     expect(rappel.compareDocumentPosition(premiereSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(tiroir()).getByPlaceholderText('Ville (ex : Dakar, Mbour…)')).toHaveValue('');
+    expect(within(tiroir()).getByTestId('choix-ville')).toHaveAttribute('data-valeur', '');
 
     fireEvent.click(rappel);
 
@@ -308,7 +308,7 @@ describe('TCK-556 · AC4 — la recherche libre est rappelée en tête du tiroir
     await waitFor(() =>
       expect(within(tiroir()).queryByRole('button', { name: /Retirer la recherche/ })).not.toBeInTheDocument(),
     );
-    expect(within(tiroir()).getByPlaceholderText('Ville (ex : Dakar, Mbour…)')).toHaveValue('');
+    expect(within(tiroir()).getByTestId('choix-ville')).toHaveAttribute('data-valeur', '');
   });
 
   it('n’affiche aucun rappel sans recherche libre', () => {

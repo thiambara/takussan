@@ -120,9 +120,9 @@ describe('StepBien', () => {
     }
   });
 
-  it('affiche la note sur le pays et la devise déjà renseignés', () => {
+  it('affiche la note sur le pays déjà renseigné — et les prix en francs CFA (TCK-633)', () => {
     render(withIntl(<Harnais />));
-    expect(screen.getByText(/pays et la devise sont déjà renseignés/i)).toBeInTheDocument();
+    expect(screen.getByText(/pays est déjà renseigné.*les prix sont en francs cfa/i)).toBeInTheDocument();
   });
 
   it('re-revue M-12 — une SEULE radio a tabIndex=0 dans chaque groupe, et c’est la sélectionnée', () => {

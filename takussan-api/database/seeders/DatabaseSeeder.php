@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\System\BoostProductSeeder;
+use Database\Seeders\System\OfferedFeaturedSeeder;
 use Database\Seeders\System\PlanSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call(PlanSeeder::class);
         $this->call(YearOfActivitySeeder::class);
+        // TCK-633 lot F — le catalogue (déjà posé par la migration 500400, idempotent), puis les
+        // vedettes du jeu de démonstration converties en Vedettes offertes.
+        $this->call(BoostProductSeeder::class);
+        $this->call(OfferedFeaturedSeeder::class);
     }
 
     /**

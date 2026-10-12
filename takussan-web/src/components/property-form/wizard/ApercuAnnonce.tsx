@@ -7,6 +7,7 @@ import { Check, Eye, ImageIcon } from 'lucide-react';
 
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { coutDEntreeTotal } from '@/lib/cout-d-entree';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { cn } from '@/lib/utils';
@@ -25,10 +26,12 @@ import { suggestTitle } from './suggest-title';
  * Le titre est celui que l'utilisateur a écrit, sinon celui que la dernière étape lui proposera
  * (`suggestTitle`) : la carte montre dès l'étape 1 ce qu'elle deviendra.
  *
- * ⚠ **Le coût d'entrée n'est PAS additionné ici.** La formule et son arrondi n'existent qu'à un
- * endroit, côté API (`CoutDEntree`, TCK-598 : « aucun écran ne refait l'addition ») ; l'aperçu en
- * liste les composantes et renvoie le total à l'annonce publiée. Un second calcul finirait par
- * afficher un montant que la fiche contredit.
+ * Le coût d'entrée : ses composantes, et son TOTAL indicatif (TCK-633, retour du porteur). Le
+ * total vient de `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API :
+ * les deux sont jugées par la même fixture (tâche 17), de sorte qu'un écart d'un franc rougit une
+ * suite. La règle de TCK-598 (« aucun écran ne refait l'addition ») est levée pour l'aperçu SEUL,
+ * qui l'affiche avant que le bien existe ; la fiche publiée lit toujours le total de l'API, et la
+ * note le dit (« l'annonce publiée fait foi »).
  *
  * ⚠ Toutes les lectures passent par `useWatch` (TCK-564) : un `watch()` lu pendant le rendu se
  * figeait une fois compilé.
@@ -45,6 +48,8 @@ interface DonneesApercu {
   readonly prix: string | null;
   readonly periode: string | null;
   readonly coutDEntree: readonly string[];
+  /** TCK-633 — le total à l'entrée, mis en forme ; `null` sans composante ou à zéro. */
+  readonly totalDEntree: string | null;
 }
 
 function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesApercu {
@@ -101,6 +106,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   const periodeAffichee = isFieldRelevant('rent_period', ctx) ? tPeriode(periode ?? 'monthly') : null;
 
   const coutDEntree: string[] = [];
+  let totalDEntree: string | null = null;
   if (isFieldRelevant('deposit_months', ctx)) {
     if (nombre(avance)) coutDEntree.push(t('preview.entryAdvance', { count: nombre(avance)! }));
     if (nombre(caution)) coutDEntree.push(t('preview.entryDeposit', { count: nombre(caution)! }));
@@ -108,6 +114,14 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
     if (nombre(charges)) {
       coutDEntree.push(t('preview.entryCharges', { amount: fmt.montant(nombre(charges)!, devise) }));
     }
+    // `nombre()` : `useWatch` rend ces champs en `unknown` (schéma à coercition) ; zéro et vide
+    // valent « absent », ce que `coutDEntreeTotal` lit de même.
+    const total = coutDEntreeTotal({
+      price: nombre(prix), currency: devise, contract_type: contrat, rent_period: periode,
+      advance_months: nombre(avance), deposit_months: nombre(caution),
+      agency_fee_months: nombre(frais), monthly_charges: nombre(charges),
+    });
+    if (total !== null && total > 0) totalDEntree = fmt.montant(total, devise);
   }
 
   return {
@@ -119,6 +133,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
     prix: nombre(prix) ? fmt.montant(nombre(prix)!, devise) : null,
     periode: periodeAffichee,
     coutDEntree,
+    totalDEntree,
   };
 }
 
@@ -201,6 +216,11 @@ export function CarteApercu({
         <div className="mt-3 border-t border-border px-0.5 pt-3 text-[13px] leading-[18px]">
           <p className="font-medium text-foreground">{t('entryTitle')}</p>
           <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
+          {d.totalDEntree ? (
+            <p className="mt-1 font-medium text-foreground tabular-nums" data-testid="apercu-total-entree">
+              {t('entryTotal', { amount: d.totalDEntree })}
+            </p>
+          ) : null}
           <p className="mt-1 text-xs text-muted-foreground">{t('entryNote')}</p>
         </div>
       ) : null}

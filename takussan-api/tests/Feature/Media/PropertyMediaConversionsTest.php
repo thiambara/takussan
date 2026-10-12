@@ -18,6 +18,7 @@ use Spatie\MediaLibrary\Conversions\Conversion;
 use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
 use Spatie\MediaLibrary\Conversions\Jobs\PerformConversionsJob;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -33,7 +34,7 @@ use Tests\TestCase;
  */
 class PropertyMediaConversionsTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     protected function setUp(): void
     {

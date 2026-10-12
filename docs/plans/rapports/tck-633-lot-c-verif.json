@@ -1,0 +1,101 @@
+{
+  "verdict": "refuse — (1) un bien publié puis retiré par son statut revient en ligne par PUT …/status ou POST …/publish sans PublishReadiness (alreadyOnline ignore le statut) ; (2) l'effacement d'un compte laisse le second numéro vérifié en base ; (3) les contacts sur place ne se posent qu'à la création, aucune annonce existante ne peut en recevoir ni en corriger",
+  "ablation_rejouee": true,
+  "ac_executes": ["AC4", "AC8", "AC11", "AC12"],
+  "preuves": {
+    "charge": "uptime au départ 20,74 / 23,79 / 26,01 sur 8 cœurs ; 61,28 / 38,90 / 29,59 au milieu (autres lots actifs). Les durées ci-dessous ne mesurent pas le dépôt.",
+    "api_classes_neuves": "php artisan test PhoneVerifiedEventTest SpaceCreatedEventTest HostAutoOnboardTest ContactPreferencesTest SecondaryPhoneTest PropertyContactsTest PublicContactEndpointTest PublishReadinessTest → 57 passed (288 assertions), sortie 0",
+    "api_classes_mises_a_jour": "php artisan test PropertyContactTest PrimaryPropertyContactEligibilityTest PrimaryAgentDesignationTest AccountErasureListingsTest ProprietaireDuBienTest PropertyPrimaryContactTest PropertyCollaboratorTest PropertyCrudTest PropertyModerationGateTest PropertyAuthorizationTest PropertyReportDecisionTest LangGroupParityTest + tests/Feature/Onboarding (assistant existant compris) → 187 passed (1159 assertions), sortie 0",
+    "pint": "./vendor/bin/pint --test sur les 29 fichiers PHP de C → passed",
+    "web_vitest": "27 fichiers du lot C (publish, contact, profile/security, ProfileContactSection.whatsapp, property-dashboard, PropertyWizard.test, PropertyWizard.publication.tck-633, PropertyAgentCard.tck-590/633, erreurs-traduites) → 164 passed / 1 failed au premier passage (PropertyActions.publication.tck-633, « en-tête : CGU jamais acceptées », 4,7 s à load 20+) ; le fichier rejoué seul → 8/8 verts. Intermittent de charge, pas un défaut du code.",
+    "web_existant": "usePublishIntent.test, HostIndividualWizard.test, app/onboarding/__tests__ → 33 passed : le parcours d'onboarding existant n'est pas cassé",
+    "tsc": "npx tsc --noEmit → sortie 0, aucune erreur (l'erreur TagsManager.tsx:427 citée par le rapport n'existe plus)",
+    "eslint": "npx eslint sur les fichiers du lot C (actions, contact, profile/security, ProfileContactSection, publish, PropertyAgentCard, StepFinition, PropertyWizard, PropertyRowActions, PropertyHeaderActions, types, usePublishIntent, tests) → sortie 0",
+    "check_i18n": "npm run check:i18n → vert (parité en 0/0, wo 0/0 sur 7972 clés). Le rouge sur app/(dashboard)/app/properties/new/page.tsx ne se reproduit plus ; le diff de ce fichier n'a aucune ligne du lot C (frais d'agence, resolveAgencyOrNull, fraisDAgence : lot D)",
+    "i18n_lot_c": "publishRedirect.auto (3), profile.contact.secondary (10), profile.contact.whatsappLabel, property.form.publishContact (21), property.contacts (15) : présentes en fr, en et wo ; aucun tutoiement en fr",
+    "scenarios_executes": [
+      "S1 brouillon jamais publié, numéro non vérifié : PUT …/status available → 200 mais hors ligne (published_at nul, seul publish() le pose) ; PUT …/ {visibility: public} → 422. PUT …/status ne fait PAS une PREMIÈRE publication.",
+      "S2 bien publié (prêt), PUT …/status unavailable, puis phone_verified_at remis à nul : PUT …/status available → 200 et Property::public() le contient ; idem PUT status draft puis POST …/publish → 200, en ligne. Aucun refus property.publish_contact_incomplete.",
+      "S3 PUT …/contacts avec 4 contacts → 422 ; avec 3 → 200, 3 lignes",
+      "S4 markSecondaryVerified sur le principal vérifié d'un autre et sur le second vérifié d'un autre → 409 les deux fois, rien écrit",
+      "S5 PUT /api/auth/profile avec secondary_phone, secondary_phone_verified_at, terms_accepted_at → aucun n'est écrit ; phone_whatsapp true puis false → false persisté",
+      "S6 auto-onboard deux fois → 201 puis 200, même agence, 1 seule ; drapeau éteint → 403, aucune agence",
+      "S7 UserResource d'un autre compte : aucune des cinq clés privées, numéro absent du JSON",
+      "S8 GET /api/public/properties/{slug} et /api/public/properties : ni principal, ni second, ni contact sur place, ni libellé ; has_whatsapp = true. GET …/contact rend [primary, secondary, on_site] — le second est public par le contrat du ticket (kind: secondary)",
+      "S9 AccountDeletionService::anonymize d'un compte à second numéro vérifié : secondary_phone = '+221770000972' et secondary_phone_verified_at toujours posés après l'effacement — ROUGE",
+      "S10 bailleur dans l'espace individuel d'un autre : auto-onboard crée un second espace individuel (2 OwnerProfile en espace individuel) — choix documenté et testé par C (test_n_adopte_pas_l_espace_d_un_autre)"
+    ],
+    "scenarios_note": "S1-S10 joués dans un fichier de test temporaire tests/Feature/ZzVerifLotC/VerifLotCScenariosTest.php, supprimé après usage (vérifié absent de git status)."
+  },
+  "ablations": [
+    { "fichier": "takussan-api/app/Services/Property/PublishReadiness.php", "mutation": "retrait de `$contact->phone_verified_at === null ||` dans missing()", "resultat": "3 rouges dans PublishReadinessTest (sans numero verifie refuse, tout manque dans l ordre, contact principal d un bien d agence)" },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/PropertyController.php", "mutation": "garde de update() neutralisée (`if (false && $rendPublic)` avant ensureForProperty)", "resultat": "1 rouge : la mise a jour publique est gardee" },
+    { "fichier": "takussan-api/app/Http/Requests/Api/ReplacePropertyContactsRequest.php", "mutation": "MAX_CONTACTS 3 → 4", "resultat": "1 rouge : PropertyContactsTest::plafond de trois" },
+    { "fichier": "takussan-api/app/Services/Auth/PhoneVerificationService.php", "mutation": "clause des seconds vérifiés de isVerifiedElsewhere rendue fausse (`whereRaw('1 = 0')`)", "resultat": "3 rouges SecondaryPhoneTest (second vérifié d'un autre refusé, n'ouvre aucun compte, ne se vérifie pas en principal) + S4" },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php", "mutation": "case WhatsApp écrite seulement si vraie (décocher non persisté)", "resultat": "rouge : ContactPreferencesTest::les cases whatsapp passent par le profil + S5" },
+    { "fichier": "takussan-api/app/Http/Resources/UserResource.php", "mutation": "condition « pour soi » remplacée par `true`", "resultat": "2 rouges ContactPreferencesTest (ne sortent pas pour un autre, toArray direct) + S7" },
+    { "fichier": "takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php", "mutation": "recherche de l'espace existant sur primary_admin_id = -1 (idempotence retirée)", "resultat": "2 rouges HostAutoOnboardTest (idempotent 200, espace de l'assistant sans doublon)" },
+    { "fichier": "takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php", "mutation": "retrait de lockForUpdate() sur la ligne du compte", "resultat": "reste vert (9/9) : la sérialisation de deux clics simultanés n'est éprouvée par aucun test" },
+    { "fichier": "takussan-api/app/Services/Property/PropertyContactNumbers.php", "mutation": "secondUtilisable() n'exige plus secondary_phone_verified_at", "resultat": "2 rouges PublicContactEndpointTest (second non vérifié ne sort pas, has whatsapp)" },
+    { "fichier": "takussan-api/app/Http/Controllers/HostAutoOnboardController.php", "mutation": "drapeau ignoré (`true ||`)", "resultat": "1 rouge : drapeau eteint 403 auto space disabled" },
+    { "fichier": "takussan-web/src/components/profile/security/CaseWhatsApp.tsx", "mutation": "`e.target.checked || undefined` (décocher n'envoie rien)", "resultat": "1 rouge : décocher envoie `false`" },
+    { "fichier": "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx", "mutation": "`if (r.missing && depuisLeDialogue)` (la boîte ne s'ouvre pas au premier refus)", "resultat": "4 rouges PropertyActions.publication.tck-633 (2 cas × ligne et en-tête)" },
+    { "fichier": "takussan-web/src/components/contact/ContactsSurPlace.tsx", "mutation": "MAX_CONTACTS_SUR_PLACE 3 → 4", "resultat": "1 rouge : trois au plus" },
+    { "fichier": "takussan-web/src/app/publish/page.tsx", "mutation": "reason 'disabled' → PUBLISH_TARGETS.newProperty", "resultat": "1 rouge : drapeau éteint : l'assistant actuel" },
+    { "fichier": "takussan-web/src/components/contact/WhatsAppButton.tsx", "mutation": "vise le premier numéro de la liste au lieu du premier WhatsApp", "resultat": "1 rouge : vise le premier numéro déclaré WhatsApp, pas le principal" },
+    { "fichier": "takussan-web/src/components/profile/security/SecondaryPhoneSection.tsx", "mutation": "whatsapp forcé à false à la vérification", "resultat": "1 rouge : ajoute un second numéro … avec WhatsApp" },
+    { "restauration": "Edit puis Edit inverse pour chacune, jamais cp ; md5 identiques avant/après sur les 15 fichiers (ex. PublishReadiness 9f48f4b0…, PropertyController c2dd66fa…, UserResource a2c8ddad…, page.tsx d4618362…, PublicationAvecCoordonnees bd474e7c…). Aucune ablation dans les dictionnaires i18n ni dans un fichier co-tenu C/D/F." }
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-api/app/Services/Property/PublishReadiness.php:38-41 (alreadyOnline) et takussan-api/app/Http/Controllers/Api/PropertyController.php:284 (updateStatus), :252 (publish)",
+      "scenario": "Exécuté (S2) : un bien publié par un compte prêt passe en « Indisponible » par PUT …/status (menu « Statut » de la ligne de Mes biens) ; visibility et published_at restent posés. Le contact perd son numéro vérifié (changement de numéro, ou un agent non vérifié désigné par assignAgent). PUT …/status {available} → 200 et le bien est dans Property::public() ; POST …/publish → 200 aussi, parce que alreadyOnline() ne regarde que visibility + published_at et pas le statut. Un bien remis en ligne sans prénom ni numéro vérifié, par un chemin que le rapport déclare non gardé. Un brouillon JAMAIS publié, lui, ne passe pas (S1 : published_at n'est posé que par publish()).",
+      "gravite": "bloquant (critère de la session : PUT …/status permet de mettre en ligne un bien)",
+      "correctif": "alreadyOnline() = le prédicat public réel (visibility public, published_at non nul ET statut hors Property::NON_PUBLIC_STATUSES, ou Property::query()->public()->whereKey()) ; dans updateStatus, quand le nouveau statut est affichable, que le bien est public avec published_at et qu'il ne l'était pas avant, appeler ensureForProperty (+ recordTerms). Test : publier, retirer par statut, retirer la vérification, PUT status available → 422 property.publish_contact_incomplete."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Account/AccountDeletionService.php:235-254 (anonymize, hors territoire C : collision non déclarée)",
+      "scenario": "Exécuté (S9) : un compte avec second numéro vérifié est effacé ; après anonymize(), secondary_phone vaut toujours '+221770000972' et secondary_phone_verified_at est posé. phone et phone_verified_at sont effacés, pas leurs jumeaux ajoutés par C. Donnée personnelle conservée en clair après une demande d'effacement. (L'unicité n'est pas bloquée : l'index partiel et isVerifiedElsewhere excluent les comptes supprimés.)",
+      "gravite": "majeur",
+      "correctif": "ajouter à forceFill d'anonymize() 'secondary_phone' => null, 'secondary_phone_verified_at' => null, 'secondary_phone_whatsapp' => false, 'phone_whatsapp' => false (et décider pour terms_*), plus un test dans la classe d'effacement. Fichier hors territoire : à porter en collision ou à appliquer par la session."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-form/PropertyWizard.tsx (seul appelant de replacePropertyContactsAction) ; GET /api/properties/{property}/contacts n'a aucun appelant front",
+      "scenario": "Les contacts sur place ne se saisissent qu'à l'étape Finition de l'assistant de CRÉATION. Aucun écran (édition du bien, fiche du tableau de bord) ne les lit ni ne les remplace : un bien existant (dont toutes les annonces déjà en ligne) ne peut pas en recevoir, et un numéro mal saisi ou un gardien parti ne peut être ni corrigé ni retiré. Le porteur demande « chaque annonce peut avoir jusqu'à 3 contacts sur place » ; l'API le permet, l'interface non.",
+      "gravite": "majeur",
+      "correctif": "monter ContactsSurPlace dans l'édition du bien (PropertyForm ou un panneau de la fiche dashboard), alimenté par GET …/contacts et enregistré par replacePropertyContactsAction ; un test d'édition (lecture, modification, retrait)."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:152",
+      "scenario": "Le verrou FOR UPDATE sur la ligne du compte est la seule défense contre deux espaces nés d'un double clic simultané ; le retirer laisse HostAutoOnboardTest vert (9/9). Le raisonnement tient (READ COMMITTED relit après le verrou), mais rien ne l'éprouve. Le front ne déclenche qu'une création par montage (parti.current) et le serveur est idempotent en séquentiel (S6).",
+      "gravite": "mineur",
+      "correctif": "un test de concurrence (deux connexions, ou une assertion sur la requête FOR UPDATE émise), ou un index unique partiel agencies(primary_admin_id) WHERE kind = 'individual' qui rend la règle structurelle."
+    },
+    {
+      "fichier": "takussan-web/src/components/contact/CoordonneesPublication.tsx (montrerBloc) ; migration 2026_10_12_300100 (phone_whatsapp boolean défaut false)",
+      "scenario": "Le porteur veut qu'on demande à la publication ce que l'annonceur n'a jamais donné, WhatsApp compris. Un compte au numéro déjà vérifié ne voit jamais la question : le bloc ne s'ouvre que si prénom ou numéro manquent, et un booléen à défaut faux ne distingue pas « jamais répondu » de « non ».",
+      "gravite": "mineur (conforme au contrat du ticket, écart à l'intention du porteur)",
+      "correctif": "à arbitrer par le porteur : colonne nullable (null = jamais répondu) et question WhatsApp dans le bloc quand elle est nulle."
+    },
+    {
+      "fichier": "takussan-web/src/messages/fr.json property.form.publishContact.incomplete",
+      "scenario": "Le même message (« … Votre brouillon est enregistré. ») s'affiche dans la boîte ouverte depuis Mes biens ou l'en-tête, où aucun brouillon n'est en jeu.",
+      "gravite": "mineur",
+      "correctif": "une clé propre à la boîte de dialogue, sans la phrase sur le brouillon."
+    },
+    {
+      "fichier": "takussan-api/database/migrations/2026_10_12_300000_enable_host_auto_space_flag.php:32",
+      "scenario": "up() n'insère rien si la ligne existe déjà (insertOrIgnore), mais down() la supprime quand même : un retour arrière efface une ligne posée par un opérateur.",
+      "gravite": "mineur",
+      "correctif": "accepté en l'état ou documenté ; sinon ne supprimer que si label/description sont ceux de la migration."
+    }
+  ],
+  "migrations": "300000 : insertOrIgnore, down symétrique (réserve ci-dessus). 300100 : six colonnes du contrat, index unique partiel users_secondary_phone_verified_unique (37 car.), down qui supprime l'index puis les colonnes, ni enum() ni json. 300200 : FK et index nommés explicitement (property_contacts_property_fk, property_contacts_property_position_idx, ≤ 63), FK indexée en tête de l'index composé, cascadeOnDelete, down = dropIfExists, ni enum() ni json/jsonb nécessaire. Pas d'exécution de down() faite par cette vérification.",
+  "debordements": [
+    "Aucun débordement de territoire constaté pour C. Fichiers co-tenus : Flag.php (le seul cas HostAutoSpace), PropertyResource (la seule ligne has_whatsapp ; kind, geo_*, badge, status sont D/F), PublicPropertyController (contact() et le chargement de contacts dans show() ; ranked_at et BoostStatsRecorder sont F), PropertyWizard.tsx et PropertyWizard.test.tsx (publishPropertyAction, contacts, coordonnées ; devise, fraisDAgence, équipements sont D), PropertyRowActions / PropertyHeaderActions (usePublicationAvecCoordonnees ; BoostButton/BoostDialog sont F), Property.php (contacts() seul).",
+    "Collision non déclarée : AccountDeletionService.php (défaut 2), que les colonnes neuves de C rendent nécessaire.",
+    "Clés i18n hors plan déclarées par le rapport (publishContact.dialogTitle/dialogPublish/dialogCancel) : dans l'espace de C, sans conséquence.",
+    "Écarts du rapport désormais périmés : tsc n'a plus d'erreur TagsManager, check:i18n est vert."
+  ],
+  "resume": "Les tests du lot C sont verts et chacune des 16 ablations inventées ici rougit, sauf le retrait du verrou d'onboarding automatique, qu'aucun test n'éprouve. Refusé pour trois défauts établis par exécution : un bien retiré par son statut revient en ligne sans contrôle du contact (PUT …/status et POST …/publish, via alreadyOnline), le second numéro survit à l'effacement du compte, et les contacts sur place ne peuvent ni s'ajouter à une annonce existante ni se corriger. Pas de débordement de territoire, i18n complète en fr/en/wo, et le rouge check:i18n sur properties/new/page.tsx ne venait pas de C."
+}

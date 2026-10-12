@@ -1,0 +1,74 @@
+{
+  "verdict": "fait. (1) Les équipements du catalogue sont traduits dans les recherches sauvegardées et dans le comparateur (table et carrousel mobile). Un équipement d'annonceur (pending, ou hors catalogue) s'y affiche tel quel. PropertyListFilters n'affiche AUCUN équipement : le tableau de bord « Mes biens » n'a pas de filtre d'équipements, et ses puces (buildActiveChips) ne passent pas par puceDeChaqueFiltreActif. La mention du rapport du lot E était inexacte, et il n'y a rien à y corriger. (2) Le balayage NumeroPublieVerifieTest est probant sur les 32 routes GET api/public/*. Chaque route a une recette (paramètres + preuve que le corps sert le jeu). Une route qui répond ≠ 200, avec un corps vide ou sans sa preuve échoue en étant nommée, de même qu'une route sans recette. Deux ablations sur des routes balayées à vide jusqu'ici (carte, conversation) → rouge, puis md5 identique.",
+  "date": "2026-10-12",
+  "charge": "hw.ncpu 8 ; uptime 13:01 : 2.87 3.22 3.71 ; 13:06 : 2.66 3.53 3.76 ; 13:09 : 1.79 2.88 3.45 — d'autres agents sont actifs, et aucune durée relevée ici ne mesure le dépôt.",
+  "equipements": {
+    "inventaire": {
+      "corriges": [
+        "takussan-web/src/components/favorites/SavedSearchesList.tsx : résumé d'une recherche sauvegardée (puceDeChaqueFiltreActif sans traducteur `equipement`)",
+        "takussan-web/src/components/compare/compare-rows.ts + CompareTable.tsx + CompareCarousel.tsx : ligne « Équipements » du comparateur (amenityNames rendait tag.name)"
+      ],
+      "deja_traduits": [
+        "PropertyAmenities (fiche publique) et ChampEquipements (formulaire / fiche du tableau de bord via PropertyForm) — lot D",
+        "ChoixDuReferentiel, FilterSidebar, puces de SearchToolbar et SearchEmpty — lot E"
+      ],
+      "sans_affichage_d_equipement": [
+        "PropertyListFilters (tableau de bord) : n'a pas de filtre `tags`, et ses puces sont construites par buildActiveChips (search, status, type, contract_type, visibility, city, prix, dates, agent)",
+        "Cartes de bien (PropertyCard*), PropertyList : n'affichent aucun tag",
+        "Alertes côté front : SaveSearchButton / PublicSearchAlertForm / SearchPreferencesForm transmettent les critères sans afficher d'équipement. Le seul résumé lisible est SavedSearchesList, qui est corrigé"
+      ],
+      "volontairement_bruts": [
+        "TagsManager (/admin/settings/tags) et FileDePropositions (super-admin) : c'est là qu'on édite ou modère le NOM en base, qui doit donc rester brut",
+        "compare-rows `otherTagNames` (ligne « Étiquettes », tags non-amenity) : ce ne sont pas des équipements du catalogue"
+      ],
+      "hors_front": "Les e-mails et notifications d'alerte sont composés par l'API et ne sont pas traités ici."
+    },
+    "correctif": "SavedSearchesList : `equipement: (nom) => libelleEquipementParNom(nom, tCatalogue)` dans TraducteursDeFiltre, comme PucesDeFiltres. compare-rows : buildCompareRows/buildCell prennent un `LibelleDEquipement` optionnel (par défaut le nom en base), et le tri porte sur le libellé affiché. CompareTable et CompareCarousel le lient à `libelleEquipement(tag, useTranslations(ESPACE_DU_CATALOGUE))`. Aucune clé i18n ajoutée, aucun dictionnaire touché.",
+    "tests": {
+      "takussan-web/src/components/favorites/__tests__/SavedSearchesList.equipements.test.tsx (neuf, 3)": "en « Amenities: Swimming pool, Jardin potager » ; wo « Jumtukaay : Pisin, Klimatisasioŋ » ; fr « Hammam maison » tel quel",
+      "takussan-web/src/components/compare/__tests__/CompareTable.equipements.test.tsx (neuf, 4 = 2 × table/carrousel)": "en : Swimming pool, Air conditioning traduits, « Piscine chauffée maison » (pending, slug piscine) et « Jardin potager » (approuvé hors catalogue) tels quels ; wo : Pisin, Klimatisasioŋ",
+      "rouge_avant_correctif": "6 rouges sur 7. Saved en/wo : « Amenities: Piscine, Jardin potager » rendu. Comparateur 4/4 : « Climatisation » brut. Le cas fr hors catalogue, vert avant, est un garde-fou de repli",
+      "vert_apres": "7/7 ; npx vitest run src/components/compare src/components/favorites src/lib/__tests__/libelle-equipement.test.ts → 16 fichiers, 90 tests verts"
+    },
+    "ablations": [
+      "CompareTable : libellé = `t.has(slug) ? t(slug) : name` (garde pending ignorée) → 2 rouges (table en/wo : la proposition « Piscine chauffée maison » devenue « Swimming pool »/« Pisin ») ; carrousel vert, ce qui est attendu puisqu'il n'est pas modifié",
+      "SavedSearchesList : `equipement: (nom) => tCatalogue(nom.toLowerCase())` (pas de repli) → 2 rouges (en « Jardin potager », fr « Hammam maison »)"
+    ],
+    "md5": "CompareTable ba895138 et SavedSearchesList a52af549, avant et après les ablations (Edit puis Edit inverse)"
+  },
+  "balayage": {
+    "fichier": "takussan-api/tests/Feature/Public/NumeroPublieVerifieTest.php (fichier non suivi de la branche, réécrit sur la seule méthode du balayage. Les 7 autres tests sont inchangés)",
+    "avant": "24 routes sur 32 répondaient 200. Les 8 autres (geo/cities/{city} 404, geo/neighborhoods 422, properties/map 422, properties/neighborhoods 422, properties/search 500, documents/{document}/file 404, {slug}/conversation 401, {slug}/visit-slots 422) étaient fouillées à vide, en vert",
+    "correctif": [
+      "Jeu : agence, compte aux DEUX numéros non vérifiés (agent de l'agence + particulier), deux biens publiés avec adresse géolocalisée (ville, quartier), un contact sur place (autre numéro) sur le bien d'agence, des avis approuvés sur l'agence et sur le bien, un document public avec fichier, région/ville/quartier du référentiel, un équipement approuvé, et un visiteur avec jeton Sanctum",
+      "InteractsWithMeilisearch + indexProperties() pour que /search réponde",
+      "RemoteDiskFake::install('r2-private', presigns: false) : le fichier part en flux et son corps est fouillé au lieu d'une redirection 302",
+      "recettes() : une entrée par route (appels + preuve). Les routes {slug} sont jouées sur les deux biens, les recettes authentifiées en dernier",
+      "Échecs explicites et groupés : route sans recette, recette sans route, réponse ≠ 200 ou corps vide, aucune réponse portant la preuve (la preuve est cherchée aussi sous son échappement JSON)"
+    ],
+    "tests": "php artisan test tests/Feature/Public/NumeroPublieVerifieTest.php → 8 passed (112 assertions) ; ./vendor/bin/pint --test → passed",
+    "ablations": [
+      "PropertyMapGeoJsonResource : `'owner_phone' => $this->resource->owner?->phone` (la mutation de la revérification 3, alors verte) → ROUGE « api/public/properties/map?bounds=14,-18,15,-17 sert le numéro non vérifié +221771230987 » ; md5 fd07a9cf avant/après",
+      "PublicPropertyController::conversation : `'phone' => $recipient->phone` dans recipient (route 401 jusqu'ici) → ROUGE « api/public/properties/bien-agence/conversation sert le numéro non vérifié » ; md5 0ffd4ead avant/après",
+      "Test : recette de la carte sans `bounds` → ROUGE nommé « map → 422 … » + « aucune réponse ne porte la preuve » (l'ancien balayage passait vert silencieusement)",
+      "Test : recette geo/regions retirée → ROUGE « route publique sans recette : api/public/geo/regions » ; md5 du test 6c67aa7c avant/après les deux ablations"
+    ],
+    "limites": "Le balayage ne joue que GET api/public/*. Les POST publics et les routes anonymes hors de ce préfixe restent hors de son champ (rapport de la revérification 3, surfaces_hors_api). Trois preuves sont des clés de forme et non des données du jeu : review-eligibility (« eligible », la réponse anonyme est fixe), availability (« occupied ») et capabilities (« channels »). Ces routes ne sérialisent rien du compte."
+  },
+  "fichiers": [
+    "takussan-web/src/components/favorites/SavedSearchesList.tsx",
+    "takussan-web/src/components/compare/compare-rows.ts",
+    "takussan-web/src/components/compare/CompareTable.tsx",
+    "takussan-web/src/components/compare/CompareCarousel.tsx",
+    "takussan-web/src/components/favorites/__tests__/SavedSearchesList.equipements.test.tsx (neuf)",
+    "takussan-web/src/components/compare/__tests__/CompareTable.equipements.test.tsx (neuf)",
+    "takussan-api/tests/Feature/Public/NumeroPublieVerifieTest.php"
+  ],
+  "verifications": {
+    "tsc": "npx tsc --noEmit → 0",
+    "eslint": "npx eslint sur les 6 fichiers web → 0",
+    "check_i18n": "npm run check:i18n → 0 ; parité en 0/0, wo 0/0 sur 8045 clés fr",
+    "pint": "passed"
+  },
+  "integrite": "Aucune écriture git, aucune suite entière, aucune requête sortante. Ablations faites par Edit puis Edit inverse, md5 relus. Non touchés : PropertySearchService, FiltresDeLaCarte, app/Services/Tags/*, Tag.php, Property.php, les fichiers géo, src/messages/*.json, PropertyListFilters."
+}

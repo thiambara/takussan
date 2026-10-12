@@ -1,0 +1,308 @@
+{
+  "region": {
+    "code": "SN-FK",
+    "slug": "fatick",
+    "name": "Fatick",
+    "latitude": 14.1724854,
+    "longitude": -16.1860923
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:16:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "e5a32937b5e218ee23f2c26ce2ed1ceece3e6f57920d6e8a33b1d93152fb6a7c"
+  },
+  "cities": [
+    {
+      "slug": "bassoul",
+      "name": "Bassoul",
+      "latitude": 13.862324,
+      "longitude": -16.5714349,
+      "neighborhoods": []
+    },
+    {
+      "slug": "colobane",
+      "name": "Colobane",
+      "latitude": 14.6401452,
+      "longitude": -15.6907809,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diagane-barka",
+      "name": "Diagane Barka",
+      "latitude": 14.0050201,
+      "longitude": -16.2733052,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diakhao",
+      "name": "Diakhao",
+      "latitude": 14.4570371,
+      "longitude": -16.3052915,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diaoule",
+      "name": "Diaoulé",
+      "latitude": 14.392463,
+      "longitude": -16.179918,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diarrere",
+      "name": "Diarrère",
+      "latitude": 14.4632017,
+      "longitude": -16.5074942,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diofior",
+      "name": "Diofior",
+      "latitude": 14.1884308,
+      "longitude": -16.6610757,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diossong",
+      "name": "Diossong",
+      "latitude": 13.9446746,
+      "longitude": -16.3744936,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diouroup",
+      "name": "Diouroup",
+      "latitude": 14.3389078,
+      "longitude": -16.4984814,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djilasse",
+      "name": "Djilasse",
+      "latitude": 14.2154619,
+      "longitude": -16.5981625,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djilor",
+      "name": "Djilor",
+      "latitude": 14.0306728,
+      "longitude": -16.3680343,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djirnda",
+      "name": "Djirnda",
+      "latitude": 14.0016159,
+      "longitude": -16.5776625,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fatick",
+      "name": "Fatick",
+      "latitude": 14.3370564,
+      "longitude": -16.4153301,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fimela",
+      "name": "Fimela",
+      "latitude": 14.0867455,
+      "longitude": -16.6400547,
+      "neighborhoods": []
+    },
+    {
+      "slug": "foundiougne",
+      "name": "Foundiougne",
+      "latitude": 14.120863,
+      "longitude": -16.4771603,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gossas",
+      "name": "Gossas",
+      "latitude": 14.4940575,
+      "longitude": -16.0680388,
+      "neighborhoods": []
+    },
+    {
+      "slug": "karang-poste",
+      "name": "Karang Poste",
+      "latitude": 13.6038022,
+      "longitude": -16.4215456,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-saloum-diane",
+      "name": "Keur Saloum Diané",
+      "latitude": 13.7230526,
+      "longitude": -16.1853532,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-samba-gueye",
+      "name": "Keur Samba Guèye",
+      "latitude": 13.6476883,
+      "longitude": -16.3194053,
+      "neighborhoods": []
+    },
+    {
+      "slug": "loul-sessene",
+      "name": "Loul Sessène",
+      "latitude": 14.2840055,
+      "longitude": -16.5798912,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbam",
+      "name": "Mbam",
+      "latitude": 14.1156076,
+      "longitude": -16.4207348,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbar",
+      "name": "Mbar",
+      "latitude": 14.5116813,
+      "longitude": -15.7755897,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbellacadiao",
+      "name": "Mbéllacadiao",
+      "latitude": 14.2686926,
+      "longitude": -16.3424158,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiene-lagane",
+      "name": "Ndiène Lagane",
+      "latitude": 14.4938433,
+      "longitude": -15.9685017,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiob",
+      "name": "Ndiob",
+      "latitude": 14.5405675,
+      "longitude": -16.2165691,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngayokheme",
+      "name": "Ngayokhème",
+      "latitude": 14.5257061,
+      "longitude": -16.4724924,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niakhar",
+      "name": "Niakhar",
+      "latitude": 14.431254,
+      "longitude": -16.3831221,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niassene",
+      "name": "Niassène",
+      "latitude": 13.9322995,
+      "longitude": -16.2381829,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nioro-alassane-tall",
+      "name": "Nioro Alassane Tall",
+      "latitude": 13.7894086,
+      "longitude": -16.2841029,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ouadiour",
+      "name": "Ouadiour",
+      "latitude": 14.4581099,
+      "longitude": -16.0518102,
+      "neighborhoods": []
+    },
+    {
+      "slug": "palmarin-facao",
+      "name": "Palmarin Facao",
+      "latitude": 13.9962995,
+      "longitude": -16.7304528,
+      "neighborhoods": []
+    },
+    {
+      "slug": "passy",
+      "name": "Passy",
+      "latitude": 13.9796932,
+      "longitude": -16.2614321,
+      "neighborhoods": [
+        {
+          "slug": "ndrame-mapate",
+          "name": "Ndramé Mapaté",
+          "latitude": 13.9868013,
+          "longitude": -16.2417506,
+          "osm": "n3329033808"
+        }
+      ]
+    },
+    {
+      "slug": "patar-lia",
+      "name": "Patar Lia",
+      "latitude": 14.4820039,
+      "longitude": -16.1514719,
+      "neighborhoods": []
+    },
+    {
+      "slug": "patar-sine",
+      "name": "Patar Sine",
+      "latitude": 14.5541019,
+      "longitude": -16.3386064,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sokone",
+      "name": "Sokone",
+      "latitude": 13.8775329,
+      "longitude": -16.3652629,
+      "neighborhoods": [
+        {
+          "slug": "dangane",
+          "name": "Dangane",
+          "latitude": 13.8767463,
+          "longitude": -16.3773108,
+          "osm": "n11358414966"
+        }
+      ]
+    },
+    {
+      "slug": "soum",
+      "name": "Soum",
+      "latitude": 14.0818461,
+      "longitude": -16.4793589,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tattaguine",
+      "name": "Tattaguine",
+      "latitude": 14.4122557,
+      "longitude": -16.626768,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiare-ndialgui",
+      "name": "Thiaré Ndialgui",
+      "latitude": 14.449933,
+      "longitude": -16.2286454,
+      "neighborhoods": []
+    },
+    {
+      "slug": "toubacouta",
+      "name": "Toubacouta",
+      "latitude": 13.748318,
+      "longitude": -16.5129924,
+      "neighborhoods": []
+    }
+  ]
+}

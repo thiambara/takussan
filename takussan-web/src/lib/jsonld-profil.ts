@@ -121,6 +121,10 @@ export type AgentPublie = {
   readonly full_name: string;
   readonly bio?: string | null;
   /** ⚠ Aucun champ `email` — cf. l'en-tête et TCK-441. */
+  /**
+   * TCK-633 (lot C, tour 3) — le numéro PUBLIABLE seulement, c'est-à-dire vérifié (décision D10) :
+   * l'appelant passe `null` quand `phone_verified` n'est pas `true` (`agents/[slug]/page.tsx`).
+   */
   readonly phone?: string | null;
   readonly city?: string | null;
   readonly specialty?: string | null;

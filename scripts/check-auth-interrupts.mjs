@@ -229,18 +229,11 @@ const SENTINELLES = [
  * neuve — et ni l'une ni l'autre n'existe.*
  */
 const REFUS_ARTISANAL = [
-  'src/app/(dashboard)/admin/agency/billing/page.tsx',
-  'src/app/(dashboard)/admin/agency/kyc/page.tsx',
-  'src/app/(dashboard)/admin/agency/page.tsx',
-  'src/app/(dashboard)/admin/audit/page.tsx',
+  // TCK-633 (lot B) — dix pages `/admin/*` ont QUITTÉ cet inventaire : elles ne décident plus de
+  // leur accès à la main, elles appellent `garderPageAdmin('<chemin>')` (table `PAGES_ADMIN`,
+  // `lib/access/pages-admin-server.ts`). Le plafond descend d'autant, de 22 à 12.
   'src/app/(dashboard)/admin/finances/page.tsx',
   'src/app/(dashboard)/admin/layout.tsx',
-  'src/app/(dashboard)/admin/moderation/page.tsx',
-  'src/app/(dashboard)/admin/moderation/properties/page.tsx',
-  'src/app/(dashboard)/admin/roles/page.tsx',
-  'src/app/(dashboard)/admin/settings/integrations/page.tsx',
-  'src/app/(dashboard)/admin/settings/page.tsx',
-  'src/app/(dashboard)/admin/team/page.tsx',
   'src/app/(dashboard)/app/maintenance/providers/layout.tsx',
   'src/app/(dashboard)/app/overview/agency/layout.tsx',
   'src/app/(dashboard)/app/overview/agent/layout.tsx',
@@ -267,7 +260,7 @@ const REFUS_ARTISANAL = [
  * sans un mot. Le chiffre est donc redit ici, et l'écart entre les deux fait échouer la garde :
  * *remonter un plafond doit coûter deux lignes et un argument, pas une.*
  */
-const PLAFOND_MESURE = 22;
+const PLAFOND_MESURE = 12;
 
 const EXTENSIONS = /\.(tsx?|jsx?|mjs|cjs)$/;
 

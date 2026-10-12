@@ -83,8 +83,9 @@ class PublicAgentController extends Controller
      * ────────────────────────────────────────────────────────────────────────────────────────────
      *
      * `show()` publie le `phone` de l'agent (décision assumée de TCK-441 : une coordonnée de
-     * joignabilité, pas un identifiant) et ne publie plus son `email`. **L'index ne publie ni
-     * l'un ni l'autre**, et il ne publie pas non plus l'adresse personnelle.
+     * joignabilité, pas un identifiant) — VÉRIFIÉ seulement depuis TCK-633 (lot C, tour 3) — et
+     * ne publie plus son `email`. **L'index ne publie ni l'un ni l'autre**, et il ne publie pas
+     * non plus l'adresse personnelle.
      *
      * L'écart n'est pas une hésitation : un numéro consultable fiche par fiche et un numéro servi
      * par paquets de 48, filtrables par ville et paginés, ne sont pas la même donnée. C'est
@@ -278,7 +279,14 @@ class PublicAgentController extends Controller
                 //
                 // Le TELEPHONE reste public : c'est une coordonnee de joignabilite, pas un
                 // identifiant, et un agent immobilier veut etre appele. Decision du ticket.
-                'phone' => $agent->phone,
+                //
+                // TCK-633 (lot C, tour 3) — mais seulement VÉRIFIÉ (décision de la session sur
+                // D10 : aucun numéro principal non vérifié n'est servi au public). La carte de
+                // contact d'une annonce mène ici : sans cette règle, le numéro que `…/contact`
+                // retient sortait à un clic, en `tel:` et en JSON-LD. `phone_verified` est le même
+                // booléen que `primary_contact.phone_verified` de la fiche du bien.
+                'phone' => $agent->numeroPrincipalPublic(),
+                'phone_verified' => $agent->phone_verified_at !== null,
                 'avatar_url' => $agent->avatar_url ?? null,
                 'bio' => $agent->bio,
                 'city' => $agent->addresses->first()?->city,

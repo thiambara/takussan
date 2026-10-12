@@ -27,6 +27,9 @@ vi.mock('@/components/map', () => ({
 }));
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
+// sans `QueryClientProvider`.
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
 vi.mock('@/components/favorites/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 
 import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
@@ -67,7 +70,8 @@ describe('TCK-346 — la vue carte reçoit le rayon', () => {
 
     const filtres = await basculerEnVueCarte();
 
-    expect(filtres).toMatchObject({ lat: 14.7, lng: -17.45, radius_km: 3 });
+    // TCK-633 — sous leur forme d'URL : la carte reçoit les paramètres de la liste, pas des nombres.
+    expect(filtres).toMatchObject({ lat: '14.7', lng: '-17.45', radius_km: '3' });
   });
 
   it('ne transmet aucune clé géo quand aucun point n’est posé', async () => {
@@ -107,5 +111,33 @@ describe('TCK-346 — la vue carte reçoit le rayon', () => {
     const filtres = await basculerEnVueCarte();
 
     expect(filtres.sort).toBeUndefined();
+  });
+});
+
+/**
+ * TCK-633 (lot E, AC6) — la carte reçoit TOUS les filtres du panneau. Elle n'en recevait que sept,
+ * recopiés à la main : chambres, ville, meublé, équipements… disparaissaient à la bascule en vue
+ * carte, et la carte comptait des biens que la liste venait d'écarter.
+ */
+describe('TCK-633 — la vue carte reçoit tous les filtres de la liste', () => {
+  it('transmet chaque filtre du panneau, jamais q, le tri ni la pagination', async () => {
+    parametres = new URLSearchParams(
+      'q=villa&city=Dakar&location=Almadies&type=house,villa&bedrooms=5&bathrooms=2&furnished=false'
+        + '&tags=Piscine&floor_number=0&condition=new&sort=price_asc&page=2&per_page=60',
+    );
+
+    const filtres = await basculerEnVueCarte();
+
+    expect(filtres).toEqual({
+      city: 'Dakar',
+      location: 'Almadies',
+      type: 'house,villa',
+      bedrooms: '5',
+      bathrooms: '2',
+      furnished: 'false',
+      tags: 'Piscine',
+      floor_number: '0',
+      condition: 'new',
+    });
   });
 });

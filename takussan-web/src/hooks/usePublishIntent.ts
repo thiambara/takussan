@@ -5,7 +5,9 @@
  *
  * La décision, en une règle :
  * - **anonyme** → la connexion, qui ramène ici ;
- * - **aucun espace où publier** → l'assistant hôte (`/onboarding/host`), qui en crée un ;
+ * - **aucun espace où publier** → l'assistant hôte (`/onboarding/host`), qui en crée un — sauf
+ *   que la page `/publish` tente d'abord la création AUTOMATIQUE (TCK-633, drapeau
+ *   `host_auto_space`, arbitré par le serveur) et ne suit cette cible que si elle est éteinte ;
  * - **un seul espace** → le formulaire du bien, après avoir rendu ce profil actif s'il ne l'est pas ;
  * - **plusieurs espaces** → le CHOIX de l'espace, sur `/publish` même.
  *

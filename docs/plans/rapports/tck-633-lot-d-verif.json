@@ -1,0 +1,159 @@
+{
+  "verdict": "refuse — (1) un équipement PROPOSÉ par A s'attache au bien de B par son identifiant et s'affiche sur sa fiche (D9 contourné) ; (2) les équipements du catalogue ne sont traduits nulle part (contrainte stricte du ticket « traduits par leur slug »), écart non déclaré ; (3) la garde « relu par une personne » passe au vert avec relu_par=\"x\" sur un jeu vidé à une ville par région ; (4) le diff .design-sync proposé comme suffisant ne l'est pas (2 nouveaux écarts) ; (5) area et price rendent encore 500 en débordement, la même famille que parking=40000 ; (6) la fusion d'équipements accepte une étiquette CRM comme source et la supprime ; (7) trois mutations de sécurité ou de réindexation restent vertes (saut en http, hôte par préfixe, renommage sans réindexation)",
+  "ablation_rejouee": true,
+  "ac_executes": [
+    "AC9 adresse : référentiel, unicité ICU, proposition, visibilité, position collée (API + front)",
+    "AC10 formulaire : bornes, sous-sol, XOF à la création et à la modification, frais d'agence d'un indépendant, équipements proposés",
+    "AC5 modération : rejet, renommage, fusion, droits super-admin, réindexation",
+    "ADR-0062 §3/§6 : seeder idempotent, garde de relecture, résolveur SSRF, mention ODbL",
+    "Migrations 4000xx–4002xx : down() puis up() deux fois sur une base jetable"
+  ],
+  "preuves": {
+    "charge": "uptime 10:48 : 3.25 19.46 25.66, 8 cœurs (au départ) ; 11:06 : 27.35 48.33 36.75 (autres agents). Les durées ne sont pas des mesures du dépôt.",
+    "api_tests_fichier_par_fichier": {
+      "GeoLinkResolverTest": "11 passed (33)",
+      "GeoNeighborhoodMergeSearchTest": "1 passed (4)",
+      "GeoNeighborhoodModerationTest": "8 passed (36)",
+      "GeoNeighborhoodProposalTest": "9 passed (36)",
+      "GeoNeighborhoodUniquenessTest": "5 passed (7)",
+      "GeoPublicEndpointsTest": "9 passed (39)",
+      "GeoReferentialSeederTest": "10 passed (44)",
+      "PropertyResourceGeoTest": "1 passed (6)",
+      "PublicAmenitiesTest": "3 passed (28)",
+      "TagCatalogTest": "5 passed (12)",
+      "TagModerationTest": "7 passed (31)",
+      "TagProposalTest": "7 passed (28)",
+      "TagVisibilityTest": "3 passed (11)",
+      "AgencyFeeIndividualTest": "5 passed (13)",
+      "PropertyCurrencyForcedTest": "3 passed (6)",
+      "PropertyNumericBoundsTest": "10 passed (34)",
+      "GoogleMapsCoordinatesTest": "11 passed (27)",
+      "CoutDEntreeConcordanceTest": "16 passed (30)",
+      "FilterCoverageTagsTest": "4 passed (12)"
+    },
+    "GeoDatasetReviewedTest": "29 tests : 14 rouges « sn-XX.json : relecture humaine absente (tâche 27) » + 1 rouge format@dk (« Golf Sud(Cité Aliou SOW) ») ; 14 format verts ; « quatorze régions » vert. Le rouge n'est donc PAS dû à la seule signature : format@dk l'est aussi (le rapport le dit). Contournement prouvé : copie du jeu dans le scratchpad, chaque région réduite à UNE ville sans quartier, relu_par=\"x\", relu_le=extraite_le → `OK (29 tests, 155 assertions)`. Jeu du dépôt intact (md5 de l'ensemble identique avant/après).",
+    "front_vitest": "36 fichiers du lot D + property-fields.coverage : 470 passed, 1 failed — le seul rouge est property-fields.coverage (collision déclarée).",
+    "tsc": "npx tsc --noEmit → exit 0",
+    "eslint": "npx eslint <49 fichiers du lot D> → exit 0, aucun message",
+    "check_i18n": "✓ parité tenue (en 0/0, wo 0/0 sur 7999 clés fr), 0 libellé en dur non justifié",
+    "pint": "./vendor/bin/pint --test <fichiers PHP du lot D, co-tenus compris> → {\"result\":\"passed\"}",
+    "migrations": "Base jetable takussan_verif_lot_d (UTF8, locale C) : migrate complet ; rollback --path des 3 migrations 4000xx–4002xx puis migrate, DEUX fois, sans erreur ; base supprimée ensuite. Index : 22 noms ≤ 37 caractères, tous explicites ; index uniques repliés `lower((name)::text COLLATE \"und-x-icu\")` sur geo_cities (région, nom) et geo_neighborhoods (ville, nom) partiel `WHERE status <> 'rejected' AND merged_into_id IS NULL` ; tags_name_lower_unique ICU. FK : addresses.geo_city_id / geo_neighborhood_id ON DELETE SET NULL et indexées ; geo_neighborhoods.created_by_id / merged_into_id indexées ; geo_*_region/city FK couvertes par l'unique composite en tête. Aucun enum(), aucune colonne json/jsonb dans geo_*.",
+    "seeder_idempotent": "geo:sync-referential joué deux fois (SCOUT_DRIVER=null) : 14 régions, 504 villes, 365 quartiers créés puis 0 créé / 0 mis à jour ; md5 de (id, nom, slug, lat, statut) identique : quartiers 30caa35e…, villes 0fc5ee88…. Aucun code de suppression dans GeoReferentialLoader.",
+    "ssrf": "Harnais hors dépôt (Http::swap + Http::fake qui journalise chaque URL ; aucune requête réelle) contre GeoLinkResolver::resoudre, 44 cas. Refusés SANS requête : http://, maps.app.goo.gl.evil.com, evil.com@maps.app.goo.gl, maps.app.goo.gl@evil.com, IP v4 et [::1], :443 explicite, point final, homoglyphe IDN, punycode, `#@`, `?@`, antislash, tabulation et saut de ligne dans l'hôte, %2e dans l'hôte, consent→evil, consent→http. Après UNE requête (hôte autorisé), refusés : Location vers 169.254.169.254, localhost, 0x7f000001, http://maps.google.com, //evil.com, userinfo, port 22, point final ; open redirect Google (`maps.google.com/url?q=http://169.254…`) : 2 requêtes, toutes deux vers des hôtes autorisés, puis refus. Location relative : même hôte. Boucle de consentement : 3 requêtes au plus. parse_url et Guzzle Uri s'accordent sur l'hôte dans tous les cas où une requête part. Route : auth:sanctum + ThrottleRequests:20,1 (route:list). Options : allow_redirects=false, stream=true, connectTimeout 2 s, timeout 4 s."
+  },
+  "ablations": [
+    { "cible": "GeoLinkResolver::hoteAdmis — http accepté à chaque saut", "rouge": "NON : GeoLinkResolverTest 11 passed", "restaure": "md5 d3c62e90 avant/après (Edit puis Edit inverse)" },
+    { "cible": "GeoLinkResolver::hoteAdmis — hôte reconnu par préfixe (normalisé vers l'hôte autorisé)", "rouge": "NON : 11 passed ; le harnais montre une requête réelle vers https://maps.app.goo.gl.evil.com/x", "restaure": "md5 d3c62e90" },
+    { "cible": "GeoNeighborhoodModeration::renommer sans réindexation", "rouge": "NON pour le lot (Moderation 8, MergeSearch 1, Proposal 9 verts) ; OUI pour mon scénario v6 (Meilisearch : bien introuvable sous le nouveau nom)", "restaure": "md5 8f471402" },
+    { "cible": "GeoNeighborhoodModeration — un rejet efface le texte de l'adresse", "rouge": "OUI : refuser_detache_les_adresses_et_garde_leur_texte", "restaure": "md5 8f471402" },
+    { "cible": "GeoNeighborhood::scopeVisiblesPour — propositions de TOUS visibles d'un compte", "rouge": "OUI : l_auteur_voit_sa_proposition_et_pas_celle_des_autres", "restaure": "md5 550a9fb4" },
+    { "cible": "StorePropertyRequest — XOF seulement si la devise manque (mergeIfMissing), co-tenu", "rouge": "OUI : la_creation_impose_le_franc_cfa", "restaure": "md5 b3ea8477 (Edit inverse)" },
+    { "cible": "TagController::index — propositions de tous visibles", "rouge": "OUI : TagVisibilityTest un_agent_voit_les_approuves_et_ses_propositions ; TagProposalTest reste vert", "restaure": "md5 d006563d" },
+    { "cible": "ChampsPosition — Plus Code court toujours rapporté à Dakar au lieu de la ville choisie", "rouge": "NON : src/components/property-form 336 passed", "restaure": "md5 99eb5fdc" },
+    { "cible": "ChampsPosition — position hors Sénégal non signalée", "rouge": "OUI : une position hors du Sénégal est placée, puis signalée", "restaure": "md5 99eb5fdc" },
+    { "cible": "Collision property-fields.coverage — diff proposé appliqué", "rouge": "le diff rend la garde verte (17 passed)", "restaure": "md5 dccb33a6" },
+    { "cible": "Collision .design-sync/entry/index.ts — diff proposé appliqué", "rouge": "check-design-sync-entry passe de 1 à 2 écarts (Combobox, ComboboxMultiple ni racine ni exclus dans componentSrcMap)", "restaure": "md5 b541835c" }
+  ],
+  "scenarios_inventes": {
+    "fichier": "scratchpad/verif-tests/VerifLotDTest.php (hors dépôt, lancé par vendor/bin/phpunit -c phpunit.xml)",
+    "verts": [
+      "v1 « LIBERTÉ 4 » inséré à côté de « Liberté 4 » → violation de geo_neighborhoods_city_name_ci_unique",
+      "v2 « Liberte 4 » (sans accent) reste distinct, comme ADR-0020 §2 le veut",
+      "v3 proposition de A absente pour un anonyme, absente pour B (même avec ?q=secr), présente pour A",
+      "v4 la liste des quartiers ne porte pas de Cache-Control public",
+      "v5 rejet : identifiant retiré, texte et ville gardés",
+      "v6 renommage : texte réécrit ET bien trouvable sous le nouveau nom dans Meilisearch",
+      "v7 renommage vers « FANN » à côté de « Fann » → 409",
+      "v8 un agent sur /api/admin/geo/…/approve → 403",
+      "v10 équipement pending absent de /api/public/amenities",
+      "v12 floor_number=-1 enregistré ; currency=EUR à la création → XOF ; PUT currency=USD → XOF"
+    ],
+    "rouges": [
+      "v9 B attache par identifiant la proposition PENDING de A → 200, et GET du bien de B rend le tag « Puits privé de A » status pending",
+      "v11 bornes : parking 40000 → 422, étage -6 et 40000 → 422, chambres 40000 → 422, niveaux 40000 → 422, mois de caution 40000 → 422 ; MAIS area=3e9 → 500, price=1e15 → 500 ; year_built = an+5 → 201",
+      "v13 super-admin : POST /api/admin/tags/{VIP crm}/merge into WiFi → 200, l'étiquette CRM est supprimée"
+    ],
+    "parseur_front": "node --experimental-strip-types sur une copie (scratchpad/pos) + un encodeur OLC indépendant. Justes : fiche !3d!4d (prioritaire sur @), ?q=, query=, ll=, WhatsApp %2C avec texte autour, @ seul, lien court → lien-a-resoudre, goo.gl/maps, hôte étranger → inconnu, hôte en capitales, décimal point/virgule/« ; », DMS Google, DMS ′″, hémisphère avant, DM décimaux, geo:, Paris → hors=true, inversé → hors=true, Plus Code complet (écart ≤ 1,6e-5° sur 5 points dont Sydney et l'équateur), Plus Code court rapporté à Dakar et à Ziguinchor, frontière de cellule de 1°, minuscules. Non reconnus : « 14,71670° N, 17,46770° O » (forme Apple Plans FR) et « 14.7167° N, 17.4677° W » ; liens maps.apple.com et openstreetmap.org → inconnu."
+  },
+  "defauts": [
+    {
+      "fichier": "takussan-api/app/Http/Requests/Api/SyncPropertyTagRequest.php:40-45",
+      "scenario": "A propose « Puits privé de A » (pending). B, d'une autre agence, envoie POST /api/properties/{son bien}/tags {tag_ids:[id de A]} → 200 ; la fiche de B rend le tag. Les identifiants sont séquentiels : énumérables. Les quartiers refusent le même geste (GeoAddressRules) ; les équipements non.",
+      "gravite": "moyenne — D9 (« proposé aux autres seulement après validation ») contourné, la proposition d'un tiers sort sur une fiche publique",
+      "correctif": "tag_ids.* : status = approved OU (pending ET created_by_id = utilisateur) OU déjà attaché à CE bien ; test : B → 422 sur l'identifiant de A, A → 200."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-form/ChampEquipements.tsx:45 ; takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAmenities.tsx:23",
+      "scenario": "Ticket, Contraintes strictes : « Les équipements du catalogue sont traduits par leur slug ; un équipement saisi par un annonceur s'affiche tel quel. » Le formulaire et la fiche publique affichent tag.name (français de la base) en en et en wo ; aucun espace i18n des équipements n'existe (le plan a relu « amenities.* » comme property.form.amenities, qui ne porte que des libellés d'interface). Absent des écarts du rapport.",
+      "gravite": "moyenne — contrainte du ticket non tenue, sans écart déclaré ; en/wo voient « Groupe électrogène », « Forage »",
+      "correctif": "Clés amenities.<slug> en fr/en/wo pour le catalogue de TagCatalog ; libellé = t.has(slug) && status approved ? t(slug) : tag.name, au formulaire et sur la fiche ; test de parité catalogue ↔ clés."
+    },
+    {
+      "fichier": "takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php:73-75 (et :87, assertNotEmpty(cities))",
+      "scenario": "Copie du jeu, chaque région réduite à une ville sans quartier, relu_par=\"x\", relu_le=extraite_le → 29 passed. La signature ne lie ni une personne ni le CONTENU relu : signer puis modifier un fichier reste vert, et un jeu vidé l'est aussi.",
+      "gravite": "moyenne — la seule garde de la tâche 27 cède à une signature triviale",
+      "correctif": "Signature = empreinte sha256 du fichier canonique hors bloc source (recalculée par le test) + nom au format « Prénom Nom » ; planchers par région (villes et quartiers ≥ ceux de l'extraction, ou ≥ N) ; test d'ablation : modifier un nom après signature → rouge."
+    },
+    {
+      "fichier": "docs/plans/rapports/tck-633-lot-d.json (collisions, .design-sync/entry/index.ts)",
+      "scenario": "Diff proposé appliqué puis retiré (md5 b541835c) : check-design-sync-entry passe de 1 à 2 écarts — « Combobox / ComboboxMultiple n'est ni une racine ni exclu » (componentSrcMap de .design-sync/config.json, ou fiche + aperçu dans .design-sync/previews).",
+      "gravite": "basse — gardes du dépôt rouges à l'intégration si la session applique le diff tel quel",
+      "correctif": "Compléter la collision : une fiche et un aperçu .design-sync/previews/Combobox.tsx (et ComboboxMultiple), ou \"Combobox\": null / \"ComboboxMultiple\": null dans componentSrcMap. Le diff property-fields.coverage, lui, est juste et suffisant (17 passed appliqué)."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:61,63 ; takussan-api/app/Http/Requests/UpdatePropertyRequest.php:52,54",
+      "scenario": "POST /api/properties area=3000000000 → 500 (integer) ; price=1e15 → 500 (numeric(14,2)). Le porteur demandait « bornes API » après le 500 de parking=40000 ; le lot a borné cinq champs et laissé ces deux-là.",
+      "gravite": "moyenne — même défaut que celui signalé par le porteur, sur deux champs du même formulaire",
+      "correctif": "area max:2147483647 (ou une borne métier), price max:999999999999.99, dans Store et Update ; ajouter les deux cas à PropertyNumericBoundsTest."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Tags/TagModeration.php:73-96",
+      "scenario": "Super-admin : POST /api/admin/tags/{VIP, type crm}/merge {into_id: WiFi} → 200 ; l'étiquette CRM est supprimée et ses liaisons (clients) recopiées vers l'équipement. Le type et le statut de la SOURCE ne sont pas contrôlés ; seule la cible l'est.",
+      "gravite": "moyenne — perte de données irréversible, ouverte à l'API (l'écran ne propose que des propositions, l'API accepte tout identifiant)",
+      "correctif": "abort_code_if(source->type !== Amenity, 422, 'tags.merge_target_invalid') (ou une clé dédiée) ; test v13."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Geo/GeoLinkResolverTest.php:110",
+      "scenario": "Deux mutations de la garde SSRF restent vertes : (a) http accepté aux sauts ; (b) hôte reconnu par préfixe → requête réelle vers maps.app.goo.gl.evil.com. Le code est juste aujourd'hui ; rien n'empêche sa régression. Aucun test du 429 non plus.",
+      "gravite": "moyenne — garde de sécurité non épinglée",
+      "correctif": "Cas : https://maps.app.goo.gl.evil.com/x, https://maps.app.goo.gl./x et Location: http://maps.google.com/… → 422 et Http::assertNothingSent / assertSentCount(1) ; 21e appel → 429."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Geo/GeoNeighborhoodModeration.php:73 ; tests/Feature/Geo/GeoNeighborhoodModerationTest.php:99",
+      "scenario": "Supprimer la réindexation du RENOMMAGE laisse les 18 tests du lot verts ; seule la fusion est éprouvée contre Meilisearch. ADR-0062 §4 et l'AC exigent les deux.",
+      "gravite": "basse — le code est juste, l'AC n'est prouvé que pour la fusion",
+      "correctif": "Test frère de GeoNeighborhoodMergeSearchTest pour le renommage (mon v6)."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-form/ChampsPosition.tsx (appel reconnaitrePosition(saisie, centre))",
+      "scenario": "Remplacer la référence par Dakar laisse 336 tests de property-form verts : le rattachement d'un Plus Code court à la VILLE CHOISIE n'est éprouvé qu'au niveau de l'algorithme, pas du champ.",
+      "gravite": "basse",
+      "correctif": "Test du champ : ville Ziguinchor choisie, collage « HPMH+869 » → latitude ≈ 12.58."
+    },
+    {
+      "fichier": "takussan-web/src/lib/geo/reconnaitre-position.ts:109,120",
+      "scenario": "« 14,71670° N, 17,46770° O » (Apple Plans en français) et « 14.7167° N, 17.4677° W » → inconnu ; liens maps.apple.com/?ll=… et openstreetmap.org → inconnu. Le porteur a demandé « tout ce qui représente une position ».",
+      "gravite": "basse — formats hors de la liste d'ADR-0062 §6, mais courants sur iPhone",
+      "correctif": "Degrés décimaux avec ° et hémisphère (N/S/E/W/O, virgule décimale) ; ll= de maps.apple.com et mlat/mlon ou #map= d'OSM, sans réseau."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:72",
+      "scenario": "year_built = année + 5 → 201 (borne 1800–2100) alors que la liste du formulaire s'arrête à l'an prochain.",
+      "gravite": "basse",
+      "correctif": "max: (int) date('Y') + 1, dans Store et Update."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Requests/UpdatePropertyRequest.php:98",
+      "scenario": "prepareForValidation() n'appelle pas parent:: (Store le fait) : la normalisation de BaseFormRequest est retirée de toute modification de bien. Sans effet observable aujourd'hui (TrimStrings et ConvertEmptyStringsToNull globaux, cf. takussan-api/CLAUDE.md), mais une des deux protections redondantes disparaît en silence.",
+      "gravite": "basse",
+      "correctif": "parent::prepareForValidation(); en tête, comme Store."
+    }
+  ],
+  "debordements": {
+    "territoire": "Fichiers du rapport croisés avec le plan maître (ligne D), l'Addendum (D-E12 en entier, docker/release.sh, superAdmin.propositions.*, migrations 4000xx–4002xx, /api/public/amenities) et les co-tenus : aucun fichier hors de ces listes n'est attribuable au lot D. ChoixDuReferentiel.tsx, referentiel-public.ts et les tests de recherche modifiés sont du lot E ; PubliePret dans PropertyCrudTest est du lot C.",
+    "co_tenus": "PropertyResource : D n'y porte que tags[].status, location.geo_city_id / geo_neighborhood_id et agency.kind (has_whatsapp = C, badge = F). PropertyWizard.test : D porte la doublure du référentiel, la prop fraisDAgence, la devise non devinée (W10 réécrit), l'étage par brouillon et la saisie des équipements ; les mocks publish-property / property-contacts sont du lot C.",
+    "collisions_du_rapport": "property-fields.coverage : diff juste et suffisant (appliqué → 17 passed, retiré, md5 dccb33a6). .design-sync/entry/index.ts : diff juste mais INSUFFISANT (cf. défaut 4).",
+    "mention_odbl": "Présente dans les mentions légales fr et en (content/legal/notice.ts, ligne des crédits) ; wo est vide et retombe sur fr. Aucune mention à côté des listes du formulaire ni dans les réponses de /api/public/geo/* — ADR-0062 §3 dit « due là où le référentiel est servi. Elle s'ajoute aux pages légales » : la seconde phrase est tenue, la première ne l'est qu'en la lisant comme « par les pages légales »."
+  },
+  "integrite": "Aucune écriture git. Ablations par Edit puis Edit inverse ; md5 relus à la fin : GeoLinkResolver d3c62e90, GeoNeighborhoodModeration 8f471402, GeoNeighborhood 550a9fb4, StorePropertyRequest b3ea8477, TagController d006563d, ChampsPosition 99eb5fdc, property-fields.coverage dccb33a6, .design-sync/entry/index.ts b541835c. Jeu de données ni signé ni modifié, script de signature non lancé. Aucune requête sortante (Http::fake partout). Base jetable supprimée."
+}

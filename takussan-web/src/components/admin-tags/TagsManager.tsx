@@ -362,7 +362,8 @@ interface CreateTagDialogProps {
 function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps) {
   const t = useTranslations('adminTags');
   const tCommon = useTranslations('common.actions');
-  const typeOptions: { value: TagType; label: string }[] = tagTypeValues.map(
+  // TCK-633 (ADR-0062 §7) — les types qu'on peut CRÉER : `feature` n'en est plus un.
+  const typeOptions: { value: TagFormValues['type']; label: string }[] = tagTypeValues.map(
     (v) => ({ value: v, label: t(`types.${v}`) }),
   );
   const [values, setValues] = useState<TagFormValues>(emptyFormValues());
@@ -423,7 +424,7 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
             </label>
             <Select
               value={values.type}
-              onValueChange={(value) => setValues((current) => ({ ...current, type: (value ?? 'amenity') as TagType }))}
+              onValueChange={(value) => setValues((current) => ({ ...current, type: (value ?? 'amenity') as TagFormValues['type'] }))}
               items={typeOptions}
             >
               <SelectTrigger id="tag-type" className="w-full">

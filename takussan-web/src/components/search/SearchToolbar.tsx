@@ -16,6 +16,8 @@ import {
   type TraducteursDeFiltre,
 } from '@/types/search';
 import { PER_PAGE_PAR_DEFAUT, PER_PAGE_PROPOSES } from '@/lib/recherche-publique';
+import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
+import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
 
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
@@ -277,6 +279,7 @@ export function PucesDeFiltres({
   className = '',
   'aria-label': ariaLabel,
 }: PucesDeFiltresProps) {
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const trads: TraducteursDeFiltre = {
     tags: useTranslations('search'),
     types: useTranslations('property.types'),
@@ -284,6 +287,8 @@ export function PucesDeFiltres({
     periods: useTranslations('property.rentPeriods'),
     titleTypes: useTranslations('property.titleTypes'),
     conditions: useTranslations('property.conditions'),
+    // TCK-633 — un équipement du catalogue dans la langue de l'écran, celui d'un annonceur tel quel.
+    equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
   };
   /**
    * TCK-580 — la rangée est rendue depuis les DEUX jeux de filtres, et l'écart se voit.

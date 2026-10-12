@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { AgencyBillingClient } from '@/components/billing/AgencyBillingClient';
 import { AgencyPayoutsClient } from '@/components/billing/AgencyPayoutsClient';
 import { PageHeader } from '@/components/console';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
@@ -16,9 +16,10 @@ export const dynamic = 'force-dynamic';
  * aux agences `standard`. L'API garde la lecture des reversements par `agency.update_billing`.
  */
 export default async function Page() {
+  // TCK-633 — `agency.update_billing` exigée, comme l'API (`AgencyPolicy::viewPlatformPayouts`).
+  await garderPageAdmin('/admin/agency/billing');
   const t = await getTranslations('admin.pages.billing');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) redirect('/admin');
 
   let showSubscription = isSuperAdmin(user.roles);
   if (!showSubscription && typeof user.agency_id === 'number') {

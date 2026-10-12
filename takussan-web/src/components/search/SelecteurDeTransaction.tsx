@@ -13,12 +13,15 @@ export interface SelecteurDeTransactionProps {
 }
 
 /**
- * « Acheter | Louer » — le sélecteur segmenté de la barre de recherche publique.
+ * « Louer | Acheter » — le sélecteur segmenté de la barre de recherche publique.
  *
  * Source : `Accueil.dc.html` (projet claude.ai/design « Takussan »). Une pastille de carte glisse
  * sous le choix : 320 ms sur `cubic-bezier(0.2, 0.8, 0.2, 1)`, la même courbe que la maquette. Rien
  * de choisi → la pastille s'efface en se resserrant (`scale(0.85)`, opacité 0), et un second appui
  * sur le choix en cours le retire : « peu importe » reste exprimable, comme dans l'ancien menu.
+ *
+ * **« Louer » d'abord** (TCK-633, AC5) : c'est la transaction la plus cherchée. La pastille repose
+ * donc sous la PREMIÈRE colonne pour `rent`, et glisse d'une colonne pour `sale`.
  *
  * Ce sont deux boutons à bascule (`aria-pressed`) dans un groupe nommé, pas un `radiogroup` : un
  * groupe radio n'admet pas l'état « aucun ». Le libellé en gras est RÉSERVÉ dans chaque bouton
@@ -27,8 +30,8 @@ export interface SelecteurDeTransactionProps {
  */
 export function SelecteurDeTransaction({ valeur, onChange, libelles, className }: SelecteurDeTransactionProps) {
   const choix = [
-    { cle: 'sale', libelle: libelles.sale },
     { cle: 'rent', libelle: libelles.rent },
+    { cle: 'sale', libelle: libelles.sale },
   ] as const;
 
   return (
@@ -45,7 +48,7 @@ export function SelecteurDeTransaction({ valeur, onChange, libelles, className }
           'shadow-[0_1px_3px_color-mix(in_srgb,var(--shadow-color)_14%,transparent)]',
           '[transition:translate_320ms_var(--ease-segment),scale_320ms_var(--ease-segment),opacity_200ms_var(--ease-segment)]',
           '[--ease-segment:cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
-          valeur === 'rent' && 'translate-x-full',
+          valeur === 'sale' && 'translate-x-full',
           valeur === '' && 'scale-[0.85] opacity-0',
         )}
       />

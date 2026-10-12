@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
 import type { User } from '@/types/user';
-import { isAdmin } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -14,9 +13,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { initialesDe, libelleDe, prenomDe } from '@/lib/identite';
+import { hrefLocalise } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/config';
+import { entreeAdmin } from '@/lib/access/pages-admin';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 
 export interface UserMenuProps {
   readonly user: User;
@@ -38,6 +41,12 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const router = useRouter();
   const { logout } = useAuth();
   const t = useTranslations('nav');
+  const tAdmin = useTranslations('nav.admin');
+  const locale = useLocale() as Locale;
+  // TCK-633 (lot B) — l'entrée mène à la première page `/admin/*` que le profil peut ouvrir.
+  // Sans fournisseur (barre publique), le repli ne connaît pas le `kind` : il ne propose que les
+  // pages qu'aucune agence ne refuse (fail-closed), jamais `/admin`.
+  const entree = entreeAdmin(useAccesAdminOuRepli({ roles: user.roles, agencyId: user.agency_id }));
   // TCK-623 — `initialesDe` garde le `Array.from` (un emoji en tête reste entier) et rend `null`
   // pour un compte sans nom ni e-mail : une silhouette, plutôt qu'une pastille vide.
   const initials = initialesDe(user);
@@ -75,10 +84,10 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
           <UserCircle className="size-4" aria-hidden="true" />
           <span>{t('myProfile')}</span>
         </DropdownMenuItem>
-        {isAdmin(user.roles) && (
-          <DropdownMenuItem onClick={() => router.push('/admin')}>
+        {entree && (
+          <DropdownMenuItem onClick={() => router.push(entree.href)}>
             <ShieldCheck className="size-4" aria-hidden="true" />
-            <span>{t('administration')}</span>
+            <span>{tAdmin(entree.cle)}</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -88,7 +97,10 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
             // cookie côté serveur sans que le client l'apprenne, et le navigateur continuait de
             // transmettre le jeton révoqué — y compris au compte connecté ensuite.
             await logout();
-            router.replace('/auth/login');
+            // TCK-633 (AC3) — une déconnexion VOLONTAIRE ramène à l'accueil, comme depuis la barre
+            // publique (`Navbar`). La session EXPIRÉE, elle, continue d'aller vers la connexion :
+            // ce n'est pas ce chemin-ci.
+            router.replace(hrefLocalise('/', locale));
           }}
         >
           <LogOut className="size-4" aria-hidden="true" />

@@ -14,6 +14,7 @@ import {
   type CompareCell,
   type CompareRowDef,
 } from '@/components/compare/compare-rows';
+import { ESPACE_DU_CATALOGUE, libelleEquipement } from '@/lib/libelle-equipement';
 
 /**
  * TCK-082 — desktop side-by-side comparator table.
@@ -77,9 +78,15 @@ export function CompareTable({ columns, onRemove, className }: CompareTableProps
   const t = useTranslations('compare');
   const tRows = useTranslations('compare.rows');
 
+  // TCK-633 — un équipement du catalogue dans la langue de l'écran, celui d'un annonceur tel quel.
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+
   const rows = useMemo(
-    () => buildCompareRows(columns.map((col) => col.property)),
-    [columns],
+    () => buildCompareRows(
+      columns.map((col) => col.property),
+      (tag) => libelleEquipement(tag, tCatalogue),
+    ),
+    [columns, tCatalogue],
   );
 
   return (

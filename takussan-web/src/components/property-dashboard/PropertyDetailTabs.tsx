@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PropertyForm } from '@/components/property-form';
+import { ContactsSurPlaceDuBien } from '@/components/contact/ContactsSurPlaceDuBien';
 import { PropertyCalendarPanel } from '@/components/property-dashboard/PropertyCalendarPanel';
 import { PropertyCollaboratorsPanel } from '@/components/property-dashboard/PropertyCollaboratorsPanel';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
@@ -87,6 +88,9 @@ export function PropertyDetailTabs({ property, tags }: Props) {
 
       <TabsContent value="edit">
         <PropertyForm mode="edit" property={property} tags={tags} />
+        {/* TCK-633 (lot C) — les contacts sur place d'une annonce existante : ils ne se
+            posaient qu'à la création. Enregistrés à part (`PUT …/contacts`), comme les médias. */}
+        <ContactsSurPlaceDuBien propertyId={property.id} />
       </TabsContent>
 
       <TabsContent value="media">

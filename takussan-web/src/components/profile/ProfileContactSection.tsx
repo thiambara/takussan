@@ -15,6 +15,8 @@ import {
 } from '@/app/actions/security';
 import { isE164, normalizePhoneInput } from '@/lib/phone';
 import { useAuth } from '@/context/AuthContext';
+import { CaseWhatsApp } from '@/components/profile/security/CaseWhatsApp';
+import { SecondaryPhoneSection } from '@/components/profile/security/SecondaryPhoneSection';
 
 interface ProfileContactSectionProps {
   user: User;
@@ -324,6 +326,10 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
               {t('phoneHint')}
             </p>
           )}
+          {/* TCK-633 (lot C) — la case WhatsApp vaut pour le numéro ENREGISTRÉ et vérifié. */}
+          {phoneVerified && !phoneDirty && savedPhone.length > 0 ? (
+            <CaseWhatsApp champ="phone_whatsapp" id="phone-whatsapp" />
+          ) : null}
         </div>
 
         {needsProof ? (
@@ -457,6 +463,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             ) : null}
           </div>
         ) : null}
+
+        <SecondaryPhoneSection />
 
         <div className="space-y-1">
           <label htmlFor="contact-bio" className="text-xs font-semibold text-muted-foreground">

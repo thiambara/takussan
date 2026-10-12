@@ -2,6 +2,9 @@
 
 namespace App\Support\Security;
 
+use App\Http\Controllers\Api\Admin\AdminBoostController;
+use App\Http\Controllers\Api\Admin\AdminBoostProductController;
+use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
@@ -244,6 +247,14 @@ final class ProtectedActions
         // TCK-602 (ADR-0051 §5) — rejouer un webhook peut solder une échéance : un jeton volé ne
         // le tient plus sans le TOTP.
         WebhookLogController::class.'@replay',
+
+        // TCK-633 lot F (ADR-0061) — créer ou débiter des crédits, annuler ou offrir un boost, régler
+        // le catalogue : de la valeur qui bouge. Un jeton volé ne les tient plus sans le TOTP.
+        AdminCreditWalletController::class.'@adjust',
+        AdminBoostController::class.'@cancel',
+        AdminBoostController::class.'@offer',
+        AdminBoostProductController::class.'@store',
+        AdminBoostProductController::class.'@update',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',

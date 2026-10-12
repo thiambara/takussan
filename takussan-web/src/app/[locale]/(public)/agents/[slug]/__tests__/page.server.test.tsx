@@ -84,8 +84,10 @@ vi.mock('@/components/public/profile/PortfolioTabs', () => ({
 // (TCK-573), et c'est ce passage que le test garde — le texte lui-même est éprouvé par
 // `ContactSheet.tck-573.test.tsx`.
 vi.mock('@/components/public/profile/ContactSheet', () => ({
-  ContactSheet: ({ recipientRole }: { recipientRole?: string | null }) => (
-    <div data-testid="contact" data-role={recipientRole ?? ''} />
+  // TCK-633 (lot C, tour 3) — le double rend aussi le numéro reçu : c'est la page qui décide de le
+  // transmettre ou non ; `ContactSheet` ne rend aucun `tel:` sans numéro (`ContactSheet.tsx`).
+  ContactSheet: ({ recipientRole, phone }: { recipientRole?: string | null; phone?: string | null }) => (
+    <div data-testid="contact" data-role={recipientRole ?? ''} data-phone={phone ?? ''} />
   ),
 }));
 vi.mock('@/components/public/profile/TeamStrip', () => ({
@@ -104,6 +106,7 @@ function agent(overrides: Partial<AgentDto> = {}): AgentDto {
     public_role: 'agent',
     bio: 'Spécialiste de la location à Dakar.',
     phone: '+221 77 000 00 00',
+    phone_verified: true,
     city: 'Dakar',
     specialty: 'Location',
     years_of_experience: 6,
@@ -276,5 +279,51 @@ describe('fiche d’un propriétaire sous /agents — TCK-573', () => {
     const ld = container.querySelector('script[type="application/ld+json"]');
     expect(JSON.parse(ld?.textContent ?? '{}')['@type']).toBe('RealEstateAgent');
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'agent');
+  });
+});
+
+/**
+ * TCK-633 (lot C, tour 3) — décision de la session sur D10 : **aucun numéro principal non vérifié
+ * n'est servi au public.** L'API ne le sert plus (`User::numeroPrincipalPublic()`,
+ * `NumeroPublieVerifieTest`) ; la page le refuse AUSSI, sur le booléen `phone_verified` que l'API
+ * sert à côté : ni bouton d'appel, ni `telephone` dans les données structurées — que le moteur de
+ * recherche garderait après correction. Un champ absent (API plus ancienne) vaut « non vérifié ».
+ */
+describe('fiche publique — le numéro ne sort que vérifié (TCK-633, D10)', () => {
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+  });
+
+  const donneesStructurees = (container: HTMLElement) =>
+    [...container.querySelectorAll('script[type="application/ld+json"]')].map(
+      (e) => JSON.parse(e.textContent ?? '{}') as Record<string, unknown>,
+    );
+
+  it.each([
+    ['non vérifié', false],
+    ['vérification absente', undefined],
+  ])('un numéro %s : ni appel, ni JSON-LD `telephone`, ni numéro dans la page', async (_cas, verifie) => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ phone: '+221 77 000 00 00', phone_verified: verifie }),
+    });
+
+    const { container } = render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-phone', '');
+    const ld = donneesStructurees(container);
+    expect(ld.length).toBeGreaterThan(0);
+    for (const noeud of ld) expect(noeud).not.toHaveProperty('telephone');
+    expect(container.innerHTML).not.toMatch(/tel:|wa\.me|77 000 00 00/);
+  });
+
+  it('le contrôle : un numéro vérifié est transmis au contact et balisé', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ phone_verified: true }) });
+
+    const { container } = render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-phone', '+221 77 000 00 00');
+    expect(donneesStructurees(container)[0]).toHaveProperty('telephone', '+221 77 000 00 00');
   });
 });

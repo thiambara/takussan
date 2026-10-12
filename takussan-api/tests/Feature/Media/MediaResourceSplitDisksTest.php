@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -26,7 +27,7 @@ use Tests\TestCase;
  */
 class MediaResourceSplitDisksTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     protected function setUp(): void
     {

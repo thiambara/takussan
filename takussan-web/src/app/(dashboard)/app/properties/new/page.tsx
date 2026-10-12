@@ -11,7 +11,9 @@ import { EnTetePublication } from '@/components/property-form/wizard/EnTetePubli
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { getMeAction } from '@/app/actions/auth';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { isAdmin, isAgent } from '@/lib/roles';
+import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.propertyNew');
@@ -75,12 +77,21 @@ export default async function Page() {
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
   // TCK-587 — même vocabulaire que la barre latérale : le bailleur hors personnel propose.
-  const { roles } = await getMeAction();
+  const { roles, agency_id: agencyId } = await getMeAction();
   const proposition = !isAgent(roles) && !isAdmin(roles);
   // TCK-627 — une proposition reste un brouillon de l'agence : elle ne consomme aucun quota.
   const quota = proposition ? null : await fetchListingQuotaAction();
 
   const titre = proposition ? t('proposalTitle') : t('title');
+
+  // TCK-633 — un indépendant (agence `individual`) ne facture pas de frais d'agence. Lecture
+  // d'AFFICHAGE (cf. `overview/page.tsx`) : une agence illisible garde le champ, et l'API reste
+  // juge (`StorePropertyRequest`, tâche 8) — ne pas savoir dégrade, n'interrompt pas.
+  const token = agencyId ? await getToken() : undefined;
+  const agence = token && agencyId
+    ? await resolveAgencyOrNull(token, agencyId, 'properties/new (frais)', 'affichage')
+    : null;
+  const fraisDAgence = agence?.kind !== 'individual';
 
   if (quota && !quota.can_create) {
     return (
@@ -118,6 +129,7 @@ export default async function Page() {
       <PropertyWizard
         tags={tags}
         proposition={proposition}
+        fraisDAgence={fraisDAgence}
         quotaNote={
           quota && quota.limit !== null
             ? t('quotaUsage', { used: quota.used, limit: quota.limit })

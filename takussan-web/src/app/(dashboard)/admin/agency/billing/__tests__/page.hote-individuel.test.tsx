@@ -21,6 +21,7 @@ vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: (...a: unknown[]) => mockResolveAgency(...a),
 }));
 vi.mock('next/navigation', () => ({ redirect: (...a: unknown[]) => mockRedirect(...a) }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
 vi.mock('@/components/billing/AgencyBillingClient', () => ({
   AgencyBillingClient: () => <div data-testid="bloc-abonnement" />,
 }));

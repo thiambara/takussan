@@ -2,6 +2,8 @@
 
 namespace App\Services\Property;
 
+use App\Models\Agency;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\RentPeriod;
@@ -11,7 +13,12 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-598 (V9, contrainte 8) — ce qu'un locataire verse pour emménager : avance, caution, frais
  * d'agence, charges. **Une seule définition** : la ressource, les règles de validation et la
- * duplication la lisent ; aucun écran ne refait l'addition.
+ * duplication la lisent.
+ *
+ * TCK-633 — l'aperçu du parcours de création refait l'addition AVANT l'enregistrement : il n'a
+ * pas de ressource à lire. Sa jumelle (`takussan-web/src/lib/cout-d-entree.ts`) est tenue à cette
+ * classe par une fixture commune, `tests/fixtures/cout-d-entree.json` : un écart d'un franc rougit
+ * une des deux suites. Un indépendant (`AgencyKind::Individual`) ne facture pas de frais d'agence.
  *
  *     total = (loyer + charges) × mois d'avance + loyer × mois de caution + loyer × mois de frais
  *
@@ -76,7 +83,7 @@ final class CoutDEntree
      *
      * @return array<string, list<mixed>>
      */
-    public static function regles(bool $applicable, bool $partiel): array
+    public static function regles(bool $applicable, bool $partiel, bool $fraisAdmis = true): array
     {
         $base = $partiel ? ['sometimes', 'nullable'] : ['nullable'];
         $interdit = Rule::prohibitedIf(! $applicable);
@@ -84,8 +91,14 @@ final class CoutDEntree
         return [
             'deposit_months' => [...$base, 'integer', 'min:0', 'max:'.self::MOIS_MAX, $interdit],
             'advance_months' => [...$base, 'integer', 'min:0', 'max:'.self::MOIS_MAX, $interdit],
-            'agency_fee_months' => [...$base, 'numeric', 'decimal:0,2', 'min:0', 'max:'.self::MOIS_MAX, $interdit],
+            'agency_fee_months' => [...$base, 'numeric', 'decimal:0,2', 'min:0', 'max:'.self::MOIS_MAX, $interdit, Rule::prohibitedIf(! $fraisAdmis)],
             'monthly_charges' => [...$base, 'numeric', 'decimal:0,2', 'min:0', 'max:999999999999', $interdit],
         ];
+    }
+
+    /** TCK-633 (AC4) — un indépendant ne facture pas de frais d'agence ; sans agence, rien n'est retiré. */
+    public static function fraisDAgenceAdmis(?Agency $agence): bool
+    {
+        return $agence?->kind !== AgencyKind::Individual;
     }
 }

@@ -1,0 +1,16 @@
+{
+    "_": "TCK-633 (AC9) — liens Google Maps lus SANS réseau. Lu par tests/Unit/Services/Geo/GoogleMapsCoordinatesTest.php (API) et par takussan-web/src/lib/geo/__tests__/reconnaitre-position.test.ts (front) : un format ajouté d'un seul côté rougit l'autre suite. latitude null = aucune coordonnée lisible dans le lien (un lien court se résout par le serveur).",
+    "liens": [
+        { "cas": "fiche : le repère !3d!4d l'emporte sur le centre @", "url": "https://www.google.com/maps/place/Point+E,+Dakar/@14.69,-17.46,16z/data=!4m6!3m5!1s0xec172b8e0a1b2c3:0x1!8m2!3d14.6964782!4d-17.4641817!16s", "latitude": 14.6964782, "longitude": -17.4641817 },
+        { "cas": "fiche sur google.sn", "url": "https://www.google.sn/maps/place/Mermoz/@14.7074454,-17.474397,15z/data=!3m1!4b1!4m6!3m5!1s0x0:0x0!8m2!3d14.7074454!4d-17.474397", "latitude": 14.7074454, "longitude": -17.474397 },
+        { "cas": "carte centrée : @lat,lng,zoom", "url": "https://www.google.com/maps/@14.6928,-17.4467,17z", "latitude": 14.6928, "longitude": -17.4467 },
+        { "cas": "paramètre q (lien de partage d'un point)", "url": "https://maps.google.com/?q=14.7166875,-17.4676875", "latitude": 14.7166875, "longitude": -17.4676875 },
+        { "cas": "message de position WhatsApp : q encodé", "url": "https://maps.google.com/maps?q=14.72046%2C-17.46744&z=17&hl=fr", "latitude": 14.72046, "longitude": -17.46744 },
+        { "cas": "API de recherche : query", "url": "https://www.google.com/maps/search/?api=1&query=14.74419,-17.51753", "latitude": 14.74419, "longitude": -17.51753 },
+        { "cas": "paramètre ll", "url": "https://www.google.com/maps?ll=14.7536274,-17.4773789&z=15", "latitude": 14.7536274, "longitude": -17.4773789 },
+        { "cas": "q est un NOM : on retombe sur @", "url": "https://www.google.com/maps/search/Yoff/@14.7536274,-17.4773789,14z", "latitude": 14.7536274, "longitude": -17.4773789 },
+        { "cas": "une fiche sans coordonnées", "url": "https://www.google.com/maps/place/Dakar", "latitude": null, "longitude": null },
+        { "cas": "un lien court ne porte rien", "url": "https://maps.app.goo.gl/x7Jk2mN9pQ", "latitude": null, "longitude": null },
+        { "cas": "une latitude impossible est refusée", "url": "https://www.google.com/maps/@91.5,-17.4467,15z", "latitude": null, "longitude": null }
+    ]
+}

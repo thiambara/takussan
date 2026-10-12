@@ -7,7 +7,8 @@ import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
-import { apiFetch } from '@/lib/api';
+import { ListeDeNumeros } from '@/components/contact/ListeDeNumeros';
+import { numerosDuBien, type NumeroDeContact } from '@/components/contact/numeros-du-bien';
 import { signalerClic } from '@/lib/contact-click';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
 import { PropertyPhoneVerifiedBadge } from './PropertyPhoneVerifiedBadge';
@@ -42,8 +43,11 @@ export function PropertyAgentCard({
   const tContact = useTranslations('propertyContact');
   const toast = useToast();
   const [calling, setCalling] = useState(false);
+  const [numeros, setNumeros] = useState<NumeroDeContact[] | null>(null);
   // TCK-590 — sans numéro, ni « Appeler » ni WhatsApp : les deux menaient à une boîte d'erreur.
   const hasPhone = contact.has_phone === true;
+  // TCK-633 (lot C) — WhatsApp seulement vers un numéro DÉCLARÉ WhatsApp.
+  const hasWhatsApp = contact.has_whatsapp === true;
 
   // TCK-590 — les erreurs passaient par une boîte d'alerte native, bloquante, hors charte
   // par le navigateur. Un toast, comme partout ailleurs.
@@ -51,11 +55,13 @@ export function PropertyAgentCard({
     setCalling(true);
     signalerClic(propertySlug, 'call');
     try {
-      const res = await apiFetch<{ phone: string | null }>(
-        `/public/properties/${propertySlug}/contact`,
-      );
-      if (res.phone) {
-        window.location.href = `tel:${res.phone.replace(/\s/g, '')}`;
+      // TCK-633 (lot C) — une LISTE : un seul numéro se compose aussitôt, plusieurs s'affichent
+      // (principal, second, sur place), au même geste.
+      const liste = await numerosDuBien(propertySlug);
+      if (liste.length === 1) {
+        window.location.href = `tel:${liste[0]!.phone.replace(/\s/g, '')}`;
+      } else if (liste.length > 1) {
+        setNumeros(liste);
       } else {
         toast.add({ title: tContact('errors.title'), description: t('phoneUnavailable'), type: 'error' });
       }
@@ -140,7 +146,9 @@ export function PropertyAgentCard({
         )}
       </div>
 
-      <WhatsAppButton slug={propertySlug} title={propertyTitle} hasPhone={hasPhone} />
+      {numeros ? <ListeDeNumeros numeros={numeros} /> : null}
+
+      <WhatsAppButton slug={propertySlug} title={propertyTitle} hasWhatsApp={hasWhatsApp} />
     </div>
   );
 }

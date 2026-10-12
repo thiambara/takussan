@@ -101,18 +101,21 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
       // TCK-552 — la devise des CARTES (`formatPrice`), et non plus « FCFA » écrit par le gabarit.
       '≥ 150 000 F CFA',
       '≤ 900 000 F CFA',
-      '3 ch.',
-      '2 sdb',
+      // TCK-633 — des MINIMUMS : la puce dit « et plus », comme le panneau.
+      '3+ ch.',
+      '2+ sdb',
       '≥ 40 m²',
       '≤ 250 m²',
       'Meublé',
       '★ En vedette',
-      'Rez-de-chaussée',
+      'RDC et +',
       'Dispo dès 01 sept. 2026',
       'Titre : Bail',
       'Neuf',
       'Sur plan',
-      'Tags : piscine,parking',
+      // TCK-633 — les équipements du catalogue, retrouvés par leur slug quelle que soit la casse
+      // de l'URL, se lisent dans la langue de l'écran (`libelleEquipement`, lot D).
+      'Équipements : Piscine, Parking',
     ]);
   });
 
@@ -152,12 +155,48 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
   /** `floor_number: 0` est falsy : un `if (value)` le ferait disparaître silencieusement. */
   it('garde le rez-de-chaussée, que `0` rendrait falsy', () => {
     monte({ floor_number: 0 });
-    expect(puces()).toEqual(['Rez-de-chaussée']);
+    expect(puces()).toEqual(['RDC et +']);
+  });
+
+  /** TCK-633 — l'étage est un minimum, et le français accorde le premier étage à part. */
+  it.each([
+    [1, '1er étage et +'],
+    [3, '3e étage et +'],
+  ])('libelle l’étage %i en minimum', (etage, libelle) => {
+    monte({ floor_number: etage });
+    expect(puces()).toEqual([libelle]);
   });
 
   it('n’affiche aucune puce quand aucun filtre n’est posé', () => {
     monte({});
     expect(puces()).toEqual([]);
+  });
+});
+
+/**
+ * TCK-633 (lot E, correction après vérification) — la puce des équipements parle la langue de
+ * l'écran pour le catalogue, et rend tel quel un équipement proposé par un annonceur.
+ */
+describe('<SearchToolbar> — la puce des équipements est traduite', () => {
+  function monteEn(locale: 'en' | 'wo', tags: string) {
+    render(withIntl(
+      <SearchToolbar
+        total={1} loading={false} filters={{ tags }}
+        activeCount={1} onRemoveFilter={vi.fn()} onSortChange={vi.fn()}
+        onPerPageChange={vi.fn()} onOpenSidebar={vi.fn()}
+      />,
+      locale,
+    ));
+  }
+
+  it('en anglais : le catalogue traduit, l’équipement proposé tel quel', () => {
+    monteEn('en', 'Piscine,Jardin potager');
+    expect(puces()).toEqual(['Amenities: Swimming pool, Jardin potager']);
+  });
+
+  it('en wolof : le catalogue traduit', () => {
+    monteEn('wo', 'Piscine,Climatisation');
+    expect(puces()).toEqual(['Jumtukaay : Pisin, Klimatisasioŋ']);
   });
 });
 

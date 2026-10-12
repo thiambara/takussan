@@ -19,6 +19,10 @@ vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: (...args: unknown[]) => resolveAgencyOrNull(...args),
 }));
+// TCK-633 (lot B) — le layout calcule aussi les pages admin accessibles ; sans objet ici.
+vi.mock('@/lib/access/pages-admin-server', () => ({
+  accesAdmin: async () => ({ chemins: [], espaceIndividuel: false }),
+}));
 vi.mock('@/lib/queries/agency-upgrade', () => ({ fetchAgencyUpgradeRequests: async () => ({ data: [] }) }));
 vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 vi.mock('@/i18n/IntlProvider', () => ({ IntlProvider: ({ children }: { children: React.ReactNode }) => children }));

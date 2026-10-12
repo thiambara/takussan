@@ -7,8 +7,10 @@ use App\Http\Requests\Api\SyncPropertyTagRequest;
 use App\Models\Enums\TagType;
 use App\Models\Property;
 use App\Models\Tag;
+use App\Services\Tags\TagProposals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PropertyTagController extends Controller
 {
@@ -24,7 +26,7 @@ class PropertyTagController extends Controller
      * Le périmètre de l'écriture est donc celui de la validation : ce qui est hors de sa portée
      * est reconduit tel quel.
      */
-    public function sync(SyncPropertyTagRequest $request, Property $property): JsonResponse
+    public function sync(SyncPropertyTagRequest $request, Property $property, TagProposals $propositions): JsonResponse
     {
         $data = $request->validated();
 
@@ -33,7 +35,27 @@ class PropertyTagController extends Controller
             ->pluck('tags.id')
             ->all();
 
-        $property->tags()->sync([...$horsPerimetre, ...$data['tag_ids']]);
+        // TCK-633 (ADR-0062 §5, D9) — les équipements tapés deviennent des propositions.
+        $proposes = $propositions->resoudre($data['tag_names'] ?? [], $request->user());
+
+        $changements = $property->tags()->sync(array_values(array_unique([...$horsPerimetre, ...$data['tag_ids'], ...$proposes])));
+
+        // TCK-633 (D9) — qui rattache : une proposition en attente ne sort sur une fiche publique
+        // que là où son AUTEUR l'a rattachée (`Tag::scopeVisiblesSurUneFiche`). Seules les liaisons
+        // NOUVELLES sont marquées : un aller-retour du formulaire ne réattribue rien.
+        if ($changements['attached'] !== []) {
+            DB::table('taggables')
+                ->where('taggable_type', $property->getMorphClass())
+                ->where('taggable_id', $property->getKey())
+                ->whereIn('tag_id', $changements['attached'])
+                ->update(['attached_by_id' => $request->user()->getKey()]);
+        }
+
+        // TCK-633 (lot E) — le filtre Équipements lit l'index, et cette route ne touche pas la ligne
+        // `properties` : sans réindexation, le bien restait introuvable par ses équipements.
+        if (array_filter($changements) !== []) {
+            $property->searchable();
+        }
 
         return $this->json(['data' => $property->tags()->get()]);
     }
@@ -42,7 +64,9 @@ class PropertyTagController extends Controller
     {
         $this->authorize('update', $property);
 
-        $property->tags()->detach($tag->id);
+        if ($property->tags()->detach($tag->id) > 0) {
+            $property->searchable();
+        }
 
         return $this->json(null, 204);
     }

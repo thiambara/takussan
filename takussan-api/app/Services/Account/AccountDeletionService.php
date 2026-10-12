@@ -240,6 +240,13 @@ class AccountDeletionService
             'last_name' => '',
             'phone' => null,
             'phone_verified_at' => null,
+            // TCK-633 (lot C) — le second numéro et les cases WhatsApp sont des données
+            // personnelles au même titre que `phone`. `terms_accepted_at` / `terms_version`
+            // restent : la trace datée d'un consentement, qui n'identifie personne.
+            'phone_whatsapp' => null,
+            'secondary_phone' => null,
+            'secondary_phone_verified_at' => null,
+            'secondary_phone_whatsapp' => false,
             'bio' => null,
             'username' => null,
             'google_id' => null,

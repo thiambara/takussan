@@ -3,10 +3,27 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class UserResource extends BaseResource
 {
+    /** Le compte servi est celui qui ouvre la session, même sans `$request->user()`. */
+    private bool $pourSoi = false;
+
+    /**
+     * TCK-633 (lot C, tour 2) — pour un ouvreur de session (inscription, entrée par téléphone,
+     * OAuth) : `$request->user()` y est nul, et les clés « pour soi » manquaient alors à la
+     * réponse que le front pose telle quelle (`openSession`), contrairement à `/api/auth/me`.
+     */
+    public static function pourSoi(User $user): self
+    {
+        $resource = new self($user);
+        $resource->pourSoi = true;
+
+        return $resource;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -52,6 +69,20 @@ class UserResource extends BaseResource
             // `auth/*` rend 403 `two_factor_required` jusqu'au ré-enrôlement, et le
             // front y conduit (`/onboarding/securite`).
             'force_2fa_reconfigure' => ($this->metadata['force_2fa_reconfigure'] ?? false) === true,
+            // TCK-633 (lot C) — les préférences de contact ne sortent que pour SOI : `UserResource`
+            // sert aussi les membres d'une agence (`AgencyController`), et le second numéro d'un
+            // collègue n'a rien à faire dans cette liste.
+            // Étalé, pas `mergeWhen()` (même raison que `CustomerResource`) : `AgencyController` et
+            // `OAuthSessionOpener` appellent `toArray()` directement, où un `MergeValue` n'est pas
+            // résolu — il sortait sous une clé `0`.
+            ...($this->pourSoi || $request->user()?->getKey() === $this->resource->getKey() ? [
+                // `null` = jamais répondu (l'écran de publication pose la question), `false` = non.
+                'phone_whatsapp' => $this->phone_whatsapp === null ? null : (bool) $this->phone_whatsapp,
+                'secondary_phone' => $this->secondary_phone,
+                'secondary_phone_verified_at' => $this->iso($this->secondary_phone_verified_at),
+                'secondary_phone_whatsapp' => (bool) $this->secondary_phone_whatsapp,
+                'terms_accepted_at' => $this->iso($this->terms_accepted_at),
+            ] : []),
             'agency_id' => $this->agency_id,
             'roles' => $this->profileTypes()->all(),
             'status' => $this->status?->value,

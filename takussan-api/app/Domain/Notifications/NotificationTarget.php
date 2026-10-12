@@ -53,6 +53,8 @@ final class NotificationTarget
         // la liste des favoris.
         'saved_searches' => '/app/saved-searches',
         'favorites' => '/app/favorites',
+        // TCK-633 lot F — une notification de crédits ouvre la page Crédits de l'espace.
+        'credits' => '/app/credits',
     ];
 
     private function __construct(

@@ -10,6 +10,7 @@ import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
+import { AvertissementNumeroNonVerifie } from '@/components/contact/AvertissementNumeroNonVerifie';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/console';
 
@@ -176,6 +177,9 @@ export default async function Page({
           </Link>
         }
       />
+
+      {/* TCK-633 (lot C, tour 2) — un numéro non vérifié n'est pas servi sur les annonces en ligne. */}
+      <AvertissementNumeroNonVerifie phoneVerifiedAt={user.phone_verified_at} annoncesEnLigne={publishedCount} />
 
       <PropertyKpiStrip tiles={kpiTiles} />
 
