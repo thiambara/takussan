@@ -1,7 +1,7 @@
 ---
 id: TCK-633
 title: "Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: XL
@@ -365,39 +365,39 @@ Ce qui a été relevé, et qui fonde chaque lot :
 - [ ] **AC1 — Accès.** Un solo connecté ne rencontre aucun lien, dans aucun menu ni dans son profil,
       qui le renvoie en arrière ; « Mon espace » ouvre une page qui s'affiche. Un admin `standard`
       voit les mêmes pages qu'avant.
-- [ ] **AC2 — Suppression.** La modale ne promet plus de restauration.
-- [ ] **AC3 — Déconnexion.** Depuis le tableau de bord comme depuis le site public, on revient à
+- [x] **AC2 — Suppression.** La modale ne promet plus de restauration.
+- [x] **AC3 — Déconnexion.** Depuis le tableau de bord comme depuis le site public, on revient à
       l'accueil.
-- [ ] **AC4 — Publier.** Drapeau allumé : un compte neuf sans espace clique sur « Publier » et voit le
+- [x] **AC4 — Publier.** Drapeau allumé : un compte neuf sans espace clique sur « Publier » et voit le
       formulaire de bien, sans écran intermédiaire. Drapeau éteint : le wizard actuel.
-- [ ] **AC5 — Louer d'abord.** « Louer » précède « Acheter » partout où la transaction se choisit,
+- [x] **AC5 — Louer d'abord.** « Louer » précède « Acheter » partout où la transaction se choisit,
       avec le même mot.
-- [ ] **AC6 — Filtres.** « 5+ chambres » trouve une maison de 6 chambres ; la carte et la liste
+- [x] **AC6 — Filtres.** « 5+ chambres » trouve une maison de 6 chambres ; la carte et la liste
       affichent le même compte pour les mêmes filtres ; une ville se choisit, elle ne se tape plus.
-- [ ] **AC7 — Filigrane.** Une photo téléversée drapeau éteint est servie, sans filigrane.
-- [ ] **AC8 — Second numéro.** On ajoute, vérifie et retire un second numéro ; il ne permet pas de
+- [x] **AC7 — Filigrane.** Une photo téléversée drapeau éteint est servie, sans filigrane.
+- [x] **AC8 — Second numéro.** On ajoute, vérifie et retire un second numéro ; il ne permet pas de
       se connecter ; chaque numéro porte sa case WhatsApp ; sur l'annonce, le bouton WhatsApp vise un
       numéro déclaré WhatsApp, ou n'apparaît pas.
-- [ ] **AC9 — Adresse.** Région, ville et quartier se choisissent dans des listes avec recherche ; un
+- [x] **AC9 — Adresse.** Région, ville et quartier se choisissent dans des listes avec recherche ; un
       quartier inconnu s'ajoute et sert l'annonce ; coller un lien Google Maps (long ou court) ou un
       Plus Code remplit latitude et longitude.
-- [ ] **AC10 — Formulaire.** Les nombres se choisissent dans des listes ; un sous-sol s'enregistre ;
+- [x] **AC10 — Formulaire.** Les nombres se choisissent dans des listes ; un sous-sol s'enregistre ;
       Piscine et Climatisation sont sélectionnables ; un équipement nouveau s'ajoute par Entrée et
       s'affiche tel que saisi ; aucun choix de devise ; pas de frais d'agence pour un particulier ;
       l'aperçu affiche le total à l'entrée.
-- [ ] **AC11 — Publier avec un contact.** Sans prénom, sans numéro vérifié ou sans CGU, l'API refuse
+- [x] **AC11 — Publier avec un contact.** Sans prénom, sans numéro vérifié ou sans CGU, l'API refuse
       la publication, et l'écran fait compléter ce qui manque sans quitter la publication.
-- [ ] **AC12 — Contact sur place.** Jusqu'à 3 numéros titrés par annonce, révélés au même geste que
+- [x] **AC12 — Contact sur place.** Jusqu'à 3 numéros titrés par annonce, révélés au même geste que
       le numéro principal, absents de toute réponse publique hors l'endpoint de contact.
-- [ ] **AC13 — Crédits.** Un espace naît avec 500 crédits dès que son titulaire a un numéro vérifié,
-      une seule fois par numéro ; la page « Crédits » montre solde, lots, expiration et historique.
-- [ ] **AC14 — Boost.** Remontée, Vedette et Badge s'achètent avec les règles d'ADR-0061 ; une
+- [x] **AC13 — Crédits.** Un espace naît avec 500 crédits dès que son titulaire a un numéro vérifié,
+      une seule fois par espace et par numéro ; la page « Crédits » montre solde, lots, expiration et historique.
+- [x] **AC14 — Boost.** Remontée, Vedette et Badge s'achètent avec les règles d'ADR-0061 ; une
       Vedette apparaît dans les emplacements « Sponsorisé » des recherches qu'elle satisfait, par
       rotation ; en première page, les 2 premiers résultats sont des vedettes qui correspondent, dans
       l'ordre normal, badgées, jamais en double ; au-delà, l'ordre des résultats ne change pas.
-- [ ] **AC15 — Vie du boost.** Dépublier met la Vedette en pause, republier la reprend ; louer le
+- [x] **AC15 — Vie du boost.** Dépublier met la Vedette en pause, republier la reprend ; louer le
       bien rend les jours restants ; un retrait par la modération ne rend rien.
-- [ ] **AC16 — Super-admin.** Le super-admin règle les six valeurs, édite le catalogue, crédite ou
+- [x] **AC16 — Super-admin.** Le super-admin règle les six valeurs, édite le catalogue, crédite ou
       débite un espace avec motif et 2FA, annule un boost avec ou sans remboursement, offre une
       Vedette, lit les statistiques ; chaque geste est journalisé.
 - [ ] **AC17 — Gardes.** Suites API et front entières vertes, `tsc`, lint, `check:i18n`, gardes de la

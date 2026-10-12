@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 26 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 531 |
@@ -59,11 +59,11 @@
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-604](tickets/TCK-604-free-money-quand-la-documentation-marchande-est-versee.md) — Free Money, payé en ligne comme Wave et Orange Money — dès que la documentation marchande est versée au dépôt (suite de TCK-602 §6) `M · P1 · full`
-- [TCK-633](tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md) — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits `XL · P1 · full`
 
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-633](tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md) — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits `XL · P1 · full`
 
 ## 👀 Review
 
