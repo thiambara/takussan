@@ -253,3 +253,20 @@ la section suivante.
   User-Agent imposé : `takussan-geo-extract/1.0 (+https://www.takussan.com)`.
 - **`check-models-spec` est rouge** pendant les lots (modèles neufs de C, D, F) : attendu, levé à
   l'étape 3, **avant** la PR.
+
+### Décisions du porteur sur les plans de lot (2026-10-12)
+
+Toutes sur la recommandation :
+
+1. **Menu admin d'un solo (B-E6)** : le menu ne montre que les pages qu'il peut ouvrir ; les cadenas
+   de TCK-371 disparaissent, et l'incitation passe par **une** carte « Passer en agence » dans
+   « Mon espace » (la carte existante `components/layout/ProUpgradeCard.tsx`, au lot B).
+2. **Unicité croisée (C-E10)** : un numéro vérifié n'appartient qu'à un compte, **principal ou second**.
+   `isVerifiedElsewhere` (et tout chemin qui rend un numéro principal : vérification du profil,
+   connexion ou inscription par téléphone) le juge aussi contre les seconds numéros vérifiés. Lot C.
+3. **Publier depuis « Mes biens » ou l'en-tête d'un bien (C-E12)** : le bloc « Vos coordonnées pour
+   les intéressés » s'ouvre en boîte de dialogue, puis la publication part. Lot C ;
+   `PropertyRowActions.tsx` et `PropertyHeaderActions.tsx` deviennent **co-tenus C, F**.
+4. **Filtre des équipements (E-8)** : **ET** — un bien doit offrir tous les équipements cochés.
+   Lot E (`PropertySearchService::buildFilter`, une clause par équipement), libellé à l'avenant,
+   alertes comprises.
