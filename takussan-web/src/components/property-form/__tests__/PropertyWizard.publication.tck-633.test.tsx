@@ -78,6 +78,7 @@ vi.mock('@/context/AuthContext', () => ({
 
 import { createPropertyAction, setPropertyTagsAction, uploadPropertyPhotosAction } from '@/app/actions/dashboard-properties';
 import { PropertyWizard } from '../PropertyWizard';
+import { LienBoosterApresPublication } from '@/components/boost/BoosterApresPublication';
 
 const COMPLET = {
   title: 'Villa à Mbour', type: 'villa', contract_type: 'sale', price: 25000000,
@@ -141,5 +142,32 @@ describe('PropertyWizard — publier avec un contact (TCK-633)', () => {
     await waitFor(() => expect(pub.publier).toHaveBeenCalled());
     expect(pub.contacts).toHaveBeenCalledWith(42, [{ label: 'Gardien', phone: '+221770000803', has_whatsapp: false }]);
     expect(pub.contacts.mock.invocationCallOrder[0]).toBeLessThan(pub.publier.mock.invocationCallOrder[0]);
+  });
+
+  /** TCK-633 (décision 5 du porteur) — le message de confirmation propose « Booster ». */
+  describe('le message de confirmation', () => {
+    function actionDuMessage() {
+      const appel = toast.add.mock.calls.at(-1)?.[0] as { data?: { action?: React.ReactElement } } | undefined;
+      return appel?.data?.action;
+    }
+
+    it('une annonce en ligne : le message porte « Booster », vers la fiche du bien', async () => {
+      const user = await allerAuBout();
+      await user.click(screen.getByRole('button', { name: /publier/i }));
+      await waitFor(() => expect(toast.add).toHaveBeenCalled());
+
+      const action = actionDuMessage();
+      expect(action?.type).toBe(LienBoosterApresPublication);
+      expect(action?.props).toEqual({ propertyId: 42, libelle: 'Booster cette annonce' });
+    });
+
+    it('une annonce en vérification : rien à booster, elle n’est pas encore publique', async () => {
+      pub.publier.mockResolvedValueOnce({ ok: true, data: { id: 42, status: 'pending_review' } });
+      const user = await allerAuBout();
+      await user.click(screen.getByRole('button', { name: /publier/i }));
+      await waitFor(() => expect(toast.add).toHaveBeenCalled());
+
+      expect(actionDuMessage()).toBeUndefined();
+    });
   });
 });

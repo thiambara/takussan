@@ -41,6 +41,7 @@ import { BarreApercu, CarteApercu, ListePourPublier } from './wizard/ApercuAnnon
 import { EnTetePublication } from './wizard/EnTetePublication';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import { publishPropertyAction } from '@/app/actions/publish-property';
+import { LienBoosterApresPublication } from '@/components/boost/BoosterApresPublication';
 import { replacePropertyContactsAction } from '@/app/actions/property-contacts';
 import { ContactsSurPlace, type ContactSurPlace } from '@/components/contact/ContactsSurPlace';
 import { CoordonneesPublication } from '@/components/contact/CoordonneesPublication';
@@ -375,6 +376,9 @@ export function PropertyWizard({
         setStatutPublie(statut);
       }
 
+      // TCK-633 (décision 5 du porteur) — une annonce en ligne se booste depuis le message même.
+      // En vérification ou proposée, elle n'est pas encore publique : rien à booster.
+      const enLigne = !proposition && statut !== 'pending_review';
       toast.add({
         title: proposition
           ? t('outcome.proposal')
@@ -382,6 +386,7 @@ export function PropertyWizard({
             ? t('outcome.review')
             : t('outcome.live'),
         type: 'success',
+        ...(enLigne ? { timeout: 10000, data: { action: <LienBoosterApresPublication propertyId={bien.id} libelle={t('outcome.boost')} /> } } : {}),
       });
       await terminer(bien.id);
     },

@@ -362,7 +362,7 @@ Ce qui a été relevé, et qui fonde chaque lot :
 
 ## Critères d'acceptation
 
-- [ ] **AC1 — Accès.** Un solo connecté ne rencontre aucun lien, dans aucun menu ni dans son profil,
+- [x] **AC1 — Accès.** Un solo connecté ne rencontre aucun lien, dans aucun menu ni dans son profil,
       qui le renvoie en arrière ; « Mon espace » ouvre une page qui s'affiche. Un admin `standard`
       voit les mêmes pages qu'avant.
 - [x] **AC2 — Suppression.** La modale ne promet plus de restauration.

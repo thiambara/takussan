@@ -47,11 +47,13 @@ import {
 
 interface Props {
   readonly property: PropertyDetail;
+  /** TCK-633 — la fiche est ouverte avec `?booster=1` (message de confirmation de publication). */
+  readonly ouvrirBoost?: boolean;
 }
 
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
-export function PropertyHeaderActions({ property }: Props) {
+export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
@@ -199,7 +201,12 @@ export function PropertyHeaderActions({ property }: Props) {
           une seconde ligne, loin de l'action qu'il prolonge. */}
       <div className="flex shrink-0 items-center gap-2">
         {/* TCK-633 lot F — « Booster », pour un bien public et qui détient `boost.spend`. */}
-        <BoostButton propertyId={property.id} propertyTitle={property.title} isPublic={Boolean(canViewPublic)} />
+        <BoostButton
+          propertyId={property.id}
+          propertyTitle={property.title}
+          isPublic={Boolean(canViewPublic)}
+          ouvrirDemande={ouvrirBoost}
+        />
         <AddDocumentButton
           documentableType="property"
           documentableId={property.id}

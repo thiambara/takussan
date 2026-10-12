@@ -1582,6 +1582,7 @@
       },
       "outcome": {
         "live": "Votre annonce est en ligne.",
+        "boost": "Booster cette annonce",
         "review": "Annonce envoyée en vérification : elle sera en ligne dès sa validation.",
         "proposal": "Proposition envoyée à votre agence."
       },

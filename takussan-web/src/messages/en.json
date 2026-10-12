@@ -1611,6 +1611,7 @@
       },
       "outcome": {
         "live": "Your listing is live.",
+        "boost": "Promote this listing",
         "review": "Listing sent for review: it will go live once approved.",
         "proposal": "Proposal sent to your agency."
       },
