@@ -146,10 +146,14 @@ export function ChampsLieu({
     quartierId === null &&
     !chargement.quartiers &&
     seulHomonyme(quartiers, texteQuartier) === null;
+  // Hors du `className` : `'region'` et `'city'` sont des noms de champs, pas des classes, et la
+  // garde des classes émises (TCK-453) relève toute chaîne écrite dans cette position.
+  const flashRegion = flash.includes('region');
+  const flashVille = flash.includes('city');
 
   return (
     <>
-      <div className={cn('w-full', flash.includes('region') && CLASSE_FLASH)}>
+      <div className={cn('w-full', flashRegion && CLASSE_FLASH)}>
         <label htmlFor="champ-region" className="mb-1.5 block text-sm font-medium">
           {t('address.region')}
         </label>
@@ -174,7 +178,7 @@ export function ChampsLieu({
         <FormError id="champ-region-error">{region.fieldState.error?.message}</FormError>
       </div>
 
-      <div className={cn('w-full', flash.includes('city') && CLASSE_FLASH)}>
+      <div className={cn('w-full', flashVille && CLASSE_FLASH)}>
         <label htmlFor="champ-ville" className="mb-1.5 block text-sm font-medium">
           {t('address.city')}
           <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>

@@ -20,16 +20,21 @@ export function BoostsNav() {
 
   return (
     <nav aria-label={t('label')} className="flex flex-wrap gap-2">
-      {ONGLETS.map((onglet) => (
-        <Link
-          key={onglet.href}
-          href={onglet.href}
-          aria-current={chemin === onglet.href ? 'page' : undefined}
-          className={cn(buttonVariants({ variant: chemin === onglet.href ? 'default' : 'outline', size: 'sm' }))}
-        >
-          {t(onglet.cle)}
-        </Link>
-      ))}
+      {ONGLETS.map((onglet) => {
+        const actif = chemin === onglet.href;
+        // Hors du `className` : `'default'` est un nom de variante, pas une classe (garde TCK-453).
+        const variante = actif ? 'default' : 'outline';
+        return (
+          <Link
+            key={onglet.href}
+            href={onglet.href}
+            aria-current={actif ? 'page' : undefined}
+            className={cn(buttonVariants({ variant: variante, size: 'sm' }))}
+          >
+            {t(onglet.cle)}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
