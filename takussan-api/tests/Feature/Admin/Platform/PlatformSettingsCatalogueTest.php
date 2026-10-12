@@ -14,10 +14,14 @@ class PlatformSettingsCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_catalogue_se_reduit_aux_trois_cles_lues(): void
+    public function test_le_catalogue_se_reduit_aux_neuf_cles_lues(): void
     {
         $this->assertSame(
-            ['currency.default', 'currency.supported', 'platform.session_max_minutes'],
+            [
+                'currency.default', 'currency.supported', 'platform.session_max_minutes',
+                'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
+                'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+            ],
             array_keys(EditablePlatformSettings::all()),
         );
     }
@@ -30,7 +34,11 @@ class PlatformSettingsCatalogueTest extends TestCase
         $entrees = collect($groupes)->flatten(1);
 
         $this->assertEqualsCanonicalizing(
-            ['currency.default', 'currency.supported', 'platform.session_max_minutes'],
+            [
+                'currency.default', 'currency.supported', 'platform.session_max_minutes',
+                'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
+                'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+            ],
             $entrees->pluck('key')->all(),
         );
         foreach ($entrees as $entree) {

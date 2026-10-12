@@ -58,10 +58,13 @@ places réservées en tête de la première page ; au-delà, l'ordre des résult
 - Les crédits sont des **entiers**. Ils ne passent jamais par la règle ×100 des montants : ce ne
   sont pas des montants. La phase 2 (achat) l'appliquera au **prix** du pack, pas aux crédits.
 
-### 3. L'offre de bienvenue, une fois par numéro vérifié
+### 3. L'offre de bienvenue, une fois par espace et une fois par numéro vérifié
 
-- Elle est versée **au titulaire de l'espace** (`primary_admin_id`), **une seule fois par numéro
-  vérifié** : au moment où l'espace naît si le numéro l'est déjà, sinon au moment où il le devient.
+- Elle est versée **au titulaire de l'espace** (`primary_admin_id`), **une seule fois par espace et
+  une seule fois par numéro vérifié** : au moment où l'espace naît si le numéro l'est déjà, sinon au
+  moment où il le devient. Changer de numéro principal puis le faire vérifier ne re-crédite pas
+  l'espace ; un numéro ne fait pas gagner deux espaces. Les deux unicités sont des index de
+  `credit_welcome_grants` (`agency_id`, `phone_hash`).
 - Le registre **`credit_welcome_grants`** retient l'empreinte HMAC du numéro (comme
   `alert_subscribers.contact_hash`) : il survit à l'anonymisation d'un compte supprimé, qui efface le
   numéro, et empêche qu'un même numéro fasse naître des crédits deux fois. Comme un numéro vérifié
@@ -73,9 +76,17 @@ places réservées en tête de la première page ; au-delà, l'ordre des résult
 - Un lot `welcome`, `admin_grant` ou `refund` porte une date d'expiration. La tâche planifiée
   l'expire (mouvement `expire` du restant) et, **une fois**, prévient l'espace quelques jours avant
   (réglage).
-- Un lot `refund` hérite de l'expiration **la plus lointaine** des lots débités par le boost
-  remboursé — nulle si l'un d'eux n'expirait pas. Un remboursement ne prolonge jamais un crédit
+- Un remboursement se répartit **par lot d'origine**, au prorata de ce que chaque lot a fourni au
+  boost remboursé. Chaque part devient un lot `refund` qui **hérite de l'expiration de SON lot
+  d'origine** — nulle pour un lot acheté. Ainsi un remboursement ne prolonge jamais un crédit
   offert, et ne fait jamais expirer un crédit acheté.
+- Une part dont le lot d'origine a **déjà expiré n'est pas rendue** : rien ne ressuscite.
+  `refunded_credits` ne compte que ce qui est réellement rendu ; si rien ne l'est, le boost n'est pas
+  `refunded` et la notification ne parle pas de remboursement ; si une partie seulement l'est, elle
+  dit le nombre rendu et le nombre perdu parce qu'expiré.
+- Arrondi : le prorata est borné à ce que le boost a payé, puis réparti par plus forts restes. La
+  somme des parts ne dépasse donc jamais ni le prorata ni le payé, et aucune part ne dépasse ce que
+  son lot a fourni.
 
 ### 5. Trois produits, un catalogue
 
@@ -155,7 +166,7 @@ les autres annonces. Les places réservées en sont la version **bornée** : X p
   Badges actifs passent `paused`, avec leurs secondes restantes. **Il y revient** : ils reprennent
   avec ce qui restait.
 - **Le bien est loué, vendu, ou supprimé par l'annonceur** : le boost est `refunded` ; les jours
-  pleins restants sont rendus au prorata du prix figé, en un lot `refund` (§4).
+  pleins restants sont rendus au prorata du prix figé, en un lot `refund` par lot d'origine (§4).
 - **Le bien est retiré par la modération** (verrou plateforme, décision de signalement « masquer » ou
   « retirer ») : le boost est `ended` **sans** remboursement — les crédits ne paient pas une annonce
   frauduleuse. Le super-admin peut rembourser à la main.

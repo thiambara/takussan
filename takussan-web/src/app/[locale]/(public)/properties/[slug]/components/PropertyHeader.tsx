@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CompareToggleAction } from '@/components/compare/CompareToggleAction';
 import { porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
+import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail } from '@/types/property';
@@ -49,10 +50,8 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{property.status_label}</Badge>
-            {/* « Mis en avant » parle l'accent des badges featured (design-guidelines), pas le primaire des CTA. */}
-            {property.featured && (
-              <Badge variant="default" className="bg-accent text-accent-foreground">{t('featured')}</Badge>
-            )}
+            {/* TCK-633 lot F — « En vedette » et le badge acheté (« Urgent », « Baisse de prix »). */}
+            <MarquesDeBoost featured={Boolean(property.featured)} badge={(property as { badge?: unknown }).badge} className="contents" />
             {/* TCK-508 — « Neuf » / « Sur plan » seulement ; l'état complet est dans les caractéristiques. */}
             {porteUnBadgeNeuf(property.condition) && (
               <Badge variant="secondary">{tCondition(property.condition)}</Badge>

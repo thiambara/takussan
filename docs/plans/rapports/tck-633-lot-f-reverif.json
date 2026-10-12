@@ -1,0 +1,76 @@
+{
+  "verdict": "accepte",
+  "verdict_motif": "Les sept corrections sont tenues et gardées : pour chacune, une ablation différente de celle de l'implémenteur fait rougir au moins un test du lot. Aucune régression d'argent trouvée. Restent un trou de test mineur (la règle « plus forts restes » n'est gardée par aucun test du lot) et trois observations sans effet en production.",
+  "preuves": [
+    {"commande": "uptime ; sysctl -n hw.ncpu ; docker compose ps", "resultat": "charge 24,67 / 33,88 / 33,02 sur 8 cœurs à 11:12, puis 7,29 / 24,65 / 28,66 à 11:22 (lots C, D, E actifs) ; postgres, meilisearch, redis, mailpit healthy. Les durées ci-dessous sont prises sous charge et ne mesurent pas le dépôt."},
+    {"commande": "php artisan test tests/Feature/Credits tests/Feature/Boost tests/Unit/Boost tests/Unit/Support/PhoneFingerprintTest.php tests/Feature/Notifications/CreditsNotificationsTest.php tests/Feature/Api/AgencyTest.php tests/Feature/Events/EventListenerDuplicationTest.php tests/Unit/Lang/LangGroupParityTest.php", "resultat": "131 passed (539 assertions), sortie 0"},
+    {"commande": "même ensemble que le rapport (11 chemins, + MembershipCapabilityResolverTest, PlatformSettingsCatalogueTest, PropertyListTest) + scratchpad/reverif-f/ReverifLotFAdverseTest.php, après toutes les restaurations", "resultat": "187 passed (772 assertions) : les 180 du rapport, tous verts (le rouge attendu de WelcomeCreditOnAgencyStoreTest est levé, la collision agency-store-space-created étant appliquée), plus mes 7 scénarios"},
+    {"commande": "git diff AgencyController.php ; grep SpaceCreated app/", "resultat": "le seul ajout est `SpaceCreated::dispatch($agency)` après `Agency::create` ; SpaceCreated est ShouldDispatchAfterCommit ; un seul écouteur (GrantWelcomeCreditsOnSpaceCreated), donc aucun autre effet de bord sur POST /api/agencies"},
+    {"commande": "R1 : POST /api/agencies par un titulaire SANS numéro vérifié, puis PhoneVerified", "resultat": "0 crédit et aucune ligne credit_welcome_grants à la création, puis 500 à la vérification. C'est conforme à ADR-0061 §3 : « au moment où l'espace naît si le numéro l'est déjà, sinon au moment où il le devient ». Pas de régression."},
+    {"commande": "R2 : SpaceCreated + PhoneVerified dans la même DB::transaction, puis rejoués hors transaction dans l'ordre inverse ; R2b : POST /api/agencies avec un numéro vérifié, puis PhoneVerified", "resultat": "solde 500, une seule ligne credit_welcome_grants, un seul lot : le second insertOrIgnore bute sur l'unique agency_id (et sur phone_hash)"},
+    {"commande": "R3 : boost payé par 3 lots (7 à J+10, 5 à J+20, 3 achetés), refundPlan pour des proratas de 10, 1, 14 et 13, puis refund(10)", "resultat": "répartitions [5,3,2], [1], [6,5,3], [6,4,3] : la somme vaut le prorata, aucune part ne dépasse ce que son lot a fourni, les plus forts restes sont servis, à égalité le lot le plus ancien. Trois lots refund écrits, chacun avec l'expiration de son lot (J+10, J+20, NULL). Invariant sain."},
+    {"commande": "R4 : Vedette 7 j payée par X (100 crédits, J+20), prolongée à J+5 par Y (30 crédits, J+7 ; 10 restent), expireDue à J+8 qui solde Y, puis bien loué", "resultat": "6 jours pleins, floor(40×6/14) = 17, soit 8,5 + 8,5 et le reste au lot le plus ancien : X 9, Y 8 (expiré, non rendu). Statut refunded, refunded_credits 9, un seul lot refund de 9 à l'expiration de X, solde 89, notification credits=9 et expired=8, invariant sain."},
+    {"commande": "R5 : Vedette 7 j rachetée à J+2 pendant qu'elle court", "resultat": "fin au 26/10 10:00 : la prolongation part toujours de la fin future. Le correctif du point 3 n'a pas cassé le cas nominal."},
+    {"commande": "R6 : un super-admin au numéro vérifié crée deux espaces par POST /api/agencies", "resultat": "soldes [500, 0] : le second espace ne reçoit rien (même numéro), ce qui est conforme à §3"},
+    {"commande": "base jetable reverif_f_tck633 (--locale=C) : migrate ; inspection ; rollback --step=1 ; INSERT de deux bienvenues pour la même agence ; migrate ; nettoyage ; migrate ; rollback ; migrate ; dropdb", "resultat": "Index credit_welcome_grants_agency_unique UNIQUE (agency_id) et CHECK property_boosts_credits_check présents. down() les retire tous les deux (0/0). Avec deux bienvenues pour le même espace, up() ÉCHOUE (SQLSTATE 23505, could not create unique index), de façon atomique : la migration n'est pas inscrite et le CHECK n'est pas posé. Après dédoublonnage, up/down/up passent. La base est supprimée (pg_database : 0)."},
+    {"commande": "git status / git ls-tree origin/preview, origin/dev", "resultat": "les migrations 5000xx ne sont suivies nulle part (??) et aucune branche distante ne contient HEAD : 500200 n'a jamais tourné en préproduction ni en production, donc aucune base déployée ne peut contenir de doublon"},
+    {"commande": "./vendor/bin/pint --test <fichiers PHP corrigés, tests, lang>", "resultat": "passed"},
+    {"commande": "grep body_with_expired lang/*/credits.php", "resultat": "présent en fr, en et wo, avec les placeholders :credits et :expired ; le fr vouvoie"}
+  ],
+  "ablations": [
+    {"point": 1, "cible": "500500 : unique('agency_id') → unique(['agency_id','phone_hash']) (unicité composite, plausible et fausse)", "tests": "WelcomeCreditOncePerPhoneTest, CreditSchemaTest", "rouge": "oui : changer_de_numero… (1000 ≠ 500) et la_bienvenue_est_unique_par_espace (1 ≠ 0)", "restauration": "Edit inverse, md5 f7836d78… identique"},
+    {"point": 7, "cible": "500500 : CHECK `refunded_credits IS NULL OR refunded_credits >= 0` → `… OR price_credits >= 0` (la clause porte sur la mauvaise colonne)", "tests": "CreditSchemaTest", "rouge": "oui : « property_boosts a accepté {\"refunded_credits\":-1} »", "restauration": "même Edit inverse, md5 f7836d78… identique"},
+    {"point": 2, "cible": "WelcomeCreditService::onSpaceCreated : condition de numéro vérifié inversée", "tests": "WelcomeCreditOnAgencyStoreTest", "rouge": "oui, les deux : 0 ≠ 500 (numéro vérifié) et 500 ≠ 0 (numéro non vérifié)", "restauration": "md5 c50761e3… identique"},
+    {"point": 3, "cible": "BoostPurchaseService::featured : `ends_at->isFuture()` → `ends_at->isPast()` (une Vedette vivante repart de maintenant, une échue de son ancienne fin)", "tests": "BoostRulesTest", "rouge": "oui : racheter_une_vedette_echue… ET une_vedette_se_prolonge… ; les deux sens du point 3 sont gardés", "restauration": "md5 16abb912… identique"},
+    {"point": 6, "cible": "BoostPurchaseService::bump : `->skip(1)->first()`, avec repli sur la première quand il n'y en a qu'une (compare à l'AVANT-dernière Remontée)", "tests": "BoostRulesTest, PropertyBoostApiTest", "rouge": "oui : le_delai_de_remontee_se_compte_depuis_la_derniere (« aucun refus »)", "restauration": "md5 16abb912… identique"},
+    {"point": 5, "cible": "CreditLedger::spend : lecture des lots AVANT le lockForUpdate de l'agence (lecture périmée)", "tests": "CreditConcurrentSpendTest", "rouge": "oui, les deux courses (dépense et débit manuel) : « A a dépensé des crédits que B venait de consommer » ; le test de nettoyage reste vert, tearDown tient malgré l'échec", "restauration": "Edit inverse"},
+    {"point": 5, "cible": "CreditLedger::spend : lockForUpdate() retiré (simple firstOrFail)", "tests": "CreditConcurrentSpendTest", "rouge": "oui, les deux courses", "restauration": "md5 16dcce95… identique"},
+    {"point": 4, "cible": "CreditLedger::refundPlan : toutes les parts héritent de l'expiration du PREMIER lot", "tests": "CreditLedgerInvariantTest, BoostPauseAndRefundTest, + R3", "rouge": "oui : le_remboursement_se_repartit…, une_part_dont_l_expiration_est_passee…, louer_ne_rend_que_la_part… (la part achetée prend une date), et R3", "restauration": "Edit inverse"},
+    {"point": 4, "cible": "CreditLedger::refundPlan : part expirée jugée contre boost->starts_at au lieu de maintenant", "tests": "CreditLedgerInvariantTest, BoostPauseAndRefundTest, CreditsNotificationsTest, + R4", "rouge": "oui : une_part_dont_l_expiration…, louer_ne_rend_que_la_part…, louer_quand_tout_a_expire…, et R4", "restauration": "Edit inverse"},
+    {"point": 4, "cible": "BoostLifecycle::closeWithRefund : la notification annonce refunded + expired (le prorata) au lieu du rendu réel", "tests": "BoostPauseAndRefundTest, CreditsNotificationsTest, AdminCreditsApiTest, + R4", "rouge": "oui : louer_ne_rend_que_la_part… et R4", "restauration": "md5 f2a69c1b… identique"},
+    {"point": 4, "cible": "CreditLedger::refundPlan : plus forts restes → PLUS FAIBLES restes (tri ascendant)", "tests": "CreditLedgerInvariantTest, BoostPauseAndRefundTest, CreditsNotificationsTest, AdminCreditsApiTest, + R3", "rouge": "NON pour les tests du lot (36 verts). Seul mon R3 rougit ([5,3,2] attendu, autre répartition rendue). Voir défaut 1.", "restauration": "Edit inverse ; md5 final 16dcce95… identique"}
+  ],
+  "md5_finaux": {
+    "app/Services/Credits/CreditLedger.php": "16dcce95aed7a0c93b4d892ed8d45e4c",
+    "app/Services/Credits/WelcomeCreditService.php": "c50761e3eabca518c23a4e3690ba5ee1",
+    "app/Services/Boost/BoostPurchaseService.php": "16abb9121d6d283ddbe4b4e63202396a",
+    "app/Services/Boost/BoostLifecycle.php": "f2a69c1b43ebf2d4ef039b83da94899d",
+    "database/migrations/2026_10_12_500500_harden_welcome_grants_and_boost_prices.php": "f7836d786a0b2aaa01cd98ce25c5b80b"
+  },
+  "defauts": [
+    {
+      "fichier": "takussan-api/tests/Feature/Credits/CreditLedgerInvariantTest.php::test_la_somme_des_parts_ne_depasse_ni_le_prorata_ni_le_paye",
+      "scenario": "La règle d'arrondi prescrite par ADR-0061 §4 (« réparti par plus forts restes ») n'est gardée par aucun test du lot : servir les plus FAIBLES restes laisse les 36 tests verts. Le cas à trois lots du test a des restes tous égaux (1/1/1), et le cas borné a des restes nuls. Les propriétés d'argent (somme = prorata borné ≤ payé, part ≤ lot) tiennent mathématiquement sous les deux tris : seule la justice de la répartition entre lots, donc entre dates d'expiration, n'est pas gardée.",
+      "gravite": "mineur (trou de test, code juste)",
+      "correctif": "Ajouter un cas à restes inégaux, par exemple le R3 du scratchpad : lots 7/5/3, prorata 10 → [5,3,2]."
+    },
+    {
+      "fichier": "docs/adr/0061-credits-d-espace-et-boost-des-annonces.md:61",
+      "scenario": "Le titre du §3 dit encore « L'offre de bienvenue, une fois par numéro vérifié », alors que le corps réécrit pose deux unicités (espace ET numéro). C'est la moitié de la règle que le refus initial a coûtée.",
+      "gravite": "observation (documentation)",
+      "correctif": "« une fois par espace et par numéro vérifié »."
+    },
+    {
+      "fichier": "takussan-api/database/migrations/2026_10_12_500500_harden_welcome_grants_and_boost_prices.php",
+      "scenario": "Sur une base qui contient déjà deux bienvenues pour le même espace (l'état V1 que produisait le défaut corrigé), up() échoue en 23505. L'échec est propre et atomique : rien n'est inscrit, le CHECK n'est pas posé. Aucune base déployée ne peut être dans cet état, puisque 500200 n'a jamais quitté cette branche (fichiers non suivis, absents d'origin/preview et d'origin/dev). Seule une base locale de développement qui aurait joué 500200 seule, puis rejoué V1, est concernée ; un migrate:fresh suffit.",
+      "gravite": "observation (sans effet en préproduction ni en production)",
+      "correctif": "Aucun requis. Si 500200 et 500500 restent deux migrations au moment du merge, on peut les fusionner, ou faire dédoublonner par up() avant de poser l'index."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/AgencyController.php:52-67",
+      "scenario": "Un super-admin peut créer plusieurs espaces par POST /api/agencies, dont il est le titulaire. Le premier reçoit la bienvenue sur SON numéro, ce qui consomme ce numéro pour toute bienvenue future ; les suivants ne reçoivent rien. C'est conforme à §3, mais un espace créé par l'opérateur reçoit 500 crédits.",
+      "gravite": "observation (à trancher par le porteur si ce cas existe en pratique ; aucun appelant front de cette route)",
+      "correctif": "Aucun dans ce lot."
+    }
+  ],
+  "regressions_cherchees": {
+    "post_agencies_sans_numero_verifie": "aucune bienvenue à la création, versée à la vérification : conforme à ADR-0061 §3 (R1, et WelcomeCreditOnAgencyStoreTest::…sans_numero_verifie…)",
+    "double_bienvenue_spacecreated_et_phoneverified": "aucune : 500, une ligne, un lot (R2, R2b)",
+    "remboursement_trois_lots_arrondis": "juste (R3) ; seul le choix des plus forts restes n'est pas gardé par la suite du lot (défaut 1)",
+    "remboursement_lot_d_origine_solde_par_le_tick": "juste : part expirée non rendue, refunded_credits et notification exacts, invariant sain (R4)",
+    "migration_500500_sur_doublons": "up() échoue proprement ; aucune base déployée exposée (défaut 3, observation)",
+    "down_500500": "retire l'index unique et le CHECK ; le cycle up/down/up passe"
+  },
+  "fichiers_hors_arbre": "scratchpad/reverif-f/ReverifLotFAdverseTest.php (7 scénarios R1-R6) : jamais copié dans l'arbre. Aucune écriture git ; aucun fichier du dépôt modifié hors de ce rapport (cinq md5 restaurés à l'identique).",
+  "resume": "Accepté : les sept corrections tiennent, et onze ablations inventées, distinctes de celles de l'implémenteur, font chacune rougir au moins un test du lot, sauf le tri des restes. Aucune régression : POST /api/agencies sans numéro vérifié est conforme à §3, aucune double bienvenue, les remboursements sur trois lots et sur un lot soldé par le tick sont justes, et down() de 500500 est réversible. Restent un trou de test mineur (plus forts restes non gardés) et trois observations : le titre du §3, l'échec propre de 500500 sur doublons, impossible en production, et le super-admin titulaire."
+}
