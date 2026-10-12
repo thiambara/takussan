@@ -10,8 +10,9 @@
     "osm_base": "2026-10-12T09:15:35Z",
     "extraite_le": "2026-10-12",
     "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
-    "relu_par": null,
-    "relu_le": null
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "447aa0fe837a336653f34cfa9c5d7fb6b454b0ce7ff7642abcecbc4457b65c6f"
   },
   "cities": [
     {

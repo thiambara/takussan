@@ -10,8 +10,9 @@
     "osm_base": "2026-10-12T01:32:19Z",
     "extraite_le": "2026-10-12",
     "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
-    "relu_par": null,
-    "relu_le": null
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "99c8f86a07639515b2e61cc5d4bbccff22a1cd0b6eb2af66b802faaf02efe42e"
   },
   "cities": [
     {
@@ -92,13 +93,6 @@
           "osm": "n566697488"
         },
         {
-          "slug": "bgazelle-i",
-          "name": "Bgazelle I",
-          "latitude": 14.7357808,
-          "longitude": -17.4485335,
-          "osm": "w1463235730"
-        },
-        {
           "slug": "biscuiterie",
           "name": "Biscuiterie",
           "latitude": 14.7116083,
@@ -149,14 +143,14 @@
         },
         {
           "slug": "cite-bastos-i",
-          "name": "Cite Bastos I",
+          "name": "Cité Bastos I",
           "latitude": 14.7281455,
           "longitude": -17.4482755,
           "osm": "w1463235752"
         },
         {
           "slug": "cite-bastos-ii-villa",
-          "name": "Cite Bastos II Villa",
+          "name": "Cité Bastos II Villa",
           "latitude": 14.7292571,
           "longitude": -17.4501639,
           "osm": "w1463235766"
@@ -247,21 +241,21 @@
         },
         {
           "slug": "cite-sipres-i",
-          "name": "Cite SIPRES I",
+          "name": "Cité SIPRES I",
           "latitude": 14.7403034,
           "longitude": -17.4673263,
           "osm": "w1463235762"
         },
         {
           "slug": "cite-sipres-ii-sica",
-          "name": "Cite SIPRES II SICA",
+          "name": "Cité SIPRES II SICA",
           "latitude": 14.7392254,
           "longitude": -17.4695566,
           "osm": "w1463235709"
         },
         {
           "slug": "cite-sonatel-i",
-          "name": "Cite SONATEL I",
+          "name": "Cité SONATEL I",
           "latitude": 14.7400362,
           "longitude": -17.4652175,
           "osm": "w1463235760"
@@ -279,13 +273,6 @@
           "latitude": 14.6671016,
           "longitude": -17.4351145,
           "osm": "r12989256"
-        },
-        {
-          "slug": "dalifort",
-          "name": "Dalifort",
-          "latitude": 14.7417296,
-          "longitude": -17.4172247,
-          "osm": "n4958532745"
         },
         {
           "slug": "darou-salam-ii",
@@ -527,7 +514,7 @@
         },
         {
           "slug": "hlm-grand-yoff",
-          "name": "Hlm Grand Yoff",
+          "name": "HLM Grand Yoff",
           "latitude": 14.741421,
           "longitude": -17.4542045,
           "osm": "w1463235705"
@@ -548,7 +535,7 @@
         },
         {
           "slug": "hlm-grand-yoff-ii-cite-assane-diop",
-          "name": "HLM Grand Yoff II (cite Assane Diop)",
+          "name": "HLM Grand Yoff II (Cité Assane Diop)",
           "latitude": 14.7427961,
           "longitude": -17.4502584,
           "osm": "w1463235720"
@@ -569,7 +556,7 @@
         },
         {
           "slug": "hlm-patte-d-oie",
-          "name": "HLM Patte D'oie",
+          "name": "HLM Patte d'Oie",
           "latitude": 14.741537,
           "longitude": -17.442976,
           "osm": "w1463235745"
@@ -778,20 +765,6 @@
           "osm": "n560743288"
         },
         {
-          "slug": "sacre-coeur-3-pyrotechnie",
-          "name": "Sacré Coeur 3 Pyrotechnie",
-          "latitude": 14.7113439,
-          "longitude": -17.4678133,
-          "osm": "w279672170"
-        },
-        {
-          "slug": "sacre-coeur-3-vdn",
-          "name": "Sacré Cœur 3 VDN",
-          "latitude": 14.721931,
-          "longitude": -17.4733369,
-          "osm": "r5386698"
-        },
-        {
           "slug": "sacre-coeur",
           "name": "Sacré-Cœur",
           "latitude": 14.7114619,
@@ -820,6 +793,20 @@
           "osm": "w279672366"
         },
         {
+          "slug": "sacre-coeur-3-pyrotechnie",
+          "name": "Sacré-Cœur 3 Pyrotechnie",
+          "latitude": 14.7113439,
+          "longitude": -17.4678133,
+          "osm": "w279672170"
+        },
+        {
+          "slug": "sacre-coeur-3-vdn",
+          "name": "Sacré-Cœur 3 VDN",
+          "latitude": 14.721931,
+          "longitude": -17.4733369,
+          "osm": "r5386698"
+        },
+        {
           "slug": "santhiaba",
           "name": "Santhiaba",
           "latitude": 14.739318,
@@ -835,70 +822,70 @@
         },
         {
           "slug": "scat-urbam-cite-conachap",
-          "name": "SCAT Urbam (cite Conachap)",
+          "name": "SCAT Urbam (Cité Conachap)",
           "latitude": 14.7347647,
           "longitude": -17.4586125,
           "osm": "w1463235724"
         },
         {
           "slug": "scat-urbam-cite-fougerolle",
-          "name": "SCAT Urbam (cite Fougerolle)",
+          "name": "SCAT Urbam (Cité Fougerolle)",
           "latitude": 14.7362034,
           "longitude": -17.4562132,
           "osm": "w1463235738"
         },
         {
           "slug": "scat-urbam-cite-keur-khadim-ii",
-          "name": "SCAT Urbam (cite Keur Khadim II)",
+          "name": "SCAT Urbam (Cité Keur Khadim II)",
           "latitude": 14.7384303,
           "longitude": -17.459877,
           "osm": "w1463235767"
         },
         {
           "slug": "scat-urbam-ilot-b",
-          "name": "SCAT Urbam (ilot B)",
+          "name": "SCAT Urbam (Îlot B)",
           "latitude": 14.7363521,
           "longitude": -17.4595501,
           "osm": "w1463235732"
         },
         {
           "slug": "scat-urbam-ilot-c",
-          "name": "SCAT Urbam (ilot C)",
+          "name": "SCAT Urbam (Îlot C)",
           "latitude": 14.7358398,
           "longitude": -17.4616965,
           "osm": "w1463235728"
         },
         {
           "slug": "scat-urbam-ilot-d",
-          "name": "SCAT Urbam (ilot D)",
+          "name": "SCAT Urbam (Îlot D)",
           "latitude": 14.7369083,
           "longitude": -17.4624453,
           "osm": "w1463235729"
         },
         {
           "slug": "scat-urbam-ilot-f",
-          "name": "SCAT Urbam (ilot F)",
+          "name": "SCAT Urbam (Îlot F)",
           "latitude": 14.7394485,
           "longitude": -17.4611381,
           "osm": "w1463235758"
         },
         {
           "slug": "scat-urbam-ilot-g",
-          "name": "SCAT Urbam (ilot G)",
+          "name": "SCAT Urbam (Îlot G)",
           "latitude": 14.7405499,
           "longitude": -17.4602104,
           "osm": "w1463235743"
         },
         {
           "slug": "scat-urbam-ilot-m",
-          "name": "SCAT Urbam (ilot M)",
+          "name": "SCAT Urbam (Îlot M)",
           "latitude": 14.7368291,
           "longitude": -17.4583009,
           "osm": "w1463235721"
         },
         {
           "slug": "scat-urbam-ilot-n",
-          "name": "SCAT Urbam (ilot N)",
+          "name": "SCAT Urbam (Îlot N)",
           "latitude": 14.7374715,
           "longitude": -17.4562678,
           "osm": "w1463235761"
@@ -947,28 +934,28 @@
         },
         {
           "slug": "sud-foire-cite-cse",
-          "name": "Sud Foire (cite CSE)",
+          "name": "Sud Foire (Cité CSE)",
           "latitude": 14.7348109,
           "longitude": -17.4639771,
           "osm": "w1463235725"
         },
         {
           "slug": "sud-foire-cite-libasse-niang",
-          "name": "Sud Foire (cite Libasse Niang)",
+          "name": "Sud Foire (Cité Libasse Niang)",
           "latitude": 14.7364732,
           "longitude": -17.4659214,
           "osm": "w1463235719"
         },
         {
           "slug": "sud-foire-cite-sonatel-ii",
-          "name": "Sud Foire (cite SONATEL II)",
+          "name": "Sud Foire (Cité SONATEL II)",
           "latitude": 14.7366695,
           "longitude": -17.4649206,
           "osm": "w1463235751"
         },
         {
           "slug": "sud-foire-cite-sonatel-iii",
-          "name": "Sud Foire (cite SONATEL III)",
+          "name": "Sud Foire (Cité SONATEL III)",
           "latitude": 14.7344571,
           "longitude": -17.4655048,
           "osm": "w1463235765"
@@ -1152,7 +1139,7 @@
         },
         {
           "slug": "golf-sud-cite-aliou-sow",
-          "name": "Golf Sud(Cité Aliou SOW)",
+          "name": "Golf Sud (Cité Aliou Sow)",
           "latitude": 14.7716198,
           "longitude": -17.4139148,
           "osm": "n8047907843"
@@ -1312,13 +1299,6 @@
           "latitude": 14.7476196,
           "longitude": -17.3520953,
           "osm": "r12989397"
-        },
-        {
-          "slug": "djida-thiaroye-kaw",
-          "name": "Djida Thiaroye Kaw",
-          "latitude": 14.7652681,
-          "longitude": -17.3830023,
-          "osm": "n4958547350"
         },
         {
           "slug": "djidah-thiaroye-kaw",

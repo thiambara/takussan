@@ -1,11 +1,18 @@
 # TCK-633 — relecture du référentiel géographique (tâche 27)
 
-> **Statut : EN ATTENTE DE RELECTURE.** Préparé par l'agent du lot D le 2026-10-12. Aucune région
-> n'est signée : `source.relu_par` et `source.relu_le` valent `null` dans les 14 fichiers, et
-> `tests/Unit/Geo/GeoDatasetReviewedTest.php` est **rouge, volontairement** — mesuré :
-> `15 failed, 14 passed (99 assertions)` (les 14 « relue par une personne », plus le format de
-> `sn-dk` sur « Golf Sud(Cité Aliou SOW) »). La branche ne se fusionne pas avant la relecture :
-> c'est le but du test (ADR-0062 §3 : « un jeu extrait automatiquement, relu à la main »).
+> **Statut : RELU ET SIGNÉ le 2026-10-12** par Mouhamadoul Amine THIAM, porteur du produit, qui a
+> validé les propositions du tableau « Points relevés ». Appliqué dans `corrections.json` puis
+> rejoué sur les fichiers déjà relus, sans nouvel appel à OSM : seul `sn-dk.json` change.
+>
+> - Points 1, 2, 3, 8, 9 : renommés comme proposé (« Sacré-Cœur 3 Pyrotechnie » harmonisé avec
+>   « Sacré-Cœur 3 VDN », même défaut de trait d'union).
+> - Point 4 : **renommé** « HLM Grand Yoff » (la proposition laissait « retirer ou renommer »).
+> - Point 5 : **retiré** (« Gazelle I » n'était qu'une supposition).
+> - Points 6 et 7 : `pikine/djida-thiaroye-kaw` et `dakar/dalifort` retirés.
+> - Points 10 à 16 : gardés tels quels.
+>
+> `GeoDatasetReviewedTest` est vert (`tests/Unit/Geo` : 67 tests). Le texte ci-dessous est la fiche
+> telle qu'elle a été relue.
 
 ## Ce qui est demandé
 
