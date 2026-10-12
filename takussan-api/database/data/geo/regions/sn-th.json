@@ -1,0 +1,531 @@
+{
+  "region": {
+    "code": "SN-TH",
+    "slug": "thies",
+    "name": "Thiès",
+    "latitude": 14.7540839,
+    "longitude": -16.6412954
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:14:31Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "cherif-lo",
+      "name": "Chérif Lo",
+      "latitude": 14.9319398,
+      "longitude": -16.8260104,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-khoudoss",
+      "name": "Darou Khoudoss",
+      "latitude": 15.2176203,
+      "longitude": -16.855866,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diass",
+      "name": "Diass",
+      "latitude": 14.62323,
+      "longitude": -17.0583042,
+      "neighborhoods": [
+        {
+          "slug": "popenguine-serere",
+          "name": "Popenguine sérère",
+          "latitude": 14.5668254,
+          "longitude": -17.100693,
+          "osm": "n9011965568"
+        }
+      ]
+    },
+    {
+      "slug": "diender",
+      "name": "Diender",
+      "latitude": 14.875303,
+      "longitude": -17.1085456,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fandene",
+      "name": "Fandène",
+      "latitude": 14.7992226,
+      "longitude": -16.9107854,
+      "neighborhoods": [
+        {
+          "slug": "grand-standing",
+          "name": "Grand Standing",
+          "latitude": 14.7742377,
+          "longitude": -16.9507705,
+          "osm": "n2084921811"
+        }
+      ]
+    },
+    {
+      "slug": "fissel",
+      "name": "Fissel",
+      "latitude": 14.5640402,
+      "longitude": -16.6202149,
+      "neighborhoods": []
+    },
+    {
+      "slug": "joal-fadiouth",
+      "name": "Joal-Fadiouth",
+      "latitude": 14.1770827,
+      "longitude": -16.8419104,
+      "neighborhoods": [
+        {
+          "slug": "fadiouth",
+          "name": "Fadiouth",
+          "latitude": 14.1520558,
+          "longitude": -16.8233732,
+          "osm": "n3286299298"
+        },
+        {
+          "slug": "joal",
+          "name": "Joal",
+          "latitude": 14.1627854,
+          "longitude": -16.8416891,
+          "osm": "n3286299299"
+        }
+      ]
+    },
+    {
+      "slug": "kayar",
+      "name": "Kayar",
+      "latitude": 14.9139277,
+      "longitude": -17.1204038,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-moussa",
+      "name": "Keur Moussa",
+      "latitude": 14.762539,
+      "longitude": -17.05471,
+      "neighborhoods": []
+    },
+    {
+      "slug": "khombole",
+      "name": "Khombole",
+      "latitude": 14.7636951,
+      "longitude": -16.6901018,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koul",
+      "name": "Koul",
+      "latitude": 15.0394125,
+      "longitude": -16.6219282,
+      "neighborhoods": []
+    },
+    {
+      "slug": "la-somone",
+      "name": "La Somone",
+      "latitude": 14.4855533,
+      "longitude": -17.0729854,
+      "neighborhoods": []
+    },
+    {
+      "slug": "malicounda",
+      "name": "Malicounda",
+      "latitude": 14.3695262,
+      "longitude": -16.9134621,
+      "neighborhoods": [
+        {
+          "slug": "sante-yallah",
+          "name": "Sante Yàllah",
+          "latitude": 14.4601779,
+          "longitude": -16.9422869,
+          "osm": "w1304672681"
+        }
+      ]
+    },
+    {
+      "slug": "mbayene",
+      "name": "Mbayène",
+      "latitude": 15.1792219,
+      "longitude": -16.2901481,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mboro",
+      "name": "Mboro",
+      "latitude": 15.1356287,
+      "longitude": -16.8825636,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbour",
+      "name": "Mbour",
+      "latitude": 14.4245995,
+      "longitude": -16.9687402,
+      "neighborhoods": []
+    },
+    {
+      "slug": "meckhe",
+      "name": "Meckhe",
+      "latitude": 15.1154915,
+      "longitude": -16.6346558,
+      "neighborhoods": []
+    },
+    {
+      "slug": "meouane",
+      "name": "Méouane",
+      "latitude": 15.1408285,
+      "longitude": -16.7230376,
+      "neighborhoods": []
+    },
+    {
+      "slug": "merina-dakhar",
+      "name": "Mérina Dakhar",
+      "latitude": 15.134282,
+      "longitude": -16.5318052,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mont-rolland",
+      "name": "Mont Rolland",
+      "latitude": 14.8793523,
+      "longitude": -16.9734987,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiaganiao",
+      "name": "Ndiaganiao",
+      "latitude": 14.5582194,
+      "longitude": -16.7488988,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndieyene-sirah",
+      "name": "Ndiéyène Sirah",
+      "latitude": 14.6963296,
+      "longitude": -16.6598942,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngandiouf",
+      "name": "Ngandiouf",
+      "latitude": 15.2551192,
+      "longitude": -16.4226306,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngaparou",
+      "name": "Ngaparou",
+      "latitude": 14.4628726,
+      "longitude": -17.053702,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngoudiane",
+      "name": "Ngoudiane",
+      "latitude": 14.7020668,
+      "longitude": -16.7299007,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nguekhokh",
+      "name": "Nguékhokh",
+      "latitude": 14.5145966,
+      "longitude": -17.0053226,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngueniene",
+      "name": "Nguéniène",
+      "latitude": 14.2125256,
+      "longitude": -16.7992632,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niakhene",
+      "name": "Niakhene",
+      "latitude": 15.043008,
+      "longitude": -16.3474824,
+      "neighborhoods": []
+    },
+    {
+      "slug": "notto",
+      "name": "Notto",
+      "latitude": 14.7046162,
+      "longitude": -16.9024357,
+      "neighborhoods": []
+    },
+    {
+      "slug": "notto-gouye-diama",
+      "name": "Notto Gouye Diama",
+      "latitude": 14.9776789,
+      "longitude": -16.9864125,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pekesse",
+      "name": "Pékèsse",
+      "latitude": 15.1004314,
+      "longitude": -16.3924032,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pire-goureye",
+      "name": "Pire Goureye",
+      "latitude": 14.9876814,
+      "longitude": -16.7547563,
+      "neighborhoods": []
+    },
+    {
+      "slug": "popenguine-ndayane",
+      "name": "Popenguine-Ndayane",
+      "latitude": 14.5631116,
+      "longitude": -17.1191319,
+      "neighborhoods": [
+        {
+          "slug": "thioupam",
+          "name": "Thioupam",
+          "latitude": 14.5511363,
+          "longitude": -17.1083561,
+          "osm": "n9008933532"
+        }
+      ]
+    },
+    {
+      "slug": "pout",
+      "name": "Pout",
+      "latitude": 14.7640509,
+      "longitude": -17.0647729,
+      "neighborhoods": []
+    },
+    {
+      "slug": "saly-portudal",
+      "name": "Saly Portudal",
+      "latitude": 14.4430067,
+      "longitude": -17.0117113,
+      "neighborhoods": [
+        {
+          "slug": "saly-joseph",
+          "name": "Saly Joseph",
+          "latitude": 14.4565998,
+          "longitude": -17.0083078,
+          "osm": "n6318661058"
+        },
+        {
+          "slug": "saly-niakhniakhal",
+          "name": "Saly Niakhniakhal",
+          "latitude": 14.4326491,
+          "longitude": -16.999609,
+          "osm": "n1998851283"
+        }
+      ]
+    },
+    {
+      "slug": "sandiara",
+      "name": "Sandiara",
+      "latitude": 14.4329666,
+      "longitude": -16.8354216,
+      "neighborhoods": [
+        {
+          "slug": "sandiara-ouolof",
+          "name": "Sandiara Ouolof",
+          "latitude": 14.4326407,
+          "longitude": -16.7911029,
+          "osm": "n8984040808"
+        },
+        {
+          "slug": "sandiara-serere",
+          "name": "Sandiara Serere",
+          "latitude": 14.4370147,
+          "longitude": -16.7903987,
+          "osm": "n8984040809"
+        }
+      ]
+    },
+    {
+      "slug": "sessene",
+      "name": "Séssène",
+      "latitude": 14.4375931,
+      "longitude": -16.6921306,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sindia",
+      "name": "Sindia",
+      "latitude": 14.5439801,
+      "longitude": -16.9817604,
+      "neighborhoods": [
+        {
+          "slug": "keur-baye-diangue",
+          "name": "Keur Baye Diangue",
+          "latitude": 14.5655432,
+          "longitude": -17.0587748,
+          "osm": "w648729458"
+        },
+        {
+          "slug": "keur-lamane",
+          "name": "Keur Lamane",
+          "latitude": 14.5650772,
+          "longitude": -17.0595661,
+          "osm": "w648729457"
+        }
+      ]
+    },
+    {
+      "slug": "taiba-ndiaye",
+      "name": "Taïba Ndiaye",
+      "latitude": 15.0274043,
+      "longitude": -16.9044168,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tassette",
+      "name": "Tassette",
+      "latitude": 14.5906653,
+      "longitude": -16.8525893,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiadiaye",
+      "name": "Thiadiaye",
+      "latitude": 14.419699,
+      "longitude": -16.702709,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thienaba",
+      "name": "Thiénaba",
+      "latitude": 14.8096303,
+      "longitude": -16.7696639,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thies",
+      "name": "Thiès",
+      "latitude": 14.7824993,
+      "longitude": -16.9131763,
+      "neighborhoods": [
+        {
+          "slug": "carriere",
+          "name": "Carrière",
+          "latitude": 14.7923726,
+          "longitude": -16.9293851,
+          "osm": "n7047412092"
+        },
+        {
+          "slug": "diakhao",
+          "name": "Diakhao",
+          "latitude": 14.7993646,
+          "longitude": -16.9385831,
+          "osm": "n3241941973"
+        },
+        {
+          "slug": "dvf",
+          "name": "DVF",
+          "latitude": 14.7944774,
+          "longitude": -16.9228182,
+          "osm": "n3241941972"
+        },
+        {
+          "slug": "escale-nord",
+          "name": "Escale Nord",
+          "latitude": 14.799245,
+          "longitude": -16.9305512,
+          "osm": "n3241941974"
+        },
+        {
+          "slug": "escale-sud",
+          "name": "Escale Sud",
+          "latitude": 14.7943972,
+          "longitude": -16.9274537,
+          "osm": "n7055271855"
+        },
+        {
+          "slug": "malamine-senghor",
+          "name": "Malamine Senghor",
+          "latitude": 14.7916388,
+          "longitude": -16.9171363,
+          "osm": "n3242510913"
+        },
+        {
+          "slug": "mbambara",
+          "name": "Mbambara",
+          "latitude": 14.7878799,
+          "longitude": -16.9210468,
+          "osm": "n3241941977"
+        },
+        {
+          "slug": "medina-fall",
+          "name": "Medina Fall",
+          "latitude": 14.8043867,
+          "longitude": -16.9111866,
+          "osm": "n3242510914"
+        },
+        {
+          "slug": "nguinth",
+          "name": "Nguinth",
+          "latitude": 14.8035026,
+          "longitude": -16.9258641,
+          "osm": "n3241941978"
+        },
+        {
+          "slug": "randoulene-nord",
+          "name": "Randoulène Nord",
+          "latitude": 14.7888262,
+          "longitude": -16.9254437,
+          "osm": "n3242510915"
+        },
+        {
+          "slug": "sampathe",
+          "name": "Sampathé",
+          "latitude": 14.7826379,
+          "longitude": -16.9092279,
+          "osm": "n3242510916"
+        },
+        {
+          "slug": "thies-est",
+          "name": "Thiès Est",
+          "latitude": 14.7824993,
+          "longitude": -16.9131763,
+          "osm": null
+        },
+        {
+          "slug": "thies-nord",
+          "name": "Thiès Nord",
+          "latitude": 14.8091155,
+          "longitude": -16.9168697,
+          "osm": null
+        },
+        {
+          "slug": "thies-ouest",
+          "name": "Thiès Ouest",
+          "latitude": 14.7860922,
+          "longitude": -16.9458135,
+          "osm": null
+        }
+      ]
+    },
+    {
+      "slug": "thilmakha",
+      "name": "Thilmakha",
+      "latitude": 15.0166729,
+      "longitude": -16.1999846,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tivaouane",
+      "name": "Tivaouane",
+      "latitude": 14.9478785,
+      "longitude": -16.8151725,
+      "neighborhoods": []
+    },
+    {
+      "slug": "touba-toul",
+      "name": "Touba Toul",
+      "latitude": 14.8398054,
+      "longitude": -16.6836349,
+      "neighborhoods": []
+    }
+  ]
+}

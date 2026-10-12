@@ -1,0 +1,38 @@
+{
+  "_": "TCK-633 (ADR-0062 §3) — corrections relues à la main, rejouées à chaque extraction. Clés : <RÉGION>/<ville>/<quartier>, slugs calculés AVANT correction.",
+  "regrouper": [
+    { "region": "SN-DK", "ville": "Rufisque", "communes": ["rufisque-est", "rufisque-nord", "rufisque-ouest"] },
+    { "region": "SN-TH", "ville": "Thiès", "communes": ["thies-est", "thies-nord", "thies-ouest"] }
+  ],
+  "villes": {
+    "SN-DB/touba-mosquee": { "slug": "touba", "name": "Touba" },
+    "SN-TH/m-bour": { "slug": "mbour", "name": "Mbour" }
+  },
+  "renommer": {
+    "SN-DK/dakar/yyoff-apecsy": "Yoff Apecsy",
+    "SN-DK/dakar/cite-avion": "Cité Avion",
+    "SN-DK/dakar/cite-keretou": "Cité Keretou",
+    "SN-DK/dakar/cite-millionnaire": "Cité Millionnaire",
+    "SN-DK/dakar/sacre-coeur": "Sacré-Cœur",
+    "SN-DK/dakar/sacre-coeur-2": "Sacré-Cœur 2",
+    "SN-DK/dakar/sacre-coeur-3": "Sacré-Cœur 3",
+    "SN-DK/dakar/unite-14": "Unité 14",
+    "SN-DK/dakar/unite-17": "Unité 17",
+    "SN-DK/dakar/unite-18": "Unité 18",
+    "SN-DK/dakar/unite-23": "Unité 23"
+  },
+  "retirer": [
+    "SN-DK/dakar/chef-de-quartier-bagdad",
+    "SN-DK/dakar/gardien",
+    "SN-DK/dakar/liberte-vi-extension"
+  ],
+  "ajouter": [
+    { "chemin": "SN-DK/dakar", "name": "Liberté 1", "latitude": 14.7189, "longitude": -17.4580 },
+    { "chemin": "SN-DK/dakar", "name": "Liberté 2", "latitude": 14.7214, "longitude": -17.4560 },
+    { "chemin": "SN-DK/dakar", "name": "Liberté 3", "latitude": 14.7236, "longitude": -17.4588 },
+    { "chemin": "SN-DK/dakar", "name": "Liberté 4", "latitude": 14.7178, "longitude": -17.4627 },
+    { "chemin": "SN-DK/dakar", "name": "Liberté 5", "latitude": 14.7215, "longitude": -17.4625 },
+    { "chemin": "SN-DK/dakar", "name": "Liberté 6", "latitude": 14.7272, "longitude": -17.4618 },
+    { "chemin": "SN-DK/dakar", "name": "Sicap Baobab", "latitude": 14.7108, "longitude": -17.4605 }
+  ]
+}

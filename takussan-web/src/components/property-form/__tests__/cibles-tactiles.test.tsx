@@ -7,6 +7,8 @@ import { fieldDensityScope } from '@/components/ui/field-density';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 
+// TCK-633 — le référentiel géographique, hors de ce que ce fichier éprouve.
+vi.mock('@/components/property-form/useReferentielGeo', () => import('@/test/doublure-referentiel-geo'));
 vi.mock('@/components/map/LocationPickerMapLoader', () => ({
   LocationPickerMapLoader: () => <div data-testid="carte" />,
 }));
@@ -233,14 +235,11 @@ describe('AC1 — édition : le même régime, des deux côtés', () => {
   });
 
   it('les pastilles d’équipements aussi — l’écart ne change pas de camp', () => {
+    // TCK-633 — l'équipement retenu est une PUCE de la liste à puces : il en faut un pour qu'il y
+    // ait une pastille à mesurer, et sa croix « Retirer » est la cible.
+    const piscine = { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' } as never;
     const { container } = render(
-      withIntl(
-        <PropertyForm
-          mode="edit"
-          property={maison()}
-          tags={[{ id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' } as never]}
-        />,
-      ),
+      withIntl(<PropertyForm mode="edit" property={maison({ tags: [piscine] })} tags={[piscine]} />),
     );
     exigePastilles44(container, 'PropertyForm');
   });

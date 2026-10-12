@@ -173,6 +173,13 @@ export const propertyFormSchema = z.object({
     .max(120, msgValidation('property.regionTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
+  // TCK-633 — les identifiants du référentiel (ADR-0062). Le TEXTE reste la valeur affichée et
+  // envoyée ; l'identifiant le PRÉCISE quand la saisie est un choix de la liste, et vaut `null`
+  // dès qu'on retape. La région ne part pas (l'adresse n'a pas de colonne pour elle) : elle ne
+  // sert qu'à restreindre la liste des villes.
+  geo_region_id: z.number().int().positive().nullable().optional(),
+  geo_city_id: z.number().int().positive().nullable().optional(),
+  geo_neighborhood_id: z.number().int().positive().nullable().optional(),
   street: z
     .string()
     .trim()
@@ -254,6 +261,9 @@ export const propertyFormSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   tag_ids: z.array(z.number().int().positive()).default([]),
+  // TCK-633 — les équipements saisis hors du catalogue : des PROPOSITIONS, créées en attente
+  // (`TagProposals`). Même chemin que `tag_ids` : `PUT …/tags`, jamais le corps du bien.
+  tag_names: z.array(z.string().trim().min(1).max(100)).default([]),
   // TCK-598 (V9) — le coût d'entrée d'une location mensuelle. Hors de ce cas, l'API rend 422 :
   // la matrice de pertinence (`field-matrix.ts`) les retire du corps avant l'envoi.
   deposit_months: moisDEntree(),

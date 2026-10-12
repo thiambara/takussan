@@ -6,6 +6,8 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { withIntl } from '@/test/intl';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 
+// TCK-633 — le référentiel géographique, hors de ce que ce fichier éprouve.
+vi.mock('@/components/property-form/useReferentielGeo', () => import('@/test/doublure-referentiel-geo'));
 vi.mock('@/components/map/LocationPickerMapLoader', () => ({
   LocationPickerMapLoader: () => <div data-testid="carte" />,
 }));
@@ -73,11 +75,11 @@ describe('StepPrix', () => {
     expect(screen.queryByRole('button', { name: /disponible/i })).not.toBeInTheDocument();
   });
 
-  it('demande toujours le prix et la devise, quel que soit le contrat', () => {
+  it('demande toujours le prix, quel que soit le contrat — et plus la devise (TCK-633)', () => {
     harnais({ contract_type: 'sale' }, (form) => <StepPrix form={form} />);
 
     expect(screen.getByLabelText(/^prix/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/devise/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/devise/i)).not.toBeInTheDocument();
   });
 });
 

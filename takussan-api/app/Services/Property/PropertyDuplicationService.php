@@ -81,7 +81,15 @@ class PropertyDuplicationService
             }
 
             // Tags pivot — morphToMany, sync by id.
-            $tagIds = $source->tags()->pluck('tags.id')->all();
+            // TCK-633 (D9, reverif-2 fuite 1) — chaque liaison de la copie a pour auteur CELUI QUI
+            // DUPLIQUE, jamais l'auteur recopié de la source : la copie est un rattachement neuf,
+            // fait par `$actor`. A qui duplique son bien garde sa proposition en attente visible sur
+            // la copie ; un tiers (super-admin, staff d'agence) qui le duplique ne la publie pas
+            // (`Tag::scopeVisiblesSurUneFiche` : attached_by_id = created_by_id). Les étiquettes
+            // approuvées sortent partout, l'auteur de la liaison n'y change rien.
+            $tagIds = $source->tags()->pluck('tags.id')
+                ->mapWithKeys(fn ($id) => [$id => ['attached_by_id' => $actor->id]])
+                ->all();
             if (! empty($tagIds)) {
                 $clone->tags()->sync($tagIds);
             }

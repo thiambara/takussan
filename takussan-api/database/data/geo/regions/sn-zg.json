@@ -1,0 +1,513 @@
+{
+  "region": {
+    "code": "SN-ZG",
+    "slug": "ziguinchor",
+    "name": "Ziguinchor",
+    "latitude": 12.7541903,
+    "longitude": -16.3404649
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:15:35Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "adeane",
+      "name": "Adéane",
+      "latitude": 12.587772,
+      "longitude": -16.0405605,
+      "neighborhoods": []
+    },
+    {
+      "slug": "balinghore",
+      "name": "Balinghore",
+      "latitude": 12.7457482,
+      "longitude": -16.3663076,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bignona",
+      "name": "Bignona",
+      "latitude": 12.7998749,
+      "longitude": -16.2282184,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boutoupa-camaracounda",
+      "name": "Boutoupa-Camaracounda",
+      "latitude": 12.4975133,
+      "longitude": -16.0843741,
+      "neighborhoods": []
+    },
+    {
+      "slug": "coubalan",
+      "name": "Coubalan",
+      "latitude": 12.6795167,
+      "longitude": -16.1506441,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dar-silam-cherif",
+      "name": "Dar Silam Chérif",
+      "latitude": 13.0775953,
+      "longitude": -16.5364511,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diegoune",
+      "name": "Diégoune",
+      "latitude": 12.8347293,
+      "longitude": -16.3618868,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diembering",
+      "name": "Diembéring",
+      "latitude": 12.4576311,
+      "longitude": -16.7150533,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diouloulou",
+      "name": "Diouloulou",
+      "latitude": 13.0485169,
+      "longitude": -16.5966962,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djibidione",
+      "name": "Djibidione",
+      "latitude": 13.0790535,
+      "longitude": -16.2264645,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djinaky",
+      "name": "Djinaky",
+      "latitude": 12.9702514,
+      "longitude": -16.4477358,
+      "neighborhoods": [
+        {
+          "slug": "sonkocounda",
+          "name": "Sonkocounda",
+          "latitude": 12.9134854,
+          "longitude": -16.4341841,
+          "osm": "n6192218590"
+        }
+      ]
+    },
+    {
+      "slug": "elinkine",
+      "name": "Elinkine",
+      "latitude": 12.507475,
+      "longitude": -16.663427,
+      "neighborhoods": []
+    },
+    {
+      "slug": "enampore",
+      "name": "Enampore",
+      "latitude": 12.5439023,
+      "longitude": -16.4250901,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kafountine",
+      "name": "Kafountine",
+      "latitude": 12.7901708,
+      "longitude": -16.6745113,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kartiack",
+      "name": "Kartiack",
+      "latitude": 12.855522,
+      "longitude": -16.4755393,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kataba-1",
+      "name": "Kataba 1",
+      "latitude": 13.0743952,
+      "longitude": -16.5707996,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mangagoulack",
+      "name": "Mangagoulack",
+      "latitude": 12.6527879,
+      "longitude": -16.4424426,
+      "neighborhoods": [
+        {
+          "slug": "badjimeul",
+          "name": "Badjimeul",
+          "latitude": 12.6550774,
+          "longitude": -16.3625391,
+          "osm": "n4407974914"
+        },
+        {
+          "slug": "diologuir",
+          "name": "Diologuir",
+          "latitude": 12.6692588,
+          "longitude": -16.3522124,
+          "osm": "n2386189340"
+        },
+        {
+          "slug": "gabalang",
+          "name": "Gabalang",
+          "latitude": 12.6577003,
+          "longitude": -16.3624598,
+          "osm": "n4999794353"
+        },
+        {
+          "slug": "thiamang",
+          "name": "Thiamang",
+          "latitude": 12.651403,
+          "longitude": -16.3613153,
+          "osm": "n4407963810"
+        },
+        {
+          "slug": "yamir",
+          "name": "Yamir",
+          "latitude": 12.6524419,
+          "longitude": -16.3741743,
+          "osm": "n3779189370"
+        }
+      ]
+    },
+    {
+      "slug": "mlomp",
+      "name": "Mlomp",
+      "latitude": 12.7338902,
+      "longitude": -16.5327774,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niaguis",
+      "name": "Niaguis",
+      "latitude": 12.5537136,
+      "longitude": -16.2384894,
+      "neighborhoods": [
+        {
+          "slug": "diabir",
+          "name": "Diabir",
+          "latitude": 12.5511836,
+          "longitude": -16.2971668,
+          "osm": "n2276765336"
+        }
+      ]
+    },
+    {
+      "slug": "niamone",
+      "name": "Niamone",
+      "latitude": 12.6918977,
+      "longitude": -16.284238,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nyassia",
+      "name": "Nyassia",
+      "latitude": 12.4350643,
+      "longitude": -16.350242,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oukout",
+      "name": "Oukout",
+      "latitude": 12.4474838,
+      "longitude": -16.5489068,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oulampane",
+      "name": "Oulampane",
+      "latitude": 12.9982511,
+      "longitude": -16.0072685,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ouonck",
+      "name": "Ouonck",
+      "latitude": 12.7764535,
+      "longitude": -16.0601736,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oussouye",
+      "name": "Oussouye",
+      "latitude": 12.4887355,
+      "longitude": -16.54548,
+      "neighborhoods": []
+    },
+    {
+      "slug": "santhiaba-manjacque",
+      "name": "Santhiaba Manjacque",
+      "latitude": 12.394234,
+      "longitude": -16.5510745,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sindian",
+      "name": "Sindian",
+      "latitude": 12.967511,
+      "longitude": -16.1658463,
+      "neighborhoods": []
+    },
+    {
+      "slug": "suelle",
+      "name": "Suelle",
+      "latitude": 12.9573162,
+      "longitude": -16.2816855,
+      "neighborhoods": [
+        {
+          "slug": "djiheko",
+          "name": "Djihéko",
+          "latitude": 12.9409713,
+          "longitude": -16.2605281,
+          "osm": "n3787087287"
+        }
+      ]
+    },
+    {
+      "slug": "tenghory",
+      "name": "Tenghory",
+      "latitude": 12.8345231,
+      "longitude": -16.2219821,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tionk-essil",
+      "name": "Tionk Essil",
+      "latitude": 12.7828064,
+      "longitude": -16.5071341,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ziguinchor",
+      "name": "Ziguinchor",
+      "latitude": 12.5608689,
+      "longitude": -16.2715963,
+      "neighborhoods": [
+        {
+          "slug": "belfort",
+          "name": "Belfort",
+          "latitude": 12.5740346,
+          "longitude": -16.269484,
+          "osm": "n2277305577"
+        },
+        {
+          "slug": "boucotte-centre",
+          "name": "Boucotte Centre",
+          "latitude": 12.5665352,
+          "longitude": -16.279584,
+          "osm": "n2277281329"
+        },
+        {
+          "slug": "boucotte-est",
+          "name": "Boucotte Est",
+          "latitude": 12.5717396,
+          "longitude": -16.2738543,
+          "osm": "n2277288480"
+        },
+        {
+          "slug": "boucotte-nord",
+          "name": "Boucotte Nord",
+          "latitude": 12.5786559,
+          "longitude": -16.2775089,
+          "osm": "n2277301473"
+        },
+        {
+          "slug": "boucotte-ouest",
+          "name": "Boucotte Ouest",
+          "latitude": 12.5742345,
+          "longitude": -16.2811745,
+          "osm": "n2277285080"
+        },
+        {
+          "slug": "boucotte-sud",
+          "name": "Boucotte Sud",
+          "latitude": 12.5611298,
+          "longitude": -16.2885511,
+          "osm": "n2277276582"
+        },
+        {
+          "slug": "boudody",
+          "name": "Boudody",
+          "latitude": 12.5864028,
+          "longitude": -16.2761413,
+          "osm": "n2277305585"
+        },
+        {
+          "slug": "cobitene",
+          "name": "Cobitène",
+          "latitude": 12.5780905,
+          "longitude": -16.2883506,
+          "osm": "n2277307365"
+        },
+        {
+          "slug": "coboda",
+          "name": "Coboda",
+          "latitude": 12.5683674,
+          "longitude": -16.2947341,
+          "osm": "n2277282661"
+        },
+        {
+          "slug": "colobane",
+          "name": "Colobane",
+          "latitude": 12.575117,
+          "longitude": -16.2922605,
+          "osm": "n2277279938"
+        },
+        {
+          "slug": "diassi",
+          "name": "Diassi",
+          "latitude": 12.566667,
+          "longitude": -16.283333,
+          "osm": "n2386189299"
+        },
+        {
+          "slug": "djefaye",
+          "name": "Djefaye",
+          "latitude": 12.5801652,
+          "longitude": -16.2554474,
+          "osm": "n2277311461"
+        },
+        {
+          "slug": "djibanar-kanssaoudi",
+          "name": "Djibanar Kanssaoudi",
+          "latitude": 12.5479856,
+          "longitude": -16.2598966,
+          "osm": "n2386189308"
+        },
+        {
+          "slug": "djibock",
+          "name": "Djibock",
+          "latitude": 12.5613634,
+          "longitude": -16.2486304,
+          "osm": "n2277316455"
+        },
+        {
+          "slug": "djiringho",
+          "name": "Djiringho",
+          "latitude": 12.5679592,
+          "longitude": -16.2878465,
+          "osm": "n2277297722"
+        },
+        {
+          "slug": "escale",
+          "name": "Escale",
+          "latitude": 12.5855449,
+          "longitude": -16.2700411,
+          "osm": "n2133856361"
+        },
+        {
+          "slug": "goumel",
+          "name": "Goumel",
+          "latitude": 12.5838894,
+          "longitude": -16.2574996,
+          "osm": "n2277310786"
+        },
+        {
+          "slug": "kande-alassane",
+          "name": "Kandé Alassane",
+          "latitude": 12.5669648,
+          "longitude": -16.2520914,
+          "osm": "n2277315918"
+        },
+        {
+          "slug": "kande-sibe",
+          "name": "Kandé Sibe",
+          "latitude": 12.5759093,
+          "longitude": -16.2578436,
+          "osm": "n2283011877"
+        },
+        {
+          "slug": "kandialang-est",
+          "name": "Kandialang Est",
+          "latitude": 12.5566416,
+          "longitude": -16.2538445,
+          "osm": "n2277271077"
+        },
+        {
+          "slug": "kandialang-ouest",
+          "name": "Kandialang Ouest",
+          "latitude": 12.5547212,
+          "longitude": -16.260383,
+          "osm": "n2277267205"
+        },
+        {
+          "slug": "kansahoudi",
+          "name": "Kansahoudi",
+          "latitude": 12.558406,
+          "longitude": -16.2790673,
+          "osm": "n2277305578"
+        },
+        {
+          "slug": "kantene",
+          "name": "Kantène",
+          "latitude": 12.5415621,
+          "longitude": -16.2685438,
+          "osm": "n12483861529"
+        },
+        {
+          "slug": "kenia",
+          "name": "Kénia",
+          "latitude": 12.5454405,
+          "longitude": -16.2744241,
+          "osm": "n2277292901"
+        },
+        {
+          "slug": "kolobane",
+          "name": "Kolobane",
+          "latitude": 12.5809246,
+          "longitude": -16.2830648,
+          "osm": "n2386189369"
+        },
+        {
+          "slug": "lyndiane",
+          "name": "Lyndiane",
+          "latitude": 12.5613195,
+          "longitude": -16.2977978,
+          "osm": "n2281028644"
+        },
+        {
+          "slug": "nema",
+          "name": "Néma",
+          "latitude": 12.5553192,
+          "longitude": -16.2683274,
+          "osm": "n2277289924"
+        },
+        {
+          "slug": "santhiaba",
+          "name": "Santhiaba",
+          "latitude": 12.5810173,
+          "longitude": -16.2665562,
+          "osm": "n2133860861"
+        },
+        {
+          "slug": "soucoupapaye",
+          "name": "Soucoupapaye",
+          "latitude": 12.5719124,
+          "longitude": -16.2869237,
+          "osm": "n2277300382"
+        },
+        {
+          "slug": "tidele",
+          "name": "Tidele",
+          "latitude": 12.5661874,
+          "longitude": -16.2669755,
+          "osm": "n2386189408"
+        },
+        {
+          "slug": "tilene",
+          "name": "Tilène",
+          "latitude": 12.5673119,
+          "longitude": -16.264328,
+          "osm": "n2277339526"
+        }
+      ]
+    }
+  ]
+}

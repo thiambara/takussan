@@ -1,0 +1,486 @@
+{
+  "region": {
+    "code": "SN-DB",
+    "slug": "diourbel",
+    "name": "Diourbel",
+    "latitude": 14.7839312,
+    "longitude": -16.0459528
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:13:29Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "baba-garage",
+      "name": "Baba Garage",
+      "latitude": 14.9428403,
+      "longitude": -16.4738642,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bambey",
+      "name": "Bambey",
+      "latitude": 14.6986111,
+      "longitude": -16.4587833,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dalla-ngabou",
+      "name": "Dalla Ngabou",
+      "latitude": 14.7748435,
+      "longitude": -16.0077978,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-nahim",
+      "name": "Darou Nahim",
+      "latitude": 14.7030161,
+      "longitude": -15.9853575,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-salam-typ",
+      "name": "Darou Salam Typ",
+      "latitude": 14.6332558,
+      "longitude": -15.856612,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dendeye-gouy-gui",
+      "name": "Dendeye Gouy Gui",
+      "latitude": 14.7112564,
+      "longitude": -16.0427765,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dinguiraye",
+      "name": "Dinguiraye",
+      "latitude": 14.9664852,
+      "longitude": -16.4214063,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diourbel",
+      "name": "Diourbel",
+      "latitude": 14.6547408,
+      "longitude": -16.2322498,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gade-escale",
+      "name": "Gade Escale",
+      "latitude": 14.9544277,
+      "longitude": -16.3076256,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gawane",
+      "name": "Gawane",
+      "latitude": 14.8318456,
+      "longitude": -16.4185392,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kael",
+      "name": "Kael",
+      "latitude": 14.6998828,
+      "longitude": -15.9014274,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-ngalgou",
+      "name": "Keur Ngalgou",
+      "latitude": 14.884837,
+      "longitude": -16.3072581,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-samba-kane",
+      "name": "Keur Samba Kane",
+      "latitude": 14.9166193,
+      "longitude": -16.6068102,
+      "neighborhoods": []
+    },
+    {
+      "slug": "lambaye",
+      "name": "Lambaye",
+      "latitude": 14.8018035,
+      "longitude": -16.494948,
+      "neighborhoods": []
+    },
+    {
+      "slug": "madina",
+      "name": "Madina",
+      "latitude": 14.7429789,
+      "longitude": -15.8024295,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbacke",
+      "name": "Mbacké",
+      "latitude": 14.7991659,
+      "longitude": -15.9025162,
+      "neighborhoods": [
+        {
+          "slug": "darou-salam",
+          "name": "Darou Salam",
+          "latitude": 14.8096536,
+          "longitude": -15.8935215,
+          "osm": "n8937741830"
+        }
+      ]
+    },
+    {
+      "slug": "missirah",
+      "name": "Missirah",
+      "latitude": 14.9403776,
+      "longitude": -15.9757657,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndankh-sene",
+      "name": "Ndankh Sene",
+      "latitude": 14.8794302,
+      "longitude": -16.1288018,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndindy",
+      "name": "Ndindy",
+      "latitude": 14.8658182,
+      "longitude": -16.1831363,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndioumane",
+      "name": "Ndioumane",
+      "latitude": 14.6175579,
+      "longitude": -15.9873219,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndondol",
+      "name": "Ndondol",
+      "latitude": 14.7044634,
+      "longitude": -16.548293,
+      "neighborhoods": [
+        {
+          "slug": "ngane",
+          "name": "Ngane",
+          "latitude": 14.7240282,
+          "longitude": -16.5750399,
+          "osm": "w1117440614"
+        },
+        {
+          "slug": "ngassa-ngouye",
+          "name": "Ngassa Ngouye",
+          "latitude": 14.6387215,
+          "longitude": -16.5827465,
+          "osm": "w1425317051"
+        }
+      ]
+    },
+    {
+      "slug": "ndoulo",
+      "name": "Ndoulo",
+      "latitude": 14.704474,
+      "longitude": -16.1101693,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nghaye",
+      "name": "Nghaye",
+      "latitude": 14.8084978,
+      "longitude": -16.0388207,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngogom",
+      "name": "Ngogom",
+      "latitude": 14.7429774,
+      "longitude": -16.5041163,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngohe",
+      "name": "Ngohe",
+      "latitude": 14.6330137,
+      "longitude": -16.2891113,
+      "neighborhoods": [
+        {
+          "slug": "mbindo",
+          "name": "Mbindo",
+          "latitude": 14.6284044,
+          "longitude": -16.2976417,
+          "osm": "n11944876026"
+        },
+        {
+          "slug": "ndarap",
+          "name": "Ndarap",
+          "latitude": 14.6284414,
+          "longitude": -16.2921824,
+          "osm": "n2366451085"
+        },
+        {
+          "slug": "salmene",
+          "name": "Salmene",
+          "latitude": 14.626432,
+          "longitude": -16.2912258,
+          "osm": "n11944876028"
+        },
+        {
+          "slug": "sobmack",
+          "name": "Sobmack",
+          "latitude": 14.626951,
+          "longitude": -16.2938437,
+          "osm": "n11944876027"
+        }
+      ]
+    },
+    {
+      "slug": "ngoye",
+      "name": "Ngoye",
+      "latitude": 14.664523,
+      "longitude": -16.4086129,
+      "neighborhoods": []
+    },
+    {
+      "slug": "patar",
+      "name": "Patar",
+      "latitude": 14.6578381,
+      "longitude": -16.1295961,
+      "neighborhoods": []
+    },
+    {
+      "slug": "refane",
+      "name": "Réfane",
+      "latitude": 14.7979679,
+      "longitude": -16.5973673,
+      "neighborhoods": [
+        {
+          "slug": "mbos",
+          "name": "Mbos",
+          "latitude": 14.789444,
+          "longitude": -16.6235504,
+          "osm": "n11025769674"
+        }
+      ]
+    },
+    {
+      "slug": "sadio",
+      "name": "Sadio",
+      "latitude": 14.7899338,
+      "longitude": -15.5264277,
+      "neighborhoods": []
+    },
+    {
+      "slug": "taiba-moutoupha",
+      "name": "Taïba Moutoupha",
+      "latitude": 14.7899942,
+      "longitude": -16.2676983,
+      "neighborhoods": []
+    },
+    {
+      "slug": "taiba-thiekene",
+      "name": "Taïba Thiékène",
+      "latitude": 14.6820518,
+      "longitude": -15.9870045,
+      "neighborhoods": []
+    },
+    {
+      "slug": "taif",
+      "name": "Taïf",
+      "latitude": 14.8056638,
+      "longitude": -15.6668252,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiakhar",
+      "name": "Thiakhar",
+      "latitude": 14.7510774,
+      "longitude": -16.3626002,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tocky-gare",
+      "name": "Tocky Gare",
+      "latitude": 14.5902822,
+      "longitude": -16.1372034,
+      "neighborhoods": []
+    },
+    {
+      "slug": "touba",
+      "name": "Touba",
+      "latitude": 14.8705537,
+      "longitude": -15.8278212,
+      "neighborhoods": [
+        {
+          "slug": "alie",
+          "name": "Alie",
+          "latitude": 14.9010933,
+          "longitude": -15.886584,
+          "osm": "n8937741826"
+        },
+        {
+          "slug": "boukhatoul-moubaraka",
+          "name": "Boukhatoul Moubaraka",
+          "latitude": 14.8832637,
+          "longitude": -15.9053772,
+          "osm": "n8937741846"
+        },
+        {
+          "slug": "darou-khodoss-2",
+          "name": "Darou Khodoss 2",
+          "latitude": 14.865124,
+          "longitude": -15.8529387,
+          "osm": "n8937741832"
+        },
+        {
+          "slug": "darou-khoudoss",
+          "name": "Darou Khoudoss",
+          "latitude": 14.8799921,
+          "longitude": -15.8851484,
+          "osm": "n3668596781"
+        },
+        {
+          "slug": "darou-marnane",
+          "name": "Darou Marnane",
+          "latitude": 14.838346,
+          "longitude": -15.8846334,
+          "osm": "n3668647984"
+        },
+        {
+          "slug": "darou-miname",
+          "name": "Darou Miname",
+          "latitude": 14.8557686,
+          "longitude": -15.8896545,
+          "osm": "n3668597559"
+        },
+        {
+          "slug": "darou-tanzil",
+          "name": "Darou Tanzil",
+          "latitude": 14.8414094,
+          "longitude": -15.9252728,
+          "osm": "n8937741838"
+        },
+        {
+          "slug": "djannatoul-mahwa",
+          "name": "Djannatoul Mahwa",
+          "latitude": 14.8563224,
+          "longitude": -15.9110595,
+          "osm": "n8937741836"
+        },
+        {
+          "slug": "gouye-mbind",
+          "name": "Gouye Mbind",
+          "latitude": 14.8652842,
+          "longitude": -15.8634317,
+          "osm": "n6246468805"
+        },
+        {
+          "slug": "guede-bousso",
+          "name": "Guédé Bousso",
+          "latitude": 14.8862198,
+          "longitude": -15.8725727,
+          "osm": "n6246468806"
+        },
+        {
+          "slug": "keur-niang",
+          "name": "Keur Niang",
+          "latitude": 14.8481579,
+          "longitude": -15.8726853,
+          "osm": "n6246468804"
+        },
+        {
+          "slug": "mbacke-bari",
+          "name": "Mbacké Bari",
+          "latitude": 14.8585969,
+          "longitude": -15.8458071,
+          "osm": "n8937741831"
+        },
+        {
+          "slug": "ndame",
+          "name": "Ndame",
+          "latitude": 14.823404,
+          "longitude": -15.8927568,
+          "osm": "n8229317190"
+        },
+        {
+          "slug": "ndindi-abdou",
+          "name": "Ndindi Abdou",
+          "latitude": 14.8734681,
+          "longitude": -15.8261613,
+          "osm": "n4066954560"
+        },
+        {
+          "slug": "sam-la",
+          "name": "Sam Lâ",
+          "latitude": 14.8721776,
+          "longitude": -15.917579,
+          "osm": "n8937741837"
+        },
+        {
+          "slug": "sourah",
+          "name": "Sourah",
+          "latitude": 14.8721944,
+          "longitude": -15.8673814,
+          "osm": "n3668596782"
+        },
+        {
+          "slug": "takfekh",
+          "name": "Takfekh",
+          "latitude": 14.8290802,
+          "longitude": -15.9106792,
+          "osm": "n8937741835"
+        },
+        {
+          "slug": "tinndody",
+          "name": "Tinndody",
+          "latitude": 14.9016453,
+          "longitude": -15.8370768,
+          "osm": "n8937741827"
+        },
+        {
+          "slug": "touba-mosquee-2",
+          "name": "Touba Mosquée 2",
+          "latitude": 14.8906718,
+          "longitude": -15.8907206,
+          "osm": "n8937741833"
+        }
+      ]
+    },
+    {
+      "slug": "touba-fall",
+      "name": "Touba Fall",
+      "latitude": 14.8739662,
+      "longitude": -16.00846,
+      "neighborhoods": [
+        {
+          "slug": "djannatoul-naim",
+          "name": "Djannatoul Naïm",
+          "latitude": 14.8662602,
+          "longitude": -15.9496714,
+          "osm": "n8937741839"
+        }
+      ]
+    },
+    {
+      "slug": "touba-mboul",
+      "name": "Touba Mboul",
+      "latitude": 14.5813745,
+      "longitude": -15.9463011,
+      "neighborhoods": []
+    },
+    {
+      "slug": "toure-mbonde",
+      "name": "Toure Mbonde",
+      "latitude": 14.7087109,
+      "longitude": -16.2249991,
+      "neighborhoods": []
+    }
+  ]
+}

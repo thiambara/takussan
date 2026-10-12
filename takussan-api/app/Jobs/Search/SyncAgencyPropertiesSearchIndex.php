@@ -51,7 +51,7 @@ class SyncAgencyPropertiesSearchIndex implements ShouldQueue
 
         Property::query()
             ->where('agency_id', $agence->id)
-            ->with('address', 'tags', 'agency')
+            ->with('address', 'tagsVisibles', 'agency')
             ->chunkById(self::LOT, function (Collection $biens) use ($publique): void {
                 // `searchable()` d'une collection n'appelle PAS `shouldBeSearchable()` (seuls
                 // l'observateur et `makeAllSearchable` le font) : sans ce filtre, la levée

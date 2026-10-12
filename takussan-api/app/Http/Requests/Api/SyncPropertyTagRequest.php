@@ -3,7 +3,10 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\TagType;
+use App\Models\Property;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -34,12 +37,42 @@ class SyncPropertyTagRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $user = $this->user();
+        /** @var Property|null $bien */
+        $bien = $this->route('property');
+
         return [
             'tag_ids' => ['present', 'array'],
             'tag_ids.*' => [
                 'integer',
-                Rule::exists('tags', 'id')->where(fn ($q) => $q->where('type', TagType::Amenity->value)),
+                // TCK-633 — même règle que les quartiers (`GeoAddressRules`) : un équipement se
+                // désigne par identifiant s'il est approuvé, ou s'il est une proposition DE
+                // L'APPELANT — jamais la proposition d'un autre, qui sortirait sur une fiche avant
+                // toute modération (D9). Une proposition déjà portée par CE bien se garde : partagée
+                // par son nom (`TagProposals`), le formulaire la renvoie par identifiant. Un refusé
+                // ne s'attache jamais.
+                Rule::exists('tags', 'id')->where(fn ($q) => $q
+                    ->where('type', TagType::Amenity->value)
+                    ->where(function ($q) use ($user, $bien) {
+                        $q->where('status', ReferentialStatus::Approved->value);
+                        if ($user !== null) {
+                            $q->orWhere(fn ($q) => $q
+                                ->where('status', ReferentialStatus::Pending->value)
+                                ->where('created_by_id', $user->id));
+                        }
+                        if ($bien instanceof Property) {
+                            $q->orWhere(fn ($q) => $q
+                                ->where('status', ReferentialStatus::Pending->value)
+                                ->whereIn('id', DB::table('taggables')
+                                    ->select('tag_id')
+                                    ->where('taggable_type', Property::class)
+                                    ->where('taggable_id', $bien->getKey())));
+                        }
+                    })),
             ],
+            // TCK-633 (ADR-0062 §7) — les équipements TAPÉS, absents de la liste : des propositions.
+            'tag_names' => ['sometimes', 'array', 'max:20'],
+            'tag_names.*' => ['nullable', 'string', 'max:100'],
         ];
     }
 

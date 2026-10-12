@@ -7,9 +7,11 @@ import { FormCheckbox, FormInput } from '@/components/forms';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
+import { ChampEquipements } from '../../ChampEquipements';
 import { areaLabelKey, isFieldRelevant, type ConditionalFieldKey } from '../../field-matrix';
 import { PROPERTY_ENUM_NAMESPACES } from '../../options';
 import { ChoiceChips } from '../ChoiceChips';
+import { NombreEnListe } from '../NombreEnListe';
 
 /**
  * TCK-464 — l'étape des caractéristiques ne DÉCIDE rien : elle demande à la matrice.
@@ -44,13 +46,12 @@ export function StepCaracteristiques({
   // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien` et
   // `__tests__/abonnement-des-etapes.test.tsx`). Compilé, `watch('title_type')` restait figé à sa
   // première valeur : « Bail » cliqué ne s'allumait pas, et recliquer ne l'effaçait pas.
-  const [type, contrat, tagIdsSuivis, titreActuel, etatSuivi] = useWatch({
+  const [type, contrat, titreActuel, etatSuivi] = useWatch({
     control,
-    name: ['type', 'contract_type', 'tag_ids', 'title_type', 'condition'],
+    name: ['type', 'contract_type', 'title_type', 'condition'],
   });
   const ctx = { type, contract: contrat } as const;
   const pertinent = (cle: ConditionalFieldKey) => isFieldRelevant(cle, ctx);
-  const tagIds = (tagIdsSuivis ?? []) as number[];
   const etatActuel = etatSuivi || undefined;
 
   // Un terrain ne rend AUCUN des quatre : sans ce garde, la grille resterait montée, vide, et
@@ -85,13 +86,12 @@ export function StepCaracteristiques({
 
       {pertinent('bedrooms') || pertinent('bathrooms') ? (
         <div className="wizard-field-rise grid gap-4 sm:grid-cols-2">
+          {/* TCK-633 (AC10) — les nombres se choisissent dans une liste. */}
           {pertinent('bedrooms') ? (
-            <FormInput control={control} name="bedrooms" label={t('fields.bedrooms')}
-              type="number" inputMode="numeric" min={0} />
+            <NombreEnListe form={form} name="bedrooms" label={t('fields.bedrooms')} />
           ) : null}
           {pertinent('bathrooms') ? (
-            <FormInput control={control} name="bathrooms" label={t('fields.bathrooms')}
-              type="number" inputMode="numeric" min={0} />
+            <NombreEnListe form={form} name="bathrooms" label={t('fields.bathrooms')} />
           ) : null}
         </div>
       ) : null}
@@ -99,21 +99,16 @@ export function StepCaracteristiques({
       {grilleBatiment.some(pertinent) ? (
         <div className="wizard-field-rise grid gap-4 sm:grid-cols-2" style={{ animationDelay: '60ms' }}>
           {pertinent('floor_number') ? (
-            <FormInput control={control} name="floor_number" label={t('fields.floorNumber')}
-              type="number" inputMode="numeric" min={-5} max={200} />
+            <NombreEnListe form={form} name="floor_number" label={t('fields.floorNumber')} />
           ) : null}
           {pertinent('total_floors') ? (
-            <FormInput control={control} name="total_floors" label={t('fields.totalFloors')}
-              type="number" inputMode="numeric" min={1} max={200} />
+            <NombreEnListe form={form} name="total_floors" label={t('fields.totalFloors')} />
           ) : null}
           {pertinent('year_built') ? (
-            <FormInput control={control} name="year_built" label={t('fields.yearBuilt')}
-              type="number" inputMode="numeric" min={1800} max={2100}
-              placeholder={t('placeholders.yearBuilt')} />
+            <NombreEnListe form={form} name="year_built" label={t('fields.yearBuilt')} />
           ) : null}
           {pertinent('parking_spaces') ? (
-            <FormInput control={control} name="parking_spaces" label={t('fields.parking')}
-              type="number" inputMode="numeric" min={0} placeholder={t('placeholders.parking')} />
+            <NombreEnListe form={form} name="parking_spaces" label={t('fields.parking')} />
           ) : null}
         </div>
       ) : null}
@@ -169,32 +164,10 @@ export function StepCaracteristiques({
         </div>
       ) : null}
 
-      {pertinent('tag_ids') && tags.length > 0 ? (
+      {/* TCK-633 (AC10) — rendu même sans catalogue : un équipement se propose par Entrée. */}
+      {pertinent('tag_ids') ? (
         <div className="wizard-field-rise" style={{ animationDelay: '240ms' }}>
-          <ChoiceChips
-            id="wizard-tags"
-            label={t('fields.amenities')}
-            // Sélection MULTIPLE : c'est `selected` qui montre ce qui est déjà retenu. Sans elle,
-            // rien à l'écran ne distinguait un équipement coché d'un équipement disponible. Le
-            // type de `ChoiceChips` interdit désormais de fournir `value` en même temps.
-            selected={tagIds.map(String)}
-            // Relue au clic : une liste lue dans une fermeture figée PERDAIT les équipements
-            // déjà cochés (le second clic réécrivait `[second]` par-dessus `[premier]`).
-            onChange={(v) => {
-              const id = Number(v);
-              const retenus = (getValues('tag_ids') ?? []) as number[];
-              setValue(
-                'tag_ids',
-                retenus.includes(id) ? retenus.filter((x) => x !== id) : [...retenus, id],
-                { shouldDirty: true },
-              );
-            }}
-            options={tags.map((tag) => ({
-              value: String(tag.id),
-              label: tag.name,
-              icon: tag.icon ?? undefined,
-            }))}
-          />
+          <ChampEquipements form={form} tags={tags} label={t('fields.amenities')} />
         </div>
       ) : null}
     </>

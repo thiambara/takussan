@@ -1,0 +1,442 @@
+{
+  "region": {
+    "code": "SN-LG",
+    "slug": "louga",
+    "name": "Louga",
+    "latitude": 15.3971904,
+    "longitude": -15.6136276
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:18:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "affe-djoloff",
+      "name": "Affé Djoloff",
+      "latitude": 15.1609352,
+      "longitude": -15.4312004,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bandegne-ouolof",
+      "name": "Bandegne Ouolof",
+      "latitude": 15.5454837,
+      "longitude": -16.4114682,
+      "neighborhoods": []
+    },
+    {
+      "slug": "barkedji",
+      "name": "Barkédji",
+      "latitude": 15.2616113,
+      "longitude": -14.7939396,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boulal",
+      "name": "Boulal",
+      "latitude": 15.422307,
+      "longitude": -15.6958852,
+      "neighborhoods": [
+        {
+          "slug": "residential-area",
+          "name": "Residential Area",
+          "latitude": 15.4799682,
+          "longitude": -15.6538523,
+          "osm": "n8960243425"
+        }
+      ]
+    },
+    {
+      "slug": "coki",
+      "name": "Coki",
+      "latitude": 15.5192382,
+      "longitude": -16.011462,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dahra-djoloff",
+      "name": "Dahra Djoloff",
+      "latitude": 15.3473773,
+      "longitude": -15.4707043,
+      "neighborhoods": [
+        {
+          "slug": "nguet",
+          "name": "Nguet",
+          "latitude": 15.342674,
+          "longitude": -15.4959697,
+          "osm": "n4067004435"
+        },
+        {
+          "slug": "som",
+          "name": "Som",
+          "latitude": 15.344931,
+          "longitude": -15.4622924,
+          "osm": "n4068058345"
+        }
+      ]
+    },
+    {
+      "slug": "darou-marnane",
+      "name": "Darou Marnane",
+      "latitude": 15.1360141,
+      "longitude": -16.1296697,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-mousty",
+      "name": "Darou Mousty",
+      "latitude": 15.0718863,
+      "longitude": -16.0646045,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dealy",
+      "name": "Dealy",
+      "latitude": 15.0545562,
+      "longitude": -15.6253699,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diokoul-diawrigne",
+      "name": "Diokoul Diawrigne",
+      "latitude": 15.4202416,
+      "longitude": -16.5457318,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dodji",
+      "name": "Dodji",
+      "latitude": 15.5833371,
+      "longitude": -14.9127232,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gande",
+      "name": "Gande",
+      "latitude": 15.6552832,
+      "longitude": -15.7582599,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gassane",
+      "name": "Gassane",
+      "latitude": 14.8956958,
+      "longitude": -15.2843419,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gueoul",
+      "name": "Guéoul",
+      "latitude": 15.4795042,
+      "longitude": -16.3428899,
+      "neighborhoods": []
+    },
+    {
+      "slug": "guet-ardo",
+      "name": "Guet Ardo",
+      "latitude": 15.4411125,
+      "longitude": -16.0667615,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kab-gaye",
+      "name": "Kab Gaye",
+      "latitude": 15.3401271,
+      "longitude": -16.6449762,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kamb",
+      "name": "Kamb",
+      "latitude": 15.5026504,
+      "longitude": -15.4759666,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kanene-ndiob",
+      "name": "Kanène Ndiob",
+      "latitude": 15.3954522,
+      "longitude": -16.1805999,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kebemer",
+      "name": "Kébémer",
+      "latitude": 15.3711684,
+      "longitude": -16.4452875,
+      "neighborhoods": [
+        {
+          "slug": "ndakhar-lamane",
+          "name": "Ndakhar Lamane",
+          "latitude": 15.3803224,
+          "longitude": -16.4379376,
+          "osm": "n3668788938"
+        }
+      ]
+    },
+    {
+      "slug": "kele-gueye",
+      "name": "Kéle Gueye",
+      "latitude": 15.5515641,
+      "longitude": -16.3058401,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-momar-sarr",
+      "name": "Keur Momar Sarr",
+      "latitude": 15.9346808,
+      "longitude": -15.9699559,
+      "neighborhoods": []
+    },
+    {
+      "slug": "labgar",
+      "name": "Labgar",
+      "latitude": 15.8243296,
+      "longitude": -14.7455734,
+      "neighborhoods": []
+    },
+    {
+      "slug": "leona",
+      "name": "Léona",
+      "latitude": 15.7308262,
+      "longitude": -16.4702028,
+      "neighborhoods": []
+    },
+    {
+      "slug": "linguere",
+      "name": "Linguère",
+      "latitude": 15.3949538,
+      "longitude": -15.1197157,
+      "neighborhoods": []
+    },
+    {
+      "slug": "loro",
+      "name": "Loro",
+      "latitude": 15.3210494,
+      "longitude": -16.0432357,
+      "neighborhoods": []
+    },
+    {
+      "slug": "louga",
+      "name": "Louga",
+      "latitude": 15.622928,
+      "longitude": -16.2265718,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbacke-kadjor",
+      "name": "Mbacké Kadjor",
+      "latitude": 15.1534648,
+      "longitude": -16.1969074,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbadiane",
+      "name": "Mbadiane",
+      "latitude": 15.1024633,
+      "longitude": -15.9027626,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbediene",
+      "name": "Mbédiène",
+      "latitude": 15.4940371,
+      "longitude": -16.1810339,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbeuleukhe",
+      "name": "Mbeuleukhé",
+      "latitude": 15.6476024,
+      "longitude": -15.3459088,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mboula",
+      "name": "Mboula",
+      "latitude": 15.8070833,
+      "longitude": -15.4529017,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndande",
+      "name": "Ndande",
+      "latitude": 15.2559404,
+      "longitude": -16.5612413,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiagne",
+      "name": "Ndiagne",
+      "latitude": 15.4182402,
+      "longitude": -16.068818,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndoyene",
+      "name": "Ndoyene",
+      "latitude": 15.2224222,
+      "longitude": -16.0788102,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngourane-ouolof",
+      "name": "Ngourane Ouolof",
+      "latitude": 15.4603684,
+      "longitude": -16.3268299,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nguer-malal",
+      "name": "Nguer Malal",
+      "latitude": 15.7586897,
+      "longitude": -15.9069744,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngueune-sarr",
+      "name": "Ngueune Sarr",
+      "latitude": 15.6979763,
+      "longitude": -16.2801563,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nguidile",
+      "name": "Nguidilé",
+      "latitude": 15.6295247,
+      "longitude": -16.2364068,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niomre",
+      "name": "Niomré",
+      "latitude": 15.6445233,
+      "longitude": -16.1231099,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ouarkhokh",
+      "name": "Ouarkhokh",
+      "latitude": 15.4942123,
+      "longitude": -15.1719824,
+      "neighborhoods": [
+        {
+          "slug": "tiako",
+          "name": "Tiako",
+          "latitude": 15.4772941,
+          "longitude": -15.1950211,
+          "osm": "n4107278393"
+        }
+      ]
+    },
+    {
+      "slug": "pete-ouarack",
+      "name": "Pété Ouarack",
+      "latitude": 15.6178721,
+      "longitude": -15.9726568,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sagatta-djolof",
+      "name": "Sagatta Djolof",
+      "latitude": 15.2023794,
+      "longitude": -15.5953762,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sagatta-gueth",
+      "name": "Sagatta Gueth",
+      "latitude": 15.2549037,
+      "longitude": -16.2087324,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sakal",
+      "name": "Sakal",
+      "latitude": 15.8472564,
+      "longitude": -16.2311149,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sam-yabal",
+      "name": "Sam Yabal",
+      "latitude": 15.2724439,
+      "longitude": -15.8915818,
+      "neighborhoods": []
+    },
+    {
+      "slug": "syer",
+      "name": "Syer",
+      "latitude": 15.9329777,
+      "longitude": -15.7502382,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tessekere-forage",
+      "name": "Téssékéré Forage",
+      "latitude": 15.8793912,
+      "longitude": -15.1163957,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiamene",
+      "name": "Thiamène",
+      "latitude": 15.4712198,
+      "longitude": -15.8696085,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiamene-pass",
+      "name": "Thiamène Pass",
+      "latitude": 15.3682693,
+      "longitude": -15.492334,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiarny",
+      "name": "Thiarny",
+      "latitude": 15.1188621,
+      "longitude": -15.1716815,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiel",
+      "name": "Thiel",
+      "latitude": 14.8447444,
+      "longitude": -14.9646549,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thieppe",
+      "name": "Thieppe",
+      "latitude": 15.5635189,
+      "longitude": -16.5761861,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiolom-fall",
+      "name": "Thiolom Fall",
+      "latitude": 15.33931,
+      "longitude": -16.3387624,
+      "neighborhoods": []
+    },
+    {
+      "slug": "touba-merina",
+      "name": "Touba Mérina",
+      "latitude": 15.2800643,
+      "longitude": -15.963668,
+      "neighborhoods": []
+    },
+    {
+      "slug": "yang-yang",
+      "name": "Yang-Yang",
+      "latitude": 15.6954819,
+      "longitude": -15.2306565,
+      "neighborhoods": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "region": { "code": "SN-DK", "slug": "dakar", "name": "Dakar", "latitude": 14.7394224, "longitude": -17.3348176 },
+  "source": { "osm_base": "2026-10-12T01:32:19Z", "extraite_le": "2026-10-12", "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap", "relu_par": "fixture de test", "relu_le": "2026-10-12" },
+  "cities": [
+    {
+      "slug": "dakar", "name": "Dakar", "latitude": 14.721548, "longitude": -17.4728141,
+      "neighborhoods": [
+        { "slug": "liberte-4", "name": "Liberté 4", "latitude": 14.7178, "longitude": -17.4627, "osm": null },
+        { "slug": "mermoz", "name": "Mermoz", "latitude": 14.7074454, "longitude": -17.474397, "osm": "n562878265" },
+        { "slug": "point-e", "name": "Point E", "latitude": 14.6964782, "longitude": -17.4641817, "osm": "n299636390" },
+        { "slug": "sacre-coeur-3", "name": "Sacré-Cœur 3", "latitude": 14.720456, "longitude": -17.4674393, "osm": "w279672366" }
+      ]
+    },
+    {
+      "slug": "guediawaye", "name": "Guédiawaye", "latitude": 14.7799944, "longitude": -17.3948339,
+      "neighborhoods": [
+        { "slug": "golf-sud", "name": "Golf Sud", "latitude": 14.7723006, "longitude": -17.4155893, "osm": "r12982144" },
+        { "slug": "sam-notaire", "name": "Sam Notaire", "latitude": 14.7845357, "longitude": -17.3962327, "osm": "r12982142" }
+      ]
+    }
+  ]
+}

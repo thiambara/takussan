@@ -1,0 +1,151 @@
+{
+  "region": {
+    "code": "SN-KE",
+    "slug": "kedougou",
+    "name": "Kédougou",
+    "latitude": 12.8855821,
+    "longitude": -12.2928278
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:16:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "bandafassi",
+      "name": "Bandafassi",
+      "latitude": 12.6392335,
+      "longitude": -12.209507,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bembou",
+      "name": "Bembou",
+      "latitude": 12.8060443,
+      "longitude": -11.7376553,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dakateli",
+      "name": "Dakateli",
+      "latitude": 12.4595868,
+      "longitude": -12.5328492,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dar-salam",
+      "name": "Dar Salam",
+      "latitude": 12.6858904,
+      "longitude": -12.8608335,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dimboli",
+      "name": "Dimboli",
+      "latitude": 12.5761464,
+      "longitude": -11.9636629,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dindefelo",
+      "name": "Dindefelo",
+      "latitude": 12.4340915,
+      "longitude": -12.2923478,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ethiolo",
+      "name": "Ethiolo",
+      "latitude": 12.5479401,
+      "longitude": -12.9018313,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fongolimbi",
+      "name": "Fongolimbi",
+      "latitude": 12.4146409,
+      "longitude": -12.0309827,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kedougou",
+      "name": "Kédougou",
+      "latitude": 12.5597737,
+      "longitude": -12.2030097,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kevoye",
+      "name": "Kévoye",
+      "latitude": 12.5761627,
+      "longitude": -12.68923,
+      "neighborhoods": []
+    },
+    {
+      "slug": "khossanto",
+      "name": "Khossanto",
+      "latitude": 13.1808036,
+      "longitude": -11.9608504,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-baffe",
+      "name": "Médina Baffé",
+      "latitude": 12.5181956,
+      "longitude": -11.6091546,
+      "neighborhoods": []
+    },
+    {
+      "slug": "missirah-sirimana",
+      "name": "Missirah Sirimana",
+      "latitude": 13.2009489,
+      "longitude": -11.6779854,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ninefecha",
+      "name": "Ninéfécha",
+      "latitude": 12.7499628,
+      "longitude": -12.7917596,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oubadji",
+      "name": "Oubadji",
+      "latitude": 12.5896754,
+      "longitude": -13.0160282,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sabodala",
+      "name": "Sabodala",
+      "latitude": 13.2165489,
+      "longitude": -12.242584,
+      "neighborhoods": []
+    },
+    {
+      "slug": "salemata",
+      "name": "Salemata",
+      "latitude": 12.6327664,
+      "longitude": -12.8171913,
+      "neighborhoods": []
+    },
+    {
+      "slug": "saraya",
+      "name": "Saraya",
+      "latitude": 12.8353079,
+      "longitude": -11.7595362,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tomboroncoto",
+      "name": "Tomboroncoto",
+      "latitude": 12.9116198,
+      "longitude": -12.3862064,
+      "neighborhoods": []
+    }
+  ]
+}

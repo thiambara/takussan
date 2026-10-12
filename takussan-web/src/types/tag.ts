@@ -8,6 +8,9 @@
 
 export type TagType = 'amenity' | 'feature' | 'label' | 'crm';
 
+/** TCK-633 — un équipement saisi par un utilisateur naît `pending` ; le super-admin le tranche. */
+export type TagStatus = 'approved' | 'pending' | 'rejected';
+
 export interface Tag {
   id: number;
   name: string;
@@ -16,6 +19,8 @@ export interface Tag {
   icon: string | null;
   color: string | null;
   description: string | null;
+  status?: TagStatus;
+  created_by_id?: number | null;
   properties_count?: number;
   created_at?: string;
 }

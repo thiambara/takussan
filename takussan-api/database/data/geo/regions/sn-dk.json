@@ -1,0 +1,1504 @@
+{
+  "region": {
+    "code": "SN-DK",
+    "slug": "dakar",
+    "name": "Dakar",
+    "latitude": 14.7394224,
+    "longitude": -17.3348176
+  },
+  "source": {
+    "osm_base": "2026-10-12T01:32:19Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": null,
+    "relu_le": null
+  },
+  "cities": [
+    {
+      "slug": "bambylor",
+      "name": "Bambylor",
+      "latitude": 14.8342125,
+      "longitude": -17.1881483,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bargny",
+      "name": "Bargny",
+      "latitude": 14.6970082,
+      "longitude": -17.2297572,
+      "neighborhoods": [
+        {
+          "slug": "miname",
+          "name": "Miname",
+          "latitude": 14.6794397,
+          "longitude": -17.2178046,
+          "osm": "n4819981364"
+        }
+      ]
+    },
+    {
+      "slug": "dakar",
+      "name": "Dakar",
+      "latitude": 14.721548,
+      "longitude": -17.4728141,
+      "neighborhoods": [
+        {
+          "slug": "almadies",
+          "name": "Almadies",
+          "latitude": 14.7441857,
+          "longitude": -17.5175251,
+          "osm": "n2214678829"
+        },
+        {
+          "slug": "amitie",
+          "name": "Amitié",
+          "latitude": 14.7030079,
+          "longitude": -17.4586932,
+          "osm": "n564633241"
+        },
+        {
+          "slug": "amitie-1",
+          "name": "Amitié 1",
+          "latitude": 14.7003761,
+          "longitude": -17.4579122,
+          "osm": "n564612946"
+        },
+        {
+          "slug": "amitie-2",
+          "name": "Amitié 2",
+          "latitude": 14.7039626,
+          "longitude": -17.4593026,
+          "osm": "n564612947"
+        },
+        {
+          "slug": "arafat",
+          "name": "Arafat",
+          "latitude": 14.7378442,
+          "longitude": -17.4532543,
+          "osm": "n569663800"
+        },
+        {
+          "slug": "bagdad",
+          "name": "Bagdad",
+          "latitude": 14.7294577,
+          "longitude": -17.4525096,
+          "osm": "w1463235739"
+        },
+        {
+          "slug": "bel-air",
+          "name": "Bel Air",
+          "latitude": 14.7022198,
+          "longitude": -17.4284736,
+          "osm": "n566697488"
+        },
+        {
+          "slug": "bgazelle-i",
+          "name": "Bgazelle I",
+          "latitude": 14.7357808,
+          "longitude": -17.4485335,
+          "osm": "w1463235730"
+        },
+        {
+          "slug": "biscuiterie",
+          "name": "Biscuiterie",
+          "latitude": 14.7116083,
+          "longitude": -17.4503754,
+          "osm": "r4596980"
+        },
+        {
+          "slug": "bopp",
+          "name": "Bopp",
+          "latitude": 14.7036306,
+          "longitude": -17.4487455,
+          "osm": "n564722139"
+        },
+        {
+          "slug": "camberene",
+          "name": "Cambérène",
+          "latitude": 14.7800724,
+          "longitude": -17.42608,
+          "osm": "r12982370"
+        },
+        {
+          "slug": "castor",
+          "name": "Castor",
+          "latitude": 14.7255588,
+          "longitude": -17.4488555,
+          "osm": "n569663704"
+        },
+        {
+          "slug": "cite-asecna-ouakam",
+          "name": "Cité ASECNA Ouakam",
+          "latitude": 14.7308411,
+          "longitude": -17.4905683,
+          "osm": "w402218397"
+        },
+        {
+          "slug": "cite-asecna-yoff",
+          "name": "Cité ASECNA Yoff",
+          "latitude": 14.7499236,
+          "longitude": -17.4902775,
+          "osm": "w401505180"
+        },
+        {
+          "slug": "cite-avion",
+          "name": "Cité Avion",
+          "latitude": 14.7222274,
+          "longitude": -17.480689,
+          "osm": "n13830662040"
+        },
+        {
+          "slug": "cite-bastos-i",
+          "name": "Cite Bastos I",
+          "latitude": 14.7281455,
+          "longitude": -17.4482755,
+          "osm": "w1463235752"
+        },
+        {
+          "slug": "cite-bastos-ii-villa",
+          "name": "Cite Bastos II Villa",
+          "latitude": 14.7292571,
+          "longitude": -17.4501639,
+          "osm": "w1463235766"
+        },
+        {
+          "slug": "cite-biagui",
+          "name": "Cité Biagui",
+          "latitude": 14.759848,
+          "longitude": -17.4850387,
+          "osm": "w369004243"
+        },
+        {
+          "slug": "cite-cheikh-amar",
+          "name": "Cité Cheikh Amar",
+          "latitude": 14.7311771,
+          "longitude": -17.5013006,
+          "osm": "w860670561"
+        },
+        {
+          "slug": "cite-des-enseignants-du-superieur",
+          "name": "Cité des enseignants du supérieur",
+          "latitude": 14.7068191,
+          "longitude": -17.4817204,
+          "osm": "w808086798"
+        },
+        {
+          "slug": "cite-djily-mbaye",
+          "name": "Cité Djily Mbaye",
+          "latitude": 14.7614219,
+          "longitude": -17.4584779,
+          "osm": "w368797974"
+        },
+        {
+          "slug": "cite-douane",
+          "name": "Cité Douane",
+          "latitude": 14.7019868,
+          "longitude": -17.4446342,
+          "osm": "n564729124"
+        },
+        {
+          "slug": "cite-du-golf",
+          "name": "Cité du Golf",
+          "latitude": 14.7703403,
+          "longitude": -17.4132232,
+          "osm": "r5386793"
+        },
+        {
+          "slug": "cite-keretou",
+          "name": "Cité Keretou",
+          "latitude": 14.7406071,
+          "longitude": -17.4570863,
+          "osm": "w1463235733"
+        },
+        {
+          "slug": "cite-marine",
+          "name": "Cité Marine",
+          "latitude": 14.7311906,
+          "longitude": -17.4552178,
+          "osm": "n569663781"
+        },
+        {
+          "slug": "cite-millionnaire",
+          "name": "Cité Millionnaire",
+          "latitude": 14.7413382,
+          "longitude": -17.4480159,
+          "osm": "w1463235715"
+        },
+        {
+          "slug": "cite-mixta",
+          "name": "Cité Mixta",
+          "latitude": 14.7480175,
+          "longitude": -17.455722,
+          "osm": "w478147734"
+        },
+        {
+          "slug": "cite-port",
+          "name": "Cité Port",
+          "latitude": 14.7011067,
+          "longitude": -17.4465997,
+          "osm": "n564729121"
+        },
+        {
+          "slug": "cite-sica-sipres-ii",
+          "name": "Cité SICA SIPRES II",
+          "latitude": 14.7386851,
+          "longitude": -17.4697863,
+          "osm": "w402222105"
+        },
+        {
+          "slug": "cite-sipres-i",
+          "name": "Cite SIPRES I",
+          "latitude": 14.7403034,
+          "longitude": -17.4673263,
+          "osm": "w1463235762"
+        },
+        {
+          "slug": "cite-sipres-ii-sica",
+          "name": "Cite SIPRES II SICA",
+          "latitude": 14.7392254,
+          "longitude": -17.4695566,
+          "osm": "w1463235709"
+        },
+        {
+          "slug": "cite-sonatel-i",
+          "name": "Cite SONATEL I",
+          "latitude": 14.7400362,
+          "longitude": -17.4652175,
+          "osm": "w1463235760"
+        },
+        {
+          "slug": "colobane",
+          "name": "Colobane",
+          "latitude": 14.6951179,
+          "longitude": -17.4454265,
+          "osm": "n2639671389"
+        },
+        {
+          "slug": "dakar-plateau",
+          "name": "Dakar-Plateau",
+          "latitude": 14.6671016,
+          "longitude": -17.4351145,
+          "osm": "r12989256"
+        },
+        {
+          "slug": "dalifort",
+          "name": "Dalifort",
+          "latitude": 14.7417296,
+          "longitude": -17.4172247,
+          "osm": "n4958532745"
+        },
+        {
+          "slug": "darou-salam-ii",
+          "name": "Darou Salam II",
+          "latitude": 14.7319412,
+          "longitude": -17.4547797,
+          "osm": "w1463235757"
+        },
+        {
+          "slug": "darou-salam-iii",
+          "name": "Darou Salam III",
+          "latitude": 14.7313213,
+          "longitude": -17.4551425,
+          "osm": "w1463235723"
+        },
+        {
+          "slug": "darourakhmane-i",
+          "name": "Darourakhmane I",
+          "latitude": 14.735289,
+          "longitude": -17.4476881,
+          "osm": "w1463235737"
+        },
+        {
+          "slug": "darourakhmane-ii",
+          "name": "Darourakhmane II",
+          "latitude": 14.7341307,
+          "longitude": -17.4476522,
+          "osm": "w1463235749"
+        },
+        {
+          "slug": "derkle",
+          "name": "Derklé",
+          "latitude": 14.7253098,
+          "longitude": -17.4539624,
+          "osm": "n569663720"
+        },
+        {
+          "slug": "diamalaye",
+          "name": "Diamalaye",
+          "latitude": 14.7616848,
+          "longitude": -17.4525436,
+          "osm": "w369004246"
+        },
+        {
+          "slug": "dieuppeul-derkle",
+          "name": "Dieuppeul-Derklé",
+          "latitude": 14.7209066,
+          "longitude": -17.4511102,
+          "osm": "r12988837"
+        },
+        {
+          "slug": "djeddah",
+          "name": "Djeddah",
+          "latitude": 14.7377142,
+          "longitude": -17.4464707,
+          "osm": "w1463235718"
+        },
+        {
+          "slug": "fann",
+          "name": "Fann",
+          "latitude": 14.690791,
+          "longitude": -17.4665592,
+          "osm": "n299640752"
+        },
+        {
+          "slug": "fann-hock",
+          "name": "Fann Hock",
+          "latitude": 14.6801353,
+          "longitude": -17.4628058,
+          "osm": "n560861397"
+        },
+        {
+          "slug": "fann-mermoz",
+          "name": "Fann Mermoz",
+          "latitude": 14.7005769,
+          "longitude": -17.4726994,
+          "osm": "n562878240"
+        },
+        {
+          "slug": "fann-residence",
+          "name": "Fann Résidence",
+          "latitude": 14.6897254,
+          "longitude": -17.470865,
+          "osm": "n561541348"
+        },
+        {
+          "slug": "fann-point-e-amitie",
+          "name": "Fann-Point E-Amitié",
+          "latitude": 14.6905916,
+          "longitude": -17.4651048,
+          "osm": "r12989253"
+        },
+        {
+          "slug": "fass-delorme",
+          "name": "Fass Delorme",
+          "latitude": 14.6908373,
+          "longitude": -17.4539697,
+          "osm": "n560764199"
+        },
+        {
+          "slug": "gibraltar",
+          "name": "Gibraltar",
+          "latitude": 14.6868873,
+          "longitude": -17.4445483,
+          "osm": "n560764202"
+        },
+        {
+          "slug": "goree",
+          "name": "Gorée",
+          "latitude": 14.6672075,
+          "longitude": -17.3986199,
+          "osm": "r12989257"
+        },
+        {
+          "slug": "gouye-sor",
+          "name": "Gouye Sor",
+          "latitude": 14.7191266,
+          "longitude": -17.4875058,
+          "osm": "n13830688151"
+        },
+        {
+          "slug": "grand-yoff",
+          "name": "Grand Yoff",
+          "latitude": 14.7368246,
+          "longitude": -17.4562339,
+          "osm": "r12982373"
+        },
+        {
+          "slug": "grand-yoff-leona",
+          "name": "Grand Yoff Leona",
+          "latitude": 14.7307359,
+          "longitude": -17.4484051,
+          "osm": "w1463235741"
+        },
+        {
+          "slug": "grand-dakar",
+          "name": "Grand-Dakar",
+          "latitude": 14.7051055,
+          "longitude": -17.4535316,
+          "osm": "r6998697"
+        },
+        {
+          "slug": "gueule-tapee",
+          "name": "Gueule Tapée",
+          "latitude": 14.6828667,
+          "longitude": -17.4572828,
+          "osm": "n560764203"
+        },
+        {
+          "slug": "gueule-tapee-fass-colobane",
+          "name": "Gueule Tapée-Fass-Colobane",
+          "latitude": 14.6886405,
+          "longitude": -17.4513877,
+          "osm": "r12989254"
+        },
+        {
+          "slug": "hamo-grand-yoff",
+          "name": "Hamo Grand Yoff",
+          "latitude": 14.7375979,
+          "longitude": -17.457796,
+          "osm": "w1463235753"
+        },
+        {
+          "slug": "hann-bel-air",
+          "name": "Hann Bel-Air",
+          "latitude": 14.7119875,
+          "longitude": -17.4277291,
+          "osm": "r12988835"
+        },
+        {
+          "slug": "hann-equip",
+          "name": "Hann Equip",
+          "latitude": 14.7195704,
+          "longitude": -17.4357177,
+          "osm": "n566699849"
+        },
+        {
+          "slug": "hann-marinas",
+          "name": "Hann Marinas",
+          "latitude": 14.7079896,
+          "longitude": -17.4294692,
+          "osm": "n566699844"
+        },
+        {
+          "slug": "hann-maristes-1",
+          "name": "Hann Maristes 1",
+          "latitude": 14.7374496,
+          "longitude": -17.4265488,
+          "osm": "n1596287972"
+        },
+        {
+          "slug": "hlm",
+          "name": "HLM",
+          "latitude": 14.7121262,
+          "longitude": -17.4441311,
+          "osm": "r12988836"
+        },
+        {
+          "slug": "hlm-2",
+          "name": "HLM 2",
+          "latitude": 14.7139918,
+          "longitude": -17.4443952,
+          "osm": "n565574443"
+        },
+        {
+          "slug": "hlm-3",
+          "name": "HLM 3",
+          "latitude": 14.7117843,
+          "longitude": -17.444359,
+          "osm": "n565562212"
+        },
+        {
+          "slug": "hlm-4",
+          "name": "HLM 4",
+          "latitude": 14.7091187,
+          "longitude": -17.4442407,
+          "osm": "n565562210"
+        },
+        {
+          "slug": "hlm-5",
+          "name": "HLM 5",
+          "latitude": 14.7070266,
+          "longitude": -17.4444896,
+          "osm": "n565562209"
+        },
+        {
+          "slug": "hlm-6",
+          "name": "HLM 6",
+          "latitude": 14.7046081,
+          "longitude": -17.4459117,
+          "osm": "n565562215"
+        },
+        {
+          "slug": "hlm-fass",
+          "name": "HLM Fass",
+          "latitude": 14.6958602,
+          "longitude": -17.4509571,
+          "osm": "n560523361"
+        },
+        {
+          "slug": "hlm-grand-yoff",
+          "name": "Hlm Grand Yoff",
+          "latitude": 14.741421,
+          "longitude": -17.4542045,
+          "osm": "w1463235705"
+        },
+        {
+          "slug": "hlm-grand-yoff-i",
+          "name": "HLM Grand Yoff I",
+          "latitude": 14.7436842,
+          "longitude": -17.4538456,
+          "osm": "w1463235750"
+        },
+        {
+          "slug": "hlm-grand-yoff-ii",
+          "name": "HLM Grand Yoff II",
+          "latitude": 14.7432589,
+          "longitude": -17.4519934,
+          "osm": "w1463235742"
+        },
+        {
+          "slug": "hlm-grand-yoff-ii-cite-assane-diop",
+          "name": "HLM Grand Yoff II (cite Assane Diop)",
+          "latitude": 14.7427961,
+          "longitude": -17.4502584,
+          "osm": "w1463235720"
+        },
+        {
+          "slug": "hlm-grand-yoff-iii",
+          "name": "HLM Grand Yoff III",
+          "latitude": 14.7413793,
+          "longitude": -17.4539338,
+          "osm": "w1463235706"
+        },
+        {
+          "slug": "hlm-nimzatt",
+          "name": "HLM Nimzatt",
+          "latitude": 14.6972381,
+          "longitude": -17.4431566,
+          "osm": "n560521487"
+        },
+        {
+          "slug": "hlm-patte-d-oie",
+          "name": "HLM Patte D'oie",
+          "latitude": 14.741537,
+          "longitude": -17.442976,
+          "osm": "w1463235745"
+        },
+        {
+          "slug": "hlm-shelter-ii",
+          "name": "HLM Shelter II",
+          "latitude": 14.7435091,
+          "longitude": -17.4563094,
+          "osm": "w1463235712"
+        },
+        {
+          "slug": "keur-damel",
+          "name": "Keur Damel",
+          "latitude": 14.7500563,
+          "longitude": -17.4551973,
+          "osm": "n568345178"
+        },
+        {
+          "slug": "khar-yalla",
+          "name": "Khar Yalla",
+          "latitude": 14.7286717,
+          "longitude": -17.4510656,
+          "osm": "n299636298"
+        },
+        {
+          "slug": "khar-yalla-i",
+          "name": "Khar Yalla I",
+          "latitude": 14.7296194,
+          "longitude": -17.4557425,
+          "osm": "w1463235759"
+        },
+        {
+          "slug": "khar-yalla-ii",
+          "name": "Khar Yalla II",
+          "latitude": 14.7317847,
+          "longitude": -17.4519224,
+          "osm": "w1463235710"
+        },
+        {
+          "slug": "liberte",
+          "name": "Liberté",
+          "latitude": 14.7163529,
+          "longitude": -17.4529293,
+          "osm": "n299636310"
+        },
+        {
+          "slug": "liberte-1",
+          "name": "Liberté 1",
+          "latitude": 14.7189,
+          "longitude": -17.458,
+          "osm": null
+        },
+        {
+          "slug": "liberte-2",
+          "name": "Liberté 2",
+          "latitude": 14.7214,
+          "longitude": -17.456,
+          "osm": null
+        },
+        {
+          "slug": "liberte-3",
+          "name": "Liberté 3",
+          "latitude": 14.7236,
+          "longitude": -17.4588,
+          "osm": null
+        },
+        {
+          "slug": "liberte-4",
+          "name": "Liberté 4",
+          "latitude": 14.7178,
+          "longitude": -17.4627,
+          "osm": null
+        },
+        {
+          "slug": "liberte-5",
+          "name": "Liberté 5",
+          "latitude": 14.7215,
+          "longitude": -17.4625,
+          "osm": null
+        },
+        {
+          "slug": "liberte-6",
+          "name": "Liberté 6",
+          "latitude": 14.7272,
+          "longitude": -17.4618,
+          "osm": null
+        },
+        {
+          "slug": "liberte-6-extension",
+          "name": "Liberté 6 Extension",
+          "latitude": 14.7335214,
+          "longitude": -17.4655943,
+          "osm": "w279672623"
+        },
+        {
+          "slug": "maka-ii",
+          "name": "Maka II",
+          "latitude": 14.7375895,
+          "longitude": -17.4489617,
+          "osm": "w1463235748"
+        },
+        {
+          "slug": "maka-iii",
+          "name": "Maka III",
+          "latitude": 14.735817,
+          "longitude": -17.4502011,
+          "osm": "w1463235735"
+        },
+        {
+          "slug": "mamelles",
+          "name": "Mamelles",
+          "latitude": 14.7311563,
+          "longitude": -17.5003005,
+          "osm": "n3499062423"
+        },
+        {
+          "slug": "medina",
+          "name": "Médina",
+          "latitude": 14.6832568,
+          "longitude": -17.4491368,
+          "osm": "r12989255"
+        },
+        {
+          "slug": "mermoz",
+          "name": "Mermoz",
+          "latitude": 14.7074454,
+          "longitude": -17.474397,
+          "osm": "n562878265"
+        },
+        {
+          "slug": "mermoz-sacre-coeur",
+          "name": "Mermoz-Sacré-Cœur",
+          "latitude": 14.706071,
+          "longitude": -17.4772031,
+          "osm": "r12988611"
+        },
+        {
+          "slug": "missrah",
+          "name": "Missrah",
+          "latitude": 14.7405526,
+          "longitude": -17.4446348,
+          "osm": "w1463235711"
+        },
+        {
+          "slug": "ngor",
+          "name": "Ngor",
+          "latitude": 14.7442556,
+          "longitude": -17.5230524,
+          "osm": "r12988609"
+        },
+        {
+          "slug": "nord-foire",
+          "name": "Nord Foire",
+          "latitude": 14.7528384,
+          "longitude": -17.4594447,
+          "osm": "w369004250"
+        },
+        {
+          "slug": "ouagou-niayes",
+          "name": "Ouagou Niayes",
+          "latitude": 14.7073664,
+          "longitude": -17.4490029,
+          "osm": "n564723358"
+        },
+        {
+          "slug": "ouakam",
+          "name": "Ouakam",
+          "latitude": 14.7203338,
+          "longitude": -17.4921057,
+          "osm": "r12988610"
+        },
+        {
+          "slug": "ouest-foire",
+          "name": "Ouest Foire",
+          "latitude": 14.749304,
+          "longitude": -17.4705929,
+          "osm": "w369004252"
+        },
+        {
+          "slug": "parcelles-assainies",
+          "name": "Parcelles Assainies",
+          "latitude": 14.7678951,
+          "longitude": -17.4420974,
+          "osm": "r12982372"
+        },
+        {
+          "slug": "patte-d-oie",
+          "name": "Patte d'Oie",
+          "latitude": 14.7493257,
+          "longitude": -17.4435926,
+          "osm": "r12982371"
+        },
+        {
+          "slug": "point-e",
+          "name": "Point E",
+          "latitude": 14.6964782,
+          "longitude": -17.4641817,
+          "osm": "n299636390"
+        },
+        {
+          "slug": "rebeuss",
+          "name": "Rebeuss",
+          "latitude": 14.6741897,
+          "longitude": -17.444646,
+          "osm": "n560743288"
+        },
+        {
+          "slug": "sacre-coeur-3-pyrotechnie",
+          "name": "Sacré Coeur 3 Pyrotechnie",
+          "latitude": 14.7113439,
+          "longitude": -17.4678133,
+          "osm": "w279672170"
+        },
+        {
+          "slug": "sacre-coeur-3-vdn",
+          "name": "Sacré Cœur 3 VDN",
+          "latitude": 14.721931,
+          "longitude": -17.4733369,
+          "osm": "r5386698"
+        },
+        {
+          "slug": "sacre-coeur",
+          "name": "Sacré-Cœur",
+          "latitude": 14.7114619,
+          "longitude": -17.4688689,
+          "osm": "n2214676190"
+        },
+        {
+          "slug": "sacre-coeur-1",
+          "name": "Sacré-Cœur 1",
+          "latitude": 14.7165977,
+          "longitude": -17.4627036,
+          "osm": "w54269408"
+        },
+        {
+          "slug": "sacre-coeur-2",
+          "name": "Sacré-Cœur 2",
+          "latitude": 14.71833,
+          "longitude": -17.4636675,
+          "osm": "w279672169"
+        },
+        {
+          "slug": "sacre-coeur-3",
+          "name": "Sacré-Cœur 3",
+          "latitude": 14.720456,
+          "longitude": -17.4674393,
+          "osm": "w279672366"
+        },
+        {
+          "slug": "santhiaba",
+          "name": "Santhiaba",
+          "latitude": 14.739318,
+          "longitude": -17.4436722,
+          "osm": "w1463235740"
+        },
+        {
+          "slug": "scat-urbam",
+          "name": "Scat Urbam",
+          "latitude": 14.7359984,
+          "longitude": -17.4591601,
+          "osm": "w1463235703"
+        },
+        {
+          "slug": "scat-urbam-cite-conachap",
+          "name": "SCAT Urbam (cite Conachap)",
+          "latitude": 14.7347647,
+          "longitude": -17.4586125,
+          "osm": "w1463235724"
+        },
+        {
+          "slug": "scat-urbam-cite-fougerolle",
+          "name": "SCAT Urbam (cite Fougerolle)",
+          "latitude": 14.7362034,
+          "longitude": -17.4562132,
+          "osm": "w1463235738"
+        },
+        {
+          "slug": "scat-urbam-cite-keur-khadim-ii",
+          "name": "SCAT Urbam (cite Keur Khadim II)",
+          "latitude": 14.7384303,
+          "longitude": -17.459877,
+          "osm": "w1463235767"
+        },
+        {
+          "slug": "scat-urbam-ilot-b",
+          "name": "SCAT Urbam (ilot B)",
+          "latitude": 14.7363521,
+          "longitude": -17.4595501,
+          "osm": "w1463235732"
+        },
+        {
+          "slug": "scat-urbam-ilot-c",
+          "name": "SCAT Urbam (ilot C)",
+          "latitude": 14.7358398,
+          "longitude": -17.4616965,
+          "osm": "w1463235728"
+        },
+        {
+          "slug": "scat-urbam-ilot-d",
+          "name": "SCAT Urbam (ilot D)",
+          "latitude": 14.7369083,
+          "longitude": -17.4624453,
+          "osm": "w1463235729"
+        },
+        {
+          "slug": "scat-urbam-ilot-f",
+          "name": "SCAT Urbam (ilot F)",
+          "latitude": 14.7394485,
+          "longitude": -17.4611381,
+          "osm": "w1463235758"
+        },
+        {
+          "slug": "scat-urbam-ilot-g",
+          "name": "SCAT Urbam (ilot G)",
+          "latitude": 14.7405499,
+          "longitude": -17.4602104,
+          "osm": "w1463235743"
+        },
+        {
+          "slug": "scat-urbam-ilot-m",
+          "name": "SCAT Urbam (ilot M)",
+          "latitude": 14.7368291,
+          "longitude": -17.4583009,
+          "osm": "w1463235721"
+        },
+        {
+          "slug": "scat-urbam-ilot-n",
+          "name": "SCAT Urbam (ilot N)",
+          "latitude": 14.7374715,
+          "longitude": -17.4562678,
+          "osm": "w1463235761"
+        },
+        {
+          "slug": "scat-urbam-arafat",
+          "name": "SCAT Urbam Arafat",
+          "latitude": 14.7345162,
+          "longitude": -17.454606,
+          "osm": "w1463235727"
+        },
+        {
+          "slug": "shelter-zone-commerciale",
+          "name": "Shelter (zone Commerciale)",
+          "latitude": 14.7420876,
+          "longitude": -17.4589246,
+          "osm": "w1463235713"
+        },
+        {
+          "slug": "sicap-baobab",
+          "name": "Sicap Baobab",
+          "latitude": 14.7108,
+          "longitude": -17.4605,
+          "osm": null
+        },
+        {
+          "slug": "sicap-liberte",
+          "name": "Sicap-Liberté",
+          "latitude": 14.7197196,
+          "longitude": -17.4639035,
+          "osm": "r12988838"
+        },
+        {
+          "slug": "soutrack-mermoz",
+          "name": "Soutrack Mermoz",
+          "latitude": 14.7072994,
+          "longitude": -17.4761763,
+          "osm": "n13195387034"
+        },
+        {
+          "slug": "sud-foire",
+          "name": "Sud Foire",
+          "latitude": 14.739545,
+          "longitude": -17.466753,
+          "osm": "w1463235704"
+        },
+        {
+          "slug": "sud-foire-cite-cse",
+          "name": "Sud Foire (cite CSE)",
+          "latitude": 14.7348109,
+          "longitude": -17.4639771,
+          "osm": "w1463235725"
+        },
+        {
+          "slug": "sud-foire-cite-libasse-niang",
+          "name": "Sud Foire (cite Libasse Niang)",
+          "latitude": 14.7364732,
+          "longitude": -17.4659214,
+          "osm": "w1463235719"
+        },
+        {
+          "slug": "sud-foire-cite-sonatel-ii",
+          "name": "Sud Foire (cite SONATEL II)",
+          "latitude": 14.7366695,
+          "longitude": -17.4649206,
+          "osm": "w1463235751"
+        },
+        {
+          "slug": "sud-foire-cite-sonatel-iii",
+          "name": "Sud Foire (cite SONATEL III)",
+          "latitude": 14.7344571,
+          "longitude": -17.4655048,
+          "osm": "w1463235765"
+        },
+        {
+          "slug": "taiba-i",
+          "name": "Taiba I",
+          "latitude": 14.7330451,
+          "longitude": -17.4499507,
+          "osm": "w1463235716"
+        },
+        {
+          "slug": "taiba-ii",
+          "name": "Taiba II",
+          "latitude": 14.7336484,
+          "longitude": -17.4529692,
+          "osm": "w1463235717"
+        },
+        {
+          "slug": "taiba-iv",
+          "name": "Taiba IV",
+          "latitude": 14.7353499,
+          "longitude": -17.4519355,
+          "osm": "w1463235731"
+        },
+        {
+          "slug": "touba-ndar-fall-jus",
+          "name": "Touba Ndar Fall JUS",
+          "latitude": 14.7498898,
+          "longitude": -17.4387207,
+          "osm": "n8773863819"
+        },
+        {
+          "slug": "unite-14",
+          "name": "Unité 14",
+          "latitude": 14.7523268,
+          "longitude": -17.437765,
+          "osm": "w545141978"
+        },
+        {
+          "slug": "unite-17",
+          "name": "Unité 17",
+          "latitude": 14.75872,
+          "longitude": -17.439706,
+          "osm": "w545141977"
+        },
+        {
+          "slug": "unite-18",
+          "name": "Unité 18",
+          "latitude": 14.754717,
+          "longitude": -17.4412143,
+          "osm": "w545141976"
+        },
+        {
+          "slug": "unite-23",
+          "name": "Unité 23",
+          "latitude": 14.7605347,
+          "longitude": -17.4496485,
+          "osm": "w545141971"
+        },
+        {
+          "slug": "village-grand-medine",
+          "name": "Village Grand Médine",
+          "latitude": 14.7473953,
+          "longitude": -17.4480316,
+          "osm": "n299636278"
+        },
+        {
+          "slug": "yoff",
+          "name": "Yoff",
+          "latitude": 14.7536274,
+          "longitude": -17.4773789,
+          "osm": "r12988608"
+        },
+        {
+          "slug": "yyoff-apecsy",
+          "name": "Yoff Apecsy",
+          "latitude": 14.7560116,
+          "longitude": -17.4644475,
+          "osm": "w369004275"
+        },
+        {
+          "slug": "yoff-layene",
+          "name": "Yoff Layéne",
+          "latitude": 14.7580435,
+          "longitude": -17.4661963,
+          "osm": "r7132804"
+        },
+        {
+          "slug": "yoff-mbenguene",
+          "name": "Yoff Mbenguéne",
+          "latitude": 14.7567949,
+          "longitude": -17.4717052,
+          "osm": "r7006930"
+        },
+        {
+          "slug": "yoff-ndeungagne",
+          "name": "Yoff Ndeungagne",
+          "latitude": 14.7586681,
+          "longitude": -17.476314,
+          "osm": "r7006931"
+        },
+        {
+          "slug": "yoff-ngaparou",
+          "name": "Yoff Ngaparou",
+          "latitude": 14.759897,
+          "longitude": -17.4717098,
+          "osm": "r7132805"
+        },
+        {
+          "slug": "yoff-tonghor",
+          "name": "Yoff Tonghor",
+          "latitude": 14.7618795,
+          "longitude": -17.4806904,
+          "osm": "w369004272"
+        },
+        {
+          "slug": "zone-b",
+          "name": "Zone B",
+          "latitude": 14.6994048,
+          "longitude": -17.4555604,
+          "osm": "n564612945"
+        },
+        {
+          "slug": "zone-de-captage",
+          "name": "Zone De Captage",
+          "latitude": 14.7339462,
+          "longitude": -17.4425009,
+          "osm": "w1463235744"
+        }
+      ]
+    },
+    {
+      "slug": "diamniadio",
+      "name": "Diamniadio",
+      "latitude": 14.7387031,
+      "longitude": -17.1856151,
+      "neighborhoods": [
+        {
+          "slug": "dougar-aithia",
+          "name": "Dougar AITHIA",
+          "latitude": 14.7113919,
+          "longitude": -17.1598763,
+          "osm": "n9215098337"
+        }
+      ]
+    },
+    {
+      "slug": "guediawaye",
+      "name": "Guédiawaye",
+      "latitude": 14.7799944,
+      "longitude": -17.3948339,
+      "neighborhoods": [
+        {
+          "slug": "cite-barry-et-ly",
+          "name": "Cité Barry et Ly",
+          "latitude": 14.7793117,
+          "longitude": -17.3979343,
+          "osm": "w385869090"
+        },
+        {
+          "slug": "cite-biagui-2",
+          "name": "Cité Biagui 2",
+          "latitude": 14.7870205,
+          "longitude": -17.3808113,
+          "osm": "n3666292248"
+        },
+        {
+          "slug": "cite-sofraco",
+          "name": "Cité SOFRACO",
+          "latitude": 14.7876995,
+          "longitude": -17.3785205,
+          "osm": "n3666233439"
+        },
+        {
+          "slug": "golf-sud",
+          "name": "Golf Sud",
+          "latitude": 14.7723006,
+          "longitude": -17.4155893,
+          "osm": "r12982144"
+        },
+        {
+          "slug": "golf-sud-cite-aliou-sow",
+          "name": "Golf Sud(Cité Aliou SOW)",
+          "latitude": 14.7716198,
+          "longitude": -17.4139148,
+          "osm": "n8047907843"
+        },
+        {
+          "slug": "hamo-6",
+          "name": "Hamo 6",
+          "latitude": 14.7849453,
+          "longitude": -17.3842327,
+          "osm": "n3666295353"
+        },
+        {
+          "slug": "medina-gounass",
+          "name": "Medina Gounass",
+          "latitude": 14.7717319,
+          "longitude": -17.3823056,
+          "osm": "r12982140"
+        },
+        {
+          "slug": "ndiareme-limamoulaye",
+          "name": "Ndiarème Limamoulaye",
+          "latitude": 14.7904747,
+          "longitude": -17.3896021,
+          "osm": "r12982143"
+        },
+        {
+          "slug": "sam-notaire",
+          "name": "Sam Notaire",
+          "latitude": 14.7845357,
+          "longitude": -17.3962327,
+          "osm": "r12982142"
+        },
+        {
+          "slug": "sentenac",
+          "name": "Sentenac",
+          "latitude": 14.7855335,
+          "longitude": -17.381845,
+          "osm": "n3666297212"
+        },
+        {
+          "slug": "wakhinane-nimzatt",
+          "name": "Wakhinane Nimzatt",
+          "latitude": 14.7932388,
+          "longitude": -17.3757339,
+          "osm": "r12982141"
+        }
+      ]
+    },
+    {
+      "slug": "keur-massar",
+      "name": "Keur Massar",
+      "latitude": 14.7922583,
+      "longitude": -17.3242883,
+      "neighborhoods": [
+        {
+          "slug": "camille-basse",
+          "name": "Camille Basse",
+          "latitude": 14.7597488,
+          "longitude": -17.3017736,
+          "osm": "n2270628840"
+        },
+        {
+          "slug": "cite-gendarmerie",
+          "name": "Cité Gendarmerie",
+          "latitude": 14.7651344,
+          "longitude": -17.2783525,
+          "osm": "n2965962948"
+        },
+        {
+          "slug": "jaxaay-parcelles",
+          "name": "Jaxaay - Parcelles",
+          "latitude": 14.7644003,
+          "longitude": -17.2856605,
+          "osm": "r12982160"
+        },
+        {
+          "slug": "keur-massar-nord",
+          "name": "Keur Massar Nord",
+          "latitude": 14.7878331,
+          "longitude": -17.3154606,
+          "osm": "r12982149"
+        },
+        {
+          "slug": "keur-massar-sud",
+          "name": "Keur Massar Sud",
+          "latitude": 14.7704174,
+          "longitude": -17.305452,
+          "osm": "r13067451"
+        },
+        {
+          "slug": "malika",
+          "name": "Malika",
+          "latitude": 14.8094032,
+          "longitude": -17.3297786,
+          "osm": "r12982148"
+        },
+        {
+          "slug": "plan-jaxaay-01",
+          "name": "Plan Jaxaay 01",
+          "latitude": 14.7588289,
+          "longitude": -17.2869705,
+          "osm": "n2965962949"
+        },
+        {
+          "slug": "plan-jaxaay-02",
+          "name": "Plan Jaxaay 02",
+          "latitude": 14.7703476,
+          "longitude": -17.2780432,
+          "osm": "n2965962950"
+        },
+        {
+          "slug": "quartier-demba-seck",
+          "name": "Quartier Demba Seck",
+          "latitude": 14.7657971,
+          "longitude": -17.3520481,
+          "osm": "n5292517652"
+        },
+        {
+          "slug": "yeumbeul-nord",
+          "name": "Yeumbeul Nord",
+          "latitude": 14.7920033,
+          "longitude": -17.3509192,
+          "osm": "r12982147"
+        },
+        {
+          "slug": "yeumbeul-sud",
+          "name": "Yeumbeul Sud",
+          "latitude": 14.7699597,
+          "longitude": -17.3605012,
+          "osm": "r12982150"
+        }
+      ]
+    },
+    {
+      "slug": "pikine",
+      "name": "Pikine",
+      "latitude": 14.7459828,
+      "longitude": -17.3622229,
+      "neighborhoods": [
+        {
+          "slug": "cite-institut-pasteur-de-fass-mbao",
+          "name": "Cité Institut Pasteur de Fass Mbao",
+          "latitude": 14.7568684,
+          "longitude": -17.3426479,
+          "osm": "w546917868"
+        },
+        {
+          "slug": "dalifort",
+          "name": "Dalifort",
+          "latitude": 14.7402309,
+          "longitude": -17.4112308,
+          "osm": "r12989302"
+        },
+        {
+          "slug": "diamaguene-sicap-mbao",
+          "name": "Diamaguène-Sicap Mbao",
+          "latitude": 14.7476196,
+          "longitude": -17.3520953,
+          "osm": "r12989397"
+        },
+        {
+          "slug": "djida-thiaroye-kaw",
+          "name": "Djida Thiaroye Kaw",
+          "latitude": 14.7652681,
+          "longitude": -17.3830023,
+          "osm": "n4958547350"
+        },
+        {
+          "slug": "djidah-thiaroye-kaw",
+          "name": "Djidah Thiaroye Kaw",
+          "latitude": 14.7657804,
+          "longitude": -17.3833062,
+          "osm": "r12989308"
+        },
+        {
+          "slug": "guinaw-rail-nord",
+          "name": "Guinaw Rail Nord",
+          "latitude": 14.7537689,
+          "longitude": -17.3828796,
+          "osm": "r12989306"
+        },
+        {
+          "slug": "guinaw-rail-sud",
+          "name": "Guinaw Rail Sud",
+          "latitude": 14.7479732,
+          "longitude": -17.38669,
+          "osm": "r12989305"
+        },
+        {
+          "slug": "mbao",
+          "name": "Mbao",
+          "latitude": 14.7453011,
+          "longitude": -17.3217754,
+          "osm": "r12989393"
+        },
+        {
+          "slug": "pikine-est",
+          "name": "Pikine Est",
+          "latitude": 14.7572745,
+          "longitude": -17.3875582,
+          "osm": "r12989307"
+        },
+        {
+          "slug": "pikine-nord",
+          "name": "Pikine Nord",
+          "latitude": 14.7606802,
+          "longitude": -17.3951114,
+          "osm": "r12989304"
+        },
+        {
+          "slug": "pikine-ouest",
+          "name": "Pikine Ouest",
+          "latitude": 14.7568846,
+          "longitude": -17.4064036,
+          "osm": "r12989303"
+        },
+        {
+          "slug": "thiaroye-gare",
+          "name": "Thiaroye-Gare",
+          "latitude": 14.7572143,
+          "longitude": -17.3739791,
+          "osm": "r12989396"
+        },
+        {
+          "slug": "thiaroye-sur-mer",
+          "name": "Thiaroye-sur-Mer",
+          "latitude": 14.7406289,
+          "longitude": -17.3750718,
+          "osm": "r12989394"
+        },
+        {
+          "slug": "tivaouane-diacksao",
+          "name": "Tivaouane Diacksao",
+          "latitude": 14.7501265,
+          "longitude": -17.3695114,
+          "osm": "r12989395"
+        }
+      ]
+    },
+    {
+      "slug": "rufisque",
+      "name": "Rufisque",
+      "latitude": 14.7173347,
+      "longitude": -17.2603642,
+      "neighborhoods": [
+        {
+          "slug": "cite-sidak",
+          "name": "Cité Sidak",
+          "latitude": 14.7355252,
+          "longitude": -17.3146292,
+          "osm": "n8848178583"
+        },
+        {
+          "slug": "rufisque-est",
+          "name": "Rufisque Est",
+          "latitude": 14.7173347,
+          "longitude": -17.2603642,
+          "osm": null
+        },
+        {
+          "slug": "rufisque-nord",
+          "name": "Rufisque Nord",
+          "latitude": 14.7312031,
+          "longitude": -17.2674434,
+          "osm": null
+        },
+        {
+          "slug": "rufisque-ouest",
+          "name": "Rufisque Ouest",
+          "latitude": 14.7300482,
+          "longitude": -17.2954801,
+          "osm": null
+        }
+      ]
+    },
+    {
+      "slug": "sangalkam",
+      "name": "Sangalkam",
+      "latitude": 14.7691359,
+      "longitude": -17.2329273,
+      "neighborhoods": [
+        {
+          "slug": "almadie-2",
+          "name": "Almadie 2",
+          "latitude": 14.7509338,
+          "longitude": -17.2783038,
+          "osm": "n12004527628"
+        },
+        {
+          "slug": "cite-doudou-basse",
+          "name": "Cité Doudou Basse",
+          "latitude": 14.7650054,
+          "longitude": -17.2297247,
+          "osm": "n2577986604"
+        },
+        {
+          "slug": "citee-total",
+          "name": "Citée Total",
+          "latitude": 14.7702413,
+          "longitude": -17.2270985,
+          "osm": "n2439016292"
+        }
+      ]
+    },
+    {
+      "slug": "sebikhotane",
+      "name": "Sébikhotane",
+      "latitude": 14.7446058,
+      "longitude": -17.1489548,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sendou",
+      "name": "Sendou",
+      "latitude": 14.6693181,
+      "longitude": -17.1922081,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tivaouane-peulh-niaga",
+      "name": "Tivaouane Peulh-Niaga",
+      "latitude": 14.8301061,
+      "longitude": -17.2384783,
+      "neighborhoods": [
+        {
+          "slug": "bayal",
+          "name": "Bayal",
+          "latitude": 14.799699,
+          "longitude": -17.2850372,
+          "osm": "n12484462337"
+        },
+        {
+          "slug": "quartier-marieme-faye-sall",
+          "name": "Quartier Marième Faye Sall",
+          "latitude": 14.8128431,
+          "longitude": -17.2615882,
+          "osm": "w509326788"
+        }
+      ]
+    },
+    {
+      "slug": "yenne",
+      "name": "Yenne",
+      "latitude": 14.6484308,
+      "longitude": -17.1628662,
+      "neighborhoods": []
+    }
+  ]
+}

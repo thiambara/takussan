@@ -38,7 +38,9 @@ class StoreTagRequest extends BaseFormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'type' => ['required', Rule::enum(TagType::class)],
+            // TCK-633 (ADR-0062 §7) — `feature` est fondu dans `amenity` ; le cas reste dans
+            // l'enum pour lire une base qui n'aurait pas encore migré.
+            'type' => ['required', Rule::enum(TagType::class)->except([TagType::Feature])],
             'icon' => ['nullable', 'string'],
             'color' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string'],
