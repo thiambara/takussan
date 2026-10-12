@@ -37,13 +37,13 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Sommaire
 
-1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 30 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 84 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 76 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 106 fonctionnalités
+1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 85 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 81 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 112 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 114 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 67 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 118 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
 
 ---
 
@@ -55,7 +55,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
-| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
+| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P1 | §1.2 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en dessous, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
@@ -63,7 +64,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
 | P1 | §1.2 | Tri des résultats par distance au point de recherche |
 | P1 | §1.2 | Partage d'un bien (lien, réseaux sociaux) — texte traduit (type, prix, quartier) et paramètres de source ; les demandes reçues par un lien partagé sont attribuées à leur source (TCK-590) |
-| P1 | §1.2 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
+| P1 | §1.2 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; WhatsApp vise un numéro déclaré WhatsApp, et disparaît sans lui (TCK-633) ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
 | P1 | §1.2 | Coût d'entrée affiché sur la fiche et dans le comparateur (« Total à l'entrée ») (TCK-598) |
 | P1 | §1.2 | Signaux de confiance sur la fiche : téléphone du contact vérifié, agence vérifiée, conseil de prudence (« ne versez jamais d'argent avant la visite ») (TCK-598) |
 | P1 | §1.2 | Visite virtuelle ou vidéo consultable sur la fiche (TCK-598) |
@@ -100,7 +101,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — wizard 5 steps qui crée simultanément `Agency.kind=individual`, `AgencyAdminProfile`, `OwnerProfile` et un premier `Property` brouillon |
+| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
 
 ### §2.1 Authentification & comptes
 
@@ -119,7 +120,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
-| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
+| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P1 | §1.2 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en dessous, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
@@ -130,7 +132,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.2 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | §1.2 | Recherches sauvegardées avec alerte réglable par recherche (coupée / quotidienne / hebdomadaire — pas d'envoi instantané), appliquant tous les critères de la recherche, dans la langue du destinataire, listant les biens avec photo, prix, quartier et lien, et un lien de désinscription en un clic ; l'alerte obéit à la préférence « Recherche sauvegardée » (TCK-599) |
 | P1 | §1.2 | Partage d'un bien (lien, réseaux sociaux) — texte traduit (type, prix, quartier) et paramètres de source ; les demandes reçues par un lien partagé sont attribuées à leur source (TCK-590) |
-| P1 | §1.2 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
+| P1 | §1.2 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; WhatsApp vise un numéro déclaré WhatsApp, et disparaît sans lui (TCK-633) ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
 | P1 | §1.2 | Coût d'entrée affiché sur la fiche et dans le comparateur (« Total à l'entrée ») (TCK-598) |
 | P1 | §1.2 | Signaux de confiance sur la fiche : téléphone du contact vérifié, agence vérifiée, conseil de prudence (« ne versez jamais d'argent avant la visite ») (TCK-598) |
 | P1 | §1.2 | Visite virtuelle ou vidéo consultable sur la fiche (TCK-598) |
@@ -239,7 +241,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — wizard 5 steps qui crée simultanément `Agency.kind=individual`, `AgencyAdminProfile`, `OwnerProfile` et un premier `Property` brouillon |
+| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
 
 ### §2.1 Authentification & comptes
 
@@ -271,7 +273,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P0 | §1.1 | Créer un bien (type, transaction vente/location, caractéristiques) |
-| P1 | §1.1 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) |
+| P1 | §1.1 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) ; pas de frais d'agence pour un espace particulier ; le total à l'entrée s'affiche dès l'aperçu de la publication (TCK-633) |
+| P1 | §1.1 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
+| P1 | §1.1 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
+| P1 | §1.1 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
+| P1 | §1.1 | Publier exige un contact joignable : prénom et numéro vérifié du contact principal ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; la première publication vaut acceptation des CGU, datée (TCK-633) |
+| P1 | §1.1 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
 | P1 | §1.1 | Bailleur rattaché à une agence : proposer un bien à son agence — brouillon privé, publié par le personnel de l'agence, qui en est notifié (TCK-587) |
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
@@ -416,15 +423,20 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P0 | §1.1 | Créer un bien (type, transaction vente/location, caractéristiques) |
-| P0 | §1.1 | Associer une adresse géolocalisée |
+| P0 | §1.1 | Associer une adresse géolocalisée — région, ville et quartier choisis dans un référentiel (listes avec recherche) ; un quartier absent se saisit librement et n'est proposé aux autres qu'après validation super-admin ; la position exacte s'affiche en latitude / longitude et se saisit aussi en collant un lien ou une position (lien Google Maps, lien court, position partagée par WhatsApp, degrés, Plus Code) (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
 | P0 | §1.1 | Uploader des photos |
 | P0 | §1.1 | Définir le statut (disponible / réservé / vendu / loué / archivé) |
 | P0 | §1.1 | Publier et dépublier un bien |
 | P0 | §1.1 | Modifier / supprimer un bien (soft delete) |
 | P0 | §1.1 | Attribuer automatiquement une référence unique à chaque bien (ex : TK-2025-001) |
 | P1 | §1.1 | Uploader plans, vidéos et visites virtuelles 360° — la visite virtuelle ou vidéo est un **lien https** vers un hébergeur autorisé ; le téléversement de fichiers vidéo reste à décider (TCK-598) |
-| P1 | §1.1 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) |
-| P1 | §1.1 | Associer des tags / amenités (piscine, climatisation, meublé…) |
+| P1 | §1.1 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) ; pas de frais d'agence pour un espace particulier ; le total à l'entrée s'affiche dès l'aperçu de la publication (TCK-633) |
+| P1 | §1.1 | Associer des tags / amenités (piscine, climatisation, meublé…) — une seule liste d'équipements, traduite, en sélection multiple avec recherche ; un équipement absent s'ajoute à l'annonce tel que saisi, sans traduction, et n'est proposé aux autres qu'après validation super-admin (TCK-633) |
+| P1 | §1.1 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
+| P1 | §1.1 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
+| P1 | §1.1 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
+| P1 | §1.1 | Publier exige un contact joignable : prénom et numéro vérifié du contact principal ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; la première publication vaut acceptation des CGU, datée (TCK-633) |
+| P1 | §1.1 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
 | P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
 | P0 | §1.1 | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) |
@@ -567,6 +579,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
+| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P2 | §1.12 | Carnet des prestataires de l'agence filtré par statut de collaboration (actifs par défaut), métier et zone (TCK-592) |
 
 ### §2.1 Authentification & comptes
@@ -714,6 +727,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.12 | Ajouter et retirer des agents |
 | P0 | §1.12 | Attribution de rôles aux membres |
 | P0 | §1.12 | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
+| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.12 | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | §1.12 | Paramètres de commission par défaut |
 | P1 | §1.12 | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
@@ -752,6 +766,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.2 | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) — l'auto-bascule ne retient que les profils actifs (TCK-587) |
 | P0 | §2.2 | Un profil non actif (suspendu, brouillon, inactif, bloqué) ne confère aucune capacité ni aucun périmètre dans son agence ; la suspension prend effet à la requête suivante (TCK-587) |
 | P1 | §2.2 | Attribution et retrait de rôles à un profil (et non à un user global) |
+| P0 | §2.2 | La navigation d'administration n'offre que les pages que le profil actif peut ouvrir, d'après une seule table des pages ; « Administration » mène à la première d'entre elles et disparaît s'il n'y en a aucune ; une page refusée renvoie à la première accessible (TCK-633) |
 | P0 | §2.2 | Cloisonnement des bailleurs d'une même agence : un bailleur ne lit et ne modifie que ses biens, baux, loyers, réservations, versements, factures et documents — jamais ceux d'un autre bailleur de l'agence ; seul le personnel (agent, admin d'agence) a le périmètre de l'agence (TCK-587) |
 | P1 | §2.2 | Éditeur de rôles personnalisés scopé par agence (réservé aux agences `standard`) — un « rôle personnalisé » est un ensemble de `Capability` nommé, porté par l'agence ; le mécanisme reste à concevoir, `Capability` étant défini en code ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | §2.2 | L'éditeur de rôles signale les capacités du catalogue qui ne sont encore jugées par aucun geste (« sans effet pour l'instant »), avec le ticket qui les branchera ; une capacité est soit jugée par au moins un geste, soit inscrite à l'inventaire des capacités sans lecteur, qui ne peut que décroître (TCK-587) |
@@ -802,7 +817,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §2.9 | Gestion des tags et amenités |
+| P0 | §2.9 | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
+| P1 | §2.9 | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
+| P1 | §2.9 | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §2.9 | Gestion des utilisateurs (activation, blocage) |
 | P0 | §2.9 | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
 | P1 | §2.9 | Gestion des enums métier (types de biens, statuts) |
@@ -833,7 +850,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §2.1 | Inscription par email et mot de passe |
 | P0 | §2.1 | Connexion (tokens Sanctum) |
-| P0 | §2.1 | Déconnexion et révocation de token |
+| P0 | §2.1 | Déconnexion et révocation de token ; une déconnexion volontaire ramène à l'accueil, une session expirée à la connexion (TCK-633) |
+| P1 | §2.1 | Second numéro de contact, vérifié par SMS, qui ne sert pas à se connecter ; chaque numéro déclare s'il a WhatsApp (TCK-633) |
 | P0 | §2.1 | Mot de passe oublié et réinitialisation |
 | P0 | §2.1 | Vérification de l'adresse email ; un compte ouvert par téléphone ajoute son adresse depuis le profil et en reçoit le lien, renvoyable ; une adresse non vérifiée se corrige, une adresse vérifiée ne se remplace pas encore (TCK-632) |
 | P0 | §2.1 | Édition de profil (nom, bio, avatar) |
@@ -898,7 +916,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.7 | Upload multiple avec drag & drop |
 | P1 | §2.7 | Réorganisation des médias par glisser-déposer |
 | P2 | §2.7 | Optimisation CDN et formats modernes (webp, avif) |
-| P2 | §2.7 | Watermark automatique sur photos de biens |
+| P2 | §2.7 | Watermark automatique sur photos de biens — derrière le drapeau `media_watermark`, éteint (TCK-633) |
 | P3 | §2.7 | Streaming vidéo adaptatif |
 
 ### §2.8 Internationalisation & préférences
@@ -928,8 +946,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **368** lignes de fonctionnalité lues,
-  réparties en **494** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **379** lignes de fonctionnalité lues,
+  réparties en **512** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

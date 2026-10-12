@@ -71,15 +71,20 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P0 | 🏢🧑‍💼 | Créer un bien (type, transaction vente/location, caractéristiques) |
-| P0 | 🧑‍💼 | Associer une adresse géolocalisée |
+| P0 | 🧑‍💼 | Associer une adresse géolocalisée — région, ville et quartier choisis dans un référentiel (listes avec recherche) ; un quartier absent se saisit librement et n'est proposé aux autres qu'après validation super-admin ; la position exacte s'affiche en latitude / longitude et se saisit aussi en collant un lien ou une position (lien Google Maps, lien court, position partagée par WhatsApp, degrés, Plus Code) (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
 | P0 | 🧑‍💼 | Uploader des photos |
 | P0 | 🧑‍💼 | Définir le statut (disponible / réservé / vendu / loué / archivé) |
 | P0 | 🧑‍💼 | Publier et dépublier un bien |
 | P0 | 🧑‍💼 | Modifier / supprimer un bien (soft delete) |
 | P0 | 🧑‍💼 | Attribuer automatiquement une référence unique à chaque bien (ex : TK-2025-001) |
 | P1 | 🧑‍💼 | Uploader plans, vidéos et visites virtuelles 360° — la visite virtuelle ou vidéo est un **lien https** vers un hébergeur autorisé ; le téléversement de fichiers vidéo reste à décider (TCK-598) |
-| P1 | 🏢🧑‍💼 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) |
-| P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) |
+| P1 | 🏢🧑‍💼 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) ; pas de frais d'agence pour un espace particulier ; le total à l'entrée s'affiche dès l'aperçu de la publication (TCK-633) |
+| P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) — une seule liste d'équipements, traduite, en sélection multiple avec recherche ; un équipement absent s'ajoute à l'annonce tel que saisi, sans traduction, et n'est proposé aux autres qu'après validation super-admin (TCK-633) |
+| P1 | 🏢🧑‍💼 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
+| P1 | 🏢🧑‍💼 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
+| P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
+| P1 | 🏢🧑‍💼 | Publier exige un contact joignable : prénom et numéro vérifié du contact principal ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; la première publication vaut acceptation des CGU, datée (TCK-633) |
+| P1 | 🏢🧑‍💼 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
 | P1 | 🧑‍💼 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
 | P1 | 🏢 | Bailleur rattaché à une agence : proposer un bien à son agence — brouillon privé, publié par le personnel de l'agence, qui en est notifié (TCK-587) |
@@ -107,7 +112,8 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 |------|---------|----------------|
 | P0 | 👤🏠 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | 👤🏠 | Recherche plein-texte sur les biens |
-| P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
+| P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P1 | 👤🏠 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en dessous, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | 👤🏠 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
@@ -118,7 +124,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P1 | 🏠 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | 🏠 | Recherches sauvegardées avec alerte réglable par recherche (coupée / quotidienne / hebdomadaire — pas d'envoi instantané), appliquant tous les critères de la recherche, dans la langue du destinataire, listant les biens avec photo, prix, quartier et lien, et un lien de désinscription en un clic ; l'alerte obéit à la préférence « Recherche sauvegardée » (TCK-599) |
 | P1 | 👤🏠 | Partage d'un bien (lien, réseaux sociaux) — texte traduit (type, prix, quartier) et paramètres de source ; les demandes reçues par un lien partagé sont attribuées à leur source (TCK-590) |
-| P1 | 👤🏠 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
+| P1 | 👤🏠 | Contact WhatsApp et appel depuis la fiche : message prérempli dans la langue du visiteur ; boutons absents quand le contact n'a pas de numéro ; WhatsApp vise un numéro déclaré WhatsApp, et disparaît sans lui (TCK-633) ; le contact affiché est une personne joignable — jamais un compte bloqué ni un agent sorti de l'agence ; à défaut, les admins de l'agence reçoivent la demande (TCK-590) |
 | P1 | 👤🏠 | Coût d'entrée affiché sur la fiche et dans le comparateur (« Total à l'entrée ») (TCK-598) |
 | P1 | 👤🏠 | Signaux de confiance sur la fiche : téléphone du contact vérifié, agence vérifiée, conseil de prudence (« ne versez jamais d'argent avant la visite ») (TCK-598) |
 | P1 | 👤🏠 | Visite virtuelle ou vidéo consultable sur la fiche (TCK-598) |
@@ -386,7 +392,7 @@ Gestion de la structure organisationnelle.
 Une agence porte un **`kind`** :
 
 - **`standard`** — agence professionnelle multi-membres : peut inviter des collaborateurs internes (agents, autres admins), créer des rôles personnalisés, assigner biens/leads aux agents, accéder au reporting cross-équipe, customiser les tags/enums plateforme. Créée via le parcours super-admin (§2.9 → §2.1).
-- **`individual`** — agence individuelle (host solo) auto-créée par n'importe quel user via la CTA "Publier" (pattern Airbnb). Le user devient simultanément `agency_admin` + `owner` de cette agence. Restrictions par rapport à `standard` : pas d'invitation de collaborateurs internes, un seul `agency_admin`, pas de rôles personnalisés, pas d'assignation de biens/leads à un agent, pas de reporting cross-équipe, **pas de carnet de propriétaires** — ni consultation de la liste, ni invitation d'autres bailleurs : dans une agence individuelle, le propriétaire est le créateur du compte lui-même (TCK-256, confirmé par TCK-284) —, pas de customisation des tags/enums plateforme. Toutes les autres capacités (publication de biens, baux, encaissements, branding, sous-domaine, devise, intégrations, invitation de prestataires externes `ServiceProvider`) restent disponibles. Pas de quota MVP — la monétisation future est `pay-per-listing`.
+- **`individual`** — agence individuelle (host solo) auto-créée par n'importe quel user via la CTA "Publier" (pattern Airbnb). Le user devient simultanément `agency_admin` + `owner` de cette agence. Restrictions par rapport à `standard` : pas d'invitation de collaborateurs internes, un seul `agency_admin`, pas de rôles personnalisés, pas d'assignation de biens/leads à un agent, pas de reporting cross-équipe, **pas de carnet de propriétaires** — ni consultation de la liste, ni invitation d'autres bailleurs : dans une agence individuelle, le propriétaire est le créateur du compte lui-même (TCK-256, confirmé par TCK-284) —, pas de customisation des tags/enums plateforme. Toutes les autres capacités (publication de biens, baux, encaissements, branding, sous-domaine, devise, intégrations, invitation de prestataires externes `ServiceProvider`) restent disponibles. Pas de quota MVP — la monétisation passe par les crédits de boost de l'espace ([ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)).
 
 > **Deux précisions nommées plutôt que déduites (TCK-295).** La liste ci-dessus est **fermée**, et
 > la phrase « toutes les autres capacités restent disponibles » suffit logiquement à répondre pour
@@ -417,7 +423,8 @@ Une agence porte un **`kind`** :
 | P0 | 🛡️ | Ajouter et retirer des agents |
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P0 | 🛡️ | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
-| P0 | 👤🏠 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — wizard 5 steps qui crée simultanément `Agency.kind=individual`, `AgencyAdminProfile`, `OwnerProfile` et un premier `Property` brouillon |
+| P0 | 👤🏠 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
+| P1 | 🛡️🧑‍💼 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | 🛡️ | Paramètres de commission par défaut |
 | P1 | 🛡️ | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
@@ -443,7 +450,8 @@ Une agence porte un **`kind`** :
 |------|---------|----------------|
 | P0 | Tous | Inscription par email et mot de passe |
 | P0 | Tous | Connexion (tokens Sanctum) |
-| P0 | Tous | Déconnexion et révocation de token |
+| P0 | Tous | Déconnexion et révocation de token ; une déconnexion volontaire ramène à l'accueil, une session expirée à la connexion (TCK-633) |
+| P1 | Tous | Second numéro de contact, vérifié par SMS, qui ne sert pas à se connecter ; chaque numéro déclare s'il a WhatsApp (TCK-633) |
 | P0 | Tous | Mot de passe oublié et réinitialisation |
 | P0 | Tous | Vérification de l'adresse email ; un compte ouvert par téléphone ajoute son adresse depuis le profil et en reçoit le lien, renvoyable ; une adresse non vérifiée se corrige, une adresse vérifiée ne se remplace pas encore (TCK-632) |
 | P0 | Tous | Édition de profil (nom, bio, avatar) |
@@ -514,6 +522,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P0 | 🛡️ | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) — l'auto-bascule ne retient que les profils actifs (TCK-587) |
 | P0 | 🛡️ | Un profil non actif (suspendu, brouillon, inactif, bloqué) ne confère aucune capacité ni aucun périmètre dans son agence ; la suspension prend effet à la requête suivante (TCK-587) |
 | P1 | 🛡️ | Attribution et retrait de rôles à un profil (et non à un user global) |
+| P0 | 🛡️ | La navigation d'administration n'offre que les pages que le profil actif peut ouvrir, d'après une seule table des pages ; « Administration » mène à la première d'entre elles et disparaît s'il n'y en a aucune ; une page refusée renvoie à la première accessible (TCK-633) |
 | P0 | 🛡️🏢 | Cloisonnement des bailleurs d'une même agence : un bailleur ne lit et ne modifie que ses biens, baux, loyers, réservations, versements, factures et documents — jamais ceux d'un autre bailleur de l'agence ; seul le personnel (agent, admin d'agence) a le périmètre de l'agence (TCK-587) |
 | P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (réservé aux agences `standard`) — un « rôle personnalisé » est un ensemble de `Capability` nommé, porté par l'agence ; le mécanisme reste à concevoir, `Capability` étant défini en code ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | 🛡️ | L'éditeur de rôles signale les capacités du catalogue qui ne sont encore jugées par aucun geste (« sans effet pour l'instant »), avec le ticket qui les branchera ; une capacité est soit jugée par au moins un geste, soit inscrite à l'inventaire des capacités sans lecteur, qui ne peut que décroître (TCK-587) |
@@ -622,7 +631,7 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P1 | Tous | Upload multiple avec drag & drop |
 | P1 | Tous | Réorganisation des médias par glisser-déposer |
 | P2 | Tous | Optimisation CDN et formats modernes (webp, avif) |
-| P2 | Tous | Watermark automatique sur photos de biens |
+| P2 | Tous | Watermark automatique sur photos de biens — derrière le drapeau `media_watermark`, éteint (TCK-633) |
 | P3 | Tous | Streaming vidéo adaptatif |
 
 ### 2.8 Internationalisation & préférences
@@ -647,7 +656,9 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Gestion des tags et amenités |
+| P0 | 🛡️ | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
+| P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
+| P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
 | P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
 | P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |
