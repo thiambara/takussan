@@ -54,8 +54,10 @@ export default async function Page() {
       <PageHeader title={tPage('title')} description={tPage('subtitle')} />
       <AgencyConfigForm agency={result.data} />
       {/* HORS du `<form>` d'AgencyConfigForm, délibérément : un bouton posé dedans partage sa
-          soumission, et un `<form>` imbriqué n'est pas du HTML valide. */}
-      <RegenerateWatermarksCard agencyId={result.data.id} />
+          soumission, et un `<form>` imbriqué n'est pas du HTML valide.
+          TCK-633 — et seulement si le filigrane est allumé pour la plateforme : éteint (le
+          défaut), la carte promettait un filigrane qu'aucune photo ne recevrait. */}
+      {result.data.watermark_available === true ? <RegenerateWatermarksCard agencyId={result.data.id} /> : null}
     </div>
   );
 }
