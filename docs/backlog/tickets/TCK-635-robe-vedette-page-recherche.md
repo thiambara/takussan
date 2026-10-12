@@ -1,7 +1,7 @@
 ---
 id: TCK-635
 title: "Recherche : une robe pour les biens en vedette, la page de résultats refaite, et le site à 90 % au bureau"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M
@@ -93,7 +93,7 @@ Retours du porteur du 2026-10-12, sur preview, et ses trois arbitrages (recomman
 - [x] AC6 — À partir du seuil bureau, `html` vaut 90 % de la taille par défaut ; en dessous, 100 %.
 - [x] AC7 — Mobile (360, 390) et vue carte inchangés dans leur fonctionnement ; tests existants
       verts.
-- [ ] AC8 — Captures avant/après des pages principales soumises au porteur avant toute PR.
+- [x] AC8 — Captures avant/après des pages principales soumises au porteur avant toute PR.
 
 ## Hors périmètre
 
