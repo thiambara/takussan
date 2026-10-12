@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**562 tickets** — 29 ouverts, 531 livrés.
+**563 tickets** — 30 ouverts, 531 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
+| 📋 Todo | 27 |
 | 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
@@ -59,6 +59,7 @@
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 - [TCK-578](tickets/TCK-578-recherche-de-la-console-aveugle-aux-biens-non-publics.md) — La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics `M · P2 · back`
 - [TCK-604](tickets/TCK-604-free-money-quand-la-documentation-marchande-est-versee.md) — Free Money, payé en ligne comme Wave et Orange Money — dès que la documentation marchande est versée au dépôt (suite de TCK-602 §6) `M · P1 · full`
+- [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 
 ## 🚧 Doing
 
