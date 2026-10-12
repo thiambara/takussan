@@ -68,6 +68,7 @@
     "71": "Identité : le logo « lever de toit » posé sur la chrome publique et en icône du site (2026-09-28)",
     "72": "Accueil : barre de recherche de la maquette (Acheter | Louer segmenté) et revue de design de la page (2026-09-29)",
     "73": "Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)",
-    "74": "Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)"
+    "74": "Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)",
+    "75": "Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)"
   }
 }

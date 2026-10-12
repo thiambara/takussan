@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**563 tickets** — 29 ouverts, 532 livrés.
+**564 tickets** — 30 ouverts, 532 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 27 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 532 |
@@ -64,6 +64,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-635](tickets/TCK-635-robe-vedette-page-recherche.md) — Recherche : une robe pour les biens en vedette, la page de résultats refaite, et le site à 90 % au bureau `M · P1 · front`
 
 ## 👀 Review
 
