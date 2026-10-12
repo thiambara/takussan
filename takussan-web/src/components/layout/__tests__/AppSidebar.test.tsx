@@ -582,10 +582,11 @@ describe('accessibilité du <nav>', () => {
         </QueryClientProvider>,
       ),
     );
-    // TROIS entrées sont cadenassées pour un agency_admin `individual` : « Vue agence »,
-    // « Bailleurs » et « Administration » (`/admin` figure aussi dans `PRO_ROUTES`).
+    // DEUX entrées sont cadenassées pour un agency_admin `individual` : « Vue agence » et
+    // « Bailleurs ». TCK-633 — l'entrée d'administration n'est plus un cadenas : elle devient
+    // « Mon espace », vers la première page que l'agence peut ouvrir.
     const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
-    expect(cadenasses).toHaveLength(3);
+    expect(cadenasses).toHaveLength(2);
     for (const entree of cadenasses) {
       expect(entree).toHaveAttribute('aria-disabled', 'true');
       expect(entree.querySelector('svg')).not.toBeNull();

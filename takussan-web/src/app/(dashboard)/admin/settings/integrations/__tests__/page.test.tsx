@@ -51,6 +51,7 @@ vi.mock('@/app/actions/auth', () => ({
   }),
 }));
 
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
 vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationsAction: async () => ({ ok: true, data: { data: [] } }),
   fetchPaymentProviderSchemasAction: async () => ({ ok: true, data: [] }),

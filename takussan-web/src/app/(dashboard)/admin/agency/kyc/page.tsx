@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin } from '@/lib/roles';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { AgencyKycClient } from '@/components/kyc/AgencyKycClient';
 import { PageHeader } from '@/components/console';
 import { getTranslations } from 'next-intl/server';
@@ -8,11 +7,9 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  await garderPageAdmin('/admin/agency/kyc');
   const t = await getTranslations('admin.pages.kyc');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) {
-    redirect('/admin');
-  }
 
   if (!user.agency_id) {
     return (

@@ -50,6 +50,7 @@ vi.mock('@/lib/access/server-guards', () => ({
   ensureStandardAgencyOrRedirect: async () => undefined,
   resolveAgencyOrNull: async () => null,
 }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
 
 // TCK-375 a fait lire la session par cette page (bloc des files d'attente) : sans ce simulacre,
 // `cookies()` est appelé hors d'un contexte de requête Next et lève avant que le bandeau soit

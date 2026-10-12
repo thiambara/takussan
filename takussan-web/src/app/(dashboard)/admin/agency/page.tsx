@@ -1,10 +1,9 @@
-import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Building2 } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
-import { isAdmin } from '@/lib/roles';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
 import { RegenerateWatermarksCard } from '@/components/admin-agency/RegenerateWatermarksCard';
 import { EmptyState, ErrorState } from '@/components/feedback';
@@ -21,11 +20,9 @@ import { PageHeader } from '@/components/console';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  await garderPageAdmin('/admin/agency');
   const tPage = await getTranslations('admin.pages.agencyConfig');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) {
-    redirect('/admin');
-  }
   const t = await getTranslations('agency.config');
 
   if (!user.agency_id) {

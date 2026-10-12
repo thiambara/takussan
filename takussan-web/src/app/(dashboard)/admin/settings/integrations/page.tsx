@@ -1,13 +1,12 @@
-import { redirect } from 'next/navigation';
-
 import { getMeAction } from '@/app/actions/auth';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import {
   fetchIntegrationWebhookEndpointAction,
   fetchIntegrationsAction,
   fetchPaymentProviderSchemasAction,
 } from '@/app/actions/admin-settings';
 import { hasWebhookEndpoint } from '@/lib/schemas/setting';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import { IntegrationsManager } from '@/components/admin-settings/IntegrationsManager';
 import { SettingsTabs } from '@/components/admin-settings/SettingsTabs';
 import { PageHeader } from '@/components/console';
@@ -30,11 +29,9 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  await garderPageAdmin('/admin/settings/integrations');
   const t = await getTranslations('admin.pages.integrations');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) {
-    redirect('/admin');
-  }
 
   const [result, schemas] = await Promise.all([fetchIntegrationsAction(), fetchPaymentProviderSchemasAction()]);
   // TCK-602 — sans les schémas, le formulaire retombe sur ses champs génériques ; l'API refuse en

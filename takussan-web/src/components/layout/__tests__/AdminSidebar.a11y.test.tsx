@@ -1,5 +1,5 @@
 /**
- * TCK-371 — lisibilité des entrées VERROUILLÉES et focus clavier de la barre `/admin`.
+ * TCK-371 — focus clavier de la barre `/admin` ; TCK-633 — elle ne liste plus que l'accessible.
  *
  * ## Ce fichier MESURE un contraste. Il ne fige plus une chaîne de classes.
  *
@@ -28,16 +28,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import {
-  SEUIL_AA_TEXTE,
   SEUIL_NON_TEXTUEL,
   anneauDeFocus,
   composer,
   contraste,
   fmt,
-  fondHerite,
   fondsPossibles,
-  litUtilitaireDeCouleur,
-  resoudreCouleur,
   versRvb,
 } from '@/test/contraste-wcag';
 import { AdminSidebar } from '../AdminSidebar';
@@ -64,13 +60,15 @@ const ADMIN_AGENCE = {
 /**
  * ⚠ LES DEUX RENDUS COMPTENT, et l'un d'eux manquait.
  *
- * `agencyIsStandard={false}` est l'agence `individual` : c'est elle qui voit les cadenas — mais
- * `/admin`, `/admin/team` et `/admin/roles` sont dans `PRO_ROUTES`, donc l'entrée ACTIVE y est un
- * `<span>` verrouillé sur le fond NU de la barre. Le fond `bg-white/10` de l'entrée active — celui
- * dont l'anneau `--ring` mesurait 2,48:1 — n'est JAMAIS rendu par ce fixture. Mesuré : un test qui
- * ne rend que celui-ci ne voit que la barre nue et laisse passer le défaut qu'il prétend garder.
+ * `agencyIsStandard={false}` est l'agence `individual` : depuis TCK-633, `/admin`, `/admin/team` et
+ * `/admin/roles` ne sont plus DANS sa barre — sur `/admin`, elle n'a donc aucune entrée active. Le
+ * fond `bg-white/10` de l'entrée active — celui dont l'anneau `--ring` mesurait 2,48:1 — n'est rendu
+ * que par le fixture `standard`. Mesuré : un test qui ne rend que le premier ne voit que la barre nue
+ * et laisse passer le défaut qu'il prétend garder. En revanche, `individual` rend la carte « Passer
+ * en agence » (décision 1 du porteur) : ses fonds à elle sont mesurés comme le reste.
  *
- * `standard` rend donc la même barre sans cadenas, entrée active comprise.
+ * Aucun `AccesAdminProvider` ici : la barre dérive ses pages du REPLI (`contexteDeRepli` : rôles et
+ * `agencyIsStandard`, capacités inconnues).
  */
 function rendreBarre(plan: 'individual' | 'standard' = 'individual') {
   const queryClient = new QueryClient({
@@ -87,73 +85,39 @@ function rendreBarre(plan: 'individual' | 'standard' = 'individual') {
 
 const PLANS = ['individual', 'standard'] as const;
 
-/** Encre effective d'un élément : son `text-<jeton>[/alpha]` composé sur le fond dont il hérite. */
-function encreEffective(element: HTMLElement) {
-  const utilitaire = Array.from(element.classList)
-    .map((c) => litUtilitaireDeCouleur(c, 'text'))
-    .find((u) => u !== null && u.variante === '');
-  expect(utilitaire, `${element.textContent} : aucune encre \`text-*\` déclarée`).toBeTruthy();
-
-  const fond = fondsPossibles(element)[0];
-  const hex = resoudreCouleur(utilitaire!.jeton);
-  return {
-    ratio: contraste(composer(versRvb(hex), versRvb(fond.hex), utilitaire!.alpha), fond.hex),
-    alpha: utilitaire!.alpha,
-    fond,
-  };
-}
-
-/** Tout ce que la barre rend de focusable : liens réels + l'entrée verrouillée `tabindex=0`. */
+/** Tout ce que la barre rend de focusable : des liens réels — il n'y a plus d'entrée verrouillée. */
 function elementsFocusables(): HTMLElement[] {
   return Array.from(
     document.querySelectorAll<HTMLElement>('a[href], button, [tabindex]:not([tabindex="-1"])'),
   );
 }
 
-describe('AC1 — contraste des entrées verrouillées', () => {
-  it('mesure ≥ 4,5:1 sur le fond RÉEL de la barre, et une seule atténuation la porte', () => {
-    rendreBarre();
-
-    const verrouillees = screen.getAllByTitle('Réservé aux comptes pro');
-    expect(verrouillees.length).toBeGreaterThan(0);
-
-    for (const entree of verrouillees) {
-      // Le défaut d'origine : `opacity-60` MULTIPLIAIT l'alpha de `text-white/40`, et deux classes
-      // anodines prises séparément composaient 0,24 sans que rien ne le signale. `opacity` atténue
-      // en plus le cadenas et l'icône, qui portent déjà l'interdit.
-      expect(entree.className).not.toMatch(/\bopacity-\d+\b/);
-
-      const { ratio, fond } = encreEffective(entree);
-      // Avant : alpha 0,24 → #554f4b sur #1f1812 → 2,18:1. Après : 6,04:1.
-      expect(
-        ratio,
-        `entrée verrouillée sur ${fond.hex} (${fond.provenance}) : ${fmt(ratio)}`,
-      ).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
-    }
+describe('TCK-633 (AC1) — la barre ne liste que ce que le profil peut ouvrir', () => {
+  it.each(PLANS)('aucune entrée verrouillée (agence %s)', (plan) => {
+    rendreBarre(plan);
+    expect(screen.queryAllByTitle('Réservé aux comptes pro')).toHaveLength(0);
+    expect(document.querySelectorAll('[aria-disabled="true"]')).toHaveLength(0);
   });
 
-  it("garde l'entrée verrouillée LISIBLE mais plus sourde que l'item inactif", () => {
-    rendreBarre();
+  it('agence individual : « Mon espace », et seulement les pages sans exigence « standard »', () => {
+    rendreBarre('individual');
+    expect(screen.getByRole('navigation', { name: 'Mon espace' })).toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
+    // Le repli ne connaît pas les capacités : « Abonnement » (agency.update_billing) n'y est pas.
+    expect(hrefs).toEqual([
+      '/admin/agency',
+      '/admin/agency/kyc',
+      '/admin/finances',
+      '/admin/settings/integrations',
+    ]);
+    // La carte « Passer en agence » est rendue, donc mesurée par les tests AC4 ci-dessous.
+    expect(screen.getByRole('link', { name: 'Passer en agence' })).toBeInTheDocument();
+  });
 
-    const verrouillee = screen.getAllByTitle('Réservé aux comptes pro')[0];
-    // `role="link"` est porté AUSSI par le <span> verrouillé : on prend un lien réel non actif.
-    const inactif = screen
-      .getAllByRole('link')
-      .find((l) => l.getAttribute('aria-disabled') !== 'true'
-        && Array.from(l.classList).some((c) => c.startsWith('text-white/')))!;
-    expect(inactif).toBeDefined();
-
-    const sourde = encreEffective(verrouillee);
-    const normale = encreEffective(inactif);
-
-    // Les deux lisibles (6,04:1 et 9,04:1)…
-    expect(sourde.ratio).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
-    expect(normale.ratio).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
-    // …et l'ordre tient : le cadenas et `cursor-not-allowed` portent l'interdit, l'atténuation
-    // ne fait que le seconder. Une verrouillée AUSSI franche que l'item normal serait le défaut
-    // inverse de celui d'origine.
-    expect(sourde.ratio).toBeLessThan(normale.ratio);
-    expect(verrouillee.className).toMatch(/\bcursor-not-allowed\b/);
+  it('agence standard : « Administration », tableau de bord en tête', () => {
+    rendreBarre('standard');
+    expect(screen.getByRole('navigation', { name: 'Administration' })).toBeInTheDocument();
+    expect(document.querySelector('nav a')?.getAttribute('href')).toBe('/admin');
   });
 });
 
@@ -226,8 +190,8 @@ describe('AC4 — anneau de focus : MESURÉ sur chaque fond que l’élément pe
         .toContain('hover');
 
       if (plan === 'standard') {
-        // `/admin` est dans `PRO_ROUTES` : chez une agence `individual` l'entrée active est un
-        // <span> verrouillé sur le fond nu. Le fond propre de l'entrée active n'existe QUE ici.
+        // TCK-633 — chez une agence `individual`, `/admin` n'est pas dans la barre : sur cette page,
+        // aucune entrée n'est active. Le fond propre de l'entrée active n'existe QUE ici.
         const actif = document.querySelector<HTMLElement>('a[href="/admin"]')!;
         expect(actif, 'l’entrée active doit être un lien réel dans ce rendu').not.toBeNull();
         expect(
@@ -263,33 +227,4 @@ describe('AC4 — anneau de focus : MESURÉ sur chaque fond que l’élément pe
       }
     },
   );
-});
-
-describe('objectif du ticket — le cadenas s’ATTEINT et se LIT au clavier', () => {
-  /**
-   * L'entrée verrouillée était un `<span role="link" aria-disabled="true" title="…">` sans
-   * `tabIndex` : hors de l'ordre de tabulation, et le `title` — SEUL endroit où la raison du
-   * cadenas était écrite — n'est servi qu'au pointeur. « L'admin d'agence LIT ce qu'un passage en
-   * standard lui débloquerait » n'était donc atteint qu'à la souris.
-   */
-  it('est dans l’ordre de tabulation et annonce sa raison dans son nom accessible', () => {
-    rendreBarre();
-
-    const verrouillees = screen.getAllByTitle('Réservé aux comptes pro');
-    for (const entree of verrouillees) {
-      expect(entree.getAttribute('tabindex')).toBe('0');
-      // Inopérante, et elle le dit : ni `href` ni gestionnaire de clic.
-      expect(entree.getAttribute('aria-disabled')).toBe('true');
-      expect(entree.hasAttribute('href')).toBe(false);
-      // La raison entre dans le NOM ACCESSIBLE, pas seulement dans l'infobulle du pointeur.
-      expect(entree.textContent).toContain('Réservé aux comptes pro');
-    }
-  });
-
-  it('reste sur le fond nu de la barre — donc l’anneau y est mesuré comme les autres', () => {
-    rendreBarre();
-
-    const entree = screen.getAllByTitle('Réservé aux comptes pro')[0];
-    expect(fondHerite(entree).hex).toBe(resoudreCouleur('foreground'));
-  });
 });

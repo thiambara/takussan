@@ -7,18 +7,27 @@ import { AppTopbar } from './AppTopbar';
 import { AdminSidebar } from './AdminSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 
 interface AdminShellProps {
   user: User;
   children: React.ReactNode;
-  /** `true` once the active agency is on `kind=standard`. Drives the sidebar
-   *  padlock for Standard-only items when the agency is still `individual`. */
+  /** `true` once the active agency is on `kind=standard`. Repli de `AccesAdminProvider`
+   *  (TCK-633) et sondage du compteur de modération des biens. */
   agencyIsStandard?: boolean;
+  /** Une demande de passage en agence est en cours : la carte de « Mon espace » le dit. */
+  hasPendingUpgrade?: boolean;
 }
 
-export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps) {
+export function AdminShell({ user, children, agencyIsStandard, hasPendingUpgrade }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.admin');
+  // TCK-633 — le tiroir porte le même nom que la barre : « Mon espace » chez un solo.
+  const acces = useAccesAdminOuRepli({
+    roles: user.roles,
+    agencyId: user.agency_id,
+    agencyIsStandard,
+  });
 
   /**
    * TCK-503 — `h-dvh`, jamais `h-screen`. Relevé au navigateur le 2026-08-31, à 390 px : le
@@ -38,13 +47,22 @@ export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps
       <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">
-          <AdminSidebar user={user} agencyIsStandard={agencyIsStandard} />
+          <AdminSidebar
+            user={user}
+            agencyIsStandard={agencyIsStandard}
+            hasPendingUpgrade={hasPendingUpgrade}
+          />
         </div>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="bg-foreground p-0" aria-label={t('sectionLabel')}>
+          <SheetContent
+            side="left"
+            className="bg-foreground p-0"
+            aria-label={acces.espaceIndividuel ? t('mySpace') : t('sectionLabel')}
+          >
             <AdminSidebar
               user={user}
               agencyIsStandard={agencyIsStandard}
+              hasPendingUpgrade={hasPendingUpgrade}
               onNavigate={() => setSidebarOpen(false)}
             />
           </SheetContent>

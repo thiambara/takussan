@@ -32,6 +32,7 @@ vi.mock('@/app/actions/auth', () => ({
   }),
 }));
 
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
 vi.mock('@/app/actions/admin-agency', () => ({
   fetchAgencyAction: async () => ({
     ok: true,

@@ -1,0 +1,212 @@
+{
+  "verdict": "termine — les tâches 1 à 14 du plan du lot B sont faites, chacune en TDD (rouge constaté, correctif, vert, ablation rejouée et restaurée sous md5) ; seule la vérification au navigateur (tâche 15) n'a pas été faite, faute de serveur local (localhost:3000 et 127.0.0.1:8002/up → 000), conformément à la consigne.",
+  "charge": {
+    "depart": "load averages 2.04 3.01 3.04, hw.ncpu 8",
+    "fin": "11.05 12.45 9.90 puis 9.51 11.00 9.61 (09:43) — quatre autres lots en cours"
+  },
+  "fichiers": {
+    "crees": [
+      "takussan-web/src/lib/access/pages-admin.ts",
+      "takussan-web/src/lib/access/pages-admin-server.ts",
+      "takussan-web/src/lib/access/acces-admin-contexte.tsx",
+      "takussan-web/src/lib/access/__tests__/pages-admin.test.ts",
+      "takussan-web/src/lib/access/__tests__/pages-admin.i18n.test.ts",
+      "takussan-web/src/lib/access/__tests__/pages-admin-server.test.ts",
+      "takussan-web/src/lib/access/__tests__/acces-admin-contexte.test.tsx",
+      "takussan-web/src/components/layout/__tests__/AdminSidebar.acces.test.tsx",
+      "takussan-web/src/components/layout/__tests__/AppSidebar.acces-admin.test.tsx",
+      "takussan-web/src/components/layout/__tests__/UserMenu.test.tsx",
+      "takussan-web/src/app/(dashboard)/admin/__tests__/layout.acces.test.tsx",
+      "takussan-web/src/app/(dashboard)/admin/__tests__/gardes.test.tsx",
+      "takussan-web/src/app/(dashboard)/app/__tests__/layout.acces-admin.test.tsx",
+      "takussan-web/src/components/dashboard/__tests__/DashboardEmpty.test.tsx",
+      "takussan-web/src/components/shared/__tests__/NoAgencyState.test.tsx",
+      "takussan-web/src/components/profile/__tests__/ProfileAdminSection.test.tsx",
+      "docs/plans/rapports/tck-633-lot-b.json"
+    ],
+    "modifies": [
+      "takussan-web/src/components/layout/AdminSidebar.tsx — menu dérivé de entreesDeMenu, cadenas supprimés, titre/aria « Mon espace », file de modération sondée seulement si /admin/moderation est accessible, prop hasPendingUpgrade, carte ProUpgradeCard (apparence CARTE_DE_PASSAGE) hors <nav> pour un solo",
+      "takussan-web/src/components/layout/ProUpgradeCard.tsx — prop optionnelle `apparence` (sans elle : habillage clair inchangé de /app)",
+      "takussan-web/src/components/layout/AdminShell.tsx — aria du tiroir, hasPendingUpgrade transmis",
+      "takussan-web/src/app/(dashboard)/admin/layout.tsx — AccesAdminProvider + accesAdmin(user) ; demandes de passage lues pour kind === 'individual' seulement",
+      "takussan-web/src/components/layout/AppSidebar.tsx (CO-TENU, 6 Edit ancrés) — entrée d'administration dérivée via useAccesAdminOuRepli, en-tête de section admin masqué chez un solo",
+      "takussan-web/src/components/layout/__tests__/AppSidebar.test.tsx — 3 cadenas → 2",
+      "takussan-web/src/app/(dashboard)/admin/**/page.tsx (15 pages) — `await garderPageAdmin(...)` en première instruction ; properties/page.tsx devient une enveloppe gardée",
+      "5 tests admin existants — mock de la garde ajouté",
+      "takussan-web/src/lib/access/pro-features.ts + __tests__/pro-features.test.ts — plus aucune route /admin dans PRO_ROUTES",
+      "takussan-web/src/components/layout/UserMenu.tsx — entrée dérivée ; déconnexion vers hrefLocalise('/', locale)",
+      "takussan-web/src/context/__tests__/AuthContext.session.test.tsx — attend '/fr'",
+      "takussan-web/src/components/dashboard/DashboardShortcuts.tsx + test, DashboardEmpty.tsx",
+      "takussan-web/src/components/shared/NoAgencyState.tsx",
+      "takussan-web/src/components/profile/ProfileAdminSection.tsx",
+      "takussan-web/src/app/(dashboard)/app/layout.tsx — AccesAdminProvider",
+      "takussan-web/src/app/(dashboard)/app/__tests__/bandeau-suspension.test.tsx — mock d'accesAdmin",
+      "takussan-web/src/messages/{fr,en,wo}.json (Edit ancré) — nav.admin.mySpace, nav.admin.openMySpace, profile.admin.{titleIndividual,subtitleIndividual,roleLabelIndividual,roleIndividual} ; nav.proUpgrade.title → « Passer en agence » / « Become an agency » / « Jóg ci ajaas »",
+      "scripts/check-pro-routes.mjs — lit PAGES_ADMIN et exige garderPageAdmin(<chemin>) en tête de chaque page /admin",
+      "scripts/check-auth-interrupts.mjs (accordé par le coordinateur) — 10 chemins retirés de REFUS_ARTISANAL, PLAFOND_MESURE 22 → 12"
+    ]
+  },
+  "tests": [
+    { "commande": "cd takussan-web && npx vitest run <17 fichiers cœur du lot : pages-admin*, acces-admin-contexte, pro-features, AdminSidebar.acces, AppSidebar.acces-admin, AppSidebar, UserMenu, admin/layout.acces, admin/gardes, DashboardEmpty, NoAgencyState, ProfileAdminSection, app/layout.acces-admin, bandeau-suspension, AuthContext.session>", "resultat": "17 files, 175 passed (rejoué à 09:43)" },
+    { "commande": "npx vitest run <43 fichiers : tous les tests créés ou touchés par le lot + voisins>", "resultat": "43 files, 336 passed" },
+    { "commande": "npx vitest run <22 fichiers voisins, au départ>", "resultat": "203 passed (mesure de départ)" },
+    { "commande": "npx tsc --noEmit", "resultat": "sortie 0 au moment du rapport ; plus vrai sur l'arbre partagé (rouges du lot C, aucun dans un fichier du lot B — relevé du vérificateur)" },
+    { "commande": "npm run lint", "resultat": "sortie 0 au moment du rapport ; plus vrai sur l'arbre partagé (rouge du lot C ; `npx eslint <fichiers du lot B>` → 0)" },
+    { "commande": "npm run check:i18n && npm run check:i18n-namespaces", "resultat": "sortie 0 et 0" },
+    { "commande": "node scripts/check-pro-routes.mjs", "resultat": "sortie 0 — « surfaces pro : 2/2 … » et « pages admin : 15 pages gardées par garderPageAdmin, 14 chemins dans PAGES_ADMIN » (rejoué à 09:43)" },
+    { "commande": "node scripts/check-auth-interrupts.mjs", "resultat": "sortie 0 — « 12 refus artisanaux (plafond 12) »" },
+    { "commande": "for g in scripts/check-*.mjs; do node \"$g\" || echo \"✗ $g\"; done", "resultat": "seule check-models-spec.mjs rouge — modèles neufs BoostProduct, CreditLot… des lots C/D/F, attendu selon l'addendum ; non corrigé" },
+    { "commande": "curl localhost:3000 / 127.0.0.1:8002/up", "resultat": "000 / 000 — serveur local absent, navigateur non fait" }
+  ],
+  "ablations": [
+    { "test": "pages-admin.test.ts", "retrait": "`if (superAdmin) return true`", "rouge_constate": "oui — 1 rouge", "md5": "ed4f0888 → ed4f0888" },
+    { "test": "pages-admin.test.ts", "retrait": "/admin exigé sans agence standard", "rouge_constate": "oui — 5 rouges", "md5": "ablate f7f0ab8b, après ed4f0888" },
+    { "test": "pages-admin.i18n.test.ts", "retrait": "nav.admin.openMySpace en wo", "rouge_constate": "oui — 1 rouge", "md5": "cc122079 / 21adc9d2 / cc122079 (restauré par cp — voir l'incident wo.json dans les écarts)" },
+    { "test": "pages-admin-server.test.ts", "retrait": "redirection VERIF_INDISPONIBLE sur capacités illisibles", "rouge_constate": "oui — 1", "md5": "6d4ad68e → c18c539e → 6d4ad68e" },
+    { "test": "pages-admin-server.test.ts", "retrait": "agence lue en mode 'affichage' au lieu de 'decision'", "rouge_constate": "oui — 1", "md5": "066b684a → 6d4ad68e" },
+    { "test": "pages-admin-server.test.ts", "retrait": "redirect('/app') seul", "rouge_constate": "oui — 6", "md5": "a1ae3db4 → 6d4ad68e" },
+    { "test": "acces-admin-contexte.test.tsx", "retrait": "repli seul (contexte ignoré)", "rouge_constate": "oui — 1", "md5": "b481aa05 → 640ebfb6 → b481aa05" },
+    { "test": "AdminSidebar.acces.test.tsx", "retrait": "titre = sectionLabel", "rouge_constate": "oui — 2", "md5": "c144c79a → 7f717a61 (version initiale)" },
+    { "test": "AdminSidebar.acces.test.tsx", "retrait": "sondage de modération sans garde", "rouge_constate": "oui — 1", "md5": "6029c7dc → 7f717a61" },
+    { "test": "AdminSidebar.acces.test.tsx (version révisée)", "retrait": "carte jamais rendue", "rouge_constate": "oui — 3", "md5": "730cf181 → 665ed61d → 730cf181" },
+    { "test": "AdminSidebar.acces.test.tsx (version révisée)", "retrait": "anneau de focus retiré de CARTE_DE_PASSAGE", "rouge_constate": "oui — 3 (a11y solo)", "md5": "730cf181 → 81db1ca4 → 730cf181" },
+    { "test": "AdminSidebar.acces.test.tsx", "retrait": "ProUpgradeCard ignore `apparence`", "rouge_constate": "oui — 3", "md5": "0b6c35f8 → 72f43c22 → 0b6c35f8" },
+    { "test": "admin/__tests__/layout.acces.test.tsx", "retrait": "provider à null", "rouge_constate": "oui — 1", "md5": "ab047390 → 0d86d55b → ab047390" },
+    { "test": "admin/__tests__/layout.acces.test.tsx", "retrait": "demandes lues pour toute agence", "rouge_constate": "oui — 1", "md5": "966f0c3a → ab047390" },
+    { "test": "admin/__tests__/layout.acces.test.tsx", "retrait": "'pending' → 'approved'", "rouge_constate": "oui — 1", "md5": "55b5cf92 → ab047390" },
+    { "test": "AppSidebar.acces-admin.test.tsx (fichier CO-TENU)", "retrait": "avecEntreeAdmin retiré", "rouge_constate": "oui — 3", "md5": "b80a2761 → 7b0f45a4 → b80a2761 (Edit inverse)" },
+    { "test": "admin/__tests__/gardes.test.tsx", "retrait": "garde de team/page retirée", "rouge_constate": "oui — 1", "md5": "2b6c8bac → 4ca917ab → 2b6c8bac" },
+    { "test": "admin/__tests__/gardes.test.tsx", "retrait": "garde de team/page appelée après getMeAction", "rouge_constate": "oui — 1", "md5": "8c857c0c → 2b6c8bac" },
+    { "test": "pro-features.test.ts", "retrait": "'/admin/audit' remis dans PRO_ROUTES", "rouge_constate": "oui — 1", "md5": "a3a46960 → a9cdf7a7 → a3a46960 (puis 171ff361 après réécriture du commentaire)" },
+    { "test": "scripts/check-pro-routes.mjs (AVANT correctif)", "retrait": "garde de /admin/audit retirée", "rouge_constate": "non — sortie 0 : script aveugle aux pages admin, défaut mesuré avant le correctif", "md5": "—" },
+    { "test": "scripts/check-pro-routes.mjs", "retrait": "garde de /admin/audit retirée", "rouge_constate": "oui — sortie 1", "md5": "ed74bebd → 273ba8a7 → ed74bebd" },
+    { "test": "scripts/check-pro-routes.mjs", "retrait": "garde de team après getMeAction", "rouge_constate": "oui — sortie 1", "md5": "2b6c8bac → 8c857c0c → 2b6c8bac" },
+    { "test": "scripts/check-pro-routes.mjs", "retrait": "'/admin' remis dans PRO_ROUTES", "rouge_constate": "oui — sortie 1", "md5": "171ff361 → 80e04340 → 171ff361" },
+    { "test": "UserMenu.test.tsx", "retrait": "déconnexion vers replace('/auth/login')", "rouge_constate": "oui — 2", "md5": "296a6f75 → 6f22a206 → 296a6f75" },
+    { "test": "UserMenu.test.tsx", "retrait": "push('/admin') fixe", "rouge_constate": "oui — 1", "md5": "2b34a79f → 296a6f75" },
+    { "test": "DashboardShortcuts test", "retrait": "href '/admin' fixe", "rouge_constate": "oui — 1", "md5": "f02a4dbd → 829f6c96 → f02a4dbd" },
+    { "test": "DashboardEmpty.test.tsx", "retrait": "'/admin' fixe", "rouge_constate": "oui — 1", "md5": "c0d2b509 → 6e842964 → c0d2b509" },
+    { "test": "NoAgencyState.test.tsx", "retrait": "'/admin' fixe", "rouge_constate": "oui — 2", "md5": "3d8dd293 → d0f5a212 → 3d8dd293" },
+    { "test": "ProfileAdminSection.test.tsx", "retrait": "lien principal non filtré", "rouge_constate": "oui — 1", "md5": "1e12d834 → f5d14b50 → 1e12d834" },
+    { "test": "ProfileAdminSection.test.tsx", "retrait": "carte rendue sans page accessible", "rouge_constate": "oui — 1", "md5": "4261d437 → 1e12d834" },
+    { "test": "app/__tests__/layout.acces-admin.test.tsx", "retrait": "provider à null", "rouge_constate": "oui — 1", "md5": "72c0b04a → 851431e2 → 72c0b04a (Edit inverse)" },
+    { "test": "scripts/check-auth-interrupts.mjs", "retrait": "aucune ablation propre", "rouge_constate": "non applicable — un cliquet qui se resserre ; vert à 12/12 constaté", "md5": "—" }
+  ],
+  "ac": [
+    {
+      "ac": "AC1 — l'accès d'administration suit ce que l'utilisateur peut réellement ouvrir (solo : « Mon espace », pas de cadenas ; standard : administration ; pages gardées côté serveur)",
+      "preuve": "pages-admin.test.ts (17), pages-admin-server.test.ts (14), admin/gardes.test.tsx (16 : chaque page /admin appelle garderPageAdmin avant toute lecture), AdminSidebar.acces.test.tsx (6 : solo sans cadenas, titre « Mon espace », carte « Passer en agence »), AppSidebar.acces-admin, UserMenu, ProfileAdminSection, DashboardEmpty, NoAgencyState → verts ; check-pro-routes : « 15 pages gardées par garderPageAdmin, 14 chemins dans PAGES_ADMIN ». Comptes de démonstration mesurés par tinker : agence 4 (individual) et agence 1 (standard), update_billing=true. Non vérifié au navigateur (serveur local absent)."
+    },
+    {
+      "ac": "AC3 — la déconnexion ramène à l'accueil public dans la langue courante",
+      "preuve": "UserMenu.test.tsx : déconnexion → '/fr' et '/wo' (ablation replace('/auth/login') → 2 rouges) ; AuthContext.session.test.tsx attend '/fr' ; Navbar.deconnexion vert (⚠ ce test n'asserte PAS la destination — garde de la Navbar publique ajoutée après vérification : Navbar.deconnexion-destination.test.tsx, cf. corrections_apres_verif)."
+    }
+  ],
+  "ecarts_au_ticket": [
+    "E1 — les clés vivent sous nav.admin.* et non admin.nav.*.",
+    "E2 — la déconnexion (AC3) est traitée dans le lot B.",
+    "E3 — check-pro-routes ne lit pas features.md : il lit PAGES_ADMIN.",
+    "E4 — NoAgencyState vit dans components/shared, pas où le plan le situait.",
+    "E6 + décision 1 du porteur — les cadenas de TCK-371 sont supprimés. La carte « Passer en agence » (ProUpgradeCard) est rendue dans la barre /admin d'un solo, là où étaient les cadenas, via la nouvelle prop `apparence`. La carte de la barre /app (TCK-267) est CONSERVÉE, choix validé par le coordinateur : « une carte » visait le remplacement des cadenas. Titre changé dans nav.proUpgrade.title en fr, en et wo.",
+    "E7 — ensureStandardAgencyOrRedirect n'a plus d'appelant (laissé en place).",
+    "E8 — le super-admin passe désormais les pages réservées aux agences standard.",
+    "E9 — /admin/billing exige update_billing : mesuré true pour les deux comptes de démonstration.",
+    "E10 — une requête de plus par rendu de layout pour un agency_admin : /api/me/capabilities.",
+    "E11 — les clés devenues inutilisées (cadenas) sont laissées en place.",
+    "E12 — fetchMyCapabilities n'est pas employé pour décider.",
+    "E13 — les liens /admin codés en dur hors territoire sont laissés tels quels.",
+    "E14 — les textes dashboard.empty sont inchangés.",
+    "E15 — le wolof est à faire relire, y compris « Jóg ci ajaas ».",
+    "E16 — /admin/properties devient réservé au super-admin.",
+    "E17 — la redirection du layout /admin est conservée.",
+    "E18 — AdminShell n'a pas de test de tiroir.",
+    "Mesure — check-pro-routes valait 8/8 au départ, et non 7/7 comme le disait le plan.",
+    "Mesure — pages-admin.test.ts compte 17 tests, et non 19.",
+    "Le commentaire prescrit par le plan pour pro-features.ts cassait check-pro-routes : `/admin/*` dans un `//` ouvrait un commentaire de bloc pour sansCommentaires (« impossible de lire PRO_ROUTES »). Commentaire réécrit.",
+    "Le log console de pages-admin-server.ts passe en gabarit interpolé (`[access] ${OU} : …`, sur le patron de server-guards) pour passer check:i18n.",
+    "La variante sombre de la carte a d'abord été écrite dans ProUpgradeCard, ce qui a fait rougir check-super-admin-tokens (« reste non gardé /app 26 > 17 »). Les classes sombres vivent désormais dans AdminSidebar (CARTE_DE_PASSAGE) et sont passées par `apparence`.",
+    "Admin layout — les demandes de passage ne sont lues que pour une agence individual, avec .catch(() => null).",
+    "UserMenu sans fournisseur (CORRIGÉ après vérification : UserMenu n'est PAS rendu par la Navbar publique, qui a son propre menu ; il n'est importé que par AppTopbar et SuperAdminTopbar, tous deux sous fournisseur ou super-admin) : le repli renvoie un agency_admin vers /admin/agency avec le libellé « Administration » (fail-closed) — sans portée réelle aujourd'hui.",
+    "INCIDENT wo.json — l'ablation de la tâche 2 a été restaurée par cp (copie à 09:14:58, cp vers 09:15:30). Une écriture du lot A survenue entre les deux a pu être écrasée : deux valeurs du lot A sont revenues à l'ancien texte, signalé par le coordinateur. Ensuite, les dictionnaires n'ont plus été restaurés que par Edit inverse.",
+    "scripts/check-auth-interrupts.mjs modifié avec l'accord du coordinateur : les 10 chemins retirés de REFUS_ARTISANAL sont désormais gardés par garderPageAdmin (prouvé par check-pro-routes et admin/gardes.test.tsx).",
+    "Navigateur (tâche 15) non vérifié : localhost:3000 et 127.0.0.1:8002/up → 000."
+  ],
+  "collisions": [
+    "Aucune en suspens : check-auth-interrupts.mjs a été accordé puis appliqué ; AppSidebar.tsx (co-tenu) n'a reçu que des Edit ancrés.",
+    "src/i18n/namespaces.json inchangé (check:i18n-namespaces vert).",
+    "check-models-spec.mjs rouge, causé par les modèles neufs des lots C, D et F ; non corrigé."
+  ],
+  "corrections_apres_verif": {
+    "date": "2026-10-12",
+    "charge": "load averages 10.17 13.97 13.37 au départ (8 cœurs, autres lots actifs)",
+    "fichiers": [
+      "takussan-web/src/components/home/__tests__/Navbar.deconnexion-destination.test.tsx (NOUVEAU)",
+      "takussan-web/src/components/layout/__tests__/UserMenu.test.tsx (ordre révocation → navigation)",
+      "takussan-web/src/app/(dashboard)/admin/page.tsx (commentaire seul)",
+      "scripts/check-pro-routes.mjs (exige `await garderPageAdmin(`)",
+      "docs/plans/rapports/tck-633-lot-b.json (écart UserMenu/Navbar, tsc/lint, preuve AC3)"
+    ],
+    "navbar_tsx_modifie": "non — le test n'a révélé aucun défaut (déconnexion publique → push/replace(hrefLocalise('/', locale)) après await logout())",
+    "tests": [
+      {
+        "commande": "npx vitest run src/components/home/__tests__/Navbar.deconnexion-destination.test.tsx src/components/home/__tests__/Navbar.deconnexion.test.tsx src/components/layout/__tests__/UserMenu.test.tsx",
+        "resultat": "3 fichiers, 11 tests verts"
+      },
+      {
+        "commande": "npx eslint <les 3 fichiers web touchés>",
+        "resultat": "sortie 0"
+      },
+      {
+        "commande": "npx tsc --noEmit | grep <fichiers touchés>",
+        "resultat": "aucune erreur dans ces fichiers"
+      },
+      {
+        "commande": "node scripts/check-pro-routes.mjs",
+        "resultat": "sortie 0 — 15 pages gardées, 14 chemins"
+      },
+      {
+        "commande": "npm run check:i18n",
+        "resultat": "sortie 1 sur app/(dashboard)/app/properties/new/page.tsx (hors lot B) ; rien sur les fichiers de ces corrections"
+      }
+    ],
+    "navbar_deconnexion_destination": "5 tests : bureau fr (/fr/properties → push('/fr')) et wo (push('/wo')) ; mobile fr et wo hors de l'accueil → replace('/fr'|'/wo') ; mobile depuis /fr → push('/fr'). Chaque test asserte aussi l'ordre exact ['logout:debut','logout:fin','<navigation>'] (le mock de logout ne se termine qu'après deux micro-tâches).",
+    "ablations": [
+      {
+        "fichier": "components/home/Navbar.tsx (Edit + Edit inverse)",
+        "mutation": "branche bureau : `router.push('/auth/login')`",
+        "resultat": "ROUGE — 3 sur 5 (bureau fr, bureau wo, mobile depuis l'accueil, qui passe par la même ligne)",
+        "md5": "9e05bbd2 → 9e05bbd2"
+      },
+      {
+        "fichier": "components/home/Navbar.tsx (Edit + Edit inverse)",
+        "mutation": "branche mobile : `router.replace('/auth/login')`",
+        "resultat": "ROUGE — 2 sur 5 (mobile fr, mobile wo)",
+        "md5": "9e05bbd2 → 9e05bbd2"
+      },
+      {
+        "fichier": "components/home/Navbar.tsx (Edit + Edit inverse)",
+        "mutation": "`void logout()` (navigation avant la révocation)",
+        "resultat": "ROUGE — 5 sur 5",
+        "md5": "9e05bbd2 → 9e05bbd2"
+      },
+      {
+        "fichier": "components/layout/UserMenu.tsx (Edit + Edit inverse)",
+        "mutation": "`void logout()` (navigation avant la révocation) — restait VERT avant correction",
+        "resultat": "ROUGE — « la déconnexion ramène à l'accueil localisé, après avoir révoqué la session » : 1",
+        "md5": "296a6f75 → 296a6f75"
+      },
+      {
+        "fichier": "app/(dashboard)/admin/audit/[zzTempLotB]/page.tsx (créée puis supprimée, dossier retiré)",
+        "mutation": "`void garderPageAdmin('/admin/audit')`, puis appel nu sans `void`, puis `await`",
+        "resultat": "ROUGE sortie 1 (« appelle garderPageAdmin('/admin/audit') sans await ») pour les deux formes non attendues ; VERT sortie 0 avec `await` (16 pages) ; après suppression : 15 pages, sortie 0",
+        "md5": "fichier supprimé, dossier retiré"
+      }
+    ],
+    "commentaire_admin_page": "Le commentaire disait la branche `individual` des files INATTEIGNABLE depuis /admin ; il dit désormais qu'elle l'est pour un agency_admin, mais qu'un super-admin rattaché à une agence individual l'atteint (E8) — seul chemin vivant, raison pour laquelle le `kind` se lit.",
+    "non_traite": [
+      "repli sans fournisseur (UserMenu, DashboardEmpty) : portée réelle nulle, laissé",
+      "E18 (nom accessible du tiroir AdminShell) : laissé",
+      "AC1 au navigateur (tâche 15) : reste à la session"
+    ]
+  }
+}

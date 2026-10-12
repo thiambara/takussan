@@ -6,6 +6,8 @@ import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { isAgent } from '@/lib/roles';
+import { accesAdmin } from '@/lib/access/pages-admin-server';
+import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 
 
 /**
@@ -64,16 +66,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
+  // TCK-633 (lot B) — les pages `/admin/*` accessibles, pour l'entrée d'administration de la barre,
+  // du menu utilisateur, des raccourcis et des états vides. L'agence est relue par la promesse mise
+  // en cache ci-dessus ; les capacités coûtent une requête, pour un `agency_admin` seulement.
+  const acces = await accesAdmin(user);
+
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
-      <AppShell
-        user={user}
-        agencyIsStandard={agencyIsStandard}
-        hasPendingUpgrade={hasPendingUpgrade}
-        agencySuspended={agencySuspended}
-      >
-        {children}
-      </AppShell>
+      <AccesAdminProvider acces={acces}>
+        <AppShell
+          user={user}
+          agencyIsStandard={agencyIsStandard}
+          hasPendingUpgrade={hasPendingUpgrade}
+          agencySuspended={agencySuspended}
+        >
+          {children}
+        </AppShell>
+      </AccesAdminProvider>
     </IntlProvider>
   );
 }

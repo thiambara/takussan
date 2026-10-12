@@ -16,11 +16,22 @@
  *
  * *Une propriété proclamée dans un commentaire et prouvée par aucun test.*
  *
+ * TCK-633 (lot B) — **les pages `/admin/*` ont quitté `PRO_ROUTES`.** Elles sont décrites par
+ * `PAGES_ADMIN` (`takussan-web/src/lib/access/pages-admin.ts`), et chacune ATTEND
+ * `await garderPageAdmin('<son chemin>')` en première instruction. Cette garde le vérifie aussi : toute
+ * route `/admin` remise dans `PRO_ROUTES` est refusée ; chaque `page.tsx` sous
+ * `app/(dashboard)/admin` est soit une souche de redirection, soit gardée par SON chemin (un
+ * segment dynamique, par son plus proche ancêtre statique), avant toute lecture de l'utilisateur ;
+ * chaque chemin de la table a sa page.
+ *
+ * ⚠ Elle ne lit pas `docs/features.md` : l'accord entre la liste et la spec §1.12 est tenu par
+ * `takussan-web/src/lib/access/__tests__/pro-features.test.ts`.
+ *
  * Usage :
  *   node scripts/check-pro-routes.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-pro-routes.mjs --report   # + l'inventaire route par route
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -406,6 +417,98 @@ for (const [r] of nues) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// TCK-633 (lot B) — les pages `/admin/*` : la table `PAGES_ADMIN` et `garderPageAdmin`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+const TABLE_ADMIN = join(WEB, 'lib', 'access', 'pages-admin.ts');
+const DOSSIER_ADMIN = join(WEB, 'app', '(dashboard)', 'admin');
+
+for (const r of routes) {
+  if (r === '/admin' || r.startsWith('/admin/')) {
+    erreurs.push(`\`${r}\` est dans PRO_ROUTES : les pages /admin/* se décrivent dans PAGES_ADMIN et se gardent par \`garderPageAdmin\` (TCK-633), pas par un cadenas.`);
+  }
+}
+
+// Comme pour `PRO_ROUTES` : commentaires retirés AVANT de lire — un `chemin:` mis en commentaire
+// n'est pas une page.
+const cheminsAdmin = existsSync(TABLE_ADMIN)
+  ? [...sansCommentaires(readFileSync(TABLE_ADMIN, 'utf8')).matchAll(/\bchemin:\s*'(\/admin[\w/-]*)'/g)].map((m) => m[1])
+  : [];
+if (cheminsAdmin.length === 0) {
+  erreurs.push(`aucun \`chemin:\` lu dans ${TABLE_ADMIN.slice(ROOT.length + 1)} — table introuvable ou de forme inconnue : la garde n'aurait rien vérifié.`);
+}
+for (const c of cheminsAdmin) {
+  if (!page(c)) erreurs.push(`\`${c}\` est dans PAGES_ADMIN mais aucune page ne la sert.`);
+}
+
+function pagesSous(dossier) {
+  const sortie = [];
+  for (const entree of readdirSync(dossier, { withFileTypes: true })) {
+    const chemin = join(dossier, entree.name);
+    if (entree.isDirectory()) {
+      if (entree.name !== '__tests__') sortie.push(...pagesSous(chemin));
+    } else if (entree.name === 'page.tsx') {
+      sortie.push(chemin);
+    }
+  }
+  return sortie;
+}
+
+/** Le chemin d'URL d'une page : groupes `(x)` retirés. */
+function routeDe(fichier) {
+  const segments = dirname(fichier)
+    .slice(join(WEB, 'app').length)
+    .split(/[\\/]/)
+    .filter((s) => s && !/^\(.*\)$/.test(s));
+  return `/${segments.join('/')}`;
+}
+
+/** Le chemin que la page doit garder : le sien, ou celui de son plus proche ancêtre statique. */
+function cheminAttendu(route) {
+  const segments = route.split('/');
+  const i = segments.findIndex((s) => s.startsWith('['));
+  return i === -1 ? route : segments.slice(0, i).join('/');
+}
+
+// Une souche : l'export par défaut ne fait QUE rediriger (`users`, `settings/tags`).
+const SOUCHE = /export\s+default\s+(?:async\s+)?function\s*\w*\s*\([^)]*\)[^{]*\{\s*(?:permanentRedirect|redirect)\s*\([^;]*\)\s*;?\s*\}\s*$/;
+
+const pagesAdminGardees = [];
+for (const fichier of existsSync(DOSSIER_ADMIN) ? pagesSous(DOSSIER_ADMIN) : []) {
+  const rel = fichier.slice(ROOT.length + 1);
+  const code = sansCommentaires(readFileSync(fichier, 'utf8'));
+  const attendu = cheminAttendu(routeDe(fichier));
+  if (!cheminsAdmin.includes(attendu)) {
+    if (SOUCHE.test(code.trim())) continue;
+    erreurs.push(`${rel} sert \`${attendu}\`, absent de PAGES_ADMIN, et n'est pas une souche de redirection : ajoute la page à la table, ou fais-en une souche.`);
+    continue;
+  }
+  // L'appel doit être ATTENDU : `garderPageAdmin` est asynchrone, et `void garderPageAdmin(…)` ou
+  // un appel nu rendent la page AVANT que la garde ait tranché — la redirection arrive après le
+  // rendu, ou jamais (relevé du vérificateur du lot B : un appel sans `await` passait ce script).
+  const appel = code.search(new RegExp(`\\bawait\\s+garderPageAdmin\\(\\s*'${attendu}'\\s*\\)`));
+  if (appel === -1) {
+    const nonAttendu = new RegExp(`\\bgarderPageAdmin\\(\\s*'${attendu}'\\s*\\)`).test(code);
+    erreurs.push(
+      nonAttendu
+        ? `${rel} appelle \`garderPageAdmin('${attendu}')\` sans \`await\` : la page se rend avant que la garde ait tranché.`
+        : `${rel} n'appelle pas \`await garderPageAdmin('${attendu}')\` : une URL tapée à la main ouvre la page à qui le menu la cache.`,
+    );
+    continue;
+  }
+  const lecture = code.search(/\bgetMeAction\s*\(/);
+  if (lecture !== -1 && lecture < appel) {
+    erreurs.push(`${rel} lit l'utilisateur AVANT \`garderPageAdmin\` : la garde doit être la première instruction.`);
+    continue;
+  }
+  pagesAdminGardees.push(rel);
+}
+if (REPORT) {
+  console.log(`PAGES_ADMIN : ${cheminsAdmin.length} chemins, ${pagesAdminGardees.length} pages gardées par garderPageAdmin\n`);
+  for (const p of pagesAdminGardees) console.log(`  ✓ gardée      ${p}`);
+  console.log();
+}
+
 if (erreurs.length === 0) {
   // ⚠ « côté SSR », et pas « côté serveur » : la nuance est tout ce qui sépare une redirection
   // d'une autorisation. Cette garde lit les PAGES Next ; elle ne mesure RIEN de l'API.
@@ -425,6 +528,7 @@ if (erreurs.length === 0) {
   // périme sans lui. La garde `kind` côté API se lit dans les tests backend
   // (`DashboardAgencyTest`, `OwnerProfileListingTest`), pas ici.
   console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes redirigées côté SSR ET fail-closed, ${ECARTS_ASSUMES.size} écart(s) assumé(s).`);
+  console.log(`✓ pages admin : ${pagesAdminGardees.length} pages gardées par garderPageAdmin, ${cheminsAdmin.length} chemins dans PAGES_ADMIN.`);
   console.log('  ⚠ PORTÉE : pages Next seulement. Ce script ne lit AUCUN contrôleur Laravel et');
   console.log('    ne dit donc rien des endpoints appelés — une redirection SSR n\'est pas une');
   console.log('    autorisation. La garde `kind` côté API se prouve par les tests backend.');

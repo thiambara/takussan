@@ -188,7 +188,8 @@ describe('TCK-509 — le jeton client suit la session, sans rechargement', () =>
 
     await user.click(screen.getByRole('button', { name: 'Menu utilisateur — Astou Dieng' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Déconnexion' }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/auth/login'));
+    // TCK-633 (AC3) — la déconnexion VOLONTAIRE ramène à l'accueil localisé, plus à la connexion.
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/fr'));
     const apresDeconnexion = appels.length;
 
     // AC5 — rien de A ne reste dans le store local.
