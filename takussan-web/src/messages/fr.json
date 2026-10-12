@@ -1484,7 +1484,7 @@
       },
       "geoSuggestFull": "Utiliser {city}, {region}",
       "geoSuggestCity": "Utiliser {city}",
-      "geoDefaultsNote": "Le pays est déjà renseigné d'après votre connexion. Vous pourrez le corriger. Les prix sont en francs CFA.",
+      "geoDefaultsNote": "Les biens se publient au Sénégal : le pays est déjà renseigné. Les prix sont en francs CFA.",
       "addressDetailsShow": "Ajouter la rue et le code postal",
       "addressDetailsHide": "Masquer la rue et le code postal",
       "useMyPosition": "Utiliser ma position actuelle",

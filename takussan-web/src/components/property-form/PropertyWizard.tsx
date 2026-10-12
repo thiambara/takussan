@@ -11,7 +11,6 @@ import { useToast } from '@/components/ui/toast';
 import { FormGlobalError } from '@/components/forms';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
-import { useGeoSuggestion } from '@/hooks/useGeoSuggestion';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
 import { ApiError } from '@/lib/api';
 import {
@@ -175,7 +174,7 @@ function valeursInitiales(): PropertyFormValues {
     region: '',
     street: '',
     postal_code: '',
-    country: '',
+    country: 'SN',
     latitude: undefined,
     longitude: undefined,
     area: undefined,
@@ -233,7 +232,6 @@ export function PropertyWizard({
   const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
   const toast = useToast();
-  const { defaults, loading: geoEnCours } = useGeoSuggestion();
   const brouillon = useWizardDraft<Partial<PropertyFormValues>>(CLE_BROUILLON);
   const { save: sauverBrouillon, flush: viderFileBrouillon, clear: effacerBrouillon } = brouillon;
 
@@ -392,7 +390,7 @@ export function PropertyWizard({
     },
   });
 
-  const { control, watch, setValue, trigger, reset } = form;
+  const { control, watch, trigger, reset } = form;
   // TCK-564 — `useWatch` et non `watch()` lu pendant le rendu : c'est ce motif qui figeait les
   // pastilles des étapes une fois compilées (cf. `__tests__/abonnement-des-etapes.test.tsx`). Ici,
   // dans l'hôte, le compilateur ne mettait pas la lecture en cache — mesuré sur sa sortie — mais
@@ -443,32 +441,18 @@ export function PropertyWizard({
     brouillonApplique.current = true;
     const donnees = brouillon.draft?.data;
     // TCK-633 — `currency` est ré-imposée : un brouillon d'avant ADR-0061 peut porter l'euro, et
-    // le prix se lirait avec des décimales que la publication en francs CFA n'admet pas.
-    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees), currency: 'XOF' } as PropertyFormValues);
+    // le prix se lirait avec des décimales que la publication en francs CFA n'admet pas. `country`
+    // aussi : un brouillon d'avant ADR-0062 porte le pays de la géo-IP.
+    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees), currency: 'XOF', country: 'SN' } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
 
-  /**
-   * Le CERTAIN de la géo-IP, posé d'office et UNE SEULE FOIS : le pays. La ville et
-   * la région, elles, restent à la suggestion, qui s'accepte d'un geste (AC6) — la géo-IP dit où
-   * est l'utilisateur, pas où est le bien.
-   *
-   * C'est ce que promet la note de l'étape 1 (`geoDefaultsNote`) ; sans cet effet, elle mentirait.
-   *
-   * ⚠ Le garde-fou n'est pas décoratif. `UserLocationProvider` peut livrer la localisation APRÈS
-   * le premier rendu : sans lui, un pays arrivé en retard écraserait celui que l'utilisateur
-   * vient de corriger. Et sur un brouillon repris, on ne pose plus rien du tout — ses valeurs sont
-   * celles d'une session où l'utilisateur avait déjà la main.
-   *
-   * TCK-633 — la devise n'est plus devinée : le prix se publie en francs CFA (ADR-0061), quel que
-   * soit le pays de connexion. Un visiteur connecté depuis Paris publie un bien à Dakar.
+  /*
+   * TCK-633 (ADR-0062 §4) — la géo-IP ne pose plus rien. Elle posait le pays de connexion, ce que
+   * la note de l'étape 1 annonçait ; mais le Sénégal est le seul pays servi, et l'API réécrit `SN`
+   * sur toute adresse du référentiel : un visiteur connecté depuis Paris voyait « FR », qui
+   * disparaissait à l'enregistrement. Le pays part à `SN` (`valeursInitiales`), et la ville
+   * reste à la suggestion, qui s'accepte d'un geste (AC6, `StepLieu`).
    */
-  const geoPosee = useRef(false);
-  useEffect(() => {
-    if (geoPosee.current || geoEnCours || etatBrouillon === 'attente') return;
-    geoPosee.current = true;
-    if (etatBrouillon === 'restaure') return;
-    if (defaults.country) setValue('country', defaults.country, { shouldDirty: true });
-  }, [defaults.country, geoEnCours, etatBrouillon, setValue]);
 
   /**
    * Autosave silencieux : chaque changement de valeur part au hook, qui débounce à 800 ms et

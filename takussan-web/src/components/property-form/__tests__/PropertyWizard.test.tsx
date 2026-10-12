@@ -231,10 +231,11 @@ describe('PropertyWizard — ce que la géo-IP pose et ce qu’elle propose', ()
     expect(ville.value).toBe('Dakar');
   });
 
-  it('pose le pays que la note de l’étape 1 promet — et JAMAIS la devise de la connexion (TCK-633)', async () => {
-    // ⚠ Volontairement AILLEURS qu'au Sénégal : `country` vaut `''` et `currency` vaut `'XOF'`
-    // par défaut. Une localisation sénégalaise rendrait l'assertion vraie même si l'assemblage
-    // ne posait RIEN — c'est exactement la coïncidence qui fait passer un test creux.
+  it('pose le Sénégal que la note de l’étape 1 annonce — JAMAIS le pays ni la devise de la connexion (TCK-633)', async () => {
+    // ⚠ Volontairement connecté AILLEURS qu'au Sénégal : une localisation sénégalaise rendrait
+    // l'assertion vraie même si la géo-IP posait encore le pays. ADR-0062 §4 — le Sénégal est le
+    // seul pays servi, et l'API réécrit `SN` sur toute adresse du référentiel : un « FR » posé ici
+    // s'afficherait puis disparaîtrait à l'enregistrement.
     geo.valeur = { city: 'Paris', region: 'Île-de-France', country_code: 'FR', currency: 'EUR' };
     const user = userEvent.setup();
     monter();
@@ -244,7 +245,7 @@ describe('PropertyWizard — ce que la géo-IP pose et ce qu’elle propose', ()
     await user.click(suivant());
 
     await waitFor(() => {
-      expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('FR');
+      expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('SN');
     });
 
     await user.type(screen.getByLabelText(/ville/i), 'Paris');
@@ -350,6 +351,17 @@ describe('PropertyWizard — le brouillon', () => {
     expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
   });
 
+  it('un brouillon d’avant ADR-0062 reprend au Sénégal, pas au pays de la géo-IP (TCK-633)', async () => {
+    brouillon.etat.draft = {
+      step: 1,
+      data: { type: 'villa', contract_type: 'sale', city: 'Dakar', country: 'FR' },
+    };
+    monter();
+
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
+    expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('SN');
+  });
+
   /**
    * Revue adverse v2 — un brouillon tel que le SERVEUR le rend. L'autosave écrit `''` dans les
    * champs texte laissés vides ; l'API les rend `null` (`ConvertEmptyStringsToNull`, middleware
@@ -401,6 +413,8 @@ describe('PropertyWizard — le brouillon', () => {
     await user.type(screen.getByLabelText(/ville/i), 'Dakar');
     const bascule = screen.getByRole('button', { name: /ajouter la rue/i });
     await user.click(bascule);
+    // Le pays part à `SN` (ADR-0062 §4) : on le vide pour y poser un code invalide.
+    await user.clear(screen.getByLabelText(/pays/i));
     await user.type(screen.getByLabelText(/pays/i), 'S');
     await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
@@ -428,6 +442,8 @@ describe('PropertyWizard — le brouillon', () => {
     await user.click(suivant());
     await user.type(screen.getByLabelText(/ville/i), 'Dakar');
     await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    // Le pays part à `SN` (ADR-0062 §4) : on le vide pour y poser un code invalide.
+    await user.clear(screen.getByLabelText(/pays/i));
     await user.type(screen.getByLabelText(/pays/i), 'S');
     await user.click(suivant());
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');

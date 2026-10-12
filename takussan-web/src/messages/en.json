@@ -1513,7 +1513,7 @@
       },
       "geoSuggestFull": "Use {city}, {region}",
       "geoSuggestCity": "Use {city}",
-      "geoDefaultsNote": "The country is already filled in from your connection. You can correct it. Prices are in CFA francs.",
+      "geoDefaultsNote": "Listings are published in Senegal: the country is already filled in. Prices are in CFA francs.",
       "addressDetailsShow": "Add street and postal code",
       "addressDetailsHide": "Hide street and postal code",
       "useMyPosition": "Use my current position",
