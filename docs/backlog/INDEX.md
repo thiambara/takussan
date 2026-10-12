@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**563 tickets** — 30 ouverts, 531 livrés.
+**563 tickets** — 29 ouverts, 532 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 27 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 531 |
+| ✅ Done | 532 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -64,7 +64,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-633](tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md) — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits `XL · P1 · full`
 
 ## 👀 Review
 
@@ -76,7 +75,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 531
+## ✅ Done — 532
+
+<details>
+<summary><strong>Vague 74 — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)</strong> — 1 ticket</summary>
+
+- [TCK-633](tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md) — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits `XL · P1 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>

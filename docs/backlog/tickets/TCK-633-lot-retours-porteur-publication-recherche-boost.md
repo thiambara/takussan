@@ -1,7 +1,7 @@
 ---
 id: TCK-633
 title: "Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: XL
@@ -400,7 +400,7 @@ Ce qui a été relevé, et qui fonde chaque lot :
 - [x] **AC16 — Super-admin.** Le super-admin règle les six valeurs, édite le catalogue, crédite ou
       débite un espace avec motif et 2FA, annule un boost avec ou sans remboursement, offre une
       Vedette, lit les statistiques ; chaque geste est journalisé.
-- [ ] **AC17 — Gardes.** Suites API et front entières vertes, `tsc`, lint, `check:i18n`, gardes de la
+- [x] **AC17 — Gardes.** Suites API et front entières vertes, `tsc`, lint, `check:i18n`, gardes de la
       racine ; chaque test neuf échoue quand on retire le correctif qu'il garde (ablation).
 
 ## Hors périmètre
@@ -416,4 +416,20 @@ Ce qui a été relevé, et qui fonde chaque lot :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **PR #364** vers `dev`. Six lots (A à F) livrés en parallèle sur des territoires de fichiers
+  disjoints, puis intégrés (`docs/plans/2026-10-12-tck-633-lot-retours-porteur.md` et un plan par
+  lot). AC1 à AC16 prouvés par exécution et vérification adverse, AC1 au navigateur de bout en bout.
+- **AC17** — suites API et front entières jouées par la CI de la PR. Elle a relevé deux défauts que
+  les tests des zones touchées ne voyaient pas : trois chaînes de données lues comme des classes
+  par `check:classes-emises` (noms de champs et de variante sortis du `className`), et
+  `NamespaceAccessGuardTest`, dont le repli « 1 » tombait sur des modèles inexistants des routes
+  neuves (404 avant la garde) — lignes réelles ajoutées.
+- **Après l'essai au navigateur** (décisions du porteur du 2026-10-12) : « Booster » dans le
+  message de publication ; la carte « Regénérer les filigranes » ne s'affiche que filigrane allumé
+  (`watermark_available` sur la ressource d'agence) ; l'assistant pose `SN` et non le pays de
+  connexion, que l'API réécrivait de toute façon.
+- **Référentiel géographique** relu et signé par le porteur le 2026-10-12 : décisions dans
+  `corrections.json`, rejouées sur les fichiers relus sans nouvel appel à OSM ; compte rendu en
+  tête de `docs/plans/rapports/tck-633-geo-relecture.md`.
+- **Reste hors du ticket** : la relecture du wolof par un locuteur ; TCK-634 (la page de connexion
+  épuise le quota de connexion, défaut antérieur relevé pendant l'essai).
