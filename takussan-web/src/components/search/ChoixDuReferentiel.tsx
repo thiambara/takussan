@@ -55,10 +55,17 @@ function option(nom: string): OptionDeListe {
  * Les noms proposés, la valeur courante en tête quand le référentiel ne la connaît pas (une URL
  * ancienne, un lien partagé) : elle reste VISIBLE, donc retirable, au lieu de disparaître du champ
  * pendant que la liste la filtre encore.
+ *
+ * Chaque nom n'y figure qu'UNE fois. Le référentiel porte des villes homonymes, dans deux régions
+ * différentes (Dinguiraye, Missirah, Vélingara — relevé du 2026-10-12) : la valeur d'une option
+ * est son nom, et deux options de même valeur donnaient deux enfants de même clé (« Encountered two
+ * children with the same key », signalé par le porteur). Les fusionner ne perd rien : la recherche
+ * filtre par NOM, une seule option « Dinguiraye » trouve déjà les biens des deux.
  */
 export function optionsAvecLaValeur(noms: readonly string[], valeur: string | undefined): OptionDeListe[] {
-  if (!valeur || noms.includes(valeur)) return noms.map(option);
-  return [valeur, ...noms].map(option);
+  const uniques = [...new Set(noms)];
+  if (!valeur || uniques.includes(valeur)) return uniques.map(option);
+  return [valeur, ...uniques].map(option);
 }
 
 function BoutonDeRetrait({ libelle, onClick }: { readonly libelle: string; readonly onClick: () => void }) {

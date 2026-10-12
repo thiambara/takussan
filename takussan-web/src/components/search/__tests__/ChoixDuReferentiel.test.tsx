@@ -17,6 +17,10 @@ vi.mock('@/lib/queries/referentiel-public', () => ({
       data: [
         { id: 1, region_id: 1, name: 'Dakar', slug: 'dakar', latitude: 14.7, longitude: -17.45 },
         { id: 2, region_id: 2, name: 'Thiès', slug: 'thies', latitude: 14.79, longitude: -16.93 },
+        // Deux villes HOMONYMES, dans deux régions : le référentiel réel en porte trois paires
+        // (Dinguiraye, Missirah, Vélingara).
+        { id: 7, region_id: 1, name: 'Dinguiraye', slug: 'dinguiraye', latitude: 14.97, longitude: -16.42 },
+        { id: 133, region_id: 5, name: 'Dinguiraye', slug: 'dinguiraye', latitude: 13.28, longitude: -14.56 },
       ],
     },
   }),
@@ -54,6 +58,27 @@ describe('TCK-633 — ChoixDeVille', () => {
     await user.click(await screen.findByRole('option', { name: 'Thiès' }));
 
     expect(onChange).toHaveBeenLastCalledWith('Thiès');
+  });
+
+  /**
+   * Retour du porteur du 2026-10-12 : « Encountered two children with the same key,
+   * `Dinguiraye` ». La valeur d'une option est son nom ; deux villes homonymes donnaient deux
+   * options de même clé. Une seule suffit : la recherche filtre par nom.
+   */
+  it('une ville homonyme n’est proposée qu’une fois, sans clé en double', async () => {
+    const user = userEvent.setup();
+    const erreurs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onChange = vi.fn();
+    render(withIntl(<ChoixDeVille valeur={undefined} onChange={onChange} />));
+
+    await user.type(screen.getByRole('combobox', { name: 'Ville' }), 'Ding');
+    const options = await screen.findAllByRole('option', { name: 'Dinguiraye' });
+    expect(options).toHaveLength(1);
+    expect(erreurs.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    erreurs.mockRestore();
+
+    await user.click(options[0]);
+    expect(onChange).toHaveBeenLastCalledWith('Dinguiraye');
   });
 
   it('une ville de l’URL hors référentiel reste affichée, et se retire', async () => {
