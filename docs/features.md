@@ -113,7 +113,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P0 | 👤🏠 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | 👤🏠 | Recherche plein-texte sur les biens |
 | P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
-| P1 | 👤🏠 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en dessous, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
+| P1 | 👤🏠 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en première page, les premières places des résultats (nombre réglable, 0 pour aucune) reviennent aux vedettes qui correspondent, dans l'ordre normal, avec un badge, sans doublon ; au-delà, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | 👤🏠 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
 | P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
@@ -658,7 +658,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 |------|---------|----------------|
 | P0 | 🛡️ | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
 | P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
-| P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
+| P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
 | P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) |
 | P1 | 🛡️ | Gestion des enums métier (types de biens, statuts) |

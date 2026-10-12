@@ -1,4 +1,4 @@
-# ADR-0061 — Les crédits appartiennent à l'espace, se tiennent en lots datés, et paient trois boosts dont la vedette passe par des emplacements tournants
+# ADR-0061 — Les crédits appartiennent à l'espace, se tiennent en lots datés, et paient trois boosts ; la vedette passe par des emplacements tournants et des places réservées en tête de la première page
 
 - **Statut** : Accepté
 - **Date** : 2026-10-12
@@ -24,14 +24,14 @@ Relu sur `dev` le 2026-10-11 :
 Le **2026-10-11**, le porteur a demandé un boost payant en crédits, achetés ou offerts, avec un
 nombre élevé offert à chaque nouvel utilisateur au lancement, et sa gestion dans le super-admin.
 Les arbitrages ci-dessous ont été tranchés avec lui le 2026-10-12 (D5, D6, D12 à D16 de la
-conception).
+conception), puis complétés le même jour par les places réservées (§7).
 
 ## Décision
 
 **Les crédits appartiennent à l'espace (l'agence), se tiennent en lots datés inscrits à un registre
 qu'on ne réécrit jamais, et paient trois produits : la Remontée, la Vedette et le Badge. La Vedette
-n'achète pas un rang : elle achète un tour dans des emplacements « Sponsorisé » tournants, au-dessus
-de résultats dont l'ordre ne change pas.**
+achète un tour dans des emplacements « Sponsorisé » tournants, et une chance d'occuper l'une des
+places réservées en tête de la première page ; au-delà, l'ordre des résultats ne change pas.**
 
 ### 1. Le solde est celui de l'espace
 
@@ -113,10 +113,11 @@ Clés ajoutées à `EditablePlatformSettings`, avec ces défauts validés le 202
 | `credits.expiry_notice_days` | 7 |
 | `boost.bump_cooldown_hours` | 24 |
 | `boost.sponsored_slots_per_page` | 3 |
+| `boost.reserved_top_results` | 2 |
 
 Catalogue initial : Remontée 5 · Vedette 7 / 15 / 30 jours : 20 / 35 / 60 · Badge 7 jours : 10.
 
-### 7. La vedette achète un tour, pas un rang
+### 7. La vedette achète un tour et, en première page, une place réservée
 
 - **Les résultats organiques ne lisent plus `featured`.** Le tri par défaut devient `ranked_at DESC`
   (liste, recherche à requête vide, rangées de l'accueil) ; avec un mot, la pertinence décide, comme
@@ -131,10 +132,22 @@ Catalogue initial : Remontée 5 · Vedette 7 / 15 / 30 jours : 20 / 35 / 60 · B
 - Les emplacements sortent dans un champ **`sponsored`** de la réponse, **hors** pagination et hors
   `total`. Un bien sponsorisé garde sa place organique en dessous.
 - La rangée vedette de l'accueil applique la même rotation, filtrée sur la zone de la rangée.
+- **Places réservées.** En **première page seulement**, les X premiers résultats (réglage
+  `boost.reserved_top_results`, 0 pour désactiver) vont aux biens en vedette active qui satisfont la
+  recherche, **dans l'ordre organique** : les plus pertinents avec un mot, les plus récents
+  (`ranked_at`) sans. Un bien déjà servi dans un emplacement de la même page n'y entre pas. S'il y a
+  moins de X vedettes éligibles, les places restantes reviennent aux résultats organiques.
+- Une place réservée **porte le badge « En vedette »** : un résultat payé ne se présente jamais comme
+  un résultat organique. Elle compte dans la pagination et dans `total` (c'est un résultat de la
+  recherche, avancé), et le bien n'apparaît pas une seconde fois plus bas dans la page 1 ni dans les
+  suivantes.
+- Les deux réglages composent les stratégies sans redéploiement : emplacements seuls (X = 0), vedettes
+  en tête seules (N = 0), ou les deux. Défaut validé : N = 3, X = 2 — six places payées auraient
+  rempli tout le premier écran mobile.
 
-Pourquoi pas « vedettes d'abord » : avec une offre de bienvenue généreuse, une large part des
-annonces sera en vedette ; les trier en tête rendrait le boost sans effet et enterrerait les autres
-annonces. Pourquoi pas un simple départage : il ne se verrait pas, et ne se vendrait pas.
+Pourquoi pas « toutes les vedettes d'abord » : avec une offre de bienvenue généreuse, une large part
+des annonces sera en vedette ; les trier toutes en tête rendrait le boost sans effet et enterrerait
+les autres annonces. Les places réservées en sont la version **bornée** : X places, une seule page. Pourquoi pas un simple départage : il ne se verrait pas, et ne se vendrait pas.
 
 ### 8. Un boost suit la vie du bien
 
@@ -174,8 +187,9 @@ migration de ses tables.
   posent désormais une Vedette offerte.
 - **Le booléen `featured` n'a plus d'écrivain direct.** Toute écriture hors du cycle de vie du boost
   est un défaut ; le PATCH du bien le refuse pour tout le monde.
-- **Deux requêtes Meilisearch par page de résultats** au lieu d'une ; la seconde ne rapatrie que des
-  identifiants.
+- **Deux requêtes Meilisearch par page de résultats** au lieu d'une (la seconde ne rapatrie que des
+  identifiants), et une troisième en première page pour les places réservées ; la pagination
+  organique doit soustraire les biens avancés pour ne pas les servir deux fois.
 - **Un registre en insertion seule** coûte une table de plus et interdit la correction en place :
   c'est le prix d'un solde qu'on peut toujours reconstituer et justifier ligne à ligne.
 - **L'expiration crée une obligation d'information** : prévenir avant, et montrer la date de chaque
@@ -188,6 +202,7 @@ migration de ses tables.
 À écrire par TCK-633 au moment de l'implémentation : les tests de l'invariant des lots, de la
 consommation par expiration croissante, de la course de deux dépenses simultanées sur un solde
 juste, de l'unicité de l'offre par numéro (compte supprimé compris), de la rotation (même page, même
-heure, même tirage ; toutes les vedettes servies sur un cycle), de la pause et du remboursement au
+heure, même tirage ; toutes les vedettes servies sur un cycle), des places réservées (première page
+seulement, ordre organique, pas de doublon avec les emplacements ni plus bas, badge, X = 0 inerte), de la pause et du remboursement au
 prorata, et de l'idempotence de `boosts:tick` ; et la mise à jour de `docs/models-spec.md` pour les
-cinq tables.
+six tables.

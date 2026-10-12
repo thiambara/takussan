@@ -139,7 +139,9 @@ Ce qui a été relevé, et qui fonde chaque lot :
   `GET /api/admin/boost-stats`.
 - Réglages `EditablePlatformSettings` : `credits.welcome_amount` (500), `credits.welcome_validity_days`
   (180), `credits.expiry_notice_days` (7), `boost.bump_cooldown_hours` (24),
-  `boost.sponsored_slots_per_page` (3).
+  `boost.sponsored_slots_per_page` (3), `boost.reserved_top_results` (2).
+- Résultats de la première page : chaque bien porte `placement: reserved | organic` ; les places
+  réservées comptent dans la pagination et dans `total`.
 
 ## Direction UX / Artistique
 
@@ -158,6 +160,8 @@ Ce qui a été relevé, et qui fonde chaque lot :
   - Les équipements s'affichent en puces, et un équipement ajouté apparaît tel que saisi.
 - **Filtres.** Les filtres essentiels restent visibles (transaction, type, budget, chambres, lieu) ;
   le reste se replie sous « Plus de filtres ». Un seul vocabulaire : Louer, Acheter.
+- **Places réservées.** Elles ressemblent aux résultats qu'elles précèdent, avec le badge « En vedette »
+  bien visible : jamais un résultat payé sans marque.
 - **Sponsorisé.** Les emplacements sont nettement marqués « Sponsorisé », sans imiter un résultat
   organique, et restent sobres : la palette réserve `--accent` aux badges de mise en avant (TCK-450).
 - **Crédits.** Le solde est toujours visible là où l'on booste. Un solde insuffisant se dit avec le
@@ -327,7 +331,8 @@ Ce qui a été relevé, et qui fonde chaque lot :
       dérivé, réindexation, expiration des lots, préavis.
 - [ ] `PropertySearchService` et `HomepageDiscoveryService` : tri organique par `ranked_at`, plus de
       `featured` en tête ; requête des emplacements (`is_sponsored` au `toSearchableArray`, filtrable),
-      rotation déterministe, champ `sponsored`. `config/scout.php` : `is_sponsored`, `ranked_at`
+      rotation déterministe, champ `sponsored` ; places réservées en première page (ordre organique,
+      exclues des emplacements de la page et des pages suivantes, `placement`). `config/scout.php` : `is_sponsored`, `ranked_at`
       (filtrable / triable).
 - [ ] `UpdatePropertyRequest` refuse `featured` à tous ; seeders : une Vedette offerte là où
       `featured` était posé.
@@ -349,7 +354,10 @@ Ce qui a été relevé, et qui fonde chaque lot :
       seconde offre), `BoostRulesTest` (délai de remontée, vedette prolongée, badge remplacé),
       `BoostPauseAndRefundTest` (pause / reprise, loué → remboursement au prorata avec expiration
       héritée, modération → aucun remboursement), `SponsoredRotationTest` (même page et même heure :
-      même tirage ; un cycle sert toutes les vedettes ; hors `total`), `BoostsTickIdempotenceTest`,
+      même tirage ; un cycle sert toutes les vedettes ; hors `total`),
+      `ReservedTopResultsTest` (première page seulement, ordre organique avec et sans mot, aucun
+      doublon avec les emplacements ni plus bas ni en page 2, moins de X vedettes → places rendues à
+      l'organique, X = 0 inerte), `BoostsTickIdempotenceTest`,
       `FeaturedNotWritableTest`, tests des endpoints super-admin (2FA, motif, journal).
 
 ## Critères d'acceptation
@@ -385,10 +393,11 @@ Ce qui a été relevé, et qui fonde chaque lot :
       une seule fois par numéro ; la page « Crédits » montre solde, lots, expiration et historique.
 - [ ] **AC14 — Boost.** Remontée, Vedette et Badge s'achètent avec les règles d'ADR-0061 ; une
       Vedette apparaît dans les emplacements « Sponsorisé » des recherches qu'elle satisfait, par
-      rotation, sans changer l'ordre des résultats en dessous.
+      rotation ; en première page, les 2 premiers résultats sont des vedettes qui correspondent, dans
+      l'ordre normal, badgées, jamais en double ; au-delà, l'ordre des résultats ne change pas.
 - [ ] **AC15 — Vie du boost.** Dépublier met la Vedette en pause, republier la reprend ; louer le
       bien rend les jours restants ; un retrait par la modération ne rend rien.
-- [ ] **AC16 — Super-admin.** Le super-admin règle les cinq valeurs, édite le catalogue, crédite ou
+- [ ] **AC16 — Super-admin.** Le super-admin règle les six valeurs, édite le catalogue, crédite ou
       débite un espace avec motif et 2FA, annule un boost avec ou sans remboursement, offre une
       Vedette, lit les statistiques ; chaque geste est journalisé.
 - [ ] **AC17 — Gardes.** Suites API et front entières vertes, `tsc`, lint, `check:i18n`, gardes de la
