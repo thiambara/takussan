@@ -148,6 +148,29 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     expect(envoye.cgu_accepted).toBe(true);
   });
 
+  it('TCK-625 — « Particulier » mène au premier bien, et le message ne promet aucun brouillon', async () => {
+    render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Terminer|Publier|Créer/i }));
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties/new'));
+    const [toast] = toastAdd.mock.calls.at(-1)!;
+    expect(toast.description).not.toMatch(/brouillon/i);
+  });
+
+  it('TCK-625 — « Professionnel » n’est plus sans effet : il mène à la demande d’agence', async () => {
+    render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(RAIL.intent.options.professional.title.replace(/[()]/g, '.')) }));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Terminer|Publier|Créer/i }));
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/settings/agency/upgrade'));
+  });
+
   it('le récapitulatif ne mentionne plus un fournisseur qui n’a pas été choisi', () => {
     render(withIntl(<HostIndividualWizard />));
     fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));

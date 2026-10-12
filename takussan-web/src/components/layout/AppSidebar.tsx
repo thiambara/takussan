@@ -28,6 +28,7 @@ import {
   MessageSquareQuote,
   Inbox,
   HandCoins,
+  UserRound,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -37,7 +38,9 @@ import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { useTranslations } from 'next-intl';
+import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
+import { initialesDe, libelleDe } from '@/lib/identite';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
@@ -176,6 +179,12 @@ export function buildNavItems(user: User): NavItem[] {
       section: 'catalog',
       emphasized: true,
     });
+  }
+
+  // TCK-625 — un client (ni bailleur, ni membre d'une agence) peut devenir hôte : rien, dans son
+  // espace, ne le lui disait. L'entrée mène à `/publish`, qui l'emmène à l'assistant hôte.
+  if (isCustomerOnly(roles)) {
+    items.push({ href: '/publish', labelKey: 'publishProperty', icon: PlusCircle, section: 'catalog' });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047).
@@ -468,7 +477,9 @@ function SidebarItem({
 
 function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const t = useTranslations('nav');
-  const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
+  // TCK-623 — un compte sans nom (téléphone, OAuth) : une silhouette, et ce qui désigne le compte.
+  const initials = initialesDe(user);
+  const libelle = libelleDe(user) ?? t('accountFallback');
   return (
     <Link
       href="/app/profile"
@@ -476,11 +487,13 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
       className={cn('flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted', FOCUS_RING)}
     >
       <Avatar className="size-9">
-        {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-        <AvatarFallback className="bg-foreground text-white">{initials}</AvatarFallback>
+        {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={libelle} /> : null}
+        <AvatarFallback className="bg-foreground text-white">
+          {initials ?? <UserRound className="size-4" aria-hidden="true" />}
+        </AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{libelle}</p>
         <p className="truncate text-xs text-muted-foreground">{t('myProfile')}</p>
       </div>
     </Link>
@@ -614,9 +627,9 @@ export function AppSidebar({
         <Link
           href="/"
           onClick={onNavigate}
-          className={cn('rounded-md px-1 text-xl font-bold tracking-tighter text-foreground', FOCUS_RING)}
+          className={cn('inline-flex rounded-md px-1 py-1', FOCUS_RING)}
         >
-          {tCommon('appName')}
+          <Logo nom={tCommon('appName')} />
         </Link>
       </div>
       <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2 md:pt-5">

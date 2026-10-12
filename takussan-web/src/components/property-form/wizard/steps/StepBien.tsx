@@ -5,6 +5,9 @@ import {
   Briefcase,
   Building2,
   DoorOpen,
+  Ellipsis,
+  Tag,
+  KeyRound,
   Factory,
   Hotel,
   House,
@@ -19,6 +22,7 @@ import {
   Wheat,
   Wrench,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
@@ -44,14 +48,38 @@ const ICONES: Partial<Record<(typeof propertyTypeValues)[number], LucideIcon>> =
 
 function iconeDe(type: (typeof propertyTypeValues)[number]) {
   const Icone = ICONES[type];
-  return Icone ? <Icone className="size-4" strokeWidth={1.75} /> : undefined;
+  return Icone ? <Icone className="size-6" strokeWidth={1.75} /> : undefined;
 }
 
+type TypeDeBien = (typeof propertyTypeValues)[number];
+
 /**
- * TCK-464 — la première étape : le type de bien et le contrat, tous deux en pastilles.
+ * TCK-631 — les neuf types qu'on publie le plus souvent, montrés d'emblée en tuiles ; les sept
+ * autres attendent derrière « Plus de types ». Seize tuiles de même poids, c'était Appartement et
+ * Terrain noyés entre Usine et Complexe.
  *
- * Ces deux réponses gouvernent tout le reste du parcours (cf. `field-matrix.ts`) : elles passent
- * donc avant le titre, et se montrent au lieu de se dérouler.
+ * ⚠ L'ordre est celui de l'écran, pas celui de l'enum : on lit d'abord ce qu'on habite.
+ */
+const TYPES_COURANTS: readonly TypeDeBien[] = [
+  'apartment', 'house', 'villa', 'studio', 'room', 'land', 'office', 'shop', 'warehouse',
+];
+const AUTRES_TYPES: readonly TypeDeBien[] = propertyTypeValues.filter(
+  (v) => !TYPES_COURANTS.includes(v),
+);
+
+/** Louer d'abord : c'est le cas le plus fréquent, et l'ordre de l'enum n'a rien à dire à l'écran. */
+const CONTRATS: readonly (typeof contractTypeValues)[number][] = ['rent', 'sale'];
+const ICONES_CONTRAT = { rent: KeyRound, sale: Tag } as const;
+
+/**
+ * TCK-464 — la première étape : le contrat et le type de bien.
+ *
+ * Ces deux réponses gouvernent tout le reste du parcours (cf. `field-matrix.ts`) : elles se
+ * montrent au lieu de se dérouler.
+ *
+ * TCK-631 (piste 6) — le contrat passe EN PREMIER, en deux grandes cartes : c'est la question qui
+ * décide de tout, et elle venait en second, plus légère que les types. Les types suivent en
+ * tuiles, neuf d'emblée, les sept autres sur demande.
  *
  * ⚠ Le vocabulaire du contrat est celui du PARCOURS (`PROPERTY_ENUM_NAMESPACES.contractTypeWizard`
  * → « Vendre » / « Louer »), pas celui de l'enum (`PROPERTY_ENUM_NAMESPACES.contractType` →
@@ -61,9 +89,11 @@ function iconeDe(type: (typeof propertyTypeValues)[number]) {
  * varie pas. Les DEUX sont adressés par la table — jamais une chaîne recopiée à la main ici.
  *
  * ⚠ `type` et `contrat` sont chacun un choix à sélection UNIQUE, non désélectionnable : la
- * sémantique ARIA est donc un groupe de radios (`radioGroup`), pas le groupe de boutons-bascule
- * par défaut de `ChoiceChips` — celui-là reste réservé aux choix facultatifs ou multiples
- * (statut foncier, équipements, dans `StepCaracteristiques`).
+ * sémantique ARIA est donc un groupe de radios (`radioGroup`), quelle que soit la forme (`cartes`,
+ * `tuiles`). « Plus de types » est HORS du groupe : ce n'est pas une réponse, c'est un repli.
+ *
+ * ⚠ Un type retenu parmi les sept repliés (brouillon repris sur « Ferme ») DÉPLIE le groupe : une
+ * réponse donnée qu'on ne voit plus allumée se relirait comme une réponse absente.
  */
 export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
   const t = useTranslations('property.wizard');
@@ -75,30 +105,56 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
   // cliquée ne s'allumait jamais, EN PRODUCTION SEULEMENT (vitest ne compile pas). Mesure et
   // garde : `__tests__/abonnement-des-etapes.test.tsx`.
   const [type, contrat] = useWatch({ control, name: ['type', 'contract_type'] });
+  const [plusDeTypes, setPlusDeTypes] = useState(false);
+  const typeReplie = type !== undefined && AUTRES_TYPES.includes(type);
+  const deplie = plusDeTypes || typeReplie;
+  const typesMontres = deplie ? [...TYPES_COURANTS, ...AUTRES_TYPES] : TYPES_COURANTS;
 
   return (
     <>
       <ChoiceChips
-        id="wizard-type"
-        label={t('fields.type')}
-        radioGroup
-        value={type}
-        onChange={(v) => setValue('type', v as PropertyFormValues['type'], { shouldDirty: true })}
-        options={propertyTypeValues.map((v) => ({ value: v, label: tType(v), icon: iconeDe(v) }))}
-      />
-      <ChoiceChips
         id="wizard-contract"
         label={t('fields.contract')}
         radioGroup
+        variant="cartes"
         value={contrat}
         onChange={(v) =>
           setValue('contract_type', v as PropertyFormValues['contract_type'], { shouldDirty: true })
         }
-        options={contractTypeValues.map((v) => ({ value: v, label: tContrat(v) }))}
+        options={CONTRATS.map((v) => {
+          const Icone = ICONES_CONTRAT[v];
+          return {
+            value: v,
+            label: tContrat(v),
+            description: t(`contractHint.${v}`),
+            icon: <Icone className="size-5" strokeWidth={1.75} />,
+          };
+        })}
       />
-      <p className="rounded-xl bg-muted px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-        {t('geoDefaultsNote')}
-      </p>
+      <div>
+        <ChoiceChips
+          id="wizard-type"
+          label={t('fields.type')}
+          radioGroup
+          variant="tuiles"
+          value={type}
+          onChange={(v) => setValue('type', v as PropertyFormValues['type'], { shouldDirty: true })}
+          options={typesMontres.map((v) => ({ value: v, label: tType(v), icon: iconeDe(v) }))}
+        />
+        {/* Replier est interdit tant que la réponse retenue vit dans le repli. */}
+        {typeReplie ? null : (
+          <button
+            type="button"
+            aria-expanded={deplie}
+            onClick={() => setPlusDeTypes((v) => !v)}
+            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <Ellipsis className="size-4" aria-hidden="true" />
+            {deplie ? t('fewerTypes') : t('moreTypes', { count: AUTRES_TYPES.length })}
+          </button>
+        )}
+      </div>
+      <p className="text-xs leading-relaxed text-pretty text-muted-foreground">{t('geoDefaultsNote')}</p>
     </>
   );
 }

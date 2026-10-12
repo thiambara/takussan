@@ -404,3 +404,11 @@ export async function fetchPropertyPriceHistory(
   );
   return res.data;
 }
+
+/** TCK-627 — l'usage du quota d'annonces de l'agence active ; `limit: null` = illimité. */
+export type ListingQuota = { limit: number | null; used: number; can_create: boolean };
+
+export async function fetchListingQuota(token: string): Promise<ListingQuota> {
+  const res = await apiRequest<ApiResponse<ListingQuota>>('/api/me/quota', { token });
+  return res.data;
+}

@@ -42,6 +42,12 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
         ->middleware('throttle:auth-password')
         ->name('password.update');
+
+    // TCK-624 — hors session : le lien s'ouvre là où la boîte est relevée, souvent un autre
+    // appareil. La signature et le hash de l'adresse font la preuve (`VerifyEmailLinkRequest`).
+    Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware(['signed:relative', 'throttle:6,1'])
+        ->name('verification.verify');
 });
 
 // Authenticated routes
@@ -50,10 +56,7 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
 
-    // Email verification
-    Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-        ->middleware('signed:relative')
-        ->name('verification.verify');
+    // Email verification — le lien lui-même est public (plus haut, TCK-624).
     Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1')
         ->name('verification.send');

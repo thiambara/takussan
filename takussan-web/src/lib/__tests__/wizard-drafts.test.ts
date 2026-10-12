@@ -101,6 +101,15 @@ describe('estDemarcheAReprendre — TCK-566', () => {
     expect(estDemarcheAReprendre(brouillon('owner-onboarding-3', {}))).toBe(true);
   });
 
+  it('TCK-627 — propose le brouillon d’un bien en cours, vers son assistant, sauf s’il est vierge', () => {
+    expect(resolveWizardResume('property-create-wizard')).toEqual({
+      href: '/app/properties/new',
+      i18nKey: 'property-create-wizard',
+    });
+    expect(estDemarcheAReprendre(brouillon('property-create-wizard', { type: 'villa' }))).toBe(true);
+    expect(estDemarcheAReprendre(brouillon('property-create-wizard', { currency: 'XOF' }))).toBe(false);
+  });
+
   it('écarte une clé qu’aucune règle ne sait reprendre', () => {
     expect(estDemarcheAReprendre(brouillon('unknown-wizard', { a: 1 }))).toBe(false);
   });

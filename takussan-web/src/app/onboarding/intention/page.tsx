@@ -22,11 +22,16 @@ import { getMeAction } from '@/app/actions/auth';
 import { getMyProfilesAction } from '@/app/actions/profiles';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { QuestionDIntention } from '@/components/onboarding/QuestionDIntention';
+import { EtapePrenom } from '@/components/onboarding/EtapePrenom';
 import {
+  avecRedirection,
+  DESTINATION_PAR_DEFAUT,
   destinationInterne,
   doitPoserLaQuestionDIntention,
+  estUneDestinationExplicite,
 } from '@/lib/redirection-interne';
 import { getToken } from '@/lib/session';
+import { prenomDe } from '@/lib/identite';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,29 +50,47 @@ export default async function PageDIntention({
   // Le filtre est PARTAGÉ avec le callback OAuth (`lib/redirection-interne.ts`) :
   // cette page reçoit le paramètre de quatre chemins d'inscription, et un
   // contrôle de sécurité recopié n'est corrigé qu'à un seul endroit.
-  const apres = destinationInterne(brute);
+  const demandee = destinationInterne(brute, '');
+  const apres = demandee || DESTINATION_PAR_DEFAUT;
 
   const token = await getToken();
   if (!token) {
-    redirect(`/auth/login?redirect=${encodeURIComponent('/onboarding/intention')}`);
+    // TCK-624 — la destination survit : la connexion ramène ici, avec elle.
+    redirect(avecRedirection('/auth/login', demandee));
   }
 
   const user = await getMeAction();
+  const prenom = prenomDe(user);
+
+  // TCK-624 — la PORTE UNIQUE de sortie de l'authentification. Elle demande ce qui manque, dans
+  // l'ordre : un prénom (un compte ouvert par téléphone ou par OAuth n'en a pas), puis — seulement
+  // si la destination ne dit pas déjà ce que la personne vient faire — l'orientation.
+  if (!prenom) {
+    return (
+      <OnboardingShell title={t('name.title')} subtitle={t('name.subtitle')}>
+        <EtapePrenom />
+      </OnboardingShell>
+    );
+  }
+
   const profils = await getMyProfilesAction();
 
   // La règle est dans `lib/redirection-interne.ts` pour être éprouvable sans
   // monter un composant serveur : c'est ce qui rend AC5 mesuré et non raisonné.
-  if (!doitPoserLaQuestionDIntention(user?.preferences?.entry_intent, profils.ok ? profils.data.data : [])) {
+  if (
+    estUneDestinationExplicite(demandee) ||
+    !doitPoserLaQuestionDIntention(user?.preferences?.entry_intent, profils.ok ? profils.data.data : [])
+  ) {
     redirect(apres);
   }
 
   return (
     <OnboardingShell
-      title={t('pageTitle', { name: user?.first_name ?? '' })}
+      title={t('pageTitle', { name: prenom })}
       subtitle={t('pageSubtitle')}
       note={t('note')}
     >
-      <QuestionDIntention apres={apres} retour={destinationInterne(brute, '')} />
+      <QuestionDIntention apres={apres} />
     </OnboardingShell>
   );
 }

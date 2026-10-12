@@ -147,6 +147,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Code SMS affiché hors production (TCK-620, ADR-0060)
+    |--------------------------------------------------------------------------
+    |
+    | Faux par défaut, forcé à faux dans `phpunit.xml`. Allumé, ET seulement si
+    | `APP_ENV` est `local`, `staging` ou `testing` (jugé à l'exécution par
+    | `App\Services\Auth\OtpPreview`), tout code envoyé par SMS revient aussi
+    | dans la réponse sous `otp_preview`. Le SMS part quand même. À éteindre
+    | avant que la préproduction reçoive des données réelles.
+    */
+
+    'otp_preview' => [
+        'enabled' => (bool) env('OTP_PREVIEW_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Sessions bornées (TCK-589)
     |--------------------------------------------------------------------------
     |

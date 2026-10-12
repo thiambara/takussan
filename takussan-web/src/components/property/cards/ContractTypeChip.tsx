@@ -13,66 +13,39 @@ interface ContractTypeChipProps {
  * Une seule source de vérité visuelle utilisée par toutes les variantes
  * de carte pour garantir cohérence couleur + typo + radius.
  *
- * ⚠ **`bg-foreground/85` n'est PAS un voile, et ne doit pas devenir `bg-scrim/85`.**
- * La liste de conversion de TCK-440 comptait six sites ; la dérivation faite à l'intégration
- * (2026-08-28) en a rendu dix, et le tri a retiré celui-ci. Un voile assombrit un média et reste
- * sombre dans les deux thèmes ; cette pastille est une SURFACE qui s'inverse avec son texte —
- * `bg-foreground/85 text-background` forme une paire, et la paire est ce qui la rend lisible :
- *
- *     clair  : fond #1f1812 à 85 %  ·  texte #fcf9f3   → lisible
- *     sombre : fond #fcf9f3 à 85 %  ·  texte #1f1812   → lisible
- *
- * `--scrim` ne s'inverse pas (déclaré une seule fois, jamais sous `.dark`). La convertir donnerait
- * en thème sombre un fond noir sous un texte #1f1812 — **illisible**. *Une liste de sites énumérée
- * à la main range ensemble ce qui se ressemble à l'œil, pas ce qui se comporte pareil.*
- *
- * Corroboré indépendamment par TCK-458, ouvert le même jour sur ce fichier : la paire mesure
- * **10,5 à 12,4:1** selon le fond, très au-dessus du seuil AA. C'est l'AUTRE variante — la
- * location — qui était en défaut. Deux raisonnements partis d'endroits opposés désignent la même
- * ligne : celle-ci n'est pas à toucher.
- *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
- * LA VARIANTE *LOCATION* A PERDU SON ALPHA — TCK-458
+ * TCK-628 — UNE PLAQUE CLAIRE, ET LA TRANSACTION DANS LE POINT
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Elle valait `bg-accent/90 text-accent-foreground`, et ce `/90` la faisait passer SOUS le seuil
- * AA. Le mot « Location » est du TEXTE (10-11 px semi-gras), donc gouverné par 4,5:1 (WCAG 2.1
- * §1.4.3) et non par les 3:1 du non textuel — confondre les deux est exactement l'erreur qui avait
- * laissé passer le défaut. Mesuré, alpha composé avant le calcul :
+ * Retour du porteur, comparant l'accueil à celui d'Airbnb : les pastilles « En vente » (encre à
+ * 85 %) et « En location » (sauge pleine) étaient « de gros pavés sombres » posés sur la photo.
+ * Elles deviennent la plaque d'Airbnb : `bg-card text-foreground`, opaque, à ombre légère — la
+ * même que `NewBuildChip` —, et la transaction se lit dans le POINT : terracotta pour la vente,
+ * sauge pour la location.
  *
- *     bg-accent/90   clair 4,22:1 (--card)  4,26 (--background)   sombre 4,29 / 4,24     ✗
- *     bg-accent      clair 5,25:1                                 sombre 4,93:1          ✓
+ * Le contraste n'y perd rien, il y gagne en simplicité : une plaque OPAQUE ne dépend plus de la
+ * photo (c'était tout l'objet de TCK-458, qui avait dû retirer l'alpha de la variante location),
+ * et la paire carte / encre est celle du corps de page, mesurée dans les deux thèmes par
+ * `surface-publique.contraste.test.ts` (AC1). Le point n'est pas du texte :
+ * il double l'information du libellé, il ne la porte pas seul (WCAG 1.4.1).
  *
- * ⚠ **Retirer l'alpha ne fait pas que remonter le ratio : il ferme la question.** Un fond
- * semi-transparent posé SUR UNE PHOTO n'a pas de contraste garanti par construction — les 10 %
- * restants laissaient passer un pixel quelconque, et le pire cas (pixel BLANC en thème clair,
- * pixel NOIR en thème sombre — les deux extrémités opposées pour le même couple) valait 4,22:1 et
- * 4,10:1. Une plaque OPAQUE ne dépend plus de l'image : le 5,25:1 vaut sur toutes les photos.
- * `backdrop-blur-md` reste, pour la variante *vente* qui, elle, garde son `/85` — et qui le peut,
- * son pire cas valant 10,56:1.
- *
- * Le pire fond se DÉRIVE (balayage des 256 gris, `pireFondSurMedia`), il ne se choisit pas : la
- * règle « blanc si l'encre est claire » est vraie ici et fausse en général — cf. le contre-exemple
- * mesuré dans `src/test/contraste-wcag.ts`.
+ * L'historique des deux plaques sombres — et de leurs mesures, 10,5 à 12,4:1 pour la vente,
+ * 4,22:1 puis 5,25:1 pour la location — est dans TCK-440 et TCK-458.
  */
 export function ContractTypeChip({ type, compact = false, className }: ContractTypeChipProps) {
   const t = useTranslations('property.contractTypes');
   const isSale = type === 'sale';
   const sizing = compact
-    ? 'px-1.5 py-0.5 text-xs gap-1'
+    ? 'px-2 py-0.5 text-xs gap-1'
     : 'px-2.5 py-1 text-xs gap-1.5';
 
   // `max-w-full` + libellé `truncate` : dernier recours quand la place manque même pour UNE
   // pastille — elle se tronque au lieu de passer sous le cœur de la carte.
   return (
     <span
-      className={`inline-flex max-w-full min-w-0 items-center rounded-full font-semibold backdrop-blur-md ${sizing} ${
-        isSale
-          ? 'bg-foreground/85 text-background'
-          : 'bg-accent text-accent-foreground'
-      } ${className || ''}`}
+      className={`inline-flex max-w-full min-w-0 items-center rounded-full font-semibold bg-card text-foreground shadow-sm ${sizing} ${className || ''}`}
     >
-      <span className="size-1.5 shrink-0 rounded-full bg-current opacity-70" />
+      <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${isSale ? 'bg-primary' : 'bg-accent'}`} />
       {/* Le libellé est le MÊME à toutes les tailles — `compact` ne règle que le gabarit. Il
           valait « Vente / Location » en compact et « En vente / En location » sinon : sur
           l'accueil, deux rangées voisines disaient la même chose de deux façons (revue du

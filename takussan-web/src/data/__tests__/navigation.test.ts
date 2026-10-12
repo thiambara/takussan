@@ -13,7 +13,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { navLinks, footerLinks } from '@/data/navigation';
+import { navLinks, footerLinks, categories, moreCategories } from '@/data/navigation';
 import { MOTIFS_DE_ROUTE, routeExiste } from '@/test/routes-publiques';
 
 const toutesLesEntrees = [
@@ -83,5 +83,17 @@ describe('données de navigation', () => {
     expect(routeExiste('/agents/awa-diop')).toBe(true);
     expect(routeExiste('https://takussan.com')).toBe(true); // hors inventaire
     expect(routeExiste('mailto:contact@takussan.com')).toBe(true);
+  });
+});
+
+describe('bande de catégories (TCK-628)', () => {
+  it('montre les huit types dans l’ordre demandé, « Plus » portant le reste', () => {
+    expect(categories.map((c) => c.type)).toEqual([
+      'apartment', 'studio', 'room', 'land', 'villa', 'house', 'shop', 'office',
+    ]);
+    // Un type n'est rangé qu'une fois : sortir Studio et Chambre de « Plus » les en RETIRE.
+    const visibles = new Set(categories.map((c) => c.type));
+    expect(moreCategories.filter((c) => visibles.has(c.type))).toEqual([]);
+    expect(categories.length + moreCategories.length).toBe(16);
   });
 });

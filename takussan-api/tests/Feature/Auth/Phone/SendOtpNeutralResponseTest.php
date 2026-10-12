@@ -81,7 +81,7 @@ class SendOtpNeutralResponseTest extends TestCase
     {
         $b = User::factory()->create(['phone' => self::PRIS, 'phone_verified_at' => null]);
 
-        $this->envoyer($b, null)->assertOk()->assertExactJson(['data' => ['sent' => true]]);
+        $this->envoyer($b, null)->assertOk()->assertExactJson(['data' => ['sent' => true, 'retry_after' => 60]]);
         $this->assertSame([], $this->sms->sentTo(self::PRIS));
     }
 

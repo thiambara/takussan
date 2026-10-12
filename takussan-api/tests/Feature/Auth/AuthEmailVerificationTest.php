@@ -67,6 +67,45 @@ class AuthEmailVerificationTest extends TestCase
             ->assertJson(['message' => __('messages.email_already_verified')]);
     }
 
+    /** TCK-624 — ouvert sur un autre appareil, sans session : le lien suffit. */
+    public function test_le_lien_verifie_sans_session(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $path = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)],
+            false
+        );
+
+        $this->getJson($path)->assertOk()->assertJson(['message' => __('messages.email_verified')]);
+        $this->assertNotNull($user->fresh()->email_verified_at);
+    }
+
+    /** TCK-624 — un lien émis pour l'ancienne adresse ne vérifie pas la nouvelle. */
+    public function test_un_lien_d_une_autre_adresse_est_refuse(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $path = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1('ancienne@example.com')],
+            false
+        );
+
+        $this->getJson($path)->assertForbidden();
+        $this->assertNull($user->fresh()->email_verified_at);
+    }
+
+    /** TCK-624 — sans session, la signature reste exigée. */
+    public function test_sans_session_la_signature_reste_exigee(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->getJson("/api/auth/verify-email/{$user->id}/".sha1($user->email))->assertForbidden();
+        $this->assertNull($user->fresh()->email_verified_at);
+    }
+
     public function test_user_can_resend_verification_email(): void
     {
         Notification::fake();

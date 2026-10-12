@@ -19,7 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { avecRedirection, destinationInterne } from '@/lib/redirection-interne';
+import { avecRedirection } from '@/lib/redirection-interne';
 
 const OAUTH_ERRORS = ['oauth_invalid', 'oauth_failed', 'oauth_unknown'] as const;
 
@@ -37,7 +37,11 @@ function LoginForm() {
   // Le filtre PARTAGÉ avec le retour OAuth et l'onboarding (TCK-493) : la copie locale laissait
   // passer `/\evil.tld`, que certains navigateurs lisent `//evil.tld`. C'est aussi par ce paramètre
   // que la connexion rend la page quittée — la recherche en cours (TCK-568, `hrefConnexion`).
-  const redirectTo = destinationInterne(searchParams.get('redirect'));
+  // TCK-624 — UNE porte de sortie pour toutes les voies (e-mail, téléphone, OAuth, inscription) :
+  // `/onboarding/intention` juge ce qui manque encore — un prénom, une orientation — puis rend la
+  // main à la destination demandée. Le chemin e-mail y allait seul directement, et un compte né
+  // sans nom n'était jamais invité à en donner un.
+  const sortie = avecRedirection('/onboarding/intention', searchParams.get('redirect'));
   const passwordWasReset = searchParams.get('reset') === '1';
   // Le callback OAuth renvoie ici sur `?error=…` : ce retour n'était LU par personne, et un
   // échec Google ramenait sur un formulaire muet, comme si rien ne s'était passé.
@@ -76,7 +80,7 @@ function LoginForm() {
         return;
       }
       await openSession(result.token, result.user, result.expires_at);
-      router.push(redirectTo);
+      router.push(sortie);
     },
   });
 
@@ -101,7 +105,7 @@ function LoginForm() {
         return;
       }
       await openSession(result.token, result.user, result.expires_at);
-      router.push(redirectTo);
+      router.push(sortie);
     } catch (err) {
       // Le test structurel `'displayMessage' in err` rendait la CLÉ i18n quand l'erreur en
       // portait une : `messageErreur` traduit le code avec le dictionnaire du client.
@@ -133,15 +137,9 @@ function LoginForm() {
         ) : null}
         <ConnexionParTelephone
           variante="login"
-          // Un compte que ce code vient de créer passe par la question d'orientation, comme les
-          // autres chemins d'inscription (TCK-493) ; l'intention d'origine y est relayée.
-          onConnecte={(nouveauCompte) =>
-            router.push(
-              nouveauCompte
-                ? avecRedirection('/onboarding/intention', searchParams.get('redirect'))
-                : redirectTo,
-            )
-          }
+          // TCK-624 — compte neuf ou non, même porte : un compte ouvert par téléphone n'a pas de
+          // prénom, et c'est elle qui le demande.
+          onConnecte={() => router.push(sortie)}
           onEmail={() => setVoieEmail(true)}
         />
         <OAuthButtons separator="before" redirect={searchParams.get('redirect')} />

@@ -298,9 +298,12 @@ describe('TCK-432 · AC1 — l’accueil porte des biens dans le HTML du serveur
 
     // ⚠ La mesure porte sur ce que le RÉSEAU a reçu, pas sur ce que la page affiche : c'est la
     // seule façon de distinguer « le serveur a demandé sans ville » de « le serveur a attendu ».
-    expect(urlsDemandees).toHaveLength(1);
-    expect(urlsDemandees[0]).toContain('/public/properties/discovery');
-    expect(urlsDemandees[0]).not.toContain('near_city');
+    // TCK-628 — l'accueil demande AUSSI ses raccourcis (vente, villes, types, quartiers) : la
+    // garde porte donc sur l'appel des rangées, qui reste unique et sans ville.
+    const rangees = urlsDemandees.filter((u) => u.includes('/public/properties/discovery'));
+    expect(rangees).toHaveLength(1);
+    expect(rangees[0]).not.toContain('near_city');
+    expect(urlsDemandees.filter((u) => u.includes('near_city'))).toEqual([]);
   });
 
   it('reste servable quand l’API tombe — et ne prétend alors rien afficher', async () => {
@@ -356,7 +359,7 @@ describe('TCK-432 · AC2 — `/properties?type=villa` porte les biens du FILTRE'
       urlsDemandees.find((u) => u.includes('/public/properties/search'))!.split('?')[1],
     );
     expect(recherche.get('q')).toBe('villa piscine');
-    expect(recherche.get('per_page')).toBe('30');
+    expect(recherche.get('per_page')).toBe('40');
   });
 
   it('efface la demi-coordonnée que le serveur rendrait en 422 (TCK-346), comme le client', async () => {

@@ -397,7 +397,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
 
       <NavbarSpacer />
 
-      <div className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-16 py-4 md:py-8">
+      {/* TCK-628 — 1920 px au plus (1440 avant), comme la barre et l'accueil : au-delà de 1800 px
+          la grille passe à six colonnes, de la largeur des cartes des rangées de l'accueil. */}
+      <div className="max-w-[1920px] mx-auto px-4 md:px-8 lg:px-16 py-4 md:py-6">
         <div className="flex gap-6 items-start">
           <FilterSidebar
             filters={filters}
@@ -434,7 +436,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // TCK-553 — en vue carte sous `lg`, le titre quitte l'écran mais PAS l'arbre
               // d'accessibilité (`sr-only`, et non `hidden`) : la page garde son `<h1>` (TCK-432).
               <h1
-                className={`font-display text-[22px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-5 ${
+                className={`font-display text-[22px] md:text-[28px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-4 ${
                   vue === 'map' ? 'max-lg:sr-only' : ''
                 }`}
               >
@@ -591,7 +593,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                   // `enCours` couvre aussi l'aller-retour de navigation, qui ne montrait rien.
                   // `saturate` en plus de l'opacité : des photos à moitié transparentes gardaient
                   // leurs couleurs et se lisaient encore comme des résultats valides.
-                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-[opacity,filter] duration-300 ease-out ${
+                  // TCK-628 — 1800 px s'écrit `min-[112.5rem]`, pas `min-[1800px]` : Tailwind 4
+                  // range un palier en px AVANT les paliers en rem, et `2xl:grid-cols-5` l'écrasait
+                  // (mesuré : 5 colonnes à 1920).
+                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[112.5rem]:grid-cols-6 gap-x-4 gap-y-8 transition-[opacity,filter] duration-300 ease-out ${
                     enCours
                       ? 'opacity-45 saturate-[0.35] pointer-events-none'
                       : 'opacity-100'

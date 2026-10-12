@@ -133,6 +133,11 @@
              raison que `DB_CONNECTION`, `CACHE_STORE` ou `SCOUT_DRIVER` ci-dessus. -->
         <!-- TCK-589 — aucun pilote `log` en fin de chaîne SMS en test, quel que soit le `.env` local. -->
         <env name="SMS_LOG_FALLBACK" value="false"/>
+        <!-- TCK-620 (ADR-0060) — éteint : un test l'allume pour lui seul (`OtpPreviewTest`). -->
+        <env name="OTP_PREVIEW_ENABLED" value="false"/>
+        <!-- TCK-620 — `.env.docker` allume la connexion par téléphone : la suite ne doit pas en hériter.
+             Les tests qui la veulent l'allument pour eux seuls (`PhoneLoginTest`). -->
+        <env name="PHONE_LOGIN_ENABLED" value="false"/>
         <env name="SMS_ORANGE_OAUTH_URL" value="https://api.orange.com/oauth/v3/token"/>
         <env name="SMS_ORANGE_SEND_URL" value="https://api.orange.com/smsmessaging/v1/outbound/{senderAddress}/requests"/>
         <env name="SMS_MTARGET_SEND_URL" value="https://api-public-2.mtarget.fr/messages"/>

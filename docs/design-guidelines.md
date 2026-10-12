@@ -297,16 +297,16 @@ Le DS définit **4 variantes de carte**, **une par section** sur les surfaces de
 
 | Variante | Format | Quand l'utiliser | Exemple section |
 |---|---|---|---|
-| **Standard** | 4:3 rounded-xl, prix → titre → location → méta | Découverte générique près de l'utilisateur | « Près de toi » |
+| **Standard** | 1:1 rounded-2xl, titre → lieu → détails → prix, prix en `text-foreground` (TCK-628) | Découverte générique près de l'utilisateur | « Près de toi », « À vendre » |
 | **Listing** (Wide) | Image carrée 1:1 à gauche + méta à droite, format dense liste | Rangées géolocalisées ou listes orientées scan vertical | « À louer » |
 | **Cover** (Overlay) | 3:4 façon couverture magazine, gradient bas, titre + prix superposés en blanc | Sections signature / éditoriales | « Coup de cœur » |
 | **Compact** | 1:1 carrée, dense, scan rapide | Rangées orientées fraîcheur / nouveauté | « Tout juste publié » |
 
 **Naming canonique** : `PropertyCardStandard / Listing / Cover / Compact` sous `src/components/property/cards/`. Un composant `PropertyRow` générique dispatche via prop `variant`.
 
-**Carte de liste — `PropertyCard`** (résultats de `/properties`, favoris, biens similaires) : même
-silhouette verticale que la Standard (photo 4:3, prix → titre → lieu → détails). Règles tenues par
-TCK-555 :
+**Carte de liste — `PropertyCard`** (résultats de `/properties`, favoris, biens similaires) :
+silhouette verticale, photo 4:3, prix → titre → lieu → détails — la Standard de l'accueil est
+carrée et met le prix en dernier depuis TCK-628. Règles tenues par TCK-555 :
 
 - **Une colonne pleine largeur sous `md`** sur `/properties` (photo de 328 × 246 px à 360 px, contre
   156 × 117 en deux colonnes) ; les paliers de bureau ne bougent pas. Décision réversible : la ligne

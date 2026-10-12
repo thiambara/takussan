@@ -32,10 +32,14 @@ import { describe, expect, it } from 'vitest';
 const RACINE = process.cwd();
 const CSS = readFileSync(join(RACINE, 'src/app/globals.css'), 'utf8');
 
-/** Les deux appelants, et les seuls — le balayage dérivé de `src/` n'en a pas trouvé d'autres. */
+/**
+ * Les appelants que cette garde suit (d'autres fichiers posent depuis `var(--shadow-color)`).
+ *
+ * TCK-628 — `PropertyCardStandard.tsx` n'en est plus : son ombre était celle de la pastille
+ * d'ancienneté posée sur la photo, et l'ancienneté est passée dans la ligne de détails.
+ */
 const APPELANTS = [
   'src/components/property/cards/PropertyCardListing.tsx',
-  'src/components/property/cards/PropertyCardStandard.tsx',
 ] as const;
 
 /** Le corps d'un bloc de premier niveau (`:root { … }`, `.dark { … }`). */

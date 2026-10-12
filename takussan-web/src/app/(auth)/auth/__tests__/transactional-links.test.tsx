@@ -83,6 +83,25 @@ describe('transactional auth links', () => {
     expect(screen.getByText('Adresse email vérifiée')).toBeInTheDocument();
   });
 
+  it('TCK-624 — sans session, le lien se vérifie quand même et propose de se connecter', async () => {
+    getTokenMock.mockResolvedValue(undefined);
+    apiRequestMock.mockResolvedValue({ message: 'Email verified successfully.' });
+
+    render(
+      await VerifyEmailHashPage({
+        params: Promise.resolve({ id: '42', hash: 'abc123' }),
+        searchParams: Promise.resolve({ expires: '1778246400', signature: 'signed' }),
+      }),
+    );
+
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/api/auth/verify-email/42/abc123?expires=1778246400&signature=signed',
+      {},
+    );
+    expect(screen.getByText('Adresse email vérifiée')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Se connecter' })).toHaveAttribute('href', '/auth/login');
+  });
+
   it('submits a reset link and redirects to the login success message', async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams(

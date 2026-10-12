@@ -16,8 +16,9 @@ import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
 
+const navigation = vi.hoisted(() => ({ chemin: '/app' }));
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/app',
+  usePathname: () => navigation.chemin,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => ({ get: () => null, toString: () => '' }),
 }));
@@ -170,5 +171,44 @@ describe('AppShell — bannière d\'impersonation (TCK-600)', () => {
   it('hors session : pas de bannière', () => {
     rendre();
     expect(screen.queryByTestId('impersonation-banner')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-631 — le parcours de publication se montre en plein écran : ni barre haute, ni barre
+ * latérale. Les bandeaux de session, eux, restent (cf. le bloc précédent).
+ */
+describe('AppShell — plein écran sur le parcours de publication (TCK-631)', () => {
+  afterEach(() => {
+    navigation.chemin = '/app';
+  });
+
+  function rendre(chemin: string) {
+    navigation.chemin = chemin;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      withIntl(
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <AppShell user={user}>
+              <p>contenu</p>
+            </AppShell>
+          </ToastProvider>
+        </QueryClientProvider>,
+      ),
+    );
+  }
+
+  it('sur /app/properties/new : le contenu seul, sans barre haute ni navigation', () => {
+    rendre('/app/properties/new');
+    expect(screen.getByText('contenu')).toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+
+  it('sur /app/properties : la coque entière, comme partout ailleurs', () => {
+    rendre('/app/properties');
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getAllByRole('navigation').length).toBeGreaterThan(0);
   });
 });

@@ -72,6 +72,11 @@ describe('<SearchPreferencesForm>', () => {
     renderForm({ initial: SAMPLE, emailVerified: false });
     expect(screen.getByTestId('pref-alerts-toggle')).toBeDisabled();
     expect(screen.getByTestId('pref-alerts-unverified')).toBeInTheDocument();
+    // TCK-632 — vers les coordonnées, qui ajoutent l'adresse d'un compte ouvert par téléphone.
+    expect(screen.getByRole('link', { name: 'Vérifier mon email' })).toHaveAttribute(
+      'href',
+      '/app/profile#coordonnees',
+    );
   });
 
   it('creates a SavedSearch via POST when none exists', async () => {

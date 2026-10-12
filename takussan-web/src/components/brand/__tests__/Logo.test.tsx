@@ -58,6 +58,17 @@ describe('le logo', () => {
     }
     expect(lire('src/components/brand/Logo.tsx')).not.toMatch(/#[0-9a-f]{3,8}\b/i);
   });
+
+  // TCK-621 — sur la barre d'encre, le toit, l'horizon et le nom passent au lin ; les rayons restent
+  // terracotta. Le traitement de `icon.svg`, par les jetons.
+  it('en ton clair, peint toit, horizon et nom à --background', () => {
+    const { container } = render(<Logo nom="Takussan" ton="clair" />);
+    const traits = [...container.querySelectorAll('svg > g, svg > path')].map((t) => t.getAttribute('class'));
+    expect(traits).toEqual(['stroke-primary', 'stroke-background', 'stroke-background']);
+    const nom = container.querySelector('[aria-hidden="true"].uppercase')!;
+    expect(nom.classList).toContain('text-background');
+    expect(nom.classList).not.toContain('text-foreground');
+  });
 });
 
 describe('l’icône du site', () => {

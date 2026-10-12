@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**563 tickets** — 43 ouverts, 518 livrés.
+**576 tickets** — 43 ouverts, 531 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 518 |
+| ✅ Done | 531 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -89,7 +89,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 518
+## ✅ Done — 531
 
 <details>
 <summary><strong>Vague 73 — Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)</strong> — 19 tickets</summary>
@@ -970,7 +970,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 18 tickets</summary>
+<summary><strong>Sans vague</strong> — 31 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -990,6 +990,19 @@ _(aucun)_
 - [TCK-354](tickets/TCK-354-dompdf-dependance-de-dev-utilisee-en-production.md) — Le reçu de paiement PDF ne peut pas se générer sur un environnement déployé : `dompdf/dompdf` est une dépendance de dév `S · P1 · bug`
 - [TCK-356](tickets/TCK-356-conversion-preview-sous-resolue.md) — La plus grande image qu'un visiteur puisse recevoir fait 800 × 600, pour des emplacements qui en demandent jusqu'à 2 432 `M · P2 · back`
 - [TCK-390](tickets/TCK-390-agences-filtre-is-verified.md) — Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part `S · P2 · full`
+- [TCK-620](tickets/TCK-620-code-sms-affiche-en-preproduction.md) — En préproduction, aucun numéro ne se vérifie : le code part vers un fournisseur SMS absent et personne ne peut le lire — l'afficher dans l'écran où on le saisit, et allumer la connexion par téléphone `M · P1 · full`
+- [TCK-621](tickets/TCK-621-logo-dans-toutes-les-coques.md) — Le logo seulement sur le site public : les tableaux de bord, la console, l'authentification, les onboardings et les écrans d'erreur écrivent « Takussan » en texte nu, ou rien `S · P1 · front`
+- [TCK-622](tickets/TCK-622-borne-sms-compte-les-envois.md) — « Trop de tentatives » sur un parcours ordinaire : la borne SMS par numéro comptait les requêtes et non les codes envoyés, et le front écrasait tout 429 sous le même message `S · P1 · full`
+- [TCK-623](tickets/TCK-623-compte-sans-nom-affiche-undefined.md) — « UNDEFINED » dans la navbar : un compte ouvert par téléphone n'a pas de nom, et l'interface écrivait `''[0]` en toutes lettres — la section contact du profil ne s'enregistrait pas non plus `S · P1 · full`
+- [TCK-624](tickets/TCK-624-une-porte-de-sortie-de-l-authentification.md) — Entrer : quatre sorties d'authentification qui perdaient la destination, ne demandaient jamais de prénom, et un lien de vérification qui n'ouvrait rien sans session `M · P1 · full`
+- [TCK-625](tickets/TCK-625-publier-une-regle-un-choix-d-espace.md) — Devenir publicateur : /publish lâchait les comptes multi-agences sur un /app qui ne lisait rien, « Professionnel » était sans effet et le message de fin annonçait un brouillon inexistant `M · P1 · front`
+- [TCK-626](tickets/TCK-626-page-d-acceptation-d-invitation.md) — Le lien d'invitation (e-mail et SMS) menait à une 404 : /invitations/accept n'avait pas de page, et l'acceptation aucun appelant `S · P1 · front`
+- [TCK-627](tickets/TCK-627-publier-le-bien-publie.md) — « Publier l'annonce » ne publiait pas : le bien partait en pending_review privé, le quota ne se voyait qu'au 422 final et le brouillon n'était pas reprenable `M · P1 · full`
+- [TCK-628](tickets/TCK-628-accueil-dense-et-recherche.md) — Accueil dense et liste des biens : 7 cartes par rangée à 1920 au lieu de 4, des raccourcis par ville, type et quartier lus sur des endpoints existants, 40/60/70 biens par page avec un seul défaut des deux côtés, et la bande de catégories réordonnée `M · P1 · full`
+- [TCK-629](tickets/TCK-629-accueil-sept-cartes-et-similaires.md) — Accueil, retour du porteur sur TCK-628 : sept cartes par rangée dès un écran d'ordinateur, plus de tuiles par ville, type ou quartier, et « Récemment consultés » complété par des biens similaires `S · P1 · front`
+- [TCK-630](tickets/TCK-630-tiroir-de-filtres-en-tete-fixe.md) — Tiroir des filtres sur téléphone : l'en-tête (« Filtres », « Tout effacer », fermer) défilait avec les filtres ; il reste en haut, le corps défile dessous `S · P1 · front`
+- [TCK-631](tickets/TCK-631-publication-plein-ecran-et-apercu.md) — Publier un bien : le parcours sort du tableau de bord (une question par écran) et montre l'annonce qui se construit à côté — la piste 6 des maquettes `M · P1 · front`
+- [TCK-632](tickets/TCK-632-ajouter-et-verifier-son-email-depuis-le-profil.md) — Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil `S · P1 · full`
 
 </details>
 

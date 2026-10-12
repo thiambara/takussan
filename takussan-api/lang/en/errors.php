@@ -140,6 +140,8 @@ return [
     ],
     'email' => [
         'already_verified' => 'This email address is already verified.',
+        'missing' => 'No email address is saved on this account.',
+        'change_requires_proof' => 'A verified email address cannot be replaced from the profile yet.',
     ],
     'export' => [
         'forbidden' => 'You are not allowed to export this data.',
@@ -379,7 +381,9 @@ return [
         'already_verified' => 'This phone number is already verified.',
         'code_invalid' => 'Invalid or expired verification code.',
         'missing' => 'No phone number is on file.',
-        'resend_too_soon' => 'Please wait before requesting another code.',
+        'resend_too_soon' => 'A code was just sent. You can ask for another one in :seconds s.',
+        'send_limit' => 'Too many codes requested for this number. Try again in :minutes min.',
+        'send_limit_day' => 'Too many codes requested for this number today. Try again in :hours h.',
         'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
         'no_verified_number' => 'No verified number is on file for this account.',
     ],

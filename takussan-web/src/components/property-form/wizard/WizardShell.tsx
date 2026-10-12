@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,16 @@ import { cn } from '@/lib/utils';
  * Elle ne connaît RIEN du domaine : ni bien, ni adresse, ni prix. Elle reçoit des étapes déjà
  * traduites et déjà validées par l'appelant, et ne décide que du mouvement. C'est ce qui la rend
  * testable sans formulaire.
+ *
+ * TCK-631 (piste 6) — la coquille occupe tout l'écran (la console retire sa chrome sur cette
+ * route, cf. `layout/plein-ecran.ts`) et se compose de quatre zones :
+ *
+ * - l'**en-tête** (`entete`), fourni par l'appelant — la marque, l'état du brouillon, la sortie ;
+ * - la **question**, seule zone défilante, que précède « Partie N sur 3 · … » ;
+ * - le **pied**, hors du défilement : la progression en parties, « Précédent », « Continuer » ;
+ * - l'**aperçu** : une colonne à droite dès `lg` (`apercu`), une barre sous l'en-tête en dessous
+ *   (`barreApercu`). Le rail d'étapes et la barre « Étape 1 sur 6 » disparaissent — ils disaient
+ *   deux fois la même chose ; la liste de l'aperçu reprend le rôle du rail.
  *
  * ⚠ Elle ne réutilise PAS `WizardReprenable` (TCK-250) : le chrome de ce composant — barre,
  * pastilles, boutons Précédent/Suivant — est exactement ce que ce ticket remplace. La partie
@@ -41,6 +51,8 @@ export type WizardStepDef = {
   readonly body: React.ReactNode;
   readonly canAdvance?: boolean;
   readonly skippable?: boolean;
+  /** TCK-631 — l'index de la PARTIE (dans `parts`) à laquelle l'étape appartient. */
+  readonly part?: number;
 };
 
 export type WizardShellProps = {
@@ -51,24 +63,39 @@ export type WizardShellProps = {
   readonly onFinish: () => void;
   readonly finishLabel: string;
   readonly busy?: boolean;
-  readonly footerExtra?: React.ReactNode;
+  /**
+   * TCK-631 — les libellés des parties qui regroupent les étapes (« Le bien », « Les détails »,
+   * « L'annonce »). Absent, le parcours n'a qu'une partie et la progression un seul segment.
+   */
+  readonly parts?: readonly string[];
+  readonly entete?: React.ReactNode;
+  /** La colonne d'aperçu, montrée dès `lg`. */
+  readonly apercu?: React.ReactNode;
+  /** L'aperçu replié en barre, montré SOUS `lg`. */
+  readonly barreApercu?: React.ReactNode;
+  /** Les alertes du parcours (erreur globale, brouillon refusé…), au-dessus de la question. */
+  readonly bandeau?: React.ReactNode;
 };
 
 export function WizardShell({
-  steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, footerExtra,
+  steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
+  entete, apercu, barreApercu, bandeau,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
   const derniere = index === steps.length - 1;
   const peutAvancer = etape.canAdvance !== false;
+  const partieCourante = etape.part ?? 0;
+  const segments = parts ?? [null];
 
   // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
-  // du dock, sans quoi la bulle de messagerie se posait sur « Continuer » à 390 px (mesuré le
-  // 2026-09-16). Hauteur : bordure + `pt-4` + bouton `lg` (40) + `pb-4`.
+  // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
+  // 2026-09-16). Hauteur : bordure + barre (4) + libellés des parties (22) + `pt-3` + bouton `lg`
+  // (40) + `pb-4`.
   const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
-    height: 73,
+    height: 97,
     safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
   });
 
@@ -92,144 +119,175 @@ export function WizardShell({
     dernierId.current = etape.id;
   }, [etape.id]);
 
+  /**
+   * Le remplissage d'un segment : la part de SES étapes déjà atteintes, courante comprise. Une
+   * partie franchie est pleine, une partie à venir est vide.
+   */
+  const remplissage = (partie: number) => {
+    const siennes = steps.flatMap((s, i) => ((s.part ?? 0) === partie ? [i] : []));
+    if (siennes.length === 0) return 0;
+    return siennes.filter((i) => i <= index).length / siennes.length;
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col lg:flex-row lg:gap-10">
-      {/* ── Rail d'étapes : desktop seulement. Sous lg, la barre de progression le remplace. ── */}
-      <nav aria-label={t('railLabel')} className="hidden w-56 shrink-0 lg:block">
-        <ol className="sticky top-24 space-y-1">
-          {steps.map((s, i) => {
-            const franchie = i < index;
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  disabled={!franchie}
-                  onClick={() => onNavigate(i, -1)}
-                  aria-current={i === index ? 'step' : undefined}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                    i === index && 'bg-muted font-semibold text-foreground',
-                    franchie && 'text-muted-foreground hover:bg-muted',
-                    !franchie && i !== index && 'cursor-default text-muted-foreground/50',
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'grid size-6 shrink-0 place-items-center rounded-full border text-xs',
-                      i === index && 'border-primary bg-primary text-primary-foreground',
-                      franchie && 'border-accent bg-accent/15 text-accent',
-                      !franchie && i !== index && 'border-border',
-                    )}
-                  >
-                    {franchie ? <Check className="size-3.5" strokeWidth={2.5} /> : i + 1}
-                  </span>
-                  <span className="text-pretty">{s.title}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
+    <div className="flex h-full min-h-0 flex-col">
+      {entete}
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        {/* ── Progression ── */}
-        <div className="shrink-0 pb-4">
-          <div className="mb-2 flex items-center justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={index === 0 || busy}
-              onClick={() => onNavigate(index - 1, -1)}
-              aria-label={t('back')}
-            >
-              <ArrowLeft aria-hidden="true" />
-            </Button>
-            <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-              {t('position', { current: index + 1, total: steps.length })}
-            </span>
-            {footerExtra}
-          </div>
-          <div
-            role="progressbar"
-            aria-valuenow={index + 1}
-            aria-valuemin={1}
-            aria-valuemax={steps.length}
-            aria-label={t('progressLabel')}
-            className="h-1 overflow-hidden rounded-full bg-muted"
-          >
-            {/*
-              420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre finit
-              après, donc on la voit avancer — si elle finissait avant, l'œil serait déjà parti.
-            */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {barreApercu ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
+          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14">{bandeau}</div> : null}
+
+          {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
+          <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{ width: `${((index + 1) / steps.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
-        <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
-          <div
-            key={etape.id}
-            className={cn(
-              'mx-auto max-w-xl pb-6',
-              direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
-            )}
-          >
-            <h2
-              ref={titreRef}
-              tabIndex={-1}
-              // ⚠ Pas de `focus:outline-none` nu (motif de `SuperAdminShell`) : là-bas la cible
-              // est une grande zone de contenu atteinte une fois par session via un lien
-              // d'évitement — ici c'est un titre de section atteint par une action clavier
-              // répétée (jusqu'à cinq fois dans un parcours), et retirer l'indicateur visuel
-              // priverait exactement le moment où quelqu'un au clavier veut confirmer où le
-              // focus est allé. `--ring` (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3),
-              // au-dessus du seuil non-texte de 3:1 : pas de `ring-offset` nécessaire, comme pour
-              // `FOCUS_RING` d'`AppSidebar` sur la même palette claire.
-              className="font-display text-2xl font-bold tracking-tight text-balance text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {etape.title}
-            </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-pretty text-muted-foreground">{etape.subtitle}</p>
-            <div className="mt-6 space-y-5">{etape.body}</div>
-          </div>
-        </div>
-
-        {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
-        <div
-          data-wizard-footer
-          style={{ paddingBottom: pied.paddingBottom }}
-          className="shrink-0 border-t border-border bg-background/95 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-        >
-          <div className="mx-auto flex max-w-xl items-center gap-3">
-            {etape.skippable && !derniere ? (
-              <Button type="button" variant="ghost" size="lg" disabled={busy}
-                onClick={() => onNavigate(index + 1, 1)}>
-                {t('skip')}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              size="lg"
-              className="flex-1"
-              disabled={busy || !peutAvancer}
-              onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                  <span>{t('saving')}</span>
-                </>
-              ) : (
-                <span>{derniere ? finishLabel : t('continue')}</span>
+              key={etape.id}
+              className={cn(
+                'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
+                direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
               )}
-            </Button>
+            >
+              {parts ? (
+                <p className="mb-2 text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                  {t('partPosition', {
+                    current: partieCourante + 1,
+                    total: parts.length,
+                    label: parts[partieCourante],
+                  })}
+                </p>
+              ) : null}
+              <h1
+                ref={titreRef}
+                tabIndex={-1}
+                // ⚠ Pas de `focus:outline-none` nu (motif de `SuperAdminShell`) : là-bas la cible
+                // est une grande zone de contenu atteinte une fois par session via un lien
+                // d'évitement — ici c'est un titre atteint par une action clavier répétée (jusqu'à
+                // cinq fois dans un parcours), et retirer l'indicateur visuel priverait exactement
+                // le moment où quelqu'un au clavier veut confirmer où le focus est allé. `--ring`
+                // (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3), au-dessus du seuil
+                // non-texte de 3:1 : pas de `ring-offset` nécessaire.
+                //
+                // TCK-631 — `h1` et non plus `h2` : la page ne porte plus de titre au-dessus du
+                // parcours (il disait « Publier un bien » une troisième fois). La question est le
+                // titre de la route.
+                className="font-display text-[1.625rem] leading-8 font-bold tracking-tight text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10"
+              >
+                {etape.title}
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base">
+                {etape.subtitle}
+              </p>
+              <div className="mt-7 space-y-7">{etape.body}</div>
+            </div>
+          </div>
+
+          {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
+          <div
+            data-wizard-footer
+            style={{ paddingBottom: pied.paddingBottom }}
+            className="shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+          >
+            <div
+              role="progressbar"
+              aria-valuenow={index + 1}
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              aria-valuetext={t('position', { current: index + 1, total: steps.length })}
+              aria-label={t('progressLabel')}
+              className="-mt-px grid gap-1.5 px-4 sm:px-8 xl:px-14"
+              style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
+            >
+              {segments.map((_, partie) => (
+                <div key={partie} className="h-1 overflow-hidden rounded-full bg-muted">
+                  {/*
+                    420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
+                    finit après, donc on la voit avancer — si elle finissait avant, l'œil serait
+                    déjà parti.
+                  */}
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-[width] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                      partie < partieCourante ? 'bg-foreground' : 'bg-primary',
+                    )}
+                    style={{
+                      width: `${(parts ? remplissage(partie) : (index + 1) / steps.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            {parts ? (
+              <div
+                aria-hidden="true"
+                className="grid gap-1.5 px-4 pt-1.5 text-xs text-muted-foreground sm:px-8 xl:px-14"
+                style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}
+              >
+                {parts.map((libelle, partie) => (
+                  <span
+                    key={libelle}
+                    className={cn('truncate', partie === partieCourante && 'font-semibold text-foreground')}
+                  >
+                    {libelle}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-2 px-4 pt-3 sm:px-8 xl:px-14">
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                disabled={index === 0 || busy}
+                onClick={() => onNavigate(index - 1, -1)}
+                className="-ml-2.5"
+              >
+                {t('back')}
+              </Button>
+              <div className="ml-auto flex items-center gap-2">
+                {etape.skippable && !derniere ? (
+                  <Button type="button" variant="ghost" size="lg" disabled={busy}
+                    onClick={() => onNavigate(index + 1, 1)}>
+                    {t('skip')}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="lg"
+                  className="min-w-36 sm:min-w-44"
+                  disabled={busy || !peutAvancer}
+                  onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
+                >
+                  {busy ? (
+                    <>
+                      <Loader2 className="animate-spin" aria-hidden="true" />
+                      <span>{t('saving')}</span>
+                    </>
+                  ) : (
+                    <span>{derniere ? finishLabel : t('continue')}</span>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
+
+        {apercu ? (
+          <aside
+            aria-label={t('preview.label')}
+            className="hidden w-[22rem] shrink-0 overflow-y-auto border-l border-border bg-muted/40 lg:block xl:w-[25rem]"
+          >
+            <div className="flex flex-col gap-4 p-6 xl:p-8">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                  {t('preview.label')}
+                </p>
+                <span className="text-xs text-muted-foreground">{t('preview.hint')}</span>
+              </div>
+              {apercu}
+            </div>
+          </aside>
+        ) : null}
       </div>
     </div>
   );

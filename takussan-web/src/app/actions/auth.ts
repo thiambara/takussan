@@ -48,10 +48,14 @@ export async function updateProfileAction(
   }
 
   const payload: UpdateProfilePayload = {
-    first_name: formData.get('first_name') as string,
-    last_name: formData.get('last_name') as string,
     bio: (formData.get('bio') as string) || undefined,
   };
+  // TCK-623 — un nom absent du formulaire n'est pas un nom vide : `formData.get` rendrait `null`,
+  // envoyé en toutes lettres « null ».
+  for (const champ of ['first_name', 'last_name'] as const) {
+    const valeur = formData.get(champ);
+    if (typeof valeur === 'string') payload[champ] = valeur;
+  }
 
   // Only forward `phone` if the form explicitly carried the field — keeps
   // legacy callers (no phone input) from clearing existing values.
@@ -59,6 +63,9 @@ export async function updateProfileAction(
     const raw = formData.get('phone');
     payload.phone = typeof raw === 'string' ? raw : null;
   }
+  // TCK-632 — comme le numéro : seulement si le formulaire porte le champ.
+  const email = formData.get('email');
+  if (typeof email === 'string') payload.email = email;
   // TCK-589 p3-1 — la preuve du remplacement d'un numéro vérifié, relayée telle quelle.
   for (const champ of ['current_password', 'phone_change_code'] as const) {
     const valeur = formData.get(champ);

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { FormGlobalError } from '@/components/forms';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
@@ -21,6 +22,7 @@ import {
 import {
   createPropertyAction,
   setPropertyTagsAction,
+  updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
@@ -36,6 +38,8 @@ import { StepCaracteristiques } from './wizard/steps/StepCaracteristiques';
 import { StepPrix } from './wizard/steps/StepPrix';
 import { StepPhotos } from './wizard/steps/StepPhotos';
 import { StepFinition } from './wizard/steps/StepFinition';
+import { BarreApercu, CarteApercu, ListePourPublier } from './wizard/ApercuAnnonce';
+import { EnTetePublication } from './wizard/EnTetePublication';
 import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
@@ -95,6 +99,12 @@ const CLES_PAR_ETAPE: readonly (readonly (keyof PropertyFormValues)[])[] = [
   [],
   ['title', 'description', 'virtual_tour_url'],
 ];
+
+/**
+ * TCK-631 — les six étapes en trois parties : le bien (type, lieu), les détails
+ * (caractéristiques, prix), l'annonce (photos, titre). Indexé comme `CLES_PAR_ETAPE`.
+ */
+const PARTIE_PAR_ETAPE = [0, 0, 1, 1, 2, 2] as const;
 
 /** L'index de l'étape des caractéristiques — la seule dont les clés varient d'un passage à l'autre. */
 const ETAPE_CARACTERISTIQUES = 2;
@@ -195,8 +205,11 @@ type EtatBrouillon = 'attente' | 'vide' | 'restaure';
 export function PropertyWizard({
   tags = [],
   proposition = false,
+  quotaNote,
 }: {
   readonly tags?: Tag[];
+  /** TCK-631 — « 3 annonces sur 5 » : le quota se lisait sous le titre de page, qui a disparu. */
+  readonly quotaNote?: string;
   /**
    * TCK-587 (ADR-0031) — l'auteur est un bailleur hors personnel : il PROPOSE le bien à son
    * agence. Le serveur impose déjà brouillon + privé (`PropertyController::store`) ; l'écran le
@@ -209,6 +222,7 @@ export function PropertyWizard({
   const t = useTranslations('property.wizard');
   const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
+  const toast = useToast();
   const { defaults, loading: geoEnCours } = useGeoSuggestion();
   const brouillon = useWizardDraft<Partial<PropertyFormValues>>(CLE_BROUILLON);
   const { save: sauverBrouillon, flush: viderFileBrouillon, clear: effacerBrouillon } = brouillon;
@@ -239,6 +253,13 @@ export function PropertyWizard({
   const [idCree, setIdCree] = useState<number | null>(null);
   const [tagsEnvoyes, setTagsEnvoyes] = useState(false);
   const [photosEnvoyees, setPhotosEnvoyees] = useState(false);
+  /**
+   * TCK-627 — la quatrième écriture : publier. Le bien naît brouillon ; `PUT …/visibility`
+   * le publie et rend le statut que l'agence décide (`available`, ou `pending_review` quand elle
+   * modère). Un refus (quota, droits) laisse un brouillon BIEN RÉEL : on le dit, on ne le recrée pas.
+   */
+  const [statutPublie, setStatutPublie] = useState<string | null>(null);
+  const [echecPublication, setEchecPublication] = useState(false);
 
   /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
   const terminer = async (id: number) => {
@@ -255,12 +276,13 @@ export function PropertyWizard({
     defaultValues: valeursInitiales(),
     onSubmit: async (values) => {
       setAvertissement(null);
+      setEchecPublication(false);
       // Un bien déjà créé n'est JAMAIS recréé : une reprise après échec partiel rejoue les
       // écritures manquantes, pas la création. C'est l'AC7.
       if (idCree !== null) return { id: idCree } as PropertyDetail;
 
       const resultat = await createPropertyAction(
-        toCreatePayload(values as unknown as PropertyFormPayload, 'submit'),
+        toCreatePayload(values as unknown as PropertyFormPayload),
       );
       if (!resultat.ok) {
         throw new ApiError(resultat.status ?? 500, {
@@ -309,6 +331,27 @@ export function PropertyWizard({
         return;
       }
 
+      // Le bailleur hors personnel PROPOSE : il n'a pas `properties.publish`, l'agence publiera.
+      let statut = statutPublie;
+      if (!proposition && statut === null) {
+        const r = await updatePropertyVisibilityAction(bien.id, 'public');
+        if (!r.ok) {
+          setAvertissement(t('publishFailed', { message: r.message }));
+          setEchecPublication(true);
+          return;
+        }
+        statut = r.data?.status ?? 'available';
+        setStatutPublie(statut);
+      }
+
+      toast.add({
+        title: proposition
+          ? t('outcome.proposal')
+          : statut === 'pending_review'
+            ? t('outcome.review')
+            : t('outcome.live'),
+        type: 'success',
+      });
       await terminer(bien.id);
     },
   });
@@ -441,6 +484,7 @@ export function PropertyWizard({
   const etapes: WizardStepDef[] = [
     {
       id: 'bien',
+      part: PARTIE_PAR_ETAPE[0],
       title: t('steps.bien.title'),
       subtitle: t('steps.bien.subtitle'),
       body: <StepBien form={form} />,
@@ -448,12 +492,14 @@ export function PropertyWizard({
     },
     {
       id: 'lieu',
+      part: PARTIE_PAR_ETAPE[1],
       title: t('steps.lieu.title'),
       subtitle: t('steps.lieu.subtitle'),
       body: <StepLieu form={form} refus={refus} />,
     },
     {
       id: 'caracteristiques',
+      part: PARTIE_PAR_ETAPE[2],
       // « Parlez-nous du terrain », « … de la maison » : c'est le VOCABULAIRE qui porte l'article,
       // pas le gabarit. Un `{type}` en minuscule suivi d'un article écrit dans la phrase
       // produirait « du maison » une fois sur deux en français — d'où `typeArticle` et non un
@@ -475,12 +521,14 @@ export function PropertyWizard({
     },
     {
       id: 'prix',
+      part: PARTIE_PAR_ETAPE[3],
       title: t('steps.prix.title'),
       subtitle: t(contrat === 'rent' ? 'steps.prix.subtitleRent' : 'steps.prix.subtitleSale'),
       body: <StepPrix form={form} />,
     },
     {
       id: 'photos',
+      part: PARTIE_PAR_ETAPE[4],
       title: t('steps.photos.title'),
       subtitle: t('steps.photos.subtitle'),
       skippable: true,
@@ -498,6 +546,7 @@ export function PropertyWizard({
     },
     {
       id: 'finition',
+      part: PARTIE_PAR_ETAPE[5],
       title: t('steps.finition.title'),
       subtitle: t('steps.finition.subtitle'),
       body: <StepFinition form={form} />,
@@ -517,6 +566,37 @@ export function PropertyWizard({
       </div>
     );
   }
+
+  /** Les six étapes, nommées court, pour la liste « Pour publier » de l'aperçu. */
+  const etapesDeListe = etapes.map((e) => ({
+    id: e.id,
+    libelle: t(`steps.${e.id}.short`),
+    facultative: e.skippable,
+  }));
+  const listePourPublier = (apresGeste?: () => void) => (
+    <ListePourPublier
+      etapes={etapesDeListe}
+      index={index}
+      desactivee={isSubmitting}
+      onRouvrir={(i) => {
+        apresGeste?.();
+        void naviguer(i, -1);
+      }}
+    />
+  );
+  const noteDeQuota = quotaNote ? (
+    <p className="text-xs text-muted-foreground" data-testid="note-de-quota">{quotaNote}</p>
+  ) : null;
+
+  const enregistrement = brouillon.isSaving
+    ? 'en-cours'
+    : brouillon.draft && !brouillon.error
+      ? 'enregistre'
+      : 'aucun';
+
+  const aDesAlertes = Boolean(
+    globalError || avertissement || echecReprise || brouillon.error || proposition || repriseAnnoncee,
+  );
 
   return (
     <form
@@ -543,107 +623,130 @@ export function PropertyWizard({
         if (index === etapes.length - 1) void handleSubmit();
       }}
     >
-      <div className="shrink-0">
-        <FormGlobalError>
-          {globalError ? (
-            <span className="flex items-center justify-between gap-4">
-              <span>{globalError}</span>
-              <button type="button" onClick={clearGlobalError} className="text-xs underline">
-                {t('close')}
-              </button>
-            </span>
-          ) : null}
-        </FormGlobalError>
+      <WizardShell
+        steps={etapes}
+        index={index}
+        direction={direction}
+        onNavigate={(prochain, sens) => void naviguer(prochain, sens)}
+        onFinish={() => void handleSubmit()}
+        finishLabel={proposition ? t('proposalFinish') : t('publish')}
+        busy={isSubmitting}
+        parts={[t('parts.bien'), t('parts.details'), t('parts.annonce')]}
+        entete={
+          <EnTetePublication
+            titre={proposition ? t('header.proposal') : t('header.publish')}
+            enregistrement={enregistrement}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSubmitting}
+                onClick={() => void reprendrePlusTard()}
+              >
+                {t('resumeLater')}
+              </Button>
+            }
+          />
+        }
+        apercu={
+          <>
+            <CarteApercu form={form} photos={photos} />
+            {listePourPublier()}
+            {noteDeQuota}
+          </>
+        }
+        barreApercu={
+          <BarreApercu form={form} photos={photos}>
+            {(fermer) => (
+              <>
+                {listePourPublier(fermer)}
+                {noteDeQuota}
+              </>
+            )}
+          </BarreApercu>
+        }
+        bandeau={aDesAlertes ? (
+          <>
+            <FormGlobalError>
+              {globalError ? (
+                <span className="flex items-center justify-between gap-4">
+                  <span>{globalError}</span>
+                  <button type="button" onClick={clearGlobalError} className="text-xs underline">
+                    {t('close')}
+                  </button>
+                </span>
+              ) : null}
+            </FormGlobalError>
 
-        {avertissement ? (
-          <div
-            role="alert"
-            className="mb-4 flex flex-col gap-2 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span>{avertissement}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => {
-                if (idCree !== null) void terminer(idCree);
-              }}
-            >
-              {t('partial.continueAnyway')}
-            </Button>
-          </div>
+            {avertissement ? (
+              <div
+                role="alert"
+                className="mb-4 flex flex-col gap-2 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span>{avertissement}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    if (idCree !== null) void terminer(idCree);
+                  }}
+                >
+                  {echecPublication ? t('publishFailedOpen') : t('partial.continueAnyway')}
+                </Button>
+              </div>
+            ) : null}
+
+            {echecReprise ? (
+              <div
+                role="alert"
+                className="mb-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span>{t('draftSaveFailed')}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => void reprendrePlusTard()}
+                >
+                  {t('draftSaveRetry')}
+                </Button>
+              </div>
+            ) : null}
+
+            {/*
+              L'autosave, lui, est silencieux par construction — c'est ce qui le rend agréable et
+              c'est ce qui le rend dangereux. Tant qu'il échoue, la ligne reste : elle ne promet
+              rien, elle dit seulement ce qu'on sait. `echecReprise` la remplace le cas échéant,
+              pour ne pas dire deux fois la même chose.
+            */}
+            {!echecReprise && brouillon.error ? (
+              <p role="status" className="mb-4 text-sm text-destructive">
+                {t('draftAutosaveFailed')}
+              </p>
+            ) : null}
+
+            {proposition ? (
+              <p
+                role="note"
+                className="mb-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-pretty text-muted-foreground"
+                data-testid="property-proposal-notice"
+              >
+                {t('proposalNotice')}
+              </p>
+            ) : null}
+
+            {repriseAnnoncee ? (
+              <p role="status" className="mb-4 text-sm text-muted-foreground">
+                {t('draftResumed')}
+              </p>
+            ) : null}
+          </>
         ) : null}
-
-        {echecReprise ? (
-          <div
-            role="alert"
-            className="mb-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span>{t('draftSaveFailed')}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => void reprendrePlusTard()}
-            >
-              {t('draftSaveRetry')}
-            </Button>
-          </div>
-        ) : null}
-
-        {/*
-          L'autosave, lui, est silencieux par construction — c'est ce qui le rend agréable et c'est
-          ce qui le rend dangereux. Tant qu'il échoue, la ligne reste : elle ne promet rien, elle
-          dit seulement ce qu'on sait. `echecReprise` la remplace le cas échéant, pour ne pas dire
-          deux fois la même chose.
-        */}
-        {!echecReprise && brouillon.error ? (
-          <p role="status" className="mb-4 text-sm text-destructive">
-            {t('draftAutosaveFailed')}
-          </p>
-        ) : null}
-
-        {proposition ? (
-          <p
-            role="note"
-            className="mb-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-pretty text-muted-foreground"
-            data-testid="property-proposal-notice"
-          >
-            {t('proposalNotice')}
-          </p>
-        ) : null}
-
-        {repriseAnnoncee ? (
-          <p role="status" className="mb-4 text-sm text-muted-foreground">
-            {t('draftResumed')}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="min-h-0 flex-1">
-        <WizardShell
-          steps={etapes}
-          index={index}
-          direction={direction}
-          onNavigate={(prochain, sens) => void naviguer(prochain, sens)}
-          onFinish={() => void handleSubmit()}
-          finishLabel={proposition ? t('proposalFinish') : t('publish')}
-          busy={isSubmitting}
-          footerExtra={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={isSubmitting}
-              onClick={() => void reprendrePlusTard()}
-            >
-              {t('resumeLater')}
-            </Button>
-          }
-        />
-      </div>
+      />
     </form>
   );
 }

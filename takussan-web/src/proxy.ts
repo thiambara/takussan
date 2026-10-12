@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
+import { destinationInterne } from '@/lib/redirection-interne';
 import { LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME } from '@/i18n/config';
 import { cheminLocalise, decouperLocale, estCheminLocalisable, localeDeRepli } from '@/i18n/routing';
 import { NextRequest, NextResponse } from 'next/server';
@@ -78,7 +79,10 @@ export function proxy(request: NextRequest): NextResponse {
   // l'intention (`redirect`) — mesuré au navigateur, invisible aux tests de la page.
   const isPageDeCompteConnecte = /^\/auth\/verify-email(?:\/|$)/.test(pathname);
   if (isAuthPath && token && !isPageDeCompteConnecte) {
-    return NextResponse.redirect(new URL('/app', request.url));
+    // TCK-624 — la destination demandée survit : `/auth/login?redirect=/publish` ouvert avec une
+    // session déjà là menait à `/app`, et le clic sur « Publier » ne publiait rien.
+    const demandee = destinationInterne(request.nextUrl.searchParams.get('redirect'));
+    return NextResponse.redirect(new URL(demandee, request.url));
   }
 
   // ── Le schéma d'URL de la langue ──────────────────────────────────────────────────────────────

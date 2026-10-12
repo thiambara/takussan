@@ -73,6 +73,18 @@
       "ui",
       "validation"
     ],
+    "invitations": [
+      "announcements",
+      "common",
+      "errors",
+      "invitationAccept",
+      "messaging",
+      "meta",
+      "onboarding",
+      "publicLeadErrors",
+      "serverActions",
+      "validation"
+    ],
     "(dashboard)/app": [
       "account",
       "agency",
@@ -206,14 +218,15 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 14,
-    "(auth)": 17,
-    "publish": 18,
-    "onboarding": 47,
-    "(dashboard)": 18,
-    "(dashboard)/app": 73,
+    ".": 13,
+    "(auth)": 16,
+    "publish": 17,
+    "onboarding": 46,
+    "(dashboard)": 16,
+    "invitations": 15,
+    "(dashboard)/app": 71,
     "(dashboard)/admin": 63,
-    "[locale]/(public)": 37,
+    "[locale]/(public)": 35,
     "(super-admin)/super-admin": 43
   }
 }

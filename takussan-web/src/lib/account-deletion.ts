@@ -4,6 +4,7 @@
  */
 
 import { apiRequest } from './api';
+import { codeApercu } from '@/lib/otp-preview';
 
 export type AccountDeletionRequest = {
   id: number;
@@ -64,11 +65,16 @@ export async function requestAccountDeletion(
  * `/api` est écrit ici : `apiRequest` ne l'ajoute pas (contrairement à
  * `apiFetch`), et l'oublier produit un `net::ERR_FAILED` par CORS.
  */
-export async function sendAccountDeletionStepUpCode(token: string): Promise<void> {
-  await apiRequest('/api/auth/me/deletion-request/step-up', {
+export async function sendAccountDeletionStepUpCode(
+  token: string,
+): Promise<{ codeApercu: string | null }> {
+  const res = await apiRequest('/api/auth/me/deletion-request/step-up', {
     method: 'POST',
     token,
   });
+  // TCK-620 (ADR-0060) — un compte sans e-mail reçoit son code par SMS ; hors production, l'API
+  // le rend aussi.
+  return { codeApercu: codeApercu(res) };
 }
 
 export async function cancelAccountDeletion(token: string): Promise<void> {

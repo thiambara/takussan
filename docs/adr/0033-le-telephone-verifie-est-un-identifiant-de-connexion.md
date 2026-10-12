@@ -3,6 +3,8 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-589](../backlog/tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md)
+- **Amendé** : §6 par [TCK-622](../backlog/tickets/TCK-622-borne-sms-compte-les-envois.md) (2026-10-10) — la
+  borne par numéro compte les codes **envoyés**, plus les requêtes.
 - **Précise** : [ADR-0010](0010-auth-token-sanctum-en-cookie.md) (le jeton Sanctum porté par cookie
   reste le seul transport de session ; ce qui change est **comment on l'obtient** et **combien de
   temps il vit**).
@@ -131,9 +133,9 @@ pourquoi les invitations sans e-mail suivent le même drapeau.
 | Borne | Valeur | Où |
 |---|---|---|
 | Délai entre deux envois au même numéro | 60 s | service (cache) |
-| `auth-phone-send` — par numéro | 3 / 15 min **et** 5 / 24 h | limiteur nommé |
-| `auth-phone-send` — par IP | 20 / h | limiteur nommé |
-| `auth-phone-send` posé aussi sur `phone/send-otp` et `phone/resend` (M3) | mêmes bornes, numéro destinataire = corps, sinon numéro du compte | limiteur nommé |
+| Par numéro (TCK-622) | 3 / 15 min **et** 5 / 24 h, **par code envoyé** (une réponse neutre ou un numéro verrouillé comptent comme un envoi) ; 429 `phone.send_limit` / `phone.send_limit_day` avec `retry_after` ; hors production, code affiché (ADR-0060) : 20 / 15 min et 60 / 24 h | `PhoneSendQuota`, appelé par les contrôleurs |
+| `auth-phone-send` — par IP | 20 / h, sur toutes les requêtes | limiteur nommé |
+| Les deux posés aussi sur `phone/send-otp`, `phone/resend` et `change-code` (M3) | numéro destinataire = numéro du compte, une fois le corps écrit | idem |
 | Indicatifs servis pour un code (M3) | liste blanche, défaut `221` (`sms.otp_allowed_country_codes`) ; hors liste 422 `phone_country_not_allowed`, rien n'est écrit ni envoyé | appelants + `issue()` |
 | Plafond global des codes (M3) | 2000 / jour UTC (`sms.otp_daily_cap`) ; atteint : 503 `sms_capacity_reached` (202 muet à `request-code`), alerte au journal une fois | service (cache) |
 | `auth-phone-verify` — par numéro | **4** / 15 min (sous la moitié du seuil, M1) | limiteur nommé |

@@ -144,14 +144,16 @@ describe('TCK-559 — `per_page` ne sépare pas la clef semée de la clef du cli
   });
 
   it('la requête que le client avait envoyée, triée, est exactement la clef semée', () => {
-    const relevee = new URLSearchParams('contract_type=rent&q=Dakar&per_page=30');
+    // TCK-628 — l'audit avait relevé `per_page=30`, le défaut d'alors ; c'est le DÉFAUT qui compte
+    // ici, pas le nombre : la requête que le client envoie sans `per_page` dans l'URL.
+    const relevee = new URLSearchParams(`contract_type=rent&q=Dakar&per_page=${PER_PAGE_PAR_DEFAUT}`);
     expect(clefDeRecherche(relevee)).toBe(cotéServeur({ contract_type: 'rent', q: 'Dakar' }));
   });
 
   /**
    * ⚠ Les trois cas ci-dessus comparent deux clefs entre elles : une clef qui IGNORERAIT `per_page`
    * les laisserait tous verts, alors que la page appelle l'API AVEC cette clef — le serveur rendrait
-   * 20 biens au lieu de 30. Et `per_page=30` est aussi la valeur par défaut : un chemin serveur qui
+   * 20 biens au lieu de 30. Et `per_page=30` était aussi la valeur par défaut (40 depuis TCK-628) : un chemin serveur qui
    * PERDRAIT le `per_page` de l'URL resterait égal à celui du client. Les deux cas suivants ferment
    * ces deux trous (contre-vérification du 2026-09-23, mutations M1 et M2).
    */

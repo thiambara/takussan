@@ -190,7 +190,9 @@ describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
         (n, groupe) =>
           n + groupe.items.reduce((m, item) => m + 1 + (item.children?.length ?? 0), 0),
         0,
-      ) + 1; // + le lien « retour à l'espace perso »
+      ) +
+      1 + // + le lien « retour à l'espace perso »
+      1; // + le logo du tiroir (TCK-621) — `md:hidden`, mais jsdom ne lit pas la feuille de style
 
     const liens = screen.getAllByRole('link');
     expect(liens).toHaveLength(attendu);

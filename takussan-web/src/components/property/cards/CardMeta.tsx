@@ -17,6 +17,13 @@ interface CardMetaProps {
   /** Les éléments absents (`null`, `false`, chaîne vide) sont écartés AVANT de poser les points. */
   readonly items: readonly (ElementDeMeta | null | false | undefined)[];
   readonly className?: string;
+  /**
+   * Une seule ligne, tronquée par « … » au lieu de passer à la ligne. Les cartes des rangées de
+   * l'accueil la demandent : à sept par rangée (160 px dès 1264 px d'écran), « 2 ch • 142 m² • il y a
+   * 2 mois » passait sur deux lignes sur une carte sur deux, et les prix ne s'alignaient plus d'une
+   * carte à l'autre (relevé le 2026-10-10).
+   */
+  readonly uneLigne?: boolean;
 }
 
 /**
@@ -32,21 +39,30 @@ interface CardMetaProps {
  * aux largeurs où ils sont masqués. (Les éléments conditionnels d'une même ligne partagent une
  * même classe : c'est le seul cas que la carte produit.)
  */
-export function CardMeta({ items, className }: CardMetaProps) {
+export function CardMeta({ items, className, uneLigne = false }: CardMetaProps) {
   const presents = items
     .filter((item): item is ElementDeMeta => (typeof item === 'string' ? item !== '' : Boolean(item && item.texte)))
     .map((item) => (typeof item === 'string' ? { texte: item, className: undefined } : item));
   if (presents.length === 0) return null;
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tabular-nums', className)}>
+    // `uneLigne` : un bloc de texte et non une boîte flexible — c'est ce qui laisse `truncate` poser
+    // son « … » en fin de ligne ; les puces prennent alors leur écart en marges.
+    <div
+      className={cn(
+        uneLigne ? 'truncate tabular-nums' : 'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tabular-nums',
+        className,
+      )}
+      // Le texte rogné reste lisible au survol ; un lecteur d'écran lit la ligne entière de toute façon.
+      title={uneLigne ? presents.map((p) => p.texte).join(' • ') : undefined}
+    >
       {presents.map((item, i) => {
         const precedentsConditionnels = presents.slice(0, i).every((p) => p.className);
         const classeDuSeparateur = item.className ?? (precedentsConditionnels ? presents[i - 1]?.className : undefined);
         return (
           <Fragment key={`${i}-${item.texte}`}>
             {i > 0 && (
-              <span aria-hidden="true" className={cn('text-muted-foreground/50', classeDuSeparateur)}>
+              <span aria-hidden="true" className={cn('text-muted-foreground/50', uneLigne && 'mx-1.5', classeDuSeparateur)}>
                 •
               </span>
             )}

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import {
   phoneSendOtpAction,
   phoneVerifyOtpAction,
@@ -33,6 +34,7 @@ export function PhoneVerificationSection({
   const [verified, setVerified] = useState(initialVerified);
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
+  const [apercu, setApercu] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -47,7 +49,8 @@ export function PhoneVerificationSection({
         return;
       }
       setSent(true);
-      // TCK-589 — le code part par SMS ; l'API ne le rend plus.
+      setApercu(result.data?.codeApercu ?? null);
+      // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
       setFeedback(tOtp('otpSent'));
     });
   }
@@ -128,6 +131,7 @@ export function PhoneVerificationSection({
               </Button>
             </form>
           ) : null}
+          {sent ? <CodeDePreproduction code={apercu} onUtiliser={setCode} /> : null}
         </div>
       ) : null}
     </div>

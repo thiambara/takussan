@@ -62,29 +62,41 @@ class QuotaResolver
         return $subscription ? $this->effectiveLimits($subscription) : [];
     }
 
-    public function assertCanCreateActiveListing(Agency|int|null $agency): void
+    /** Les statuts qu'une annonce occupe dans le quota : en ligne, ou en passe de l'être. */
+    public const ACTIVE_LISTING_STATUSES = [
+        PropertyStatus::Available,
+        PropertyStatus::Published,
+        PropertyStatus::Pending,
+        PropertyStatus::PendingReview,
+    ];
+
+    /**
+     * TCK-627 — l'usage du quota d'annonces, pour le DIRE avant l'assistant : la limite ne se
+     * voyait qu'au refus de l'envoi, après six étapes. `limit` nul = illimité (pas d'abonnement,
+     * ou pas de borne).
+     *
+     * @return array{limit: ?int, used: int, can_create: bool}
+     */
+    public function listingUsage(Agency|int|null $agency): array
     {
         $subscription = $this->currentSubscription($agency);
-        if (! $subscription) {
-            return;
-        }
+        $limit = $subscription ? ($this->effectiveLimits($subscription)['max_active_listings'] ?? null) : null;
+        $agencyId = $agency instanceof Agency ? $agency->id : $agency;
 
-        $limit = $this->effectiveLimits($subscription)['max_active_listings'] ?? null;
-        if ($limit === null) {
-            return;
-        }
+        $used = $agencyId
+            ? Property::query()->where('agency_id', $agencyId)->whereIn('status', self::ACTIVE_LISTING_STATUSES)->count()
+            : 0;
 
-        $count = Property::query()
-            ->where('agency_id', $subscription->agency_id)
-            ->whereIn('status', [
-                PropertyStatus::Available,
-                PropertyStatus::Published,
-                PropertyStatus::Pending,
-                PropertyStatus::PendingReview,
-            ])
-            ->count();
+        return [
+            'limit' => $limit === null ? null : (int) $limit,
+            'used' => $used,
+            'can_create' => $limit === null || $used < (int) $limit,
+        ];
+    }
 
-        if ($count >= (int) $limit) {
+    public function assertCanCreateActiveListing(Agency|int|null $agency): void
+    {
+        if (! $this->listingUsage($agency)['can_create']) {
             abort_code(422, 'quota.listings_exceeded');
         }
     }

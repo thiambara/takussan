@@ -11,6 +11,7 @@ import { ChatView } from '@/components/messages/ChatView';
 import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatView';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
+import { estPleinEcran } from '@/components/layout/plein-ecran';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { useUnreadCount } from './useUnreadCount';
@@ -138,7 +139,9 @@ export function ChatWidget() {
     pathname === '/app/messages' ||
     pathname.startsWith('/app/messages/') ||
     pathname.startsWith('/auth/') ||
-    pathname.startsWith('/onboarding/');
+    pathname.startsWith('/onboarding/') ||
+    // TCK-631 — le parcours de publication est plein écran : la bulle se posait sur son pied.
+    estPleinEcran(pathname);
   const isVisible = Boolean(user) && !isHiddenByRoute;
 
   // Register both launchers with the FloatingDock orchestrator (TCK-275).

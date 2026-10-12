@@ -35,6 +35,10 @@ class PayoutReachesReconciliationTest extends TestCase
     public function test_a_payout_approved_then_paid_is_suggested_for_the_bank_debit(): void
     {
         Notification::fake();
+        // `mark-processed` ne reçoit pas de date : l'API horodate le paiement à `now()`. L'horloge
+        // est donc figée au jour du paiement, sinon le test rougit dès que la date réelle sort de la
+        // fenêtre de ±7 jours autour du débit — c'est arrivé le 2026-10-09 à minuit (UTC).
+        $this->travelTo('2026-10-01 15:00:00');
         $agency = $this->moneyAgency();
         $landlord = $this->landlordOf($agency);
         $issuer = $this->agencyAdmin($agency);
@@ -62,7 +66,6 @@ class PayoutReachesReconciliationTest extends TestCase
         $this->postJson("/api/payouts/{$id}/mark-processed", [
             'payment_method' => 'check',
             'transaction_id' => 'CHQ-0042',
-            'processed_at' => '2026-10-01 15:00:00',
         ])->assertOk();
         $this->assertSame(PayoutStatus::Completed, Payout::find($id)->status);
 

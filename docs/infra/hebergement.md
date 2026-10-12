@@ -139,6 +139,11 @@ vide) :
   `R2_SECRET_ACCESS_KEY` (le jeton `takussan-preview-app`, *Object Read & Write* limité aux deux
   seaux de préproduction ; refusé sur `vps-sauvegardes`, mesuré), `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
   `R2_MEDIA_URL` (`https://media-preview.takussan.com`), `R2_PRIVATE_BUCKET`.
+- ajoutées le 2026-10-10 par TCK-620 (ADR-0060), **82 clés** au total : `PHONE_LOGIN_ENABLED`
+  (`true` : connexion et inscription par téléphone) et `OTP_PREVIEW_ENABLED` (`true` : le code SMS
+  revient dans la réponse, `otp_preview`, et le front l'affiche — sans effet hors `APP_ENV`
+  `local`/`staging`). ⚠ **À éteindre avant que la préproduction reçoive des données réelles** :
+  qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
 
 Absentes de l'export, donc aux défauts de `config/` : `SMS_*`, `WHATSAPP_*`, `FACEBOOK_*`, `APPLE_*`,
 `CDN_*`, `BUNNY_*`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les

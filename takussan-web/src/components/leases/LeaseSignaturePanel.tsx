@@ -20,6 +20,8 @@ import {
 } from '@/lib/queries/leases';
 import type { Locale } from '@/i18n/config';
 import type { Lease, LeaseSignature, LeaseSignatureRole } from '@/types/lease';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
+import { codeApercu } from '@/lib/otp-preview';
 
 const ROLES: readonly LeaseSignatureRole[] = ['tenant', 'landlord'];
 
@@ -175,6 +177,7 @@ function SignWithCode({ leaseId, role, onError, clearError }: SignWithCodeProps)
   const sign = useSignLease(leaseId);
   const [sent, setSent] = useState<LeaseSignatureCodeSent | null>(null);
   const [code, setCode] = useState('');
+  const [apercu, setApercu] = useState<string | null>(null);
   const inputId = `lease-signature-code-${role}`;
   const valid = /^\d{6}$/.test(code);
 
@@ -183,6 +186,8 @@ function SignWithCode({ leaseId, role, onError, clearError }: SignWithCodeProps)
     try {
       const res = await sendCode.mutateAsync({ role });
       setSent(res.data);
+      // TCK-620 (ADR-0060) — un code parti par SMS revient hors production ; celui d'un e-mail jamais.
+      setApercu(codeApercu(res));
     } catch (e) {
       onError(e);
     }
@@ -229,6 +234,7 @@ function SignWithCode({ leaseId, role, onError, clearError }: SignWithCodeProps)
               {t('sign')}
             </Button>
           </div>
+          <CodeDePreproduction code={apercu} onUtiliser={setCode} />
           <p className="text-xs text-muted-foreground">{t('consent')}</p>
         </form>
       )}

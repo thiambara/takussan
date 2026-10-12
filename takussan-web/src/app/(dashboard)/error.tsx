@@ -3,6 +3,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
+import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -41,15 +42,20 @@ export default function DashboardError({
     console.error('[dashboard] erreur non rattrapée', error);
   }, [error]);
 
+  // TCK-621 — la frontière remplace le layout de `/app` et de `/admin`, coque comprise : sans sa
+  // propre barre, l'écran d'erreur était le seul du tableau de bord sans marque.
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <AlertTriangle className="size-10 text-primary" aria-hidden />
-      <h1 className="text-xl font-semibold text-foreground">{t('title')}</h1>
-      <p className="max-w-md text-sm text-muted-foreground">{t('body')}</p>
-      {error.digest && (
-        <p className="text-xs text-muted-foreground">{t('reference', { digest: error.digest })}</p>
-      )}
-      <Button onClick={reset}>{t('retry')}</Button>
+    <div className="flex min-h-dvh flex-col bg-background">
+      <BarreDeMarque />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <AlertTriangle className="size-10 text-primary" aria-hidden />
+        <h1 className="text-xl font-semibold text-foreground">{t('title')}</h1>
+        <p className="max-w-md text-sm text-muted-foreground">{t('body')}</p>
+        {error.digest && (
+          <p className="text-xs text-muted-foreground">{t('reference', { digest: error.digest })}</p>
+        )}
+        <Button onClick={reset}>{t('retry')}</Button>
+      </div>
     </div>
   );
 }

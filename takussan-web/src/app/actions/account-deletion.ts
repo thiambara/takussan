@@ -96,12 +96,14 @@ export async function requestAccountDeletionAction(
  * TCK-272 — émission du code de step-up par e-mail, pour les comptes sans
  * mot de passe utilisable.
  */
-export async function sendAccountDeletionStepUpCodeAction(): Promise<ActionResult<null>> {
+export async function sendAccountDeletionStepUpCodeAction(): Promise<
+  ActionResult<{ codeApercu: string | null }>
+> {
   try {
     const token = await getToken();
     requireToken(token, await jetonManquant());
-    await sendAccountDeletionStepUpCode(token);
-    return { ok: true, data: null };
+    const data = await sendAccountDeletionStepUpCode(token);
+    return { ok: true, data };
   } catch (err) {
     return failure(err, 'sendCodeFailed');
   }

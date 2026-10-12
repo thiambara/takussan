@@ -5,6 +5,7 @@ namespace App\Services\Account;
 use App\Http\Requests\Auth\RequestAccountDeletionRequest;
 use App\Models\User;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
+use App\Services\Auth\OtpPreview;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
@@ -69,7 +70,9 @@ class DeletionStepUpService
 
         // TCK-589 — un compte créé par téléphone n'a pas d'e-mail : le code part par
         // SMS, au numéro VÉRIFIÉ, directement par le routeur (jamais `SmsChannel`).
-        $bySms = ($user->email === null || $user->email === '') && $user->phone && $user->phone_verified_at !== null;
+        // TCK-632 — ni d'e-mail VÉRIFIÉ : l'adresse qu'il ajoute depuis son profil ne prend le
+        // relais qu'une fois son lien suivi. Une adresse mal saisie recevrait sinon le code.
+        $bySms = $user->email_verified_at === null && $user->phone && $user->phone_verified_at !== null;
 
         // Passe 2 (p2-2) — ce SMS passe la MÊME porte que tout code : indicatif servi et plafond
         // global du jour. Refusé, rien n'est émis ni rangé ; la réponse reste le 202 invariant.
@@ -91,6 +94,9 @@ class DeletionStepUpService
                 'is_critical' => true,
                 'bypass_quiet_hours' => true,
             ]);
+            // TCK-620 (ADR-0060) — le code parti par SMS revient aussi dans la réponse, hors
+            // production et drapeau allumé. Celui d'un e-mail, jamais.
+            app(OtpPreview::class)->record($code);
         } else {
             $user->notify(new AccountDeletionStepUpCodeNotification(
                 $code,

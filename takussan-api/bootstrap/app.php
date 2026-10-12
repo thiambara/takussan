@@ -6,6 +6,7 @@ use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsurePlatformAbility;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\ExposeOtpPreview;
 use App\Http\Middleware\ForceJsonResponseMiddleware;
 use App\Http\Middleware\JournalizeIncomingWebhook;
 use App\Http\Middleware\MaintenanceMode;
@@ -59,6 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->convertEmptyStringsToNull(except: [$brouillon, $mappingCsv]);
 
         $middleware->api(prepend: [
+            // TCK-620 (ADR-0060) — en tête : il voit la réponse finale de la requête.
+            ExposeOtpPreview::class,
             ForceJsonResponseMiddleware::class,
             SetLocaleMiddleware::class,
             MaintenanceMode::class,
@@ -126,9 +129,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($e instanceof HttpExceptionInterface) {
                 $code = HttpErrorCode::for($e->getStatusCode());
+                // TCK-622 — un 429 du limiteur dit aussi QUAND réessayer : l'en-tête `Retry-After`
+                // ne traverse pas les actions serveur du front, le corps si.
+                $retryAfter = $e->getStatusCode() === 429 ? ($e->getHeaders()['Retry-After'] ?? null) : null;
 
                 return new JsonResponse(
-                    ['code' => $code, 'message' => __('errors.'.$code)],
+                    ['code' => $code, 'message' => __('errors.'.$code)]
+                        + (is_numeric($retryAfter) ? ['retry_after' => (int) $retryAfter] : []),
                     $e->getStatusCode(),
                     $e->getHeaders(),
                 );

@@ -74,10 +74,32 @@ class AuthProfileTest extends TestCase
         $user = User::factory()->create();
         $token = $user->createToken('test')->plainTextToken;
 
-        $response = $this->withToken($token)->putJson('/api/auth/profile', []);
+        $response = $this->withToken($token)->putJson('/api/auth/profile', ['first_name' => '']);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['first_name', 'last_name']);
+            ->assertJsonValidationErrors(['first_name']);
+    }
+
+    /** TCK-623 — un compte ouvert par téléphone n'a pas de nom ; sa bio s'enregistre quand même. */
+    public function test_un_compte_sans_nom_enregistre_sa_bio_sans_envoyer_de_nom(): void
+    {
+        $user = User::factory()->create(['first_name' => '', 'last_name' => '']);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->putJson('/api/auth/profile', ['bio' => 'Bailleur à Thiès'])
+            ->assertOk()
+            ->assertJsonFragment(['bio' => 'Bailleur à Thiès']);
+    }
+
+    /** TCK-623 — le prénom suffit : le nom de famille vide s'enregistre vide, pas en erreur. */
+    public function test_le_nom_de_famille_est_facultatif(): void
+    {
+        $user = User::factory()->create(['first_name' => '', 'last_name' => '']);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->putJson('/api/auth/profile', ['first_name' => 'Awa', 'last_name' => ''])
+            ->assertOk()
+            ->assertJsonFragment(['first_name' => 'Awa', 'last_name' => '']);
     }
 
     public function test_hidden_fields_are_not_returned(): void

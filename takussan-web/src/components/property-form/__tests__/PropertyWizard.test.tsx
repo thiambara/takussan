@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -74,12 +74,17 @@ function reduite(f: File): File {
 vi.mock('@/app/actions/dashboard-properties', () => ({
   createPropertyAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
+  updatePropertyVisibilityAction: vi.fn(),
   uploadPropertyPhotosAction: vi.fn(),
 }));
+
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', () => ({ useToast: () => toast }));
 
 import {
   createPropertyAction,
   setPropertyTagsAction,
+  updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 
@@ -124,6 +129,10 @@ beforeEach(() => {
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
   vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true } as never);
+  vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+    ok: true,
+    data: { id: 42, status: 'available' },
+  } as never);
 });
 
 describe('PropertyWizard — composition des étapes', () => {
@@ -159,6 +168,40 @@ describe('PropertyWizard — composition des étapes', () => {
     expect(screen.getByLabelText(/chambres/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^étage/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/nombre de niveaux/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('PropertyWizard — l’aperçu suit le formulaire (TCK-631)', () => {
+  it('le contrat, la ville et le prix choisis apparaissent dans la carte, au fil des étapes', async () => {
+    const user = userEvent.setup();
+    monter();
+    const apercu = () => within(screen.getByRole('complementary', { name: /aperçu de l’annonce/i }));
+
+    expect(apercu().getByText('Votre annonce')).toBeInTheDocument();
+
+    await user.click(typeBien(/^villa$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    expect(apercu().getByText('En vente')).toBeInTheDocument();
+    expect(apercu().getByText('Villa')).toBeInTheDocument();
+
+    await user.click(suivant());
+    await user.type(screen.getByLabelText(/ville/i), 'Saly');
+    expect(apercu().getByText('Saly')).toBeInTheDocument();
+    expect(apercu().getByText('Villa à Saly')).toBeInTheDocument();
+  });
+
+  it('la liste « Pour publier » rouvre une étape franchie', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.click(typeBien(/^terrain$/i));
+    await user.click(screen.getByRole('radio', { name: /^vendre$/i }));
+    await user.click(suivant());
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
+
+    const apercu = within(screen.getByRole('complementary', { name: /aperçu de l’annonce/i }));
+    await user.click(apercu.getByRole('button', { name: /revenir à : le type et le contrat/i }));
+
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 1 sur 6' } })).toBeInTheDocument();
   });
 });
 
@@ -281,10 +324,12 @@ describe('PropertyWizard — le brouillon', () => {
     };
     monter();
 
-    expect(await screen.findByText('Étape 4 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument();
     // TCK-564 — le prix repris se RELIT groupé (espace fine insécable de `fr-SN`).
     expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u202f000\u202f000');
-    expect(screen.getByRole('status')).toHaveTextContent(/brouillon/i);
+    expect(screen.getByText(/repris votre brouillon/i)).toHaveAttribute('role', 'status');
+    // TCK-631 — l'en-tête dit l'état du brouillon : celui-ci existe sur le serveur.
+    expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
   });
 
   /**
@@ -305,11 +350,11 @@ describe('PropertyWizard — le brouillon', () => {
     const user = userEvent.setup();
     monter();
 
-    expect(await screen.findByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
     expect(screen.getByLabelText(/ville/i)).toHaveValue('Mbour');
     await user.click(suivant());
 
-    expect(await screen.findByText('Étape 3 sur 6')).toBeInTheDocument();
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 3 sur 6' } })).toBeInTheDocument();
     expect(screen.queryByText(/expected string/i)).not.toBeInTheDocument();
   });
 
@@ -320,7 +365,7 @@ describe('PropertyWizard — le brouillon', () => {
     };
     const { container } = monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -347,7 +392,7 @@ describe('PropertyWizard — le brouillon', () => {
     expect(await screen.findByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
     expect(screen.getByRole('button', { name: /masquer la rue/i })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
   });
 
   /**
@@ -377,7 +422,7 @@ describe('PropertyWizard — le brouillon', () => {
       expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false'),
     );
     expect(screen.getByText(/code pays doit être sur 2 caractères/i)).toBeVisible();
-    expect(screen.getByText('Étape 2 sur 6')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
   });
 
   // TCK-574 — AC24 ne citait que le pays : une régression limitée au pays (mutation M-D de la
@@ -408,7 +453,7 @@ describe('PropertyWizard — le brouillon', () => {
     const user = userEvent.setup();
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
 
     await waitFor(() => expect(brouillon.etat.flush).toHaveBeenCalledTimes(1));
     expect(routeur.push).toHaveBeenCalledWith('/app/properties');
@@ -438,7 +483,7 @@ describe('PropertyWizard — le brouillon', () => {
     });
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
 
     await waitFor(() => expect(brouillon.etat.flush).toHaveBeenCalledTimes(1));
     expect(routeur.push).not.toHaveBeenCalled();
@@ -454,7 +499,7 @@ describe('PropertyWizard — le brouillon', () => {
     });
     monter();
 
-    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer et quitter/i }));
     await screen.findByRole('alert');
     expect(routeur.push).not.toHaveBeenCalled();
 
@@ -593,7 +638,7 @@ describe('PropertyWizard — la soumission', () => {
     expect((envoi.getAll('photos') as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
   });
 
-  it('envoie l’adresse IMBRIQUÉE et une intention de publication, puis ouvre le bien', async () => {
+  it('envoie l’adresse IMBRIQUÉE dans un brouillon (publié ensuite, TCK-627), puis ouvre le bien', async () => {
     const user = userEvent.setup();
     monter();
     await allerJusquAuBout(user);
@@ -602,7 +647,7 @@ describe('PropertyWizard — la soumission', () => {
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
     expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
-      status: 'pending_review',
+      status: 'draft',
       visibility: 'private',
       address: { city: 'Dakar' },
     });
@@ -708,10 +753,10 @@ describe('PropertyWizard — la soumission', () => {
     brouillon.etat.draft = { step: 3, data: BROUILLON_COMPLET };
     const { container } = monter();
 
-    await screen.findByText('Étape 4 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
-    await waitFor(() => expect(screen.getByText('Étape 4 sur 6')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument());
     expect(createPropertyAction).not.toHaveBeenCalled();
   });
 
@@ -719,7 +764,7 @@ describe('PropertyWizard — la soumission', () => {
     brouillon.etat.draft = { step: 5, data: BROUILLON_COMPLET };
     const { container } = monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     fireEvent.submit(container.querySelector('form')!);
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -746,6 +791,79 @@ describe('PropertyWizard — la soumission', () => {
 });
 
 /**
+ * TCK-627 — « Publier l'annonce » PUBLIE. Le bien naît brouillon, puis `PUT …/visibility` le
+ * publie ; le message de fin dit le statut que l'API a rendu, pas celui qu'on espérait.
+ */
+describe('PropertyWizard — la publication (TCK-627)', () => {
+  const COMPLET = {
+    title: 'Villa à Mbour', type: 'villa', contract_type: 'sale', price: 25000000,
+    currency: 'XOF', city: 'Mbour', furnished: false, tag_ids: [],
+  };
+
+  async function publier(proposition = false) {
+    brouillon.etat.draft = { step: 5, data: COMPLET };
+    const user = userEvent.setup();
+    render(withIntl(<PropertyWizard proposition={proposition} />));
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
+    await user.click(
+      screen.getByRole('button', { name: proposition ? 'Proposer à mon agence' : /publier/i }),
+    );
+    return user;
+  }
+
+  it('crée un brouillon, PUIS le publie, et annonce « en ligne »', async () => {
+    await publier();
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ status: 'draft' });
+    expect(updatePropertyVisibilityAction).toHaveBeenCalledWith(42, 'public');
+    expect(toast.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Votre annonce est en ligne.' }),
+    );
+  });
+
+  it('une agence qui modère : le message dit « en vérification »', async () => {
+    vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+      ok: true,
+      data: { id: 42, status: 'pending_review' },
+    } as never);
+    await publier();
+
+    await waitFor(() => expect(toast.add).toHaveBeenCalled());
+    expect(vi.mocked(toast.add).mock.calls[0][0].title).toMatch(/vérification/);
+  });
+
+  it('un refus (quota) garde le brouillon, le dit, et réessaie SANS recréer le bien', async () => {
+    vi.mocked(updatePropertyVisibilityAction).mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      message: 'Limite d’annonces atteinte.',
+    } as never);
+    const user = await publier();
+
+    const alerte = await screen.findByRole('alert');
+    expect(alerte).toHaveTextContent(/brouillon/);
+    expect(alerte).toHaveTextContent('Limite d’annonces atteinte.');
+    expect(routeur.push).not.toHaveBeenCalled();
+    expect(toast.add).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Ouvrir le brouillon' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(createPropertyAction).toHaveBeenCalledTimes(1);
+    expect(updatePropertyVisibilityAction).toHaveBeenCalledTimes(2);
+  });
+
+  it('la proposition du bailleur ne publie pas : « proposition envoyée »', async () => {
+    await publier(true);
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(updatePropertyVisibilityAction).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.add).mock.calls[0][0].title).toBe('Proposition envoyée à votre agence.');
+  });
+});
+
+/**
  * TCK-587 (ADR-0031 §3, AC14 volet formulaire) — le bailleur hors personnel PROPOSE un bien à son
  * agence. L'écran le dit, le bouton final n'annonce plus une publication qui n'aura pas lieu, et
  * le parcours ne porte aucun contrôle de publication ni de visibilité publique : le corps part en
@@ -762,7 +880,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
     render(withIntl(<PropertyWizard proposition />));
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     expect(screen.getByTestId('property-proposal-notice')).toHaveTextContent(
       'Votre agence relira ce bien avant de le publier',
     );
@@ -777,7 +895,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     const user = userEvent.setup();
     render(withIntl(<PropertyWizard proposition />));
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     await user.click(screen.getByRole('button', { name: 'Proposer à mon agence' }));
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
@@ -788,7 +906,7 @@ describe('PropertyWizard — la proposition du bailleur (TCK-587)', () => {
     brouillon.etat.draft = { step: 5, data: PROPOSITION_COMPLETE };
     monter();
 
-    await screen.findByText('Étape 6 sur 6');
+    await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     expect(screen.queryByTestId('property-proposal-notice')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /publier/i })).toBeInTheDocument();
   });

@@ -17,7 +17,7 @@ use Tests\TestCase;
  * six SMS remis.
  *
  * Désormais : liste blanche d'indicatifs (`sms.otp_allowed_country_codes`, défaut `221`), le
- * limiteur `auth-phone-send` (par numéro destinataire et par IP) sur `send-otp` et `resend`, et un
+ * limiteur `auth-phone-send` (par IP) et la borne `PhoneSendQuota` (par numéro, codes envoyés — TCK-622) sur `send-otp` et `resend`, et un
  * plafond global journalier de codes (`sms.otp_daily_cap`).
  */
 class SmsOtpRelayTest extends TestCase

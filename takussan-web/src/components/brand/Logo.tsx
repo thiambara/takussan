@@ -16,6 +16,12 @@ import { cn } from '@/lib/utils';
  *
  * L'horizon du symbole est posé sur la ligne de base des lettres (`items-baseline`) : c'est la
  * boîte du SVG, recadrée au plus juste par sa `viewBox`, qui porte la ligne de base.
+ *
+ * TCK-621 — deux tons. `encre` (défaut) : toit, horizon et nom à `--foreground`, pour les fonds
+ * clairs — et pour les coques `.dark`, où le jeton s'inverse de lui-même. `clair` : toit, horizon
+ * et nom à `--background`, pour les fonds sombres qui ne sont PAS sous `.dark` (la barre d'encre
+ * de `/app`, la barre latérale de `/admin`, la photo de `/auth`) — le traitement même de
+ * `icon.svg`, tuile d'encre et traits de lin. Les rayons restent terracotta dans les deux.
  */
 
 /** Rayons du soleil : centre (24, 33), de r = 14 à r = 20, de −180° à 0° par pas de 30°. */
@@ -29,12 +35,21 @@ const RAYONS = [
   'M38.00 33.00L44.00 33.00',
 ] as const;
 
+const TONS = {
+  encre: { trait: 'stroke-foreground', nom: 'text-foreground' },
+  clair: { trait: 'stroke-background', nom: 'text-background' },
+} as const;
+
+export type TonDuLogo = keyof typeof TONS;
+
 export interface SymboleTakussanProps {
+  readonly ton?: TonDuLogo;
   readonly className?: string;
 }
 
 /** Le symbole seul. Ses dimensions viennent de `className` (ratio 42,8 × 30). */
-export function SymboleTakussan({ className }: SymboleTakussanProps) {
+export function SymboleTakussan({ ton = 'encre', className }: SymboleTakussanProps) {
+  const trait = TONS[ton].trait;
   return (
     <svg aria-hidden="true" focusable="false" viewBox="2.6 11.6 42.8 30" fill="none" className={className}>
       <g className="stroke-primary" strokeWidth={2.6} strokeLinecap="round">
@@ -44,12 +59,12 @@ export function SymboleTakussan({ className }: SymboleTakussanProps) {
       </g>
       <path
         d="M13 33 24 23l11 10"
-        className="stroke-foreground"
+        className={trait}
         strokeWidth={4.2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M5 39.5H43" className="stroke-foreground" strokeWidth={3} strokeLinecap="round" />
+      <path d="M5 39.5H43" className={trait} strokeWidth={3} strokeLinecap="round" />
     </svg>
   );
 }
@@ -71,19 +86,22 @@ export interface LogoProps {
    * recherche tombait à 88 px à 390 (58 à 360), « Chercher » tronqué — mesuré le 2026-09-28.
    */
   readonly nomVisible?: 'toujours' | 'des-sm';
+  /** `clair` sur un fond sombre hors `.dark` — cf. l'en-tête du fichier. */
+  readonly ton?: TonDuLogo;
   readonly className?: string;
 }
 
 /** Le symbole et le nom sur une ligne. À placer DANS le lien d'accueil, qui en tire son nom. */
-export function Logo({ nom, taille = 'barre', nomVisible = 'toujours', className }: LogoProps) {
+export function Logo({ nom, taille = 'barre', nomVisible = 'toujours', ton = 'encre', className }: LogoProps) {
   const t = TAILLES[taille];
   return (
     <span className={cn('inline-flex items-baseline', t.conteneur, className)}>
-      <SymboleTakussan className={cn('block shrink-0', t.symbole)} />
+      <SymboleTakussan ton={ton} className={cn('block shrink-0', t.symbole)} />
       <span
         aria-hidden="true"
         className={cn(
-          'font-display font-semibold uppercase leading-none tracking-[0.14em] text-foreground whitespace-nowrap',
+          'font-display font-semibold uppercase leading-none tracking-[0.14em] whitespace-nowrap',
+          TONS[ton].nom,
           t.nom,
           nomVisible === 'des-sm' && 'max-sm:hidden',
         )}

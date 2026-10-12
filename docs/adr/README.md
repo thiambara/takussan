@@ -81,6 +81,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) | L'impersonation est une session de lecture de 15 minutes, dont le jeton ne quitte jamais le serveur du front | Accepté |
 | [0057](0057-instantanes-quotidiens-des-metriques-plateforme.md) | Une ligne par jour, `platform_metrics_daily`, écrite à 00:30 pour la veille : flux du jour et stocks mesurés à l'exécution ; un rattrapage ne remplit que les flux ; une tendance n'est montrée que si l'instantané de J-30 la mesure ; le MRR exclut les essais au point mesuré | Accepté |
 | [0059](0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md) | Changer l'agent responsable passe par un seul service (unitaire, lot, passation, réparation) ; la passation verrouille les biens avant les lignes ; seule l'ancienne réattribution porte la signature que la réparation lit | Accepté |
+| [0060](0060-code-sms-affiche-hors-production.md) | Hors production (`local`, `staging`), derrière `OTP_PREVIEW_ENABLED`, tout code envoyé par SMS revient dans la réponse (`otp_preview`) et le front l'affiche ; le SMS part quand même, la production n'est jamais concernée | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

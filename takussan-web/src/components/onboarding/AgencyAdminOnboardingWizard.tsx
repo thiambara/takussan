@@ -84,7 +84,7 @@ export function AgencyAdminOnboardingWizard({
           </span>
           <div className="flex flex-col gap-2">
             <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground sm:text-3xl">
-              {t('welcome.title', { firstName })}
+              {firstName.trim() ? t('welcome.title', { firstName: firstName.trim() }) : t('welcome.titleNoName')}
             </h1>
             <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-pretty text-muted-foreground">
               {t('welcome.body', { agencyName })}

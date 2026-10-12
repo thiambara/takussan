@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
+import { Logo } from '@/components/brand/Logo';
+
 /**
  * Cadre commun des assistants d'onboarding.
  *
@@ -61,9 +63,10 @@ export async function OnboardingShell({
         <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link
             href="/"
-            className="font-display text-lg font-bold tracking-tight text-foreground transition-colors hover:text-primary"
+            className="inline-flex rounded-md py-1 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            {tCommon('appName')}
+            {/* TCK-621 — la marque, et non plus son nom en texte nu. */}
+            <Logo nom={tCommon('appName')} />
           </Link>
           <Link
             href="/"

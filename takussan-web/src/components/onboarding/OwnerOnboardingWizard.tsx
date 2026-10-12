@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Label } from '@/components/ui/label';
 import { PhoneInput } from '@/components/ui/phone-input';
 import {
@@ -193,6 +194,8 @@ function PhoneStep({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
+  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
+  const [otpApercu, setOtpApercu] = useState<string | null>(null);
 
   const handleSend = () => {
     if (!numeroComposable(data.phone.number)) return;
@@ -211,9 +214,10 @@ function PhoneStep({ data, setData }: StepProps) {
         return;
       }
       setOtpSent(true);
+      setOtpApercu(res.data?.codeApercu ?? null);
       toast.add({
         title: t('sent.title'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
         description: t('sent.body'),
         type: 'success',
       });
@@ -274,38 +278,46 @@ function PhoneStep({ data, setData }: StepProps) {
       </div>
 
       {otpSent && !data.phone.verified ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="owner-otp">{t('fields.code')}</Label>
-            <Input
-              id="owner-otp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              className="tabular-nums tracking-widest"
-              value={data.phone.code}
-              onChange={(e) =>
-                setData({
-                  ...data,
-                  phone: {
-                    ...data.phone,
-                    code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                  },
-                })
-              }
-            />
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="owner-otp">{t('fields.code')}</Label>
+              <Input
+                id="owner-otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                className="tabular-nums tracking-widest"
+                value={data.phone.code}
+                onChange={(e) =>
+                  setData({
+                    ...data,
+                    phone: {
+                      ...data.phone,
+                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                className="h-11 w-full px-4 sm:w-auto"
+                onClick={handleVerify}
+                disabled={verifyPending || data.phone.code.length !== 6}
+              >
+                {verifyPending ? t('verifying') : t('verifyCta')}
+              </Button>
+            </div>
           </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              className="h-11 w-full px-4 sm:w-auto"
-              onClick={handleVerify}
-              disabled={verifyPending || data.phone.code.length !== 6}
-            >
-              {verifyPending ? t('verifying') : t('verifyCta')}
-            </Button>
-          </div>
-        </div>
+          <CodeDePreproduction
+            code={otpApercu}
+            onUtiliser={(code) =>
+              setData({ ...data, phone: { ...data.phone, code } })
+            }
+          />
+        </>
       ) : null}
 
       {data.phone.verified ? (

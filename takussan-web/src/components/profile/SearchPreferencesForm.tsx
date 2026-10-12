@@ -261,8 +261,10 @@ export function SearchPreferencesForm({
           ) : (
             <p className="text-xs text-primary" data-testid="pref-alerts-unverified">
               {t('alertsUnverified')}{' '}
+              {/* TCK-632 — vers les coordonnées du profil, qui ajoutent l'adresse (compte ouvert par
+                  téléphone) et renvoient le lien ; `/auth/verify-email` ne savait que renvoyer. */}
               <Link
-                href="/auth/verify-email"
+                href="/app/profile#coordonnees"
                 className="font-semibold underline"
               >
                 {t('verifyEmailCta')}

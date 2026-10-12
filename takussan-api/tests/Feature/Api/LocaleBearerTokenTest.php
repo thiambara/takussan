@@ -58,6 +58,8 @@ class LocaleBearerTokenTest extends TestCase
 
         return $this->withToken($jeton)
             ->withHeaders($enTetes)
-            ->putJson('/api/auth/profile'.$requete, ['last_name' => 'Diop']);
+            // TCK-623 — un prénom OMIS n'est plus exigé (la section contact s'enregistre sans) ;
+            // un prénom VIDÉ l'est toujours, et c'est lui qui porte la prose de validation.
+            ->putJson('/api/auth/profile'.$requete, ['first_name' => '', 'last_name' => 'Diop']);
     }
 }

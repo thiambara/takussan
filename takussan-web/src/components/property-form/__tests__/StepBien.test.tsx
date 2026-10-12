@@ -13,7 +13,7 @@ import { StepBien } from '../wizard/steps/StepBien';
  *
  * | test | régression attrapée | pourquoi une régression ne le cocherait pas |
  * |---|---|---|
- * | 16 types rendus | un type retiré ou dupliqué en silence | rien d'autre ne compte les options |
+ * | 9 types rendus, 16 dépliés | un type retiré ou dupliqué en silence | rien d'autre ne compte les options |
  * | clic remplace le type | un `onChange` qui ajoute au lieu de remplacer | le formulaire enverrait un tableau, pas une valeur |
  * | vocabulaire du contrat | `property.contractTypes` recopié à la place de `property.wizard.contract` (I-3) | les deux existent, un seul est correct |
  * | sémantique radiogroup | `aria-pressed` réintroduit sur type/contrat (M-11) | un lecteur d'écran annoncerait un bouton-bascule, pas une position dans un groupe |
@@ -42,11 +42,37 @@ function Harnais({
 }
 
 describe('StepBien', () => {
-  it('rend les seize types de bien, en groupe de radios', () => {
+  it('TCK-631 — neuf types d’emblée, les sept autres derrière « Plus de types », en groupe de radios', async () => {
+    const user = userEvent.setup();
     render(withIntl(<Harnais />));
 
-    expect(screen.getAllByRole('radio')).toHaveLength(16 + 2); // 16 types + 2 contrats
-    expect(screen.getByRole('radiogroup', { name: /type de bien/i })).toBeInTheDocument();
+    const groupe = screen.getByRole('radiogroup', { name: /type de bien/i });
+    expect(within(groupe).getAllByRole('radio')).toHaveLength(9);
+    expect(within(groupe).queryByRole('radio', { name: /ferme/i })).not.toBeInTheDocument();
+
+    const plus = screen.getByRole('button', { name: 'Plus de types (7)' });
+    expect(plus).toHaveAttribute('aria-expanded', 'false');
+    await user.click(plus);
+
+    expect(within(groupe).getAllByRole('radio')).toHaveLength(16);
+    expect(screen.getByRole('button', { name: 'Moins de types' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('TCK-631 — un type retenu parmi les repliés ouvre le groupe, et ne se laisse pas replier', () => {
+    render(withIntl(<Harnais type="farm" />));
+
+    expect(screen.getByRole('radio', { name: /ferme/i })).toHaveAttribute('aria-checked', 'true');
+    // Replier cacherait la réponse donnée : le bouton n'est pas offert.
+    expect(screen.queryByRole('button', { name: /types/i })).not.toBeInTheDocument();
+  });
+
+  it('TCK-631 — le contrat vient AVANT le type, en cartes dont l’explication est une description', () => {
+    render(withIntl(<Harnais />));
+
+    const [premier] = screen.getAllByRole('radiogroup');
+    expect(premier).toHaveAccessibleName(/vente ou location/i);
+    const vendre = screen.getByRole('radio', { name: 'Vendre' });
+    expect(vendre).toHaveAccessibleDescription(/prix demandé/i);
   });
 
   it('un clic sur un type le REMPLACE — une seule pastille de type reste enfoncée', async () => {
@@ -122,9 +148,10 @@ describe('StepBien', () => {
     screen.getByRole('radio', { name: /appartement/i }).focus();
     await user.keyboard('{ArrowRight}');
 
-    const villa = screen.getByRole('radio', { name: /villa/i });
-    expect(villa).toHaveAttribute('aria-checked', 'true');
-    expect(villa).toHaveFocus();
+    // TCK-631 — l'ordre est celui de l'écran (Appartement, Maison, Villa…), pas celui de l'enum.
+    const maison = screen.getByRole('radio', { name: /maison/i });
+    expect(maison).toHaveAttribute('aria-checked', 'true');
+    expect(maison).toHaveFocus();
     expect(screen.getByRole('radio', { name: /appartement/i })).toHaveAttribute('aria-checked', 'false');
   });
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
 import { FilterSidebar } from '../FilterSidebar';
@@ -61,5 +61,24 @@ describe('FilterSidebar — le tiroir mobile tient le focus', () => {
     (tiroir as HTMLElement).focus();
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
     expect(tiroir.contains(document.activeElement)).toBe(true);
+  });
+});
+
+// Retour du porteur du 2026-10-10 (390 px) : l'en-tête du tiroir défilait avec les filtres, et
+// « Tout effacer » comme la croix sortaient de l'écran. Il est posé AU-DESSUS de la zone qui défile.
+describe('FilterSidebar — l’en-tête du tiroir ne défile pas', () => {
+  it('titre et fermeture hors de la zone qui défile, les sections dedans', () => {
+    render(withIntl(<Banc />));
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les filtres' }));
+    const tiroir = screen.getByRole('dialog');
+    const defilement = tiroir.querySelector<HTMLElement>('[data-defilement="tiroir"]')!;
+
+    expect(defilement.className.split(/\s+/)).toContain('overflow-y-auto');
+    // `within` : la barre latérale du bureau est aussi montée (masquée par CSS, que jsdom ignore).
+    const dansLeTiroir = within(tiroir);
+    const titre = dansLeTiroir.getByRole('heading', { level: 2, name: 'Filtres' });
+    expect(defilement.contains(titre)).toBe(false);
+    expect(defilement.contains(dansLeTiroir.getByRole('button', { name: 'Fermer les filtres' }))).toBe(false);
+    expect(defilement.contains(dansLeTiroir.getByText('Type de transaction'))).toBe(true);
   });
 });

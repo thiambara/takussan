@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateProfileAction } from '@/app/actions/auth';
 import { reduirePhoto } from '@/lib/reduire-photo';
+import { initialesDe, libelleDe } from '@/lib/identite';
 
 /** La donnée porte la CLÉ de `profile.roles.*` ; le libellé est résolu au rendu. */
 const ROLE_KEYS: Record<UserRole, string> = {
@@ -37,6 +38,7 @@ interface ProfileHeaderProps {
 export function ProfileHeader({ user }: ProfileHeaderProps) {
   const t = useTranslations('profile.header');
   const tRoles = useTranslations('profile.roles');
+  const tNav = useTranslations('nav');
   const tCommon = useTranslations('common.actions');
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(user);
@@ -51,8 +53,9 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
-  const initials =
-    `${currentUser.first_name[0] ?? ''}${currentUser.last_name[0] ?? ''}`.toUpperCase();
+  // TCK-623 — un compte ouvert par téléphone n'a pas encore de nom.
+  const initials = initialesDe(currentUser) ?? '';
+  const libelle = libelleDe(currentUser) ?? tNav('accountFallback');
   const primaryRole = getPrimaryRole(currentUser.roles);
   const dialogAvatarSrc =
     avatarPreview ?? (removeAvatar ? null : currentUser.avatar_url);
@@ -124,13 +127,15 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     <section className="flex flex-col items-center gap-4 text-center">
       <Avatar className="size-24">
         {currentUser.avatar_url ? (
-          <AvatarImage src={currentUser.avatar_url} alt={currentUser.full_name} />
+          <AvatarImage src={currentUser.avatar_url} alt={libelle} />
         ) : null}
         <AvatarFallback className="bg-foreground text-2xl text-primary-foreground">{initials}</AvatarFallback>
       </Avatar>
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-foreground">{currentUser.full_name}</h1>
-        <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+        <h1 className="text-2xl font-bold text-foreground">{libelle}</h1>
+        {currentUser.email && currentUser.email !== libelle ? (
+          <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+        ) : null}
         {primaryRole ? (
           <span className="inline-block rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground">
             {tRoles(ROLE_KEYS[primaryRole])}

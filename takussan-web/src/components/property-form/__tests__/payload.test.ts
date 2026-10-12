@@ -55,27 +55,25 @@ describe('toCreatePayload', () => {
    * jetait. La ville, seul champ d'adresse OBLIGATOIRE du formulaire, n'était écrite nulle part.
    */
   it('AC1 — la ville seule suffit à produire un bloc adresse', () => {
-    const payload = toCreatePayload(valeurs({ city: 'Dakar' }), 'submit');
+    const payload = toCreatePayload(valeurs({ city: 'Dakar' }));
     expect(payload.address).toEqual({ city: 'Dakar' });
   });
 
   it('mappe le quartier sur `neighborhood`, le nom de colonne de la table', () => {
-    const payload = toCreatePayload(valeurs({ quarter: 'Almadies' }), 'submit');
+    const payload = toCreatePayload(valeurs({ quarter: 'Almadies' }));
     expect(payload.address).toEqual({ city: 'Dakar', neighborhood: 'Almadies' });
   });
 
   it('n’émet aucun bloc adresse quand aucun champ de localisation n’est renseigné', () => {
     const sansVille = { ...valeurs() } as Record<string, unknown>;
     delete sansVille.city;
-    const payload = toCreatePayload(sansVille as unknown as PropertyFormPayload, 'submit');
+    const payload = toCreatePayload(sansVille as unknown as PropertyFormPayload);
     expect(payload.address).toBeUndefined();
   });
 
   it('ne laisse AUCUN champ d’adresse au premier niveau du payload', () => {
     const payload = toCreatePayload(
-      valeurs({ city: 'Dakar', quarter: 'Almadies', street: 'Rue 12', country: 'SN' }),
-      'submit',
-    );
+      valeurs({ city: 'Dakar', quarter: 'Almadies', street: 'Rue 12', country: 'SN' }));
     for (const cle of ['city', 'quarter', 'region', 'street', 'postal_code', 'country', 'latitude', 'longitude']) {
       expect(payload, `${cle} ne doit pas rester au premier niveau`).not.toHaveProperty(cle);
     }
@@ -83,32 +81,27 @@ describe('toCreatePayload', () => {
 
   it('AC4 — une bascule vers la vente purge la fréquence et la disponibilité', () => {
     const payload = toCreatePayload(
-      valeurs({ contract_type: 'sale', rent_period: 'monthly', available_from: '2026-10-01' }),
-      'submit',
-    );
+      valeurs({ contract_type: 'sale', rent_period: 'monthly', available_from: '2026-10-01' }));
     expect(payload).not.toHaveProperty('rent_period');
     expect(payload).not.toHaveProperty('available_from');
   });
 
   it('purge les champs qu’un terrain ne porte pas', () => {
     const payload = toCreatePayload(
-      valeurs({ type: 'land', contract_type: 'sale', bedrooms: 3, year_built: 2010, furnished: true }),
-      'submit',
-    );
+      valeurs({ type: 'land', contract_type: 'sale', bedrooms: 3, year_built: 2010, furnished: true }));
     expect(payload).not.toHaveProperty('bedrooms');
     expect(payload).not.toHaveProperty('year_built');
     expect(payload).not.toHaveProperty('furnished');
   });
 
   it('sort les tags du payload — ils passent par leur propre endpoint', () => {
-    const payload = toCreatePayload(valeurs({ tag_ids: [1, 2] }), 'submit');
+    const payload = toCreatePayload(valeurs({ tag_ids: [1, 2] }));
     expect(payload).not.toHaveProperty('tag_ids');
   });
 
-  it('traduit l’intention en statut, et publie toujours en privé', () => {
-    expect(toCreatePayload(valeurs(), 'draft').status).toBe('draft');
-    expect(toCreatePayload(valeurs(), 'submit').status).toBe('pending_review');
-    expect(toCreatePayload(valeurs(), 'submit').visibility).toBe('private');
+  it('crée toujours un brouillon privé — publier est une seconde écriture (TCK-627)', () => {
+    expect(toCreatePayload(valeurs()).status).toBe('draft');
+    expect(toCreatePayload(valeurs()).visibility).toBe('private');
   });
 });
 
@@ -198,9 +191,7 @@ describe('toCreatePayload — AC2 de TCK-469 : le contrat de création ne bouge 
         furnished: true,
         rent_period: 'monthly',
         available_from: '2026-10-01',
-      }),
-      'submit',
-    ) as Record<string, unknown>;
+      })) as Record<string, unknown>;
 
     const nulles = Object.entries(payload)
       .filter(([, v]) => v === null)

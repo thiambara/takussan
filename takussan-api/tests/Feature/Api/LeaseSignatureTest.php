@@ -395,6 +395,24 @@ class LeaseSignatureTest extends TestCase
             fn (LeaseSignatureCodeNotification $n, array $channels) => $channels === ['mail']);
     }
 
+    /** TCK-620 (ADR-0060) — hors production, drapeau allumé, le code SMS revient ; celui d'un e-mail jamais. */
+    public function test_the_sms_code_is_previewed_outside_production_and_signs(): void
+    {
+        config(['auth.otp_preview.enabled' => true]);
+        $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
+        $this->requestSignature()->assertOk();
+
+        $code = $this->sendCode($this->owner, 'landlord')->assertStatus(202)
+            ->assertJsonPath('data.channel', 'sms')
+            ->json('otp_preview');
+        $this->assertSame($this->lastCode($this->owner), $code);
+        $this->sign($this->owner, 'landlord', $code)->assertOk();
+
+        $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202)
+            ->assertJsonPath('data.channel', 'mail')
+            ->assertJsonMissingPath('otp_preview');
+    }
+
     // ─── Le contrat figé ─────────────────────────────────────────────────────────────────────
 
     public function test_a_lease_modified_between_signatures_invalidates_the_pending_signature(): void

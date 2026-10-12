@@ -36,7 +36,7 @@ export function refusDuPayloadPlat() {
 export function acceptationDuPayloadImbrique() {
   return [
     updatePropertyAction(1, toUpdatePayload(platComme_le_formulaire)),
-    createPropertyAction(toCreatePayload(platComme_le_formulaire, 'submit')),
+    createPropertyAction(toCreatePayload(platComme_le_formulaire)),
   ];
 }
 

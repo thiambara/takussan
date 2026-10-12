@@ -34,18 +34,28 @@ export interface Category {
   readonly type: string | null; // matches PropertyType enum value from the backend
 }
 
+/**
+ * La bande de catégories de la barre publique — **dans cet ordre, et c'est une décision produit**
+ * (TCK-628) : Appartement, Studio, Chambre, Terrain, Villa, Maison, Commerce, Bureau, puis « Plus ».
+ *
+ * Studio et Chambre vivaient dans « Plus » : ce sont pourtant les deux types qu'un locataire
+ * dakarois cherche d'abord, et les cacher derrière un menu les rendait introuvables depuis
+ * l'accueil. Ils sont sortis en tête, juste après l'appartement. Le reste ne bouge pas.
+ *
+ * ⚠ Les `id` ne sont que des clés React : ils ne portent aucun ordre.
+ */
 export const categories: readonly Category[] = [
   { id: '1', nameKey: 'apartment',  icon: 'apartment',    type: 'apartment' },
-  { id: '2', nameKey: 'house',      icon: 'house',        type: 'house' },
-  { id: '3', nameKey: 'villa',      icon: 'villa',        type: 'villa' },
+  { id: '7', nameKey: 'studio',     icon: 'studio',       type: 'studio' },
+  { id: '8', nameKey: 'room',       icon: 'room',         type: 'room' },
   { id: '4', nameKey: 'land',       icon: 'terrain',      type: 'land' },
+  { id: '3', nameKey: 'villa',      icon: 'villa',        type: 'villa' },
+  { id: '2', nameKey: 'house',      icon: 'house',        type: 'house' },
   { id: '5', nameKey: 'shop',       icon: 'store',        type: 'shop' },
   { id: '6', nameKey: 'office',     icon: 'business',     type: 'office' },
 ];
 
 export const moreCategories: readonly Category[] = [
-  { id: '7', nameKey: 'studio',     icon: 'studio',       type: 'studio' },
-  { id: '8', nameKey: 'room',       icon: 'room',         type: 'room' },
   { id: '9', nameKey: 'warehouse',  icon: 'warehouse',    type: 'warehouse' },
   { id: '10', nameKey: 'hotel',      icon: 'hotel',        type: 'hotel' },
   { id: '11', nameKey: 'resort',     icon: 'resort',       type: 'resort' },
@@ -69,12 +79,11 @@ export const moreCategories: readonly Category[] = [
  * Le sort des deux entrées mortes a été tranché séparément, parce qu'elles ne se ressemblent
  * qu'en surface (TCK-439) :
  *
- * · **`sell` → `/publish`.** La destination existe (`src/app/publish/page.tsx`) et c'est
- *   exactement le parcours que le libellé annonce : « Vendre » sur un site d'annonces, c'est
- *   déposer un bien. La page résout elle-même où envoyer le visiteur (connexion, assistant hôte,
- *   `/app/properties/new`, cf. TCK-254). Le menu porte par ailleurs un bouton « Publier une
- *   annonce » : la redondance est assumée — c'est un couple intention / action, et c'est le
- *   patron des sites du domaine (« Vendre » en navigation, « Déposer une annonce » en CTA).
+ * · **`sell` → `/publish`, puis RETIRÉ (TCK-625).** La redondance avec le bouton « Publier une
+ *   annonce » avait été assumée comme un couple intention / action. Revue du parcours du
+ *   2026-10-10 : dans un menu de trois lignes, c'étaient deux entrées pour un geste, et « Vendre »
+ *   écartait qui voulait mettre en location. Le bouton reste ; la clé `nav.links.sell` part des
+ *   trois dictionnaires.
  *
  * · **`services` → RETIRÉ.** Aucune surface de services n'existe, ni publique ni ticketée. Le
  *   dépôt a des `ServiceProviderProfile` côté API, mais rien qu'un visiteur puisse atteindre :
@@ -86,7 +95,6 @@ export const moreCategories: readonly Category[] = [
 export const navLinks = [
   { labelKey: 'buy',  href: '/properties?contract_type=sale' },
   { labelKey: 'rent', href: '/properties?contract_type=rent' },
-  { labelKey: 'sell', href: '/publish' },
 ] as const;
 
 /** Une entrée de colonne du pied de page : une clé de libellé, un chemin qui doit exister. */

@@ -9,6 +9,7 @@ import type { ContractType, PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
+import { REVELE_AU_SURVOL } from '@/components/property/cards/ActionsSurPhoto';
 import { NewBuildChip, porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { CardMeta } from '@/components/property/cards/CardMeta';
 import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
@@ -195,12 +196,12 @@ export function PropertyCard({
           {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
               TCK-508 — « Neuf / Sur plan » quand la place est libre (cf. `etatEnPastille`). */}
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
-            {transaction && <ContractTypeChip type={transaction} className={PASTILLE_ETROITE} />}
-            {etatEnPastille && <NewBuildChip condition={etatNeuf} className={PASTILLE_ETROITE} />}
+            {transaction && <ContractTypeChip type={transaction} compact className={PASTILLE_ETROITE} />}
+            {etatEnPastille && <NewBuildChip condition={etatNeuf} compact className={PASTILLE_ETROITE} />}
             {/* Bureau : l'état à côté de la transaction, comme avant ; sous `md`, dans les détails. */}
             {etatNeuf && !etatEnPastille && (
               <span className="hidden md:contents">
-                <NewBuildChip condition={etatNeuf} className={PASTILLE_ETROITE} />
+                <NewBuildChip condition={etatNeuf} compact className={PASTILLE_ETROITE} />
               </span>
             )}
           </div>
@@ -211,14 +212,12 @@ export function PropertyCard({
               le cœur de 40 et la pastille de 32 (2 + 6 px de débord), 12 px entre deux ronds de
               32 en format compact (6 + 6) — il était de 6 px, les zones se recouvraient. Deux px
               de plus de chaque côté : à écart exact, les zones se touchent et l'arrondi au pixel
-              de l'écran donnait la ligne commune au comparateur (mesuré, 44 points sur 1936). */}
-          <div className={`flex shrink-0 flex-col items-center gap-2.5 @max-[11rem]:gap-3.5 ${AU_DESSUS_DU_LIEN}`}>
-            {!hideFavorite && (
-              <FavoriteButton
-                propertyId={property.id}
-                className="@max-[11rem]:size-8 @max-[11rem]:[&_svg]:size-4"
-              />
-            )}
+              de l'écran donnait la ligne commune au comparateur (mesuré, 44 points sur 1936).
+              TCK-628 — le cœur passe à 32 px à toutes les largeurs (il en faisait 40 au-dessus de
+              11rem d'image) : deux ronds de 32, donc 14 px d'écart partout, et le comparateur ne
+              se montre au pointeur qu'au survol de la carte (`REVELE_AU_SURVOL`). */}
+          <div className={`flex shrink-0 flex-col items-center gap-3.5 ${AU_DESSUS_DU_LIEN}`}>
+            {!hideFavorite && <FavoriteButton propertyId={property.id} size="sm" />}
             {!hideCompare && (
               // `contents` : au bureau, le bouton est l'enfant direct de la colonne, comme avant.
               <span className="hidden md:contents">
@@ -226,6 +225,7 @@ export function PropertyCard({
                   propertyId={property.id}
                   size="sm"
                   preview={apercu}
+                  className={REVELE_AU_SURVOL}
                 />
               </span>
             )}
@@ -233,8 +233,10 @@ export function PropertyCard({
         </div>
 
         {/* Ancienneté — sur la photo au BUREAU seulement ; sous `md`, dans la ligne de détails. */}
-        <div className="absolute bottom-3 left-3 hidden md:flex items-center gap-1 bg-scrim/60 backdrop-blur-md text-primary-foreground text-xs font-medium px-2 py-1 rounded-full shadow-sm">
-          <Clock className="size-3 opacity-80" aria-hidden="true" />
+        {/* TCK-628 — plaque claire, comme les pastilles : le voile sombre en faisait un troisième
+            pavé sur la photo. C'était la plaque de la carte Standard de l'accueil. */}
+        <div className="absolute bottom-2.5 left-2.5 hidden md:flex items-center gap-1 bg-card/90 backdrop-blur-sm text-foreground text-xs font-medium px-2 py-0.5 rounded-full shadow-sm">
+          <Clock className="size-3 opacity-70" aria-hidden="true" />
           {timeAgo}
         </div>
       </div>

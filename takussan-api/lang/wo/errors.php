@@ -140,6 +140,8 @@ return [
     ],
     'email' => [
         'already_verified' => 'Adrees e-mail bii dëggal nañu ko ba noppi.',
+        'missing' => 'Amul benn adrees e-mail ci kont bii.',
+        'change_requires_proof' => 'Adrees e-mail bu ñu dëggal mënuñu ko soppi ci profil bi léegi.',
     ],
     'export' => [
         'forbidden' => 'Amuloo sañ-sañ génne donne yii.',
@@ -379,7 +381,9 @@ return [
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',
         'code_invalid' => 'Code dëggal bi baaxul walla jeex na.',
         'missing' => 'Amuloo benn nimero telefon bu ñu bind.',
-        'resend_too_soon' => 'Muñal balaa ngay laaj beneen code.',
+        'resend_too_soon' => 'Yónne nañu code leegi. Mën ngaa laaj beneen ci :seconds s.',
+        'send_limit' => 'Laaj nga code yu bari ci nimero bii. Jéemaatal ci :minutes min.',
+        'send_limit_day' => 'Laaj nga code yu bari tey ci nimero bii. Jéemaatal ci :hours h.',
         'change_requires_proof' => 'Ngir soppi nimero bu ñu dëggal, wonal ci kanam ne yaa ko yor : code bi ñu yónne ci nimero boobu, walla sa baatu jàll.',
         'no_verified_number' => 'Amul benn nimero bu ñu dëggal ci kont bii.',
     ],

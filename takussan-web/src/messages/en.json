@@ -94,11 +94,11 @@
     "more": "More",
     "propertiesCount": "{count} listings",
     "userMenuFor": "User menu — {name}",
+    "accountFallback": "My account",
     "administration": "Administration",
     "links": {
       "buy": "Buy",
-      "rent": "Rent",
-      "sell": "Sell"
+      "rent": "Rent"
     },
     "categories": {
       "apartment": "Apartment",
@@ -194,6 +194,7 @@
       "backToPersonal": "Back to my workspace",
       "pendingBadge": "{count} pending",
       "topbarBrand": "Takussan · Console",
+      "consoleBadge": "Console",
       "skipToContent": "Skip to main content",
       "groups": {
         "overview": "Overview",
@@ -397,6 +398,10 @@
       "latest": {
         "eyebrow": "New",
         "title": "Just listed"
+      },
+      "sale": {
+        "eyebrow": "For sale",
+        "title": "To invest or settle down"
       }
     }
   },
@@ -519,6 +524,11 @@
       "failed": "Something went wrong. Please try again in a moment.",
       "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
     },
+    "otpPreview": {
+      "title": "Test environment",
+      "body": "Code sent by SMS:",
+      "use": "Use this code"
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Sign in — Takussan"
@@ -582,15 +592,16 @@
       "resendFailed": "Could not resend the email. Try again in a moment.",
       "resend": "Resend the verification email",
       "sending": "Sending…",
-      "continue": "Continue to the dashboard"
+      "continue": "Continue, I will verify later"
     },
     "verifyEmailLink": {
       "successTitle": "Email address verified",
-      "successBody": "Your address is confirmed. You can now reach every Takussan feature.",
-      "successCta": "Go to the dashboard",
+      "successBody": "Your address is confirmed.",
+      "successCta": "Continue",
       "failureTitle": "Verification failed",
-      "failureBody": "This link is invalid or has expired. Request a new verification email from your workspace.",
-      "failureCta": "Request a new link"
+      "failureBody": "This link has expired or was already used. Request a new one.",
+      "failureCta": "Request a new link",
+      "successCtaSignedOut": "Sign in"
     },
     "oauthCallback": {
       "title": "Signing you in…",
@@ -977,7 +988,7 @@
     },
     "moderation": {
       "pendingTitle": "Awaiting approval",
-      "pendingBody": "Your property is being reviewed by your agency's administrator. It will go live as soon as it is approved.",
+      "pendingBody": "Your property is being reviewed. It will go live as soon as it is approved.",
       "rejectedTitle": "Publication rejected",
       "resubmit": "Fix and resubmit",
       "resubmitError": "Resubmission failed. Please try again.",
@@ -1390,29 +1401,35 @@
       "steps": {
         "bien": {
           "title": "What are you listing?",
-          "subtitle": "These two answers decide which questions come next."
+          "subtitle": "These two answers decide which questions come next.",
+          "short": "Type and contract"
         },
         "lieu": {
           "title": "Where is it?",
-          "subtitle": "The city is enough to publish. The rest sharpens search results."
+          "subtitle": "The city is enough to publish. The rest sharpens search results.",
+          "short": "Location"
         },
         "caracteristiques": {
           "title": "Tell us about {type}",
           "subtitle": "These are the figures visitors compare first.",
-          "subtitleShort": "A couple of measurements, and that is all we need here."
+          "subtitleShort": "A couple of measurements, and that is all we need here.",
+          "short": "Features"
         },
         "prix": {
           "title": "At what price?",
           "subtitleRent": "The rent, how often it is due, and when the property becomes free.",
-          "subtitleSale": "The asking price. You can change it after publishing."
+          "subtitleSale": "The asking price. You can change it after publishing.",
+          "short": "Price"
         },
         "photos": {
           "title": "Add photos",
-          "subtitle": "Optional — but a listing with photos gets far more views."
+          "subtitle": "Optional — but a listing with photos gets far more views.",
+          "short": "Photos"
         },
         "finition": {
-          "title": "A title, and it is live",
-          "subtitle": "We drafted one from your answers. Edit it freely."
+          "title": "A title, and you are done",
+          "subtitle": "We drafted one from your answers. Edit it freely.",
+          "short": "Title"
         }
       },
       "typeArticle": {
@@ -1440,7 +1457,7 @@
         "continueAnyway": "Continue without"
       },
       "publish": "Publish listing",
-      "resumeLater": "Resume later",
+      "resumeLater": "Save and exit",
       "proposalFinish": "Propose to my agency",
       "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
@@ -1462,6 +1479,52 @@
         "label": "Virtual tour or video (link)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "A YouTube, Vimeo, Matterport or Kuula link. No video file to upload."
+      },
+      "outcome": {
+        "live": "Your listing is live.",
+        "review": "Listing sent for review: it will go live once approved.",
+        "proposal": "Proposal sent to your agency."
+      },
+      "publishFailed": "The property is saved as a draft but could not be published: {message} Retry, or open the draft.",
+      "publishFailedOpen": "Open the draft",
+      "partPosition": "Part {current} of {total} · {label}",
+      "parts": {
+        "bien": "The property",
+        "details": "The details",
+        "annonce": "The listing"
+      },
+      "moreTypes": "More types ({count})",
+      "fewerTypes": "Fewer types",
+      "contractHint": {
+        "rent": "A rent and how often it is due, an availability date.",
+        "sale": "An asking price, editable after publishing."
+      },
+      "header": {
+        "publish": "List a property",
+        "proposal": "Propose a property",
+        "draftSaving": "Saving…",
+        "draftSaved": "Draft saved"
+      },
+      "preview": {
+        "label": "Listing preview",
+        "hint": "What visitors will see",
+        "open": "Preview",
+        "openLabel": "Open the listing preview",
+        "empty": "Your listing",
+        "emptyHint": "It fills in as you answer.",
+        "photoLater": "Your photos will go here",
+        "placeLater": "Location to come",
+        "priceLater": "Price to come",
+        "entryTitle": "Move-in cost",
+        "entryAdvance": "{count} months in advance",
+        "entryDeposit": "{count} months of deposit",
+        "entryFee": "{count} months of agency fees",
+        "entryCharges": "{amount} of charges per month",
+        "entryNote": "The total is shown on the published listing.",
+        "checklist": "Before publishing",
+        "current": "in progress",
+        "optional": "optional",
+        "reopen": "Go back to: {step}"
       }
     },
     "titleTypes": {
@@ -1899,7 +1962,12 @@
       "propertyNew": {
         "metaTitle": "Publish a property",
         "title": "Publish a property",
-        "proposalTitle": "Propose a property to my agency"
+        "proposalTitle": "Propose a property to my agency",
+        "quotaUsage": "{used} of {limit} active listings allowed by your plan.",
+        "quotaReachedTitle": "Listing limit reached",
+        "quotaReachedBody": "You have {used} of {limit} active listings. Archive one or change plan to publish a new one.",
+        "quotaReachedUpgrade": "See plans",
+        "quotaReachedManage": "Manage my listings"
       },
       "privacy": {
         "metaTitle": "Privacy",
@@ -1941,6 +2009,7 @@
       "home": {
         "noAgency": "Dashboard",
         "greeting": "Hello {name}",
+        "greetingNoName": "Hello",
         "subtitle": "An overview of your activity",
         "metaTitle": "Dashboard"
       },
@@ -2147,6 +2216,7 @@
       "unknownEntity": "This export type does not exist.",
       "serverError": "The server ran into an error. Please try again in a moment.",
       "tooManyRequests": "Too many attempts. Please try again in a few minutes.",
+      "tooManyRequestsIn": "Too many attempts. Try again in {minutes} min.",
       "network": "The connection to the server failed. Check your internet connection and try again.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
@@ -2181,6 +2251,7 @@
       },
       "welcome": {
         "title": "Welcome to Takussan, {firstName}",
+        "titleNoName": "Welcome to Takussan",
         "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
         "cta": "Continue"
       }
@@ -4043,6 +4114,10 @@
   "recentlyViewed": {
     "eyebrow": "For you",
     "title": "Recently viewed",
+    "withSimilar": {
+      "eyebrow": "Based on your interests",
+      "title": "Recently viewed and similar homes"
+    },
     "clearHistory": "Clear history",
     "confirmTitle": "Clear history?",
     "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",
@@ -4340,14 +4415,15 @@
       "title": "Pick up where you left off",
       "description": "{count, plural, =1 {You have 1 unfinished flow.} other {You have # unfinished flows.}}",
       "labels": {
-        "host-individual-wizard": "Listing a property",
+        "host-individual-wizard": "Setting up your host space",
         "owner-onboarding": "Owner onboarding",
         "agent-onboarding": "Agent onboarding",
         "customer-onboarding": "Tenant onboarding",
         "owner-kyc": "Owner KYC",
         "agent-kyc": "Agent KYC",
         "sp-onboarding": "Service provider onboarding",
-        "agency-upgrade": "Upgrade to pro"
+        "agency-upgrade": "Upgrade to pro",
+        "property-create-wizard": "Listing a property"
       }
     }
   },
@@ -5130,7 +5206,17 @@
       "submitting": "One moment…",
       "skip": "I'll decide later",
       "note": "This answer commits you to nothing — it only decides which screens you see first.",
-      "error": "We couldn't save your answer. Try again, or skip this step."
+      "error": "We couldn't save your answer. Try again, or skip this step.",
+      "name": {
+        "title": "What is your name?",
+        "subtitle": "Your first name appears on your listings and messages.",
+        "firstName": "First name",
+        "lastName": "Last name (optional)",
+        "submit": "Continue",
+        "submitting": "One moment…",
+        "required": "Enter your first name.",
+        "error": "We could not save your first name. Try again."
+      }
     },
     "host": {
       "defaults": {
@@ -5144,8 +5230,9 @@
         "submitTitle": "Publication failed"
       },
       "success": {
-        "title": "Space created",
-        "body": "Your first property is in draft. Add photos and publish whenever you're ready."
+        "title": "Your space is ready",
+        "body": "Now let us add your first property.",
+        "bodyProfessional": "Now request its upgrade to an agency."
       },
       "steps": {
         "intent": {
@@ -5163,11 +5250,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Professional agency creation",
-            "body": "To create an agency with multiple collaborators, contact our team: we set up your space with you.",
-            "mailSubject": "Professional agency creation request",
-            "contactCta": "Contact support",
-            "continueIndividual": "Or continue as individual and upgrade later"
+            "title": "In two steps",
+            "body": "We create your space now. You then request its upgrade to an agency: our team checks your documents."
           }
         },
         "identity": {
@@ -8734,7 +8818,15 @@
       "changeProofOr": "or",
       "changeProofSendCode": "Get a code on {phone}",
       "changeProofCodeSent": "Code sent to your current number. It is valid for 5 minutes.",
-      "changeProofCodeAria": "Code received on your current number"
+      "changeProofCodeAria": "Code received on your current number",
+      "emailPlaceholder": "you@example.com",
+      "emailFormatError": "Enter a valid email address (e.g. you@example.com).",
+      "emailAddHint": "Add an email address: we will send you a link to verify it.",
+      "emailUnverifiedHint": "You can correct this address until it is verified.",
+      "emailVerifiedHint": "A verified address cannot be changed from this page.",
+      "emailVerifyPrompt": "Open the link sent to {email} to verify your address.",
+      "emailResend": "Resend the link",
+      "emailLinkSent": "Verification link sent to {email}."
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -8787,6 +8879,7 @@
       "emailTitle": "Email",
       "emailVerified": "Your email is verified.",
       "emailNotVerified": "Your email is not verified yet. Check your inbox.",
+      "emailMissing": "No email address on this account. Add one in your contact details, above.",
       "verified": "Verified",
       "notVerified": "Not verified",
       "phone": {
@@ -9686,7 +9779,15 @@
   },
   "publishRedirect": {
     "title": "Preparing your listing…",
-    "body": "We are taking you to the right place to publish your property."
+    "body": "We are taking you to the right place to publish your property.",
+    "choose": {
+      "title": "Where should this listing go?",
+      "body": "Choose the space that will hold the listing.",
+      "personal": "My personal space",
+      "unnamed": "Agency",
+      "error": "We could not open this space. Try again."
+    },
+    "retry": "Try again"
   },
   "layout": {
     "nav": {
@@ -10493,5 +10594,25 @@
     "notFoundDescription": "Check the address you received, or ask your agency for a new link.",
     "error": "The instalment could not be loaded. Please try again in a moment.",
     "retry": "Try again"
+  },
+  "invitationAccept": {
+    "metaTitle": "Accept an invitation",
+    "title": "You are invited to Takussan",
+    "subtitleSignedIn": "Accept to join the space that invited you.",
+    "subtitleSignedOut": "Create your account to join the space that invited you.",
+    "accept": "Accept the invitation",
+    "accepting": "One moment…",
+    "firstName": "First name",
+    "lastName": "Last name (optional)",
+    "password": "Password",
+    "passwordHint": "At least 8 characters, with a letter and a digit.",
+    "create": "Create my account and accept",
+    "haveAccount": "I already have an account",
+    "signIn": "Sign in",
+    "required": "Enter your first name and a password.",
+    "missingToken": "This invitation link is incomplete. Open it again from the message you received.",
+    "errors": {
+      "generic": "The invitation could not be accepted. Try again."
+    }
   }
 }

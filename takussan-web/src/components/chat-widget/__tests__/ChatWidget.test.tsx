@@ -114,6 +114,12 @@ describe('<ChatWidget> visibility', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('TCK-631 — ne rend rien sur le parcours de publication, plein écran', () => {
+    usePathnameMock.mockReturnValue('/app/properties/new');
+    const { container } = render(wrap(<ChatWidget />));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders the launcher on the home page when authenticated', () => {
     usePathnameMock.mockReturnValue('/');
     render(wrap(<ChatWidget />));

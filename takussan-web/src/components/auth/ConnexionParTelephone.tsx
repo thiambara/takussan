@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -53,6 +54,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
   const [secondFacteur, setSecondFacteur] = useState('');
   const [codeDeSecours, setCodeDeSecours] = useState(false);
   const [attente, setAttente] = useState(0);
+  const [apercu, setApercu] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -87,8 +89,9 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
     setEnvoi(true);
     setErreur(null);
     try {
-      const secondes = await demanderCodeTelephone(telephone, locale);
-      setAttente(secondes);
+      const demande = await demanderCodeTelephone(telephone, locale);
+      setAttente(demande.attente);
+      setApercu(demande.codeApercu);
       setCode('');
       setEtape('code');
     } catch (err) {
@@ -175,22 +178,23 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               required
             />
           </div>
-          {variante === 'register' ? (
-            <p className="text-xs text-muted-foreground text-pretty">
-              {t.rich('termsNotice', {
-                terms: (chunks) => (
-                  <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
-                    {chunks}
-                  </LienLocalise>
-                ),
-                privacy: (chunks) => (
-                  <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
-                    {chunks}
-                  </LienLocalise>
-                ),
-              })}
-            </p>
-          ) : null}
+          {/* TCK-624 — sur les DEUX variantes : la connexion par téléphone ouvre un compte au
+              premier code d'un numéro inconnu. Le compte naissait sans que la mention des
+              conditions ait été montrée. */}
+          <p className="text-xs text-muted-foreground text-pretty">
+            {t.rich('termsNotice', {
+              terms: (chunks) => (
+                <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {chunks}
+                </LienLocalise>
+              ),
+              privacy: (chunks) => (
+                <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {chunks}
+                </LienLocalise>
+              ),
+            })}
+          </p>
           <Button
             type="submit"
             disabled={envoi || !numeroComposable(telephone)}
@@ -234,6 +238,7 @@ export function ConnexionParTelephone({ variante, onConnecte, onEmail }: Connexi
               autoFocus
             />
           </div>
+          <CodeDePreproduction code={apercu} onUtiliser={setCode} />
           <Button
             type="submit"
             disabled={envoi || code.length !== 6}

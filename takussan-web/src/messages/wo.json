@@ -84,11 +84,11 @@
     "buy": "Jënd",
     "rent": "Luwaa",
     "userMenuFor": "Menu jëfandikukat — {name}",
+    "accountFallback": "Sama kont",
     "administration": "Yoonu njiit",
     "links": {
       "buy": "Jënd",
-      "rent": "Luwaa",
-      "sell": "Jaay"
+      "rent": "Luwaa"
     },
     "categories": {
       "apartment": "Apartama",
@@ -184,6 +184,7 @@
       "backToPersonal": "Dellu ci sama bérébu bopp",
       "pendingBadge": "{count} ñu séq",
       "topbarBrand": "Takussan · Konsol",
+      "consoleBadge": "Konsol",
       "skipToContent": "Dem ci ndollent li",
       "groups": {
         "overview": "Gis-gis bu yaatu",
@@ -346,6 +347,10 @@
       "latest": {
         "eyebrow": "Bees",
         "title": "Yees yebbi"
+      },
+      "sale": {
+        "eyebrow": "Ngir jaay",
+        "title": "Ngir dugal xaalis walla dëkk"
       }
     }
   },
@@ -445,6 +450,11 @@
       "failed": "Am na njuumte. Jéemaatal ci kanam tuuti.",
       "termsNotice": "Su nga wéyee, nangu nga <terms>sàrt yi</terms> ak <privacy>politig sutura gi</privacy>."
     },
+    "otpPreview": {
+      "title": "Barabu test",
+      "body": "Koddu bi ñu yónne ci SMS :",
+      "use": "Jëfandikoo koddu bii"
+    },
     "meta": {
       "template": "%s — Takussan",
       "default": "Dugg — Takussan"
@@ -530,15 +540,16 @@
       "resendFailed": "Mënunu yónneewaat email bi. Jéematal ci ab saa.",
       "resend": "Yónneewaat email bu seetlu bi",
       "sending": "Yónnee…",
-      "continue": "Toxal ci taablo bi"
+      "continue": "Kontine, dinaa ko seetlu ginaaw"
     },
     "verifyEmailLink": {
       "successTitle": "Email bi seetlu nañu ko",
-      "successBody": "Sa email dëggal nañu ko. Mën nga agsi léegi ci jumtukaay yépp yu Takussan.",
-      "successCta": "Dem ci taablo bi",
+      "successBody": "Sa email dëggal nañu ko.",
+      "successCta": "Kontine",
       "failureTitle": "Seetlu bi antuwul",
-      "failureBody": "Lëkkalekaay bii baaxul walla jeex na. Ñaanal beneen email bu seetlu ci sa bérébu bopp.",
-      "failureCta": "Ñaan beneen lëkkalekaay"
+      "failureBody": "Lëkkalekaay bii jeex na walla jëfandikoo nañu ko. Ñaanal beneen.",
+      "failureCta": "Ñaan beneen lëkkalekaay",
+      "successCtaSignedOut": "Dugg"
     },
     "oauthCallback": {
       "title": "Dugg mi ngi dox…",
@@ -601,6 +612,7 @@
       "unknownEntity": "Xeetu eksport bii amul.",
       "serverError": "Serwëer bi am na jafe-jafe. Jéemaatal ci kanam tuuti.",
       "tooManyRequests": "Jéem nga lu bare. Jéemaatal ci ay simili.",
+      "tooManyRequestsIn": "Jéem nga lu bare. Jéemaatal ci {minutes} simili.",
       "network": "Jokkoo bi ak serwëer bi antuwul. Seetal sa jokkoo internet te jéemaat.",
       "submitFailed": "Yónnee bi antuwul. Jéemaatal.",
       "unknown": "Am na jafe-jafe. Jéemat."
@@ -635,6 +647,7 @@
       },
       "welcome": {
         "title": "Dalal ak jam ci Takussan, {firstName}",
+        "titleNoName": "Dalal ak jam ci Takussan",
         "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
         "cta": "Toxal"
       }
@@ -2497,6 +2510,10 @@
   "recentlyViewed": {
     "eyebrow": "Pour toi",
     "title": "Xooloon ci kanam",
+    "withSimilar": {
+      "eyebrow": "Li nga bëgg",
+      "title": "Xooloon ci kanam ak yu ko niru"
+    },
     "clearHistory": "Fommi xooloon bi",
     "confirmTitle": "Fommi xooloon bi ?",
     "confirmBody": "Kër yi nga xool dañu leen jëla ci sa navigateur. Mënuñu ko delloo.",
@@ -2794,14 +2811,15 @@
       "title": "Dellusi fa nga taxoon",
       "description": "{count, plural, =1 {Am nga 1 jëf-jëf bu pare.} other {Am nga # jëf-jëf yu pare.}}",
       "labels": {
-        "host-individual-wizard": "Bind ab kër",
+        "host-individual-wizard": "Sos sa barab boroom kër",
         "owner-onboarding": "Tàmbalee borom",
         "agent-onboarding": "Tàmbalee agent",
         "customer-onboarding": "Tàmbalee dëkkkat",
         "owner-kyc": "KYC borom",
         "agent-kyc": "KYC agent",
         "sp-onboarding": "Tàmbalee prestataire",
-        "agency-upgrade": "Yokk ci pro"
+        "agency-upgrade": "Yokk ci pro",
+        "property-create-wizard": "Teg benn kër"
       }
     }
   },
@@ -3584,7 +3602,17 @@
       "submitting": "Xaaral tuuti…",
       "skip": "Dinaa ko def ëllëg",
       "note": "Tontu bii du la tëj dara : dafay wone rekk ban ekraan lañu la war a jëkk a wone.",
-      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii."
+      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii.",
+      "name": {
+        "title": "Naka nga tudd?",
+        "subtitle": "Sa tur dina feeñ ci say yéenekaay ak say bataaxal.",
+        "firstName": "Tur",
+        "lastName": "Sant (du war)",
+        "submit": "Kontine",
+        "submitting": "Xaaral tuuti…",
+        "required": "Bindal sa tur.",
+        "error": "Mënunu woon denc sa tur. Jéemaatal."
+      }
     },
     "host": {
       "defaults": {
@@ -3598,8 +3626,9 @@
         "submitTitle": "Du man a publikoŋ"
       },
       "success": {
-        "title": "Espas yi tax",
-        "body": "Sa biir bu njëkk dafa nekk brouillon. Yokk fototu yi te publi bu nga jëfandikoo."
+        "title": "Sa bérëb pare na",
+        "body": "Léegi nanu yokk sa kër bu njëkk.",
+        "bodyProfessional": "Léegi ñaanal ñu soppi ko ajaans."
       },
       "steps": {
         "intent": {
@@ -3617,11 +3646,8 @@
             }
           },
           "professionalNotice": {
-            "title": "Sos ajaans professionnelle",
-            "body": "Ngir sos ajaans ak ay collaborateurs, takkalal ak sunu ekip : danuy défar sa espas bi ak yow.",
-            "mailSubject": "Demande sos ajaans professionnelle",
-            "contactCta": "Takkal ak support",
-            "continueIndividual": "Walla continuer ni particulier te upgrader sutura"
+            "title": "Ci ñaari jéego",
+            "body": "Danuy sos sa bérëb léegi. Ginaaw ga nga ñaan ñu soppi ko ajaans: sunu ekip dina seetlu say kayit."
           }
         },
         "identity": {
@@ -5173,7 +5199,7 @@
     },
     "moderation": {
       "pendingTitle": "Muy xaar nangu",
-      "pendingBody": "Sa kër dañu koy seet ci njiitu sa ajaas. Dinañu ko génne bu ñu ko nanguwee.",
+      "pendingBody": "Ñu ngi seetlu sa kër. Dina feeñ bu ñu ko nangoo.",
       "rejectedTitle": "Bañ nañu génne ko",
       "resubmit": "Defar te yónneeaat",
       "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
@@ -5613,29 +5639,35 @@
       "steps": {
         "bien": {
           "title": "Ban xeetu kër ngay teg ?",
-          "subtitle": "Ñaari tontu yii ñoo tànn laaj yi ci topp."
+          "subtitle": "Ñaari tontu yii ñoo tànn laaj yi ci topp.",
+          "short": "Xeet ak kontra"
         },
         "lieu": {
           "title": "Fan la nekk ?",
-          "subtitle": "Dëkk bi doy na ngir teg ko. Li ci des dafay gënal seet bi."
+          "subtitle": "Dëkk bi doy na ngir teg ko. Li ci des dafay gënal seet bi.",
+          "short": "Fi mu nekk"
         },
         "caracteristiques": {
           "title": "Wax nu ci {type}",
           "subtitle": "Limu yii la ñi ngi door a mengale.",
-          "subtitleShort": "Ay natt yu néew, te loolu doy na fii."
+          "subtitleShort": "Ay natt yu néew, te loolu doy na fii.",
+          "short": "Melo yi"
         },
         "prix": {
           "title": "Ci ban njëg ?",
           "subtitleRent": "Luwaa bi, jamono ji, ak bés bi kër gi di jot.",
-          "subtitleSale": "Njëg gi ngay laaj. Man nga koo soppi bu ñu ko tegee."
+          "subtitleSale": "Njëg gi ngay laaj. Man nga koo soppi bu ñu ko tegee.",
+          "short": "Njëg gi"
         },
         "photos": {
           "title": "Yokk ay nataal",
-          "subtitle": "Doyul waar — waaye anons bu am nataal, ñu ngi koy gën a xool."
+          "subtitle": "Doyul waar — waaye anons bu am nataal, ñu ngi koy gën a xool.",
+          "short": "Nataal yi"
         },
         "finition": {
-          "title": "Benn bopp, te teg na",
-          "subtitle": "Jubbanti nanu benn ci sa tontu yi. Man nga koo soppi."
+          "title": "Benn bopp, te noppi nga",
+          "subtitle": "Jubbanti nanu benn ci sa tontu yi. Man nga koo soppi.",
+          "short": "Bopp bi"
         }
       },
       "typeArticle": {
@@ -5663,7 +5695,7 @@
         "continueAnyway": "Jàll ko"
       },
       "publish": "Teg anons bi",
-      "resumeLater": "Dellusiwaat ci kanam",
+      "resumeLater": "Denc te génn",
       "proposalFinish": "Digle ko sa ajaans",
       "proposalNotice": "Sa ajaans dina seet kër gii balaa koy siiwal : dina nekk ci kumpa ba loolu.",
       "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
@@ -5685,6 +5717,52 @@
         "label": "Seetlu ci internet walla widewoo (lëkkalekaay)",
         "placeholder": "https://www.youtube.com/watch?v=…",
         "hint": "Lëkkalekaay YouTube, Vimeo, Matterport walla Kuula. Amul fichier widewoo boo wara yónnee."
+      },
+      "outcome": {
+        "live": "Sa anons mi ngi ci internet.",
+        "review": "Anons bi yónnee nañu ko ngir seetlu : dina feeñ su ñu ko nangoo.",
+        "proposal": "Yónnee nañu sa proposition ci sa ajaans."
+      },
+      "publishFailed": "Kër gi denc nañu ko ni brouillon, waaye mënunu ko woon a teg : {message} Jéemaat, walla ubbi brouillon bi.",
+      "publishFailedOpen": "Ubbi brouillon bi",
+      "partPosition": "Pàcc {current} ci {total} · {label}",
+      "parts": {
+        "bien": "Kër gi",
+        "details": "Leeral yi",
+        "annonce": "Anons bi"
+      },
+      "moreTypes": "Yeneen xeet ({count})",
+      "fewerTypes": "Xeet yu néew",
+      "contractHint": {
+        "rent": "Luwaa ak jamono ji, ak bés bi mu di jot.",
+        "sale": "Njëg gi ngay laaj, man nga koo soppi bu ñu ko tegee."
+      },
+      "header": {
+        "publish": "Teg benn kër",
+        "proposal": "Joxe benn kër",
+        "draftSaving": "Ñu ngi koy denc…",
+        "draftSaved": "Brouillon bi denc nañu ko"
+      },
+      "preview": {
+        "label": "Anons bi, nu muy mel",
+        "hint": "Li ñi koy xool di gis",
+        "open": "Xool",
+        "openLabel": "Ubbi anons bi ngir xool",
+        "empty": "Sa anons",
+        "emptyHint": "Dafay fees ci sa tontu yi.",
+        "photoLater": "Sa nataal yi dinañu nekk fii",
+        "placeLater": "Fi mu nekk, ci kanam",
+        "priceLater": "Njëg gi, ci kanam",
+        "entryTitle": "Ci dugg",
+        "entryAdvance": "{count} weer avance",
+        "entryDeposit": "{count} weer kosiyoŋ",
+        "entryFee": "{count} weer frais d’agence",
+        "entryCharges": "{amount} sars ci weer wu nekk",
+        "entryNote": "Mbooloo mi dina feeñ ci anons bi ñu teg.",
+        "checklist": "Balaa ñuy teg",
+        "current": "ñu ngi ci",
+        "optional": "doyul waar",
+        "reopen": "Dellu ci : {step}"
       }
     },
     "titleTypes": {
@@ -8095,7 +8173,15 @@
       "changeProofOr": "walla",
       "changeProofSendCode": "Jot benn code ci {phone}",
       "changeProofCodeSent": "Yónne nañu code bi ci sa nimero bi fi nekk. Dafay dox 5 simili.",
-      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk"
+      "changeProofCodeAria": "Code bi nga jot ci sa nimero bi fi nekk",
+      "emailPlaceholder": "yow@misaal.com",
+      "emailFormatError": "Bindal adrees e-mail bu baax (misaal : yow@misaal.com).",
+      "emailAddHint": "Yokkal adrees e-mail : dinanu la yónne lien ngir nga dëggal ko.",
+      "emailUnverifiedHint": "Mën nga defar adrees bii bala ñu koy dëggal.",
+      "emailVerifiedHint": "Adrees bu ñu dëggal mënuñu ko soppi ci xët wii.",
+      "emailVerifyPrompt": "Ubbil lien bi ñu yónne ci {email} ngir dëggal sa adrees.",
+      "emailResend": "Yónneeti lien bi",
+      "emailLinkSent": "Lien bu dëggal bi yónne nañu ko ci {email}."
     },
     "searchPreferences": {
       "defaultName": "Samay tànneef",
@@ -8148,6 +8234,7 @@
       "emailTitle": "Email",
       "emailVerified": "Sa email ñu ko wóoral na.",
       "emailNotVerified": "Sa email ñu ko wóoralagul. Xoolal sa boyetu jot.",
+      "emailMissing": "Amul benn adrees e-mail ci kont bii. Yokkal ci sa coordonnées, ci kaw.",
       "verified": "Ñu ko wóoral",
       "notVerified": "Ñu ko wóoralul",
       "phone": {
@@ -8752,7 +8839,12 @@
       "propertyNew": {
         "metaTitle": "Génne benn kër",
         "title": "Génne benn kër",
-        "proposalTitle": "Digle sa ajaans benn kër"
+        "proposalTitle": "Digle sa ajaans benn kër",
+        "quotaUsage": "{used} anons yu dox ci {limit} yi sa abonnement may.",
+        "quotaReachedTitle": "Àgg nga ci li ñu la may ci anons",
+        "quotaReachedBody": "Am nga {used} anons yu dox ci {limit}. Archivéel benn walla soppi sa abonnement ngir teg bu bees.",
+        "quotaReachedUpgrade": "Xool abonnement yi",
+        "quotaReachedManage": "Saytu samay anons"
       },
       "privacy": {
         "metaTitle": "Sutura",
@@ -8794,6 +8886,7 @@
       "home": {
         "noAgency": "Tablo bi",
         "greeting": "Salaam {name}",
+        "greetingNoName": "Salaam",
         "subtitle": "Wonewu say jëf",
         "metaTitle": "Tablo bi"
       },
@@ -9686,7 +9779,15 @@
   },
   "publishRedirect": {
     "title": "Ñu ngi waajal sa yégle…",
-    "body": "Ñu ngi la yóbbu fi war ngir génne sa kër."
+    "body": "Ñu ngi la yóbbu fi war ngir génne sa kër.",
+    "choose": {
+      "title": "Fan nga bëgg a def yéenekaay bii?",
+      "body": "Tànnal bérëb bi nga bëgg a def yéenekaay bi.",
+      "personal": "Sama bérëb bu bopp",
+      "unnamed": "Ajaans",
+      "error": "Mënunu ubbi bérëb bii. Jéemaatal."
+    },
+    "retry": "Jéemaatal"
   },
   "layout": {
     "nav": {
@@ -10493,5 +10594,25 @@
     "notFoundDescription": "Seetal adres bi nga jot, walla laajal sa agence lien bu bees.",
     "error": "Luwaas bi mënul feeñ. Jéemaatal ci kanam.",
     "retry": "Jéemaat"
+  },
+  "invitationAccept": {
+    "metaTitle": "Nangu ab woo",
+    "title": "Woo nañu la ci Takussan",
+    "subtitleSignedIn": "Nangul ngir boole ak bérëb bi la woo.",
+    "subtitleSignedOut": "Sosal sa kont ngir boole ak bérëb bi la woo.",
+    "accept": "Nangu woo bi",
+    "accepting": "Xaaral tuuti…",
+    "firstName": "Tur",
+    "lastName": "Sant (du war)",
+    "password": "Baatu jàll",
+    "passwordHint": "8 araf lu néew, ak benn araf ak benn limu.",
+    "create": "Sos sama kont te nangu",
+    "haveAccount": "Am naa kont ba pare",
+    "signIn": "Dugg",
+    "required": "Bindal sa tur ak benn baatu jàll.",
+    "missingToken": "Lëkkalekaay bii matul. Ubbiwaatal ko ci bataaxal bi nga jot.",
+    "errors": {
+      "generic": "Mënunu nangu woo bi. Jéemaatal."
+    }
   }
 }

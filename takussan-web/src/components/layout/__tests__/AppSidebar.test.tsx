@@ -138,7 +138,8 @@ beforeEach(() => {
  */
 const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   customer: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
+    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
@@ -149,7 +150,8 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
   // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
   tenant: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
+    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
@@ -346,9 +348,16 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {
-    const groupes = groupBySection(buildNavItems(userWith(['customer'])));
+    const groupes = groupBySection(buildNavItems(userWith(['service_provider'])));
     expect(groupes.map((g) => g.section)).not.toContain('catalog');
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(13);
+    for (const g of groupes) expect(g.items.length).toBeGreaterThan(0);
+  });
+
+  it('TCK-625 — le catalogue d’un client se réduit à « Publier un bien »', () => {
+    const groupes = groupBySection(buildNavItems(userWith(['customer'])));
+    const catalogue = groupes.find((g) => g.section === 'catalog');
+    expect(catalogue?.items.map((i) => i.href)).toEqual(['/publish']);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(14);
   });
 
   it('les en-têtes de section sont peints pour un agency_admin', () => {

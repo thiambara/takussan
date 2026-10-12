@@ -9,6 +9,7 @@ use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
 use App\Notifications\LeaseSignatureCodeNotification;
+use App\Services\Auth\OtpPreview;
 use App\Services\Model\LeaseService;
 use App\Services\Model\NotificationService;
 use App\Services\Pdf\DocumentPdfService;
@@ -121,6 +122,11 @@ class LeaseSignatureService
         $destination = $sms ? self::maskPhone((string) $user->phone) : self::maskEmail((string) $user->email);
 
         $code = $this->otp->issue($lease, $user, $role, $channel, $destination);
+        if ($sms) {
+            // TCK-620 (ADR-0060) — hors production et drapeau allumé, le code SMS revient aussi
+            // dans la réponse. Celui d'un e-mail, jamais.
+            app(OtpPreview::class)->record($code);
+        }
         $user->notify(new LeaseSignatureCodeNotification(
             $code,
             (string) ($lease->reference_number ?? $lease->id),

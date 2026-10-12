@@ -10,6 +10,7 @@ import { LienDeCarte, VoileDInteraction } from './LienDeCarte';
 import { ActionsSurPhoto } from './ActionsSurPhoto';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
+import { CARD_SIZES_RANGEE } from '@/components/property/card-image-sizes';
 
 /**
  * Cover 3:4 overlay — variante magazine. Image full ratio 3/4, gradient bas,
@@ -34,11 +35,11 @@ export function PropertyCardCover({
     >
       <LienDeCarte slug={property.slug} idTitre={idTitre} />
 
-      <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
+      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted">
         <PropertyPhoto
           src={property.main_photo_url}
           alt={property.title}
-          sizes="260px"
+          sizes={CARD_SIZES_RANGEE}
           priority={priority}
           ton="sombre"
           className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
@@ -50,29 +51,29 @@ export function PropertyCardCover({
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
 
         {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
-        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
-            <NewBuildChip condition={property.condition} />
+        <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
+            <NewBuildChip condition={property.condition} compact />
           </div>
           {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
           <ActionsSurPhoto property={property} />
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+        <div className="absolute inset-x-0 bottom-0 p-3.5 text-white">
           {quarter && (
-            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-white/85 mb-1.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.10em] text-white/85 mb-1 truncate">
               {quarter}
             </p>
           )}
           <h3
             id={idTitre}
             // TCK-561 — blanc sur le dégradé : l'accent y perdrait le contraste, le soulignement seul.
-            className="font-display text-[17px] leading-[22px] font-semibold line-clamp-2 mb-1.5 text-balance decoration-white/70 underline-offset-[3px] group-hover:underline group-has-[a:active]:underline"
+            className="font-display text-[16px] leading-5 font-semibold line-clamp-2 mb-1 text-balance decoration-white/70 underline-offset-[3px] group-hover:underline group-has-[a:active]:underline"
           >
             {property.title}
           </h3>
-          <p className="text-[15px] font-bold tabular-nums">
+          <p className="text-[14px] font-semibold tabular-nums">
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
               <span className="ml-1 text-[12px] font-medium opacity-80">

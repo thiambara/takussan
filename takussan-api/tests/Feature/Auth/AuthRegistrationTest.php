@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AuthRegistrationTest extends TestCase
@@ -81,6 +82,32 @@ class AuthRegistrationTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['password']);
+    }
+
+    /**
+     * TCK-624 — la règle de l'API est celle du formulaire : une lettre ET un chiffre. Huit
+     * caractères suffisaient, et un client qui contournait le front posait « aaaaaaaa ».
+     */
+    #[DataProvider('motsDePasseRefuses')]
+    public function test_le_mot_de_passe_suit_la_regle_du_formulaire(string $motDePasse): void
+    {
+        $this->postJson('/api/auth/register', [
+            'first_name' => 'Awa',
+            'last_name' => 'Diop',
+            'email' => 'awa@example.com',
+            'password' => $motDePasse,
+            'password_confirmation' => $motDePasse,
+        ])->assertStatus(422)->assertJsonValidationErrors(['password']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function motsDePasseRefuses(): array
+    {
+        return [
+            'lettres seules' => ['aaaaaaaa'],
+            'chiffres seuls' => ['12345678'],
+            'plus de 72 caractères' => [str_repeat('a1', 37)],
+        ];
     }
 
     public function test_registration_fails_with_missing_fields(): void

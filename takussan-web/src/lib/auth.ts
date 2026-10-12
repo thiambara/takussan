@@ -55,8 +55,9 @@ export type LoginPayload = {
 };
 
 export type UpdateProfilePayload = {
-  first_name: string;
-  last_name: string;
+  /** TCK-623 — absents, les noms restent tels quels : seule la section qui les montre les envoie. */
+  first_name?: string;
+  last_name?: string;
   bio?: string;
   avatar?: File | null;
   avatar_remove?: boolean;
@@ -67,6 +68,12 @@ export type UpdateProfilePayload = {
    * server-side.
    */
   phone?: string | null;
+  /**
+   * TCK-632 — l'adresse à AJOUTER (compte ouvert par téléphone) ou à corriger tant qu'elle n'est
+   * pas vérifiée. L'API envoie le lien de vérification ; elle refuse (403) de remplacer une
+   * adresse vérifiée. Omise, l'adresse ne bouge pas.
+   */
+  email?: string;
   /**
    * TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro VÉRIFIÉ : le mot de passe
    * actuel, ou le code reçu sur l'ancien numéro. Sans elle, l'API rend 403
@@ -95,12 +102,13 @@ export async function getMe(token: string, activeProfileId?: string): Promise<Us
 export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<User> {
   const formData = new FormData();
   formData.append('_method', 'PUT');
-  formData.append('first_name', payload.first_name);
-  formData.append('last_name', payload.last_name);
+  if (payload.first_name !== undefined) formData.append('first_name', payload.first_name);
+  if (payload.last_name !== undefined) formData.append('last_name', payload.last_name);
   if (payload.bio !== undefined) formData.append('bio', payload.bio);
   if (payload.avatar) formData.append('avatar', payload.avatar);
   if (payload.avatar_remove) formData.append('avatar_remove', '1');
   if (payload.phone !== undefined) formData.append('phone', payload.phone ?? '');
+  if (payload.email !== undefined) formData.append('email', payload.email);
   if (payload.current_password) formData.append('current_password', payload.current_password);
   if (payload.phone_change_code) formData.append('phone_change_code', payload.phone_change_code);
 

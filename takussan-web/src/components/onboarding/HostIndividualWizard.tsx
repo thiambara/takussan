@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Building2, Mail, User } from 'lucide-react';
+import { Building2, User } from 'lucide-react';
 
 // HostWizardData / step list are intentionally trimmed compared to TCK-255:
 // the "Votre premier bien" step has been removed so the wizard focuses on
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
+import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Label } from '@/components/ui/label';
 import { PhoneInput } from '@/components/ui/phone-input';
 import {
@@ -70,8 +71,6 @@ const PROPERTY_TYPES = [
 
 const CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
 type Currency = (typeof CURRENCIES)[number];
-
-const SUPER_ADMIN_EMAIL = 'support@takussan.app';
 
 /**
  * Map an ipapi `currency` (any ISO 4217 code) to one of the four currencies
@@ -217,11 +216,16 @@ export function HostIndividualWizard() {
       }
 
       await refreshUser();
-      toast.add({
-        title: t('success.title'),
-        description: t('success.body'),
-        type: 'success',
-      });
+      // TCK-625 — le message dit ce qui s'est passé. Il annonçait « votre premier bien est en
+      // brouillon » : aucun bien n'est créé ici, l'API ne crée que l'espace. Et « Professionnel »
+      // n'était jamais lu : le choix menait au même endroit que « Particulier ». Il mène
+      // désormais à la demande de transformation de l'espace en agence, vérifiée par l'équipe.
+      if (data.intent === 'professional') {
+        toast.add({ title: t('success.title'), description: t('success.bodyProfessional'), type: 'success' });
+        router.push('/app/settings/agency/upgrade');
+        return;
+      }
+      toast.add({ title: t('success.title'), description: t('success.body'), type: 'success' });
       router.push('/app/properties/new');
     },
     [refreshUser, router, t, toast],
@@ -333,33 +337,14 @@ function IntentStep({ data, setData }: StepProps) {
         title={t('options.professional.title')}
         description={t('options.professional.body')}
       >
-        {/* Le professionnel n'est pas libre-service : il passe par le support.
-            L'avis vit SOUS l'option qui le déclenche plutôt qu'en bas de
-            l'étape — c'est la réponse à ce qu'on vient de cliquer. */}
+        {/* TCK-625 — le chemin professionnel EXISTE : l'espace se crée ici, puis sa
+            transformation en agence se demande depuis `/app/settings/agency/upgrade`. L'avis
+            renvoyait au support par courriel et laissait le choix sans effet. */}
         <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-4 text-sm">
           <p className="font-medium text-foreground">{t('professionalNotice.title')}</p>
           <p className="mt-1 leading-relaxed text-muted-foreground">
             {t('professionalNotice.body')}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3">
-            <a
-              href={`mailto:${SUPER_ADMIN_EMAIL}?subject=${encodeURIComponent(t('professionalNotice.mailSubject'))}`}
-              className="inline-flex min-h-11 items-center gap-2 rounded-md font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <Mail className="size-4" aria-hidden />
-              {t('professionalNotice.contactCta')}
-            </a>
-            <span aria-hidden className="text-border">
-              |
-            </span>
-            <button
-              type="button"
-              className="min-h-11 rounded-md font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              onClick={() => setIntent('individual')}
-            >
-              {t('professionalNotice.continueIndividual')}
-            </button>
-          </div>
         </div>
       </ChoiceCard>
     </ChoiceCardGroup>
@@ -467,6 +452,8 @@ function PhoneOtpField({ data, setData }: StepProps) {
   const [sendPending, startSend] = useTransition();
   const [verifyPending, startVerify] = useTransition();
   const [otpSent, setOtpSent] = useState(false);
+  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
+  const [otpApercu, setOtpApercu] = useState<string | null>(null);
   const { location } = useUserLocation();
   const indicatif = normaliserIndicatif(location?.country_calling_code);
   const numeroPret = numeroComposable(data.phone_otp.phone);
@@ -491,9 +478,10 @@ function PhoneOtpField({ data, setData }: StepProps) {
       // into the auth context so the rest of the app stays in sync.
       await refreshUser();
       setOtpSent(true);
+      setOtpApercu(res.data?.codeApercu ?? null);
       toast.add({
         title: t('otp.sentTitle'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend plus, dans aucun environnement.
+        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
         description: t('otp.sentBody'),
         type: 'success',
       });
@@ -578,38 +566,46 @@ function PhoneOtpField({ data, setData }: StepProps) {
       </div>
 
       {otpSent && !data.phone_otp.verified ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="phone-otp-code">{t('fields.otpCode')}</Label>
-            <Input
-              id="phone-otp-code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              className="tabular-nums tracking-widest"
-              value={data.phone_otp.code}
-              onChange={(e) =>
-                setData({
-                  ...data,
-                  phone_otp: {
-                    ...data.phone_otp,
-                    code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                  },
-                })
-              }
-            />
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="phone-otp-code">{t('fields.otpCode')}</Label>
+              <Input
+                id="phone-otp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                className="tabular-nums tracking-widest"
+                value={data.phone_otp.code}
+                onChange={(e) =>
+                  setData({
+                    ...data,
+                    phone_otp: {
+                      ...data.phone_otp,
+                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                className="h-11 w-full px-4 sm:w-auto"
+                onClick={handleVerify}
+                disabled={verifyPending || data.phone_otp.code.length !== 6}
+              >
+                {verifyPending ? t('otp.verifying') : t('otp.verifyCta')}
+              </Button>
+            </div>
           </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              className="h-11 w-full px-4 sm:w-auto"
-              onClick={handleVerify}
-              disabled={verifyPending || data.phone_otp.code.length !== 6}
-            >
-              {verifyPending ? t('otp.verifying') : t('otp.verifyCta')}
-            </Button>
-          </div>
-        </div>
+          <CodeDePreproduction
+            code={otpApercu}
+            onUtiliser={(code) =>
+              setData({ ...data, phone_otp: { ...data.phone_otp, code } })
+            }
+          />
+        </>
       ) : null}
     </div>
   );
