@@ -91,10 +91,13 @@ export const moreCategories: readonly Category[] = [
  *   explicitement de son périmètre. La clé `nav.links.services` est retirée des trois
  *   dictionnaires avec l'entrée — un libellé qui ne s'affiche plus est un piège pour la
  *   prochaine personne qui le trouvera et croira la surface livrée.
+ *
+ * · **« Louer » d'abord (TCK-633, AC5)** : le même ordre que le sélecteur de la barre
+ *   (`SelecteurDeTransaction`) et que le panneau de filtres. Un seul vocabulaire : Louer, Acheter.
  */
 export const navLinks = [
-  { labelKey: 'buy',  href: '/properties?contract_type=sale' },
   { labelKey: 'rent', href: '/properties?contract_type=rent' },
+  { labelKey: 'buy',  href: '/properties?contract_type=sale' },
 ] as const;
 
 /** Une entrée de colonne du pied de page : une clé de libellé, un chemin qui doit exister. */

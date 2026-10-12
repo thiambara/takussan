@@ -1,0 +1,90 @@
+{
+  "verdict": "ACCEPTE AVEC RÉSERVES — le comportement du lot E est prouvé par exécution sur l'arbre courant (minimums liste et carte, équipements en ET liste et carte, carte = liste sur toutes les clés, vedettes et emplacements du lot F qui respectent les filtres, Meublé trois états, Louer d'abord, « Plus de filtres », puces de la barre, préfixe /api, garde de contraste 263 recomptée fichier par fichier). Aucune régression ni débordement de territoire. Trois trous de test trouvés par ablation (une régression plausible reste verte) : D1 est à fermer avant la fusion (une ligne de jeu de données), D2 et D3 sont des renforcements. ablation_rejouee: true (16 formes inventées, toutes restaurées par Edit inverse, md5 identique).",
+  "ablation_rejouee": true,
+  "ac_executes": [
+    "AC6 « 5+ chambres » trouve 6 chambres : SearchMinimumFiltersTest (5/5) + MapFiltersParityTest::la_carte_lit_les_chambres_comme_un_minimum ; ablations V9, V10",
+    "AC6 carte = liste pour les mêmes filtres : MapFiltersParityTest 27 cas verts ; sonde propre (accents, casse, espaces, nuls, zéros, featured=false, furnished=0) : 15 combinaisons, même ensemble des deux côtés ; ablations V1–V6",
+    "AC6 une ville se choisit : ChoixDuReferentiel + FilterSidebar.lot-e verts ; ablation V13 (quartier jamais vidé) rouge",
+    "AC5 Louer avant Acheter dans le panneau : FilterSidebar.lot-e « propose Louer puis Acheter » vert ; libellés transaction.rent/sale fr/en/wo vérifiés",
+    "Delta Meublé trois états : ablation V11 (« Non » → indifférent) rouge ; aller-retour URL furnished=false → filtres → URL → carte {furnished:'false'} vérifié par script",
+    "Delta équipements ET : SearchAmenitiesAllRequiredTest vert ; ablation V7 rouge ; sonde : le bien qui n'offre que le premier équipement est absent de la liste ET de la carte",
+    "Delta « Plus de filtres » + compteur : ablations V12a, V12b rouges ; V12c VERTE (D3)",
+    "Delta puces de la barre : ablation V14 rouge (4 tests)",
+    "Lot F × filtres : sonde vedettes (3 réglages : places réservées, emplacements, les deux) — aucune vedette hors filtres servie, page 1 ni page 2 ; ablation V8 rouge"
+  ],
+  "preuves": {
+    "charge": "hw.ncpu 8 ; load 6.95 24.29 28.51 au départ (11:22), 5.95 9.89 19.64 avant la passe backend (11:28), 2.67 6.79 16.35 avant la passe front (11:32)",
+    "backend": [
+      "md5 au départ = md5 du rapport : PropertySearchService fee981da…, PublicPropertyController 5822919d…, MapPublicPropertyRequest 487c2e34…, FiltresDeLaCarte 2103c6d7…",
+      "php artisan test SearchMinimumFiltersTest SearchAmenitiesAllRequiredTest MapFiltersParityTest → 35 passed (261 assertions), 21 s",
+      "php artisan test PublicPropertySearchFiltersTest Public/{PropertySearchTest,PropertyListTest,PropertyMapTest,PropertyMapRadiusTest,HomepageDiscoveryTest} Search/{SavedSearchCriteriaVocabularyTest,PropertySearchServiceTest,PublicSearchAlertTest,SavedSearchAlertsTest,PropertyGeoSearchTest} Boost/{RankedOrderTest,ReservedTopResultsTest,SponsoredImpressionsTest,SponsoredRotationTest} → 202 passed (786 assertions), 88 s",
+      "Sonde temporaire tests/Feature/Search/ZzVerifLotEProbeTest.php (créée puis SUPPRIMÉE, jamais signalée au commit) → 5 passed : parité accents/casse (city=thies 0/0, THIÈS 1/1, location=MÉDINA 1/1, tags=piscine 1/1, ' Piscine , ' 1/1) ; parité nuls/zéros (bedrooms/bathrooms/floor_number/area_min=0 excluent le NULL des deux côtés, featured=false ne filtre rien des deux côtés) ; vedettes hors filtres (4 vedettes qui ratent chambres / un équipement / la ville / meublé) jamais en data ni en sponsored, réglages (0,2), (2,0), (1,1), pages 1 et 2 ; total = 2 ; carte = [bon, organique]",
+      "Après toutes les restaurations : les 3 classes neuves rejouées → 35 passed",
+      "./vendor/bin/pint --test sur les 11 fichiers PHP du lot → passed"
+    ],
+    "front": [
+      "npx vitest run src/components/search + referentiel-public + recherche-publique.carte + Navbar.selection-multiple + search-filters.parity + 7 PropertiesDiscoveryPage.* + surface-publique.contraste → 30 fichiers, 255 passed",
+      "npx vitest run src/components/home src/hooks/__tests__ src/types → 50 fichiers, 352 passed",
+      "npx eslint <22 fichiers / dossiers du lot E> → exit 0",
+      "npm run check:i18n → exit 0",
+      "npx tsc --noEmit → exit 2, UNE erreur, hors lot E : src/components/property-form/__tests__/ChampEquipements.libelles.test.tsx(30,22) TS2352 — fichier non suivi du lot D (écrit 11:30, lot D en correction)",
+      "Aller-retour URL ↔ filtres (script jiti, scratchpad) : furnished=false, floor_number=0, minimums, tags/ville/quartier/types, condition, featured, area_min=0, point+rayon → filtersFromSearchParams(filtersToParams(f)) rend les mêmes valeurs ; parametresDeLaCarte retire q, sort, page et garde le point avec son rayon",
+      "Préfixe /api : useApiQuery('/api/public/geo/cities' | '/api/public/geo/neighborhoods' (city=<id>) | '/api/public/amenities') et usePropertyMapQuery('/api/public/properties/map') ; routes présentes (php artisan route:list) ; amenities ne rend que type=amenity ET status=approved",
+      "Filtrage serveur seulement : la carte reçoit filter côté API (FiltresDeLaCarte), aucune liste n'est filtrée côté client ; les listes du référentiel sont des référentiels fermés (id, name, slug), sans fields[] à négocier — conforme à l'addendum"
+    ],
+    "contraste_263": "Recompté hors du test (script jiti sur couplesDesFichiers, même SURFACE, mêmes jetons) : arbre courant 263, HEAD (git archive) 256. Écarts par fichier : search/FilterSidebar.tsx 14 → 12 (−2), search/ChoixDuReferentiel.tsx +1, ui/combobox.tsx +7 (lot D), contact/ListeDeNumeros.tsx +1 (lot C) = 256 − 2 + 9 = 263 ; aucun autre fichier ne bouge. Le compte est JUSTE et l'entrée datée le décrit exactement. ⚠ Il compte 8 encres de fichiers d'autres lots : il n'est vrai que si le lot C (ListeDeNumeros) et le lot D (combobox, EN CORRECTION) sont commités avec E et que combobox.tsx ne bouge plus.",
+    "i18n": "fr/en/wo : 27 clés ajoutées et 5 (fr, wo) / 4 (en) modifiées, TOUTES sous search.filters.* (les autres écarts de search.* sont search.sponsored.*, lot F). Vouvoiement : « Choisissez d'abord une ville » ; le reste est à l'infinitif. Clés orphelines laissées (déclaré par l'implémenteur)."
+  },
+  "ablations": [
+    "V1 FiltresDeLaCarte : rent_period désactivé (`false &&`) → rouge MapFiltersParityTest « rent period ». Restauré par Edit inverse.",
+    "V2 FiltresDeLaCarte : 'bathrooms' retiré de MINIMUMS (filtre oublié) → rouge « bathrooms ».",
+    "V3 FiltresDeLaCarte : featured désactivé → rouge « featured ». (V1–V3 dans la même passe : 3 rouges, 24 verts.) md5 2103c6d7… restauré.",
+    "V4 PropertySearchService + FiltresDeLaCarte : seul le PREMIER équipement appliqué (ET dégradé) des deux côtés → 2 rouges SearchAmenitiesAllRequiredTest ; MapFiltersParityTest reste VERT.",
+    "V5 FiltresDeLaCarte seul : seul le premier équipement appliqué → TOUT VERT (MapFiltersParityTest, SearchAmenitiesAllRequiredTest, PropertyMapTest, PropertyMapRadiusTest : 56 passed). → D1. md5 restauré.",
+    "V6 FiltresDeLaCarte::parmi : seule la DERNIÈRE valeur de type/condition (OU dégradé) → TOUT VERT (40 passed). → D2. md5 restauré.",
+    "V7 SearchPublicPropertyRequest : clé neuve 'pets_allowed' ajoutée à la liste sans la carte → rouge MapFiltersParityTest::chaque_cle_de_la_carte_a_sa_ligne (« pets_allowed » manquante) + 3 rouges search-filters.parity.test.ts. md5 06c8b81b… restauré.",
+    "V8 MapPublicPropertyRequest : 'per_page' retiré de CLES_PROPRES_A_LA_LISTE (clé de liste qui fuit vers la carte) → rouge « la carte accepte les filtres de la liste et eux seuls » (per_page). md5 487c2e34… restauré.",
+    "V8b recherche-publique.ts : 'per_page' retiré de CLES_PROPRES_A_LA_LISTE côté front → 8 rouges (parité front ↔ PHP « même des deux côtés », recherche-publique.carte, carte-geo). md5 bc3e45c4… restauré.",
+    "V9 PropertySearchService : floor_number `>=` → `>` (décalage d'un) et bathrooms `>=` → `=` → 5 rouges (SearchMinimumFilters ×3, parité « floor number », floor_number_filter_is_a_minimum). md5 fee981da… restauré.",
+    "V10 PropertySearchService::featuredPool : vivier sur publicFilter() seul (vedettes hors filtres) → 6 rouges : sonde ×3, ReservedTopResults « seules les vedettes qui satisfont les filtres », SponsoredRotation ×2. md5 fee981da… restauré.",
+    "V11 FilterSidebar : choixVersMeuble('no') → undefined → rouge « « Non » demande un logement vide (furnished=false) ».",
+    "V12a FilterSidebar : estActif(false) = inactif → rouge « replié à la main, le bouton compte les filtres repliés actifs ».",
+    "V12b FilterSidebar : 'tags' retiré de CLES_REPLIEES → même rouge.",
+    "V12c FilterSidebar : 'title_type' retiré de CLES_REPLIEES → TOUT VERT (172 passed). → D3. md5 1af687e6… restauré.",
+    "V13 FilterSidebar : changer de ville garde le quartier → rouge « choisir une ville la pose et retire un quartier qui appartenait à une autre ». md5 restauré.",
+    "V14 Navbar : prochaineSelectionDeTypes seuil `>= 2` → `> 2` (une sélection de deux types écrasée) → 4 rouges Navbar.selection-multiple. md5 c9242cd7… restauré.",
+    "V15 PropertiesDiscoveryPage (co-tenu, Edit) : la carte perd `tags` → rouge carte-geo « transmet chaque filtre du panneau ». md5 867489cb… restauré.",
+    "V16 referentiel-public : '/public/geo/cities' sans /api → rouge « les villes viennent de /api/public/geo/cities ». md5 8a0ecb79… restauré."
+  ],
+  "defauts": [
+    {
+      "id": "D1",
+      "fichier": "takussan-api/tests/Feature/Search/MapFiltersParityTest.php:85 (ligne de données 'tags ET')",
+      "scenario": "B n'offre que le SECOND équipement demandé (['Parking'] pour tags=Piscine,Parking). Une carte qui n'appliquerait que le premier équipement (`array_slice(…, 0, 1)`, `reset()`, un `whereHas` hors boucle) rendrait encore A seul : V5 reste verte sur tous les tests. Le ET de la décision 4 n'est donc gardé côté carte que contre la forme OU. Le comportement actuel est juste (prouvé par la sonde : le bien « Piscine seule » est absent de la carte).",
+      "gravite": "moyenne — à fermer avant la fusion",
+      "correctif": "Ajouter une ligne 'tags ET (premier seul)' => ['tags', ['tags' => 'Piscine,Parking'], [], [], ['Piscine', 'Parking'], ['Piscine'], 'A'] ; rejouer V5, attendre le rouge."
+    },
+    {
+      "id": "D2",
+      "fichier": "takussan-api/tests/Feature/Search/MapFiltersParityTest.php:80 et :88 (lignes 'type' et 'condition')",
+      "scenario": "A porte la SECONDE (dernière) valeur, B une valeur absente : une carte qui ne garderait que la dernière valeur d'une liste en OU reste verte (V6). Le docblock du test ne garde que la forme « premier élément ».",
+      "gravite": "basse",
+      "correctif": "Trois biens : A porte la première valeur, C la seconde, B une troisième ; attendre [A, C] des deux côtés (ou une ligne miroir où A porte la première valeur)."
+    },
+    {
+      "id": "D3",
+      "fichier": "takussan-web/src/components/search/FilterSidebar.tsx:212 (CLES_REPLIEES, écrite à la main) — test : src/components/search/__tests__/FilterSidebar.lot-e.test.tsx",
+      "scenario": "Retirer une clé repliée de la liste (V12c : title_type) laisse tout vert. Effet : une URL partagée `?title_type=bail` ouvre le panneau avec « Plus de filtres » fermé et sans compte, le filtre actif caché dans le bloc replié (la puce de la barre d'outils reste).",
+      "gravite": "basse",
+      "correctif": "Un test paramétré sur chaque clé du bloc replié (une URL ne portant QUE cette clé → bloc ouvert d'office, bouton « Plus de filtres (1) » une fois replié), ou dériver CLES_REPLIEES des sections rendues dans le bloc."
+    }
+  ],
+  "observations_hors_lot": [
+    "Lot F : tests/Feature/Boost/SponsoredRotationTest.php::test_les_emplacements_sortent_hors_pagination_parmi_les_vedettes_filtrees reste VERT sous V10 (vivier sans filtres) — l'assertion dépend du tirage ; ReservedTopResultsTest et deux autres tests de rotation rougissent, le point reste donc gardé.",
+    "Lot D : tsc rouge sur ChampEquipements.libelles.test.tsx (fichier non suivi, en correction).",
+    "Préexistant, déclaré par l'implémenteur : la carte ignore q et les biens sans coordonnées ; le compte carte = liste vaut à filtres égaux hors q.",
+    "Aucune vérification au navigateur (pas de serveur front lancé) : URL, bouton retour et tiroir sont vérifiés par les tests jsdom existants (FilterSidebar.retour, .tiroir, useSearch.*) et par le script d'aller-retour."
+  ],
+  "debordements": [],
+  "territoire": "Fichiers suivis modifiés par E conformes au plan maître et à l'addendum (FilterSidebar, Navbar, types/search, recherche-publique, MapPublicPropertyRequest, docblocks PropertyMap:122 et properties.ts:168, contraste). Co-tenus : PublicPropertyController — seul map() est d'E (les autres hunks sont C et F) ; PropertySearchService — minimums et tags ET seulement ; PropertiesDiscoveryPage — import + mapFilters seulement (le reste est F) ; dictionnaires — search.filters.* seulement. Non suivis d'E = ceux du rapport ; src/test/doublure-referentiel-geo.ts n'est pas d'E (lot D). La sonde de vérification a été supprimée."
+}

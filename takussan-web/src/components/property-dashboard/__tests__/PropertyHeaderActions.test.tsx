@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
-import { updatePropertyVisibilityAction } from '@/app/actions/dashboard-properties';
+import { publishPropertyAction } from '@/app/actions/publish-property';
 import { withIntl } from '@/test/intl';
 import type { PropertyDetail } from '@/types/property';
 
@@ -26,6 +26,10 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
 vi.mock('@/components/documents/AddDocumentButton', () => ({
   AddDocumentButton: () => null,
 }));
+
+// TCK-633 (lot C, décision 3) — « Publier » passe par `POST …/publish` ; la boîte « Vos
+// coordonnées » a son propre fichier (`PropertyActions.publication.tck-633.test.tsx`).
+vi.mock('@/app/actions/publish-property', () => ({ publishPropertyAction: vi.fn() }));
 
 /**
  * Revue design 2026-09-16 — les six entrées du menu d'en-tête passaient leur action par
@@ -58,7 +62,7 @@ describe('PropertyHeaderActions', () => {
     ['pending_review', /envoyé pour validation à l'administrateur de l'agence/i],
     ['available', /^Bien publié\.$/],
   ])('publier un bien qui revient %s', async (status, attendu) => {
-    vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+    vi.mocked(publishPropertyAction).mockResolvedValue({
       ok: true,
       data: { id: 47, status, visibility: status === 'available' ? 'public' : 'private' } as unknown as PropertyDetail,
     });

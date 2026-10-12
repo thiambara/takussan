@@ -13,8 +13,8 @@ import type { User } from '@/types/user';
  * La garde connaît **deux** formes de protection, et il a fallu une revue pour
  * qu'elle connaisse la seconde :
  *
- *  1. l'appel au helper `ensureStandardAgencyOrRedirect(user)` — les cinq
- *     routes `/admin/*` ;
+ *  1. l'appel au helper `ensureStandardAgencyOrRedirect(user)` — il gardait les
+ *     routes `/admin/*` jusqu'à TCK-633, qui les a sorties de cette liste ;
  *  2. la garde **écrite en ligne** — `if (agency.kind !== 'standard')
  *     redirect('/app')` — les routes `/app/*`, qui résolvent déjà l'agence
  *     pour leur propre affichage et n'avaient pas besoin du helper.
@@ -51,19 +51,13 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // la règle.*
   '/app/overview/agency',
   '/app/owners',
-  // /admin/... — console admin agence. Gardées par `ensureStandardAgencyOrRedirect` en SSR,
-  // et leur API par `AgencyKindGuard` côté Laravel.
-  '/admin',
-  '/admin/team',
-  // TCK-594 (AC18) — `/admin/agency/billing` N'EST PLUS ICI : l'hôte individuel y lit ses
-  // reversements plateforme ; seul le bloc d'abonnement y reste réservé aux agences `standard`.
-  '/admin/moderation/properties',
-  // TCK-597 — la modération des avis s'ouvre à l'admin d'agence `standard` (ADR-0043 §1).
-  '/admin/moderation',
-  '/admin/audit',
-  // TCK-279 — la console des rôles. Gardée en SSR par
-  // `ensureStandardAgencyOrRedirect` dans `admin/roles/page.tsx`.
-  '/admin/roles',
+  // TCK-633 (lot B) — `/admin` et ses sous-pages NE SONT PLUS ICI. Elles vivent dans `PAGES_ADMIN`
+  // ⚠ Pas d'astérisque après une barre oblique dans ce bloc : `check-pro-routes.mjs` retire les
+  // commentaires par expression régulière, et y verrait l'ouverture d'un commentaire de bloc.
+  // (`@/lib/access/pages-admin`), qui porte pour chacune son exigence (rôle, agence `standard`,
+  // capacité) ; chaque page l'applique par `garderPageAdmin`, et le menu ne montre que ce qui passe.
+  // Un cadenas n'y a plus de sens : une porte fermée ne se montre pas. `scripts/check-pro-routes.mjs`
+  // refuse désormais toute route `/admin` dans cette liste.
 ]);
 
 /**
@@ -81,8 +75,8 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
  * `/app`. *Une porte fermée sans panneau se lit comme une panne.*
  *
  * Aucun autre couple (rôle, route) ne change : `/app/owners` n'est jamais
- * poussé aux agents, et les cinq routes `/admin/*` sont hors d'atteinte pour
- * eux (`(dashboard)/admin/layout.tsx` redirige tout non-`isAdmin`).
+ * poussé aux agents, et les routes `/admin/*` ne passent plus par ce prédicat
+ * (TCK-633 : `PAGES_ADMIN`, `garderPageAdmin`).
  */
 export function isProRouteLocked(
   user: User,

@@ -9,7 +9,12 @@ import { msgValidation } from './messages';
  * and not editable afterwards.
  */
 
-export const tagTypeValues = ['amenity', 'feature', 'label', 'crm'] as const;
+/**
+ * TCK-633 (ADR-0062 §7) — les types qu'un formulaire peut CRÉER. `feature` en sort : la migration
+ * de la tâche 10 a fusionné ses étiquettes dans `amenity`, et `StoreTagRequest` le refuse. Il reste
+ * dans `TagType` (`types/tag.ts`) : un tag déjà là se lit encore.
+ */
+export const tagTypeValues = ['amenity', 'label', 'crm'] as const;
 
 export const tagFormSchema = z.object({
   name: z

@@ -25,7 +25,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 type SettingValue = string | number | string[];
 type Draft = Record<string, SettingValue>;
 
-export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits'];
+export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost'];
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout.

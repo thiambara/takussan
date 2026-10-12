@@ -1,0 +1,306 @@
+{
+  "region": {
+    "code": "SN-SE",
+    "slug": "sedhiou",
+    "name": "Sédhiou",
+    "latitude": 12.9100696,
+    "longitude": -15.5765783
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:19:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "4f16ad5261e92eff43f3f8963046a8eddfe67e9c02e7ed92299c2b6c95da1852"
+  },
+  "cities": [
+    {
+      "slug": "baghere",
+      "name": "Baghère",
+      "latitude": 12.658893,
+      "longitude": -15.3969028,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bambaly",
+      "name": "Bambaly",
+      "latitude": 12.651185,
+      "longitude": -15.6291703,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bemet-bidjini",
+      "name": "Bémet Bidjini",
+      "latitude": 12.7214327,
+      "longitude": -15.9501827,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bona",
+      "name": "Bona",
+      "latitude": 13.0486218,
+      "longitude": -15.859149,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bounkiling",
+      "name": "Bounkiling",
+      "latitude": 13.0384973,
+      "longitude": -15.6963299,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diacounda",
+      "name": "Diacounda",
+      "latitude": 12.9708946,
+      "longitude": -15.8977637,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diambati",
+      "name": "Diambati",
+      "latitude": 13.0837667,
+      "longitude": -15.3627115,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diannah-ba",
+      "name": "Diannah Ba",
+      "latitude": 12.9245015,
+      "longitude": -15.2356803,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diannah-malary",
+      "name": "Diannah Malary",
+      "latitude": 12.8479549,
+      "longitude": -15.2458003,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diaroume",
+      "name": "Diaroumé",
+      "latitude": 12.9826322,
+      "longitude": -15.6267248,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diattacounda",
+      "name": "Diattacounda",
+      "latitude": 12.5766822,
+      "longitude": -15.6794495,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diende",
+      "name": "Diendé",
+      "latitude": 12.7962218,
+      "longitude": -15.5801608,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diouboudou",
+      "name": "Diouboudou",
+      "latitude": 12.6875969,
+      "longitude": -15.4878694,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djibabouya",
+      "name": "Djibabouya",
+      "latitude": 12.8314637,
+      "longitude": -15.9296585,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djibanar",
+      "name": "Djibanar",
+      "latitude": 12.5114571,
+      "longitude": -15.8532429,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djinany",
+      "name": "Djinany",
+      "latitude": 13.2187615,
+      "longitude": -15.7265013,
+      "neighborhoods": []
+    },
+    {
+      "slug": "djiredji",
+      "name": "Djiredji",
+      "latitude": 12.6625046,
+      "longitude": -15.8575463,
+      "neighborhoods": []
+    },
+    {
+      "slug": "faoune",
+      "name": "Faoune",
+      "latitude": 13.1150654,
+      "longitude": -15.571454,
+      "neighborhoods": []
+    },
+    {
+      "slug": "goudomp",
+      "name": "Goudomp",
+      "latitude": 12.5679429,
+      "longitude": -15.8803165,
+      "neighborhoods": []
+    },
+    {
+      "slug": "inor",
+      "name": "Inor",
+      "latitude": 13.0643004,
+      "longitude": -15.7288616,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kandion-mangana",
+      "name": "Kandion Mangana",
+      "latitude": 13.1778306,
+      "longitude": -15.7897038,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kaour",
+      "name": "Kaour",
+      "latitude": 12.550947,
+      "longitude": -15.9171698,
+      "neighborhoods": []
+    },
+    {
+      "slug": "karantaba",
+      "name": "Karantaba",
+      "latitude": 12.7753245,
+      "longitude": -15.4473014,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kolibantang",
+      "name": "Kolibantang",
+      "latitude": 12.7938767,
+      "longitude": -15.2446771,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koussy",
+      "name": "Koussy",
+      "latitude": 12.8436227,
+      "longitude": -15.6300677,
+      "neighborhoods": []
+    },
+    {
+      "slug": "madina-wandifa",
+      "name": "Madina Wandifa",
+      "latitude": 13.0582356,
+      "longitude": -15.6467538,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mangaroungou-santo",
+      "name": "Mangaroungou Santo",
+      "latitude": 12.5524563,
+      "longitude": -15.4935556,
+      "neighborhoods": []
+    },
+    {
+      "slug": "marsassoum",
+      "name": "Marsassoum",
+      "latitude": 12.8354242,
+      "longitude": -15.9799757,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiamacouta",
+      "name": "Ndiamacouta",
+      "latitude": 13.3196043,
+      "longitude": -15.6324794,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiamalathiel",
+      "name": "Ndiamalathiel",
+      "latitude": 13.3032663,
+      "longitude": -15.6642009,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niagha",
+      "name": "Niagha",
+      "latitude": 12.6868473,
+      "longitude": -15.2468936,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oudoucar",
+      "name": "Oudoucar",
+      "latitude": 12.9200812,
+      "longitude": -15.3522474,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sakar",
+      "name": "Sakar",
+      "latitude": 12.8956754,
+      "longitude": -15.4299126,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sama-kanta-peulh",
+      "name": "Sama Kanta Peulh",
+      "latitude": 12.9244593,
+      "longitude": -15.1853025,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sansamba",
+      "name": "Sansamba",
+      "latitude": 12.8217463,
+      "longitude": -15.8271062,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sedhiou",
+      "name": "Sédhiou",
+      "latitude": 12.7091084,
+      "longitude": -15.5615365,
+      "neighborhoods": []
+    },
+    {
+      "slug": "simbandi-balante",
+      "name": "Simbandi Balante",
+      "latitude": 12.5161724,
+      "longitude": -15.7206895,
+      "neighborhoods": []
+    },
+    {
+      "slug": "simbandi-brassou",
+      "name": "Simbandi Brassou",
+      "latitude": 12.6119632,
+      "longitude": -15.4654643,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tanaff",
+      "name": "Tanaff",
+      "latitude": 12.6484242,
+      "longitude": -15.4287032,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tankon",
+      "name": "Tankon",
+      "latitude": 13.2439419,
+      "longitude": -15.4977982,
+      "neighborhoods": []
+    },
+    {
+      "slug": "yarang-balante",
+      "name": "Yarang Balante",
+      "latitude": 12.5005107,
+      "longitude": -15.6113793,
+      "neighborhoods": []
+    }
+  ]
+}

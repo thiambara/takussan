@@ -1,0 +1,113 @@
+{
+  "verdict": "refuse — (1) la correction de PUT …/status ouvre une impasse : un bien retiré par son statut ne revient plus en ligne depuis le menu « Statut » pour tout compte sans CGU datées (tous les comptes antérieurs au lot C) ou dont le contact est incomplet. L'API rend 422 sans que l'écran ouvre la boîte « Vos coordonnées », et « Publier » n'est pas proposé puisque le bien est encore `public` (AC11 rompu sur ce chemin) ; (2) D10 ne tient qu'à l'instant de la publication : un bien en ligne confié à un agent sans numéro vérifié reste en ligne, et GET …/contact sert ce numéro non vérifié comme `primary`",
+  "preuves": {
+    "charge": "uptime 5,77 / 22,39 / 28,48 au départ, 43,76 / 39,05 / 33,66 pendant vitest, 3,68 / 11,42 / 21,30 à la fin, sur 8 cœurs (autres lots actifs). Les durées ne mesurent pas le dépôt.",
+    "md5_avant": "identiques à ceux que le rapport du lot C annonce après restauration : PublishReadiness abbdc0b6…, PropertyController a0c336c5…, AccountDeletionService b31e6ebb…, HostIndividualOnboardingService 0f73be3c…, migration 300000 ac4aa110…, CoordonneesPublication 36834ab0…, ContactsSurPlaceDuBien 6d51fde6…, PublicationAvecCoordonnees 11a5d946…",
+    "api_lot_c": "php artisan test PublishReadinessTest AccountDeletionExecuteTest HostAutoOnboardTest ContactPreferencesTest PropertyContactsTest PublicContactEndpointTest SecondaryPhoneTest PhoneVerifiedEventTest SpaceCreatedEventTest → 71 passed (348 assertions)",
+    "api_voisins": "PropertyCrudTest PropertyModerationGateTest PropertyAuthorizationTest PropertyCollaboratorTest Public/PropertyContactTest Public/PropertyPrimaryContactTest AccountErasureListingsTest → 92 passed (497 assertions)",
+    "pint": "./vendor/bin/pint --test sur les 11 fichiers PHP corrigés ou testés → passed",
+    "web": "npx vitest run sur 14 fichiers (contact/**, PropertyActions.publication.tck-633, PropertyDetailTabs.contacts.tck-633, PropertyHeaderActions, CaseWhatsApp, SecondaryPhoneSection, ProfileContactSection.whatsapp, publish/page.auto-space, PropertyWizard.publication.tck-633, PropertyAgentCard.tck-633) → 57 passed",
+    "tsc": "npx tsc --noEmit → sortie 0",
+    "eslint": "npx eslint sur components/contact, PropertyDetailTabs, PropertyRowActions, PropertyHeaderActions, les deux tests tck-633 du tableau de bord, types/user.ts, actions property-contacts et contact-preferences, profile/security → sortie 0",
+    "i18n": "node scripts/check-i18n.mjs → sortie 0, parité tenue (en 0/0, wo 0/0 sur 8005 clés). dialogIncomplete en fr/en/wo ne parle d'aucun brouillon ; whatsappQuestion/Yes/No et contacts.save/saved présents dans les trois langues.",
+    "migrations_up_down_up": "Base jetable reverif_lotc_tmp créée en UTF8 --locale=C sur takussan-postgres-1, 226 migrations en un lot. down par --path de 300200, 300100 puis 300000 → 0 colonne restante, index users_secondary_phone_verified_unique absent, property_contacts absente, drapeau retiré. up de nouveau : phone_whatsapp nullable sans défaut, secondary_phone_whatsapp NOT NULL défaut false, index présent, table présente, host_auto_space enabled=true. Base supprimée ensuite (pg_database : 0 ligne).",
+    "chemins_qui_rendent_public": {
+      "store (visibility=public)": "gardé : le créateur est jugé (ensure) avant la transaction",
+      "update (passage à visibility=public)": "gardé ; ablation A3 → rouge",
+      "update (status affichable dans le corps)": "gardé par statusPutsOnline ; R3c status=available + visibility=public renvoyée → 422",
+      "updateStatus (PUT …/status)": "gardé AVANT l'écriture ; R3 'published' → 422, R3b 'pending' → 422, ablation A2 (garde déplacée après l'écriture) → rouge",
+      "publish / updateVisibility(public)": "gardé ; alreadyOnline = scopePublic (statut, published_at, is_test, agence publique)",
+      "bulk-visibility": "ne peut que rendre privé (PropertyBulkVisibilityRequest : Rule::in([private]))",
+      "bulk-archive": "retire seulement",
+      "bulk-assign / assigned-agent / collaborateurs": "ne publie pas, mais CHANGE le contact principal d'un bien en ligne sans aucun contrôle (défaut 2)",
+      "duplication": "copie Draft + Private, approbation retirée : rien à garder",
+      "approbation de modération (PropertyModerationService::approve)": "met en ligne un bien soumis sans relire le contact ; le contrôle a eu lieu à la soumission (R5 : soumis prêt, vérification perdue, approuvé → 200 et public)",
+      "observateur PropertyObserver": "ne rend rien public ; il détourne vers pending_review",
+      "import, jobs, commandes, super-admin": "aucune écriture de status/visibility/published_at sur Property trouvée (grep sur app/ : seuls PropertyController, PropertyModerationService, PropertyPublication, PropertyBulkVisibilityService et PropertyDuplicationService écrivent ces colonnes)"
+    },
+    "scenarios_executes": [
+      "R1 admin d'un AUTRE espace : GET …/contacts → 403, PUT …/contacts → 403, la ligne posée par le propriétaire reste",
+      "R2 contact au numéro vide → 422 contacts.0.phone ; contact {} → 422 ; numéro jamais vérifié, sans titre → 200, label null ; 4 contacts → 422 ; [] → 200, liste vide",
+      "R3 / R3b bien publié, retiré (unavailable / under_maintenance), vérification perdue : PUT …/status published → 422, pending → 422",
+      "R3c retiré par draft, PUT …/{id} {status: available, visibility: public} → 422",
+      "R4 bien d'agence publié par un admin prêt ; PUT …/assigned-agent vers un agent au numéro NON vérifié → 200 ; PUT …/{id} {title, visibility: public} → 200 ; POST …/publish → 200 ; toujours dans Property::public() ; GET /api/public/properties/{slug}/contact → 200 [{phone: '+221770000555', whatsapp: false, kind: 'primary'}] : le numéro non vérifié est servi aux visiteurs",
+      "R5 agence modérée : soumis par un agent prêt (pending_review), vérification perdue, approuvé par l'admin → 200, public=true",
+      "R6 POST /api/auth/register → 201 ; `user` ne porte ni phone_whatsapp ni terms_accepted_at ($request->user() est nul : les clés « pour soi » sont omises). POST /api/auth/login → 200, phone_whatsapp présent et null (Auth::setUser avant la ressource)",
+      "R7 compte qui a répondu WhatsApp = oui, PUT /api/auth/profile {phone: autre numéro} → 200 ; phone changé, phone_whatsapp toujours true",
+      "R8 compte antérieur au lot C (numéro vérifié, terms_accepted_at nul), bien en ligne : PUT …/status unavailable → 200, puis PUT …/status available sans accept_terms → 422 {code: property.publish_contact_incomplete, missing: [terms], contact_is_self: true}"
+    ],
+    "scenarios_note": "R1-R8 joués dans tests/Feature/ZzReverifLotC/ReverifLotCScenariosTest.php, supprimé ensuite avec son répertoire (absent de git status)."
+  },
+  "ablations": [
+    { "fichier": "takussan-api/app/Services/Property/PublishReadiness.php (statusPutsOnline)", "mutation": "`! in_array($status->value, NON_PUBLIC_STATUSES)` remplacé par `$status === PropertyStatus::Available`", "resultat": "PublishReadinessTest RESTE VERT (5/5 tests de statut) ; seuls R3 (published) et R3b (pending) rougissent. Aucun test du lot n'éprouve un statut affichable autre qu'`available`." },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/PropertyController.php (updateStatus)", "mutation": "ensureForProperty déplacé APRÈS $property->update()", "resultat": "1 rouge : remettre en ligne par le statut est garde (statut écrit avant le refus)" },
+    { "fichier": "takussan-api/app/Http/Controllers/Api/PropertyController.php (update)", "mutation": "clause de passage à public rendue fausse (`… && false`)", "resultat": "1 rouge : la mise a jour publique est gardee" },
+    { "fichier": "takussan-api/app/Services/Account/AccountDeletionService.php (anonymize)", "mutation": "retrait de la seule ligne `secondary_phone_verified_at => null`", "resultat": "1 rouge : execute efface le second numero et les cases whatsapp" },
+    { "fichier": "takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:152", "mutation": "lockForUpdate() → sharedLock() (FOR SHARE ne sérialise pas deux lecteurs)", "resultat": "1 rouge : la ligne du compte est verrouillee avant de chercher l espace" },
+    { "fichier": "takussan-api/database/migrations/2026_10_12_300000_enable_host_auto_space_flag.php (down)", "mutation": "retrait de `->where('key', 'host_auto_space')` (down effacerait toute ligne de feature_flags jamais touchée par la console)", "resultat": "HostAutoOnboardTest RESTE VERT (12/12) : aucun test ne pose d'autre drapeau avant le retour arrière" },
+    { "fichier": "takussan-web/src/components/contact/CoordonneesPublication.tsx:61", "mutation": "`user?.phone_whatsapp === null` → `!user?.phone_whatsapp` (« non » traité comme « jamais répondu »)", "resultat": "2 rouges : rien à demander : rien ne s'affiche ; WhatsApp déjà répondu « non » : la question ne revient pas" },
+    { "fichier": "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx", "mutation": "setBrouillon(null) sur un refus du serveur (la saisie est perdue)", "resultat": "1 rouge : dit le refus du serveur et garde la saisie" },
+    { "fichier": "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx:62", "mutation": "t('dialogIncomplete') → t('otherContact') (le message ne dit plus ce qui manque à soi)", "resultat": "2 rouges (ligne et en-tête) : un second refus dans la boîte dit ce qui manque, sans parler d'un brouillon" },
+    { "restauration": "Edit puis Edit inverse pour chacune, jamais cp ; md5 identiques avant et après sur les 8 fichiers (liste dans preuves.md5_avant). Aucune ablation dans src/messages/*.json, lang/*, ni dans un fichier co-tenu." }
+  ],
+  "corrections_verifiees": {
+    "1_status_publish_update": "tenu côté API. Les cinq chemins sont gardés avant toute écriture, `published` et `pending` compris (R3/R3b). Mais voir le défaut 1 : le front du menu Statut ne sait pas traiter le refus.",
+    "2_anonymize": "tenu (A4 rouge). terms_* conservés, choix motivé.",
+    "3_contacts_onglet_modifier": "tenu : lecture, ajout, correction, retrait (5 tests + montage) ; 3 au plus (API 422 au 4e, bouton Ajouter remplacé par le message au 3e) ; contact vide refusé (422) ; titre facultatif ; numéro non vérifié accepté ; autre espace → 403 en lecture et en écriture (R1).",
+    "4_verrou_double_clic": "tenu : la régression vers FOR SHARE rougit aussi (A5).",
+    "5_phone_whatsapp_null": "tenu pour /auth/me, le profil et la publication. Un seul consommateur back le convertit, PropertyContactNumbers (`(bool)`, et un test de vérité dans hasWhatsApp), et c'est à juste titre : sans réponse, aucun bouton WhatsApp. Côté front : types/user.ts est à `boolean | null`, CaseWhatsApp coche sur `=== true` et CoordonneesPublication ne pose la question que sur `=== null`. Réserves : défauts 4 et 5.",
+    "6_dialogue_sans_brouillon": "tenu (F3 rouge ; fr/en/wo sans « brouillon/draft »). `incomplete` ne reste employé que par PropertyWizard.tsx:369, où le brouillon existe.",
+    "7_down_migration_drapeau": "tenu fonctionnellement (up/down/up sur base jetable) ; la portée par `key` n'est pas épinglée (A6 vert)."
+  },
+  "defauts": [
+    {
+      "fichier": "takussan-web/src/components/property-dashboard/PropertyRowActions.tsx:115 (changeStatus) et PropertyHeaderActions.tsx:106 ; takussan-api/app/Http/Controllers/Api/PropertyController.php:296-304 (updateStatus)",
+      "scenario": "Exécuté (R8) : un compte antérieur au lot C (terms_accepted_at nul, comme TOUS les comptes existants), numéro vérifié, a passé son annonce en « Indisponible ». Il choisit « Disponible » dans le menu Statut. L'API rend 422 property.publish_contact_incomplete avec missing [terms], parce que le menu n'envoie jamais accept_terms. Le front affiche le message brut (« Pour publier, … les conditions d'utilisation doivent être acceptées ») dans la ligne d'erreur, sans boîte de coordonnées ni case CGU. Le menu propose « Dépublier » et non « Publier », puisque visibility est encore `public`. Seule issue : dépublier, puis publier. Même impasse quand le contact a perdu son numéro vérifié. Avant la correction, ce geste fonctionnait : la correction 1 crée une régression d'usage sur le chemin de remise en ligne le plus courant, et AC11 (« l'écran fait compléter ce qui manque sans quitter la publication ») n'est pas tenu sur ce chemin.",
+      "gravite": "majeur (régression introduite par la correction)",
+      "correctif": "dans changeStatus des deux menus, un refus 422 publish_contact_incomplete passe par usePublicationAvecCoordonnees : boîte ouverte avec missing et contactIsSelf, puis nouvel envoi de PUT …/status avec accept_terms ; updatePropertyStatusAction doit donc transmettre accept_terms, missing et contact_is_self (comme publishPropertyAction). Test : statut « Disponible » refusé pour CGU → la boîte s'ouvre ; « Publier » dans la boîte → PUT status {available, accept_terms: true}. Côté API, aucune modification."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Property/PropertyContactNumbers.php:29 (numéro principal émis sans contrôle de vérification) ; PropertyController.php:344 (assignAgent), :444 (bulkAssign) ; PropertyModerationService.php:48 (approve)",
+      "scenario": "Exécuté (R4) : un bien d'agence est publié par un admin au contact complet. L'admin le confie ensuite (PUT …/assigned-agent) à un agent dont le numéro n'est pas vérifié → 200. Le bien reste dans Property::public(), se modifie et se republie sans contrôle (alreadyOnline), et GET /api/public/properties/{slug}/contact sert '+221770000555' en kind primary. Même résultat quand le contact change lui-même de numéro : AuthController::updateProfile remet phone_verified_at à nul, et le nouveau numéro, non vérifié, est servi aussitôt. Autre variante (R5) : soumis prêt, vérification perdue, approuvé → en ligne. Le second numéro n'est servi que s'il est vérifié (secondUtilisable), le principal sans condition : la règle n'est pas la même pour les deux. Jugement sur D10 : la décision garde la PUBLICATION, et la promesse faite au visiteur — le numéro affiché est vérifié — ne tient plus dès le lendemain. L'écart que le rapport annonce (update ne recontrôle pas un bien déjà public) est sans effet en soi, puisque l'édition n'envoie pas visibility (payload.ts) : il n'ouvre rien. Le défaut est ailleurs : rien ne recontrôle quand le contact change.",
+      "gravite": "majeur",
+      "correctif": "(a) minimal et dans le territoire C : dans PropertyContactNumbers::for() et hasWhatsApp(), n'émettre le principal que si phone_verified_at n'est pas nul, comme pour le second, avec un test « principal non vérifié absent de …/contact ». (b) en complément, refuser en 422 property.publish_contact_incomplete (contact_is_self false) la désignation d'un contact principal incomplet sur un bien en ligne (assignAgent, bulkAssign, PrimaryAgentDesignator) ; à défaut, documenter que le bien reste en ligne et ne montre plus que ses contacts sur place. Un retrait automatique de la mise en ligne n'est pas recommandé : il dépublierait sans que personne l'ait demandé."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Api/PublishReadinessTest.php:180-232",
+      "scenario": "Ablation A1 : statusPutsOnline réduit à `available` laisse tout le lot vert. `published` et `pending` (affichables, et `published` est proposé par le menu Statut) remettraient un bien en ligne sans contrôle, et aucun test ne le verrait. Le code est juste aujourd'hui (R3/R3b → 422).",
+      "gravite": "mineur",
+      "correctif": "un dataProvider sur les statuts affichables (available, published, pending) dans test_remettre_en_ligne_par_le_statut_est_garde."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:186-190 (updateProfile), Auth/PhoneVerificationController.php:74-77 (envoi du code), Services/Auth/PhoneVerificationService.php:199-203 (son second devient principal)",
+      "scenario": "Exécuté (R7) : avoir répondu « WhatsApp : oui » puis changer de numéro laisse phone_whatsapp à true. Le bouton WhatsApp de l'annonce visera un numéro que personne n'a déclaré WhatsApp, et la question n'est plus posée puisqu'une réponse existe. Même chose quand son propre second numéro devient principal : la réponse de l'ancien principal reste, et secondary_phone_whatsapp est remis à false au lieu d'être reporté.",
+      "gravite": "mineur",
+      "correctif": "remettre phone_whatsapp à null partout où phone change ; dans markVerified (cas isOwnSecondary), reporter secondary_phone_whatsapp sur phone_whatsapp. Un test par chemin."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:59 (register) ; takussan-web/src/components/contact/CoordonneesPublication.tsx:61,63",
+      "scenario": "Exécuté (R6) : la réponse d'inscription omet phone_whatsapp et terms_accepted_at, parce que $request->user() est nul et que les clés « pour soi » sont donc absentes. openSession pose cet objet tel quel. Tant qu'aucun refreshUser n'a lieu, le front lit undefined : `=== null` est faux, donc la question WhatsApp n'est pas posée, et `!user?.terms_accepted_at` est vrai, donc la phrase des CGU est proposée à tort. La connexion par e-mail, elle, porte les clés (Auth::setUser). PhoneLoginService et OAuthSessionOpener n'ont pas été mesurés.",
+      "gravite": "mineur",
+      "correctif": "rendre la ressource « pour soi » à l'ouverture de session (Auth::setUser avant UserResource dans register, ou une méthode UserResource::forSelf()), et mesurer les deux autres ouvreurs de session ; ou un refreshUser() après openSession."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Onboarding/HostAutoOnboardTest.php:56-77",
+      "scenario": "Ablation A6 : un down() sans filtre sur key, qui effacerait toutes les lignes de feature_flags jamais touchées par la console (celles d'autres migrations de données), reste vert.",
+      "gravite": "mineur",
+      "correctif": "poser une autre ligne de drapeau sans updated_by_id avant $migration->down() et vérifier qu'elle survit."
+    },
+    {
+      "fichier": "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx:45",
+      "scenario": "`if (query.isError) return null` : une 500 ou une coupure réseau à la lecture fait disparaître le panneau sans un mot. L'annonceur ne sait pas que ses contacts sur place existent ni qu'il peut les corriger, et retry: false empêche toute reprise.",
+      "gravite": "mineur",
+      "correctif": "ne taire que 403/404 ; sur toute autre erreur, un message court et un bouton « Réessayer » (refetch)."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/PropertyController.php:193-195 (commentaire)",
+      "scenario": "Le commentaire justifie la règle du passage à public par « le formulaire d'édition renvoie `visibility` telle quelle ». Or le corps d'édition n'en porte aucune : PropertyUpdatePayload et le schéma zod n'ont pas de visibility. La règle est inoffensive, puisque seul publish() pose published_at, mais sa raison est fausse.",
+      "gravite": "mineur (documentation)",
+      "correctif": "réécrire le commentaire : un client qui renvoie visibility=public sur un bien déjà public ne change rien à sa mise en ligne, et c'est le statut (branche suivante) qui la rouvre."
+    }
+  ],
+  "resume": "Les sept corrections tiennent à l'API et sous ablation, à deux trous de test près (statuts `published`/`pending`, filtre `key` du down). Les tests du lot sont verts, et tsc, eslint, pint et i18n aussi. up/down/up passe sur une base jetable. Refusé pour deux raisons : la garde de PUT …/status, sans pendant au front, bloque la remise en ligne depuis le menu Statut pour tous les comptes antérieurs (CGU non datées) sans ouvrir la boîte de coordonnées ; et un bien en ligne confié à un agent non vérifié sert ce numéro non vérifié aux visiteurs, parce que PropertyContactNumbers n'exige la vérification que du second numéro."
+}

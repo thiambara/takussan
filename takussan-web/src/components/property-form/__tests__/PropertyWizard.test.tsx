@@ -19,6 +19,8 @@ import type { Tag } from '@/types/tag';
 const routeur = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => routeur }));
 
+// TCK-633 — le référentiel géographique, hors de ce que ce fichier éprouve.
+vi.mock('@/components/property-form/useReferentielGeo', () => import('@/test/doublure-referentiel-geo'));
 vi.mock('@/components/map/LocationPickerMapLoader', () => ({
   LocationPickerMapLoader: () => <div data-testid="carte" />,
 }));
@@ -77,6 +79,8 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyVisibilityAction: vi.fn(),
   uploadPropertyPhotosAction: vi.fn(),
 }));
+vi.mock('@/app/actions/publish-property', () => ({ publishPropertyAction: vi.fn() }));
+vi.mock('@/app/actions/property-contacts', () => ({ replacePropertyContactsAction: vi.fn() }));
 
 const toast = vi.hoisted(() => ({ add: vi.fn() }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => toast }));
@@ -87,11 +91,12 @@ import {
   updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
+import { publishPropertyAction } from '@/app/actions/publish-property';
 
 import { PropertyWizard } from '../PropertyWizard';
 
-function monter(tags: Tag[] = []) {
-  return render(withIntl(<PropertyWizard tags={tags} />));
+function monter(tags: Tag[] = [], props: { readonly fraisDAgence?: boolean } = {}) {
+  return render(withIntl(<PropertyWizard tags={tags} {...props} />));
 }
 
 const WIFI: Tag = {
@@ -130,6 +135,10 @@ beforeEach(() => {
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
   vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true } as never);
   vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+    ok: true,
+    data: { id: 42, status: 'available' },
+  } as never);
+  vi.mocked(publishPropertyAction).mockResolvedValue({
     ok: true,
     data: { id: 42, status: 'available' },
   } as never);
@@ -222,10 +231,11 @@ describe('PropertyWizard — ce que la géo-IP pose et ce qu’elle propose', ()
     expect(ville.value).toBe('Dakar');
   });
 
-  it('pose le pays et la devise que la note de l’étape 1 promet à l’utilisateur', async () => {
-    // ⚠ Volontairement AILLEURS qu'au Sénégal : `country` vaut `''` et `currency` vaut `'XOF'`
-    // par défaut. Une localisation sénégalaise rendrait l'assertion vraie même si l'assemblage
-    // ne posait RIEN — c'est exactement la coïncidence qui fait passer un test creux.
+  it('pose le Sénégal que la note de l’étape 1 annonce — JAMAIS le pays ni la devise de la connexion (TCK-633)', async () => {
+    // ⚠ Volontairement connecté AILLEURS qu'au Sénégal : une localisation sénégalaise rendrait
+    // l'assertion vraie même si la géo-IP posait encore le pays. ADR-0062 §4 — le Sénégal est le
+    // seul pays servi, et l'API réécrit `SN` sur toute adresse du référentiel : un « FR » posé ici
+    // s'afficherait puis disparaîtrait à l'enregistrement.
     geo.valeur = { city: 'Paris', region: 'Île-de-France', country_code: 'FR', currency: 'EUR' };
     const user = userEvent.setup();
     monter();
@@ -235,14 +245,16 @@ describe('PropertyWizard — ce que la géo-IP pose et ce qu’elle propose', ()
     await user.click(suivant());
 
     await waitFor(() => {
-      expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('FR');
+      expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('SN');
     });
 
     await user.type(screen.getByLabelText(/ville/i), 'Paris');
     await user.click(suivant()); // → caractéristiques
     await user.click(suivant()); // → prix
 
-    expect(screen.getByRole('combobox', { name: /devise/i })).toHaveTextContent('EUR');
+    // ADR-0061 — le prix se publie en francs CFA : pas de choix, et pas de décimales d'euro.
+    expect(screen.queryByRole('combobox', { name: /devise/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^prix/i)).toHaveAttribute('inputmode', 'numeric');
   });
 });
 
@@ -276,12 +288,19 @@ describe('PropertyWizard — la validation ne déborde jamais de l’étape cour
 
   it('ne déclenche à l’étape 3 que les champs que la MATRICE juge pertinents pour le type', async () => {
     const user = userEvent.setup();
-    monter();
 
     // Un appartement a un étage : la valeur hors bornes bloque, ce qui prouve que l'étape
-    // déclenche bien ses propres clés.
-    await allerAuxCaracteristiques(user, /^appartement$/i);
-    await user.type(screen.getByLabelText(/^étage/i), '500');
+    // déclenche bien ses propres clés. TCK-633 — l'étage se CHOISIT désormais dans une liste
+    // bornée : la valeur hors bornes arrive par un brouillon repris, seul chemin qui le permet.
+    brouillon.etat.draft = {
+      step: 2,
+      data: {
+        title: null, type: 'apartment', contract_type: 'sale', currency: 'XOF', city: 'Dakar',
+        furnished: false, tag_ids: [], floor_number: 500,
+      },
+    };
+    monter();
+    await screen.findByRole('progressbar', { value: { text: 'Étape 3 sur 6' } });
     await user.click(suivant());
     expect(await screen.findByText(/valeur irréaliste/i)).toBeInTheDocument();
 
@@ -330,6 +349,17 @@ describe('PropertyWizard — le brouillon', () => {
     expect(screen.getByText(/repris votre brouillon/i)).toHaveAttribute('role', 'status');
     // TCK-631 — l'en-tête dit l'état du brouillon : celui-ci existe sur le serveur.
     expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
+  });
+
+  it('un brouillon d’avant ADR-0062 reprend au Sénégal, pas au pays de la géo-IP (TCK-633)', async () => {
+    brouillon.etat.draft = {
+      step: 1,
+      data: { type: 'villa', contract_type: 'sale', city: 'Dakar', country: 'FR' },
+    };
+    monter();
+
+    expect(await screen.findByRole('progressbar', { value: { text: 'Étape 2 sur 6' } })).toBeInTheDocument();
+    expect((screen.getByLabelText(/pays/i) as HTMLInputElement).value).toBe('SN');
   });
 
   /**
@@ -383,6 +413,8 @@ describe('PropertyWizard — le brouillon', () => {
     await user.type(screen.getByLabelText(/ville/i), 'Dakar');
     const bascule = screen.getByRole('button', { name: /ajouter la rue/i });
     await user.click(bascule);
+    // Le pays part à `SN` (ADR-0062 §4) : on le vide pour y poser un code invalide.
+    await user.clear(screen.getByLabelText(/pays/i));
     await user.type(screen.getByLabelText(/pays/i), 'S');
     await user.click(screen.getByRole('button', { name: /masquer la rue/i }));
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'true');
@@ -410,6 +442,8 @@ describe('PropertyWizard — le brouillon', () => {
     await user.click(suivant());
     await user.type(screen.getByLabelText(/ville/i), 'Dakar');
     await user.click(screen.getByRole('button', { name: /ajouter la rue/i }));
+    // Le pays part à `SN` (ADR-0062 §4) : on le vide pour y poser un code invalide.
+    await user.clear(screen.getByLabelText(/pays/i));
     await user.type(screen.getByLabelText(/pays/i), 'S');
     await user.click(suivant());
     expect(screen.getByTestId('details-adresse')).toHaveAttribute('aria-hidden', 'false');
@@ -528,7 +562,12 @@ async function allerJusquAuBout(
   options: { readonly photo?: boolean; readonly equipement?: boolean } = {},
 ) {
   await allerAuxCaracteristiques(user, /^villa$/i);
-  if (options.equipement) await user.click(screen.getByRole('button', { name: /wifi/i }));
+  if (options.equipement) {
+    // TCK-633 — les équipements se cherchent dans une liste à puces ; Échap la referme.
+    await user.type(screen.getByLabelText(/équipements/i), 'wif');
+    await user.click(await screen.findByRole('option', { name: 'WiFi' }));
+    await user.keyboard('{Escape}');
+  }
   await user.click(suivant()); //                                → prix
   await user.type(screen.getByLabelText(/^prix/i), '25000000');
   await user.click(suivant()); //                                → photos
@@ -597,35 +636,75 @@ describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
     expect(screen.queryByText(/supérieur à 0/i)).not.toBeInTheDocument();
   });
 
-  it('W10 — le prix suit la devise CHOISIE : en euros, « 1500,50 » part 1500,5, pas 150 050', async () => {
-    // Revue adverse : remplacer la devise suivie par la constante 'XOF' laissait toute la suite
-    // verte. Seul un changement de devise DANS l'étape éprouve que le champ la suit.
+  it('W10 — la devise ne se choisit plus (TCK-633) : un brouillon en euros repart en francs CFA', async () => {
+    // Un brouillon d'avant ADR-0061 peut porter l'euro. Repris tel quel, le prix se lirait avec
+    // deux décimales, et le corps partirait en EUR — que le serveur ramènerait à XOF sans le dire.
+    brouillon.etat.draft = {
+      step: 3,
+      data: {
+        title: null, type: 'land', contract_type: 'sale', currency: 'EUR', city: 'Dakar',
+        furnished: false, tag_ids: [],
+      },
+    };
     const user = userEvent.setup();
     monter();
-    await allerAuxCaracteristiques(user, /^terrain$/i);
-    await user.click(suivant()); //                          → prix
+    await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } });
 
-    await user.click(screen.getByRole('combobox', { name: /devise/i }));
-    await user.click(await screen.findByRole('option', { name: /euro/i }));
-
+    expect(screen.queryByRole('combobox', { name: /devise/i })).not.toBeInTheDocument();
     const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
-    expect(prix).toHaveAttribute('inputmode', 'decimal');
-    await user.type(prix, '1500,50');
-    expect(prix.value).toBe('1\u202f500,50');
+    expect(prix).toHaveAttribute('inputmode', 'numeric');
+    await user.type(prix, '1500');
 
     await user.click(suivant()); //                          → photos
     await user.click(suivant()); //                          → finition
     await user.click(screen.getByRole('button', { name: /publier/i }));
 
     await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
-      price: 1500.5,
-      currency: 'EUR',
-    });
+    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ price: 1500, currency: 'XOF' });
+  });
+
+  it('TCK-633 — un indépendant ne voit pas les frais d’agence, et un brouillon qui en portait ne les envoie pas', async () => {
+    brouillon.etat.draft = {
+      step: 3,
+      data: {
+        title: null, type: 'apartment', contract_type: 'rent', rent_period: 'monthly', currency: 'XOF',
+        city: 'Dakar', furnished: false, tag_ids: [], price: 350_000, agency_fee_months: 1,
+      },
+    };
+    const user = userEvent.setup();
+    monter([], { fraisDAgence: false });
+    await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } });
+
+    expect(screen.getByLabelText(/caution/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/frais d.agence/i)).not.toBeInTheDocument();
+
+    await user.click(suivant()); //                          → photos
+    await user.click(suivant()); //                          → finition
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(createPropertyAction).toHaveBeenCalledTimes(1));
+    const corps = vi.mocked(createPropertyAction).mock.calls[0][0] as Record<string, unknown>;
+    expect(corps.agency_fee_months ?? null).toBeNull();
   });
 });
 
 describe('PropertyWizard — la soumission', () => {
+  it('TCK-633 — un équipement PROPOSÉ part avec les autres, en nom, par le même appel', async () => {
+    const user = userEvent.setup();
+    monter();
+    await allerAuxCaracteristiques(user, /^villa$/i);
+    await user.type(screen.getByLabelText(/équipements/i), 'Forage{Enter}');
+    await user.keyboard('{Escape}');
+    await user.click(suivant()); //                          → prix
+    await user.type(screen.getByLabelText(/^prix/i), '25000000');
+    await user.click(suivant()); //                          → photos
+    await user.click(suivant()); //                          → finition
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(setPropertyTagsAction).toHaveBeenCalledTimes(1));
+    expect(setPropertyTagsAction).toHaveBeenCalledWith(42, [], ['Forage']);
+  });
+
   it('TCK-542 AC1 — les photos partent RÉDUITES dans le navigateur, pas telles que choisies', async () => {
     reduction.reduirePhotos.mockImplementationOnce(async (fs) => fs.map(reduite));
     const user = userEvent.setup();
@@ -816,14 +895,14 @@ describe('PropertyWizard — la publication (TCK-627)', () => {
 
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
     expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({ status: 'draft' });
-    expect(updatePropertyVisibilityAction).toHaveBeenCalledWith(42, 'public');
+    expect(publishPropertyAction).toHaveBeenCalledWith(42, { acceptTerms: true });
     expect(toast.add).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Votre annonce est en ligne.' }),
     );
   });
 
   it('une agence qui modère : le message dit « en vérification »', async () => {
-    vi.mocked(updatePropertyVisibilityAction).mockResolvedValue({
+    vi.mocked(publishPropertyAction).mockResolvedValue({
       ok: true,
       data: { id: 42, status: 'pending_review' },
     } as never);
@@ -834,10 +913,12 @@ describe('PropertyWizard — la publication (TCK-627)', () => {
   });
 
   it('un refus (quota) garde le brouillon, le dit, et réessaie SANS recréer le bien', async () => {
-    vi.mocked(updatePropertyVisibilityAction).mockResolvedValueOnce({
+    vi.mocked(publishPropertyAction).mockResolvedValueOnce({
       ok: false,
       status: 422,
       message: 'Limite d’annonces atteinte.',
+      missing: null,
+      contactIsSelf: true,
     } as never);
     const user = await publier();
 
@@ -851,14 +932,14 @@ describe('PropertyWizard — la publication (TCK-627)', () => {
     await user.click(screen.getByRole('button', { name: /publier/i }));
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
     expect(createPropertyAction).toHaveBeenCalledTimes(1);
-    expect(updatePropertyVisibilityAction).toHaveBeenCalledTimes(2);
+    expect(publishPropertyAction).toHaveBeenCalledTimes(2);
   });
 
   it('la proposition du bailleur ne publie pas : « proposition envoyée »', async () => {
     await publier(true);
 
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
-    expect(updatePropertyVisibilityAction).not.toHaveBeenCalled();
+    expect(publishPropertyAction).not.toHaveBeenCalled();
     expect(vi.mocked(toast.add).mock.calls[0][0].title).toBe('Proposition envoyée à votre agence.');
   });
 });

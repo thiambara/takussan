@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\Onboarding\SpaceCreated;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\AddAgentAgencyRequest;
@@ -61,6 +62,9 @@ class AgencyController extends Controller
             'currency' => $data['currency'] ?? Currency::default()->value,
             'status' => $data['status'] ?? AgencyStatus::Active->value,
         ]));
+        // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà
+        // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
+        SpaceCreated::dispatch($agency);
 
         return $this->json(['data' => AgencyResource::make($agency)->toArray($request)], 201);
     }

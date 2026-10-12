@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 /**
@@ -10,7 +10,13 @@ import { render, screen } from '@testing-library/react';
  *
  * Le second test porte une contrainte de HTML : `AgencyConfigForm` est un `<form>` entier. Un
  * bouton posé dedans partagerait sa soumission, et un `<form>` imbriqué n'est pas valide.
+ *
+ * TCK-633 (décision du porteur, 2026-10-12) — la carte n'est montée que si le filigrane est allumé
+ * pour la plateforme (`watermark_available`, rendu par l'API) : éteint, elle promettait un
+ * filigrane qu'aucune photo ne recevrait.
  */
+
+const agence = vi.hoisted(() => ({ watermark_available: true as boolean | undefined }));
 
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => {
@@ -32,10 +38,18 @@ vi.mock('@/app/actions/auth', () => ({
   }),
 }));
 
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
 vi.mock('@/app/actions/admin-agency', () => ({
   fetchAgencyAction: async () => ({
     ok: true,
-    data: { id: 7, name: 'Agence Test', slug: 'agence-test', commission_rate: 5, settings: {} },
+    data: {
+      id: 7,
+      name: 'Agence Test',
+      slug: 'agence-test',
+      commission_rate: 5,
+      settings: {},
+      watermark_available: agence.watermark_available,
+    },
   }),
 }));
 
@@ -51,6 +65,10 @@ vi.mock('@/components/admin-agency/RegenerateWatermarksCard', () => ({
 }));
 
 describe('/admin/agency', () => {
+  beforeEach(() => {
+    agence.watermark_available = true;
+  });
+
   it('monte la regénération des filigranes, sur la bonne agence', async () => {
     const { default: Page } = await import('../page');
     render(await Page());
@@ -63,5 +81,22 @@ describe('/admin/agency', () => {
     render(await Page());
 
     expect(screen.getByTestId('watermarks-card').closest('form')).toBeNull();
+  });
+
+  it('ne la monte pas quand le filigrane est éteint pour la plateforme', async () => {
+    agence.watermark_available = false;
+    const { default: Page } = await import('../page');
+    render(await Page());
+
+    expect(screen.queryByTestId('watermarks-card')).toBeNull();
+    expect(screen.getByTestId('agency-config-form')).toBeInTheDocument();
+  });
+
+  it("ne la monte pas quand l'API ne dit rien (réponse d'avant TCK-633)", async () => {
+    agence.watermark_available = undefined;
+    const { default: Page } = await import('../page');
+    render(await Page());
+
+    expect(screen.queryByTestId('watermarks-card')).toBeNull();
   });
 });

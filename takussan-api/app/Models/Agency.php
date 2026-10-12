@@ -8,6 +8,8 @@ use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\Enums\Currency;
+use App\Observers\AgencyBoostObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,6 +24,8 @@ use LemonSqueezy\Laravel\Billable as LemonSqueezyBillable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+/** TCK-633 lot F (ADR-0061 §8) — suspendre ou réactiver l'espace met en pause ou reprend ses boosts. */
+#[ObservedBy([AgencyBoostObserver::class])]
 class Agency extends AbstractModel implements HasMedia
 {
     // TCK-079: Lemon Squeezy `Billable` makes Agency the scope used to
@@ -159,6 +163,12 @@ class Agency extends AbstractModel implements HasMedia
     public function shouldBeSearchable(): bool
     {
         return ! $this->trashed();
+    }
+
+    /** TCK-633 lot F (ADR-0061 §1). */
+    public function creditLots(): HasMany
+    {
+        return $this->hasMany(CreditLot::class);
     }
 
     public function primaryAdmin(): BelongsTo

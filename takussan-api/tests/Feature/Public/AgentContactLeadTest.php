@@ -23,6 +23,9 @@ class AgentContactLeadTest extends TestCase
             'username' => 'awa-diop',
             'email' => 'awa@example.test',
             'phone' => '+221771234567',
+            // TCK-633 (lot C, tour 3) — le numéro n'est publié que VÉRIFIÉ (D10) ; le non-vérifié
+            // est gardé par NumeroPublieVerifieTest.
+            'phone_verified_at' => now(),
         ]);
         AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agency->id]);
 

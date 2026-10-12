@@ -17,6 +17,7 @@ use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\FiligraneGlobalAllume;
 use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
@@ -26,7 +27,7 @@ use Tests\TestCase;
  */
 class WatermarkActivationTest extends TestCase
 {
-    use RefreshDatabase;
+    use FiligraneGlobalAllume, RefreshDatabase;
 
     private FilesystemAdapter $public;
 

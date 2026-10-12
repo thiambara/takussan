@@ -102,5 +102,17 @@ export type User = {
   status: UserStatus;
   /** TCK-253 — empty `{}` when the user has set nothing yet. */
   preferences?: UserPreferences;
+  /**
+   * TCK-633 (lot C) — préférences de contact, rendues par `GET /api/auth/me` pour SOI seulement
+   * (`UserResource` ne les donne pas pour un autre membre : optionnelles ici).
+   */
+  /** `null` : la question n'a jamais reçu de réponse (l'écran de publication la pose) ; `false` : non. */
+  phone_whatsapp?: boolean | null;
+  /** Le second numéro VÉRIFIÉ par code ; jamais un identifiant de connexion. */
+  secondary_phone?: string | null;
+  secondary_phone_verified_at?: string | null;
+  secondary_phone_whatsapp?: boolean;
+  /** La date d'acceptation des CGU, posée par la première publication. */
+  terms_accepted_at?: string | null;
   created_at: string;
 };

@@ -373,8 +373,12 @@ class MembershipCapabilityResolverTest extends TestCase
      * à `agency_admin` : c'est sa raison d'être. `reports.view_global` ne pouvait pas garder une
      * vue d'agence, puisqu'elle est réservée à la plateforme, et l'admin d'agence aurait reçu 403
      * partout. L'agent ne la reçoit pas (`SystemRoleCapabilities::agent()`).
+     *
+     * **Décision du 2026-10-12 — TCK-633 lot F (ADR-0061 §5), 44/46 → 45/47.** Le cas ajouté est
+     * `boost.spend` : dépenser les crédits de l'espace pour mettre un bien en avant. Accordé à
+     * `agency_admin` (c'est lui qui tient le portefeuille), pas à l'agent système.
      */
-    public function test_agency_admin_breadth_is_pinned_to_44_of_46(): void
+    public function test_agency_admin_breadth_is_pinned_to_45_of_47(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -386,13 +390,13 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            44,
+            45,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(46, Capability::cases());
+        $this->assertCount(47, Capability::cases());
     }
 
     /**

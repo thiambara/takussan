@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, type Control } from 'react-hook-form';
 
 import { withIntl } from '@/test/intl';
 import type { PropertyFormValues } from '@/lib/schemas/property';
@@ -22,16 +22,24 @@ const TAGS: Tag[] = [
   { id: 2, name: 'Piscine', slug: 'piscine', type: 'amenity', icon: null, color: null, description: null },
 ];
 
+/** Ce que le formulaire retient — lu par `useWatch`, rendu pour être asserté. */
+function Sonde({ control }: { control: Control<PropertyFormValues> }) {
+  const [ids, noms, etage] = useWatch({ control, name: ['tag_ids', 'tag_names', 'floor_number'] });
+  return <output data-testid="sonde">{JSON.stringify({ tag_ids: ids, tag_names: noms ?? [], floor_number: etage ?? null })}</output>;
+}
+
 function Harnais({
   type,
   contrat = 'sale',
   tagIds = [],
   tags = TAGS,
+  etage,
 }: {
   type: PropertyFormValues['type'];
   contrat?: PropertyFormValues['contract_type'];
   tagIds?: number[];
   tags?: Tag[];
+  etage?: number;
 }) {
   const form = useForm<PropertyFormValues>({
     defaultValues: {
@@ -42,10 +50,25 @@ function Harnais({
       city: '',
       furnished: false,
       tag_ids: tagIds,
+      tag_names: [] as string[],
+      floor_number: etage,
     } as PropertyFormValues,
   });
-  return <StepCaracteristiques form={form} tags={tags} />;
+  return (
+    <>
+      <StepCaracteristiques form={form} tags={tags} />
+      <Sonde control={form.control} />
+    </>
+  );
 }
+
+const sonde = () => JSON.parse(screen.getByTestId('sonde').textContent ?? '{}') as {
+  tag_ids: number[]; tag_names: string[]; floor_number: number | null;
+};
+
+/** `useWatch` publie APRÈS le rendu qui a écrit : on attend la sonde, on ne la lit pas tout de suite. */
+const attendre = (attendu: Partial<ReturnType<typeof sonde>>) =>
+  waitFor(() => expect(sonde()).toMatchObject(attendu));
 
 function monter(props: Parameters<typeof Harnais>[0]) {
   return render(withIntl(<Harnais {...props} />));
@@ -69,7 +92,7 @@ describe('StepCaracteristiques', () => {
 
   it('AC2 — un TERRAIN ne propose aucun équipement domestique', () => {
     monter({ type: 'land' });
-    expect(screen.queryByRole('group', { name: /équipements/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/équipements/i)).not.toBeInTheDocument();
   });
 
   it('AC3 — un APPARTEMENT demande chambres, salles de bain et étage', () => {
@@ -129,28 +152,45 @@ describe('StepCaracteristiques', () => {
     expect(screen.getByLabelText(/surface/i)).toBeInTheDocument();
   });
 
-  it('les équipements déjà retenus sont VISIBLEMENT retenus', () => {
+  it('les équipements déjà retenus sont VISIBLEMENT retenus — une puce, qu’on peut retirer', () => {
     monter({ type: 'villa', tagIds: [2] });
 
-    expect(screen.getByRole('button', { name: 'Piscine' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'WiFi' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Retirer Piscine' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retirer WiFi' })).not.toBeInTheDocument();
   });
 
-  it('un clic ajoute un équipement, un second le retire', async () => {
+  it('TCK-633 (AC10) — un équipement se CHERCHE, se choisit, puis se retire', async () => {
     const user = userEvent.setup();
     monter({ type: 'villa' });
 
-    const wifi = screen.getByRole('button', { name: 'WiFi' });
-    await user.click(wifi);
-    expect(wifi).toHaveAttribute('aria-pressed', 'true');
+    await user.type(screen.getByLabelText(/équipements/i), 'pisc');
+    await user.click(await screen.findByRole('option', { name: 'Piscine' }));
+    await user.keyboard('{Escape}');
+    await attendre({ tag_ids: [2] });
 
-    await user.click(wifi);
-    expect(wifi).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByRole('button', { name: 'Retirer Piscine' }));
+    await attendre({ tag_ids: [] });
   });
 
-  it('n’affiche pas le bloc des équipements quand aucun tag n’est fourni', () => {
+  it('TCK-633 (AC10) — un équipement NOUVEAU s’ajoute par Entrée, tel que saisi, en attente', async () => {
+    const user = userEvent.setup();
+    monter({ type: 'villa' });
+
+    await user.type(screen.getByLabelText(/équipements/i), 'Groupe électrogène{Enter}');
+    await user.keyboard('{Escape}');
+
+    await attendre({ tag_ids: [], tag_names: ['Groupe électrogène'] });
+    expect(screen.getByRole('button', { name: 'Retirer Groupe électrogène' }).parentElement)
+      .toHaveTextContent(/groupe électrogène.*en attente de vérification/i);
+  });
+
+  it('TCK-633 — le champ est rendu même SANS catalogue : on peut toujours ajouter', async () => {
+    const user = userEvent.setup();
     monter({ type: 'villa', tags: [] });
-    expect(screen.queryByRole('group', { name: /équipements/i })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/équipements/i), 'Forage{Enter}');
+
+    await attendre({ tag_names: ['Forage'] });
   });
 
   it('le statut foncier se désélectionne — il est facultatif', async () => {
@@ -189,15 +229,59 @@ describe('StepCaracteristiques', () => {
     expect(neuf).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('re-revue M-12 — statut foncier ET équipements restent en `aria-pressed`, jamais en radiogroup', () => {
-    // La frontière est VOULUE, pas un oubli : ces deux champs sont multi-sélection (équipements)
-    // ou désélectionnables (statut foncier), et un groupe de radios ne convient à ni l'un ni
-    // l'autre (cf. le docblock de `ChoiceChips`). Nommer l'invariant ici évite qu'une future
-    // retouche les fasse basculer en `radioGroup` par mimétisme avec `StepBien`.
+  it('re-revue M-12 — le statut foncier reste en `aria-pressed`, jamais en radiogroup', () => {
+    // La frontière est VOULUE, pas un oubli : le statut foncier est désélectionnable, et un groupe
+    // de radios ne se désélectionne pas (cf. le docblock de `ChoiceChips`). Nommer l'invariant ici
+    // évite qu'une future retouche le fasse basculer en `radioGroup` par mimétisme avec
+    // `StepBien`. (TCK-633 : les équipements sont passés en liste à puces.)
     monter({ type: 'land' });
 
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
     expect(screen.getByRole('group', { name: /statut foncier/i })).toBeInTheDocument();
+  });
+
+  describe('TCK-633 (AC10) — les nombres se choisissent dans une liste', () => {
+    it('les chambres vont de « Non précisé » à 20', async () => {
+      const user = userEvent.setup();
+      monter({ type: 'apartment' });
+
+      await user.click(screen.getByLabelText(/chambres/i));
+      const liste = await screen.findByRole('listbox');
+      const libelles = within(liste).getAllByRole('option').map((o) => o.textContent);
+      expect(libelles[0]).toBe('Non précisé');
+      expect(libelles.slice(1)).toEqual(Array.from({ length: 21 }, (_, i) => String(i)));
+    });
+
+    it('l’étage propose le sous-sol et le rez-de-chaussée, et un sous-sol s’enregistre à −1', async () => {
+      const user = userEvent.setup();
+      monter({ type: 'apartment' });
+
+      await user.click(screen.getByLabelText(/^étage/i));
+      await user.click(await screen.findByRole('option', { name: 'Sous-sol' }));
+
+      await attendre({ floor_number: -1 });
+      expect(screen.getByLabelText(/^étage/i)).toHaveTextContent('Sous-sol');
+    });
+
+    it('une valeur hors de la liste (un bien existant) est GARDÉE, et proposée dans la liste', async () => {
+      const user = userEvent.setup();
+      monter({ type: 'apartment', etage: 55 });
+
+      expect(screen.getByLabelText(/^étage/i)).toHaveTextContent('55');
+      await user.click(screen.getByLabelText(/^étage/i));
+      expect(await screen.findByRole('option', { name: '55' })).toBeInTheDocument();
+      await attendre({ floor_number: 55 });
+    });
+
+    it('« Non précisé » retire la valeur', async () => {
+      const user = userEvent.setup();
+      monter({ type: 'apartment', etage: 3 });
+
+      await user.click(screen.getByLabelText(/^étage/i));
+      await user.click(await screen.findByRole('option', { name: 'Non précisé' }));
+
+      await attendre({ floor_number: null });
+    });
   });
 });

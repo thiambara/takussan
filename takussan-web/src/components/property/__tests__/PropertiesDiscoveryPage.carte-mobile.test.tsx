@@ -47,6 +47,9 @@ vi.mock('@/components/home/Navbar', () => ({
   ),
 }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="pied" /> }));
+// TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
+// sans `QueryClientProvider`.
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
 vi.mock('@/components/favorites/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 
 import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';

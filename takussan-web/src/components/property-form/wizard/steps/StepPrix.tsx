@@ -1,15 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { FormAmountInput, FormDatePicker, FormInput, FormSelect } from '@/components/forms';
 import type { PropertyFormValues } from '@/lib/schemas/property';
-import {
-  PROPERTY_ENUM_NAMESPACES,
-  currencyOptions as fabriqueCurrencyOptions,
-  rentPeriodOptions as fabriqueRentPeriodOptions,
-} from '../../options';
+import { PROPERTY_ENUM_NAMESPACES, rentPeriodOptions as fabriqueRentPeriodOptions } from '../../options';
 import { isFieldRelevant } from '../../field-matrix';
 import { WizardCollapsibleSection } from '../WizardCollapsibleSection';
 
@@ -23,25 +20,40 @@ import { WizardCollapsibleSection } from '../WizardCollapsibleSection';
 /**
  * TCK-598 (V9) — les quatre champs du coût d'entrée, partagés par le parcours de création et la
  * page d'édition : une seule mise en page, un seul jeu de libellés.
+ *
+ * TCK-633 — `fraisDAgence` : un indépendant (agence `individual`) ne facture pas de frais
+ * d'agence, et l'API les refuse pour lui (`StorePropertyRequest`, tâche 8). Le champ n'est pas
+ * rendu, et une valeur déjà là (brouillon, bien existant) est RETIRÉE — marquée modifiée, pour que
+ * l'édition envoie `null` (`withClearedFields`) au lieu de laisser l'ancienne valeur en base.
  */
 export function EntryCostFields({
   form,
   devise,
+  fraisDAgence = true,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   readonly devise: PropertyFormValues['currency'];
+  readonly fraisDAgence?: boolean;
 }) {
   const t = useTranslations('property.wizard.entryCost');
-  const { control } = form;
+  const { control, setValue } = form;
+  const frais = useWatch({ control, name: 'agency_fee_months' });
+
+  useEffect(() => {
+    if (fraisDAgence || frais === undefined || frais === null) return;
+    setValue('agency_fee_months', undefined, { shouldDirty: true });
+  }, [fraisDAgence, frais, setValue]);
 
   return (
     <fieldset className="space-y-3 pt-1">
       <legend className="text-sm font-medium text-foreground">{t('legend')}</legend>
       <p className="text-xs text-muted-foreground">{t('hint')}</p>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className={fraisDAgence ? 'grid gap-4 sm:grid-cols-3' : 'grid gap-4 sm:grid-cols-2'}>
         <FormInput control={control} name="advance_months" label={t('advance')} type="number" min={0} max={24} step={1} inputMode="numeric" />
         <FormInput control={control} name="deposit_months" label={t('deposit')} type="number" min={0} max={24} step={1} inputMode="numeric" />
-        <FormInput control={control} name="agency_fee_months" label={t('agencyFee')} type="number" min={0} max={24} step={0.5} inputMode="decimal" />
+        {fraisDAgence ? (
+          <FormInput control={control} name="agency_fee_months" label={t('agencyFee')} type="number" min={0} max={24} step={0.5} inputMode="decimal" />
+        ) : null}
       </div>
       <FormAmountInput
         control={control}
@@ -54,12 +66,19 @@ export function EntryCostFields({
   );
 }
 
-export function StepPrix({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
+export function StepPrix({
+  form,
+  fraisDAgence = true,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  /** TCK-633 — faux pour un indépendant : cf. `EntryCostFields`. */
+  readonly fraisDAgence?: boolean;
+}) {
   const t = useTranslations('property.wizard');
-  const tDevise = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
   const tPeriode = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
   const { control } = form;
-  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`).
+  // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`). La devise n'est
+  // plus un choix (TCK-633, ADR-0061) mais reste lue : elle décide des décimales du montant.
   const [type, contrat, devise, periode] = useWatch({
     control,
     name: ['type', 'contract_type', 'currency', 'rent_period'],
@@ -72,26 +91,19 @@ export function StepPrix({ form }: { readonly form: UseFormReturn<PropertyFormVa
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
-        {/*
-          TCK-564 — le montant se relit pendant la frappe (« 49 000 000 »), et le formulaire reçoit
-          toujours un NOMBRE. La devise décide des décimales : aucune en franc CFA.
-        */}
-        <FormAmountInput
-          control={control}
-          name="price"
-          label={t('fields.price')}
-          required
-          currency={devise}
-          example={location ? 350_000 : 25_000_000}
-        />
-        <FormSelect
-          control={control}
-          name="currency"
-          label={t('fields.currency')}
-          options={fabriqueCurrencyOptions(tDevise)}
-        />
-      </div>
+      {/*
+        TCK-564 — le montant se relit pendant la frappe (« 49 000 000 »), et le formulaire reçoit
+        toujours un NOMBRE. La devise décide des décimales : aucune en franc CFA. TCK-633 — la
+        devise ne se choisit plus : le prix se publie en francs CFA (ADR-0061), le serveur l'impose.
+      */}
+      <FormAmountInput
+        control={control}
+        name="price"
+        label={t('fields.price')}
+        required
+        currency={devise}
+        example={location ? 350_000 : 25_000_000}
+      />
 
       <WizardCollapsibleSection open={location} testId="bloc-location">
         <div className="space-y-5 pt-1">
@@ -111,7 +123,7 @@ export function StepPrix({ form }: { readonly form: UseFormReturn<PropertyFormVa
       </WizardCollapsibleSection>
 
       <WizardCollapsibleSection open={coutDEntree} testId="bloc-cout-d-entree">
-        <EntryCostFields form={form} devise={devise} />
+        <EntryCostFields form={form} devise={devise} fraisDAgence={fraisDAgence} />
       </WizardCollapsibleSection>
     </>
   );

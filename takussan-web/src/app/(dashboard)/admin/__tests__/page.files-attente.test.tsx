@@ -18,8 +18,8 @@ import { withIntl } from '@/test/intl';
  *     test verrait la valeur cesser de suivre la charge.
  *
  * ⚠ **Et une mesure qui contredit l'AC3 du ticket, écrite ici pour qu'elle ne se perde pas.**
- * `/admin` figure dans `PRO_ROUTES` et appelle `ensureStandardAgencyOrRedirect` : une agence
- * `kind=individual` est renvoyée sur `/app` AVANT que quoi que ce soit ne soit rendu. La branche
+ * `/admin` exige une agence `standard` dans `PAGES_ADMIN` (TCK-633) : `garderPageAdmin` renvoie une
+ * agence `kind=individual` vers sa première page AVANT que quoi que ce soit ne soit rendu. La branche
  * « files sans objet » du bloc est donc INATTEIGNABLE DEPUIS CETTE PAGE aujourd'hui — c'est une
  * garde en profondeur, éprouvée au niveau du composant (`AgencyQueues.test.tsx`), et le dernier
  * test de ce fichier prouve le redirect plutôt que de faire semblant du contraire.
@@ -28,7 +28,7 @@ import { withIntl } from '@/test/intl';
 const mockGetMe = vi.fn();
 const mockFetchDashboard = vi.fn();
 const mockResolveAgency = vi.fn();
-const mockEnsureStandard = vi.fn();
+const mockGarde = vi.fn();
 const mockRedirect = vi.fn();
 
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
@@ -38,8 +38,12 @@ vi.mock('@/lib/queries/dashboard-agency', () => ({
 }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/lib/access/server-guards', () => ({
-  ensureStandardAgencyOrRedirect: (...a: unknown[]) => mockEnsureStandard(...a),
   resolveAgencyOrNull: (...a: unknown[]) => mockResolveAgency(...a),
+}));
+// TCK-633 — la garde de la page vient de `PAGES_ADMIN` ; elle est éprouvée dans
+// `lib/access/__tests__/pages-admin-server.test.ts`.
+vi.mock('@/lib/access/pages-admin-server', () => ({
+  garderPageAdmin: (...a: unknown[]) => mockGarde(...a),
 }));
 vi.mock('next/navigation', () => ({ redirect: (...a: unknown[]) => mockRedirect(...a) }));
 
@@ -97,7 +101,7 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetMe.mockResolvedValue({ id: 1, agency_id: 7, roles: ['agency_admin'] });
-    mockEnsureStandard.mockResolvedValue(undefined);
+    mockGarde.mockResolvedValue(undefined);
     mockResolveAgency.mockResolvedValue({ id: 7, kind: 'standard' });
     mockFetchDashboard.mockResolvedValue(charge(5));
   });
@@ -143,11 +147,12 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
   });
 
   it('MESURE — une agence `individual` n’atteint jamais cet écran (portée de l’AC3)', async () => {
-    // `ensureStandardAgencyOrRedirect` est la garde réelle : elle `redirect('/app')`. On la
-    // simule en levant, comme le fait `redirect()` de Next.
-    mockEnsureStandard.mockRejectedValue(new Error('NEXT_REDIRECT'));
+    // `garderPageAdmin('/admin')` est la garde réelle (TCK-633) : elle renvoie un solo vers sa
+    // première page accessible. On la simule en levant, comme le fait `redirect()` de Next.
+    mockGarde.mockRejectedValue(new Error('NEXT_REDIRECT'));
 
     await expect(Page({})).rejects.toThrow('NEXT_REDIRECT');
+    expect(mockGarde).toHaveBeenCalledWith('/admin');
     // Rien n'a été demandé : la page ne charge même pas le tableau de bord.
     expect(mockFetchDashboard).not.toHaveBeenCalled();
   });

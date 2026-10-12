@@ -80,16 +80,20 @@ class PropertySearchTest extends TestCase
         $this->assertEquals(300_000, $response->json('data.0.price'));
     }
 
-    public function test_filter_by_bedrooms(): void
+    /** TCK-633 (lot E) — « 3 chambres et + » : le bien à 4 sort, celui à 1 non. */
+    public function test_filter_by_bedrooms_is_a_minimum(): void
     {
-        $this->published(['bedrooms' => 1]);
-        $this->published(['bedrooms' => 3]);
+        $this->published(['bedrooms' => 1, 'featured' => false]);
+        $this->published(['bedrooms' => 3, 'featured' => false]);
+        $this->published(['bedrooms' => 4, 'featured' => false]);
         $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?bedrooms=3');
 
-        $response->assertOk()->assertJsonCount(1, 'data');
-        $this->assertEquals(3, $response->json('data.0.bedrooms'));
+        $response->assertOk()->assertJsonCount(2, 'data');
+        $chambres = array_column($response->json('data'), 'bedrooms');
+        sort($chambres);
+        $this->assertEquals([3, 4], $chambres);
     }
 
     public function test_filter_by_rent_period(): void

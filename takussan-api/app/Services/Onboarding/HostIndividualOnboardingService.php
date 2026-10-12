@@ -2,6 +2,7 @@
 
 namespace App\Services\Onboarding;
 
+use App\Events\Onboarding\SpaceCreated;
 use App\Http\Requests\Onboarding\HostIndividualOnboardRequest;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
@@ -51,6 +52,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class HostIndividualOnboardingService
 {
+    /** TCK-633 (lot C) — la ville d'un espace créé sans question, quand rien n'est reçu. */
+    public const AUTO_SPACE_DEFAULT_CITY = 'Dakar';
+
     public function __construct(private readonly PhoneVerificationService $phoneVerification) {}
 
     /**
@@ -108,6 +112,9 @@ class HostIndividualOnboardingService
                 ->event('host_individual_onboarded')
                 ->log('host_individual_onboarded');
 
+            // TCK-633 (lot C) — l'interface C → F, après commit (`ShouldDispatchAfterCommit`).
+            SpaceCreated::dispatch($agency);
+
             return [
                 'agency' => $agency->refresh(),
                 'agency_admin_profile' => $agencyAdminProfile->refresh(),
@@ -122,6 +129,89 @@ class HostIndividualOnboardingService
                 'active_profile' => $agencyAdminProfile,
             ];
         });
+    }
+
+    /**
+     * TCK-633 (lot C) — l'espace individuel créé SANS question, au clic sur « Publier ».
+     *
+     * Même agence, mêmes deux profils que l'assistant ({@see self::createAgency()},
+     * {@see self::createAgencyAdminProfile()}, {@see self::createOwnerProfile()}), sans OTP ni CGU :
+     * le numéro et les CGU se demandent au moment de PUBLIER (`PublishReadiness`), pas avant.
+     *
+     * Idempotent : l'espace individuel dont l'utilisateur est `primary_admin_id` est rendu tel
+     * quel (`created = false`, jamais un 409). « Le sien » se juge par `primary_admin_id`, pas
+     * par un profil propriétaire : un bailleur dans l'espace individuel d'un AUTRE ne doit pas
+     * en devenir administrateur. Deux clics simultanés sont sérialisés sur la ligne du compte
+     * (piège PostgreSQL n° 2 : la ligne parent, jamais un agrégat).
+     *
+     * @return array{created: bool, agency: Agency, agency_admin_profile: AgencyAdminProfile, owner_profile: OwnerProfile, active_profile: AgencyAdminProfile}
+     */
+    public function autoOnboard(User $user, ?string $primaryCity): array
+    {
+        return DB::transaction(function () use ($user, $primaryCity): array {
+            User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+            $existante = Agency::query()
+                ->where('primary_admin_id', $user->id)
+                ->where('kind', AgencyKind::Individual)
+                ->orderBy('id')
+                ->first();
+            $created = $existante === null;
+
+            $agency = $existante ?? $this->createAgency($user, [
+                'agency' => [
+                    'name' => $this->autoSpaceName($user),
+                    'primary_city' => $this->autoSpaceCity($primaryCity),
+                    'currency' => Currency::XOF->value,
+                ],
+            ], 'host_auto_space');
+
+            $agencyAdminProfile = $this->createAgencyAdminProfile($user, $agency);
+            $ownerProfile = $this->createOwnerProfile($user, $agency);
+
+            if ($created) {
+                activity('Onboarding')
+                    ->causedBy($user)
+                    ->performedOn($agency)
+                    ->withProperties([
+                        'user_id' => $user->id,
+                        'agency_id' => $agency->id,
+                        'source' => 'auto',
+                    ])
+                    ->event('host_individual_onboarded')
+                    ->log('host_individual_onboarded');
+
+                // L'interface C → F, après commit (`ShouldDispatchAfterCommit`).
+                SpaceCreated::dispatch($agency);
+            }
+
+            return [
+                'created' => $created,
+                'agency' => $agency->refresh(),
+                'agency_admin_profile' => $agencyAdminProfile->refresh(),
+                'owner_profile' => $ownerProfile->refresh(),
+                'active_profile' => $agencyAdminProfile,
+            ];
+        });
+    }
+
+    /** « Espace de {prénom} », « Mon espace » sans prénom — dans la langue du compte. */
+    private function autoSpaceName(User $user): string
+    {
+        $prenom = trim((string) $user->first_name);
+        $locale = is_string($user->preferred_language) && $user->preferred_language !== '' ? $user->preferred_language : null;
+
+        return $prenom !== ''
+            ? (string) __('onboarding.auto_space.name_with_first_name', ['first_name' => $prenom], $locale)
+            : (string) __('onboarding.auto_space.name_default', [], $locale);
+    }
+
+    /** La ville reçue (texte libre, 120 caractères au plus), Dakar à défaut — sans le référentiel du lot D. */
+    private function autoSpaceCity(?string $primaryCity): string
+    {
+        $ville = trim((string) $primaryCity);
+
+        return $ville !== '' ? $ville : self::AUTO_SPACE_DEFAULT_CITY;
     }
 
     /**
@@ -147,21 +237,23 @@ class HostIndividualOnboardingService
             ->exists();
     }
 
-    private function createAgency(User $user, array $payload): Agency
+    private function createAgency(User $user, array $payload, string $source = 'host_individual_wizard'): Agency
     {
         $name = (string) data_get($payload, 'agency.name');
         $primaryCity = (string) data_get($payload, 'agency.primary_city');
         $currencyValue = (string) data_get($payload, 'agency.currency', Currency::default()->value);
-        $primaryPropertyType = (string) data_get($payload, 'preferences.primary_property_type');
+        // TCK-633 (lot C) — « aucun type de bien préféré » s'écrit `null`, pas `''` : la création
+        // automatique ne le demande pas (même raisonnement que TCK-496 pour le moyen de paiement).
+        $primaryPropertyType = data_get($payload, 'preferences.primary_property_type');
         $preferredProvider = data_get($payload, 'payment_setting.preferred_provider');
 
         $settings = [
             'primary_city' => $primaryCity,
-            'primary_property_type' => $primaryPropertyType,
+            'primary_property_type' => is_string($primaryPropertyType) && $primaryPropertyType !== '' ? $primaryPropertyType : null,
             // Marker so downstream surfaces can distinguish between an
             // individual created via the wizard and one provisioned by a
-            // super-admin (see TCK-263).
-            'onboarding_source' => 'host_individual_wizard',
+            // super-admin (see TCK-263). TCK-633 : `host_auto_space` pour la création automatique.
+            'onboarding_source' => $source,
         ];
 
         // TCK-496 — la clé n'est posée que si elle a été fournie. La version

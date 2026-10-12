@@ -1,9 +1,8 @@
-import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import { ModerationWorkspace } from '@/components/admin/ModerationWorkspace';
 import { PageHeader } from '@/components/console';
-import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { getTranslations } from 'next-intl/server';
 
 /**
@@ -15,10 +14,9 @@ import { getTranslations } from 'next-intl/server';
  * plateforme — l'écran le dit (`platform`).
  */
 export default async function ModerationPage() {
+  await garderPageAdmin('/admin/moderation');
   const t = await getTranslations('admin.pages.moderation');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) redirect('/admin');
-  await ensureStandardAgencyOrRedirect(user);
 
   return (
     <div className="space-y-6">

@@ -8,11 +8,12 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\PubliePret;
 use Tests\TestCase;
 
 class PropertyCrudTest extends TestCase
 {
-    use RefreshDatabase;
+    use PubliePret, RefreshDatabase;
 
     public function test_requires_auth(): void
     {
@@ -248,6 +249,7 @@ class PropertyCrudTest extends TestCase
         $user = User::factory()->create();
         $property = Property::factory()->draft()->create(['user_id' => $user->id]);
 
+        $this->rendrePubliable($user);
         Sanctum::actingAs($user);
 
         $this->postJson("/api/properties/{$property->id}/publish")
@@ -261,6 +263,7 @@ class PropertyCrudTest extends TestCase
         $user = User::factory()->create();
         $property = Property::factory()->draft()->create(['user_id' => $user->id]);
 
+        $this->rendrePubliable($user);
         Sanctum::actingAs($user);
 
         $this->putJson("/api/properties/{$property->id}/visibility", ['visibility' => 'public'])

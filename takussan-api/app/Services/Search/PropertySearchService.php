@@ -5,6 +5,9 @@ namespace App\Services\Search;
 use App\Http\Resources\PropertyResource;
 use App\Http\Responses\PaginationMeta;
 use App\Models\Property;
+use App\Services\Boost\BoostSettings;
+use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Boost\SponsoredRotation;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -74,7 +77,7 @@ class PropertySearchService
 
     /**
      * @param  array<string,mixed>  $params
-     * @return array{data:array<int,mixed>,facets:array<string,mixed>,meta:array<string,int>,search:array{strategy:string,terms_unmatched:list<string>,widened_total:int|null}}
+     * @return array{data:array<int,mixed>,sponsored:list<array<string,mixed>>,facets:array<string,mixed>,meta:array<string,int>,search:array{strategy:string,terms_unmatched:list<string>,widened_total:int|null}}
      */
     public function search(array $params): array
     {
@@ -137,8 +140,15 @@ class PropertySearchService
             }
         }
 
+        // TCK-633 lot F (ADR-0061 §7) — emplacements « Sponsorisé » et places réservées. Rien en
+        // recherche ÉLARGIE : le vivier suit le régime strict, qui vient d'y rendre zéro.
+        [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT
+            ? $this->placements($term, $filter, $sort, $page, $perPage, $params, $result)
+            : [$this->withPlacement($this->hydrate($result['hits'] ?? []), 'organic'), []];
+
         return [
-            'data' => $this->hydrate($result['hits'] ?? []),
+            'data' => $data,
+            'sponsored' => $sponsored,
             'facets' => $this->mapFacets($result['facetDistribution'] ?? []),
             // Meilisearch ne rend pas un paginateur Eloquent : c'est le seul appelant de
             // `PaginationMeta::of()`, l'entrée par compteurs bruts du point canonique (TCK-304).
@@ -453,11 +463,16 @@ class PropertySearchService
         if (isset($p['price_max']) && is_numeric($p['price_max'])) {
             $filter[] = 'price <= '.(float) $p['price_max'];
         }
+        // TCK-633 (lot E) — chambres, salles de bain et étage sont des MINIMUMS : le panneau
+        // affiche « 5+ », et « 5+ chambres » doit trouver la maison de six. L'égalité la ratait.
+        // `alertMatches()` passe par ici : les alertes suivent, comme le chemin haversine
+        // (`App\Services\Model\SearchService`), qui lisait déjà `bedrooms >=`. Un bien sans
+        // valeur reste exclu — Meilisearch écarte les NULL d'une comparaison numérique.
         if (isset($p['bedrooms']) && is_numeric($p['bedrooms'])) {
-            $filter[] = 'bedrooms = '.(int) $p['bedrooms'];
+            $filter[] = 'bedrooms >= '.(int) $p['bedrooms'];
         }
         if (isset($p['bathrooms']) && is_numeric($p['bathrooms'])) {
-            $filter[] = 'bathrooms = '.(int) $p['bathrooms'];
+            $filter[] = 'bathrooms >= '.(int) $p['bathrooms'];
         }
         // TCK-335 — `isset() && is_numeric()`, le motif de `price_min` juste au-dessus,
         // et surtout PAS `! empty()` : `area_min=0` doit AGIR (donc ecarter une surface
@@ -483,8 +498,9 @@ class PropertySearchService
         if (array_key_exists('featured', $p) && filter_var($p['featured'], FILTER_VALIDATE_BOOLEAN)) {
             $filter[] = 'featured = true';
         }
+        // TCK-633 (lot E) — « 2e et + », pas « au 2e » : même règle que les chambres ci-dessus.
         if (isset($p['floor_number']) && is_numeric($p['floor_number'])) {
-            $filter[] = 'floor_number = '.(int) $p['floor_number'];
+            $filter[] = 'floor_number >= '.(int) $p['floor_number'];
         }
         // TCK-491 — meme regle que `floor_number` juste au-dessus, et surtout PAS le motif
         // OR `IS NULL` d'`available_from` plus bas : un bien dont le statut foncier est
@@ -519,8 +535,11 @@ class PropertySearchService
         if (! empty($p['tags'])) {
             $tags = is_array($p['tags']) ? $p['tags'] : explode(',', (string) $p['tags']);
             $tags = array_filter(array_map('trim', $tags));
-            if ($tags !== []) {
-                $filter[] = array_map(fn ($t) => 'tags = '.self::quote($t), array_values($tags));
+            // TCK-633 (lot E, décision 4 du porteur) — un ET : une clause PAR équipement, au
+            // premier niveau de `$filter` (joint en ET). Le tableau imbriqué d'avant les joignait
+            // en OU, et cocher un second équipement ALLONGEAIT la liste. Les alertes suivent.
+            foreach (array_values($tags) as $tag) {
+                $filter[] = 'tags = '.self::quote((string) $tag);
             }
         }
         if (! empty($p['available_from'])) {
@@ -587,8 +606,145 @@ class PropertySearchService
             'distance' => $this->hasGeoPoint($p)
                 ? [sprintf('_geoPoint(%F,%F):asc', (float) $p['lat'], (float) $p['lng'])]
                 : [],
-            default => $term === '' ? ['featured:desc', 'published_at:desc'] : [],
+            // TCK-633 lot F (ADR-0061 §7) — sans mot, l'ordre organique est `ranked_at` (qu'une
+            // Remontée remet à maintenant) ; `featured` ne trie plus rien.
+            default => $term === '' ? ['ranked_at:desc'] : [],
         };
+    }
+
+    /**
+     * TCK-633 lot F (ADR-0061 §7). Trois lectures au plus : la requête nominale (déjà faite : elle
+     * donne `total`, `facets`, `last_page`, et les places réservées y comptent puisqu'elles en sont
+     * issues), le VIVIER (mêmes filtres + `featured = true`, identifiants seuls, ordre organique),
+     * et — seulement quand des places réservées existent — la page organique qui les exclut.
+     *
+     * Les places réservées se calculent sur la page 1 À CHAQUE PAGE : c'est ce qui permet aux pages
+     * suivantes de ne pas les répéter, et de décaler leur fenêtre de |R|.
+     *
+     * @param  array<int, string|array<int, string>>  $filter
+     * @param  list<string>  $sort
+     * @param  array<string, mixed>  $params
+     * @param  array<string, mixed>  $nominal
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    private function placements(string $term, array $filter, array $sort, int $page, int $perPage, array $params, array $nominal): array
+    {
+        $settings = app(BoostSettings::class);
+        $slots = $settings->sponsoredSlotsPerPage();
+        $reservedMax = min($settings->reservedTopResults(), $perPage);
+        $organic = fn (): array => $this->withPlacement($this->hydrate($nominal['hits'] ?? []), 'organic');
+
+        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0) {
+            return [$organic(), []];
+        }
+
+        $pool = $this->featuredPool($term, $filter, $sort);
+        if ($pool === []) {
+            return [$organic(), []];
+        }
+
+        $seed = SponsoredRotation::seed($params);
+        $sponsoredIds = SponsoredRotation::pick($pool, $seed, $page, $slots);
+        $servedOnFirstPage = $page === 1 ? $sponsoredIds : SponsoredRotation::pick($pool, $seed, 1, $slots);
+        $reserved = $reservedMax > 0
+            ? array_slice(array_values(array_diff($pool, $servedOnFirstPage)), 0, $reservedMax)
+            : [];
+
+        $sponsored = $this->withPlacement($this->hydrateIds($sponsoredIds), 'sponsored');
+        // ADR-0061 §10 — une impression par bien réellement servi (hydraté, donc public).
+        app(BoostStatsRecorder::class)->impressions(array_column($sponsored, 'id'));
+
+        if ($reserved === []) {
+            return [$organic(), $sponsored];
+        }
+
+        $offset = $page === 1 ? 0 : ($page - 1) * $perPage - count($reserved);
+        $limit = $page === 1 ? $perPage - count($reserved) : $perPage;
+        $rest = $limit > 0 ? $this->organicExcluding($term, $filter, $sort, $reserved, $offset, $limit) : [];
+
+        $data = $page === 1
+            ? [...$this->withPlacement($this->hydrateIds($reserved), 'reserved'), ...$this->withPlacement($this->hydrate($rest), 'organic')]
+            : $this->withPlacement($this->hydrate($rest), 'organic');
+
+        return [$data, $sponsored];
+    }
+
+    /**
+     * Les vedettes qui satisfont la recherche, dans l'ordre organique, identifiants seuls.
+     *
+     * @param  array<int, string|array<int, string>>  $filter
+     * @param  list<string>  $sort
+     * @return list<int>
+     */
+    private function featuredPool(string $term, array $filter, array $sort): array
+    {
+        /** @var array<string, mixed> $raw */
+        $raw = Property::search($term, function ($index, string $query) use ($filter, $sort) {
+            $searchParams = [
+                'filter' => [...$filter, 'featured = true'],
+                'attributesToRetrieve' => ['id'],
+                'offset' => 0,
+                'limit' => SponsoredRotation::POOL_CAP,
+                'matchingStrategy' => self::STRATEGY_STRICT,
+            ];
+            if ($sort !== []) {
+                $searchParams['sort'] = $sort;
+            }
+
+            return $index->search($query, $searchParams);
+        })->raw();
+
+        return array_map(static fn (array $hit): int => (int) $hit['id'], $raw['hits'] ?? []);
+    }
+
+    /**
+     * La fenêtre organique privée des places réservées.
+     *
+     * @param  array<int, string|array<int, string>>  $filter
+     * @param  list<string>  $sort
+     * @param  list<int>  $excluded
+     * @return array<int, array<string, mixed>>
+     */
+    private function organicExcluding(string $term, array $filter, array $sort, array $excluded, int $offset, int $limit): array
+    {
+        /** @var array<string, mixed> $raw */
+        $raw = Property::search($term, function ($index, string $query) use ($filter, $sort, $excluded, $offset, $limit) {
+            $searchParams = [
+                'filter' => [...$filter, 'NOT id IN ['.implode(', ', $excluded).']'],
+                'attributesToRetrieve' => ['id'],
+                'offset' => max(0, $offset),
+                'limit' => $limit,
+                'matchingStrategy' => self::STRATEGY_STRICT,
+            ];
+            if ($sort !== []) {
+                $searchParams['sort'] = $sort;
+            }
+
+            return $index->search($query, $searchParams);
+        })->raw();
+
+        return $raw['hits'] ?? [];
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return array<int, mixed>
+     */
+    private function hydrateIds(array $ids): array
+    {
+        return $this->hydrate(array_map(static fn (int $id): array => ['id' => $id], $ids));
+    }
+
+    /**
+     * `placement` : `organic`, `reserved` (place réservée, page 1) ou `sponsored` (emplacement,
+     * champ `sponsored` seulement) — le contrat du ticket TCK-633.
+     *
+     * @param  array<int, mixed>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withPlacement(array $rows, string $placement): array
+    {
+        return array_values(array_map(static fn (array $row): array => $row + ['placement' => $placement], $rows));
     }
 
     /**

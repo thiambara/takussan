@@ -1,0 +1,370 @@
+{
+  "region": {
+    "code": "SN-TC",
+    "slug": "tambacounda",
+    "name": "Tambacounda",
+    "latitude": 13.868317,
+    "longitude": -13.346669
+  },
+  "source": {
+    "osm_base": "2026-07-28T02:16:18Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "72da8b052f4b040b3cb4393f1a721ccec9951e8001d674ea216ed6087181465e"
+  },
+  "cities": [
+    {
+      "slug": "bakel",
+      "name": "Bakel",
+      "latitude": 14.9064823,
+      "longitude": -12.460369,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bala",
+      "name": "Bala",
+      "latitude": 13.9456255,
+      "longitude": -13.1297117,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ballou",
+      "name": "Ballou",
+      "latitude": 14.7350759,
+      "longitude": -12.2849604,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bamba-thialene",
+      "name": "Bamba Thialène",
+      "latitude": 13.8443608,
+      "longitude": -14.5334882,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bani-israel",
+      "name": "Bani Israël",
+      "latitude": 13.8354774,
+      "longitude": -12.865457,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bele",
+      "name": "Bélé",
+      "latitude": 14.4718897,
+      "longitude": -12.3211303,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boutougou-fara",
+      "name": "Boutougou Fara",
+      "latitude": 13.3776389,
+      "longitude": -12.3982905,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boynguel-bamba",
+      "name": "Boynguel Bamba",
+      "latitude": 14.0999493,
+      "longitude": -12.9290055,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dialacoto",
+      "name": "Dialacoto",
+      "latitude": 13.0956622,
+      "longitude": -13.0326309,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dianke-makha",
+      "name": "Dianké Makha",
+      "latitude": 13.608838,
+      "longitude": -12.5453389,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diawara",
+      "name": "Diawara",
+      "latitude": 15.021401,
+      "longitude": -12.5426196,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dougue",
+      "name": "Dougué",
+      "latitude": 13.8756946,
+      "longitude": -12.6014964,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gabou",
+      "name": "Gabou",
+      "latitude": 14.7758151,
+      "longitude": -12.4910348,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gathiary",
+      "name": "Gathiary",
+      "latitude": 14.2705611,
+      "longitude": -12.1171486,
+      "neighborhoods": []
+    },
+    {
+      "slug": "goudiry",
+      "name": "Goudiry",
+      "latitude": 14.1811711,
+      "longitude": -12.7126724,
+      "neighborhoods": []
+    },
+    {
+      "slug": "goumbayel",
+      "name": "Goumbayel",
+      "latitude": 13.6351054,
+      "longitude": -13.2062261,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kahene",
+      "name": "Kahène",
+      "latitude": 13.7113147,
+      "longitude": -14.7143887,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kidira",
+      "name": "Kidira",
+      "latitude": 14.4549599,
+      "longitude": -12.2120486,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koar",
+      "name": "Koar",
+      "latitude": 13.8054365,
+      "longitude": -13.3454501,
+      "neighborhoods": []
+    },
+    {
+      "slug": "komoti",
+      "name": "Komoti",
+      "latitude": 13.5501957,
+      "longitude": -12.9098396,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kothiary",
+      "name": "Kothiary",
+      "latitude": 13.8928676,
+      "longitude": -13.4568542,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koulor",
+      "name": "Koulor",
+      "latitude": 14.0450267,
+      "longitude": -13.3916657,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koumpentoum",
+      "name": "Koumpentoum",
+      "latitude": 13.9770992,
+      "longitude": -14.5645447,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koussan",
+      "name": "Koussan",
+      "latitude": 14.0943585,
+      "longitude": -12.5471328,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koussanar",
+      "name": "Koussanar",
+      "latitude": 14.0983147,
+      "longitude": -13.851254,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kouthia-gaydi",
+      "name": "Kouthia Gaydi",
+      "latitude": 14.2119105,
+      "longitude": -14.0533102,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kouthiaba-wolof",
+      "name": "Kouthiaba Wolof",
+      "latitude": 14.185539,
+      "longitude": -14.3822679,
+      "neighborhoods": []
+    },
+    {
+      "slug": "madina-foulbe",
+      "name": "Madina Foulbé",
+      "latitude": 13.9266359,
+      "longitude": -12.0727379,
+      "neighborhoods": []
+    },
+    {
+      "slug": "makacolibantang",
+      "name": "Makacolibantang",
+      "latitude": 13.6133241,
+      "longitude": -14.2556936,
+      "neighborhoods": []
+    },
+    {
+      "slug": "malem-niani",
+      "name": "Malem Niani",
+      "latitude": 13.9375593,
+      "longitude": -14.2964068,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mereto",
+      "name": "Méréto",
+      "latitude": 13.8091059,
+      "longitude": -14.420191,
+      "neighborhoods": []
+    },
+    {
+      "slug": "missirah",
+      "name": "Missirah",
+      "latitude": 13.4609619,
+      "longitude": -13.5486315,
+      "neighborhoods": []
+    },
+    {
+      "slug": "moudery",
+      "name": "Moudéry",
+      "latitude": 14.9884423,
+      "longitude": -12.5764896,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndame",
+      "name": "Ndame",
+      "latitude": 14.0515172,
+      "longitude": -14.4996482,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndoga-babacar",
+      "name": "Ndoga Babacar",
+      "latitude": 13.6956007,
+      "longitude": -13.9416867,
+      "neighborhoods": [
+        {
+          "slug": "diakhankala",
+          "name": "Diakhankala",
+          "latitude": 13.8039009,
+          "longitude": -13.9687271,
+          "osm": "w1416143110"
+        },
+        {
+          "slug": "foulacounda",
+          "name": "Foulacounda",
+          "latitude": 13.8052024,
+          "longitude": -13.9714638,
+          "osm": "w1157650138"
+        },
+        {
+          "slug": "kalounkala",
+          "name": "Kalounkala",
+          "latitude": 13.8024393,
+          "longitude": -13.9693465,
+          "osm": "w1416143109"
+        },
+        {
+          "slug": "pinian-forage",
+          "name": "Pinian-Forage",
+          "latitude": 13.80577,
+          "longitude": -13.9670911,
+          "osm": "w1416143111"
+        }
+      ]
+    },
+    {
+      "slug": "netteboulou",
+      "name": "Néttéboulou",
+      "latitude": 13.6601145,
+      "longitude": -13.6529573,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niani-toucouleur",
+      "name": "Niani Toucouleur",
+      "latitude": 13.6536367,
+      "longitude": -14.4986358,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pass-koto",
+      "name": "Pass Koto",
+      "latitude": 13.902783,
+      "longitude": -14.2671683,
+      "neighborhoods": []
+    },
+    {
+      "slug": "payar",
+      "name": "Payar",
+      "latitude": 14.4610421,
+      "longitude": -14.3190897,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sadatou",
+      "name": "Sadatou",
+      "latitude": 13.6325786,
+      "longitude": -12.0799832,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiou-bocar-ali",
+      "name": "Sinthiou Bocar Ali",
+      "latitude": 14.3623509,
+      "longitude": -13.3332617,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiou-fissa",
+      "name": "Sinthiou Fissa",
+      "latitude": 14.250302,
+      "longitude": -12.3295826,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiou-maleme",
+      "name": "Sinthiou Malème",
+      "latitude": 13.9291527,
+      "longitude": -13.7237908,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiou-mamadou-boubou",
+      "name": "Sinthiou Mamadou Boubou",
+      "latitude": 14.4323812,
+      "longitude": -12.7851188,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tambacounda",
+      "name": "Tambacounda",
+      "latitude": 13.7636066,
+      "longitude": -13.6735092,
+      "neighborhoods": []
+    },
+    {
+      "slug": "toumboura",
+      "name": "Toumboura",
+      "latitude": 13.9672601,
+      "longitude": -12.2345561,
+      "neighborhoods": []
+    }
+  ]
+}

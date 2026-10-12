@@ -28,6 +28,7 @@ use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyPublication;
 use App\Services\Property\PropertyViewCounter;
+use App\Services\Property\PublishReadiness;
 use App\Services\Property\ResponsibleAgentAssigner;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\JsonResponse;
@@ -117,6 +118,14 @@ class PropertyController extends Controller
             $data['visibility'] = PropertyVisibility::Private->value;
         }
 
+        // TCK-633 (lot C) — créer un bien DIRECTEMENT public est une publication : le créateur en
+        // est le contact (aucun collaborateur n'existe encore). Jugé AVANT la transaction : un
+        // refus ne doit pas passer par le `catch` qui journalise les échecs de création.
+        $publieALaCreation = ! $isProposal && ($data['visibility'] ?? null) === PropertyVisibility::Public->value;
+        if ($publieALaCreation) {
+            app(PublishReadiness::class)->ensure($request->user(), $request->user(), $request->boolean('accept_terms'));
+        }
+
         try {
             $property = DB::transaction(function () use ($data, $request) {
                 $property = Property::create(array_merge($data, [
@@ -131,6 +140,10 @@ class PropertyController extends Controller
 
                 return $property;
             });
+
+            if ($publieALaCreation) {
+                app(PublishReadiness::class)->recordTerms($request->user(), $request->boolean('accept_terms'));
+            }
 
             if ($isProposal && $property->agency_id !== null) {
                 $this->notifyAgencyAdminsOfProposal($property);
@@ -173,6 +186,20 @@ class PropertyController extends Controller
 
         $data = $request->validated();
 
+        // TCK-633 (lot C) — passer un bien hors ligne à `public` par le corps est une publication ;
+        // remettre un statut affichable sur un bien publié puis retiré par son statut aussi.
+        $readiness = app(PublishReadiness::class);
+        $visibiliteDemandee = isset($data['visibility']) ? PropertyVisibility::from($data['visibility']) : null;
+        // Seul un PASSAGE à `public` compte : un client qui renvoie `visibility=public` sur un bien
+        // déjà public ne change rien à sa mise en ligne (seul `publish()` pose `published_at`). Ce
+        // qui la rouvre sur un bien retiré par son statut, c'est le statut — la branche suivante.
+        // (Le formulaire d'édition n'envoie pas `visibility` : `PropertyUpdatePayload` n'en a pas.)
+        $rendPublic = ($visibiliteDemandee === PropertyVisibility::Public && $property->visibility !== PropertyVisibility::Public)
+            || (isset($data['status']) && $readiness->statusPutsOnline($property, PropertyStatus::from($data['status']), $visibiliteDemandee));
+        if ($rendPublic) {
+            $readiness->ensureForProperty($property, $request->user(), $request->boolean('accept_terms'));
+        }
+
         // TCK-086 — re-parenting requires update rights on the candidate parent.
         if (array_key_exists('parent_id', $data)) {
             $newParent = $data['parent_id'] !== null ? Property::find($data['parent_id']) : null;
@@ -194,6 +221,10 @@ class PropertyController extends Controller
                     : $property->address()->create($addressData);
             }
         });
+
+        if ($rendPublic) {
+            $readiness->recordTerms($request->user(), $request->boolean('accept_terms'));
+        }
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
@@ -222,11 +253,21 @@ class PropertyController extends Controller
         if (! in_array($property->status, QuotaResolver::ACTIVE_LISTING_STATUSES, true)) {
             app(QuotaResolver::class)->assertCanCreateActiveListing($property->agency_id);
         }
+        // TCK-633 (lot C, AC11) — après les droits, l'état et le quota ; avant toute écriture.
+        $readiness = app(PublishReadiness::class);
+        $accepte = $request->boolean('accept_terms');
+        $dejaEnLigne = $readiness->alreadyOnline($property);
+        if (! $dejaEnLigne) {
+            $readiness->ensureForProperty($property, $request->user(), $accepte);
+        }
         $property->update([
             'status' => PropertyStatus::Available,
             'visibility' => PropertyVisibility::Public,
             'published_at' => now(),
         ]);
+        if (! $dejaEnLigne) {
+            $readiness->recordTerms($request->user(), $accepte);
+        }
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
@@ -254,6 +295,16 @@ class PropertyController extends Controller
         $status = PropertyStatus::from($data['status']);
         $updates = ['status' => $status];
 
+        // TCK-633 (lot C, vérification adverse S2) — rendre un statut affichable à un bien publié
+        // puis retiré par son statut le remet en ligne : c'est une publication, gardée comme
+        // `publish`, avant toute écriture.
+        $readiness = app(PublishReadiness::class);
+        $accepte = $request->boolean('accept_terms');
+        $remetEnLigne = $readiness->statusPutsOnline($property, $status);
+        if ($remetEnLigne) {
+            $readiness->ensureForProperty($property, $request->user(), $accepte);
+        }
+
         if ($status === PropertyStatus::Archived) {
             // TCK-591 (verif-591 M3) — l'écriture partagée avec `bulk-archive`.
             $updates = app(PropertyPublication::class)->archivedAttributes();
@@ -264,6 +315,9 @@ class PropertyController extends Controller
         }
 
         $property->update($updates);
+        if ($remetEnLigne) {
+            $readiness->recordTerms($request->user(), $accepte);
+        }
 
         return $this->json([
             'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),

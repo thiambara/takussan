@@ -1,0 +1,265 @@
+{
+  "region": {
+    "code": "SN-KA",
+    "slug": "kaffrine",
+    "name": "Kaffrine",
+    "latitude": 14.2439271,
+    "longitude": -15.2343907
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:16:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "5ccde460511d32771f396929ebc40730087f52653e45802893fc0d850928cdd1"
+  },
+  "cities": [
+    {
+      "slug": "birkelane",
+      "name": "Birkelane",
+      "latitude": 14.1282869,
+      "longitude": -15.7453502,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boulel",
+      "name": "Boulel",
+      "latitude": 14.3199075,
+      "longitude": -15.5052383,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-minam-2",
+      "name": "Darou Minam 2",
+      "latitude": 14.5736262,
+      "longitude": -15.3356652,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diamagadio",
+      "name": "Diamagadio",
+      "latitude": 13.8249637,
+      "longitude": -15.4454478,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diamal",
+      "name": "Diamal",
+      "latitude": 14.1111185,
+      "longitude": -15.719177,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dianke-souf",
+      "name": "Dianké Souf",
+      "latitude": 14.2498845,
+      "longitude": -15.2993075,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diokoul-mbelbouck",
+      "name": "Diokoul Mbelbouck",
+      "latitude": 13.9441705,
+      "longitude": -15.2631712,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fass-thiekene",
+      "name": "Fass Thiékène",
+      "latitude": 13.8941925,
+      "longitude": -14.7508015,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gniby",
+      "name": "Gniby",
+      "latitude": 14.4409602,
+      "longitude": -15.5493716,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ida-mouride",
+      "name": "Ida Mouride",
+      "latitude": 14.0422512,
+      "longitude": -14.7687142,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kaffrine",
+      "name": "Kaffrine",
+      "latitude": 14.1013961,
+      "longitude": -15.5478438,
+      "neighborhoods": [
+        {
+          "slug": "lougue-bambara",
+          "name": "Lougue Bambara",
+          "latitude": 14.0848776,
+          "longitude": -15.5344573,
+          "osm": "n11417560158"
+        },
+        {
+          "slug": "lougue-ouolof",
+          "name": "Lougue Ouolof",
+          "latitude": 14.0832153,
+          "longitude": -15.5375375,
+          "osm": "n3713837627"
+        }
+      ]
+    },
+    {
+      "slug": "kahi",
+      "name": "Kahi",
+      "latitude": 14.1178395,
+      "longitude": -15.5095156,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kathiotte",
+      "name": "Kathiotte",
+      "latitude": 13.9799381,
+      "longitude": -15.4635008,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-mboucki",
+      "name": "Keur Mboucki",
+      "latitude": 14.1701751,
+      "longitude": -15.7856819,
+      "neighborhoods": []
+    },
+    {
+      "slug": "khelcom",
+      "name": "Khelcom",
+      "latitude": 14.5871643,
+      "longitude": -15.532526,
+      "neighborhoods": []
+    },
+    {
+      "slug": "koungheul",
+      "name": "Koungheul",
+      "latitude": 13.97753,
+      "longitude": -14.8025864,
+      "neighborhoods": []
+    },
+    {
+      "slug": "lour-escale",
+      "name": "Lour Escale",
+      "latitude": 14.2059451,
+      "longitude": -14.7100765,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mabo",
+      "name": "Mabo",
+      "latitude": 13.894206,
+      "longitude": -15.6404787,
+      "neighborhoods": []
+    },
+    {
+      "slug": "maka-yop",
+      "name": "Maka Yop",
+      "latitude": 14.0935017,
+      "longitude": -14.9962212,
+      "neighborhoods": []
+    },
+    {
+      "slug": "malem-hodar",
+      "name": "Malem-Hodar",
+      "latitude": 14.0826932,
+      "longitude": -15.2946999,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbeuleup",
+      "name": "Mbeuleup",
+      "latitude": 13.9120968,
+      "longitude": -15.5464614,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medinatoul-salam-2",
+      "name": "Médinatoul Salam 2",
+      "latitude": 13.8254199,
+      "longitude": -15.2195668,
+      "neighborhoods": []
+    },
+    {
+      "slug": "missirah-wadene",
+      "name": "Missirah Wadène",
+      "latitude": 13.9932539,
+      "longitude": -15.0852313,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiobene-samba-lamo",
+      "name": "Ndiobène Samba Lamo",
+      "latitude": 14.2951648,
+      "longitude": -15.1696182,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiognick",
+      "name": "Ndiognick",
+      "latitude": 14.0014469,
+      "longitude": -15.6381603,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndioum-ngainth",
+      "name": "Ndioum Ngainth",
+      "latitude": 14.3927478,
+      "longitude": -15.2144427,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngainthe-pathe",
+      "name": "Ngainthe Pathè",
+      "latitude": 14.4121869,
+      "longitude": -14.9429162,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nganda",
+      "name": "Nganda",
+      "latitude": 13.8250729,
+      "longitude": -15.4051054,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ribot-escale",
+      "name": "Ribot Escale",
+      "latitude": 14.4388662,
+      "longitude": -14.7104525,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sagna",
+      "name": "Sagna",
+      "latitude": 14.1281663,
+      "longitude": -15.2894178,
+      "neighborhoods": []
+    },
+    {
+      "slug": "saly-escale",
+      "name": "Saly Escale",
+      "latitude": 13.8591456,
+      "longitude": -14.918403,
+      "neighborhoods": []
+    },
+    {
+      "slug": "segre-gatta",
+      "name": "Ségré Gatta",
+      "latitude": 13.9819029,
+      "longitude": -15.7324651,
+      "neighborhoods": []
+    },
+    {
+      "slug": "touba-mbella",
+      "name": "Touba Mbella",
+      "latitude": 14.1984918,
+      "longitude": -15.7246998,
+      "neighborhoods": []
+    }
+  ]
+}

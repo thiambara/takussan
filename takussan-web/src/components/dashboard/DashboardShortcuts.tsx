@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   BarChart3,
@@ -27,6 +29,8 @@ import {
   isTenant,
 } from '@/lib/roles';
 import type { UserRole } from '@/types/user';
+import { entreeAdmin, type EntreeAdmin } from '@/lib/access/pages-admin';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 
 /**
  * La donnée porte la CLÉ, le rendu la résout (patron TCK-286).
@@ -42,11 +46,16 @@ type Props = {
   agencyId?: number | null;
 };
 
-function buildShortcuts(roles: UserRole[], agencyId: number | null | undefined): Shortcut[] {
+function buildShortcuts(
+  roles: UserRole[],
+  agencyId: number | null | undefined,
+  entree: EntreeAdmin | null,
+): Shortcut[] {
   const list: Shortcut[] = [];
 
   if ((isAdmin(roles) || isSuperAdmin(roles)) && agencyId) {
-    list.push({ href: '/admin', labelKey: 'nav.sidebar.administration', icon: ShieldCheck });
+    // TCK-633 (lot B) — la première page `/admin/*` que le profil peut ouvrir, ou aucun raccourci.
+    if (entree) list.push({ href: entree.href, labelKey: `nav.admin.${entree.cle}`, icon: ShieldCheck });
     list.push({ href: '/app/overview', labelKey: 'nav.sidebar.statistics', icon: BarChart3 });
     list.push({ href: '/app/overview/exports', labelKey: 'nav.sidebar.exports', icon: Download });
   }
@@ -87,7 +96,8 @@ function buildShortcuts(roles: UserRole[], agencyId: number | null | undefined):
 
 export function DashboardShortcuts({ roles, agencyId = null }: Props) {
   const t = useTranslations();
-  const shortcuts = buildShortcuts(roles, agencyId);
+  const acces = useAccesAdminOuRepli({ roles, agencyId });
+  const shortcuts = buildShortcuts(roles, agencyId, entreeAdmin(acces));
   if (shortcuts.length === 0) return null;
 
   return (

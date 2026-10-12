@@ -27,6 +27,8 @@ class PublicProfileTest extends TestCase
             'last_name' => 'Diop',
             'email' => 'awa@example.test',
             'phone' => '+221771234567',
+            // TCK-633 (lot C, tour 3) — le numéro n'est publié que VÉRIFIÉ (D10).
+            'phone_verified_at' => now(),
         ]);
         AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agency->id]);
         $publicProperty = Property::factory()->published()->create([

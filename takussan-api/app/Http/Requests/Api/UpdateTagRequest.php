@@ -38,7 +38,7 @@ class UpdateTagRequest extends BaseFormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:100'],
-            'type' => ['sometimes', Rule::enum(TagType::class)],
+            'type' => ['sometimes', Rule::enum(TagType::class)->except([TagType::Feature])],
             'icon' => ['sometimes', 'nullable', 'string'],
             'color' => ['sometimes', 'nullable', 'string', 'max:20'],
             'description' => ['sometimes', 'nullable', 'string'],

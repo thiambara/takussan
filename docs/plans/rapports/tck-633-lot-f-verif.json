@@ -1,0 +1,82 @@
+{
+  "verdict": "refuse — l'offre de bienvenue se reverse au MÊME espace à chaque nouveau numéro principal vérifié (1000 crédits au lieu de 500, mesuré), contre la règle « une seule fois par espace » ; défauts mineurs et deux tests insensibles à des régressions d'argent (verrou, délai de Remontée)",
+  "ablation_rejouee": true,
+  "ac_executes": ["AC13", "AC14", "AC15", "AC16"],
+  "preuves": [
+    {"commande": "uptime ; sysctl -n hw.ncpu ; docker compose ps", "resultat": "charge 3,27 / 13,95 / 21,35 sur 8 cœurs à 10:32 (lots D et E actifs) ; postgres, meilisearch, redis, mailpit healthy"},
+    {"commande": "cd takussan-api && php artisan test tests/Feature/Credits tests/Feature/Boost tests/Unit/Boost tests/Unit/Support/PhoneFingerprintTest.php tests/Feature/Notifications/CreditsNotificationsTest.php tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php tests/Feature/Admin/Platform/PlatformSettingsCatalogueTest.php tests/Feature/Public/PropertyListTest.php tests/Feature/Events/EventListenerDuplicationTest.php", "resultat": "150 passed (589 assertions), sortie 0, 44,2 s — le chiffre du rapport est reproduit"},
+    {"commande": "cd takussan-web && npx vitest run src/components/boost src/components/property-dashboard \"src/app/[locale]/(public)/properties/[slug]/components\" src/components/admin/super src/components/layout src/components/property/__tests__", "resultat": "106 fichiers, 618 verts, 5 rouges — tous dans AppSidebar.test.tsx (3) et AppSidebar.audience.test.tsx (2) : l'entrée /app/credits absente des tables figées, collisions déclarées sidebar-tests et sidebar-audience. Aucun rouge dans un fichier du lot F."},
+    {"commande": "npx tsc --noEmit", "resultat": "sortie 0 (les 3 TS2307 d'un autre lot cités par le rapport ont disparu)"},
+    {"commande": "npx eslint src/components/boost, pages credits/boosts, PropertyHeaderActions, PropertyRowActions, PropertiesDiscoveryPage, PropertyHeader, CompteurDeVue, AppSidebar, SuperAdminSidebar, types/super-admin.ts, platform-settings.tsx", "resultat": "sortie 0"},
+    {"commande": "./vendor/bin/pint --test <fichiers PHP du lot F, migrations 5000xx, tests>", "resultat": "passed"},
+    {"commande": "node scripts/check-{controller-authorization,resources-extend-base,resource-date-format,pagination-envelope,inline-validation,command-prefixes}.mjs", "resultat": "six vertes"},
+    {"commande": "base jetable verif_lot_f_tck633 (--locale=C) : php artisan migrate ; migrate:rollback --step=4 ; migrate ; DROP DATABASE", "resultat": "les quatre up(), les quatre down() et la remontée passent. Noms d'index et de contraintes : 44 caractères au plus. Aucune colonne json/jsonb/numérique/énumérée SQL ; crédits en integer ; CHECK remaining_amount >= 0 AND <= initial_amount, amount <> 0, price_credits >= 0. agency_id indexé sur property_boosts, credit_lots (en tête de composite), credit_movements (en tête de composite)."},
+    {"commande": "php artisan test scratchpad/verif-f/VerifLotFAdverseTest.php (10 scénarios inventés, fichier hors arbre)", "resultat": "V3 badge jamais remboursé à la location ✓ ; V4 remboursement sur lot expiré : lot refund de 54 crédits expiré dès sa naissance, solde 0, invariant sain ✓ ; V5 admin d'un autre espace → 403, aucun débit ✓ ; V6 débit manuel au-delà du solde → 422 credits.insufficient, exact → 0 ✓ ; V7 solde 19 refusé, 20 accepté, lot à 1 j entamé d'abord ✓ ; V8 trois Remontées ✓ ; V10 retrait par signalement « remove » : aucun lot refund ✓. ROUGES : V1 (1000 ≠ 500), V2 (0 ≠ 500), V9 (ends_at 26/10 10:00 pour un achat de 7 j le 19/10 14:00)."},
+    {"commande": "i18n (lecture des trois dictionnaires par node)", "resultat": "175 clés F (boost, credits, search.sponsored, superAdmin.boosts/credits, C9) présentes en fr/en/wo, aucune manquante, aucune valeur wo recopiée du fr, aucun tutoiement en fr (« Il vous manque… », « choisissez… »)"}
+  ],
+  "ablations": [
+    {"cible": "CreditLedger::spend — `$balance < $amount` → `$balance < $amount - 1`", "tests": "CreditLedgerInvariantTest, BoostRulesTest, CreditConcurrentSpendTest, PropertyBoostApiTest", "rouge": "oui (un_solde_insuffisant_n_ecrit_rien)", "restauration": "Edit inverse, md5 8a97d445… identique"},
+    {"cible": "CreditLot::scopeInConsumptionOrder — NULLS LAST → NULLS FIRST (les crédits sans expiration consommés d'abord)", "tests": "CreditConsumptionOrderTest, CreditLedgerInvariantTest", "rouge": "oui (l_ordre_de_consommation)", "restauration": "md5 948b4d72… identique"},
+    {"cible": "CreditLedger::refund — expiration max → min", "tests": "CreditLedgerInvariantTest, BoostPauseAndRefundTest", "rouge": "oui (le_remboursement_herite_de_l_expiration_la_plus_lointaine)", "restauration": "md5 identique"},
+    {"cible": "BoostPurchaseService::bump — dernière Remontée lue par orderByDesc → orderBy (compare à la PLUS ANCIENNE)", "tests": "BoostRulesTest, PropertyBoostApiTest", "rouge": "NON — 12 verts ; seul mon V8 (troisième Remontée 1 h après la deuxième) rougit", "restauration": "md5 ba0ddcc8… identique"},
+    {"cible": "BoostLifecycle::closeWithRefund — condition `anyKind || Featured` → true (Badge remboursé)", "tests": "BoostPauseAndRefundTest, AdminCreditsApiTest + V3", "rouge": "oui (louer_rembourse… et V3)", "restauration": "Edit inverse"},
+    {"cible": "BoostLifecycle::reconcile — branche verrou plateforme : end() → closeWithRefund()", "tests": "BoostPauseAndRefundTest + V10", "rouge": "oui (la_moderation_clot_sans_rien_rendre et V10)", "restauration": "md5 99a2200f… identique"},
+    {"cible": "PropertySearchService::placements — offset des pages 2+ non décalé de |R| (co-tenu E/F, Edit ponctuel)", "tests": "ReservedTopResultsTest", "rouge": "oui (les_deux_premieres_places…)", "restauration": "Edit inverse ; md5 fee981da… = relevé initial (le lot E éditait le même fichier pendant la mesure : ses lignes de tags ont bougé indépendamment, les miennes vérifiées par grep l. 661-662)"},
+    {"cible": "CreditExpiryNotifier — fenêtre du préavis +365 j", "tests": "BoostsTickIdempotenceTest, CreditsNotificationsTest, tests/Feature/Credits", "rouge": "oui (deux_ticks_valent_un_tick)", "restauration": "md5 335b7434… identique"},
+    {"cible": "CreditLedger::spend — lockForUpdate() → sharedLock() (FOR SHARE) sur la ligne agencies", "tests": "CreditConcurrentSpendTest", "rouge": "NON — 2 verts. Le test prouve « A attend un FOR UPDATE posé à la main par B », pas « deux dépenses du registre se sérialisent » : deux FOR SHARE ne s'excluent pas, et les deux lisent le même restant", "restauration": "md5 8a97d445… identique"},
+    {"cible": "BoostSettings::reservedTopResults — max(2, valeur) (0 ne désactive plus)", "tests": "ReservedTopResultsTest, BoostSettingsTest", "rouge": "oui (x_egal_zero_est_inerte, une_valeur_reglee…)", "restauration": "md5 ae9721e4… identique"}
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-api/app/Services/Credits/WelcomeCreditService.php:40-48 et 54-82",
+      "scenario": "Admin d'un espace, numéro A vérifié → 500 crédits. Il change de numéro principal (PATCH /api/auth/profile, AuthController.php:177-190 remet phone_verified_at à null), vérifie B par OTP → PhoneVerificationService::markVerified émet PhoneVerified → onPhoneVerified retrouve le même espace, l'empreinte de B est neuve, insertOrIgnore réussit → +500. Mesuré (V1) : solde 1000. Chaque carte SIM neuve vaut 500 crédits au même espace ; la seule unicité est sur phone_hash, aucune sur l'espace.",
+      "gravite": "majeur (règle d'argent validée par le porteur : la bienvenue, une seule fois par espace)",
+      "correctif": "Refuser l'octroi si l'espace a déjà reçu sa bienvenue : index unique sur credit_welcome_grants.agency_id (et insertOrIgnore qui le respecte), ou existence vérifiée sous le verrou de la ligne agencies dans la même transaction ; garder l'unicité par numéro. Test : changer de numéro vérifié ne re-crédite pas."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/AgencyController.php:59 (hors territoire F) / app/Services/Credits/WelcomeCreditService.php",
+      "scenario": "Un utilisateur au numéro DÉJÀ vérifié crée son espace par POST /api/agencies : aucun SpaceCreated, et aucun PhoneVerified ne viendra plus → 0 crédit pour toujours (V2). L'écart E11 annonce un « rattrapage correct » à la vérification du numéro : il n'existe pas pour un numéro déjà vérifié. Le front n'appelle pas cette route aujourd'hui (aucune occurrence dans takussan-web/src), d'où la gravité.",
+      "gravite": "mineur",
+      "correctif": "Émettre SpaceCreated après la création (collision lot C / session), ou écouter la création d'Agency côté F ; corriger le libellé d'E11."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Boost/BoostPurchaseService.php:138-145 (featured, branche de prolongation)",
+      "scenario": "Vedette 7 j échue mais pas encore close par le tick : un nouvel achat de 7 j prolonge à partir de l'ancienne fin, déjà passée. Mesuré (V9) : achat le 19/10 14:00, fin au 26/10 10:00 — 4 h payées et non servies. À cadence normale la perte est ≤ 5 min ; elle n'est pas bornée si le tick s'arrête.",
+      "gravite": "mineur",
+      "correctif": "ends_at = max(ends_at, now()) + durée."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Credits/CreditLedger.php:144-160 + app/Services/Boost/BoostLifecycle.php:279-290 + lang/*/credits.php (refunded)",
+      "scenario": "E7 éprouvé (V4) : Vedette 30 j payée par un lot qui expire à J+2 ; louée à J+3 → lot refund de 54 crédits né expiré (expires_at 14/10 < maintenant), solde 0, invariant sain — rien ne ressuscite. Mais l'annonceur reçoit « Crédits remboursés : 54 » sans être prévenu qu'ils sont déjà expirés, et le boost passe `refunded` avec refunded_credits = 54.",
+      "gravite": "mineur",
+      "correctif": "Si l'expiration héritée est passée : ne rien rembourser (statut ended, refunded_credits 0) ou une notification qui dit « expirés » ; décider avec le porteur."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Credits/CreditConcurrentSpendTest.php",
+      "scenario": "Le test de course reste VERT quand le verrou de CreditLedger::spend est dégradé en FOR SHARE : il ne prouve pas l'exclusion mutuelle de deux dépenses du registre. Le chemin d'achat resterait protégé (BoostPurchaseService::lock pose son propre FOR UPDATE), pas le débit manuel du super-admin. Le code actuel est juste ; la garde ne le tient pas.",
+      "gravite": "moyen (garde d'une règle d'argent insensible à une régression plausible)",
+      "correctif": "Faire prendre à la connexion B le même mode de verrou que le code (ou deux appels réels au registre sur deux connexions) ; ablation FOR SHARE → rouge."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Boost/BoostRulesTest.php::test_une_remontee_remet_le_bien_en_tete_et_attend_24_h",
+      "scenario": "Comparer le délai à la PREMIÈRE Remontée au lieu de la dernière (orderBy au lieu d'orderByDesc) laisse la suite verte : le test n'achète jamais une troisième Remontée.",
+      "gravite": "mineur (trou de test, code juste)",
+      "correctif": "Ajouter le cas trois Remontées (25 h puis 1 h)."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Credits/CreditLedger.php:154-156",
+      "scenario": "Observation, pas un défaut d'implémentation : une Vedette payée 10 crédits sur un lot qui expire à J+1 et 10 sur un lot à J+170 rend 20 crédits expirant à J+170 — la part du premier lot est prolongée. L'ADR §4 dit à la fois « hérite de l'expiration la plus lointaine » et « ne prolonge jamais un crédit offert » ; le code suit la première phrase.",
+      "gravite": "observation (contradiction interne d'ADR-0061 §4 à trancher par le porteur)",
+      "correctif": "Rembourser lot par lot au prorata (un lot refund par lot débité, chacun avec son expiration), ou amender l'ADR."
+    },
+    {
+      "fichier": "takussan-api/database/migrations/2026_10_12_500200_create_credit_ledger_tables.php:85 ; 500100:33",
+      "scenario": "credit_welcome_grants.agency_id (FK ON DELETE SET NULL) n'est pas indexée (piège PostgreSQL n°8) ; property_boosts.price_credits / refunded_credits sans CHECK >= 0 (integer signé sous PostgreSQL).",
+      "gravite": "mineur",
+      "correctif": "Index nommé sur agency_id (utile aussi au correctif du défaut majeur) ; CHECK >= 0."
+    }
+  ],
+  "debordements": [],
+  "territoire": "git status : tous les fichiers neufs du rapport existent et sont non suivis, dans le territoire F (plan maître + addendum : migrations 5000xx, PhoneFingerprint, seeders System/). Fichiers co-tenus relus au diff : PropertyResource (badge, badge_until seuls pour F), EditablePlatformSettings (six clés), PublicPropertyController (tri ranked_at, clic src=sponsored), PropertySearchService (placements, tri ranked_at — le reste est E), HomepageDiscoveryService, Property.php (contacts() est C), PropertyRowActions/PropertyHeaderActions (Booster seulement ; publication = C), AppSidebar (entrée Crédits ; le reste est B), SuperAdminSidebar (Crédits, Mise en avant ; tags/geo = D), UpdatePropertyRequest (featured prohibited ; le reste est D). Collisions C1, C2, C11 : seules les lignes de F. Aucun débordement relevé.",
+  "resume": "Les 150 tests PHP et les tests front du lot sont reproduits verts (5 rouges de barre latérale attribués aux collisions déclarées), tsc et eslint propres, migrations réversibles et conformes, et huit ablations d'argent sur dix rougissent. Le lot est refusé pour un défaut majeur mesuré : changer de numéro principal vérifié re-verse 500 crédits au même espace (solde 1000), la seule unicité portant sur le numéro. Restent trois défauts mineurs (POST /api/agencies sans bienvenue, prolongation d'une vedette échue non close, remboursement annoncé de crédits déjà expirés) et deux tests insensibles (verrou dégradé en FOR SHARE, délai de Remontée)."
+}

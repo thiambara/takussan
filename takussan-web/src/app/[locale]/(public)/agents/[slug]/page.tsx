@@ -113,6 +113,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const agent = resultat.agent;
   const stats = agent.stats;
   const reviews = agent.reviews;
+  // TCK-633 (lot C, tour 3) — décision de la session sur D10 : aucun numéro principal non vérifié
+  // n'est publié. L'API ne le sert plus (`User::numeroPrincipalPublic()`) ; la page ne le publie
+  // qu'à `phone_verified === true` — un champ absent vaut « non » —, et c'est CE numéro, le seul,
+  // qui va au bouton d'appel ET aux données structurées.
+  const telephone = agent.phone_verified === true ? agent.phone : null;
 
   const estAgent = agent.public_role === 'agent';
 
@@ -132,7 +137,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
         contact ne dépasse pas ce que `ContactSheet` publie déjà.
       */}
-      <DonneesStructurees donnees={jsonLdAgent(agent, locale)} />
+      <DonneesStructurees donnees={jsonLdAgent({ ...agent, phone: telephone }, locale)} />
       <Navbar />
       <NavbarSpacer />
 
@@ -233,7 +238,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 name={agent.full_name}
                 agentSlug={agent.slug}
                 recipientRole={agent.public_role}
-                phone={agent.phone}
+                phone={telephone}
                 subject={t('contactSubject', { name: agent.full_name })}
               />
             </div>

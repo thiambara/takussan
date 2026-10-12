@@ -11,6 +11,8 @@ import { withIntl } from '@/test/intl';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
 
+// TCK-633 — le référentiel géographique, hors de ce que ce fichier éprouve.
+vi.mock('@/components/property-form/useReferentielGeo', () => import('@/test/doublure-referentiel-geo'));
 vi.mock('@/components/map/LocationPickerMapLoader', () => ({
   LocationPickerMapLoader: ({ lat, lng }: { lat?: number | null; lng?: number | null }) => (
     <div data-testid="carte" data-lat={lat ?? ''} data-lng={lng ?? ''} />
@@ -122,19 +124,23 @@ describe('TCK-564 — une étape mémoïsée par le parcours voit ce qu’on vie
     expect(sonde.form?.getValues('title_type')).toBeUndefined();
   });
 
-  it('les équipements s’additionnent : le second clic ne PERD pas le premier', async () => {
+  it('les équipements s’additionnent : le second choix ne PERD pas le premier', async () => {
     const user = userEvent.setup();
     function AvecTags({ form }: { form: UseFormReturn<PropertyFormValues> }) {
       return <StepCaracteristiques form={form} tags={[WIFI, PISCINE]} />;
     }
     const sonde = monter(AvecTags, { type: 'villa', contract_type: 'sale' });
 
-    await user.click(screen.getByRole('button', { name: 'WiFi' }));
-    await user.click(screen.getByRole('button', { name: 'Piscine' }));
+    // TCK-633 — une liste à puces : on cherche, on choisit, deux fois.
+    const champ = screen.getByLabelText(/équipements/i);
+    await user.type(champ, 'wif');
+    await user.click(await screen.findByRole('option', { name: 'WiFi' }));
+    await user.type(champ, 'pisc');
+    await user.click(await screen.findByRole('option', { name: 'Piscine' }));
 
     expect(sonde.form?.getValues('tag_ids')).toEqual([7, 8]);
-    expect(screen.getByRole('button', { name: 'WiFi' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Piscine' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Retirer WiFi' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retirer Piscine' })).toBeInTheDocument();
   });
 
   it('le compteur de la description suit la frappe', async () => {
@@ -177,6 +183,10 @@ describe('TCK-564 — la garde de source : aucune lecture `watch(…)` ni `getVa
     // de la sortie du compilateur, pas par contrat — `AgencyConfigForm` montre qu'une lecture
     // d'hôte peut l'être (revue adverse, mesuré par exécution le 2026-09-23).
     'PropertyForm.tsx',
+    // TCK-633 — les champs partagés par le parcours et l'édition.
+    'ChampsLieu.tsx',
+    'ChampsPosition.tsx',
+    'ChampEquipements.tsx',
     ...readdirSync(path.join(racine, 'wizard'))
       .filter((f) => f.endsWith('.tsx'))
       .map((f) => path.join('wizard', f)),

@@ -10,8 +10,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Drapeaux de fonctionnalité. TCK-600 : le catalogue est VIDE — ses trois entrées n'avaient aucun
- * lecteur. Le mécanisme (segments, déploiement progressif) reste éprouvé sur une ligne stockée,
+ * Drapeaux de fonctionnalité. TCK-600 : le catalogue a été VIDÉ — ses trois entrées n'avaient aucun
+ * lecteur ; TCK-633 y fait entrer deux drapeaux, chacun avec son lecteur. Le mécanisme (segments, déploiement progressif) reste éprouvé sur une ligne stockée,
  * par `FeatureFlagEvaluator::evaluate()`.
  */
 class FeatureFlagTest extends TestCase
@@ -42,14 +42,26 @@ class FeatureFlagTest extends TestCase
         $this->assertFalse($evaluator->evaluate($parRole, null));
     }
 
-    /** AC15 — le catalogue est vide et ne sert ni libellé ni description. */
-    public function test_the_catalogue_is_empty_and_carries_no_label(): void
+    /**
+     * AC15 — le catalogue ne sert ni libellé ni description, et la console liste EXACTEMENT ses
+     * entrées, dans leur ordre. TCK-633 : il n'est plus vide (`media_watermark`, lot A ;
+     * `host_auto_space`, lot C) ; un drapeau serveur n'est pas servi au client.
+     */
+    public function test_the_catalogue_carries_no_label(): void
     {
-        $this->assertSame([], Flag::cases());
         $this->actingAsRole('super_admin');
 
-        $this->getJson('/api/admin/feature-flags')->assertOk()->assertExactJson(['data' => []]);
-        $this->getJson('/api/feature-flags/me')->assertOk()->assertJsonPath('data', []);
+        $lignes = $this->getJson('/api/admin/feature-flags')->assertOk()->json('data');
+
+        $this->assertSame(array_map(fn (Flag $flag) => $flag->value, Flag::cases()), array_column($lignes, 'key'));
+        foreach ($lignes as $ligne) {
+            $this->assertArrayNotHasKey('label', $ligne);
+            $this->assertArrayNotHasKey('description', $ligne);
+        }
+        $this->assertArrayNotHasKey(
+            Flag::MediaWatermark->value,
+            $this->getJson('/api/feature-flags/me')->assertOk()->json('data') ?? [],
+        );
     }
 
     public function test_any_key_is_unknown_to_the_console(): void
@@ -61,7 +73,9 @@ class FeatureFlagTest extends TestCase
             ->assertJsonPath('code', 'feature_flag.unknown');
         $this->postJson('/api/admin/feature-flags/property_compare/override', ['enabled' => true])
             ->assertNotFound();
-        $this->assertSame(0, FeatureFlag::query()->count());
+        // TCK-633 — une migration de données peut poser la ligne d'un drapeau CATALOGUÉ
+        // (`host_auto_space`, lot C) : ce qui compte, c'est qu'aucune ligne n'est née de la clé inconnue.
+        $this->assertFalse(FeatureFlag::query()->where('key', 'property_compare')->exists());
     }
 
     public function test_agency_admin_is_forbidden(): void

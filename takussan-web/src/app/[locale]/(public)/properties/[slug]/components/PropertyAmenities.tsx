@@ -1,10 +1,13 @@
 import { useTranslations } from 'next-intl';
 
+import { ESPACE_DU_CATALOGUE, libelleEquipement } from '@/lib/libelle-equipement';
 import type { PropertyTag } from '@/types/property';
 import { getAmenityIcon } from './amenity-icons';
 
 export function PropertyAmenities({ tags }: { tags: PropertyTag[] }) {
   const t = useTranslations('property.detail');
+  // TCK-633 — le catalogue traduit par son slug ; l'équipement d'un annonceur, tel quel.
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const amenities = tags.filter((tag) => tag.type === 'amenity');
   if (amenities.length === 0) return null;
 
@@ -20,7 +23,7 @@ export function PropertyAmenities({ tags }: { tags: PropertyTag[] }) {
               className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm"
             >
               <Icon className="size-5 text-muted-foreground shrink-0" />
-              <span className="text-foreground">{tag.name}</span>
+              <span className="text-foreground">{libelleEquipement(tag, tCatalogue)}</span>
             </div>
           );
         })}

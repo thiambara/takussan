@@ -89,6 +89,15 @@ return [
         'refund_fractional' => 'Ce montant comporte des décimales que la devise du paiement n\'a pas.',
         'refund_unpaid' => 'Seul un paiement acquitté peut être remboursé.',
     ],
+    'boost' => [
+        'bump_cooldown' => 'Ce bien a été remonté il y a moins de 24 heures. Nouvelle remontée possible à partir du :available_at.',
+        'no_space' => 'Ce bien n’est rattaché à aucun espace : il ne peut pas être mis en avant.',
+        'not_live' => 'Cette mise en avant est déjà terminée.',
+        'offer_featured_only' => 'Seule une Vedette peut être offerte.',
+        'product_inactive' => 'Cette offre n’est plus proposée.',
+        'property_not_public' => 'Seul un bien publié et visible peut être mis en avant.',
+        'stats_window_too_wide' => 'La période ne peut pas dépasser 92 jours.',
+    ],
     'business_enum' => [
         'value_in_use' => 'Cette valeur est utilisée et ne peut pas être supprimée.',
         'value_not_found' => 'Valeur introuvable.',
@@ -105,6 +114,10 @@ return [
     ],
     'commission' => [
         'not_due' => 'Seule une commission due peut être marquée versée ou annulée.',
+    ],
+    'credits' => [
+        'insufficient' => 'Solde insuffisant : il vous manque :missing crédits (solde : :balance).',
+        'no_space' => 'Aucun espace actif : sélectionnez un espace pour consulter ses crédits.',
     ],
     'conversation' => [
         'participant_not_found' => 'Ce participant ne fait pas partie de la conversation.',
@@ -155,6 +168,14 @@ return [
     ],
     'filter' => [
         'identifier_invalid' => 'Le filtre :filter attend un identifiant numérique.',
+    ],
+    'geo' => [
+        'link_unresolved' => 'Ce lien ne mène à aucune position lisible.',
+        'merge_into_self' => 'Un quartier ne se fusionne pas avec lui-même.',
+        'merge_other_city' => 'Les deux quartiers doivent appartenir à la même ville.',
+        'merge_target_inactive' => 'Le quartier cible est refusé ou déjà fusionné.',
+        'name_taken' => 'Ce nom est déjà pris dans cette ville.',
+        'neighborhood_not_pending' => 'Ce quartier n\'est plus en attente de modération.',
     ],
     'guarantor' => [
         'attached_to_open_lease' => 'Ce garant est rattaché à un bail en attente de signature ou en cours : détachez-le d\'abord du bail.',
@@ -316,6 +337,7 @@ return [
     ],
     'onboarding' => [
         'agent_not_owner' => 'Vous n\'avez pas accès à ce profil agent.',
+        'auto_space_disabled' => "La création automatique de l'espace est désactivée : passez par l'assistant.",
         'checklist_item_unknown' => 'Étape inconnue.',
         'checklist_not_found' => 'Aucune liste d\'étapes pour ce bail.',
         'owner_not_owner' => 'Vous n\'avez pas accès à ce profil propriétaire.',
@@ -419,6 +441,7 @@ return [
         'not_pending_moderation' => 'Le bien n\'est pas en attente de modération.',
         'primary_not_eligible' => 'Seul un agent actif de l\'agence du bien peut en être l\'agent principal.',
         'primary_requires_agent' => 'Seul un collaborateur de rôle agent peut être l\'agent principal du bien.',
+        'publish_contact_incomplete' => "Pour publier, le contact du bien doit avoir un prénom et un numéro vérifié, et les conditions d'utilisation doivent être acceptées.",
         'responsible_agent_co_owner' => 'Un co-propriétaire du bien ne peut pas en devenir l\'agent responsable.',
         'resubmit_not_rejected' => 'Seul un bien refusé peut être resoumis.',
     ],
@@ -453,6 +476,14 @@ return [
     'search_alert' => [
         'invalid_token' => 'Ce lien de confirmation n\'est plus valable.',
         'invalid_code' => 'Code incorrect ou expiré.',
+    ],
+    // TCK-633 (lot C) — le second numéro d'un compte.
+    'secondary_phone' => [
+        'capacity_reached' => "L'envoi de codes est momentanément suspendu. Réessayez plus tard.",
+        'code_invalid' => 'Code de vérification invalide ou expiré.',
+        'country_not_allowed' => 'Aucun code ne peut être envoyé vers ce pays.',
+        'same_as_primary' => 'Ce numéro est déjà votre numéro principal.',
+        'taken' => 'Ce numéro est déjà vérifié sur un autre compte.',
     ],
     'segregation' => [
         'approve' => 'Vous avez préparé ce reversement, ou en êtes le bénéficiaire : un autre membre doit l\'approuver.',
@@ -492,6 +523,13 @@ return [
         'no_revocable_session' => 'Aucune session à révoquer.',
         'target_super_admin' => 'Les actions de support ne peuvent pas viser un autre super-administrateur.',
         'two_factor_already_disabled' => 'La double authentification est déjà désactivée.',
+    ],
+    'tags' => [
+        'merge_into_self' => 'Un équipement ne se fusionne pas avec lui-même.',
+        'merge_target_invalid' => 'La cible doit être un équipement approuvé ou en attente.',
+        'merge_source_invalid' => 'Seul un équipement se fusionne dans un équipement.',
+        'name_taken' => 'Ce nom est déjà utilisé par une autre étiquette.',
+        'not_pending' => 'Cet équipement n\'est plus en attente de modération.',
     ],
     'task' => [
         'assignee_not_staff' => 'La personne assignée doit être vous-même ou un membre du personnel de l\'agence.',

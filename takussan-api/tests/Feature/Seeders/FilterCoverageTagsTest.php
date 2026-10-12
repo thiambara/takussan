@@ -150,6 +150,7 @@ class FilterCoverageTagsTest extends TestCase
             ->values()
             ->all();
 
-        $this->assertSame([TagType::Amenity->value, TagType::Feature->value], $types);
+        // TCK-633 — `feature` est fondu dans `amenity` (ADR-0062 §7).
+        $this->assertSame([TagType::Amenity->value], $types);
     }
 }

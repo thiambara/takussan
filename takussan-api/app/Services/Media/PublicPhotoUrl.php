@@ -17,6 +17,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * **Servable** (TCK-539, D3) = produite (`hasGeneratedConversion()`) ET, si le bien exige un
  * filigrane (`Property::requiresWatermark()`), déjà filigranée — ou exemptée, c'est-à-dire
  * produite quand l'agence n'en exigeait pas (`WatermarkTrace`, R1).
+ * Drapeau global `media_watermark` éteint (TCK-633), AUCUN bien n'exige de filigrane : toute
+ * conversion produite est servable, y compris celle qui attendait encore le sien. Ce fichier n'a
+ * rien eu à changer pour cela — la décision vient de `$watermarkRequired`.
  * Une conversion est écrite NUE, puis filigranée par un job en file : sans la seconde
  * condition, l'API émettait son URL dans l'intervalle — et Cloudflare la gardait 7 jours sous
  * ce `?v=`, ou indéfiniment si le worker était arrêté.

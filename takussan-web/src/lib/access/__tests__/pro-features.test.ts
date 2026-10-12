@@ -45,6 +45,10 @@ describe('PRO_ROUTES', () => {
     ]);
   });
 
+  it('TCK-633 — ne contient plus aucune route /admin : `PAGES_ADMIN` les décrit et les garde', () => {
+    expect([...PRO_ROUTES]).toEqual(['/app/overview/agency', '/app/owners']);
+  });
+
   it("ne cadenasse ni les KPI ni les alertes de seuil — aucune spec ne les restreint", () => {
     expect(PRO_ROUTES.has('/app/overview/kpis')).toBe(false);
     expect(PRO_ROUTES.has('/app/overview/alerts')).toBe(false);

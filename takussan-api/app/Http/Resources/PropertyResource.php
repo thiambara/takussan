@@ -16,6 +16,7 @@ use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Property\PropertyContactNumbers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -120,6 +121,10 @@ class PropertyResource extends BaseResource
             'available_from' => $this->whenHas('available_from', fn ($valeur) => $this->calendarDate($valeur)),
             'furnished' => $this->whenHas('furnished', fn ($valeur) => (bool) $valeur),
             'featured' => $this->whenHas('featured', fn ($valeur) => (bool) $valeur),
+            // TCK-633 lot F (ADR-0061 §5) — le badge acheté (« Urgent », « Baisse de prix »), projeté
+            // par `BoostLifecycle` ; nul sans badge actif.
+            'badge' => $this->whenHas('badge', fn ($valeur) => $valeur?->value),
+            'badge_until' => $this->whenHas('badge_until', fn ($valeur) => $this->iso($valeur)),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
             // `DASHBOARD_PROPERTY_FIELDS` (`takussan-web/src/lib/queries/properties-server.ts`)
             // les demande explicitement, et `PropertyList.tsx` les rend dans chaque ligne du
@@ -172,6 +177,8 @@ class PropertyResource extends BaseResource
                 'name' => $tag->name,
                 'slug' => $tag->slug,
                 'type' => $tag->type?->value,
+                // TCK-633 — une proposition d'équipement s'affiche « en attente » dans le formulaire.
+                'status' => $tag->status?->value,
                 'icon' => $tag->icon,
                 'color' => $tag->color,
             ])->values()->all()),
@@ -292,6 +299,9 @@ class PropertyResource extends BaseResource
             'country' => $country,
             'latitude' => $address?->latitude !== null ? (float) $address->latitude : null,
             'longitude' => $address?->longitude !== null ? (float) $address->longitude : null,
+            // TCK-633 (ADR-0062) — le rattachement au référentiel, relu par le formulaire.
+            'geo_city_id' => $address?->geo_city_id,
+            'geo_neighborhood_id' => $address?->geo_neighborhood_id,
         ];
     }
 
@@ -379,7 +389,12 @@ class PropertyResource extends BaseResource
         // WhatsApp ni Appeler (qui menaient à une erreur). Le numéro lui-même ne sort qu'au geste
         // (`GET …/contact`, sous limiteur), jamais ici — contrainte 7.
         return $contact === null ? null : $this->buildUserLite($contact) + [
-            'has_phone' => is_string($contact->phone) && $contact->phone !== '',
+            // TCK-633 (lot C, tour 2) — « Appeler » seulement s'il existe un numéro SERVI : un
+            // principal non vérifié ne l'est pas (`PropertyContactNumbers`, même règle que `…/contact`).
+            'has_phone' => PropertyContactNumbers::hasPhone($this->resource, $contact),
+            // TCK-633 (lot C) — le bouton WhatsApp de la fiche ne s'affiche que s'il existe un
+            // numéro déclaré WhatsApp (`PropertyContactNumbers`, même règle que `…/contact`).
+            'has_whatsapp' => PropertyContactNumbers::hasWhatsApp($this->resource, $contact),
         ];
     }
 
@@ -430,6 +445,8 @@ class PropertyResource extends BaseResource
             'logo_url' => $agency->getFirstMediaUrl('logo') ?: null,
             'verified' => (bool) $agency->is_verified,
             'rating' => $agencyRating !== null ? round((float) $agencyRating, 2) : null,
+            // TCK-633 (AC4) — un indépendant ne facture pas de frais d'agence : le formulaire masque le champ.
+            'kind' => $agency->kind?->value,
         ];
     }
 

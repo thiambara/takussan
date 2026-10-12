@@ -74,6 +74,12 @@ final class WatermarkRequirement
             return [];
         }
 
+        // TCK-633 (lot A) — drapeau global éteint : aucun bien n'exige de filigrane, et aucune
+        // agence n'est lue. Le drapeau se lit ici une fois pour tout le lot, pas par ligne.
+        if (! AgencyWatermarkContext::globallyEnabled()) {
+            return array_fill_keys($this->propertyIds, false);
+        }
+
         // Une agence supprimée (soft delete) compte comme absente, comme le fait la relation.
         return DB::table('properties')
             ->leftJoin('agencies', fn ($join) => $join->on('agencies.id', '=', 'properties.agency_id')->whereNull('agencies.deleted_at'))

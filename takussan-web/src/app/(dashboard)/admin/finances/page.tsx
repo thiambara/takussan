@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
+import { isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
 import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
@@ -29,9 +30,9 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  await garderPageAdmin('/admin/finances');
   const t = await getTranslations('admin.pages.finances');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) redirect('/app/profile');
 
   const superAdmin = isSuperAdmin(user.roles);
   const agencyId = user.agency_id;

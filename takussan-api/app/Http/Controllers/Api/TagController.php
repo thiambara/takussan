@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreTagRequest;
 use App\Http\Requests\Api\UpdateTagRequest;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\TagType;
 use App\Models\Tag;
+use App\Services\Geo\GeoReindexation;
+use App\Services\Tags\TagModeration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,6 +27,14 @@ class TagController extends Controller
                 $agencyId = $user->agency_id;
                 $base->whereHas('customers', fn ($q) => $q->where('agency_id', $agencyId));
             }
+        }
+
+        // TCK-633 — hors console : les approuvés, plus les propositions de l'appelant.
+        $appelant = $request->user();
+        if (! $appelant?->isSuperAdmin()) {
+            $base->where(fn ($q) => $q
+                ->where('tags.status', ReferentialStatus::Approved->value)
+                ->orWhere(fn ($q) => $q->where('tags.status', ReferentialStatus::Pending->value)->where('tags.created_by_id', $appelant?->id)));
         }
 
         $paginator = Tag::buildQuery($base, $request)
@@ -55,15 +66,37 @@ class TagController extends Controller
 
     public function show(Request $request, Tag $tag): JsonResponse
     {
+        // TCK-633 (D9) — la visibilité de la liste : une proposition d'un autre, ou un refus, est
+        // introuvable hors console. Sans elle, les identifiants séquentiels livraient le nom d'une
+        // proposition en attente, que `tag_names` rattachait ensuite à un autre bien.
+        $appelant = $request->user();
+        abort_unless(
+            $appelant?->isSuperAdmin()
+                || $tag->status === ReferentialStatus::Approved
+                || ($tag->status === ReferentialStatus::Pending && $appelant !== null && $tag->created_by_id === $appelant->id),
+            404,
+        );
+
         return $this->json(['data' => $this->format($tag)]);
     }
 
-    public function update(UpdateTagRequest $request, Tag $tag): JsonResponse
+    public function update(UpdateTagRequest $request, Tag $tag, TagModeration $moderation, GeoReindexation $reindexation): JsonResponse
     {
-
         $data = $request->validated();
 
-        $tag->fill($data)->save();
+        // TCK-633 (ADR-0062 §7) — la page catalogue renomme par ici : même chemin que la file de
+        // modération, qui refuse en 409 un nom déjà pris (casse repliée) et RÉINDEXE les biens.
+        if (array_key_exists('name', $data) && $data['name'] !== $tag->name) {
+            $moderation->renommer($tag, (string) $data['name'], $request->user());
+        }
+        unset($data['name']);
+
+        $tag->refresh()->fill($data);
+        $visibiliteChangee = $tag->isDirty(['type', 'status']);
+        $tag->save();
+        if ($visibiliteChangee) {
+            $reindexation->biens($tag->properties()->pluck('properties.id')->map(fn ($id) => (int) $id)->all());
+        }
 
         activity('Admin')
             ->performedOn($tag)
@@ -120,6 +153,8 @@ class TagController extends Controller
             'name' => $tag->name,
             'slug' => $tag->slug,
             'type' => $tag->type?->value,
+            'status' => $tag->status?->value,
+            'created_by_id' => $tag->created_by_id,
             'icon' => $tag->icon,
             'color' => $tag->color,
             'description' => $tag->description,

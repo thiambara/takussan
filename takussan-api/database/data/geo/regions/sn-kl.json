@@ -1,0 +1,406 @@
+{
+  "region": {
+    "code": "SN-KL",
+    "slug": "kaolack",
+    "name": "Kaolack",
+    "latitude": 14.0459191,
+    "longitude": -15.8978426
+  },
+  "source": {
+    "osm_base": "2026-06-01T08:52:28Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "a30f326ef457191fcec259091d2aec659e06b1a1c075ee011c753ddacf375792"
+  },
+  "cities": [
+    {
+      "slug": "dabaly",
+      "name": "Dabaly",
+      "latitude": 13.722714,
+      "longitude": -15.7028223,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dara-mboss",
+      "name": "Dara Mboss",
+      "latitude": 14.3472456,
+      "longitude": -15.7682985,
+      "neighborhoods": []
+    },
+    {
+      "slug": "darou-salam",
+      "name": "Darou Salam",
+      "latitude": 13.8094109,
+      "longitude": -15.7326793,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dya",
+      "name": "Dya",
+      "latitude": 14.2252645,
+      "longitude": -16.1804406,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fass",
+      "name": "Fass",
+      "latitude": 14.3530084,
+      "longitude": -16.0328697,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gagnick",
+      "name": "Gagnick",
+      "latitude": 14.3042597,
+      "longitude": -15.9899655,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gainthe-kaye",
+      "name": "Gainthe Kaye",
+      "latitude": 13.8381901,
+      "longitude": -15.9511311,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gandiaye",
+      "name": "Gandiaye",
+      "latitude": 14.2428568,
+      "longitude": -16.2731678,
+      "neighborhoods": []
+    },
+    {
+      "slug": "guinguineo",
+      "name": "Guinguinéo",
+      "latitude": 14.2689421,
+      "longitude": -15.9436168,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kahone",
+      "name": "Kahone",
+      "latitude": 14.1572902,
+      "longitude": -16.0373613,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kaolack",
+      "name": "Kaolack",
+      "latitude": 14.1583311,
+      "longitude": -16.0984974,
+      "neighborhoods": [
+        {
+          "slug": "boustane",
+          "name": "Boustane",
+          "latitude": 14.1504288,
+          "longitude": -16.0895454,
+          "osm": "n10844925411"
+        },
+        {
+          "slug": "dialegne",
+          "name": "Dialegne",
+          "latitude": 14.1482229,
+          "longitude": -16.0691294,
+          "osm": "n10844925413"
+        },
+        {
+          "slug": "diamaguene",
+          "name": "Diamaguene",
+          "latitude": 14.159245,
+          "longitude": -16.0952601,
+          "osm": "w452546440"
+        },
+        {
+          "slug": "gnolanem",
+          "name": "Gnolanèm",
+          "latitude": 14.1860849,
+          "longitude": -16.0589549,
+          "osm": "n3329033099"
+        },
+        {
+          "slug": "kasnack-nord",
+          "name": "Kasnack Nord",
+          "latitude": 14.1437029,
+          "longitude": -16.0808682,
+          "osm": "w1163502826"
+        },
+        {
+          "slug": "kassaville",
+          "name": "Kassaville",
+          "latitude": 14.1501971,
+          "longitude": -16.0790106,
+          "osm": "n10844925410"
+        },
+        {
+          "slug": "medina-nord",
+          "name": "Medina Nord",
+          "latitude": 14.1647868,
+          "longitude": -16.0605293,
+          "osm": "n10844925407"
+        },
+        {
+          "slug": "medina-sud",
+          "name": "Medina Sud",
+          "latitude": 14.1576724,
+          "longitude": -16.0644273,
+          "osm": "n10844925406"
+        },
+        {
+          "slug": "ndorong",
+          "name": "Ndorong",
+          "latitude": 14.1582849,
+          "longitude": -16.0839274,
+          "osm": "n10844925408"
+        },
+        {
+          "slug": "peul-ndiouga",
+          "name": "Peul Ndiouga",
+          "latitude": 14.201535,
+          "longitude": -16.0682006,
+          "osm": "n3329033925"
+        },
+        {
+          "slug": "sara-ndiougary",
+          "name": "Sara Ndiougary",
+          "latitude": 14.1552429,
+          "longitude": -16.0874467,
+          "osm": "n10844925409"
+        },
+        {
+          "slug": "tabangoye",
+          "name": "Tabangoye",
+          "latitude": 14.1649298,
+          "longitude": -16.068567,
+          "osm": "n10844925412"
+        }
+      ]
+    },
+    {
+      "slug": "kayemor",
+      "name": "Kayemor",
+      "latitude": 13.7639686,
+      "longitude": -15.5653548,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-baka",
+      "name": "Keur Baka",
+      "latitude": 13.9358583,
+      "longitude": -15.938028,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-maba-diakhou",
+      "name": "Keur Maba Diakhou",
+      "latitude": 13.6756799,
+      "longitude": -15.9952768,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-madiabel",
+      "name": "Keur Madiabel",
+      "latitude": 13.8471542,
+      "longitude": -16.0582158,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-madongo",
+      "name": "Keur Madongo",
+      "latitude": 13.8419563,
+      "longitude": -16.0822272,
+      "neighborhoods": []
+    },
+    {
+      "slug": "keur-soce",
+      "name": "Keur Socé",
+      "latitude": 13.9449841,
+      "longitude": -16.0263592,
+      "neighborhoods": []
+    },
+    {
+      "slug": "khelcom-birane",
+      "name": "Khelcom Birane",
+      "latitude": 14.24754,
+      "longitude": -16.0669457,
+      "neighborhoods": []
+    },
+    {
+      "slug": "latmingue",
+      "name": "Latmingué",
+      "latitude": 14.1025692,
+      "longitude": -15.969133,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbadakhoune",
+      "name": "Mbadakhoune",
+      "latitude": 14.188748,
+      "longitude": -15.9941563,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mboss",
+      "name": "Mboss",
+      "latitude": 14.3646703,
+      "longitude": -15.7453426,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-sabakh",
+      "name": "Médina Sabakh",
+      "latitude": 13.6731651,
+      "longitude": -15.6144616,
+      "neighborhoods": []
+    },
+    {
+      "slug": "n-doffane",
+      "name": "N'Doffane",
+      "latitude": 13.9171147,
+      "longitude": -15.928451,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiaffate",
+      "name": "Ndiaffate",
+      "latitude": 14.0691457,
+      "longitude": -16.1578644,
+      "neighborhoods": [
+        {
+          "slug": "ndiaffate-serere",
+          "name": "Ndiaffate Sérère",
+          "latitude": 14.0874567,
+          "longitude": -16.1695664,
+          "osm": "n3329033667"
+        },
+        {
+          "slug": "ndiaffate-soce",
+          "name": "Ndiaffate Socé",
+          "latitude": 14.0898394,
+          "longitude": -16.164194,
+          "osm": "n3329033665"
+        },
+        {
+          "slug": "ndiaffate-wolof",
+          "name": "Ndiaffate Wolof",
+          "latitude": 14.0842504,
+          "longitude": -16.1723993,
+          "osm": "n3329033668"
+        }
+      ]
+    },
+    {
+      "slug": "ndiago",
+      "name": "Ndiago",
+      "latitude": 14.2813702,
+      "longitude": -15.8862634,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiebel",
+      "name": "Ndiébel",
+      "latitude": 14.3286057,
+      "longitude": -16.1813831,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiedieng",
+      "name": "Ndiédieng",
+      "latitude": 13.9271267,
+      "longitude": -16.1359697,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndrame-escale",
+      "name": "Ndramé Escale",
+      "latitude": 13.8013346,
+      "longitude": -16.1729917,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngathie-naoude",
+      "name": "Ngathie Naoudé",
+      "latitude": 14.1845389,
+      "longitude": -15.9262705,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngayene",
+      "name": "Ngayène",
+      "latitude": 13.7009409,
+      "longitude": -15.4845232,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nguelou",
+      "name": "Nguélou",
+      "latitude": 14.3622497,
+      "longitude": -15.9214778,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nioro-du-rip",
+      "name": "Nioro du Rip",
+      "latitude": 13.7483687,
+      "longitude": -15.7742438,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ourour",
+      "name": "Ourour",
+      "latitude": 14.3191234,
+      "longitude": -16.0615239,
+      "neighborhoods": []
+    },
+    {
+      "slug": "panal-wolof",
+      "name": "Panal Wolof",
+      "latitude": 14.4277421,
+      "longitude": -15.7419766,
+      "neighborhoods": []
+    },
+    {
+      "slug": "paoskoto",
+      "name": "Paoskoto",
+      "latitude": 13.8148191,
+      "longitude": -15.8339348,
+      "neighborhoods": []
+    },
+    {
+      "slug": "porokhane",
+      "name": "Porokhane",
+      "latitude": 13.6794224,
+      "longitude": -15.8426017,
+      "neighborhoods": []
+    },
+    {
+      "slug": "taiba-niassene",
+      "name": "Taïba Niassène",
+      "latitude": 13.787751,
+      "longitude": -15.9020146,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiare",
+      "name": "Thiaré",
+      "latitude": 13.9479853,
+      "longitude": -15.7752186,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thiomby",
+      "name": "Thiomby",
+      "latitude": 14.2359878,
+      "longitude": -16.2895394,
+      "neighborhoods": []
+    },
+    {
+      "slug": "wack-ngouna",
+      "name": "Wack Ngouna",
+      "latitude": 13.7045028,
+      "longitude": -16.0623984,
+      "neighborhoods": []
+    }
+  ]
+}

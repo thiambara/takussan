@@ -127,7 +127,9 @@ class PhoneLoginService
         return new JsonResponse([
             'token' => $issued['token'],
             'expires_at' => $issued['expires_at']->toIso8601String(),
-            'user' => new UserResource($user->fresh()),
+            // TCK-633 (lot C, tour 3) — `pourSoi` : la réponse porte les clés « pour soi » comme
+            // `/api/auth/me` (`$request->user()` est nul ici), et le front la pose telle quelle.
+            'user' => UserResource::pourSoi($user->fresh()),
             'is_new_account' => $isNewAccount,
         ], 200);
     }

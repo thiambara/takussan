@@ -1,8 +1,7 @@
-import { redirect } from 'next/navigation';
-
 import { getMeAction } from '@/app/actions/auth';
 import { ErrorState } from '@/components/feedback';
 import { fetchSettingsAction } from '@/app/actions/admin-settings';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { isSuperAdmin } from '@/lib/roles';
 import { SettingsManager } from '@/components/admin-settings/SettingsManager';
 import { SettingsTabs } from '@/components/admin-settings/SettingsTabs';
@@ -20,14 +19,12 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  // `/api/admin/settings` is gated by the `super-admin` route middleware (`routes/api/admin.php`) :
+  // la ligne de `PAGES_ADMIN` exige `super_admin`, et tout autre admin est renvoyé vers sa première
+  // page accessible plutôt que devant une carte cassée (TCK-633).
+  await garderPageAdmin('/admin/settings');
   const t = await getTranslations('admin.pages.settings');
   const user = await getMeAction();
-  // `/api/admin/settings` is gated by the `super-admin` route middleware
-  // (`routes/api/admin.php`), so only super-admins can load the page. Any
-  // other admin (agency_admin) is bounced rather than shown a broken card.
-  if (!isSuperAdmin(user.roles)) {
-    redirect('/admin');
-  }
 
   const result = await fetchSettingsAction({ perPage: 100 });
   const settings = result.ok && result.data ? result.data.data : [];

@@ -507,7 +507,7 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost';
 export type PlatformSettingType = 'select' | 'multi_select' | 'integer';
 
 export type PlatformSetting = {

@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Support\PubliePret;
 
 /**
  * TCK-587 (ADR-0031 §2) — les gestes sur un bien jugés par leur capacité.
@@ -29,6 +30,7 @@ use Tests\Concerns\CreatesAgencyMembers;
 class PropertyAuthorizationTest extends ApiTestCase
 {
     use CreatesAgencyMembers;
+    use PubliePret;
     use RefreshDatabase;
 
     private Agency $agency;
@@ -72,7 +74,9 @@ class PropertyAuthorizationTest extends ApiTestCase
 
     public function test_un_agent_cree_un_bien_de_l_agence(): void
     {
-        $this->actingAsApi($this->agencyAgent($this->agency))
+        $agent = $this->agencyAgent($this->agency);
+        $this->rendrePubliable($agent);
+        $this->actingAsApi($agent)
             ->postJson('/api/properties', $this->payload(['status' => 'available', 'visibility' => 'public']))
             ->assertCreated()
             ->assertJsonPath('data.status', 'available')
@@ -240,6 +244,7 @@ class PropertyAuthorizationTest extends ApiTestCase
 
         // Le rôle système, lui, publie par chacun des chemins.
         $systeme = $this->agencyAgent($this->agency);
+        $this->rendrePubliable($systeme);
         $sien = Property::factory()->create([
             'user_id' => $systeme->id,
             'agency_id' => $this->agency->id,

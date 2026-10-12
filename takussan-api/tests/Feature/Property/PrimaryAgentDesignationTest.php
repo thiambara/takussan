@@ -59,8 +59,9 @@ class PrimaryAgentDesignationTest extends ApiTestCase
         $agency = $this->agence();
         $this->admin = $this->personnel($agency, 'agency_admin');
         $this->property = $this->bienDe($agency);
-        $this->second = $this->personnel($agency, attributes: ['first_name' => 'Second', 'phone' => '+221770000222']);
-        $this->ancien = $this->personnel($agency, attributes: ['first_name' => 'Ancien', 'phone' => '+221770000111']);
+        // TCK-633 (lot C, tour 2) — `…/contact` ne sert qu'un numéro principal VÉRIFIÉ.
+        $this->second = $this->personnel($agency, attributes: ['first_name' => 'Second', 'phone' => '+221770000222', 'phone_verified_at' => now()]);
+        $this->ancien = $this->personnel($agency, attributes: ['first_name' => 'Ancien', 'phone' => '+221770000111', 'phone_verified_at' => now()]);
         $this->ligneSecond = $this->collaborateur($this->property, $this->second, '2026-05-20 09:00:00');
         $this->ligneSecond->update(['commission_share' => 30]);
         $this->ligneAncien = $this->collaborateur($this->property, $this->ancien, '2026-01-10 09:00:00');
@@ -84,7 +85,7 @@ class PrimaryAgentDesignationTest extends ApiTestCase
         $this->getJson("/api/public/properties/{$slug}")->assertOk()
             ->assertJsonPath('data.primary_contact.id', $attendu->id);
         $this->getJson("/api/public/properties/{$slug}/contact")->assertOk()
-            ->assertExactJson(['phone' => $attendu->phone]);
+            ->assertJsonPath('data.0.phone', $attendu->phone);
 
         PropertyContactLead::query()->delete();
         $this->postJson("/api/public/properties/{$slug}/contact-lead", [

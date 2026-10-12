@@ -128,6 +128,42 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
 }
 
 /**
+ * TCK-633 (lot E, AC6) — les clés que la LISTE lit et que la CARTE refuse : le plein-texte (la
+ * carte est SQL, ADR-0023), le tri, la pagination et le rectangle de la liste.
+ *
+ * ⚠ Miroir de `MapPublicPropertyRequest::CLES_PROPRES_A_LA_LISTE` (PHP) :
+ * `search-filters.parity.test.ts` compare les deux listes.
+ */
+export const CLES_PROPRES_A_LA_LISTE = [
+  'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max',
+] as const;
+
+/**
+ * Les paramètres d'URL de `/properties` traduits pour `/map` — TOUS les filtres du panneau, et
+ * eux seuls.
+ *
+ * Part de {@link parametresDeRecherche} (même normalisation géographique que la liste), retire
+ * {@link CLES_PROPRES_A_LA_LISTE}, et un point sans rayon : sans `radius_km`, `lat`/`lng` ne
+ * servaient qu'au tri par distance. Les valeurs vides ne partent pas. Les clés multi-valuées
+ * voyagent sous leur forme d'URL, jointes par des virgules (`type=house,villa`) : c'est celle
+ * qu'écrit `filtersToParams`, et celle que lit l'API.
+ */
+export function parametresDeLaCarte(brut: URLSearchParams): Record<string, string> {
+  const params = parametresDeRecherche(brut);
+  for (const cle of CLES_PROPRES_A_LA_LISTE) params.delete(cle);
+  if (!params.has('radius_km')) {
+    params.delete('lat');
+    params.delete('lng');
+  }
+
+  const carte: Record<string, string> = {};
+  params.forEach((valeur, cle) => {
+    if (valeur !== '') carte[cle] = valeur;
+  });
+  return carte;
+}
+
+/**
  * L'identité d'une requête de recherche — **triée**, pour que deux écritures du même jeu de
  * paramètres se reconnaissent.
  *

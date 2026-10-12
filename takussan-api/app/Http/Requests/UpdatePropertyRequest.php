@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Agency;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyCondition;
@@ -12,6 +13,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
 use App\Rules\HoteDeVisiteVirtuelle;
+use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\HierarchyService;
 use Closure;
@@ -47,15 +49,18 @@ class UpdatePropertyRequest extends FormRequest
             'total_floors' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
             'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
             'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
-            'price' => ['sometimes', 'numeric', 'min:0'],
+            // TCK-633 — bornes de COLONNE (`numeric(14,2)`, `integer`) : au-delà, 500 et non 422.
+            'price' => ['sometimes', 'numeric', 'min:0', 'max:999999999999.99'],
             'currency' => ['sometimes', Rule::enum(Currency::class)],
-            'area' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'area' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:2147483647'],
+            'bedrooms' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'bathrooms' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'furnished' => ['sometimes', 'boolean'],
-            'year_built' => ['sometimes', 'nullable', 'integer', 'min:1800', 'max:2100'],
-            'parking_spaces' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'featured' => ['sometimes', 'boolean', Rule::prohibitedIf(! $this->user()->isSuperAdmin())],
+            // TCK-633 — une vente sur plan annonce l'année de LIVRAISON : trois ans au plus.
+            'year_built' => ['sometimes', 'nullable', 'integer', 'min:1800', 'max:'.((int) date('Y') + 3)],
+            'parking_spaces' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:500'],
+            // TCK-633 lot F (ADR-0061 §5) — dérivé des boosts, écrit par `BoostLifecycle` seul.
+            'featured' => ['prohibited'],
             'available_from' => ['sometimes', 'nullable', 'date'],
             'parent_id' => [
                 'sometimes',
@@ -65,21 +70,46 @@ class UpdatePropertyRequest extends FormRequest
                 $this->parentIdRule(),
             ],
             'address' => ['sometimes', 'nullable', 'array'],
-            'address.street' => ['sometimes', 'nullable', 'string'],
-            'address.neighborhood' => ['sometimes', 'nullable', 'string'],
-            'address.city' => ['sometimes', 'nullable', 'string'],
-            'address.region' => ['sometimes', 'nullable', 'string'],
+            'address.street' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'address.neighborhood' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'address.city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'address.region' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
             'address.postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'address.latitude' => ['sometimes', 'nullable', 'numeric'],
-            'address.longitude' => ['sometimes', 'nullable', 'numeric'],
+            'address.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'address.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            // TCK-633 — la ville et le quartier du référentiel (ADR-0062).
+            ...GeoAddressRules::regles($this->user(), $this->input('address.geo_city_id'), partiel: true),
             // TCK-598 — la visite virtuelle : un LIEN https vers un hôte autorisé, jamais un fichier.
             'virtual_tour_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:https', new HoteDeVisiteVirtuelle],
             // TCK-598 — le coût d'entrée, d'une location MENSUELLE seulement (422 sinon). Le contrat
             // et la période jugés sont ceux qui RÉSULTERONT de la modification : envoyés, sinon
             // ceux du bien.
-            ...CoutDEntree::regles($this->coutDEntreeApplicable(), partiel: true),
+            ...CoutDEntree::regles(
+                $this->coutDEntreeApplicable(),
+                partiel: true,
+                fraisAdmis: CoutDEntree::fraisDAgenceAdmis($this->agenceDuBien()),
+            ),
         ];
+    }
+
+    /**
+     * TCK-633 (ADR-0061) — la devise n'est réécrite QUE si le corps l'envoie : un PATCH sans elle
+     * ne touche pas à un bien existant.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('currency')) {
+            $this->merge(['currency' => Currency::XOF->value]);
+        }
+    }
+
+    private function agenceDuBien(): ?Agency
+    {
+        /** @var Property|null $bien */
+        $bien = $this->route('property');
+
+        return $bien?->agency;
     }
 
     private function coutDEntreeApplicable(): bool

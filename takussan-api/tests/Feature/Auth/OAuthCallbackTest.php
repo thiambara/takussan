@@ -66,6 +66,36 @@ class OAuthCallbackTest extends TestCase
         $this->assertDatabaseCount('users', 1);
     }
 
+    /**
+     * TCK-633 (lot C, tour 3) — l'ouverture de session OAuth rend le `user` que le front pose tel
+     * quel (`openSession`) : il porte les clés « pour soi » comme `/api/auth/me` (même ressource,
+     * `UserResource::pourSoi`). Elles manquaient : `$request->user()` est nul au rappel.
+     */
+    public function test_callback_returns_the_self_keys_like_me(): void
+    {
+        $user = User::factory()->create(['email' => 'self@example.com', 'google_id' => 'google-633', 'phone_whatsapp' => false]);
+        $user->forceFill(['terms_accepted_at' => now(), 'terms_version' => '2026-10'])->save();
+        Cache::put('oauth_state:valid', ['provider' => 'google'], now()->addMinutes(5));
+
+        $socialUser = Mockery::mock(SocialiteUser::class);
+        $socialUser->shouldReceive('getId')->andReturn('google-633');
+        $socialUser->shouldReceive('getEmail')->andReturn('self@example.com');
+        $socialUser->shouldReceive('getName')->andReturn('Self');
+        Socialite::shouldReceive('driver->stateless->user')->andReturn($socialUser);
+
+        $reponse = $this->getJson('/api/auth/oauth/google/callback?code=abc&state=valid')->assertOk();
+        $servi = $reponse->json('data.user');
+        foreach (['phone_whatsapp', 'secondary_phone', 'secondary_phone_verified_at', 'secondary_phone_whatsapp', 'terms_accepted_at'] as $cle) {
+            $this->assertArrayHasKey($cle, $servi, $cle);
+        }
+        $this->assertFalse($servi['phone_whatsapp']);
+        $this->assertNotNull($servi['terms_accepted_at']);
+
+        $this->app['auth']->forgetGuards();
+        $me = $this->withToken($reponse->json('data.token'))->getJson('/api/auth/me')->assertOk()->json();
+        $this->assertEqualsCanonicalizing(array_keys($me), array_keys($servi));
+    }
+
     public function test_callback_rejects_email_collision_without_existing_provider_link(): void
     {
         // Defense against account takeover: an attacker controlling a social account

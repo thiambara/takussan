@@ -7,6 +7,8 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
+use App\Models\User;
+use App\Services\Boost\BoostLifecycle;
 use App\Services\Property\SimilarPropertiesService;
 
 class PropertyObserver
@@ -175,6 +177,12 @@ class PropertyObserver
             ]);
         }
 
+        // TCK-633 lot F (ADR-0061 §8) — sortir du public met les boosts en pause, y revenir les
+        // reprend ; loué / vendu rembourse ; un verrou plateforme les clôt sans rien rendre.
+        if ($property->wasChanged(['status', 'visibility', 'published_at', 'platform_hold_at', 'is_test', 'agency_id'])) {
+            app(BoostLifecycle::class)->reconcile($property, $this->actor());
+        }
+
         app(SimilarPropertiesService::class)->invalidateForProperty($property);
     }
 
@@ -193,6 +201,17 @@ class PropertyObserver
             $property->agency()->decrement('properties_count');
         }
 
+        // TCK-633 lot F (ADR-0061 §8) — supprimé par l'annonceur : la Vedette est remboursée. Une
+        // suppression de modération est précédée du verrou plateforme, qui l'a déjà close.
+        app(BoostLifecycle::class)->reconcile($property, $this->actor());
+
         app(SimilarPropertiesService::class)->invalidateForProperty($property);
+    }
+
+    private function actor(): ?User
+    {
+        $user = auth()->user();
+
+        return $user instanceof User ? $user : null;
     }
 }

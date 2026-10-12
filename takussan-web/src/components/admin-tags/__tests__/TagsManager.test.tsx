@@ -60,9 +60,21 @@ describe('<TagsManager />', () => {
   it('filters by type via the tabs', async () => {
     const user = userEvent.setup();
     renderTagsManager();
-    await user.click(screen.getByRole('tab', { name: 'Caractéristiques' }));
-    expect(screen.queryByText('Piscine')).not.toBeInTheDocument();
-    expect(screen.getByText('Meublé')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Commodités' }));
+    expect(screen.getByText('Piscine')).toBeInTheDocument();
+    expect(screen.queryByText('Meublé')).not.toBeInTheDocument();
+  });
+
+  it('TCK-633 — « Caractéristiques » n’est plus un type : ni onglet, ni option de création', async () => {
+    const user = userEvent.setup();
+    renderTagsManager();
+    expect(screen.queryByRole('tab', { name: 'Caractéristiques' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Nouveau tag' }));
+    await user.click(await screen.findByLabelText(/^Type/));
+
+    expect(await screen.findByRole('option', { name: 'Commodités' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Caractéristiques' })).not.toBeInTheDocument();
   });
 
   it('surfaces a 409 from delete with a clear fallback message', async () => {

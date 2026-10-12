@@ -31,6 +31,8 @@
     "CardHeader": null,
     "CardTitle": null,
     "ChoiceCardGroup": null,
+    "Combobox": null,
+    "ComboboxMultiple": null,
     "DialogClose": null,
     "DialogContent": null,
     "DialogDescription": null,

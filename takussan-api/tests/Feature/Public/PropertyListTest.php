@@ -35,15 +35,16 @@ class PropertyListTest extends TestCase
         $response->assertOk()->assertJsonCount(0, 'data');
     }
 
-    public function test_featured_properties_appear_first(): void
+    /** TCK-633 lot F (ADR-0061 §7) — `featured` ne trie plus la liste : `ranked_at` seul. */
+    public function test_the_list_follows_ranked_at_not_featured(): void
     {
-        Property::factory()->count(5)->published()->create(['featured' => false]);
-        $featured = Property::factory()->published()->featured()->create();
+        $old = Property::factory()->published()->featured()->create(['published_at' => now()->subDays(9)]);
+        $recent = Property::factory()->published()->create(['featured' => false, 'published_at' => now()->subDay()]);
 
         $response = $this->getJson('/api/public/properties');
 
         $response->assertOk();
-        $this->assertEquals($featured->id, $response->json('data.0.id'));
+        $this->assertSame([$recent->id, $old->id], array_column($response->json('data'), 'id'));
     }
 
     public function test_no_auth_required(): void

@@ -36,15 +36,29 @@ class CustomerTagController extends Controller
             ], 422);
         }
 
+        // The `tags.name` column has a single unique index (no compound on type).
+        // Looking up case-insensitively avoids a unique-constraint violation when a
+        // tag was seeded or created from another module with a different capitalisation.
+        // `CaseInsensitive::sql()` et non `LOWER(name)` : l'index unique de la
+        // colonne est `LOWER(name COLLATE "und-x-icu")` depuis ADR-0025, et une
+        // requête qui n'écrit pas EXACTEMENT l'expression de l'index ne l'emprunte
+        // pas — elle balaye la table, sans rien signaler.
+        $existants = [];
         foreach ($names as $name) {
-            // The `tags.name` column has a single unique index (no compound on type).
-            // Looking up case-insensitively avoids a unique-constraint violation when a
-            // tag was seeded or created from another module with a different capitalisation.
-            // `CaseInsensitive::sql()` et non `LOWER(name)` : l'index unique de la
-            // colonne est `LOWER(name COLLATE "und-x-icu")` depuis ADR-0025, et une
-            // requête qui n'écrit pas EXACTEMENT l'expression de l'index ne l'emprunte
-            // pas — elle balaye la table, sans rien signaler.
-            $tag = Tag::whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($name)])->first();
+            $existants[$name] = Tag::whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($name)])->first();
+        }
+
+        // TCK-633 (D9) — un client ne porte que des étiquettes CRM. Le nom étant unique tous types
+        // confondus, « puits » tapé sur un client reprenait l'ÉQUIPEMENT de ce nom — y compris la
+        // proposition en attente d'un autre annonceur, que son refus ou sa fusion faisaient ensuite
+        // agir sur des clients. Même règle, en miroir, que `TagProposals` : 422, et rien d'attaché.
+        foreach ($existants as $tag) {
+            abort_code_if($tag !== null && $tag->type !== TagType::Crm, 422, 'tags.name_taken');
+        }
+
+        foreach ($names as $name) {
+            // Relu si absent : deux noms qui se replient l'un sur l'autre ne créent qu'une ligne.
+            $tag = $existants[$name] ?? Tag::whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($name)])->first();
             if ($tag === null) {
                 $tag = Tag::create([
                     'name' => $name,

@@ -1,0 +1,223 @@
+{
+  "region": {
+    "code": "SN-MT",
+    "slug": "matam",
+    "name": "Matam",
+    "latitude": 15.2680246,
+    "longitude": -13.7229414
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:18:36Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "b2da209e051b4adfe60c57d9ede0ba8683d02d771c8711734a9e6b60caed8a98"
+  },
+  "cities": [
+    {
+      "slug": "agnams",
+      "name": "Agnams",
+      "latitude": 15.931096,
+      "longitude": -13.6639818,
+      "neighborhoods": []
+    },
+    {
+      "slug": "aoure",
+      "name": "Aouré",
+      "latitude": 14.8932143,
+      "longitude": -12.8203899,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bokidiawe",
+      "name": "Bokidiawé",
+      "latitude": 15.9149464,
+      "longitude": -13.4251987,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bokiladji",
+      "name": "Bokiladji",
+      "latitude": 14.997319,
+      "longitude": -12.7099669,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dabia",
+      "name": "Dabia",
+      "latitude": 15.9374514,
+      "longitude": -13.5516186,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dembakane",
+      "name": "Dembakané",
+      "latitude": 15.0919549,
+      "longitude": -12.7037924,
+      "neighborhoods": []
+    },
+    {
+      "slug": "hamady-ounare",
+      "name": "Hamady Ounaré",
+      "latitude": 15.3466254,
+      "longitude": -13.0172048,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kanel",
+      "name": "Kanel",
+      "latitude": 15.486627,
+      "longitude": -13.1812085,
+      "neighborhoods": []
+    },
+    {
+      "slug": "lougre-thioly",
+      "name": "Lougré Thioly",
+      "latitude": 15.5868482,
+      "longitude": -14.5671482,
+      "neighborhoods": []
+    },
+    {
+      "slug": "matam",
+      "name": "Matam",
+      "latitude": 15.6547563,
+      "longitude": -13.2545009,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nabadji-civol",
+      "name": "Nabadji Civol",
+      "latitude": 15.7356637,
+      "longitude": -13.3743855,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndendory",
+      "name": "Ndendory",
+      "latitude": 15.0211903,
+      "longitude": -13.0721204,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nguidjilone",
+      "name": "Nguidjilone",
+      "latitude": 15.9362883,
+      "longitude": -13.349381,
+      "neighborhoods": []
+    },
+    {
+      "slug": "odobere",
+      "name": "Odobéré",
+      "latitude": 15.5594745,
+      "longitude": -13.097091,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ogo",
+      "name": "Ogo",
+      "latitude": 15.5280465,
+      "longitude": -13.7097803,
+      "neighborhoods": [
+        {
+          "slug": "coliabe",
+          "name": "Coliabe",
+          "latitude": 15.5120126,
+          "longitude": -13.2693027,
+          "osm": "n11510694810"
+        },
+        {
+          "slug": "falbe",
+          "name": "Falbe",
+          "latitude": 15.5053719,
+          "longitude": -13.2701214,
+          "osm": "n11510694809"
+        },
+        {
+          "slug": "ganki",
+          "name": "Ganki",
+          "latitude": 15.5084267,
+          "longitude": -13.2621509,
+          "osm": "n4123474424"
+        }
+      ]
+    },
+    {
+      "slug": "orefonde",
+      "name": "Oréfondé",
+      "latitude": 15.9318028,
+      "longitude": -13.8936997,
+      "neighborhoods": []
+    },
+    {
+      "slug": "orkadiere",
+      "name": "Orkadiere",
+      "latitude": 15.3034499,
+      "longitude": -12.9802612,
+      "neighborhoods": []
+    },
+    {
+      "slug": "oudalaye",
+      "name": "Oudalaye",
+      "latitude": 14.9756046,
+      "longitude": -13.984056,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ourossogui",
+      "name": "Ourossogui",
+      "latitude": 15.6047173,
+      "longitude": -13.3258735,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ranerou",
+      "name": "Ranérou",
+      "latitude": 15.2981837,
+      "longitude": -13.9606215,
+      "neighborhoods": []
+    },
+    {
+      "slug": "semme",
+      "name": "Semmé",
+      "latitude": 15.1988827,
+      "longitude": -12.9450199,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiou-bamambe-banadji",
+      "name": "Sinthiou Bamambé-Banadji",
+      "latitude": 15.3697215,
+      "longitude": -13.1330508,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thilogne",
+      "name": "Thilogne",
+      "latitude": 15.9663126,
+      "longitude": -13.5943621,
+      "neighborhoods": []
+    },
+    {
+      "slug": "velingara",
+      "name": "Vélingara",
+      "latitude": 14.7974664,
+      "longitude": -14.5676312,
+      "neighborhoods": []
+    },
+    {
+      "slug": "waounde",
+      "name": "Waoundé",
+      "latitude": 15.2665824,
+      "longitude": -12.8669703,
+      "neighborhoods": []
+    },
+    {
+      "slug": "wouro-sidy",
+      "name": "Wouro Sidy",
+      "latitude": 15.0014644,
+      "longitude": -13.3344541,
+      "neighborhoods": []
+    }
+  ]
+}
