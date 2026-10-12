@@ -2,8 +2,10 @@
 
 namespace App\Services\Media;
 
+use App\Domain\Features\Flag;
 use App\Models\Agency;
 use App\Models\Enums\WatermarkPosition;
+use App\Services\Features\FeatureFlagEvaluator;
 use Illuminate\Support\Facades\Storage;
 
 class AgencyWatermarkContext
@@ -32,13 +34,14 @@ class AgencyWatermarkContext
 
     /**
      * LA règle d'activation du filigrane, écrite une fois (TCK-539, D3) : sans agence, pas de
-     * filigrane ; avec une agence, son réglage, `true` par défaut. Le job, son listener, la
-     * commande de régénération et `PublicPhotoUrl` la lisent ici — une copie qui divergerait
-     * servirait une conversion nue comme si elle était filigranée, ou la cacherait à tort.
+     * filigrane ; drapeau global `media_watermark` éteint, pas de filigrane (TCK-633) ; sinon le
+     * réglage de l'agence, `true` par défaut. Le job, son listener, la commande de régénération
+     * et `PublicPhotoUrl` la lisent ici — une copie qui divergerait servirait une conversion nue
+     * comme si elle était filigranée, ou la cacherait à tort.
      */
     public static function isEnabledFor(?Agency $agency): bool
     {
-        if ($agency === null) {
+        if ($agency === null || ! self::globallyEnabled()) {
             return false;
         }
 
@@ -46,8 +49,30 @@ class AgencyWatermarkContext
     }
 
     /**
+     * TCK-633 (lot A) — le drapeau global `media_watermark`, lu UNE fois par cycle
+     * (`MediaWatermarkSwitch`). Une liste dont l'agence est chargée appelle `isEnabledFor()` par
+     * bien : sans cette mémoire, une requête `feature_flags` par bien.
+     *
+     * Lu SANS utilisateur : le filigrane est une politique de plateforme, pas une préférence du
+     * visiteur. Un drapeau segmenté vaut donc faux pour tous (`FeatureFlagEvaluator::evaluate()`) ;
+     * absent de la base, il vaut faux — le filigrane est ÉTEINT par défaut.
+     */
+    public static function globallyEnabled(): bool
+    {
+        app()->scopedIf(MediaWatermarkSwitch::class, fn () => new MediaWatermarkSwitch(
+            app(FeatureFlagEvaluator::class)->isEnabled(Flag::MediaWatermark->value),
+        ));
+
+        return app(MediaWatermarkSwitch::class)->enabled;
+    }
+
+    /**
      * La même règle, sur les `settings` d'une agence qui EXISTE, lus sans hydrater le modèle :
      * `WatermarkRequirement` les lit par lot, et `AgencyObserver` compare l'avant et l'après.
+     *
+     * ⚠ Elle ne lit PAS le drapeau global (TCK-633) : c'est le réglage d'agence SEUL. L'observateur
+     * juge la transition de ce réglage, et `WatermarkRequirement` lit le drapeau une fois pour tout
+     * le lot au lieu d'une fois par ligne.
      */
     public static function isEnabledInSettings(?array $settings): bool
     {

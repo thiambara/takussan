@@ -1,0 +1,176 @@
+{
+  "verdict": "termine — the Task 1 to 9 tasks in the lot A plan are done, each with a red test seen first, then the fix, green, and an ablation. One unforeseen red (FeatureFlagTest > any key, caused by lot C's migration) was absorbed in a version that tolerates both lots. Nothing was edited outside territory, so no collision is blocking.",
+  "charge": {
+    "depart": "load averages 1.59 2.99 3.04, hw.ncpu 8 (09:11)",
+    "pendant_lot_media": "5.97 5.05 4.25 (09:20), 7.50 7.64 5.94 (09:30): four other lots running"
+  },
+  "fichiers": {
+    "crees": [
+      "takussan-web/src/components/search/__tests__/SelecteurDeTransaction.test.tsx",
+      "takussan-web/src/components/property-dashboard/__tests__/suppression-sans-promesse.test.tsx",
+      "takussan-api/app/Services/Media/MediaWatermarkSwitch.php",
+      "takussan-api/app/Console/Commands/Media/RegenerateWithoutWatermark.php",
+      "takussan-api/tests/Feature/Media/WatermarkGlobalFlagTest.php",
+      "takussan-api/tests/Support/FiligraneGlobalAllume.php"
+    ],
+    "modifies": [
+      "takussan-web/src/components/search/SelecteurDeTransaction.tsx",
+      "takussan-web/src/data/navigation.ts",
+      "takussan-web/src/data/__tests__/navigation.test.ts",
+      "takussan-web/src/components/home/__tests__/Navbar.transaction.test.tsx",
+      "takussan-web/src/messages/fr.json (3 valeurs : nav.transactionPlaceholder, property.dashboard.actions.deleteBodyRow, deleteBodyDetail)",
+      "takussan-web/src/messages/en.json (les 3 mêmes valeurs)",
+      "takussan-web/src/messages/wo.json (les 3 mêmes valeurs)",
+      "takussan-api/app/Domain/Features/Flag.php (co-tenu A/C : case MediaWatermark + clientVisible())",
+      "takussan-api/app/Services/Media/AgencyWatermarkContext.php",
+      "takussan-api/app/Services/Media/WatermarkRequirement.php",
+      "takussan-api/app/Services/Media/PublicPhotoUrl.php (docblock seul)",
+      "takussan-api/tests/Feature/Api/Admin/FeatureFlagTest.php",
+      "takussan-api/tests/Feature/Media/ApplyWatermarkJobTest.php",
+      "takussan-api/tests/Feature/Media/MediaResourceSplitDisksTest.php",
+      "takussan-api/tests/Feature/Media/PhotoConversionFormatTest.php",
+      "takussan-api/tests/Feature/Media/PropertyMediaConversionsTest.php",
+      "takussan-api/tests/Feature/Media/PropertyPhotoExposureTest.php",
+      "takussan-api/tests/Feature/Media/RegenerateAgencyWatermarksJobTest.php",
+      "takussan-api/tests/Feature/Media/RegenerationFailureTest.php",
+      "takussan-api/tests/Feature/Media/WatermarkActivationTest.php",
+      "takussan-api/tests/Feature/Media/WatermarkListQueryCountTest.php",
+      "takussan-api/tests/Feature/Media/WatermarkTraceDuringRegenerationTest.php"
+    ],
+    "note_dictionnaires": "Les dictionnaires sont co-tenus : il faut commiter par hunks, pas le fichier entier. Les 3 lignes de lot A dans chaque langue sont : fr 88 / 1215-1216, en 88 / 1244-1245, wo 252 / 5455-5456 (numéros relevés à la fin)."
+  },
+  "tests": [
+    { "commande": "cd takussan-web && npx vitest run src/components/search/__tests__/SelecteurDeTransaction.test.tsx", "resultat": "rouge 4/4 avant correctif ; 4 passed après" },
+    { "commande": "npx vitest run src/data/__tests__/navigation.test.ts", "resultat": "rouge 1 (expected [buy, rent] to deeply equal [rent, buy]) ; 30 passed après" },
+    { "commande": "npx vitest run src/components/home/__tests__/Navbar.transaction.test.tsx", "resultat": "6/6 rouges après le changement du sélecteur (constaté) ; 7 passed après réalignement (E9, accordé par l'addendum)" },
+    { "commande": "npx vitest run src/components/property-dashboard/__tests__/suppression-sans-promesse.test.tsx", "resultat": "rouge 6/6 avant ; 6 passed après" },
+    { "commande": "npx vitest run (10 fichiers : les 4 ci-dessus + surface-publique.contraste, PropertyHeaderActions, PropertyActions.capacites, Navbar.menu-modal, Navbar.menu-retour, Navbar.recherche)", "resultat": "10 files, 96 passed" },
+    { "commande": "npx tsc --noEmit", "resultat": "exit 0" },
+    { "commande": "npm run lint", "resultat": "exit 0" },
+    { "commande": "npm run check:i18n", "resultat": "exit 0 — parité tenue (en 0/0, wo 0/0 sur 7694 clés fr)" },
+    { "commande": "cd takussan-api && php artisan test tests/Feature/Media/WatermarkGlobalFlagTest.php", "resultat": "10 passed (57 assertions) ; rouges constatés à chaque étape : Undefined constant Flag::MediaWatermark → 2 rouges (true is false ; 0 is identical to 1) → 3 rouges (unexpected ApplyWatermarkJob pushed ; null is not null ; arrays identical) → 3 rouges (command does not exist)" },
+    { "commande": "php artisan test tests/Feature/Api/Admin/FeatureFlagTest.php", "resultat": "2 rouges avant (catalogue non vide ; count 1 au lieu de 0) ; 5 passed après" },
+    { "commande": "php artisan test tests/Feature/Media/PublicPhotoUrlTest.php", "resultat": "vert, sans le trait (non rougi par le défaut éteint)" },
+    { "commande": "php artisan test <21 classes tests/Feature/Media dérivées de la carte d'impact> (avant le trait)", "resultat": "10 classes rouges, toutes pour le filigrane (job attendu, trace attendue, photo cachée attendue, préconditions « filigranée »)" },
+    { "commande": "php artisan test <21 classes Media> + WatermarkGlobalFlagTest (après le trait)", "resultat": "180 passed (1136 assertions)" },
+    { "commande": "php artisan test <70 autres classes candidates, 4 lots de 18/18/18/16>", "resultat": "119 + 271 + 167 + 169 passed, 0 rouge" },
+    { "commande": "php artisan test RegenerateWatermarksEndpointTest ReviewFlagsQueryCountTest RegenerationTimeoutTest StatementParserTest (mentionnent « watermark », absentes de la carte)", "resultat": "28 passed" },
+    { "commande": "./vendor/bin/pint <fichiers du lot seuls>", "resultat": "passed (le premier passage a seulement réordonné l'import ajouté dans les 10 classes de test)" },
+    { "commande": "node scripts/check-platform-catalogue-readers.mjs ; check-command-prefixes ; check-media-getpath ; check-test-base-classes", "resultat": "4 vertes (catalogue-readers rouge sur media_watermark entre les tâches 4 et 5, comme prévu)" },
+    { "commande": "php artisan list media | grep regenerate-without-watermark", "resultat": "listée" }
+  ],
+  "ablations": [
+    { "fichier": "takussan-web/src/components/search/SelecteurDeTransaction.tsx", "retrait": "choix dans l'ordre sale, rent ET pastille sur rent", "rouge_observe": "oui — 4/4", "md5_avant": "7e1c5be74436794fdf83bca81bc88326", "md5_ablate": "827b71ebadeefc9661db8d36d818d731 (forme 2)", "md5_apres": "7e1c5be74436794fdf83bca81bc88326" },
+    { "fichier": "takussan-web/src/components/search/SelecteurDeTransaction.tsx", "retrait": "pastille seule (valeur === 'rent' && 'translate-x-full'), ordre conservé", "rouge_observe": "oui — 2 rouges (2e et 3e cas), l'ordre et la glissade sont gardés séparément", "md5_avant": "7e1c5be74436794fdf83bca81bc88326", "md5_ablate": "827b71ebadeefc9661db8d36d818d731", "md5_apres": "7e1c5be74436794fdf83bca81bc88326" },
+    { "fichier": "takussan-web/src/data/navigation.ts", "retrait": "buy avant rent", "rouge_observe": "oui — 1 rouge", "md5_avant": "50fd3b623c73f349e68603c0d2b108e5", "md5_ablate": "2a8a569ea3c7da8a2547baf90ab7d18d", "md5_apres": "50fd3b623c73f349e68603c0d2b108e5" },
+    { "fichier": "takussan-web/src/messages/fr.json (co-tenu : Edit puis Edit inverse, jamais cp)", "retrait": "ancienne valeur de deleteBodyRow", "rouge_observe": "oui — 1 rouge (ligne de la liste / fr) ; md5 inchangé pendant l'ablation", "md5_avant": "3c2f1d5ad2e34d85ad4caba4c53c3d7d", "md5_ablate": "49557f91a25498c1cef90be19d921c9c", "md5_apres": "3c2f1d5ad2e34d85ad4caba4c53c3d7d" },
+    { "fichier": "takussan-api/app/Domain/Features/Flag.php (co-tenu : Edit inverse)", "retrait": "clientVisible() → return true", "rouge_observe": "oui — « array does not have the key 'media_watermark' »", "md5_avant": "f32ddb871fcee7e58d961805eacc36af", "md5_ablate": "2bca63e7b3b0a659fae4b14ec233c923", "md5_apres": "f32ddb871fcee7e58d961805eacc36af" },
+    { "fichier": "takussan-api/app/Services/Media/AgencyWatermarkContext.php", "retrait": "if ($agency === null || ! self::globallyEnabled()) → if ($agency === null)", "rouge_observe": "oui — 2 rouges en tâche 5 ; en tâche 6, test_turning_the_flag_off rougit sur « Fiche (`isEnabledFor`) : servie. » (les deux chemins sont gardés séparément)", "md5_avant": "0e5a027d45488bf3f78c19fd599ce7ad", "md5_ablate": "37914a847ac8d7a396dce55427b0f424", "md5_apres": "0e5a027d45488bf3f78c19fd599ce7ad" },
+    { "fichier": "takussan-api/app/Services/Media/AgencyWatermarkContext.php", "retrait": "globallyEnabled() sans mémoire (lecture directe de l'évaluateur)", "rouge_observe": "oui — « Le drapeau est lu 5 fois pour 5 agences »", "md5_avant": "0e5a027d45488bf3f78c19fd599ce7ad", "md5_ablate": "1f53067a58825eaa33c9afb34551fa53", "md5_apres": "0e5a027d45488bf3f78c19fd599ce7ad" },
+    { "fichier": "takussan-api/app/Services/Media/AgencyWatermarkContext.php", "retrait": "globallyEnabled() → return false (garde de non-régression « allumé »)", "rouge_observe": "oui — test_on_the_agency_setting_decides_as_before (aucun job poussé)", "md5_avant": "0e5a027d45488bf3f78c19fd599ce7ad", "md5_ablate": "37c02374780145cf8b32ed9890669c67", "md5_apres": "0e5a027d45488bf3f78c19fd599ce7ad" },
+    { "fichier": "takussan-api/app/Services/Media/WatermarkRequirement.php", "retrait": "bloc if (! AgencyWatermarkContext::globallyEnabled())", "rouge_observe": "oui — 3 rouges (upload éteint, liste servie, job en file)", "md5_avant": "7dd521c371677f1a305923748395a20a", "md5_ablate": "c13a846b4c71a17363b32fc2a1b7a6f0", "md5_apres": "7dd521c371677f1a305923748395a20a" },
+    { "fichier": "takussan-api/tests/Feature/Media/WatermarkActivationTest.php", "retrait": "trait FiligraneGlobalAllume", "rouge_observe": "oui — 3 rouges, dont a_new_upload_under_watermark_is_not_exempt", "md5_avant": "a7a97a73adfbbb636a2fc9528390fc84", "md5_ablate": "cc64c18fa5a142d2303aa2c7fd0cc801", "md5_apres": "a7a97a73adfbbb636a2fc9528390fc84" },
+    { "fichier": "takussan-api/app/Console/Commands/Media/RegenerateWithoutWatermark.php", "retrait": "bloc de refus quand le drapeau est allumé", "rouge_observe": "oui — test_the_command_refuses", "md5_avant": "2fc2c4f19613f8913c5161b0a2eb6d04", "md5_ablate": "12a47d71bb929c68be8cb15ae0d8b864", "md5_apres": "2fc2c4f19613f8913c5161b0a2eb6d04" },
+    { "fichier": "takussan-api/app/Console/Commands/Media/RegenerateWithoutWatermark.php", "retrait": "->whereJsonLength(custom_properties->watermarked_conversions > 0)", "rouge_observe": "oui — test_the_command_counts_then_strips", "md5_avant": "2fc2c4f19613f8913c5161b0a2eb6d04", "md5_ablate": "dcfba03661395babcfde0d4c3012d748", "md5_apres": "2fc2c4f19613f8913c5161b0a2eb6d04" },
+    { "fichier": "takussan-api/app/Console/Commands/Media/RegenerateWithoutWatermark.php", "retrait": "validation de --chunk", "rouge_observe": "oui — test_the_chunk_must_be_a_positive_integer", "md5_avant": "2fc2c4f19613f8913c5161b0a2eb6d04", "md5_ablate": "a3f143f7c7de505e254ba8b66492b6dc", "md5_apres": "2fc2c4f19613f8913c5161b0a2eb6d04" },
+    { "fichier": "takussan-api/app/Domain/Features/Flag.php (co-tenu : Edit inverse) — ablation de FeatureFlagTest", "retrait": "ajout de 'label' => $flag->value dans catalogue() (à la place du contrôleur, hors territoire)", "rouge_observe": "oui — « array does not have the key 'label' »", "md5_avant": "f32ddb871fcee7e58d961805eacc36af", "md5_ablate": "6dda28e43c5784260b2e9612c66a7c19", "md5_apres": "f32ddb871fcee7e58d961805eacc36af" }
+  ],
+  "ac": [
+    { "ac": "AC2 — Suppression : la modale ne promet plus de restauration", "preuve": "suppression-sans-promesse.test.tsx : 6 passed (2 menus × fr/en/wo, modale ouverte, aucune promesse, phrase d'irréversibilité) ; rouge 6/6 avant ; prémisse re-mesurée (aucune route restore de bien dans routes/, destroy = delete())" },
+    { "ac": "AC5 — Louer d'abord (part du lot A : sélecteur de la barre et menu mobile)", "preuve": "SelecteurDeTransaction.test.tsx 4 passed, Navbar.transaction.test.tsx 7 passed (dont « Louer précède Acheter dans la barre »), navigation.test.ts 30 passed. Le panneau de filtres revient au lot E." },
+    { "ac": "AC7 — Filigrane : une photo téléversée drapeau éteint est servie, sans filigrane", "preuve": "WatermarkGlobalFlagTest::test_off_an_upload_is_not_watermarked_and_is_served (aucun ApplyWatermarkJob poussé, trace vide, conversions exemptées, fiche et liste servent la photo) + test_turning_the_flag_off… + test_a_watermark_job_queued_before… ; allumé, comportement inchangé : test_on_the_agency_setting_decides_as_before et les 10 classes Media existantes vertes sous FiligraneGlobalAllume" },
+    { "ac": "Delta : media:regenerate-without-watermark (par lots, idempotente)", "preuve": "3 tests verts : refus si allumé, compte + régénération --chunk=1 + second passage à 0, validation --chunk ; ablations rouges sur chacune des trois propriétés" }
+  ],
+  "ecarts_au_ticket": [
+    "E1 — la déconnexion (AC3) et le panneau de filtres ne sont pas faits ici : le plan maître les donne aux lots B et E.",
+    "E2 — PublicPhotoUrl::isServable, l'écouteur et ApplyWatermarkJob n'ont pas changé de code : ils lisent déjà requiresWatermark(). Seul le docblock de PublicPhotoUrl a changé. AC7 est éprouvé par test.",
+    "E3 — la règle se lit par deux chemins (isEnabledFor et WatermarkRequirement::load). Le correctif porte sur les deux, et l'ablation de chacun rougit son propre cas.",
+    "E4 — isEnabledInSettings() reste pur : avec le drapeau éteint, AgencyObserver met encore en file RegenerateAgencyWatermarksJob quand une agence active son réglage. Pas d'effet visible, seulement du travail inutile. Suite possible hors lot : court-circuiter l'observateur sur globallyEnabled().",
+    "E5 — allumer le drapeau ne refiligrane pas les photos existantes : celles téléversées drapeau éteint restent exemptées jusqu'à une régénération (par agence ou media:regenerate-property-conversions). À dire au porteur et à écrire dans features.md §2.7 à l'intégration.",
+    "E6 — le drapeau se juge sans utilisateur : un segment (rôle, pourcentage) le laisse éteint pour tous. C'est écrit dans le docblock du case ; la console ne l'empêche pas.",
+    "E13 — le docblock de classe de Flag.php dit encore « vide, délibérément ». Comme le fichier est co-tenu, il n'a pas été réécrit : la session doit le réécrire à l'intégration, maintenant que les deux case sont posés.",
+    "Nouveau — le lot C avait déjà posé case HostAutoSpace. MediaWatermark est inséré AVANT lui sans toucher sa ligne. C n'avait pas réécrit clientVisible() : ma forme `return $this !== self::MediaWatermark;` reste compatible.",
+    "Nouveau — la carte d'impact donne 91 classes candidates, pas 81 comme dans le plan. 10 rougissaient, toutes dans tests/Feature/Media et toutes pour le filigrane. La prédiction du plan se confirme sur ces 10. PublicPhotoUrlTest, PropertyResourceRawFlagTest et PropertyCollaboratorsNotExposedTest ne rougissent pas : pas de trait pour eux.",
+    "Nouveau — FeatureFlagTest::test_any_key_is_unknown_to_the_console rougissait aussi (« 1 is identical to 0 »). La cause est la migration de données du lot C (2026_10_12_300000_enable_host_auto_space_flag), qui pose une ligne feature_flags. Le test vérifie désormais qu'aucune ligne n'est née de la clé inconnue property_compare, au lieu de compter toute la table. Le test du catalogue est renommé test_the_catalogue_carries_no_label (bloc de la tâche 9) et le docblock de classe est mis à jour.",
+    "Nouveau — l'ablation de la tâche 9 a été faite sur Flag::catalogue() (co-tenu, Edit inverse) plutôt que sur FeatureFlagController::index (hors territoire). Même propriété gardée : aucun libellé servi.",
+    "Nouveau — les numéros de ligne ont bougé à cause des autres lots : fr deleteBody 1215-1216 (plan : 1213-1214), en 1244-1245 (plan : 1242-1243), wo transactionPlaceholder 252 (plan : 250) et deleteBody 5455-5456 (plan : 5453-5454).",
+    "Nouveau — pendant le lot, mon Edit de wo.json (deleteBody*) a été écrasé : la session confirme que le lot B a restauré le fichier par cp après une ablation. Je l'ai réappliqué par Edit et j'ai revérifié à la fin les 3 valeurs dans fr, en et wo (présentes). Sur les fichiers co-tenus, toutes mes ablations ont été restaurées par Edit inverse, jamais par cp, avec md5 après = md5 avant.",
+    "E16 — le wolof des deux phrases de suppression (« du feeñati ci sit bi ») est à faire relire par le porteur. La formule d'irréversibilité « Jëf bii mënatul dellu. » est déjà employée ailleurs dans le dictionnaire.",
+    "E14 — le territoire app/Support/**Watermark** n'est pas employé : la valeur du drapeau vit dans app/Services/Media/MediaWatermarkSwitch.php."
+  ],
+  "collisions": []
+,
+  "corrections_apres_verif": {
+    "charge": "load averages 25.52 33.05 26.54 au départ (10:16), 9.70 27.28 27.09 à la fin (10:23), hw.ncpu 8 : d'autres lots testaient en même temps.",
+    "fichiers": {
+      "modifies": [
+        "takussan-api/tests/Feature/Media/WatermarkGlobalFlagTest.php (assertion « par lots de 1 » retirée ; nouveau test test_the_command_reads_the_selection_in_chunks_of_the_given_size)",
+        "takussan-web/src/components/search/__tests__/SelecteurDeTransaction.test.tsx (bloc nav.transactionPlaceholder fr/en/wo)",
+        "takussan-web/src/components/property-dashboard/__tests__/suppression-sans-promesse.test.tsx (regex PROMESSE et IRREVERSIBLE remplacées par le texte exact attendu par menu et par langue, via toHaveAccessibleDescription)",
+        "takussan-web/src/messages/fr.json, en.json, wo.json : la seule clé superAdmin.properties.table.confirm.deleteDescription, par Edit ciblé"
+      ],
+      "crees": [
+        "takussan-web/src/components/admin/super/__tests__/SuperAdminPropertiesTable.suppression.test.tsx"
+      ],
+      "nouvelles_valeurs_deleteDescription": {
+        "fr": "La suppression retire le bien des listes et du site. Cette action est irréversible.",
+        "en": "Deletion takes the property off the lists and the site. This action cannot be undone.",
+        "wo": "Kër gi dañu koy far, te du feeñati ci limu yi ak ci sit bi. Jëf bii mënatul dellu."
+      }
+    },
+    "defauts_traites": {
+      "1_par_lots": "3 photos filigranées par la chaîne réelle, file RegeneratePhotoConversionsJob simulée, DB::enableQueryLog(). On compte les lectures `from \"media\"` qui portent la clause sur watermarked_conversions : --chunk=1 donne 4 lectures (3 pleines + 1 vide), chacune `limit 1` ; --chunk=2 donne 2 lectures, `limit 2`. 6 jobs poussés, sur les 3 ids. L'assertion `expectsOutputToContain('par lots de 1')` est réduite à « 1 photo(s) mises en file `media` » : le test ne lit plus l'écho de l'option.",
+      "2_ordre_du_nom_accessible": "Pour fr, en et wo, nav.transactionPlaceholder commence par nav.rent et finit par nav.buy (comparaison des tranches, message nommant la valeur).",
+      "3_modale_super_admin": "La clé deleteDescription ne promet plus rien et dit que l'action est irréversible, dans les 3 langues. Le test ouvre la modale depuis le menu de ligne de SuperAdminPropertiesTable et compare sa description accessible au texte exact, par langue. Seul le sens de lecture fixe la formule : la description n'a pas de {count} (le code n'en passe pas), et la suppression super-admin se fait toujours ligne par ligne, d'où le singulier. Le wolof est à faire relire par le porteur, comme E16.",
+      "4_liste_de_refus": "Les deux tests comparent le texte de la modale à une valeur EXACTE écrite en clair dans le test (clé interpolée avec le titre), et non relue du dictionnaire. Un ajout de phrase, quelle qu'en soit la forme, fait donc rougir."
+    },
+    "tests": [
+      {
+        "commande": "cd takussan-api && php artisan test tests/Feature/Media/WatermarkGlobalFlagTest.php",
+        "resultat": "11 passed (72 assertions)"
+      },
+      {
+        "commande": "cd takussan-web && npx vitest run src/components/admin/super/__tests__/SuperAdminPropertiesTable.suppression.test.tsx (avant la réécriture de la clé)",
+        "resultat": "rouge 3/3 : on attendait le texte sans promesse, on a reçu « La suppression est un soft-delete… peuvent être restaurés depuis l'admin. »"
+      },
+      {
+        "commande": "npx vitest run SelecteurDeTransaction.test.tsx SuperAdminPropertiesTable.suppression.test.tsx suppression-sans-promesse.test.tsx Navbar.transaction.test.tsx navigation.test.ts",
+        "resultat": "5 files, 53 passed"
+      },
+      {
+        "commande": "npx eslint <3 fichiers de test> ; npx tsc --noEmit (filtré sur mes fichiers)",
+        "resultat": "eslint 0 ; aucune erreur tsc sur mes fichiers"
+      },
+      {
+        "commande": "./vendor/bin/pint tests/Feature/Media/WatermarkGlobalFlagTest.php",
+        "resultat": "passed"
+      }
+    ],
+    "ablations": [
+      {
+        "forme": "B4 rejouée : dans RegenerateWithoutWatermark, `$query->lazyById($chunk)->each` devient `$query->get()->each` (Edit, puis Edit inverse)",
+        "constate": "rouge : test_the_command_reads_the_selection_in_chunks… « Failed asserting that actual size 1 matches expected size 4 » (1 failed, 10 passed)",
+        "md5": "2fc2c4f1… → b1b2d6d6… (même md5 que la B4 du vérificateur) → 2fc2c4f1…"
+      },
+      {
+        "forme": "F5 rejouée : en.json nav.transactionPlaceholder « Rent / Buy » devient « Buy / Rent » (Edit, puis Edit inverse, jamais cp)",
+        "constate": "rouge : « Buy / Rent » commence par nav.rent: expected 'Buy ' to be 'Rent' (1 failed, 6 passed)",
+        "md5": "en ebac83d5… → 32e4114b… → ebac83d5…"
+      },
+      {
+        "forme": "F3 rejouée : en.json deleteBodyDetail, on AJOUTE « An administrator can bring it back later. » en gardant la phrase d'irréversibilité (Edit, puis Edit inverse)",
+        "constate": "rouge : en en, en-tête de la fiche (1 failed, 5 passed). Avant la correction, cette ablation restait verte.",
+        "md5": "en ebac83d5… → ef6d72ff… → ebac83d5…"
+      },
+      {
+        "forme": "Promesse reformulée dans la modale super-admin : fr.json deleteDescription, on ajoute « L'équipe pourra toutefois le remettre en ligne sur demande. » (Edit, puis Edit inverse)",
+        "constate": "rouge : en fr (1 failed, 2 passed)",
+        "md5": "fr ae733cb5… → 71c53dba… → ae733cb5…"
+      }
+    ],
+    "notes": [
+      "Aucune écriture git, aucune suite entière, aucun script de génération i18n. Dans les dictionnaires, seule la clé deleteDescription a été modifiée. Les ablations sont passées par Edit et Edit inverse, et chaque restauration est vérifiée par md5.",
+      "Les md5 de fr.json, en.json et wo.json au départ de mes ablations sont postérieurs à ma réécriture de deleteDescription, et ils peuvent déjà inclure des écritures d'autres lots. La restauration est prouvée par l'égalité du md5 avant et après chaque ablation, pas par rapport aux md5 du rapport initial."
+    ]
+  }
+}

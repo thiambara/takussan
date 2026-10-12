@@ -14,9 +14,19 @@ namespace App\Domain\Features;
  */
 enum Flag: string
 {
+    /**
+     * TCK-633 (lot A) — le filigrane des photos de biens, pour toute la plateforme. ÉTEINT tant
+     * qu'aucune ligne ne l'allume (`FeatureFlagEvaluator` : absent de la base ⇒ faux). Allumé, le
+     * réglage `watermark_enabled` de chaque agence reprend la main. Lu SANS utilisateur par
+     * `AgencyWatermarkContext::globallyEnabled()` : il s'allume globalement, jamais par segment
+     * (un segment le laisserait éteint pour tous).
+     */
+    case MediaWatermark = 'media_watermark';
+
     public function clientVisible(): bool
     {
-        return true;
+        // TCK-633 (lot A) — `media_watermark` est une décision serveur : le front n'a rien à en lire.
+        return $this !== self::MediaWatermark;
     }
 
     /**

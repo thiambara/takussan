@@ -1,5 +1,5 @@
 /**
- * « Acheter | Louer » — le sélecteur segmenté de la barre publique (`Accueil.dc.html`).
+ * « Louer | Acheter » — le sélecteur segmenté de la barre publique (`Accueil.dc.html`) ; « Louer » d'abord depuis TCK-633.
  *
  * Il remplace un menu déroulant. Ce qui est éprouvé : le choix est un bouton à bascule lisible
  * (`aria-pressed`) ; un second appui le retire ; il part de la transaction EN VIGUEUR sur la liste ;
@@ -7,7 +7,7 @@
  * champ, qui passait jusqu'ici par l'URL de `SearchAutocomplete` et partait sans lui.
  *
  * ⚠ jsdom n'anime rien : la glissade de la pastille se mesure au navigateur. Ce qui se voit ici,
- * c'est l'état que l'animation interpole — la pastille décalée sous « Louer », effacée sans choix.
+ * c'est l'état que l'animation interpole — la pastille décalée sous « Acheter », effacée sans choix.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -54,13 +54,13 @@ function monter() {
 }
 
 /** Le groupe de la barre de BUREAU (le premier dans l'arbre ; la saisie mobile est fermée). */
-const groupe = () => screen.getByRole('group', { name: 'Acheter / Louer' });
+const groupe = () => screen.getByRole('group', { name: 'Louer / Acheter' });
 const bouton = (nom: 'Acheter' | 'Louer') => within(groupe()).getByRole('button', { name: nom });
 const pastille = () => groupe().querySelector<HTMLElement>('[data-slot="pastille"]')!;
 const derniereUrl = () => String(push.mock.calls.at(-1)?.[0]);
 const contrat = (url: string) => new URLSearchParams(url.split('?')[1] ?? '').get('contract_type');
 
-describe('Navbar — « Acheter | Louer » segmenté', () => {
+describe('Navbar — « Louer | Acheter » segmenté', () => {
   beforeEach(() => {
     push.mockReset();
     parametresUrl = new URLSearchParams();
@@ -69,29 +69,37 @@ describe('Navbar — « Acheter | Louer » segmenté', () => {
 
   it('remplace le menu déroulant : deux boutons à bascule, aucun choix au repos', () => {
     monter();
-    expect(screen.queryByText('Acheter / Louer')).toBeNull(); // plus de valeur d'attente de menu
+    expect(screen.queryByText('Louer / Acheter')).toBeNull(); // plus de valeur d'attente de menu
     expect(bouton('Acheter')).toHaveAttribute('aria-pressed', 'false');
     expect(bouton('Louer')).toHaveAttribute('aria-pressed', 'false');
     expect(pastille().className).toMatch(/opacity-0/);
   });
 
-  it('choisir « Louer » presse le bouton et glisse la pastille ; un second appui le retire', async () => {
+  it('choisir « Acheter » presse le bouton et glisse la pastille ; un second appui le retire', async () => {
     const user = userEvent.setup();
     monter();
 
-    await user.click(bouton('Louer'));
-    expect(bouton('Louer')).toHaveAttribute('aria-pressed', 'true');
-    expect(bouton('Acheter')).toHaveAttribute('aria-pressed', 'false');
+    await user.click(bouton('Acheter'));
+    expect(bouton('Acheter')).toHaveAttribute('aria-pressed', 'true');
+    expect(bouton('Louer')).toHaveAttribute('aria-pressed', 'false');
     expect(pastille().className).toMatch(/translate-x-full/);
     expect(pastille().className).not.toMatch(/opacity-0/);
 
-    await user.click(bouton('Acheter'));
-    expect(bouton('Acheter')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(bouton('Louer'));
+    expect(bouton('Louer')).toHaveAttribute('aria-pressed', 'true');
     expect(pastille().className).not.toMatch(/translate-x-full/);
 
-    await user.click(bouton('Acheter'));
-    expect(bouton('Acheter')).toHaveAttribute('aria-pressed', 'false');
+    await user.click(bouton('Louer'));
+    expect(bouton('Louer')).toHaveAttribute('aria-pressed', 'false');
     expect(pastille().className).toMatch(/opacity-0/);
+  });
+
+  it('« Louer » précède « Acheter » dans la barre (TCK-633)', () => {
+    monter();
+    const ordre = within(groupe())
+      .getAllByRole('button')
+      .map((b) => b.querySelector('span:not([aria-hidden])')?.textContent);
+    expect(ordre).toEqual(['Louer', 'Acheter']);
   });
 
   it('la loupe emporte le choix', async () => {
@@ -129,7 +137,7 @@ describe('Navbar — « Acheter | Louer » segmenté', () => {
 
   it('le libellé en gras est réservé : la colonne ne change pas de largeur à la bascule', () => {
     monter();
-    for (const nom of ['Acheter', 'Louer'] as const) {
+    for (const nom of ['Louer', 'Acheter'] as const) {
       const reserve = bouton(nom).querySelector('[aria-hidden="true"]');
       expect(reserve?.textContent).toBe(nom);
       expect(reserve?.className).toMatch(/invisible/);
