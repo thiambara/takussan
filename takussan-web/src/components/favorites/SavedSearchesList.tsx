@@ -17,6 +17,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { filtersFromSearchParams } from '@/hooks/useSearch';
 import { puceDeChaqueFiltreActif, type TraducteursDeFiltre } from '@/types/search';
+import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
+import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
 
 /**
  * Dashboard "Mes recherches sauvegardées" listing — Wave 3 / TCK-047.
@@ -139,6 +141,7 @@ function SavedSearchRow({
   deleting: boolean;
 }) {
   const t = useTranslations('search.saved');
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const trads: TraducteursDeFiltre = {
     tags: useTranslations('search'),
     types: useTranslations('property.types'),
@@ -146,6 +149,9 @@ function SavedSearchRow({
     periods: useTranslations('property.rentPeriods'),
     titleTypes: useTranslations('property.titleTypes'),
     conditions: useTranslations('property.conditions'),
+    // TCK-633 — mêmes libellés que les puces de la recherche : le catalogue traduit, un
+    // équipement d'annonceur tel quel. Le critère sauvegardé garde le NOM, seul l'affichage change.
+    equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
   };
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;

@@ -89,6 +89,15 @@ return [
         'refund_fractional' => 'Limu bii am na ay ñaari lim yu xaalis bi amul.',
         'refund_unpaid' => 'Fay bu ñu fay ba noppi rekk lañu mën a delloo.',
     ],
+    'boost' => [
+        'bump_cooldown' => 'Kër gii yékkati nañu ko des na 24 waxtu. Mën ngeen ko yékkati ci :available_at.',
+        'no_space' => 'Kër gii bokkul ci benn bérab : mënuñu ko yokk gis-gis.',
+        'not_live' => 'Yokk gis-gis gii jeex na.',
+        'offer_featured_only' => 'Vedette rekk lañu mën a may.',
+        'product_inactive' => 'Jaay gii amatul.',
+        'property_not_public' => 'Kër gu ñu siiwal te ñu koy gis rekk lañu mën a yokk gis-gis.',
+        'stats_window_too_wide' => 'Diir bi mënul ëpp 92 fan.',
+    ],
     'business_enum' => [
         'value_in_use' => 'Valeur bii dañu koy jëfandikoo, mënuñu ko far.',
         'value_not_found' => 'Valeur bi gisuñu ko.',
@@ -105,6 +114,10 @@ return [
     ],
     'commission' => [
         'not_due' => 'Komisiyoŋ bu ñu war a fey rekk lañu mën a bind ne fey nañu ko walla neenal ko.',
+    ],
+    'credits' => [
+        'insufficient' => 'Sa kredi doyul : des na la :missing kredi (sa kredi : :balance).',
+        'no_space' => 'Amul bérab bu dox : tannal benn bérab ngir gis ay kredi am.',
     ],
     'conversation' => [
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
@@ -155,6 +168,14 @@ return [
     ],
     'filter' => [
         'identifier_invalid' => 'Filtre :filter dafay xaar identifiant bu nekk nimero.',
+    ],
+    'geo' => [
+        'link_unresolved' => 'Lien bii jëmul ci benn bérab bu ñu man a jàng.',
+        'merge_into_self' => 'Benn gox du boole ak boppam.',
+        'merge_other_city' => 'Ñaari gox yi war nañu bokk ci benn dëkk.',
+        'merge_target_inactive' => 'Gox bi ñu jëm dañu ko bañ, walla boole nañu ko ba noppi.',
+        'name_taken' => 'Tur wii am na ba noppi ci dëkk bii.',
+        'neighborhood_not_pending' => 'Gox bii nekkatul di xaar ñu saytu ko.',
     ],
     'guarantor' => [
         'attached_to_open_lease' => 'Garant bii dafa lëkkaloo ak ab bayle buy xaar xaatim walla bu ngi dox : nangeel ko jëlee ci bayle bi njëkk.',
@@ -316,6 +337,7 @@ return [
     ],
     'onboarding' => [
         'agent_not_owner' => 'Amul nga sañ-sañ ci profil agent bii.',
+        'auto_space_disabled' => 'Sos bérëb bu boppam dañu ko fay : jaaral ci wizard bi.',
         'checklist_item_unknown' => 'Étape bii xamuñu ko.',
         'checklist_not_found' => 'Amul benn liste ci bail bii.',
         'owner_not_owner' => 'Amul nga acces ci profil borom kër bii.',
@@ -419,6 +441,7 @@ return [
         'not_pending_moderation' => 'Kër gi nekkul ci xaar modération.',
         'primary_not_eligible' => 'Ajaa bu dox ci ajaasu kër gi rekk moo mën a nekk ajaa bu njëkk bi.',
         'primary_requires_agent' => 'Jàngalekat bu am wàll ajaa rekk moo mën a nekk ajaa bu njëkk bu kër gi.',
+        'publish_contact_incomplete' => 'Ngir siiwal, ki ñuy woo ci kër gi war na am tur ak nimero bu ñu wóor, te war nañu nangu sàrt yi.',
         'responsible_agent_co_owner' => 'Ku bokk moom kër gi mënul a nekk ajaa bi ko yor.',
         'resubmit_not_rejected' => 'Kër gu ñu bañ rekk lañu mën a yónniwaat.',
     ],
@@ -453,6 +476,14 @@ return [
     'search_alert' => [
         'invalid_token' => 'Lënk bii dëggëlu bi amatul solo.',
         'invalid_code' => 'Kood bi baaxul walla jeex na.',
+    ],
+    // TCK-633 (lot C) — le second numéro d'un compte.
+    'secondary_phone' => [
+        'capacity_reached' => 'Yónnee kood yi taxaw na ci kanam. Jéemaatal ci kanam.',
+        'code_invalid' => 'Code dëggal bi baaxul walla jeex na.',
+        'country_not_allowed' => 'Mënuñu yónne benn kood ci réew mii.',
+        'same_as_primary' => 'Nimero bii mooy sa nimero bu njëkk.',
+        'taken' => 'Nimero bii, beneen kont la ko wóor.',
     ],
     'segregation' => [
         'approve' => 'Yaa waajal bii reversement, walla yaa koy jot : beneen membre war na ko nangu.',
@@ -492,6 +523,13 @@ return [
         'no_revocable_session' => 'Amul benn session buñu mën a dindi.',
         'target_super_admin' => 'Jëfi support mënuñu jublu ci beneen super-administrateur.',
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',
+    ],
+    'tags' => [
+        'merge_into_self' => 'Benn jumtukaay du boole ak boppam.',
+        'merge_target_invalid' => 'Li ñu jëm war na doon jumtukaay bu ñu nangu walla buy xaar.',
+        'merge_source_invalid' => 'Jumtukaay rekk mooy boole ak jumtukaay.',
+        'name_taken' => 'Tur wii, beneen etiket jël na ko ba noppi.',
+        'not_pending' => 'Jumtukaay bii nekkatul di xaar ñu saytu ko.',
     ],
     'task' => [
         'assignee_not_staff' => 'Ki nga jox liggéey bi war na doon yaw walla kenn ci liggéeykat yu ajaans bi.',

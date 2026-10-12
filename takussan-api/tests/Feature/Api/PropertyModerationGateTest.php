@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
+use Tests\Support\PubliePret;
 
 /**
  * TCK-597 (ADR-0043 §5, AC13) — la modération d'agence s'applique à TOUTES les voies de mise en
@@ -21,7 +22,7 @@ use Tests\ApiTestCase;
  */
 class PropertyModerationGateTest extends ApiTestCase
 {
-    use RefreshDatabase;
+    use PubliePret, RefreshDatabase;
 
     private Agency $agency;
 
@@ -39,6 +40,7 @@ class PropertyModerationGateTest extends ApiTestCase
         $this->materializeRoleProfile($this->agent, 'agent', $this->agency);
         $this->admin = User::factory()->create();
         $this->materializeRoleProfile($this->admin, 'agency_admin', $this->agency);
+        $this->rendrePubliable($this->agent, $this->admin);
     }
 
     private function draft(PropertyStatus $status = PropertyStatus::Draft, array $attributes = []): Property

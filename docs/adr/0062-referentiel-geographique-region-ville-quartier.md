@@ -94,13 +94,39 @@ porteur sur le jeu de données avant fusion.
 - Un champ « collez un lien ou une position » reconnaît, **dans le navigateur** : les liens Google
   Maps longs (`@lat,lng`, `?q=`, `ll=`, `!3d…!4d…`), une position partagée par WhatsApp (qui est un
   tel lien), des coordonnées décimales ou en degrés-minutes-secondes, et un Plus Code — complet, ou
-  court rapporté au centre de la ville choisie.
+  court rapporté au centre de la ville choisie. S'y ajoutent (TCK-633, après vérification) les
+  degrés décimaux à la façon de Plans d'Apple (« 14,7167° N, 17,4677° O ») et les liens
+  OpenStreetMap (`mlat`/`mlon`, `#map=z/lat/lon`) et Plans d'Apple (`ll=`, `coordinate=`) — lus
+  sans réseau ; aucun de ces hôtes n'est suivi par l'API.
 - **Un lien court** (`maps.app.goo.gl`, `goo.gl/maps`) ne se résout qu'en suivant sa redirection, ce
   que le navigateur ne peut pas faire (CORS). L'API le résout : utilisateur authentifié, débit
   limité, **https seulement, hôtes Google Maps seulement à chaque saut**, trois sauts au plus,
   lecture de l'en-tête `Location` sans télécharger de corps, délai court. Un hôte hors liste est
   refusé avant toute requête : c'est la garde contre une SSRF.
 - Une position hors du Sénégal est signalée avant l'enregistrement, pas refusée.
+
+### 7. Les équipements suivent la même règle
+
+Ajouté le 2026-10-12, pendant l'implémentation : les équipements d'un bien sont un référentiel au
+même titre que les quartiers, et le porteur a tranché la même règle (D9) — un équipement absent est
+rattaché tout de suite et n'est proposé aux autres qu'après validation.
+
+- **Un seul type, `amenity`.** L'ancien type `feature` y est fondu ; les étiquettes CRM
+  (`customer`, …) restent à part et ne se fusionnent jamais avec un équipement.
+- **Un catalogue versionné** dans le dépôt, chargé à chaque déploiement par
+  `tags:sync-catalog` (`docker/release.sh` ; la production ne lance aucun seeder). Ses entrées sont
+  `approved`, et le front les traduit par slug (fr/en/wo).
+- **Un nom tapé** qui ne se replie sur aucun équipement visible devient une proposition `pending`,
+  rattachée au bien et affichée telle quelle, sans traduction. Statuts, validation, renommage,
+  fusion et rejet suivent le §5.
+- **Une proposition en attente ne sort que là où son auteur l'a rattachée** : la liaison porte
+  `taggables.attached_by_id`. Un tiers qui tape le même nom, ou qui duplique le bien, obtient la
+  liaison sans qu'elle s'affiche ni se cherche sur sa fiche publique ; l'identifiant d'une
+  proposition d'autrui est refusé.
+- **Ce qui s'affiche est ce qui se cherche** : l'index de recherche et les filtres de la liste et de
+  la carte ne lisent que les équipements visibles sur la fiche. Toute écriture qui change cette
+  visibilité (rattachement, retrait, validation, renommage, fusion, rejet) réindexe les biens
+  concernés.
 
 ## Conséquences
 

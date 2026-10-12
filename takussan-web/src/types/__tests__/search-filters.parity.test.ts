@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS } from '../search';
+import { CLES_PROPRES_A_LA_LISTE } from '../../lib/recherche-publique';
 
 /**
  * Garde de PARITÉ front ↔ back sur les clés de filtre de la recherche publique (TCK-335).
@@ -54,6 +55,7 @@ const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '
 const REQUETE = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Public', 'SearchPublicPropertyRequest.php');
 const CONCERNS = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Concerns');
 const SERVICE = join(RACINE, 'takussan-api', 'app', 'Services', 'Search', 'PropertySearchService.php');
+const REQUETE_CARTE = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Public', 'MapPublicPropertyRequest.php');
 const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
 
 /**
@@ -252,5 +254,27 @@ describe('TCK-346 — une clé agrégée est réellement portée par la puce qu�
     // Même raison que `CONTROLES_ADMIS` : écrite à la main, jamais dérivée. Ajouter une entrée
     // ici est un geste qu'une revue voit passer.
     expect([...agregees].sort()).toEqual(['lat', 'lng']);
+  });
+});
+
+/**
+ * TCK-633 (lot E, AC6) — ce que la carte NE reçoit pas est écrit deux fois : dans
+ * `MapPublicPropertyRequest::CLES_PROPRES_A_LA_LISTE` (ce qu'elle refuse) et dans
+ * `lib/recherche-publique.ts` (ce que le front retire). Deux listes qui doivent coïncider.
+ */
+describe('TCK-633 — la carte et la liste s’accordent sur ce qui est propre à la liste', () => {
+  it('CLES_PROPRES_A_LA_LISTE est la même des deux côtés', () => {
+    const php = readFileSync(REQUETE_CARTE, 'utf8');
+    const bloc = php.match(/CLES_PROPRES_A_LA_LISTE\s*=\s*\[([^\]]*)\]/);
+    expect(bloc, 'constante introuvable dans MapPublicPropertyRequest.php').not.toBeNull();
+    const back = [...bloc![1]!.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    expect([...CLES_PROPRES_A_LA_LISTE].sort()).toEqual([...back].sort());
+  });
+
+  it('toute clé du panneau qui part vers la carte est acceptée par la liste, dont la carte hérite', () => {
+    const propres = new Set<string>(CLES_PROPRES_A_LA_LISTE);
+    const back = new Set(clesDuBack());
+    const refusees = clesDuFront().filter((cle) => !propres.has(cle) && !back.has(cle));
+    expect(refusees).toEqual([]);
   });
 });

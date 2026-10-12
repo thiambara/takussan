@@ -247,6 +247,22 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 #### Alertes de recherche (TCK-599)
 87. [AlertSubscriber](#87-alertsubscriber-) 🆕
 
+#### Publication — contacts sur place 🆕 (TCK-633, lot C)
+88. [PropertyContact](#88-propertycontact-) 🆕
+
+#### Référentiel géographique 🆕 (TCK-633, ADR-0062)
+89. [GeoRegion](#89-georegion-) 🆕
+90. [GeoCity](#90-geocity-) 🆕
+91. [GeoNeighborhood](#91-geoneighborhood-) 🆕
+
+#### Crédits d'espace et boost 🆕 (TCK-633, ADR-0061)
+92. [BoostProduct](#92-boostproduct-) 🆕
+93. [PropertyBoost](#93-propertyboost-) 🆕
+94. [PropertyBoostDailyStat](#94-propertyboostdailystat-) 🆕
+95. [CreditLot](#95-creditlot-) 🆕
+96. [CreditMovement](#96-creditmovement-) 🆕
+97. [CreditWelcomeGrant](#97-creditwelcomegrant-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -289,6 +305,12 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | phone | string | oui | null | Numéro de téléphone principal | |
 | email_verified_at | datetime | oui | null | Date de vérification email | |
 | phone_verified_at | datetime | oui | null | Date de vérification téléphone | ➕ |
+| phone_whatsapp | boolean | oui | null | Le numéro principal reçoit WhatsApp. **`null` = jamais répondu** (l'écran de publication pose alors la question), `false` = non. Remis à `null` par `User::booted()` (`updating`) dès que `phone` change sans réponse dans la même écriture (TCK-633, lot C) | ➕ |
+| secondary_phone | string(30) | oui | null | Second numéro, forme canonique (`CanonicalPhone::fold`). **Non assignable en masse** : écrit par `PhoneVerificationService` (`forceFill`) (TCK-633, lot C) | ➕ |
+| secondary_phone_verified_at | timestamp | oui | null | Vérification du second numéro — sans elle, il n'est servi nulle part au public (`numeroSecondairePublic()`) (TCK-633) | ➕ |
+| secondary_phone_whatsapp | boolean | | false | Le second numéro reçoit WhatsApp — sans `null` : il ne se vérifie qu'avec sa case (TCK-633) | ➕ |
+| terms_accepted_at | timestamp | oui | null | Acceptation datée des CGU, demandée à la première publication ; écrite par `PublishReadiness` (`forceFill`) (TCK-633, lot C) | ➕ |
+| terms_version | string(40) | oui | null | Version des CGU acceptée (TCK-633) | ➕ |
 | ~~avatar_url~~ | — | — | — | ~~Remplacé par media collection `avatar` (spatie/medialibrary)~~ | ➖ |
 | bio | text | oui | null | Biographie / présentation | ➕ |
 | preferred_language | string(5) | oui | 'fr' | Langue préférée (fr, en, wo) | ➕ |
@@ -325,6 +347,16 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 
 **Accesseurs :**
 - `full_name` : concaténation de `first_name` + `last_name`
+
+**Numéros servis au public (TCK-633, lot C) :** `numeroPrincipalPublic()` et
+`numeroSecondairePublic()` sont **le seul point** où s'écrit la règle « un numéro non vérifié n'est
+servi au public nulle part » — ni par `…/contact` d'un bien, ni par la fiche `/agents/{slug}`.
+`tests/Feature/Public/NumeroPublieVerifieTest.php` balaie toutes les routes `GET api/public/*`.
+
+**Index (TCK-633) :** unique partiel `users_secondary_phone_verified_unique` sur `secondary_phone`
+`WHERE secondary_phone_verified_at IS NOT NULL AND deleted_at IS NULL` — un second numéro n'est
+vérifié que sur un compte vivant à la fois. Dernier recours : `PhoneVerificationService` teste avant
+d'écrire (piège PostgreSQL n°1).
 
 **Relations :**
 - `added_by()` → belongsTo User
@@ -400,6 +432,14 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 - `leases()` → hasMany Lease (via agency_id) 🆕
 - `primaryAdmin()` → belongsTo User (via primary_admin_id) 🆕
 - `documents()` → morphMany Document (licence, statuts, K-bis équivalent) 🆕
+- `creditLots()` → hasMany [CreditLot](#95-creditlot-) 🆕 (TCK-633, ADR-0061 §1)
+
+**Crédits et boosts (TCK-633, lot F) — aucune colonne ajoutée à `agencies`.** Le solde de crédits
+est celui de l'espace ([ADR-0061 §1](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : il se
+calcule sur `credit_lots` (somme des restants non expirés), jamais dans une colonne. La ligne
+`agencies` est le **point de sérialisation** de toute dépense (`lockForUpdate()->firstOrFail()`,
+piège PostgreSQL n°2). `#[ObservedBy(AgencyBoostObserver)]` : suspendre l'espace met ses boosts en
+pause, le réactiver les reprend (ADR-0061 §8).
 
 ---
 
@@ -437,7 +477,11 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | title_type | TitleType | oui | null | Type de titre foncier (bail, titre_foncier, deliberation, autre) | ✏️ |
 | admin_monitored | boolean | | false | Avec suivi administratif | ✏️ ancien `with_administrative_monitoring` |
 | ~~amenities~~ | — | — | — | ~~Remplacé par Tags de type `amenity` (migration P3.10 — données seedées en Tags via TagSeeder)~~ | ➖ |
-| featured | boolean | | false | Annonce mise en avant / sponsorisée | ➕ |
+| featured | boolean | | false | **État dérivé « une Vedette est active »** depuis TCK-633 ([ADR-0061 §5](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : écrit par `BoostLifecycle::project()` seul, refusé par le PATCH du bien (`UpdatePropertyRequest` : `prohibited`). Le filtre public `featured=true` et la rangée vedette le lisent ; le tri organique ne le lit plus | ✏️ dérivé |
+| ranked_at | timestamp | oui | null | Ordre organique (`ranked_at DESC`, ADR-0061 §7) : la date de publication, ou la dernière Remontée. Posé à `published_at` par `Property::booted()` (`saving`) s'il est plus ancien ; rattrapé par la migration `500300` sur les biens publiés. Index `properties_ranked_at_idx` (TCK-633) | ➕ |
+| sponsored_until | timestamp | oui | null | Projection : fin de la Vedette active (`BoostLifecycle` seul) (TCK-633) | ➕ |
+| badge | string(20) | oui | null | Projection : `BoostBadge` du Badge actif — `urgent`, `price_drop` (TCK-633) | ➕ |
+| badge_until | timestamp | oui | null | Projection : fin du Badge actif (TCK-633) | ➕ |
 | views_count | integer | | 0 | Nombre de vues de l'annonce (cache — incrémenter via `DB::increment()` ou job asynchrone, pas via `save()`) | ➕ |
 | favorites_count | integer | | 0 | Nombre de fois ajouté en favoris (cache) | ➕ |
 | visits_count | integer | | 0 | Nombre de visites planifiées (cache) | ➕ |
@@ -486,6 +530,16 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 - `conversations()` → hasMany Conversation 🆕
 - `price_histories()` → hasMany PropertyPriceHistory (historique des variations de prix) 🆕
 - `invoices()` → morphMany Invoice (via `invoiceable`) 🆕
+- `contacts()` → hasMany [PropertyContact](#88-propertycontact-), `orderBy('position')` 🆕 (TCK-633, lot C)
+- `boosts()` → hasMany [PropertyBoost](#93-propertyboost-) 🆕 (TCK-633, ADR-0061 §5)
+- `tagsVisibles()` → `tags()->visiblesSurUneFiche()` 🆕 (TCK-633, D9) — lecture seule ; c'est ce que
+  `toSearchableArray()` indexe sous `tags` (voir [Tag](#10-tag))
+
+**Boost (TCK-633, lot F) :** `featured`, `sponsored_until`, `badge`, `badge_until` sont des
+**projections** des boosts actifs, écrites par `App\Services\Boost\BoostLifecycle` seul.
+`replicating` les remet à zéro avec `ranked_at` : une copie (`PropertyDuplicationService`)
+n'hérite d'aucune mise en avant payée pour l'original. Le document de recherche porte `ranked_at`
+(repli sur `published_at`).
 
 ---
 
@@ -510,12 +564,23 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | building | string | oui | null | Bâtiment / Résidence | |
 | latitude | decimal(10,8) | oui | null | Latitude GPS | |
 | longitude | decimal(11,8) | oui | null | Longitude GPS | |
+| geo_city_id | FK geo_cities | oui | null | Ville du référentiel — FK `addresses_geo_city_fk`, `nullOnDelete`, index `addresses_geo_city_idx` (TCK-633, ADR-0062 §4) | ➕ |
+| geo_neighborhood_id | FK geo_neighborhoods | oui | null | Quartier du référentiel — FK `addresses_geo_neighborhood_fk`, `nullOnDelete`, index `addresses_geo_neighborhood_idx` (TCK-633, ADR-0062 §4) | ➕ |
 | metadata | jsonb | oui | null | Données complémentaires | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
 
+**Référentiel (TCK-633, [ADR-0062 §4](adr/0062-referentiel-geographique-region-ville-quartier.md)) :**
+l'adresse **pointe et garde son texte**. Les colonnes texte restent la vérité affichée et indexée par
+la recherche ; les identifiants canonisent. `Address::booted()` (`saving`) passe **toute** écriture
+par `GeoAddressCanonicalizer` — création, modification, duplication, rattachement en console. Une
+ligne de référentiel supprimée n'emporte jamais une adresse (`nullOnDelete`) ; renommer ou fusionner
+un quartier réécrit le texte des adresses qui y pointent et réindexe leurs biens.
+
 **Relations :**
 - `addressable()` → morphTo (Property, User, Agency, Customer, Guarantor)
+- `geoCity()` → belongsTo [GeoCity](#90-geocity-) (via `geo_city_id`) 🆕
+- `geoNeighborhood()` → belongsTo [GeoNeighborhood](#91-geoneighborhood-) (via `geo_neighborhood_id`) 🆕
 
 ---
 
@@ -725,14 +790,41 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | name | string(100) | | | Nom du tag (unique) | |
 | slug | string(100) | | | Slug URL (unique) | |
 | description | text | oui | null | Description | |
-| type | TagType | oui | null | Catégorie du tag (amenity, feature, label, crm) | ✏️ |
+| type | TagType | oui | null | Catégorie du tag (amenity, feature, label, crm) — les `feature` sont **fondus dans `amenity`** par la migration `2026_10_12_400200` (TCK-633 : deux types disaient la même chose, le formulaire n'en laissait cocher qu'un). Le cas `Feature` subsiste dans l'enum ; la fusion n'est pas défaite par `down()` | ✏️ |
+| icon | string | oui | null | Icône d'affichage (colonne d'origine, absente de ce tableau jusqu'au 2026-10-12) | |
 | color | string(20) | oui | null | Couleur d'affichage (hex) | |
+| status | string(16) | | 'approved' | `ReferentialStatus` : `approved`, `pending`, `rejected`. Un nom saisi inconnu naît `pending` ; le catalogue entre `approved`. Index `tags_status_idx` (TCK-633) | ➕ |
+| created_by_id | FK users | oui | null | Auteur d'une proposition — FK `tags_created_by_id_fk`, `nullOnDelete`, index `tags_created_by_id_idx` (TCK-633) | ➕ |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
+
+**Propositions et modération (TCK-633, lot D) :** les équipements se proposent et se modèrent comme
+les quartiers ([ADR-0062 §5](adr/0062-referentiel-geographique-region-ville-quartier.md), même
+`ReferentialStatus`). `TagModeration` approuve, rejette (les liaisons de la ligne refusée sont
+supprimées), renomme ou **fusionne** : la fusion, réservée aux `amenity` qui ne portent que des
+biens, reporte les liaisons de la source sur la cible (`insertOrIgnoreUsing`, `attached_by_id`
+conservé) puis **supprime la source** — contrairement aux quartiers, aucun `merged_into_id`.
+Chaque décision réindexe les biens touchés.
 
 **Relations :**
 - `properties()` → morphedByMany Property
 - `customers()` → morphedByMany Customer
+- `createdBy()` → belongsTo User (via `created_by_id`) 🆕 (TCK-633)
+
+**Scope :** `visiblesSurUneFiche()` (TCK-633, D9) — les approuvées, plus une proposition `pending`
+là seulement où son auteur l'a rattachée. ⚠ Ne s'emploie que sur `Property::tags()` : il lit la
+table de liaison.
+
+**Pivot `taggables` (TCK-633, D9) :** `attached_by_id` (FK users, nullable, `nullOnDelete`) — qui a
+rattaché l'étiquette. Une proposition d'équipement `pending` ne sort sur une fiche publique que là
+où son auteur l'a rattachée (`attached_by_id = tags.created_by_id`, `Tag::scopeVisiblesSurUneFiche`).
+La même règle borne ce qui rend un bien TROUVABLE : l'index (`Property::tagsVisibles` dans
+`toSearchableArray`) et le filtre d'équipements de la carte (`FiltresDeLaCarte`) ; l'approbation
+réindexe donc les biens de l'étiquette. Une copie de bien (`PropertyDuplicationService`) marque
+chaque liaison au nom de CELUI QUI DUPLIQUE, jamais l'auteur recopié de la source.
+FK `taggables_attached_by_id_fk`, **sans index** (aucune lecture ne part de cette colonne — piège
+n°8 : indexer par mesure). Les liaisons antérieures n'ont pas d'auteur : une proposition en attente
+qu'elles portent reste masquée jusqu'à son approbation, ce qui est le sens sûr.
 
 ---
 
@@ -3501,6 +3593,310 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 
 ---
 
+### 88. PropertyContact 🆕
+
+**Table :** `property_contacts` (migration `2026_10_12_300200`)
+**Description :** Un numéro à appeler **sur place** (gardien, voisin), titré, joignable mais **non
+vérifié** — trois au plus par bien (TCK-633, lot C). Jamais dans `PropertyResource` : il ne sort au
+public que par l'endpoint de contact limité `GET /public/properties/{slug}/contact`. Le plafond de 3
+est une règle applicative (`ReplacePropertyContactsRequest`, verrou sur la ligne du bien), pas une
+contrainte de base.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | unsignedBigInteger, FK properties | | | `property_contacts_property_fk`, `cascadeOnDelete` |
+| label | string(60) | oui | null | Libellé libre (« Gardien »…) |
+| phone | string(30) | | | Numéro, non vérifié |
+| has_whatsapp | boolean | | false | |
+| position | unsignedSmallInteger | | 0 | Ordre d'affichage |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** `property_contacts_property_position_idx (property_id, position)` — il indexe aussi la FK,
+dont il a la colonne de tête (piège n°8).
+
+**Relations :** `property()` → belongsTo Property. Inverse : `Property::contacts()` (`orderBy('position')`).
+
+---
+
+### 89. GeoRegion 🆕
+
+**Table :** `geo_regions` (migration `2026_10_12_400000`)
+**Description :** Les 14 régions du Sénégal, tête du référentiel Région → Ville → Quartier
+([ADR-0062 §1](adr/0062-referentiel-geographique-region-ville-quartier.md)). Le référentiel vit en
+base mais **aucune migration ne le charge** : les lignes viennent d'un jeu de données versionné
+(`database/data/geo/regions/*.json`), chargé par `geo:sync-referential` au déploiement et par
+`GeoReferentialSeeder` en développement (mise à jour par slug, jamais de suppression d'un lieu
+référencé). Données OpenStreetMap sous ODbL : mention due là où le référentiel est servi (§3).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| code | string(8) | | | Unique `geo_regions_code_unique` |
+| slug | string(80) | | | Unique `geo_regions_slug_unique` |
+| name | string(120) | | | |
+| latitude / longitude | decimal(10,7) | oui | null | Centre |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** `cities()` → hasMany GeoCity.
+
+---
+
+### 90. GeoCity 🆕
+
+**Table :** `geo_cities` (migration `2026_10_12_400000`)
+**Description :** La **ville telle que les annonces la nomment** ([ADR-0062 §2](adr/0062-referentiel-geographique-region-ville-quartier.md)) :
+la commune, sauf dans l'agglomération dakaroise où c'est le département (Dakar, Pikine, Guédiawaye,
+Keur Massar), ses communes d'arrondissement devenant des quartiers.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| geo_region_id | FK geo_regions | | | `geo_cities_region_fk`, **`restrictOnDelete`** |
+| slug | string(120) | | | |
+| name | string(120) | | | |
+| latitude / longitude | decimal(10,7) | oui | null | Centre |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `geo_cities_region_slug_unique (geo_region_id, slug)` ; unique
+`geo_cities_region_name_ci_unique (geo_region_id, LOWER(name COLLATE "und-x-icu"))` — casse repliée
+par ICU, expression exacte de `CaseInsensitive::sql()` ([ADR-0025](adr/0025-repli-de-casse-par-collation-icu.md)) ;
+index `geo_cities_name_ci_idx (LOWER(name COLLATE "und-x-icu"))` — une ville se cherche par son nom
+dans tout le pays (rattachement des adresses existantes).
+
+**Relations :** `region()` → belongsTo GeoRegion (`geo_region_id`) ; `neighborhoods()` → hasMany
+GeoNeighborhood. Inverse : `Address::geoCity()`.
+
+---
+
+### 91. GeoNeighborhood 🆕
+
+**Table :** `geo_neighborhoods` (migration `2026_10_12_400000`)
+**Description :** Un quartier, venu du jeu de données (`origin = dataset`, `approved` d'office) ou
+**proposé par une saisie** (`origin = user`, `pending` jusqu'à la modération) —
+[ADR-0062 §5](adr/0062-referentiel-geographique-region-ville-quartier.md). Une proposition sert
+aussitôt l'adresse qui l'a faite, n'est visible que de son auteur (`scopeVisiblesPour`), et n'est
+proposée aux autres qu'après validation. Une fusion **ne supprime rien** : la source garde son nom et
+pointe sa cible, si bien que le même nom retapé retombe sur la cible (`canonique()`, 5 sauts au plus).
+Un rejet n'efface pas l'adresse : elle garde son texte et perd son identifiant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| geo_city_id | FK geo_cities | | | `geo_neighborhoods_city_fk`, **`restrictOnDelete`** |
+| slug | string(140) | | | `slugLibre()` : `nom`, `nom-2`… dans la ville |
+| name | string(120) | | | `NOM_MAX = 120` : au-delà, une saisie ne devient pas une proposition |
+| latitude / longitude | decimal(10,7) | oui | null | Centre |
+| status | string(16) | | 'approved' | `ReferentialStatus` : `approved`, `pending`, `rejected` (ADR-0007 : pas d'`enum()` SQL) |
+| origin | string(16) | | 'dataset' | `GeoNeighborhoodOrigin` : `dataset`, `user` |
+| osm_ref | string(32) | oui | null | Référence OpenStreetMap |
+| created_by_id | FK users | oui | null | Auteur de la proposition — `geo_neighborhoods_created_by_fk`, `nullOnDelete` |
+| merged_into_id | FK geo_neighborhoods | oui | null | Cible de la fusion — `geo_neighborhoods_merged_into_fk`, `nullOnDelete` |
+| renamed_at | timestamp | oui | null | Posé par un renommage en modération : le rechargement du jeu de données ne réécrit plus ce nom |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `geo_neighborhoods_city_slug_unique (geo_city_id, slug)` ; unique **partiel**
+`geo_neighborhoods_city_name_ci_unique (geo_city_id, LOWER(name COLLATE "und-x-icu")) WHERE status <>
+'rejected' AND merged_into_id IS NULL` — un quartier refusé ou fusionné ne réserve plus son nom ;
+index `geo_neighborhoods_status_city_idx (status, geo_city_id)`, `geo_neighborhoods_created_by_idx`,
+`geo_neighborhoods_merged_into_idx` (piège n°8).
+
+**Relations :** `city()` → belongsTo GeoCity ; `createdBy()` → belongsTo User ; `mergedInto()` →
+belongsTo GeoNeighborhood ; `addresses()` → hasMany Address (`geo_neighborhood_id`).
+
+---
+
+### 92. BoostProduct 🆕
+
+**Table :** `boost_products` (migration `2026_10_12_500100`, catalogue initial posé par `500400`)
+**Description :** Une offre du catalogue de boosts, réglée dans le super-admin
+([ADR-0061 §5](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : Remontée 5 · Vedette 7 / 15 /
+30 jours : 20 / 35 / 60 · Badge 7 jours : 10 (§6). **Le prix et la durée se figent dans le boost
+acheté** : modifier le catalogue ne touche pas un boost existant. Le front possède les libellés : une
+offre se nomme par son genre, sa durée et sa variante.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| kind | string(20) | | | `BoostKind` : `bump`, `featured`, `badge` |
+| variant | string(20) | oui | null | `BoostBadge` (`urgent`, `price_drop`) pour un Badge, sinon `null` |
+| duration_days | unsignedSmallInteger | | 0 | 0 pour une Remontée (ponctuelle) |
+| price_credits | unsignedInteger | | | CHECK `boost_products_price_check (price_credits >= 0)` |
+| is_active | boolean | | true | |
+| sort_order | unsignedSmallInteger | | 0 | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `boost_products_offer_unique (kind, variant, duration_days)` **`NULLS NOT
+DISTINCT`** — sans lui, deux Remontées à variante nulle passeraient l'unicité.
+
+**Relations :** aucune déclarée. Inverse : `PropertyBoost::product()`.
+
+---
+
+### 93. PropertyBoost 🆕
+
+**Table :** `property_boosts` (migration `2026_10_12_500100`, CHECK ajouté par `500500`)
+**Description :** Un boost acheté ou offert sur un bien ([ADR-0061 §5, §8](adr/0061-credits-d-espace-et-boost-des-annonces.md)).
+Écrit par `App\Services\Boost\*` seul. Règles : une Remontée au plus par bien et par délai réglé,
+jamais remboursée ; une Vedette ne se cumule pas — en racheter une **prolonge** la fin (prix et durée
+cumulés) ; un Badge actif par bien, un nouveau remplace l'ancien sans remboursement. Le boost **suit
+la vie du bien** : bien hors surface publique → `paused` avec ses secondes restantes, puis reprise ;
+bien loué, vendu ou supprimé par l'annonceur → `refunded` au prorata des jours pleins restants ;
+retiré par la modération → `ended` sans remboursement. Une mise en avant gratuite du super-admin est
+une **Vedette offerte** (`offered`, prix 0, aucun mouvement de crédit).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_id | FK properties | | | `property_boosts_property_fk`, `cascadeOnDelete` |
+| agency_id | FK agencies | | | L'espace payeur — `property_boosts_agency_fk`, `cascadeOnDelete` |
+| boost_product_id | FK boost_products | oui | null | `property_boosts_product_fk`, `nullOnDelete` |
+| kind | string(20) | | | `BoostKind` |
+| variant | string(20) | oui | null | `BoostBadge` |
+| price_credits | unsignedInteger | | | **Figé** à l'achat (cumulé par une prolongation) |
+| duration_days | unsignedSmallInteger | | | **Figée** à l'achat |
+| starts_at | timestamp | | | |
+| ends_at | timestamp | oui | null | `null` pendant une pause (la durée est alors dans `remaining_seconds`). Une Remontée, instantanée, naît **close** : `ends_at = ended_at = starts_at`, statut `ended`, `duration_days = 0` |
+| status | string(20) | | | `BoostStatus` : `active`, `paused`, `ended`, `cancelled`, `refunded` ; `BoostStatus::live()` = `active` + `paused` |
+| remaining_seconds | unsignedInteger | oui | null | Durée restante gelée à la pause |
+| paused_at / ended_at | timestamp | oui | null | |
+| offered | boolean | | false | Vedette offerte par le super-admin |
+| offer_reason | text | oui | null | |
+| purchased_by_id | FK users | oui | null | Auteur de l'achat ou de l'offre — `nullOnDelete` |
+| cancel_reason | text | oui | null | |
+| cancelled_by_id | FK users | oui | null | `nullOnDelete` |
+| refunded_credits | unsignedInteger | oui | null | Ce qui a **réellement** été rendu (une part dont le lot d'origine a expiré ne l'est pas, §4) |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** CHECK `property_boosts_credits_check (price_credits >= 0 AND (refunded_credits IS
+NULL OR refunded_credits >= 0))` — `unsignedInteger` n'est qu'un `integer` signé sous PostgreSQL.
+Index `property_boosts_property_kind_status_idx (property_id, kind, status)`,
+`property_boosts_status_ends_at_idx (status, ends_at)` (échéances de `boosts:tick`),
+`property_boosts_agency_idx`.
+
+**Relations :** `property()` → belongsTo Property (`withTrashed`) ; `agency()` → belongsTo Agency ;
+`product()` → belongsTo BoostProduct ; `dailyStats()` → hasMany PropertyBoostDailyStat.
+Inverse : `Property::boosts()`.
+
+---
+
+### 94. PropertyBoostDailyStat 🆕
+
+**Table :** `property_boost_daily_stats` (migration `2026_10_12_500100`)
+**Description :** Impressions et clics d'un boost, par jour UTC ([ADR-0061 §10](adr/0061-credits-d-espace-et-boost-des-annonces.md)) :
+le compteur vit en cache et `boosts:tick` le vide ici. Un clic est une vue de fiche arrivée par un
+lien d'emplacement (`src=sponsored`). Le super-admin y lit le taux de clic des emplacements.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_boost_id | FK property_boosts | | | `property_boost_daily_stats_boost_fk`, `cascadeOnDelete` |
+| date | date | | | |
+| impressions | unsignedInteger | | 0 | |
+| clicks | unsignedInteger | | 0 | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `property_boost_daily_stats_boost_date_unique (property_boost_id, date)`.
+
+**Relations :** aucune déclarée. Inverse : `PropertyBoost::dailyStats()`.
+
+---
+
+### 95. CreditLot 🆕
+
+**Table :** `credit_lots` (migration `2026_10_12_500200`)
+**Description :** Un lot daté de crédits d'un espace ([ADR-0061 §1, §2, §4](adr/0061-credits-d-espace-et-boost-des-annonces.md)).
+Écrit par `App\Services\Credits\CreditLedger` seul. **Invariant** : montant initial + somme des
+mouvements négatifs du lot = montant restant ; le solde de l'espace est la somme des restants des
+lots non expirés. Ordre de consommation (`scopeInConsumptionOrder`) : expiration la plus proche
+d'abord, sans expiration en dernier, puis ancienneté — une dépense sur plusieurs lots écrit un
+mouvement par lot. Les crédits offerts (`welcome`, `admin_grant`) expirent ; un lot `refund` hérite
+de l'expiration de **son** lot d'origine ; un lot `purchase` (phase 2) n'expire jamais. Les crédits
+sont des **entiers** : ils ne passent pas par la règle ×100 des montants.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `credit_lots_agency_fk`, `cascadeOnDelete` |
+| origin | string(20) | | | `CreditLotOrigin` : `welcome`, `admin_grant`, `refund`, `purchase` |
+| initial_amount | unsignedInteger | | | |
+| remaining_amount | unsignedInteger | | | |
+| expires_at | timestamp | oui | null | `null` = n'expire pas |
+| granted_by_id | FK users | oui | null | Octroi manuel — `credit_lots_granted_by_fk`, `nullOnDelete` |
+| reason | text | oui | null | Motif d'un octroi manuel |
+| expiry_notice_sent_at | timestamp | oui | null | Préavis d'expiration envoyé — **une fois** |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** CHECK `credit_lots_amounts_check (initial_amount > 0 AND remaining_amount >= 0 AND
+remaining_amount <= initial_amount)` ; index `credit_lots_agency_expires_idx (agency_id, expires_at)`.
+
+**Relations :** `agency()` → belongsTo Agency ; `grantedBy()` → belongsTo User ; `movements()` →
+hasMany CreditMovement. Scopes `spendable()` (restant > 0, non expiré), `inConsumptionOrder()`.
+Inverse : `Agency::creditLots()`.
+
+---
+
+### 96. CreditMovement 🆕
+
+**Table :** `credit_movements` (migration `2026_10_12_500200`)
+**Description :** Chaque mouvement de crédits, signé, rattaché à son lot et, s'il y a lieu, au boost
+([ADR-0061 §2](adr/0061-credits-d-espace-et-boost-des-annonces.md)). **Insertion seule, tenue par un
+trigger et non par une convention** : une erreur se corrige par un mouvement de sens contraire. Le
+modèle double la garde (`updating` / `deleting` lèvent `LogicException`) et n'a pas d'`updated_at`
+(`UPDATED_AT = null`, `getDates()` filtré) — seul modèle du dépôt dans ce cas.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `credit_movements_agency_fk`, `cascadeOnDelete` |
+| credit_lot_id | FK credit_lots | | | `credit_movements_lot_fk`, `cascadeOnDelete` |
+| type | string(20) | | | `CreditMovementType` : `grant`, `spend`, `refund`, `expire`, `admin_debit` |
+| amount | integer | | | **Signé** ; CHECK `credit_movements_amount_check (amount <> 0)` |
+| property_boost_id | FK property_boosts | oui | null | `credit_movements_boost_fk`, `nullOnDelete` |
+| actor_id | FK users | oui | null | `credit_movements_actor_fk`, `nullOnDelete` |
+| reason | text | oui | null | |
+| created_at | timestamp | | `CURRENT_TIMESTAMP` | Pas d'`updated_at` |
+
+**Trigger `credit_movements_append_only_trg`** (`BEFORE UPDATE OR DELETE`, fonction
+`credit_movements_append_only()`) : tout UPDATE ou DELETE direct lève `P0001`. Deux exceptions
+structurelles : la suppression **en cascade** d'un parent (`pg_trigger_depth() > 1`), et la mise à
+`NULL` de `property_boost_id` / `actor_id` par `ON DELETE SET NULL`. `TRUNCATE` ne déclenche pas les
+triggers de ligne : seul le harnais de test l'emploie.
+
+**Index :** `credit_movements_agency_id_idx (agency_id, id)`, `credit_movements_lot_idx`,
+`credit_movements_boost_idx`.
+
+**Relations :** `lot()` → belongsTo CreditLot ; `boost()` → belongsTo PropertyBoost ; `actor()` →
+belongsTo User. Inverse : `CreditLot::movements()`.
+
+---
+
+### 97. CreditWelcomeGrant 🆕
+
+**Table :** `credit_welcome_grants` (migration `2026_10_12_500200`, unicité d'espace ajoutée par `500500`)
+**Description :** Le registre « une offre de bienvenue par espace et par numéro vérifié »
+([ADR-0061 §3](adr/0061-credits-d-espace-et-boost-des-annonces.md)). Versée au titulaire de l'espace
+au moment où l'espace naît si son numéro est déjà vérifié, sinon au moment où il le devient. Retient
+l'**empreinte HMAC** du numéro (`App\Support\PhoneFingerprint`), qui survit à l'anonymisation d'un
+compte supprimé : un numéro ne fait pas gagner deux espaces, et changer de numéro ne re-crédite pas
+l'espace. Les deux unicités se tiennent par `insertOrIgnore`, jamais par une exception attrapée
+(piège n°1). Montant et validité sont des réglages lus à l'octroi (`credits.welcome_amount` 500,
+`credits.welcome_validity_days` 180).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| phone_hash | string(64) | | | Unique `credit_welcome_grants_phone_hash_unique` |
+| agency_id | FK agencies | oui | null | Unique `credit_welcome_grants_agency_unique` (plusieurs `NULL` admis) — `credit_welcome_grants_agency_fk`, `nullOnDelete` |
+| user_id | FK users | oui | null | `credit_welcome_grants_user_fk`, `nullOnDelete` |
+| credit_lot_id | FK credit_lots | oui | null | Le lot `welcome` versé — `credit_welcome_grants_lot_fk`, `nullOnDelete` |
+| granted_at | timestamp | | | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Relations :** aucune déclarée.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -3580,6 +3976,13 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 | **Capability** 🆕 (TCK-278) | catalogue code-defined ≈ 30–50 entrées groupées par domaine — voir « Catalogue Capability » ci-dessous | `MembershipCapabilityResolver`, `AgencyRoleCapability.capability` |
 | **DataExportStatus** ✅ (TCK-310) | queued, processing, ready, expired, failed | [DataExport.status](#57-dataexport-) |
 | **RoleDelegationStatus** ✅ (TCK-310) | scheduled, active, revoked, expired | [RoleDelegation.status](#66-roledelegation-) |
+| **ReferentialStatus** 🆕 (TCK-633) | approved, pending, rejected | [GeoNeighborhood.status](#91-geoneighborhood-), [Tag.status](#10-tag) — `pending` n'est visible que de son auteur, `rejected` de personne |
+| **GeoNeighborhoodOrigin** 🆕 (TCK-633) | dataset, user | [GeoNeighborhood.origin](#91-geoneighborhood-) |
+| **BoostKind** 🆕 (TCK-633) | bump, featured, badge | [BoostProduct.kind](#92-boostproduct-), [PropertyBoost.kind](#93-propertyboost-) |
+| **BoostBadge** 🆕 (TCK-633) | urgent, price_drop | BoostProduct.variant, PropertyBoost.variant, [Property.badge](#3-property) |
+| **BoostStatus** 🆕 (TCK-633) | active, paused, ended, cancelled, refunded — `live()` = active, paused | [PropertyBoost.status](#93-propertyboost-) |
+| **CreditLotOrigin** 🆕 (TCK-633) | welcome, admin_grant, refund, purchase (phase 2) | [CreditLot.origin](#95-creditlot-) |
+| **CreditMovementType** 🆕 (TCK-633) | grant, spend, refund, expire, admin_debit | [CreditMovement.type](#96-creditmovement-) |
 
 #### Catalogue `Capability` (TCK-278 → TCK-279)
 
@@ -3600,6 +4003,7 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 | `messaging.*` | `messaging.broadcast`, `messaging.archive` |
 | `reports.*` | `reports.view_global`, `reports.export` |
 | `roles.*` | `roles.create_custom`, `roles.edit_custom`, `roles.delete_custom` |
+| `boost.*` | `boost.spend` (TCK-633, ADR-0061 §1 — dépenser les crédits de l'espace ; admin d'espace oui, agent système non) |
 
 Chaque entrée est de la forme `<domain>.<verb>` ; les verbes sont normalisés (`create`, `update_any`, `update_own`, `delete`, `view`, `export`, `assign`, `approve`, etc.).
 
@@ -3691,6 +4095,22 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **NotificationDeliveryAttempt** — tentatives d'acheminement SMS/WhatsApp
 - **WizardDraft** — brouillons de parcours multi-étapes
 - **WelcomeView** — modales de bienvenue déjà vues
+
+### TCK-633 — retours du porteur (2026-10-12) 🆕
+
+- **Nouveaux modèles (10) :** PropertyContact (lot C) ; GeoRegion, GeoCity, GeoNeighborhood
+  (ADR-0062) ; BoostProduct, PropertyBoost, PropertyBoostDailyStat, CreditLot, CreditMovement,
+  CreditWelcomeGrant (ADR-0061).
+- **User** : +6 colonnes (phone_whatsapp, secondary_phone, secondary_phone_verified_at,
+  secondary_phone_whatsapp, terms_accepted_at, terms_version), +index unique partiel.
+- **Property** : +4 colonnes (ranked_at, sponsored_until, badge, badge_until) ; `featured` devient
+  dérivé ; +relations contacts, boosts, tagsVisibles.
+- **Address** : +2 FK (geo_city_id, geo_neighborhood_id) ; canonisation à chaque écriture.
+- **Tag** : +2 colonnes (status, created_by_id) ; `feature` fondu dans `amenity` ; pivot
+  `taggables` +attached_by_id.
+- **Agency** : aucune colonne ; +relation creditLots, +observateur des boosts.
+- **Nouveaux enums (7) :** ReferentialStatus, GeoNeighborhoodOrigin, BoostKind, BoostBadge,
+  BoostStatus, CreditLotOrigin, CreditMovementType ; +capacité `boost.spend`.
 
 ### Enums renommés (2)
 
@@ -3897,6 +4317,14 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | broker_agency_collaborations | `(broker_profile_id, agency_id)` | unique composé | toujours 🆕 |
 | service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` | unique composé | toujours 🆕 |
 | bank_statements | `(agency_id, file_hash)` | unique composé | toujours 🆕 |
+| users | `secondary_phone` | unique partiel | `secondary_phone_verified_at IS NOT NULL AND deleted_at IS NULL` 🆕 (TCK-633) |
+| geo_regions | `code` ; `slug` | unique | toujours 🆕 (TCK-633) |
+| geo_cities | `(geo_region_id, slug)` ; `(geo_region_id, LOWER(name COLLATE "und-x-icu"))` | unique composé | toujours 🆕 (TCK-633) |
+| geo_neighborhoods | `(geo_city_id, slug)` | unique composé | toujours 🆕 (TCK-633) |
+| geo_neighborhoods | `(geo_city_id, LOWER(name COLLATE "und-x-icu"))` | unique partiel | `status <> 'rejected' AND merged_into_id IS NULL` 🆕 (TCK-633) |
+| boost_products | `(kind, variant, duration_days)` | unique composé | `NULLS NOT DISTINCT` 🆕 (TCK-633) |
+| property_boost_daily_stats | `(property_boost_id, date)` | unique composé | toujours 🆕 (TCK-633) |
+| credit_welcome_grants | `phone_hash` ; `agency_id` | unique | toujours (`agency_id` : plusieurs `NULL` admis) 🆕 (TCK-633) |
 
 ---
 

@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  *
  * Lecteurs : `currency.default` → `PaymentGatewayService` ; `currency.supported` →
  * `StoreAgencyRequest`, `AgencyUpdateRequest` ; `platform.session_max_minutes` →
- * `SessionTokenIssuer`.
+ * `SessionTokenIssuer` ; `credits.*` et `boost.*` (TCK-633) → `App\Services\Boost\BoostSettings`.
  */
 class EditablePlatformSettings
 {
@@ -51,6 +51,31 @@ class EditablePlatformSettings
                 'public' => false,
                 'requires_restart' => true,
                 'rules' => ['required', 'integer', 'min:15', 'max:1440'],
+            ],
+            // TCK-633 lot F (ADR-0061 §6) — crédits et mise en avant. Lus par `App\Services\Boost\BoostSettings`.
+            'credits.welcome_amount' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 500, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:100000'],
+            ],
+            'credits.welcome_validity_days' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 180, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:3650'],
+            ],
+            'credits.expiry_notice_days' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 7, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:90'],
+            ],
+            'boost.bump_cooldown_hours' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 24, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:720'],
+            ],
+            'boost.sponsored_slots_per_page' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 3, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:10'],
+            ],
+            'boost.reserved_top_results' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 2, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:10'],
             ],
         ];
     }

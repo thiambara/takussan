@@ -170,6 +170,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    '/app/credits',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
   // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
@@ -197,6 +198,7 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
     '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    '/app/credits',
   ],
 };
 
@@ -338,13 +340,14 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   // TCK-590 — 23 → 24 : la boîte « Demandes de contact » (`/app/leads`).
   // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
   // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
-  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-633 lot F — 26 → 27 : le portefeuille de crédits (`/app/credits`).
+  it('les 27 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(26);
+    expect(items).toHaveLength(27);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(27);
   });
 
   it('un rôle sans catalogue ne voit aucune césure vide', () => {

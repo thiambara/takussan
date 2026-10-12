@@ -1,0 +1,106 @@
+{
+  "verdict": "refuse — un point court bloque : le §7 neuf d'ADR-0062 écrit « toute écriture qui change cette visibilité (… validation, renommage …) réindexe les biens concernés », et deux écrivains ne le font pas. (1) Le renommage ORDINAIRE d'un équipement — l'édition en ligne de la page catalogue super-admin (TagsManager.tsx:112 → updateTagAction → PATCH /api/tags/{id}, TagController::update) — ne réindexe rien : prouvé par sonde hors dépôt, fiche [\"Piscine chauffée\"], index : nouveau nom → [], ancien nom → [bien]. Le filtre Équipements de la liste rend donc 0 résultat sur le nom affiché. Même route : un nom en collision de casse rend 500 (index tags_name_lower_unique) quand TagModeration::renommer rend 409. (2) tags:sync-catalog approuve une proposition en attente qui porte un nom du catalogue (TagCatalog::assurer) sans réindexer : fiche [\"Piscine\"], index []. Le reste tient : duplication (auteur = celui qui duplique), recherche/carte/réindexations par Property::tagsVisibles, réindexation de PropertyTagController, signature insensible à la casse ; 7 ablations neuves sur 8 rougissent. Correctif court : faire passer PATCH /api/tags {name} par TagModeration::renommer (409 + réindexation) et réindexer les biens d'une proposition approuvée par assurer() — ou écrire ces deux limites dans le §7.",
+  "preuves": {
+    "charge": "uptime 12:58 : 2.58 3.12 3.81 ; 13:02 : 3.37 3.30 3.71 ; 13:10 : 2.68 2.85 3.39 — 8 cœurs, autres agents de la session actifs : aucune durée n'est une mesure du dépôt.",
+    "api_demande": "php artisan test tests/Feature/Tags tests/Feature/Search tests/Feature/Boost tests/Unit/Geo → 15 failed, 421 passed (1975 assertions), 107,9 s. Les 15 rouges sont EXACTEMENT ceux attendus : GeoDatasetReviewedTest « chaque région est relue par une personne nommée et datée » × 14 (dk, db, fk, ka, kl, ke, kd, lg, mt, sl, se, tc, th, zg) + « chaque région tient le format » @dk. Aucun autre.",
+    "duplication": "php artisan test tests/Feature/Api/PropertyDuplicationTest.php tests/Feature/Tags/TagProposalNomPartageTest.php → 19 passed (116 assertions).",
+    "front_parite": "npx vitest run src/types/__tests__/search-filters.parity.test.ts src/types/__tests__/property-labels.parity.test.ts → 2 fichiers, 14 passed.",
+    "point_1_duplication": "PropertyDuplicationService:90-95 : chaque liaison de la copie porte attached_by_id = $actor->id. A qui duplique son bien → liaison à A, fiche publiée de la copie [Puits privé de A] ; super-admin PAR LA ROUTE → copie à lui, liaison à lui, fiche publiée [] et source intacte ; Piscine approuvée suit la copie d'un tiers. Aucun autre chemin ne recopie taggables (grep tags()/taggables/replicate dans app/ et database/seeders : sync, fusion, rejet, FilterCoverageSeeder). La copie naît brouillon et privée : elle n'est indexée qu'à sa publication, par l'observateur, donc par tagsVisibles.",
+    "point_2_recherche": {
+      "chemins": "toSearchableArray:471 lit $this->tagsVisibles ; makeAllSearchableUsing:494 et SyncAgencyPropertiesSearchIndex:54 ne font que PRÉCHARGER tagsVisibles (le contenu indexé vient de toSearchableArray dans tous les cas, ces deux with() n'évitent que le N+1) ; FiltresDeLaCarte::equipements:125 whereHas('tagsVisibles') ; GeoReindexation::biens recharge les biens et passe par toSearchableArray. Les alertes de recherche sauvegardée passent par PropertySearchService::alertMatches → l'index (SearchService::search, qui filtre encore whereHas('tags') sur TOUTES les étiquettes, n'a plus aucun appelant dans app/ ni routes/).",
+      "moderation": "approuver (:36), rejeter (:53), renommer (:74), fusionner (:117) réindexent après la transaction ; ablations rename et fusion → rouge (voir ablations).",
+      "property_tag_controller": "sync réindexe si array_filter($changements) !== [] ; destroy si detach > 0. Retirer la réindexation de sync → TagSyncReindexTest 2 rouges (les deux cas, le second passant par sync pour rattacher).",
+      "suppression_d_un_auteur": "Sans objet en pratique : User est SoftDeletes, et aucun forceDelete ni DELETE brut d'utilisateur n'existe dans app/ (grep forceDelete / DB::table('users')->delete). nullOnDelete sur taggables.attached_by_id et tags.created_by_id ne se déclenche donc qu'à une suppression manuelle en base ; alors whereColumn(NULL = NULL) est faux → la proposition disparaît de la fiche de son auteur SANS réindexation (bien trouvable par un nom qu'il ne montre plus, aucun texte rendu) jusqu'au prochain enregistrement ou à l'approbation. Gravité : négligeable (chemin hors application) — mention seulement.",
+      "ecrivains_qui_ne_reindexent_pas": {
+        "PATCH /api/tags/{id} (TagController::update)": "Sonde hors dépôt (scratchpad, vendor/bin/phpunit -c phpunit.xml, InteractsWithMeilisearch, supprimée ensuite) : « Piscinne » approuvée sur un bien publié, index construit ; super-admin PATCH {name: 'Piscine chauffée'} → 200 ; fiche publique [\"Piscine chauffée\"] ; Property::search()->where('tags','Piscine chauffée') → [] ; where('tags','Piscinne') → [id]. C'est le chemin qu'emprunte l'édition en ligne du catalogue (takussan-web TagsManager.tsx:112 updateTagAction(tag.id, {name}) → lib/queries/tags.ts:76 PATCH /api/tags/{id}). Antérieur au lot (TCK-305/TCK-280), mais le §7 neuf affirme le contraire et le filtre Équipements du lot E lit l'index.",
+        "PATCH /api/tags/{id} en collision": "Sonde : « Piscine » existe, PATCH {name: 'PISCINE'} sur « Jacuzzi » → 500 (violation de tags_name_lower_unique) ; TagModeration::renommer rend 409 tags.name_taken pour le même geste. Antérieur au lot, même correctif.",
+        "tags:sync-catalog (TagCatalog::assurer)": "Sonde : proposition « Piscine » de A, rattachée par B au bien de B (masquée, non indexée) ; TagCatalog::synchroniser() → statut approved, fiche de B [\"Piscine\"], index where('tags','Piscine') → []. Se produit quand une version du catalogue ajoute un nom déjà proposé ; la commande tourne au déploiement (release.sh:22) sans aucune réindexation des étiquettes. Rare, mais c'est une « validation » au sens du §7.",
+        "sync() qui DÉTACHE": "Code juste (array_filter couvre 'detached'), mais non épinglé : c'est pourtant le SEUL chemin de retrait qu'emprunte le front (properties-server.ts:392 POST …/tags avec la liste complète ; la route DELETE …/tags/{tag}, seule épinglée par TagSyncReindexTest, n'a aucun appelant front). Voir ablations."
+      }
+    },
+    "point_3_signature": {
+      "code": "signer.mjs:61-65 et GeoDatasetReviewedTest:61-70 : MOTS_REFUSES identiques (épinglé), mot = segment séparé par une ESPACE, comparaison après toLowerCase / mb_strtolower.",
+      "sondes_sans_signer": "import { nomValide } de signer.mjs (le module ne signe rien à l'import) : ACCEPTÉS « Jean-Claude Diop », « Awa Ndiaye », mais aussi « Claude-Code Anthropic », « Agent-IA Diop », « Codex-Bot Fall », « Anthropic Opus », « Gemini Sonnet », « Chatgpt Openai », « Llm Reviewer », « Prénom Nom », « Relecteur Humain », « Test Test » ; REFUSÉS « Claude Code », « CLAUDE Dupont », « Ia Diop », « Claude Diop ».",
+      "preuve_sur_copie": "scratchpad/reverif3 (supprimé ensuite) : 14 régions, signer.mjs et le test copiés par node (lecture/écriture, jamais cp), namespace Scratch\\Reverif3Geo, chemins pointés sur la copie. Copie de signer.mjs « Claude-Code Anthropic » sur les 14 copies → exit 0 ; copie du test → seul rouge : format@dk (Golf Sud, non corrigé sur cette copie) — les 14 « relue par une personne » sont VERTS sous un nom d'outil collé par un trait d'union.",
+      "arbitrage": "Ne pas couper au trait d'union est le BON arbitrage pour « Jean-Claude », prénom courant ; mais il a deux coûts que le tour 3 ne nomme pas : (a) tout mot refusé collé par un trait d'union passe (« Claude-Code », « Agent-IA ») ; (b) « Claude » est AUSSI un prénom réel : « Claude Diop » est refusé, et une relectrice ou un relecteur qui s'appelle ainsi ne peut pas signer de son nom. Les noms génériques relevés en reverif-2 (« Prénom Nom », « Relecteur Humain », « Test Test ») restent acceptés : la liste ne les a pas repris. Gravité basse — on ne prouve pas l'humain —, l'arbitrage se défend, la liste est étroite.",
+      "vrai_jeu": "NON signé, NON modifié : md5 de l'ensemble (md5 -q regions/*.json | md5) 3f99218e avant et après ; 14 relu_par null ; signer.mjs 5de4493b et GeoDatasetReviewedTest 2f428c52 inchangés à la fin."
+    },
+    "point_4_renvois": {
+      "compte": "grep « ADR-0062 §7 » hors node_modules/vendor/.git → 23 fichiers (19 API, 4 web), tous dans le sujet des équipements (migrations 400200/400300, Tag, ReferentialStatus, StoreTagRequest, SyncPropertyTagRequest, TagModerationAdminController, TagCatalog, TagProposals, TagModeration, TagsSyncCatalog, routes/api/tags.php, 7 tests, page proposals, TagsManager, schemas/tag.ts, super-admin-propositions.ts).",
+      "adr_0061_9_gardes": "routes/console.php:171 et CreditsExpiringNotification.php:11 gardent ADR-0061 §9 — juste (§9 = « Une tâche planifiée, unique », boosts:tick). Gardent aussi, à bon droit : BoostLifecycle:75/100, CreditLedger:244, BoostsTick:12/21, CreditExpiryNotifier:11, BoostsTickScheduleTest, BoostsTickIdempotenceTest.",
+      "oubli": "takussan-api/docker/release.sh:16 — « les référentiels versionnés (ADR-0062, ADR-0061 §9) » introduit le bloc geo:sync-referential / tags:sync-catalog : c'est un 24e renvoi faux, à repointer sur ADR-0062 §7.",
+      "imprecisions": "ReferentialStatus.php:6 cite « ADR-0062 §4 » pour l'état d'un quartier proposé : c'est le §5 (§4 = l'adresse pointe et garde son texte ; le §7 lui-même renvoie au §5). super-admin-propositions.ts:5 « ADR-0062 §7, ADR-0062 » : doublon issu du remplacement. Cosmétiques.",
+      "fidelite_du_7": "Fidèle sur : type unique amenity (feature fondu par TagCatalog::synchroniser et la migration 400200), catalogue approved chargé par release.sh, traduction front par slug (libelle-equipement.ts:31-33, pending/rejected affichés tels quels), proposition pending rattachée, attached_by_id et règle de visibilité (Tag::scopeVisiblesSurUneFiche), tiers et duplication masqués, identifiant d'une proposition d'autrui refusé (SyncPropertyTagRequest:58-76 — avec l'exception, non écrite dans le §7, d'une proposition DÉJÀ portée par ce bien, qui se garde), index/liste/carte sur les seuls visibles. INFIDÈLE sur « toute écriture … (validation, renommage …) réindexe » : PATCH /api/tags et tags:sync-catalog (voir point 2). Nuance non écrite : la fusion accepte une cible en attente (seul le refus est exclu), le front n'en propose que d'approuvées."
+    }
+  },
+  "ablations": [
+    { "cible": "PropertyDuplicationService — attached_by_id = $source->user_id (le PROPRIÉTAIRE de la source, pas l'auteur de la liaison ni l'acteur)", "rouge": "OUI : 2 rouges (un tiers qui duplique ne publie pas… ; un tiers qui duplique garde les équipements approuvés visibles)", "restaure": "md5 668c0658" },
+    { "cible": "PropertyDuplicationService — attached_by_id = null", "rouge": "OUI : 2 rouges (l'auteur qui duplique garde sa proposition visible ; un tiers qui duplique…)", "restaure": "md5 668c0658" },
+    { "cible": "PropertyTagController::sync — réindexation retirée (demandée)", "rouge": "OUI : TagSyncReindexTest 2 rouges (rattacher… ; retirer…)", "restaure": "md5 0436e94b" },
+    { "cible": "PropertyTagController::sync — réindexation seulement si des liaisons sont AJOUTÉES ($changements['attached'] !== []) : un retrait par le formulaire ne réindexe plus", "rouge": "NON : tests/Feature/Tags + tests/Feature/Search 301 passed — le seul retrait épinglé passe par DELETE …/tags/{tag}, route sans appelant front", "restaure": "md5 0436e94b" },
+    { "cible": "TagModeration::renommer sans réindexation", "rouge": "OUI : TagModerationSearchTest « un renommage rend les biens trouvables sous le nouveau nom »", "restaure": "md5 711b6fb8" },
+    { "cible": "TagModeration::fusionner sans réindexation", "rouge": "OUI : TagModerationSearchTest « une fusion rend les biens trouvables sous le nom de la cible »", "restaure": "md5 711b6fb8" },
+    { "cible": "Tag::scopeVisiblesSurUneFiche — branche pending neutralisée (whereRaw('false')) : seules les approuvées sortent", "rouge": "OUI : 12 rouges sur Tags + PropertyDuplicationTest (fiche de l'auteur, comparateur, duplication par l'auteur, fusion, refus, renommage, liste tags=, q=, carte) — les tests de recherche épinglent bien le versant POSITIF ([A]), pas seulement l'absence de B", "restaure": "md5 ee5c0c44" },
+    { "cible": "GeoDatasetReviewedTest::designeUnOutil — comparaison sensible à la casse (mb_strtolower retiré)", "rouge": "OUI : 10 rouges de plus que les 15 attendus (Claude Code, Agent Ia, CLAUDE Dupont, Awa Bot, Jean Ai Dupont, Assistant, Codex, Gpt, Copilot, IA en capitales)", "restaure": "md5 2f428c52" },
+    { "cible": "signer.mjs::nomValide — contrôle des mots refusés retiré (la liste MOTS_REFUSES laissée intacte)", "rouge": "NON : tests/Unit/Geo 15 failed (les attendus), 49 passed — seule la LISTE est épinglée, pas son emploi. Sans conséquence sur la garde (le PHP refuse de son côté une signature « Claude Code »), le script ne refuserait plus de signer", "restaure": "md5 5de4493b" }
+  ],
+  "defauts": [
+    {
+      "bloquant": true,
+      "fichier": "takussan-api/app/Http/Controllers/Api/TagController.php:81-96 (update) ; takussan-web/src/components/admin-tags/TagsManager.tsx:112 ; docs/adr/0062-referentiel-geographique-region-ville-quartier.md §7, dernier point",
+      "scenario": "Le super-admin renomme un équipement depuis la page catalogue : PATCH /api/tags/{id} enregistre le nom sans réindexer. Fiche [\"Piscine chauffée\"], index : nouveau nom → [], ancien → [bien] (sonde). Le filtre Équipements de la liste publique, qui lit l'index, rend 0 résultat sur ce nom. En collision de casse, la même route rend 500 au lieu du 409 de la modération. Le §7 écrit pourtant que tout renommage réindexe.",
+      "gravite": "moyenne — geste ordinaire du super-admin, résultat de recherche faux sans message ; antérieur au lot, mais affirmé faux par le document neuf",
+      "correctif": "Dans TagController::update, si 'name' est présent : déléguer à TagModeration::renommer (409 + réindexation après transaction), le reste (icon, color, description, type) par fill/save ; test : PATCH /api/tags/{id} {name} → biensEquipesDe(nouveau) = [biens], (ancien) = [], collision → 409. Ou, à défaut, écrire la limite dans le §7."
+    },
+    {
+      "bloquant": true,
+      "fichier": "takussan-api/app/Services/Tags/TagCatalog.php:65-84 (assurer) ; takussan-api/docker/release.sh:22",
+      "scenario": "Une version du catalogue ajoute un nom qu'un utilisateur avait déjà proposé : assurer() bascule la proposition en approved sans réindexer. Elle sort sur les fiches où un tiers l'avait tapée, mais ces biens restent introuvables par elle (sonde : fiche [\"Piscine\"], index []). C'est une « validation » au sens du §7.",
+      "gravite": "basse — exige qu'une version du catalogue rencontre une proposition existante ; même effet que l'approbation sans réindexation qu'a corrigée le tour 3",
+      "correctif": "Collecter les biens des propositions approuvées par assurer() et les passer à GeoReindexation::biens après la transaction (SCOUT_QUEUE=false comme geo:sync-referential dans release.sh) ; test sur ce cas. Bloquant au même titre que le précédent parce que c'est le même énoncé du §7 qui est faux, et le correctif tient en quelques lignes."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/tests/Feature/Tags/TagSyncReindexTest.php",
+      "scenario": "Le retrait épinglé passe par DELETE /api/properties/{id}/tags/{tag}, qu'aucun écran n'appelle ; le retrait réel (POST …/tags avec la liste privée de l'équipement) n'est pas épinglé : n'y réindexer que les ajouts reste vert (301 passed).",
+      "gravite": "basse — le code est juste",
+      "correctif": "Troisième cas : rattacher Piscine par POST, puis POST {tag_ids: []} → idsFiltresParPiscine() === []."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/database/data/geo/signer.mjs:61-65 ; takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php:61-70",
+      "scenario": "Un mot refusé collé par un trait d'union passe des deux côtés : « Claude-Code Anthropic » signe la copie des 14 régions et la copie de la garde la déclare relue (vert). « Anthropic Opus », « Gemini Sonnet », « Chatgpt Openai », « Prénom Nom », « Relecteur Humain », « Test Test » sont acceptés ; « Claude Diop », un nom de personne réel, est refusé.",
+      "gravite": "basse — on ne prouve pas l'humain ; l'arbitrage du trait d'union est défendable pour « Jean-Claude », la liste est étroite",
+      "correctif": "Couper aussi au trait d'union pour les mots qui ne sont des prénoms nulle part (agent, bot, ia, ai, assistant, codex, gpt, copilot, anthropic, openai, chatgpt, gemini, opus, sonnet, llm) et refuser explicitement la forme composée « claude-code » ; ajouter test, prénom, nom, relecteur, humain ; décider en connaissance de cause si « Claude » seul reste refusé. Épingler l'emploi de la liste dans signer.mjs (le test peut appeler node sur nomValide, sans signer)."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/docker/release.sh:16",
+      "scenario": "« les référentiels versionnés (ADR-0062, ADR-0061 §9) » — 24e renvoi faux, oublié par le repointage : il introduit tags:sync-catalog, qui relève d'ADR-0062 §7.",
+      "gravite": "cosmétique",
+      "correctif": "« (ADR-0062 §3 et §7) »."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/app/Models/Enums/ReferentialStatus.php:6 ; takussan-web/src/lib/queries/super-admin-propositions.ts:5",
+      "scenario": "« ADR-0062 §4 » désigne l'adresse, pas la proposition d'un quartier (§5) ; « ADR-0062 §7, ADR-0062 » est un doublon du remplacement.",
+      "gravite": "cosmétique",
+      "correctif": "§5 ; retirer le doublon."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/app/Services/Model/SearchService.php:85-89",
+      "scenario": "SearchService::search filtre encore whereHas('tags') sur TOUTES les étiquettes (et en OU, sensible à la casse). Aucun appelant dans app/ ni routes/ aujourd'hui (les alertes passent par PropertySearchService::alertMatches) : code mort qui contredit la règle du §7 et attend un appelant.",
+      "gravite": "basse",
+      "correctif": "Le supprimer, ou le passer sur tagsVisibles."
+    },
+    {
+      "bloquant": false,
+      "fichier": "takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php (planchers nationaux)",
+      "scenario": "Non traité, par décision de session (« la garde protège d'un accident, pas d'un signataire ») : la décision est consignée dans corrections_tour_3 ; non rejoué.",
+      "gravite": "acceptée par la session",
+      "correctif": "—"
+    }
+  ],
+  "integrite": "Aucune écriture git. Aucune requête sortante. Aucune suite entière. Ablations par Edit puis Edit inverse, md5 relus après chaque restauration et à la fin : PropertyDuplicationService 668c0658, PropertyTagController 0436e94b, TagModeration 711b6fb8, Tag ee5c0c44, GeoDatasetReviewedTest 2f428c52, signer.mjs 5de4493b ; Property 39be1400, FiltresDeLaCarte 38ccd6c8, SyncAgencyPropertiesSearchIndex 9310f78c, TagCatalog 8426123f jamais modifiés. Jeu géographique : md5 de l'ensemble 3f99218e avant et après, 14 relu_par null, jamais signé ; signer.mjs lancé UNIQUEMENT sur la copie du scratchpad. Sonde PHP et copies du scratchpad (scratchpad/reverif3) supprimées."
+}

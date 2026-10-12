@@ -99,6 +99,13 @@ enum Capability: string
     case RolesEditCustom = 'roles.edit_custom';
     case RolesDeleteCustom = 'roles.delete_custom';
 
+    // ─── Mise en avant (TCK-633 lot F, ADR-0061 §5) ─────────────────────────────────────
+    // Dépenser les crédits de l'espace pour booster un bien. Accordée à l'admin d'espace par
+    // `agencyAssignable()` ; l'agent système ne la reçoit pas (`SystemRoleCapabilities::agent()`
+    // inchangé) — un rôle personnalisé peut la lui donner. Les rôles système des agences existantes
+    // la reçoivent par `membership:reconcile-system-roles` (docker/release.sh).
+    case BoostSpend = 'boost.spend';
+
     /**
      * Domaine (préfixe avant le premier `.`) — utilisé par l'UI TCK-279 pour
      * grouper les capacités dans la matrice d'édition.

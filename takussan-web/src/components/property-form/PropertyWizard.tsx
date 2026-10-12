@@ -22,7 +22,6 @@ import {
 import {
   createPropertyAction,
   setPropertyTagsAction,
-  updatePropertyVisibilityAction,
   uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
@@ -41,6 +40,10 @@ import { StepFinition } from './wizard/steps/StepFinition';
 import { BarreApercu, CarteApercu, ListePourPublier } from './wizard/ApercuAnnonce';
 import { EnTetePublication } from './wizard/EnTetePublication';
 import { reduirePhotos } from '@/lib/reduire-photo';
+import { publishPropertyAction } from '@/app/actions/publish-property';
+import { replacePropertyContactsAction } from '@/app/actions/property-contacts';
+import { ContactsSurPlace, type ContactSurPlace } from '@/components/contact/ContactsSurPlace';
+import { CoordonneesPublication } from '@/components/contact/CoordonneesPublication';
 
 /**
  * TCK-464 — l'assemblage du parcours de publication : les six étapes, la validation par étape, le
@@ -206,8 +209,14 @@ export function PropertyWizard({
   tags = [],
   proposition = false,
   quotaNote,
+  fraisDAgence = true,
 }: {
   readonly tags?: Tag[];
+  /**
+   * TCK-633 — faux quand l'agence de l'auteur est un indépendant (`kind: 'individual'`) : il ne
+   * facture pas de frais d'agence, et l'API les refuse pour lui. La page le lit (`new/page.tsx`).
+   */
+  readonly fraisDAgence?: boolean;
   /** TCK-631 — « 3 annonces sur 5 » : le quota se lisait sous le titre de page, qui a disparu. */
   readonly quotaNote?: string;
   /**
@@ -260,6 +269,14 @@ export function PropertyWizard({
    */
   const [statutPublie, setStatutPublie] = useState<string | null>(null);
   const [echecPublication, setEchecPublication] = useState(false);
+  /** TCK-633 (lot C) — la cinquième écriture : les contacts sur place, après la création. */
+  const [contactsSurPlace, setContactsSurPlace] = useState<ContactSurPlace[]>([]);
+  const [contactsEnvoyes, setContactsEnvoyes] = useState(false);
+  /** TCK-633 — ce que l'API a refusé de publier faute de coordonnées (`missing`), et pour qui. */
+  const [manquants, setManquants] = useState<string[] | null>(null);
+  const [contactEstSoi, setContactEstSoi] = useState(true);
+  const tContacts = useTranslations('property.contacts');
+  const tPublication = useTranslations('property.form.publishContact');
 
   /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
   const terminer = async (id: number) => {
@@ -299,8 +316,9 @@ export function PropertyWizard({
       const valeurs = form.getValues() as unknown as PropertyFormPayload;
       const echecs: string[] = [];
 
-      if (valeurs.tag_ids?.length && !tagsEnvoyes) {
-        const r = await setPropertyTagsAction(bien.id, valeurs.tag_ids);
+      // TCK-633 — un équipement PROPOSÉ (nom hors catalogue) part par le même appel que les autres.
+      if ((valeurs.tag_ids?.length || valeurs.tag_names?.length) && !tagsEnvoyes) {
+        const r = await setPropertyTagsAction(bien.id, valeurs.tag_ids ?? [], valeurs.tag_names ?? []);
         if (r.ok) setTagsEnvoyes(true);
         else echecs.push(t('partial.tags'));
       }
@@ -323,6 +341,13 @@ export function PropertyWizard({
         }
       }
 
+      const contactsValides = contactsSurPlace.filter((c) => c.phone.trim() !== '');
+      if (contactsValides.length > 0 && !contactsEnvoyes) {
+        const r = await replacePropertyContactsAction(bien.id, contactsValides);
+        if (r.ok) setContactsEnvoyes(true);
+        else echecs.push(tContacts('partial'));
+      }
+
       // Un échec ici n'est PAS un échec de création : le dire autrement enverrait l'utilisateur
       // recommencer, et créer un doublon. On ne quitte donc pas la page, on ne vide pas le
       // brouillon, et on offre les deux issues qui existent réellement.
@@ -334,12 +359,18 @@ export function PropertyWizard({
       // Le bailleur hors personnel PROPOSE : il n'a pas `properties.publish`, l'agence publiera.
       let statut = statutPublie;
       if (!proposition && statut === null) {
-        const r = await updatePropertyVisibilityAction(bien.id, 'public');
+        // TCK-633 (lot C) — `POST …/publish` porte l'acceptation des CGU que la phrase de
+        // `CoordonneesPublication` annonce. Un refus faute de coordonnées ouvre le bloc, sans
+        // quitter la publication ; le brouillon reste, et « Publier » rejoue la seule publication.
+        const r = await publishPropertyAction(bien.id, { acceptTerms: true });
         if (!r.ok) {
-          setAvertissement(t('publishFailed', { message: r.message }));
+          setManquants(r.missing);
+          setContactEstSoi(r.contactIsSelf);
+          setAvertissement(r.missing ? tPublication('incomplete') : t('publishFailed', { message: r.message }));
           setEchecPublication(true);
           return;
         }
+        setManquants(null);
         statut = r.data?.status ?? 'available';
         setStatutPublie(statut);
       }
@@ -406,20 +437,25 @@ export function PropertyWizard({
     if (etatBrouillon !== 'restaure' || brouillonApplique.current) return;
     brouillonApplique.current = true;
     const donnees = brouillon.draft?.data;
-    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees) } as PropertyFormValues);
+    // TCK-633 — `currency` est ré-imposée : un brouillon d'avant ADR-0061 peut porter l'euro, et
+    // le prix se lirait avec des décimales que la publication en francs CFA n'admet pas.
+    if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees), currency: 'XOF' } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
 
   /**
-   * Le CERTAIN de la géo-IP, posé d'office et UNE SEULE FOIS : le pays et la devise. La ville et
+   * Le CERTAIN de la géo-IP, posé d'office et UNE SEULE FOIS : le pays. La ville et
    * la région, elles, restent à la suggestion, qui s'accepte d'un geste (AC6) — la géo-IP dit où
    * est l'utilisateur, pas où est le bien.
    *
    * C'est ce que promet la note de l'étape 1 (`geoDefaultsNote`) ; sans cet effet, elle mentirait.
    *
    * ⚠ Le garde-fou n'est pas décoratif. `UserLocationProvider` peut livrer la localisation APRÈS
-   * le premier rendu : sans lui, une devise arrivée en retard écraserait celle que l'utilisateur
-   * vient de choisir à l'étape du prix. Et sur un brouillon repris, on ne pose plus rien du tout —
-   * ses valeurs sont celles d'une session où l'utilisateur avait déjà la main.
+   * le premier rendu : sans lui, un pays arrivé en retard écraserait celui que l'utilisateur
+   * vient de corriger. Et sur un brouillon repris, on ne pose plus rien du tout — ses valeurs sont
+   * celles d'une session où l'utilisateur avait déjà la main.
+   *
+   * TCK-633 — la devise n'est plus devinée : le prix se publie en francs CFA (ADR-0061), quel que
+   * soit le pays de connexion. Un visiteur connecté depuis Paris publie un bien à Dakar.
    */
   const geoPosee = useRef(false);
   useEffect(() => {
@@ -427,8 +463,7 @@ export function PropertyWizard({
     geoPosee.current = true;
     if (etatBrouillon === 'restaure') return;
     if (defaults.country) setValue('country', defaults.country, { shouldDirty: true });
-    if (defaults.currency) setValue('currency', defaults.currency, { shouldDirty: true });
-  }, [defaults.country, defaults.currency, geoEnCours, etatBrouillon, setValue]);
+  }, [defaults.country, geoEnCours, etatBrouillon, setValue]);
 
   /**
    * Autosave silencieux : chaque changement de valeur part au hook, qui débounce à 800 ms et
@@ -524,7 +559,7 @@ export function PropertyWizard({
       part: PARTIE_PAR_ETAPE[3],
       title: t('steps.prix.title'),
       subtitle: t(contrat === 'rent' ? 'steps.prix.subtitleRent' : 'steps.prix.subtitleSale'),
-      body: <StepPrix form={form} />,
+      body: <StepPrix form={form} fraisDAgence={fraisDAgence} />,
     },
     {
       id: 'photos',
@@ -549,7 +584,16 @@ export function PropertyWizard({
       part: PARTIE_PAR_ETAPE[5],
       title: t('steps.finition.title'),
       subtitle: t('steps.finition.subtitle'),
-      body: <StepFinition form={form} />,
+      body: (
+        <StepFinition form={form}>
+          {proposition ? null : (
+            <>
+              <ContactsSurPlace valeur={contactsSurPlace} onChange={setContactsSurPlace} />
+              <CoordonneesPublication manquantsServeur={manquants} contactEstSoi={contactEstSoi} />
+            </>
+          )}
+        </StepFinition>
+      ),
     },
   ];
 

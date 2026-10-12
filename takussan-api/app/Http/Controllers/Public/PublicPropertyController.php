@@ -44,6 +44,7 @@ use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
+use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
@@ -52,8 +53,10 @@ use App\Services\Model\NotificationService;
 use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Property\PropertyContactNumbers;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\SimilarPropertiesService;
+use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
@@ -150,7 +153,8 @@ class PublicPropertyController extends Controller
         if ($request->input('sort') === 'created_desc') {
             $query->orderByDesc('created_at');
         } else {
-            $query->orderByDesc('featured')->orderByDesc('published_at');
+            // TCK-633 lot F (ADR-0061 §7) — l'ordre organique ne lit plus `featured`.
+            $query->orderByRaw('ranked_at DESC NULLS LAST')->orderByDesc('id');
         }
 
         $properties = $query->paginate(self::parPage($request, 20, self::INDEX_MAX_PER_PAGE));
@@ -402,7 +406,7 @@ class PublicPropertyController extends Controller
             // `primary_contact` partaient en chargement paresseux, soit deux requêtes par bien
             // comparé. C'était déjà vrai d'`owner` avant ce ticket.
             // TCK-590 — les profils du collaborateur : l'éligibilité du contact se juge sur eux.
-            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media', 'collaborators.user.agentProfiles', 'collaborators.user.agencyAdminProfiles'])
+            ->with(['address', 'media', 'tags' => fn ($q) => $q->visiblesSurUneFiche(), 'owner.media', 'collaborators.user.media', 'collaborators.user.agentProfiles', 'collaborators.user.agencyAdminProfiles'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)
@@ -504,7 +508,7 @@ class PublicPropertyController extends Controller
      * le corrige. Le jour où un écran rend la troncature ordinaire plutôt
      * qu'exceptionnelle, ce paragraphe est le point de reprise.
      */
-    public function map(MapPublicPropertyRequest $request): JsonResponse
+    public function map(MapPublicPropertyRequest $request, FiltresDeLaCarte $filtres): JsonResponse
     {
         $validated = $request->validated();
 
@@ -543,19 +547,10 @@ class PublicPropertyController extends Controller
             );
         }
 
-        if (! empty($validated['type'])) {
-            $types = array_filter(explode(',', $validated['type']));
-            $query->whereIn('type', $types);
-        }
-        if (! empty($validated['contract_type'])) {
-            $query->where('contract_type', $validated['contract_type']);
-        }
-        if (isset($validated['price_min'])) {
-            $query->where('price', '>=', $validated['price_min']);
-        }
-        if (isset($validated['price_max'])) {
-            $query->where('price', '<=', $validated['price_max']);
-        }
+        // TCK-633 (lot E, AC6) — TOUS les filtres du panneau, traduits en SQL par une seule
+        // classe : la carte rend le compte de la liste (`MapFiltersParityTest`). Le plein-texte,
+        // le tri et la pagination restent propres à la liste.
+        $filtres->appliquer($query, $validated);
 
         $properties = $query->limit(self::MAP_MAX_RESULTS + 1)->get();
         $truncated = $properties->count() > self::MAP_MAX_RESULTS;
@@ -582,7 +577,9 @@ class PublicPropertyController extends Controller
             ->with([
                 'address',
                 'media',
-                'tags',
+                // TCK-633 (D9) — une proposition d'équipement en attente ne sort ici que sur le
+                // bien où son auteur l'a rattachée (`Tag::scopeVisiblesSurUneFiche`).
+                'tags' => fn ($q) => $q->visiblesSurUneFiche(),
                 'owner.media',
                 'agency.media',
                 // TCK-502 — `.media` en plus : la fiche nomme désormais le CONTACT PRINCIPAL,
@@ -591,6 +588,8 @@ class PublicPropertyController extends Controller
                 // TCK-590 — l'éligibilité du contact principal se juge sur ses profils chargés.
                 'collaborators.user.agentProfiles',
                 'collaborators.user.agencyAdminProfiles',
+                // TCK-633 (lot C) — `primary_contact.has_whatsapp` compte les contacts sur place.
+                'contacts',
                 'documents.media',
                 'priceHistory',
                 'reviews' => fn ($q) => $q->where('is_approved', true),
@@ -626,6 +625,10 @@ class PublicPropertyController extends Controller
 
         if ($property !== null) {
             $compteur->record($property, (string) $request->ip());
+            // TCK-633 lot F (ADR-0061 §10) — un clic d'emplacement : une vue arrivée par `src=sponsored`.
+            if ($request->query('src') === 'sponsored') {
+                app(BoostStatsRecorder::class)->click($property, (string) $request->ip());
+            }
         }
 
         return $this->json(null, 204);
@@ -1187,7 +1190,7 @@ class PublicPropertyController extends Controller
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
-            ->with(PrimaryPropertyContact::eagerLoads())
+            ->with([...PrimaryPropertyContact::eagerLoads(), 'contacts'])
             ->public()
             ->where('slug', $slug)
             ->firstOrFail();
@@ -1196,8 +1199,8 @@ class PublicPropertyController extends Controller
         // était écrit ICI, en français quelle que soit la langue du visiteur : le front le
         // construit désormais (principe n°5). L'endpoint ne rend plus que ce que le front ne peut
         // pas savoir — le numéro, révélé au geste et sous limiteur (contrainte 7).
-        return $this->json([
-            'phone' => PrimaryPropertyContact::for($property)?->phone,
-        ]);
+        // TCK-633 (lot C) — une LISTE : principal, second (vérifié), sur place. Toujours révélée au
+        // geste et sous limiteur ; les contacts sur place ne sortent par AUCUNE autre réponse.
+        return $this->json(['data' => PropertyContactNumbers::for($property)]);
     }
 }

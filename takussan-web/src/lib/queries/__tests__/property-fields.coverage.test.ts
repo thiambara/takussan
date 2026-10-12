@@ -184,6 +184,9 @@ const APPELANTS: readonly Appelant[] = [
       'owner',
       'primary_contact',
       'primary_contact_source',
+      // TCK-633 — l'édition masque les frais d'agence d'un indépendant (`agency.kind`) : la route
+      // `show` sert `agency` dès `$isDetail` (`PropertyResource`), `agency_id` étant demandé.
+      'agency',
     ],
     horsQueryFields: ['description'],
     minColonnesLues: 20,

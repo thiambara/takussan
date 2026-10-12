@@ -1,3 +1,6 @@
+import type { AgencyKind } from './agency';
+import type { TagStatus } from './tag';
+
 export type PropertyType =
   | 'apartment' | 'house' | 'villa' | 'studio' | 'room'
   | 'land' | 'office' | 'shop' | 'warehouse' | 'factory'
@@ -94,6 +97,11 @@ export interface PropertyOwnerLite {
    */
   has_phone?: boolean;
   /**
+   * TCK-633 (lot C) — au moins un numéro du bien est déclaré WhatsApp. Faux ou absent : aucun
+   * bouton WhatsApp sur la fiche.
+   */
+  has_whatsapp?: boolean;
+  /**
    * TCK-598 (V8) — le numéro du contact a-t-il été vérifié ? Un booléen dérivé de
    * `phone_verified_at`, jamais la date ni le numéro. Absent d'une charge utile antérieure : lu
    * comme faux.
@@ -121,6 +129,8 @@ export interface PropertyAgencyLite {
   logo_url: string | null;
   verified: boolean;
   rating: number | null;
+  /** TCK-633 — un indépendant (`individual`) ne facture pas de frais d'agence (`PropertyResource`, tâche 13). */
+  kind?: AgencyKind;
 }
 
 export interface PropertyTag {
@@ -130,6 +140,8 @@ export interface PropertyTag {
   type: 'amenity' | 'feature' | 'category' | string;
   icon: string | null;
   color: string | null;
+  /** TCK-633 — une proposition d'équipement attachée au bien est `pending` (`PropertyResource`, tâche 13). */
+  status?: TagStatus;
 }
 
 export interface PropertyPhoto {
@@ -254,6 +266,9 @@ export interface PropertyDetail extends PropertyListItem {
     postal_code: string | null;
     latitude: number | null;
     longitude: number | null;
+    /** TCK-633 — les identifiants du référentiel (ADR-0062), `null` hors référentiel. */
+    geo_city_id?: number | null;
+    geo_neighborhood_id?: number | null;
   };
   /**
    * TCK-335 — champs de modération : l'API ne les émet que pour un appelant

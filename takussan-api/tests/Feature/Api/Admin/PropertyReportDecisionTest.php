@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\ApiTestCase;
+use Tests\Support\PubliePret;
 
 /**
  * TCK-597 (ADR-0043 §4, AC3, AC4, AC5) — trancher un signalement AGIT sur l'annonce, et le verrou
@@ -27,7 +28,7 @@ use Tests\ApiTestCase;
  */
 class PropertyReportDecisionTest extends ApiTestCase
 {
-    use RefreshDatabase;
+    use PubliePret, RefreshDatabase;
 
     private Agency $agency;
 
@@ -50,6 +51,7 @@ class PropertyReportDecisionTest extends ApiTestCase
         $this->materializeRoleProfile($this->adminA, 'agency_admin', $this->agency);
         $this->super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($this->super, 'super_admin');
+        $this->rendrePubliable($this->owner, $this->adminA, $this->super);
 
         $this->property = Property::factory()->published()->create([
             'agency_id' => $this->agency->id,
