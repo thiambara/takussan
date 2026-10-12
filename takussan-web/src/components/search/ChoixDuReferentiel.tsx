@@ -14,8 +14,10 @@ import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
 import {
   useEquipementsApprouves,
   useQuartiersDuReferentiel,
+  useRegionsDuReferentiel,
   useVillesDuReferentiel,
 } from '@/lib/queries/referentiel-public';
+import type { GeoCity, GeoRegion } from '@/types/geo';
 
 /**
  * TCK-633 (lot E) — ville, quartier et équipements se CHOISISSENT dans des listes.
@@ -33,12 +35,19 @@ import {
 
 export interface ChoixDeVilleProps {
   readonly valeur: string | undefined;
-  readonly onChange: (valeur: string | undefined) => void;
+  /** TCK-635 (ADR-0062 §8) — la région, posée seulement pour une ville homonyme. */
+  readonly region?: string | undefined;
+  /** `region` n'est rendue que pour une ville homonyme ; `undefined` partout ailleurs. */
+  readonly onChange: (ville: string | undefined, region?: string) => void;
 }
 
-export interface ChoixDeQuartierProps extends ChoixDeVilleProps {
+export interface ChoixDeQuartierProps {
   /** Le nom de la ville choisie — le quartier ne se choisit qu'à l'intérieur d'une ville. */
   readonly ville: string | undefined;
+  /** Sa région, quand le nom seul ne la désigne pas. */
+  readonly region?: string | undefined;
+  readonly valeur: string | undefined;
+  readonly onChange: (valeur: string | undefined) => void;
 }
 
 export interface ChoixDEquipementsProps {
@@ -54,18 +63,87 @@ function option(nom: string): OptionDeListe {
 /**
  * Les noms proposés, la valeur courante en tête quand le référentiel ne la connaît pas (une URL
  * ancienne, un lien partagé) : elle reste VISIBLE, donc retirable, au lieu de disparaître du champ
- * pendant que la liste la filtre encore.
- *
- * Chaque nom n'y figure qu'UNE fois. Le référentiel porte des villes homonymes, dans deux régions
- * différentes (Dinguiraye, Missirah, Vélingara — relevé du 2026-10-12) : la valeur d'une option
- * est son nom, et deux options de même valeur donnaient deux enfants de même clé (« Encountered two
- * children with the same key », signalé par le porteur). Les fusionner ne perd rien : la recherche
- * filtre par NOM, une seule option « Dinguiraye » trouve déjà les biens des deux.
+ * pendant que la liste la filtre encore. Chaque nom n'y figure qu'une fois : deux options de même
+ * valeur donnent deux enfants de même clé.
  */
 export function optionsAvecLaValeur(noms: readonly string[], valeur: string | undefined): OptionDeListe[] {
   const uniques = [...new Set(noms)];
   if (!valeur || uniques.includes(valeur)) return uniques.map(option);
   return [valeur, ...uniques].map(option);
+}
+
+/**
+ * TCK-635 (ADR-0062 §8) — le référentiel porte trois paires de villes homonymes, chacune dans deux
+ * régions : Dinguiraye (Diourbel, Kolda), Missirah (Diourbel, Tambacounda), Vélingara (Matam,
+ * Kolda). Une option par VILLE, donc, et non par nom : la valeur d'une homonyme porte sa région
+ * (séparateur invisible, qu'aucun nom ne contient), son libellé l'affiche — « Dinguiraye (Kolda) ».
+ * Les autres villes gardent leur nom seul, en valeur comme en libellé.
+ */
+const SEPARATEUR_DE_REGION = '\u001f';
+
+function valeurDeVille(ville: string, region: string | undefined): string {
+  return region ? `${ville}${SEPARATEUR_DE_REGION}${region}` : ville;
+}
+
+function libelleDeVille(ville: string, region: string | undefined): string {
+  return region ? `${ville} (${region})` : ville;
+}
+
+/** L'inverse de {@link valeurDeVille} : le nom, et la région quand la valeur en porte une. */
+export function villeDeValeur(valeur: string): { readonly ville: string; readonly region?: string } {
+  const [ville, region] = valeur.split(SEPARATEUR_DE_REGION);
+  return region ? { ville, region } : { ville };
+}
+
+/**
+ * Les villes proposées : une option par ville, la région au libellé des seules homonymes. Tant que
+ * les régions n'ont pas répondu, deux homonymes restent une seule option (aucune clé en double).
+ * La valeur courante reste en tête si la liste ne la connaît pas — y compris `city=Dinguiraye` sans
+ * région (un lien d'avant le départage), qui trouve les biens des deux.
+ */
+export function optionsDeVilles(
+  villes: readonly GeoCity[],
+  regions: readonly GeoRegion[],
+  valeur: string | undefined,
+  region: string | undefined,
+): OptionDeListe[] {
+  const nomDeRegion = new Map(regions.map((r) => [r.id, r.name]));
+  const occurrences = new Map<string, number>();
+  for (const v of villes) occurrences.set(v.name, (occurrences.get(v.name) ?? 0) + 1);
+
+  const options = new Map<string, OptionDeListe>();
+  for (const v of villes) {
+    const regionAffichee = (occurrences.get(v.name) ?? 0) > 1 ? nomDeRegion.get(v.region_id) : undefined;
+    const cle = valeurDeVille(v.name, regionAffichee);
+    if (!options.has(cle)) options.set(cle, { value: cle, label: libelleDeVille(v.name, regionAffichee) });
+  }
+
+  if (valeur) {
+    const courante = valeurDeVille(valeur, region);
+    if (!options.has(courante)) {
+      return [{ value: courante, label: libelleDeVille(valeur, region) }, ...options.values()];
+    }
+  }
+  return [...options.values()];
+}
+
+/**
+ * L'identifiant de la ville de l'URL, retrouvée par son nom à la casse près (`city=dakar` tapé à la
+ * main, règle d'identité d'ADR-0025), puis par sa région si le nom est porté par deux villes. Une
+ * homonyme sans région ne désigne aucune des deux : `null`, plutôt que la première venue.
+ */
+export function villeDuReferentiel(
+  villes: readonly GeoCity[],
+  regions: readonly GeoRegion[],
+  ville: string | undefined,
+  region: string | undefined,
+): number | null {
+  if (!ville) return null;
+  const candidates = villes.filter((v) => replierPourIdentite(v.name) === replierPourIdentite(ville));
+  if (candidates.length <= 1) return candidates[0]?.id ?? null;
+  if (!region) return null;
+  const regionId = regions.find((r) => replierPourIdentite(r.name) === replierPourIdentite(region))?.id;
+  return candidates.find((v) => v.region_id === regionId)?.id ?? null;
 }
 
 function BoutonDeRetrait({ libelle, onClick }: { readonly libelle: string; readonly onClick: () => void }) {
@@ -123,10 +201,10 @@ function ChampDeListe({
   );
 }
 
-export function ChoixDeVille({ valeur, onChange }: ChoixDeVilleProps) {
+export function ChoixDeVille({ valeur, region, onChange }: ChoixDeVilleProps) {
   const t = useTranslations('search.filters');
   const villes = useVillesDuReferentiel();
-  const noms = (villes.data?.data ?? []).map((ville) => ville.name);
+  const regions = useRegionsDuReferentiel();
 
   return (
     <ChampDeListe
@@ -134,22 +212,23 @@ export function ChoixDeVille({ valeur, onChange }: ChoixDeVilleProps) {
       placeholder={t('place.cityPlaceholder')}
       vide={t('place.noCity')}
       libelleRetrait={t('place.clearCity')}
-      options={optionsAvecLaValeur(noms, valeur)}
-      valeur={valeur}
-      onChange={onChange}
+      options={optionsDeVilles(villes.data?.data ?? [], regions.data?.data ?? [], valeur, region)}
+      valeur={valeur ? valeurDeVille(valeur, region) : undefined}
+      onChange={(choisie) => {
+        if (choisie === undefined) return onChange(undefined);
+        const { ville, region: regionChoisie } = villeDeValeur(choisie);
+        return regionChoisie ? onChange(ville, regionChoisie) : onChange(ville);
+      }}
       chargement={villes.isLoading}
     />
   );
 }
 
-export function ChoixDeQuartier({ ville, valeur, onChange }: ChoixDeQuartierProps) {
+export function ChoixDeQuartier({ ville, region, valeur, onChange }: ChoixDeQuartierProps) {
   const t = useTranslations('search.filters');
   const villes = useVillesDuReferentiel();
-  // La ville de l'URL est un NOM : on la retrouve à la casse près (`city=dakar` tapé à la main),
-  // la règle d'identité du référentiel (ADR-0025 — accents non repliés).
-  const villeId = ville
-    ? ((villes.data?.data ?? []).find((v) => replierPourIdentite(v.name) === replierPourIdentite(ville))?.id ?? null)
-    : null;
+  const regions = useRegionsDuReferentiel();
+  const villeId = villeDuReferentiel(villes.data?.data ?? [], regions.data?.data ?? [], ville, region);
   const quartiers = useQuartiersDuReferentiel(villeId);
   const noms = (quartiers.data?.data ?? []).map((quartier) => quartier.name);
   const sansVille = !ville;

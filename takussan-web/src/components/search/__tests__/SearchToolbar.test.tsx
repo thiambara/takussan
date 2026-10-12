@@ -32,6 +32,8 @@ const TOUS_LES_FILTRES: SearchFilters = {
   q: 'villa vue mer',
   location: 'Almadies',
   city: 'Dakar',
+  // TCK-635 — la région précise la ville homonyme : agrégée à `city`, pas de puce propre.
+  region: 'Kolda',
   // TCK-346 — le rayon PORTE la puce, `lat`/`lng` y sont agrégées : trois clés, une puce.
   radius_km: 5,
   lat: 14.6928,

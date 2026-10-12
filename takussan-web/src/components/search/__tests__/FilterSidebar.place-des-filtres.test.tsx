@@ -34,6 +34,8 @@ const EXEMPLES: Record<CleFiltrante, SearchFilters | typeof HORS_PANNEAU> = {
   q: HORS_PANNEAU,
   location: { location: 'Almadies' },
   city: { city: 'Dakar' },
+  // TCK-635 — la région d'une ville homonyme se lit dans le champ Ville.
+  region: { city: 'Dinguiraye', region: 'Kolda' },
   radius_km: POINT,
   lat: POINT,
   lng: POINT,

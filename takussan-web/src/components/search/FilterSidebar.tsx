@@ -643,10 +643,18 @@ export function FilterSidebar({
           <div className="space-y-2">
             <ChoixDeVille
               valeur={filters.city}
-              onChange={(city) => set({ city, location: city === filters.city ? filters.location : undefined })}
+              region={filters.region}
+              onChange={(city, region) =>
+                set({
+                  city,
+                  region,
+                  location: city === filters.city && region === filters.region ? filters.location : undefined,
+                })
+              }
             />
             <ChoixDeQuartier
               ville={filters.city}
+              region={filters.region}
               valeur={filters.location}
               onChange={(location) => set({ location })}
             />

@@ -12,6 +12,14 @@ import { withIntl } from '@/test/intl';
  */
 
 vi.mock('@/lib/queries/referentiel-public', () => ({
+  useRegionsDuReferentiel: () => ({
+    data: {
+      data: [
+        { id: 1, name: 'Diourbel', slug: 'diourbel' },
+        { id: 5, name: 'Kolda', slug: 'kolda' },
+      ],
+    },
+  }),
   useVillesDuReferentiel: () => ({
     data: {
       data: [
@@ -32,7 +40,11 @@ vi.mock('@/lib/queries/referentiel-public', () => ({
             { id: 11, city_id: 1, name: 'Liberté 4', slug: 'liberte-4', latitude: null, longitude: null, status: 'approved' },
           ],
         }
-      : undefined,
+      : villeId === 133
+        ? { data: [{ id: 20, city_id: 133, name: 'Escale', slug: 'escale', latitude: null, longitude: null, status: 'approved' }] }
+        : villeId === 7
+          ? { data: [{ id: 21, city_id: 7, name: 'Ndiobène', slug: 'ndiobene', latitude: null, longitude: null, status: 'approved' }] }
+          : undefined,
   }),
   useEquipementsApprouves: () => ({
     data: {
@@ -62,23 +74,39 @@ describe('TCK-633 — ChoixDeVille', () => {
 
   /**
    * Retour du porteur du 2026-10-12 : « Encountered two children with the same key,
-   * `Dinguiraye` ». La valeur d'une option est son nom ; deux villes homonymes donnaient deux
-   * options de même clé. Une seule suffit : la recherche filtre par nom.
+   * `Dinguiraye` » — deux villes homonymes donnaient deux options de même valeur. Puis TCK-635
+   * (ADR-0062 §8) : les deux sont deux lieux, et la recherche les départage par la région.
    */
-  it('une ville homonyme n’est proposée qu’une fois, sans clé en double', async () => {
+  it('deux villes homonymes sont deux options, distinguées par leur région', async () => {
     const user = userEvent.setup();
     const erreurs = vi.spyOn(console, 'error').mockImplementation(() => {});
     const onChange = vi.fn();
     render(withIntl(<ChoixDeVille valeur={undefined} onChange={onChange} />));
 
     await user.type(screen.getByRole('combobox', { name: 'Ville' }), 'Ding');
-    const options = await screen.findAllByRole('option', { name: 'Dinguiraye' });
-    expect(options).toHaveLength(1);
+    expect(await screen.findByRole('option', { name: 'Dinguiraye (Diourbel)' })).toBeInTheDocument();
+    const kolda = screen.getByRole('option', { name: 'Dinguiraye (Kolda)' });
+    expect(screen.queryByRole('option', { name: 'Dinguiraye' })).not.toBeInTheDocument();
     expect(erreurs.mock.calls.flat().join(' ')).not.toMatch(/same key/);
     erreurs.mockRestore();
 
-    await user.click(options[0]);
-    expect(onChange).toHaveBeenLastCalledWith('Dinguiraye');
+    await user.click(kolda);
+    expect(onChange).toHaveBeenLastCalledWith('Dinguiraye', 'Kolda');
+  });
+
+  it('une ville homonyme de l’URL s’affiche avec sa région', () => {
+    render(withIntl(<ChoixDeVille valeur="Dinguiraye" region="Kolda" onChange={vi.fn()} />));
+    expect(screen.getByRole('combobox', { name: 'Ville' })).toHaveValue('Dinguiraye (Kolda)');
+  });
+
+  it('une ville sans homonyme n’affiche pas sa région, et n’en rend pas', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(withIntl(<ChoixDeVille valeur={undefined} onChange={onChange} />));
+
+    await user.type(screen.getByRole('combobox', { name: 'Ville' }), 'Dak');
+    await user.click(await screen.findByRole('option', { name: 'Dakar' }));
+    expect(onChange.mock.lastCall).toEqual(['Dakar']);
   });
 
   it('une ville de l’URL hors référentiel reste affichée, et se retire', async () => {
@@ -112,6 +140,24 @@ describe('TCK-633 — ChoixDeQuartier', () => {
     await user.click(await screen.findByRole('option', { name: 'Almadies' }));
 
     expect(onChange).toHaveBeenLastCalledWith('Almadies');
+  });
+
+  it('les quartiers d’une ville homonyme sont ceux de la ville de SA région', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<ChoixDeQuartier ville="Dinguiraye" region="Kolda" valeur={undefined} onChange={vi.fn()} />));
+
+    await user.type(screen.getByRole('combobox', { name: 'Quartier' }), 'e');
+    expect(await screen.findByRole('option', { name: 'Escale' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Ndiobène' })).not.toBeInTheDocument();
+  });
+
+  it('une ville homonyme sans région ne désigne aucune des deux : pas de quartier proposé', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<ChoixDeQuartier ville="Dinguiraye" valeur={undefined} onChange={vi.fn()} />));
+
+    await user.type(screen.getByRole('combobox', { name: 'Quartier' }), 'e');
+    expect(screen.queryByRole('option', { name: 'Escale' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Ndiobène' })).not.toBeInTheDocument();
   });
 });
 

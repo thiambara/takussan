@@ -150,8 +150,27 @@ catégories, `iconeDuType`) ; titres de section plus légers. Rail élargi de 26
 **Garde de contraste.** `ENCRES_INVERSES` 263 → 264 : le compte des biens, en
 `text-muted-foreground` sur le fond de la page. Relevé fichier par fichier contre `HEAD`.
 
+**Villes homonymes** (demande du porteur, 2026-10-12 ; [ADR-0062 §8](../../adr/0062-referentiel-geographique-region-ville-quartier.md)).
+Trois paires dans le référentiel : Dinguiraye (Diourbel, Kolda), Missirah (Diourbel, Tambacounda),
+Vélingara (Matam, Kolda). La liste les fusionnait en une option, qui trouvait les biens des deux ;
+le quartier se cherchait dans la première venue. Désormais une option par ville, « Dinguiraye
+(Kolda) », et un paramètre `region` (nom canonique) qui n'est écrit que pour une homonyme —
+`city=Dinguiraye&region=Kolda`, `city=Thiès` ailleurs. Pas de filtre par identifiant : la
+recherche compare le texte des adresses (ADR-0062 §4). Côté API, `region` est indexé et filtrable
+(liste, carte, alertes) : **le déploiement réimporte l'index des biens** (l'empreinte
+`.search-shape` change avec `config/scout.php` et `Property.php`). Côté front, `region` est agrégée
+à la puce de la ville (retirée avec elle), le choix d'une autre ville ou d'une suggestion de la
+barre la retire, et une homonyme sans région ne propose aucun quartier plutôt que ceux de la
+mauvaise. Un test du jeu de données garde l'unicité du couple (région, ville). Vérifié au
+navigateur sur deux biens déplacés le temps de l'essai puis restaurés : 2 biens sans région, 1 par
+région, `region` retirée en passant à Thiès.
+
 **Ablations** (une mutation, son test, le fichier restauré à l'identique) : quinze, toutes
 rouges. La robe retirée, la robe qui déborde dans la gouttière, le liseré en `ring`, le ruban sans mention, le badge
 absent, la place réservée sans robe, l'emplacement hors grille, l'emplacement sans robe, la taille
 de page sans pagination, l'échelle à 100 %, le rail collant, la sauvegarde en `disabled`, la robe
 sur tout bien de la rangée, les puces revenues dans l'en-tête, la sauvegarde absente de la rangée.
+Puis la ville homonyme listée deux fois (correctif `93f23ac0`), et dix pour le départage par la
+région : filtre absent de la liste, de la carte, de l'index ; jeu de données comparé sans la
+région ; options sans région ; quartier de la première homonyme, avec et sans région ; panneau qui
+n'écrit pas la région ; suggestion de la barre qui la garde ; ville qui ne la possède pas.

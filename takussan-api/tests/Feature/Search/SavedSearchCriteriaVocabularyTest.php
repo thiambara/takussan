@@ -56,7 +56,7 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
         'condition' => 'new',
     ];
 
-    private const BASE_ADDRESS = ['city' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
+    private const BASE_ADDRESS = ['city' => 'Dakar', 'region' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
 
     /**
      * clé → [clé, critères (forme exacte du front), écart de B sur le bien, écart de B sur l'adresse, tag de A]
@@ -71,6 +71,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'q' => ['q', ['q' => 'piscine'], ['title' => 'Villa vue mer'], [], null],
             'location' => ['location', ['location' => 'Almadies'], [], ['neighborhood' => 'Médina'], null],
             'city' => ['city', ['city' => 'Dakar'], [], ['city' => 'Thiès'], null],
+            // TCK-635 (ADR-0062 §8) — même nom de ville, autre région : seule la région les sépare.
+            'region' => ['region', ['city' => 'Dakar', 'region' => 'Dakar'], [], ['region' => 'Thiès'], null],
             'cities' => ['cities', ['cities' => ['Dakar', 'Mbour']], [], ['city' => 'Saint-Louis'], null],
             'radius_km' => ['radius_km', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
             'lat' => ['lat', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
@@ -98,7 +100,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
     public function test_chaque_cle_du_vocabulaire_a_sa_ligne(): void
     {
         $this->assertEqualsCanonicalizing(SavedSearchCriteria::KEYS, array_keys(self::cles()));
-        $this->assertCount(23, SavedSearchCriteria::KEYS);
+        // 23 + `region` (TCK-635, ADR-0062 §8).
+        $this->assertCount(24, SavedSearchCriteria::KEYS);
     }
 
     /**

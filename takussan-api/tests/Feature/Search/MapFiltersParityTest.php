@@ -59,7 +59,7 @@ class MapFiltersParityTest extends ApiTestCase
         'condition' => 'new',
     ];
 
-    private const BASE_ADDRESS = ['city' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
+    private const BASE_ADDRESS = ['city' => 'Dakar', 'region' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
 
     /**
      * [clé, critères, écart de B, écart d'adresse de B, équipements de A, équipements de B, bien retenu].
@@ -77,6 +77,8 @@ class MapFiltersParityTest extends ApiTestCase
         return [
             'location' => ['location', ['location' => 'Almadies'], [], ['neighborhood' => 'Médina'], [], [], 'A'],
             'city' => ['city', ['city' => 'Dakar'], [], ['city' => 'Thiès'], [], [], 'A'],
+            // TCK-635 (ADR-0062 §8) — même nom de ville, autre région : seule la région les sépare.
+            'region' => ['region', ['city' => 'Dakar', 'region' => 'Dakar'], [], ['region' => 'Thiès'], [], [], 'A'],
             'price_min' => ['price_min', ['price_min' => '150000'], ['price' => 100_000], [], [], [], 'A'],
             'price_max' => ['price_max', ['price_max' => '300000'], ['price' => 400_000], [], [], [], 'A'],
             'bedrooms' => ['bedrooms', ['bedrooms' => '3'], ['bedrooms' => 2], [], [], [], 'A'],
