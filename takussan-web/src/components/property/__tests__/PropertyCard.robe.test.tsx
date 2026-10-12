@@ -5,10 +5,10 @@
  * ADR-0061 §7 : un résultat payé ne se présente jamais comme un résultat organique — d'où la
  * mention écrite (« Sponsorisé », « En vedette »), et pas la seule couleur.
  *
- * ⚠ jsdom ne calcule aucune mise en page : que la photo d'une carte en robe mesure exactement
- * celle d'une carte nue est mesuré au navigateur (notes du ticket, 249 × 187 à 1440 px pour les
- * deux). Ici on tient ce qui le PERMET : la robe compense sa marge intérieure par une marge
- * négative égale, et ne touche pas au cadre de la photo.
+ * ⚠ jsdom ne calcule aucune mise en page : la largeur des photos et l'écart entre les cartes sont
+ * mesurés au navigateur (notes du ticket : 245 px de photo et 14-15 px d'écart à 1440, robe ou
+ * non). Ici on tient ce qui le PERMET : la robe ne touche ni au cadre de la photo, ni aux marges de
+ * la carte — elle ne déborde pas dans la gouttière.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
@@ -94,7 +94,7 @@ describe('PropertyCard — la robe (TCK-635)', () => {
     const { container } = monte(<PropertyCard property={bien(1)} robe={robe} />);
     const racine = container.querySelector(`[data-robe="${robe}"]`)!;
     expect(racine).not.toBeNull();
-    expect(classes(racine)).toEqual(expect.arrayContaining(['bg-primary/8', 'ring-primary/35']));
+    expect(classes(racine)).toEqual(expect.arrayContaining(['bg-primary/8', 'outline-primary/35']));
     const ruban = racine.querySelector('[data-ruban]')!;
     expect(ruban).toHaveTextContent(mention);
     expect(racine.querySelector('[data-photo]')).toContainElement(ruban as HTMLElement);
@@ -107,7 +107,13 @@ describe('PropertyCard — la robe (TCK-635)', () => {
     expect(screen.queryByText(/Sponsorisé|En vedette/)).toBeNull();
   });
 
-  it('la robe ne change pas la taille : sa marge intérieure est rendue par une marge négative égale', () => {
+  /**
+   * Retour du porteur du 2026-10-12 : « l'espacement entre les biens doit être de même taille ».
+   * Une première robe débordait de 6 px dans la gouttière (`-m-1.5 p-1.5`) : deux robes voisines
+   * se touchaient presque. La robe vit maintenant dans la cellule : aucune marge, aucun remplissage
+   * sur la racine, un liseré tracé vers l'intérieur.
+   */
+  it('la robe ne déborde pas dans la gouttière, et la photo garde son cadre', () => {
     const { container } = monte(
       <>
         <PropertyCard property={bien(1)} robe="vedette" />
@@ -115,13 +121,11 @@ describe('PropertyCard — la robe (TCK-635)', () => {
       </>,
     );
     const [enRobe, nue] = [...container.querySelectorAll('[data-photo]')];
-    // Le cadre de la photo est le même, classe pour classe.
     expect(enRobe.className).toBe(nue.className);
     const robe = classes(container.querySelector('[data-robe]')!);
-    const marge = robe.find((c) => /^-m-/.test(c))?.slice(3);
-    const remplissage = robe.find((c) => /^p-/.test(c))?.slice(2);
-    expect(marge).toBeDefined();
-    expect(marge).toBe(remplissage);
+    expect(robe.filter((c) => /^-?(m|p)[xytrbl]?-/.test(c))).toEqual([]);
+    expect(robe.filter((c) => /^(ring|border)(-|$)/.test(c))).toEqual([]);
+    expect(robe).toEqual(expect.arrayContaining(['outline', '-outline-offset-1']));
   });
 });
 

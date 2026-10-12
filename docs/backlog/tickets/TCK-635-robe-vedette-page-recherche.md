@@ -104,9 +104,12 @@ Retours du porteur du 2026-10-12, sur preview, et ses trois arbitrages (recomman
 
 **La robe** (`PropertyCard`, prop `robe`). Un fond terre cuite à 8 %, un liseré à 35 %, et un ruban
 plein au bord droit de la photo qui porte la mention (« Sponsorisé » dans un emplacement, « En
-vedette » sur une place réservée). La robe se dessine dans la gouttière : `-m-1.5 p-1.5`, la marge
-négative rend exactement la marge intérieure. Mesuré au navigateur, photo d'une carte en robe et
-d'une carte nue voisines : **249 × 187 à 1440**, **328 × 246 à 360**, identiques (AC1).
+vedette » sur une place réservée). La robe vit **dans la cellule de la grille** : aucune marge ni
+remplissage sur la racine, un liseré en `outline` tracé vers l'intérieur, et seul le texte reçoit
+une marge intérieure. Une première version débordait de 6 px dans la gouttière (`-m-1.5 p-1.5`) ;
+le porteur a demandé le même espacement que pour les autres biens (2026-10-12). Mesuré au
+navigateur après correction : écart de **14-15 px entre toutes les cartes** à 1440, robe ou non ;
+photo **245 × 184 à 1440** et **328 × 246 à 360**, identique en robe et nue (AC1).
 
 - La robe est posée par une prop explicite, **jamais lue dans `featured`** : un bien en Vedette a
   aussi sa place organique plus bas dans la liste, et il n'y est pas un placement payé.
@@ -147,8 +150,8 @@ catégories, `iconeDuType`) ; titres de section plus légers. Rail élargi de 26
 **Garde de contraste.** `ENCRES_INVERSES` 263 → 264 : le compte des biens, en
 `text-muted-foreground` sur le fond de la page. Relevé fichier par fichier contre `HEAD`.
 
-**Ablations** (une mutation, son test, le fichier restauré à l'identique) : quatorze, toutes
-rouges. La robe retirée, la marge différente du remplissage, le ruban sans mention, le badge
+**Ablations** (une mutation, son test, le fichier restauré à l'identique) : quinze, toutes
+rouges. La robe retirée, la robe qui déborde dans la gouttière, le liseré en `ring`, le ruban sans mention, le badge
 absent, la place réservée sans robe, l'emplacement hors grille, l'emplacement sans robe, la taille
 de page sans pagination, l'échelle à 100 %, le rail collant, la sauvegarde en `disabled`, la robe
 sur tout bien de la rangée, les puces revenues dans l'en-tête, la sauvegarde absente de la rangée.

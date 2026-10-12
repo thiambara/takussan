@@ -118,11 +118,16 @@ export interface PropertyCardProps {
 }
 
 /**
- * TCK-635 — la robe se dessine AUTOUR de la carte, dans la gouttière de la grille : `-m-2` compense
- * `p-2`, si bien que la photo et le texte gardent exactement la largeur d'une carte nue (AC1). Les
- * grilles qui la reçoivent ont au moins 16 px de gouttière : deux robes voisines ne se touchent pas.
+ * TCK-635 — la robe se dessine DANS la cellule de la grille, jamais dans la gouttière : l'écart
+ * entre deux cartes en robe est celui de deux cartes nues (retour du porteur du 2026-10-12 — une
+ * première version débordait de 6 px de chaque côté, et deux robes voisines se touchaient presque).
+ *
+ * La photo garde la largeur d'une carte nue (AC1) : seul le texte reçoit une marge intérieure
+ * ({@link TEXTE_EN_ROBE}). Le liseré est un `outline` posé vers l'INTÉRIEUR (`-outline-offset-1`) :
+ * il ne prend aucune place et ne déborde pas, contrairement à un `border` ou à un `ring`.
  */
-const ROBE = '-m-1.5 p-1.5 rounded-[1.125rem] bg-primary/8 ring-1 ring-primary/35';
+const ROBE = 'rounded-xl bg-primary/8 outline outline-1 -outline-offset-1 outline-primary/35';
+const TEXTE_EN_ROBE = 'px-2.5 pb-3';
 
 export function PropertyCard({
   property,
@@ -291,7 +296,7 @@ export function PropertyCard({
       </div>
 
       {/* Body */}
-      <div className="space-y-1 mt-3.5">
+      <div className={`space-y-1 mt-3.5 ${robe ? TEXTE_EN_ROBE : ''}`}>
         {/* TCK-555 — sous `md`, le comparateur (TCK-082) quitte la photo pour la rangée du prix :
             action secondaire, à l'opposé du favori (qui reste en haut de la photo). `-my-1` : le
             rond de 32 px n'élargit pas la rangée d'un prix de 22 px au-delà de 24.
