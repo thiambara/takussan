@@ -2573,8 +2573,7 @@
   },
   "search": {
     "sponsored": {
-      "label": "Kër yu ñu fey ngir gis-gis",
-      "chip": "Ñu fey ko"
+      "label": "Kër yu ñu fey ngir gis-gis"
     },
     "suggest": {
       "placeholder": "Seet dëkk, quartier, wàll kër…",
@@ -2763,6 +2762,9 @@
       "invalidName": "Tur bu baaxul.",
       "error": "Mënuñu denc seet gi.",
       "trigger": "Denc seet gi",
+      "triggerShort": "Denc",
+      "triggerHint": "Denc seet gi ci sa barab ngir mana ko defaat ci benn bës — te, bu la neexee, ñu xamal la kër yu bees yi ko méngoo.",
+      "triggerHintEmpty": "Tannal benn tànneef ba tuuti ngir mana denc seet gi.",
       "dialogTitle": "Denc seet gii",
       "dialogBody": "Dinga gis tànneef yii ci sa bérébu bopp.",
       "saved": "Denc nañu seet gi. Dinga ko gis ci sa bérébu.",
@@ -4985,7 +4987,8 @@
       "bedroomsAbbrev": "{count} neeg",
       "bathroomsShort": "{count} sanjaan",
       "photoPending": "Nataal bi dina ñëw",
-      "rentNoPeriod": "· luwaas"
+      "rentNoPeriod": "· luwaas",
+      "robe": { "sponsored": "Ñu fey ko", "featured": "Vedette" }, "badge": { "urgent": "Gaaw", "priceDrop": "Njëg wàcc na" }
     },
     "row": {
       "viewAll": "Gis lépp",

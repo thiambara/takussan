@@ -727,7 +727,8 @@
       "bedroomsAbbrev": "{count} bd",
       "bathroomsShort": "{count} ba",
       "photoPending": "Photo coming soon",
-      "rentNoPeriod": "· rent"
+      "rentNoPeriod": "· rent",
+      "robe": { "sponsored": "Sponsored", "featured": "Featured" }, "badge": { "urgent": "Urgent", "priceDrop": "Price drop" }
     },
     "row": {
       "viewAll": "See all",
@@ -4301,8 +4302,7 @@
   },
   "search": {
     "sponsored": {
-      "label": "Sponsored listings",
-      "chip": "Sponsored"
+      "label": "Sponsored listings"
     },
     "suggest": {
       "placeholder": "Search a city, neighborhood, property type…",
@@ -4491,6 +4491,9 @@
       "invalidName": "Invalid name.",
       "error": "The search could not be saved.",
       "trigger": "Save the search",
+      "triggerShort": "Save",
+      "triggerHint": "Keep these criteria in your space to rerun the search in one click — and, if you wish, be told about new properties that match.",
+      "triggerHintEmpty": "Choose at least one criterion to save this search.",
       "dialogTitle": "Save this search",
       "dialogBody": "Find these filters again in your personal space.",
       "saved": "Search saved. Find it in your space.",

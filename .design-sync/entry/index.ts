@@ -25,6 +25,7 @@ export * from '../../takussan-web/src/components/ui/table';
 export * from '../../takussan-web/src/components/ui/tabs';
 export * from '../../takussan-web/src/components/ui/textarea';
 export * from '../../takussan-web/src/components/ui/toast';
+export * from '../../takussan-web/src/components/ui/tooltip';
 export * from '../../takussan-web/src/components/ui/warning-banner';
 export * from '../../takussan-web/src/components/feedback/EmptyState';
 export * from '../../takussan-web/src/components/feedback/ErrorState';

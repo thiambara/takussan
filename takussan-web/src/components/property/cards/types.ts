@@ -14,4 +14,10 @@ export interface PropertyCardCommonProps {
    * sien — cf. `card-image-sizes.ts`, qui porte les relevés.
    */
   readonly sizes?: string;
+  /**
+   * TCK-635 — la robe d'une Vedette (ADR-0061 §5, §7) : même carte, même taille, une couleur et une
+   * mention. Seule la variante Cover la dessine aujourd'hui (rangée « Sélection de la semaine ») ;
+   * la carte de la recherche porte la sienne (`PropertyCard`).
+   */
+  readonly robe?: 'vedette';
 }
