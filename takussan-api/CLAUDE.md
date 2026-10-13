@@ -734,6 +734,113 @@ gelée s'émousse vers *plus* de tests ; une carte partielle sélectionne *moins
 Ne régénérer qu'à partir d'un passage sur la suite entière.
 Détail : [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../docs/plans/2026-08-17-temps-d-execution-des-tests.md).
 
+## Migrations — les pièges PostgreSQL, et ceux qui ont disparu
+
+**Ce bloc a été entièrement remesuré le 2026-08-21, pendant la bascule.** Les pièges qu'il liste
+sont ceux que le chantier a réellement payés — pas une liste recopiée d'ailleurs. *Un piège qu'on
+n'a pas payé n'a pas sa place dans ce fichier : il fait perdre du temps à qui le lit sans jamais
+rien attraper.*
+
+1. **Une erreur ABANDONNE la transaction entière — et c'est le piège le plus coûteux.**
+   Après le moindre échec, PostgreSQL refuse toute commande jusqu'au `ROLLBACK` :
+   `SQLSTATE[25P02] current transaction is aborted, commands ignored until end of transaction
+   block`. MySQL et SQLite laissaient continuer.
+
+   Conséquence directe : **tout code qui attrape une exception SQL et poursuit dans la même
+   transaction est cassé.** Et comme `RefreshDatabase` enveloppe chaque test dans UNE transaction,
+   le message accuse la première requête innocente venue, jamais la coupable — dont l'erreur, elle,
+   n'apparaît que dans le journal du serveur :
+
+   ```bash
+   docker compose logs --since 2m postgres | grep ERROR | grep -v 25P02
+   ```
+
+   ```php
+   ❌ try { Modele::create($x); } catch (UniqueConstraintViolationException) { /* déjà là */ }
+   ✓ Modele::query()->insertOrIgnore($x + ['created_at' => $n, 'updated_at' => $n]);
+   ```
+
+   *Une exception attendue dans le cas NOMINAL n'est pas un mécanisme de contrôle.*
+
+2. **`FOR UPDATE` est refusé sur un agrégat.** `->lockForUpdate()->count()` et
+   `->lockForUpdate()->sum(…)` lèvent `SQLSTATE[0A000]`.
+
+   ⚠ **Ne pas corriger la syntaxe : corriger le verrou.** Verrouiller les lignes *existantes* ne
+   ferme aucune course d'INSERT concurrent — MySQL le faisait par un verrou d'intervalle en
+   REPEATABLE READ, effet de bord du moteur que personne n'avait écrit. Le point de sérialisation
+   portable est la **ligne parent** :
+
+   ```php
+   ❌ $total = $property->collaborators()->lockForUpdate()->sum('commission_share');
+   ✓ Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+     $total = $property->collaborators()->sum('commission_share');
+   ```
+
+3. **Nom d'index/FK auto-généré > 63 caractères** — et PostgreSQL ne REFUSE pas, il **tronque**,
+   avec un simple `NOTICE`. L'index existe alors sous un nom que Laravel ne calculera jamais, et
+   c'est le `dropIndex()` d'une migration future qui échouera, sur un index « introuvable » qui est
+   pourtant là. La limite était 64 sous MySQL : **un nom de 64 exactement passait et ne passe
+   plus.**
+
+   ```php
+   ✓ $table->index(['long_col_1', 'long_col_2'], 'short_explicit_name_idx');
+   ✓ $table->foreignId('col')->constrained('table', 'id', 'short_fk_name');
+   ```
+
+4. **`jsonb`, jamais `json`.** Le type `json` de PostgreSQL n'a **aucun opérateur d'égalité** :
+   `DISTINCT`, `GROUP BY` et `UNION` y sont impossibles, et aucun index GIN ne s'y pose. Les 69
+   colonnes du dépôt sont en `jsonb` depuis ADR-0020. La conversion est gratuite tant que la table
+   est vide, et c'est un `ALTER` sous `ACCESS EXCLUSIVE` ensuite.
+
+5. **Une longueur de `VARCHAR` est APPLIQUÉE.** SQLite n'en appliquait aucune : un
+   `string('country', 2)` acceptait sept caractères, et un test pouvait asserter un comportement
+   que le schéma interdit. `SQLSTATE[22001] value too long`.
+
+6. **`nextval()` n'est pas transactionnel.** Le `ROLLBACK` de `RefreshDatabase` rend les lignes,
+   **jamais les numéros** : un identifiant ne repart pas à 1 au test suivant, contrairement à
+   SQLite. *Un identifiant écrit en dur dans un test n'affirme pas une valeur, il affirme une
+   propriété du moteur.*
+
+7. **Deux colonnes homonymes ne sont plus arbitrées en silence.** `select('t.*')` plus un
+   `withCount('relation')` dont l'alias porte le nom d'une colonne réelle rendent deux colonnes de
+   même nom : MySQL et SQLite en choisissaient une, PostgreSQL refuse
+   (`ORDER BY … is ambiguous`). Aliaser explicitement.
+
+8. **Une clé étrangère n'est PAS indexée automatiquement.** InnoDB créait un index sur toute
+   colonne portant une FK ; PostgreSQL non. Les 177 FK du dépôt étaient indexées gratuitement,
+   aucune ne l'est. À indexer **par mesure** (`EXPLAIN`) et non en masse — en commençant par les
+   colonnes `agency_id`, l'agence étant la frontière d'isolation. *C'est la contrepartie du piège
+   MySQL n°2 qui disparaît : plus rien ne refuse un `dropIndex`, et plus rien ne sert les
+   requêtes.*
+
+9. **`lower()` ne replie que l'ASCII — et c'est le piège qui a coûté le plus cher après coup.**
+   `lower()` emprunte la collation de son argument, et la base est en `--locale=C` (ADR-0020) :
+   `lower('CAFÉ')` rend **`cafÉ`**. Un index `LOWER(col)` posé pour refuser les variantes de casse
+   laisse donc passer `CAFÉ` à côté de `Café` — ce qui était le cas des trois index de
+   `2026_08_21_130000` pendant un jour, et de six requêtes applicatives.
+
+   ```php
+   ❌ ->whereRaw('LOWER(email) = ?', [strtolower($email)])      // ASCII des DEUX côtés
+   ✓ ->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)])
+   ```
+
+   **`App\Support\CaseInsensitive` porte la forme, et ses deux méthodes vont par paire** :
+   `sql()` rend `LOWER(col COLLATE "und-x-icu")`, `fold()` fait `mb_strtolower`. Replier d'un
+   seul côté déplace le défaut au lieu de le corriger — `strtolower()` de PHP est ASCII-only
+   exactement comme `lower()` nu ([ADR-0025](../docs/adr/0025-repli-de-casse-par-collation-icu.md)).
+
+   ⚠ **Une requête doit écrire EXACTEMENT l'expression de l'index, sinon elle ne l'emprunte pas** :
+   mesuré sur 5000 lignes, `LOWER(name COLLATE "und-x-icu") = ?` rend un `Index Scan`, `LOWER(name)
+   = ?` un `Seq Scan`. Index et requêtes bougent ensemble ou pas du tout.
+
+   ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
+
+**Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
+par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite
+de 64 caractères (devenue 63, et silencieuse — voir n°3). L'interdiction d'`enum()` (ADR-0007)
+**reste**, mais pour sa raison propre : un `string()` plus un contrôle applicatif se fait évoluer,
+un type SQL énuméré non.
+
 ## Style
 
 `./vendor/bin/pint` avant **chaque** commit. Il n'y a **pas** de `pint.json` : preset Laravel par

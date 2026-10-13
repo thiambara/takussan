@@ -338,6 +338,95 @@ Il valait `true`, et décidait pour tout nouveau clone de **1000 à 2700 requêt
 reste valable, mais c'est un choix : les échecs sont alors comptés, imprimés, et `db:seed` sort en
 erreur au-delà de 10 % — *un jeu partiel ne se déclare plus complet.*
 
+### <a id="j-45"></a>J-45 — `master`, l'API absente et le compte `takussan_pro` : le relevé du 2026-08-20
+
+*Déplacé de `CLAUDE.md` § Workflow git le 2026-10-13. La règle y reste ; ceci est le relevé daté qui
+la justifiait. Il décrit l'**ancien** serveur, remplacé par le VPS Dokploy le 2026-09-13 (ADR-0028,
+[J-44](#j-44)).*
+
+⚠️ **Trois chiffres de ce paragraphe étaient faux, et ils l'étaient dans le sens qui rassure.
+Re-mesurés le 2026-08-20 :**
+
+| Ce que ce fichier écrivait | Mesuré le 2026-08-20 |
+|---|---|
+| `master` « figé au **2026-05-18** » | `git log -1 --format='%h %ad' --date=iso origin/master` → **`fefe2c87 2026-08-15 14:56:07 +0000`** (*Merge pull request #151 from thiambara/dev*) |
+| « **31 commits** derrière `dev` » | `git rev-list --count origin/master..origin/dev` → **273** |
+| « ne contient même pas la chaîne de déploiement » | `git cat-file -e origin/master:.github/workflows/deploy.yml` → **présent** |
+
+`master` reste un **ancêtre strict** de `dev` (`git rev-list --count origin/dev..origin/master` →
+**0**) : elle n'a aucun commit propre, un merge serait un *fast-forward*. C'est le seul point de
+l'ancien paragraphe qui ait tenu.
+
+**« La production n'a jamais été déployée » : vrai de l'API, FAUX du front — et il faut désormais
+les distinguer.**
+
+- **Le front EST en production, et il est public.** `https://www.takussan.com/` → **200**,
+  `https://takussan.com/` → **307** vers `www`. Vercel a produit **3 déploiements d'environnement
+  « Production »** (et 212 « Preview »), tous par `vercel[bot]`, et les 3 refs de Production sont
+  exactement les 3 derniers commits de `git log --first-parent origin/master`.
+- **L'API, elle, n'a jamais servi en production** — mais la raison a changé, et c'est le point
+  neuf. Ce n'est plus « `deploy.yml` n'a jamais tourné » : **il a tourné deux fois le 2026-08-15,
+  et les deux ont ÉCHOUÉ.**
+
+  ```
+  $ gh run list --workflow=deploy.yml --limit 10
+  completed  failure  Deploy Laravel API              master  workflow_dispatch  31894037166  53s  2026-08-15T15:54:29Z
+  completed  failure  Merge pull request #151 …       master  push               31891294106  48s  2026-08-15T14:56:11Z
+  $ gh run view 31891294106 --log-failed
+    SQLSTATE[HY000] [1045] Access denied for user 'takussan_prod'@'localhost' (using password: YES)
+    ERROR: Deployment failed (exit code: 1). Rolling back...
+    Removing failed release: /var/www/takussan/releases/20260815165630
+  ```
+
+  Le déploiement va jusqu'à `composer install` sur le serveur, meurt à `php artisan migrate --force`
+  sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
+  arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
+  `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
+
+  ⚠ **Re-mesuré le 2026-09-14, 22:42 Z (TCK-523) : ce serveur n'existe plus, et le 404 non plus.**
+  `api.takussan.com` pointe sur le nouveau VPS (ADR-0028), en DNS seul, **sans aucun service
+  derrière** : Traefik y présente `CN=TRAEFIK DEFAULT CERT`, et l'appel **échoue sur la poignée de
+  main TLS** — `curl` → `000` (`ssl_verify_result` 20), `-k` → `404`. Même effet pour l'utilisateur
+  du front public, jusqu'à la phase F (TCK-517). Relevé et commande :
+  [`docs/infra/hebergement.md`](infra/hebergement.md), « Ce qui sert quoi » ; le récit du
+  changement de serveur : [J-44](#j-44).
+  ⚠ Ce journal ne disait **pas** de quel côté était l'écart — secret périmé, compte absent, *grant*
+  manquant se ressemblent tous ici. **La mesure a été prise le 2026-08-24, en se connectant, et
+  l'écart tient en un caractère :**
+
+  ```
+  $ grep DB_USERNAME /var/www/takussan/shared/.env      → takussan_prod   (13 caractères)
+  $ mysql -N -e 'SELECT user, LENGTH(user) FROM mysql.user WHERE user LIKE "takussan%";'
+    takussan_pre  12
+    takussan_pro  12                                    ← le compte qui EXISTE
+  $ mysql -N -e 'SHOW GRANTS FOR "takussan_pro"@"localhost";'
+    GRANT ALL PRIVILEGES ON `takussan_prod`.* TO `takussan_pro`@`localhost`
+  ```
+
+  La base existe, les droits sont posés — au nom d'un compte que le `.env` n'écrit pas. *Deux
+  identifiants qui diffèrent d'un caractère ne se vérifient pas en les relisant :* `LENGTH()` a
+  tranché en une commande ce que huit jours de relecture n'avaient pas attrapé. Le détail, et ce
+  que la bascule PostgreSQL y change, sont dans TCK-288.
+
+**Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
+public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404
+(qui échoue sur TLS depuis le 2026-09-13, voir ci-dessus).
+Re-mesuré le 2026-08-20 en téléchargeant les chunks servis par `www.takussan.com` — la valeur est
+inlinée à la compilation, elle est donc lisible sans accès à Vercel :
+
+```js
+let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
+```
+
+Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivait comme n'existant
+pas. C'est l'objet de [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md),
+et cela relève la priorité de TCK-288.
+
+> ⚠️ **Une mesure sans sa date devient une croyance.** Chaque affirmation ci-dessus porte sa
+> commande et son 2026-08-20 : c'est ce qui permettra de savoir, la prochaine fois, ce qui est
+> périmé plutôt que de le supposer juste. Ce paragraphe a été faux deux fois, de la même manière —
+> [dont une fois DANS la correction qui l'énonçait](#j-06).
+
 ---
 
 ## Backend — `takussan-api/CLAUDE.md`
