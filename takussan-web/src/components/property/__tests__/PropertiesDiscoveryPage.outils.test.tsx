@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 
@@ -65,29 +65,34 @@ const basculeMobile = () =>
   screen.queryAllByRole('button', { name: /^carte$|^liste$/i })
     .find((b) => b.closest('[data-controle="bascule"]'));
 
-describe('TCK-552 — la sauvegarde n’existe que s’il y a quelque chose à sauvegarder (AC5)', () => {
-  it('sans filtre : aucun bouton de sauvegarde sous lg — ni actif, ni désactivé', async () => {
+/**
+ * TCK-635 — « Sauvegarder » est sur la ligne du titre, dans la rangée d'outils, et il n'y en a
+ * qu'UN. Sous `lg`, il n'existe que s'il y a quelque chose à sauvegarder (TCK-552, AC5) ; au
+ * bureau, il reste, `aria-disabled`, et son infobulle dit pourquoi.
+ */
+describe('TCK-552 · TCK-635 — la sauvegarde n’existe sous lg que s’il y a quelque chose à sauvegarder', () => {
+  it('sans filtre : un seul bouton, masqué sous lg et inactif au bureau', async () => {
     await monte();
-    // Le bureau n'est pas modifié (contrainte du ticket) : SON bouton reste, dans la rangée
-    // `hidden lg:flex`. Sous lg, aucun autre n'est rendu.
-    for (const b of screen.queryAllByRole('button', { name: /sauvegarder la recherche/i })) {
-      const rangee = b.closest('[data-rangee="vue-bureau"]');
-      expect(rangee, 'un bouton de sauvegarde est rendu hors de la rangée du bureau').not.toBeNull();
-      expect(classes(rangee!)).toEqual(expect.arrayContaining(['hidden', 'lg:flex']));
-    }
+    const boutons = screen.getAllByRole('button', { name: /sauvegarder la recherche/i });
+    expect(boutons).toHaveLength(1);
+    const [sauver] = boutons;
+    expect(sauver.closest('[data-rangee-outils]')).not.toBeNull();
+    expect(classes(sauver)).toContain('max-lg:hidden');
+    expect(sauver).toHaveAttribute('aria-disabled', 'true');
+    // TCK-635 — plus aucune puce dans l'en-tête.
     expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
   });
 
-  it('avec un filtre : l’action de sauvegarde est sur la rangée des puces, et active', async () => {
+  it('avec un filtre : le bouton est dans la rangée d’outils, rendu à toutes les largeurs, et actif', async () => {
     parametres = new URLSearchParams('furnished=true');
     await monte();
-    const rangee = await waitFor(() => {
-      const r = document.querySelector('[data-rangee="puces"]');
-      expect(r).not.toBeNull();
-      return r as HTMLElement;
-    });
-    const sauver = within(rangee).getByRole('button', { name: /sauvegarder la recherche/i });
-    expect(sauver).not.toBeDisabled();
+    const sauver = screen.getByRole('button', { name: /sauvegarder la recherche/i });
+    expect(sauver.closest('[data-rangee-outils]')).not.toBeNull();
+    expect(classes(sauver)).not.toContain('max-lg:hidden');
+    expect(sauver).not.toHaveAttribute('aria-disabled');
+    // Le mot affiché est court ; le nom accessible le CONTIENT (WCAG 2.5.3).
+    expect(sauver).toHaveTextContent('Sauvegarder');
+    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
   });
 });
 

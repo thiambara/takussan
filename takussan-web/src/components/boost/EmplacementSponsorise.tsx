@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import type { PropertyListItem } from '@/types/property';
 import { marquerArriveeSponsorisee } from './arrivee-sponsorisee';
+import { badgeDe } from './lecture-recherche';
 
 export interface EmplacementsSponsorisesProps {
   readonly biens: readonly PropertyListItem[];
@@ -12,28 +13,31 @@ export interface EmplacementsSponsorisesProps {
 }
 
 /**
- * TCK-633 lot F (ADR-0061 §7) — les emplacements « Sponsorisé » en tête de page, HORS de la grille
- * paginée. Une pastille neutre (pas l'accent : « Sponsorisé » informe, il ne vante pas).
+ * TCK-633 lot F (ADR-0061 §7) — les emplacements « Sponsorisé » en tête de page, HORS pagination et
+ * hors `total`.
+ *
+ * TCK-635 (retours du porteur du 2026-10-12) — ils entrent DANS la grille des résultats, à la taille
+ * des autres cartes, et se distinguent par leur robe (`PropertyCard robe="sponsorise"`) et non plus
+ * par une étiquette posée au-dessus. D'où `contents` sur la section et la liste : elles gardent leur
+ * sémantique (une région nommée, une liste), et chaque `<li>` devient une cellule de la grille
+ * appelante. ⚠ Ce composant se rend donc DANS une grille.
  */
 export function EmplacementsSponsorises({ biens, sizes }: EmplacementsSponsorisesProps) {
   const t = useTranslations('search.sponsored');
   if (biens.length === 0) return null;
 
   return (
-    <section aria-label={t('label')} className="mb-8">
-      <ul className="grid grid-cols-1 gap-x-4 gap-y-6 md:grid-cols-3">
+    <section aria-label={t('label')} className="contents">
+      <ul role="list" className="contents">
         {biens.map((bien, i) => (
           <li
             key={bien.id}
-            className="flex flex-col gap-2"
+            data-emplacement="sponsorise"
             onClickCapture={(event) => {
               if ((event.target as HTMLElement).closest('a')) marquerArriveeSponsorisee(bien.slug);
             }}
           >
-            <span className="inline-flex w-fit rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {t('chip')}
-            </span>
-            <PropertyCard property={bien} index={i} sizes={sizes} />
+            <PropertyCard property={bien} index={i} sizes={sizes} robe="sponsorise" badge={badgeDe(bien)} />
           </li>
         ))}
       </ul>

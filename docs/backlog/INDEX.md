@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**563 tickets** — 29 ouverts, 532 livrés.
+**564 tickets** — 29 ouverts, 533 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 532 |
+| ✅ Done | 533 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -75,7 +75,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 532
+## ✅ Done — 533
+
+<details>
+<summary><strong>Vague 75 — Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)</strong> — 1 ticket</summary>
+
+- [TCK-635](tickets/TCK-635-robe-vedette-page-recherche.md) — Recherche : une robe pour les biens en vedette, la page de résultats refaite, et le site à 90 % au bureau `M · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 74 — Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)</strong> — 1 ticket</summary>

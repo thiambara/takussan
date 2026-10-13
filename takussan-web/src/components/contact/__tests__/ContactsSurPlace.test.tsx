@@ -41,4 +41,23 @@ describe('<ContactsSurPlace> — TCK-633', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retirer le contact 1' }));
     expect(surChangement).toHaveBeenLastCalledWith([]);
   });
+
+  /**
+   * TCK-635 — retour du porteur : la grille alignait ses colonnes par le BAS (`items-end`), et
+   * l'aide du champ Numéro faisait tomber « Qui ? », la case et « Retirer ». jsdom n'a pas de mise
+   * en page : on garde la structure qui l'empêche — deux champs alignés en haut, et la case et le
+   * retrait sur leur propre ligne, hors de la grille des champs.
+   */
+  it('chaque contact : les champs alignés en haut, WhatsApp et Retirer sur leur propre ligne', () => {
+    render(withIntl(<Hote surChangement={() => {}} />));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un contact' }));
+
+    const champs = screen.getByLabelText('Qui ?').closest('.grid');
+    expect(champs).not.toBeNull();
+    expect(champs).toHaveClass('items-start');
+    expect(champs).not.toHaveClass('lg:items-end');
+    expect(champs).toContainElement(screen.getByLabelText('Numéro'));
+    expect(champs).not.toContainElement(screen.getByRole('checkbox', { name: 'WhatsApp' }));
+    expect(champs).not.toContainElement(screen.getByRole('button', { name: 'Retirer le contact 1' }));
+  });
 });

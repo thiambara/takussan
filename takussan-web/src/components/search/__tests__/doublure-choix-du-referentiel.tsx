@@ -12,18 +12,19 @@ import type {
   ChoixDeVilleProps,
 } from '../ChoixDuReferentiel';
 
-export function ChoixDeVille({ valeur, onChange }: ChoixDeVilleProps) {
+export function ChoixDeVille({ valeur, region, onChange }: ChoixDeVilleProps) {
   return (
-    <div data-testid="choix-ville" data-valeur={valeur ?? ''}>
+    <div data-testid="choix-ville" data-valeur={valeur ?? ''} data-region={region ?? ''}>
       <button type="button" onClick={() => onChange('Dakar')}>choisir-ville-Dakar</button>
+      <button type="button" onClick={() => onChange('Dinguiraye', 'Kolda')}>choisir-ville-Dinguiraye-Kolda</button>
       <button type="button" onClick={() => onChange(undefined)}>retirer-ville</button>
     </div>
   );
 }
 
-export function ChoixDeQuartier({ ville, valeur, onChange }: ChoixDeQuartierProps) {
+export function ChoixDeQuartier({ ville, region, valeur, onChange }: ChoixDeQuartierProps) {
   return (
-    <div data-testid="choix-quartier" data-ville={ville ?? ''} data-valeur={valeur ?? ''}>
+    <div data-testid="choix-quartier" data-ville={ville ?? ''} data-region={region ?? ''} data-valeur={valeur ?? ''}>
       <button type="button" onClick={() => onChange('Almadies')}>choisir-quartier-Almadies</button>
     </div>
   );

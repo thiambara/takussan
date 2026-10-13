@@ -186,6 +186,8 @@ return [
                     // TCK-508 — `condition` : l'état déclaré, filtré par liste (`condition=new,off_plan`).
                     'floor_number', 'title_type', 'condition', 'featured', 'is_test', 'agency_id', 'user_id',
                     'available_from', 'published_at', 'city', 'neighborhood',
+                    // TCK-635 (ADR-0062 §8) — `region` départage deux villes du même nom.
+                    'region',
                     'tags', '_geo',
                     // TCK-633 lot F (ADR-0061 §7) — `id` : les places réservées s'excluent des
                     // résultats organiques par `NOT id IN [...]`.

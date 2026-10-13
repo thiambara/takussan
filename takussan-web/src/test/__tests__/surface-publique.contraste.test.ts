@@ -350,8 +350,14 @@ const FICHIERS_HORS_JETONS = 5;
  *   retrait de puce, placeholder et indicateur de chargement — sur le fond du champ ou du `Popup`
  *   (`bg-popover`), jamais sur le même élément ;
  * - lot C, `contact/ListeDeNumeros.tsx` +1, fichier neuf : déjà compté 257 avant le lot E.
+ *
+ * **263 → 264 le 2026-10-12 (TCK-635).** Même relevé (`HEAD` contre l'arbre, fichier par fichier,
+ * numéros de ligne retirés) : la seule différence est `search/SearchToolbar.tsx` +1. Le nombre de
+ * biens trouvés passe en `text-muted-foreground` à côté du titre, sur le fond de la page posé par
+ * un ancêtre (`--muted-foreground` sur `--background` : 5,6:1). Les sept autres fichiers touchés
+ * (`PropertyCard`, `PropertyCardCover`, `FilterSidebar`…) gardent exactement leurs entrées.
  */
-const ENCRES_INVERSES = 263;
+const ENCRES_INVERSES = 264;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

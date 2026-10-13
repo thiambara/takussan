@@ -253,7 +253,8 @@ describe('TCK-346 — une clé agrégée est réellement portée par la puce qu�
   it('aucune agrégation n’a été ajoutée en douce', () => {
     // Même raison que `CONTROLES_ADMIS` : écrite à la main, jamais dérivée. Ajouter une entrée
     // ici est un geste qu'une revue voit passer.
-    expect([...agregees].sort()).toEqual(['lat', 'lng']);
+    // TCK-635 (ADR-0062 §8) — `region` précise la ville homonyme, elle se retire avec elle.
+    expect([...agregees].sort()).toEqual(['lat', 'lng', 'region']);
   });
 });
 

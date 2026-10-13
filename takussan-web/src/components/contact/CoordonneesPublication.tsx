@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { BadgeCheck } from 'lucide-react';
 
 import { updateContactPreferencesAction } from '@/app/actions/contact-preferences';
 import { phoneSendOtpAction, phoneVerifyOtpAction } from '@/app/actions/security';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useAuth } from '@/context/AuthContext';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
-import { isE164 } from '@/lib/phone';
+import { formaterTelephone, isE164 } from '@/lib/phone';
 import type { User } from '@/types/user';
 
 type Retour = { ok: boolean; message: string };
@@ -198,15 +199,31 @@ export function CoordonneesPublication({
             </div>
           ) : null}
 
+          {/* TCK-635 — la question porte sur un numéro : il s'affiche, vérifié, au-dessus d'elle.
+              Seule, elle laissait deviner de quel numéro on parlait (retour du porteur). */}
           {whatsappSansReponse && !locaux.includes('verified_phone') ? (
-            <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2">
-              <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
-                {t('whatsappYes')}
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
-                {t('whatsappNo')}
-              </Button>
+            <div className="space-y-2" data-testid="numero-verifie">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground">{t('phoneLabel')}</p>
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-foreground tabular-nums">
+                    {user?.phone ? formaterTelephone(user.phone) : null}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                    <BadgeCheck className="size-3.5" aria-hidden="true" />
+                    {t('verifiedBadge')}
+                  </span>
+                </p>
+              </div>
+              <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2">
+                <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
+                  {t('whatsappYes')}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
+                  {t('whatsappNo')}
+                </Button>
+              </div>
             </div>
           ) : null}
 

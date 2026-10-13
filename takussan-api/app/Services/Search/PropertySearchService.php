@@ -449,6 +449,10 @@ class PropertySearchService
         if (! empty($p['city'])) {
             $filter[] = 'city = '.self::quote((string) $p['city']);
         }
+        // TCK-635 (ADR-0062 §8) — trois paires de communes homonymes : la région les départage.
+        if (! empty($p['region'])) {
+            $filter[] = 'region = '.self::quote((string) $p['region']);
+        }
         // TCK-599 — `cities`, la forme qu'écrit le formulaire de préférences : OU entre les villes.
         // Aucun moteur ne la lisait, et l'alerte prévenait donc de toute ville.
         if (! empty($p['cities']) && is_array($p['cities'])) {

@@ -2,6 +2,7 @@
 
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
+import { Sparkles } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
@@ -21,8 +22,10 @@ export function PropertyCardCover({
   property,
   index = 0,
   priority = false,
+  robe,
 }: PropertyCardCommonProps) {
   const tPeriods = useTranslations('property.rentPeriodsShort');
+  const tCards = useTranslations('property.cards');
   const quarter = property.location.quarter || property.location.city || null;
   const idTitre = useId();
 
@@ -30,6 +33,7 @@ export function PropertyCardCover({
   // couvre (`LienDeCarte`), et le favori est son FRÈRE, posé au-dessus.
   return (
     <article
+      data-robe={robe}
       className="group relative w-[260px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
@@ -59,6 +63,21 @@ export function PropertyCardCover({
           {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
           <ActionsSurPhoto property={property} />
         </div>
+
+        {/* TCK-635 — la robe, DANS le cadre de la photo (la rangée défile et rognerait tout ce qui
+            déborde) : un liseré terre cuite et le ruban « En vedette » au bord gauche. */}
+        {robe ? (
+          <>
+            <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-[3px] ring-inset ring-primary" />
+            <span
+              data-ruban
+              className="absolute left-0 top-12 inline-flex items-center gap-1 rounded-r-full bg-primary py-0.5 pl-2 pr-2.5 text-xs font-semibold text-primary-foreground shadow-sm"
+            >
+              <Sparkles className="size-3" aria-hidden="true" />
+              {tCards('robe.featured')}
+            </span>
+          </>
+        ) : null}
 
         <div className="absolute inset-x-0 bottom-0 p-3.5 text-white">
           {quarter && (

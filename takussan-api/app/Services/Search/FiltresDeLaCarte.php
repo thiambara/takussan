@@ -51,6 +51,9 @@ final class FiltresDeLaCarte
         if (! empty($p['city'])) {
             $this->adresseEgale($query, 'city', (string) $p['city']);
         }
+        if (! empty($p['region'])) {
+            $this->adresseEgale($query, 'region', (string) $p['region']);
+        }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
             $query->where($query->qualifyColumn('price'), '>=', (float) $p['price_min']);
         }
