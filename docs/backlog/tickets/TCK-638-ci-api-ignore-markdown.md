@@ -1,7 +1,7 @@
 ---
 id: TCK-638
 title: "CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -96,13 +96,6 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
 - `repo-ci.yml` : les gardes documentaires **doivent** continuer de tourner sur ces fichiers.
 - `promotion-ci.yml` : il appelle les workflows sans filtre de chemins, la clé suffit à le faire sauter.
 
-## Reste sur dev
-
-Le code est sur `dev` depuis la PR #372 (2026-10-13), et les cinq AC sont prouvés (#373, #374). Il ne
-reste **aucun code** : le ticket attend seulement que TCK-636, dont il dépend, passe `done` — la
-règle n°2 interdit qu'un ticket soit `done` avant ses dépendances. Il passe `done` dans le même
-mouvement que TCK-636.
-
 ## Notes d'implémentation
 
 - **Le périmètre exclu est plus étroit que « les `.md` de l'API », et c'est la mesure qui l'a
@@ -135,6 +128,6 @@ mouvement que TCK-636.
     **sauté** `lint-and-test` — l'arbre avait été attesté vert sur la PR.
 - Toutes les clés existantes changent au premier passage (le contenu hashé change) : le premier
   run de chaque suite après fusion rejoue, une fois.
-- PR #372 (implémentation), #373 (preuve AC1). **Les cinq AC sont prouvés** ; le ticket reste en
-  `review` parce que TCK-636, dont il dépend, est encore `doing` (règle n°2, `check-backlog.mjs`).
-  Il passe `done` en même temps que TCK-636.
+- PR #372 (implémentation), #373 (preuve AC1). **Les cinq AC sont prouvés.** Le ticket est resté en
+  `review` tant que TCK-636, dont il dépend, était `doing` (règle n°2, `check-backlog.mjs`). Il est
+  passé `done` en même temps que lui, une fois les preuves d'AC4 à AC6 de TCK-636 relevées.
