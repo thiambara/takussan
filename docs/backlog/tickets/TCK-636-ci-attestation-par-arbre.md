@@ -60,12 +60,12 @@ d'impact qui change l'arbre de la promotion.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur la PR de ce ticket vers `dev`, les deux jobs lourds **tournent** (aucune
+- [x] AC1 — Sur la PR de ce ticket vers `dev`, les deux jobs lourds **tournent** (aucune
       attestation n'existe pour cet arbre, les fichiers de clé changent) et déposent chacun leur
       artefact.
-- [ ] AC2 — Au push sur `dev` qui suit la fusion, sans autre fusion entre-temps : `lint-and-test`
+- [x] AC2 — Au push sur `dev` qui suit la fusion, sans autre fusion entre-temps : `lint-and-test`
       et `quality` sont **sautés**, et le résumé du job `attestation` nomme le run de la PR.
-- [ ] AC3 — Sur la promotion `dev` → `preview` qui suit : mêmes sauts, et la PR est
+- [x] AC3 — Sur la promotion `dev` → `preview` qui suit : mêmes sauts, et la PR est
       `MERGEABLE CLEAN` avec les six checks requis — **mesuré**, la documentation de GitHub sur les
       jobs sautés n'étant pas une mesure. Durée de la promotion relevée dans ce ticket.
 - [ ] AC4 — La recherche en échec rejoue : prouvé par une exécution où la recherche ne peut pas
@@ -76,6 +76,20 @@ d'impact qui change l'arbre de la promotion.
 - [ ] AC6 — `check-ci-attestation.mjs` rougit par ablation sur : `!cancelled()` retiré, `needs`
       retiré, dépôt de l'artefact retiré, `actions: read` retiré de promotion-ci, une référence
       `takussan-web/` hors périmètre ajoutée à un test de l'API.
+
+### Mesures du 2026-10-13
+
+| Étape | Avant (TCK-633, TCK-635) | Avec l'attestation | Ce qui a tourné |
+|---|---|---|---|
+| PR #368 → `dev` | 17-23 min | `lint-and-test` 31 min 14 s, Web 14 min 57 s | tout — arbre neuf ; deux artefacts `ci-vert-*` déposés (AC1) |
+| push du merge sur `dev` (`68d16cbc`) | 19-24 min | **52 s** au total | attestations, rollback, gardes ; `lint-and-test` et `quality` sautés (AC2) |
+| promotion #369 (run `38330342739`) | 28-42 min | **2 min 31 s** | attestations, images, rollback, gardes ; les deux suites sautées, PR `MERGEABLE CLEAN` (AC3) |
+| `images.yml` sur `preview` | 4-5 min | 4 min 36 s | inchangé ; `X-Build-Sha: ed6f0dd8` sur `preview.api.takussan.com/up` |
+
+La promotion a d'abord échoué au démarrage (`startup_failure`, run `38329772517`) : voir les notes
+d'implémentation, et la PR #370 qui l'a corrigée. AC4 et AC5 restent à éprouver en CI : le repli
+« recherche en échec → la suite tourne » n'est prouvé qu'en local (jeton absent → `deja-vert=false`),
+et aucune régénération nocturne n'a encore tourné.
 
 ## Hors périmètre
 
