@@ -1,0 +1,101 @@
+---
+id: TCK-638
+title: "CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend"
+status: todo
+phase: P2
+family: technique
+estimate: S
+wave: null
+created: 2026-10-13
+updated: 2026-10-13
+depends_on: [TCK-636]
+blocks: []
+spec_refs:
+  features:
+    - docs/features.md#29-administration--configuration
+  models: []
+tags: [infra, github, ci, adr-0063]
+---
+
+## Objectif utilisateur
+
+- **Le porteur, qui livre** : retoucher `takussan-api/CLAUDE.md` ou un README de l'API ne coûte plus
+  un passage complet de la suite backend (470 à 610 s au repos, davantage en CI) pour un arbre dont
+  aucun fichier lu par les tests n'a changé.
+
+## Contrat de données
+
+Aucune donnée applicative. Le mécanisme amendé est celui d'[ADR-0063](../../adr/0063-attestation-de-ci-par-arbre.md)
+§1 (périmètre de la clé) et le déclencheur d'`api-ci.yml`.
+
+Relevé du 2026-10-13, sur la PR #372 (qui ne touche que trois `.md`, dont `takussan-api/CLAUDE.md`) :
+`lint-and-test` a rejoué la suite entière. **Deux causes, qui se cumulent :**
+
+1. `.github/workflows/api-ci.yml` se déclenche sur `paths: takussan-api/**` (PR et push) — un `.md`
+   suffit.
+2. `scripts/ci-attestation.mjs` calcule la clé sur **tout** `takussan-api` (`PERIMETRES.api`, et
+   `PERIMETRES.web` de même) : le `.md` change la clé, aucun artefact `ci-vert-api-<clé>` ne
+   correspond, l'attestation ne saute rien.
+
+Le dépôt a déjà tranché qu'un `.md` n'impacte aucun test : `takussan-api/tests/Support/ImpactSelector.php:238`
+les écarte de la sélection locale. Relevé le même jour : les seules mentions de `CLAUDE.md` /
+`README.md` dans `takussan-api/app` et `takussan-api/tests` sont des commentaires — à l'exception
+de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lecture de fichier.
+
+## Contraintes strictes (métier)
+
+- **Toute incertitude rejoue** (ADR-0063) : l'exclusion ne vaut que pour un fichier dont on a
+  **mesuré** qu'aucune suite ne le lit. Un `.md` lu par un test reste dans la clé.
+- ⚠ **`takussan-api/tests/fixtures/` est suspect par construction.** `tests/fixtures/ProseLitterale/README.md`
+  vit dans un dossier qu'un scanner de test (`Tests\Support\ProseLitteraleScanner`) parcourt. Mesurer
+  s'il énumère le dossier sans filtrer l'extension ; dans le doute, **ne pas exclure** les `.md` de
+  `tests/fixtures/`.
+- ⚠ **`git ls-tree` refuse la magie d'exclusion** — mesuré : `git ls-tree -r HEAD -- takussan-api
+  ':(exclude)takussan-api/**/*.md'` → `fatal: … pathspec magic not supported by this command:
+  'exclude'`. Le filtre se fait donc **en JS**, sur la sortie de `ls-tree`, dans `cleDe()`.
+- **Le déclencheur et la clé doivent exclure exactement la même chose.** Un fichier exclu du
+  déclencheur mais présent dans la clé rejoue quand même au push suivant ; l'inverse fait sauter
+  le workflow sur un fichier que la clé jugerait pertinent.
+- La clé `web` contient tout `takussan-api` parce que les tests du front y lisent des sources : la
+  même mesure (« aucun test vitest ne lit un `.md` de l'API ») est exigée avant d'y appliquer
+  l'exclusion.
+- `scripts/check-ci-attestation.mjs` tient la forme des workflows et le périmètre de l'API : il doit
+  continuer de rougir sur ses ablations actuelles, et il ne doit pas accepter qu'un dossier de code
+  (`app`, `bin`, `config`, `database`, `routes`, `tests`) sorte de la clé.
+
+## Delta à produire
+
+- [ ] `.github/workflows/api-ci.yml` : exclure les `.md` retenus des `paths` de `pull_request` **et**
+      de `push` (motif de négation `'!…'` après `'takussan-api/**'`).
+- [ ] `scripts/ci-attestation.mjs` : une liste d'exclusions par suite (exportée, comme `PERIMETRES`),
+      appliquée aux lignes de `ls-tree` dans `cleDe()` — clés `api` et `web`.
+- [ ] `scripts/check-ci-attestation.mjs` : garde que les exclusions du workflow et du script
+      coïncident, et qu'aucune n'avale un fichier de code.
+- [ ] ADR-0063 §1 : une ligne au tableau du périmètre — ce qui en sort, et la mesure qui l'autorise.
+- [ ] Ligne correspondante dans le commentaire d'en-tête d'`api-ci.yml` si la règle y est décrite.
+
+## Critères d'acceptation
+
+- [ ] AC1 — Une PR vers `dev` qui ne modifie que `takussan-api/CLAUDE.md` ne déclenche **pas**
+      API CI (aucun run `api-ci.yml` pour son SHA). Prouvé par une PR réelle, numéro cité.
+- [ ] AC2 — Une PR qui modifie un `.php` de `takussan-api/app` déclenche toujours API CI et
+      `lint-and-test` joue la suite (pas d'attestation trouvée). Prouvé par une PR réelle.
+- [ ] AC3 — `node scripts/ci-attestation.mjs api --cle` rend **la même clé** avant et après une
+      modification de `takussan-api/CLAUDE.md`, et une clé **différente** après modification d'un
+      fichier de `takussan-api/tests/`. Idem pour `web`.
+- [ ] AC4 — Si un `.md` de `tests/fixtures/` est lu par un test, il reste dans la clé : AC3 rejoué sur
+      `tests/fixtures/ProseLitterale/README.md` rend une clé **différente** — ou la mesure qui prouve
+      qu'aucun test ne le lit est citée dans les notes.
+- [ ] AC5 — `check-ci-attestation.mjs` rougit par ablation : (a) exclusion ajoutée au workflow sans
+      le script, (b) exclusion qui couvrirait `takussan-api/app/**`. Les deux rouges cités.
+
+## Hors périmètre
+
+- Les autres extensions non lues (images de doc, `.txt`) : seulement les `.md`, mesurés.
+- Le déclencheur de `web-ci.yml` : il ne liste que des fichiers de l'API précis, aucun `.md`.
+- `repo-ci.yml` : les gardes documentaires **doivent** continuer de tourner sur ces fichiers.
+- `promotion-ci.yml` : il appelle les workflows sans filtre de chemins, la clé suffit à le faire sauter.
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_
