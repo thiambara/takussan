@@ -53,7 +53,6 @@ jobs:
     # `actions: read` pour lister les artefacts. Appelé par promotion-ci, ce job ne peut pas avoir
     # plus que ce que l'appelant accorde : c'est pourquoi promotion-ci l'accorde aussi.
     permissions:
-      actions: read
       contents: read
     outputs:
       cle: ${{ steps.attestation.outputs.cle }}
