@@ -8,8 +8,14 @@ on:
   workflow_call:
   pull_request:
     branches-ignore: [preview, master]
+    # TCK-638 — les motifs `'!…'` sont `HORS_CLE` de `scripts/ci-attestation.mjs`, au caractère près
+    # (`check-ci-attestation.mjs` les confronte) : de la documentation qu'aucune suite ne lit. PAS
+    # « tous les `.md` » : `CourtierAbsentTest` lit tous les fichiers de `app/`, `config/`, `routes/`
+    # et `database/`, quelle que soit l'extension. Une négation ne vaut qu'APRÈS le motif qu'elle retire.
     paths:
       - 'takussan-api/**'
+      - '!takussan-api/*.md'
+      - '!takussan-api/docs/**'
       - '.github/workflows/api-ci.yml'
   push:
     branches:
@@ -18,6 +24,8 @@ on:
       - master
     paths:
       - 'takussan-api/**'
+      - '!takussan-api/*.md'
+      - '!takussan-api/docs/**'
       - '.github/workflows/api-ci.yml'
   # ADR-0063 §3 — la carte d'impact se régénère LA NUIT, plus à chaque push sur `dev` : le commit du
   # bot changeait l'arbre que la promotion éprouve, et l'obligeait à rejouer toute la suite. Un

@@ -3,7 +3,8 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-13
 - **Tickets** : [TCK-636](../backlog/tickets/TCK-636-ci-attestation-par-arbre.md) ·
-  suite : [TCK-637](../backlog/tickets/TCK-637-ci-parallele-couverture-decouplee.md)
+  suite : [TCK-637](../backlog/tickets/TCK-637-ci-parallele-couverture-decouplee.md) ·
+  amendement §1 : [TCK-638](../backlog/tickets/TCK-638-ci-api-ignore-markdown.md)
 
 ## Contexte
 
@@ -53,6 +54,15 @@ même contenu, octet pour octet, sur ce périmètre.
 |---|---|
 | API | `takussan-api/`, `takussan-web/src/messages/` (mesuré : seule lecture hors de son dossier), `api-ci.yml`, le script |
 | Front | `takussan-web/`, **tout** `takussan-api/` (ses tests lisent l'API à plusieurs endroits, dont deux hors `paths`), `web-ci.yml`, le script |
+
+**Amendement du 2026-10-13 (TCK-638) — la documentation qu'aucune suite ne lit sort de la clé ET du
+déclencheur d'api-ci** : `HORS_CLE` = `takussan-api/*.md` et `takussan-api/docs/**`. Sans lui,
+retoucher `takussan-api/CLAUDE.md` rejouait la suite backend entière (PR #372). Mesuré : aucun test
+PHP ni vitest ne lit ces fichiers. ⚠ **Pas « tous les `.md` »** : `CourtierAbsentTest` lit tous les
+fichiers d'`app/`, `config/`, `routes/` et `database/` quelle que soit l'extension, et une fixture
+`.md` vit sous `tests/fixtures/` — ces `.md`-là restent dans la clé. `git ls-tree` refusant
+`:(exclude)`, le filtre s'applique à sa sortie ; `check-ci-attestation.mjs` exige que les négations
+`'!…'` d'`api-ci.yml` soient exactement `HORS_CLE`, et qu'aucun motif n'atteigne un dossier de code.
 
 Quand la suite est verte, son **dernier step** dépose l'artefact `ci-vert-<suite>-<clé>`
 (conservé 7 jours).

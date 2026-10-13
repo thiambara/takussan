@@ -6,13 +6,13 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**566 tickets** — 31 ouverts, 533 livrés.
+**567 tickets** — 32 ouverts, 533 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 28 |
 | 🚧 Doing | 2 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 533 |
 | 🗑️ Obsolete | 2 |
@@ -70,6 +70,7 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
+- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 ## ⛔ Blocked
 
