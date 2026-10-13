@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 29 |
+| 📋 Todo | 28 |
 | 🚧 Doing | 2 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 533 |
 | 🗑️ Obsolete | 2 |
@@ -61,7 +61,6 @@
 - [TCK-604](tickets/TCK-604-free-money-quand-la-documentation-marchande-est-versee.md) — Free Money, payé en ligne comme Wave et Orange Money — dès que la documentation marchande est versée au dépôt (suite de TCK-602 §6) `M · P1 · full`
 - [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 - [TCK-637](tickets/TCK-637-ci-parallele-couverture-decouplee.md) — CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests `M · P2 · technique`
-- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 ## 🚧 Doing
 
@@ -71,6 +70,7 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
+- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 ## ⛔ Blocked
 

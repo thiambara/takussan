@@ -13,6 +13,10 @@
  * l'API que les `paths` de web-ci ignorent, et un test de l'API lit `takussan-web/src/messages/`.
  * `scripts/check-ci-attestation.mjs` garde ce second côté.
  *
+ * HORS DE LA CLÉ (TCK-638) : la documentation qu'AUCUNE suite ne lit — `HORS_CLE`, exclue aussi du
+ * déclencheur d'`api-ci.yml`, au motif près. Sans elle, retoucher `takussan-api/CLAUDE.md` rejouait
+ * la suite backend entière (PR #372).
+ *
  * ⚠ TOUTE INCERTITUDE REJOUE. Réseau, 403, réponse illisible : `deja-vert=false` et un
  * avertissement. Ce script ne sort en erreur que sur un usage faux ; le défaut qu'il ne doit
  * jamais avoir est de faire sauter une suite qu'aucun run n'a vue verte.
@@ -56,12 +60,42 @@ export const WORKFLOWS_ATTESTANTS = [
   '.github/workflows/promotion-ci.yml',
 ];
 
+/**
+ * Ce qui sort de la clé de TOUTES les suites — et du déclencheur d'`api-ci.yml` (motifs `'!…'` de
+ * ses `paths`), au caractère près : `check-ci-attestation.mjs` confronte les deux. Syntaxe des
+ * `paths` de GitHub : `*` ne traverse pas `/`, `**` si.
+ *
+ * Mesuré le 2026-10-13, aucun test PHP ni vitest ne lit ces fichiers (seules des mentions en
+ * commentaire). ⚠ PAS « tous les `.md` de l'API » : `CourtierAbsentTest` lit TOUS les fichiers de
+ * `app/`, `config/`, `routes/` et `database/`, quelle que soit l'extension — un `.md` posé là est lu,
+ * et doit changer la clé. La garde refuse un motif qui atteindrait un dossier de code.
+ *
+ * ⚠ `git ls-tree` refuse la magie `:(exclude)` (« pathspec magic not supported by this command ») :
+ * le filtre se fait ici, sur sa sortie.
+ */
+export const HORS_CLE = ['takussan-api/*.md', 'takussan-api/docs/**'];
+
+const enRegExp = (motif) =>
+  new RegExp(
+    `^${motif
+      .split(/(\*\*|\*)/)
+      .map((morceau) => (morceau === '**' ? '.*' : morceau === '*' ? '[^/]*' : morceau.replace(/[.+?^${}()|[\]\\]/g, '\\$&')))
+      .join('')}$`,
+  );
+const MOTIFS_HORS_CLE = HORS_CLE.map(enRegExp);
+export const horsCle = (chemin) => MOTIFS_HORS_CLE.some((motif) => motif.test(chemin));
+
 export function cleDe(suite, arbre = 'HEAD') {
-  const listing = execFileSync('git', ['ls-tree', '-r', arbre, '--', ...PERIMETRES[suite]], {
+  const brut = execFileSync('git', ['ls-tree', '-r', arbre, '--', ...PERIMETRES[suite]], {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
   });
+  // Une ligne de `ls-tree` : `<mode> <type> <sha>\t<chemin>`.
+  const listing = brut
+    .split('\n')
+    .filter((ligne) => !horsCle(ligne.slice(ligne.indexOf('\t') + 1)))
+    .join('\n');
   if (!listing.trim()) throw new Error(`git ls-tree ne rend rien pour « ${suite} » : le périmètre ne désigne aucun fichier`);
   return createHash('sha256').update(`${suite}\n${listing}`).digest('hex');
 }

@@ -1,7 +1,7 @@
 ---
 id: TCK-638
 title: "CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend"
-status: todo
+status: review
 phase: P2
 family: technique
 estimate: S
@@ -65,14 +65,14 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
 
 ## Delta à produire
 
-- [ ] `.github/workflows/api-ci.yml` : exclure les `.md` retenus des `paths` de `pull_request` **et**
+- [x] `.github/workflows/api-ci.yml` : exclure les `.md` retenus des `paths` de `pull_request` **et**
       de `push` (motif de négation `'!…'` après `'takussan-api/**'`).
-- [ ] `scripts/ci-attestation.mjs` : une liste d'exclusions par suite (exportée, comme `PERIMETRES`),
+- [x] `scripts/ci-attestation.mjs` : une liste d'exclusions par suite (exportée, comme `PERIMETRES`),
       appliquée aux lignes de `ls-tree` dans `cleDe()` — clés `api` et `web`.
-- [ ] `scripts/check-ci-attestation.mjs` : garde que les exclusions du workflow et du script
+- [x] `scripts/check-ci-attestation.mjs` : garde que les exclusions du workflow et du script
       coïncident, et qu'aucune n'avale un fichier de code.
-- [ ] ADR-0063 §1 : une ligne au tableau du périmètre — ce qui en sort, et la mesure qui l'autorise.
-- [ ] Ligne correspondante dans le commentaire d'en-tête d'`api-ci.yml` si la règle y est décrite.
+- [x] ADR-0063 §1 : une ligne au tableau du périmètre — ce qui en sort, et la mesure qui l'autorise.
+- [x] Ligne correspondante dans le commentaire d'en-tête d'`api-ci.yml` si la règle y est décrite.
 
 ## Critères d'acceptation
 
@@ -80,13 +80,13 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
       API CI (aucun run `api-ci.yml` pour son SHA). Prouvé par une PR réelle, numéro cité.
 - [ ] AC2 — Une PR qui modifie un `.php` de `takussan-api/app` déclenche toujours API CI et
       `lint-and-test` joue la suite (pas d'attestation trouvée). Prouvé par une PR réelle.
-- [ ] AC3 — `node scripts/ci-attestation.mjs api --cle` rend **la même clé** avant et après une
+- [x] AC3 — `node scripts/ci-attestation.mjs api --cle` rend **la même clé** avant et après une
       modification de `takussan-api/CLAUDE.md`, et une clé **différente** après modification d'un
       fichier de `takussan-api/tests/`. Idem pour `web`.
-- [ ] AC4 — Si un `.md` de `tests/fixtures/` est lu par un test, il reste dans la clé : AC3 rejoué sur
+- [x] AC4 — Si un `.md` de `tests/fixtures/` est lu par un test, il reste dans la clé : AC3 rejoué sur
       `tests/fixtures/ProseLitterale/README.md` rend une clé **différente** — ou la mesure qui prouve
       qu'aucun test ne le lit est citée dans les notes.
-- [ ] AC5 — `check-ci-attestation.mjs` rougit par ablation : (a) exclusion ajoutée au workflow sans
+- [x] AC5 — `check-ci-attestation.mjs` rougit par ablation : (a) exclusion ajoutée au workflow sans
       le script, (b) exclusion qui couvrirait `takussan-api/app/**`. Les deux rouges cités.
 
 ## Hors périmètre
@@ -98,4 +98,27 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le périmètre exclu est plus étroit que « les `.md` de l'API », et c'est la mesure qui l'a
+  imposé** : `HORS_CLE` = `takussan-api/*.md` (racine : `CLAUDE.md`, `README.md`) et
+  `takussan-api/docs/**`. `CourtierAbsentTest::filesUnder()` lit **tous** les fichiers d'`app/`,
+  `config/`, `routes/`, `database/factories/` et `database/seeders/`, sans filtre d'extension : un
+  `.md` posé là est lu (il y en a zéro aujourd'hui). Les autres itérateurs récursifs relevés
+  (`ProseLitteraleScanner`, `CapabilityStringLiteralsTest`, `TranslationUsage`,
+  `NoLegacyUserTypeTest`, `LangGroupParityTest`) filtrent sur `.php`. Aucun test vitest ne lit
+  `takussan-api/*.md` ni `takussan-api/docs/`.
+- **Dépendance** : TCK-636 est encore `doing` (AC4-AC6, des preuves) ; son code — que ce ticket
+  amende — est sur `dev`. Implémenté sur demande explicite du porteur, le 2026-10-13.
+- **AC3 et AC4** — clés calculées sur des arbres construits par un index temporaire
+  (`GIT_INDEX_FILE`, `write-tree`), sans commit : `CLAUDE.md` et `docs/infra/watermark.md`
+  modifiés → **même clé** `api` et `web` ; `tests/fixtures/ProseLitterale/README.md`,
+  `app/Nouveau.md` et `tests/TestCase.php` → **clé différente**, pour les deux suites.
+- **AC5** — trois ablations, trois rouges de `check-ci-attestation.mjs` : négation retirée du seul
+  `push` (« le déclencheur exclut [takussan-api/*.md], la clé exclut [… , takussan-api/docs/**] ») ;
+  `takussan-api/app/**` ajouté à `HORS_CLE` (« retire takussan-api/app/a/b.php ») ;
+  `takussan-api/**/*.md` (« retire takussan-api/routes/a.md », `tests/`, `lang/`…).
+- **AC1 et AC2 ne se prouvent qu'APRÈS fusion** : un `pull_request` lit les `paths` de l'arbre
+  fusionné, et toute PR ouverte avant la fusion porte la modification d'`api-ci.yml`, qui déclenche.
+  Les deux preuves se prennent sur `dev` une fois cette PR fusionnée — d'où `review`.
+- Toutes les clés existantes changent au premier passage (le contenu hashé change) : le premier
+  run de chaque suite après fusion rejoue, une fois.
+- PR #372.

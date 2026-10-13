@@ -15,6 +15,10 @@
  *   4. Le code de l'API se met à lire un fichier de `takussan-web/` que la clé de l'API ne couvre
  *      pas : un changement de ce fichier ne change plus la clé, et une attestation périmée passe.
  *      (Le front, lui, a TOUT `takussan-api/` dans sa clé — `scripts/ci-attestation.mjs`.)
+ *   5. L'exclusion de la documentation (TCK-638) dérive : `api-ci.yml` exclut de son déclencheur
+ *      autre chose que ce que `HORS_CLE` retire de la clé — le workflow saute un fichier que la clé
+ *      juge pertinent, ou se déclenche pour rien —, ou un motif s'étend jusqu'à un dossier de code,
+ *      dont `CourtierAbsentTest` lit tous les fichiers quelle que soit l'extension.
  *
  * Ce qu'elle ne vérifie PAS : qu'un job sauté compte bien comme réussi pour la protection de
  * branche — c'est une propriété de GitHub, mesurée sur une promotion (TCK-636, AC3), pas un texte.
@@ -25,7 +29,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PERIMETRES } from './ci-attestation.mjs';
+import { HORS_CLE, PERIMETRES, horsCle } from './ci-attestation.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
@@ -193,6 +197,41 @@ for (const dossier of DOSSIERS_API) {
   }
 }
 if (REPORT) notes.push(`périmètre de l'API : ${references} référence(s) à takussan-web/ dans son code, toutes dans la clé`);
+
+// ── Ce qui sort de la clé sort du déclencheur, et rien d'autre (TCK-638) ──────────────────────
+{
+  const texte = readFileSync(join(ROOT, '.github', 'workflows', 'api-ci.yml'), 'utf8');
+  const declencheurs = texte.slice(texte.search(/^on:/m), texte.search(/^jobs:/m)).split('\n');
+  const negations = { pull_request: [], push: [] };
+  let evenement = null;
+  for (const ligne of declencheurs) {
+    const titre = ligne.match(/^ {2}([a-z_]+):/);
+    if (titre) evenement = titre[1];
+    const negation = ligne.match(/^\s+- '!(.+)'\s*$/);
+    if (negation && evenement in negations) negations[evenement].push(negation[1]);
+  }
+  const attendu = [...HORS_CLE].sort().join(', ');
+  for (const [nom, motifs] of Object.entries(negations)) {
+    if ([...motifs].sort().join(', ') !== attendu) {
+      erreurs.push(
+        `api-ci.yml, \`${nom}\` : le déclencheur exclut [${motifs.join(', ')}], la clé exclut [${attendu}]\n` +
+          `      (HORS_CLE, scripts/ci-attestation.mjs) — les deux doivent retirer exactement les mêmes chemins.`,
+      );
+    }
+  }
+  // Un motif ne descend dans aucun dossier de code : sondé par des chemins témoins, et sur l'arbre.
+  for (const dossier of ['app', 'bin', 'config', 'database', 'routes', 'tests', 'lang']) {
+    for (const temoin of [`takussan-api/${dossier}/a.md`, `takussan-api/${dossier}/a/b.php`]) {
+      if (horsCle(temoin)) erreurs.push(`HORS_CLE retire « ${temoin} » de la clé — un dossier de code lu par la suite.`);
+    }
+  }
+  for (const motif of HORS_CLE) {
+    if (!motif.startsWith('takussan-api/') || motif === 'takussan-api/**') {
+      erreurs.push(`HORS_CLE : « ${motif} » sort du périmètre documentaire de l'API.`);
+    }
+  }
+  if (REPORT) notes.push(`hors clé et hors déclencheur : ${attendu}`);
+}
 
 if (REPORT) for (const n of notes) console.log(n);
 if (erreurs.length) {
