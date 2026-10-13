@@ -34,6 +34,13 @@ jobs:
     name: Front
     uses: ./.github/workflows/web-ci.yml
     secrets: inherit
+    # `actions: read` (ADR-0063) pour le job `attestation`. Sans bloc `permissions`, l'appel ne
+    # reçoit PAS « tout en lecture » : le réglage du dépôt (`default_workflow_permissions: read`)
+    # restreint le jeton à `contents` et `packages`. Un job appelé qui demande davantage fait
+    # échouer le run AU DÉMARRAGE (`startup_failure`, promotion #369 du 2026-10-13).
+    permissions:
+      contents: read
+      actions: read
   repo:
     name: Dépôt
     uses: ./.github/workflows/repo-ci.yml

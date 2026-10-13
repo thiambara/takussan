@@ -9,8 +9,9 @@
  *      sauté passe un check requis. La suite ne tourne plus, la PR est verte.
  *   2. Le job lourd ne dépose plus son artefact, ou le dépose sous un autre nom : rien ne se
  *      saute plus jamais — le gain disparaît sans un rouge.
- *   3. `promotion-ci.yml` restreint les permissions d'un appel sans `actions: read` : la recherche
- *      rend 403 et la promotion rejoue tout, avec un simple avertissement.
+ *   3. `promotion-ci.yml` appelle une suite sans lui accorder `actions: read` : le job
+ *      `attestation` le demande, et le run de promotion échoue AU DÉMARRAGE (`startup_failure`,
+ *      mesuré sur la promotion #369) — y compris quand l'appel ne déclare aucune permission.
  *   4. Le code de l'API se met à lire un fichier de `takussan-web/` que la clé de l'API ne couvre
  *      pas : un changement de ce fichier ne change plus la clé, et une attestation périmée passe.
  *      (Le front, lui, a TOUT `takussan-api/` dans sa clé — `scripts/ci-attestation.mjs`.)
@@ -145,10 +146,14 @@ for (const [nom, lignes] of Object.entries(promotion)) {
   const texte = lignes.join('\n');
   const appel = texte.match(/^ {4}uses: \.\/\.github\/workflows\/([\w-]+\.yml)/m)?.[1];
   if (!appel || !SUITES.some((s) => s.fichier === appel)) continue;
-  if (/^ {4}permissions:/m.test(texte) && !/^ {6}actions: read\s*$/m.test(texte)) {
+  // Sans bloc `permissions`, l'appel n'hérite PAS de « tout en lecture » : le réglage du dépôt
+  // (`default_workflow_permissions: read`) borne le jeton à `contents` et `packages`, et le job
+  // `attestation` qui demande `actions: read` fait échouer le run AU DÉMARRAGE — mesuré sur la
+  // promotion #369 (`startup_failure`), pas déduit. Le bloc est donc exigé, `actions: read` dedans.
+  if (!/^ {4}permissions:/m.test(texte) || !/^ {6}actions: read\s*$/m.test(texte)) {
     erreurs.push(
-      `promotion-ci.yml : l'appel « ${nom} » (${appel}) restreint les permissions sans \`actions: read\` —\n` +
-        `      la recherche d'attestation rendrait 403, et toute promotion rejouerait la suite.`,
+      `promotion-ci.yml : l'appel « ${nom} » (${appel}) n'accorde pas \`actions: read\` dans un bloc\n` +
+        `      \`permissions\` — le job \`attestation\` appelé le demande, et le run échouerait au démarrage.`,
     );
   }
 }

@@ -90,3 +90,9 @@ d'impact qui change l'arbre de la promotion.
   sauter la suite **et** passer le check.
 - Le `GITHUB_TOKEN` d'un workflow appelé ne peut pas dépasser les permissions de l'appelant :
   `promotion-ci` donne `contents: write` seul à l'API, ce qui retire `actions: read`.
+- ⚠ **Payé sur la première promotion (#369, 2026-10-13) : `startup_failure`.** L'appel du front ne
+  déclarait aucune permission, et j'en avais déduit « tout en lecture ». Faux : le réglage du dépôt
+  (`default_workflow_permissions: read`) borne le jeton à `contents` et `packages`, et le job
+  `attestation` qui demande `actions: read` fait refuser le run entier au démarrage — sans un job,
+  sans un journal, la PR seulement `BLOCKED`. Corrigé : `actions: read` dans un bloc `permissions`
+  sur chaque appel, et la garde l'exige désormais même quand l'appel n'en déclare aucun.
