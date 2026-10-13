@@ -78,3 +78,5 @@ final class CaseInsensitive
         return mb_strtolower($valeur);
     }
 }
+
+// TCK-638 AC2 — PR jetable, jamais fusionnée.
