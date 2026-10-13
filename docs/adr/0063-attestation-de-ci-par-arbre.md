@@ -107,7 +107,9 @@ mal entre processus. Le découplage est un chantier distinct ; il ne conditionne
   ce qui rattrape les `paths` incomplets mesurés plus haut.
 - **Garde** : `scripts/check-ci-attestation.mjs` tient la forme (job `attestation` en tête des deux
   workflows, `needs` + `!cancelled()` + sortie `deja-vert` sur le job lourd, dépôt de l'artefact au
-  nom de la clé, `actions: read` accordé par `promotion-ci` à l'appel de l'API) et le périmètre de
+  nom de la clé, `actions: read` accordé par `promotion-ci` à **chaque** appel — sans bloc
+  `permissions`, le réglage du dépôt borne le jeton à `contents` et `packages`, et le run de
+  promotion échoue au démarrage : mesuré sur #369, le 2026-10-13) et le périmètre de
   l'API : toute référence à `takussan-web/` dans le code de l'API doit tomber dans sa clé.
 
 ### Ce que l'attestation ne garde pas
