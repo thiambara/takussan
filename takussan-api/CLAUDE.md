@@ -479,6 +479,11 @@ nom est donc engendré par processus (`Tests\Support\TestDatabase`). Même raiso
 **La suite exige une instance Meilisearch** : `SCOUT_DRIVER=meilisearch` est forcé sans repli.
 `./dev.sh services` la fournit.
 
+**Ce fichier, `README.md` et `docs/` ne déclenchent pas API CI** et ne changent pas la clé
+d'attestation (TCK-638, ADR-0063 §1) : aucune suite ne les lit. Un `.md` posé **ailleurs** dans
+l'API — `app/`, `config/`, `routes/`, `database/`, `tests/fixtures/` — la déclenche toujours :
+`CourtierAbsentTest` lit tous les fichiers de ces dossiers, quelle que soit l'extension.
+
 ### Quelle classe de base étendre — la règle, et elle est gardée (TCK-309)
 
 **Trois bases, une par usage. Le choix se lit, il ne se devine plus.**
