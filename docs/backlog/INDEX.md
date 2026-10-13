@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**567 tickets** — 31 ouverts, 534 livrés.
+**567 tickets** — 32 ouverts, 533 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 28 |
 | 🚧 Doing | 2 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 534 |
+| ✅ Done | 533 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -70,6 +70,7 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
+- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 ## ⛔ Blocked
 
@@ -77,7 +78,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 534
+## ✅ Done — 533
 
 <details>
 <summary><strong>Vague 75 — Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)</strong> — 1 ticket</summary>
@@ -972,7 +973,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 32 tickets</summary>
+<summary><strong>Sans vague</strong> — 31 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1005,7 +1006,6 @@ _(aucun)_
 - [TCK-630](tickets/TCK-630-tiroir-de-filtres-en-tete-fixe.md) — Tiroir des filtres sur téléphone : l'en-tête (« Filtres », « Tout effacer », fermer) défilait avec les filtres ; il reste en haut, le corps défile dessous `S · P1 · front`
 - [TCK-631](tickets/TCK-631-publication-plein-ecran-et-apercu.md) — Publier un bien : le parcours sort du tableau de bord (une question par écran) et montre l'annonce qui se construit à côté — la piste 6 des maquettes `M · P1 · front`
 - [TCK-632](tickets/TCK-632-ajouter-et-verifier-son-email-depuis-le-profil.md) — Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil `S · P1 · full`
-- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 </details>
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-638
 title: "CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend"
-status: done
+status: review
 phase: P2
 family: technique
 estimate: S
@@ -128,4 +128,6 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
     **sauté** `lint-and-test` — l'arbre avait été attesté vert sur la PR.
 - Toutes les clés existantes changent au premier passage (le contenu hashé change) : le premier
   run de chaque suite après fusion rejoue, une fois.
-- PR #372.
+- PR #372 (implémentation), #373 (preuve AC1). **Les cinq AC sont prouvés** ; le ticket reste en
+  `review` parce que TCK-636, dont il dépend, est encore `doing` (règle n°2, `check-backlog.mjs`).
+  Il passe `done` en même temps que TCK-636.
