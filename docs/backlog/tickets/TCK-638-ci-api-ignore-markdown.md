@@ -1,7 +1,7 @@
 ---
 id: TCK-638
 title: "CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -76,9 +76,9 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une PR vers `dev` qui ne modifie que `takussan-api/CLAUDE.md` ne déclenche **pas**
+- [x] AC1 — Une PR vers `dev` qui ne modifie que `takussan-api/CLAUDE.md` ne déclenche **pas**
       API CI (aucun run `api-ci.yml` pour son SHA). Prouvé par une PR réelle, numéro cité.
-- [ ] AC2 — Une PR qui modifie un `.php` de `takussan-api/app` déclenche toujours API CI et
+- [x] AC2 — Une PR qui modifie un `.php` de `takussan-api/app` déclenche toujours API CI et
       `lint-and-test` joue la suite (pas d'attestation trouvée). Prouvé par une PR réelle.
 - [x] AC3 — `node scripts/ci-attestation.mjs api --cle` rend **la même clé** avant et après une
       modification de `takussan-api/CLAUDE.md`, et une clé **différente** après modification d'un
@@ -118,7 +118,14 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
   `takussan-api/**/*.md` (« retire takussan-api/routes/a.md », `tests/`, `lang/`…).
 - **AC1 et AC2 ne se prouvent qu'APRÈS fusion** : un `pull_request` lit les `paths` de l'arbre
   fusionné, et toute PR ouverte avant la fusion porte la modification d'`api-ci.yml`, qui déclenche.
-  Les deux preuves se prennent sur `dev` une fois cette PR fusionnée — d'où `review`.
+  Prises après la fusion de #372 :
+  - **AC1** — PR #373, qui ne modifie que `takussan-api/CLAUDE.md` (puis ce ticket) : **seul
+    Repo CI** s'est déclenché pour son SHA, aucun run d'API CI.
+  - **AC2** — PR jetable #374, un commentaire ajouté à `app/Support/CaseInsensitive.php` : API CI
+    déclenché (run 38431140474), `attestation` sans artefact, `lint-and-test` lancé. Run annulé,
+    PR fermée sans fusion.
+  - En prime, ADR-0063 vérifié sur la fusion de #372 : le push sur `dev` (run 38431019023) a
+    **sauté** `lint-and-test` — l'arbre avait été attesté vert sur la PR.
 - Toutes les clés existantes changent au premier passage (le contenu hashé change) : le premier
   run de chaque suite après fusion rejoue, une fois.
 - PR #372.
