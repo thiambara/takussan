@@ -382,8 +382,15 @@ déclenche pas tous. La liste se relit là, jamais ici :
 gh api repos/thiambara/takussan/branches/preview/protection -q .required_status_checks.contexts
 ```
 
+**Un arbre déjà éprouvé vert ne rejoue pas sa suite** ([ADR-0063](docs/adr/0063-attestation-de-ci-par-arbre.md),
+TCK-636) : `lint-and-test` et `quality` déposent un artefact `ci-vert-<suite>-<clé>`, la clé étant
+le `ls-tree` de ce que la suite **lit** ; le job `attestation` qui les précède les fait sauter
+quand il le trouve, et nomme le run qui a attesté. Le push du merge sur `dev` et la promotion
+sautent donc d'ordinaire ces deux jobs — sauté par `if:` vaut réussi pour un check requis. Toute
+incertitude rejoue. Images, rollback des migrations et gardes tournent toujours.
+
 ⚠ **`dev` n'est PAS protégée, et c'est voulu** : le step « Régénérer la carte d'impact »
-d'`api-ci.yml` (TCK-479) y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
+d'`api-ci.yml` (TCK-479), qui tourne **la nuit** depuis ADR-0063, y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
 `enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
 d'application, ou exception) — ticket à part si on la veut.
 
