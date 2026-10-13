@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**567 tickets** — 32 ouverts, 533 livrés.
+**567 tickets** — 30 ouverts, 535 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 28 |
-| 🚧 Doing | 2 |
-| 👀 Review | 2 |
+| 🚧 Doing | 1 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 533 |
+| ✅ Done | 535 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -65,12 +65,10 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-636](tickets/TCK-636-ci-attestation-par-arbre.md) — CI — un arbre déjà éprouvé vert ne rejoue pas sa suite (PR → dev, push sur dev, promotion), et la carte d'impact se régénère la nuit `M · P1 · technique`
 
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
-- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 ## ⛔ Blocked
 
@@ -78,7 +76,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 533
+## ✅ Done — 535
 
 <details>
 <summary><strong>Vague 75 — Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)</strong> — 1 ticket</summary>
@@ -973,7 +971,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 31 tickets</summary>
+<summary><strong>Sans vague</strong> — 33 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1006,6 +1004,8 @@ _(aucun)_
 - [TCK-630](tickets/TCK-630-tiroir-de-filtres-en-tete-fixe.md) — Tiroir des filtres sur téléphone : l'en-tête (« Filtres », « Tout effacer », fermer) défilait avec les filtres ; il reste en haut, le corps défile dessous `S · P1 · front`
 - [TCK-631](tickets/TCK-631-publication-plein-ecran-et-apercu.md) — Publier un bien : le parcours sort du tableau de bord (une question par écran) et montre l'annonce qui se construit à côté — la piste 6 des maquettes `M · P1 · front`
 - [TCK-632](tickets/TCK-632-ajouter-et-verifier-son-email-depuis-le-profil.md) — Un compte ouvert par téléphone ajoute et vérifie son adresse e-mail depuis le profil `S · P1 · full`
+- [TCK-636](tickets/TCK-636-ci-attestation-par-arbre.md) — CI — un arbre déjà éprouvé vert ne rejoue pas sa suite (PR → dev, push sur dev, promotion), et la carte d'impact se régénère la nuit `M · P1 · technique`
+- [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 
 </details>
 
