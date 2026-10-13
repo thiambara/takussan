@@ -96,6 +96,13 @@ de `ImpactSelectorTest`, qui les passe en **données** (chaînes), pas en lectur
 - `repo-ci.yml` : les gardes documentaires **doivent** continuer de tourner sur ces fichiers.
 - `promotion-ci.yml` : il appelle les workflows sans filtre de chemins, la clé suffit à le faire sauter.
 
+## Reste sur dev
+
+Le code est sur `dev` depuis la PR #372 (2026-10-13), et les cinq AC sont prouvés (#373, #374). Il ne
+reste **aucun code** : le ticket attend seulement que TCK-636, dont il dépend, passe `done` — la
+règle n°2 interdit qu'un ticket soit `done` avant ses dépendances. Il passe `done` dans le même
+mouvement que TCK-636.
+
 ## Notes d'implémentation
 
 - **Le périmètre exclu est plus étroit que « les `.md` de l'API », et c'est la mesure qui l'a
