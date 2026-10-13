@@ -53,6 +53,7 @@ jobs:
     # `actions: read` pour lister les artefacts. Appelé par promotion-ci, ce job ne peut pas avoir
     # plus que ce que l'appelant accorde : c'est pourquoi promotion-ci l'accorde aussi.
     permissions:
+      actions: read
       contents: read
     outputs:
       cle: ${{ steps.attestation.outputs.cle }}
@@ -70,8 +71,6 @@ jobs:
         with:
           node-version: '24'
       - id: attestation
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci-attestation.mjs api
 
   lint-and-test:
