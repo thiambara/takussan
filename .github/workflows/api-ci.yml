@@ -19,8 +19,54 @@ on:
     paths:
       - 'takussan-api/**'
       - '.github/workflows/api-ci.yml'
+  # ADR-0063 §3 — la carte d'impact se régénère LA NUIT, plus à chaque push sur `dev` : le commit du
+  # bot changeait l'arbre que la promotion éprouve, et l'obligeait à rejouer toute la suite. Un
+  # `schedule` ne tourne que sur la branche par défaut, c'est-à-dire `dev`.
+  schedule:
+    - cron: '30 2 * * *'
+  # À la demande, pour régénérer sans attendre la nuit (sur `dev` seulement : le step qui pousse
+  # la carte le vérifie).
+  workflow_dispatch:
 
 jobs:
+  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────
+  #
+  # La même suite tournait trois fois sur le même arbre : PR vers `dev`, push du merge, promotion.
+  # Ce job calcule la clé de l'arbre (le `ls-tree` de ce que la suite LIT, pas de ses `paths`) et
+  # cherche l'artefact qu'une exécution verte de cette clé a déposé. S'il existe, `lint-and-test`
+  # est sauté — un job sauté par `if:` compte comme réussi pour un check requis.
+  #
+  # ⚠ Toute incertitude REJOUE : le script rend `deja-vert=false` sur n'importe quelle erreur, et
+  # `lint-and-test` porte `!cancelled()` pour tourner même si ce job-ci échoue.
+  # `scripts/check-ci-attestation.mjs` tient cette forme.
+  attestation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `actions: read` pour lister les artefacts. Appelé par promotion-ci, ce job ne peut pas avoir
+    # plus que ce que l'appelant accorde : c'est pourquoi promotion-ci l'accorde aussi.
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      cle: ${{ steps.attestation.outputs.cle }}
+      artefact: ${{ steps.attestation.outputs.artefact }}
+      deja-vert: ${{ steps.attestation.outputs.deja-vert }}
+      carte-courante: ${{ steps.attestation.outputs.carte-courante }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # La nuit, le script relit l'historique pour savoir si l'API a changé depuis la
+          # dernière carte. Ailleurs, l'arbre courant suffit. ⚠ `'0'` EN CHAÎNE : `… && 0 || 1`
+          # rend toujours 1, le nombre 0 étant faux pour les expressions de GitHub.
+          fetch-depth: ${{ github.event_name == 'schedule' && '0' || '1' }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - id: attestation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-attestation.mjs api
+
   lint-and-test:
     # ─── L'ANTI-BOUCLE, ET CE QU'ELLE A REMPLACÉ (TCK-479) ──────────────────────────────
     #
@@ -52,10 +98,18 @@ jobs:
     # du `git commit -m` plus bas. S'ils divergent, la boucle revient, et elle revient en
     # silence. `scripts/check-skip-ci-marker.mjs` les compare, et refuse en plus que le
     # marqueur global reparaisse dans ce message.
+    #
+    # ADR-0063 — et le job ne tourne pas sur un arbre déjà attesté vert, ni la nuit quand l'API n'a
+    # pas changé depuis la dernière carte. `!cancelled()` d'abord : sans lui, un job `attestation`
+    # en échec ferait SAUTER celui-ci, et un job sauté passe un check requis.
+    needs: attestation
     if: >-
-      ${{ github.event_name != 'push'
+      ${{ !cancelled()
+      && needs.attestation.outputs.deja-vert != 'true'
+      && needs.attestation.outputs.carte-courante != 'true'
+      && (github.event_name != 'push'
       || github.event.head_commit.author.name != 'github-actions[bot]'
-      || !contains(github.event.head_commit.message, '[carte-impact]') }}
+      || !contains(github.event.head_commit.message, '[carte-impact]')) }}
 
     # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
     # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
@@ -343,15 +397,16 @@ jobs:
           # ─── `--coverage-php` N'EST PRODUIT QUE LÀ OÙ IL EST CONSOMMÉ ───────────────────
           #
           # Il a exactement UN consommateur — `bin/build-impact-map.php`, au step
-          # « Régénérer la carte d'impact », conditionné à `push` + `refs/heads/dev`. Sur
-          # une pull request, ce fichier d'environ 100 Mo serait écrit pour personne.
+          # « Régénérer la carte d'impact », qui ne tourne que la nuit (ou à la demande) sur
+          # `dev` (ADR-0063 §3). Ailleurs, ce fichier d'environ 100 Mo serait écrit pour personne.
           COV_PHP=()
-          if [ "${{ github.event_name }}" = 'push' ] && [ "${{ github.ref }}" = 'refs/heads/dev' ]; then
-            COV_PHP=(--coverage-php=storage/coverage/cov.php)
-            echo "carte d'impact : cov.php sera produit (push vers dev)."
-          else
-            echo "carte d'impact : cov.php n'est PAS produit (ce n'est pas un push vers dev)."
-          fi
+          case "${{ github.event_name }}:${{ github.ref }}" in
+            schedule:refs/heads/dev | workflow_dispatch:refs/heads/dev)
+              COV_PHP=(--coverage-php=storage/coverage/cov.php)
+              echo "carte d'impact : cov.php sera produit (${{ github.event_name }} sur dev)." ;;
+            *)
+              echo "carte d'impact : cov.php n'est PAS produit (la nuit ou à la demande, sur dev seulement)." ;;
+          esac
 
           debut=$(date +%s)
           # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
@@ -440,8 +495,31 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+      # ADR-0063 — L'ATTESTATION : la suite ET le cliquet sont verts sur cet arbre (le step de test
+      # porte les deux, et ce step ne tourne que s'il a réussi). Son NOM est la preuve que le job
+      # `attestation` cherche ; son contenu dit seulement qui l'a déposée. 7 jours : au-delà, une
+      # image de runner ou un service a pu bouger, et l'arbre se rejoue.
+      # Sans nom (le job `attestation` a échoué, la suite a tourné par `!cancelled()`), rien à
+      # déposer — et surtout pas un rouge sur une suite verte.
+      - name: Attester l'arbre (ADR-0063)
+        if: needs.attestation.outputs.artefact != ''
+        run: |
+          printf '{"cle":"%s","sha":"%s","run":"%s","evenement":"%s"}\n' \
+            "${{ needs.attestation.outputs.cle }}" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" \
+            > "${{ runner.temp }}/attestation.json"
+      - name: Déposer l'attestation
+        if: needs.attestation.outputs.artefact != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.attestation.outputs.artefact }}
+          path: ${{ runner.temp }}/attestation.json
+          retention-days: 7
+          if-no-files-found: error
+
       # ────────────────────────────────────────────────────────────────────────
-      # La carte d'impact — régénérée sur push vers `dev`, JAMAIS sur une PR.
+      # La carte d'impact — régénérée LA NUIT sur `dev` (ou à la demande), JAMAIS sur
+      # une PR, et plus à chaque push depuis ADR-0063 §3 : son commit changeait l'arbre
+      # de la promotion suivante, qui rejouait alors toute la suite pour un seul fichier.
       #
       # Pourquoi pas sur PR : le fichier serait réécrit par chaque branche et
       # deviendrait un aimant à conflits de merge, pour une donnée que personne ne
@@ -470,16 +548,17 @@ jobs:
       # que `repo-ci.yml`, et seulement quand le step suivant tourne réellement.
       - uses: actions/setup-node@v7
         if: >-
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev'
+          ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          && github.ref == 'refs/heads/dev'
           && !contains(github.event.head_commit.message, '[carte-impact]') }}
         with:
           node-version: '24'
 
       # ⚠ TCK-331 — RÉACTIVÉ le 2026-08-20, après avoir été désactivé quelques heures.
       #
-      # Il consomme `storage/coverage/cov.php`, que le step de test produit de nouveau — sur
-      # push vers `dev` uniquement, et via une invocation DIRECTE de PHPUnit, la seule qui
-      # accepte les trois sorties de couverture à la fois.
+      # Il consomme `storage/coverage/cov.php`, que le step de test produit de nouveau — la
+      # nuit sur `dev` uniquement depuis ADR-0063 (sur push vers `dev` avant), et via une
+      # invocation DIRECTE de PHPUnit, la seule qui accepte les trois sorties de couverture.
       #
       # ⚠ CE QU'IL FAUT SAVOIR EN LISANT L'HISTORIQUE DU JOB : ce step n'avait JAMAIS tourné
       # avec succès avant cette date. Les deux seules exécutions qui ont produit `cov.php`
@@ -501,8 +580,14 @@ jobs:
         # tourner le job (c'est voulu : on ne veut pas qu'une phrase éteigne la CI) mais ne
         # repousserait pas de carte. Le jour où la condition de job est cassée par une
         # refonte, c'est ce `if:`-ci qui empêche la boucle de repartir.
+        #
+        # ⚠ Depuis ADR-0063, ce step ne tourne plus sur `push` : `head_commit` n'existe pas
+        # sur `schedule` ni `workflow_dispatch`, et la clause du marqueur y est toujours vraie.
+        # Elle reste, et `check-skip-ci-marker.mjs` l'exige : c'est elle qui retient la boucle
+        # le jour où quelqu'un rendrait `push` à cette condition.
         if: >-
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev'
+          ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          && github.ref == 'refs/heads/dev'
           && !contains(github.event.head_commit.message, '[carte-impact]') }}
         run: |
           # Pas de `-f` silencieux : si `cov.php` manque alors que la condition ci-dessus est

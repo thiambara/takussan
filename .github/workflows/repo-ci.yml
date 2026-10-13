@@ -141,6 +141,11 @@ on:
       # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
       # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
       - 'takussan-api/tests/Support/**'
+      # `check-ci-attestation` (TCK-636) lit le PHP de l'API — `app`, `routes`, `database` et `tests`
+      # sont couverts plus haut — à la recherche d'une lecture de `takussan-web/` hors de la clé
+      # d'attestation de l'API. Ces deux dossiers-là ne l'étaient pas.
+      - 'takussan-api/bin/**'
+      - 'takussan-api/config/**'
   push:
     branches: [dev, master]
     paths:
@@ -229,6 +234,11 @@ on:
       # Le préfixe plutôt que le nom du fichier : `tests/Support/` porte aussi `ImpactMap`,
       # `SearchableModels` et `TestProcessToken`, et la prochaine garde de ce genre y vivra.
       - 'takussan-api/tests/Support/**'
+      # `check-ci-attestation` (TCK-636) lit le PHP de l'API — `app`, `routes`, `database` et `tests`
+      # sont couverts plus haut — à la recherche d'une lecture de `takussan-web/` hors de la clé
+      # d'attestation de l'API. Ces deux dossiers-là ne l'étaient pas.
+      - 'takussan-api/bin/**'
+      - 'takussan-api/config/**'
 
 jobs:
   guards:
@@ -293,6 +303,12 @@ jobs:
         # La protection de branche exige des checks nommés ; un check requis qui ne se déclenche
         # pas bloque la fusion. promotion-ci.yml appelle chaque `*-ci.yml`, et cette garde le tient.
         run: node scripts/check-promotion-ci.mjs --report
+
+      - name: Une suite ne se saute que sur un arbre attesté vert (ADR-0063, TCK-636)
+        # Le job lourd garde `!cancelled()` et lit `deja-vert`, il dépose l'attestation après avoir
+        # éprouvé la suite, promotion-ci accorde `actions: read`, et ce que l'API lit de
+        # `takussan-web/` tombe dans sa clé. Chacun de ces écarts est vert à l'écran.
+        run: node scripts/check-ci-attestation.mjs --report
 
       - name: Aucune substitution involontaire dans un heredoc non quoté
         # `server-setup.sh` (retiré par ADR-0028) écrivait /etc/sudoers.d et /etc/logrotate.d par
