@@ -4988,7 +4988,14 @@
       "bathroomsShort": "{count} sanjaan",
       "photoPending": "Nataal bi dina ñëw",
       "rentNoPeriod": "· luwaas",
-      "robe": { "sponsored": "Ñu fey ko", "featured": "Vedette" }, "badge": { "urgent": "Gaaw", "priceDrop": "Njëg wàcc na" }
+      "robe": {
+        "sponsored": "Ñu fey ko",
+        "featured": "Vedette"
+      },
+      "badge": {
+        "urgent": "Gaaw",
+        "priceDrop": "Njëg wàcc na"
+      }
     },
     "row": {
       "viewAll": "Gis lépp",
@@ -6527,11 +6534,30 @@
     "boosts": {
       "title": "Yokk gis-gis",
       "subtitle": "Yokk gis-gisu kër yi, jaay yi ak natt bérab yi.",
-      "tabs": { "label": "Xët yu yokk gis-gis", "boosts": "Yokk gis-gis", "catalogue": "Jaay yi", "stats": "Natt" },
+      "tabs": {
+        "label": "Xët yu yokk gis-gis",
+        "boosts": "Yokk gis-gis",
+        "catalogue": "Jaay yi",
+        "stats": "Natt"
+      },
       "statusFilter": "Tànn ci anam",
-      "statuses": { "all": "Yépp", "active": "Yi dox", "paused": "Yi taxaw", "ended": "Yi jeex", "cancelled": "Yi ñu neenal", "refunded": "Yi ñu delloo" },
-      "kinds": { "bump": "Yékkati", "featured": "Vedette", "badge": "Màndarga" },
-      "variants": { "urgent": "Gaaw", "price_drop": "Njëg wàcc na" },
+      "statuses": {
+        "all": "Yépp",
+        "active": "Yi dox",
+        "paused": "Yi taxaw",
+        "ended": "Yi jeex",
+        "cancelled": "Yi ñu neenal",
+        "refunded": "Yi ñu delloo"
+      },
+      "kinds": {
+        "bump": "Yékkati",
+        "featured": "Vedette",
+        "badge": "Màndarga"
+      },
+      "variants": {
+        "urgent": "Gaaw",
+        "price_drop": "Njëg wàcc na"
+      },
       "caption": "Yokk gis-gisu kër yi",
       "colProperty": "Kër",
       "colAgency": "Bérab",
@@ -7752,14 +7778,32 @@
           }
         },
         "credits": {
-          "welcome_amount": { "label": "Kredi dalal", "description": "Kredi yu ñuy may benn bérab, benn yoon ci nimeróo telefon bu ñu dëggal." },
-          "welcome_validity_days": { "label": "Diiru kredi yu ñu may", "description": "Ci fan. Mu ngi jëm ci may yi ñëwaagul ak kredi yu konsol bi may." },
-          "expiry_notice_days": { "label": "Yégle jeex", "description": "Ci fan balaa lot bi di jeex. 0 dafay dindi yégle bi." }
+          "welcome_amount": {
+            "label": "Kredi dalal",
+            "description": "Kredi yu ñuy may benn bérab, benn yoon ci nimeróo telefon bu ñu dëggal."
+          },
+          "welcome_validity_days": {
+            "label": "Diiru kredi yu ñu may",
+            "description": "Ci fan. Mu ngi jëm ci may yi ñëwaagul ak kredi yu konsol bi may."
+          },
+          "expiry_notice_days": {
+            "label": "Yégle jeex",
+            "description": "Ci fan balaa lot bi di jeex. 0 dafay dindi yégle bi."
+          }
         },
         "boost": {
-          "bump_cooldown_hours": { "label": "Diir ci diggante ñaari yékkati", "description": "Ci waxtu, ci kër gu ni mel." },
-          "sponsored_slots_per_page": { "label": "Bérab yu « Ñu fey ko » ci xët wu nekk", "description": "Ci 0 ba 10. 0 dafay dindi bérab yi." },
-          "reserved_top_results": { "label": "Bérab yu ñu denc ci kaw xët wu njëkk", "description": "Ci 0 ba 10. 0 dafay dindi bérab yu ñu denc." }
+          "bump_cooldown_hours": {
+            "label": "Diir ci diggante ñaari yékkati",
+            "description": "Ci waxtu, ci kër gu ni mel."
+          },
+          "sponsored_slots_per_page": {
+            "label": "Bérab yu « Ñu fey ko » ci xët wu nekk",
+            "description": "Ci 0 ba 10. 0 dafay dindi bérab yi."
+          },
+          "reserved_top_results": {
+            "label": "Bérab yu ñu denc ci kaw xët wu njëkk",
+            "description": "Ci 0 ba 10. 0 dafay dindi bérab yu ñu denc."
+          }
         }
       }
     },

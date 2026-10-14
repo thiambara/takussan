@@ -699,7 +699,14 @@
       "bathroomsShort": "{count} sdb",
       "photoPending": "Photo à venir",
       "rentNoPeriod": "· loyer",
-      "robe": { "sponsored": "Sponsorisé", "featured": "En vedette" }, "badge": { "urgent": "Urgent", "priceDrop": "Baisse de prix" }
+      "robe": {
+        "sponsored": "Sponsorisé",
+        "featured": "En vedette"
+      },
+      "badge": {
+        "urgent": "Urgent",
+        "priceDrop": "Baisse de prix"
+      }
     },
     "row": {
       "viewAll": "Tout voir",
@@ -7172,11 +7179,30 @@
     "boosts": {
       "title": "Mise en avant",
       "subtitle": "Boosts du parc, catalogue des offres et mesure des emplacements.",
-      "tabs": { "label": "Écrans de la mise en avant", "boosts": "Boosts", "catalogue": "Catalogue", "stats": "Statistiques" },
+      "tabs": {
+        "label": "Écrans de la mise en avant",
+        "boosts": "Boosts",
+        "catalogue": "Catalogue",
+        "stats": "Statistiques"
+      },
       "statusFilter": "Filtrer par statut",
-      "statuses": { "all": "Tous", "active": "Actifs", "paused": "En pause", "ended": "Terminés", "cancelled": "Annulés", "refunded": "Remboursés" },
-      "kinds": { "bump": "Remontée", "featured": "Vedette", "badge": "Badge" },
-      "variants": { "urgent": "Urgent", "price_drop": "Baisse de prix" },
+      "statuses": {
+        "all": "Tous",
+        "active": "Actifs",
+        "paused": "En pause",
+        "ended": "Terminés",
+        "cancelled": "Annulés",
+        "refunded": "Remboursés"
+      },
+      "kinds": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": "Badge"
+      },
+      "variants": {
+        "urgent": "Urgent",
+        "price_drop": "Baisse de prix"
+      },
       "caption": "Boosts du parc",
       "colProperty": "Bien",
       "colAgency": "Espace",
@@ -8397,14 +8423,32 @@
           }
         },
         "credits": {
-          "welcome_amount": { "label": "Crédits de bienvenue", "description": "Crédits offerts à un espace, une fois par numéro de téléphone vérifié." },
-          "welcome_validity_days": { "label": "Validité des crédits offerts", "description": "En jours. S’applique aux octrois futurs et aux crédits offerts par la console." },
-          "expiry_notice_days": { "label": "Préavis d’expiration", "description": "En jours avant l’expiration d’un lot. 0 désactive le préavis." }
+          "welcome_amount": {
+            "label": "Crédits de bienvenue",
+            "description": "Crédits offerts à un espace, une fois par numéro de téléphone vérifié."
+          },
+          "welcome_validity_days": {
+            "label": "Validité des crédits offerts",
+            "description": "En jours. S’applique aux octrois futurs et aux crédits offerts par la console."
+          },
+          "expiry_notice_days": {
+            "label": "Préavis d’expiration",
+            "description": "En jours avant l’expiration d’un lot. 0 désactive le préavis."
+          }
         },
         "boost": {
-          "bump_cooldown_hours": { "label": "Délai entre deux remontées", "description": "En heures, pour un même bien." },
-          "sponsored_slots_per_page": { "label": "Emplacements « Sponsorisé » par page", "description": "De 0 à 10. 0 désactive les emplacements." },
-          "reserved_top_results": { "label": "Places réservées en tête de la première page", "description": "De 0 à 10. 0 désactive les places réservées." }
+          "bump_cooldown_hours": {
+            "label": "Délai entre deux remontées",
+            "description": "En heures, pour un même bien."
+          },
+          "sponsored_slots_per_page": {
+            "label": "Emplacements « Sponsorisé » par page",
+            "description": "De 0 à 10. 0 désactive les emplacements."
+          },
+          "reserved_top_results": {
+            "label": "Places réservées en tête de la première page",
+            "description": "De 0 à 10. 0 désactive les places réservées."
+          }
         }
       }
     },

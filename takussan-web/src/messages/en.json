@@ -728,7 +728,14 @@
       "bathroomsShort": "{count} ba",
       "photoPending": "Photo coming soon",
       "rentNoPeriod": "· rent",
-      "robe": { "sponsored": "Sponsored", "featured": "Featured" }, "badge": { "urgent": "Urgent", "priceDrop": "Price drop" }
+      "robe": {
+        "sponsored": "Sponsored",
+        "featured": "Featured"
+      },
+      "badge": {
+        "urgent": "Urgent",
+        "priceDrop": "Price drop"
+      }
     },
     "row": {
       "viewAll": "See all",
@@ -7172,11 +7179,30 @@
     "boosts": {
       "title": "Promotion",
       "subtitle": "Platform boosts, the offer catalogue and slot measurement.",
-      "tabs": { "label": "Promotion screens", "boosts": "Boosts", "catalogue": "Catalogue", "stats": "Statistics" },
+      "tabs": {
+        "label": "Promotion screens",
+        "boosts": "Boosts",
+        "catalogue": "Catalogue",
+        "stats": "Statistics"
+      },
       "statusFilter": "Filter by status",
-      "statuses": { "all": "All", "active": "Active", "paused": "Paused", "ended": "Ended", "cancelled": "Cancelled", "refunded": "Refunded" },
-      "kinds": { "bump": "Bump", "featured": "Featured", "badge": "Badge" },
-      "variants": { "urgent": "Urgent", "price_drop": "Price drop" },
+      "statuses": {
+        "all": "All",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded"
+      },
+      "kinds": {
+        "bump": "Bump",
+        "featured": "Featured",
+        "badge": "Badge"
+      },
+      "variants": {
+        "urgent": "Urgent",
+        "price_drop": "Price drop"
+      },
       "caption": "Platform boosts",
       "colProperty": "Listing",
       "colAgency": "Workspace",
@@ -8397,14 +8423,32 @@
           }
         },
         "credits": {
-          "welcome_amount": { "label": "Welcome credits", "description": "Credits offered to a workspace, once per verified phone number." },
-          "welcome_validity_days": { "label": "Offered credits validity", "description": "In days. Applies to future grants and to credits offered from the console." },
-          "expiry_notice_days": { "label": "Expiry notice", "description": "In days before a lot expires. 0 disables the notice." }
+          "welcome_amount": {
+            "label": "Welcome credits",
+            "description": "Credits offered to a workspace, once per verified phone number."
+          },
+          "welcome_validity_days": {
+            "label": "Offered credits validity",
+            "description": "In days. Applies to future grants and to credits offered from the console."
+          },
+          "expiry_notice_days": {
+            "label": "Expiry notice",
+            "description": "In days before a lot expires. 0 disables the notice."
+          }
         },
         "boost": {
-          "bump_cooldown_hours": { "label": "Delay between two bumps", "description": "In hours, for the same listing." },
-          "sponsored_slots_per_page": { "label": "“Sponsored” slots per page", "description": "From 0 to 10. 0 disables the slots." },
-          "reserved_top_results": { "label": "Reserved places at the top of the first page", "description": "From 0 to 10. 0 disables reserved places." }
+          "bump_cooldown_hours": {
+            "label": "Delay between two bumps",
+            "description": "In hours, for the same listing."
+          },
+          "sponsored_slots_per_page": {
+            "label": "“Sponsored” slots per page",
+            "description": "From 0 to 10. 0 disables the slots."
+          },
+          "reserved_top_results": {
+            "label": "Reserved places at the top of the first page",
+            "description": "From 0 to 10. 0 disables reserved places."
+          }
         }
       }
     },
