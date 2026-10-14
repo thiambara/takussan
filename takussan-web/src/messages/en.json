@@ -147,7 +147,6 @@
       "crm": "Clients (CRM)",
       "calendar": "Calendar",
       "onboardingPending": "Pending onboardings",
-      "administration": "Administration",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
       "sections": {
@@ -165,8 +164,6 @@
       "commissions": "Commissions"
     },
     "admin": {
-      "dashboard": "Dashboard",
-      "properties": "Properties",
       "team": "Team",
       "agency": "Agency",
       "kyc": "Agency KYC",
@@ -175,10 +172,7 @@
       "reviewModeration": "Review moderation",
       "propertyModeration": "Property moderation",
       "auditLog": "Audit log",
-      "settings": "Settings",
       "sectionLabel": "Administration",
-      "backToPersonal": "Back to my workspace",
-      "proLocked": "Pro accounts only",
       "pendingBadge": "{count} pending",
       "roles": "Roles",
       "integrations": "Integrations",
@@ -1768,23 +1762,7 @@
     },
     "agency": {
       "title": "Agency overview",
-      "loadError": "The data could not be loaded.",
       "period": "Key indicators for the period — {start} to {end}",
-      "activeProperties": "Active properties",
-      "publishedHint": "{count} published",
-      "activeLeases": "Active leases",
-      "rentedHint": "{count} properties rented",
-      "revenueMonth": "Revenue this month",
-      "commissionHint": "Commissions: {amount}",
-      "overdue": "Overdue",
-      "overdueHint": "{amount} · {rate}%",
-      "customers": "Customers",
-      "team": "Team",
-      "pendingRequests": "Pending requests",
-      "bookingsHint": "Bookings",
-      "openMaintenance": "Open maintenance",
-      "chartTitle": "Revenue and occupancy over 12 months",
-      "chartRevenue": "Revenue",
       "chartOccupancy": "Occupancy rate (%)",
       "occupancyHeading": "Occupancy — last 12 months"
     },
@@ -2250,10 +2228,8 @@
       "publishedHint": "{count} published",
       "activeLeases": "Active leases",
       "occupancyRate": "Occupancy rate",
-      "occupancyHint": "{rented} rented / {total}",
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
-      "overdueHint": "{count} due dates",
       "unpaidRate": "Unpaid rate",
       "rentedHint": "{count} properties rented",
       "commissionHint": "Commissions: {amount}"
@@ -2338,12 +2314,6 @@
         "first_member": "First team member invited",
         "first_published_property": "First property published",
         "admin_two_factor": "Administrator two-factor authentication turned on"
-      }
-    },
-    "agencyNotices": {
-      "tagsPlatformManaged": {
-        "title": "Tags are managed by the platform",
-        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
       }
     }
   },
@@ -5728,12 +5698,6 @@
     }
   },
   "admin": {
-    "notices": {
-      "tagsPlatformManaged": {
-        "title": "Tags are managed by the platform",
-        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
-      }
-    },
     "moderation": {
       "reviews": {
         "empty_title": "No review to moderate",
@@ -6188,27 +6152,6 @@
       }
     },
     "pages": {
-      "home": {
-        "noAgency": "Agency dashboard",
-        "title": "Agency dashboard",
-        "subtitle": "Agency overview"
-      },
-      "setupStatus": {
-        "title": "Agency setup",
-        "description": "What’s left for the agency to be fully up and running.",
-        "progress": "{done} of {total} steps completed",
-        "done": "Done",
-        "todo": "To do",
-        "steps": {
-          "kyc_verified": "KYC file verified",
-          "logo": "Agency logo added",
-          "commission_rate": "Commission rate set",
-          "payment_integration": "Payment method connected",
-          "first_member": "First team member invited",
-          "first_published_property": "First property published",
-          "admin_two_factor": "Administrator two-factor authentication turned on"
-        }
-      },
       "team": {
         "shortTitle": "Team",
         "shortSubtitle": "Manage the agency's members",
@@ -6251,14 +6194,6 @@
         "payoutsTitle": "Platform payouts",
         "payoutsBody": "Tracking of transfers issued by the platform after collection.",
         "payoutsBodyFull": "Tracking of transfers issued by the platform after the commission is withheld."
-      },
-      "settings": {
-        "title": "Settings",
-        "subtitle": "Global key/value settings, feature flags and integrations.",
-        "navAria": "Settings sections",
-        "tabGeneral": "General",
-        "tabIntegrations": "Integrations",
-        "loadError": "The settings could not be loaded: {message}"
       },
       "integrations": {
         "title": "Integrations",
@@ -8887,7 +8822,6 @@
     "integrations": {
       "empty_title": "No integration configured",
       "empty_description": "Add one to enable Wave, Orange Money or Stripe payments.",
-      "intro": "Connect external providers (payment, SMS, email). Secrets are never shown again once saved.",
       "add": "Add an integration",
       "statusActive": "Active",
       "statusInactive": "Disabled",

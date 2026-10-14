@@ -137,7 +137,6 @@
       "crm": "Kiliyaan (CRM)",
       "calendar": "Arminaat",
       "onboardingPending": "Dugg yi séq",
-      "administration": "Yoonu njiit",
       "proLocked": "Kont pro rekk",
       "navLabel": "Joowiin bu tablo bi",
       "sections": {
@@ -155,8 +154,6 @@
       "commissions": "Komisioŋ yi"
     },
     "admin": {
-      "dashboard": "Taablo",
-      "properties": "Kër yi",
       "team": "Ekib",
       "agency": "Ajaas",
       "kyc": "KYC ajaas",
@@ -165,10 +162,7 @@
       "reviewModeration": "Toppatoo ràññee",
       "propertyModeration": "Toppatoo kër yi",
       "auditLog": "Téereb toppatoo",
-      "settings": "Tegtal yi",
       "sectionLabel": "Yoonu njiit",
-      "backToPersonal": "Dellu ci sama bérébu bopp",
-      "proLocked": "Kont pro rekk",
       "pendingBadge": "{count} ñu séq",
       "roles": "Wàll yi",
       "integrations": "Ay jokkoo",
@@ -3952,12 +3946,6 @@
     }
   },
   "admin": {
-    "notices": {
-      "tagsPlatformManaged": {
-        "title": "Plaatform bi moo yor tag yi",
-        "body": "Amul benn xët « Tag » ci wàllu ajaas bi : Takussan moo yor limu tag yi ngir mu bokk ci katalog bi yépp. Ñu delloo na la ci taablo bi."
-      }
-    },
     "moderation": {
       "reviews": {
         "empty_title": "Amul avis bu ñu war a xool",
@@ -4412,27 +4400,6 @@
       }
     },
     "pages": {
-      "home": {
-        "noAgency": "Tablou ajaas",
-        "title": "Tablou ajaas",
-        "subtitle": "Wonewu ajaas bi"
-      },
-      "setupStatus": {
-        "title": "Taxawal ajaans bi",
-        "description": "Li des ngir ajaans bi dox bu baax.",
-        "progress": "{done} ci {total} tappe yu jeex",
-        "done": "Def nañu ko",
-        "todo": "Des na",
-        "steps": {
-          "kyc_verified": "Dosiyeu KYC bi seetlu nañu ko",
-          "logo": "Logo ajaans bi yokk nañu ko",
-          "commission_rate": "Taux komisiyoŋ bi bind nañu ko",
-          "payment_integration": "Anam fey bi lëkkale nañu ko",
-          "first_member": "Jàng bu njëkk bi woo nañu ko ci ekip bi",
-          "first_published_property": "Kër gu njëkk gi génne nañu ko",
-          "admin_two_factor": "Ñaari yoon ngir seetlu bu njiit li ubbi na"
-        }
-      },
       "team": {
         "shortTitle": "Ekib bi",
         "shortSubtitle": "Topptoo way-bokk yu ajaas bi",
@@ -4475,14 +4442,6 @@
         "payoutsTitle": "Peymaanu platform",
         "payoutsBody": "Topptoo yónnee yi platform bi def ginnaaw pey bi.",
         "payoutsBodyFull": "Topptoo yónnee yi platform bi def ginnaaw bu jële komisioŋ bi."
-      },
-      "settings": {
-        "title": "Tëralin yi",
-        "subtitle": "Tëralin yu mag caabi/njëg, feature flag ak jokkale.",
-        "navAria": "Xaajum tëralin yi",
-        "tabGeneral": "Bu mag",
-        "tabIntegrations": "Jokkale yi",
-        "loadError": "Mënuñu yeb tëralin yi : {message}"
       },
       "integrations": {
         "title": "Jokkale yi",
@@ -8216,7 +8175,6 @@
     "integrations": {
       "empty_title": "Amul benn jokkale bu ñu tëral",
       "empty_description": "Yokkal benn ngir ubbi pey yu Wave, Orange Money walla Stripe.",
-      "intro": "Boole providers yu biti yi (fay, SMS, email). Sekere yi, duñu leen wonewaat bu ñu leen dencee.",
       "add": "Yokk benn integration",
       "statusActive": "Mu ngi dox",
       "statusInactive": "Dañu ko fey",
@@ -8901,23 +8859,7 @@
     },
     "agency": {
       "title": "Wonewu ajaas",
-      "loadError": "Mënuñu yeb xibaar yi.",
       "period": "Màndarga yu am solo ci jamono ji — {start} ba {end}",
-      "activeProperties": "Kër yuy dox",
-      "publishedHint": "{count} la ñu génne",
-      "activeLeases": "Kontaraa yuy dox",
-      "rentedHint": "{count} kër la ñu luwaa",
-      "revenueMonth": "Njariñu weer wi",
-      "commissionHint": "Komisioŋ : {amount}",
-      "overdue": "Yu ñu feyul",
-      "overdueHint": "{amount} · {rate}%",
-      "customers": "Kiliyaan yi",
-      "team": "Ekib bi",
-      "pendingRequests": "Ñaan yuy xaar",
-      "bookingsHint": "Réservasioŋ yi",
-      "openMaintenance": "Wattu yu ubbeeku",
-      "chartTitle": "Njariñ ak dalal ci 12 weer",
-      "chartRevenue": "Njariñ",
       "chartOccupancy": "Peggu dalal (%)",
       "occupancyHeading": "Peggu dalal — 12 weer yu mujj"
     },
@@ -9388,10 +9330,8 @@
       "publishedHint": "{count} la ñu génne",
       "activeLeases": "Kontaraa yuy dox",
       "occupancyRate": "Peggu dalal",
-      "occupancyHint": "{rented} yu ñu luwe / {total}",
       "revenueMonth": "Njariñu weer wi",
       "overdue": "Yu ñu feyul",
-      "overdueHint": "{count} bes yu jot",
       "unpaidRate": "Peggu pey yu ñu feyul",
       "rentedHint": "{count} kër la ñu luwaa",
       "commissionHint": "Komisioŋ : {amount}"
@@ -9476,12 +9416,6 @@
         "first_member": "Jàng bu njëkk bi woo nañu ko ci ekip bi",
         "first_published_property": "Kër gu njëkk gi génne nañu ko",
         "admin_two_factor": "Ñaari yoon ngir seetlu bu njiit li ubbi na"
-      }
-    },
-    "agencyNotices": {
-      "tagsPlatformManaged": {
-        "title": "Plaatform bi moo yor tag yi",
-        "body": "Amul benn xët « Tag » ci wàllu ajaas bi : Takussan moo yor limu tag yi ngir mu bokk ci katalog bi yépp. Ñu delloo na la ci taablo bi."
       }
     }
   },
