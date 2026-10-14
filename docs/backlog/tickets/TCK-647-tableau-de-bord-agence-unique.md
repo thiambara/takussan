@@ -1,7 +1,7 @@
 ---
 id: TCK-647
 title: Un seul tableau de bord d'agence — /app/overview/agency absorbe celui de /admin
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

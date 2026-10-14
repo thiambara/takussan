@@ -1,7 +1,7 @@
 ---
 id: TCK-650
 title: Les paramètres globaux et les étiquettes de la console agissent au jeton de l'opérateur
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

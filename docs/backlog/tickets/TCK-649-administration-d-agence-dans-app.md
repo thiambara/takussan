@@ -1,7 +1,7 @@
 ---
 id: TCK-649
 title: L'administration d'agence s'ouvre dans /app (/app/agency/*) — /admin supprimé
-status: review
+status: done
 phase: P1
 family: full
 estimate: L

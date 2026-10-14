@@ -1,7 +1,7 @@
 ---
 id: TCK-648
 title: Les deux pages super-admin de /admin rejoignent /super-admin
-status: review
+status: done
 phase: P1
 family: front
 estimate: S
@@ -74,5 +74,5 @@ plateforme ne reste dans l'espace d'une agence.
   l'assignation en masse ; la même liste reste ouverte au super-admin sur `/app/properties`.
 - Reste hors périmètre : les actions de `admin-settings.ts` lisent `getToken()`, donc le jeton
   d'impersonation pendant une session (même précédent que `/super-admin/tags`) — aucune élévation,
-  écritures globales en 403. À traiter par un ticket à part si on veut l'éditeur pendant une impersonation.
+  écritures globales en 403. Traité par TCK-650 (`app/actions/console.ts`, au jeton de l'opérateur).
 - Commit 635dec27.
