@@ -9,7 +9,7 @@ wave: 78
 created: 2026-10-14
 updated: 2026-10-14
 depends_on: []
-blocks: [TCK-649]
+blocks: [TCK-649, TCK-650]
 spec_refs:
   features:
     - docs/features.md#29-administration--configuration
