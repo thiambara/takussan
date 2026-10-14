@@ -126,7 +126,7 @@ export async function upsertSettingAction(payload: {
   if (!auth.ok) return auth.result;
   try {
     const data = await upsertSetting(auth.token, payload, await getActiveProfileId());
-    revalidatePath('/admin/settings');
+    revalidatePath('/super-admin/settings/global');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -141,7 +141,7 @@ export async function updateSettingAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await updateSetting(auth.token, settingId, value, await getActiveProfileId());
-    revalidatePath('/admin/settings');
+    revalidatePath('/super-admin/settings/global');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -153,7 +153,7 @@ export async function deleteSettingAction(settingId: number): Promise<ActionResu
   if (!auth.ok) return auth.result;
   try {
     await deleteSetting(auth.token, settingId, await getActiveProfileId());
-    revalidatePath('/admin/settings');
+    revalidatePath('/super-admin/settings/global');
     return { ok: true };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

@@ -75,31 +75,27 @@ describe('<AdminSidebar> — accès aux intégrations', () => {
     );
   });
 
-  it("n'ouvre pas pour autant les paramètres globaux à un agency_admin", () => {
-    monte(['agency_admin']);
+  // TCK-648 (ADR-0064 §1) — l'entrée « Paramètres » (`/admin/settings`, l'éditeur de la table
+  // `settings`) a quitté ce menu pour la console (`/super-admin/settings/global`) : plus personne,
+  // super-admin compris, ne la trouve ici.
+  it.each([['agency_admin'], ['super_admin']] as const)(
+    "n'offre plus d'entrée « Paramètres » à un %s",
+    (role) => {
+      monte([role]);
 
-    // `/api/admin/settings` est sous le middleware `super-admin` : l'entrée « Paramètres » reste
-    // super-admin. Corriger « dans le sens de l'API » veut dire les deux à la fois.
-    expect(screen.queryByRole('link', { name: 'Paramètres' })).toBeNull();
-  });
-
-  it('montre les deux entrées à un super_admin, sans les confondre', () => {
-    monte(['super_admin']);
-
-    expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
-      'href',
-      '/admin/settings/integrations',
-    );
-    expect(screen.getByRole('link', { name: 'Paramètres' })).toHaveAttribute(
-      'href',
-      '/admin/settings',
-    );
-  });
+      expect(screen.queryByRole('link', { name: 'Paramètres' })).toBeNull();
+      expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
+        'href',
+        '/admin/settings/integrations',
+      );
+    },
+  );
 });
 
 /**
  * L'état actif : avant TCK-370, `/admin/settings` était surligné par PRÉFIXE. Avec une entrée
- * « Intégrations » sous ce même préfixe, les deux lignes s'allumaient ensemble.
+ * « Intégrations » sous ce même préfixe, les deux lignes s'allumaient ensemble. Depuis TCK-648,
+ * l'entrée « Paramètres » n'existe plus dans ce menu : reste à vérifier qu'« Intégrations » s'allume.
  */
 describe('<AdminSidebar> — surlignage sur /admin/settings/integrations', () => {
   it("n'allume que l'entrée Intégrations", async () => {
@@ -119,8 +115,5 @@ describe('<AdminSidebar> — surlignage sur /admin/settings/integrations', () =>
     );
 
     expect(screen.getByRole('link', { name: 'Intégrations' }).className).toContain('font-semibold');
-    expect(screen.getByRole('link', { name: 'Paramètres' }).className).not.toContain(
-      'font-semibold',
-    );
   });
 });

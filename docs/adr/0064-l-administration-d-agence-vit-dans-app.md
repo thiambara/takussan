@@ -28,8 +28,12 @@ Relevé sur la branche `feat/ux-mobile-navigation-tck-641-646` (au-dessus de `de
   rien qui garde leur cohérence.
 - **Deux pages de `/admin` ne sont pas de l'administration d'agence.** Elles exigent `super_admin`
   dans la table : `/admin/properties`, un réexport de la liste `/app/properties` qui double
-  `/super-admin/properties` ; et `/admin/settings`, l'éditeur de la table clé-valeur `settings`
-  (`/api/settings`, portée globale), distinct des paramètres plateforme de `/super-admin/settings`.
+  `/super-admin/properties` ; et `/admin/settings`, l'éditeur BRUT de la table clé-valeur
+  `settings` (`/api/settings`, sous `auth:sanctum` seul : la portée `global` exige le super-admin).
+  Les « Paramètres plateforme » de `/super-admin/settings` lisent la MÊME table par une autre API
+  (`/api/admin/settings`), en vue catalogue typée des seules clés déclarées ; la route brute refuse
+  d'écrire une clé du catalogue. Deux vues, deux API, une table — relevé par TCK-648, la première
+  rédaction de cet ADR disait « deux tables ».
 - **Deux pages sont des vestiges.** `/admin/users` redirige en 308 vers `/admin/team` (TCK-277) ;
   `/admin/settings/tags` redirige vers `/admin` avec un avis (les étiquettes sont gérées par la
   plateforme) ; c'est le seul émetteur de l'avis de redirection de `/admin` (`AdminNotice`, `lib/admin/notices.ts`), qui part avec lui.

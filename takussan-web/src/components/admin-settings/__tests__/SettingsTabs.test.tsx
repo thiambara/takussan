@@ -11,55 +11,32 @@ vi.mock('next/link', () => ({
 }));
 
 /**
- * TCK-373 — cette navigation était RECOPIÉE dans les deux pages `/admin/settings*`, l'une avec la
- * première branche active et l'autre avec la seconde. Le test qui compte le plus est donc celui
- * qui vérifie que les DEUX états sortent du même composant : c'est la propriété qu'une recopie
- * ne peut pas tenir.
+ * TCK-648 (ADR-0064 §1) — l'onglet « Général » menait à `/admin/settings`, l'éditeur de la table
+ * `settings`, page de la PLATEFORME partie dans la console (`/super-admin/settings/global`). La page
+ * d'intégrations d'une agence ne doit plus y mener, quel que soit l'acteur : un super-admin trouve
+ * les paramètres globaux dans sa console.
+ *
+ * Le test vaut pour les DEUX valeurs de `canSeeGeneral` : c'est le super-admin (`true`) que l'ancien
+ * filtre laissait passer, et c'est donc lui qui rougit si l'onglet revient.
  */
 describe('<SettingsTabs>', () => {
-  it('marque l’onglet général comme page courante, et lui seul', async () => {
-    render(await SettingsTabs({ active: 'general', canSeeGeneral: true }));
+  it.each([true, false])(
+    'aucun lien vers une page super-admin, même pour un super-admin (canSeeGeneral=%s)',
+    async (canSeeGeneral) => {
+      render(await SettingsTabs({ active: 'integrations', canSeeGeneral }));
 
-    expect(screen.getByRole('link', { name: 'Général' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Intégrations' })).not.toHaveAttribute('aria-current');
-  });
+      expect(screen.queryByRole('link', { name: 'Général' })).toBeNull();
+      const cibles = screen.getAllByRole('link').map((lien) => lien.getAttribute('href'));
+      expect(cibles).not.toContain('/admin/settings');
+      expect(cibles.filter((href) => href?.startsWith('/super-admin'))).toEqual([]);
+    },
+  );
 
-  it('marque l’onglet intégrations comme page courante, et lui seul', async () => {
+  it('garde l’onglet intégrations, marqué comme page courante', async () => {
     render(await SettingsTabs({ active: 'integrations', canSeeGeneral: true }));
 
-    expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(screen.getByRole('link', { name: 'Général' })).not.toHaveAttribute('aria-current');
-  });
-
-  it('pointe sur les deux routes de la section', async () => {
-    render(await SettingsTabs({ active: 'general', canSeeGeneral: true }));
-
-    expect(screen.getByRole('link', { name: 'Général' })).toHaveAttribute(
-      'href',
-      '/admin/settings',
-    );
-    expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
-      'href',
-      '/admin/settings/integrations',
-    );
-  });
-
-  /**
-   * TCK-370 — l'onglet « Général » pointe sur `/admin/settings`, qui redirige tout
-   * non-super-admin vers `/admin`. Un `agency_admin` arrivé sur les intégrations depuis le menu
-   * y trouvait donc un lien qui l'éjectait. Ce test rougit si le filtre disparaît : il ne
-   * suffit pas que le lien EXISTE, il faut qu'il n'existe pas pour qui la page rejette.
-   */
-  it('retire l’onglet général quand l’acteur n’y a pas accès', async () => {
-    render(await SettingsTabs({ active: 'integrations', canSeeGeneral: false }));
-
-    expect(screen.queryByRole('link', { name: 'Général' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    const integrations = screen.getByRole('link', { name: 'Intégrations' });
+    expect(integrations).toHaveAttribute('href', '/admin/settings/integrations');
+    expect(integrations).toHaveAttribute('aria-current', 'page');
   });
 });

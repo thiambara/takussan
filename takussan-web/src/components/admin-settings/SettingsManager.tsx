@@ -46,6 +46,9 @@ import type { Setting, SettingScope } from '@/types/setting';
  * Displays settings grouped by scope, allows inline editing of the value
  * and exposes a modal for adding a new key. Secrets are not stored here
  * (they live in `Integration.credentials`) so we can display values freely.
+ *
+ * TCK-648 — monté par `/super-admin/settings/global` seul (l'ancienne page `/admin/settings` est
+ * supprimée, ADR-0064 §1).
  */
 
 interface SettingsManagerProps {
@@ -266,8 +269,8 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                 aria-selected={active}
                 onClick={() => setScopeFilter(opt)}
                 // Sélection en aplat DOUX : le filtre de portée portait le même terracotta plein
-                // que la navigation « Général / Intégrations » juste au-dessus et que le CTA à
-                // droite — trois pastilles pleines, trois rôles différents.
+                // que le CTA à droite (et, jusqu'à TCK-648, que la navigation « Général /
+                // Intégrations » au-dessus) — des pastilles pleines pour des rôles différents.
                 className={cn(
                   'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   active

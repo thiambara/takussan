@@ -6,38 +6,33 @@ import { cn } from '@/lib/utils';
 /**
  * La navigation par onglets de `/admin/settings*`.
  *
- * Ce sont des CHANGEMENTS DE ROUTE, pas des panneaux : `/admin/settings` et
- * `/admin/settings/integrations` sont deux pages serveur qui chargent des données différentes.
- * Ils restent donc des `<Link>` — un `<Tabs>` client les transformerait en onglets qui rechargent
- * la page, c'est-à-dire en liens déguisés.
+ * Ce sont des CHANGEMENTS DE ROUTE, pas des panneaux : chaque onglet est une page serveur qui
+ * charge ses propres données. Ils restent donc des `<Link>` — un `<Tabs>` client les transformerait
+ * en onglets qui rechargent la page, c'est-à-dire en liens déguisés.
  *
- * Ce qu'ils ne sont plus, c'est recopiés. Les deux pages portaient le même bloc de six lignes,
- * l'une avec la première branche active et l'autre avec la seconde — donc **deux endroits où
- * ajouter un troisième onglet, et un seul qui aurait été trouvé**.
+ * Composant SERVEUR (`getTranslations`) : la page qui le monte l'est aussi, et le rendre client
+ * aurait embarqué une frontière pour un libellé.
  *
- * Composant SERVEUR (`getTranslations`) : les deux pages qui le montent le sont aussi, et le
- * rendre client aurait embarqué une frontière pour trois libellés.
- *
- * TCK-370 — `canSeeGeneral` est REQUIS, pas optionnel avec un défaut permissif. `/admin/settings`
- * redirige tout non-super-admin vers `/admin` (son API, `routes/api/admin.php`, est sous le
- * middleware `super-admin`) : montrer l'onglet « Général » à un `agency_admin` lui offrait un
- * lien qui l'éjectait de l'écran qu'il venait d'ouvrir. Le rendre obligatoire fait porter la
- * question par le typage à CHAQUE site d'appel — un défaut à `true` aurait ramené le défaut au
- * premier écran ajouté.
+ * TCK-648 (ADR-0064 §1) — l'onglet « Général » menait à `/admin/settings`, l'éditeur de la table
+ * `settings` : une page de la PLATEFORME, partie dans la console (`/super-admin/settings/global`).
+ * La page d'intégrations d'une agence n'y mène plus, pour personne — un super-admin trouve les
+ * paramètres globaux dans sa console. `canSeeGeneral` (TCK-370), qui retirait cet onglet à tout
+ * non-super-admin, n'a donc plus rien à décider : il n'est plus lu. La signature, elle, est gardée
+ * telle quelle (`'general'` compris, qui n'allume plus rien) pour que la page qui le monte
+ * (`admin/settings/integrations/page.tsx`) et son test compilent sans être touchés ici. Cette page
+ * est déplacée par TCK-649, qui retire l'appel — et ce composant d'un seul onglet avec lui.
  */
 export async function SettingsTabs({
   active,
-  canSeeGeneral,
 }: {
   readonly active: 'general' | 'integrations';
-  readonly canSeeGeneral: boolean;
+  readonly canSeeGeneral?: boolean;
 }) {
   const t = await getTranslations('admin.pages.settings');
 
   const onglets = [
-    { cle: 'general', href: '/admin/settings', label: t('tabGeneral') },
     { cle: 'integrations', href: '/admin/settings/integrations', label: t('tabIntegrations') },
-  ].filter((onglet) => onglet.cle !== 'general' || canSeeGeneral);
+  ];
 
   return (
     <nav className="flex flex-wrap gap-2" aria-label={t('navAria')}>
