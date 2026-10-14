@@ -11,8 +11,8 @@
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 43 |
-| 🚧 Doing | 7 |
-| 👀 Review | 1 |
+| 🚧 Doing | 1 |
+| 👀 Review | 7 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 537 |
 | 🗑️ Obsolete | 2 |
@@ -80,16 +80,16 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+
+## 👀 Review
+
+- [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
 - [TCK-641](tickets/TCK-641-menu-mobile-navbar-publique.md) — Menu mobile de la navbar publique refait — sans Louer/Acheter, avec « Mes biens » `S · P1 · front`
 - [TCK-642](tickets/TCK-642-solde-credits-dans-les-barres.md) — Solde de crédits de l'espace affiché dans la navbar publique et la barre de /app `M · P1 · full`
 - [TCK-643](tickets/TCK-643-numeros-verifies-a-la-publication.md) — La dernière étape de publication affiche aussi les numéros déjà vérifiés `S · P1 · front`
 - [TCK-644](tickets/TCK-644-mes-biens-en-mobile.md) — Page « Mes biens » repensée pour le mobile `M · P1 · front`
 - [TCK-645](tickets/TCK-645-messagerie-mobile-groupe-individuel.md) — Messagerie repensée pour le mobile, « Nouveau groupe » masqué en agence individuelle `M · P1 · front`
 - [TCK-646](tickets/TCK-646-ordre-du-menu-de-app.md) — Menu du shell /app — six entrées en tête, dans l'ordre du porteur `S · P1 · front`
-
-## 👀 Review
-
-- [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
 
 ## ⛔ Blocked
 

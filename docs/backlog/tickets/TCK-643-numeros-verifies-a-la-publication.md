@@ -1,7 +1,7 @@
 ---
 id: TCK-643
 title: La dernière étape de publication affiche aussi les numéros déjà vérifiés
-status: doing
+status: review
 phase: P1
 family: front
 estimate: S
@@ -43,16 +43,16 @@ n'a plus rien à vérifier.
 
 ## Delta à produire
 
-- [ ] Étape des coordonnées : liste des numéros vérifiés en lecture
-- [ ] Libellés `fr`/`en`/`wo`
-- [ ] Tests : un numéro vérifié est affiché ; deux numéros vérifiés le sont tous deux ; un non vérifié garde le parcours
+- [x] Étape des coordonnées : liste des numéros vérifiés en lecture
+- [x] Libellés `fr`/`en`/`wo`
+- [x] Tests : un numéro vérifié est affiché ; deux numéros vérifiés le sont tous deux ; un non vérifié garde le parcours
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Compte au numéro principal vérifié : l'étape l'affiche avec le badge « Vérifié »
-- [ ] AC2 — Second numéro vérifié : les deux sont affichés
-- [ ] AC3 — Un numéro non vérifié présente toujours la saisie du code
-- [ ] AC4 — La publication reste possible exactement dans les mêmes cas qu'avant
+- [x] AC1 — Compte au numéro principal vérifié : l'étape l'affiche avec le badge « Vérifié »
+- [x] AC2 — Second numéro vérifié : les deux sont affichés
+- [x] AC3 — Un numéro non vérifié présente toujours la saisie du code
+- [x] AC4 — La publication reste possible exactement dans les mêmes cas qu'avant
 
 ## Hors périmètre
 
@@ -61,4 +61,6 @@ n'a plus rien à vérifier.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le défaut n'était pas dans `StepFinition` mais dans `CoordonneesPublication` (`return null` quand rien n'est à compléter ; un test existant épinglait ce vide). Le correctif vaut aussi pour la boîte « Avant de publier » de Mes biens et de la fiche.
+- Ce qui est listé suit la règle publique de l'API (`User::numeroPrincipalPublic/numeroSecondairePublic`) : non vide ET vérifié. Seulement quand le contact du bien est le compte connecté.
+- Vérifié au navigateur (boîte « Avant de publier », 390 px) : deux lignes, « Vérifié », WhatsApp sur le principal.

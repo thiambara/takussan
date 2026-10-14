@@ -1,7 +1,7 @@
 ---
 id: TCK-642
 title: Solde de crédits de l'espace affiché dans la navbar publique et la barre de /app
-status: doing
+status: review
 phase: P1
 family: full
 estimate: M
@@ -43,19 +43,19 @@ L'annonceur connaît son solde de crédits où qu'il soit, et rejoint la page «
 
 ## Delta à produire
 
-- [ ] Route `GET /api/credits/balance` (`credits.balance`) dans `routes/api/credits.php`
-- [ ] `CreditController::balance` : même résolution d'espace et même `authorize('viewAny', [CreditLot::class, $agency])` que `show`, réponse `{data: {balance}}`
-- [ ] Test `CreditBalanceEndpointTest` : solde de l'espace actif, 403 sans droit, 422 `credits.no_space`, solde d'un autre espace jamais lu
-- [ ] Pastille dans la navbar publique (ordinateur) et la barre de `/app` (ordinateur), entrée dans les menus mobiles
-- [ ] Tests front : affichée avec le solde, absente sans droit ou en échec
+- [x] Route `GET /api/credits/balance` (`credits.balance`) dans `routes/api/credits.php`
+- [x] `CreditController::balance` : même résolution d'espace et même `authorize('viewAny', [CreditLot::class, $agency])` que `show`, réponse `{data: {balance}}`
+- [x] Test `CreditBalanceEndpointTest` : solde de l'espace actif, 403 sans droit, 422 `credits.no_space`, solde d'un autre espace jamais lu
+- [x] Pastille dans la navbar publique (ordinateur) et la barre de `/app` (ordinateur), entrée dans les menus mobiles
+- [x] Tests front : affichée avec le solde, absente sans droit ou en échec
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/credits/balance` rend le solde de l'espace actif, égal au `balance` de `GET /api/credits`
-- [ ] AC2 — Un utilisateur sans droit sur le portefeuille reçoit 403, et ne voit aucune pastille
-- [ ] AC3 — La pastille mène à `/app/credits` depuis les deux barres et les deux menus mobiles
-- [ ] AC4 — Après un changement de profil actif, le solde affiché est celui du nouvel espace
-- [ ] AC5 — En échec réseau, aucune pastille « 0 » n'est rendue
+- [x] AC1 — `GET /api/credits/balance` rend le solde de l'espace actif, égal au `balance` de `GET /api/credits`
+- [x] AC2 — Un utilisateur sans droit sur le portefeuille reçoit 403, et ne voit aucune pastille
+- [x] AC3 — La pastille mène à `/app/credits` depuis les deux barres et les deux menus mobiles
+- [x] AC4 — Après un changement de profil actif, le solde affiché est celui du nouvel espace
+- [x] AC5 — En échec réseau, aucune pastille « 0 » n'est rendue
 
 ## Hors périmètre
 
@@ -64,4 +64,7 @@ L'annonceur connaît son solde de crédits où qu'il soit, et rejoint la page «
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Back : `GET /api/credits/balance` partage avec `show()` la résolution d'espace et l'autorisation (`CreditController::walletAgency()`) ; ablation de l'`authorize` → le test du refus rougit.
+- Front : `useSoldeCredits` (`lib/queries/credits-solde.ts`) ne relit qu'au changement de profil CONFIRMÉ par le serveur (le sélecteur écrit l'identifiant de façon optimiste avant le PATCH : indexer dessus relisait l'ancien espace), et par `resetQueries` pour ne pas montrer l'ancien solde pendant la relecture. La clé du cache des profils est recopiée (et gardée égale par un test) : importer `hooks/useProfiles` faisait entrer l'espace i18n `profile` dans la frontière publique.
+- Pastille montée seulement pour qui voit le portefeuille (`voitLePortefeuille`) : aucune lecture pour les autres ; non-200 → rien, jamais un « 0 » faux. Barre de `/app` : jeton `background` et non `white` (garde des jetons de `/app`).
+- Vérifié au navigateur : 495 (agence individuelle) dans le panneau public et le tiroir de `/app`, 0 (agence standard) dans les deux barres d'ordinateur, lien vers `/app/credits`.

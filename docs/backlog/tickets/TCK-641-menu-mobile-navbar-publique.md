@@ -1,7 +1,7 @@
 ---
 id: TCK-641
 title: Menu mobile de la navbar publique refait — sans Louer/Acheter, avec « Mes biens »
-status: doing
+status: review
 phase: P1
 family: front
 estimate: S
@@ -48,18 +48,18 @@ personnels (profil, biens, crédits) depuis un panneau qui inspire confiance.
 
 ## Delta à produire
 
-- [ ] Panneau mobile de la navbar publique redessiné, sans Louer/Acheter
-- [ ] Entrée « Mes biens » gardée par l'accès à la page
-- [ ] Libellés `fr`/`en`/`wo`
-- [ ] Tests : absence de Louer/Acheter, présence/absence de « Mes biens » selon l'accès
+- [x] Panneau mobile de la navbar publique redessiné, sans Louer/Acheter
+- [x] Entrée « Mes biens » gardée par l'accès à la page
+- [x] Libellés `fr`/`en`/`wo`
+- [x] Tests : absence de Louer/Acheter, présence/absence de « Mes biens » selon l'accès
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 390 px, connecté, le panneau ne contient aucun lien Louer ni Acheter
-- [ ] AC2 — Un utilisateur qui peut ouvrir `/app/properties` voit « Mes biens », qui y mène
-- [ ] AC3 — Un utilisateur qui ne peut pas l'ouvrir ne voit pas l'entrée
-- [ ] AC4 — Anonyme, le panneau propose toujours la connexion
-- [ ] AC5 — Aucune barre de défilement horizontale à 360 px
+- [x] AC1 — À 390 px, connecté, le panneau ne contient aucun lien Louer ni Acheter
+- [x] AC2 — Un utilisateur qui peut ouvrir `/app/properties` voit « Mes biens », qui y mène
+- [x] AC3 — Un utilisateur qui ne peut pas l'ouvrir ne voit pas l'entrée
+- [x] AC4 — Anonyme, le panneau propose toujours la connexion
+- [x] AC5 — Aucune barre de défilement horizontale à 360 px
 
 ## Hors périmètre
 
@@ -68,4 +68,7 @@ personnels (profil, biens, crédits) depuis un panneau qui inspire confiance.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le panneau mobile garde « Publier une annonce » comme seul appel plein ; « Mes biens » est gardé par `peutOuvrirMesBiens` (`lib/navigation/acces-app.ts`), éprouvé contre la garde réelle de `/app/properties/layout.tsx` sur les 128 combinaisons de rôles — pas une recopie.
+- `navLinks` (`data/navigation.ts`) et les clés `nav.links.*`, `nav.sidebar.sections.catalog` retirés : plus aucun lecteur produit.
+- Garde de contraste de la surface publique (TCK-458) : un fond translucide est évalué au pire pixel du sous-jacent ; `bg-primary/10` et `hover:bg-muted/50` rendaient 1,00:1 et 3,87:1 → aplats opaques (`bg-primary`, `bg-muted`).
+- Vérifié au navigateur le 2026-10-14 (390 et 360 px, 1366 px) : ni Louer ni Acheter, `scrollWidth = innerWidth`, aucun élément du panneau ne déborde.

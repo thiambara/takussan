@@ -1,7 +1,7 @@
 ---
 id: TCK-646
 title: Menu du shell /app — six entrées en tête, dans l'ordre du porteur
-status: doing
+status: review
 phase: P1
 family: front
 estimate: S
@@ -42,16 +42,16 @@ L'annonceur trouve en tête du menu de son espace les six destinations qu'il ouv
 
 ## Delta à produire
 
-- [ ] Ordre du menu du shell `/app`
-- [ ] Entrée « Publier un bien » si elle n'existe pas encore dans le menu
-- [ ] Tests : ordre des six entrées pour un profil qui les voit toutes ; entrée absente sans accès
+- [x] Ordre du menu du shell `/app`
+- [x] Entrée « Publier un bien » si elle n'existe pas encore dans le menu
+- [x] Tests : ordre des six entrées pour un profil qui les voit toutes ; entrée absente sans accès
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour un profil qui a accès aux six, les six premières entrées sont dans l'ordre exact
-- [ ] AC2 — Aucune des six n'apparaît deux fois
-- [ ] AC3 — Un profil sans accès à une page ne voit pas son entrée, l'ordre relatif des autres est conservé
-- [ ] AC4 — Le menu mobile présente le même ordre
+- [x] AC1 — Pour un profil qui a accès aux six, les six premières entrées sont dans l'ordre exact
+- [x] AC2 — Aucune des six n'apparaît deux fois
+- [x] AC3 — Un profil sans accès à une page ne voit pas son entrée, l'ordre relatif des autres est conservé
+- [x] AC4 — Le menu mobile présente le même ordre
 
 ## Hors périmètre
 
@@ -60,4 +60,7 @@ L'annonceur trouve en tête du menu de son espace les six destinations qu'il ouv
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Les six entrées sont ORDONNÉES par `RANG_EN_TETE` (tri stable) après leurs `push` gardés par rôle : le tableau n'accorde aucun droit. « Tableau de bord » reste en tête : c'est l'accueil.
+- La section « Catalogue » devenait vide pour tous les rôles : supprimée (type, ordre, libellé).
+- `AppSidebar.audience.test.tsx` compare désormais les jeux par rôle à l'ordre près : l'ordre est le changement voulu, l'ensemble reste figé.
+- Vérifié au navigateur : tiroir (390 px) et barre latérale (1366 px) dans l'ordre exact.
