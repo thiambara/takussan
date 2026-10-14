@@ -72,6 +72,7 @@
     "75": "Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)",
     "76": "Suites de la vague 73 — défauts relevés par les contre-vérifications adverses, hors périmètre de leur ticket, re-mesurés sur dev le 2026-10-08 (TCK-605 → TCK-619)",
     "77": "Retours du porteur du 2026-10-14 : navigation mobile premium, solde de crédits dans les barres, numéros vérifiés à la publication, Mes biens et Messagerie en mobile, ordre du menu de /app (TCK-641 → TCK-646)",
-    "78": "/admin absorbé par /app : administration d'agence sous /app/agency, un seul tableau de bord d'agence, pages super-admin vers /super-admin — ADR-0064 (2026-10-14)"
+    "78": "/admin absorbé par /app : administration d'agence sous /app/agency, un seul tableau de bord d'agence, pages super-admin vers /super-admin — ADR-0064 (2026-10-14)",
+    "79": "Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)"
   }
 }

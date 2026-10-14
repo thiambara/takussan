@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**594 tickets** — 45 ouverts, 547 livrés.
+**595 tickets** — 46 ouverts, 547 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 43 |
+| 📋 Todo | 44 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
@@ -76,6 +76,7 @@
 - [TCK-619](tickets/TCK-619-gardes-de-test-qu-une-mutation-traverse.md) — Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596) `S · P2 · technique`
 - [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 - [TCK-637](tickets/TCK-637-ci-parallele-couverture-decouplee.md) — CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests `M · P2 · technique`
+- [TCK-651](tickets/TCK-651-reglages-metier-au-catalogue.md) — Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale `M · P2 · full`
 
 ## 🚧 Doing
 
