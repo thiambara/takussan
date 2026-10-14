@@ -1,5 +1,9 @@
 /**
- * Les motifs de redirection que `/admin` sait EXPLIQUER à l'arrivée.
+ * Les motifs de redirection que le tableau de bord d'agence sait EXPLIQUER à l'arrivée.
+ *
+ * TCK-647 — l'écran d'arrivée était `/admin`, supprimé (ADR-0064 §3) : c'est désormais
+ * `/app/overview/agency`, le tableau de bord unique, qui lit `?notice=`. Le seul émetteur
+ * (`/admin/settings/tags`) part avec TCK-649 ; ce module pourra partir avec lui.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * POURQUOI CE MODULE EXISTE, ET POURQUOI IL PORTE LES DEUX CÔTÉS
@@ -23,7 +27,7 @@
 export const AVIS_TAGS_GERES_PAR_PLATEFORME = 'tags-platform-managed';
 
 /**
- * Table `valeur du paramètre` → `sous-espace de `admin.notices``. Ajouter un motif, c'est ajouter
+ * Table `valeur du paramètre` → `sous-espace de `dashboard.agencyNotices``. Ajouter un motif, c'est ajouter
  * une ligne ici plus deux clés dans les trois dictionnaires — rien d'autre.
  */
 export const AVIS_ADMIN = {
@@ -38,5 +42,5 @@ export function estAvisAdminConnu(valeur: unknown): valeur is CleAvisAdmin {
 
 /** L'URL d'arrivée d'une redirection qui a une raison — la raison comprise. */
 export function urlAdminAvecAvis(avis: CleAvisAdmin): string {
-  return `/admin?notice=${encodeURIComponent(avis)}`;
+  return `/app/overview/agency?notice=${encodeURIComponent(avis)}`;
 }

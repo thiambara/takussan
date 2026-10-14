@@ -147,11 +147,8 @@
       "announcements",
       "auth",
       "billing",
-      "boost",
-      "charts",
       "common",
       "console",
-      "dashboard",
       "errors",
       "kyc",
       "messaging",
@@ -201,6 +198,7 @@
       "validation"
     ],
     "(super-admin)/super-admin": [
+      "adminSettings",
       "adminTags",
       "announcements",
       "auth",
@@ -231,8 +229,8 @@
     "(dashboard)": 16,
     "invitations": 14,
     "(dashboard)/app": 71,
-    "(dashboard)/admin": 63,
-    "[locale]/(public)": 36,
-    "(super-admin)/super-admin": 45
+    "(dashboard)/admin": 58,
+    "[locale]/(public)": 37,
+    "(super-admin)/super-admin": 47
   }
 }

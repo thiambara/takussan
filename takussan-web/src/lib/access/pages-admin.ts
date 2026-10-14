@@ -4,9 +4,7 @@ import {
   CreditCard,
   FileText,
   KeyRound,
-  LayoutDashboard,
   Plug,
-  Settings,
   Shield,
   ShieldCheck,
   Users,
@@ -57,14 +55,9 @@ export interface PageAdmin {
 
 /** L'ORDRE est celui du menu (celui de `buildAdminItems` avant TCK-633, à l'identique). */
 const TABLE = [
-  // Le tableau de bord de l'agence (files, KPI, activité) : réservé au `standard` (§1.12).
-  {
-    chemin: '/admin',
-    exige: { role: 'admin', agence: 'standard' },
-    menu: { cle: 'dashboard', icone: LayoutDashboard },
-  },
-  // La liste transverse des biens : super-admin seul.
-  { chemin: '/admin/properties', exige: { role: 'super_admin' }, menu: { cle: 'properties', icone: Building2 } },
+  // TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence n'est plus une page `/admin` : c'est
+  // `/app/overview/agency`, gardé par son propre layout. La première page restante devient la
+  // destination de l'entrée « Administration » (`entreeAdmin`).
   { chemin: '/admin/team', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'team', icone: Users } },
   // TCK-279 — juste sous « Équipe » : on attribue un rôle là, on le définit ici.
   { chemin: '/admin/roles', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'roles', icone: KeyRound } },
@@ -108,8 +101,8 @@ const TABLE = [
   // TCK-370 — `routes/api/integrations.php` ne pose qu'`auth:sanctum`, et `IntegrationController`
   // laisse entrer un `agency_admin` sur SON agence.
   { chemin: '/admin/settings/integrations', exige: { role: 'admin' }, menu: { cle: 'integrations', icone: Plug } },
-  // `/api/admin/settings` est sous le middleware `super-admin` (`routes/api/admin.php`).
-  { chemin: '/admin/settings', exige: { role: 'super_admin' }, menu: { cle: 'settings', icone: Settings } },
+  // TCK-648 (ADR-0064 §1) — `/admin/properties` et `/admin/settings`, les deux pages du super-admin,
+  // ont quitté cette table : `/super-admin/properties` et `/super-admin/settings/global`.
 ] as const satisfies readonly PageAdmin[];
 
 export type CheminAdmin = (typeof TABLE)[number]['chemin'];

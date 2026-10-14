@@ -60,10 +60,10 @@ beforeEach(() => {
 });
 
 describe('garderPageAdmin — une page refusée renvoie à la première accessible', () => {
-  it('un solo sur /admin est renvoyé vers /admin/agency', async () => {
+  it('un solo sur /admin/team est renvoyé vers /admin/agency', async () => {
     getMe.mockResolvedValue(moi(['agency_admin', 'customer']));
     resolveAgency.mockResolvedValue({ id: 7, kind: 'individual' });
-    await expect(garderPageAdmin('/admin')).rejects.toThrow(/^NEXT_REDIRECT \/admin\/agency$/);
+    await expect(garderPageAdmin('/admin/team')).rejects.toThrow(/^NEXT_REDIRECT \/admin\/agency$/);
   });
 
   it("un solo ouvre /admin/agency, sans qu'on lise ni son agence ni ses capacités", async () => {
@@ -73,9 +73,9 @@ describe('garderPageAdmin — une page refusée renvoie à la première accessib
     expect(apiRequest).not.toHaveBeenCalled();
   });
 
-  it("un admin standard ouvre /admin, et l'agence est lue pour DÉCIDER", async () => {
+  it("un admin standard ouvre /admin/team, et l'agence est lue pour DÉCIDER", async () => {
     getMe.mockResolvedValue(moi(['agency_admin']));
-    await expect(garderPageAdmin('/admin')).resolves.toBeUndefined();
+    await expect(garderPageAdmin('/admin/team')).resolves.toBeUndefined();
     expect(resolveAgency).toHaveBeenCalledWith('jeton', 7, 'pages-admin', 'decision');
   });
 
@@ -92,11 +92,6 @@ describe('garderPageAdmin — une page refusée renvoie à la première accessib
     expect(resolveAgency).not.toHaveBeenCalled();
   });
 
-  it("les paramètres globaux renvoient un admin d'agence standard vers /admin", async () => {
-    getMe.mockResolvedValue(moi(['agency_admin']));
-    await expect(garderPageAdmin('/admin/settings')).rejects.toThrow(/^NEXT_REDIRECT \/admin$/);
-  });
-
   it("un compte sans aucune page d'admin est renvoyé vers /app", async () => {
     getMe.mockResolvedValue(moi(['owner', 'customer'], null));
     await expect(garderPageAdmin('/admin/agency')).rejects.toThrow(/^NEXT_REDIRECT \/app$/);
@@ -104,7 +99,7 @@ describe('garderPageAdmin — une page refusée renvoie à la première accessib
 
   it('un super-admin ouvre tout, sans lire ni agence ni capacités', async () => {
     getMe.mockResolvedValue(moi(['super_admin'], null));
-    for (const chemin of ['/admin', '/admin/settings', '/admin/properties', '/admin/agency/billing'] as const) {
+    for (const chemin of ['/admin/roles', '/admin/team', '/admin/audit', '/admin/agency/billing'] as const) {
       await expect(garderPageAdmin(chemin)).resolves.toBeUndefined();
     }
     expect(resolveAgency).not.toHaveBeenCalled();
@@ -141,7 +136,8 @@ describe('garderPageAdmin — la capacité', () => {
   it('403 sur les capacités : un refus, silencieux', async () => {
     getMe.mockResolvedValue(moi(['agency_admin']));
     apiRequest.mockRejectedValue(new ApiError(403, null));
-    await expect(garderPageAdmin('/admin/agency/billing')).rejects.toThrow(/^NEXT_REDIRECT \/admin$/);
+    // TCK-647 — la première page accessible n'est plus le tableau de bord, parti de la table.
+    await expect(garderPageAdmin('/admin/agency/billing')).rejects.toThrow(/^NEXT_REDIRECT \/admin\/team$/);
   });
 });
 

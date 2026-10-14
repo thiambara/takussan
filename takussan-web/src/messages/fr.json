@@ -232,7 +232,8 @@
         "privacyRequests": "Demandes de droits",
         "payments": "Paiements",
         "credits": "Crédits",
-        "boosts": "Mise en avant"
+        "boosts": "Mise en avant",
+        "globalSettings": "Paramètres globaux"
       }
     },
     "notifications": {
@@ -1755,7 +1756,8 @@
       "openMaintenance": "Maintenance ouverte",
       "chartTitle": "Revenus et occupation sur 12 mois",
       "chartRevenue": "Revenus",
-      "chartOccupancy": "Taux d'occupation (%)"
+      "chartOccupancy": "Taux d'occupation (%)",
+      "occupancyHeading": "Occupation — 12 derniers mois"
     },
     "pipelineStages": {
       "lead": "Leads",
@@ -2223,7 +2225,9 @@
       "revenueMonth": "Revenus du mois",
       "overdue": "Impayés",
       "overdueHint": "{count} échéances",
-      "unpaidRate": "Taux d'impayés"
+      "unpaidRate": "Taux d'impayés",
+      "rentedHint": "{count} biens loués",
+      "commissionHint": "Commissions : {amount}"
     },
     "agencyActivity": {
       "heading": "Activité récente",
@@ -2290,6 +2294,28 @@
       "description": "Cet élément n'existe pas, ou il ne relève pas de votre agence. Vérifiez le lien, ou revenez à la liste.",
       "backToList": "Revenir à la liste",
       "backToDashboard": "Retour au tableau de bord"
+    },
+    "agencySetup": {
+      "title": "Mise en service de l’agence",
+      "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
+      "progress": "{done} sur {total} étapes terminées",
+      "done": "Fait",
+      "todo": "À faire",
+      "steps": {
+        "kyc_verified": "Dossier KYC vérifié",
+        "logo": "Logo de l’agence ajouté",
+        "commission_rate": "Taux de commission renseigné",
+        "payment_integration": "Moyen de paiement connecté",
+        "first_member": "Premier membre invité dans l’équipe",
+        "first_published_property": "Premier bien publié",
+        "admin_two_factor": "Double authentification de l’administrateur activée"
+      }
+    },
+    "agencyNotices": {
+      "tagsPlatformManaged": {
+        "title": "Les tags sont gérés par la plateforme",
+        "body": "Il n'existe pas de page « Tags » au niveau d'une agence : le référentiel des tags est maintenu par Takussan pour rester commun à tout le catalogue. Vous avez été redirigé vers le tableau de bord."
+      }
     }
   },
   "errors": {
@@ -8257,6 +8283,13 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
+      },
+      "globalSettings": {
+        "eyebrow": "Plateforme",
+        "title": "Paramètres globaux",
+        "subtitle": "La table clé/valeur telle qu’elle est : réglages globaux et réglages de chaque agence. Les clés du catalogue se règlent dans les paramètres plateforme.",
+        "platformLink": "Paramètres plateforme",
+        "loadError": "Impossible de charger les paramètres : {message}"
       }
     },
     "featureFlags": {

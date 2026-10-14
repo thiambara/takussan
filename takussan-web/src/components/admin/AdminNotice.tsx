@@ -21,13 +21,14 @@ export async function resoudreAvisAdmin(
   const valeur = Array.isArray(notice) ? notice[0] : notice;
   if (!estAvisAdminConnu(valeur)) return null;
 
-  const t = await getTranslations('admin.notices');
+  const t = await getTranslations('dashboard.agencyNotices');
   const sousEspace = AVIS_ADMIN[valeur];
   return { title: t(`${sousEspace}.title`), body: t(`${sousEspace}.body`) };
 }
 
 /**
- * Le bandeau qui dit POURQUOI on a été renvoyé sur `/admin` (TCK-370).
+ * Le bandeau qui dit POURQUOI on a été renvoyé sur le tableau de bord d'agence (TCK-370 ;
+ * `/app/overview/agency` depuis TCK-647, d'où l'espace `dashboard.agencyNotices`, servi sous `/app`).
  *
  * ⚠ **Il est SYNCHRONE, et la résolution est à côté.** Ce n'est pas un détail de style : c'est ce
  * qui rend l'écran d'arrivée éprouvable. Un composant `async` imbriqué sous un autre `async`

@@ -232,7 +232,8 @@
         "privacyRequests": "Rights requests",
         "payments": "Payments",
         "credits": "Credits",
-        "boosts": "Promotion"
+        "boosts": "Promotion",
+        "globalSettings": "Global settings"
       }
     },
     "notifications": {
@@ -1784,7 +1785,8 @@
       "openMaintenance": "Open maintenance",
       "chartTitle": "Revenue and occupancy over 12 months",
       "chartRevenue": "Revenue",
-      "chartOccupancy": "Occupancy rate (%)"
+      "chartOccupancy": "Occupancy rate (%)",
+      "occupancyHeading": "Occupancy — last 12 months"
     },
     "pipelineStages": {
       "lead": "Leads",
@@ -2252,7 +2254,9 @@
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
       "overdueHint": "{count} due dates",
-      "unpaidRate": "Unpaid rate"
+      "unpaidRate": "Unpaid rate",
+      "rentedHint": "{count} properties rented",
+      "commissionHint": "Commissions: {amount}"
     },
     "agencyActivity": {
       "heading": "Recent activity",
@@ -2319,6 +2323,28 @@
       "description": "This item does not exist, or it does not belong to your agency. Check the link, or go back to the list.",
       "backToList": "Back to the list",
       "backToDashboard": "Back to the dashboard"
+    },
+    "agencySetup": {
+      "title": "Agency setup",
+      "description": "What’s left for the agency to be fully up and running.",
+      "progress": "{done} of {total} steps completed",
+      "done": "Done",
+      "todo": "To do",
+      "steps": {
+        "kyc_verified": "KYC file verified",
+        "logo": "Agency logo added",
+        "commission_rate": "Commission rate set",
+        "payment_integration": "Payment method connected",
+        "first_member": "First team member invited",
+        "first_published_property": "First property published",
+        "admin_two_factor": "Administrator two-factor authentication turned on"
+      }
+    },
+    "agencyNotices": {
+      "tagsPlatformManaged": {
+        "title": "Tags are managed by the platform",
+        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
+      }
     }
   },
   "errors": {
@@ -8257,6 +8283,13 @@
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
+      },
+      "globalSettings": {
+        "eyebrow": "Platform",
+        "title": "Global settings",
+        "subtitle": "The key/value table as it stands: global settings and each agency’s settings. Catalogue keys are set in the platform settings.",
+        "platformLink": "Platform settings",
+        "loadError": "The settings could not be loaded: {message}"
       }
     },
     "featureFlags": {

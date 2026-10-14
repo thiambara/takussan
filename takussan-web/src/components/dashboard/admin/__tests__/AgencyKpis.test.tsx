@@ -43,8 +43,20 @@ describe('<AgencyKpis>', () => {
     expect(screen.getByText(/1\s?540\s?000\s*F\s?CFA/)).toBeInTheDocument();
     expect(screen.getByText('Impayés')).toBeInTheDocument();
     expect(screen.getByText(/480\s?000\s*F\s?CFA/)).toBeInTheDocument();
-    expect(screen.getByText('3 échéances')).toBeInTheDocument();
     expect(screen.getByText("Taux d'impayés")).toBeInTheDocument();
+  });
+
+  // TCK-647 — un chiffre n'apparaît qu'une fois sur le tableau de bord d'agence.
+  it('ne répète ni le total des biens ni le nombre d’échéances impayées ; montre la commission', () => {
+    render(withIntl(<AgencyKpis summary={buildSummary()} />));
+
+    // L'indice de l'occupation ne porte plus que les biens loués (« 21 loués / 42 » répétait 42).
+    expect(screen.getByText('21 biens loués')).toBeInTheDocument();
+    expect(screen.getAllByText(/\b42\b/)).toHaveLength(1);
+    // Le nombre d'échéances vit dans la file « Échéances impayées », qui y mène.
+    expect(screen.queryByText(/échéances/)).toBeNull();
+    // La commission du mois, que seule l'ancienne vue `/app/overview/agency` montrait.
+    expect(screen.getByText(/^Commissions : 154\s?000\s*F\s?CFA$/)).toBeInTheDocument();
   });
 
   it('marks the unpaid rate tile as warning when ≥ 10 %', () => {

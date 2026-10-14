@@ -222,7 +222,8 @@
         "privacyRequests": "Laaj ci sañ-sañ",
         "payments": "Fey yi",
         "credits": "Kredi",
-        "boosts": "Yokk gis-gis"
+        "boosts": "Yokk gis-gis",
+        "globalSettings": "Tegtal yu mag yi"
       }
     },
     "notifications": {
@@ -7611,6 +7612,13 @@
       "payments": {
         "title": "Fey yi",
         "subtitle": "Xaalis bi agsiwul : fey yu ñàkk walla yu yéex, ak webhook yu jottalikat yi."
+      },
+      "globalSettings": {
+        "eyebrow": "Platform bi",
+        "title": "Tegtal yu mag yi",
+        "subtitle": "Tablo caabi/njëg bi ni mu mel : tegtal yu mag yi ak tegtal yu ajans bu nekk. Caabi yi ci katalog bi, ci tegtal yu platform bi lañu leen di tànnee.",
+        "platformLink": "Tegtal yu platform bi",
+        "loadError": "Mënuñu yeb tegtal yi : {message}"
       }
     },
     "featureFlags": {
@@ -8909,7 +8917,8 @@
       "openMaintenance": "Wattu yu ubbeeku",
       "chartTitle": "Njariñ ak dalal ci 12 weer",
       "chartRevenue": "Njariñ",
-      "chartOccupancy": "Peggu dalal (%)"
+      "chartOccupancy": "Peggu dalal (%)",
+      "occupancyHeading": "Peggu dalal — 12 weer yu mujj"
     },
     "pipelineStages": {
       "lead": "Lead yi",
@@ -9382,7 +9391,9 @@
       "revenueMonth": "Njariñu weer wi",
       "overdue": "Yu ñu feyul",
       "overdueHint": "{count} bes yu jot",
-      "unpaidRate": "Peggu pey yu ñu feyul"
+      "unpaidRate": "Peggu pey yu ñu feyul",
+      "rentedHint": "{count} kër la ñu luwaa",
+      "commissionHint": "Komisioŋ : {amount}"
     },
     "agencyActivity": {
       "heading": "Jëf yu yees",
@@ -9449,6 +9460,28 @@
       "description": "Mbir mii amul, walla bokkul ci sa ajaas. Xoolaatal lien bi, walla dellul ci limu bi.",
       "backToList": "Dellu ci limu bi",
       "backToDashboard": "Dellu ci tablo bi"
+    },
+    "agencySetup": {
+      "title": "Taxawal ajaans bi",
+      "description": "Li des ngir ajaans bi dox bu baax.",
+      "progress": "{done} ci {total} tappe yu jeex",
+      "done": "Def nañu ko",
+      "todo": "Des na",
+      "steps": {
+        "kyc_verified": "Dosiyeu KYC bi seetlu nañu ko",
+        "logo": "Logo ajaans bi yokk nañu ko",
+        "commission_rate": "Taux komisiyoŋ bi bind nañu ko",
+        "payment_integration": "Anam fey bi lëkkale nañu ko",
+        "first_member": "Jàng bu njëkk bi woo nañu ko ci ekip bi",
+        "first_published_property": "Kër gu njëkk gi génne nañu ko",
+        "admin_two_factor": "Ñaari yoon ngir seetlu bu njiit li ubbi na"
+      }
+    },
+    "agencyNotices": {
+      "tagsPlatformManaged": {
+        "title": "Plaatform bi moo yor tag yi",
+        "body": "Amul benn xët « Tag » ci wàllu ajaas bi : Takussan moo yor limu tag yi ngir mu bokk ci katalog bi yépp. Ñu delloo na la ci taablo bi."
+      }
     }
   },
   "meta": {

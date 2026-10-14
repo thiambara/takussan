@@ -19,8 +19,11 @@ import path from 'node:path';
  * qui poste `?notice=tags`, `?raison=…`, ou plus rien du tout : il cocherait « le bandeau
  * existe » sans rien dire du fil. Le test ci-dessous part donc du VRAI émetteur — il exécute
  * `/admin/settings/tags`, intercepte l'URL que `redirect()` reçoit, en extrait `notice`, et
- * n'injecte QUE cette valeur-là dans la vraie page `/admin`. Changer un seul des deux côtés le
+ * n'injecte QUE cette valeur-là dans la vraie page d'arrivée. Changer un seul des deux côtés le
  * fait rougir.
+ *
+ * TCK-647 — la page d'arrivée n'est plus `/admin` (supprimée, ADR-0064 §3) mais le tableau de bord
+ * unique, `/app/overview/agency`. L'avis ne doit pas atterrir sur un 404.
  */
 
 const redirectMock = vi.fn((url: string) => {
@@ -76,15 +79,17 @@ async function urlDeRedirectionDesTags(): Promise<string> {
   return redirectMock.mock.calls.at(-1)![0];
 }
 
-describe('/admin/settings/tags → /admin', () => {
+const chargerPageArrivee = () => import('@/app/(dashboard)/app/overview/agency/page');
+
+describe('/admin/settings/tags → /app/overview/agency', () => {
   beforeEach(() => {
     redirectMock.mockClear();
   });
 
-  it('redirige vers /admin en emportant un motif', async () => {
+  it('redirige vers le tableau de bord d’agence en emportant un motif', async () => {
     const url = await urlDeRedirectionDesTags();
 
-    expect(url.startsWith('/admin?')).toBe(true);
+    expect(url.startsWith('/app/overview/agency?')).toBe(true);
     expect(new URLSearchParams(url.split('?')[1]).get('notice')).toBeTruthy();
   });
 
@@ -92,7 +97,7 @@ describe('/admin/settings/tags → /admin', () => {
     const url = await urlDeRedirectionDesTags();
     const notice = new URLSearchParams(url.split('?')[1]).get('notice')!;
 
-    const { default: PageAdmin } = await import('../page');
+    const { default: PageAdmin } = await chargerPageArrivee();
     render(await PageAdmin({ searchParams: Promise.resolve({ notice }) }));
 
     const bandeau = screen.getByRole('status');
@@ -103,7 +108,7 @@ describe('/admin/settings/tags → /admin', () => {
   });
 
   it("ne peint rien pour un motif inconnu venu de la barre d'adresse", async () => {
-    const { default: PageAdmin } = await import('../page');
+    const { default: PageAdmin } = await chargerPageArrivee();
     render(await PageAdmin({ searchParams: Promise.resolve({ notice: 'nimporte-quoi' }) }));
 
     expect(screen.queryByRole('status')).toBeNull();
@@ -111,7 +116,7 @@ describe('/admin/settings/tags → /admin', () => {
   });
 
   it('ne peint rien quand aucun motif ne voyage', async () => {
-    const { default: PageAdmin } = await import('../page');
+    const { default: PageAdmin } = await chargerPageArrivee();
     render(await PageAdmin({ searchParams: Promise.resolve({}) }));
 
     expect(screen.queryByTestId('admin-notice')).toBeNull();

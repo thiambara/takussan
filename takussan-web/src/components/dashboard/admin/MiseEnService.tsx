@@ -7,7 +7,9 @@ import { CheckCircle2, ChevronRight, Circle } from 'lucide-react';
 import { useApiQuery } from '@/hooks/useApiQuery';
 
 /**
- * TCK-589 — la carte « Mise en service » en tête de `/admin`.
+ * TCK-589 — la carte « Mise en service » en tête du tableau de bord d'agence (`/app/overview/agency`
+ * depuis TCK-647 ; ses libellés ont quitté `admin.pages.setupStatus` pour `dashboard.agencySetup`,
+ * l'espace `admin` n'étant pas servi sous `/app`).
  *
  * Une ligne par étape que l'API déclare (`GET /api/agencies/{agency}/setup-status`) : cochée quand
  * elle est faite, sinon un lien DIRECT vers l'écran qui la fait. La carte disparaît quand tout est
@@ -43,7 +45,7 @@ interface MiseEnServiceProps {
 }
 
 export function MiseEnService({ agencyId }: MiseEnServiceProps) {
-  const t = useTranslations('admin.pages.setupStatus');
+  const t = useTranslations('dashboard.agencySetup');
   const { data } = useApiQuery<SetupStatusResponse>(
     ['agencies', agencyId, 'setup-status'],
     `/api/agencies/${agencyId}/setup-status`,

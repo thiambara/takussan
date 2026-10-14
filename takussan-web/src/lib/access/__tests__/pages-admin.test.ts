@@ -42,13 +42,11 @@ describe('PAGES_ADMIN', () => {
   it('déclare chaque chemin une fois, tous sous /admin', () => {
     const chemins = PAGES_ADMIN.map((p) => p.chemin);
     expect(new Set(chemins).size).toBe(chemins.length);
-    for (const c of chemins) expect(c === '/admin' || c.startsWith('/admin/')).toBe(true);
+    for (const c of chemins) expect(c.startsWith('/admin/')).toBe(true);
   });
 
   it("garde l'ordre du menu d'avant TCK-633", () => {
     expect(PAGES_ADMIN.filter((p) => p.menu !== null).map((p) => p.chemin)).toEqual([
-      '/admin',
-      '/admin/properties',
       '/admin/team',
       '/admin/roles',
       '/admin/agency',
@@ -59,14 +57,29 @@ describe('PAGES_ADMIN', () => {
       '/admin/moderation/properties',
       '/admin/audit',
       '/admin/settings/integrations',
-      '/admin/settings',
     ]);
+  });
+
+  // TCK-648 (ADR-0064 §1) — les deux pages du super-admin ont quitté `/admin` : l'éditeur de la
+  // table `settings` vit à `/super-admin/settings/global`, la liste transverse des biens à
+  // `/super-admin/properties`. Plus aucune ligne de la table n'exige `super_admin`.
+  it("ne porte plus aucune page du super-admin (TCK-648)", () => {
+    const chemins = PAGES_ADMIN.map((p) => p.chemin as string);
+    expect(chemins).not.toContain('/admin/settings');
+    expect(chemins).not.toContain('/admin/properties');
+    expect(PAGES_ADMIN.filter((p) => p.exige.role === 'super_admin')).toEqual([]);
   });
 });
 
+// TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence est `/app/overview/agency`, gardé par son
+// layout : `/admin` n'est plus une page, donc plus une ligne de la table.
+it("ne porte plus le tableau de bord de l'agence (TCK-647)", () => {
+  expect(PAGES_ADMIN.map((p) => p.chemin as string)).not.toContain('/admin');
+});
+
 describe('pageAccessible / accesDepuis', () => {
-  it('le tableau de bord admin est refusé au solo', () => {
-    expect(pageAccessible(PAGES_ADMIN[0], SOLO)).toBe(false);
+  it('une page « standard » est refusée au solo', () => {
+    expect(pageAccessible(PAGES_ADMIN.find((p) => p.chemin === '/admin/team')!, SOLO)).toBe(false);
   });
 
   it("un solo n'a que les pages sans exigence « standard », et c'est un espace individuel", () => {
@@ -90,7 +103,7 @@ describe('pageAccessible / accesDepuis', () => {
 
   it('kind inconnu : les pages « standard » sont refusées (fail-closed)', () => {
     const chemins = accesDepuis({ ...STANDARD, agence: { kind: null } }).chemins;
-    expect(chemins).not.toContain('/admin');
+    expect(chemins).not.toContain('/admin/team');
     expect(chemins[0]).toBe('/admin/agency');
   });
 
@@ -99,7 +112,7 @@ describe('pageAccessible / accesDepuis', () => {
   });
 
   it("sans agence rattachée, l'exigence « standard » ne bloque pas (comme AgencyKindGuard)", () => {
-    expect(accesDepuis({ ...STANDARD, agence: null }).chemins).toContain('/admin');
+    expect(accesDepuis({ ...STANDARD, agence: null }).chemins).toContain('/admin/team');
   });
 
   it("un compte sans rôle d'admin n'a rien", () => {
@@ -115,8 +128,9 @@ describe('entreeAdmin', () => {
     expect(entreeAdmin(accesDepuis(SOLO))).toEqual({ href: '/admin/agency', cle: 'mySpace' });
   });
 
-  it('standard : « Administration » vers /admin', () => {
-    expect(entreeAdmin(accesDepuis(STANDARD))).toEqual({ href: '/admin', cle: 'sectionLabel' });
+  // TCK-647 — le tableau de bord a quitté la table : l'entrée mène à la première page restante.
+  it('standard : « Administration » vers sa première page, /admin/team', () => {
+    expect(entreeAdmin(accesDepuis(STANDARD))).toEqual({ href: '/admin/team', cle: 'sectionLabel' });
   });
 
   it('aucune page : aucune entrée', () => {

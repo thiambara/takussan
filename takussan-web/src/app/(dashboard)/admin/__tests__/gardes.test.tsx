@@ -26,19 +26,8 @@ vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraduc
 vi.mock('next/navigation', () => ({ redirect: vi.fn(), notFound: vi.fn(), permanentRedirect: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/lib/access/server-guards', () => ({ resolveAgencyOrNull: async () => null }));
-vi.mock('@/components/admin/AdminNotice', () => ({
-  AdminNotice: () => null,
-  resoudreAvisAdmin: async () => null,
-}));
-vi.mock('@/components/dashboard/admin/AgencyActivityFeed', () => ({ AgencyActivityFeed: () => null }));
-vi.mock('@/components/dashboard/admin/AgencyDegradedState', () => ({ AgencyDegradedState: () => null }));
-vi.mock('@/components/dashboard/admin/AgencyKpis', () => ({ AgencyKpis: () => null }));
-vi.mock('@/components/dashboard/admin/AgencyQueues', () => ({ AgencyQueues: () => null }));
-vi.mock('@/components/dashboard/admin/AgencyRevenueSnapshot', () => ({ AgencyRevenueSnapshot: () => null }));
-vi.mock('@/components/dashboard/admin/MiseEnService', () => ({ MiseEnService: () => null }));
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
 vi.mock('@/components/shared/NoAgencyState', () => ({ NoAgencyState: () => null }));
-vi.mock('@/lib/queries/dashboard-agency', () => ({ fetchDashboardAgency: async () => null }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ({ ok: false, message: '' }) }));
 vi.mock('@/components/admin-agency/AgencyConfigForm', () => ({ AgencyConfigForm: () => null }));
 vi.mock('@/components/admin-agency/RegenerateWatermarksCard', () => ({ RegenerateWatermarksCard: () => null }));
@@ -57,25 +46,17 @@ vi.mock('@/components/admin/roles/RoleDelegationsSection', () => ({ RoleDelegati
 vi.mock('@/components/admin/TeamConsole', () => ({ TeamConsole: () => null }));
 vi.mock('@/components/admin/InviteMemberButton', () => ({ InviteMemberButton: () => null }));
 vi.mock('@/app/actions/admin-settings', () => ({
-  fetchSettingsAction: async () => ({ ok: false, message: '' }),
   fetchIntegrationsAction: async () => ({ ok: false, message: '' }),
   fetchPaymentProviderSchemasAction: async () => ({ ok: false, message: '' }),
   fetchIntegrationWebhookEndpointAction: async () => ({ ok: false, message: '' }),
 }));
-vi.mock('@/components/admin-settings/SettingsManager', () => ({ SettingsManager: () => null }));
 vi.mock('@/components/admin-settings/SettingsTabs', () => ({ SettingsTabs: () => null }));
 vi.mock('@/components/admin-settings/IntegrationsManager', () => ({ IntegrationsManager: () => null }));
-vi.mock('@/app/(dashboard)/app/properties/(liste)/page', () => ({
-  default: async () => null,
-  generateMetadata: async () => ({}),
-}));
 
 type PageServeur = (props: never) => Promise<unknown>;
 
 /** [chemin gardé, fichier, chargement, props] — une ligne par `page.tsx` qui n'est pas une souche. */
 const CAS: ReadonlyArray<readonly [string, string, () => Promise<{ default: unknown }>, unknown]> = [
-  ['/admin', 'page.tsx', () => import('../page'), {}],
-  ['/admin/properties', 'properties/page.tsx', () => import('../properties/page'), { searchParams: Promise.resolve({}) }],
   ['/admin/team', 'team/page.tsx', () => import('../team/page'), undefined],
   ['/admin/roles', 'roles/page.tsx', () => import('../roles/page'), undefined],
   ['/admin/agency', 'agency/page.tsx', () => import('../agency/page'), undefined],
@@ -108,7 +89,6 @@ const CAS: ReadonlyArray<readonly [string, string, () => Promise<{ default: unkn
     () => import('../settings/integrations/page'),
     undefined,
   ],
-  ['/admin/settings', 'settings/page.tsx', () => import('../settings/page'), undefined],
 ];
 
 describe('TCK-633 — chaque page /admin/* appelle garderPageAdmin EN PREMIER', () => {

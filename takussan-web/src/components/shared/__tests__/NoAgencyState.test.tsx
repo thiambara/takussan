@@ -23,8 +23,9 @@ describe('<NoAgencyState> (TCK-633)', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it("sans fournisseur : le lien d'avant, vers /admin", () => {
+  // TCK-647 — `/admin` n'est plus une page : un lien deviné y mènerait à un 404.
+  it('sans fournisseur : pas de CTA plutôt qu’un lien deviné', () => {
     rendre(null);
-    expect(screen.getByRole('link', { name: "Aller à l'administration" })).toHaveAttribute('href', '/admin');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
