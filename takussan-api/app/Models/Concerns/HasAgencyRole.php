@@ -24,8 +24,11 @@ use LogicException;
  * collection.
  *
  * `ServiceProviderProfile` ne le porte **toujours** pas, et ce n'est pas un
- * reste : il est user-scopé (`user_id` UNIQUE, aucune colonne `agency_id`)
- * et collabore avec N agences. C'est sa COLLABORATION qui porte le rôle —
+ * reste : il est user-scopé (aucune colonne `agency_id`) et collabore avec
+ * N agences. Son `user_id` n'est plus UNIQUE, et reste NULL tant que
+ * l'invitation est un brouillon : la migration `2026_05_10_170000` (TCK-260)
+ * a retiré la contrainte ; l'unicité réelle est celle du couple
+ * (profil, agence) de la collaboration. C'est sa COLLABORATION qui porte le rôle —
  * une par agence. La Règle 6 s'y lit « 1 collaboration = 1 rôle ». Voir
  * ADR-0016 et la migration 090000 de TCK-315.
  */

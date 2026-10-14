@@ -98,8 +98,8 @@ Trois briques :
 1. **Profils** — `app/Models/Profiles/` : `OwnerProfile`, `AgentProfile`, `AgencyAdminProfile`,
    `ServiceProviderProfile`, `PlatformProfile` (+ 1 pivot de collaboration, celui du prestataire).
    Le courtier a quitté le code et la base (ADR-0030).
-2. **Capacités** — `app/Models/Enums/Capability.php` : enum string de 44 cas `<domaine>.<verbe>` sur
-   12 domaines, avec `domain()`.
+2. **Capacités** — `app/Models/Enums/Capability.php` : enum string de cas `<domaine>.<verbe>`, avec
+   `domain()`.
 3. **Résolution** — `app/Services/Membership/MembershipCapabilityResolver::allows(User, Capability,
    ?Agency): bool`. Table de vérité définie en code, **modèle additif** (OR entre profils).
 

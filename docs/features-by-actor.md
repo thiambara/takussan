@@ -38,11 +38,11 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 ## Sommaire
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 85 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 81 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 113 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 82 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 114 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 119 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 118 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
 
 ---
@@ -55,7 +55,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
-| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel — deux villes du même nom y sont deux options, départagées par leur région (TCK-635, [ADR-0062 §8](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
 | P1 | §1.2 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en première page, les premières places des résultats (nombre réglable, 0 pour aucune) reviennent aux vedettes qui correspondent, dans l'ordre normal, avec un badge, sans doublon ; au-delà, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
@@ -101,7 +101,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
+| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. La création automatique est portée par le drapeau `host_auto_space`, allumé à l'installation ; l'éteindre rend le wizard (TCK-633) |
 
 ### §2.1 Authentification & comptes
 
@@ -120,7 +120,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P0 | §1.2 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | §1.2 | Recherche plein-texte sur les biens |
-| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel — deux villes du même nom y sont deux options, départagées par leur région (TCK-635, [ADR-0062 §8](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
 | P1 | §1.2 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en première page, les premières places des résultats (nombre réglable, 0 pour aucune) reviennent aux vedettes qui correspondent, dans l'ordre normal, avec un badge, sans doublon ; au-delà, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | §1.2 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
@@ -177,7 +177,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.4 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
 | P2 | §1.4 | Donner congé depuis son espace locataire : délai de préavis et pénalité affichés avant l'envoi, retrait possible tant que la fenêtre d'annulation est ouverte ; la clôture reste au gestionnaire (TCK-596) |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
-| P3 | §1.4 | Espace locataire dédié (quittances, factures, maintenance) |
+| P3 | §1.4 | Espace locataire : les factures adressées au client — l'API les lui liste (`GET /api/invoices`), son espace ne les montre pas encore ; le reste y est déjà : baux, échéances et paiement, quittances, interventions, états des lieux, documents (lignes P1/P2 de §1.4, §1.8, §2.5) |
 | P1 | §1.4 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
 
 ### §1.5 Transactions & paiements
@@ -196,10 +196,11 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
+| P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
 | P1 | §1.7 | Envoyer un message texte avec pièces jointes |
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
-| P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) |
+| P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | §1.7 | Recherche dans l'historique des messages |
 | P2 | §1.7 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
 | P2 | §1.7 | Notes vocales dans la messagerie (≤ 60 s) (TCK-592) |
@@ -241,7 +242,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
+| P0 | §1.12 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. La création automatique est portée par le drapeau `host_auto_space`, allumé à l'installation ; l'éteindre rend le wizard (TCK-633) |
 
 ### §2.1 Authentification & comptes
 
@@ -339,11 +340,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
+| P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
 | P1 | §1.7 | Envoyer un message texte avec pièces jointes |
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
-| P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) |
+| P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | §1.7 | Recherche dans l'historique des messages |
 | P2 | §1.7 | Notes vocales dans la messagerie (≤ 60 s) (TCK-592) |
 | P3 | §1.7 | Appels audio / vidéo intégrés |
@@ -496,7 +498,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money / Free Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
-| P3 | §1.5 | Relevé des commissions par agent, avec statut « payée à l'agent » (TCK-595) |
+| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
 
 ### §1.6 CRM & relation client
 
@@ -526,6 +528,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
+| P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
 | P2 | §1.7 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
 
@@ -565,7 +568,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.10 | Recherche dans la bibliothèque de documents |
 | P2 | §1.10 | Génération PDF (quittance, facture, bail) depuis templates |
 | P2 | §1.10 | Historique des versions d'un document (via medialibrary + journal d'activité) |
-| P3 | §1.10 | Signature électronique intégrée |
+| P3 | §1.10 | Signature électronique intégrée des documents autres que le bail et l'état des lieux — le bail se signe par code à usage unique (§1.4, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md)), l'état des lieux par le tracé de chaque partie (§1.9) (TCK-596) |
 | P3 | §1.10 | OCR et extraction automatique de données |
 
 ### §1.11 Avis & réputation
@@ -697,8 +700,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.5 | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P2 | §1.5 | Reversement plateforme refusé vers une agence non active ; une agence `standard` non vérifiée est bloquée à l'approbation (TCK-594) |
 | P2 | §1.5 | Les reversements plateforme d'une agence non active sont gelés, y compris s'ils ont été clôturés avant la suspension ; la clôture globale traite toutes les agences et liste les exclues avec leur motif (TCK-594) |
-| P3 | §1.5 | Commissions automatiques par agent / collaborateur |
-| P3 | §1.5 | Relevé des commissions par agent, avec statut « payée à l'agent » (TCK-595) |
+| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
 | P3 | §1.5 | Comptabilité exportable (FEC, journaux) |
 
 ### §1.6 CRM & relation client
@@ -741,7 +743,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.12 | Validité des pièces KYC d'agence : date d'expiration de la pièce du dirigeant, relances J-30 / J-7, retour du dossier en attente à l'échéance ; signalement au super-admin d'un NINEA ou d'un RIB professionnel déjà porté par une autre agence — le contrôle de forme du NINEA et du RCCM est différé (D-68) (TCK-601) |
 | P2 | §1.12 | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) |
 | P3 | §1.12 | Gestion multi-branches / sous-agences |
-| P3 | §1.12 | Absence datée d'un agent avec remplaçant désigné : les assignations nouvelles sont routées vers lui (TCK-591 — précise « Gestion des congés / disponibilité des agents ») |
+| P1 | §1.12 | Absence datée d'un agent avec remplaçant désigné, révocable et journalisée : pendant la période, les tâches nouvellement confiées à l'absent partent chez le remplaçant, qui voit aussi les siennes ; aucune ligne existante ne change, et le remplaçant ne reçoit aucun droit (TCK-591, [ADR-0035](adr/0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) — précise « Gestion des congés / disponibilité des agents ») |
 | P3 | §1.12 | Marketplace inter-agences |
 
 ### §2.1 Authentification & comptes
@@ -831,7 +833,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.9 | Effacement d'un compte par un super-admin, par le parcours conforme de [§2.1](#21-authentification--comptes) (obligations ouvertes, délai de grâce, motif, utilisateur prévenu) (TCK-600) |
 | P1 | §2.9 | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | §2.9 | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
-| P2 | §2.9 | Gestion des intégrations tierces (API keys) |
+| P2 | §2.9 | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
 | P2 | §2.9 | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) |
 | P2 | §2.9 | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | §2.9 | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |
@@ -893,7 +895,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.3 | Templates localisés via fichiers lang/ Laravel |
 | P2 | §2.3 | Notifications SMS (événements critiques) |
 | P2 | §2.3 | Digest quotidien / hebdomadaire |
-| P3 | §2.3 | Notifications WhatsApp |
+| P3 | §2.3 | WhatsApp entrant : recevoir les messages des contacts (mise en relation) et code de vérification par WhatsApp — le canal sortant est livré (TCK-282) et activé par défaut par la ligne P1 TCK-588 ci-dessus ; le webhook WhatsApp ne lit aujourd'hui que les accusés de livraison (TCK-283) |
 
 ### §2.4 Recherche & filtres
 
@@ -949,7 +951,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 ## Provenance
 
 - Source : [`features.md`](./features.md) — **380** lignes de fonctionnalité lues,
-  réparties en **514** placements (une ligne multi-acteurs compte une fois par acteur).
+  réparties en **516** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
