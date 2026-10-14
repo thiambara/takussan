@@ -355,7 +355,7 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    **désinstallé** (TCK-278) et remplacé par des profils (`OwnerProfile`, `AgentProfile`,
    `AgencyAdminProfile`, `ServiceProviderProfile`, `PlatformProfile` — le courtier a quitté le code,
    [ADR-0030](docs/adr/0030-le-courtier-quitte-le-code-et-la-base.md)), une enum
-   `Capability` de 44 cas `<domaine>.<verbe>`, et `MembershipCapabilityResolver` — table de vérité
+   `Capability` de cas `<domaine>.<verbe>`, et `MembershipCapabilityResolver` — table de vérité
    définie en code, additive (OR entre profils). Une garde CI casse sur tout import
    `Spatie\Permission\`. *Des docblocks décrivent encore le mécanisme supprimé : ne pas les croire
    (dette D-21).*

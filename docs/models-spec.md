@@ -19,17 +19,24 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 
 **Modèles utilisant `InteractsWithMedia` :**
 
+> **La source fait foi** : `grep -rn "addMediaCollection" takussan-api/app/Models`. Tableau relevé
+> contre elle le 2026-10-14 (passe 012 de `/sync-specs`) : il annonçait jusque-là une collection
+> `virtual_tours` qui n'a jamais existé, et des médias sur `Guarantor` et `Customer`, qui n'en
+> déclarent aucun (leurs pièces passent par `Document`) ; six modèles porteurs y manquaient.
+
 | Modèle | Collections | Description |
 |--------|-------------|-------------|
-| User | `avatar` | Photo de profil |
-| Agency | `logo` | Logo de l'agence |
-| Property | `photos`, `plans`, `videos`, `virtual_tours` | Photos, plans/schémas, vidéos, visites virtuelles 360° |
-| Guarantor | `id_documents` | CNI, attestations de revenus, fiches de paie |
-| Customer | `photo`, `id_documents` | Photo du contact, pièces d'identité |
-| Message | `attachments` | Pièces jointes aux messages |
-| MaintenanceRequest | `photos`, `completion_photos` | Photos du problème, photos après intervention |
-| Document | `file` | Le fichier du document lui-même |
-| Inventory | `photos` | Photos de l'état des lieux |
+| User | `avatar`, `avatars`, `photos`, `documents` | Photo de profil (`avatar`, `avatars` : fichier unique, disque public) ; `photos` et `documents` restent sur le disque privé (ADR-0029 §3) |
+| Agency | `logo` | Logo de l'agence (fichier unique, disque public) |
+| Property | `photos`, `videos`, `plans` | Photos (originaux privés, conversions filigranées publiques — TCK-539), vidéos et plans (publics, sans conversion). La visite virtuelle n'est pas une collection : c'est le lien `properties.virtual_tour_url` (TCK-598) |
+| Message | `attachments` | Pièces jointes aux messages, notes vocales comprises |
+| MaintenanceRequest | `photos`, `before_photos`, `completion_photos`, `quotes` | Photos du problème, état constaté avant l'intervention (TCK-592), photos après intervention, pièces jointes des devis — toutes privées (TCK-538) |
+| Document | `file`, `versions` | Le fichier du document (unique) et ses versions numérotées (`custom_properties.version_number`) — toutes deux privées |
+| Inventory | `photos`, `room_photos` | Photos de l'état des lieux, par pièce |
+| Lease | `signed_contract`, `lease_deposit_refund` | Contrat figé que les parties signent (fichier unique, privé — ADR-0042 §1) ; pièces de la restitution du dépôt de garantie (`DepositRefundService`) |
+| KycDossier | `documents` | Pièces du dossier KYC |
+| BankStatement | `statement` | Fichier du relevé importé (unique, disque privé) |
+| PrivacyRequest | `proof` | Preuve jointe à une demande de droits (unique) |
 
 ### ~~`spatie/laravel-permission`~~ — **DÉSINSTALLÉ** (TCK-278)
 
@@ -69,7 +76,28 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 
 Remplace le modèle custom `ActivityLog`. Gère automatiquement le journal d'audit via le trait `LogsActivity` sur chaque modèle concerné.
 Les tables `activity_log` et la configuration du package (`config/activitylog.php`) remplacent entièrement le modèle custom.
-Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migration.
+Voir la section [13. ActivityLog](#13-activitylog--remplacé-par-spatielaravel-activitylog) pour les détails de migration.
+
+### `laravel/sanctum` — la table `personal_access_tokens`
+
+La table et le modèle sont ceux de Sanctum (`Laravel\Sanctum\PersonalAccessToken`, non surchargé :
+aucun modèle de `app/Models/` ne la porte). **Deux colonnes sont à nous**, ajoutées par
+`2026_10_07_150100_add_session_bounds_to_personal_access_tokens_table` (TCK-589) pour les sessions
+bornées :
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| idle_timeout_minutes | smallint | oui | null | Inactivité tolérée pour **ce** jeton (`auth.sessions.idle_minutes`, 7 j ; super-admin `super_admin_idle_minutes`, 30 min), jugée à chaque requête par `AccessTokenGate` sur `COALESCE(last_used_at, created_at)`. Nulle sur un jeton antérieur : la borne de tout compte s'applique |
+| two_factor_verified_at | timestamp | oui | null | Dernière confirmation TOTP faite **avec ce jeton** : vaut step-up pendant `auth.sessions.step_up_minutes` (10 min) pour lui seul — une autre session du même compte n'en hérite pas (`RequireRecentTwoFactor`) |
+
+- **Émetteur unique** des jetons de session : `SessionTokenIssuer::issue()` (mot de passe, inscription,
+  téléphone, OAuth), qui pose aussi `expires_at` (30 j ; super-admin : réglage
+  `platform.session_max_minutes`). Les jetons morts d'inactivité sont purgés chaque jour
+  (`sessions:prune-idle`).
+- **Jeton d'impersonation** : `name = 'impersonation'`, capacité `impersonation:read`, émis par
+  `ImpersonationService` et non par `SessionTokenIssuer` — il ne porte donc jamais
+  `two_factor_verified_at` ; voir [§83 ImpersonationSession](#83-impersonationsession-).
+- Index (Sanctum) : `token` unique, `(tokenable_type, tokenable_id)`, `expires_at`.
 
 ---
 
@@ -211,6 +239,14 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 70. [WizardDraft](#70-wizarddraft-) ✅
 71. [WelcomeView](#71-welcomeview-) ✅
 
+### Modèles ajoutés depuis TCK-310 🆕
+
+> Rangés sous [leur propre titre](#modèles-ajoutés-depuis-tck-310) depuis la passe 012 de
+> `/sync-specs` : ils étaient jusque-là sous l'en-tête des seize modèles de TCK-310, qui dit
+> « documentés a posteriori » — or §72 à §97 sont des modèles **posés après** TCK-310, par le ticket
+> que cite leur sous-titre (le plus ancien, §72, par `2026_10_07_591100`). Seuls §98 et §99 sont
+> des modèles antérieurs restés sans fiche jusqu'à la passe 011.
+
 #### Agenda
 72. [CalendarFeed](#72-calendarfeed-) ✅
 
@@ -291,7 +327,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 courtier a quitté le code et la base le 2026-10-07, [ADR-0030](adr/0030-le-courtier-quitte-le-code-et-la-base.md)) est portée par des **profils
 polymorphes** dédiés liés au user et scopés par agence — ou par la plateforme pour `PlatformProfile`. Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
 
-> **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Active profile context](#active-profile-context)).
+> **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Règle 4 — Active profile context](#règle-4--active-profile-context)).
 
 > **Évolution TCK-278 (refonte RBAC).** Le User **ne porte plus de rôle direct** (`HasRoles` retiré). Le rôle est la conséquence de l'existence d'un profil dans un scope. Voir [Règle 5 — Profil = rôle](#règle-5--profil--rôle). Les rôles plateforme (super_admin, support, viewer) sont portés par [PlatformProfile](#51-platformprofile-).
 
@@ -394,7 +430,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 - `profiles()` → collection unifiée des profils du user (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking
-- `booking_payments()` → hasMany BookingPayment
+- `bookingPayments()` → hasMany BookingPayment — ⚠ **cassée** : clé implicite `booking_payments.user_id`, colonne absente de la table (`payer_id` → customers, `collector_id` → users ; le lien réel d'un utilisateur est `collector_id`, cf. [§6](#6-bookingpayment)). Seul `tests/Unit/ModelsTest.php` l'appelle, pour vérifier son type sans l'exécuter ; exécutée, elle échouerait en SQL. Défaut de code relevé le 2026-10-14, non corrigé (lot de documentation)
 - `customers()` → hasMany Customer (via added_by_id)
 - `customer()` → hasOne Customer (via user_id)
 - `customer_relationships()` → hasMany UserCustomerRelationship
@@ -781,8 +817,8 @@ payeur (`payer_id`, un client) et encaisseur (`collector_id`, un utilisateur), e
 
 ⚠ Le modèle ne déclare **pas** de relation `invoice()` ni `platformPayout()` ; l'inverse
 `PlatformPayout::bookingPayments()` existe. Et `User::bookingPayments()` (`hasMany`, clé implicite
-`user_id`) vise une colonne qui n'existe pas : la relation n'est appelée nulle part, et le serait-elle
-qu'elle échouerait en SQL — le lien d'un utilisateur à ses paiements de réservation passe par
+`user_id`) vise une colonne qui n'existe pas : aucun code applicatif ne l'exécute (`tests/Unit/ModelsTest.php`
+ne vérifie que son type), et l'exécuter échouerait en SQL — le lien d'un utilisateur à ses paiements de réservation passe par
 `collector_id`.
 
 ---
@@ -961,7 +997,8 @@ table de liaison.
 
 **Pivot `taggables` :** `tag_id` (FK tags, `cascadeOnDelete`), `taggable_type` / `taggable_id`
 (`morphs`, NOT NULL), `created_at` / `updated_at` ; **pas de colonne `id`** — clé primaire composite
-`taggables_primary (tag_id, taggable_id, taggable_type)` (`2026_04_17_160004`). Une même étiquette
+`(tag_id, taggable_id, taggable_type)`, nommée `taggables_pkey` en base (`2026_04_17_160004` demande
+`taggables_primary`, nom que PostgreSQL ignore). Une même étiquette
 ne se rattache donc qu'une fois à une même cible.
 
 **`taggables.attached_by_id` (TCK-633, D9, `2026_10_12_400300`) :** FK users, nullable, `nullOnDelete` — qui a
@@ -1468,10 +1505,12 @@ voies peut n'identifier personne.
 | is_muted | boolean | | false | Notifications désactivées pour cette conversation |
 | joined_at | datetime | | now | Date d'ajout à la conversation (distinct de `created_at` : utile si un participant quitte puis est réajouté) |
 | left_at | datetime | oui | null | Date de départ (si quitté) |
+| archived_at | timestamp | oui | null | Conversation archivée **pour ce participant** (`2026_04_22_000002`) ; lue en pivot par `Conversation::participants()` |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Contrainte :** unique(conversation_id, user_id)
+**Index :** `conversation_participants_user_archived_index (user_id, archived_at)` (`2026_04_22_000002`).
 
 **Relations :**
 - `conversation()` → belongsTo Conversation
@@ -1946,6 +1985,14 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 
 **Contraintes :**
 - Unique composé `(key, scope, scope_id)`.
+
+**Clés de plateforme.** Les clés que la console édite (portée `global`) forment un catalogue **en
+code** : `App\Domain\Settings\EditablePlatformSettings`, réduit aux clés qu'un code lit (TCK-600,
+garde `scripts/check-platform-catalogue-readers.mjs`) — la liste se lit là. **Clés de crédits et de
+boost** (TCK-633, catégorie `boost`, [ADR-0061 §6](adr/0061-credits-d-espace-et-boost-des-annonces.md),
+lues par `App\Services\Boost\BoostSettings`) : `credits.welcome_amount`,
+`credits.welcome_validity_days`, `credits.expiry_notice_days`, `boost.bump_cooldown_hours`,
+`boost.sponsored_slots_per_page`, `boost.reserved_top_results` — défauts dans le catalogue.
 
 **Relations :**
 - `updatedBy()` → belongsTo User (via updated_by_id)
@@ -2940,6 +2987,15 @@ des drapeaux connus est défini **en code** (`app/Domain/Features/Flag`) ; cette
 **Contraintes d'unicité :**
 - `key` unique
 
+**Catalogue.** Un drapeau n'entre dans `Flag` qu'avec son lecteur (TCK-600, garde
+`scripts/check-platform-catalogue-readers.mjs`) ; un drapeau sans ligne vaut **éteint**
+(`FeatureFlagEvaluator`). Le catalogue compte aujourd'hui `media_watermark` (TCK-633 — filigrane
+des photos pour toute la plateforme, jamais exposé au client : `Flag::clientVisible()`) et
+`host_auto_space` (TCK-633 — « Publier » crée l'espace individuel sans question ; ligne posée
+**allumée** par `2026_10_12_300000_enable_host_auto_space_flag`, en `insertOrIgnore` qui respecte
+une ligne déjà réglée, et retirée par son `down()` seulement si aucun opérateur ne l'a touchée —
+`updated_by_id` nul).
+
 **Relations :**
 - `updatedBy()` → belongsTo User (via `updated_by_id`)
 
@@ -3502,6 +3558,16 @@ traite `key` comme un identifiant court opaque.
 
 ---
 
+## Modèles ajoutés depuis TCK-310
+
+> **Ces sections ne relèvent pas de l'en-tête précédent.** §72 à §97 décrivent des modèles posés
+> **après** TCK-310, chacun par le ticket que cite sa fiche ; §98 et §99, des modèles antérieurs
+> restés sans fiche jusqu'à la passe 011 de `/sync-specs`. Ils étaient rangés sous « Modèles
+> documentés a posteriori » jusqu'au 2026-10-14 (passe 012, M48). La méthode reste celle de
+> TCK-310 : une fiche décrit ce que ses migrations et son modèle déclarent, pas une intention.
+
+---
+
 ### 72. CalendarFeed ✅
 
 **Table :** `calendar_feeds`
@@ -3840,11 +3906,9 @@ signature active le bail.
 **Relations :** `lease()` → belongsTo ; `signer()` → belongsTo User (`user_id`) ; `onBehalfOf()` →
 belongsTo User.
 
-> Colonnes ajoutées à `leases` : `contract_sha256` string(64) nullable, `signature_requested_at`
-> timestamp nullable. VERIF-596 passe 2 (N1) : `early_termination_penalty_months` unsigned smallint
-> nullable et `rent_review_max_pct` decimal(5,2) nullable, figés avec le contrat (nuls : le réglage
-> de l'agence du bail, sinon le global, s'applique — TCK-600, verif-600 H1 ; bail antérieur). Un renouvellement les hérite du parent, sauf valeur renégociée
-> (VERIF-596 passe 3, N1'). Une colonne du contrat modifiée pendant `pending_signature` (hors
+> Les colonnes que ce ticket ajoute à `leases` (`contract_sha256`, `signature_requested_at`,
+> `early_termination_penalty_months`, `rent_review_max_pct`) sont décrites en [§14](#14-lease-).
+> Une colonne du contrat modifiée pendant `pending_signature` (hors
 > `Lease::CONTRACT_NEUTRAL_COLUMNS`), ou un garant attaché/détaché, remet `contract_sha256` à `null`.
 
 ---
@@ -4059,7 +4123,7 @@ dont il a la colonne de tête (piège n°8).
 base mais **aucune migration ne le charge** : les lignes viennent d'un jeu de données versionné
 (`database/data/geo/regions/*.json`), chargé par `geo:sync-referential` au déploiement et par
 `GeoReferentialSeeder` en développement (mise à jour par slug, jamais de suppression d'un lieu
-référencé). Données OpenStreetMap sous ODbL : mention due là où le référentiel est servi (§3).
+référencé). Données OpenStreetMap sous ODbL : mention due là où le référentiel est servi (ADR-0062 §3).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -4143,7 +4207,7 @@ belongsTo GeoNeighborhood ; `addresses()` → hasMany Address (`geo_neighborhood
 **Table :** `boost_products` (migration `2026_10_12_500100` ; `500400` pose le catalogue initial et convertit les `featured` hérités en Vedettes offertes de 30 jours — un bien sans espace perd sa mise en avant)
 **Description :** Une offre du catalogue de boosts, réglée dans le super-admin
 ([ADR-0061 §5](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : Remontée 5 · Vedette 7 / 15 /
-30 jours : 20 / 35 / 60 · Badge 7 jours : 10 (§6). **Le prix et la durée se figent dans le boost
+30 jours : 20 / 35 / 60 · Badge 7 jours : 10 (ADR-0061 §6). **Le prix et la durée se figent dans le boost
 acheté** : modifier le catalogue ne touche pas un boost existant. Le front possède les libellés : une
 offre se nomme par son genre, sa durée et sa variante.
 
@@ -4197,7 +4261,7 @@ une **Vedette offerte** (`offered`, prix 0, aucun mouvement de crédit).
 | purchased_by_id | FK users | oui | null | Auteur de l'achat ou de l'offre — `nullOnDelete` |
 | cancel_reason | text | oui | null | |
 | cancelled_by_id | FK users | oui | null | `nullOnDelete` |
-| refunded_credits | unsignedInteger | oui | null | Ce qui a **réellement** été rendu (une part dont le lot d'origine a expiré ne l'est pas, §4) |
+| refunded_credits | unsignedInteger | oui | null | Ce qui a **réellement** été rendu (une part dont le lot d'origine a expiré ne l'est pas, ADR-0061 §4) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** CHECK `property_boosts_credits_check (price_credits >= 0 AND (refunded_credits IS
@@ -4436,22 +4500,30 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 
 | Actuel | Nouveau nom | Valeurs |
 |--------|-------------|---------|
-| ~~ProprietyStatus~~ | **PropertyStatus** | available, sold, rented, under_maintenance, unavailable, pending |
+| ~~ProprietyStatus~~ | **PropertyStatus** | available, sold, rented, under_maintenance, unavailable, pending, **draft, published, archived, pending_review, rejected** (cycle de publication et de modération ; `scopePublic()` exclut notamment `draft`, `archived`) |
 | ~~ProprietyVisibility~~ | **PropertyVisibility** | public, private |
 | BookingStatus | BookingStatus | pending, confirmed, rejected, cancelled, completed, **expired** |
 | UserStatus | UserStatus | active, inactive, blocked, deleted |
-| UserRole | UserRole | ~~customer, agency_admin, super_admin, agent, owner, service_provider~~ — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)) |
+| UserRole | UserRole | customer, agency_admin, super_admin, agent, owner, service_provider — **@deprecated TCK-278** (le rôle est désormais dérivé du profil ; voir [Règle 5](#règle-5--profil--rôle)). Les cas existent encore : l'enum ne survit que comme vocabulaire du contrat `PUT /api/users/{user}/role` (`UserRoleController`, qui le traduit en profils) et n'exprime aucune autorisation |
 | CustomerStatus | CustomerStatus | active, inactive, blocked, deleted |
 
 > **`UserType` — déprécié (TCK-138 → TCK-142).** L'enum `UserType` est conservé en lecture pendant la phase de migration mais **disparaît** au cutover (TCK-142, suppression de `users.type` + des deux fichiers `app/Models/Enums/UserType.php` et `app/Models/Bases/Enums/UserType.php`). La nature métier d'un user est désormais portée par ses **profils polymorphes** (OwnerProfile / AgentProfile / AgencyAdminProfile / ServiceProviderProfile / PlatformProfile) ; les permissions par l'enum `Capability`, résolue par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et lue via `canActAt()`. Aucun nouveau code ne doit lire `users.type`.
 
 ### Nouveaux enums
 
+> **La source fait foi : `takussan-api/app/Models/Enums/*.php`.** Ce tableau a été relevé contre elle
+> le 2026-10-14 (passe 012 de `/sync-specs`, M36) : il n'avait été tenu que pour les enums neufs —
+> des enums du code y manquaient depuis des mois (ajoutés, marqués « relevé 2026-10-14 ») et
+> une ligne sur six environ portait des valeurs périmées (corrigées en gras). **Aucune garde ne le
+> compare au code** : avant de s'y fier pour une valeur, relire le fichier ; pour l'inventaire,
+> `ls takussan-api/app/Models/Enums/`. La colonne « Utilisé par » nomme le cast
+> (`grep -rn "=> <Enum>::class" takussan-api/app/Models`) ou, à défaut, le lecteur.
+
 | Nom | Valeurs | Utilisé par |
 |-----|---------|-------------|
 | ~~**UserType**~~ | ~~owner, agent, broker, admin, service_provider~~ | ~~User.type~~ — **@deprecated TCK-138, supprimé en TCK-142** (remplacé par les profils polymorphes) |
-| **OwnerProfileStatus** 🆕 | active, inactive, blocked | OwnerProfile.status |
-| **AgentProfileStatus** 🆕 | active, inactive, suspended | AgentProfile.status |
+| **OwnerProfileStatus** 🆕 | **draft**, active, inactive, blocked | OwnerProfile.status — `draft` : profil pré-créé à l'envoi d'une invitation (TCK-249) |
+| **AgentProfileStatus** 🆕 | **draft**, active, inactive, suspended | AgentProfile.status — `draft` : profil pré-créé à l'envoi d'une invitation (TCK-249) |
 | **AgencyAdminProfileStatus** ✅ (TCK-271) | active, suspended, archived | [AgencyAdminProfile.status](#98-agencyadminprofile-) |
 | **CollaborationStatus** 🆕 | active, paused, ended | ServiceProviderAgencyCollaboration.status (`BrokerAgencyCollaboration` supprimé, ADR-0030) |
 | **KycDossierStatus** 🆕 | pending, submitted, verified, rejected | KycDossier.status |
@@ -4464,9 +4536,9 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 | **TitleType** | bail, titre_foncier, deliberation, autre | Property.title_type |
 | **PropertyCondition** 🆕 | off_plan, new, renovated, good, to_renovate | Property.condition (TCK-508) |
 | **LeaseType** | residential_rent, commercial_rent, seasonal_rent, sale | Lease.type |
-| **LeaseStatus** | draft, pending_signature, active, expired, terminated, renewed | Lease.status |
-| **PaymentStatus** | pending, paid, late, partially_paid, failed, refunded | LeasePayment.status, BookingPayment.status |
-| **PaymentMethod** | cash, bank_transfer, mobile_money, check, card | LeasePayment, BookingPayment |
+| **LeaseStatus** | draft, pending_signature, active, expired, **terminating**, terminated, renewed | Lease.status — `terminating` : départ anticipé demandé, préavis en cours (TCK-090) |
+| **PaymentStatus** | pending, paid, late, partially_paid, failed, refunded, **cancelled** | LeasePayment.status, BookingPayment.status — `cancelled` : échéance qu'un renouvellement a remplacée (`LeaseRenewalService`), jamais posée par un client. `lease_payments` n'écrit plus `failed` depuis TCK-593 (`2026_10_07_150100_reopen_failed_lease_payments`) |
+| **PaymentMethod** | cash, bank_transfer, mobile_money, **wave, orange_money, free_money**, check, card | LeasePayment, BookingPayment |
 | **PaymentFrequency** | monthly, quarterly, yearly | Lease.payment_frequency |
 | **LeasePaymentType** | rent, charges, deposit, **deposit_refund**, regularization, penalty | LeasePayment.payment_type |
 | **BookingPaymentType** | deposit, advance, fee | BookingPayment.payment_type |
@@ -4476,7 +4548,7 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 | **TagType** | amenity, feature, label, crm | Tag.type |
 | **RelationshipType** | owner_tenant, agent_client — `broker_client` retiré par TCK-586 (ADR-0030) | UserCustomerRelationship.relationship_type |
 | **RelationshipStatus** | active, ended, suspended | UserCustomerRelationship.status |
-| **NotificationType** | booking, payment, lease, maintenance, visit, message, system | AppNotification.type |
+| **NotificationType** | booking, payment, lease, maintenance, visit, message, system, **bank_statement_imported, bank_statement_finalized, role_delegated, role_delegation_expired, role_delegation_revoked** | AppNotification.type |
 | **NotificationChannel** | app, email, sms, push, **whatsapp** | AppNotification.delivery_channel — *pas* `notification_preferences.channel`, qui écrit `inapp` (voir §99) |
 | **EmailFrequency** ✅ (TCK-103) | instant, daily, weekly, off | [User.email_frequency](#1-user) |
 | **AgencyStatus** | active, inactive, suspended | Agency.status |
@@ -4484,23 +4556,23 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 | **VisitStatus** | scheduled, confirmed, completed, cancelled, no_show | PropertyVisit.status |
 | **ConversationType** | direct, group, booking, lease, property, **support** | Conversation.type — *aligné sur `app/Models/Enums/ConversationType.php`, mesuré le 2026-08-16 (R7 de la passe 009)* |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
-| **MessageType** | text, image, document, system | Message.type |
+| **MessageType** | text, image, document, system, **audio** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
-| **MaintenancePriority** | low, medium, high, urgent | MaintenanceRequest.priority |
-| **MaintenanceStatus** | open, acknowledged, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status |
-| **DocumentType** | id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, photo, other | Document.type |
+| **MaintenancePriority** | low, **normal**, high, urgent | MaintenanceRequest.priority — `medium` renommé `normal`, données et défaut (`2026_04_26_013446`) |
+| **MaintenanceStatus** | open, acknowledged, **quote_requested, quote_submitted, awaiting_owner, approved, rejected**, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status — circuit du devis (TCK-592, ADR-0037) |
+| **DocumentType** | id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, photo, **rib, ninea**, other | Document.type — `rib`, `ninea` : pièces KYC du propriétaire (TCK-257) |
 | **InventoryType** | move_in, move_out | Inventory.type |
 | **InventoryStatus** | draft, pending_signature, signed, disputed | Inventory.status |
 | **InventoryCondition** | excellent, good, fair, poor | Inventory.general_condition |
 | **InvoiceStatus** | draft, sent, paid, overdue, cancelled, void | Invoice.status |
 | **PriceChangeReason** | market_adjustment, negotiation, renovation, urgent_sale, seasonal, correction | PropertyPriceHistory.reason |
-| **PayoutStatus** | pending, scheduled, processing, completed, failed, cancelled | Payout.status |
+| **PayoutStatus** | **awaiting_approval**, pending, scheduled, processing, completed, failed, cancelled | Payout.status — `awaiting_approval` : le net atteint le seuil d'approbation de l'agence (TCK-594, ADR-0039 §4) |
 | **CustomerPipelineStage** | lead, prospect, qualified, negotiating, converted, lost | Customer.pipeline_stage 🆕 |
 | **TaskStatus** | open, in_progress, done, cancelled | Task.status 🆕 |
 | **TaskPriority** | low, medium, high | Task.priority 🆕 |
 | **SettingScope** | global, agency | Setting.scope 🆕 |
 | **BankStatementSourceFormat** 🆕 | csv, ofx | BankStatement.source_format |
-| **BankStatementStatus** 🆕 | processing, ready_for_review, partially_reconciled, reconciled, archived | BankStatement.status |
+| **BankStatementStatus** 🆕 | processing, ready_for_review, partially_reconciled, reconciled, archived, **failed** | BankStatement.status — `failed` : analyse en échec, ou aucune ligne lisible dans un fichier non vide (TCK-593) |
 | **BankStatementLineDirection** 🆕 | credit, debit | BankStatementLine.direction |
 | **BankStatementLineMatchStatus** 🆕 | unmatched, suggested, confirmed, ignored | BankStatementLine.match_status |
 | **AgencyKind** 🆕 | standard, individual | Agency.kind |
@@ -4518,6 +4590,28 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 | **BoostStatus** 🆕 (TCK-633) | active, paused, ended, cancelled, refunded — `live()` = active, paused | [PropertyBoost.status](#93-propertyboost-) |
 | **CreditLotOrigin** 🆕 (TCK-633) | welcome, admin_grant, refund, purchase (phase 2) | [CreditLot.origin](#95-creditlot-) |
 | **CreditMovementType** 🆕 (TCK-633) | grant, spend, refund, expire, admin_debit | [CreditMovement.type](#96-creditmovement-) |
+| **RentPeriod** (relevé 2026-10-14) | daily, weekly, monthly, yearly | [Property.rent_period](#3-property) |
+| **ReviewStatus** (relevé 2026-10-14) | pending, approved, rejected, reported | [Review.status](#11-review) (`2026_04_22_000001`) |
+| **InventoryElementState** (relevé 2026-10-14) | bon, usé, endommagé, manquant | `Inventory.rooms[].elements[].state` (jsonb, validé par `InventoryStoreRequest` / `InventoryUpdateRequest`, sans cast) — valeurs en français, vocabulaire montré au locataire ; voir [§24](#24-inventory-) |
+| **ParticipantRole** (relevé 2026-10-14) | admin, member | [ConversationParticipant.role](#19-conversationparticipant-) (TCK-029, TCK-085) |
+| **CustomerNoteKind** (relevé 2026-10-14) | conversion, loss | [CustomerNote.kind](#33-customernote-) (TCK-591) |
+| **ServiceProviderProfileStatus** (relevé 2026-10-14) | draft, active, inactive, suspended | [ServiceProviderProfile.status](#37-serviceproviderprofile-) (TCK-260) |
+| **PayeeRole** (relevé 2026-10-14) | landlord, tenant, service_provider | [Payout.payee_role](#28-payout-) (TCK-594, ADR-0039 §2) |
+| **InvoiceKind** (relevé 2026-10-14) | invoice, credit_note | [Invoice.kind](#25-invoice-) (TCK-594, ADR-0039 §7) |
+| **PayoutMethodKind** (relevé 2026-10-14) | wave, orange_money, free_money, bank_transfer | [PayoutMethod.kind](#76-payoutmethod-) (TCK-594, ADR-0039 §6) |
+| **ServiceProviderBillStatus** (relevé 2026-10-14) | pending_validation, validated, rejected, paid, cancelled | [ServiceProviderBill.status](#77-serviceproviderbill-) (TCK-594, ADR-0039 §8) |
+| **PaymentProvider** (relevé 2026-10-14) | wave, orange_money, lemon_squeezy | Pas de cast : `Integration::isPaymentIntegration()` (`tryFrom` sur `integrations.provider`), `InitiatePaymentRequest` et les demandes de paiement en ligne |
+| **CommissionEntryStatus** (relevé 2026-10-14) | due, paid, cancelled | [CommissionEntry.status](#85-commissionentry-) (TCK-595, ADR-0049 §3) |
+| **CommissionOrigin** (relevé 2026-10-14) | negotiator, collaborator | [CommissionEntry.origin](#85-commissionentry-) (TCK-595, ADR-0049 §3) |
+| **ContactLeadChannel** (relevé 2026-10-14) | form, whatsapp, call | [PropertyContactLead.channel](#67-propertycontactlead-) (TCK-590) |
+| **ModerationReasonCode** (relevé 2026-10-14) | fraud, spam, misleading, offensive, personal_data, duplicate, conflict_of_interest, off_topic, other | Pas de cast : code du motif d'une décision de modération (`reason_code`, validé par `DecideModerationQueueRequest`, `ModerateReviewRequest`), traduit par le front ; texte libre exigé pour `other` seulement (TCK-597, ADR-0043 §7) |
+| **ImpersonationEndReason** (relevé 2026-10-14) | stopped, expired, operator_revoked, target_blocked | [ImpersonationSession.end_reason](#83-impersonationsession-) (TCK-600, ADR-0055 §4) |
+| **PlatformAbility** (relevé 2026-10-14) | gestes de la console plateforme, `platform.<domaine>.<verbe>` — distincts de `Capability`, sans agence ; la liste se lit dans le fichier | Pas de cast : middleware `platform-can:<valeur>` (`EnsurePlatformAbility`), `User::hasPlatformAbility()` (TCK-600, ADR-0047) |
+| **PrivacyRequestType** (relevé 2026-10-14) | access, rectification, opposition, erasure, portability | [PrivacyRequest.type](#79-privacyrequest-) (TCK-601, ADR-0044 §4) |
+| **PrivacyRequestChannel** (relevé 2026-10-14) | in_app, email, postal, phone, in_person | [PrivacyRequest.channel](#79-privacyrequest-) (TCK-601, ADR-0044 §4) |
+| **PrivacyRequestStatus** (relevé 2026-10-14) | received, in_progress, answered, rejected, withdrawn | [PrivacyRequest.status](#79-privacyrequest-) (TCK-601, ADR-0044 §4) |
+| **ScheduledTaskRunStatus** (relevé 2026-10-14) | finished, failed, skipped, running | [ScheduledTaskRun.status](#61-scheduledtaskrun-) (TCK-383) |
+| **WatermarkPosition** (relevé 2026-10-14) | bottom_right, bottom_left, bottom_center | Pas de cast : réglage d'agence `settings.watermark_position` (`AgencyUpdateRequest`), lu par `AgencyWatermarkContext` (TCK-319) |
 
 #### Catalogue `Capability` (TCK-278 → TCK-279)
 
@@ -4551,21 +4645,28 @@ Chaque entrée est de la forme `<domain>.<verb>` ; les verbes sont normalisés (
 
 ## Résumé des changements
 
-### Modèles inchangés (0)
+> ⚠ **Journal, pas état.** Cette section raconte la réécriture initiale du document (2026-04) puis
+> quelques livraisons ; elle ne décrit pas le schéma courant — **les sections font foi**, et
+> l'historique complet est celui de git (`git log -p -- docs/models-spec.md`). Ses comptes écrits à
+> la main (« enrichis (8) », « Nouveaux modèles (22) », « Nouveaux enums (46) », « +13 colonnes »…)
+> ont été **retirés** le 2026-10-14 (passe 012 de `/sync-specs`, M40) : aucun ne tenait. Les
+> affirmations que le code dément ont été corrigées en place et marquées ⚠.
 
-Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté strictement inchangé.
+### Modèles inchangés
 
-### Modèles existants enrichis (8)
+Aucun : tous les modèles ont été enrichis ou remplacés.
 
-- **User** : +13 colonnes (bio, phone_verified_at, preferred_language, last_login_at, timezone, two_factor_*, notifications_*_enabled, **facebook_id**, **apple_id**), -3 colonnes (model morphs, avatar_url → medialibrary), `type` → UserType enum, +relations (leases, app_notifications, written_reviews, received_reviews, documents)
-- **Agency** : +8 colonnes (commission_rate, founded_at, is_verified, verified_at, primary_admin_id, properties_count, active_leases_count, average_rating), -1 colonne (logo_path → medialibrary), +trait `InteractsWithMedia`, +relations (address, reviews, leases, primaryAdmin, documents)
-- **Property** : +17 colonnes (currency, bedrooms, bathrooms, furnished, floor_number, total_floors, year_built, parking_spaces, featured, views_count, reference_number, favorites_count, visits_count, reviews_count, average_rating, available_from, published_at), 3 colonnes renommées, `type`/`contract_type`/`title_type`/`currency` → enums, +relations (inventories, conversations)
-- **Address** : +1 colonne (neighborhood)
-- **Booking** : `customer_id` → NOT NULL, `user_id` → `created_by_id`, `user()` → `creator()`, `cancellation_by` → CancellationBy enum, ➖ `deposit_paid` (remplacé par Accessor dynamique), +relations (documents, invoices) ; BookingStatus +valeur `rejected` + `expired`
-- **BookingPayment** : +3 colonnes (refund_amount, refund_reason), `currency` → Currency enum, +trait `HasPaymentAttributes`, +relation `invoice()` morphOne
-- **LeasePayment** : `payment_type` → `LeasePaymentType` enum (+valeur `deposit_refund`), `currency` → Currency enum, `due_date` → nullable, +trait `HasPaymentAttributes`, +relation `invoice()` morphOne
-- **Customer** : +6 colonnes (id_type → IdType enum, id_number, occupation, emergency_contact_name, emergency_contact_phone, **pipeline_stage**), +relations (visits, notes)
-- **Review** : `model_id`/`model_type` → `reviewable_id`/`reviewable_type`, relation `model()` → `reviewable()`, +3 colonnes **reply_content / replied_by_id / replied_at** + relation `repliedBy()`
+### Modèles existants enrichis
+
+- **User** : +colonnes (bio, phone_verified_at, preferred_language, last_login_at, timezone, two_factor_*, notifications_*_enabled, **facebook_id**, **apple_id**), -colonnes (model morphs, avatar_url → medialibrary), `type` → UserType enum (puis colonne supprimée par TCK-142), +relations (leases, appNotifications, writtenReviews, receivedReviews, documents)
+- **Agency** : +colonnes (commission_rate, founded_at, is_verified, verified_at, primary_admin_id, properties_count, active_leases_count, average_rating), -colonne (logo_path → medialibrary), +trait `InteractsWithMedia`, +relations (addresses, reviews, leases, primaryAdmin) — ⚠ ni `address()` (c'est `addresses()`, morphMany) ni `documents()` n'existent ; les colonnes ajoutées depuis sont en [§2](#2-agency)
+- **Property** : +colonnes (currency, bedrooms, bathrooms, furnished, floor_number, total_floors, year_built, parking_spaces, featured, views_count, reference_number, favorites_count, visits_count, reviews_count, average_rating, available_from, published_at), colonnes renommées, `type`/`contract_type`/`title_type`/`currency` → enums — ⚠ ni `inventories()` ni `conversations()` n'existent sur le modèle ; voir [§3](#3-property)
+- **Address** : +colonne (neighborhood) — ⚠ les colonnes `address`, `state`, `district`, `building` que §4 décrivait n'ont jamais existé (`2026_04_17_160003`) ; [§4](#4-address) est réécrite sur la table
+- **Booking** : `user_id` → `created_by_id`, `user()` → `createdBy()`, `cancellation_by` → CancellationBy enum, ➖ `deposit_paid` ; BookingStatus +valeur `rejected` + `expired` — ⚠ `customer_id` est resté **nullable** (`2026_04_17_160010`), aucun accesseur ne remplace `deposit_paid`, et ni `documents()` ni `invoices()` n'existent sur le modèle ; voir [§5](#5-booking)
+- **BookingPayment** : +colonnes (refund_amount, refund_reason), `currency` → Currency enum, +trait `HasPaymentAttributes` — ⚠ aucune relation `invoice()` ; voir [§6](#6-bookingpayment)
+- **LeasePayment** : `payment_type` → `LeasePaymentType` enum (+valeur `deposit_refund`), `currency` → Currency enum, `due_date` → nullable, +trait `HasPaymentAttributes` — ⚠ aucune relation `invoice()` ; voir [§15](#15-leasepayment-)
+- **Customer** : +colonnes (id_type → IdType enum, id_number, occupation, emergency_contact_name, emergency_contact_phone, **pipeline_stage**), +relations (visits, notes) ; plus tard `agency_id` et les critères de recherche (TCK-591, `2026_10_07_591200`) — voir [§7](#7-customer)
+- **Review** : `model_id`/`model_type` → `reviewable_id`/`reviewable_type`, relation `model()` → `reviewable()`, +colonnes **reply_content / replied_by_id / replied_at** + relation `repliedBy()` ; l'auteur est `author_id` dès la création de la table ; plus tard `status` (`2026_04_22_000001`), `agency_id` et `context_*` (`2026_10_08_100000`) — voir [§11](#11-review)
 - **Lease** : +colonne **renewed_from_lease_id** + relations `renewedFrom()` / `renewals()`
 - **PropertyCollaborator** : +colonne **commission_share** (decimal 5,2)
 
@@ -4583,13 +4684,13 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 ### Nouveaux modèles ajustés par rapport à la spec initiale
 
 - **Conversation** : +colonnes `maintenance_request_id` FK, `last_message_id`, `last_message_preview` ; `type` → `ConversationType` enum
-- **PropertyVisit** : +colonne `cancellation_reason`, `type` → VisitType élargi (self_guided, hybrid), +contrainte CHECK
-- **Property** : `amenities` JSON ➖ remplacée par Tags de type `amenity` (migration P3.10), +relations `price_histories()` et `invoices()`
-- **Lease** : `terminated_by` → `terminated_by_id`, `payment_frequency` → `PaymentFrequency` enum, `currency` → Currency enum, ➖ colonnes `guarantor_name/phone/id_number` (remplacées par FK `guarantor_id` vers modèle `Guarantor`), +relations `guarantor()`, `payouts()`, `invoices()`
-- **MaintenanceRequest** : +relation `requesterCustomer()`
-- **Document** : morphTo élargi à User, Agency, Booking
+- **PropertyVisit** : +colonne `cancellation_reason`, `type` → VisitType élargi (self_guided, hybrid) — ⚠ la « contrainte CHECK » annoncée ici n'existe dans aucune migration ; la règle est applicative, voir [§17](#17-propertyvisit-)
+- **Property** : `amenities` JSON ➖ remplacée par Tags de type `amenity` (migration P3.10), +relation `priceHistory()` — ⚠ aucune relation `invoices()` sur le modèle
+- **Lease** : `terminated_by` → `terminated_by_id`, `payment_frequency` → `PaymentFrequency` enum, `currency` → Currency enum, ➖ colonnes `guarantor_name/phone/id_number` (remplacées par FK `guarantor_id` vers modèle `Guarantor`, puis par le pivot `lease_guarantor`), +relations `guarantor()`, `payouts()`, `invoices()`
+- **MaintenanceRequest** : ⚠ la relation `requesterCustomer()` annoncée ici n'existe pas sur le modèle (relevé 2026-10-14) ; voir [§21](#21-maintenancerequest-)
+- **Document** : `documentable` morphTo générique — ⚠ les inverses `documents()` sont déclarés par User, Customer, Property, Lease, Guarantor, MaintenanceRequest et AgencyUpgradeRequest, **pas** par Agency ni Booking
 
-### Nouveaux modèles (22)
+### Nouveaux modèles antérieurs à TCK-310
 
 - **Lease** — Contrats / Baux
 - **LeasePayment** — Paiements récurrents
@@ -4614,10 +4715,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **BankStatement** — Relevés bancaires (rapprochement) 🆕
 - **BankStatementLine** — Lignes d'un relevé bancaire 🆕
 
-### Modèles documentés a posteriori (16) ✅ — TCK-310
+### Modèles documentés a posteriori ✅ — TCK-310
 
 **Ils ne sont pas nouveaux : ils existaient déjà et ce document les ignorait.** Détail complet en
-[Modèles documentés a posteriori](#modèles-documentés-a-posteriori-tck-310).
+[Modèles documentés a posteriori](#modèles-documentés-a-posteriori-tck-310). Les modèles posés
+depuis sont rangés à part : [Modèles ajoutés depuis TCK-310](#modèles-ajoutés-depuis-tck-310).
 
 - **AccountDeletionRequest** — demandes de suppression RGPD
 - **DataExport** — exports RGPD de données personnelles
@@ -4638,26 +4740,30 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 
 ### TCK-633 — retours du porteur (2026-10-12) 🆕
 
-- **Nouveaux modèles (10) :** PropertyContact (lot C) ; GeoRegion, GeoCity, GeoNeighborhood
+- **Nouveaux modèles :** PropertyContact (lot C) ; GeoRegion, GeoCity, GeoNeighborhood
   (ADR-0062) ; BoostProduct, PropertyBoost, PropertyBoostDailyStat, CreditLot, CreditMovement,
   CreditWelcomeGrant (ADR-0061).
-- **User** : +6 colonnes (phone_whatsapp, secondary_phone, secondary_phone_verified_at,
+- **User** : +colonnes (phone_whatsapp, secondary_phone, secondary_phone_verified_at,
   secondary_phone_whatsapp, terms_accepted_at, terms_version), +index unique partiel.
-- **Property** : +4 colonnes (ranked_at, sponsored_until, badge, badge_until) ; `featured` devient
+- **Property** : +colonnes (ranked_at, sponsored_until, badge, badge_until) ; `featured` devient
   dérivé ; +relations contacts, boosts, tagsVisibles.
-- **Address** : +2 FK (geo_city_id, geo_neighborhood_id) ; canonisation à chaque écriture.
-- **Tag** : +2 colonnes (status, created_by_id) ; `feature` fondu dans `amenity` ; pivot
-  `taggables` +attached_by_id.
+- **Address** : +FK (geo_city_id, geo_neighborhood_id) ; canonisation à chaque écriture.
+- **Tag** : +colonnes (status, created_by_id) ; les données `feature` fondues dans `amenity` (le cas
+  subsiste dans l'enum) ; pivot `taggables` +attached_by_id.
 - **Agency** : aucune colonne ; +relation creditLots, +observateur des boosts.
-- **Nouveaux enums (7) :** ReferentialStatus, GeoNeighborhoodOrigin, BoostKind, BoostBadge,
+- **Nouveaux enums :** ReferentialStatus, GeoNeighborhoodOrigin, BoostKind, BoostBadge,
   BoostStatus, CreditLotOrigin, CreditMovementType ; +capacité `boost.spend`.
 
-### Enums renommés (2)
+### Enums renommés
 
 - ProprietyStatus → **PropertyStatus**
 - ProprietyVisibility → **PropertyVisibility**
 
-### Nouveaux enums (46)
+### Nouveaux enums antérieurs à TCK-633
+
+> Ceux de TCK-633 sont dans le bloc ci-dessus ; ceux que le tableau [Enums](#enums-1) n'avait jamais
+> reçus y ont été ajoutés le 2026-10-14 (marqués « relevé 2026-10-14 »). L'inventaire se lit dans
+> `takussan-api/app/Models/Enums/`, pas ici.
 
 - **Scalaires métier :** UserType, Currency, CancellationBy, IdType, CollaboratorRole, TagType, RelationshipType, RelationshipStatus
 - **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType, PropertyCondition 🆕 (TCK-508)
@@ -4671,20 +4777,24 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - **CRM / Plateforme :** CustomerPipelineStage 🆕, TaskStatus 🆕, TaskPriority 🆕, SettingScope 🆕
 - **Comptabilité bancaire 🆕 :** BankStatementSourceFormat, BankStatementStatus, BankStatementLineDirection, BankStatementLineMatchStatus
 - **Documentés a posteriori ✅ (TCK-310) :** DataExportStatus, RoleDelegationStatus — les deux seuls
-  enums PHP portés par les seize modèles ajoutés ; les autres colonnes de statut de ces modèles sont
-  des `string` contrôlées applicativement, et c'est écrit modèle par modèle.
+  enums PHP que portaient les seize modèles de TCK-310 **le 2026-08-16** ; les autres colonnes de
+  statut de ces modèles étaient des `string` contrôlées applicativement. Depuis,
+  `ScheduledTaskRun.status` (ScheduledTaskRunStatus, TCK-383) et `PropertyContactLead.channel`
+  (ContactLeadChannel, TCK-590) sont castés à leur tour.
 
 ---
 
 ## Index recommandés
 
-> Index critiques à déclarer dans les migrations pour les requêtes les plus fréquentes.
+> Index critiques des requêtes les plus fréquentes. **Tous existent** : relevés le 2026-10-14 contre
+> la base de développement migrée (`pg_indexes`) et leurs migrations. La liste complète d'une table se
+> lit en base, pas ici : `select indexname, indexdef from pg_indexes where tablename = '<table>'`.
 
 | Table | Colonnes indexées | Justification |
 |-------|-------------------|---------------|
 | properties | `status`, `contract_type` | Filtres de base sur toutes les listes |
-| properties | `user_id`, `agency_id` | Récupération du portefeuille |
-| properties | `visibility`, `published_at` | Scope `published()` |
+| properties | `user_id`, `agency_id` | Récupération du portefeuille (deux index simples) |
+| properties | `visibility`, `published_at` | Scope `public()` (le scope `published()` n'existe pas) |
 | properties | `featured`, `published_at` | Page d'accueil — biens mis en avant |
 | leases | `status`, `property_id` | Suivi des baux actifs |
 | lease_payments | `due_date`, `status` | Rappels et paiements en retard |
@@ -4705,11 +4815,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | payouts | `landlord_id`, `status` | Suivi des reversements d'un bailleur |
 | payouts | `lease_id`, `period_start` | Historique des reversements d'un bail |
 | payouts | `status`, `scheduled_at` | File des reversements à traiter |
-| document_share_links | `token` | Résolution du lien public (unique) |
+| document_share_links | `token_hash` | Résolution du lien public (unique `dsl_token_hash_unique` — `token` est chiffré et n'est plus cherché, `2026_10_08_180000`) |
 | document_share_links | `document_id`, `expires_at` | Liste des liens actifs d'un document |
 | tasks | `assigned_to_id`, `due_at` | Tâches à échéance d'un utilisateur |
 | tasks | `taskable_type`, `taskable_id` | Tâches liées à une entité |
-| customer_notes | `customer_id`, `created_at DESC` | Historique des notes d'un client |
+| customer_notes | `customer_id`, `created_at` | Historique des notes d'un client (index ascendant ; PostgreSQL le parcourt aussi à rebours) |
 | settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre |
 | integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence |
 | bank_statements | `(agency_id, status)` | Relevés ouverts par agence 🆕 |
@@ -4718,10 +4828,11 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 | bank_statement_lines | `(matched_payment_type, matched_payment_id)` | Recherche inverse depuis un paiement 🆕 |
 | bank_statement_lines | `(posted_at, amount)` | Recherche d'appariement par date / montant 🆕 |
 
-> ✅ **Les seize tables documentées a posteriori (TCK-310) ne sont pas reprises ici, délibérément.**
-> Ce tableau porte des index *recommandés* — une prescription. Leurs index, eux, sont **mesurés
-> dans les migrations** et écrits section par section. Les recopier ici transformerait une mesure en
-> prescription et créerait un second endroit à tenir à jour, donc un second endroit à faire mentir.
+> ✅ **Les tables documentées a posteriori (TCK-310) et celles des modèles ajoutés depuis (§72 et
+> suivants) ne sont pas reprises ici, délibérément.** Leurs index sont **mesurés dans les
+> migrations** et écrits section par section — comme ceux des sections que la passe 012 de
+> `/sync-specs` a relues colonne à colonne. Les recopier ici créerait un second endroit à tenir à
+> jour, donc un second endroit à faire mentir.
 
 ---
 
@@ -4736,7 +4847,7 @@ Tout User ayant un rôle de locataire actif doit avoir un `Customer` associé (`
 - Un User peut exister sans Customer (propriétaire, agent, admin, service_provider).
 - Dès qu'un User devient locataire (signature d'un Lease en tant que `tenant`), un Customer doit être créé ou associé.
 - **Implémentation :** `UserObserver` ou logique dans `LeaseService` lors de la création d'un bail.
-- **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; `MaintenanceRequest.requesterCustomer()` retourne le Customer via `user->customer()`.
+- **Conséquence :** `MaintenanceRequest.requester_id` pointe vers User ; le Customer du demandeur se lit depuis l'utilisateur (`User::customer()`, hasOne) — aucune relation `requesterCustomer()` sur le modèle (relevé 2026-10-14).
 
 ### Règle 2 — Compteurs cache
 
@@ -4832,7 +4943,15 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 
 ## Contraintes d'unicité
 
-> À déclarer dans les migrations via `->unique()` ou `->uniqueIndex(['col1', 'col2'])`.
+> **Extrait, pas inventaire — la source fait foi : les migrations.** La liste exhaustive se lit en
+> base : `select tablename, indexname, indexdef from pg_indexes where schemaname = 'public' and
+> indexdef like 'CREATE UNIQUE%' order by 1` (et `pg_constraint where contype = 'c'` pour les
+> CHECK). Chaque ligne ci-dessous a été relevée le 2026-10-14 contre la base de développement migrée
+> et contre sa migration (passe 012 de `/sync-specs`, M38) ; la section du modèle porte le détail.
+>
+> ⚠ **Un `NULL` n'entre en conflit avec rien** (PostgreSQL tient les `NULL` pour distincts, sauf
+> `NULLS NOT DISTINCT`). Une unicité composée dont une colonne est nullable ne protège donc pas les
+> lignes où elle est nulle : c'est dit ligne par ligne dans la colonne « Condition ».
 
 | Table | Colonnes | Type | Condition |
 |-------|----------|------|-----------|
@@ -4840,28 +4959,44 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | users | `LOWER(username)`, `LOWER(email)` (ICU) | unique | toujours (`NULL` admis plusieurs fois) — ADR-0025. *La CHECK `(username IS NOT NULL OR email IS NOT NULL)` que cette table annonçait n'existe dans aucune migration ; elle contredirait un compte ouvert par téléphone seul* |
 | agencies | `license_number` | unique | si non null |
 | agencies | `slug` | unique | toujours |
-| tags | `name` | unique | toujours |
+| tags | `name` | unique | toujours — à l'octet ; l'unique d'origine n'a jamais été retiré |
+| tags | `LOWER(name COLLATE "und-x-icu")` (`tags_name_lower_unique`) | unique sur expression | toujours — casse repliée par ICU, accents distincts (ADR-0025) ; voir [§10](#10-tag) |
 | tags | `slug` | unique | toujours |
+| taggables | `(tag_id, taggable_id, taggable_type)` | clé primaire composite (`taggables_pkey` en base : PostgreSQL ignore le nom `taggables_primary` que la migration demande) | toujours |
 | properties | `reference_number` | unique | si non null |
+| properties | `slug` | unique | toujours (fabriqué par `Str::slug()` : aucune variante de casse possible) |
+| properties | `ical_export_token_hash` (`properties_ical_token_hash_unique`) | unique | si non null (TCK-596) |
 | leases | `reference_number` | unique | toujours |
+| lease_guarantor | `(lease_id, guarantor_id)` (`lease_guarantor_unique`) | unique composé | toujours |
 | bookings | `reference_number` | unique | si non null |
-| lease_payments | `reference_number` | unique | si non null |
+| lease_payments | `bank_statement_line_id` (`lease_payments_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` — *`lease_payments.reference_number`, que cette table disait unique, ne l'est pas (`2026_04_17_160013` : `nullable()` sans `unique()`)* |
+| booking_payments | `bank_statement_line_id` (`booking_payments_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` |
 | payouts | `reference_number` | unique | toujours |
-| invoices | `reference_number` | unique | toujours |
-| saved_searches | `(user_id, name)` | unique composé | toujours |
+| payouts | `bank_statement_line_id` (`payouts_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` (`2026_10_07_150200`) |
+| payout_lease_payment | `lease_payment_id` (`payout_lp_lease_payment_unique`) | unique | toujours — une échéance n'est retenue que par un reversement (`2026_10_07_200400`) |
+| payout_booking_payment | `booking_payment_id` (`payout_bp_booking_payment_unique`) | unique | toujours (`2026_10_07_200400`) |
+| invoices | `(agency_id, reference_number)` (`invoices_agency_reference_unique`) | unique composé | si `agency_id` non null — l'unique global `invoices_reference_number_unique` a été retiré par `2026_10_07_200700` |
+| invoices | `reference_number` (`invoices_reference_no_agency_unique`) | unique partiel | `agency_id IS NULL` |
+| invoices | `(agency_id, kind, sequence_year, sequence_number)` (`invoices_agency_kind_seq_unique`) | unique composé | si `agency_id`, `sequence_year` et `sequence_number` non nuls (`2026_10_07_200700`) |
+| invoices | `bank_statement_line_id` (`invoices_bank_line_unique`) | unique partiel | `bank_statement_line_id IS NOT NULL` (`2026_04_28_000005`) |
+| reviews | `(author_id, reviewable_type, context_type, context_id)` (`reviews_author_context_uniq`) | unique partiel | `context_id IS NOT NULL` — `reviewable_id` délibérément hors clé (ADR-0043 §3) ; voir [§11](#11-review) |
+| saved_searches | `(user_id, name)` | unique composé | si `user_id` non null — une recherche d'abonné sans compte (`alert_subscriber_id`) n'est pas couverte |
 | favorites | `(user_id, property_id)` | unique composé | toujours |
 | property_collaborators | `(property_id, user_id)` | unique composé | toujours |
 | property_collaborators | `property_id` (`property_collaborators_one_primary_per_property`) | unique partiel | `WHERE is_primary` — un seul agent principal par bien 🆕 (TCK-504, ADR-0053) |
 | property_collaborators | CHECK `property_collaborators_primary_is_agent (NOT is_primary OR role = 'agent')` | contrainte DB | toujours 🆕 (TCK-504) |
 | conversation_participants | `(conversation_id, user_id)` | unique composé | toujours |
-| document_share_links | `token` | unique | toujours |
-| settings | `(key, scope, scope_id)` | unique composé | toujours |
-| integrations | `(provider, agency_id)` | unique composé | toujours |
-| owner_profiles | `(user_id, agency_id)` | unique composé | toujours 🆕 |
-| agent_profiles | `(user_id, agency_id)` | unique composé | toujours 🆕 |
+| document_share_links | `token_hash` (`dsl_token_hash_unique`) | unique | toujours — l'unique sur `token` a été retiré par `2026_10_08_180000` (`token` est désormais chiffré) |
+| settings | `(key, scope, scope_id)` | unique composé | si `scope_id` non null — ⚠ une clé `global` (`scope_id` nul) n'est **pas** protégée par la base ; son unicité ne tient qu'aux `updateOrCreate` des écrivains (`PlatformSettingService`, `SettingController`, `BusinessEnumService`, `SettingsSeeder`), qui ne résistent pas à deux écritures concurrentes |
+| integrations | `(provider, agency_id)` | unique composé | si `agency_id` non null |
+| integrations | `webhook_token_hash` (`integrations_webhook_token_hash_unique`) | unique | si non null (`2026_10_08_120000`) |
+| owner_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (brouillon d'invitation sans titulaire : plusieurs admis) |
+| agent_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (idem) |
 | agency_admin_profiles | `(user_id, agency_id)` | unique composé | toujours (`user_id` nullable : plusieurs lignes sans titulaire admises) — [§98](#98-agencyadminprofile-) |
-| service_provider_profiles | `user_id` | unique | toujours 🆕 |
-| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` | unique composé | toujours 🆕 |
+| service_provider_agency_collaborations | `(service_provider_profile_id, agency_id)` (`sp_agency_collab_live_unique`) | unique partiel | `deleted_at IS NULL` (`2026_10_07_120100`) — *`service_provider_profiles.user_id` n'est plus unique : retiré par `2026_05_10_170000` (TCK-260) ; « un profil par utilisateur » est applicatif, voir [§37](#37-serviceproviderprofile-)* |
+| platform_payouts | `(agency_id, period_end)` (`platform_payouts_unique_open_period`) | unique partiel | `status <> 'cancelled'` (`2026_05_07_000223`) |
+| agency_upgrade_requests | `agency_id` (`agency_upgrade_requests_one_pending_per_agency`) | unique partiel | `status = 'pending'` (`2026_05_10_180000`) |
+| notification_templates | `(event, channel, locale)` | unique composé | toujours (`2026_05_07_000215`) |
 | bank_statements | `(agency_id, file_hash)` | unique composé | toujours 🆕 |
 | notification_preferences | `(user_id, event_type, channel)` | unique composé | toujours — [§99](#99-notificationpreference-) |
 | invitations | `token` | unique | toujours — [§48](#48-invitation-) ; l'invitation a au moins un destinataire (`invitations_email_or_phone_check`) |
@@ -4879,13 +5014,18 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 ## Comportements FK (onDelete)
 
 > Règle à appliquer systématiquement dans toutes les migrations. Documenter le choix pour chaque FK.
+>
+> **Exemples, pas inventaire.** Chaque exemple a été relevé le 2026-10-14 contre la base de
+> développement migrée et sa migration (passe 012 de `/sync-specs`). Le comportement réel de toutes
+> les FK se lit en base : `select conrelid::regclass, conname, confdeltype from pg_constraint where
+> contype = 'f'` (`c` cascade, `n` set null, `r` restrict, `a` no action).
 
 | Type de relation | Comportement | Exemples |
 |-----------------|-------------|---------|
-| Table enfant "de vie" — ne peut pas exister sans le parent | `cascadeOnDelete()` | messages → conversation, lease_payments → lease, booking_payments → booking, conversation_participants → conversation, inventories → lease, favorites → property/user, property_price_histories → property, document_share_links → document, customer_notes → customer, integrations → agency |
-| FK vers User/Customer "acteur historique" — les logs/actions restent même si l'utilisateur est supprimé | `nullOnDelete()` | activity_log.causer_id, property_visits.visitor_id, leases.terminated_by_id, app_notifications.user_id, guarantors.added_by_id, payouts.issued_by_id, property_price_histories.changed_by_id, reviews.replied_by_id, document_share_links.created_by_id, customer_notes.author_id, tasks.assigned_to_id, tasks.created_by_id, settings.updated_by_id |
-| FK métier critique — suppression bloquée si des données dépendent | `restrictOnDelete()` | leases.property_id, leases.tenant_id, lease_payments.lease_id, payouts.landlord_id, invoices.customer_id, `agency_role_id` des porteurs de rôle (agent_profiles, agency_admin_profiles, owner_profiles, service_provider_agency_collaborations — Règle 6) |
-| FK optionnelle — perd son lien si le parent est supprimé | `nullOnDelete()` | properties.agency_id, leases.agency_id, leases.guarantor_id, leases.renewed_from_lease_id, properties.parent_id, bookings.customer_id, payouts.agency_id, payouts.lease_id, payouts.booking_id |
+| Table enfant "de vie" — ne peut pas exister sans le parent | `cascadeOnDelete()` | messages → conversation, lease_payments → lease, booking_payments → booking, conversation_participants → conversation, inventories → lease, favorites → property/user, property_price_histories → property, document_share_links → document, customer_notes → customer, integrations → agency, app_notifications → user, role_delegations.replaces_user_id → user (l'absence suit l'absent, `2026_10_07_591400`) |
+| FK vers User/Customer "acteur historique" — les logs/actions restent même si l'utilisateur est supprimé | `nullOnDelete()` | property_visits.visitor_id, leases.terminated_by_id, guarantors.added_by_id, payouts.issued_by_id, payouts.approved_by_id, payouts.processed_by_id, platform_payouts.closed_by_id, platform_payouts.paid_by_id, property_price_histories.changed_by_id, reviews.replied_by_id, property_reports.resolved_by_id, integration_webhook_logs.replayed_by_id, document_share_links.created_by_id, customer_notes.author_id, tasks.assigned_to_id, tasks.created_by_id, settings.updated_by_id, activity_log.impersonator_id — *`activity_log.causer_id` n'a **aucune** FK (`nullableMorphs` de spatie) : la ligne survit, `causer_id` pointe alors vers un utilisateur disparu* |
+| FK métier critique — suppression bloquée si des données dépendent | `restrictOnDelete()` | leases.property_id, leases.tenant_id, leases.landlord_id, lease_payments.payer_id, bookings.property_id, inventories.tenant_id, payouts.landlord_id, invoices.customer_id, `agency_role_id` des porteurs de rôle (agent_profiles, agency_admin_profiles, owner_profiles, service_provider_agency_collaborations — Règle 6), geo_cities.geo_region_id, geo_neighborhoods.geo_city_id (une région ou une ville référencée ne se supprime pas, `2026_10_12_400000`) |
+| FK optionnelle — perd son lien si le parent est supprimé | `nullOnDelete()` | properties.agency_id, leases.agency_id, leases.agent_id, leases.guarantor_id, leases.renewed_from_lease_id, properties.parent_id, bookings.customer_id, reviews.agency_id, payouts.agency_id, payouts.lease_id, payouts.booking_id, payouts.payout_method_id, payouts.service_provider_bill_id, invoices.credited_invoice_id, addresses.geo_city_id, addresses.geo_neighborhood_id (`2026_10_12_400100`) |
 
 ---
 
@@ -4897,20 +5037,24 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 
 **Statut :** reporté.
 
-Le champ `receipt_number` sur `BookingPayment` et `LeasePayment`, combiné à la génération PDF via medialibrary, couvre le besoin actuel. Un modèle `Receipt` distinct n'apporte pas de valeur supplémentaire pour le MVP.
+Le champ `receipt_number` de `BookingPayment` et les quittances PDF rendues à la demande (`PaymentReceiptPdf` par `DocumentPdfService`, TCK-172) couvrent le besoin actuel. Un modèle `Receipt` distinct n'apporte pas de valeur supplémentaire pour le MVP. *(Relevé 2026-10-14 : `lease_payments` n'a pas de colonne `receipt_number`, et le PDF n'est pas stocké par medialibrary — cette entrée disait l'inverse.)*
 
 **Déclencheur :** apparition d'un workflow de récépissé distinct du paiement (ex: récépissé de dépôt de dossier sans paiement immédiat).
 
 ### EF2 — Modèle `Commission`
 
-**Statut :** reporté.
+**Statut :** ✅ **réalisé autrement** — par [§85 CommissionEntry](#85-commissionentry-), le grand
+livre des commissions d'agence (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md),
+`2026_10_08_150100`). Cette entrée l'a dit « reporté » jusqu'au 2026-10-14.
 
-Les colonnes `commission_amount` et `commission_rate` sur `Lease` suffisent pour le MVP.
+Les colonnes `commission_amount` et `commission_rate` de `Lease` subsistent : elles portent la
+commission du bail ; `commission_entries` en ventile la part de chaque bénéficiaire (négociateur
+`leases.agent_id`, collaborateurs `agent` du bien — `CommissionOrigin`), figée à l'activation du bail,
+avec son statut `due` / `paid` / `cancelled` (`CommissionEntryStatus`).
 
-**Déclencheurs :**
-- Besoin de ventiler une commission entre plusieurs bénéficiaires (agence + agent).
-- Besoin de tracker les versements échelonnés d'une commission.
-- Besoin de générer des états comptables de commissions pour l'agence.
+Des trois déclencheurs prévus, le premier (ventiler entre plusieurs bénéficiaires) est servi ; le
+deuxième ne l'est pas : une entrée se paie **en une fois** (`paid_at`, `paid_by_id`), sans
+versement échelonné.
 
 ### EF3 — Modèle `NotificationPreference` (préférences fines)
 
@@ -4938,6 +5082,11 @@ Le système actuel (`conversation_participant.last_read_at` comparé à `message
 
 **Déclencheur :** apparition de conversations à > 5 participants (canaux support multi-agents, groupes d'équipe agence). Schéma probable : `message_reads(message_id, user_id, read_at)`.
 
+⚠ **Le déclencheur est atteint dans le code** (relevé 2026-10-14) : un groupe compte de 3 à 20
+participants actifs — son créateur et 2 à 19 invités (`CreateGroupConversationRequest`), plafond tenu
+à l'ajout (`AddParticipantsRequest`). Le refus tient toujours (aucune table `message_reads`) ; il est
+à réexaminer par ticket.
+
 ### EF6 — spatie/laravel-activitylog : migration des données
 
 Si des données existent dans la table `activity_logs` custom, une migration de données vers la table `activity_log` du package est nécessaire. Le schéma diffère (notamment `causer_id`/`causer_type` vs `user_id`, et `properties` json vs colonnes séparées).
@@ -4952,11 +5101,14 @@ Le modèle `Agency` reste à un seul niveau pour le MVP. L'ajout d'une FK réfle
 
 ### EF8 — Modèle `AgentAvailability`
 
-**Statut :** reporté.
+**Statut :** ❌ **écarté** par [ADR-0035](adr/0035-l-absence-est-une-delegation-qui-n-accorde-rien.md)
+(TCK-591). Cette entrée l'a dit « reporté », avec un « schéma probable », jusqu'au 2026-10-14.
 
-Le suivi des congés et indisponibilités des agents peut être géré par un calendrier externe ou un champ libre dans le MVP.
-
-**Déclencheur :** gestion d'une équipe > 10 agents nécessitant une planification formalisée (répartition des visites, rotation de garde). Schéma probable : `user_id`, `start_at`, `end_at`, `type` (`leave`, `off`, `busy`), `notes`.
+Une absence n'est pas une table à part : c'est une ligne de `role_delegations` qui nomme l'absent
+(`replaces_user_id`, `2026_10_07_591400`) avec le rôle `absence_cover`, qui **n'accorde aucun
+droit** — voir [§66 RoleDelegation](#66-roledelegation-). Le nom `AgentAvailability` existe, mais
+comme **service** (`App\Services\Agency\AgentAvailability`, `substituteFor()`) qui lit ces lignes
+pour dire à qui router le travail de l'absent ; ce n'est pas un modèle.
 
 ### EF9 — Modèle `ExchangeRate`
 
