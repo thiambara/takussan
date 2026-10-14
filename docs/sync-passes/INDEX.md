@@ -21,6 +21,7 @@
 | 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées *(vrai le 2026-05-04, périmé depuis — cf. la re-mesure du 2026-08-16 plus bas)* |
 | 011 | 2026-10-08 | [`pass-011-2026-10-08-2221`](./pass-011-2026-10-08-2221/00-summary.md) | **Convergence rompue, mesurée sur les migrations** — courtier décrit vivant après suppression de ses tables, deux modèles sans section, rôles personnalisés dits non livrés, sorties d'argent en entrées minimales |
 | 012 | 2026-10-14 | [`pass-012-2026-10-14-0909`](./pass-012-2026-10-14-0909/00-summary.md) | **Convergence rompue** — aucune des 54 recommandations de la 011 appliquée ; TCK-633 mesuré (9 sections sur 10 exactes) ; §4 `Address` et §10 `Tag`, faux positifs de la 011, re-jugés |
+| 013 | 2026-10-14 | [`pass-013-2026-10-14-1023`](./pass-013-2026-10-14-1023/00-summary.md) | **Zéro ❌ côté modèles** — lots 1-3 de convergence appliqués, M1-M49 soldées (sauf M44, TCK-639) ; première relecture intégrale : 19 sections et la ligne push (❌) découvertes |
 
 ## Tableau d'évolution
 
@@ -38,6 +39,7 @@
 | 010 | 2026-05-04 | ~208 | 39 | 232 | 15 | 2 | 0 | 0 | 0 |
 | 011 | 2026-10-08 | **368** | **89** | **328** | **125** | **4** | n.c. | n.c. | n.c. |
 | 012 | 2026-10-14 | **379** | **99** | **343** | **131** | **4** | **+15** | **+6** | **0** |
+| 013 | 2026-10-14 | **380** | **99** | **385** | **93** | **1** | **+42** | **−38** | **−3** |
 
 > **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
 > catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
@@ -47,6 +49,10 @@
 > **Passe 012 : comparable à la 011** (même méthode, mêmes unités). Son Δ mêle deux causes, séparées
 > dans son `00-summary.md` : le delta TCK-633 (+19 ✅ / +2 ⚠️) et deux re-jugements de sections que la
 > 011 avait comptées ✅ sans les relire (−4 ✅ / +4 ⚠️). Aucune recommandation appliquée entre les deux.
+>
+> **Passe 013 : plus sévère que la 012 à état égal** — elle relit les 99 sections colonne à colonne
+> et compte ⚠️ une donnée rangée hors colonne sans que la spec dise où. Son Δ mêle les corrections des
+> lots 1-3 et ce que la relecture a découvert ; son `00-summary.md` sépare les deux.
 
 ## Statut de convergence
 
@@ -60,7 +66,19 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
-### Passe 012 (2026-10-14) — l'état courant
+### Passe 013 (2026-10-14) — l'état courant
+
+**Convergence rompue, mais 0 ❌ côté modèles** — une première depuis la passe 008. Les trois lots de
+convergence (#379 → #381, empilées) ont soldé M1 à M49 sauf M44, que porte TCK-639 (#378). La relecture
+intégrale, la première, a trouvé 19 sections que la 012 comptait conformes sans les avoir relues, sept
+lignes P0 en dérive (dont §12 `AppNotification`, faux de bout en bout) et un ❌ côté catalogue : les
+notifications push (l.542) n'ont aucun support. 16 recommandations à `features.md`, 27 actions
+consolidées à `models-spec.md`. Détail : [`pass-013-2026-10-14-1023/00-summary.md`](./pass-013-2026-10-14-1023/00-summary.md).
+
+> *Mesurée sur une branche non fusionnée, le 2026-10-14.* Si la revue des lots les modifie, la
+> re-mesurer.
+
+### Passe 012 (2026-10-14)
 
 **Convergence rompue : 4 ❌ côté modèles, 0 ❌ côté features — les mêmes qu'à la passe 011.** Aucune
 des 54 recommandations de la passe 011 n'a été appliquée ; quatre sont aggravées par TCK-633, qui a
@@ -69,8 +87,8 @@ section près (§96, trigger plus permissif qu'écrit). Deux sections comptées 
 (§4 `Address`, §10 `Tag`) ne décrivent pas leur table. 16 recommandations à `features.md`, 49 à
 `models-spec.md`. Détail : [`pass-012-2026-10-14-0909/00-summary.md`](./pass-012-2026-10-14-0909/00-summary.md).
 
-> *Cet état est daté du 2026-10-14.* Le relire au présent après une fusion qui touche
-> `models-spec.md` reproduirait le défaut que le bloc ci-dessus raconte : le re-mesurer.
+> *Daté du 2026-10-14 09:09.* Ses recommandations ont été appliquées par les lots 1-3 le jour même ;
+> la passe 013 les re-mesure.
 
 ### Passe 011 (2026-10-08)
 
