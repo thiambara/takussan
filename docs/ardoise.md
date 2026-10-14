@@ -2951,6 +2951,75 @@ dira désormais (« sans effet pour l'instant »). Relevé du 2026-10-06 (passe 
 le ticket qui crée le geste (remboursement, diffusion, archivage de conversation…) la branche et la
 retire de l'inventaire ; la garde de TCK-587 l'exige, puisque l'inventaire ne peut que décroître.*
 
+---
+
+## 🟡 Consignées en dette par décision du porteur — promotion de la vague 73 (2026-10-09)
+
+Deux points relevés pendant la promotion de la vague 73 en préproduction (#349, rejouée par #352
+après #351 et #353). Le porteur les a consignés ici le 2026-10-12.
+
+### D-70 — `mark-processed` ignore la date réelle d'un reversement, sans le dire
+
+`POST /api/payouts/{payout}/mark-processed` ne déclare pas `processed_at` :
+`takussan-api/app/Http/Requests/Api/MarkProcessedPayoutRequest.php:44-56` ne valide que
+`payment_method`, `transaction_id`, `notes` et `payout_method_id`. `validated()` écarte donc le champ,
+et `takussan-api/app/Services/Model/PayoutService.php:308` (`$data['processed_at'] ?? now()`) horodate
+le reversement **au moment de la saisie**. Un client qui envoie la date n'obtient ni 422 ni
+avertissement : elle disparaît.
+
+Ce que l'horodatage commande, et qui hérite donc de la date de saisie :
+
+- le rapprochement bancaire, qui ne propose un reversement qu'à ±7 jours du débit du relevé
+  (`ReconciliationMatcher.php:46-47`) : un chèque saisi plus de sept jours après son débit n'est
+  jamais proposé ;
+- la ligne de restitution de caution, payée à `processed_at` (`PayoutService.php:321`) ;
+- le relevé du propriétaire (`OwnerStatementService.php:82`).
+
+Le reversement **plateforme**, lui, exige la date (`MarkPlatformPayoutPaidRequest.php:17`,
+`required|date`) : les deux gestes symétriques ne suivent pas la même règle. Le repli `?? now()`
+laisse penser que la date devait être acceptée.
+
+Trouvé le 2026-10-09, par le seul test qui envoyait la date : `PayoutReachesReconciliationTest` a
+rougi à minuit UTC, quand la date réelle est sortie de la fenêtre (corrigé par #353, horloge figée).
+
+*Décision du porteur, pas un correctif : accepter la date réelle change le contrat de l'API.
+Condition de réouverture : le porteur tranche. Si la date est acceptée, la règle porte ses bornes
+(ni future, ni antérieure à l'approbation), un test qui envoie une date passée, et le même
+traitement pour les deux gestes.*
+
+### D-71 — Les clés d'environnement de la vague 73 ne sont pas posées en préproduction
+
+Re-mesuré le 2026-10-12 dans les conteneurs servis (`takussan-api-preview-4iza80-api-1` et
+`takussan-web-preview`). Le relevé est **présente / absente**, jamais la valeur :
+
+| Clé | API | Front | Effet de l'absence (défauts de `config/`, relus) |
+|---|---|---|---|
+| `PUBLIC_CACHE_REVALIDATE_URL` / `_SECRET` | absentes | absente | aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s (ADR-0052) |
+| `API_INTERNAL_URL` | — | absente | le serveur Next appelle l'API par son URL publique, comme avant 598 |
+| `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 (Vercel) : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
+| `SEARCH_ALERTS_WHATSAPP_ENABLED` | absente | — | faux : voulu tant que le gabarit Meta n'est pas approuvé |
+| `SMS_LOG_FALLBACK` | absente | — | faux : voulu, jamais hors développement |
+| `PHONE_LOGIN_ENABLED` | **présente** | — | `config:show auth.phone_login` → **`enabled true`** |
+
+⚠ **La connexion par téléphone est allumée, et aucun fournisseur SMS ne l'est.** Des 21 clés que
+lit `config/sms.php` (hors `APP_ENV`), **aucune** n'est posée dans le conteneur de l'API. L'en-tête
+de la clé (`.env.example`, TCK-589) dit qu'elle s'allume « par une personne, après un envoi réel
+mesuré » : en préproduction, un code de vérification ne peut pas partir aujourd'hui.
+
+Les valeurs attendues sont écrites dans `docs/infra/hebergement.md`, « À poser par le porteur —
+TCK-598, ADR-0052 ». `VISITOR_IP_TRUSTED_HOPS=2` y est **inféré**, pas mesuré, et
+`API_INTERNAL_URL=http://api:8080` suppose que l'alias `api` est unique sur `dokploy-network`, qui
+porte d'autres projets. À mesurer avant de poser.
+
+*Décision du porteur : la préproduction reste sur ces défauts pour l'instant, et il reprend la main
+sur les variables de la production. Condition de réouverture : la pose des clés dans Dokploy, avec
+pour chacune la mesure qui la justifie, puis le relevé de `hebergement.md` mis à jour. Commande de
+re-mesure, qui n'imprime que des noms :*
+
+```bash
+ssh root@178.18.247.62 'for k in PUBLIC_CACHE_REVALIDATE_SECRET API_INTERNAL_URL VISITOR_IP_TRUSTED_HOPS PHONE_LOGIN_ENABLED; do docker exec takussan-api-preview-4iza80-api-1 sh -c "[ -n \"\${$k:-}\" ] && echo \"$k présente\" || echo \"$k absente\""; done'
+```
+
 ## Ce que cet inventaire ne couvre pas
 
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des

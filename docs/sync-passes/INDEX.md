@@ -19,6 +19,8 @@
 | 008 | 2026-04-14 | [`pass-008-2026-04-14-2102`](./pass-008-2026-04-14-2102/00-summary.md) | Stabilité post-convergence — 3e passe consécutive sans changement |
 | 009 | 2026-05-04 | [`pass-009-2026-05-04-0153`](./pass-009-2026-05-04-0153/00-summary.md) | Convergence rompue — profils polymorphes + BankStatement/BankStatementLine absents de la spec |
 | 010 | 2026-05-04 | [`pass-010-2026-05-04-0918`](./pass-010-2026-05-04-0918/00-summary.md) | Stabilité post-009 — sources inchangées, R1–R7 toujours non appliquées *(vrai le 2026-05-04, périmé depuis — cf. la re-mesure du 2026-08-16 plus bas)* |
+| 011 | 2026-10-08 | [`pass-011-2026-10-08-2221`](./pass-011-2026-10-08-2221/00-summary.md) | **Convergence rompue, mesurée sur les migrations** — courtier décrit vivant après suppression de ses tables, deux modèles sans section, rôles personnalisés dits non livrés, sorties d'argent en entrées minimales |
+| 012 | 2026-10-14 | [`pass-012-2026-10-14-0909`](./pass-012-2026-10-14-0909/00-summary.md) | **Convergence rompue** — aucune des 54 recommandations de la 011 appliquée ; TCK-633 mesuré (9 sections sur 10 exactes) ; §4 `Address` et §10 `Tag`, faux positifs de la 011, re-jugés |
 
 ## Tableau d'évolution
 
@@ -34,6 +36,17 @@
 | 008 | 2026-04-14 | ~170 | 33 | 191 | 12 | 0 | 0 | 0 | 0 |
 | 009 | 2026-05-04 | **~208** | **39** | **232** | **15** | **2** | **+41** | **+3** | **+2** |
 | 010 | 2026-05-04 | ~208 | 39 | 232 | 15 | 2 | 0 | 0 | 0 |
+| 011 | 2026-10-08 | **368** | **89** | **328** | **125** | **4** | n.c. | n.c. | n.c. |
+| 012 | 2026-10-14 | **379** | **99** | **343** | **131** | **4** | **+15** | **+6** | **0** |
+
+> **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
+> catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
+> plus 2 modèles sans section). Ses compteurs ne se soustraient pas à ceux de la passe 010 — voir
+> « Méthode » dans son `00-summary.md`.
+>
+> **Passe 012 : comparable à la 011** (même méthode, mêmes unités). Son Δ mêle deux causes, séparées
+> dans son `00-summary.md` : le delta TCK-633 (+19 ✅ / +2 ⚠️) et deux re-jugements de sections que la
+> 011 avait comptées ✅ sans les relire (−4 ✅ / +4 ⚠️). Aucune recommandation appliquée entre les deux.
 
 ## Statut de convergence
 
@@ -47,10 +60,32 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
+### Passe 012 (2026-10-14) — l'état courant
+
+**Convergence rompue : 4 ❌ côté modèles, 0 ❌ côté features — les mêmes qu'à la passe 011.** Aucune
+des 54 recommandations de la passe 011 n'a été appliquée ; quatre sont aggravées par TCK-633, qui a
+ajouté à la spec sans corriger ce qu'elle avait de faux. Le delta TCK-633 lui-même est exact à une
+section près (§96, trigger plus permissif qu'écrit). Deux sections comptées ✅ par la 011 sans relecture
+(§4 `Address`, §10 `Tag`) ne décrivent pas leur table. 16 recommandations à `features.md`, 49 à
+`models-spec.md`. Détail : [`pass-012-2026-10-14-0909/00-summary.md`](./pass-012-2026-10-14-0909/00-summary.md).
+
+> *Cet état est daté du 2026-10-14.* Le relire au présent après une fusion qui touche
+> `models-spec.md` reproduirait le défaut que le bloc ci-dessus raconte : le re-mesurer.
+
+### Passe 011 (2026-10-08)
+
+**Convergence rompue : 4 ❌ côté modèles, 0 ❌ côté features.** Les quatre : `models-spec.md` §36 et §38
+décrivent des tables supprimées le 2026-10-07 (TCK-586, ADR-0030) ; `AgencyAdminProfile` et
+`NotificationPreference` existent en code sans section. 13 recommandations à `features.md`, 41 à
+`models-spec.md` ; chaque constat de schéma y est adossé à une migration nommée. Détail :
+[`pass-011-2026-10-08-2221/00-summary.md`](./pass-011-2026-10-08-2221/00-summary.md).
+
+> *Daté du 2026-10-08, mesuré sur `839be671`.* Re-mesuré par la passe 012 : rien n'avait bougé.
+
 ### Re-mesure du 2026-08-16 (TCK-310)
 
 **Portée, dite explicitement : ce n'est PAS une passe 011.** Aucune nouvelle matrice de corrélation
-n'a été produite ; les compteurs ✅/⚠️/❌ du tableau ci-dessus s'arrêtent donc à la passe 010, et il
+n'a été produite ; les compteurs ✅/⚠️/❌ du tableau ci-dessus s'arrêtaient donc à la passe 010 (jusqu'à la passe 011), et il
 serait faux d'en publier de nouveaux sans avoir refait l'analyse croisée. Ce qui a été re-mesuré,
 c'est **le sort des sept recommandations R1–R7**, une par une, contre le code et contre
 `models-spec.md`.
