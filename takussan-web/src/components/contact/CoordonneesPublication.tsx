@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { BadgeCheck } from 'lucide-react';
+import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 
 import { updateContactPreferencesAction } from '@/app/actions/contact-preferences';
 import { phoneSendOtpAction, phoneVerifyOtpAction } from '@/app/actions/security';
@@ -27,6 +27,29 @@ export function manquesLocaux(user: Partial<User> | null): Array<'first_name' | 
   return manque;
 }
 
+type NumeroVerifie = {
+  readonly kind: 'primary' | 'secondary';
+  readonly phone: string;
+  readonly whatsapp: boolean | null | undefined;
+};
+
+/**
+ * TCK-643 — les numéros du compte que les visiteurs appelleront. Même règle que l'API
+ * (`User::numeroPrincipalPublic` / `numeroSecondairePublic`) : non vide ET vérifié, sinon il n'est
+ * pas servi, donc pas montré.
+ */
+function numerosVerifies(user: Partial<User> | null): NumeroVerifie[] {
+  if (!user) return [];
+  const numeros: NumeroVerifie[] = [];
+  if (user.phone && user.phone_verified_at) {
+    numeros.push({ kind: 'primary', phone: user.phone, whatsapp: user.phone_whatsapp });
+  }
+  if (user.secondary_phone && user.secondary_phone_verified_at) {
+    numeros.push({ kind: 'secondary', phone: user.secondary_phone, whatsapp: user.secondary_phone_whatsapp });
+  }
+  return numeros;
+}
+
 /**
  * TCK-633 (lot C, AC11) — « Vos coordonnées pour les intéressés », au dernier moment, dans le flux
  * de la publication : prénom et nom, numéro avec code, case WhatsApp, et la phrase des CGU avec
@@ -44,6 +67,7 @@ export function CoordonneesPublication({
   readonly contactEstSoi: boolean;
 }) {
   const t = useTranslations('property.form.publishContact');
+  const tNumeros = useTranslations('property.contacts.public');
   const { user, setUser, refreshUser } = useAuth();
   const [prenom, setPrenom] = useState(user?.first_name ?? '');
   const [nom, setNom] = useState(user?.last_name ?? '');
@@ -81,7 +105,12 @@ export function CoordonneesPublication({
   // Vérification adverse du lot C — `null` = jamais répondu : on pose la question, même à un
   // compte dont le numéro est déjà vérifié. `false` est une réponse, qui ne se redemande pas.
   const whatsappSansReponse = contactEstSoi && !!user?.phone_verified_at && user?.phone_whatsapp === null;
-  const montrerBloc = contactEstSoi && (locaux.length > 0 || whatsappSansReponse);
+  // TCK-643 — un numéro que le serveur dit non vérifié (contexte périmé) n'est pas présenté comme
+  // vérifié : il repasse par la saisie du code, plus bas.
+  const numeros = numerosVerifies(user).filter((n) => n.kind !== 'primary' || !locaux.includes('verified_phone'));
+  // Rien à compléter ne veut pas dire rien à montrer : l'annonceur voit quel(s) numéro(s) les
+  // visiteurs appelleront (relevé du porteur, 2026-10-14 — le bloc se rendait vide).
+  const montrerBloc = contactEstSoi && (locaux.length > 0 || whatsappSansReponse || numeros.length > 0);
   const montrerCgu = !user?.terms_accepted_at || cguSelonServeur;
 
   if (!montrerBloc && !montrerCgu && !autreContact) return null;
@@ -143,7 +172,60 @@ export function CoordonneesPublication({
       {montrerBloc ? (
         <>
           <h3 className="font-display text-base font-semibold text-foreground">{t('title')}</h3>
-          <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
+          <p className="text-xs text-muted-foreground">{numeros.length > 1 ? t('subtitleMany') : t('subtitle')}</p>
+
+          {numeros.length > 0 ? (
+            <ul
+              aria-label={t('numbersAria')}
+              className="divide-y divide-border rounded-md border border-border bg-background"
+              data-testid="numeros-verifies"
+            >
+              {numeros.map((n) => (
+                <li
+                  key={n.kind}
+                  className="space-y-3 px-3 py-2.5"
+                  data-testid={n.kind === 'primary' ? 'numero-verifie' : 'second-numero-verifie'}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <Phone className="size-4" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground tabular-nums">{formaterTelephone(n.phone)}</p>
+                      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                        <span>{n.kind === 'primary' ? tNumeros('kind.primary') : tNumeros('kind.secondary')}</span>
+                        {n.whatsapp ? (
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <span className="size-1 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+                            <MessageCircle className="size-3.5" aria-hidden="true" />
+                            {tNumeros('whatsapp')}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                      <BadgeCheck className="size-3.5" aria-hidden="true" />
+                      {t('verifiedBadge')}
+                    </span>
+                  </div>
+
+                  {/* TCK-635 — la question porte sur un numéro : elle se pose dans SA ligne. Seule,
+                      elle laissait deviner de quel numéro on parlait (retour du porteur). */}
+                  {n.kind === 'primary' && whatsappSansReponse ? (
+                    <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2 sm:pl-12">
+                      <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
+                        {t('whatsappYes')}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
+                        {t('whatsappNo')}
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {locaux.includes('first_name') ? (
             <div className="grid gap-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
@@ -196,34 +278,6 @@ export function CoordonneesPublication({
                 ) : null}
               </div>
               <CodeDePreproduction code={codeEnvoye ? apercu : null} onUtiliser={setCode} />
-            </div>
-          ) : null}
-
-          {/* TCK-635 — la question porte sur un numéro : il s'affiche, vérifié, au-dessus d'elle.
-              Seule, elle laissait deviner de quel numéro on parlait (retour du porteur). */}
-          {whatsappSansReponse && !locaux.includes('verified_phone') ? (
-            <div className="space-y-2" data-testid="numero-verifie">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground">{t('phoneLabel')}</p>
-                <p className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-foreground tabular-nums">
-                    {user?.phone ? formaterTelephone(user.phone) : null}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                    <BadgeCheck className="size-3.5" aria-hidden="true" />
-                    {t('verifiedBadge')}
-                  </span>
-                </p>
-              </div>
-              <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2">
-                <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
-                <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
-                  {t('whatsappYes')}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
-                  {t('whatsappNo')}
-                </Button>
-              </div>
             </div>
           ) : null}
 
