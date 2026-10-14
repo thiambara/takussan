@@ -1,7 +1,7 @@
 ---
 id: TCK-649
 title: L'administration d'agence s'ouvre dans /app (/app/agency/*) — /admin supprimé
-status: todo
+status: review
 phase: P1
 family: full
 estimate: L
@@ -58,40 +58,40 @@ montre, à côté de ce qu'il fait, les seules pages d'administration qu'il peut
 
 ## Delta à produire
 
-- [ ] Les pages d'agence de `(dashboard)/admin/*` vivent sous `/app/agency/*` (table de l'ADR §1).
-- [ ] `PAGES_ADMIN` : nouveaux chemins ; `/admin/users` et `/admin/settings/tags` supprimées,
+- [x] Les pages d'agence de `(dashboard)/admin/*` vivent sous `/app/agency/*` (table de l'ADR §1).
+- [x] `PAGES_ADMIN` : nouveaux chemins ; `/admin/users` et `/admin/settings/tags` supprimées,
       avec `AdminNotice` et `lib/admin/notices.ts` si plus rien ne les émet.
-- [ ] `AppSidebar` : la section d'agence dérivée de la table remplace l'entrée unique
+- [x] `AppSidebar` : la section d'agence dérivée de la table remplace l'entrée unique
       « Administration ».
-- [ ] Suppression de `(dashboard)/admin/layout.tsx`, `AdminShell`, `AdminSidebar` — après avoir
+- [x] Suppression de `(dashboard)/admin/layout.tsx`, `AdminShell`, `AdminSidebar` — après avoir
       vérifié ce que `/super-admin` en réutilise.
-- [ ] `src/proxy.ts` : `/admin` ne figure plus dans la garde d'authentification.
-- [ ] Les 169 occurrences de `/admin` du front (hors `/api/admin`, `/super-admin`) sont réécrites
+- [x] `src/proxy.ts` : `/admin` ne figure plus dans la garde d'authentification.
+- [x] Les 169 occurrences de `/admin` du front (hors `/api/admin`, `/super-admin`) sont réécrites
       ou supprimées.
-- [ ] Gardes racine : `check-pro-routes.mjs` vérifie `app/(dashboard)/app/agency` et casse si
+- [x] Gardes racine : `check-pro-routes.mjs` vérifie `app/(dashboard)/app/agency` et casse si
       `app/(dashboard)/admin` réapparaît ; les autres gardes qui citent `/admin`
       (`check-app-tokens`, `check-super-admin-tokens`, `check-locale-figee`,
       `check-auth-interrupts`) sont réalignées.
-- [ ] Garde racine neuve : chaque chemin de `NotificationTarget::PATHS` correspond à une page du
+- [x] Garde racine neuve : chaque chemin de `NotificationTarget::PATHS` correspond à une page du
       front (ablation : remettre `/admin/reviews` la fait casser).
-- [ ] Back : `NotificationTarget::PATHS` ; test `NotificationTargetTest` (ou celui qui couvre
+- [x] Back : `NotificationTarget::PATHS` ; test `NotificationTargetTest` (ou celui qui couvre
       `PATHS`) mis à jour.
-- [ ] `takussan-web/CLAUDE.md` et `takussan-api/CLAUDE.md` : les passages qui décrivent `/admin`.
+- [x] `takussan-web/CLAUDE.md` et `takussan-api/CLAUDE.md` : les passages qui décrivent `/admin`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un admin d'agence `standard` ouvre chaque page de la table de l'ADR §1 à sa nouvelle
+- [x] AC1 — un admin d'agence `standard` ouvre chaque page de la table de l'ADR §1 à sa nouvelle
       adresse, dans `AppShell`, sans changer de coque.
-- [ ] AC2 — le menu de `/app` montre exactement les pages à menu de la table que le profil actif
+- [x] AC2 — le menu de `/app` montre exactement les pages à menu de la table que le profil actif
       peut ouvrir : admin `standard`, admin `individual`, agent, bailleur, locataire —
       chacun vérifié ; un profil qui n'en a aucune ne voit pas la section.
-- [ ] AC3 — une page de la section refusée au profil actif (ex. `/app/agency/roles` pour un admin
+- [x] AC3 — une page de la section refusée au profil actif (ex. `/app/agency/roles` pour un admin
       `individual`) renvoie vers sa première page accessible, avec un code 307, pas 200.
-- [ ] AC4 — toute URL `/admin/*` rend 404 ; `grep` ne trouve plus de lien vers `/admin` dans
+- [x] AC4 — toute URL `/admin/*` rend 404 ; `grep` ne trouve plus de lien vers `/admin` dans
       `takussan-web/src` (hors `/api/admin`, `/super-admin`).
-- [ ] AC5 — une notification `review_moderation`, `team`, `finances`, `audit`, `agency_kyc` ou
+- [x] AC5 — une notification `review_moderation`, `team`, `finances`, `audit`, `agency_kyc` ou
       `agency_settings` — y compris stockée avant le changement — ouvre la bonne page.
-- [ ] AC6 — `check-pro-routes.mjs` casse si une page de `/app/agency` n'appelle pas la garde de son
+- [x] AC6 — `check-pro-routes.mjs` casse si une page de `/app/agency` n'appelle pas la garde de son
       chemin (vérifié par ablation).
 
 ## Hors périmètre
@@ -102,4 +102,28 @@ montre, à côté de ce qu'il fait, les seules pages d'administration qu'il peut
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Déplacement par `git mv`** (historique conservé) ; `/admin/users` et `/admin/settings/tags`
+  supprimées, avec le mécanisme d'avis de redirection (`AdminNotice`, `lib/admin/notices.ts`) dont
+  elles étaient le seul émetteur.
+- **Section d'agence** ajoutée par `avecSectionAgence(items, acces)` après `buildNavItems`, en
+  dernier (après l'ordre TCK-646), titrée « Administration » / « Mon espace » ; chaque section
+  titrée est un `role="group"` nommé. Les compteurs de modération de l'ancienne barre y sont repris
+  avec les MÊMES clés de cache que les files du tableau de bord (même coque désormais).
+- **Les pages entrent sous les conventions de `/app`** (`etats-de-route`, `titres-onglets`) : elles
+  gagnent `generateMetadata` ; le `notFound` du relevé monte dans `[statementId]/layout.tsx`. PAS de
+  `loading.tsx` : il rendrait 200 au lieu de 307 (TCK-426). `garderPageAdmin` devient un terminateur
+  de refus, et une page qui se garde par la table est exemptée de repli par propriété dérivée ;
+  `check-pro-routes` refuse aussi un `loading.tsx` au-dessus d'une telle page.
+- `'admin'` reste dans `SEGMENTS_NON_LOCALISES` (`src/i18n/routing.ts`) : sans lui, `/admin/team`
+  serait redirigé en 307 vers `/fr/admin/team` avant le 404 (`robots.txt` interdit donc encore `/admin`).
+- `check-pro-routes` lisait les chemins de la table par un motif figé sur `/admin` : au changement de
+  table, il est tombé à « aucun chemin lu ». Il lit désormais tout chemin, et interdit l'URL `/admin`
+  servie par n'importe quel groupe de routes.
+- **Garde neuve `check-notification-target-paths.mjs`** : sa première lecture a trouvé DEUX chemins
+  morts depuis TCK-597 — `review_moderation` → `/admin/reviews` et `reviews` → `/app/reviews` (la
+  boîte vit sous `/app/profile/reviews`), corrigés.
+- Le non-admin qui ouvre `/app/agency/*` est renvoyé vers `/app` (et non plus `/app/profile`).
+- Vérifié au navigateur (390 et 1366 px) : admin `standard` (10 entrées), admin `individual`
+  (« Mon espace », 5 entrées), statuts 307 / 404 relevés par requêtes HTTP.
+- Préexistant, hors périmètre : la page Intégrations répète son introduction (sous-titre de
+  l'en-tête + `intro` du composant).

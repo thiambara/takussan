@@ -1,7 +1,7 @@
 ---
 id: TCK-647
 title: Un seul tableau de bord d'agence — /app/overview/agency absorbe celui de /admin
-status: todo
+status: review
 phase: P1
 family: front
 estimate: M
@@ -52,22 +52,22 @@ espace de travail, au lieu de deux qui se recoupent.
 
 ## Delta à produire
 
-- [ ] `/app/overview/agency` rend le tableau de bord fusionné.
-- [ ] La page `/admin` (tableau de bord) est supprimée, et sa ligne retirée de la table
+- [x] `/app/overview/agency` rend le tableau de bord fusionné.
+- [x] La page `/admin` (tableau de bord) est supprimée, et sa ligne retirée de la table
       `PAGES_ADMIN` ; le premier lien « Administration » devient la première page restante.
-- [ ] Les composants de `components/dashboard/admin/` qui ne servent plus sont supprimés.
-- [ ] Tests : la page fusionnée (sections présentes, une seule lecture de l'endpoint), la garde
+- [x] Les composants de `components/dashboard/admin/` qui ne servent plus sont supprimés.
+- [x] Tests : la page fusionnée (sections présentes, une seule lecture de l'endpoint), la garde
       inchangée.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `/app/overview/agency` montre, pour un admin d'agence `standard` : la mise en service
+- [x] AC1 — `/app/overview/agency` montre, pour un admin d'agence `standard` : la mise en service
       (tant qu'incomplète), les files d'attente, les indicateurs, l'activité, les revenus et la
       courbe d'occupation.
-- [ ] AC2 — aucun chiffre n'y figure deux fois.
-- [ ] AC3 — un affichage déclenche **un** appel à `GET /api/dashboard/agency`, pas deux.
-- [ ] AC4 — `/admin` (la racine) rend 404 ; aucun lien du front n'y mène encore.
-- [ ] AC5 — un agent, un bailleur, l'admin d'une agence `individual` sont toujours aiguillés comme
+- [x] AC2 — aucun chiffre n'y figure deux fois.
+- [x] AC3 — un affichage déclenche **un** appel à `GET /api/dashboard/agency`, pas deux.
+- [x] AC4 — `/admin` (la racine) rend 404 ; aucun lien du front n'y mène encore.
+- [x] AC5 — un agent, un bailleur, l'admin d'une agence `individual` sont toujours aiguillés comme
       avant par `/app/overview`.
 
 ## Hors périmètre
@@ -77,4 +77,16 @@ espace de travail, au lieu de deux qui se recoupent.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Doublons préexistants dans l'ancien `/admin`** : le nombre d'impayés (file « Impayés » + indice de
+  la tuile) et le total des biens (tuile + indice d'occupation). AC2 se prouve nœud texte par nœud
+  texte : `textContent` collait « 41 » et « 37 publiés » en « 4137 ».
+- L'ancienne `/app/overview/agency` traçait revenus (F CFA) et occupation (%) sur UN axe ; la page
+  fusionnée garde les barres de revenus d'`AgencyRevenueSnapshot` et ajoute une courbe d'occupation seule.
+- `fetchAgencyDashboard` (levait sur 403/404) est supprimé ; `fetchDashboardAgency` reste (rend `null`
+  → état dégradé).
+- **Branche `individual` des files** : le layout de `/app/overview/agency` renvoie vers `/app` toute
+  agence non `standard`, super-admin compris (`layout.garde.test.tsx`) : la branche n'est plus
+  atteignable ; `AgencyQueues` la garde en défense en profondeur.
+- `MiseEnService` lisait l'espace `admin`, non servi sous `(dashboard)/app` : ses clés sont copiées
+  sous `dashboard.agencySetup`.
+- Commit b929243d (porte aussi les parties partagées de TCK-648 : table, tests, dictionnaires).
