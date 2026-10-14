@@ -3772,7 +3772,10 @@ une **Vedette offerte** (`offered`, prix 0, aucun mouvement de crédit).
 NULL OR refunded_credits >= 0))` — `unsignedInteger` n'est qu'un `integer` signé sous PostgreSQL.
 Index `property_boosts_property_kind_status_idx (property_id, kind, status)`,
 `property_boosts_status_ends_at_idx (status, ends_at)` (échéances de `boosts:tick`),
-`property_boosts_agency_idx`.
+`property_boosts_agency_idx` ; et, une par clé `nullOnDelete` (migration `2026_10_14_100100`,
+TCK-639 — piège PostgreSQL n°8), `property_boosts_product_idx (boost_product_id)`,
+`property_boosts_purchased_by_idx (purchased_by_id)`, `property_boosts_cancelled_by_idx
+(cancelled_by_id)`.
 
 **Relations :** `property()` → belongsTo Property (`withTrashed`) ; `agency()` → belongsTo Agency ;
 `product()` → belongsTo BoostProduct ; `dailyStats()` → hasMany PropertyBoostDailyStat.
@@ -3828,7 +3831,9 @@ sont des **entiers** : ils ne passent pas par la règle ×100 des montants.
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** CHECK `credit_lots_amounts_check (initial_amount > 0 AND remaining_amount >= 0 AND
-remaining_amount <= initial_amount)` ; index `credit_lots_agency_expires_idx (agency_id, expires_at)`.
+remaining_amount <= initial_amount)` ; index `credit_lots_agency_expires_idx (agency_id, expires_at)`,
+`credit_lots_granted_by_idx (granted_by_id)` (migration `2026_10_14_100100`, TCK-639 : la clé
+`nullOnDelete` vers `users`).
 
 **Relations :** `agency()` → belongsTo Agency ; `grantedBy()` → belongsTo User ; `movements()` →
 hasMany CreditMovement. Scopes `spendable()` (restant > 0, non expiré), `inConsumptionOrder()`.
@@ -3858,13 +3863,28 @@ modèle double la garde (`updating` / `deleting` lèvent `LogicException`) et n'
 | created_at | timestamp | | `CURRENT_TIMESTAMP` | Pas d'`updated_at` |
 
 **Trigger `credit_movements_append_only_trg`** (`BEFORE UPDATE OR DELETE`, fonction
-`credit_movements_append_only()`) : tout UPDATE ou DELETE direct lève `P0001`. Deux exceptions
-structurelles : la suppression **en cascade** d'un parent (`pg_trigger_depth() > 1`), et la mise à
-`NULL` de `property_boost_id` / `actor_id` par `ON DELETE SET NULL`. `TRUNCATE` ne déclenche pas les
-triggers de ligne : seul le harnais de test l'emploie.
+`credit_movements_append_only()`, posée par `500200` et durcie par `2026_10_14_100000`, TCK-639) :
+tout UPDATE ou DELETE direct lève `P0001`. Le trigger n'admet que deux écritures, **toutes deux à
+`pg_trigger_depth() > 1`**, c'est-à-dire émises depuis un autre trigger — ce qu'est l'action
+référentielle d'une clé étrangère (le trigger d'intégrité de la table parente est à la profondeur 1,
+l'écriture qu'il émet déclenche celui-ci à la profondeur 2 ou plus) :
+
+- un `DELETE` — la suppression **en cascade** d'une agence ou d'un lot ;
+- un `UPDATE` qui ne change **que** `property_boost_id` et/ou `actor_id`, et seulement pour les
+  mettre à `NULL` — l'`ON DELETE SET NULL` d'un boost ou d'un utilisateur supprimés (directement, ou
+  plus bas : un bien supprimé emporte son boost, qui détache le mouvement à la profondeur 3).
+
+Un `UPDATE credit_movements SET actor_id = NULL` émis directement (profondeur 1) lève donc, comme
+toute autre modification ; jusqu'à `100000`, la mise à `NULL` passait **sans condition de
+profondeur**. Limite assumée : la profondeur dit « émis par un trigger », pas « émis par une clé
+étrangère » — aucun autre trigger du dépôt n'écrit cette table. ⚠ `User`, `Agency` et `Property`
+sont en suppression douce : l'effacement d'un compte est une anonymisation, qui ne déclenche aucune
+de ces actions ; seule la suppression réelle d'une ligne parente les exerce. `TRUNCATE` ne déclenche
+pas les triggers de ligne : seul le harnais de test l'emploie.
 
 **Index :** `credit_movements_agency_id_idx (agency_id, id)`, `credit_movements_lot_idx`,
-`credit_movements_boost_idx`.
+`credit_movements_boost_idx`, `credit_movements_actor_idx (actor_id)` (migration `2026_10_14_100100`,
+TCK-639 : la clé `nullOnDelete` vers `users`).
 
 **Relations :** `lot()` → belongsTo CreditLot ; `boost()` → belongsTo PropertyBoost ; `actor()` →
 belongsTo User. Inverse : `CreditLot::movements()`.
@@ -3892,6 +3912,10 @@ l'espace. Les deux unicités se tiennent par `insertOrIgnore`, jamais par une ex
 | credit_lot_id | FK credit_lots | oui | null | Le lot `welcome` versé — `credit_welcome_grants_lot_fk`, `nullOnDelete` |
 | granted_at | timestamp | | | |
 | created_at / updated_at | timestamp | | auto | |
+
+**Index :** outre les deux uniques, `credit_welcome_grants_user_idx (user_id)` et
+`credit_welcome_grants_lot_idx (credit_lot_id)` (migration `2026_10_14_100100`, TCK-639) — une par
+clé `nullOnDelete` ; `agency_id` est servie par son index unique.
 
 **Relations :** aucune déclarée.
 
