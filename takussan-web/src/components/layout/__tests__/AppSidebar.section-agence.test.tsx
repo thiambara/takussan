@@ -142,7 +142,7 @@ describe('AC2 — la section d’agence montre exactement les pages que le profi
       'Agence',
       'KYC agence',
       'Abonnement',
-      'Finances',
+      "Finances de l'agence",
       'Modération avis',
       'Modération biens',
       "Journal d'audit",
@@ -218,7 +218,7 @@ describe('le surlignage dans la section', () => {
   it.each([
     ['/app/agency', 'Agence'],
     ['/app/agency/kyc', 'KYC agence'],
-    ['/app/agency/finances/reconciliation/3', 'Finances'],
+    ['/app/agency/finances/reconciliation/3', "Finances de l'agence"],
     ['/app/agency/moderation/properties', 'Modération biens'],
     ['/app/agency/integrations', 'Intégrations'],
   ])('%s → « %s », et elle seule', (pathname, nom) => {
@@ -270,5 +270,26 @@ describe('le tiroir mobile porte la même section (Direction UX du ticket)', () 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
     const tiroir = await screen.findByRole('dialog');
     expect(hrefs(within(tiroir).getByRole('group', { name: titre }))).toEqual(hrefs(bureau));
+  });
+});
+
+describe('deux entrées du menu ne portent jamais le même libellé', () => {
+  // L'admin d'une agence individuelle est aussi bailleur : « Finances » des Engagements
+  // (`/app/payments`, ce qu'il paie et reçoit) et « Finances » de « Mon espace » (`/app/agency/finances`,
+  // les comptes de l'agence) se lisaient pareil. Deux pages différentes sous un même nom, c'est un
+  // choix laissé au hasard.
+  it.each([
+    ['admin standard', ADMIN_STANDARD],
+    ['admin individuel, aussi bailleur', ADMIN_INDIVIDUEL],
+    ['agent', AGENT],
+    ['bailleur', BAILLEUR],
+    ['locataire', LOCATAIRE],
+  ])('%s', (_nom, p) => {
+    const { container } = monterLaBarre(p);
+    const libelles = Array.from(container.querySelectorAll('nav a')).map((a) =>
+      (a.textContent ?? '').replace(/\d+$/, '').trim(),
+    );
+    const doublons = libelles.filter((l, i) => l !== '' && libelles.indexOf(l) !== i);
+    expect(doublons, libelles.join(' · ')).toEqual([]);
   });
 });
