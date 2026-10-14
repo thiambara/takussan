@@ -2,7 +2,7 @@
 
 > Vision complète des fonctionnalités de la plateforme Takussan : fonctionnalités métier (immobilier) et applicatives (transverses).
 > Ce document ne décrit **pas** l'implémentation — il sert de référence pour prioriser et découper le travail.
-> Base : les 28 modèles de [`models-spec.md`](./models-spec.md), enrichis des besoins métier standards.
+> Base : les modèles de [`models-spec.md`](./models-spec.md), enrichis des besoins métier standards.
 
 ---
 
@@ -83,12 +83,13 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 🏢🧑‍💼 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
 | P1 | 🏢🧑‍💼 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
 | P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
-| P1 | 🏢🧑‍💼 | Publier exige un contact joignable : prénom et numéro vérifié du contact principal ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; la première publication vaut acceptation des CGU, datée (TCK-633) |
+| P1 | 🏢🧑‍💼 | Publier exige un contact joignable : prénom et numéro vérifié de la personne que les visiteurs appelleront — l'agent principal du bien, à défaut son titulaire — ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; les CGU sont acceptées par le publieur, et sa première publication vaut acceptation, datée (TCK-633) |
 | P1 | 🏢🧑‍💼 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
 | P1 | 🧑‍💼 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
+| P1 | 🧑‍💼🛡️ | Désigner l'**agent principal** d'un bien parmi ses collaborateurs agents, un seul par bien (TCK-504, [ADR-0053](adr/0053-l-agent-principal-est-une-marque-unique-par-bien.md)). C'est l'**agent responsable** du bien et son **contact principal** : la fiche publique le nomme et révèle son numéro, il reçoit les messages et les demandes de contact et de visite. Sans désignation, ou si l'agent désigné n'est plus actif dans l'agence, c'est l'agent du bien le plus anciennement ajouté ; sans agent, le titulaire du bien ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
 | P1 | 🏢 | Bailleur rattaché à une agence : proposer un bien à son agence — brouillon privé, publié par le personnel de l'agence, qui en est notifié (TCK-587) |
-| P0 | 🧑‍💼🛡️ | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) |
+| P0 | 🧑‍💼🛡️ | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) ; réattribuer désigne la cible comme agent principal et ne change jamais le titulaire du bien (TCK-603) |
 | P1 | 🏢🧑‍💼 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | 🧑‍💼🏢 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | 🧑‍💼🏢 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
@@ -98,7 +99,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P2 | 🛡️ | Modération et validation avant publication, activable par l'admin d'agence : toute mise en ligne d'un bien jamais validé ou refusé (création, publication, changement de statut, modification) attend l'accord de l'admin (TCK-597) |
 | P2 | 🛡️ | Une décision sur un signalement d'annonce agit sur l'annonce : masquer (dépubliée, désindexée, verrouillée jusqu'à levée par la plateforme), retirer (supprimée) ou classer sans suite (TCK-597) |
 | P2 | 🧑‍💼 | Archivage en lot |
-| P2 | 🧑‍💼🛡️ | Dépublier et réattribuer en lot, avec un bilan succès / refus par bien ; réattribuer change l'agent responsable, jamais le propriétaire du bien (TCK-591) |
+| P2 | 🧑‍💼🛡️ | Dépublier et réattribuer en lot, avec un bilan succès / refus par bien ; réattribuer change l'agent responsable — l'agent principal —, jamais le propriétaire du bien (TCK-591, TCK-603) |
 | P3 | 🛡️🏢 | Marquer un bien comme nécessitant un suivi administratif particulier |
 | P3 | 🛡️ | Détection des annonces en double entre agences (photos identiques, même adresse, même surface et prix), versée à la file de modération (TCK-597) |
 | P3 | 🧑‍💼 | Import CSV / API externe (MLS, syndication) |
@@ -112,7 +113,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 |------|---------|----------------|
 | P0 | 👤🏠 | Page d'accueil (biens en vedette, derniers ajouts) |
 | P0 | 👤🏠 | Recherche plein-texte sur les biens |
-| P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
+| P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) — « N+ » veut dire au moins N ; ville et quartier se choisissent dans le référentiel — deux villes du même nom y sont deux options, départagées par leur région (TCK-635, [ADR-0062 §8](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; la carte applique les mêmes filtres que la liste ; les filtres essentiels restent visibles, les autres sont repliés ; la recherche propose « Louer » avant « Acheter », avec un seul vocabulaire partout (TCK-633) |
 | P1 | 👤🏠 | Emplacements « Sponsorisé » en tête de chaque page de résultats, et rangée vedette de l'accueil : des biens en vedette qui correspondent à la recherche, par rotation ; en première page, les premières places des résultats (nombre réglable, 0 pour aucune) reviennent aux vedettes qui correspondent, dans l'ordre normal, avec un badge, sans doublon ; au-delà, les résultats gardent leur ordre (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact — qui nomme le destinataire pour ce qu'il est, agent ou propriétaire, TCK-573 ; téléphone ou e-mail, mention d'information sur les données, accusé de réception, TCK-590) |
 | P1 | 👤🏠 | Annuaire « Agents & propriétaires » (`/agents`) et fiche de personne (`/agents/<slug>`) : chacun est présenté pour ce qu'il est — « Agent immobilier » pour un professionnel en exercice, « Propriétaire » pour tout autre publieur (titre, métadonnées, données structurées `Person`, contact) ; l'API l'expose en `public_role` (TCK-573) |
@@ -198,7 +199,7 @@ Gestion complète d'un contrat de bail et de son cycle de vie.
 | P2 | 🏠🏢 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
 | P2 | 🏠 | Donner congé depuis son espace locataire : délai de préavis et pénalité affichés avant l'envoi, retrait possible tant que la fenêtre d'annulation est ouverte ; la clôture reste au gestionnaire (TCK-596) |
 | P2 | 🏠🏢🧑‍💼 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
-| P3 | 🏠 | Espace locataire dédié (quittances, factures, maintenance) |
+| P3 | 🏠 | Espace locataire : les factures adressées au client — l'API les lui liste (`GET /api/invoices`), son espace ne les montre pas encore ; le reste y est déjà : baux, échéances et paiement, quittances, interventions, états des lieux, documents (lignes P1/P2 de §1.4, §1.8, §2.5) |
 | P1 | 🏠🧑‍💼 | Onboarding résident à la signature du bail : notification "Bienvenue chez vous", welcome modale "Espace résident", checklist d'entrée (état des lieux, premier paiement, accès aux documents), suivi de complétion par un `TenantOnboardingChecklist` |
 
 ### 1.5 Transactions & paiements
@@ -230,8 +231,7 @@ Encaissements, factures et reversements.
 | P2 | 🛡️ | Les reversements plateforme d'une agence non active sont gelés, y compris s'ils ont été clôturés avant la suspension ; la clôture globale traite toutes les agences et liste les exclues avec leur motif (TCK-594) |
 | P2 | 🏢 | Un reversement programmé échu est rappelé une fois à son émetteur (TCK-594) |
 | P2 | 🏠🔧🏢 | Moyens de versement du bénéficiaire (Wave, Orange Money, Free Money, virement), vérifiés par l'agence ; décaissement tracé par une référence de transaction obligatoire ; avis de versement effectué / échoué au bénéficiaire (TCK-594) |
-| P3 | 🛡️ | Commissions automatiques par agent / collaborateur |
-| P3 | 🛡️🧑‍💼 | Relevé des commissions par agent, avec statut « payée à l'agent » (TCK-595) |
+| P1 | 🛡️🧑‍💼 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
 | P3 | 🛡️ | Comptabilité exportable (FEC, journaux) |
 
 ### 1.6 CRM & relation client
@@ -266,12 +266,13 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P1 | 🏠🏢🧑‍💼 | Conversation privée 1↔1 entre client et agent / bailleur |
+| P1 | 🏠🏢🧑‍💼 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
 | P1 | 🛡️ | Seule la plateforme publie un avis système dans une conversation ; un participant n'écrit que du texte, des pièces jointes et des notes vocales (TCK-592) |
 | P1 | 🏠🏢 | Envoyer un message texte avec pièces jointes |
 | P1 | 🏠🏢 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | 🏠🏢 | Notification en temps réel (in-app + email) |
 | P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576) |
-| P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) |
+| P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | 🏠🏢 | Recherche dans l'historique des messages |
 | P2 | 🧑‍💼🔧🏠 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
 | P2 | 🔧🏠🏢 | Notes vocales dans la messagerie (≤ 60 s) (TCK-592) |
@@ -365,7 +366,7 @@ Centralisation de tous les fichiers liés à une entité.
 | P1 | 🧑‍💼 | Recherche dans la bibliothèque de documents |
 | P2 | 🧑‍💼 | Génération PDF (quittance, facture, bail) depuis templates |
 | P2 | 🧑‍💼 | Historique des versions d'un document (via medialibrary + journal d'activité) |
-| P3 | 🧑‍💼 | Signature électronique intégrée |
+| P3 | 🧑‍💼 | Signature électronique intégrée des documents autres que le bail et l'état des lieux — le bail se signe par code à usage unique (§1.4, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md)), l'état des lieux par le tracé de chaque partie (§1.9) (TCK-596) |
 | P3 | 🧑‍💼 | OCR et extraction automatique de données |
 
 ### 1.11 Avis & réputation
@@ -423,13 +424,13 @@ Une agence porte un **`kind`** :
 | P0 | 🛡️ | Ajouter et retirer des agents |
 | P0 | 🛡️ | Attribution de rôles aux membres |
 | P0 | 🛡️ | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
-| P0 | 👤🏠 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. Le wizard reste, derrière le drapeau `host_auto_space` éteint (TCK-633) |
+| P0 | 👤🏠 | Auto-création d'une agence `individual` via la CTA "Publier" du header (pattern Airbnb) — **sans aucune question** : `Agency.kind=individual` (nom « Espace de {prénom} », ville déduite de la position, XOF), `AgencyAdminProfile` et `OwnerProfile`, puis la création du bien ; le parcours professionnel passe par la demande de passage en agence. La création automatique est portée par le drapeau `host_auto_space`, allumé à l'installation ; l'éteindre rend le wizard (TCK-633) |
 | P1 | 🛡️🧑‍💼 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🛡️ | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | 🛡️ | Paramètres de commission par défaut |
 | P1 | 🛡️ | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
 | P1 | 🛡️ | Upgrade `individual` → `standard` : l'admin de l'agence individuelle soumet une demande (`AgencyUpgradeRequest`) avec compléments légaux (RC, NINEA, RIB pro, statuts) ; un super-admin la review depuis la console ; à l'approbation, `Agency.kind` bascule vers `standard` et débloque les capacités restreintes (invitation collaborateurs internes, multi-admin, custom roles, etc.). Pas d'upgrade self-service direct, pas de rétrogradation `standard` → `individual`. |
-| P1 | 🛡️ | Passation du portefeuille d'un agent retiré (tâches, visites, interventions, collaborations, biens dont il est responsable, clients dont il est référent) vers un ou plusieurs repreneurs, en une opération journalisée (TCK-591) |
+| P1 | 🛡️ | Passation du portefeuille d'un agent retiré (tâches, visites, interventions, collaborations, biens dont il est l'agent principal ou qu'il a saisis, clients dont il est référent) vers un ou plusieurs repreneurs, en une opération journalisée (TCK-591, TCK-603) |
 | P1 | 🛡️🔧 | Mettre en pause ou terminer une collaboration avec un prestataire (agence) ; quitter une agence (prestataire) ; une pause ou une suspension ne se lève que par celui qui l'a posée (TCK-592) |
 | P1 | 🛡️ | Retirer de l'agence un agent ou un admin d'agence (capacité `team.remove`), toujours journalisé (TCK-591) |
 | P2 | 🛡️🧑‍💼 | Carnet des prestataires de l'agence filtré par statut de collaboration (actifs par défaut), métier et zone (TCK-592) |
@@ -437,7 +438,7 @@ Une agence porte un **`kind`** :
 | P2 | 🛡️ | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) |
 | P2 | 🔧 | Modifier son profil prestataire (métiers, zones, tarifs, disponibilités) après l'onboarding (TCK-592) |
 | P3 | 🛡️ | Gestion multi-branches / sous-agences |
-| P3 | 🛡️ | Absence datée d'un agent avec remplaçant désigné : les assignations nouvelles sont routées vers lui (TCK-591 — précise « Gestion des congés / disponibilité des agents ») |
+| P1 | 🛡️ | Absence datée d'un agent avec remplaçant désigné, révocable et journalisée : pendant la période, les tâches nouvellement confiées à l'absent partent chez le remplaçant, qui voit aussi les siennes ; aucune ligne existante ne change, et le remplaçant ne reçoit aucun droit (TCK-591, [ADR-0035](adr/0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) — précise « Gestion des congés / disponibilité des agents ») |
 | P3 | 🛡️ | Marketplace inter-agences |
 
 ---
@@ -477,7 +478,7 @@ Une agence porte un **`kind`** :
 
 Une **identité = un User**, qui peut porter plusieurs **profils métier** chez plusieurs agences (ex. un même humain peut être propriétaire chez l'agence A, locataire chez l'agence B et prestataire collaborant avec C et D).
 
-> ⚠️ **Le courtier n'est plus un profil commutable depuis le 2026-08-31** ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md), TCK-495). Il illustrait l'exemple ci-dessus jusque-là, et l'exemple était juste sur le principe — c'est le produit qui ne l'a jamais suivi : zéro route, zéro écran, aucun chemin qui crée le profil. `BrokerProfile` et `BrokerAgencyCollaboration` restent décrits par [`models-spec.md`](models-spec.md#36-brokerprofile-) et vivent en base ; ils ne sont ni sélectionnables dans le sélecteur d'espaces, ni émis dans `roles`. Email, mot de passe, 2FA et OAuth sont **uniques au user** (pas dupliqués par profil) ; le KYC et les informations administratives sont portés **par chaque profil** (RIB et tax_id par OwnerProfile, license_number par AgentProfile/BrokerProfile, certifications par ServiceProviderProfile).
+> ⚠️ **Le courtier n'a jamais eu de produit, et il a quitté la plateforme.** Il illustrait l'exemple ci-dessus jusqu'au 2026-08-31, et l'exemple était juste sur le principe — c'est le produit qui ne l'a jamais suivi : zéro route, zéro écran, aucun chemin qui crée le profil. Il a d'abord quitté la surface commutable ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md), TCK-495), puis le code et la base le 2026-10-07 ([ADR-0030](adr/0030-le-courtier-quitte-le-code-et-la-base.md), qui remplace ADR-0027 ; TCK-586) : `BrokerProfile` et `BrokerAgencyCollaboration` n'existent plus, leurs tables sont supprimées. Email, mot de passe, 2FA et OAuth sont **uniques au user** (pas dupliqués par profil) ; le KYC et les informations administratives sont portés **par chaque profil** (RIB et tax_id par OwnerProfile, license_number par AgentProfile, certifications par ServiceProviderProfile).
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
@@ -524,7 +525,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P1 | 🛡️ | Attribution et retrait de rôles à un profil (et non à un user global) |
 | P0 | 🛡️ | La navigation d'administration n'offre que les pages que le profil actif peut ouvrir, d'après une seule table des pages ; « Administration » mène à la première d'entre elles et disparaît s'il n'y en a aucune ; une page refusée renvoie à la première accessible (TCK-633) |
 | P0 | 🛡️🏢 | Cloisonnement des bailleurs d'une même agence : un bailleur ne lit et ne modifie que ses biens, baux, loyers, réservations, versements, factures et documents — jamais ceux d'un autre bailleur de l'agence ; seul le personnel (agent, admin d'agence) a le périmètre de l'agence (TCK-587) |
-| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (réservé aux agences `standard`) — un « rôle personnalisé » est un ensemble de `Capability` nommé, porté par l'agence ; le mécanisme reste à concevoir, `Capability` étant défini en code ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
+| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (réservé aux agences `standard`) — un « rôle personnalisé » est un ensemble de `Capability` nommé, porté par l'agence (`AgencyRole`) ; chaque profil agent, admin d'agence et bailleur, et chaque collaboration prestataire, en désigne exactement un. Livré par TCK-279 et TCK-315 : clonage d'un rôle système, édition de ses capacités, réaffectation d'un profil (écran `/admin/roles`) ; `Capability` reste défini en code ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | 🛡️ | L'éditeur de rôles signale les capacités du catalogue qui ne sont encore jugées par aucun geste (« sans effet pour l'instant »), avec le ticket qui les branchera ; une capacité est soit jugée par au moins un geste, soit inscrite à l'inventaire des capacités sans lecteur, qui ne peut que décroître (TCK-587) |
 | P2 | 🛡️ | Délégation temporaire de permissions |
 | P3 | 🛡️ | Règles conditionnelles (policies dynamiques) |
@@ -546,9 +547,9 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P2 | Tous | Notifications SMS (événements critiques) |
 | P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
 | P2 | Tous | Digest quotidien / hebdomadaire |
-| P3 | Tous | Notifications WhatsApp |
+| P3 | Tous | WhatsApp entrant : recevoir les messages des contacts (mise en relation) et code de vérification par WhatsApp — le canal sortant est livré (TCK-282) et activé par défaut par la ligne P1 TCK-588 ci-dessus ; le webhook WhatsApp ne lit aujourd'hui que les accusés de livraison (TCK-283) |
 
-#### Canal WhatsApp sortant (P3)
+#### Canal WhatsApp sortant (livré — TCK-282 ; activé par défaut par TCK-588)
 
 Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les familles proactives (transactionnel, rappels d'échéance, relances impayés), routé **WhatsApp d'abord → SMS en secours** :
 
@@ -668,7 +669,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P1 | 🛡️ | Effacement d'un compte par un super-admin, par le parcours conforme de [§2.1](#21-authentification--comptes) (obligations ouvertes, délai de grâce, motif, utilisateur prévenu) (TCK-600) |
 | P1 | 🛡️ | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | 🛡️ | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
-| P2 | 🛡️ | Gestion des intégrations tierces (API keys) |
+| P2 | 🛡️ | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
 | P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) |
 | P2 | 🛡️ | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | 🛡️ | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |

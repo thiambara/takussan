@@ -1,7 +1,7 @@
 ---
 id: TCK-636
 title: "CI — un arbre déjà éprouvé vert ne rejoue pas sa suite (PR → dev, push sur dev, promotion), et la carte d'impact se régénère la nuit"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -9,7 +9,7 @@ wave: null
 created: 2026-10-13
 updated: 2026-10-13
 depends_on: []
-blocks: [TCK-637]
+blocks: [TCK-637, TCK-638]
 spec_refs:
   features:
     - docs/features.md#29-administration--configuration
@@ -60,22 +60,72 @@ d'impact qui change l'arbre de la promotion.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur la PR de ce ticket vers `dev`, les deux jobs lourds **tournent** (aucune
+- [x] AC1 — Sur la PR de ce ticket vers `dev`, les deux jobs lourds **tournent** (aucune
       attestation n'existe pour cet arbre, les fichiers de clé changent) et déposent chacun leur
       artefact.
-- [ ] AC2 — Au push sur `dev` qui suit la fusion, sans autre fusion entre-temps : `lint-and-test`
+- [x] AC2 — Au push sur `dev` qui suit la fusion, sans autre fusion entre-temps : `lint-and-test`
       et `quality` sont **sautés**, et le résumé du job `attestation` nomme le run de la PR.
-- [ ] AC3 — Sur la promotion `dev` → `preview` qui suit : mêmes sauts, et la PR est
+- [x] AC3 — Sur la promotion `dev` → `preview` qui suit : mêmes sauts, et la PR est
       `MERGEABLE CLEAN` avec les six checks requis — **mesuré**, la documentation de GitHub sur les
       jobs sautés n'étant pas une mesure. Durée de la promotion relevée dans ce ticket.
-- [ ] AC4 — La recherche en échec rejoue : prouvé par une exécution où la recherche ne peut pas
+- [x] AC4 — La recherche en échec rejoue : prouvé par une exécution où la recherche ne peut pas
       répondre (permission retirée ou jeton absent, sur une branche d'essai) → le job lourd tourne.
-- [ ] AC5 — Une exécution `workflow_dispatch` sur `dev` régénère la carte et pousse un commit
+- [x] AC5 — Une exécution `workflow_dispatch` sur `dev` régénère la carte et pousse un commit
       `[carte-impact]` ; le push qui en résulte ne relance ni `lint-and-test` ni
       `migrations-pgsql`.
-- [ ] AC6 — `check-ci-attestation.mjs` rougit par ablation sur : `!cancelled()` retiré, `needs`
+- [x] AC6 — `check-ci-attestation.mjs` rougit par ablation sur : `!cancelled()` retiré, `needs`
       retiré, dépôt de l'artefact retiré, `actions: read` retiré de promotion-ci, une référence
       `takussan-web/` hors périmètre ajoutée à un test de l'API.
+
+### Mesures du 2026-10-13
+
+| Étape | Avant (TCK-633, TCK-635) | Avec l'attestation | Ce qui a tourné |
+|---|---|---|---|
+| PR #368 → `dev` | 17-23 min | `lint-and-test` 31 min 14 s, Web 14 min 57 s | tout — arbre neuf ; deux artefacts `ci-vert-*` déposés (AC1) |
+| push du merge sur `dev` (`68d16cbc`) | 19-24 min | **52 s** au total | attestations, rollback, gardes ; `lint-and-test` et `quality` sautés (AC2) |
+| promotion #369 (run `38330342739`) | 28-42 min | **2 min 31 s** | attestations, images, rollback, gardes ; les deux suites sautées, PR `MERGEABLE CLEAN` (AC3) |
+| `images.yml` sur `preview` | 4-5 min | 4 min 36 s | inchangé ; `X-Build-Sha: ed6f0dd8` sur `preview.api.takussan.com/up` |
+
+La promotion a d'abord échoué au démarrage (`startup_failure`, run `38329772517`) : voir les notes
+d'implémentation, et la PR #370 qui l'a corrigée.
+
+### Preuves d'AC4 à AC6 (2026-10-13)
+
+- **AC4** — PR jetable #376 (branche `tmp/tck-636-ac4`, fermée sans fusion, runs annulés une fois
+  la preuve relevée) :
+  - ⚠ **Premier essai, non probant** : `actions: read` retiré du job `attestation` (run
+    `38454343429`). La recherche a **réussi quand même** — le dépôt est **public**, et la liste
+    des artefacts s'y lit sans la permission. `lint-and-test` tournait, mais seulement parce que
+    la clé était neuve : ce n'était pas le repli qui jouait. *Une permission retirée ne prouve un
+    échec que si elle était nécessaire.*
+  - **Second essai, probant** : permission restaurée, `env: GITHUB_TOKEN` retiré du step (run
+    `38454535725`) → `##[warning]attestation introuvable (GITHUB_REPOSITORY, GITHUB_REPOSITORY_ID
+    ou GITHUB_TOKEN absent) — la suite tourne.`, `attestation` vert, `lint-and-test` lancé.
+  - Conséquence : `actions: read` n'est **pas** nécessaire à la lecture tant que le dépôt est
+    public. Il reste exigé par la garde : promotion-ci le demande pour ne pas échouer au démarrage
+    (#369), et il redeviendrait nécessaire le jour où le dépôt passerait privé.
+- **AC6** — cinq ablations locales de `check-ci-attestation.mjs`, cinq rouges (sortie 1),
+  restaurées ensuite :
+  1. `!cancelled()` retiré → « le `if:` de « lint-and-test » ne porte pas `!cancelled()` » ;
+  2. `needs: attestation` retiré → « … ne porte pas `needs: attestation` » ;
+  3. step « Déposer l'attestation » retiré → « … ne dépose aucun artefact nommé
+     `${{ needs.attestation.outputs.artefact }}` » ;
+  4. `actions: read` retiré du premier appel de promotion-ci → « l'appel « api » (api-ci.yml)
+     n'accorde pas `actions: read` » ;
+  5. `file_get_contents(base_path('../takussan-web/package.json'))` ajouté à
+     `CourtierAbsentTest.php` → « CourtierAbsentTest.php:120 lit « takussan-web/package.json »,
+     hors de la clé de l'API ».
+- **AC5** — `workflow_dispatch` d'API CI sur `dev` à `a34d46d9` (run `38454176592`, 31 min) :
+  tous les jobs verts, `lint-and-test` joué en entier (un dispatch ne se saute jamais par
+  attestation) avec `cov.php` produit, puis commit `7343f6c1` de `github-actions[bot]`,
+  `chore(tests): régénérer la carte d'impact [carte-impact]`, une ligne de
+  `tests/impact-map.json`. **Le push de ce commit n'a lancé aucun run**, d'aucun workflow
+  (`gh api "repos/…/actions/runs?head_sha=7343f6c1…"` → `total_count: 0`). Ni `lint-and-test` ni
+  `migrations-pgsql` ne tournent donc, mais **pas grâce au marqueur** : GitHub ne déclenche aucun
+  workflow sur un push fait avec le `GITHUB_TOKEN` (les commits de carte précédents, `059e48ee`,
+  `8d54d671`, `19944246`, n'ont eux non plus que des runs `pull_request`). La condition
+  `[carte-impact]` d'`api-ci.yml` reste une seconde ceinture, qui ne servirait que si le bot
+  poussait un jour avec un autre jeton.
 
 ## Hors périmètre
 
