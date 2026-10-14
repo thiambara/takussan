@@ -15,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { cn } from '@/lib/utils';
 import {
   contractTypeValues,
@@ -36,6 +44,13 @@ import {
  * disclosure to reduce noise. All state is URL-synced so the list is
  * shareable / SSR-aware. Filtering is pushed server-side via spatie
  * `filter[...]` — never done on the already-loaded client array.
+ *
+ * TCK-644 — sous `lg`, seule la recherche reste à l'écran ; le tri, les deux cases et les
+ * critères passent dans une feuille du bas, derrière un bouton « Filtres » qui compte les filtres
+ * actifs. **Les commandes de la feuille appellent les MÊMES `updateParam(s)` que la barre
+ * d'ordinateur** : elles ne fabriquent aucune URL à elles, c'est ce qui garantit qu'un filtre
+ * déplacé produit la même requête (éprouvé commande par commande dans
+ * `PropertyListFilters.mobile.tck-644.test.tsx`).
  */
 
 const ALL_VALUE = '__all__';
@@ -53,6 +68,13 @@ const SORT_OPTIONS = [
   { value: '-views_count', labelKey: 'viewsDesc' },
   { value: 'views_count', labelKey: 'viewsAsc' },
 ] as const;
+
+/**
+ * Ce que compte le bouton « Filtres » de la feuille : les critères avancés et les deux cases.
+ * Ni la recherche — elle reste visible au-dessus — ni le tri, qui ordonne la liste sans la
+ * restreindre.
+ */
+const SCOPE_KEYS = ['only_mine', 'include_archived'] as const;
 
 const ADVANCED_KEYS = [
   'city',
@@ -136,6 +158,10 @@ export function PropertyListFilters({
   );
 
   const [advancedOpen, setAdvancedOpen] = useState(advancedActiveCount > 0);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const filtresActifs =
+    advancedActiveCount + SCOPE_KEYS.filter((key) => searchParams.get(key) === '1').length;
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -182,15 +208,59 @@ export function PropertyListFilters({
     [updateParams],
   );
 
+  /** La feuille applique la saisie libre (ville, prix) comme « Appliquer », puis se referme. */
+  const onSheetSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    onAdvancedSubmit(e);
+    setSheetOpen(false);
+  };
+
+  const toggleMine = (checked: boolean) =>
+    updateParams({
+      only_mine: checked ? '1' : null,
+      user_id: checked ? null : currentAgent || null,
+    });
+
+  const toggleArchived = (checked: boolean) =>
+    updateParam('include_archived', checked ? '1' : null);
+
   const resetAll = useCallback(() => {
     router.replace('?');
   }, [router]);
 
+  const criteresProps = {
+    t,
+    tList,
+    tStatus,
+    tType,
+    tContract,
+    tScope,
+    currentUserId,
+    agentOptions,
+    valeurs: {
+      city: currentCity,
+      priceMin: currentPriceMin,
+      priceMax: currentPriceMax,
+      status: currentStatus,
+      type: currentType,
+      contract: currentContract,
+      visibility: currentVisibility,
+      agent: onlyMine ? String(currentUserId) : currentAgent,
+      createdFrom: currentCreatedFrom,
+      createdTo: currentCreatedTo,
+    },
+    updateParam,
+    updateParams,
+  };
+
   return (
-    <div className="space-y-3 rounded-xl bg-card p-4">
+    // TCK-644 — sous `lg`, plus de carte : la recherche se pose seule sur le fond de page, à côté
+    // d'UN bouton « Filtres » qui ouvre la feuille du bas. À 390 px, l'ancienne carte empilait
+    // recherche, tri, deux cases et « Filtres avancés » sur quatre rangées, et poussait la
+    // première carte de bien sous le pli. Dès `lg`, la carte et sa rangée d'origine reviennent.
+    <div className="space-y-3 lg:rounded-xl lg:bg-card lg:p-4">
       {/* Row 1 — primary controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={onSearchSubmit} className="relative basis-full sm:min-w-[240px] sm:flex-1 sm:basis-auto">
+      <div className="flex items-center gap-2 lg:flex-wrap">
+        <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:min-w-[240px]">
           <label htmlFor="property-search" className="sr-only">
             {t('searchLabel')}
           </label>
@@ -201,79 +271,93 @@ export function PropertyListFilters({
           <Input
             id="property-search"
             name="search"
+            type="search"
+            enterKeyHint="search"
             placeholder={t('searchPlaceholder')}
-            className="pl-9"
+            className="h-11 rounded-xl bg-card pl-9 shadow-xs lg:h-8 lg:rounded-lg lg:bg-transparent lg:shadow-none"
             defaultValue={currentSearch}
             key={currentSearch}
           />
         </form>
 
-        <div className="min-w-[180px] flex-1 sm:flex-none">
-          <Select
-            value={currentSort}
-            onValueChange={(v) => updateParam('sort', (v ?? '-created_at') as string)}
-            items={sortOptions}
-          >
-            <SelectTrigger className="w-full" aria-label={t('sortLabel')}>
-              <SelectValue placeholder={t('sortPlaceholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Toggle
-          label={t('toggleMine')}
-          checked={onlyMine}
-          onChange={(checked) =>
-            updateParams({
-              only_mine: checked ? '1' : null,
-              user_id: checked ? null : currentAgent || null,
-            })
-          }
-        />
-
-        <Toggle
-          label={t('toggleArchived')}
-          checked={includeArchived}
-          onChange={(checked) => updateParam('include_archived', checked ? '1' : null)}
-        />
-
+        {/* Sous `lg` : tri, cases et filtres avancés derrière ce seul bouton. Son nom accessible
+            CONTIENT le libellé visible (WCAG 2.5.3) et dit combien de filtres sont posés. */}
         <Button
           type="button"
           variant="outline"
-          className="gap-2"
-          aria-expanded={advancedOpen}
-          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-label={t('mobile.buttonAria', { count: filtresActifs })}
+          aria-haspopup="dialog"
+          onClick={() => setSheetOpen(true)}
+          className={cn(
+            'h-11 shrink-0 gap-2 rounded-xl bg-card px-3.5 shadow-xs lg:hidden',
+            filtresActifs > 0 && 'border-primary/40 text-primary',
+          )}
         >
           <SlidersHorizontal aria-hidden="true" className="size-4" />
-          {t('advanced')}
-          {advancedActiveCount > 0 ? (
-            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 text-xs font-semibold text-primary">
-              {advancedActiveCount}
+          <span>{t('mobile.button')}</span>
+          {filtresActifs > 0 ? (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">
+              {filtresActifs}
             </span>
           ) : null}
-          <ChevronDown
-            aria-hidden="true"
-            className={cn('size-4 transition-transform', advancedOpen && 'rotate-180')}
-          />
         </Button>
+
+        <div data-testid="filtres-ordinateur" className="hidden lg:contents">
+          <div className="min-w-[180px] flex-none">
+            <Select
+              value={currentSort}
+              onValueChange={(v) => updateParam('sort', (v ?? '-created_at') as string)}
+              items={sortOptions}
+            >
+              <SelectTrigger className="w-full" aria-label={t('sortLabel')}>
+                <SelectValue placeholder={t('sortPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Toggle label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} />
+
+          <Toggle label={t('toggleArchived')} checked={includeArchived} onChange={toggleArchived} />
+
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((v) => !v)}
+          >
+            <SlidersHorizontal aria-hidden="true" className="size-4" />
+            {t('advanced')}
+            {advancedActiveCount > 0 ? (
+              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 text-xs font-semibold text-primary">
+                {advancedActiveCount}
+              </span>
+            ) : null}
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('size-4 transition-transform', advancedOpen && 'rotate-180')}
+            />
+          </Button>
+        </div>
       </div>
 
-      {/* Active filter chips */}
+      {/* Active filter chips — une rangée qui défile de bord à bord sous `lg` (elle sort de la
+          marge de la coque, `-mx-4`/`md:-mx-6`), qui passe à la ligne dès `lg`. */}
       {activeFilters.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-6 md:px-6 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden">
           {activeFilters.map((chip) => (
             <button
               key={chip.key}
               type="button"
               onClick={() => updateParam(chip.key, null)}
-              className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring/50 lg:min-h-7 lg:px-2.5"
             >
               <span className="text-muted-foreground">{chip.label}:</span>
               <span className="font-medium">{chip.value}</span>
@@ -286,137 +370,108 @@ export function PropertyListFilters({
           <button
             type="button"
             onClick={resetAll}
-            className="rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="shrink-0 whitespace-nowrap rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {t('resetAll')}
           </button>
         </div>
       ) : null}
 
-      {/* Row 2 — advanced filters (collapsible) */}
+      {/* Row 2 — advanced filters (collapsible), ordinateur seulement : sous `lg`, ils vivent
+          dans la feuille. */}
       {advancedOpen ? (
         <form
+          data-testid="filtres-avances-ordinateur"
           onSubmit={onAdvancedSubmit}
-          className="space-y-3 border-t border-muted/70 pt-3"
+          className="hidden space-y-3 border-t border-muted/70 pt-3 lg:block"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Input
-              aria-label={t('cityAria')}
-              name="city"
-              placeholder={t('cityPlaceholder')}
-              defaultValue={currentCity}
-              key={`city-${currentCity}`}
-            />
-            <Input
-              aria-label={t('priceMinAria')}
-              name="price_min"
-              inputMode="numeric"
-              placeholder={t('priceMinPlaceholder')}
-              defaultValue={currentPriceMin}
-              key={`pmin-${currentPriceMin}`}
-            />
-            <Input
-              aria-label={t('priceMaxAria')}
-              name="price_max"
-              inputMode="numeric"
-              placeholder={t('priceMaxPlaceholder')}
-              defaultValue={currentPriceMax}
-              key={`pmax-${currentPriceMax}`}
-            />
-            <Button type="submit" variant="outline" size="sm">
-              {t('apply')}
-            </Button>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <FilterSelect
-              label={t('statusLabel')}
-              value={currentStatus || ALL_VALUE}
-              onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
-              placeholder={t('statusAll')}
-              options={[
-                { value: ALL_VALUE, label: t('statusAll') },
-                ...propertyStatusOptions(tStatus),
-              ]}
-            />
-            <FilterSelect
-              label={t('typeLabel')}
-              value={currentType || ALL_VALUE}
-              onChange={(v) => updateParam('type', v === ALL_VALUE ? null : v)}
-              placeholder={t('typeAll')}
-              options={[
-                { value: ALL_VALUE, label: t('typeAll') },
-                ...propertyTypeOptions(tType),
-              ]}
-            />
-            <FilterSelect
-              label={t('contractLabel')}
-              value={currentContract || ALL_VALUE}
-              onChange={(v) => updateParam('contract_type', v === ALL_VALUE ? null : v)}
-              placeholder={t('contractAll')}
-              options={[
-                { value: ALL_VALUE, label: t('contractAll') },
-                ...contractTypeOptions(tContract),
-              ]}
-            />
-            <FilterSelect
-              label={t('visibilityLabel')}
-              value={currentVisibility || ALL_VALUE}
-              onChange={(v) => updateParam('visibility', v === ALL_VALUE ? null : v)}
-              placeholder={t('visibilityAll')}
-              options={[
-                { value: ALL_VALUE, label: t('visibilityAll') },
-                { value: 'public', label: tScope('public') },
-                { value: 'private', label: tScope('private') },
-              ]}
-            />
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <FilterSelect
-              label={t('agentLabel')}
-              value={onlyMine ? String(currentUserId) : currentAgent || ALL_VALUE}
-              onChange={(v) =>
-                updateParams({
-                  user_id: v === ALL_VALUE ? null : v,
-                  only_mine: null,
-                })
-              }
-              placeholder={t('agentAll')}
-              options={[
-                { value: ALL_VALUE, label: t('agentAll') },
-                ...agentOptions.map((agent) => ({
-                  value: String(agent.id),
-                  label:
-                    agent.id === currentUserId
-                      ? tList('agentSelf', { name: agent.name })
-                      : agent.name,
-                })),
-              ]}
-            />
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">
-                {t('createdFrom')}
-              </label>
-              <DatePicker
-                aria-label={t('createdFrom')}
-                value={currentCreatedFrom}
-                onValueChange={(value) => updateParam('created_from', value || null)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">
-                {t('createdTo')}
-              </label>
-              <DatePicker
-                aria-label={t('createdTo')}
-                value={currentCreatedTo}
-                onValueChange={(value) => updateParam('created_to', value || null)}
-              />
-            </div>
-          </div>
+          <CriteresAvances disposition="ordinateur" {...criteresProps} />
         </form>
       ) : null}
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[88dvh] rounded-t-3xl"
+        >
+          <div aria-hidden="true" className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-border" />
+          <SheetHeader className="flex-row items-start justify-between gap-4 px-5 pt-3 pb-4">
+            <div className="min-w-0">
+              <SheetTitle className="font-display text-xl font-semibold tracking-tight">
+                {t('mobile.title')}
+              </SheetTitle>
+              <SheetDescription className="mt-0.5">{t('mobile.description')}</SheetDescription>
+            </div>
+            {filtresActifs > 0 || activeFilters.length > 0 ? (
+              <button
+                type="button"
+                onClick={resetAll}
+                className="mt-1 shrink-0 rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                {t('resetAll')}
+              </button>
+            ) : null}
+          </SheetHeader>
+
+          <form onSubmit={onSheetSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div
+              {...fieldDensityScope()}
+              className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-5 pb-6"
+            >
+              <fieldset>
+                <legend className="mb-3 text-sm font-semibold text-foreground">
+                  {t('mobile.sortHeading')}
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {sortOptions.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="relative flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-muted/60 px-3 text-center text-sm text-foreground transition-colors has-checked:bg-primary has-checked:font-medium has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+                    >
+                      <input
+                        type="radio"
+                        name="tri-mobile"
+                        value={opt.value}
+                        checked={currentSort === opt.value}
+                        onChange={() => updateParam('sort', opt.value)}
+                        className="sr-only"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-1 text-sm font-semibold text-foreground">
+                  {t('mobile.scopeHeading')}
+                </legend>
+                <div className="divide-y divide-border">
+                  <LigneACocher label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} />
+                  <LigneACocher
+                    label={t('toggleArchived')}
+                    checked={includeArchived}
+                    onChange={toggleArchived}
+                  />
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-3">
+                <legend className="mb-3 text-sm font-semibold text-foreground">
+                  {t('mobile.criteriaHeading')}
+                </legend>
+                <CriteresAvances disposition="feuille" {...criteresProps} />
+              </fieldset>
+            </div>
+
+            <div className="shrink-0 border-t border-border bg-card px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base">
+                {t('mobile.showResults')}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -447,6 +502,206 @@ function Toggle({
       />
       {label}
     </label>
+  );
+}
+
+/** La case de la feuille : une ligne entière au pouce, libellé à gauche, case à droite. */
+function LigneACocher({
+  label,
+  checked,
+  onChange,
+}: {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm text-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+      {label}
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-5 shrink-0 cursor-pointer rounded border-border accent-primary"
+      />
+    </label>
+  );
+}
+
+interface CriteresAvancesProps {
+  /** `ordinateur` : les trois grilles d'origine, avec « Appliquer ». `feuille` : une colonne
+   *  au pouce, sans bouton — le pied de la feuille valide. */
+  readonly disposition: 'ordinateur' | 'feuille';
+  readonly t: ReturnType<typeof useTranslations<'property.dashboard.filters'>>;
+  readonly tList: ReturnType<typeof useTranslations<'property.dashboard.list'>>;
+  readonly tStatus: Traducteur;
+  readonly tType: Traducteur;
+  readonly tContract: Traducteur;
+  readonly tScope: Traducteur;
+  readonly currentUserId: number;
+  readonly agentOptions: readonly { id: number; name: string }[];
+  readonly valeurs: {
+    readonly city: string;
+    readonly priceMin: string;
+    readonly priceMax: string;
+    readonly status: string;
+    readonly type: string;
+    readonly contract: string;
+    readonly visibility: string;
+    readonly agent: string;
+    readonly createdFrom: string;
+    readonly createdTo: string;
+  };
+  readonly updateParam: (key: string, value: string | null) => void;
+  readonly updateParams: (updates: Record<string, string | null>) => void;
+}
+
+/**
+ * Les critères avancés, UNE fois pour les deux emplacements (TCK-644) : la barre d'ordinateur et
+ * la feuille du bas ne diffèrent que par la grille. Deux copies auraient fini par ne plus envoyer
+ * la même requête.
+ */
+function CriteresAvances({
+  disposition,
+  t,
+  tList,
+  tStatus,
+  tType,
+  tContract,
+  tScope,
+  currentUserId,
+  agentOptions,
+  valeurs,
+  updateParam,
+  updateParams,
+}: CriteresAvancesProps) {
+  const feuille = disposition === 'feuille';
+  const grille = feuille ? 'grid grid-cols-2 gap-3' : 'grid gap-2 sm:grid-cols-2 lg:grid-cols-4';
+  const pleineLargeur = feuille ? 'col-span-2' : undefined;
+  return (
+    <>
+      <div className={grille}>
+        <Input
+          aria-label={t('cityAria')}
+          name="city"
+          placeholder={t('cityPlaceholder')}
+          defaultValue={valeurs.city}
+          key={`city-${valeurs.city}`}
+          className={pleineLargeur}
+        />
+        <Input
+          aria-label={t('priceMinAria')}
+          name="price_min"
+          inputMode="numeric"
+          placeholder={t('priceMinPlaceholder')}
+          defaultValue={valeurs.priceMin}
+          key={`pmin-${valeurs.priceMin}`}
+        />
+        <Input
+          aria-label={t('priceMaxAria')}
+          name="price_max"
+          inputMode="numeric"
+          placeholder={t('priceMaxPlaceholder')}
+          defaultValue={valeurs.priceMax}
+          key={`pmax-${valeurs.priceMax}`}
+        />
+        {feuille ? null : (
+          <Button type="submit" variant="outline" size="sm">
+            {t('apply')}
+          </Button>
+        )}
+      </div>
+
+      <div className={grille}>
+        <FilterSelect
+          label={t('statusLabel')}
+          value={valeurs.status || ALL_VALUE}
+          onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
+          placeholder={t('statusAll')}
+          options={[
+            { value: ALL_VALUE, label: t('statusAll') },
+            ...propertyStatusOptions(tStatus),
+          ]}
+        />
+        <FilterSelect
+          label={t('typeLabel')}
+          value={valeurs.type || ALL_VALUE}
+          onChange={(v) => updateParam('type', v === ALL_VALUE ? null : v)}
+          placeholder={t('typeAll')}
+          options={[
+            { value: ALL_VALUE, label: t('typeAll') },
+            ...propertyTypeOptions(tType),
+          ]}
+        />
+        <FilterSelect
+          label={t('contractLabel')}
+          value={valeurs.contract || ALL_VALUE}
+          onChange={(v) => updateParam('contract_type', v === ALL_VALUE ? null : v)}
+          placeholder={t('contractAll')}
+          options={[
+            { value: ALL_VALUE, label: t('contractAll') },
+            ...contractTypeOptions(tContract),
+          ]}
+        />
+        <FilterSelect
+          label={t('visibilityLabel')}
+          value={valeurs.visibility || ALL_VALUE}
+          onChange={(v) => updateParam('visibility', v === ALL_VALUE ? null : v)}
+          placeholder={t('visibilityAll')}
+          options={[
+            { value: ALL_VALUE, label: t('visibilityAll') },
+            { value: 'public', label: tScope('public') },
+            { value: 'private', label: tScope('private') },
+          ]}
+        />
+      </div>
+
+      <div className={grille}>
+        <div className={pleineLargeur}>
+          <FilterSelect
+            label={t('agentLabel')}
+            value={valeurs.agent || ALL_VALUE}
+            onChange={(v) =>
+              updateParams({
+                user_id: v === ALL_VALUE ? null : v,
+                only_mine: null,
+              })
+            }
+            placeholder={t('agentAll')}
+            options={[
+              { value: ALL_VALUE, label: t('agentAll') },
+              ...agentOptions.map((agent) => ({
+                value: String(agent.id),
+                label:
+                  agent.id === currentUserId
+                    ? tList('agentSelf', { name: agent.name })
+                    : agent.name,
+              })),
+            ]}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            {t('createdFrom')}
+          </label>
+          <DatePicker
+            aria-label={t('createdFrom')}
+            value={valeurs.createdFrom}
+            onValueChange={(value) => updateParam('created_from', value || null)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            {t('createdTo')}
+          </label>
+          <DatePicker
+            aria-label={t('createdTo')}
+            value={valeurs.createdTo}
+            onValueChange={(value) => updateParam('created_to', value || null)}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 

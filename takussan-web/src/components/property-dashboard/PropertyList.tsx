@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { DataTable, type DataTableColumn } from '@/components/console';
+import { useFloatingDockSlot } from '@/components/floating-dock';
 import { EmptyState } from '@/components/feedback';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { Badge } from '@/components/ui/badge';
@@ -240,80 +241,95 @@ export function PropertyList({
         stickyHeader
       />
 
-      {/* Mobile cards — compact horizontal layout */}
-      <ul className="grid gap-3 lg:hidden">
+      {/* Cartes sous `lg` — TCK-644 : la carte ENTIÈRE ouvre le bien (le lien du titre s'étend
+          sur elle par `after:inset-0`) ; la case et les actions passent au-dessus (`z-10`). Le
+          titre tient sur deux lignes (AC3) et la référence a sa propre ligne, entière : toutes
+          deux étaient coupées par `truncate` à 390 px. */}
+      <ul aria-label={t('caption')} className="grid gap-3 lg:hidden">
         {properties.map((property) => {
           const isSelected = selectedIds.includes(property.id);
           return (
             <li
               key={property.id}
               className={cn(
-                'flex gap-3 rounded-xl bg-card p-3 transition-colors',
-                isSelected && 'ring-1 ring-inset ring-primary/30',
+                'relative rounded-2xl bg-card p-3 shadow-[0_1px_3px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] ring-1 ring-inset ring-border/70 transition-shadow',
+                isSelected && 'ring-2 ring-primary/50',
               )}
             >
-              <div className="relative shrink-0">
-                <PropertyThumbnail property={property} size={96} />
-                <input
-                  type="checkbox"
-                  aria-label={t('selectOne', { title: property.title })}
-                  checked={isSelected}
-                  onChange={() => toggleOne(property.id)}
-                  className="absolute left-1 top-1 size-4 rounded border-card/80 bg-card/80"
-                />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <Link
-                  href={`/app/properties/${property.id}`}
-                  className="block truncate text-sm font-semibold text-foreground hover:text-primary"
-                >
-                  {property.title}
-                </Link>
-                <p className="truncate text-xs text-muted-foreground">
-                  {enumLabel(tType, propertyTypeValues, property.type)}
-                  {property.location?.city ? ` · ${property.location.city}` : ''}
-                  {property.reference_number ? ` · ${property.reference_number}` : ''}
-                </p>
-                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-                  <span className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
-                    {typeof property.price === 'number'
-                      ? formatCurrency(property.price, 'fr', {
-                          currency: property.currency ?? 'XOF',
-                        })
-                      : '—'}
-                    {property.contract_type === 'rent' &&
-                    property.rent_period ? (
-                      <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-                        /{tPeriodes(property.rent_period)}
+              <div className="flex gap-3">
+                <div className="relative shrink-0">
+                  <PropertyThumbnail property={property} size={88} />
+                  <label className="absolute -left-1.5 -top-1.5 z-10 grid size-11 cursor-pointer place-items-center rounded-full">
+                    <input
+                      type="checkbox"
+                      aria-label={t('selectOne', { title: property.title })}
+                      checked={isSelected}
+                      onChange={() => toggleOne(property.id)}
+                      className="size-5 cursor-pointer rounded-md border-card bg-card/90 accent-primary shadow-sm"
+                    />
+                  </label>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <Link
+                    href={`/app/properties/${property.id}`}
+                    className="line-clamp-2 text-base font-semibold leading-snug text-pretty text-foreground outline-none after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:text-primary focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+                  >
+                    {property.title}
+                  </Link>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {enumLabel(tType, propertyTypeValues, property.type)}
+                    {property.location?.city ? ` · ${property.location.city}` : ''}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+                    <span className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
+                      {typeof property.price === 'number'
+                        ? formatCurrency(property.price, 'fr', {
+                            currency: property.currency ?? 'XOF',
+                          })
+                        : '—'}
+                      {property.contract_type === 'rent' &&
+                      property.rent_period ? (
+                        <span className="ml-0.5 text-xs font-medium text-muted-foreground">
+                          /{tPeriodes(property.rent_period)}
+                        </span>
+                      ) : null}
+                    </span>
+                    {property.contract_type ? (
+                      <span className="text-xs text-muted-foreground">
+                        {enumLabel(tContract, contractTypeValues, property.contract_type)}
                       </span>
                     ) : null}
-                  </span>
-                  {property.contract_type ? (
-                    <span className="text-xs text-muted-foreground">
-                      {enumLabel(tContract, contractTypeValues, property.contract_type)}
-                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <PropertyStatusBadge status={property.status} />
+                    <VisibilityBadge visibility={property.visibility} />
+                  </div>
+                  <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
+                </div>
+              </div>
+              {/* Pied de carte : la référence et l'activité à gauche, les actions à droite —
+                  dans le flux (en absolu, « Modifier » recouvrait le titre à 360-390 px). */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-2">
+                <div className="min-w-0 flex-1 text-xs text-muted-foreground tabular-nums">
+                  {property.reference_number ? (
+                    <p className="font-medium text-foreground/80">
+                      {t('reference', { value: property.reference_number })}
+                    </p>
                   ) : null}
+                  <p>
+                    <RelativeDate value={property.created_at} /> ·{' '}
+                    <span className="inline-flex items-center gap-1" title={t('viewsTitle')}>
+                      <EyeIcon className="size-3" aria-hidden="true" />
+                      {property.views_count ?? 0}
+                    </span>{' '}
+                    ·{' '}
+                    <span className="inline-flex items-center gap-1" title={t('favoritesTitle')}>
+                      <Heart className="size-3" aria-hidden="true" />
+                      {property.favorites_count ?? 0}
+                    </span>
+                  </p>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <PropertyStatusBadge status={property.status} />
-                  <VisibilityBadge visibility={property.visibility} />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground tabular-nums">
-                  <RelativeDate value={property.created_at} /> ·{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <EyeIcon className="size-3" aria-hidden="true" />
-                    {property.views_count ?? 0}
-                  </span>{' '}
-                  ·{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <Heart className="size-3" aria-hidden="true" />
-                    {property.favorites_count ?? 0}
-                  </span>
-                </p>
-                <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
-                {/* Les actions en PIED de carte, dans le flux : posées en absolu en haut à
-                    droite, « Modifier » recouvrait le titre à 360-390 px. */}
-                <div className="mt-auto pt-2">
+                <div className="relative z-10 ml-auto">
                   <PropertyRowActions property={property} layout="card" />
                 </div>
               </div>
@@ -613,6 +629,9 @@ function PortfolioFilteredEmpty({ onReset }: { readonly onReset: () => void }) {
   );
 }
 
+/** Hauteur d'une rangée de la barre d'actions groupées (`py-2.5` + boutons `h-9`). */
+const BULK_BAR_HEIGHT_PX = 56;
+
 function BulkActionBar({
   selectedCount,
   pending,
@@ -645,6 +664,15 @@ function BulkActionBar({
   const t = useTranslations('property.dashboard.list');
   // TCK-587 — dépublier est un geste `properties.publish`, en lot comme à l'unité.
   const { canPublish } = useGestesDuBien();
+  // TCK-644 — un créneau du FloatingDock, AU-DESSUS du lanceur de messagerie (priorité 0) : posée
+  // en `bottom-3` au même coin que lui, la barre passait dessous et sa croix devenait inatteignable.
+  // La hauteur déclarée ne sert qu'aux créneaux posés au-dessus d'elle (aucun aujourd'hui).
+  const creneau = useFloatingDockSlot({
+    id: 'property-bulk-bar',
+    corner: 'bottom-right',
+    priority: 1,
+    height: BULK_BAR_HEIGHT_PX,
+  });
   const items = agentOptions.map((agent) => ({
     value: String(agent.id),
     label:
@@ -656,7 +684,8 @@ function BulkActionBar({
     <div
       role="region"
       aria-label={t('bulkAria')}
-      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+      style={{ bottom: creneau.bottom }}
+      className="fixed inset-x-2 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
     >
       <span className="font-semibold">
         {t('bulkSelected', { count: selectedCount })}

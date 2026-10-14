@@ -14,19 +14,19 @@ import { useFloatingDockSlot } from '@/components/floating-dock';
 import { estPleinEcran } from '@/components/layout/plein-ecran';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
+import { CHAT_FAB_MOBILE_HEIGHT_PX, CHAT_LAUNCHER_DESKTOP_HEIGHT_PX } from './reserve';
 import { useUnreadCount } from './useUnreadCount';
 
 /** Tailwind `md` breakpoint — desktop launcher visible at >= 768px. */
 const MD_BREAKPOINT_PX = 768;
 
-/**
- * Static logical heights of the chat launchers, used by the FloatingDock to
+/*
+ * Static logical heights of the chat launchers (TCK-644 : dans `./reserve`, à côté de la place
+ * qu'une page doit leur laisser en bas), used by the FloatingDock to
  * decide where neighbouring slots stack. We intentionally measure only the
  * pill (not the open panel) so the comparator pill above us doesn't jump
  * 500 px when the user toggles the chat — standard Messenger / Intercom UX.
  */
-const CHAT_LAUNCHER_DESKTOP_HEIGHT_PX = 56; // h-14
-const CHAT_FAB_MOBILE_HEIGHT_PX = 48; // h-12
 
 /**
  * TCK-274 — Floating messaging widget mounted once at the root layout.
