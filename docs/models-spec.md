@@ -430,7 +430,6 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 - `profiles()` → collection unifiée des profils du user (Eloquent `Collection` retournée par accesseur, pas une relation Eloquent native) 🆕
 - `properties()` → hasMany Property
 - `bookings()` → hasMany Booking
-- `bookingPayments()` → hasMany BookingPayment — ⚠ **cassée** : clé implicite `booking_payments.user_id`, colonne absente de la table (`payer_id` → customers, `collector_id` → users ; le lien réel d'un utilisateur est `collector_id`, cf. [§6](#6-bookingpayment)). Seul `tests/Unit/ModelsTest.php` l'appelle, pour vérifier son type sans l'exécuter ; exécutée, elle échouerait en SQL. Défaut de code relevé le 2026-10-14, non corrigé (lot de documentation)
 - `customers()` → hasMany Customer (via added_by_id)
 - `customer()` → hasOne Customer (via user_id)
 - `customer_relationships()` → hasMany UserCustomerRelationship
@@ -816,10 +815,10 @@ payeur (`payer_id`, un client) et encaisseur (`collector_id`, un utilisateur), e
 - `bankStatementLine()` → belongsTo BankStatementLine
 
 ⚠ Le modèle ne déclare **pas** de relation `invoice()` ni `platformPayout()` ; l'inverse
-`PlatformPayout::bookingPayments()` existe. Et `User::bookingPayments()` (`hasMany`, clé implicite
-`user_id`) vise une colonne qui n'existe pas : aucun code applicatif ne l'exécute (`tests/Unit/ModelsTest.php`
-ne vérifie que son type), et l'exécuter échouerait en SQL — le lien d'un utilisateur à ses paiements de réservation passe par
-`collector_id`.
+`PlatformPayout::bookingPayments()` existe. `User` n'en déclare aucune vers `BookingPayment` : le
+lien d'un utilisateur à ses paiements de réservation passe par `collector_id` (encaisseur) ou, comme
+payeur, par `customers` (`payer_id`). L'ancienne `User::bookingPayments()`, qui visait une colonne
+`user_id` inexistante, a été retirée (TCK-640).
 
 ---
 
@@ -1984,7 +1983,9 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | updated_at | datetime | | auto | |
 
 **Contraintes :**
-- Unique composé `(key, scope, scope_id)`.
+- Unique composé `settings_key_scope_scope_id_unique (key, scope, scope_id)` en **`NULLS NOT
+  DISTINCT`** : une clé `global` (`scope_id` nul) est unique en base, pas seulement par les
+  `updateOrCreate` des écrivains (TCK-640, `2026_10_14_120000`).
 
 **Clés de plateforme.** Les clés que la console édite (portée `global`) forment un catalogue **en
 code** : `App\Domain\Settings\EditablePlatformSettings`, réduit aux clés qu'un code lit (TCK-600,
@@ -2021,8 +2022,12 @@ lues par `App\Services\Boost\BoostSettings`) : `credits.welcome_amount`,
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes et index** (mesurés sur `2026_04_17_160028`, `2026_08_22_090000`, `2026_10_08_120000`) :
-- Unique composé `(provider, agency_id)`.
+**Contraintes et index** (mesurés sur `2026_04_17_160028`, `2026_08_22_090000`, `2026_10_08_120000`, `2026_10_14_120100`) :
+- `integrations_provider_agency_live_unique` — unique `(provider, agency_id)` en **`NULLS NOT
+  DISTINCT`**, **partiel** `WHERE deleted_at IS NULL` : une seule intégration vivante par fournisseur
+  et par agence, intégration de plateforme (`agency_id` nul) comprise ; une intégration supprimée ne
+  bloque pas son remplaçant. Un doublon par l'API rend 422 sur `provider` (TCK-640,
+  `2026_10_14_120100`, qui remplace `integrations_provider_agency_id_unique`).
 - `integrations_webhook_token_hash_unique` — unique `(webhook_token_hash)`.
 - Index `integrations_agency_id_created_at_index (agency_id, created_at)`.
 
@@ -4820,8 +4825,8 @@ depuis sont rangés à part : [Modèles ajoutés depuis TCK-310](#modèles-ajout
 | tasks | `assigned_to_id`, `due_at` | Tâches à échéance d'un utilisateur |
 | tasks | `taskable_type`, `taskable_id` | Tâches liées à une entité |
 | customer_notes | `customer_id`, `created_at` | Historique des notes d'un client (index ascendant ; PostgreSQL le parcourt aussi à rebours) |
-| settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre |
-| integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence |
+| settings | `(key, scope, scope_id)` | Résolution unique d'un paramètre (`NULLS NOT DISTINCT`) |
+| integrations | `(provider, agency_id)` | Intégration unique par fournisseur / agence (`NULLS NOT DISTINCT`, lignes vivantes) |
 | bank_statements | `(agency_id, status)` | Relevés ouverts par agence 🆕 |
 | bank_statements | `(agency_id, created_at)` | Tri chronologique par agence 🆕 |
 | bank_statement_lines | `(bank_statement_id, match_status)` | File de réconciliation par relevé 🆕 |
@@ -4987,8 +4992,8 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | property_collaborators | CHECK `property_collaborators_primary_is_agent (NOT is_primary OR role = 'agent')` | contrainte DB | toujours 🆕 (TCK-504) |
 | conversation_participants | `(conversation_id, user_id)` | unique composé | toujours |
 | document_share_links | `token_hash` (`dsl_token_hash_unique`) | unique | toujours — l'unique sur `token` a été retiré par `2026_10_08_180000` (`token` est désormais chiffré) |
-| settings | `(key, scope, scope_id)` | unique composé | si `scope_id` non null — ⚠ une clé `global` (`scope_id` nul) n'est **pas** protégée par la base ; son unicité ne tient qu'aux `updateOrCreate` des écrivains (`PlatformSettingService`, `SettingController`, `BusinessEnumService`, `SettingsSeeder`), qui ne résistent pas à deux écritures concurrentes |
-| integrations | `(provider, agency_id)` | unique composé | si `agency_id` non null |
+| settings | `(key, scope, scope_id)` | unique composé, `NULLS NOT DISTINCT` | toujours — une clé `global` (`scope_id` nul) est protégée comme une clé d'agence (TCK-640) |
+| integrations | `(provider, agency_id)` (`integrations_provider_agency_live_unique`) | unique partiel, `NULLS NOT DISTINCT` | `deleted_at IS NULL` — l'intégration de plateforme (`agency_id` nul) comprise (TCK-640) |
 | integrations | `webhook_token_hash` (`integrations_webhook_token_hash_unique`) | unique | si non null (`2026_10_08_120000`) |
 | owner_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (brouillon d'invitation sans titulaire : plusieurs admis) |
 | agent_profiles | `(user_id, agency_id)` | unique composé | si `user_id` non null (idem) |

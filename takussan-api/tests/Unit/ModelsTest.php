@@ -50,14 +50,12 @@ class ModelsTest extends TestCase
         $this->assertInstanceOf(HasMany::class, $user->writtenReviews());
         $this->assertInstanceOf(HasMany::class, $user->payouts());
         $this->assertInstanceOf(HasMany::class, $user->bookings());
-        $this->assertInstanceOf(HasMany::class, $user->bookingPayments());
         $this->assertInstanceOf(HasMany::class, $user->customers());
         $this->assertInstanceOf(HasMany::class, $user->customerRelationships());
         $this->assertInstanceOf(BelongsToMany::class, $user->relatedCustomers());
         $this->assertInstanceOf(MorphMany::class, $user->receivedReviews());
 
-        // Note: conversations() might be a belongsToMany or hasMany depending on implementation
-        $this->assertNotNull($user->conversations());
+        $this->assertInstanceOf(BelongsToMany::class, $user->conversations());
     }
 
     public function test_agency_relationships(): void
