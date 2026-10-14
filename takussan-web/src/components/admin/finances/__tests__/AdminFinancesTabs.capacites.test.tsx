@@ -1,5 +1,5 @@
 /**
- * TCK-528 — sur `/admin/finances`, « Générer une facture » et « Créer un reversement » suivent
+ * TCK-528 — sur `/app/agency/finances`, « Générer une facture » et « Créer un reversement » suivent
  * chacun LEUR capacité, comme dans `PaymentsTabs`.
  *
  * La page passe `canEmit` à tout admin d'agence ; un rôle personnalisé peut pourtant ne porter

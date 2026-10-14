@@ -29,7 +29,7 @@ import {
 /**
  * TCK-392 — inviter par e-mail quelqu'un qui **n'a pas de compte Takussan**.
  *
- * Ce chemin manquait entièrement à l'écran. `/admin/team` n'exposait que
+ * Ce chemin manquait entièrement à l'écran. L'équipe n'exposait que
  * {@link InviteMemberDialog}, qui appelle `POST /api/agencies/{id}/members` et
  * **exige un `User` déjà inscrit** (`abort_if($target === null, 422,
  * 'user_not_found_by_email')`) : aucune ligne `invitations` n'était jamais

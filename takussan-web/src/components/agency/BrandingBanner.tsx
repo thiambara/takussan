@@ -22,7 +22,7 @@ export interface BrandingBannerProps {
   readonly href?: string;
 }
 
-export function BrandingBanner({ href = '/admin/agency' }: BrandingBannerProps) {
+export function BrandingBanner({ href = '/app/agency' }: BrandingBannerProps) {
   const t = useTranslations('agency.branding.banner');
 
   return (

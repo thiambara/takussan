@@ -16,7 +16,7 @@ function Sonde({ roles, agencyIsStandard }: { roles: UserRole[]; agencyIsStandar
   );
 }
 
-const SOLO: AccesAdmin = { chemins: ['/admin/agency'], espaceIndividuel: true };
+const SOLO: AccesAdmin = { chemins: ['/app/agency'], espaceIndividuel: true };
 
 describe('AccesAdminProvider (TCK-633)', () => {
   it('fournit sa valeur, et le repli est alors ignoré', () => {
@@ -35,11 +35,11 @@ describe('AccesAdminProvider (TCK-633)', () => {
     // Capacités inconnues : « Abonnement » (agency.update_billing) n'y est pas.
     expect(JSON.parse(screen.getByTestId('acces').textContent!)).toEqual({
       chemins: [
-        '/admin/agency',
-        '/admin/agency/kyc',
-        '/admin/finances',
-        '/admin/finances/reconciliation',
-        '/admin/settings/integrations',
+        '/app/agency',
+        '/app/agency/kyc',
+        '/app/agency/finances',
+        '/app/agency/finances/reconciliation',
+        '/app/agency/integrations',
       ],
       espaceIndividuel: true,
     });

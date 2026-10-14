@@ -1,8 +1,10 @@
 /**
- * TCK-572 — les deux consoles (`/admin`, `/super-admin`) montent les bandeaux du site DANS leur zone
- * qui défile, comme `AppShell`.
+ * TCK-572 — la console `/super-admin` monte les bandeaux du site DANS sa zone qui défile, comme
+ * `AppShell` (`AppShell.bandeaux.test.tsx`). TCK-649 — la seconde console, `AdminShell`, est partie
+ * avec l'ancienne administration d'agence, désormais servie par `AppShell`.
  *
- * Mesuré le 2026-09-24 (Chrome headless, réponses de l'API substituées) : sur /admin, le bandeau
+ * Mesuré le 2026-09-24 (Chrome headless, réponses de l'API substituées) : sur l'ancienne console
+ * d'administration, le bandeau
  * rendu par le layout racine précédait la coque `h-dvh` — à 320 px, bandeau 0..76, barre 76..132,
  * document 716 px pour un écran de 640. jsdom ne fait pas de mise en page : on garde la cause,
  * l'endroit du DOM où le bandeau est monté.
@@ -15,7 +17,6 @@ import { withIntl } from '@/test/intl';
 import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
-import { AdminShell } from '../AdminShell';
 import { SuperAdminShell } from '../SuperAdminShell';
 
 vi.mock('next/navigation', () => ({
@@ -94,7 +95,6 @@ const MAINTENANCE = {
 };
 
 const COQUES = [
-  ['AdminShell', (enfants: React.ReactNode) => <AdminShell user={utilisateur(['agency_admin'])}>{enfants}</AdminShell>],
   ['SuperAdminShell', (enfants: React.ReactNode) => <SuperAdminShell user={utilisateur(['super_admin'])} abilities={SUPER_ADMIN}>{enfants}</SuperAdminShell>],
 ] as const;
 

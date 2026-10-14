@@ -47,8 +47,8 @@ import type { Setting, SettingScope } from '@/types/setting';
  * and exposes a modal for adding a new key. Secrets are not stored here
  * (they live in `Integration.credentials`) so we can display values freely.
  *
- * TCK-648 — monté par `/super-admin/settings/global` seul (l'ancienne page `/admin/settings` est
- * supprimée, ADR-0064 §1).
+ * TCK-648 — monté par `/super-admin/settings/global` seul (l'ancienne page de la console d'agence
+ * est supprimée, ADR-0064 §1).
  */
 
 interface SettingsManagerProps {

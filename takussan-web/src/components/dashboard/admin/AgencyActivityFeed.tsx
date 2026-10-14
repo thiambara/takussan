@@ -33,7 +33,7 @@ export function AgencyActivityFeed({ summary }: Props) {
     { href: '/app/bookings', id: 'bookings', count: summary.bookings.pending, icon: CalendarClock },
     { href: '/app/maintenance', id: 'maintenance', count: summary.maintenance.open, icon: Wrench },
     { href: '/app/customers', id: 'customers', count: summary.customers_count, icon: Users },
-    { href: '/admin/team', id: 'team', count: summary.members_count, icon: UserCog },
+    { href: '/app/agency/team', id: 'team', count: summary.members_count, icon: UserCog },
   ];
 
   return (

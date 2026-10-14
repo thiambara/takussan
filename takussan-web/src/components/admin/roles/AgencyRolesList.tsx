@@ -35,7 +35,7 @@ interface AgencyRolesListProps {
 }
 
 /**
- * TCK-279 (AC11) — colonne gauche de `/admin/roles` : les rôles de l'agence,
+ * TCK-279 (AC11) — colonne gauche de `/app/agency/roles` : les rôles de l'agence,
  * groupés par `base_profile_type`.
  *
  * Un rôle système porte son badge et **n'expose ni « Modifier » ni

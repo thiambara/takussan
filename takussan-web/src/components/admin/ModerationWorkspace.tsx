@@ -44,7 +44,7 @@ const SUBJECT_TYPE_KEYS: ReadonlyArray<{ key: string; value: string }> = [
 /**
  * Les clés d'URL portent le NOM DU FILTRE D'API, pas un alias.
  *
- * `/admin/team` et `/admin/users` avaient déjà tranché ainsi (`filter[role]`, `filter[status]`) :
+ * Les écrans de l'équipe et des utilisateurs avaient déjà tranché ainsi (`filter[role]`, `filter[status]`) :
  * une URL qu'on lit dit alors ce que la requête demande, et il n'existe pas de table de
  * correspondance à tenir entre deux vocabulaires.
  */

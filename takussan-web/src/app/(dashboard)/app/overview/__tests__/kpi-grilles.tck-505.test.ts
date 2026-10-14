@@ -31,7 +31,7 @@ describe('vues d’ensemble — les KPI passent en quatre colonnes à lg, pas à
 
 /**
  * TCK-647 — la vue agence ne pose plus sa grille elle-même : ses indicateurs sont ceux d'`AgencyKpis`,
- * repris de l'ancien tableau de bord de `/admin` (six tuiles : deux colonnes, trois à `lg`, six à
+ * repris de l'ancien tableau de bord de la console d'agence (six tuiles : deux colonnes, trois à `lg`, six à
  * `2xl`). La règle de TCK-505 se lit donc là : aucune colonne gagnée à `md`.
  */
 it('overview/agency : la grille d’AgencyKpis ne gagne aucune colonne à md', () => {

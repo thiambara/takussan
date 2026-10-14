@@ -1,6 +1,7 @@
 /**
- * TCK-377 — Résolution de l'entrée ACTIVE d'une barre latérale, écrite UNE fois pour les trois
- * shells (`AppSidebar`, `AdminSidebar`, `SuperAdminSidebar`).
+ * TCK-377 — Résolution de l'entrée ACTIVE d'une barre latérale, écrite UNE fois pour les shells
+ * (`AppSidebar`, `SuperAdminSidebar` ; la barre de l'ancienne console d'administration est partie
+ * avec elle, TCK-649).
  *
  * Le dépôt portait trois réponses à la même question, écrites dans trois générations :
  * `AdminSidebar` en ligne (préfixe + deux racines exactes), `SuperAdminSidebar` dans une fonction
@@ -23,16 +24,14 @@
  * spécifique que `/app`, et c'est `/app` qui gagnerait.
  */
 
-/** Racines de `/app` comparées par ÉGALITÉ STRICTE. */
-export const APP_EXACT_ROOTS: readonly string[] = ['/app', '/admin'];
-
 /**
- * Racines de `/admin` comparées par ÉGALITÉ STRICTE.
+ * Racines de `/app` comparées par ÉGALITÉ STRICTE.
  *
- * `/admin/agency` y figure depuis l'origine d'`AdminSidebar` : la console porte
- * `/admin/agency/kyc` et `/admin/agency/billing`, et « Agence » ne doit pas s'allumer avec elles.
+ * TCK-649 — `/app/agency` y figure pour la raison qu'avait la racine « Agence » de l'ancienne
+ * console : la section d'agence porte `/app/agency/kyc`, `/app/agency/billing`… et « Agence » ne
+ * doit s'allumer avec aucune page de la section qui n'aurait pas d'entrée plus précise.
  */
-export const ADMIN_EXACT_ROOTS: readonly string[] = ['/admin', '/admin/agency'];
+export const APP_EXACT_ROOTS: readonly string[] = ['/app', '/app/agency'];
 
 /** Racine de `/super-admin` comparée par ÉGALITÉ STRICTE. */
 export const SUPER_ADMIN_EXACT_ROOTS: readonly string[] = ['/super-admin'];
@@ -45,7 +44,7 @@ function matches(pathname: string, href: string, exactRoots: readonly string[]):
 /**
  * `true` quand `href` couvre `pathname` — égalité pour les racines listées, préfixe sinon.
  *
- * Forme historique d'`AdminSidebar` / `SuperAdminSidebar`, conservée telle quelle : plusieurs
+ * Forme historique de `SuperAdminSidebar`, conservée telle quelle : plusieurs
  * entrées peuvent répondre `true` en même temps.
  */
 export function isActiveHref(

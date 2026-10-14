@@ -28,7 +28,7 @@ interface PaginationProps {
 }
 
 /**
- * L'UNIQUE pagination des consoles `/admin` et `/super-admin`.
+ * L'UNIQUE pagination des consoles — administration d'agence (`/app/agency`) et `/super-admin`.
  *
  * Relevé le 2026-08-26 : le dépôt portait **cinq** paginations — `search/Pagination`,
  * `super-admin/Pagination`, `property-dashboard/PropertyPagination`, plus une réécriture en

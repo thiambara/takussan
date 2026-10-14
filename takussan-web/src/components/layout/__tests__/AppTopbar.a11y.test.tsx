@@ -1,8 +1,8 @@
 /**
- * TCK-371 (revue adverse) — anneau de focus de la BARRE HAUTE, montée sur chaque page `/admin`.
+ * TCK-371 (revue adverse) — anneau de focus de la BARRE HAUTE, montée sur chaque page de `/app`
+ * (section d'agence `/app/agency` comprise, TCK-649).
  *
- * `AdminShell` rend `AppTopbar` au-dessus de la console, sur le même `bg-foreground` que la barre
- * latérale. Ses deux contrôles écrits à la main — le hamburger, SEUL moyen d'ouvrir le tiroir de
+ * `AppShell` rend `AppTopbar` au-dessus de la console, sur un `bg-foreground`. Ses deux contrôles écrits à la main — le hamburger, SEUL moyen d'ouvrir le tiroir de
  * navigation sous `md`, et le lien du logo — ne portaient AUCUN `focus-visible` : ils retombaient
  * sur la règle globale `* { outline-ring/50 }` de `globals.css`, mesurée à **1,73:1** sur ce fond,
  * là où WCAG 1.4.11 exige 3:1.
@@ -33,7 +33,7 @@ import { AppTopbar } from '../AppTopbar';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => '/admin',
+  usePathname: () => '/app/agency',
   useSearchParams: () => new URLSearchParams(''),
 }));
 

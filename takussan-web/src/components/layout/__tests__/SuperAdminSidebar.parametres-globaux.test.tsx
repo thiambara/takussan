@@ -34,7 +34,7 @@ function monter(value: PlatformAbilities) {
 }
 
 /**
- * TCK-648 — l'éditeur de la table `settings` quitte `/admin/settings` : son entrée vit dans la
+ * TCK-648 — l'éditeur de la table `settings` quitte l'ancienne console d'agence : son entrée vit dans la
  * console, SOUS « Paramètres » (la page des paramètres plateforme), dont elle est la voisine.
  */
 describe('SuperAdminSidebar — paramètres globaux (TCK-648)', () => {

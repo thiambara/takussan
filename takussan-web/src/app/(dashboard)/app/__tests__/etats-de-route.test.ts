@@ -182,8 +182,8 @@ interface Page {
  * `slice(-1)` rend le dernier caractère — un corps non vide et sans aucun `await`. Une page
  * écrite `const Page = async () => {…}; export default Page;` passait donc pour « n'attend
  * aucune donnée » et n'avait besoin d'aucun repli. Mesuré : deux formes légales passaient au
- * vert sans `loading.tsx`. Le dépôt en utilise déjà une variante ailleurs
- * (`admin/properties/page.tsx` réexporte `export { default } from …`).
+ * vert sans `loading.tsx`. Le dépôt en a utilisé une variante (l'ancienne page des biens de la
+ * console d'agence réexportait `export { default } from …`).
  *
  * Un corps illisible est désormais `null`, et le premier test de ce fichier échoue dessus. *Une
  * garde qui ne sait pas lire un fichier doit le DIRE, jamais le compter comme conforme.*
@@ -322,8 +322,8 @@ describe('TCK-382 — inventaire', () => {
  *    population.*
  *  · `ensureStandardAgencyOrRedirect` (`src/lib/access/server-guards.ts`) — ajouté ici par
  *    ANTICIPATION, et il faut le dire : mesuré le 2026-08-27, `grep -rn` sous
- *    `app/(dashboard)/app` ne rend AUCUN appel, il ne garde aujourd'hui que les cinq routes
- *    `/admin/*`. Il refuse pourtant par `redirect('/app')` exactement comme les deux autres, et
+ *    `app/(dashboard)/app` ne rend AUCUN appel, il ne gardait alors que les cinq routes de la
+ *    console d'agence. Il refuse pourtant par `redirect('/app')` exactement comme les deux autres, et
  *    la première page de `/app` qui l'appellerait échapperait à ces règles en silence. *Une
  *    liste fermée de terminateurs se complète quand on la lit, pas quand elle rate quelque
  *    chose.*
@@ -342,8 +342,26 @@ describe('TCK-382 — inventaire', () => {
  * ⚠ `exigerRessource` est le terminateur qui porte ce `notFound()` dans les huit layouts de
  * détail — même motif que les trois terminateurs ci-dessus : *un refus délégué refuse tout autant
  * qu'un refus écrit sur place.*
+ *
+ * ⚠ `garderPageAdmin` y est entré avec TCK-649 : les pages d'administration de l'agence ont
+ * rejoint `/app` (`/app/agency/*`, ADR-0064) et refusent par `redirect()` vers la première page
+ * accessible. Elles appellent leur garde DANS la page, et c'est voulu (`scripts/check-pro-routes.mjs`
+ * l'exige) — ce qui n'est juste que tant qu'aucun repli ne se pose au-dessus d'elles. La règle
+ * ci-dessous le refuse donc comme pour tout autre terminateur.
  */
-const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource)\s*\(/;
+const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin)\s*\(/;
+
+/**
+ * TCK-649 — une page qui se garde elle-même par `garderPageAdmin` (la table des pages,
+ * `src/lib/access/pages-admin.ts`) refuse depuis son propre rendu : un repli au-dessus d'elle
+ * changerait son 307 en 200 (AC3 de TCK-649). Elle n'a donc PAS de repli, et la règle « chaque
+ * page qui attend une donnée a son repli » l'exempte — par une propriété DÉRIVÉE du code, comme
+ * `estUneRedirectionSeule`, jamais par une liste. Le pendant est tenu par la règle « aucune page
+ * ne REFUSE depuis sous une frontière », où `garderPageAdmin` est un terminateur.
+ */
+function seGardeParLaTableDesPages(page: Page): boolean {
+  return /\bawait\s+garderPageAdmin\s*\(/.test(sansCommentaires(page.source));
+}
 
 describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
   it('aucune redirection nue de /app ne vit sous un loading.tsx', () => {
@@ -483,6 +501,8 @@ describe('TCK-382 / AC1 — l’attente', () => {
       // L'exemption est DÉRIVÉE (`estUneRedirectionSeule`), pas listée, et la règle qui suit
       // ce bloc l'oblige dans l'autre sens : ces pages ne doivent PAS être couvertes.
       if (estUneRedirectionSeule(page)) continue;
+      // TCK-649 — même logique : une garde DANS la page ne survit à aucun repli au-dessus d'elle.
+      if (seGardeParLaTableDesPages(page)) continue;
       let dossier = page.segment;
       let couverte = false;
       // `app/loading.tsx` ne couvre que `app/page.tsx` : la boucle s'arrête AVANT de remonter

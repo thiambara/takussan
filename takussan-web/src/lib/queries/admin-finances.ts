@@ -5,7 +5,7 @@ import type { PaginatedResponse } from '@/types/api';
 import type { Invoice, InvoiceStatus, Payout, PayoutStatus } from '@/types/invoice';
 
 /**
- * TCK-134 — small KPI aggregations for `/admin/finances`.
+ * TCK-134 — small KPI aggregations for `/app/agency/finances`.
  *
  * The spec forbids summing pages of results in JS — KPIs must come from an
  * aggregate endpoint or from `meta.total` returned by the API. The agency

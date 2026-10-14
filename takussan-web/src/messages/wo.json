@@ -4891,7 +4891,8 @@
         "finalizeFailed": "Mënuñu jeexal relevé bi.",
         "previous": "Ginnaaw",
         "next": "Topp",
-        "pageOf": "Xët {page} ci {total}"
+        "pageOf": "Xët {page} ci {total}",
+        "metaTitle": "Relevé bànk bi"
       },
       "search": {
         "title": "Seet fey bi",

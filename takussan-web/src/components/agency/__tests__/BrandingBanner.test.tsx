@@ -33,15 +33,15 @@ describe('<BrandingBanner>', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /configurer/i })).toHaveAttribute(
       'href',
-      '/admin/agency',
+      '/app/agency',
     );
   });
 
   it('honours a custom href', () => {
-    renderBanner('/admin/agency?focus=logo');
+    renderBanner('/app/agency?focus=logo');
     expect(screen.getByRole('link', { name: /configurer/i })).toHaveAttribute(
       'href',
-      '/admin/agency?focus=logo',
+      '/app/agency?focus=logo',
     );
   });
 });

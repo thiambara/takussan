@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 /**
  * TCK-589 §7 — `GET /api/agencies/{agency}/setup-status` : la carte « Mise en
- * service » de `/admin`.
+ * service » du tableau de bord d'agence (`/app/overview/agency`, ADR-0064).
  *
  * Autorisé par la règle `agency.update` DANS l'agence, telle que l'écrit
  * {@see AgencyPolicy::update()} — et non par `canActAt(Capability::AgencyUpdate)`,

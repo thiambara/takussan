@@ -193,7 +193,7 @@ describe('ensureStandardAgencyOrRedirect', () => {
 
   it('refuse quand le jeton est absent — la décision ne se saute pas', async () => {
     // LE cas qui a survécu à trois revues. Avec `if (!token) return;`, la fonction rendait
-    // `undefined` sans avoir rien décidé, et les cinq routes /admin/* s'affichaient.
+    // `undefined` sans avoir rien décidé, et les cinq routes de la console s'affichaient.
     getToken.mockResolvedValue(undefined);
     fetchAgency.mockResolvedValue({ id: 7, kind: 'individual' });
     expect(await refus(utilisateur(7))).toBe('/app');
@@ -204,8 +204,8 @@ describe('ensureStandardAgencyOrRedirect', () => {
     // Le contrat du paramètre `usage` : « faire tomber toute la page en erreur pour un cadenas
     // serait pire que le cadenas ». Le `throw` du verdict « bug » était placé AVANT ce test, si
     // bien qu'un corps non-JSON — `apiRequest` rend alors `null`, et `res.data` lève un
-    // `TypeError` — faisait rejeter `app/layout.tsx` et `admin/layout.tsx` : toute la coquille
-    // `/app/*` et `/admin/*` basculait sur la frontière d'erreur, là où l'ancien code perdait
+    // `TypeError` — faisait rejeter `app/layout.tsx` et le layout de l'ancienne console : toute la
+    // coquille basculait sur la frontière d'erreur, là où l'ancien code perdait
     // seulement un cadenas.
     fetchAgency.mockRejectedValue(new TypeError("Cannot read properties of null (reading 'data')"));
     await expect(resolveAgencyOrNull('tok', 7, 'test', 'affichage')).resolves.toBeNull();

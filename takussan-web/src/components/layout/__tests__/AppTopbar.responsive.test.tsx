@@ -1,7 +1,8 @@
 /**
  * TCK-505 (#1) — la barre haute ne fait plus défiler le document à 768 px.
  *
- * Mesuré par la campagne du 2026-09-02 : sur les 58 pages `/app` et `/admin`, à 768 px,
+ * Mesuré par la campagne du 2026-09-02 : sur les 58 pages de la console (`/app` et l'ancienne
+ * console d'administration), à 768 px,
  * `scrollWidth − innerWidth` valait **+81 px** (agent), **+94 px** (propriétaire) et **+118 px**
  * (admin d'agence). Deux causes, dans cette barre :
  *

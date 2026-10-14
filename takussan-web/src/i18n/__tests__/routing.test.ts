@@ -235,8 +235,12 @@ describe('la complétude est DÉRIVÉE du routeur — répertoires ET fichiers',
     expect(existsSync(APP), `src/app introuvable depuis ${process.cwd()}`).toBe(true);
     expect(trouves.length).toBeGreaterThanOrEqual(6);
     expect(trouves).toEqual(
-      expect.arrayContaining(['/api', '/app', '/admin', '/auth', '/super-admin']),
+      expect.arrayContaining(['/api', '/app', '/auth', '/super-admin']),
     );
+    // TCK-649 (ADR-0064 §4) — `/admin` n'est plus servi : l'administration d'agence vit sous
+    // `/app/agency`. Le segment reste dans `SEGMENTS_NON_LOCALISES` pour qu'une ancienne URL rende
+    // un 404 direct au lieu d'être redirigée vers `/fr/admin/…`.
+    expect(trouves).not.toContain('/admin');
   });
 
   it('AUCUN chemin servi à la racine par src/app n’est jugé localisable', () => {

@@ -23,7 +23,7 @@ export const ENTETE_LOCALE_NEXT_INTL = 'X-NEXT-INTL-LOCALE';
  * Il porte deux règles qui n'ont rien à voir l'une avec l'autre et qui doivent pourtant tenir dans
  * le même fichier, parce que Next n'en exécute qu'un :
  *
- *   1. la garde d'authentification (`/app`, `/admin` exigent un jeton ; `/auth` le refuse) ;
+ *   1. la garde d'authentification (`/app` exige un jeton ; `/auth` le refuse) ;
  *   2. le schéma d'URL de la langue ([ADR-0026](../../docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md)).
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -66,7 +66,11 @@ export function proxy(request: NextRequest): NextResponse {
   // formes. Les trois sont ancrées, et le balayage engendré de `src/__tests__/proxy.test.ts`
   // éprouve les sosies de CHAQUE surface réservée — pas seulement ceux du `matcher`.
   const isAuthPath = /^\/auth(?:\/|$)/.test(pathname);
-  const isAppPath = /^\/(?:app|admin)(?:\/|$)/.test(pathname);
+  // TCK-649 (ADR-0064 §4) — `/app` seul : l'administration d'agence vit sous `/app/agency`, et
+  // l'ancien préfixe de la console ne sert plus rien. Il n'est pas redirigé : sans jeton comme avec,
+  // il rend le 404 du routeur (son segment reste hors du schéma de langue, `SEGMENTS_NON_LOCALISES`,
+  // sans quoi il partirait en 307 vers une URL préfixée d'une langue avant de rendre ce 404).
+  const isAppPath = /^\/app(?:\/|$)/.test(pathname);
 
   if (isAppPath && !token) {
     const loginUrl = new URL('/auth/login', request.url);

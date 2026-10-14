@@ -6667,7 +6667,8 @@
         "finalizeFailed": "The statement couldn’t be finalized.",
         "previous": "Previous",
         "next": "Next",
-        "pageOf": "Page {page} of {total}"
+        "pageOf": "Page {page} of {total}",
+        "metaTitle": "Bank statement"
       },
       "search": {
         "title": "Find the payment",

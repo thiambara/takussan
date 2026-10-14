@@ -252,7 +252,7 @@
   /* === Geometry === */
   --radius: 0.625rem;
 
-  /* === Sidebar (AppShell / AdminShell) === */
+  /* === Sidebar (AppShell) === */
   --sidebar: #ffffff;
   --sidebar-foreground: #1f1812;
   --sidebar-primary: #a85332;

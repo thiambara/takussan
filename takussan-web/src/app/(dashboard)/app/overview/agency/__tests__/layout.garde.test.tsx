@@ -7,7 +7,7 @@ import type { User, UserRole } from '@/types/user';
  * elle porte désormais une seconde charge : c'est elle qui rend INATTEIGNABLE la branche
  * « agence `individual` » des files d'attente.
  *
- * Sous `/admin`, un super-admin passait la garde quelle que soit son agence (`pageAccessible`) : rattaché
+ * Dans l'ancienne console, un super-admin passait la garde quelle que soit son agence (`pageAccessible`) : rattaché
  * à une agence `individual`, il atteignait cette branche — son seul chemin vivant. Ce layout-ci, lui,
  * juge le `kind` pour TOUT compte rattaché à une agence, super-admin compris : le cas
  * « super-admin + individual » ci-dessous est la preuve que la page fusionnée ne la rend plus.

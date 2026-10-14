@@ -18,7 +18,7 @@ import type { Locale } from '@/i18n/config';
 import { cn } from '@/lib/utils';
 
 /**
- * TCK-134 — 4-up KPI strip for `/admin/finances`. The 4 spec-mandated
+ * TCK-134 — 4-up KPI strip for `/app/agency/finances`. The 4 spec-mandated
  * tiles are wired as follows:
  *
  *   1. Encaissements du mois → `dashboard-agency.finance.revenue_month`
@@ -64,7 +64,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
       data-testid="finance-kpis"
       // À `md` (464 px utiles, TCK-505) deux tuiles de 224 px coupaient « 132 693 386 F CFA » :
       // les deux MONTANTS y prennent la ligne, les deux compteurs restent côte à côte — même
-      // arrangement que les tuiles de `/admin`.
+      // arrangement que les tuiles du tableau de bord d'agence.
       className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       <KpiTile

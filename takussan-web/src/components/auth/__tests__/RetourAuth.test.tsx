@@ -104,7 +104,7 @@ describe('quand le retour suit l’historique', () => {
 
   it.each([
     ['un autre écran de connexion', '/auth/register'],
-    ['une page de l’administration', '/admin/users'],
+    ['une page de l’administration', '/app/agency/team'],
     ['l’onboarding', '/onboarding/intention'],
   ])('pas davantage vers %s', (_libelle, precedente) => {
     historique(precedente, '/auth/login');

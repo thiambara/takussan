@@ -6667,7 +6667,8 @@
         "finalizeFailed": "Le relevé n’a pas pu être finalisé.",
         "previous": "Précédent",
         "next": "Suivant",
-        "pageOf": "Page {page} sur {total}"
+        "pageOf": "Page {page} sur {total}",
+        "metaTitle": "Relevé bancaire"
       },
       "search": {
         "title": "Chercher le paiement",

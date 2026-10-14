@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { AdminNotice, resoudreAvisAdmin } from '@/components/admin/AdminNotice';
 import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/console';
 import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityFeed';
@@ -27,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Le tableau de bord d'agence — LE seul (TCK-647, ADR-0064 §3).
  *
- * Il a absorbé celui de `/admin`, qui lisait le même `GET /api/dashboard/agency` pour la même
+ * Il a absorbé celui de l'ancienne console d'agence, qui lisait le même `GET /api/dashboard/agency` pour la même
  * audience : sa structure (mise en service, files, indicateurs, activité, revenus) plus ce que
  * celui-ci montrait seul (la courbe d'occupation, la commission du mois). **Un chiffre n'y
  * figure qu'une fois** : le nombre d'impayés vit dans la file qui y mène, pas en indice de la
@@ -36,14 +35,11 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * La garde de rôle et de `kind` est dans `layout.tsx` (TCK-426) — elle n'a pas bougé.
  *
- * `searchParams` sert une seule chose : l'écran d'arrivée d'une redirection qui a un motif doit
- * le dire (TCK-370, `AdminNotice`). Un `notice` inconnu ne rend rien.
+ * TCK-649 — la page ne lit plus `?notice=` : son seul émetteur, la souche de redirection des
+ * étiquettes de l'ancienne console, a été supprimé avec elle (ADR-0064 §1), et le bandeau qui
+ * l'expliquait (`AdminNotice`, TCK-370) avec lui.
  */
-export default async function AgencyDashboardPage({
-  searchParams,
-}: {
-  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function AgencyDashboardPage() {
   const t = await getTranslations('dashboard.agency');
   const user = await getMeAction();
 
@@ -60,7 +56,7 @@ export default async function AgencyDashboardPage({
   //
   // ⚠ Il vaut `standard` à chaque rendu qui arrive ici : le layout renvoie vers `/app` toute agence
   // qui ne l'est pas, ou dont le `kind` est illisible — super-admin compris, à la différence de
-  // l'ancienne garde de `/admin` (`agency/__tests__/layout.garde.test.tsx`). La branche
+  // la garde de l'ancienne console d'agence (`agency/__tests__/layout.garde.test.tsx`). La branche
   // `individual` d'`AgencyQueues` n'est donc plus atteinte depuis cette page ; elle reste au
   // composant comme défense en profondeur. Le lire plutôt que câbler `true` fait suivre la file
   // le jour où la garde bouge.
@@ -73,10 +69,9 @@ export default async function AgencyDashboardPage({
 
   // UNE lecture de l'endpoint par affichage (AC3), séries temporelles comprises : 403/404 rendent
   // `null`, donc l'état dégradé plutôt qu'une exception.
-  const [payload, locale, avis] = await Promise.all([
+  const [payload, locale] = await Promise.all([
     fetchDashboardAgency({ withTimeseries: true }),
     localeDeLaRequete(),
-    searchParams?.then((params) => resoudreAvisAdmin(params.notice)) ?? null,
   ]);
   const ts = payload?.timeseries;
 
@@ -93,8 +88,6 @@ export default async function AgencyDashboardPage({
             : undefined
         }
       />
-
-      <AdminNotice avis={avis} />
 
       {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
       <MiseEnService agencyId={agencyId} />

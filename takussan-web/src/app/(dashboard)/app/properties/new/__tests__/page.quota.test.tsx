@@ -36,7 +36,7 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
     render(withIntl(await Page()));
 
     expect(screen.getByTestId('quota-atteint')).toHaveTextContent('Limite d’annonces atteinte');
-    expect(screen.getByRole('link', { name: 'Voir les offres' })).toHaveAttribute('href', '/admin/agency/billing');
+    expect(screen.getByRole('link', { name: 'Voir les offres' })).toHaveAttribute('href', '/app/agency/billing');
     expect(screen.queryByTestId('assistant')).not.toBeInTheDocument();
   });
 

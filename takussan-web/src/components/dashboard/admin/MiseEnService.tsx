@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2, ChevronRight, Circle } from 'lucide-react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
+import type { CheminAdmin } from '@/lib/access/pages-admin';
 
 /**
  * TCK-589 — la carte « Mise en service » en tête du tableau de bord d'agence (`/app/overview/agency`
@@ -29,13 +30,16 @@ interface SetupStatusResponse {
   readonly data: { readonly complete: boolean; readonly steps: readonly EtapeMiseEnService[] };
 }
 
-/** L'écran qui fait chaque étape. */
-const DESTINATIONS: Readonly<Record<string, string>> = {
-  kyc_verified: '/admin/agency/kyc',
-  logo: '/admin/agency',
-  commission_rate: '/admin/agency',
-  payment_integration: '/admin/settings/integrations',
-  first_member: '/admin/team',
+/**
+ * L'écran qui fait chaque étape. Les pages d'administration sont tenues à la table des pages
+ * (`CheminAdmin`, TCK-649) : un chemin qu'elle ne déclare pas ne compile pas.
+ */
+const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' | '/app/profile'>> = {
+  kyc_verified: '/app/agency/kyc',
+  logo: '/app/agency',
+  commission_rate: '/app/agency',
+  payment_integration: '/app/agency/integrations',
+  first_member: '/app/agency/team',
   first_published_property: '/app/properties/new',
   admin_two_factor: '/app/profile',
 };

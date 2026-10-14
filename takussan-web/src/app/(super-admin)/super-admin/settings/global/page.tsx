@@ -20,8 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = 'force-dynamic';
 
 /**
- * TCK-648 (ADR-0064 §1) — l'éditeur brut de la table clé-valeur `settings`, qui vivait à
- * `/admin/settings` (TCK-068) : une page de la plateforme n'a rien à faire dans l'espace d'une agence.
+ * TCK-648 (ADR-0064 §1) — l'éditeur brut de la table clé-valeur `settings`, qui vivait dans la
+ * console d'agence (TCK-068) : une page de la plateforme n'a rien à faire dans l'espace d'une agence.
  *
  * ⚠ VOISIN des « Paramètres plateforme » (`/super-admin/settings`), pas leur doublon. Les deux lisent
  * la MÊME table, par deux API : `/api/admin/settings` en est la vue catalogue (clés typées, validées,

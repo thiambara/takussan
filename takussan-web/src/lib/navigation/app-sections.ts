@@ -29,7 +29,7 @@ export const LISTES_PAR_SECTION: Readonly<Record<string, string>> = {
  */
 export function listePour(pathname: string | null | undefined): string | null {
   const [espace, section] = (pathname ?? '').split('/').filter(Boolean);
-  // `espace` est vérifié : sans lui, `/admin/properties/9` rendait `/app/properties`. La frontière
+  // `espace` est vérifié : sans lui, `/super-admin/properties/9` rendrait `/app/properties`. La frontière
   // `not-found` de ce répertoire ne voit que `/app`, mais une fonction exportée finit ailleurs.
   if (espace !== 'app' || !section) return null;
   return LISTES_PAR_SECTION[section] ?? null;

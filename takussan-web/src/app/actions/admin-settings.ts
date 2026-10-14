@@ -192,7 +192,7 @@ export async function createIntegrationAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await createIntegration(auth.token, payload, await getActiveProfileId());
-    revalidatePath('/admin/settings/integrations');
+    revalidatePath('/app/agency/integrations');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -212,7 +212,7 @@ export async function updateIntegrationAction(
       payload,
       await getActiveProfileId(),
     );
-    revalidatePath('/admin/settings/integrations');
+    revalidatePath('/app/agency/integrations');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -239,7 +239,7 @@ export async function deleteIntegrationAction(
   if (!auth.ok) return auth.result;
   try {
     await deleteIntegration(auth.token, integrationId, await getActiveProfileId());
-    revalidatePath('/admin/settings/integrations');
+    revalidatePath('/app/agency/integrations');
     return { ok: true };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

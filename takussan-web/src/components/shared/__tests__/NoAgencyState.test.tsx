@@ -14,8 +14,8 @@ function rendre(acces: AccesAdmin | null) {
 
 describe('<NoAgencyState> (TCK-633)', () => {
   it('avec fournisseur : le CTA mène à la première page accessible', () => {
-    rendre({ chemins: ['/admin/agency'], espaceIndividuel: true });
-    expect(screen.getByRole('link', { name: "Aller à l'administration" })).toHaveAttribute('href', '/admin/agency');
+    rendre({ chemins: ['/app/agency'], espaceIndividuel: true });
+    expect(screen.getByRole('link', { name: "Aller à l'administration" })).toHaveAttribute('href', '/app/agency');
   });
 
   it('aucune page accessible : pas de CTA', () => {
@@ -23,7 +23,8 @@ describe('<NoAgencyState> (TCK-633)', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  // TCK-647 — `/admin` n'est plus une page : un lien deviné y mènerait à un 404.
+  // TCK-647 — l'ancien tableau de bord de la console n'est plus une page : un lien deviné
+  // mènerait à un 404.
   it('sans fournisseur : pas de CTA plutôt qu’un lien deviné', () => {
     rendre(null);
     expect(screen.queryByRole('link')).toBeNull();

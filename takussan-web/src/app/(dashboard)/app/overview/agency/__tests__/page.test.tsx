@@ -8,7 +8,7 @@ import { withIntl } from '@/test/intl';
 
 /**
  * TCK-647 (ADR-0064 §3) — `/app/overview/agency` est LE tableau de bord d'agence : il a absorbé
- * celui de `/admin`.
+ * celui de l'ancienne console d'agence.
  *
  * La page est EXÉCUTÉE, et ses blocs sont les VRAIS composants : AC2 (« aucun chiffre deux fois »)
  * est une propriété du texte rendu par la page ENTIÈRE, qu'aucun test de composant ne peut voir —
@@ -18,7 +18,7 @@ import { withIntl } from '@/test/intl';
  *
  * AC3 (« une seule lecture ») se compte au point le plus bas : `apiRequest`. Compter les appels
  * d'UNE fonction de lecture aurait été vert avec une page qui en appelle deux différentes — c'était
- * exactement l'état d'avant, `fetchDashboardAgency` sous `/admin` et `fetchAgencyDashboard` ici.
+ * exactement l'état d'avant, `fetchDashboardAgency` dans l'ancienne console et `fetchAgencyDashboard` ici.
  */
 
 const { getMe, resolveAgency, apiRequest } = vi.hoisted(() => ({
@@ -96,9 +96,9 @@ function appelsDuTableauDeBord(): unknown[][] {
   );
 }
 
-async function rendre(searchParams: Record<string, string> = {}) {
+async function rendre() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const page = (await Page({ searchParams: Promise.resolve(searchParams) })) as ReactNode;
+  const page = (await Page()) as ReactNode;
   return render(withIntl(<QueryClientProvider client={client}>{page}</QueryClientProvider>));
 }
 
@@ -134,7 +134,7 @@ describe('/app/overview/agency — le tableau de bord unique (TCK-647)', () => {
     const occupation = screen.getByRole('heading', { name: 'Occupation — 12 derniers mois' });
 
     expect(miseEnService).toHaveAttribute('data-agency', '7');
-    // Ce qui demande un geste passe avant ce qui décrit un état (TCK-375, repris de `/admin`).
+    // Ce qui demande un geste passe avant ce qui décrit un état (TCK-375, repris de l'ancienne console).
     expect(suit(miseEnService, files)).toBe(true);
     expect(suit(files, indicateurs)).toBe(true);
     expect(suit(indicateurs, activite)).toBe(true);
@@ -175,7 +175,7 @@ describe('/app/overview/agency — le tableau de bord unique (TCK-647)', () => {
     expect(comptes).toEqual(Object.fromEntries(Object.keys(chiffres).map((champ) => [champ, 1])));
 
     // Les séries temporelles : chacune dans UN graphique. Avant la fusion, les revenus étaient
-    // tracés deux fois (barres de `/admin`, courbe de `/app/overview/agency`).
+    // tracés deux fois (barres de l'ancienne console, courbe de `/app/overview/agency`).
     const series = screen.getAllByTestId('graphe').map((g) => g.getAttribute('data-series'));
     expect(series.filter((s) => s?.includes('Revenus'))).toHaveLength(1);
     expect(series.filter((s) => s?.includes("Taux d'occupation"))).toHaveLength(1);
@@ -220,14 +220,5 @@ describe('/app/overview/agency — le tableau de bord unique (TCK-647)', () => {
     expect(screen.queryByText("Taux d'impayés")).toBeNull();
     // La mise en service ne dépend pas de la charge : elle reste.
     expect(screen.getByTestId('bloc-mise-en-service')).toBeInTheDocument();
-  });
-
-  it('le motif d’une redirection est expliqué à l’arrivée ; un motif inconnu ne peint rien', async () => {
-    const { unmount } = await rendre({ notice: 'tags-platform-managed' });
-    expect(screen.getByRole('status')).toHaveTextContent('Les tags sont gérés par la plateforme');
-    unmount();
-
-    await rendre({ notice: 'nimporte-quoi' });
-    expect(screen.queryByRole('status')).toBeNull();
   });
 });

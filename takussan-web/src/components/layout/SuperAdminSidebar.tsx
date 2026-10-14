@@ -169,7 +169,7 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: 'settings',
         icon: SlidersHorizontal,
         ability: 'platform.settings.manage',
-        // TCK-648 (ADR-0064 §1) — l'éditeur brut de la table `settings`, venu de `/admin/settings` :
+        // TCK-648 (ADR-0064 §1) — l'éditeur brut de la table `settings`, venu de l'ancienne console :
         // un ENFANT des paramètres plateforme, qui en sont la vue catalogue. Sans geste : la route
         // qu'il lit (`/api/settings`) ne sert la table entière qu'au `super_admin`.
         children: [{ href: '/super-admin/settings/global', labelKey: 'globalSettings', icon: Database }],

@@ -5,7 +5,8 @@ import type { Setting } from '@/types/setting';
 import type { User } from '@/types/user';
 
 /**
- * TCK-648 — l'éditeur de la table clé-valeur `settings` quitte `/admin/settings` pour la console.
+ * TCK-648 — l'éditeur de la table clé-valeur `settings` quitte la console d'agence pour celle de la
+ * plateforme.
  *
  * La page est EXÉCUTÉE ; `redirect` lève, comme le vrai. Le layout de `/super-admin` ouvre la
  * console à tout opérateur (`viewer`, `support` compris, TCK-600) : c'est cette page qui réserve

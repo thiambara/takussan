@@ -8,7 +8,7 @@ use App\Models\Enums\Capability;
 use App\Models\User;
 
 /**
- * TCK-279 — gate de la console `/admin/roles`.
+ * TCK-279 — gate de la console `/app/agency/roles` (ex-`/admin/roles`, ADR-0064).
  *
  * La policy **désigne** ses capacités : chaque méthode nomme un cas typé de
  * `Capability`, elle n'en fabrique aucun par concaténation. Une capacité

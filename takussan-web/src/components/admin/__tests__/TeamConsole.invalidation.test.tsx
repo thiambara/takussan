@@ -48,7 +48,7 @@ vi.mock('@/components/admin/PendingInvitationsSection', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-  usePathname: () => '/admin/team',
+  usePathname: () => '/app/agency/team',
 }));
 
 vi.mock('@/context/AuthContext', () => ({

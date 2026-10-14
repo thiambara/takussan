@@ -45,8 +45,8 @@ const ADMIN = {
   agency_id: 7,
 } as unknown as User;
 
-const SOLO: AccesAdmin = { chemins: ['/admin/agency', '/admin/finances'], espaceIndividuel: true };
-const STANDARD: AccesAdmin = { chemins: ['/admin', '/admin/agency'], espaceIndividuel: false };
+const SOLO: AccesAdmin = { chemins: ['/app/agency', '/app/agency/finances'], espaceIndividuel: true };
+const STANDARD: AccesAdmin = { chemins: ['/app/agency/team', '/app/agency'], espaceIndividuel: false };
 
 async function ouvrir(acces: AccesAdmin, locale: LocaleDeTest = 'fr') {
   render(
@@ -70,17 +70,17 @@ describe('<UserMenu> (TCK-633)', () => {
     evenements.length = 0;
   });
 
-  it('solo : « Mon espace » ouvre sa première page, jamais /admin', async () => {
+  it('solo : « Mon espace » ouvre sa première page', async () => {
     const user = await ouvrir(SOLO);
     expect(screen.queryByRole('menuitem', { name: 'Administration' })).toBeNull();
     await user.click(await screen.findByRole('menuitem', { name: 'Mon espace' }));
-    expect(push).toHaveBeenCalledWith('/admin/agency');
+    expect(push).toHaveBeenCalledWith('/app/agency');
   });
 
-  it('admin standard : « Administration » ouvre /admin', async () => {
+  it('admin standard : « Administration » ouvre sa première page, /app/agency/team', async () => {
     const user = await ouvrir(STANDARD);
     await user.click(await screen.findByRole('menuitem', { name: 'Administration' }));
-    expect(push).toHaveBeenCalledWith('/admin');
+    expect(push).toHaveBeenCalledWith('/app/agency/team');
   });
 
   it("aucune page accessible : pas d'entrée d'administration", async () => {

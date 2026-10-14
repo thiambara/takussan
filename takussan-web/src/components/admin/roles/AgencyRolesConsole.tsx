@@ -29,7 +29,7 @@ interface AgencyRolesConsoleProps {
 }
 
 /**
- * TCK-279 (AC11) — écran `/admin/roles` : la liste à gauche, l'éditeur à
+ * TCK-279 (AC11) — écran `/app/agency/roles` : la liste à gauche, l'éditeur à
  * droite.
  *
  * ## Les gestes sont gardés par CAPACITÉ, pas par type de profil (AC12)

@@ -69,16 +69,16 @@ describe('<AgencyQueues>', () => {
 
     const hrefs = Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual([
-      '/admin/agency/kyc',
-      '/admin/moderation/properties',
-      '/admin/team',
+      '/app/agency/kyc',
+      '/app/agency/moderation/properties',
+      '/app/agency/team',
       // ⚠ `?tab=impayes` fait partie de l'AC, pas de la décoration : `AdminFinancesTabs` ouvre
       // sinon sur « encaissements », et la ligne mènerait à côté de ce qu'elle annonce.
-      '/admin/finances?tab=impayes',
+      '/app/agency/finances?tab=impayes',
     ]);
 
-    // Toutes les destinations restent DANS la console : aucun lien ne sort vers `/app`.
-    expect(hrefs.every((h) => h?.startsWith('/admin/'))).toBe(true);
+    // Toutes les destinations sont des pages d'administration de l'agence (TCK-649 : `/app/agency`).
+    expect(hrefs.every((h) => h?.startsWith('/app/agency/'))).toBe(true);
   });
 
   it('le lien « impayés » vise un onglet qui EXISTE, vérifié contre la table de `AdminFinancesTabs`', async () => {
@@ -87,7 +87,7 @@ describe('<AgencyQueues>', () => {
 
     const href = Array.from(container.querySelectorAll('a'))
       .map((a) => a.getAttribute('href') ?? '')
-      .find((h) => h.startsWith('/admin/finances'));
+      .find((h) => h.startsWith('/app/agency/finances'));
     const onglet = new URL(href ?? '', 'https://x.test').searchParams.get('tab');
 
     // Un `?tab=` inconnu retombe en SILENCE sur « encaissements » (`isTabValue`) : le lien

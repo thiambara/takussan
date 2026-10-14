@@ -100,15 +100,22 @@ initialisé **une fois** par le layout racine, que la navigation douce ne remont
 `set-token`/`logout`, et sur tout effacement du cookie hors de `src/app/api/auth/`.
 
 **Le garde de route serveur est `src/proxy.ts`** — Next 16 a renommé `middleware.ts` → `proxy.ts`.
-Il redirige `/app/*` et `/admin/*` vers `/auth/login?redirect=…` sans cookie, et `/auth/*` vers `/app`
-avec cookie.
+Il redirige `/app/*` vers `/auth/login?redirect=…` sans cookie, et `/auth/*` vers `/app` avec cookie.
+`/admin/*` n'existe plus (ADR-0064, sans redirection) : aucune page ne le sert et le proxy ne le
+nomme plus — `scripts/check-pro-routes.mjs` casse si un fichier de route le sert à nouveau.
 
 > ⚠️ Son matcher **ne couvre pas `/super-admin/*`** : cette surface ne tient que par la défense en
 > profondeur des layouts.
 
 **Défense en profondeur dans les layouts serveur** : `(dashboard)/layout.tsx` appelle `getMeAction()` ;
-`(dashboard)/admin/layout.tsx` ajoute `if (!isAdmin(user.roles)) redirect('/app/profile')` ;
-`(super-admin)/super-admin/layout.tsx` vérifie token puis `isSuperAdmin`. `getMeAction` est mémoïsé
+`(dashboard)/app/agency/layout.tsx` (la section d'administration d'agence, ADR-0064) ajoute
+`if (!isAdmin(user.roles)) redirect('/app')`, et chaque page de la section se garde par son chemin
+(`garderPageAdmin`, table `PAGES_ADMIN`, `scripts/check-pro-routes.mjs`) ;
+`(super-admin)/super-admin/layout.tsx` exige le jeton de l'**opérateur** (`getOperatorToken`, même
+pendant une impersonation), renvoie vers la configuration du second facteur s'il en manque un, puis
+ouvre la console à tout opérateur portant le geste `platform.console.access` (lu à l'API,
+`fetchPlatformAbilities`) — **pas** au seul rôle `super_admin` depuis TCK-600 (ADR-0047) ; sinon
+`redirect('/app')`. `getMeAction` est mémoïsé
 par requête via `cache()` de React et redirige vers `/api/auth/session-expired` sur 401 — **les
 cookies sont read-only en RSC**, c'est pourquoi l'effacement passe par un route handler.
 
@@ -126,7 +133,7 @@ Prédicats de rôle : `src/lib/roles.ts:14-64`. Verrouillage des routes pro :
 ## Structure
 
 ```
-src/app/         217 fichiers — 4 route groups : (auth) (dashboard)→/app+/admin (public) (super-admin)
+src/app/         217 fichiers — 4 route groups : (auth) (dashboard)→/app (public) (super-admin)
                  + segments /onboarding /maintenance /publish · 111 page.tsx · 31 route.ts
 src/app/actions/ 20 modules de server actions
 src/components/  451 fichiers
@@ -168,7 +175,7 @@ dans ce projet (`components.json`, et `grep radix package.json` → 0). 20 compo
 documenté (`src/components/charts/README.md`).
 
 **Responsive — `md` n'est pas « bureau » dans une coque à barre latérale.** `md:` (768 px) est le
-seuil où `/app`, `/admin` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
+seuil où `/app` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
 passe « en colonnes dès `md` » dispose de 768 − 256 − 48 = **464 px**, pas de 768. Mesuré le
 2026-09-02 sur 135 écrans : 55 pages faisaient défiler le document à 768, **aucune** à 360, 390 ou
 1366 (TCK-505, `docs/qa/responsive-2026-09-02.md`). La règle : dans ces coques, ce qui se pose en

@@ -14,8 +14,8 @@ import type { User } from '@/types/user';
  *
  * 429 et 5xx ne disent rien de l'agence — ils disent que l'API n'a pas répondu. Les traiter
  * comme un refus produit, pour l'utilisateur, quelque chose d'INDISCERNABLE d'un déclassement
- * de forfait : un `agency_admin` d'une agence `standard` se voit éjecté des cinq routes
- * `/admin/*`, tous les accès pro cadenassés dans la barre latérale, et pas un mot. Il conclut
+ * de forfait : un `agency_admin` d'une agence `standard` se voit éjecté des cinq routes de la
+ * console d'administration, tous les accès pro cadenassés dans la barre latérale, et pas un mot. Il conclut
  * qu'on lui a retiré son plan.
  *
  * *Fail-closed est la bonne règle pour la DÉCISION ; ce n'est pas une raison de mentir sur la
@@ -88,7 +88,7 @@ const classer = (e: unknown): Verdict => {
 /**
  * UNE requête d'agence par rendu, mémoïsée — le patron déjà employé par `getMeAction`.
  *
- * Chaque rendu de `/admin/*` en tirait DEUX : une dans le layout pour le cadenas (`affichage`),
+ * Chaque rendu de la console d'administration en tirait DEUX : une dans le layout pour le cadenas (`affichage`),
  * une dans la page pour la décision. Rien ne les dédupliquait — `apiRequest` pose un
  * `Authorization` et aucune indication de cache. On doublait donc le débit sur le seul endpoint
  * dont le 429 vient d'être transformé en redirection dure : la requête du cadenas pouvait être
@@ -158,7 +158,7 @@ export async function resolveAgencyOrNull(
     const verdict = classer(e);
     // Le NIVEAU suit le verdict. Un `refus` (401/403/404) est une réponse normale et attendue —
     // le code le dit lui-même : « il n'y a rien à expliquer ». L'écrire en `error` produisait une
-    // ligne d'erreur à CHAQUE rendu de CHAQUE page `/app/*` et `/admin/*` pour un utilisateur
+    // ligne d'erreur à CHAQUE rendu de CHAQUE page de la console pour un utilisateur
     // dont l'agence n'est pas dans `visibleAgencyIds()` — un état que cette PR documente comme
     // atteignable. *Un journal d'erreurs où le normal figure cesse d'être lu.*
     (verdict === 'refus' ? console.warn : console.error)(
@@ -175,7 +175,7 @@ export async function resolveAgencyOrNull(
     // ou un corps non-JSON — une page d'interstitiel de proxy, une passerelle qui rend du vide —
     // donne `data === null`, et `fetchAgency` lève un `TypeError` sur `res.data`. Verdict
     // « bug », relancé depuis `app/layout.tsx` (dans un `Promise.all`, donc tout le layout
-    // rejette) et depuis `admin/layout.tsx`. Toute la coquille `/app/*` et `/admin/*` basculait
+    // rejette) et depuis le layout de l'ancienne console. Toute la coquille de la console basculait
     // sur la frontière d'erreur, là où l'ancien `.catch(() => null)` perdait juste un cadenas.
     //
     // *Un paramètre qui distingue deux contrats doit être consulté sur CHAQUE sortie, pas sur
@@ -230,7 +230,7 @@ export async function ensureStandardAgencyOrRedirect(user: User): Promise<void> 
   // 1. `fetchAgency` avale son erreur en `null` : `if (agency && …)` laissait s'afficher la
   //    console Standard-only à une agence `individual` dès que l'API toussait.
   // 2. Corrigé dans les pages qui écrivent le test en ligne, mais pas ici — l'instance, pas la
-  //    classe. Ce site-ci est le plus important : il garde CINQ routes /admin/*.
+  //    classe. Ce site-ci est le plus important : il gardait CINQ routes de la console.
   // 3. Corrigé ici aussi… en laissant un `if (!token) return;` juste au-dessus. La même porte,
   //    un cran plus haut : sans jeton, la décision n'était pas *prise*, elle était *sautée*.
   //
