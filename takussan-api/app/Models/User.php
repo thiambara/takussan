@@ -527,11 +527,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return $this->hasMany(Booking::class, 'created_by_id');
     }
 
-    public function bookingPayments(): HasMany
-    {
-        return $this->hasMany(BookingPayment::class);
-    }
-
     public function customers(): HasMany
     {
         return $this->hasMany(Customer::class, 'added_by_id');
@@ -552,7 +547,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return $this->morphMany(Review::class, 'reviewable');
     }
 
-    public function conversations()
+    public function conversations(): BelongsToMany
     {
         return $this->belongsToMany(Conversation::class, 'conversation_participants')
             ->using(ConversationParticipant::class)
