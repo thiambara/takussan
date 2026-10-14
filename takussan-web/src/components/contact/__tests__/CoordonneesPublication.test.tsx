@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
-import { CoordonneesPublication } from '../CoordonneesPublication';
+import { CoordonneesPublication, manquesLocaux } from '../CoordonneesPublication';
 
 const m = vi.hoisted(() => ({
   maj: vi.fn(),
@@ -35,9 +35,11 @@ beforeEach(() => {
 });
 
 describe('<CoordonneesPublication> — TCK-633', () => {
-  it('rien à demander : rien ne s’affiche', () => {
-    const { container } = render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
-    expect(container).toBeEmptyDOMElement();
+  it('rien à demander : le numéro vérifié s’affiche quand même, sans formulaire (TCK-643)', () => {
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+    expect(screen.getByTestId('numero-verifie')).toHaveTextContent('+221 77 000 09 01');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('CGU jamais acceptées : la phrase et le lien', () => {
@@ -114,8 +116,9 @@ describe('<CoordonneesPublication> — TCK-633', () => {
 
   it('WhatsApp déjà répondu « non » : la question ne revient pas', () => {
     m.courant.user = { ...PRET, phone_whatsapp: false };
-    const { container } = render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
-    expect(container).toBeEmptyDOMElement();
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+    expect(screen.queryByText('Ce numéro reçoit-il WhatsApp ?')).not.toBeInTheDocument();
+    expect(screen.getByTestId('numero-verifie')).not.toHaveTextContent('WhatsApp');
   });
 
   it('vérifier le numéro sans cocher WhatsApp enregistre « non », pas « jamais répondu »', async () => {
@@ -189,5 +192,108 @@ describe('<CoordonneesPublication> — contexte périmé (TCK-633, tour 3)', () 
     expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 0));
     expect(m.refreshUser).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * TCK-643 — relevé du porteur (2026-10-14) : un compte dont le ou les numéros sont déjà vérifiés
+ * ne voyait RIEN à la dernière étape. Chaque numéro que les visiteurs appelleront s'affiche,
+ * formaté, « Vérifié », avec son WhatsApp — selon la règle de l'API (non vide ET vérifié).
+ */
+describe('<CoordonneesPublication> — les numéros déjà vérifiés (TCK-643)', () => {
+  const SECOND: Partial<User> = {
+    secondary_phone: '+221780000902', secondary_phone_verified_at: '2026-10-02T00:00:00Z', secondary_phone_whatsapp: true,
+  };
+
+  it('AC1 — numéro principal vérifié : listé, formaté, « Vérifié », WhatsApp indiqué', () => {
+    m.courant.user = { ...PRET, phone_whatsapp: true };
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+
+    const liste = screen.getByRole('list', { name: 'Vos numéros vérifiés' });
+    expect(within(liste).getAllByRole('listitem')).toHaveLength(1);
+    const principal = screen.getByTestId('numero-verifie');
+    expect(principal).toHaveTextContent('+221 77 000 09 01');
+    expect(principal).toHaveTextContent('Numéro principal');
+    expect(principal).toHaveTextContent('Vérifié');
+    expect(principal).toHaveTextContent('WhatsApp');
+    expect(screen.getByText('Vos coordonnées pour les intéressés')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Votre numéro')).not.toBeInTheDocument();
+  });
+
+  it('AC2 — second numéro vérifié : les deux sont listés, chacun « Vérifié »', () => {
+    m.courant.user = { ...PRET, phone_whatsapp: false, ...SECOND };
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+
+    const items = within(screen.getByRole('list', { name: 'Vos numéros vérifiés' })).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('+221 77 000 09 01');
+    expect(items[0]).not.toHaveTextContent('WhatsApp');
+    expect(items[1]).toHaveTextContent('+221 78 000 09 02');
+    expect(items[1]).toHaveTextContent('Second numéro');
+    expect(items[1]).toHaveTextContent('WhatsApp');
+    for (const item of items) expect(item).toHaveTextContent('Vérifié');
+    expect(screen.getByText('Les visiteurs vous joindront à ces numéros. Ils ne sont révélés qu’à leur demande.')).toBeInTheDocument();
+  });
+
+  it('un second numéro NON vérifié n’est pas listé : l’API ne le servirait pas', () => {
+    m.courant.user = { ...PRET, secondary_phone: '+221780000902', secondary_phone_verified_at: null };
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+
+    expect(within(screen.getByRole('list', { name: 'Vos numéros vérifiés' })).getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByText('+221 78 000 09 02')).not.toBeInTheDocument();
+  });
+
+  it('AC3 — principal non vérifié : la saisie du code reste ; le second vérifié est listé seul', () => {
+    m.courant.user = { ...PRET, phone_verified_at: null, ...SECOND };
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+
+    expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recevoir un code' })).toBeInTheDocument();
+    const items = within(screen.getByRole('list', { name: 'Vos numéros vérifiés' })).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent('Second numéro');
+    expect(screen.queryByTestId('numero-verifie')).not.toBeInTheDocument();
+  });
+
+  it('le serveur dit le principal non vérifié (contexte périmé) : il n’est pas présenté comme vérifié', () => {
+    render(withIntl(<CoordonneesPublication manquantsServeur={['verified_phone']} contactEstSoi />));
+
+    expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
+    expect(screen.queryByTestId('numero-verifie')).not.toBeInTheDocument();
+  });
+
+  it('WhatsApp jamais répondu : la question est posée DANS la ligne du numéro principal', () => {
+    m.courant.user = { ...PRET, phone_whatsapp: null, ...SECOND };
+    render(withIntl(<CoordonneesPublication manquantsServeur={null} contactEstSoi />));
+
+    expect(within(screen.getByTestId('numero-verifie')).getByText('Ce numéro reçoit-il WhatsApp ?')).toBeInTheDocument();
+    expect(screen.getAllByText('Ce numéro reçoit-il WhatsApp ?')).toHaveLength(1);
+  });
+
+  it('le contact est un autre : aucun numéro du compte connecté n’est montré', () => {
+    m.courant.user = { ...PRET, ...SECOND };
+    render(withIntl(<CoordonneesPublication manquantsServeur={['verified_phone']} contactEstSoi={false} />));
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByText('+221 77 000 09 01')).not.toBeInTheDocument();
+    expect(screen.queryByText('+221 78 000 09 02')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-643, AC4 — ce que l'écran croit manquer ne change pas : un second numéro vérifié ne
+ * remplace JAMAIS le principal (l'API, `PublishReadiness::missing`, ne juge que lui). Table figée
+ * sur le comportement d'avant le ticket.
+ */
+describe('manquesLocaux — inchangé par TCK-643 (AC4)', () => {
+  const SECOND = { secondary_phone: '+221780000902', secondary_phone_verified_at: '2026-10-02T00:00:00Z' };
+  it.each([
+    ['principal vérifié', { ...PRET }, []],
+    ['principal + second vérifiés', { ...PRET, ...SECOND }, []],
+    ['second vérifié seul', { ...PRET, phone_verified_at: null, ...SECOND }, ['verified_phone']],
+    ['rien de vérifié', { ...PRET, phone: null, phone_verified_at: null }, ['verified_phone']],
+    ['sans prénom, principal vérifié', { ...PRET, first_name: ' ' }, ['first_name']],
+  ] as const)('%s', (_cas, user, attendu) => {
+    expect(manquesLocaux(user)).toEqual(attendu);
   });
 });

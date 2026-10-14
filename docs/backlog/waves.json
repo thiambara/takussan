@@ -70,6 +70,7 @@
     "73": "Améliorations par acteur — analyse back + front du 2026-10-06 : 17 tickets à territoires disjoints (TCK-586 → TCK-602), courtier retiré (ADR-0030)",
     "74": "Retours du porteur du 2026-10-11 : accès admin, publication sans friction, formulaire de bien, filtres, boost en crédits (TCK-633, ADR-0061, ADR-0062)",
     "75": "Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)",
-    "76": "Suites de la vague 73 — défauts relevés par les contre-vérifications adverses, hors périmètre de leur ticket, re-mesurés sur dev le 2026-10-08 (TCK-605 → TCK-619)"
+    "76": "Suites de la vague 73 — défauts relevés par les contre-vérifications adverses, hors périmètre de leur ticket, re-mesurés sur dev le 2026-10-08 (TCK-605 → TCK-619)",
+    "77": "Retours du porteur du 2026-10-14 : navigation mobile premium, solde de crédits dans les barres, numéros vérifiés à la publication, Mes biens et Messagerie en mobile, ordre du menu de /app (TCK-641 → TCK-646)"
   }
 }

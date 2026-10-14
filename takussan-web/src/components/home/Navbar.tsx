@@ -4,15 +4,15 @@ import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition
 import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Menu, X, ChevronUp, Building2, PlusCircle, HelpCircle, LogOut, UserCircle, UserRound, Search, Loader2, MapPin } from 'lucide-react';
-import { useTranslations, useLocale } from 'next-intl';
+import { ArrowLeft, Menu, X, ChevronUp, ChevronRight, Building2, Coins, Plus, PlusCircle, HelpCircle, LogOut, UserCircle, UserRound, Search, Loader2, MapPin, type LucideIcon } from 'lucide-react';
+import { useFormatter, useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { SelecteurDeTransaction, type Transaction } from '@/components/search/SelecteurDeTransaction';
 import { ouvrirLeClavierDansLeGeste } from '@/components/search/clavierDansLeGeste';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { navLinks, categories, moreCategories } from '@/data/navigation';
+import { categories, moreCategories } from '@/data/navigation';
 import { ICONES_DE_CATEGORIE as iconMap } from '@/components/home/icones-de-categorie';
 import { useAuth } from '@/context/AuthContext';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
@@ -29,6 +29,9 @@ import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
 import { useEntreeSentinelle } from '@/hooks/useEntreeSentinelle';
 import { cn } from '@/lib/utils';
 import { initialesDe, libelleDe, prenomDe } from '@/lib/identite';
+import { HREF_CREDITS, HREF_MES_BIENS, peutOuvrirMesBiens, voitLePortefeuille } from '@/lib/navigation/acces-app';
+import { useSoldeCredits } from '@/lib/queries/credits-solde';
+import { PastilleCredits } from '@/components/credits/PastilleCredits';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
@@ -42,17 +45,67 @@ function estListeDesBiens(pathname: string): boolean {
 }
 
 /**
- * Le lien du menu mobile qui correspond à la page affichée. `navLinks` porte un `active` FIGÉ
- * (« Acheter » à `true`) : le lien s'allumait sur l'accueil, une fiche ou « Louer » même (revue
- * design du 2026-09-16). L'état se lit désormais dans l'URL.
+ * TCK-641 — une entrée de compte du menu mobile : pictogramme dans sa tuile, libellé, une valeur
+ * éventuelle en bout de ligne, chevron. 56 px de haut : une cible généreuse au pouce.
  */
-function lienActif(href: string, pathname: string, searchParams: URLSearchParams): boolean {
-  const [chemin, requete] = href.split('?');
-  if (chemin === '/properties') {
-    const transaction = new URLSearchParams(requete).get('contract_type');
-    return estListeDesBiens(pathname) && searchParams.get('contract_type') === transaction;
-  }
-  return pathname === chemin || pathname.startsWith(`${chemin}/`);
+interface EntreeDuMenuProps {
+  readonly href: string;
+  readonly icone: LucideIcon;
+  readonly libelle: string;
+  readonly onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  readonly valeur?: React.ReactNode;
+  readonly nomAccessible?: string;
+}
+
+function EntreeDuMenu({ href, icone: Icone, libelle, onClick, valeur, nomAccessible }: EntreeDuMenuProps) {
+  return (
+    <li>
+      <LienLocalise
+        href={href}
+        replace
+        onClick={onClick}
+        aria-label={nomAccessible}
+        className="flex min-h-14 items-center gap-3.5 px-3.5 py-2 text-[15px] font-medium text-foreground outline-none transition-colors hover:bg-muted active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
+          <Icone className="size-[18px]" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 truncate">{libelle}</span>
+        {valeur}
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </LienLocalise>
+    </li>
+  );
+}
+
+/**
+ * TCK-642 — l'entrée « Crédits » du menu mobile, avec le solde de l'espace actif. Montée par la
+ * navbar pour qui voit le portefeuille seulement — elle lit l'API dès son montage —, et ne rend
+ * RIEN tant que le solde n'est pas connu : un refus (403) ou une panne ne laisse ni lien vers un
+ * refus, ni « 0 » qui ne serait pas un solde.
+ */
+function EntreeCredits({ onClick }: { readonly onClick: EntreeDuMenuProps['onClick'] }) {
+  const t = useTranslations('nav');
+  const format = useFormatter();
+  const solde = useSoldeCredits({ enabled: true });
+  if (solde === null) return null;
+  return (
+    <EntreeDuMenu
+      href={HREF_CREDITS}
+      icone={Coins}
+      libelle={t('sidebar.credits')}
+      onClick={onClick}
+      nomAccessible={t('creditsBalance', { count: solde })}
+      valeur={
+        <span
+          data-slot="solde-credits"
+          className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-sm font-semibold tabular-nums text-primary-foreground"
+        >
+          {format.number(solde)}
+        </span>
+      }
+    />
+  );
 }
 
 export interface NavbarProps {
@@ -85,7 +138,6 @@ export function Navbar({ className }: NavbarProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('nav');
   const tCategories = useTranslations('property.types');
-  const tLinks = useTranslations('nav.links');
   const tCommon = useTranslations('common');
   const [menuOpen, setMenuOpen] = useState(false);
   // TCK-551 — fermer le menu rend le focus au bouton menu, y compris par un appui sur le voile.
@@ -120,7 +172,7 @@ export function Navbar({ className }: NavbarProps) {
    * lien) — un `back()` ne doit ni défaire la navigation ni la laisser derrière la page d'arrivée.
    * Deux cas où il ne navigue pas, et où la sentinelle se rend donc par `back()` comme à la croix :
    * - la cible est la page courante — le lien ne fait que fermer, comme avant ce ticket (mesuré :
-   *   logo sur `/fr`, « Acheter » sur la liste des achats → même URL, même position) ;
+   *   logo sur `/fr` → même URL, même position) ;
    * - un clic modifié (nouvel onglet) : la page ne change pas.
    */
   const quitterParUnLien = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -483,6 +535,8 @@ export function Navbar({ className }: NavbarProps) {
             <div className="size-8 rounded-full bg-muted animate-pulse" />
           ) : user ? (
             <>
+              {/* TCK-642 — le solde de l'espace actif, à côté de l'appel à publier qu'il finance. */}
+              {voitLePortefeuille(user.roles) ? <PastilleCredits ton="clair" /> : null}
               <LienLocalise
                 href="/publish"
                 className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
@@ -677,7 +731,9 @@ export function Navbar({ className }: NavbarProps) {
               overlayClassName="lg:hidden touch-none"
               // `max-h-5/6` et non `max-h-dvh` : en paysage connecté (740 × 360), le panneau
               // couvrait tout l'écran et aucun voile ne restait à toucher pour le fermer (mesuré).
-              className="lg:hidden max-h-5/6 rounded-b-xl bg-popover"
+              // `bg-background` : le fond de la barre que l'en-tête redessine, et sur lequel la liste
+              // de compte (`bg-card`) se détache (TCK-641).
+              className="lg:hidden max-h-5/6 rounded-b-xl bg-background"
             >
               {/* L'en-tête redessine la barre à l'identique — logo à gauche, croix à la place
                   exacte du bouton menu : le panneau recouvre la barre sans rien déplacer. */}
@@ -700,63 +756,61 @@ export function Navbar({ className }: NavbarProps) {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                {/* Mobile nav links */}
-                <div className="flex flex-col px-4 sm:px-6 py-2">
-                  {navLinks.map((link) => {
-                    const actif = lienActif(link.href, pathname, searchParams);
-                    return (
-                      <LienLocalise
-                        key={link.labelKey}
-                        href={link.href}
-                        replace
-                        onClick={quitterParUnLien}
-                        aria-current={actif ? 'page' : undefined}
-                        className={`flex min-h-11 items-center font-semibold text-base transition-colors ${actif ? 'text-primary' : 'text-foreground hover:text-primary'
-                          }`}
-                      >
-                        {tLinks(link.labelKey)}
-                      </LienLocalise>
-                    );
-                  })}
-                </div>
-
-                {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
-                <ChoixDeLangue remplacerLEntree className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
-
-                <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col gap-3">
-                  {user ? (
-                    <>
-                      <div className="flex items-center gap-3 mb-1">
-                        <Avatar size="default" className="bg-primary">
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                            {contenuAvatar}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{libelleCompte}</p>
-                          {user.email && libelleCompte !== user.email ? (
-                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                          ) : null}
-                        </div>
+                {/* TCK-641 — retour du porteur du 2026-10-14 : Louer et Acheter quittent le panneau
+                    (la pastille de recherche porte le choix de la transaction), qui devient l'accès
+                    au COMPTE : identité en tête, entrées de compte groupées, un seul appel fort,
+                    langue et déconnexion en retrait. Chaque bloc prend la gouttière de la barre
+                    (`Navbar.menu-modal.test.tsx`, N7). */}
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3.5 px-4 sm:px-6 pt-5 pb-4">
+                      <Avatar size="lg" className="size-12 bg-primary">
+                        {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                          {contenuAvatar}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate font-display text-lg font-semibold leading-tight tracking-tight text-foreground">
+                          {libelleCompte}
+                        </p>
+                        {user.email && libelleCompte !== user.email ? (
+                          <p className="mt-0.5 truncate text-sm text-muted-foreground">{user.email}</p>
+                        ) : null}
                       </div>
-                      <LienLocalise
-                        href="/app/profile"
-                        replace
-                        onClick={quitterParUnLien}
-                        className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
-                      >
-                        <UserCircle className="size-4 text-muted-foreground" />
-                        {t('myProfile')}
-                      </LienLocalise>
+                    </div>
+
+                    {/* Ordre du ticket : Mon profil, Mes biens, Crédits. « Mes biens » suit la règle
+                        de la page (`peutOuvrirMesBiens`), « Crédits » celle du portefeuille ET un
+                        solde connu (`EntreeCredits`) : jamais un lien qui mène à un refus. */}
+                    <div className="px-4 sm:px-6">
+                      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                        <EntreeDuMenu href="/app/profile" icone={UserCircle} libelle={t('myProfile')} onClick={quitterParUnLien} />
+                        {peutOuvrirMesBiens(user.roles) ? (
+                          <EntreeDuMenu href={HREF_MES_BIENS} icone={Building2} libelle={t('sidebar.myProperties')} onClick={quitterParUnLien} />
+                        ) : null}
+                        {voitLePortefeuille(user.roles) ? <EntreeCredits onClick={quitterParUnLien} /> : null}
+                      </ul>
+                    </div>
+
+                    <div className="px-4 sm:px-6 pt-4 pb-5">
                       <LienLocalise
                         href="/publish"
                         replace
                         onClick={quitterParUnLien}
-                        className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                        className={cn(buttonVariants(), 'h-12 w-full gap-2 rounded-full text-[15px] font-semibold shadow-sm')}
                       >
+                        <Plus className="size-[18px]" aria-hidden="true" />
                         {t('publishListing')}
                       </LienLocalise>
+                    </div>
+
+                    {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
+                    <ChoixDeLangue remplacerLEntree className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
+
+                    <div className="px-4 sm:px-6 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-border">
                       <button
+                        type="button"
                         onClick={() => {
                           // Comme un lien : la redirection vers l'accueil remplace la sentinelle,
                           // sauf si on y est déjà (la sentinelle se rend alors par `back()`).
@@ -765,31 +819,42 @@ export function Navbar({ className }: NavbarProps) {
                           setMenuOpen(false);
                           void handleLogout({ remplacer });
                         }}
-                        className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
+                        className="flex min-h-12 w-full items-center gap-2.5 rounded-lg text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <LogOut className="size-4 text-muted-foreground" />
+                        <LogOut className="size-4" aria-hidden="true" />
                         {t('logout')}
                       </button>
-                    </>
-                  ) : (
-                    <>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-3 px-4 sm:px-6 pt-5 pb-5">
                       {/* TCK-551 (N7) — `cn()` et non `buttonVariants({ className })` : `cva` CONCATÈNE,
-                          il ne fusionne pas. `px-2.5` de la variante et `px-0` d'ici étaient présents
-                          tous les deux, et `px-2.5` gagnait (texte à x = 35 contre 24, mesuré). */}
-                      <LienLocalise href={lienConnexion} replace onClick={quitterParUnLien} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
+                          il ne fusionne pas ; la hauteur et l'arrondi de l'appelant doivent remplacer
+                          ceux de la variante, pas s'y ajouter. */}
+                      <LienLocalise
+                        href={lienConnexion}
+                        replace
+                        onClick={quitterParUnLien}
+                        className={cn(buttonVariants({ variant: 'outline' }), 'h-12 w-full rounded-full text-[15px] font-semibold')}
+                      >
                         {t('login')}
                       </LienLocalise>
                       <LienLocalise
                         href="/publish"
                         replace
                         onClick={quitterParUnLien}
-                        className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                        className={cn(buttonVariants(), 'h-12 w-full gap-2 rounded-full text-[15px] font-semibold shadow-sm')}
                       >
+                        <Plus className="size-[18px]" aria-hidden="true" />
                         {t('publishListing')}
                       </LienLocalise>
-                    </>
-                  )}
-                </div>
+                    </div>
+
+                    {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
+                    <ChoixDeLangue remplacerLEntree className="px-4 sm:px-6 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-border justify-between" />
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>

@@ -23,10 +23,11 @@ const routeur = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi
 /** Les navigations que `next/link` aurait lancées : le lien, et s'il REMPLACE l'entrée courante. */
 const navigations = vi.hoisted(() => [] as Array<{ href: string; replace: boolean }>);
 
+const page = vi.hoisted(() => ({ chemin: '/fr/properties', requete: 'contract_type=sale' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => routeur,
-  useSearchParams: () => new URLSearchParams('contract_type=sale'),
-  usePathname: () => '/fr/properties',
+  useSearchParams: () => new URLSearchParams(page.requete),
+  usePathname: () => page.chemin,
 }));
 
 // Comme `next/link` : le gestionnaire de l'appelant d'abord ; s'il n'a pas annulé, la navigation.
@@ -78,7 +79,7 @@ function monter(strict = false) {
   return render(strict ? <React.StrictMode>{arbre}</React.StrictMode> : arbre);
 }
 
-/** La page courante : « Acheter » y mène, « Louer » en part. */
+/** La page courante — le logo du panneau mène à l'accueil (`/fr`), donc ailleurs. */
 const ICI = '/fr/properties?contract_type=sale';
 const menu = () => screen.queryByRole('dialog', { name: 'Menu' });
 const marque = () => (window.history.state as Record<string, unknown> | null)?.[MARQUE_MENU_MOBILE];
@@ -96,6 +97,8 @@ async function ouvrir(strict = false) {
 }
 
 beforeEach(() => {
+  page.chemin = '/fr/properties';
+  page.requete = 'contract_type=sale';
   // Une entrée de départ qui porte l'état de Next, comme en vrai.
   window.history.replaceState({ __NA: true }, '', ICI);
   navigations.length = 0;
@@ -175,17 +178,22 @@ describe('Menu mobile — le geste retour le ferme (TCK-551, tour 4)', () => {
 
   it('un lien du menu navigue EN REMPLAÇANT la sentinelle, et aucun `back()` ne défait la navigation', async () => {
     const { user, panneau } = await ouvrir();
-    await user.click(within(panneau).getByRole('link', { name: 'Louer' }));
+    // TCK-641 — « Louer » a quitté le panneau : le logo de son en-tête est un lien du menu.
+    await user.click(within(panneau).getByRole('link', { name: 'Takussan' }));
     await waitFor(() => expect(menu()).toBeNull());
     await uneTache();
-    expect(navigations).toEqual([{ href: '/fr/properties?contract_type=rent', replace: true }]);
+    expect(navigations).toEqual([{ href: '/fr', replace: true }]);
     expect(back).not.toHaveBeenCalled();
   });
 
   it('un lien vers la page COURANTE ne navigue pas : il ferme, et rend la sentinelle', async () => {
+    // TCK-641 — « Acheter » sur la liste des achats n'existe plus : le logo, sur l'accueil.
+    page.chemin = '/fr';
+    page.requete = '';
+    window.history.replaceState({ __NA: true }, '', '/fr');
     const { user, panneau } = await ouvrir();
     back.mockImplementation(() => {});
-    await user.click(within(panneau).getByRole('link', { name: 'Acheter' }));
+    await user.click(within(panneau).getByRole('link', { name: 'Takussan' }));
     await waitFor(() => expect(menu()).toBeNull());
     await uneTache();
     expect(navigations).toEqual([]);
