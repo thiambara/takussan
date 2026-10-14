@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
-import { SearchToolbar } from '../SearchToolbar';
+import { PucesDeFiltres, SearchToolbar } from '../SearchToolbar';
 import {
   agregateurDe,
   CLES_DE_RECHERCHE,
@@ -32,6 +32,8 @@ const TOUS_LES_FILTRES: SearchFilters = {
   q: 'villa vue mer',
   location: 'Almadies',
   city: 'Dakar',
+  // TCK-635 — la région précise la ville homonyme : agrégée à `city`, pas de puce propre.
+  region: 'Kolda',
   // TCK-346 — le rayon PORTE la puce, `lat`/`lng` y sont agrégées : trois clés, une puce.
   radius_km: 5,
   lat: 14.6928,
@@ -57,34 +59,45 @@ const TOUS_LES_FILTRES: SearchFilters = {
   per_page: 70,
 };
 
-function monte(filters: SearchFilters, onRemoveFilter = vi.fn()) {
-  render(withIntl(
+/**
+ * TCK-635 — les puces ont quitté l'en-tête des résultats ; elles vivent dans l'état vide
+ * (`SearchEmpty`, TCK-558), par le MÊME composant. Ce qu'elles disent est donc gardé sur
+ * {@link PucesDeFiltres} directement.
+ */
+function montePuces(filters: SearchFilters, onRemoveFilter = vi.fn(), locale?: 'en' | 'wo') {
+  const rendu = render(withIntl(
+    <PucesDeFiltres filters={filters} onRemoveFilter={onRemoveFilter} />,
+    locale,
+  ));
+  return { onRemoveFilter, unmount: rendu.unmount };
+}
+
+function monte(filters: SearchFilters, extra: Partial<React.ComponentProps<typeof SearchToolbar>> = {}) {
+  return render(withIntl(
     <SearchToolbar
       total={12}
       loading={false}
       filters={filters}
       activeCount={17}
-      onRemoveFilter={onRemoveFilter}
       onSortChange={vi.fn()}
-      onPerPageChange={vi.fn()}
       onOpenSidebar={vi.fn()}
+      {...extra}
     />,
   ));
-  return { onRemoveFilter };
 }
 
-/** Les puces, et rien d'autre : les deux `<Select>` et le bouton « Filtres » sont aussi des boutons. */
+/** Les puces, et rien d'autre (`queryAll` : sans filtre, la rangée n'est pas rendue du tout). */
 function puces(): string[] {
-  return screen.getAllByRole('button')
+  return screen.queryAllByRole('button')
     .filter((b) => b.className.includes('bg-primary/8'))
     // Espaces insécables normalisés : `toLocaleString('fr-SN')` sépare les milliers par U+202F,
     // dont la forme exacte dépend de la version d'ICU — ce n'est pas ce que le test garde.
     .map((b) => (b.textContent ?? '').replace(/[\s\u00a0\u202f]+/g, ' ').trim());
 }
 
-describe('<SearchToolbar> — les puces de filtre actif', () => {
+describe('<PucesDeFiltres> — les puces de filtre actif', () => {
   it('libelle CHAQUE filtre actif, et aucune puce ne rend la valeur brute', () => {
-    monte(TOUS_LES_FILTRES);
+    montePuces(TOUS_LES_FILTRES);
 
     expect(puces()).toEqual([
       // TCK-552 — sans guillemets : la puce de recherche libre porte une icône (cf.
@@ -101,24 +114,27 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
       // TCK-552 — la devise des CARTES (`formatPrice`), et non plus « FCFA » écrit par le gabarit.
       '≥ 150 000 F CFA',
       '≤ 900 000 F CFA',
-      '3 ch.',
-      '2 sdb',
+      // TCK-633 — des MINIMUMS : la puce dit « et plus », comme le panneau.
+      '3+ ch.',
+      '2+ sdb',
       '≥ 40 m²',
       '≤ 250 m²',
       'Meublé',
       '★ En vedette',
-      'Rez-de-chaussée',
+      'RDC et +',
       'Dispo dès 01 sept. 2026',
       'Titre : Bail',
       'Neuf',
       'Sur plan',
-      'Tags : piscine,parking',
+      // TCK-633 — les équipements du catalogue, retrouvés par leur slug quelle que soit la casse
+      // de l'URL, se lisent dans la langue de l'écran (`libelleEquipement`, lot D).
+      'Équipements : Piscine, Parking',
     ]);
   });
 
   it('TCK-508 / AC6 — une puce par état, retirée par sa sous-clé', async () => {
     const user = userEvent.setup();
-    const { onRemoveFilter } = monte({ condition: ['new', 'off_plan'] });
+    const { onRemoveFilter } = montePuces({ condition: ['new', 'off_plan'] });
 
     expect(puces()).toEqual(['Neuf', 'Sur plan']);
 
@@ -132,7 +148,7 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
    * de « 70 » ne retirerait rien de visible.
    */
   it('ne fait AUCUNE puce du tri, de la page ni de la taille de page', () => {
-    monte(TOUS_LES_FILTRES);
+    montePuces(TOUS_LES_FILTRES);
     const texte = puces().join(' | ');
     expect(texte).not.toContain('price_asc');
     expect(texte).not.toMatch(/\b7\b/);
@@ -141,7 +157,7 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
 
   it('rend UNE puce par valeur de `type`, et la retire par sa sous-clé', async () => {
     const user = userEvent.setup();
-    const { onRemoveFilter } = monte({ type: ['villa', 'studio'] });
+    const { onRemoveFilter } = montePuces({ type: ['villa', 'studio'] });
 
     expect(puces()).toEqual(['Villa', 'Studio']);
 
@@ -151,17 +167,46 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
 
   /** `floor_number: 0` est falsy : un `if (value)` le ferait disparaître silencieusement. */
   it('garde le rez-de-chaussée, que `0` rendrait falsy', () => {
-    monte({ floor_number: 0 });
-    expect(puces()).toEqual(['Rez-de-chaussée']);
+    montePuces({ floor_number: 0 });
+    expect(puces()).toEqual(['RDC et +']);
+  });
+
+  /** TCK-633 — l'étage est un minimum, et le français accorde le premier étage à part. */
+  it.each([
+    [1, '1er étage et +'],
+    [3, '3e étage et +'],
+  ])('libelle l’étage %i en minimum', (etage, libelle) => {
+    montePuces({ floor_number: etage });
+    expect(puces()).toEqual([libelle]);
   });
 
   it('n’affiche aucune puce quand aucun filtre n’est posé', () => {
-    monte({});
+    montePuces({});
     expect(puces()).toEqual([]);
   });
 });
 
-describe('<SearchToolbar> — AC1, vu à l’exécution', () => {
+/**
+ * TCK-633 (lot E, correction après vérification) — la puce des équipements parle la langue de
+ * l'écran pour le catalogue, et rend tel quel un équipement proposé par un annonceur.
+ */
+describe('<PucesDeFiltres> — la puce des équipements est traduite', () => {
+  function monteEn(locale: 'en' | 'wo', tags: string) {
+    montePuces({ tags }, vi.fn(), locale);
+  }
+
+  it('en anglais : le catalogue traduit, l’équipement proposé tel quel', () => {
+    monteEn('en', 'Piscine,Jardin potager');
+    expect(puces()).toEqual(['Amenities: Swimming pool, Jardin potager']);
+  });
+
+  it('en wolof : le catalogue traduit', () => {
+    monteEn('wo', 'Piscine,Climatisation');
+    expect(puces()).toEqual(['Jumtukaay : Pisin, Klimatisasioŋ']);
+  });
+});
+
+describe('<PucesDeFiltres> — AC1, vu à l’exécution', () => {
   /**
    * Sans ceci, l'échantillon ci-dessus serait une liste écrite à la main de plus : une clé neuve
    * ajoutée à `SEARCH_FILTER_KEYS` et oubliée ici laisserait tous les tests verts en ne testant
@@ -188,13 +233,7 @@ describe('<SearchToolbar> — AC1, vu à l’exécution', () => {
       if (SEARCH_FILTER_KEYS[cle].role !== 'filtre') continue;
       if (LIBELLE_BRUT_ASSUME.includes(cle)) continue;
       const valeur = TOUS_LES_FILTRES[cle];
-      const { unmount } = render(withIntl(
-        <SearchToolbar
-          total={1} loading={false} filters={{ [cle]: valeur } as SearchFilters}
-          activeCount={1} onRemoveFilter={vi.fn()} onSortChange={vi.fn()}
-          onPerPageChange={vi.fn()} onOpenSidebar={vi.fn()}
-        />,
-      ));
+      const { unmount } = montePuces({ [cle]: valeur } as SearchFilters);
       const rendues = puces();
       if (agregateurDe(cle)) {
         // TCK-346 — une clé AGRÉGÉE ne rend rien seule, et c'est l'invariant : sa puce est
@@ -227,8 +266,8 @@ describe('<SearchToolbar> — le tri par distance suit le point', () => {
   async function optionsDeTri(filters: SearchFilters): Promise<string[]> {
     const user = userEvent.setup();
     monte(filters);
-    // Deux `combobox` : la taille de page, puis le tri.
-    await user.click(screen.getAllByRole('combobox')[1]);
+    // TCK-635 — un seul `combobox` : la taille de page est descendue à côté de la pagination.
+    await user.click(screen.getByRole('combobox', { name: /trier/i }));
     // `findAllByRole` et non `queryAllByRole` : le panneau du `Select` (base-ui) se monte dans
     // un portail au tour de boucle SUIVANT. Lu synchroniquement, il rend une liste vide — donc
     // un « l'option n'est pas offerte » qui serait vrai de TOUTES les options à la fois.
@@ -299,20 +338,8 @@ describe('<SearchToolbar> — le compteur tient sur une ligne, les contrôles pa
 });
 
 describe('<SearchToolbar> — le compteur et le résultat nul (TCK-558)', () => {
-  function monteAvec(total: number | null, afficherPuces?: boolean) {
-    render(withIntl(
-      <SearchToolbar
-        total={total}
-        loading={false}
-        filters={{ city: 'Dakar', type: ['villa', 'house'] }}
-        activeCount={2}
-        onRemoveFilter={vi.fn()}
-        onSortChange={vi.fn()}
-        onPerPageChange={vi.fn()}
-        onOpenSidebar={vi.fn()}
-        afficherPuces={afficherPuces}
-      />,
-    ));
+  function monteAvec(total: number | null) {
+    monte({ city: 'Dakar', type: ['villa', 'house'] }, { total, activeCount: 2 });
     return document.querySelector('p[aria-live]');
   }
 
@@ -323,15 +350,60 @@ describe('<SearchToolbar> — le compteur et le résultat nul (TCK-558)', () => 
   it('à un, il reste au singulier ; au-delà, au pluriel', () => {
     expect(monteAvec(1)).toHaveTextContent(/^1 bien trouvé$/);
   });
+});
 
-  it('`afficherPuces={false}` retire la rangée des puces, et elle seule', () => {
-    monteAvec(0, false);
-    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
-    expect(screen.getByRole('button', { name: /filtres/i })).toBeInTheDocument();
+/**
+ * TCK-635 — l'en-tête des résultats sur UNE ligne au bureau (retour du porteur du 2026-10-12) :
+ * le titre, le nombre de biens, puis le tri, « Sauvegarder » et la bascule Liste / Carte.
+ */
+describe('<SearchToolbar> — l’en-tête d’une ligne (TCK-635)', () => {
+  function monteEntete() {
+    monte(
+      { city: 'Dakar', type: ['villa'] },
+      {
+        total: 7,
+        activeCount: 2,
+        titre: <h1>Villa à Dakar</h1>,
+        sauvegarde: <button type="button">Sauvegarder</button>,
+        vueBureau: <div role="tablist" aria-label="Vue" />,
+      },
+    );
+  }
+
+  it('le compte suit le titre, dans le même groupe', () => {
+    monteEntete();
+    const entete = document.querySelector('[data-entete-resultats]')!;
+    expect(entete.firstElementChild).toBe(screen.getByRole('heading', { level: 1, name: 'Villa à Dakar' }));
+    expect(entete).toContainElement(screen.getByText('7 biens trouvés'));
   });
 
-  it('par défaut, la rangée des puces est rendue', () => {
-    monteAvec(3);
-    expect(document.querySelector('[data-rangee="puces"]')).not.toBeNull();
+  it('au bureau, l’en-tête et les outils se rangent sur une ligne', () => {
+    monteEntete();
+    const ligne = document.querySelector('[data-entete-resultats]')!.parentElement!;
+    expect(ligne.className.split(/\s+/)).toEqual(expect.arrayContaining(['lg:flex-row', 'lg:items-center', 'lg:justify-between']));
+    expect(ligne).toContainElement(document.querySelector('[data-rangee-outils]') as HTMLElement);
+  });
+
+  it('les outils dans l’ordre : tri, sauvegarde, bascule du bureau', () => {
+    monteEntete();
+    const rangee = document.querySelector('[data-rangee-outils]')!;
+    const ordre = [
+      screen.getByRole('combobox', { name: /trier/i }),
+      screen.getByRole('button', { name: 'Sauvegarder' }),
+      screen.getByRole('tablist', { name: 'Vue' }),
+    ];
+    for (const el of ordre) expect(rangee).toContainElement(el);
+    expect(ordre[0].compareDocumentPosition(ordre[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ordre[1].compareDocumentPosition(ordre[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('[data-controle="vue-bureau"]')!.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['hidden', 'lg:block']),
+    );
+  });
+
+  it('aucune puce de filtre ni taille de page dans l’en-tête', () => {
+    monteEntete();
+    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
+    expect(document.querySelector('[data-controle="par-page"]')).toBeNull();
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
   });
 });

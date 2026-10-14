@@ -11,12 +11,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Building2, ChevronRight, Home, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Button } from '@/components/ui/button';
-import { useSwitchActiveProfile } from '@/hooks/useProfiles';
+import { autoOnboardAction } from '@/app/actions/auto-onboard';
+import { useAuth } from '@/context/AuthContext';
+import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
 
 export default function PublishPage() {
@@ -28,6 +31,36 @@ export default function PublishPage() {
   const [echec, setEchec] = useState(false);
   const [choisi, setChoisi] = useState<string | null>(null);
   const parti = useRef(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [echecCreation, setEchecCreation] = useState<string | null>(null);
+  // Dérivé, pas un état : l'effet qui lance la création ne pose rien de façon synchrone.
+  const creation = decision.status === 'host-needed';
+
+  /**
+   * TCK-633 (lot C) — aucun espace où publier : on le crée sans question, puis on ouvre le
+   * formulaire. Le SERVEUR arbitre le drapeau `host_auto_space` : `disabled` (403) reprend
+   * l'assistant actuel, intact.
+   */
+  function creerPuisPartir(): Promise<void> {
+    // Un rappel de promesse, pas un corps `async` : l'état ne change qu'à la réponse du serveur.
+    return autoOnboardAction(user?.preferences?.city ?? null).then(async (r) => {
+      if (r.ok) {
+        await queryClient.invalidateQueries({ queryKey: profilesKeys.all });
+        router.replace(PUBLISH_TARGETS.newProperty);
+        return;
+      }
+      if (r.reason === 'disabled') {
+        router.replace(PUBLISH_TARGETS.hostWizard);
+        return;
+      }
+      if (r.reason === 'unauthenticated') {
+        router.replace(PUBLISH_TARGETS.login);
+        return;
+      }
+      setEchecCreation(r.message || t('auto.error'));
+    });
+  }
 
   async function partir(target: string, profil: string | null) {
     setEchec(false);
@@ -45,12 +78,21 @@ export default function PublishPage() {
   }
 
   useEffect(() => {
-    if (!decision.target || parti.current) return;
+    if (!decision.target || parti.current || decision.status === 'host-needed') return;
     parti.current = true;
     void partir(decision.target, decision.profilABasculer);
     // `partir` n'a d'autre dépendance que la décision : une seule navigation par décision.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.target, decision.profilABasculer]);
+  }, [decision.target, decision.profilABasculer, decision.status]);
+
+  // TCK-633 (lot C) — un effet à part pour l'espace créé sans question : une seule création par
+  // décision, et l'effet de navigation ci-dessus reste tel qu'il était.
+  useEffect(() => {
+    if (decision.status !== 'host-needed' || parti.current) return;
+    parti.current = true;
+    void creerPuisPartir();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decision.status]);
 
   function choisir(espace: EspaceDePublication) {
     setChoisi(espace.profile.id);
@@ -107,6 +149,21 @@ export default function PublishPage() {
               </p>
             ) : null}
           </section>
+        ) : echecCreation ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p role="alert" className="max-w-sm text-sm text-destructive">
+              {echecCreation}
+            </p>
+            <Button
+              type="button"
+              onClick={() => {
+                setEchecCreation(null);
+                void creerPuisPartir();
+              }}
+            >
+              {t('retry')}
+            </Button>
+          </div>
         ) : echec ? (
           <div className="flex flex-col items-center gap-4 text-center">
             <p role="alert" className="max-w-sm text-sm text-destructive">
@@ -123,9 +180,9 @@ export default function PublishPage() {
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
             <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-              {t('title')}
+              {creation ? t('auto.title') : t('title')}
             </h1>
-            <p className="max-w-sm text-sm text-muted-foreground">{t('body')}</p>
+            <p className="max-w-sm text-sm text-muted-foreground">{creation ? t('auto.body') : t('body')}</p>
           </div>
         )}
       </main>

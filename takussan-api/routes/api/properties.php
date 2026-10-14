@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PropertyAddressController;
 use App\Http\Controllers\Api\PropertyAncestorsController;
 use App\Http\Controllers\Api\PropertyChildrenController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
+use App\Http\Controllers\Api\PropertyContactController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
 use App\Http\Controllers\Api\PropertyPriceHistoryController;
@@ -65,6 +66,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('properties/{property}/collaborators/{collaborator}/primary', [PropertyCollaboratorController::class, 'designatePrimary'])->name('properties.collaborators.primary');
     Route::put('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'update'])->name('properties.collaborators.update');
     Route::delete('properties/{property}/collaborators/{collaborator}', [PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy');
+
+    // TCK-633 (lot C) — les contacts sur place (3 au plus), lus et REMPLACÉS d'un bloc.
+    Route::get('properties/{property}/contacts', [PropertyContactController::class, 'index'])->name('properties.contacts.index');
+    Route::put('properties/{property}/contacts', [PropertyContactController::class, 'replace'])->name('properties.contacts.replace');
 
     // Tags (polymorphic attach/detach)
     Route::post('properties/{property}/tags', [PropertyTagController::class, 'sync'])->name('properties.tags.sync');

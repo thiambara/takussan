@@ -101,6 +101,8 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'search' => 'nullable|string|max:200',
             'location' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
+            // TCK-635 (ADR-0062 §8) — la région d'une ville homonyme ; le front ne l'écrit que là.
+            'region' => 'nullable|string|max:100',
             'price_min' => 'nullable|numeric|min:0',
             'price_max' => 'nullable|numeric|min:0',
             'bedrooms' => 'nullable|integer|min:0|max:50',

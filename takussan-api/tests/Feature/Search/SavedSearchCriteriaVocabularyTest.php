@@ -56,7 +56,7 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
         'condition' => 'new',
     ];
 
-    private const BASE_ADDRESS = ['city' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
+    private const BASE_ADDRESS = ['city' => 'Dakar', 'region' => 'Dakar', 'neighborhood' => 'Almadies', 'latitude' => 14.7, 'longitude' => -17.45];
 
     /**
      * clé → [clé, critères (forme exacte du front), écart de B sur le bien, écart de B sur l'adresse, tag de A]
@@ -71,6 +71,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'q' => ['q', ['q' => 'piscine'], ['title' => 'Villa vue mer'], [], null],
             'location' => ['location', ['location' => 'Almadies'], [], ['neighborhood' => 'Médina'], null],
             'city' => ['city', ['city' => 'Dakar'], [], ['city' => 'Thiès'], null],
+            // TCK-635 (ADR-0062 §8) — même nom de ville, autre région : seule la région les sépare.
+            'region' => ['region', ['city' => 'Dakar', 'region' => 'Dakar'], [], ['region' => 'Thiès'], null],
             'cities' => ['cities', ['cities' => ['Dakar', 'Mbour']], [], ['city' => 'Saint-Louis'], null],
             'radius_km' => ['radius_km', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
             'lat' => ['lat', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
@@ -86,7 +88,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             'area_max' => ['area_max', ['area_max' => 150], ['area' => 200], [], null],
             'furnished' => ['furnished', ['furnished' => true], ['furnished' => false], [], null],
             'featured' => ['featured', ['featured' => true], ['featured' => false], [], null],
-            'floor_number' => ['floor_number', ['floor_number' => 2], ['floor_number' => 5], [], null],
+            // TCK-633 — l'étage est un MINIMUM : B doit passer SOUS le seuil pour être écarté.
+            'floor_number' => ['floor_number', ['floor_number' => 2], ['floor_number' => 1], [], null],
             'available_from' => ['available_from', ['available_from' => '2026-11-01'], ['available_from' => '2026-12-01'], [], null],
             'title_type' => ['title_type', ['title_type' => 'titre_foncier'], ['title_type' => 'bail'], [], null],
             'condition' => ['condition', ['condition' => ['renovated', 'new']], ['condition' => 'good'], [], null],
@@ -97,7 +100,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
     public function test_chaque_cle_du_vocabulaire_a_sa_ligne(): void
     {
         $this->assertEqualsCanonicalizing(SavedSearchCriteria::KEYS, array_keys(self::cles()));
-        $this->assertCount(23, SavedSearchCriteria::KEYS);
+        // 23 + `region` (TCK-635, ADR-0062 §8).
+        $this->assertCount(24, SavedSearchCriteria::KEYS);
     }
 
     /**

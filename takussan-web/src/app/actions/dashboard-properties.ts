@@ -262,15 +262,19 @@ export async function uploadPropertyPhotosAction(
 
 /**
  * TCK-120 — sync the amenity tags of a property (full replace).
+ *
+ * TCK-633 — `tagNames` : les équipements saisis hors du catalogue, que l'API crée en PROPOSITION
+ * (`pending`) et attache au bien (`SyncPropertyTagRequest`, tâche 11).
  */
 export async function setPropertyTagsAction(
   propertyId: number,
   tagIds: number[],
+  tagNames: string[] = [],
 ): Promise<ActionResult> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    await setPropertyTags(auth.token, propertyId, tagIds);
+    await setPropertyTags(auth.token, propertyId, tagIds, tagNames);
     return { ok: true };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

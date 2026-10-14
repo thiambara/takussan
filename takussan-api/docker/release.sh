@@ -13,6 +13,16 @@ php artisan migrate --force
 php artisan membership:reconcile-system-roles \
   || echo "AVERTISSEMENT : membership:reconcile-system-roles a échoué — les rôles système retardent sur le catalogue jusqu'au prochain déploiement." >&2
 
+# TCK-633 — les référentiels versionnés (ADR-0062 §3 et §7). La production ne lance AUCUN
+# seeder : sans ces lignes, la liste des quartiers et celle des équipements resteraient vides.
+# Idempotentes ; SCOUT_QUEUE=false pour que la réindexation des biens rattachés se fasse avec le
+# code de CETTE image, pas avec l'ancien worker. Un échec n'arrête pas le déploiement : la
+# version précédente du référentiel reste en place.
+SCOUT_QUEUE=false php artisan geo:sync-referential \
+  || echo "AVERTISSEMENT : geo:sync-referential a échoué — référentiel géographique inchangé jusqu'au prochain déploiement." >&2
+php artisan tags:sync-catalog \
+  || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
+
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   php artisan scout:sync-index-settings \
     || echo "AVERTISSEMENT : scout:sync-index-settings a échoué — filtres et tris de recherche périmés jusqu'au prochain déploiement." >&2

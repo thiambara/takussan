@@ -1,6 +1,6 @@
 'use client';
 
-import React, { type ReactNode } from 'react';
+import React, { type ReactNode, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import {
@@ -16,6 +16,8 @@ import {
   type TraducteursDeFiltre,
 } from '@/types/search';
 import { PER_PAGE_PAR_DEFAUT, PER_PAGE_PROPOSES } from '@/lib/recherche-publique';
+import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
+import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
 
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
@@ -59,56 +61,180 @@ export interface SearchToolbarProps {
   /** TCK-580 — une recherche court : du clic à l'arrivée des biens, pas seulement le `fetch`. */
   loading: boolean;
   filters: SearchFilters;
-  /** TCK-580 — les filtres dont les résultats affichés sont la réponse ; cf. {@link PucesDeFiltres}. */
-  filtresDesResultats?: SearchFilters;
   activeCount: number;
-  onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
   onSortChange: (sort: SearchFilters['sort']) => void;
-  onPerPageChange: (perPage: number) => void;
   onOpenSidebar: () => void;
   /**
+   * TCK-635 — le titre de la page (`<h1>`), en tête de la ligne ; le nombre de biens le suit.
+   */
+  titre?: ReactNode;
+  /**
    * TCK-552 — `false` quand le tri n'agit pas : vue carte (`/map` n'en déclare aucun) et liste à
-   * zéro résultat. Le tri ET la taille de page sont alors masqués **sous `lg`** ; le bureau n'est
-   * pas modifié (contrainte du ticket). Défaut : `true`.
+   * zéro résultat. Masqué alors **sous `lg`** ; au bureau, il reste à sa place. Défaut : `true`.
    */
   afficherTri?: boolean;
   /**
    * TCK-552 — la bascule liste/carte de la rangée MOBILE, posée en bout de rangée et masquée à
-   * partir de `lg` (le bureau garde ses onglets). Absente : rien n'est rendu à sa place.
+   * partir de `lg`. Absente : rien n'est rendu à sa place.
    */
   basculeDeVue?: ReactNode;
+  /** TCK-635 — la bascule du BUREAU (les onglets Liste / Carte), en bout de ligne à partir de `lg`. */
+  vueBureau?: ReactNode;
+  /** TCK-635 — « Sauvegarder », entre le tri et la bascule. */
+  sauvegarde?: ReactNode;
   /**
-   * TCK-552 — ce qui vient au BOUT des puces, dans la même rangée : l'action de sauvegarde. Rendu
-   * seulement s'il y a au moins une puce — sauvegarder une recherche sans critère n'a pas de sens,
-   * et c'est ce qui rendait le bouton désactivé « sans aucune explication » (P7).
+   * TCK-552 — la rangée d'outils, mesurée par la page pour montrer la pastille flottante quand
+   * elle quitte l'écran.
    */
-  finDesPuces?: ReactNode;
-  /**
-   * TCK-558 — `false` à zéro résultat CONFIRMÉ : les puces vivent alors dans l'état vide, où
-   * chacune est l'issue proposée. Les rendre aussi ici afficherait deux fois la même rangée — et,
-   * avec elle, deux fois la sauvegarde. Défaut : `true`.
-   */
-  afficherPuces?: boolean;
+  rangeeOutilsRef?: Ref<HTMLDivElement>;
+  /** TCK-553 — en vue carte sous `lg`, la rangée d'outils cède la place à la pastille flottante. */
+  outilsMasquesSousLg?: boolean;
 }
 
+/**
+ * L'en-tête des résultats — TCK-635 (retours du porteur du 2026-10-12).
+ *
+ * Au bureau, UNE ligne : le titre, le nombre de biens, puis à droite le tri, « Sauvegarder » et la
+ * bascule Liste / Carte. Les puces des filtres appliqués n'y sont plus (le panneau de filtres les
+ * montre déjà) ; elles restent dans l'état vide, où elles sont l'issue proposée (TCK-558). La
+ * taille de page est descendue à côté de la pagination ({@link TailleDePage}).
+ *
+ * Sous `lg`, le titre et le compte, puis la rangée d'outils de TCK-552 : Filtres, tri,
+ * « Sauvegarder » en icône, bascule.
+ */
 export function SearchToolbar({
   total,
   loading,
   filters,
-  filtresDesResultats,
   activeCount,
-  onRemoveFilter,
   onSortChange,
-  onPerPageChange,
   onOpenSidebar,
+  titre,
   afficherTri = true,
   basculeDeVue,
-  finDesPuces,
-  afficherPuces = true,
+  vueBureau,
+  sauvegarde,
+  rangeeOutilsRef,
+  outilsMasquesSousLg = false,
 }: SearchToolbarProps) {
   const t = useTranslations('search.toolbar');
   const tSort = useTranslations('search.sort');
 
+  const aUnPointGeo = filters.lat !== undefined && filters.lng !== undefined;
+  const valeursDeTri = aUnPointGeo ? [...SORT_VALUES, TRI_DISTANCE] : [...SORT_VALUES];
+  const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
+
+  return (
+    <div className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+      <div data-entete-resultats className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+        {titre}
+        <p className="shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground" aria-live="polite">
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden />
+              {t('loading')}
+            </span>
+          ) : total === null ? null : (
+            t('resultCount', { count: total })
+          )}
+        </p>
+      </div>
+
+      {/*
+        TCK-552 — UNE rangée d'outils sous `lg` : Filtres (principal), tri, sauvegarde, bascule.
+
+        ⚠ `flex-wrap` n'est PAS posé sur ce groupe, et c'est délibéré. Le débordement est tenu par
+        le seul élément compressible — le tri, `min-w-0 flex-1`, dont la valeur se tronque. Avec
+        `flex-wrap`, la bascule passerait à la ligne AVANT que le tri ne rétrécisse : le retour à
+        la ligne se décide sur la largeur de CONTENU, pas sur la largeur minimale.
+
+        `scroll-mt-20` : ramenée par la pastille flottante, la rangée s'arrête SOUS la `nav` fixe.
+      */}
+      <div
+        ref={rangeeOutilsRef}
+        data-rangee-outils
+        className={`flex w-full scroll-mt-20 items-center gap-1 sm:gap-1.5 lg:w-auto lg:shrink-0 lg:gap-2 ${
+          outilsMasquesSousLg ? 'max-lg:hidden' : ''
+        }`}
+      >
+        {/* Filters button (mobile) — l'action principale sous `lg`. */}
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          className="lg:hidden flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.96]"
+        >
+          <SlidersHorizontal className="size-4" aria-hidden />
+          {t('filters')}
+          {/* La pastille est DANS le bouton : posée en `absolute -top-1.5 -right-1.5`, elle en
+              débordait (P3) et chevauchait le contrôle voisin dès que la rangée se resserrait. */}
+          {activeCount > 0 && (
+            <span className="grid size-5 place-items-center rounded-full bg-primary-foreground text-xs font-bold tabular-nums text-primary">
+              {activeCount}
+            </span>
+          )}
+        </button>
+
+        {/* Sort selector */}
+        <Select
+          value={filters.sort ?? 'relevance'}
+          onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
+          items={sortOptions}
+        >
+          <SelectTrigger
+            className={`h-11 min-w-0 flex-1 sm:max-w-60 lg:max-w-none rounded-full py-1.5 px-2.5 sm:px-3 border-border bg-card text-foreground cursor-pointer lg:h-8 lg:w-fit lg:flex-none ${
+              afficherTri ? '' : 'hidden lg:flex'
+            }`}
+            aria-label={t('sortAria')}
+          >
+            <SelectValue className="min-w-0 truncate" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {sauvegarde ? (
+          // `contents` : masqué sous `lg` sans critère, le bouton ne laisse pas de gouttière vide.
+          <div data-controle="sauvegarde" className="contents">
+            {sauvegarde}
+          </div>
+        ) : null}
+
+        {basculeDeVue ? (
+          <div data-controle="bascule" className="ml-auto shrink-0 lg:hidden">
+            {basculeDeVue}
+          </div>
+        ) : null}
+
+        {vueBureau ? (
+          <div data-controle="vue-bureau" className="hidden shrink-0 lg:block">
+            {vueBureau}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * La taille de page — TCK-628, déplacée par TCK-635 à côté de la pagination, et rendue seulement
+ * avec elle (au moins deux pages) : sous une seule page, elle ne change rien à l'écran.
+ *
+ * Bureau seulement : `per_page` reste lu dans l'URL et accepté par l'API, seul son CONTRÔLE n'est
+ * pas proposé sur un téléphone (TCK-552, AC4).
+ */
+export function TailleDePage({
+  filters,
+  onPerPageChange,
+  className = '',
+}: {
+  readonly filters: SearchFilters;
+  readonly onPerPageChange: (perPage: number) => void;
+  readonly className?: string;
+}) {
+  const t = useTranslations('search.toolbar');
   // TCK-628 — 40, 60, 70. Une URL héritée peut porter une autre taille (`per_page=30`) : l'API la
   // sert, et le sélecteur l'AFFICHE plutôt que de prétendre en appliquer une autre. Elle n'est pas
   // proposée pour autant : elle quitte la liste dès qu'on en choisit une.
@@ -120,119 +246,26 @@ export function SearchToolbar({
     value: String(n),
     label: t('perPageOption', { count: n }),
   }));
-  const aUnPointGeo = filters.lat !== undefined && filters.lng !== undefined;
-  const valeursDeTri = aUnPointGeo ? [...SORT_VALUES, TRI_DISTANCE] : [...SORT_VALUES];
-  const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
 
   return (
-    <div className="mb-4 space-y-3 md:mb-6">
-      {/* Top row : count + sort + mobile filter button */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 md:gap-4">
-        <p className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-foreground" aria-live="polite">
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden />
-              {t('loading')}
-            </span>
-          ) : total === null ? null : (
-            t('resultCount', { count: total })
-          )}
-        </p>
-
-        {/*
-          TCK-552 — UNE rangée d'outils sous `lg` : Filtres (principal), tri, bascule liste/carte.
-
-          Elle valait trois rangées à 360 px — « 30 / page » et le tri, puis Filtres seul, puis les
-          onglets Liste/Carte — et plaçait l'action principale du mobile en DERNIER, en style
-          secondaire (P2, P3). L'ordre du document suit maintenant l'ordre d'usage ; à partir de
-          `lg`, Filtres et la bascule sont masqués et il reste « par page » puis le tri, dans
-          l'ordre et au gabarit d'avant : le bureau n'est pas modifié.
-
-          ⚠ `flex-wrap` n'est PLUS posé sur ce groupe, et c'est délibéré. TCK-505 #8 l'y avait mis
-          pour que 336 px de contrôles ne débordent pas de 328. Ici le débordement est tenu par le
-          seul élément compressible — le tri, `min-w-0 flex-1`, dont la valeur se tronque. Avec
-          `flex-wrap`, la bascule passerait à la ligne AVANT que le tri ne rétrécisse : le retour à
-          la ligne se décide sur la largeur de CONTENU, pas sur la largeur minimale.
-        */}
-        <div className="flex w-full items-center gap-1.5 lg:w-auto lg:gap-3">
-          {/* Filters button (mobile) — l'action principale sous `lg`. */}
-          <button
-            type="button"
-            onClick={onOpenSidebar}
-            className="lg:hidden flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.96]"
-          >
-            <SlidersHorizontal className="size-4" aria-hidden />
-            {t('filters')}
-            {/* La pastille est DANS le bouton : posée en `absolute -top-1.5 -right-1.5`, elle en
-                débordait (P3) et chevauchait le contrôle voisin dès que la rangée se resserrait. */}
-            {activeCount > 0 && (
-              <span className="grid size-5 place-items-center rounded-full bg-primary-foreground text-xs font-bold tabular-nums text-primary">
-                {activeCount}
-              </span>
-            )}
-          </button>
-
-          {/* Per-page selector — bureau seulement (AC4). `per_page` reste lu dans l'URL et accepté
-              par l'API : seul son CONTRÔLE disparaît sous `lg`, où il prenait la tête de la
-              rangée pour un réglage que personne ne cherche sur un téléphone. */}
-          <div data-controle="par-page" className="hidden lg:block">
-            <Select
-              value={String(perPage)}
-              onValueChange={(v) => onPerPageChange(Number(v))}
-              items={perPageOptions}
-            >
-              <SelectTrigger
-                className="h-8 rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
-                aria-label={t('perPageAria')}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {perPageOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Sort selector */}
-          <Select
-            value={filters.sort ?? 'relevance'}
-            onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
-            items={sortOptions}
-          >
-            <SelectTrigger
-              className={`h-11 min-w-0 flex-1 sm:max-w-60 lg:max-w-none rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer lg:h-8 lg:w-fit lg:flex-none ${
-                afficherTri ? '' : 'hidden lg:flex'
-              }`}
-              aria-label={t('sortAria')}
-            >
-              <SelectValue className="min-w-0 truncate" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {basculeDeVue ? (
-            <div data-controle="bascule" className="ml-auto shrink-0 lg:hidden">
-              {basculeDeVue}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Active filter tags — TCK-558 : à zéro résultat, c'est l'état vide qui les porte. */}
-      {afficherPuces ? (
-        <PucesDeFiltres
-          filters={filters}
-          filtresDesResultats={filtresDesResultats}
-          onRemoveFilter={onRemoveFilter}
-          fin={finDesPuces}
-        />
-      ) : null}
+    <div data-controle="par-page" className={`hidden lg:block ${className}`}>
+      <Select
+        value={String(perPage)}
+        onValueChange={(v) => onPerPageChange(Number(v))}
+        items={perPageOptions}
+      >
+        <SelectTrigger
+          className="h-9 rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
+          aria-label={t('perPageAria')}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {perPageOptions.map(opt => (
+            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -277,6 +310,7 @@ export function PucesDeFiltres({
   className = '',
   'aria-label': ariaLabel,
 }: PucesDeFiltresProps) {
+  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const trads: TraducteursDeFiltre = {
     tags: useTranslations('search'),
     types: useTranslations('property.types'),
@@ -284,6 +318,8 @@ export function PucesDeFiltres({
     periods: useTranslations('property.rentPeriods'),
     titleTypes: useTranslations('property.titleTypes'),
     conditions: useTranslations('property.conditions'),
+    // TCK-633 — un équipement du catalogue dans la langue de l'écran, celui d'un annonceur tel quel.
+    equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
   };
   /**
    * TCK-580 — la rangée est rendue depuis les DEUX jeux de filtres, et l'écart se voit.

@@ -40,7 +40,7 @@ const avertissements = [];
 if (!existsSync(CHEMIN)) {
   console.error(
     `✗ carte d'impact absente : takussan-api/tests/impact-map.json\n` +
-      `  Elle est engendrée par le job « carte d'impact » d'api-ci.yml sur push vers dev.\n` +
+      `  Elle est engendrée par le job « carte d'impact » d'api-ci.yml la nuit sur dev (ADR-0063 §3).\n` +
       `  Localement : XDEBUG_MODE=coverage php artisan test --coverage-php=/tmp/cov.php\n` +
       `               php bin/build-impact-map.php /tmp/cov.php`,
   );

@@ -386,10 +386,12 @@ export async function setPropertyTags(
   token: string,
   propertyId: number,
   tagIds: number[],
+  /** TCK-633 — les noms proposés hors catalogue ; omis du corps quand il n'y en a pas. */
+  tagNames: string[] = [],
 ): Promise<void> {
   await apiRequest<unknown>(cheminApi`/api/properties/${propertyId}/tags`, {
     method: 'POST',
-    body: { tag_ids: tagIds },
+    body: tagNames.length > 0 ? { tag_ids: tagIds, tag_names: tagNames } : { tag_ids: tagIds },
     token,
   });
 }

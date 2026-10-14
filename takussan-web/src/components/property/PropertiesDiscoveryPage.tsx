@@ -10,7 +10,7 @@ import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { ActualisationDesResultats } from '@/components/search/ActualisationDesResultats';
-import { SearchToolbar } from '@/components/search/SearchToolbar';
+import { SearchToolbar, TailleDePage } from '@/components/search/SearchToolbar';
 import { OutilsFlottantsDeListe } from '@/components/search/OutilsFlottantsDeListe';
 import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
 import { SearchEmpty } from '@/components/search/SearchEmpty';
@@ -20,11 +20,14 @@ import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { filtersToParams, useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
+import { parametresDeLaCarte } from '@/lib/recherche-publique';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
+import { EmplacementsSponsorises } from '@/components/boost/EmplacementSponsorise';
+import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -250,6 +253,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
 
   const properties = data?.data ?? [];
   const meta = data?.meta;
+  // TCK-633 lot F (ADR-0061 §7) — hors pagination, hors `total`.
+  const sponsorises = lireEmplacements(data);
 
   // TCK-552 — à zéro résultat CONFIRMÉ (ni en chargement, ni en erreur), le tri et la bascule
   // n'agissent sur rien (E1) : ils ne sont pas rendus sous `lg`. Et la vue y retombe sur la
@@ -365,8 +370,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
     }
   };
 
-  // Derive the map filters from the active search filters. We only forward
-  // the subset that the backend's `/map` endpoint supports.
+  // TCK-633 (lot E, AC6) — la carte reçoit TOUS les filtres du panneau, dérivés de la même URL que
+  // la liste (`parametresDeLaCarte`) : un filtre ajouté au panneau n'a plus à être recopié ici.
+  // Restent à la liste seule `q`, le tri, la pagination et son rectangle.
   //
   // TCK-346 — `lat` / `lng` / `radius_km` en font partie DEPUIS ce lot, et leur
   // absence était un défaut que le rayon avait introduit : poser « à moins de
@@ -381,15 +387,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   // ⚠ Pas de `sort` : `/map` n'en déclare aucun, et c'est motivé dans le
   // docblock de `PublicPropertyController::map()` — la sortie est un GeoJSON
   // plafonné, sans pagination, dont l'ordre n'est observable par personne.
-  const mapFilters: Record<string, string | number | undefined> = {
-    type: filters.type?.join(','),
-    contract_type: filters.contract_type,
-    price_min: filters.price_min,
-    price_max: filters.price_max,
-    lat: filters.lat,
-    lng: filters.lng,
-    radius_km: filters.radius_km,
-  };
+  const mapFilters = parametresDeLaCarte(filtersToParams(filters));
 
   return (
     <div className="min-h-screen bg-surface">
@@ -429,82 +427,56 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               un lecteur d'écran annoncerait un titre de niveau 1 sans contenu — d'où la garde,
               qui porte sur la chaîne et pas seulement sur `undefined`.
             */}
-            {titre?.trim() ? (
-              // TCK-552 — plus compact sous `md` (P6) : à 28 px, « Biens immobiliers à louer » tenait
-              // sur DEUX lignes à 360. Le texte ne change pas (TCK-432) ; à partir de `md`, rien ne
-              // change non plus.
-              // TCK-553 — en vue carte sous `lg`, le titre quitte l'écran mais PAS l'arbre
-              // d'accessibilité (`sr-only`, et non `hidden`) : la page garde son `<h1>` (TCK-432).
-              <h1
-                className={`font-display text-[22px] md:text-[28px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-4 ${
-                  vue === 'map' ? 'max-lg:sr-only' : ''
-                }`}
-              >
-                {titre}
-              </h1>
-            ) : null}
-
-            {/* `scroll-mt-20` : ramenée par la pastille flottante, la rangée s'arrête SOUS la `nav`
-                fixe (68 px), pas derrière elle. */}
-            <div
-              ref={rangeeOutilsRef}
-              data-rangee-outils
-              className={`scroll-mt-20 ${vue === 'map' ? 'max-lg:hidden' : ''}`}
-            >
             <SearchToolbar
+              titre={
+                titre?.trim() ? (
+                  // TCK-552 — plus compact sous `md` (P6). TCK-635 — plus petit encore, et sur la
+                  // ligne du compte et des outils au bureau. Le texte ne change pas (TCK-432).
+                  // TCK-553 — en vue carte sous `lg`, le titre quitte l'écran mais PAS l'arbre
+                  // d'accessibilité (`sr-only`, et non `hidden`) : la page garde son `<h1>`.
+                  <h1
+                    className={`font-display text-xl lg:text-2xl leading-[1.15] font-semibold text-foreground ${
+                      vue === 'map' ? 'max-lg:sr-only' : ''
+                    }`}
+                  >
+                    {titre}
+                  </h1>
+                ) : null
+              }
               // TCK-553 (M3) — en vue carte, le compte de la LISTE n'est pas affiché : la carte
               // affiche le sien (`PropertyMap`, AC4). `/map` ne reçoit pas `q` et ne place pas un
               // bien sans coordonnées — deux nombres pour une recherche, c'était l'écran de M3.
               total={error || vue === 'map' ? null : (meta?.total ?? 0)}
               loading={enCours}
               filters={filters}
-              filtresDesResultats={filtresDesResultats}
               activeCount={activeCount}
-              onRemoveFilter={retirerFiltre}
-              // TCK-558 — à zéro résultat, les puces vivent dans l'état vide, où elles sont l'issue.
-              afficherPuces={!etatVideRendu}
               onSortChange={(sort) => handleFilterChange({ sort })}
-              onPerPageChange={(per_page) => handleFilterChange({ per_page })}
               onOpenSidebar={() => setSidebarOpen(true)}
+              rangeeOutilsRef={rangeeOutilsRef}
+              outilsMasquesSousLg={vue === 'map'}
               // TCK-552 — le tri n'agit ni sur la carte (`/map` n'en déclare aucun, cf.
               // `mapFilters`) ni sur une liste vide (M4, E1, AC8).
               afficherTri={vue === 'list' && !aucunResultat}
               basculeDeVue={
                 aucunResultat ? undefined : <BasculeDeVue view={vue} onChange={changerDeVue} />
               }
-              // TCK-552 — la sauvegarde au BOUT des puces, et seulement s'il y en a (P7, AC5).
-              // Son libellé est conservé, et c'est vérifié : `SaveSearchButton` envoie
-              // `notification_frequency: 'off'` — elle SAUVEGARDE, elle ne crée aucune alerte.
-              // « Créer une alerte » aurait été le mensonge. TCK-599 : l'alerte est une case
-              // décochée dans la boîte, et seule la case cochée l'envoie en `daily`.
-              finDesPuces={
-                activeCount > 0 ? (
+              vueBureau={<ViewToggle view={vue} onChange={changerDeVue} />}
+              // TCK-635 — « Sauvegarder » sur la ligne du titre. Son libellé est conservé, et c'est
+              // vérifié : `SaveSearchButton` envoie `notification_frequency: 'off'` — elle
+              // SAUVEGARDE, elle ne crée aucune alerte (TCK-552, TCK-599). Sous `lg`, seulement
+              // s'il y a un critère (P7) ; au bureau, toujours, et l'infobulle dit pourquoi elle
+              // n'agit pas sans critère. TCK-558 — à zéro résultat, elle vit dans l'état vide.
+              sauvegarde={
+                etatVideRendu ? null : (
                   <SaveSearchButton
                     filters={filters}
                     activeCount={activeCount}
-                    className="lg:hidden"
+                    compact
+                    className={activeCount > 0 ? '' : 'max-lg:hidden'}
                   />
-                ) : null
+                )
               }
             />
-            </div>
-
-            {/*
-              La rangée du BUREAU — onglets et sauvegarde —, inchangée à partir de `lg` (contrainte
-              du ticket). Sous `lg`, ses deux contrôles vivent dans la rangée d'outils et au bout
-              des puces : elle n'y est plus rendue.
-            */}
-            <div data-rangee="vue-bureau" className="mb-5 hidden flex-wrap items-center gap-3 lg:flex">
-              <ViewToggle view={vue} onChange={changerDeVue} />
-              {/* TCK-558 — à zéro résultat, la sauvegarde est dans l'état vide : une seule fois. */}
-              {etatVideRendu ? null : (
-                <SaveSearchButton
-                  filters={filters}
-                  activeCount={activeCount}
-                  className="ml-auto"
-                />
-              )}
-            </div>
 
             <OutilsFlottantsDeListe
               // TCK-553 — en vue carte, la rangée d'outils n'est plus rendue sous `lg` : la pastille
@@ -620,26 +592,45 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                       onReset={resetFilters}
                     />
                   ) : (
-                    properties.map((property, i) => (
-                      <PropertyCard
-                        key={property.id}
-                        property={property}
-                        index={i}
-                        priority={i < 4}
-                        sizes={CARD_SIZES_SEARCH_GRID}
-                        transactionFiltree={filters.contract_type}
-                      />
-                    ))
+                    <>
+                      {/* TCK-635 — les emplacements entrent DANS la grille, en tête, à la taille des
+                          autres cartes ; leur robe les distingue (ADR-0061 §7). Toujours hors
+                          `total` et hors pagination. */}
+                      {!error ? <EmplacementsSponsorises biens={sponsorises} sizes={CARD_SIZES_SEARCH_GRID} /> : null}
+                      {properties.map((property, i) => (
+                        <PropertyCard
+                          key={property.id}
+                          property={property}
+                          index={i}
+                          priority={i < 4}
+                          sizes={CARD_SIZES_SEARCH_GRID}
+                          transactionFiltree={filters.contract_type}
+                          // TCK-633 lot F → TCK-635 — une place réservée porte la robe « En vedette »
+                          // au lieu d'une étiquette au-dessus de la carte ; le badge acheté passe sur
+                          // la photo.
+                          robe={placementDe(property) === 'reserved' ? 'vedette' : undefined}
+                          badge={badgeDe(property)}
+                        />
+                      ))}
+                    </>
                   )}
                 </div>
 
+                {/* TCK-635 — la taille de page à côté de la pagination, et seulement avec elle. */}
                 {meta && meta.last_page > 1 && (
-                  <Pagination
-                    currentPage={meta.current_page}
-                    lastPage={meta.last_page}
-                    filters={filters}
-                    cibleDuDefilement={ID_DES_RESULTATS}
-                  />
+                  <div data-pied-de-liste className="lg:relative">
+                    <Pagination
+                      currentPage={meta.current_page}
+                      lastPage={meta.last_page}
+                      filters={filters}
+                      cibleDuDefilement={ID_DES_RESULTATS}
+                    />
+                    <TailleDePage
+                      filters={filters}
+                      onPerPageChange={(per_page) => handleFilterChange({ per_page })}
+                      className="lg:absolute lg:right-0 lg:top-1"
+                    />
+                  </div>
                 )}
               </>
             )}

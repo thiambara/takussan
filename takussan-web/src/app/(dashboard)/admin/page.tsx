@@ -10,7 +10,8 @@ import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
-import { ensureStandardAgencyOrRedirect, resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 
@@ -24,6 +25,8 @@ export default async function Page({
 }: {
   readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // TCK-633 (lot B) — la garde d'abord : rôle, `kind` et capacités se jugent dans `PAGES_ADMIN`.
+  await garderPageAdmin('/admin');
   const t = await getTranslations('admin.pages.home');
   const params = (await searchParams) ?? {};
   const avis = await resoudreAvisAdmin(params.notice);
@@ -34,8 +37,6 @@ export default async function Page({
     return <NoAgencyState title={t('noAgency')} />;
   }
 
-  await ensureStandardAgencyOrRedirect(user);
-
   const agencyId = typeof user.agency_id === 'number' ? user.agency_id : null;
 
   // TCK-375 — le `kind` de l'agence, pour que les files sans objet en `individual` ne soient pas
@@ -45,12 +46,15 @@ export default async function Page({
   // est `cache()`é par React pour la durée du rendu — le layout vient de faire exactement le même
   // appel pour son cadenas, et celui-ci lit sa promesse.
   //
-  // ⚠️ **Et il rend `true` sur cet écran, toujours.** Mesuré le 2026-08-27 : `/admin` figure dans
-  // `PRO_ROUTES` et l'`ensureStandardAgencyOrRedirect` ci-dessus renvoie sur `/app` toute agence
-  // dont le `kind` n'est pas `standard`. La branche `individual` du bloc de files est donc
-  // INATTEIGNABLE DEPUIS CETTE PAGE aujourd'hui — elle est éprouvée au niveau du composant, et
-  // c'est une garde en profondeur, pas un chemin vivant. *Câbler une valeur constante en dur
-  // aurait supprimé la garde le jour où le redirect bouge ; la lire la fait suivre.*
+  // ⚠️ **Pour un `agency_admin`, il rend `true` sur cet écran, toujours.** `garderPageAdmin('/admin')`
+  // ci-dessus renvoie l'admin d'une agence dont le `kind` n'est pas `standard` vers sa première page
+  // accessible (TCK-633 ; avant, `ensureStandardAgencyOrRedirect` la renvoyait sur `/app`).
+  // ⚠ **Le super-admin, lui, passe la garde quelle que soit son agence** (il passe l'agence et la
+  // capacité, comme côté API — `pageAccessible`, écart E8 du lot B) : rattaché à une agence
+  // `individual`, il ATTEINT la branche `individual` du bloc de files depuis cette page. C'est le
+  // seul chemin vivant de cette branche, et c'est pourquoi le `kind` se LIT ici au lieu d'être
+  // câblé en dur. *Une valeur constante aurait aussi supprimé la garde le jour où le redirect
+  // bouge ; la lire la fait suivre.*
   let agencyIsStandard: boolean | undefined;
   if (agencyId !== null) {
     const token = await getToken();

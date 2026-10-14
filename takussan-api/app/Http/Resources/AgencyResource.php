@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -65,6 +66,10 @@ class AgencyResource extends BaseResource
             // recopie plus ; ceci couvre une donnée qui lui serait antérieure.
             'metadata' => $this->metadata !== null ? Arr::except($this->metadata, 'legal_info.rib_pro') : null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
+            // TCK-633 — le filigrane est-il allumé pour la PLATEFORME (`media_watermark`, éteint par
+            // défaut) ? La configuration d'agence ne propose « Regénérer les filigranes » que s'il
+            // l'est. Un booléen d'état, pas le drapeau : il reste hors de `feature-flags/me`.
+            'watermark_available' => AgencyWatermarkContext::globallyEnabled(),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->iso($this->created_at),
         ];

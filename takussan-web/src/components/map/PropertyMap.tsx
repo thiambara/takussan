@@ -119,7 +119,10 @@ export interface PropertyMapProps {
    * cadre d'avant s'appliquent — la mise en page du bureau ne change pas.
    */
   readonly pleinEcranSousLg?: boolean;
-  /** Extra filters to forward to the map endpoint (type, contract_type, price). */
+  /**
+   * Les filtres transmis à `/map` — TOUS ceux du panneau (TCK-633), dérivés de l'URL de la liste
+   * par `parametresDeLaCarte` ; jamais `q`, le tri ni la pagination.
+   */
   readonly filters?: Record<string, string | number | undefined>;
   /** Called when a marker is clicked (useful for syncing with a side list). */
   readonly onMarkerClick?: (feature: PropertyMapFeature) => void;

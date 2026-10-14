@@ -23,13 +23,24 @@ jobs:
     uses: ./.github/workflows/api-ci.yml
     secrets: inherit
     # `lint-and-test` déclare `contents: write` (TCK-479) : un appelant ne peut pas donner moins.
-    # Sur une PR, le step qui pousse la carte d'impact ne s'exécute pas (`push` sur `dev` seulement).
+    # Sur une PR, le step qui pousse la carte d'impact ne s'exécute pas (la nuit sur `dev` seulement).
+    # `actions: read` (ADR-0063) : le job `attestation` liste les artefacts. Déclarer `permissions`
+    # ici RETIRE tout ce qui n'est pas nommé — sans cette ligne, la recherche rend 403, et la
+    # promotion rejoue toute la suite de l'API sans rien en dire d'autre qu'un avertissement.
     permissions:
       contents: write
+      actions: read
   web:
     name: Front
     uses: ./.github/workflows/web-ci.yml
     secrets: inherit
+    # `actions: read` (ADR-0063) pour le job `attestation`. Sans bloc `permissions`, l'appel ne
+    # reçoit PAS « tout en lecture » : le réglage du dépôt (`default_workflow_permissions: read`)
+    # restreint le jeton à `contents` et `packages`. Un job appelé qui demande davantage fait
+    # échouer le run AU DÉMARRAGE (`startup_failure`, promotion #369 du 2026-10-13).
+    permissions:
+      contents: read
+      actions: read
   repo:
     name: Dépôt
     uses: ./.github/workflows/repo-ci.yml

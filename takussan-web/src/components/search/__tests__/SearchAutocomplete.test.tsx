@@ -92,6 +92,22 @@ describe('SearchAutocomplete', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/fr/properties?city=Dakar'));
   });
 
+  /** TCK-635 (ADR-0062 §8) — la région départageait l'ancienne ville ; gardée, Dakar rendrait 0. */
+  it('choisir une ville retire la région d’une ville homonyme choisie avant', async () => {
+    parametresUrl = new URLSearchParams('city=Dinguiraye&region=Kolda');
+    const { useSuggest } = await import('@/hooks/useSuggest');
+    (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });
+
+    render(withProviders(<SearchAutocomplete />));
+
+    const input = screen.getByRole('searchbox');
+    await userEvent.type(input, 'da');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/fr/properties?city=Dakar'));
+  });
+
   it('submits free text as full-text query when no suggestion is selected', async () => {
     const { useSuggest } = await import('@/hooks/useSuggest');
     (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });

@@ -30,6 +30,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => routerMocks,
 }));
 
+// TCK-633 — le référentiel géographique, hors de ce que ce fichier éprouve (cf. `ChampsLieu.test.tsx`).
+vi.mock('@/components/property-form/useReferentielGeo', () => import('@/test/doublure-referentiel-geo'));
 // LocationPickerMapLoader is a dynamic import that touches Leaflet/window — stub it
 vi.mock('@/components/map/LocationPickerMapLoader', () => ({
   LocationPickerMapLoader: () => <div data-testid="location-picker-map" />,
@@ -108,20 +110,23 @@ describe('PropertyForm — edit mode', () => {
     expect(screen.getByLabelText(/places de parking/i)).toBeDefined();
   });
 
-  it('shows tags section when tags are provided', () => {
+  it('shows tags section when tags are provided — the catalogue is searched (TCK-633)', async () => {
+    const user = userEvent.setup();
     const tags = [
       { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' as const, icon: null, color: null, description: null },
       { id: 2, name: 'Parking', slug: 'parking', type: 'amenity' as const, icon: null, color: null, description: null },
     ];
     renderForm(maison(), tags);
     expect(screen.getByText('Équipements')).toBeDefined();
-    expect(screen.getByText('Piscine')).toBeDefined();
-    expect(screen.getByText('Parking')).toBeDefined();
+    await user.type(screen.getByLabelText(/équipements/i), 'p');
+    expect(await screen.findByRole('option', { name: 'Piscine' })).toBeDefined();
+    expect(screen.getByRole('option', { name: 'Parking' })).toBeDefined();
   });
 
-  it('does not show tags section when no tags provided', () => {
+  it('TCK-633 — le champ des équipements est rendu même sans catalogue : on peut toujours en proposer', () => {
     renderForm(maison(), []);
-    expect(screen.queryByText('Équipements')).toBeNull();
+    expect(screen.getByText('Équipements')).toBeDefined();
+    expect(screen.getByLabelText(/équipements/i)).toBeDefined();
   });
 
   it('submits and calls updatePropertyAction with the property id and no tag_ids in the body', async () => {
@@ -157,23 +162,50 @@ describe('PropertyForm — edit mode', () => {
     expect(payload.price).toBe(90_000_000);
   });
 
-  it('TCK-564 — le prix suit la devise CHOISIE : en euros, « 1500,5 » repart 1500,5, pas 15 005', async () => {
-    // Revue adverse : `currency={devise}` n'était gardé par aucun test de l'édition.
-    const user = userEvent.setup();
+  it('TCK-633 — la devise ne se choisit plus à l’édition : le prix se saisit en francs CFA', () => {
+    // ADR-0061 ; le serveur ramène toute devise envoyée à XOF (tâche 8).
     renderForm(maison());
 
-    await user.click(screen.getByRole('combobox', { name: /devise/i }));
-    await user.click(await screen.findByRole('option', { name: /euro/i }));
+    expect(screen.queryByRole('combobox', { name: /devise/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^prix/i)).toHaveAttribute('inputmode', 'numeric');
+  });
 
-    const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
-    await user.clear(prix);
-    await user.type(prix, '1500,5');
-    expect(prix.value).toBe('1\u202f500,5');
+  it('TCK-633 — l’identifiant du référentiel lu sur le bien repart avec l’adresse', async () => {
+    const user = userEvent.setup();
+    renderForm(maison({ location: { city: 'Dakar', quarter: 'Mermoz', geo_city_id: 10, geo_neighborhood_id: 101 } }));
 
     await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
     await waitFor(() => expect(updatePropertyAction).toHaveBeenCalledOnce());
-    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [number, Record<string, unknown>];
-    expect(payload).toMatchObject({ price: 1500.5, currency: 'EUR' });
+    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [number, { address?: Record<string, unknown> }];
+    expect(payload.address).toMatchObject({ city: 'Dakar', neighborhood: 'Mermoz', geo_city_id: 10, geo_neighborhood_id: 101 });
+  });
+
+  it('TCK-633 — latitude et longitude se lisent et se corrigent à l’édition', () => {
+    renderForm(maison({ location: { city: 'Dakar', latitude: 14.6937, longitude: -17.4441 } }));
+
+    expect(screen.getByLabelText(/^latitude$/i)).toHaveValue(14.6937);
+    expect(screen.getByLabelText(/^longitude$/i)).toHaveValue(-17.4441);
+    expect(screen.getByLabelText(/coller un lien ou une position/i)).toBeInTheDocument();
+  });
+
+  it('TCK-633 — un bien d’indépendant n’a pas de frais d’agence', () => {
+    renderForm(maison({
+      type: 'apartment', contract_type: 'rent', rent_period: 'monthly',
+      agency: { id: 3, name: 'Moussa Diop', slug: 'moussa-diop', kind: 'individual' },
+    }));
+
+    expect(screen.getByLabelText(/caution/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/frais d.agence/i)).not.toBeInTheDocument();
+  });
+
+  it('TCK-633 — une agence standard garde les frais d’agence', () => {
+    renderForm(maison({
+      type: 'apartment', contract_type: 'rent', rent_period: 'monthly',
+      agency: { id: 4, name: 'Teranga Immo', slug: 'teranga-immo', kind: 'standard' },
+    }));
+
+    expect(screen.getByLabelText(/frais d.agence/i)).toBeInTheDocument();
   });
 
   it('shows validation error when city is cleared', async () => {
@@ -358,16 +390,40 @@ describe('la matrice, lue jusqu’au bout par l’édition (TCK-488)', () => {
     expect(screen.getByLabelText(/surface habitable/i)).toBeInTheDocument();
   });
 
-  it('AC4 — décocher le dernier équipement envoie bien la liste VIDE', async () => {
+  it('AC4 — retirer le dernier équipement envoie bien la liste VIDE', async () => {
     const user = userEvent.setup();
     renderForm(maison({ tags: [{ id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' }] }), AMENITES);
 
-    await user.click(screen.getByRole('button', { name: /piscine/i }));
+    // TCK-633 — l'équipement retenu est une puce, qui se retire.
+    await user.click(screen.getByRole('button', { name: 'Retirer Piscine' }));
     await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
 
     await waitFor(() => {
-      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, []);
+      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, [], []);
     });
+  });
+
+  it('TCK-633 — un équipement PROPOSÉ à l’édition part en nom, à côté des autres', async () => {
+    const user = userEvent.setup();
+    renderForm(maison({ tags: [{ id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' }] }), AMENITES);
+
+    await user.type(screen.getByLabelText(/équipements/i), 'Forage{Enter}');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, [1], ['Forage']);
+    });
+  });
+
+  it('TCK-633 — un équipement du bien absent du catalogue garde son nom, et son attente (proposé par un autre)', () => {
+    renderForm(
+      maison({ tags: [{ id: 50, name: 'Forage', slug: 'forage', type: 'amenity', status: 'pending' }] }),
+      AMENITES,
+    );
+
+    expect(screen.getByRole('button', { name: 'Retirer Forage' }).parentElement)
+      .toHaveTextContent(/forage.*en attente de vérification/i);
   });
 
   it('AC5 — un tag qui n’est pas un équipement ne part jamais dans la liste', async () => {
@@ -385,7 +441,7 @@ describe('la matrice, lue jusqu’au bout par l’édition (TCK-488)', () => {
     await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
 
     await waitFor(() => {
-      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, [1]);
+      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, [1], []);
     });
   });
 
@@ -394,7 +450,10 @@ describe('la matrice, lue jusqu’au bout par l’édition (TCK-488)', () => {
     const user = userEvent.setup();
     renderForm(maison(), AMENITES);
 
-    await user.click(screen.getByRole('button', { name: /piscine/i }));
+    // TCK-633 — l'équipement se cherche, se choisit ; Échap referme la liste.
+    await user.type(screen.getByLabelText(/équipements/i), 'pisc');
+    await user.click(await screen.findByRole('option', { name: 'Piscine' }));
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
 
     expect(await screen.findByText(/le bien est enregistré/i)).toBeDefined();

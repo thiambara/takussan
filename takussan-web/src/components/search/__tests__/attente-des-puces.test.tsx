@@ -11,6 +11,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
+
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('./doublure-choix-du-referentiel'));
 import { FilterSidebar } from '../FilterSidebar';
 import { PucesDeFiltres } from '../SearchToolbar';
 import type { SearchFilters } from '@/types/search';
@@ -49,14 +51,16 @@ describe('TCK-580 — panneau de filtres : la puce touchée attend, ses voisines
 
   it('une puce RETIRÉE est relâchée tout de suite et porte l’attente', () => {
     panneau({}, { contract_type: 'sale' });
-    const vente = puce('Vente');
+    const vente = puce('Acheter');
     expect(vente).toHaveAttribute('aria-pressed', 'false');
     expect(attend(vente)).toBe(true);
   });
 
-  it('une bascule attend comme une puce', () => {
+  it('le choix « Meublé » attend comme une puce (TCK-633 : trois états)', () => {
     panneau({ furnished: true }, {});
-    expect(attend(screen.getByRole('button', { name: /Meublé uniquement/ }))).toBe(true);
+    expect(attend(screen.getByRole('button', { name: 'Oui' }))).toBe(true);
+    expect(attend(screen.getByRole('button', { name: 'Indifférent' }))).toBe(true);
+    expect(attend(screen.getByRole('button', { name: 'Non' }))).toBe(false);
   });
 
   it('résultats à jour : aucune attente nulle part', () => {

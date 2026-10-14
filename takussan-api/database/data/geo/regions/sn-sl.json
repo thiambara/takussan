@@ -1,0 +1,561 @@
+{
+  "region": {
+    "code": "SN-SL",
+    "slug": "saint-louis",
+    "name": "Saint-Louis",
+    "latitude": 16.0922138,
+    "longitude": -15.1153175
+  },
+  "source": {
+    "osm_base": "2026-10-12T09:14:31Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "48e9c2439303eca769741305dce13e9aacd044f39e0d936cb3715cb6b64a65c4"
+  },
+  "cities": [
+    {
+      "slug": "aere-lao",
+      "name": "Aéré Lao",
+      "latitude": 16.3948543,
+      "longitude": -14.3225034,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bode-lao",
+      "name": "Bodé Lao",
+      "latitude": 16.4462868,
+      "longitude": -14.3513867,
+      "neighborhoods": []
+    },
+    {
+      "slug": "boke-dialloube",
+      "name": "Boké Dialloubé",
+      "latitude": 15.9270898,
+      "longitude": -14.1711994,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bokhol",
+      "name": "Bokhol",
+      "latitude": 16.433054,
+      "longitude": -15.4869668,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dagana",
+      "name": "Dagana",
+      "latitude": 16.5126569,
+      "longitude": -15.5032671,
+      "neighborhoods": []
+    },
+    {
+      "slug": "demet",
+      "name": "Démèt",
+      "latitude": 16.5685426,
+      "longitude": -14.279234,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diama",
+      "name": "Diama",
+      "latitude": 16.2819175,
+      "longitude": -16.2620172,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dodel",
+      "name": "Dodel",
+      "latitude": 16.3301717,
+      "longitude": -14.4701641,
+      "neighborhoods": []
+    },
+    {
+      "slug": "doumga-lao",
+      "name": "Doumga Lao",
+      "latitude": 16.1594869,
+      "longitude": -14.4221872,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fanaye",
+      "name": "Fanaye",
+      "latitude": 16.294135,
+      "longitude": -15.2561936,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fanaye-diery",
+      "name": "Fanaye Diery",
+      "latitude": 16.5253441,
+      "longitude": -15.2312923,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fass-ngom",
+      "name": "Fass Ngom",
+      "latitude": 15.9395506,
+      "longitude": -16.230807,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gae",
+      "name": "Gaé",
+      "latitude": 16.577385,
+      "longitude": -15.4483214,
+      "neighborhoods": []
+    },
+    {
+      "slug": "galoya-toucouleur",
+      "name": "Galoya Toucouleur",
+      "latitude": 16.0721724,
+      "longitude": -13.8554793,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gamadji-sare",
+      "name": "Gamadji Saré",
+      "latitude": 16.2938095,
+      "longitude": -14.697745,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gandon",
+      "name": "Gandon",
+      "latitude": 15.9869192,
+      "longitude": -16.3993392,
+      "neighborhoods": []
+    },
+    {
+      "slug": "gollere",
+      "name": "Golléré",
+      "latitude": 16.2516377,
+      "longitude": -14.1060659,
+      "neighborhoods": []
+    },
+    {
+      "slug": "guede-village",
+      "name": "Guédé Village",
+      "latitude": 16.3452244,
+      "longitude": -14.9528333,
+      "neighborhoods": []
+    },
+    {
+      "slug": "madina-diathbe",
+      "name": "Madina Diathbé",
+      "latitude": 16.169476,
+      "longitude": -14.2156636,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbane",
+      "name": "Mbane",
+      "latitude": 16.2077737,
+      "longitude": -15.6169413,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mbolo-birane",
+      "name": "Mbolo Birane",
+      "latitude": 15.8372926,
+      "longitude": -14.0624873,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mboumba",
+      "name": "Mboumba",
+      "latitude": 16.1898298,
+      "longitude": -14.0152706,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mery",
+      "name": "Méry",
+      "latitude": 16.2107569,
+      "longitude": -14.0642586,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mpal",
+      "name": "Mpal",
+      "latitude": 15.9177212,
+      "longitude": -16.2665115,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiandane",
+      "name": "Ndiandane",
+      "latitude": 16.588212,
+      "longitude": -14.9839294,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiayene-peindao",
+      "name": "Ndiayène Peindao",
+      "latitude": 16.3755617,
+      "longitude": -15.0055289,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndiebene-gandiole",
+      "name": "Ndiébène Gandiole",
+      "latitude": 15.9279498,
+      "longitude": -16.4742121,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndioum",
+      "name": "Ndioum",
+      "latitude": 16.5090604,
+      "longitude": -14.6489084,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ngnith",
+      "name": "Ngnith",
+      "latitude": 16.1958298,
+      "longitude": -16.0310356,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pete",
+      "name": "Pété",
+      "latitude": 16.1029289,
+      "longitude": -13.9504032,
+      "neighborhoods": []
+    },
+    {
+      "slug": "podor",
+      "name": "Podor",
+      "latitude": 16.6487709,
+      "longitude": -14.9545801,
+      "neighborhoods": []
+    },
+    {
+      "slug": "richard-toll",
+      "name": "Richard-Toll",
+      "latitude": 16.4612304,
+      "longitude": -15.6855557,
+      "neighborhoods": [
+        {
+          "slug": "400-logements",
+          "name": "400 Logements",
+          "latitude": 16.4507374,
+          "longitude": -15.6849459,
+          "osm": "n12824027639"
+        },
+        {
+          "slug": "campement-richard-toll",
+          "name": "Campement Richard Toll",
+          "latitude": 16.4588063,
+          "longitude": -15.6998965,
+          "osm": "n2238697860"
+        },
+        {
+          "slug": "cite-cadre",
+          "name": "Cité Cadre",
+          "latitude": 16.4576377,
+          "longitude": -15.6623382,
+          "osm": "w214306137"
+        },
+        {
+          "slug": "escal",
+          "name": "Escal",
+          "latitude": 16.4665527,
+          "longitude": -15.6954181,
+          "osm": "n2238739548"
+        },
+        {
+          "slug": "gadalkhoute",
+          "name": "Gadalkhoute",
+          "latitude": 16.463567,
+          "longitude": -15.6952359,
+          "osm": "n2238697861"
+        },
+        {
+          "slug": "gae-2",
+          "name": "GAE 2",
+          "latitude": 16.4671702,
+          "longitude": -15.6899896,
+          "osm": "n2238720798"
+        },
+        {
+          "slug": "khouma-mbodjene",
+          "name": "Khouma Mbodjène",
+          "latitude": 16.4615213,
+          "longitude": -15.6672843,
+          "osm": "n3544641718"
+        },
+        {
+          "slug": "khouma-thiarrene",
+          "name": "Khouma Thiarréne",
+          "latitude": 16.4633479,
+          "longitude": -15.6758627,
+          "osm": "n2238720801"
+        },
+        {
+          "slug": "ndiangue",
+          "name": "Ndiangué",
+          "latitude": 16.4682195,
+          "longitude": -15.7038617,
+          "osm": "n2235556179"
+        },
+        {
+          "slug": "orstome",
+          "name": "Orstome",
+          "latitude": 16.4676145,
+          "longitude": -15.6987106,
+          "osm": "n2238739547"
+        }
+      ]
+    },
+    {
+      "slug": "ronkh",
+      "name": "Ronkh",
+      "latitude": 16.4345792,
+      "longitude": -15.9246322,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ross-bethio",
+      "name": "Ross Béthio",
+      "latitude": 16.2751136,
+      "longitude": -16.1389597,
+      "neighborhoods": []
+    },
+    {
+      "slug": "rosso-senegal",
+      "name": "Rosso Sénégal",
+      "latitude": 16.5000308,
+      "longitude": -15.8090003,
+      "neighborhoods": [
+        {
+          "slug": "cite-niakh",
+          "name": "Cité Niakh",
+          "latitude": 16.5025999,
+          "longitude": -15.807935,
+          "osm": "n3141580029"
+        },
+        {
+          "slug": "diamaguene",
+          "name": "Diamaguène",
+          "latitude": 16.5022676,
+          "longitude": -15.8167556,
+          "osm": "n3141580129"
+        },
+        {
+          "slug": "medine",
+          "name": "Médine",
+          "latitude": 16.4994187,
+          "longitude": -15.8025513,
+          "osm": "n3141580229"
+        },
+        {
+          "slug": "rosso-peulh",
+          "name": "Rosso Peulh",
+          "latitude": 16.4978947,
+          "longitude": -15.8207156,
+          "osm": "n3141580429"
+        },
+        {
+          "slug": "santhiaba",
+          "name": "Santhiaba",
+          "latitude": 16.5010459,
+          "longitude": -15.8085875,
+          "osm": "n3141580329"
+        }
+      ]
+    },
+    {
+      "slug": "saint-louis",
+      "name": "Saint-Louis",
+      "latitude": 16.0212513,
+      "longitude": -16.4561997,
+      "neighborhoods": [
+        {
+          "slug": "balacos",
+          "name": "Balacos",
+          "latitude": 16.0265999,
+          "longitude": -16.4914321,
+          "osm": "n2133152337"
+        },
+        {
+          "slug": "cite-s-a-e-d",
+          "name": "Cité S.A.E.D.",
+          "latitude": 16.0513192,
+          "longitude": -16.4345404,
+          "osm": "n2246861008"
+        },
+        {
+          "slug": "cite-vauvert",
+          "name": "Cité Vauvert",
+          "latitude": 16.0369066,
+          "longitude": -16.4685538,
+          "osm": "n3898677241"
+        },
+        {
+          "slug": "darou",
+          "name": "Darou",
+          "latitude": 16.0305297,
+          "longitude": -16.4851538,
+          "osm": "n2133152338"
+        },
+        {
+          "slug": "diaminar",
+          "name": "Diaminar",
+          "latitude": 16.0049181,
+          "longitude": -16.4891027,
+          "osm": "n3995452548"
+        },
+        {
+          "slug": "diawlinge",
+          "name": "Diawlingé",
+          "latitude": 16.0288586,
+          "longitude": -16.4919632,
+          "osm": "n2133152339"
+        },
+        {
+          "slug": "goxumbaac",
+          "name": "Goxumbaac",
+          "latitude": 16.0443575,
+          "longitude": -16.5071988,
+          "osm": "n2179767152"
+        },
+        {
+          "slug": "guet-n-dar",
+          "name": "Guet N'Dar",
+          "latitude": 16.0225683,
+          "longitude": -16.5085093,
+          "osm": "n2179761205"
+        },
+        {
+          "slug": "hydrobase",
+          "name": "Hydrobase",
+          "latitude": 16.0024308,
+          "longitude": -16.5090014,
+          "osm": "n2267485116"
+        },
+        {
+          "slug": "ile-nord",
+          "name": "Île Nord",
+          "latitude": 16.0326703,
+          "longitude": -16.5047503,
+          "osm": "n2133151104"
+        },
+        {
+          "slug": "ile-sud",
+          "name": "Île Sud",
+          "latitude": 16.0222259,
+          "longitude": -16.505444,
+          "osm": "n3323278099"
+        },
+        {
+          "slug": "khor",
+          "name": "Khor",
+          "latitude": 16.031743,
+          "longitude": -16.4712577,
+          "osm": "n2246882215"
+        },
+        {
+          "slug": "khor-cabane",
+          "name": "Khor Cabane",
+          "latitude": 16.0338055,
+          "longitude": -16.4687674,
+          "osm": "n3898675042"
+        },
+        {
+          "slug": "khor-usine",
+          "name": "Khor Usine",
+          "latitude": 16.0250039,
+          "longitude": -16.474735,
+          "osm": "n3898674357"
+        },
+        {
+          "slug": "medina",
+          "name": "Médina",
+          "latitude": 16.0108334,
+          "longitude": -16.4876976,
+          "osm": "n2242879226"
+        },
+        {
+          "slug": "ndar-toute",
+          "name": "Ndar Toute",
+          "latitude": 16.0298042,
+          "longitude": -16.5082078,
+          "osm": "n2179764900"
+        },
+        {
+          "slug": "ndioloffene-nord",
+          "name": "Ndioloffène Nord",
+          "latitude": 16.0241411,
+          "longitude": -16.4851086,
+          "osm": "n2133146759"
+        },
+        {
+          "slug": "ndioloffene-sud",
+          "name": "Ndioloffène Sud",
+          "latitude": 16.0203079,
+          "longitude": -16.4871109,
+          "osm": "n2136287084"
+        },
+        {
+          "slug": "pethiely",
+          "name": "Pethiely",
+          "latitude": 16.0138398,
+          "longitude": -16.4899226,
+          "osm": "n14206070782"
+        },
+        {
+          "slug": "pikine",
+          "name": "Pikine",
+          "latitude": 16.0049834,
+          "longitude": -16.4914226,
+          "osm": "n2243403186"
+        },
+        {
+          "slug": "pikine-3",
+          "name": "Pikine 3",
+          "latitude": 15.9922857,
+          "longitude": -16.4902409,
+          "osm": "n2243403185"
+        },
+        {
+          "slug": "santhiaba",
+          "name": "Santhiaba",
+          "latitude": 16.0373168,
+          "longitude": -16.5081063,
+          "osm": "n2266012696"
+        },
+        {
+          "slug": "sor",
+          "name": "Sor",
+          "latitude": 16.0277708,
+          "longitude": -16.4949108,
+          "osm": "n2243136256"
+        },
+        {
+          "slug": "village-h",
+          "name": "Village H",
+          "latitude": 16.0634672,
+          "longitude": -16.425635,
+          "osm": "n5186356594"
+        },
+        {
+          "slug": "village-l",
+          "name": "Village L",
+          "latitude": 16.0640306,
+          "longitude": -16.4272853,
+          "osm": "n5492327416"
+        }
+      ]
+    },
+    {
+      "slug": "walalde",
+      "name": "Walaldé",
+      "latitude": 16.5055533,
+      "longitude": -14.2061695,
+      "neighborhoods": []
+    }
+  ]
+}

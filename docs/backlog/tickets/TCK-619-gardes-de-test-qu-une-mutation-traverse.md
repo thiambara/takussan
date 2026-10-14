@@ -5,7 +5,7 @@ status: todo
 phase: P2
 family: technique
 estimate: S
-wave: 74
+wave: 76
 created: 2026-10-08
 updated: 2026-10-08
 depends_on: []

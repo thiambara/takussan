@@ -1,0 +1,132 @@
+{
+  "verdict": "refuse — deux points courts bloquent : (1) la règle D9 déclarée (« une proposition en attente ne sort que sur un bien où son AUTEUR l'a rattachée ») est contournée par la DUPLICATION : PropertyDuplicationService recopie attached_by_id, donc un tiers qui peut modifier le bien de A (super-admin, staff d'agence) le duplique et la fiche publique de SA copie affiche « Puits privé de A » (prouvé par requête : clone du super-admin → tags publics [\"Puits privé de A\"]) ; (2) les planchers de la relecture restent nationaux : Ziguinchor ET Thiès vidées de leurs 65 quartiers (total 300), ou tous les quartiers hors ville de Dakar remplacés par 150 quartiers inventés (osm null), se signent et passent la garde (46/46 verts sur copie). Le reste tient : fiche, comparateur, liste, by-ids, similaires, statut, découverte, sitemap, /api/public/amenities et JSON-LD ne sortent pas la proposition d'autrui ; approbation, fusion et refus se comportent comme annoncé ; migration up/down/up propre ; les ablations différentes rougissent sur 5 cibles sur 9. Non bloquant : le bien de B reste TROUVABLE (recherche q=, filtre tags=, carte) par le nom de la proposition de A, sans que le texte sorte, et quatre gardes restent vertes sous ablation.",
+  "preuves": {
+    "charge": "uptime 12:25 : 1.93 4.35 10.27 ; 12:35 : 2.00 3.08 6.68 ; 12:36 : 2.58 2.98 6.24 — 8 cœurs, autres agents actifs (lot C) : aucune durée n'est une mesure du dépôt.",
+    "api_lot_d": "php artisan test tests/Feature/Geo tests/Feature/Tags tests/Unit/Geo tests/Unit/Services/Geo + PropertyNumericBounds, PropertyCurrencyForced, AgencyFeeIndividual, CustomerTags, PropertyTags, PropertyDuplication, Public/PropertyCompare, Boost/PropertyResourceBadge, CoutDEntreeConcordance, FilterCoverageTags, TagTest, TagWriteAuthorization, LangGroupParity, PropertyWritableFields → 15 failed, 264 passed (1056 assertions). Les 15 rouges sont TOUS GeoDatasetReviewedTest sur le vrai jeu (14 « relecture humaine absente » + format@dk « Golf Sud(Cité Aliou SOW) ») — attendus.",
+    "pint": "./vendor/bin/pint --test <Tag, PublicPropertyController, PropertyTagController, TagController, CustomerTagController, PropertyDuplicationService, Services/Tags, Services/Geo, SyncPropertyTagRequest, UpdatePropertyRequest, migration 400300, tests Tags/Geo/Unit Geo, PropertyNumericBoundsTest> → passed",
+    "front_vitest": "55 fichiers (property-form/*, lib/geo, libelle-equipement, cout-d-entree.concordance, LocationPickerMap.recentrage, super-admin-propositions, property-tags.tck-633, property-fields.coverage, combobox, FileDePropositions, SuperAdminSidebar.propositions, composants de la fiche publique) → 565 passed (565)",
+    "tsc": "npx tsc --noEmit → exit 0",
+    "eslint": "npx eslint ChampsLieu.tsx, ChampsLieu.test.tsx, ChampEquipements.tsx, libelle-equipement.test.ts, src/lib/geo, ui/combobox.tsx → exit 0",
+    "check_i18n": "exit 0 — parité en 0/0, wo 0/0 sur 8045 clés fr, 0 libellé en dur non justifié",
+    "design_sync": "node scripts/check-design-sync-entry.mjs → ✓ 26 modules, 26 racines, 63 sous-parties exclues, exit 0",
+    "surfaces_publiques": {
+      "montage": "Test temporaire HORS dépôt (scratchpad, vendor/bin/phpunit -c phpunit.xml, InteractsWithMeilisearch, supprimé ensuite) : A propose « Puits privé de A » par tag_names sur son bien (attached_by = A) ; B tape « puits privé de a » sur le sien ; deux biens publiés à Dakar avec coordonnées ; index Meilisearch reconstruit ; appels anonymes.",
+      "resultats": {
+        "GET /public/properties/{B}": "proposition absente (tags filtrés par visiblesSurUneFiche)",
+        "GET /public/properties/{A}": "présente — voulu (son auteur l'a rattachée)",
+        "GET /public/properties/compare?ids=A,B": "A : [Puits privé de A] ; B : [] — voulu",
+        "GET /public/properties/{A}/similar": "chaîne absente (PropertyResource ne rend tags qu'en $isDetail ; SimilarPropertiesService charge tags non filtrés mais pour le SCORE seulement)",
+        "GET /public/properties/{A}/status, /public/properties, /by-ids, /discovery, /sitemap": "chaîne absente",
+        "GET /public/amenities": "chaîne absente (approuvés seulement)",
+        "GET /public/properties/search?tags=Puits privé de A": "ids [A, B] — B TROUVABLE, texte non rendu",
+        "GET /public/properties/search?q=puits privé": "ids [A, B] — B TROUVABLE, texte non rendu",
+        "GET /public/properties/map?bounds=…&tags=Puits privé de A": "ids [A, B] — B sur la carte filtrée, texte non rendu",
+        "JSON-LD / partage": "lib/jsonld-property.ts ne lit aucun équipement ; la fiche front lit /public/properties/{slug} (getProperty) — rien de plus que la fiche",
+        "recherches sauvegardées / alertes e-mail": "aucun Mail/Notification/Job ne lit tags (grep app/Mail app/Notifications app/Jobs) ; une alerte filtrée sur ce nom retrouverait B comme la recherche, sans afficher le nom",
+        "facettes": "PropertySearchService::FACETS = neighborhood, bedrooms, type — tags n'est pas une facette : aucun nom ne sort par facetDistribution"
+      }
+    },
+    "moderation_par_les_routes": {
+      "fusion_dans_un_approuve": "POST /api/admin/tags/{prop}/merge into « Puits » (approuvé) → fiches de A ET de B : [\"Puits\"] ; pivots recopiés avec leur attached_by_id",
+      "fusion_dans_une_proposition_en_attente_d_un_tiers_C": "fiches de A et de B : [] (attached_by ≠ créateur de la cible) — masquage, sens sûr",
+      "approbation": "POST /api/admin/tags/{prop}/approve → la fiche de B sort « Puits privé de A »",
+      "refus": "POST /api/admin/tags/{prop}/reject → 0 liaison restante",
+      "copie_par_un_tiers": "super-admin (id 5) duplique le bien de A (auteur 3) → clone à lui (user_id 5), publié → GET /public/properties/{clone} : tags [\"Puits privé de A\"] — cf. fuite 1"
+    },
+    "attached_by_id_chemins": {
+      "PropertyTagController::sync": "écrit sur les liaisons NOUVELLES seulement (attached par sync()) — B, collègue ou super-admin qui tapent le nom → masqué",
+      "PropertyDuplicationService": "recopie la valeur de la source (fuite 1)",
+      "TagModeration::fusionner": "recopie la valeur (insertOrIgnoreUsing) ; une liaison déjà présente sur la cible garde la sienne",
+      "TagModeration::rejeter": "supprime toutes les liaisons, réindexe",
+      "TagModeration::approuver": "statut seul ; la proposition sort partout (aucune réindexation nécessaire : le nom ne change pas)",
+      "seeders": "FilterCoverageSeeder::syncWithoutDetaching n'attache que des étiquettes du catalogue, approuvées : attached_by null sans conséquence",
+      "import": "aucun chemin d'import de bien ne touche les étiquettes (grep tags()->, taggables dans app/ et database/)",
+      "Store/UpdatePropertyRequest": "n'acceptent ni tag_ids ni tag_names"
+    },
+    "migration_400300": "Base jetable reverif2_d_tmp (UTF8, locale C) : migrate complet (227 migrations) ; ligne taggables posée avec attached_by_id ; rollback --path 400300 → colonne et FK retirées, ligne conservée ; migrate --path → attached_by_id NULL (aucun rattrapage) ; rollback puis migrate à nouveau → propre ; FK taggables_attached_by_id_fk (27 car.) ON DELETE SET NULL ; suppression de l'utilisateur → attached_by_id et tags.created_by_id à NULL → masqué. Base supprimée (pg_database : 0 « reverif% »). L'absence de rattrapage est sans conséquence réelle : tags.status naît dans la migration 400200 du MÊME lot avec le défaut 'approved', aucune proposition en attente ne peut exister avant 400300 sur un environnement déployé.",
+    "signature_sur_copie": {
+      "montage": "scratchpad : copie des 14 régions (lecture node, aucun cp), copie de signer.mjs, copie de GeoDatasetReviewedTest (namespace Scratch, dossier lu dans JEU_COPIE) ; Golf Sud corrigé SUR LA COPIE ; chaque scénario re-signé par la copie de signer.mjs au nom « Jean Dupont ». Témoin : OK (46 tests, 182 assertions).",
+      "verts_qui_ne_devraient_pas_l_etre": [
+        "Ziguinchor (39 quartiers) et Thiès (26) vidées : 504 villes, 300 quartiers, ville de Dakar 151 → OK (46/46)",
+        "Saint-Louis (40) et Ziguinchor (39) vidées, 79 quartiers INVENTÉS ajoutés à la ville de Dakar (osm null) : 365 quartiers → OK",
+        "TOUS les quartiers hors ville de Dakar retirés, 150 quartiers inventés « Zz 1…150 » (osm null) posés sur une ville de Thiès, Louga réduite de 55 à 10 villes, 45 villes inventées ajoutées à Kédougou : 504 villes, 301 quartiers → OK",
+        "signer.mjs accepte « Prénom Nom », « Claude Code », « Relecteur Humain », « Test Test », « Agent Ia » (exit 0) et la garde les accepte (46/46)"
+      ],
+      "rouges_comme_attendu": [
+        "ordre des clés d'une ville modifié APRÈS signature → rouge (empreinte)"
+      ],
+      "vrai_jeu": "NON signé, NON modifié : md5 de l'ensemble (md5 -q regions/*.json | md5) 3f99218e avant et après ; les 14 fichiers gardent relu_par null ; signer.mjs f14e5545 et GeoDatasetReviewedTest bca863d3 inchangés."
+    },
+    "web_ci": "Les trois chemins ajoutés (TagCatalog.php, tests/fixtures/cout-d-entree.json, tests/fixtures/liens-google-maps.json) existent, figurent dans pull_request.paths ET push.paths, et sont exactement les fichiers lus par libelle-equipement.test.ts:21, cout-d-entree.concordance.test.ts:9 et reconnaitre-position.test.ts:21. L'écart booking-quote.json est RÉEL (lu par booking-quote.concordance.test.ts:10, absent des deux listes, antérieur au lot). Trois autres lecteurs croisés sont dans le même cas, hors lot D : app/Models/Property.php (property-fields.coverage.test.ts:65), app/Models/Concerns/HasProfiles.php (user-roles.parity.test.ts), app/Http/Requests/Public/MapPublicPropertyRequest.php (search-filters.parity.test.ts, lecture ajoutée par le lot E dans l'arbre)."
+  },
+  "ablations": [
+    { "cible": "GeoLinkResolver::HOTES_APPELES étendu à google.com, www.google.sn, google.sn (www.google.com laissé hors liste)", "rouge": "NON : GeoLinkResolverTest 15 passed — la garde n'épingle que www.google.com", "restaure": "md5 d3c62e90" },
+    { "cible": "TagModeration::rejeter sans réindexation", "rouge": "NON : tests/Feature/Tags + GeoNeighborhoodMergeSearchTest 44 passed", "restaure": "md5 92be206f" },
+    { "cible": "TagModeration::fusionner — biens à réindexer pris sur la CIBLE au lieu de la source", "rouge": "OUI : TagModerationSearchTest 1 failed", "restaure": "md5 92be206f" },
+    { "cible": "TagModeration::fusionner — contrôle « porte autre chose que des biens » lu sur la cible au lieu de la source", "rouge": "OUI : une_etiquette_crm_basculee_en_equipement_ne_se_fusionne_pas", "restaure": "md5 92be206f" },
+    { "cible": "UpdatePropertyRequest year_built min:1799 (borne basse −1 en modification)", "rouge": "OUI : la_borne_passe_et_la_borne_plus_un… (200 au lieu de 422)", "restaure": "md5 f75d22cf" },
+    { "cible": "ChampsLieu — mention ODbL masquée dès qu'un quartier est CHOISI (quartierId !== null)", "rouge": "NON : ChampsLieu 11 passed (le test ouvre la liste mais ne choisit aucun quartier)", "restaure": "md5 c43f2601" },
+    { "cible": "Tag::scopeVisiblesSurUneFiche — whereColumn(attached_by = created_by) remplacé par whereNotNull(attached_by)", "rouge": "OUI : 3 rouges (par nom bien neuf, bien équipé, comparateur)", "restaure": "md5 ca8b1647" },
+    { "cible": "PropertyTagController::sync — attached_by_id réécrit sur TOUTES les liaisons du bien, pas seulement les nouvelles", "rouge": "NON : tests/Feature/Tags + PropertyResourceGeoTest 43 passed ; PropertyTagsTest + PropertyDuplicationTest 15 passed — « un aller-retour du formulaire ne réattribue rien » n'est pas épinglé", "restaure": "md5 8a293e25" },
+    { "cible": "GeoDatasetReviewedTest — planchers (attaque sur copie, voir signature_sur_copie)", "rouge": "NON sur trois jeux appauvris signés", "restaure": "fichier réel jamais modifié (bca863d3)" }
+  ],
+  "fuites": [
+    {
+      "fichier": "takussan-api/app/Services/Property/PropertyDuplicationService.php:83-91",
+      "scenario": "A rattache sa proposition en attente à son bien. Un tiers qui a le droit de MODIFIER ce bien (super-admin, staff d'agence avec properties.update_any — PropertyPolicy::duplicate = update) le duplique : la copie lui appartient, porte attached_by_id = A recopié, et sa fiche publique affiche « Puits privé de A » une fois publiée. Prouvé : clone du super-admin → GET /api/public/properties/{clone} → tags [\"Puits privé de A\"]. C'est exactement ce que la règle déclarée exclut (« ailleurs que sur un bien où son AUTEUR l'a rattachée ») et ce que sync() refuse au même tiers (sa saisie par nom est masquée).",
+      "gravite": "basse à moyenne — exige un droit de modification sur le bien de l'auteur, mais contourne la règle D9 par un geste ordinaire",
+      "correctif": "Dans la copie, attached_by_id = $actor->id (ou conserver la valeur seulement si elle vaut $actor->id) ; test : un tiers duplique → absente de la fiche de la copie ; l'auteur duplique son propre bien → présente."
+    },
+    {
+      "fichier": "takussan-api/app/Models/Property.php:468 ; config/scout.php:180, :189 ; app/Services/Search/PropertySearchService.php:535-542 ; app/Services/Search/FiltresDeLaCarte.php:120-127",
+      "scenario": "Le bien de B, qui porte la proposition de A par son nom (masquée sur sa fiche), sort dans /public/properties/search?q=puits privé, ?tags=Puits privé de A et dans /public/properties/map?tags=… — l'index et le filtre SQL de la carte lisent toutes les étiquettes, sans la règle de visibilité. Aucun texte n'est rendu (hydrate() ne charge pas tags ; tags n'est pas une facette). Limite déclarée par l'implémenteur, mais elle produit un résultat incohérent : un visiteur qui filtre sur cet équipement ouvre une fiche qui ne le montre pas.",
+      "gravite": "basse",
+      "correctif": "Indexer et filtrer les seules étiquettes visibles sur la fiche (même scope dans toSearchableArray et FiltresDeLaCarte::equipements), réindexation à l'approbation ; ou l'écrire dans ADR-0061 §9 comme limite acceptée."
+    }
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php:66-72 (planchers), :259-279 (test des planchers), :295 (osm null admis)",
+      "scenario": "Les planchers sont nationaux (450 villes, 300 quartiers) plus la seule ville de Dakar (120). Sur copie, re-signés « Jean Dupont » et VERTS : Ziguinchor + Thiès vidées (300 quartiers) ; Saint-Louis + Ziguinchor vidées compensées par 79 quartiers inventés à Dakar ; tous les quartiers hors ville de Dakar remplacés par 150 inventés (osm null) et 45 villes inventées. Le premier refus visait justement une région vidée (Ziguinchor) ; le refus de plancher par région se justifie pour Kédougou/Sédhiou (0), pas pour les régions qui en ont.",
+      "gravite": "basse à moyenne — une extraction appauvrie ou rembourrée se signe sans que la garde le voie",
+      "correctif": "Plancher de quartiers PAR RÉGION qui en a aujourd'hui (ex. ≥ 80 % du compte du 2026-10-12 : dk 198, sl 40, zg 39, db 28, th 26, kl 15), et plafond de quartiers sans référence OSM (13 aujourd'hui, ex. ≤ 20) — ou comptes par région écrits par extract.mjs dans source et comparés."
+    },
+    {
+      "fichier": "takussan-api/database/data/geo/signer.mjs:52-53 ; tests/Unit/Geo/GeoDatasetReviewedTest.php:58",
+      "scenario": "« Prénom Nom », « Claude Code », « Relecteur Humain », « Test Test », « Agent Ia » sont acceptés par signer.mjs (exit 0) et par la garde.",
+      "gravite": "basse — on ne prouve pas l'humain ; ce sont les noms génériques qu'un agent écrirait",
+      "correctif": "Liste de refus partagée JS/PHP (claude, opus, sonnet, agent, test, prénom, nom, relecteur, admin, ia/ai) sur chaque mot, cas dans signatairesInvalides."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Tags/TagModeration.php:46 ; tests/Feature/Tags/TagModerationSearchTest.php",
+      "scenario": "Retirer la réindexation du REFUS laisse tout vert : les biens resteraient trouvables par le nom d'une proposition refusée (un texte que la modération a écarté).",
+      "gravite": "basse — le code est juste, non épinglé",
+      "correctif": "Troisième cas dans TagModerationSearchTest : deux biens, refus, puis biensEquipesDe(nom) === []."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Geo/GeoLinkResolverTest.php:151-161",
+      "scenario": "Le cas n'éprouve que www.google.com : ajouter google.com, www.google.sn, google.sn à HOTES_APPELES reste vert (15 passed).",
+      "gravite": "basse",
+      "correctif": "Data provider sur les quatre hôtes de lecture (www.google.com, google.com, www.google.sn, google.sn) avec assertSentCount(1)."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-form/__tests__/ChampsLieu.test.tsx:167-173",
+      "scenario": "Masquer la mention ODbL dès qu'un quartier du référentiel est CHOISI reste vert : le test ouvre la liste mais ne choisit rien, alors que le quartier choisi affiché est la donnée OSM.",
+      "gravite": "basse",
+      "correctif": "Choisir « Mermoz » puis chercher la mention."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/PropertyTagController.php:43-52",
+      "scenario": "« Seules les liaisons NOUVELLES sont marquées » n'est pas épinglé : réécrire attached_by_id sur toutes les liaisons à chaque sync laisse Tags, PropertyResourceGeo, PropertyTags et PropertyDuplication verts. Effet de la régression : un collègue qui réenregistre le formulaire du bien de A masque la proposition de A ; l'auteur qui réenregistre un bien où un autre l'a tapée la rend publique.",
+      "gravite": "basse",
+      "correctif": "Test : A rattache sa proposition, un collègue (properties.update_any) renvoie le formulaire avec le même identifiant → toujours visible sur la fiche, attached_by_id = A."
+    },
+    {
+      "fichier": ".github/workflows/web-ci.yml:20-66, :68-92",
+      "scenario": "Hors lot D, mais réel : booking-quote.json (booking-quote.concordance.test.ts:10), app/Models/Property.php (property-fields.coverage.test.ts:65), app/Models/Concerns/HasProfiles.php (user-roles.parity.test.ts) et app/Http/Requests/Public/MapPublicPropertyRequest.php (search-filters.parity.test.ts, lecture ajoutée par le lot E) sont lus par des gardes front sans déclencher web-ci.",
+      "gravite": "basse — promotion-ci rattrape à la promotion",
+      "correctif": "Ajouter ces quatre chemins aux deux listes (ou une garde de dépôt qui dérive les chemins lus des tests et les compare aux paths)."
+    }
+  ],
+  "integrite": "Aucune écriture git. Aucune requête sortante (tests du dépôt sous Http::fake ; mon test n'appelle pas le résolveur). Ablations par Edit puis Edit inverse, md5 relus après chaque restauration et à la fin : GeoLinkResolver d3c62e90, TagModeration 92be206f, UpdatePropertyRequest f75d22cf, Tag ca8b1647, PropertyTagController 8a293e25, ChampsLieu.tsx c43f2601. Jeu géographique : md5 de l'ensemble 3f99218e avant et après, jamais signé ; signer.mjs lancé UNIQUEMENT sur la copie du scratchpad. Base jetable reverif2_d_tmp créée puis supprimée. Test temporaire et copies du scratchpad supprimés. Aucune suite entière lancée."
+}

@@ -129,7 +129,8 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // ── 4. Aplats de --primary sous encre --primary ───────────────────────────────────────────────
   ['components/search/SearchToolbar.tsx · text-primary sur bg-primary/8 sur un sous-jacent inconnu (pire pixel 108)', 1.00, 'texte sur un aplat de sa propre couleur — motif de TCK-444'],
   ['components/search/SearchAutocomplete.tsx · text-primary sur bg-primary/15 sur un sous-jacent inconnu (pire pixel 108)', 1.01, 'idem, le `<mark>` de la surbrillance'],
-  ['components/search/FilterSidebar.tsx · text-primary sur bg-primary/5 sur un sous-jacent inconnu (pire pixel 108)', 1.01, 'idem'],
+  // `FilterSidebar.tsx · text-primary sur bg-primary/5` est sortie le 2026-10-12 (TCK-633, lot E) :
+  // c'était la bascule « Meublé uniquement », remplacée par trois puces (indifférent, oui, non).
   ['components/forms/FormSuccess.tsx · text-success sur bg-success/5 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'idem, avec `--success` : le motif n’est pas propre à `--primary`'],
   /*
    * ⚠ LES QUATRE SUIVANTES SONT APPARUES LE 2026-08-30 SANS QU'AUCUN DE CES FICHIERS NE CHANGE.
@@ -336,8 +337,27 @@ const FICHIERS_HORS_JETONS = 5;
  * **258 → 256 le 2026-10-10 (retour du porteur sur TCK-628).** `home/RaccourcisDeLAccueil.tsx`
  * est supprimé avec les tuiles par ville, par type et par quartier : ses deux entrées partent avec
  * lui. C'est la seule différence.
+ *
+ * **256 → 263 le 2026-10-12 (TCK-633).** Relevé en comparant la liste des encres inverses de
+ * `HEAD` (extrait par `git archive`) à celle de l'arbre, numéros de ligne retirés — sept
+ * différences, et rien d'autre :
+ * - lot E, `search/FilterSidebar.tsx` −2 : la bascule « Meublé uniquement » (son état inactif) et
+ *   l'icône du champ libre des équipements partent avec eux ;
+ * - lot E, `search/ChoixDuReferentiel.tsx` +1, fichier neuf : le bouton de retrait de la ville ou
+ *   du quartier (`text-muted-foreground`, fond du panneau) ;
+ * - `ui/combobox.tsx` +7, primitive neuve du lot D, entrée dans la surface par
+ *   `ChoixDuReferentiel` : message « aucun résultat », indices d'option (×2), icônes du champ,
+ *   retrait de puce, placeholder et indicateur de chargement — sur le fond du champ ou du `Popup`
+ *   (`bg-popover`), jamais sur le même élément ;
+ * - lot C, `contact/ListeDeNumeros.tsx` +1, fichier neuf : déjà compté 257 avant le lot E.
+ *
+ * **263 → 264 le 2026-10-12 (TCK-635).** Même relevé (`HEAD` contre l'arbre, fichier par fichier,
+ * numéros de ligne retirés) : la seule différence est `search/SearchToolbar.tsx` +1. Le nombre de
+ * biens trouvés passe en `text-muted-foreground` à côté du titre, sur le fond de la page posé par
+ * un ancêtre (`--muted-foreground` sur `--background` : 5,6:1). Les sept autres fichiers touchés
+ * (`PropertyCard`, `PropertyCardCover`, `FilterSidebar`…) gardent exactement leurs entrées.
  */
-const ENCRES_INVERSES = 256;
+const ENCRES_INVERSES = 264;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

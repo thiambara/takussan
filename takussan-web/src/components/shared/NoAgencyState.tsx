@@ -1,9 +1,13 @@
+'use client';
+
 import { Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
+import { entreeAdmin } from '@/lib/access/pages-admin';
+import { useAccesAdmin } from '@/lib/access/acces-admin-contexte';
 
 interface NoAgencyStateProps {
   /** Titre de PAGE, déjà traduit par l'appelant — pas le titre de l'état vide. */
@@ -24,6 +28,11 @@ interface NoAgencyStateProps {
  */
 export function NoAgencyState({ title }: NoAgencyStateProps) {
   const t = useTranslations('errors.noAgency');
+  // TCK-633 (lot B) — avec un fournisseur, le CTA mène à la première page `/admin/*` accessible, et
+  // disparaît s'il n'y en a aucune. Sans fournisseur (le layout `/app` n'en monte pas encore, E5),
+  // le lien d'avant : ce composant ne connaît pas les rôles et ne peut pas dériver de repli.
+  const acces = useAccesAdmin();
+  const href = acces === null ? '/admin' : (entreeAdmin(acces)?.href ?? null);
 
   return (
     <div className="space-y-6">
@@ -37,9 +46,11 @@ export function NoAgencyState({ title }: NoAgencyStateProps) {
         title={t('title')}
         description={t('body')}
         action={
-          <Link href="/admin" className={buttonVariants({ variant: 'outline' })}>
-            {t('cta')}
-          </Link>
+          href === null ? undefined : (
+            <Link href={href} className={buttonVariants({ variant: 'outline' })}>
+              {t('cta')}
+            </Link>
+          )
         }
       />
     </div>

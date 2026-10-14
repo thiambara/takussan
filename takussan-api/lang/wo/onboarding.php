@@ -8,4 +8,9 @@ return [
             'already_onboarded' => 'Am nga ba noppi ab ajaãs personnel.',
         ],
     ],
+    // TCK-633 (lot C) — le nom de l'espace créé sans question (« Publier »).
+    'auto_space' => [
+        'name_with_first_name' => 'Bérëbu :first_name',
+        'name_default' => 'Sama bérëb',
+    ],
 ];

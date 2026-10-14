@@ -33,8 +33,11 @@ function buildUrl(item: SuggestItem, base: URLSearchParams, locale: Locale): str
     params.set(parametreDe('city'), item.data.label);
     // switching city invalidates any previous neighborhood
     params.delete(parametreDe('location'));
+    // TCK-635 — et la région d'une ville homonyme choisie avant : elle départagerait la nouvelle à 0.
+    params.delete(parametreDe('region'));
   } else if (item.kind === 'neighborhood') {
     params.set(parametreDe('city'), item.data.city);
+    params.delete(parametreDe('region'));
     params.set(parametreDe('location'), item.data.label);
   } else {
     params.set(parametreDe('type'), item.data.value);

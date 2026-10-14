@@ -35,6 +35,12 @@ interface PropertyRowProps {
    * warn `was preloaded using link preload but not used` (TCK-166).
    */
   readonly priorityCount?: number;
+  /**
+   * TCK-635 — habille de la robe « En vedette » les biens dont la Vedette est active
+   * (`property.featured`). Réservé à la rangée qui MONTRE les vedettes : ailleurs, un bien en
+   * vedette n'est pas un placement payé, il est là pour une autre raison.
+   */
+  readonly robeVedette?: boolean;
 }
 
 interface VariantSpec {
@@ -42,6 +48,7 @@ interface VariantSpec {
     property: PropertyListItem;
     priority?: boolean;
     index?: number;
+    robe?: 'vedette';
   }>;
   skeleton: 'image-1-1' | 'image-3-4' | 'horizontal';
   /** `deux-lignes` : la carte horizontale se range sur deux rangées qui défilent ensemble. */
@@ -137,6 +144,7 @@ export function PropertyRow({
   showArrows = true,
   action,
   priorityCount = 0,
+  robeVedette = false,
 }: PropertyRowProps) {
   const t = useTranslations('property.row');
   const spec = VARIANTS[variant];
@@ -254,6 +262,7 @@ export function PropertyRow({
                   property={property}
                   priority={i < priorityCount}
                   index={i}
+                  robe={robeVedette && property.featured ? 'vedette' : undefined}
                 />
               ))}
         </div>

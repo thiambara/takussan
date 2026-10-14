@@ -1,0 +1,600 @@
+{
+  "verdict": {
+    "statut": "termine",
+    "phrase": "Les 24 tâches du lot F sont livrées en TDD avec ablation (150 tests PHP du lot et 15 tests front du lot verts, C1 à C9 et C11 appliquées dans le territoire accordé, écouteurs posés après vérification des événements du lot C) ; restent à la session quatre collisions hors territoire (deux tests de barre latérale, le registre ResourceInventory, l'écran de succès C12) plus C10 et C13."
+  },
+  "fichiers": {
+    "crees": [
+      "takussan-api/database/migrations/2026_10_12_500100_create_boost_tables.php",
+      "takussan-api/database/migrations/2026_10_12_500200_create_credit_ledger_tables.php",
+      "takussan-api/database/migrations/2026_10_12_500300_add_boost_columns_to_properties.php",
+      "takussan-api/database/migrations/2026_10_12_500400_seed_boost_catalogue_and_convert_featured.php",
+      "takussan-api/database/seeders/System/BoostProductSeeder.php",
+      "takussan-api/database/seeders/System/OfferedFeaturedSeeder.php",
+      "takussan-api/app/Models/Enums/BoostKind.php",
+      "takussan-api/app/Models/Enums/BoostStatus.php",
+      "takussan-api/app/Models/Enums/BoostBadge.php",
+      "takussan-api/app/Models/Enums/CreditLotOrigin.php",
+      "takussan-api/app/Models/Enums/CreditMovementType.php",
+      "takussan-api/app/Models/BoostProduct.php",
+      "takussan-api/app/Models/CreditLot.php",
+      "takussan-api/app/Models/CreditMovement.php",
+      "takussan-api/app/Models/CreditWelcomeGrant.php",
+      "takussan-api/app/Models/PropertyBoost.php",
+      "takussan-api/app/Models/PropertyBoostDailyStat.php",
+      "takussan-api/app/Observers/AgencyBoostObserver.php",
+      "takussan-api/app/Policies/CreditLotPolicy.php",
+      "takussan-api/app/Policies/PropertyBoostPolicy.php",
+      "takussan-api/app/Support/PhoneFingerprint.php",
+      "takussan-api/app/Services/Credits/CreditLedger.php",
+      "takussan-api/app/Services/Credits/InsufficientCredits.php",
+      "takussan-api/app/Services/Credits/WelcomeCreditService.php",
+      "takussan-api/app/Services/Credits/CreditExpiryNotifier.php",
+      "takussan-api/app/Services/Boost/BoostSettings.php",
+      "takussan-api/app/Services/Boost/BoostPurchaseService.php",
+      "takussan-api/app/Services/Boost/BoostLifecycle.php",
+      "takussan-api/app/Services/Boost/BoostStatsRecorder.php",
+      "takussan-api/app/Services/Boost/LegacyFeaturedConversion.php",
+      "takussan-api/app/Services/Boost/SponsoredRotation.php",
+      "takussan-api/app/Notifications/Credits/CreditsGrantedNotification.php",
+      "takussan-api/app/Notifications/Credits/CreditsExpiringNotification.php",
+      "takussan-api/app/Notifications/Boost/BoostEndedNotification.php",
+      "takussan-api/app/Notifications/Boost/BoostRefundedNotification.php",
+      "takussan-api/app/Listeners/Credits/GrantWelcomeCreditsOnPhoneVerified.php",
+      "takussan-api/app/Listeners/Credits/GrantWelcomeCreditsOnSpaceCreated.php",
+      "takussan-api/app/Console/Commands/BoostsTick.php",
+      "takussan-api/routes/api/credits.php",
+      "takussan-api/routes/api/admin-credits.php",
+      "takussan-api/app/Http/Controllers/Api/Credits/CreditController.php",
+      "takussan-api/app/Http/Controllers/Api/Credits/BoostProductController.php",
+      "takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php",
+      "takussan-api/app/Http/Controllers/Api/Admin/AdminBoostProductController.php",
+      "takussan-api/app/Http/Controllers/Api/Admin/AdminCreditWalletController.php",
+      "takussan-api/app/Http/Controllers/Api/Admin/AdminBoostController.php",
+      "takussan-api/app/Http/Controllers/Api/Admin/AdminBoostStatsController.php",
+      "takussan-api/app/Http/Requests/Credits/StorePropertyBoostRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/StoreBoostProductRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/UpdateBoostProductRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/AdjustCreditWalletRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/CancelBoostRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/OfferBoostRequest.php",
+      "takussan-api/app/Http/Requests/Api/Admin/BoostStatsRequest.php",
+      "takussan-api/app/Http/Resources/Credits/CreditLotResource.php",
+      "takussan-api/app/Http/Resources/Credits/CreditMovementResource.php",
+      "takussan-api/app/Http/Resources/Credits/BoostProductResource.php",
+      "takussan-api/app/Http/Resources/Credits/PropertyBoostResource.php",
+      "takussan-api/app/Http/Resources/Credits/CreditWalletResource.php",
+      "takussan-api/lang/fr/credits.php",
+      "takussan-api/lang/en/credits.php",
+      "takussan-api/lang/wo/credits.php",
+      "takussan-api/tests/Feature/Credits/CreditSchemaTest.php",
+      "takussan-api/tests/Feature/Credits/CreditLedgerInvariantTest.php",
+      "takussan-api/tests/Feature/Credits/CreditConsumptionOrderTest.php",
+      "takussan-api/tests/Feature/Credits/CreditConcurrentSpendTest.php",
+      "takussan-api/tests/Feature/Credits/WelcomeCreditOncePerPhoneTest.php",
+      "takussan-api/tests/Feature/Credits/WelcomeCreditListenersTest.php",
+      "takussan-api/tests/Feature/Notifications/CreditsNotificationsTest.php",
+      "takussan-api/tests/Feature/Boost/BoostModelsTest.php",
+      "takussan-api/tests/Feature/Boost/BoostSettingsTest.php",
+      "takussan-api/tests/Feature/Boost/BoostSpendCapabilityTest.php",
+      "takussan-api/tests/Feature/Boost/BoostCatalogueTest.php",
+      "takussan-api/tests/Feature/Boost/BoostRulesTest.php",
+      "takussan-api/tests/Feature/Boost/FeaturedNotWritableTest.php",
+      "takussan-api/tests/Feature/Boost/BoostPauseAndRefundTest.php",
+      "takussan-api/tests/Feature/Boost/BoostsTickIdempotenceTest.php",
+      "takussan-api/tests/Feature/Boost/BoostsTickScheduleTest.php",
+      "takussan-api/tests/Feature/Boost/RankedOrderTest.php",
+      "takussan-api/tests/Feature/Boost/ReservedTopResultsTest.php",
+      "takussan-api/tests/Feature/Boost/SponsoredRotationTest.php",
+      "takussan-api/tests/Feature/Boost/BoostStatsTest.php",
+      "takussan-api/tests/Feature/Boost/SponsoredImpressionsTest.php",
+      "takussan-api/tests/Feature/Boost/CreditsApiTest.php",
+      "takussan-api/tests/Feature/Boost/PropertyBoostApiTest.php",
+      "takussan-api/tests/Feature/Boost/PropertyResourceBadgeTest.php",
+      "takussan-api/tests/Feature/Boost/AdminCreditsApiTest.php",
+      "takussan-api/tests/Feature/Boost/AdminCreditsStepUpTest.php",
+      "takussan-api/tests/Unit/Boost/SponsoredRotationPickTest.php",
+      "takussan-api/tests/Unit/Support/PhoneFingerprintTest.php",
+      "takussan-web/src/components/boost/types.ts",
+      "takussan-web/src/components/boost/api.ts",
+      "takussan-web/src/components/boost/BoostDialog.tsx",
+      "takussan-web/src/components/boost/BoostButton.tsx",
+      "takussan-web/src/components/boost/CreditsPanel.tsx",
+      "takussan-web/src/components/boost/EmplacementSponsorise.tsx",
+      "takussan-web/src/components/boost/MarquesDeBoost.tsx",
+      "takussan-web/src/components/boost/lecture-recherche.ts",
+      "takussan-web/src/components/boost/arrivee-sponsorisee.ts",
+      "takussan-web/src/components/boost/__tests__/BoostDialog.test.tsx",
+      "takussan-web/src/components/boost/__tests__/CreditsPanel.test.tsx",
+      "takussan-web/src/components/boost/__tests__/EmplacementSponsorise.test.tsx",
+      "takussan-web/src/components/boost/__tests__/MarquesDeBoost.test.tsx",
+      "takussan-web/src/components/boost/__tests__/CompteurDeVueSponsorise.test.tsx",
+      "takussan-web/src/components/boost/__tests__/lecture-recherche.test.ts",
+      "takussan-web/src/components/boost/admin/api.ts",
+      "takussan-web/src/components/boost/admin/BoostsNav.tsx",
+      "takussan-web/src/components/boost/admin/AdminCreditWallets.tsx",
+      "takussan-web/src/components/boost/admin/AdminCreditWalletDetail.tsx",
+      "takussan-web/src/components/boost/admin/AdminBoosts.tsx",
+      "takussan-web/src/components/boost/admin/AdminBoostCatalogue.tsx",
+      "takussan-web/src/components/boost/admin/AdminBoostStats.tsx",
+      "takussan-web/src/components/boost/admin/__tests__/AdminCreditWalletDetail.test.tsx",
+      "takussan-web/src/components/boost/admin/__tests__/AdminBoosts.test.tsx",
+      "takussan-web/src/app/(dashboard)/app/credits/page.tsx",
+      "takussan-web/src/app/(super-admin)/super-admin/credits/page.tsx",
+      "takussan-web/src/app/(super-admin)/super-admin/credits/[agencyId]/page.tsx",
+      "takussan-web/src/app/(super-admin)/super-admin/boosts/page.tsx",
+      "takussan-web/src/app/(super-admin)/super-admin/boosts/catalogue/page.tsx",
+      "takussan-web/src/app/(super-admin)/super-admin/boosts/stats/page.tsx",
+      "docs/plans/rapports/tck-633-lot-f.json"
+    ],
+    "edites": [
+      "takussan-api/app/Models/Property.php (Edit : casts, $queryFields, ranked_at, replicating, boosts(), toSearchableArray ranked_at, import BoostBadge)",
+      "takussan-api/app/Models/Agency.php (Edit : ObservedBy AgencyBoostObserver, creditLots())",
+      "takussan-api/app/Models/Enums/Capability.php (Edit : BoostSpend)",
+      "takussan-api/app/Observers/PropertyObserver.php (Edit : reconcile dans updated()/deleted())",
+      "takussan-api/app/Domain/Settings/EditablePlatformSettings.php (Edit : six clés, catégorie boost)",
+      "takussan-api/app/Domain/Notifications/NotificationTarget.php (C11)",
+      "takussan-api/app/Support/Security/ProtectedActions.php (C1 : cinq entrées STEP_UP)",
+      "takussan-api/app/Http/Requests/UpdatePropertyRequest.php (Edit : featured prohibited)",
+      "takussan-api/app/Http/Controllers/Public/PublicPropertyController.php (Edit : tri ranked_at, clic src=sponsored)",
+      "takussan-api/app/Http/Resources/PropertyResource.php (C3 : badge, badge_until)",
+      "takussan-api/app/Services/Search/PropertySearchService.php (Edit : placements, sponsored, impressions)",
+      "takussan-api/app/Services/Property/HomepageDiscoveryService.php (Edit : rotation vedette, ranked_at, impressions)",
+      "takussan-api/config/scout.php (Edit : filterable id, sortable ranked_at)",
+      "takussan-api/routes/console.php (C2 : boosts:tick toutes les 5 min)",
+      "takussan-api/database/seeders/DatabaseSeeder.php (Edit : deux appels)",
+      "takussan-api/lang/fr/errors.php, lang/en/errors.php, lang/wo/errors.php (Edit : groupes boost et credits, stats_window_too_wide)",
+      "takussan-api/tests/Feature/Admin/Platform/PlatformSettingsCatalogueTest.php (C5)",
+      "takussan-api/tests/Feature/Public/PropertyListTest.php (C6)",
+      "takussan-api/tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php (C4)",
+      "takussan-web/src/components/property-dashboard/PropertyHeaderActions.tsx (Edit, co-tenu C : BoostButton)",
+      "takussan-web/src/components/property-dashboard/PropertyRowActions.tsx (Edit, co-tenu C : entrée de menu + BoostDialog)",
+      "takussan-web/src/components/property/PropertiesDiscoveryPage.tsx (Edit : emplacements, marques des places réservées)",
+      "takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyHeader.tsx (Edit : MarquesDeBoost)",
+      "takussan-web/src/app/[locale]/(public)/properties/[slug]/components/CompteurDeVue.tsx (C7 : ?src=sponsored)",
+      "takussan-web/src/components/layout/AppSidebar.tsx (Edit : entrée Crédits)",
+      "takussan-web/src/components/layout/SuperAdminSidebar.tsx (Edit : Crédits, Mise en avant)",
+      "takussan-web/src/types/super-admin.ts (C8)",
+      "takussan-web/src/components/admin/super/platform-settings.tsx (C8)",
+      "takussan-web/src/messages/fr.json, en.json, wo.json (Edit uniquement : boost, credits, search.sponsored, superAdmin.boosts, superAdmin.credits, C9 nav.sidebar.credits, nav.superAdmin.items.{credits,boosts}, admin.roles.domains.boost, admin.roles.capabilities.boost.spend, superAdmin.platformSettings.categories.boost, superAdmin.platformSettings.keys.{credits,boost}.*)"
+    ]
+  },
+  "tests": [
+    {
+      "commande": "php artisan test tests/Feature/Credits tests/Feature/Boost tests/Unit/Boost tests/Unit/Support/PhoneFingerprintTest.php tests/Feature/Notifications/CreditsNotificationsTest.php tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php tests/Feature/Admin/Platform/PlatformSettingsCatalogueTest.php tests/Feature/Public/PropertyListTest.php tests/Feature/Events/EventListenerDuplicationTest.php",
+      "resultat": "150 passed (589 assertions), 32 classes, sortie 0 — y compris les tests que le plan différait (AdminCreditsStepUpTest C1, BoostsTickScheduleTest C2, PropertyResourceBadgeTest C3, MembershipCapabilityResolverTest C4, PlatformSettingsCatalogueTest C5, PropertyListTest C6, WelcomeCreditListenersTest), puisque C1 à C7 sont dans le territoire accordé"
+    },
+    {
+      "commande": "php artisan test tests/Feature/Search tests/Feature/Public tests/Feature/PublicPropertySearchFiltersTest.php tests/Unit/Http tests/Feature/Validation + PlatformRoutesDefaultDenyTest, ProtectedActionsCoverageTest, PropertyObserverTest, LangGroupParityTest, ProseLitteraleInterditeTest, AppDatabaseChannelTest",
+      "resultat": "745 passed, 1 failed : DateInventoryByValueTest::test_le_registre_suit_encore_l_arborescence_des_ressources (CreditWalletResource non inscrite, collision ResourceInventory). Aucun rouge de place réservée sur la recherche publique hors F."
+    },
+    {
+      "commande": "php artisan test tests/Feature/Auth/PhoneVerificationTest.php tests/Feature/Auth/Phone tests/Feature/Onboarding tests/Feature/Api/Me/SelectActiveProfileTest.php (écouteurs actifs)",
+      "resultat": "176 passed"
+    },
+    {
+      "commande": "php bin/impacted-tests.php",
+      "resultat": "SUITE ENTIÈRE (migrations, seeders, config changés) : non lancée, interdite à l'agent ; remplacée par les classes ci-dessus"
+    },
+    {
+      "commande": "./vendor/bin/pint --test <fichiers PHP du lot, noms 5000xx, + Listeners/Credits, ProtectedActions, NotificationTarget, PropertyResource, routes/console.php, tests C4-C6>",
+      "resultat": "passed (après pint sur trois tests du lot, et un Edit sur Property.php : import BoostBadge au lieu du FQCN)"
+    },
+    {
+      "commande": "npx vitest run src/components/boost src/components/property-dashboard \"src/app/[locale]/(public)/properties/[slug]/components\" src/components/admin/super",
+      "resultat": "74 fichiers, 331 tests verts (dont 8 fichiers boost : BoostDialog 4, CreditsPanel 2, EmplacementSponsorise 2, MarquesDeBoost 2, CompteurDeVueSponsorise 2, lecture-recherche 3, AdminCreditWalletDetail 1, AdminBoosts 1 ; CompteurDeVue.test.tsx d'origine vert)"
+    },
+    {
+      "commande": "npx vitest run src/components/layout",
+      "resultat": "5 rouges attendus : AppSidebar.test.tsx (3) et AppSidebar.audience.test.tsx (2) figent la table des entrées ; l'entrée /app/credits y manque (collision sidebar-tests)"
+    },
+    {
+      "commande": "npx tsc --noEmit",
+      "resultat": "sortie 0 au passage de la tâche 23 ; au passage final, 3 erreurs TS2307 dans des fichiers d'un AUTRE lot (src/components/admin/super/__tests__/FileDePropositions.test.tsx, src/lib/queries/__tests__/super-admin-propositions.test.ts : modules pas encore créés) — aucune dans un fichier de F"
+    },
+    {
+      "commande": "npm run lint",
+      "resultat": "sortie 0, aucune erreur"
+    },
+    {
+      "commande": "npm run check:i18n",
+      "resultat": "parité fr/en/wo tenue (0 clé manquante) ; 1 écart hors lot F : src/app/(dashboard)/app/properties/new/page.tsx (texte en dur, fichier d'un autre lot)"
+    },
+    {
+      "commande": "npm run check:i18n-namespaces",
+      "resultat": "rouge attendu (C10) : boost sur (dashboard)/admin, (dashboard)/app, [locale]/(public) ; credits sur (dashboard)/app et (super-admin)/super-admin. Plus « onboarding » sur publish, hors F (lot C)"
+    },
+    {
+      "commande": "for g in scripts/check-*.mjs; node docs/backlog/gen-index.mjs --check; node docs/gen-features-by-actor.mjs --check",
+      "resultat": "deux rouges : check-models-spec (C13 ; six modèles de F : BoostProduct, CreditLot, CreditMovement, CreditWelcomeGrant, PropertyBoost, PropertyBoostDailyStat, plus GeoCity/GeoNeighborhood/GeoRegion/PropertyContact d'autres lots) et check-design-sync-entry (takussan-web/src/components/ui/combobox.tsx, fichier d'un autre lot). Toutes les autres vertes, dont check-controller-authorization, check-resources-extend-base, check-resource-date-format, check-pagination-envelope, check-agency-scope-clause, check-inline-validation, check-platform-catalogue-readers, check-command-prefixes, check-super-admin-tokens, check-feedback-states"
+    }
+  ],
+  "ablations": [
+    {
+      "test": "CreditSchemaTest",
+      "retrait": "trigger append-only de 500200",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostModelsTest (copie)",
+      "retrait": "hook replicating de Property (Edit)",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostSettingsTest (bornes)",
+      "retrait": "max:10 → max:100",
+      "rouge": "oui"
+    },
+    {
+      "test": "CreditConsumptionOrderTest",
+      "retrait": "ASC → DESC dans inConsumptionOrder",
+      "rouge": "oui (1 rouge, le plan en annonçait 2)"
+    },
+    {
+      "test": "CreditLedgerInvariantTest",
+      "retrait": "remaining non décrémenté",
+      "rouge": "oui"
+    },
+    {
+      "test": "CreditConsumptionOrderTest",
+      "retrait": "spendable() retiré de spend()",
+      "rouge": "oui"
+    },
+    {
+      "test": "CreditConcurrentSpendTest",
+      "retrait": "verrou de la ligne agencies déplacé puis retiré",
+      "rouge": "oui (les deux)"
+    },
+    {
+      "test": "CreditConcurrentSpendTest (nettoyage)",
+      "retrait": "tearDown vidé",
+      "rouge": "oui"
+    },
+    {
+      "test": "CreditsNotificationsTest",
+      "retrait": "paramètre credits du remboursement",
+      "rouge": "oui"
+    },
+    {
+      "test": "WelcomeCreditOncePerPhoneTest",
+      "retrait": "garde inserted === 0 ; empreinte en sha256 brut",
+      "rouge": "oui (2 puis 1)"
+    },
+    {
+      "test": "BoostSpendCapabilityTest",
+      "retrait": "CreditLotPolicy::viewAny → true",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostCatalogueTest",
+      "retrait": "insertOrIgnore → insert",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostRulesTest",
+      "retrait": "prolongation, délai de Remontée, garde bien public (une à une)",
+      "rouge": "oui (chacune)"
+    },
+    {
+      "test": "FeaturedNotWritableTest",
+      "retrait": "ancienne règle featured (Edit)",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostPauseAndRefundTest",
+      "retrait": "réclamation des boosts vivants dans closeWithRefund",
+      "rouge": "non pour le test du plan (« réconcilier deux fois » reste vert) ; oui pour le test ajouté test_deux_clotures_sur_une_instance_perimee_ne_remboursent_qu_une_fois"
+    },
+    {
+      "test": "BoostPauseAndRefundTest",
+      "retrait": "intdiv → ceil ; relecture de la ligne dans writeProperty ; reconcile retiré de PropertyObserver (Edit)",
+      "rouge": "oui (chacun ; 3 rouges pour l'observateur)"
+    },
+    {
+      "test": "BoostsTickIdempotenceTest",
+      "retrait": "whereNull(expiry_notice_sent_at)",
+      "rouge": "oui"
+    },
+    {
+      "test": "BoostsTickScheduleTest",
+      "retrait": "ligne Schedule boosts:tick (Edit, C2)",
+      "rouge": "oui"
+    },
+    {
+      "test": "RankedOrderTest + PropertyListTest",
+      "retrait": "orderByDesc(featured) remis en tête de index() (Edit)",
+      "rouge": "oui"
+    },
+    {
+      "test": "SponsoredRotationPickTest",
+      "retrait": "usort → sort",
+      "rouge": "oui"
+    },
+    {
+      "test": "ReservedTopResultsTest",
+      "retrait": "offset non décalé de |R| ; array_diff retiré (Edit)",
+      "rouge": "oui (chacun)"
+    },
+    {
+      "test": "BoostStatsTest",
+      "retrait": "Cache::pull → Cache::get",
+      "rouge": "non pour le test du plan (le curseur LAST_FLUSHED_KEY couvre) ; oui pour le test ajouté test_un_curseur_perdu_ne_reverse_rien (2 au lieu de 1)"
+    },
+    {
+      "test": "BoostStatsTest",
+      "retrait": "garde RateLimiter de click()",
+      "rouge": "oui (3 au lieu de 2)"
+    },
+    {
+      "test": "SponsoredImpressionsTest",
+      "retrait": "appel impressions() de PropertySearchService (Edit)",
+      "rouge": "oui (0 au lieu de 2)"
+    },
+    {
+      "test": "BoostStatsTest (clic)",
+      "retrait": "condition src=sponsored → true (Edit)",
+      "rouge": "non avec le test du plan (même IP : le plafond masquait) ; oui après correction du test (seconde vue depuis une autre IP)"
+    },
+    {
+      "test": "BoostStatsTest (accueil, test ajouté)",
+      "retrait": "appel impressions() de HomepageDiscoveryService (Edit)",
+      "rouge": "oui (0 au lieu de 1) — première mesure écartée : le chemin JSON du test était faux, corrigé en data.featured.items.0.id"
+    },
+    {
+      "test": "PropertyBoostApiTest (agent sans capacité)",
+      "retrait": "canActAt(BoostSpend) de PropertyBoostPolicy::create",
+      "rouge": "oui (201 au lieu de 403)"
+    },
+    {
+      "test": "PropertyResourceBadgeTest",
+      "retrait": "clé badge de PropertyResource (Edit, C3)",
+      "rouge": "oui"
+    },
+    {
+      "test": "AdminCreditsApiTest",
+      "retrait": "règle reason d'AdjustCreditWalletRequest ; seuil 92 → 9200 de BoostStatsRequest",
+      "rouge": "oui (chacun ; le second sur le test ajouté de la fenêtre)"
+    },
+    {
+      "test": "AdminCreditsStepUpTest",
+      "retrait": "AdminCreditWalletController@adjust de STEP_UP (Edit, C1)",
+      "rouge": "oui (200 au lieu de 403)"
+    },
+    {
+      "test": "BoostDialog.test.tsx",
+      "retrait": "|| manque > 0 du disabled de Confirmer",
+      "rouge": "oui"
+    },
+    {
+      "test": "CreditsPanel.test.tsx",
+      "retrait": "t('lots.noExpiry') → ''",
+      "rouge": "oui"
+    },
+    {
+      "test": "EmplacementSponsorise.test.tsx",
+      "retrait": "onClickCapture",
+      "rouge": "oui"
+    },
+    {
+      "test": "CompteurDeVueSponsorise.test.tsx (ajouté)",
+      "retrait": "source forcée à '' dans CompteurDeVue (Edit, C7)",
+      "rouge": "oui"
+    },
+    {
+      "test": "AdminCreditWalletDetail.test.tsx",
+      "retrait": "&& motif.trim().length >= 5",
+      "rouge": "oui"
+    },
+    {
+      "test": "WelcomeCreditListenersTest",
+      "retrait": "corps de chaque écouteur",
+      "rouge": "oui (chacun son test)"
+    },
+    {
+      "note": "Chaque restauration : cp depuis le scratchpad pour les fichiers tenus seuls, Edit inverse pour les co-tenus et C1-C11 ; md5 identique vérifié à chaque fois (relevés dans scratchpad/lot-f/notes.md)."
+    }
+  ],
+  "ac": [
+    {
+      "ac": "AC13 — 500 crédits dès que le titulaire a un numéro vérifié, une fois par numéro ; page Crédits (solde, lots, expiration, historique)",
+      "preuve": "WelcomeCreditOncePerPhoneTest 5 verts (ablations T7a/T7b rouges) ; WelcomeCreditListenersTest 2 verts sur les événements réels du lot C (PhoneVerified, SpaceCreated), ablation de chaque écouteur rouge ; CreditsApiTest 3 verts ; CreditsPanel.test.tsx 2 verts ; page /app/credits + entrée de barre latérale"
+    },
+    {
+      "ac": "AC14 — Remontée, Vedette, Badge selon ADR-0061 ; emplacements Sponsorisé par rotation ; 2 places réservées en première page, dans l'ordre, badgées, sans doublon ; au-delà l'ordre ne change pas",
+      "preuve": "BoostRulesTest 7, PropertyBoostApiTest 5, BoostDialog.test 4, SponsoredRotationTest 4, SponsoredRotationPickTest 4, ReservedTopResultsTest 4, RankedOrderTest 2, PropertyListTest (C6) verts ; front : EmplacementSponsorise.test 2, MarquesDeBoost.test 2, lecture-recherche.test 3 ; ablations T10, T14, T15, T20, T22 rouges"
+    },
+    {
+      "ac": "AC15 — Dépublier met en pause, republier reprend ; louer rend les jours restants ; modération ne rend rien",
+      "preuve": "BoostPauseAndRefundTest 7 verts (dont le test ajouté de l'instance périmée) ; PropertyObserverTest, PropertyModerationTest verts ; ablations T12a-d rouges"
+    },
+    {
+      "ac": "AC16 — Super-admin : six réglages, catalogue, crédit/débit motivé sous 2FA, annulation avec/sans remboursement, Vedette offerte, statistiques ; chaque geste journalisé",
+      "preuve": "BoostSettingsTest 4, PlatformSettingsCatalogueTest (C5), AdminCreditsApiTest 7 (journal activity super_admin_* vérifié), AdminCreditsStepUpTest 1 (C1), AdminCreditWalletDetail.test 1, AdminBoosts.test 1 verts ; catégorie boost de l'éditeur de réglages (C8) ; ablations T18a-c, T23 rouges"
+    }
+  ],
+  "ecarts_au_ticket": [
+    "Migrations nommées 2026_10_12_5000xx (addendum du plan maître) au lieu de 700xxx dans le plan de lot.",
+    "placement des résultats organiques = 'organic' (ticket et plan maître) au lieu de null (plan de lot) ; le type front BoostPlacement suit : 'organic' | 'reserved' | 'sponsored', placementDe() rend 'organic' par défaut.",
+    "BoostLifecycle::writeProperty du plan comparait contre l'instance reçue, périmée dans l'observateur (featured restait true après une pause) : corrigé par relecture de la ligne, puis synchronisation de l'instance de l'appelant.",
+    "Tests du plan corrigés : travel()->days() rend null (deux appels) ; assertSame sur des stdClass (lignes castées en tableaux) ; chemin JSON de la découverte (data.featured.items).",
+    "Quatre tests du plan étaient INSENSIBLES à l'ablation qu'ils annonçaient (réclamation des boosts vivants, pull des compteurs, condition src=sponsored, impressions de l'accueil absentes du plan) : trois tests ajoutés et un corrigé, chacun rougi par son ablation.",
+    "CreditMovement (UPDATED_AT = null) : getDates() du framework rendait [created_at, null], et DateInventoryByValueTest (ADR-0018) mourait sur setAttribute(null, …) ; corrigé dans le modèle par une surcharge de getDates() filtrant les non-chaînes.",
+    "RankedOrderTest::rangee_vedette était vert avant la rotation : il ne prouve pas la rotation de l'accueil (array_slice déjà stable).",
+    "Ablation T4a : 1 rouge au lieu des 2 annoncés (le test à expirations égales n'est pas sensible à l'ordre).",
+    "Groupes de lang/*/errors.php : boost avant business_enum, credits avant conversation (comme le plan, pas strictement alphabétique ; aucune garde ne contrôle l'ordre).",
+    "Aucun bloc « TABLE DE VÉRITÉ PHASE 1 » dans MembershipCapabilityResolver.php : rien à y reporter (C4 réduite au test).",
+    "Test ajouté hors plan : AdminCreditsApiTest::test_une_fenetre_de_plus_de_92_jours_est_refusee_par_son_code (le plan n'éprouvait pas boost.stats_window_too_wide).",
+    "Écarts E1 à E20 du plan de lot reconduits tels quels (E1 notifications sans code ADR-0032 ; E2 is_sponsored n'est pas une colonne ; E3 rangée vedette sur tout le catalogue ; E4 pas d'emplacements en recherche élargie ; E5 coût par page ; E6 validité d'un ajustement positif = welcome_validity_days ; E7 un remboursement peut hériter d'une expiration passée ; E8 vedette d'un espace suspendu filtrée à l'hydratation ; E9 offerte + payante ; E10 événements du lot C ; E11 SpaceCreated hors onboarding ; E12 écran de succès ; E13 impressions sous-comptées sous s-maxage=300 ; E14 menu Crédits par rôle ; E15 seeders dans System/ ; E16 check-models-spec rouge jusqu'à C13 ; E17 boost.spend sans step-up ; E18 forme fixe de /api/credits ; E19 deux places réservées par défaut ; E20 statistiques plafonnées à 92 jours, property.detail.featured n'est plus lue)."
+  ],
+  "collisions": [
+    {
+      "id": "sidebar-tests",
+      "fichier": "takussan-web/src/components/layout/__tests__/AppSidebar.test.tsx (territoire du lot B)",
+      "changement": "HREFS_PAR_ROLE.agency_admin et .super_admin (l. 172 et 199) : `'/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',` → ajouter `'/app/credits',` en fin de liste ; test l. 340-347 : ajouter le commentaire `// TCK-633 lot F — 26 → 27 : le portefeuille de crédits (`/app/credits`).`, renommer en « les 27 entrées d’un agency_admin… », et toHaveLength(26) → toHaveLength(27) (deux fois)",
+      "debloque": "3 rouges de AppSidebar.test.tsx"
+    },
+    {
+      "id": "sidebar-audience",
+      "fichier": "takussan-web/src/components/layout/__tests__/AppSidebar.audience.test.tsx (non attribué)",
+      "changement": "listes agency_admin (l. 91) et super_admin (l. 100) : `'/app/overview/agency', '/app/overview/kpis',` → `'/app/overview/agency', '/app/credits', '/app/overview/kpis',` (toEqual : l'ordre compte)",
+      "debloque": "2 rouges de AppSidebar.audience.test.tsx"
+    },
+    {
+      "id": "resource-inventory",
+      "fichier": "takussan-api/tests/Support/ResourceInventory.php",
+      "changement": "MODELES_EXPLICITES : ajouter `CreditWalletResource::class => ['modeles' => [Agency::class], 'raison' => \"TCK-633 lot F — un espace vu par son portefeuille de crédits : le nom dit la vue, pas le modèle.\"],` avec `use App\\Http\\Resources\\Credits\\CreditWalletResource;`",
+      "debloque": "DateInventoryByValueTest::test_le_registre_suit_encore_l_arborescence_des_ressources"
+    },
+    {
+      "id": "C10",
+      "fichier": "takussan-web/src/i18n/namespaces.json",
+      "changement": "régénérer (node scripts/check-i18n-namespaces.mjs --update) : boost et credits sur (dashboard)/admin, (dashboard)/app, (super-admin)/super-admin, [locale]/(public)",
+      "debloque": "npm run check:i18n-namespaces"
+    },
+    {
+      "id": "C12",
+      "fichier": "écran de succès de publication du lot C",
+      "changement": "poser `<BoostButton propertyId={property.id} propertyTitle={property.title} isPublic />` (import `@/components/boost/BoostButton`) à côté de l'appel à voir l'annonce. Mesuré le 2026-10-12 : l'écran n'existe pas — PropertyWizard.tsx termine la publication par un toast puis `terminer(bien.id)`, sans écran dédié",
+      "debloque": "geste « Booster » au moment de publier"
+    },
+    {
+      "id": "C13",
+      "fichier": "docs/models-spec.md",
+      "changement": "documenter BoostProduct, CreditLot, CreditMovement, CreditWelcomeGrant, PropertyBoost, PropertyBoostDailyStat d'après le code et les migrations 2026_10_12_500100 à 500400",
+      "debloque": "scripts/check-models-spec.mjs (pour la part de F)"
+    },
+    {
+      "id": "agency-store-space-created",
+      "fichier": "takussan-api/app/Http/Controllers/Api/AgencyController.php (hors territoire F ; SpaceCreated est du lot C)",
+      "changement": "Émettre SpaceCreated après la création dans store() — diff exact, éprouvé appliqué puis retiré (md5 d354f81e… identique, git diff vide) :\ndiff --git a/takussan-api/app/Http/Controllers/Api/AgencyController.php b/takussan-api/app/Http/Controllers/Api/AgencyController.php\nindex 36b9335e..5b901490 100644\n--- a/takussan-api/app/Http/Controllers/Api/AgencyController.php\n+++ b/takussan-api/app/Http/Controllers/Api/AgencyController.php\n@@ -2,6 +2,7 @@\n \n namespace App\\Http\\Controllers\\Api;\n \n+use App\\Events\\Onboarding\\SpaceCreated;\n use App\\Http\\Controllers\\Base\\Controller;\n use App\\Http\\Requests\\AgencyUpdateRequest;\n use App\\Http\\Requests\\Api\\AddAgentAgencyRequest;\n@@ -61,6 +62,9 @@ public function store(StoreAgencyRequest $request): JsonResponse\n             'currency' => $data['currency'] ?? Currency::default()->value,\n             'status' => $data['status'] ?? AgencyStatus::Active->value,\n         ]));\n+        // TCK-633 lot F (ADR-0061 §3) — un espace qui naît ici, d'un titulaire au numéro déjà\n+        // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.\n+        SpaceCreated::dispatch($agency);\n \n         return $this->json(['data' => AgencyResource::make($agency)->toArray($request)], 201);\n     }\n\nEt, dans app/Events/Onboarding/SpaceCreated.php (lot C), élargir le docblock « un espace individuel vient de naître : par l'assistant hôte ou par la création automatique de « Publier » » à « … ou par POST /api/agencies ». Seul écouteur de SpaceCreated : GrantWelcomeCreditsOnSpaceCreated (lot F) — aucun autre effet.",
+      "debloque": "tests/Feature/Credits/WelcomeCreditOnAgencyStoreTest::test_creer_son_espace_avec_un_numero_deja_verifie_verse_la_bienvenue (ROUGE tant que le diff n'est pas appliqué : 0 au lieu de 500 ; vert avec le diff, AgencyTest 12/12 vert aussi)"
+    }
+  ],
+  "corrections_apres_verif": {
+    "contexte": "Refus de la vérification adverse (docs/plans/rapports/tck-633-lot-f-verif.json) : sept corrections, chacune en TDD (rouge d'abord, correctif, ablation rouge, restauration par Edit inverse et md5 identique).",
+    "fichiers": {
+      "crees": [
+        "takussan-api/database/migrations/2026_10_12_500500_harden_welcome_grants_and_boost_prices.php",
+        "takussan-api/app/Services/Credits/RefundPlan.php",
+        "takussan-api/tests/Feature/Credits/WelcomeCreditOnAgencyStoreTest.php"
+      ],
+      "modifies": [
+        "takussan-api/app/Services/Credits/WelcomeCreditService.php (docblock seulement : l'unicité par espace tient par l'index, insertOrIgnore sans cible la respecte déjà)",
+        "takussan-api/app/Services/Credits/CreditLedger.php (refund → refundPlan + applyRefund, rend un RefundPlan)",
+        "takussan-api/app/Services/Boost/BoostLifecycle.php (closeWithRefund : plan avant la réclamation, statut et refunded_credits sur le rendu réel, réclamation + lots dans une transaction)",
+        "takussan-api/app/Services/Boost/BoostPurchaseService.php (prolongation de Vedette depuis max(ends_at, now()))",
+        "takussan-api/app/Notifications/Boost/BoostRefundedNotification.php (paramètre expired, clé body_with_expired, data.expired)",
+        "takussan-api/lang/{fr,en,wo}/credits.php (credits.boost.refunded.body_with_expired, par Edit ciblé)",
+        "docs/adr/0061-credits-d-espace-et-boost-des-annonces.md (§3 une fois par espace ET par numéro ; §4 répartition par lot d'origine, part expirée non rendue, arrondi ; §8 un lot refund par lot d'origine)",
+        "tests : WelcomeCreditOncePerPhoneTest, CreditSchemaTest, CreditConcurrentSpendTest, CreditLedgerInvariantTest (l'ancien test « hérite de l'expiration la plus lointaine » est remplacé), BoostRulesTest, BoostPauseAndRefundTest, CreditsNotificationsTest"
+      ]
+    },
+    "corrections": [
+      {
+        "point": 1,
+        "defaut": "bienvenue versée à chaque nouveau numéro vérifié du même espace (majeur)",
+        "correctif": "index unique credit_welcome_grants_agency_unique sur agency_id (migration 500500) ; l'unique phone_hash reste ; insertOrIgnore (ON CONFLICT DO NOTHING sans cible) couvre les deux, aucun try/catch",
+        "tests": [
+          "WelcomeCreditOncePerPhoneTest::test_changer_de_numero_puis_le_verifier_ne_recredite_pas_l_espace (rouge avant : 1000 au lieu de 500)",
+          "CreditSchemaTest::test_la_bienvenue_est_unique_par_espace (deux NULL admis)"
+        ],
+        "ablation": "unique → index simple dans 500500 : 2 rouges (1000 ≠ 500 ; 1 ≠ 0) ; restauré, md5 f7836d78… identique"
+      },
+      {
+        "point": 2,
+        "defaut": "POST /api/agencies n'émet pas SpaceCreated : 0 crédit pour un numéro déjà vérifié",
+        "correctif": "hors territoire : diff exact dans collisions (agency-store-space-created), éprouvé appliqué (WelcomeCreditOnAgencyStoreTest 2/2 + AgencyTest 12/12 verts) puis retiré par Edit inverse (md5 d354f81e… identique, git diff vide). L'écart E11 (« rattrapage à la vérification ») était faux pour un numéro déjà vérifié : c'est cette collision qui le ferme.",
+        "tests": [
+          "WelcomeCreditOnAgencyStoreTest::test_creer_son_espace_avec_un_numero_deja_verifie_verse_la_bienvenue — ROUGE jusqu'à l'application de la collision (volontaire)",
+          "WelcomeCreditOnAgencyStoreTest::test_creer_son_espace_sans_numero_verifie_ne_verse_rien"
+        ]
+      },
+      {
+        "point": 3,
+        "defaut": "Vedette échue non close rachetée : prolongée depuis une fin passée",
+        "correctif": "BoostPurchaseService::featured — départ = ends_at s'il est futur, sinon now()",
+        "tests": [
+          "BoostRulesTest::test_racheter_une_vedette_echue_non_close_repart_de_maintenant (rouge avant)"
+        ],
+        "ablation": "départ = ends_at->copy() : rouge ; restauré, md5 16abb912… identique"
+      },
+      {
+        "point": 4,
+        "defaut": "remboursement hérite de l'expiration la plus lointaine ; lot refund né expiré annoncé comme remboursé",
+        "correctif": "CreditLedger::refundPlan répartit le prorata (borné au payé) par lot d'origine, plus forts restes, chaque part hérite de l'expiration de son lot ; part expirée → expired, non rendue ; applyRefund écrit un lot refund par part ; BoostLifecycle : statut refunded seulement si refunded > 0, refunded_credits = rendu réel, sinon ended/cancelled + BoostEndedNotification ; BoostRefundedNotification(credits rendus, expired perdus)",
+        "tests": [
+          "CreditLedgerInvariantTest::test_le_remboursement_se_repartit_par_lot_d_origine_et_herite_de_son_expiration (offert + acheté : 5 à J+5, 5 sans expiration)",
+          "CreditLedgerInvariantTest::test_une_part_dont_l_expiration_est_passee_n_est_pas_rendue",
+          "CreditLedgerInvariantTest::test_la_somme_des_parts_ne_depasse_ni_le_prorata_ni_le_paye",
+          "CreditLedgerInvariantTest::test_un_boost_qui_n_a_rien_paye_ne_rend_rien",
+          "BoostPauseAndRefundTest::test_louer_ne_rend_que_la_part_des_lots_non_expires (27 rendus, 27 perdus)",
+          "BoostPauseAndRefundTest::test_louer_quand_tout_a_expire_ne_parle_pas_de_remboursement",
+          "CreditsNotificationsTest::test_le_remboursement_partiel_nomme_les_credits_perdus_par_expiration"
+        ],
+        "ablations": [
+          "parts sans expiration (null) : 1 rouge (répartition par lot) ; restauré",
+          "filtre des parts expirées retiré (if false) : 3 rouges ; restauré",
+          "prorata non borné au payé : 1 rouge (50 ≠ 7) ; restauré",
+          "plus forts restes += 2 : 1 rouge (4 ≠ 2) ; restauré — CreditLedger md5 16dcce95… identique",
+          "refunded_credits = prorata demandé : 2 rouges ; statut sur le prorata demandé : 1 rouge ; notification sans expired : 1 rouge ; restaurés — BoostLifecycle md5 f2a69c1b… identique",
+          "corps body_with_expired jamais choisi : 1 rouge ; restauré — md5 81ac8cda… identique"
+        ]
+      },
+      {
+        "point": 5,
+        "defaut": "CreditConcurrentSpendTest vert sous un verrou FOR SHARE",
+        "correctif": "la connexion B prend FOR SHARE (le mode le plus faible qu'une dépense correcte doit exclure) ; scénario extrait dans courseContre() ; second test par le débit manuel du super-admin (adminAdjust -20) ; tearDown supprime aussi l'opérateur",
+        "tests": [
+          "CreditConcurrentSpendTest::test_une_depense_attend_le_verrou_de_l_espace_et_relit_apres_lui",
+          "CreditConcurrentSpendTest::test_un_debit_manuel_du_super_admin_attend_le_meme_verrou",
+          "CreditConcurrentSpendTest::test_le_test_de_course_ne_laisse_aucune_ligne (vérifie aussi users)"
+        ],
+        "ablations": [
+          "spend : lockForUpdate() → sharedLock() : 2 rouges (« A a dépensé des crédits que B venait de consommer »), nettoyage vert",
+          "spend : lockForUpdate() → lock('for key share') : 2 rouges",
+          "restauré, md5 8a97d445… identique (avant la réécriture du remboursement)"
+        ]
+      },
+      {
+        "point": 6,
+        "defaut": "BoostRulesTest vert si le délai se compte depuis la première Remontée",
+        "tests": [
+          "BoostRulesTest::test_le_delai_de_remontee_se_compte_depuis_la_derniere (troisième Remontée 1 h après la deuxième, available_at = 14/10 11:00)"
+        ],
+        "ablation": "orderByDesc → orderBy (starts_at, id) : rouge (« aucun refus ») ; restauré, md5 16abb912… identique"
+      },
+      {
+        "point": 7,
+        "defaut": "agency_id non indexée ; prix et remboursement sans CHECK",
+        "correctif": "unique credit_welcome_grants_agency_unique (point 1) ; CHECK property_boosts_credits_check (price_credits >= 0 AND (refunded_credits IS NULL OR refunded_credits >= 0)) ; down() retire les deux",
+        "tests": [
+          "CreditSchemaTest::test_un_boost_ne_porte_ni_prix_ni_remboursement_negatif"
+        ],
+        "ablation": "CHECK sans price_credits : rouge ; restauré, md5 f7836d78… identique",
+        "down": "éprouvé par un test jetable (down → 0 index / 0 contrainte, up → 1/1), fichier supprimé après"
+      }
+    ],
+    "executions": [
+      {
+        "commande": "php artisan test tests/Feature/Credits tests/Feature/Boost tests/Unit/Boost tests/Unit/Support/PhoneFingerprintTest.php tests/Feature/Notifications/CreditsNotificationsTest.php tests/Unit/Services/Membership/MembershipCapabilityResolverTest.php tests/Feature/Admin/Platform/PlatformSettingsCatalogueTest.php tests/Feature/Public/PropertyListTest.php tests/Feature/Events/EventListenerDuplicationTest.php tests/Feature/Api/AgencyTest.php tests/Unit/Lang/LangGroupParityTest.php",
+        "resultat": "180 tests : 179 verts, 1 rouge attendu (WelcomeCreditOnAgencyStoreTest, collision agency-store-space-created) — load 45/57/38 sur 8 cœurs (lots voisins actifs)"
+      },
+      {
+        "commande": "php artisan test tests/Feature/Auth/PhoneVerificationTest.php tests/Feature/Auth/Phone tests/Feature/Onboarding tests/Feature/Admin",
+        "resultat": "356 passed"
+      },
+      {
+        "commande": "./vendor/bin/pint --test <fichiers PHP touchés>",
+        "resultat": "passed"
+      },
+      {
+        "commande": "php bin/impacted-tests.php",
+        "resultat": "non lancée : une migration neuve impose SUITE ENTIÈRE, interdite à l'agent — à la session"
+      }
+    ],
+    "hors_perimetre_laisse_a_la_session": [
+      "collisions de barre latérale, ResourceInventory, namespaces.json, models-spec (500500 à documenter : index unique agency_id, CHECK property_boosts_credits_check), écran de succès",
+      "collision agency-store-space-created (AgencyController + docblock SpaceCreated)"
+    ]
+  }
+}

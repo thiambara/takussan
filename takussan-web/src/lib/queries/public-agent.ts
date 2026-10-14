@@ -26,6 +26,11 @@ export interface AgentDto {
   // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de
   // `ContactSheet`, sans compte à créer.
   phone: string | null;
+  /**
+   * TCK-633 (lot C, tour 3) — le numéro principal est-il vérifié ? L'API ne sert `phone` que
+   * vérifié (D10) ; la page ne le publie qu'à `true`, et un champ absent vaut « non ».
+   */
+  phone_verified?: boolean;
   city?: string | null;
   preferred_language?: string | null;
   specialty?: string | null;

@@ -2,14 +2,15 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { X, RotateCcw, Search, Star, Tag, Loader2 } from 'lucide-react';
+import { X, RotateCcw, Search, Star, Loader2, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { iconeDuType } from '@/components/home/icones-de-categorie';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
+import { ChoixDeQuartier, ChoixDeVille, ChoixDEquipements } from '@/components/search/ChoixDuReferentiel';
 import { AttenteDePuce } from '@/components/search/AttenteDePuce';
 import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
 import { filtersToParams } from '@/hooks/useSearch';
@@ -19,8 +20,8 @@ import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="py-5 border-b border-border last:border-0">
-      <h3 className="text-sm font-bold text-foreground mb-3">{title}</h3>
+    <div className="py-4 border-b border-border/70 last:border-0">
+      <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
       {children}
     </div>
   );
@@ -41,13 +42,46 @@ function ChipGroup<T extends string | number>({
   value,
   valeurConfirmee,
   onChange,
+  forme = 'puces',
 }: {
   options: { label: string; value: T }[];
   value: T | undefined;
   /** La valeur dont les résultats affichés sont la réponse (TCK-580). */
   valeurConfirmee: T | undefined;
   onChange: (v: T | undefined) => void;
+  /**
+   * TCK-635 — `segments` : un choix court et exclusif (transaction, chambres) se lit mieux comme
+   * un contrôle segmenté, à parts égales, que comme des puces qui passent à la ligne.
+   */
+  forme?: 'puces' | 'segments';
 }) {
+  if (forme === 'segments') {
+    return (
+      <div data-forme="segments" className="grid grid-flow-col auto-cols-fr gap-1 rounded-xl bg-muted p-1">
+        {options.map(opt => {
+          const isActive = value === opt.value;
+          const attente = enAttente(isActive, valeurConfirmee === opt.value);
+          return (
+            <button
+              key={String(opt.value)}
+              type="button"
+              aria-pressed={isActive}
+              aria-busy={attente || undefined}
+              onClick={() => onChange(isActive ? undefined : opt.value)}
+              className={`relative min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                isActive
+                  ? 'bg-card text-primary shadow-sm ring-1 ring-primary/30'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+              {attente ? <AttenteDePuce /> : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-2">
       {options.map(opt => {
@@ -153,7 +187,13 @@ function RangeInputs({
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const CONTRACT_TYPE_VALUES = ['sale', 'rent'] as const;
+/**
+ * TCK-633 (lot E) — « Louer » AVANT « Acheter », et dans les mots de la barre de navigation
+ * (`search.filters.transaction.*`), plus « Vente » / « Location » : le marché dakarois cherche
+ * d'abord à louer, et deux vocabulaires pour le même choix sur le même écran se lisaient comme
+ * deux choix.
+ */
+const CONTRACT_TYPE_VALUES = ['rent', 'sale'] as const;
 
 const PROPERTY_TYPE_VALUES = [
   'apartment', 'house', 'villa', 'studio', 'room', 'land', 'office', 'shop',
@@ -165,28 +205,61 @@ const RENT_PERIOD_VALUES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 // cinquième liste écrite ici divergerait le jour où l'enum backend bougerait.
 
 
+// TCK-633 (lot E) — des MINIMUMS côté API (`bedrooms >= n`) : chaque puce le dit. « 5+ » seule le
+// disait, et c'était la seule à être vraie — « 3 » trouvait les biens à 3 chambres, pas à 4.
 const BEDROOM_OPTIONS = [
-  { label: '1', value: 1 },
-  { label: '2', value: 2 },
-  { label: '3', value: 3 },
-  { label: '4', value: 4 },
+  { label: '1+', value: 1 },
+  { label: '2+', value: 2 },
+  { label: '3+', value: 3 },
+  { label: '4+', value: 4 },
   { label: '5+', value: 5 },
 ];
 
 const BATHROOM_OPTIONS = [
-  { label: '1', value: 1 },
-  { label: '2', value: 2 },
+  { label: '1+', value: 1 },
+  { label: '2+', value: 2 },
   { label: '3+', value: 3 },
 ];
 
+/** Étage minimum : « RDC et + » (0) … « 4e et + » (4) — libellés `search.filters.floors.*`. */
 const FLOOR_KEYS = ['ground', 'first', 'second', 'third', 'fourthPlus'] as const;
 
-/** Délai d'anti-rebond des champs LIBRES, en millisecondes. */
-const DEBOUNCE_CHAMPS_LIBRES_MS = 400;
+/**
+ * TCK-633 (lot E) — « Meublé » en trois états. La bascule « Meublé uniquement » ne savait pas
+ * demander un logement VIDE, que l'API filtre pourtant (`furnished=false`).
+ */
+const MEUBLE_VALUES = ['any', 'yes', 'no'] as const;
+type ChoixMeuble = (typeof MEUBLE_VALUES)[number];
 
-/** `''` → `undefined` : un filtre vide n'est pas un filtre, il ne doit pas partir dans l'URL. */
-function texteVersFiltre(v: string): string | undefined {
-  return v === '' ? undefined : v;
+function meubleVersChoix(v: boolean | undefined): ChoixMeuble {
+  if (v === true) return 'yes';
+  if (v === false) return 'no';
+  return 'any';
+}
+
+function choixVersMeuble(c: ChoixMeuble | undefined): boolean | undefined {
+  if (c === 'yes') return true;
+  if (c === 'no') return false;
+  return undefined;
+}
+
+/**
+ * TCK-633 (lot E, AC5) — les filtres rangés sous « Plus de filtres ». Les essentiels (transaction,
+ * fréquence de loyer, type, lieu, autour de moi, budget, chambres) restent visibles.
+ *
+ * ⚠ Cette liste DOIT décrire où les sections sont rendues (le bloc `hidden` plus bas) : c'est elle
+ * qui ouvre le bloc d'office et compte ses filtres actifs. `FilterSidebar.place-des-filtres.test.tsx`
+ * pose chaque clé filtrante seule, repère dans le DOM le contrôle qu'elle change et rougit si la
+ * liste le contredit — dans les deux sens (D3 de la vérification du lot E).
+ */
+const CLES_REPLIEES = [
+  'bathrooms', 'area_min', 'area_max', 'furnished', 'condition', 'featured',
+  'floor_number', 'title_type', 'available_from', 'tags',
+] as const satisfies readonly (keyof SearchFilters)[];
+
+function estActif(valeur: unknown): boolean {
+  if (Array.isArray(valeur)) return valeur.length > 0;
+  return valeur !== undefined && valeur !== '';
 }
 
 function nombreVersFiltre(v: string): number | undefined {
@@ -235,12 +308,6 @@ export interface FilterSidebarProps {
    * qu'un compte périmé présenté comme celui des filtres affichés.
    */
   total?: number | null;
-  /**
-   * Délai d'anti-rebond des champs libres. Injectable pour que les tests le réduisent à
-   * quelques millisecondes sans figer les timers (patron `WizardReprenable`) — jamais pour
-   * l'ajuster en production.
-   */
-  debounceMs?: number;
   /** Passé tel quel à {@link AutourDeMoi} — injectable pour les tests, jamais en production. */
   geolocalisation?: Pick<Geolocation, 'getCurrentPosition'>;
 }
@@ -248,24 +315,18 @@ export interface FilterSidebarProps {
 /**
  * Panneau de filtres publics.
  *
- * ## L'anti-rebond est ICI, et les deux autres emplacements sont interdits (TCK-335, étape 3)
+ * ## Les brouillons (TCK-335, étape 3)
  *
- * Chaque champ de saisie tient un **brouillon local**, resynchronisé sur `filters` par
- * `useStateSyncedWith` (TCK-316). Seul le *commit* vers `onFilterChange` est temporisé.
+ * Chaque borne numérique (prix, surface) tient un **brouillon local**, resynchronisé sur `filters`
+ * par `useStateSyncedWith` (TCK-316), et ne commite qu'au `blur` / `Enter` (cf. {@link RangeInputs}).
+ * Avant, l'input était contrôlé par `filters`, qui vient de l'URL : `router.replace` étant une
+ * transition, le caractère frappé disparaissait de l'écran le temps de l'aller-retour RSC.
  *
- * Ce n'est pas une optimisation, c'est **un correctif de saisie**. Avant, l'input était contrôlé
- * par `filters`, qui vient de l'URL. `router.replace` de l'App Router est une transition : l'URL
- * n'atterrit qu'après l'aller-retour RSC. Entre-temps, `restoreStateOfTarget` du react-dom du
- * dépôt (19.2.8) rappelle `updateInput` avec les props du dernier commit et **réécrit
- * `element.value` à l'ancienne valeur** — le caractère frappé DISPARAÎT de l'écran, puis revient
- * ~150 ms plus tard.
+ * ## TCK-633 (lot E) — plus aucun champ libre
  *
- * Les deux emplacements écartés, et pourquoi :
- *
- * - **temporiser le fetch dans `useSearch`** : les 5 aller-retours RSC subsistent (c'est
- *   `router.replace` qui les provoque, pas le fetch), et la saisie clignote toujours ;
- * - **temporiser `router.replace`** : c'est exactement le scénario ci-dessus — l'input reste
- *   contrôlé par une URL qui ne bouge pas, donc le caractère frappé disparaît.
+ * La ville, le quartier et les équipements se CHOISISSENT dans des listes
+ * (`ChoixDuReferentiel`) : un choix est un geste discret, il commite tout de suite. L'anti-rebond
+ * qu'exigeaient leurs frappes est retiré avec eux.
  */
 export function FilterSidebar({
   filters,
@@ -277,12 +338,10 @@ export function FilterSidebar({
   open,
   onClose,
   total = null,
-  debounceMs = DEBOUNCE_CHAMPS_LIBRES_MS,
   geolocalisation,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
   const tTypes = useTranslations('property.types');
-  const tContract = useTranslations('property.contractTypes');
   const tPeriods = useTranslations('property.rentPeriods');
   const tTitleTypes = useTranslations('property.titleTypes');
   const tConditions = useTranslations('property.conditions');
@@ -292,9 +351,6 @@ export function FilterSidebar({
   // ── Brouillons : la valeur AFFICHÉE est locale et immédiate ; `filters` ne fait que la
   //    resynchroniser quand l'URL change réellement (retour arrière, « Tout effacer », puce
   //    retirée depuis la barre d'outils).
-  const [cityDraft, setCityDraft] = useStateSyncedWith(filters.city ?? '');
-  const [locationDraft, setLocationDraft] = useStateSyncedWith(filters.location ?? '');
-  const [tagsDraft, setTagsDraft] = useStateSyncedWith(filters.tags ?? '');
   const [priceMinDraft, setPriceMinDraft] = useStateSyncedWith(filtreVersTexte(filters.price_min));
   const [priceMaxDraft, setPriceMaxDraft] = useStateSyncedWith(filtreVersTexte(filters.price_max));
   const [areaMinDraft, setAreaMinDraft] = useStateSyncedWith(filtreVersTexte(filters.area_min));
@@ -303,15 +359,6 @@ export function FilterSidebar({
   // ── Ce que la saisie en cours n'a pas encore envoyé. Recalculé à CHAQUE rendu : c'est ce qui
   //    garantit qu'aucun commit ne parte avec une version périmée.
   const brouillonEnAttente: Partial<SearchFilters> = {};
-  if (texteVersFiltre(cityDraft) !== filters.city) {
-    brouillonEnAttente.city = texteVersFiltre(cityDraft);
-  }
-  if (texteVersFiltre(locationDraft) !== filters.location) {
-    brouillonEnAttente.location = texteVersFiltre(locationDraft);
-  }
-  if (texteVersFiltre(tagsDraft) !== filters.tags) {
-    brouillonEnAttente.tags = texteVersFiltre(tagsDraft);
-  }
   if (nombreVersFiltre(priceMinDraft) !== filters.price_min) {
     brouillonEnAttente.price_min = nombreVersFiltre(priceMinDraft);
   }
@@ -352,55 +399,22 @@ export function FilterSidebar({
     commettre({ ...brouillonEnAttente, page: 1 }, true);
   };
 
-  // `useDebouncedCallback` relit `commitBrouillon` au DÉCLENCHEMENT, jamais à l'armement : un
-  // `contract_type` posé entre la frappe et l'échéance n'est donc pas effacé.
-  const differe = useDebouncedCallback(commitBrouillon, debounceMs);
-
   /**
-   * Commit d'un geste DISCRET (puce, bascule, date, retrait).
+   * Commit d'un geste DISCRET (puce, bascule, date, choix dans une liste, retrait).
    *
-   * ⚠️ Le brouillon en attente est fusionné dans le patch. Sans cela, cliquer une puce pendant
-   * que l'utilisateur tape EFFACE le texte en cours : `onFilterChange` ne recevrait que la puce,
-   * `filters` repartirait sans la ville, et `useStateSyncedWith` ramènerait l'input à vide. Le
-   * timer est annulé dans la foulée — ce commit-ci porte déjà le brouillon.
+   * ⚠️ Le brouillon en attente — une borne tapée, pas encore validée — est fusionné dans le patch.
+   * Sans cela, cliquer une puce pendant la saisie d'un prix EFFACE le montant : `filters`
+   * repartirait sans lui, et `useStateSyncedWith` ramènerait le champ à vide.
    */
   const set = (patch: Partial<SearchFilters>) => {
-    differe.cancel();
     commettre({ ...brouillonEnAttente, ...patch, page: 1 }, false);
   };
 
-  /** Champ LIBRE : on affiche tout de suite, on commite plus tard. */
-  const surSaisieLibre =
-    (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      setter(e.target.value);
-      differe.call();
-    };
-
   /**
-   * `blur` / `Enter` d'un champ libre : on ne fait pas attendre l'utilisateur qui a fini.
-   *
-   * Ce `flush` n'est pas cosmétique : `SaveSearchButton` vit HORS de ce panneau et lit `filters`,
-   * c'est-à-dire l'URL. Sans lui, l'utilisateur qui tape puis clique « Enregistrer la recherche »
-   * enregistre la recherche d'AVANT sa frappe.
-   */
-  const surFinSaisieLibre = () => differe.flush();
-
-  const surToucheLibre = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      differe.flush();
-    }
-  };
-
-  /**
-   * Commit SÉANCE TENANTE de tout ce qui est en attente.
-   *
-   * `flush()` ne suffit pas ici : il ne déclenche que ce qu'un timer avait armé, et les bornes
-   * numériques n'en arment jamais (cf. {@link RangeInputs}). C'est donc cette fonction que
-   * portent leur `blur`, leur `Enter`, et le bouton « Voir les résultats » du tiroir mobile.
+   * Commit SÉANCE TENANTE de tout ce qui est en attente : le `blur` et l'`Enter` des bornes
+   * numériques (cf. {@link RangeInputs}), et le bouton « Voir les résultats » du tiroir mobile.
    */
   const commitImmediat = () => {
-    differe.cancel();
     commitBrouillon();
   };
 
@@ -412,7 +426,6 @@ export function FilterSidebar({
    * Le patch porte chaque clé à `undefined`, contrôles compris, comme `resetFilters`.
    */
   const reinitialiser = () => {
-    differe.cancel();
     if (!open) {
       onReset();
       return;
@@ -423,7 +436,8 @@ export function FilterSidebar({
     commettre({ ...toutEfface, page: 1 }, true);
   };
 
-  const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: tContract(v), value: v }));
+  const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: t(`transaction.${v}`), value: v }));
+  const meubleOptions = MEUBLE_VALUES.map((v) => ({ label: t(`furnished.${v}`), value: v }));
   const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
   const titleTypeOptions = titleTypeValues.map((v) => ({ label: tTitleTypes(v), value: v }));
@@ -447,10 +461,10 @@ export function FilterSidebar({
    *   tiroir. On ferme ; et si la séance a écrit quelque chose, on **revient en avant** sur
    *   l'entrée de la séance (la sentinelle, qui porte son URL et l'arbre du routeur). Aucune
    *   navigation, aucun aller-retour RSC : le routeur restaure deux fois depuis son cache. Un
-   *   brouillon encore en attente d'anti-rebond est commité une fois l'avance atterrie — sur
+   *   une borne tapée et pas encore validée est commitée une fois l'avance atterrie — sur
    *   l'entrée de la séance, jamais sur celle d'avant ;
    * - à toute autre fermeture, l'entrée du tiroir n'est gardée que si la séance a écrit quelque
-   *   chose (ou s'apprête à le faire : un brouillon dont l'anti-rebond court encore).
+   *   chose (ou s'apprête à le faire : une borne tapée, pas encore validée).
    *
    * ⚠ La première version ré-inscrivait la séance par un `push` après avoir laissé le routeur
    * restaurer l'entrée d'avant : mesuré au navigateur, la liste RECHARGEAIT et affichait l'état
@@ -469,7 +483,6 @@ export function FilterSidebar({
   };
 
   const surRetourDansLeTiroir = () => {
-    differe.cancel();
     const brouillon = brouillonEnAttente;
     const aEcrit = seanceDuTiroir.current.vise !== null || Object.keys(brouillon).length > 0;
     onClose();
@@ -511,8 +524,9 @@ export function FilterSidebar({
   // que le corps défile dessous (retour du porteur du 2026-10-10 — il défilait avec le reste, et
   // « Tout effacer » comme la croix de fermeture sortaient de l'écran).
   const entete = (
-    <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+    <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-3 border-b border-border">
       <h2 className="font-display text-base font-semibold text-foreground flex items-center">
+        <SlidersHorizontal className="mr-2 size-4 text-primary" aria-hidden="true" />
         {t('title')}
         {activeCount > 0 && (
           <Badge className="ml-2">{activeCount}</Badge>
@@ -541,12 +555,25 @@ export function FilterSidebar({
     </div>
   );
 
-  const rendreCorps = (rappel?: React.ReactNode) => (
+  // TCK-633 (lot E, AC5) — « Plus de filtres » : ouvert d'office quand un filtre replié est actif,
+  // jusqu'à ce que le visiteur choisisse. Partagé par le rail et le tiroir.
+  const idPlusDeFiltres = React.useId();
+  const repliesActifs = CLES_REPLIEES.filter((cle) => estActif(filters[cle])).length;
+  const [plusOuvertChoisi, setPlusOuvertChoisi] = React.useState<boolean | null>(null);
+  const plusOuvert = plusOuvertChoisi ?? repliesActifs > 0;
+
+  /** Les équipements choisis, depuis la liste à virgules de l'URL (`tags=Piscine,Parking`). */
+  const equipementsChoisis = (filters.tags ?? '')
+    .split(',')
+    .map((nom) => nom.trim())
+    .filter((nom) => nom !== '');
+
+  const rendreCorps = (rappel?: React.ReactNode, lieu: 'rail' | 'tiroir' = 'rail') => (
     <>
       {rappel}
 
       {/* Body */}
-      <div className="px-5">
+      <div className="px-4">
 
         {/* 1. Transaction */}
         <Section title={t(`sections.contractType`)}>
@@ -555,13 +582,18 @@ export function FilterSidebar({
             value={filters.contract_type}
             valeurConfirmee={confirmes.contract_type}
             onChange={(v) => set({ contract_type: v as SearchFilters['contract_type'], rent_period: undefined })}
+            forme="segments"
           />
         </Section>
 
         {/* 2. Property type — multi-select */}
+        {/* TCK-635 — des tuiles à pictogramme, sur deux colonnes : seize puces de largeurs
+            inégales passaient sur sept lignes en escalier. Le pictogramme est celui de la bande de
+            catégories (`iconeDuType`) : un type ne porte qu'un dessin sur tout le site. */}
         <Section title={t(`sections.propertyType`)}>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {PROPERTY_TYPE_VALUES.map(opt => {
+              const Icone = iconeDuType(opt);
               const selected = filters.type ?? [];
               const isActive = selected.includes(opt);
               const attente = enAttente(isActive, (confirmes.type ?? []).includes(opt));
@@ -577,13 +609,14 @@ export function FilterSidebar({
                       : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
-                  className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[13px] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     isActive
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
                   }`}
                 >
-                  {tTypes(opt)}
+                  <Icone className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <span className="truncate">{tTypes(opt)}</span>
                   {attente ? <AttenteDePuce /> : null}
                 </button>
               );
@@ -603,26 +636,27 @@ export function FilterSidebar({
           </Section>
         )}
 
-        {/* 4. Location */}
+        {/* 4. Lieu — TCK-633 : ville et quartier se CHOISISSENT dans le référentiel (ADR-0062) ;
+            la recherche filtre par le NOM canonique. Changer de ville retire un quartier qui
+            appartenait à l'autre. */}
         <Section title={t(`sections.location`)}>
           <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder={t('cityPlaceholder')}
-              value={cityDraft}
-              onChange={surSaisieLibre(setCityDraft)}
-              onBlur={surFinSaisieLibre}
-              onKeyDown={surToucheLibre}
-              className="rounded-xl"
+            <ChoixDeVille
+              valeur={filters.city}
+              region={filters.region}
+              onChange={(city, region) =>
+                set({
+                  city,
+                  region,
+                  location: city === filters.city && region === filters.region ? filters.location : undefined,
+                })
+              }
             />
-            <Input
-              type="text"
-              placeholder={t('quarterPlaceholder')}
-              value={locationDraft}
-              onChange={surSaisieLibre(setLocationDraft)}
-              onBlur={surFinSaisieLibre}
-              onKeyDown={surToucheLibre}
-              className="rounded-xl"
+            <ChoixDeQuartier
+              ville={filters.city}
+              region={filters.region}
+              valeur={filters.location}
+              onChange={(location) => set({ location })}
             />
           </div>
         </Section>
@@ -665,174 +699,180 @@ export function FilterSidebar({
             value={filters.bedrooms}
             valeurConfirmee={confirmes.bedrooms}
             onChange={(v) => set({ bedrooms: v as number })}
+            forme="segments"
           />
         </Section>
 
-        {/* 7. Salles de bain */}
-        <Section title={t(`sections.bathrooms`)}>
-          <ChipGroup
-            options={BATHROOM_OPTIONS}
-            value={filters.bathrooms}
-            valeurConfirmee={confirmes.bathrooms}
-            onChange={(v) => set({ bathrooms: v as number })}
-          />
-        </Section>
+        {/*
+          TCK-633 (lot E, AC5) — « Plus de filtres ». Le bouton dit combien de filtres repliés sont
+          actifs ; le bloc reste monté (`hidden`), ses brouillons de surface ne se perdent pas.
+        */}
+        <div className="py-4 border-b border-border">
+          <button
+            type="button"
+            aria-expanded={plusOuvert}
+            aria-controls={`${idPlusDeFiltres}-${lieu}`}
+            onClick={() => setPlusOuvertChoisi(!plusOuvert)}
+            className="flex min-h-10 w-full items-center justify-between rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            {plusOuvert
+              ? t('more.hide')
+              : repliesActifs > 0
+                ? t('more.showCount', { count: repliesActifs })
+                : t('more.show')}
+            <ChevronDown
+              aria-hidden
+              className={`size-4 shrink-0 transition-transform duration-150 ${plusOuvert ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </div>
 
-        {/* 8. Surface */}
-        <Section title={t(`sections.area`)}>
-          <RangeInputs
-            placeholderMin={t('minArea')}
-            placeholderMax={t('maxArea')}
-            valueMin={areaMinDraft}
-            valueMax={areaMaxDraft}
-            onChangeMin={setAreaMinDraft}
-            onChangeMax={setAreaMaxDraft}
-            onCommit={commitImmediat}
-          />
-        </Section>
+        <div id={`${idPlusDeFiltres}-${lieu}`} hidden={!plusOuvert}>
+          {/* 7. Salles de bain */}
+          <Section title={t(`sections.bathrooms`)}>
+            <ChipGroup
+              options={BATHROOM_OPTIONS}
+              value={filters.bathrooms}
+              valeurConfirmee={confirmes.bathrooms}
+              onChange={(v) => set({ bathrooms: v as number })}
+              forme="segments"
+            />
+          </Section>
 
-        {/* 9. État */}
-        <Section title={t(`sections.condition`)}>
-          <div className="space-y-2">
-            {/* TCK-508 — l'état DÉCLARÉ, en multi-sélection comme le type : `condition=new,off_plan`
-                est un OU côté serveur. Un bien qui ne le renseigne pas ne répond à aucun choix. */}
-            <div className="flex flex-wrap gap-2 pb-1">
-              {conditionValues.map((opt) => {
-                const selected = filters.condition ?? [];
-                const isActive = selected.includes(opt);
-                const attente = enAttente(isActive, (confirmes.condition ?? []).includes(opt));
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    aria-pressed={isActive}
-                    aria-busy={attente || undefined}
-                    onClick={() => {
-                      const next = isActive
-                        ? selected.filter((value) => value !== opt)
-                        : [...selected, opt];
-                      set({ condition: next.length > 0 ? next : undefined });
-                    }}
-                    className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                      isActive
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
-                    }`}
-                  >
-                    {tConditions(opt)}
-                    {attente ? <AttenteDePuce /> : null}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              aria-pressed={filters.furnished === true}
-              aria-busy={enAttente(filters.furnished === true, confirmes.furnished === true) || undefined}
-              onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
-                filters.furnished === true
-                  ? 'bg-primary/5 border-primary text-primary'
-                  : 'border-border text-muted-foreground hover:border-muted-foreground'
-              }`}
-            >
-              <span
-                className={`relative shrink-0 w-10 h-5 rounded-full transition-colors duration-200 ${
-                  filters.furnished === true ? 'bg-primary' : 'bg-secondary'
+          {/* 8. Surface */}
+          <Section title={t(`sections.area`)}>
+            <RangeInputs
+              placeholderMin={t('minArea')}
+              placeholderMax={t('maxArea')}
+              valueMin={areaMinDraft}
+              valueMax={areaMaxDraft}
+              onChangeMin={setAreaMinDraft}
+              onChangeMax={setAreaMaxDraft}
+              onCommit={commitImmediat}
+            />
+          </Section>
+
+          {/* 9. État */}
+          <Section title={t(`sections.condition`)}>
+            <div className="space-y-2">
+              {/* TCK-508 — l'état DÉCLARÉ, en multi-sélection comme le type : `condition=new,off_plan`
+                  est un OU côté serveur. Un bien qui ne le renseigne pas ne répond à aucun choix. */}
+              <div className="flex flex-wrap gap-2 pb-1">
+                {conditionValues.map((opt) => {
+                  const selected = filters.condition ?? [];
+                  const isActive = selected.includes(opt);
+                  const attente = enAttente(isActive, (confirmes.condition ?? []).includes(opt));
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      aria-pressed={isActive}
+                      aria-busy={attente || undefined}
+                      onClick={() => {
+                        const next = isActive
+                          ? selected.filter((value) => value !== opt)
+                          : [...selected, opt];
+                        set({ condition: next.length > 0 ? next : undefined });
+                      }}
+                      className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        isActive
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      {tConditions(opt)}
+                      {attente ? <AttenteDePuce /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* « En vedette » parle la couleur des badges featured — `--accent`, et rien d'autre
+                  (design-guidelines § Couleurs sémantiques). L'échelle ambre brute de Tailwind
+                  n'appartenait pas à la palette Lin. */}
+              <button
+                type="button"
+                aria-pressed={filters.featured === true}
+                aria-busy={enAttente(filters.featured === true, confirmes.featured === true) || undefined}
+                onClick={() => set({ featured: filters.featured === true ? undefined : true })}
+                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
+                  filters.featured === true
+                    ? 'bg-accent border-accent text-accent-foreground'
+                    : 'border-border text-muted-foreground hover:border-muted-foreground'
                 }`}
               >
-                <span
-                  className={`absolute top-0.5 w-4 h-4 bg-card rounded-full shadow transition-transform duration-200 ${
-                    filters.furnished === true ? 'translate-x-5' : 'translate-x-0.5'
+                <Star
+                  className={`w-4 h-4 shrink-0 ${
+                    filters.featured === true ? 'fill-accent-foreground text-accent-foreground' : 'text-muted-foreground'
                   }`}
                 />
-              </span>
-              <span className="text-sm font-semibold">{t('furnishedOnly')}</span>
-              {enAttente(filters.furnished === true, confirmes.furnished === true) ? (
-                <Loader2 data-attente="bascule" aria-hidden className="ml-auto size-4 shrink-0 animate-spin" />
-              ) : null}
-            </button>
+                <span className="text-sm font-semibold">{t('featuredOnly')}</span>
+                {enAttente(filters.featured === true, confirmes.featured === true) ? (
+                  <Loader2 data-attente="bascule" aria-hidden className="ml-auto size-4 shrink-0 animate-spin" />
+                ) : null}
+              </button>
+            </div>
+          </Section>
 
-            {/* « En vedette » parle la couleur des badges featured — `--accent`, et rien d'autre
-                (design-guidelines § Couleurs sémantiques). L'échelle ambre brute de Tailwind
-                n'appartenait pas à la palette Lin. */}
-            <button
-              type="button"
-              aria-pressed={filters.featured === true}
-              aria-busy={enAttente(filters.featured === true, confirmes.featured === true) || undefined}
-              onClick={() => set({ featured: filters.featured === true ? undefined : true })}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
-                filters.featured === true
-                  ? 'bg-accent border-accent text-accent-foreground'
-                  : 'border-border text-muted-foreground hover:border-muted-foreground'
-              }`}
-            >
-              <Star
-                className={`w-4 h-4 shrink-0 ${
-                  filters.featured === true ? 'fill-accent-foreground text-accent-foreground' : 'text-muted-foreground'
-                }`}
+          {/* 9 bis. Meublé — TCK-633 : indifférent, oui, non */}
+          <Section title={t('furnished.title')}>
+            <ChipGroup
+              options={meubleOptions}
+              value={meubleVersChoix(filters.furnished)}
+              valeurConfirmee={meubleVersChoix(confirmes.furnished)}
+              onChange={(v) => {
+                const suivant = choixVersMeuble(v);
+                if (suivant !== filters.furnished) set({ furnished: suivant });
+              }}
+            />
+          </Section>
+
+          {/* 10. Étage */}
+          <Section title={t(`sections.floor`)}>
+            <ChipGroup
+              options={floorOptions}
+              value={filters.floor_number}
+              valeurConfirmee={confirmes.floor_number}
+              onChange={(v) => set({ floor_number: v as number })}
+            />
+          </Section>
+
+          {/* 11. Statut foncier — TCK-491 */}
+          <Section title={t(`sections.titleDeed`)}>
+            <ChipGroup
+              options={titleTypeOptions}
+              value={filters.title_type}
+              valeurConfirmee={confirmes.title_type}
+              onChange={(v) => set({ title_type: v as string })}
+            />
+            {/* Le statut foncier est sans objet pour un lot dans un immeuble (`field-matrix.ts`) :
+                sans ce rappel, un filtre actif sur un appartement se lit comme un catalogue vide
+                plutôt que comme un critère hors sujet. */}
+            <p className="text-xs text-muted-foreground mt-1.5">{t('titleDeedHint')}</p>
+          </Section>
+
+          {/* 12. Disponibilité */}
+          <Section title={t(`sections.availability`)}>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">{t('availableFrom')}</label>
+              <DatePicker
+                value={filters.available_from ?? ''}
+                min={new Date().toISOString().slice(0, 10)}
+                onValueChange={(value) => set({ available_from: value || undefined })}
+                buttonClassName="rounded-xl"
               />
-              <span className="text-sm font-semibold">{t('featuredOnly')}</span>
-              {enAttente(filters.featured === true, confirmes.featured === true) ? (
-                <Loader2 data-attente="bascule" aria-hidden className="ml-auto size-4 shrink-0 animate-spin" />
-              ) : null}
-            </button>
-          </div>
-        </Section>
+            </div>
+          </Section>
 
-        {/* 10. Étage */}
-        <Section title={t(`sections.floor`)}>
-          <ChipGroup
-            options={floorOptions}
-            value={filters.floor_number}
-            valeurConfirmee={confirmes.floor_number}
-            onChange={(v) => set({ floor_number: v as number })}
-          />
-        </Section>
-
-        {/* 11. Statut foncier — TCK-491 */}
-        <Section title={t(`sections.titleDeed`)}>
-          <ChipGroup
-            options={titleTypeOptions}
-            value={filters.title_type}
-            valeurConfirmee={confirmes.title_type}
-            onChange={(v) => set({ title_type: v as string })}
-          />
-          {/* Le statut foncier est sans objet pour un lot dans un immeuble (`field-matrix.ts`) :
-              sans ce rappel, un filtre actif sur un appartement se lit comme un catalogue vide
-              plutôt que comme un critère hors sujet. */}
-          <p className="text-xs text-muted-foreground mt-1.5">{t('titleDeedHint')}</p>
-        </Section>
-
-        {/* 12. Disponibilité */}
-        <Section title={t(`sections.availability`)}>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">{t('availableFrom')}</label>
-            <DatePicker
-              value={filters.available_from ?? ''}
-              min={new Date().toISOString().slice(0, 10)}
-              onValueChange={(value) => set({ available_from: value || undefined })}
-              buttonClassName="rounded-xl"
+          {/* 13. Équipements — TCK-633 : le catalogue approuvé, en multi-sélection. ET côté serveur
+              (décision 4 du porteur) : le bien offre TOUS les équipements choisis. */}
+          <Section title={t(`sections.amenities`)}>
+            <ChoixDEquipements
+              valeurs={equipementsChoisis}
+              onChange={(noms) => set({ tags: noms.length > 0 ? noms.join(',') : undefined })}
             />
-          </div>
-        </Section>
-
-        {/* 13. Tags */}
-        <Section title={t(`sections.amenities`)}>
-          <div className="relative">
-            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder={t('amenitiesPlaceholder')}
-              value={tagsDraft}
-              onChange={surSaisieLibre(setTagsDraft)}
-              onBlur={surFinSaisieLibre}
-              onKeyDown={surToucheLibre}
-              className="rounded-xl pl-9"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
-        </Section>
+            <p className="text-xs text-muted-foreground mt-1.5">{t('amenityPicker.hint')}</p>
+          </Section>
+        </div>
 
         {/*
           Pas de section « Mots-clés » : `q` se lit ET se modifie dans le champ de recherche de la
@@ -849,7 +889,9 @@ export function FilterSidebar({
       {/* Desktop sidebar — dès `lg` et non `md` (revue design du 2026-09-16) : à 768 px, le rail
           de 264 px laissait 3 colonnes de 128 px à la grille, prix tronqués (« 28 000 000 F C… »).
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
-      <aside className="hidden lg:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
+      {/* TCK-635 — le rail défile avec la page (retour du porteur du 2026-10-12) : il était
+          `sticky top-[145px]`, et restait collé pendant que les résultats défilaient. */}
+      <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
         <div className="flex flex-col">
           {entete}
           {rendreCorps()}
@@ -883,7 +925,7 @@ export function FilterSidebar({
             </Button>
           }
         >
-          {rendreCorps(rappelDeRecherche)}
+          {rendreCorps(rappelDeRecherche, 'tiroir')}
         </TiroirMobile>
       )}
     </>

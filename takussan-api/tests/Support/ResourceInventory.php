@@ -9,6 +9,7 @@ use App\Http\Resources\Api\Admin\ModerationItemResource;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
+use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
@@ -73,6 +74,7 @@ final class ResourceInventory
      * @var array<class-string, array{modeles: array<int,class-string>, raison: string}>
      */
     public const MODELES_EXPLICITES = [
+        CreditWalletResource::class => ['modeles' => [Agency::class], 'raison' => 'TCK-633 lot F — un espace vu par son portefeuille de crédits : le nom dit la vue, pas le modèle.'],
         AgencyDetailResource::class => [
             'modeles' => [Agency::class],
             'raison' => "Vue « détail » d'une agence pour l'admin — le suffixe `Detail` casse la convention.",

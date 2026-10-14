@@ -43,6 +43,7 @@ use Database\Seeders\Support\PostProcessingSeeder;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\AgencyUpgradeRequestSeeder;
+use Database\Seeders\System\GeoReferentialSeeder;
 use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
 use Illuminate\Database\Eloquent\Model;
@@ -100,6 +101,9 @@ class YearOfActivitySeeder extends Seeder
         // Post-processing (doit être en dernier)
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
+        // TCK-633 — après TOUS les seeders qui écrivent des adresses : il les rattache au
+        // référentiel (noms officiels, quartier retrouvé). Avant eux, il n'aurait rien à rattacher.
+        GeoReferentialSeeder::class,
         // PropertyMediaSeeder runs last so properties created by FilterCoverage
         // / EdgeCase get media too. The seeder iterates Property::all() and
         // skips any that already have files in the `photos` collection, so

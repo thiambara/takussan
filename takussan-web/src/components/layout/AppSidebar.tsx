@@ -29,12 +29,15 @@ import {
   Inbox,
   HandCoins,
   UserRound,
+  Coins,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import type { UserRole } from '@/types/user';
 import { isAgent, isOwner, isCustomer, isCustomerOnly, isAdmin, isServiceProvider, isTenant } from '@/lib/roles';
 import { isProRouteLocked } from '@/lib/access/pro-features';
+import { entreeAdmin, type EntreeAdmin } from '@/lib/access/pages-admin';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { useTranslations } from 'next-intl';
@@ -106,6 +109,8 @@ export interface NavItem {
   emphasized?: boolean;
   locked?: boolean;
   counterKey?: NavCounterKey;
+  /** TCK-633 — espace de la clé de libellé ; `nav.sidebar` par défaut. */
+  labelSpace?: 'nav.admin';
 }
 
 interface AppSidebarProps {
@@ -298,6 +303,12 @@ export function buildNavItems(user: User): NavItem[] {
   if (roles.includes('agency_admin') || isAdmin(roles)) {
     items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3, section: 'manage' });
   }
+
+  // TCK-633 lot F (ADR-0061 §1) — le portefeuille de crédits de l'espace. Le rôle approche
+  // `boost.spend` (accordée à l'admin d'espace) ; la page et l'API tranchent (403 sinon).
+  if (roles.includes('agency_admin') || isAdmin(roles)) {
+    items.push({ href: '/app/credits', labelKey: 'credits', icon: Coins, section: 'manage' });
+  }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
     // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
     // TCK-284 — PAS standard-only : les deux pages ne portent plus aucun test
@@ -411,6 +422,24 @@ export function buildNavItems(user: User): NavItem[] {
  */
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+/**
+ * TCK-633 (lot B, AC1) — l'entrée de la section `admin` mène à la PREMIÈRE page `/admin/*` que le
+ * profil actif peut ouvrir (`entreeAdmin`, table `PAGES_ADMIN`), sous le libellé « Administration »
+ * ou « Mon espace » ; elle disparaît s'il n'y en a aucune.
+ *
+ * `buildNavItems` continue de poser l'emplacement `/admin` : son jeu d'`href` par rôle est un
+ * contrat éprouvé (`HREFS_PAR_ROLE`), et la décision d'accès n'a pas sa place dans une fonction qui
+ * ne connaît que les rôles. Avant, un admin d'agence `individual` y voyait un cadenas devant
+ * « Administration » — une porte peinte sur un mur.
+ */
+export function avecEntreeAdmin(items: NavItem[], entree: EntreeAdmin | null): NavItem[] {
+  return items.flatMap((item) => {
+    if (item.section !== 'admin') return [item];
+    if (entree === null) return [];
+    return [{ ...item, href: entree.href, labelKey: entree.cle, labelSpace: 'nav.admin' as const }];
+  });
+}
+
 function SidebarCounter({ value, label }: { value: number; label: string }) {
   return (
     <span
@@ -432,9 +461,11 @@ function SidebarItem({
   counterKey,
   counter,
   onNavigate,
+  labelSpace,
 }: NavItem & { active: boolean; counter?: number; onNavigate?: () => void }) {
   const t = useTranslations('nav.sidebar');
-  const label = t(labelKey);
+  const tAdmin = useTranslations('nav.admin');
+  const label = labelSpace === 'nav.admin' ? tAdmin(labelKey) : t(labelKey);
 
   if (locked) {
     return (
@@ -586,7 +617,12 @@ export function AppSidebar({
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
   const tCommon = useTranslations('common');
-  const navItems = buildNavItems(user).map((item) => ({
+  const accesAdmin = useAccesAdminOuRepli({
+    roles: user.roles,
+    agencyId: user.agency_id,
+    agencyIsStandard,
+  });
+  const navItems = avecEntreeAdmin(buildNavItems(user), entreeAdmin(accesAdmin)).map((item) => ({
     ...item,
     locked: isProRouteLocked(user, agencyIsStandard, item.href),
   }));
@@ -634,7 +670,12 @@ export function AppSidebar({
       </div>
       <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
         {groups.map((group, index) => {
-          const labelKey = SECTION_LABEL_KEYS[group.section];
+          // TCK-633 — chez un solo, l'entrée dit déjà « Mon espace » : un en-tête « Administration »
+          // au-dessus la contredirait.
+          const labelKey =
+            group.section === 'admin' && accesAdmin.espaceIndividuel
+              ? null
+              : SECTION_LABEL_KEYS[group.section];
           return (
             <div key={group.section} className={cn('space-y-1', index > 0 && 'mt-4')}>
               {withHeadings && labelKey ? (

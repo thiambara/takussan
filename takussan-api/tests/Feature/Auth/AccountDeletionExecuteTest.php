@@ -53,6 +53,37 @@ class AccountDeletionExecuteTest extends TestCase
         $this->assertNotNull($request->fresh()->executed_at);
     }
 
+    /**
+     * TCK-633 (lot C, vérification adverse S9) — le second numéro et les cases WhatsApp sont des
+     * données personnelles posées par le lot C : l'effacement les retire comme `phone`. Les CGU
+     * (date et version) restent : c'est la trace d'un consentement, pas une donnée qui identifie.
+     */
+    public function test_execute_efface_le_second_numero_et_les_cases_whatsapp(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'phone' => '+221700000971',
+            'phone_verified_at' => now(),
+            'phone_whatsapp' => true,
+        ]);
+        $user->forceFill([
+            'secondary_phone' => '+221770000972',
+            'secondary_phone_verified_at' => now(),
+            'secondary_phone_whatsapp' => true,
+        ])->save();
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $fresh = User::withTrashed()->find($user->id);
+        $this->assertNull($fresh->secondary_phone);
+        $this->assertNull($fresh->secondary_phone_verified_at);
+        $this->assertFalse($fresh->secondary_phone_whatsapp);
+        $this->assertNull($fresh->phone_whatsapp);
+        $this->assertNull($fresh->phone_verified_at);
+    }
+
     public function test_execute_preserves_payments_invoices_leases_bookings(): void
     {
         Notification::fake();

@@ -68,6 +68,12 @@ export type TraducteursDeFiltre = {
    * (`PROPERTY_ENUM_NAMESPACES.condition`) et que le badge des cartes : aucune seconde table.
    */
   readonly conditions: Traducteur;
+  /**
+   * TCK-633 (lot E) — le libellé d'un équipement connu par son NOM (`libelleEquipementParNom`) :
+   * traduit pour le catalogue, tel quel pour un équipement d'annonceur. Absent, le nom s'affiche tel
+   * quel — c'est le cas d'un consommateur qui ne l'a pas encore branché.
+   */
+  readonly equipement?: (nom: string) => string;
 };
 
 type CleCommune<V> = {
@@ -210,10 +216,27 @@ export const SEARCH_FILTER_KEYS = {
   },
   city: {
     role: 'filtre',
-    params: ['city'],
+    // TCK-635 — la ville possède sa région : retirer la puce « Dinguiraye » retire aussi `region`,
+    // qui n'aurait plus rien à départager.
+    params: ['city', 'region'],
     lire: (sp: URLSearchParams) => litTexte(sp, 'city'),
     ecrire: (v: string) => v,
     libelle: (v: string) => v,
+  },
+  /**
+   * TCK-635 (ADR-0062 §8) — la région d'une ville HOMONYME : Dinguiraye est à Diourbel et à Kolda,
+   * Missirah à Diourbel et à Tambacounda, Vélingara à Matam et à Kolda. Le sélecteur de ville ne
+   * l'écrit que pour ces villes-là ; partout ailleurs l'URL reste `city=Thiès`.
+   *
+   * Pas de puce propre : elle précise la ville, elle ne filtre pas à côté d'elle (`agregeeDans`,
+   * le mécanisme de `lat`/`lng` sous `radius_km`).
+   */
+  region: {
+    role: 'filtre',
+    params: ['region'],
+    lire: (sp: URLSearchParams) => litTexte(sp, 'region'),
+    ecrire: (v: string) => v,
+    agregeeDans: 'city',
   },
   /**
    * ─── Le rayon, et le point qui lui sert d'origine (TCK-346, ADR-0023) ──────────────────
@@ -297,14 +320,15 @@ export const SEARCH_FILTER_KEYS = {
     params: ['bedrooms'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'bedrooms'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.bedrooms', { n: String(v) }),
+    // TCK-633 — un MINIMUM côté API (`bedrooms >= n`) : la puce le dit.
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('filters.chips.bedroomsMin', { n: String(v) }),
   },
   bathrooms: {
     role: 'filtre',
     params: ['bathrooms'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'bathrooms'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.bathrooms', { n: String(v) }),
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('filters.chips.bathroomsMin', { n: String(v) }),
   },
   area_min: {
     role: 'filtre',
@@ -346,8 +370,13 @@ export const SEARCH_FILTER_KEYS = {
     params: ['floor_number'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'floor_number'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) =>
-      Number(v) === 0 ? t.tags('tags.groundFloor') : t.tags('tags.floor', { n: String(v) }),
+    // TCK-633 — « 2e étage et + » : un minimum, et le premier étage s'accorde à part en français.
+    libelle: (v: number, t: TraducteursDeFiltre) => {
+      const etage = Number(v);
+      if (etage === 0) return t.tags('filters.chips.groundFloorMin');
+      if (etage === 1) return t.tags('filters.chips.firstFloorMin');
+      return t.tags('filters.chips.floorMin', { n: String(etage) });
+    },
   },
   available_from: {
     role: 'filtre',
@@ -393,7 +422,11 @@ export const SEARCH_FILTER_KEYS = {
     params: ['tags'],
     lire: (sp: URLSearchParams) => litTexte(sp, 'tags'),
     ecrire: (v: string) => v,
-    libelle: (v: string, t: TraducteursDeFiltre) => t.tags('tags.tags', { value: v }),
+    // TCK-633 — chaque nom de la liste à virgules passe par la traduction du catalogue.
+    libelle: (v: string, t: TraducteursDeFiltre) => {
+      const noms = v.split(',').map((nom) => nom.trim()).filter((nom) => nom !== '');
+      return t.tags('tags.tags', { value: noms.map((nom) => t.equipement?.(nom) ?? nom).join(', ') });
+    },
   },
   sort: {
     role: 'controle',

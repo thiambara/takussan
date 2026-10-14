@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-599 (ADR-0050 §2) — le vocabulaire FERMÉ de `saved_searches.criteria`, écrit une seule fois.
  *
- * Ce sont les 22 clés de rôle `filtre` de `SEARCH_FILTER_KEYS` (`takussan-web/src/types/search.ts`)
+ * Ce sont les 23 clés de rôle `filtre` de `SEARCH_FILTER_KEYS` (`takussan-web/src/types/search.ts`)
  * — celles qu'écrit `filtersToCriteria()` — plus `cities`, qu'écrit le formulaire de préférences.
  * `criteria` était validé `['required', 'array']` : une clé inconnue était stockée, puis ignorée
  * par le moteur, et l'alerte prévenait de biens que la personne n'avait pas demandés (11 clés sur
@@ -30,7 +30,7 @@ final class SavedSearchCriteria
 {
     /** @var list<string> */
     public const KEYS = [
-        'q', 'location', 'city', 'radius_km', 'lat', 'lng', 'contract_type', 'type', 'rent_period',
+        'q', 'location', 'city', 'region', 'radius_km', 'lat', 'lng', 'contract_type', 'type', 'rent_period',
         'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max', 'furnished',
         'featured', 'floor_number', 'available_from', 'title_type', 'condition', 'tags',
         'cities',
@@ -52,6 +52,7 @@ final class SavedSearchCriteria
             $attribute.'.q' => ['sometimes', 'nullable', 'string', 'max:200'],
             $attribute.'.location' => ['sometimes', 'nullable', 'string', 'max:120'],
             $attribute.'.city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            $attribute.'.region' => ['sometimes', 'nullable', 'string', 'max:120'],
             $attribute.'.cities' => ['sometimes', 'array', 'max:20'],
             $attribute.'.cities.*' => ['string', 'max:120'],
             // Le contrat « point + rayon » de `/properties` (ADR-0023) : le rayon exige le point.

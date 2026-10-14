@@ -16,7 +16,8 @@ import { BarreApercu, CarteApercu, ListePourPublier } from '../wizard/ApercuAnno
  * | lieu et prix « à venir » | une carte trouée qui ressemble à une panne |
  * | période d'un loyer | « 450 000 F CFA » sans « /mois » — un loyer porte toujours sa période |
  * | vente sans période | un « /mois » collé à un prix de vente |
- * | coût d'entrée SANS total | un second calcul de la formule de `CoutDEntree` (TCK-598), qui finirait par contredire la fiche |
+ * | coût d'entrée ET son total | TCK-633 — le total que le porteur attend, calculé par `coutDEntreeTotal`, jumelle de `CoutDEntree` jugée par la même fixture (tâche 17) |
+ * | total avec charges et demi-mois | une formule qui oublie les charges de l'avance, ou qui tronque le demi-mois de frais |
  * | coût d'entrée hors location mensuelle | des composantes que l'API refuse (422) affichées comme acquises |
  * | liste : étape franchie rouvrable | la perte du geste que portait le rail d'étapes |
  * | barre : ouvre la carte | un aperçu inaccessible sous `lg` |
@@ -72,16 +73,24 @@ describe('CarteApercu', () => {
     expect(c.getByTestId('apercu-prix')).toHaveTextContent(/25\s000\s000\sF CFA$/);
   });
 
-  it('liste les composantes du coût d’entrée, SANS en refaire le total (TCK-598)', () => {
+  it('liste les composantes du coût d’entrée, ET son total indicatif (TCK-633)', () => {
     const c = carte({
       type: 'apartment', contract_type: 'rent', rent_period: 'monthly', price: 450_000,
       advance_months: 2, deposit_months: 1, agency_fee_months: 1,
     });
     expect(c.getByText('2 mois d’avance, 1 mois de caution, 1 mois de frais d’agence')).toBeInTheDocument();
-    // 4 × 450 000 = 1 800 000 : le montant que la formule de l'API rendrait. Il ne doit PAS
-    // apparaître — seule l'API l'additionne, avec son arrondi.
-    expect(c.queryByText(/1\s800\s000/)).not.toBeInTheDocument();
-    expect(c.getByText(/total s’affiche sur l’annonce publiée/i)).toBeInTheDocument();
+    // 4 × 450 000 = 1 800 000 : le montant que `CoutDEntree` (API) rend pour la même entrée.
+    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/^Total à l’entrée : 1\s800\s000\sF CFA$/);
+    expect(c.getByText(/montant indicatif, calculé d’après vos réponses/i)).toBeInTheDocument();
+  });
+
+  it('le total compte les charges de l’avance et le demi-mois de frais (TCK-633)', () => {
+    const c = carte({
+      type: 'apartment', contract_type: 'rent', rent_period: 'monthly', price: 450_000,
+      advance_months: 1, deposit_months: 1, agency_fee_months: 1.5, monthly_charges: 10_000,
+    });
+    // (450 000 + 10 000) × 1 + 450 000 × 1 + 450 000 × 1,5 = 1 585 000
+    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/1\s585\s000\sF CFA/);
   });
 
   it('hors location mensuelle, aucun coût d’entrée — l’API les refuserait', () => {

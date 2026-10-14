@@ -51,8 +51,8 @@ describe('<PropertyAgentCard> — TCK-590', () => {
     expect(screen.queryByRole('button', { name: /whatsapp/i })).not.toBeInTheDocument();
   });
 
-  it('has_phone vrai : les deux boutons', () => {
-    monter({ ...AGENT, has_phone: true });
+  it('has_phone et has_whatsapp vrais : les deux boutons', () => {
+    monter({ ...AGENT, has_phone: true, has_whatsapp: true });
     expect(screen.getByRole('button', { name: /appeler/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /whatsapp/i })).toBeInTheDocument();
   });

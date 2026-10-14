@@ -8,7 +8,8 @@
  * que les `[⚠ à compléter : …]` se remplissent.
  *
  * L'attribution OpenStreetMap n'est pas une politesse : la licence ODbL des données
- * cartographiques l'exige.
+ * cartographiques l'exige — et celles du référentiel des régions, villes et quartiers, extrait
+ * d'OpenStreetMap (TCK-633, ADR-0062 §3).
  */
 import { A_COMPLETER, EDITEUR, HEBERGEURS, VERSION_DOCUMENTS } from './editeur';
 
@@ -54,7 +55,7 @@ Les photos et descriptions des annonces appartiennent à leurs auteurs, qui en g
 
 # Crédits
 
-- Données cartographiques : © les contributeurs d’OpenStreetMap, disponibles sous licence Open Database License (ODbL).
+- Données cartographiques et référentiel des régions, villes et quartiers : © les contributeurs d’OpenStreetMap, disponibles sous licence Open Database License (ODbL).
 - Icônes : Lucide, sous licence ISC.
 
 # Signaler un contenu
@@ -106,7 +107,7 @@ The ${EDITEUR.marque} brand, domain name, design, texts, software and databases 
 
 # Credits
 
-- Map data: © OpenStreetMap contributors, available under the Open Database License (ODbL).
+- Map data and the region, city and neighbourhood directory: © OpenStreetMap contributors, available under the Open Database License (ODbL).
 - Icons: Lucide, under the ISC licence.
 
 # Reporting content

@@ -111,7 +111,10 @@ final class OAuthSessionOpener
         return new JsonResponse(['data' => [
             'token' => $issued['token'],
             'expires_at' => $issued['expires_at']->toIso8601String(),
-            'user' => (new UserResource($user))->toArray($request),
+            // TCK-633 (lot C, tour 3) — `pourSoi` et le modèle relu : la réponse porte les mêmes
+            // clés que `/api/auth/me` (les clés « pour soi », `has_usable_password`), puisque le
+            // front la pose telle quelle et que `$request->user()` est nul au rappel.
+            'user' => UserResource::pourSoi($user->fresh() ?? $user)->toArray($request),
         ]]);
     }
 

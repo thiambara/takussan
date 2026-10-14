@@ -1,0 +1,322 @@
+{
+  "region": {
+    "code": "SN-KD",
+    "slug": "kolda",
+    "name": "Kolda",
+    "latitude": 13.1294268,
+    "longitude": -14.3497505
+  },
+  "source": {
+    "osm_base": "2026-07-28T02:16:18Z",
+    "extraite_le": "2026-10-12",
+    "licence": "ODbL 1.0 — © les contributeurs d’OpenStreetMap",
+    "relu_par": "Mouhamadoul Amine THIAM",
+    "relu_le": "2026-10-12",
+    "relu_empreinte": "d452c86e5eeebf46313c3d9904acfc968baa0f5c90b1ead61c008f55145bdf2b"
+  },
+  "cities": [
+    {
+      "slug": "badion",
+      "name": "Badion",
+      "latitude": 13.1601243,
+      "longitude": -14.4013297,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bagadadji",
+      "name": "Bagadadji",
+      "latitude": 12.8519718,
+      "longitude": -14.7298201,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bignarabe",
+      "name": "Bignarabé",
+      "latitude": 12.9496064,
+      "longitude": -14.8298538,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bonconto",
+      "name": "Bonconto",
+      "latitude": 13.014625,
+      "longitude": -13.8713593,
+      "neighborhoods": []
+    },
+    {
+      "slug": "bourouco",
+      "name": "Bourouco",
+      "latitude": 13.3102096,
+      "longitude": -15.1838866,
+      "neighborhoods": []
+    },
+    {
+      "slug": "coumbacara",
+      "name": "Coumbacara",
+      "latitude": 12.7376686,
+      "longitude": -14.4729297,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dabo",
+      "name": "Dabo",
+      "latitude": 12.8747416,
+      "longitude": -14.4753161,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dialambere",
+      "name": "Dialambéré",
+      "latitude": 12.9144856,
+      "longitude": -14.4989532,
+      "neighborhoods": []
+    },
+    {
+      "slug": "diaobe-kabendou",
+      "name": "Diaobé-Kabendou",
+      "latitude": 12.910114,
+      "longitude": -14.1444965,
+      "neighborhoods": [
+        {
+          "slug": "diaobe",
+          "name": "Diaobé",
+          "latitude": 12.9127364,
+          "longitude": -14.157721,
+          "osm": "n8973209490"
+        },
+        {
+          "slug": "kabendou",
+          "name": "Kabendou",
+          "latitude": 12.9141769,
+          "longitude": -14.1210016,
+          "osm": "n1889715433"
+        }
+      ]
+    },
+    {
+      "slug": "dinguiraye",
+      "name": "Dinguiraye",
+      "latitude": 13.2830169,
+      "longitude": -14.5632322,
+      "neighborhoods": []
+    },
+    {
+      "slug": "dioulacolon",
+      "name": "Dioulacolon",
+      "latitude": 12.8138913,
+      "longitude": -14.9231454,
+      "neighborhoods": []
+    },
+    {
+      "slug": "fafacourou",
+      "name": "Fafacourou",
+      "latitude": 13.1266809,
+      "longitude": -14.5580535,
+      "neighborhoods": []
+    },
+    {
+      "slug": "guiro-yero-bocar",
+      "name": "Guiro Yéro Bocar",
+      "latitude": 12.7515907,
+      "longitude": -14.7507741,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kandia",
+      "name": "Kandia",
+      "latitude": 13.1312367,
+      "longitude": -14.2083287,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kandiaye",
+      "name": "Kandiaye",
+      "latitude": 12.9143868,
+      "longitude": -14.0489944,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kerewane",
+      "name": "Kéréwane",
+      "latitude": 13.4199549,
+      "longitude": -15.01937,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kolda",
+      "name": "Kolda",
+      "latitude": 12.8982541,
+      "longitude": -14.935486,
+      "neighborhoods": [
+        {
+          "slug": "sare-kemo",
+          "name": "Saré kemo",
+          "latitude": 12.8787324,
+          "longitude": -14.9552976,
+          "osm": "n5480781282"
+        }
+      ]
+    },
+    {
+      "slug": "koulinto",
+      "name": "Koulinto",
+      "latitude": 13.0695451,
+      "longitude": -14.7985438,
+      "neighborhoods": []
+    },
+    {
+      "slug": "kounkane",
+      "name": "Kounkané",
+      "latitude": 12.9283489,
+      "longitude": -14.076675,
+      "neighborhoods": []
+    },
+    {
+      "slug": "linkering",
+      "name": "Linkéring",
+      "latitude": 12.8683781,
+      "longitude": -13.5880153,
+      "neighborhoods": []
+    },
+    {
+      "slug": "mampatim",
+      "name": "Mampatim",
+      "latitude": 12.9037951,
+      "longitude": -14.3466434,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-cherif",
+      "name": "Médina Chérif",
+      "latitude": 12.9192492,
+      "longitude": -14.2152545,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-el-hadj",
+      "name": "Médina El Hadj",
+      "latitude": 12.7401449,
+      "longitude": -14.9390148,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-gounass",
+      "name": "Médina Gounass",
+      "latitude": 13.1136837,
+      "longitude": -13.7077011,
+      "neighborhoods": []
+    },
+    {
+      "slug": "medina-yoro-foulah",
+      "name": "Médina Yoro Foulah",
+      "latitude": 13.29477,
+      "longitude": -14.7126443,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ndorna",
+      "name": "Ndorna",
+      "latitude": 13.1495124,
+      "longitude": -15.1196551,
+      "neighborhoods": []
+    },
+    {
+      "slug": "nemataba",
+      "name": "Némataba",
+      "latitude": 13.2233558,
+      "longitude": -14.0783591,
+      "neighborhoods": []
+    },
+    {
+      "slug": "niaming",
+      "name": "Niaming",
+      "latitude": 13.2842727,
+      "longitude": -14.769151,
+      "neighborhoods": []
+    },
+    {
+      "slug": "ouassadou",
+      "name": "Ouassadou",
+      "latitude": 12.7632899,
+      "longitude": -14.1739022,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pakour",
+      "name": "Pakour",
+      "latitude": 12.7902583,
+      "longitude": -13.934429,
+      "neighborhoods": []
+    },
+    {
+      "slug": "paroumba",
+      "name": "Paroumba",
+      "latitude": 12.7901952,
+      "longitude": -13.7741053,
+      "neighborhoods": []
+    },
+    {
+      "slug": "pata",
+      "name": "Pata",
+      "latitude": 13.4392901,
+      "longitude": -14.9484918,
+      "neighborhoods": []
+    },
+    {
+      "slug": "salikegne",
+      "name": "Salikégné",
+      "latitude": 12.6925736,
+      "longitude": -14.7416472,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sare-bidji",
+      "name": "Saré Bidji",
+      "latitude": 12.9140187,
+      "longitude": -15.0284945,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sare-coly-salle",
+      "name": "Saré Coly Sallé",
+      "latitude": 13.0857161,
+      "longitude": -14.0279498,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sare-yoba-diega",
+      "name": "Saré Yoba Diéga",
+      "latitude": 12.766334,
+      "longitude": -15.1046543,
+      "neighborhoods": []
+    },
+    {
+      "slug": "sinthiang-koundara",
+      "name": "Sinthiang Koundara",
+      "latitude": 13.3376015,
+      "longitude": -13.84982,
+      "neighborhoods": []
+    },
+    {
+      "slug": "tankanto-escale",
+      "name": "Tankanto Escale",
+      "latitude": 12.7618303,
+      "longitude": -15.0619173,
+      "neighborhoods": []
+    },
+    {
+      "slug": "thietty",
+      "name": "Thiétty",
+      "latitude": 12.9822141,
+      "longitude": -15.065162,
+      "neighborhoods": []
+    },
+    {
+      "slug": "velingara",
+      "name": "Vélingara",
+      "latitude": 13.1516128,
+      "longitude": -14.1130786,
+      "neighborhoods": []
+    }
+  ]
+}

@@ -49,6 +49,20 @@ on:
       # TCK-508 — `field-matrix.test.ts` lit la famille FONCIÈRE de `PropertyLabels::FAMILLES` :
       # les types sans « état du bien » côté front doivent être exactement ceux-là.
       - 'takussan-api/app/Support/Search/PropertyLabels.php'
+      # TCK-633 (lot D) — trois gardes croisées de plus, même règle : chacune lit UN fichier de
+      # l'API, et une PR qui ne touche que ce fichier doit les réveiller.
+      #   · `src/lib/__tests__/libelle-equipement.test.ts` ↔ `TagCatalog::EQUIPEMENTS` : un
+      #     équipement ajouté au catalogue sans ses traductions fr/en/wo s'afficherait en
+      #     français sous en et wo (relevé de la re-vérification du lot D) ;
+      #   · `src/lib/__tests__/cout-d-entree.concordance.test.ts` ↔ `cout-d-entree.json` : le
+      #     coût d'entrée calculé par le front et par `CoutDEntree` doit rester le même au franc ;
+      #   · `src/lib/geo/__tests__/reconnaitre-position.test.ts` ↔ `liens-google-maps.json` : les
+      #     liens que le front lit sans réseau et ceux que l'API résout sont les mêmes.
+      # Les fichiers NOMMÉS, et non `tests/fixtures/**` : les autres fixtures n'ont pas de lecteur
+      # côté front, et un motif large ferait tourner ce workflow sans raison.
+      - 'takussan-api/app/Services/Tags/TagCatalog.php'
+      - 'takussan-api/tests/fixtures/cout-d-entree.json'
+      - 'takussan-api/tests/fixtures/liens-google-maps.json'
   push:
     branches: [dev, master]
     paths:
@@ -71,10 +85,43 @@ on:
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
       - 'takussan-api/app/Support/Search/PropertyLabels.php'
+      # TCK-633 (lot D) — les trois gardes croisées décrites au déclencheur `pull_request`.
+      - 'takussan-api/app/Services/Tags/TagCatalog.php'
+      - 'takussan-api/tests/fixtures/cout-d-entree.json'
+      - 'takussan-api/tests/fixtures/liens-google-maps.json'
 
 jobs:
+  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────
+  #
+  # Même mécanisme qu'api-ci.yml : la clé est le `ls-tree` de ce que la suite LIT — ici TOUT
+  # `takussan-api/` en plus du front, pas les `paths:` ci-dessus. Mesuré le 2026-10-13 : deux
+  # tests du front lisent des fichiers de l'API que ces `paths` ignorent. S'il existe une
+  # attestation verte de cette clé, `quality` est sauté ; toute incertitude le fait tourner.
+  attestation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artefact: ${{ steps.attestation.outputs.artefact }}
+      deja-vert: ${{ steps.attestation.outputs.deja-vert }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - id: attestation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-attestation.mjs web
+
   quality:
     name: Web (ESLint + tsc + Vitest + build)
+    # `!cancelled()` d'abord : un job `attestation` en échec ne doit pas faire SAUTER la suite —
+    # un job sauté passe un check requis.
+    needs: attestation
+    if: ${{ !cancelled() && needs.attestation.outputs.deja-vert != 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -150,6 +197,23 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # ADR-0063 — lint, types, gardes, tests et build sont verts sur cet arbre : le nom de
+      # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en
+      # échec), rien à déposer.
+      - name: Attester l'arbre (ADR-0063)
+        if: needs.attestation.outputs.artefact != ''
+        run: |
+          printf '{"sha":"%s","run":"%s","evenement":"%s"}\n' \
+            "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" > "${{ runner.temp }}/attestation.json"
+      - name: Déposer l'attestation
+        if: needs.attestation.outputs.artefact != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.attestation.outputs.artefact }}
+          path: ${{ runner.temp }}/attestation.json
+          retention-days: 7
+          if-no-files-found: error
 
   # ──────────────────────────────────────────────────────────────────────────────────────────
   # L'IMAGE se construit en PR, sans être poussée (TCK-521) — même raison que dans api-ci.yml.

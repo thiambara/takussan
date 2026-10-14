@@ -195,13 +195,14 @@ class PropertyPrimaryContactTest extends TestCase
     /** AC4 — le téléphone servi par `/contact` est celui de cette même personne (contrainte 3). */
     public function test_le_telephone_public_est_celui_du_contact_principal(): void
     {
-        $owner = User::factory()->create(['phone' => '+221770000001']);
-        $agent = User::factory()->create(['phone' => '+221770000002']);
+        // TCK-633 (lot C, tour 2) — seul un numéro principal VÉRIFIÉ est servi.
+        $owner = User::factory()->create(['phone' => '+221770000001', 'phone_verified_at' => now()]);
+        $agent = User::factory()->create(['phone' => '+221770000002', 'phone_verified_at' => now()]);
         $property = $this->bienAvecAgents($owner, [[$agent, self::INVITE_TOT]]);
 
         $this->getJson("/api/public/properties/{$property->slug}/contact")
             ->assertOk()
-            ->assertJsonPath('phone', $agent->phone);
+            ->assertJsonPath('data.0.phone', $agent->phone);
     }
 
     /**
@@ -210,7 +211,7 @@ class PropertyPrimaryContactTest extends TestCase
      */
     public function test_sans_collaborateur_agent_le_contact_reste_le_proprietaire(): void
     {
-        $owner = User::factory()->create(['phone' => '+221770000001']);
+        $owner = User::factory()->create(['phone' => '+221770000001', 'phone_verified_at' => now()]);
         $property = $this->bienAvecAgents($owner, []);
         // Un collaborateur d'un AUTRE rôle ne prend pas la place : seul `agent` répond.
         PropertyCollaborator::create([
@@ -227,7 +228,7 @@ class PropertyPrimaryContactTest extends TestCase
         );
         $this->getJson("/api/public/properties/{$property->slug}/contact")
             ->assertOk()
-            ->assertJsonPath('phone', $owner->phone);
+            ->assertJsonPath('data.0.phone', $owner->phone);
     }
 
     /**

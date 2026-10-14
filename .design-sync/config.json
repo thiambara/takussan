@@ -31,6 +31,8 @@
     "CardHeader": null,
     "CardTitle": null,
     "ChoiceCardGroup": null,
+    "Combobox": null,
+    "ComboboxMultiple": null,
     "DialogClose": null,
     "DialogContent": null,
     "DialogDescription": null,
@@ -79,7 +81,9 @@
     "TabsList": null,
     "TabsTrigger": null,
     "TakussanProvider": null,
-    "ToastProvider": null
+    "ToastProvider": null,
+    "TooltipContent": null,
+    "TooltipTrigger": null
   },
   "overrides": {
     "Dialog": {
@@ -112,6 +116,10 @@
     },
     "Calendar": {
       "cardMode": "column"
+    },
+    "Tooltip": {
+      "cardMode": "single",
+      "viewport": "480x200"
     }
   },
   "readmeHeader": ".design-sync/conventions.md"

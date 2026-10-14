@@ -58,6 +58,10 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
         'force_2fa_at_first_login',
         'phone_verified_at',
+        // TCK-633 (lot C) — les cases WhatsApp seulement. `secondary_phone*` et `terms_*` ne sont
+        // PAS assignables en masse : leurs écrivains (`PhoneVerificationService`,
+        // `PublishReadiness`) passent par `forceFill`.
+        'phone_whatsapp', 'secondary_phone_whatsapp',
         'notifications_email_enabled', 'notifications_push_enabled', 'notifications_sms_enabled',
         'email_frequency', 'digest_send_at', 'digest_day_of_week',
         'metadata',
@@ -90,6 +94,10 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return [
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
+            'phone_whatsapp' => 'boolean',
+            'secondary_phone_verified_at' => 'datetime',
+            'secondary_phone_whatsapp' => 'boolean',
+            'terms_accepted_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
             'password_set_at' => 'datetime',
@@ -210,6 +218,30 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
+     * TCK-633 (lot C, tour 3) — décision de la session sur D10 : **le seul numéro principal
+     * qu'une surface publique peut servir**, et le seul point où la règle s'écrit. Un numéro non
+     * vérifié n'est servi au public nulle part — ni par `…/contact` d'un bien
+     * (`PropertyContactNumbers`), ni par la fiche `/agents/{slug}`
+     * (`PublicAgentController::show()`). Toute surface publique neuve passe par ici ;
+     * `tests/Feature/Public/NumeroPublieVerifieTest.php` balaie toutes les routes `GET
+     * api/public/*` et rougit sur la première qui servirait un numéro non vérifié.
+     */
+    public function numeroPrincipalPublic(): ?string
+    {
+        return is_string($this->phone) && $this->phone !== '' && $this->phone_verified_at !== null
+            ? $this->phone
+            : null;
+    }
+
+    /** Même règle pour le second numéro (TCK-633, lot C) : servi seulement s'il est vérifié. */
+    public function numeroSecondairePublic(): ?string
+    {
+        return is_string($this->secondary_phone) && $this->secondary_phone !== '' && $this->secondary_phone_verified_at !== null
+            ? $this->secondary_phone
+            : null;
+    }
+
+    /**
      * TCK-142 — agency attachment is now carried by polymorphic profiles. The
      * accessor preserves the legacy `$user->agency_id` property surface used
      * by policies, controllers and resources during the transition window.
@@ -313,6 +345,17 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     protected static function booted(): void
     {
+        // TCK-633 (lot C, tour 2) — la réponse WhatsApp suit le NUMÉRO. Changer de numéro la remet
+        // à « jamais répondu » (`null`), quel que soit l'écrivain (`AuthController::updateProfile`,
+        // `MeController::update`, `PhoneVerificationController`, …) — sauf si la même écriture
+        // donne une réponse pour le nouveau numéro (`PhoneVerificationService::markVerified`
+        // reporte celle du second numéro devenu principal).
+        static::updating(function (self $user): void {
+            if ($user->isDirty('phone') && ! $user->isDirty('phone_whatsapp')) {
+                $user->phone_whatsapp = null;
+            }
+        });
+
         // TCK-142 — flush any legacy `agency_id` value stashed before save
         // into a real OwnerProfile row. Covers `User::create(['agency_id' =>
         // X])`, `new User(['agency_id' => X]) + ->save()`, and any other

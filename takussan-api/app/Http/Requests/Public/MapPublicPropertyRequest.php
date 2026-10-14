@@ -2,33 +2,36 @@
 
 namespace App\Http\Requests\Public;
 
-use App\Http\Requests\BaseFormRequest;
-use App\Http\Requests\Concerns\FiltreParPointEtRayon;
-
 /**
  * TCK-304/305 — extrait de PublicPropertyController::map(), ou les regles etaient inline.
+ *
+ * TCK-633 (lot E, AC6) — la carte HERITE des regles de la liste. Elle n'en acceptait que quatre
+ * (type, transaction, prix) plus le rayon : tout autre filtre du panneau etait jete par
+ * `validated()`, et la vue carte montrait des biens que la liste venait d'ecarter, sur le meme
+ * ecran. Heriter plutot que recopier : une cle ajoutee a la liste arrive ici d'elle-meme, et
+ * `MapFiltersParityTest` exige alors qu'elle soit appliquee par `FiltresDeLaCarte`.
+ *
+ * Herites tels quels : `authorize()` (true), `prepareForValidation()` (`furnished`/`featured`
+ * en booleen, `available_from` ecretee au present) et le contrat « point + rayon »
+ * (`FiltreParPointEtRayon`, ADR-0023, TCK-346).
  */
-class MapPublicPropertyRequest extends BaseFormRequest
+class MapPublicPropertyRequest extends SearchPublicPropertyRequest
 {
     /**
-     * `lat`, `lng`, `radius_km` et `RADIUS_KM_MAX` — le MEME contrat que
-     * `SearchPublicPropertyRequest`, defini une seule fois (ADR-0023, TCK-346).
+     * Les cles de la LISTE qui n'ont pas de sens sur la carte :
      *
-     * Sans lui, un visiteur qui posait « a moins de 3 km » sur la liste puis
-     * basculait en vue carte voyait reapparaitre les biens que la liste venait
-     * d'ecarter : le filtre disparaissait EN SILENCE a la bascule, sur le meme
-     * ecran (`PropertiesDiscoveryPage`, `View = 'list' | 'map'`).
+     * - `q`, `search` : la recherche plein-texte passe par Meilisearch ; `/map` est SQL (ADR-0023),
+     *   et recomposer Scout + Eloquent ici creerait un second chemin, ce que `takussan-api/CLAUDE.md`
+     *   (§ Recherche) interdit ;
+     * - `sort` : decision motivee dans `PublicPropertyController::map()` (`PropertyMapRadiusTest::
+     *   test_map_ne_declare_aucun_tri`) ;
+     * - `page`, `per_page` : la carte est un GeoJSON plafonne, sans pagination ;
+     * - `lat_min` … `lng_max` : le rectangle de la liste ; la carte a le sien, `bounds`.
+     *
+     * ⚠ Miroir de `CLES_PROPRES_A_LA_LISTE` dans `takussan-web/src/lib/recherche-publique.ts` :
+     * `search-filters.parity.test.ts` compare les deux listes.
      */
-    use FiltreParPointEtRayon;
-
-    /**
-     * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
-     * `BaseFormRequest` refuse par defaut : sans cette surcharge, l'endpoint rendrait 403.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
+    public const CLES_PROPRES_A_LA_LISTE = ['q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max'];
 
     /** @return array<string, mixed> */
     public function rules(): array
@@ -58,20 +61,14 @@ class MapPublicPropertyRequest extends BaseFormRequest
                     }
                 },
             ],
-            'type' => ['nullable', 'string', 'max:100'],
-            'contract_type' => ['nullable', 'in:sale,rent'],
-            'price_min' => ['nullable', 'numeric', 'min:0'],
-            'price_max' => ['nullable', 'numeric', 'min:0'],
 
-            // ── GEO, contrat « point + rayon » (ADR-0023, TCK-346) ────────────
-            // Le rayon se CONJOINT (ET) au rectangle `bounds`, exactement comme
-            // il se conjoint au `_geoBoundingBox` de `/search`. `bounds` reste
-            // `required` : la carte demande toujours un cadrage, le rayon ne le
-            // remplace pas.
+            // Le rayon se CONJOINT (ET) au rectangle `bounds`, exactement comme il se conjoint au
+            // `_geoBoundingBox` de `/search`. `bounds` reste `required` : la carte demande toujours
+            // un cadrage, le rayon ne le remplace pas.
             //
             // ⚠ PAS de `sort` ici, et c'est une decision, pas un oubli — voir
             // `PublicPropertyController::map()`.
-            ...$this->reglesPointEtRayon(),
+            ...array_diff_key(parent::rules(), array_flip(self::CLES_PROPRES_A_LA_LISTE)),
         ];
     }
 }

@@ -20,6 +20,9 @@ vi.mock('@/lib/api', async () => {
 // Chrome du site et surfaces lourdes : hors sujet ici, et elles tirent auth / carte / réseau.
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
+// sans `QueryClientProvider`.
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
 vi.mock('@/components/map', () => ({ PropertyMap: () => null }));
 vi.mock('@/components/favorites/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 

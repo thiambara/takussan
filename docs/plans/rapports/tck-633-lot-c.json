@@ -1,0 +1,687 @@
+{
+  "verdict": {
+    "statut": "termine",
+    "phrase": "Les 15 tâches du lot C et les décisions 2 et 3 du porteur sont livrées, chaque test vu rouge puis vert puis éprouvé par ablation ; restent des rouges d'autres lots (D, E, F) et la garde models-spec, qui attend l'intégration (E8)."
+  },
+  "fichiers": {
+    "api_crees": [
+      "takussan-api/app/Events/Auth/PhoneVerified.php",
+      "takussan-api/app/Events/Onboarding/SpaceCreated.php",
+      "takussan-api/app/Http/Controllers/HostAutoOnboardController.php",
+      "takussan-api/app/Http/Requests/Onboarding/HostAutoOnboardRequest.php",
+      "takussan-api/app/Http/Controllers/Api/Auth/SecondaryPhoneController.php",
+      "takussan-api/app/Http/Requests/Auth/SecondaryPhoneRequest.php",
+      "takussan-api/app/Http/Requests/Auth/VerifySecondaryPhoneRequest.php",
+      "takussan-api/app/Models/PropertyContact.php",
+      "takussan-api/app/Http/Controllers/Api/PropertyContactController.php",
+      "takussan-api/app/Http/Requests/Api/ReplacePropertyContactsRequest.php",
+      "takussan-api/app/Services/Property/PropertyContactNumbers.php",
+      "takussan-api/app/Services/Property/PublishReadiness.php",
+      "takussan-api/database/migrations/2026_10_12_300000_enable_host_auto_space_flag.php",
+      "takussan-api/database/migrations/2026_10_12_300100_add_contact_preferences_to_users_table.php",
+      "takussan-api/database/migrations/2026_10_12_300200_create_property_contacts_table.php",
+      "takussan-api/tests/Support/PubliePret.php",
+      "takussan-api/tests/Feature/Auth/Phone/PhoneVerifiedEventTest.php",
+      "takussan-api/tests/Feature/Onboarding/SpaceCreatedEventTest.php",
+      "takussan-api/tests/Feature/Onboarding/HostAutoOnboardTest.php",
+      "takussan-api/tests/Feature/Auth/ContactPreferencesTest.php",
+      "takussan-api/tests/Feature/Auth/Phone/SecondaryPhoneTest.php",
+      "takussan-api/tests/Feature/Property/PropertyContactsTest.php",
+      "takussan-api/tests/Feature/Public/PublicContactEndpointTest.php",
+      "takussan-api/tests/Feature/Api/PublishReadinessTest.php"
+    ],
+    "api_modifies": [
+      "takussan-api/app/Domain/Features/Flag.php (co-tenu, Edit)",
+      "takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php",
+      "takussan-api/app/Services/Auth/PhoneVerificationService.php",
+      "takussan-api/app/Models/User.php",
+      "takussan-api/app/Http/Resources/UserResource.php ([EXT] accordé)",
+      "takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php",
+      "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php ([EXT] accordé)",
+      "takussan-api/app/Http/Controllers/Public/PublicPropertyController.php (co-tenu, Edit)",
+      "takussan-api/app/Http/Resources/PropertyResource.php (co-tenu, Edit : has_whatsapp)",
+      "takussan-api/app/Http/Controllers/Api/PropertyController.php",
+      "takussan-api/app/Models/Property.php (co-tenu, Edit : contacts())",
+      "takussan-api/routes/api/auth.php, routes/api/onboarding.php, routes/api/properties.php",
+      "takussan-api/lang/{fr,en,wo}/errors.php, lang/{fr,en,wo}/onboarding.php (Edit)",
+      "tests mis à la forme {data:[…]} ou à rendrePubliable (Edit) : Public/PropertyContactTest, Unit/Services/PrimaryPropertyContactEligibilityTest, Property/PrimaryAgentDesignationTest, Admin/Platform/AccountErasureListingsTest, Api/ProprietaireDuBienTest, Public/PropertyPrimaryContactTest, Api/PropertyCollaboratorTest, Api/PropertyCrudTest, Api/PropertyModerationGateTest, Api/PropertyAuthorizationTest, Api/Admin/PropertyReportDecisionTest"
+    ],
+    "web_crees": [
+      "takussan-web/src/app/actions/auto-onboard.ts",
+      "takussan-web/src/app/actions/contact-preferences.ts",
+      "takussan-web/src/app/actions/secondary-phone.ts",
+      "takussan-web/src/app/actions/publish-property.ts",
+      "takussan-web/src/app/actions/property-contacts.ts",
+      "takussan-web/src/components/contact/ContactsSurPlace.tsx",
+      "takussan-web/src/components/contact/CoordonneesPublication.tsx",
+      "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx",
+      "takussan-web/src/components/contact/ListeDeNumeros.tsx",
+      "takussan-web/src/components/contact/numeros-du-bien.ts",
+      "takussan-web/src/components/profile/security/CaseWhatsApp.tsx",
+      "takussan-web/src/components/profile/security/SecondaryPhoneSection.tsx",
+      "tests : src/app/publish/__tests__/page.auto-space.test.tsx, src/components/contact/__tests__/{ContactsSurPlace,CoordonneesPublication,WhatsAppButton.tck-633}.test.tsx, src/components/profile/__tests__/ProfileContactSection.whatsapp.test.tsx, src/components/profile/security/__tests__/{CaseWhatsApp,SecondaryPhoneSection}.test.tsx, src/components/property-dashboard/__tests__/PropertyActions.publication.tck-633.test.tsx, src/components/property-form/__tests__/PropertyWizard.publication.tck-633.test.tsx, src/app/[locale]/(public)/properties/[slug]/components/__tests__/PropertyAgentCard.tck-633.test.tsx"
+    ],
+    "web_modifies": [
+      "takussan-web/src/app/publish/page.tsx",
+      "takussan-web/src/hooks/usePublishIntent.ts (commentaire)",
+      "takussan-web/src/types/user.ts, src/types/property.ts",
+      "takussan-web/src/components/profile/ProfileContactSection.tsx (Edit)",
+      "takussan-web/src/components/contact/WhatsAppButton.tsx",
+      "takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx",
+      "takussan-web/src/components/property-form/wizard/steps/StepFinition.tsx",
+      "takussan-web/src/components/property-form/PropertyWizard.tsx (co-tenu, Edit)",
+      "takussan-web/src/components/property-form/__tests__/PropertyWizard.test.tsx (co-tenu, Edit)",
+      "takussan-web/src/components/property-dashboard/PropertyRowActions.tsx (co-tenu C/F, Edit)",
+      "takussan-web/src/components/property-dashboard/PropertyHeaderActions.tsx (co-tenu C/F, Edit)",
+      "takussan-web/src/components/property-dashboard/__tests__/PropertyHeaderActions.test.tsx (Edit)",
+      "takussan-web/src/components/contact/__tests__/WhatsAppButton.tck-590.test.tsx, PropertyAgentCard.tck-590.test.tsx (Edit)",
+      "takussan-web/src/messages/{fr,en,wo}.json (Edit seul : publishRedirect.auto.*, profile.contact.whatsappLabel, profile.contact.secondary.*, property.form.publishContact.* + dialogTitle/dialogPublish/dialogCancel, property.contacts.*)"
+    ]
+  },
+  "tests": [
+    {
+      "commande": "php artisan test tests/Feature/Auth/Phone/PhoneVerifiedEventTest.php tests/Feature/Onboarding/ tests/Feature/Auth/Phone/SecondaryPhoneTest.php tests/Feature/Auth/ContactPreferencesTest.php tests/Feature/Property/PropertyContactsTest.php tests/Feature/Public/PublicContactEndpointTest.php tests/Feature/Api/PublishReadinessTest.php",
+      "resultat": "92 passed (516 assertions), 23,6 s"
+    },
+    {
+      "commande": "php artisan test tests/Feature/Public tests/Feature/Property",
+      "resultat": "425 passed (2232 assertions), 191,9 s — load average 32,9 / 38,5 / 30,5 sur 8 cœurs au départ"
+    },
+    {
+      "commande": "php artisan test tests/Feature/Auth tests/Feature/Onboarding",
+      "resultat": "461 passed (2243 assertions), 115,8 s — load average 10,7 / 25,7 / 27,1 à la fin"
+    },
+    {
+      "commande": "classes de test des contrôleurs/services modifiés, sélectionnées depuis tests/impact-map.json (bin/impacted-tests.php répond SUITE ENTIÈRE à cause du config/scout.php d'un autre lot), 162 fichiers en 3 lots",
+      "resultat": "519 + 508 + 531 passed ; 1 rouge (DateInventoryByValueTest, UserResource::0) corrigé depuis (spread au lieu de mergeWhen) ; reste rouge DateInventoryByValueTest::test_le_registre_suit_encore_l_arborescence_des_ressources, dû à Credits\\CreditWalletResource du lot F"
+    },
+    {
+      "commande": "php artisan test (classes mises à jour pour la publication, dont BillingPlansTest et LangGroupParityTest)",
+      "resultat": "97 passed"
+    },
+    {
+      "commande": "php artisan test (classes contact : PropertyContactTest, PrimaryPropertyContactEligibilityTest, PrimaryAgentDesignationTest, AccountErasureListingsTest, ProprietaireDuBienTest, PropertyPrimaryContactTest, PropertyCollaboratorTest)",
+      "resultat": "78 passed"
+    },
+    {
+      "commande": "./vendor/bin/pint --test <les 24 fichiers PHP créés par C> + HostIndividualOnboardingService.php",
+      "resultat": "passed (PhoneVerified.php reformaté, ordre des imports corrigé dans HostIndividualOnboardingService)"
+    },
+    {
+      "commande": "npx vitest run src/components/property-dashboard/__tests__/ src/components/console/__tests__/colonnes-des-tables-converties-tck-380.test.tsx",
+      "resultat": "13 fichiers, 65 passed"
+    },
+    {
+      "commande": "npx vitest run \"src/app/[locale]/(public)/properties/[slug]/components/__tests__\" src/app/publish src/components/contact src/components/profile src/components/property-dashboard src/components/property-form src/hooks/__tests__ src/app/actions",
+      "resultat": "115 fichiers, 928 passed / 7 failed : 1 de C (erreurs-traduites, auto-onboard.ts) corrigé ensuite, vert ; 6 dans PropertyForm.test.tsx (édition : équipements, géo, devise, frais, lots D/E), pas à C"
+    },
+    {
+      "commande": "npx vitest run src/app/publish src/app/actions/__tests__/erreurs-traduites.test.ts",
+      "resultat": "3 fichiers, 18 passed (avant le test ajouté) ; src/app/publish 5 passed ensuite"
+    },
+    {
+      "commande": "npx tsc --noEmit",
+      "resultat": "propre sur les fichiers de C ; 1 erreur restante dans src/components/admin-tags/TagsManager.tsx:427 (TagType 'feature'), autre lot"
+    },
+    {
+      "commande": "npm run lint",
+      "resultat": "0 erreur, 0 avertissement (une erreur react-hooks/set-state-in-effect sur /publish, à C, corrigée en séparant l'effet de création automatique)"
+    },
+    {
+      "commande": "npm run check:i18n",
+      "resultat": "1 écart, pas à C : src/app/(dashboard)/app/properties/new/page.tsx, libellé en dur dans un fichier absent de la baseline (lot D)"
+    },
+    {
+      "commande": "npm run check:i18n-namespaces",
+      "resultat": "4 écarts, tous des espaces boost/credits (lot F) ; aucun espace de C signalé"
+    },
+    {
+      "commande": "for g in scripts/check-*.mjs; do node \"$g\" || echo ✗; done + gen-index --check + gen-features-by-actor --check",
+      "resultat": "2 rouges : check-models-spec (PropertyContact attendu à l'intégration E8, plus BoostProduct/Credit*/Geo*/PropertyBoost* des lots E/F) ; check-design-sync-entry (ui/combobox.tsx, pas à C)"
+    }
+  ],
+  "ablations": [
+    {
+      "test": "PhoneVerifiedEventTest / SpaceCreatedEventTest",
+      "retrait": "dispatch des événements PhoneVerified et SpaceCreated (t2, t2b)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "migration du drapeau HostAutoSpace",
+      "retrait": "activation du drapeau dans 300000 (t1)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "HostAutoOnboardTest",
+      "retrait": "garde du drapeau, idempotence, téléphone vérifié (t3, t3b, t3c)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "ContactPreferencesTest",
+      "retrait": "champs self-only, validation, écriture (t4, t4b, t4c) ; retour à mergeWhen dans UserResource (Edit puis Edit inverse, md5 a2c8ddad1e1eca937bd96dce8e551328)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "SecondaryPhoneTest",
+      "retrait": "vérification OTP, unicité contre les numéros secondaires vérifiés (décision 2), promotion (t5 à t5e)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "PropertyContactsTest",
+      "retrait": "autorisation, plafond, remplacement (t6, t6b, t6c)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "PublicContactEndpointTest",
+      "retrait": "contrôle verified_at (t7), WhatsApp des contacts sur place (t7b) ; PropertyResource has_whatsapp => false (Edit puis Edit inverse, md5 ab33b71f01acf73628f6ec4ccaebe6d6)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "PublishReadinessTest",
+      "retrait": "garde dans update (t8), store (t8b), publish (t8c), recordTerms (t8d)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "page.auto-space.test.tsx",
+      "retrait": "création automatique (t11) ; puis, après restructuration, appel creerPuisPartir dans l'effet (t11r : 3 rouges) ; message localisé de l'action (t11m : 1 rouge)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "CaseWhatsApp / SecondaryPhoneSection / ProfileContactSection.whatsapp",
+      "retrait": "t12, t12c ; retrait de <SecondaryPhoneSection /> par Edit puis Edit inverse (md5 a2725841774ff259ab9bcfd2620b791a)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "WhatsAppButton.tck-633 / PropertyAgentCard.tck-633",
+      "retrait": "prop hasWhatsApp ignorée (t13), liste des numéros (t13b)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "CoordonneesPublication / PropertyWizard.publication.tck-633",
+      "retrait": "montrerCgu false (t14), montrerBloc false (t14b) ; replacePropertyContactsAction retiré de PropertyWizard par Edit puis Edit inverse (md5 6fc56d3cb2f1fac092dc925a8a7fa722)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "PropertyActions.publication.tck-633 (ligne et en-tête)",
+      "retrait": "acceptTerms: depuisLeDialogue → false (t15a : 2 rouges) ; setOuvert(true) retiré sur refus avec missing (t15b : 4 rouges)",
+      "rouge_observe": "oui"
+    },
+    {
+      "test": "PropertyActions.publication.tck-633 (ligne)",
+      "retrait": "PropertyRowActions.publish rétabli sur updatePropertyVisibilityAction(…, 'public') par Edit, puis Edit inverse ; md5 94cb3bda3eb8265a13c4c66d5f7367a7 avant comme après",
+      "rouge_observe": "oui (4 rouges, les 4 cas de la ligne)"
+    }
+  ],
+  "ac": [
+    {
+      "ac": "« Publier » sans espace crée l'espace d'indépendant sans question puis ouvre le formulaire ; drapeau désactivé → l'assistant actuel",
+      "preuve": "HostAutoOnboardTest 9 verts ; page.auto-space.test.tsx 4 verts (création → /app/properties/new, disabled → /onboarding/host, échec + Réessayer, message localisé)"
+    },
+    {
+      "ac": "PhoneVerified et SpaceCreated émis",
+      "preuve": "PhoneVerifiedEventTest, SpaceCreatedEventTest verts, ablations t2/t2b rouges"
+    },
+    {
+      "ac": "Préférence WhatsApp et numéro secondaire vérifié par OTP ; décision 2 : un numéro secondaire vérifié bloque son usage ailleurs",
+      "preuve": "ContactPreferencesTest et SecondaryPhoneTest (16) verts ; CaseWhatsApp, SecondaryPhoneSection, ProfileContactSection.whatsapp verts"
+    },
+    {
+      "ac": "Contacts sur place d'un bien (property_contacts) et endpoint public rendant {data:[{phone,whatsapp,label,kind}]}",
+      "preuve": "PropertyContactsTest 7 et PublicContactEndpointTest 5 verts ; 78 tests de contact mis à la nouvelle forme, verts"
+    },
+    {
+      "ac": "Fiche publique : plusieurs numéros listés, WhatsApp sur le premier numéro qui l'accepte",
+      "preuve": "WhatsAppButton.tck-633, PropertyAgentCard.tck-633 verts ; 22 fichiers / 100 tests du dossier verts"
+    },
+    {
+      "ac": "Publication refusée tant que le contact n'est pas complet (numéro vérifié, CGU) sur les quatre chemins de mise en ligne ; CGU datées à l'acceptation",
+      "preuve": "PublishReadinessTest 12 verts, ablations t8 à t8d rouges"
+    },
+    {
+      "ac": "Assistant : bloc « Vos coordonnées pour les intéressés » et contacts sur place à l'étape Finition, publication par POST …/publish",
+      "preuve": "ContactsSurPlace, CoordonneesPublication, PropertyWizard.publication.tck-633 et PropertyWizard.test verts (25 fichiers / 329 tests)"
+    },
+    {
+      "ac": "Décision 3 : depuis les « Publier » de la ligne et de l'en-tête, le bloc s'ouvre en boîte de dialogue puis la publication part",
+      "preuve": "PropertyActions.publication.tck-633.test.tsx 8 verts (4 cas × 2 menus) ; PropertyHeaderActions.test.tsx vert sur publishPropertyAction"
+    }
+  ],
+  "ecarts_au_ticket": [
+    "Le plan cite /api/me : la route réelle est GET /api/auth/me. Les champs de contact n'y sont rendus qu'à l'utilisateur lui-même et sont optionnels dans le type front.",
+    "FeatureFlagTest relève du lot A : non touché.",
+    "Le limiteur auth-phone-send est par IP, pas par numéro, contrairement à ce que dit le commentaire du plan ; la borne par numéro est PhoneSendQuota.",
+    "Décision 2 réalisée en étendant isVerifiedElsewhere (pas de isSecondaryTaken). Une connexion par téléphone sur un numéro secondaire vérifié rend 409 phone.taken au lieu de créer un compte. Quand son propre numéro secondaire devient principal, le secondaire est vidé.",
+    "PropertyResource étant co-tenu, has_whatsapp y est appliqué directement : E3 n'est plus une collision.",
+    "UserResource : spread conditionnel au lieu de mergeWhen. AgencyController (l. 190 et 263) et OAuthSessionOpener (l. 114) appellent toArray() directement, et le MergeValue sortait sous la clé 0. Un test l'épingle. Les clés de date réservées à l'utilisateur ne passent pas par DateInventory ; elles sont couvertes par iso() et ce test.",
+    "Quatre chemins de mise en ligne gardés (E7) : publish, updateVisibility (délègue à publish), store public, update rendant public. PUT …/status n'est pas gardé. bulk-visibility ne fait que dépublier.",
+    "CoordonneesPublication et ContactsSurPlace passent en colonnes dès lg: et non sm:, suivant la règle responsive des coques à barre latérale.",
+    "Décision 3 réalisée par usePublicationAvecCoordonnees. Le premier geste appelle POST …/publish sans accept_terms : un compte prêt publie aussitôt, sinon l'API refuse sans rien écrire et la boîte s'ouvre ; son « Publier » rejoue avec acceptTerms: true. C'est une adaptation d'E12 : la boîte ne s'ouvre que si l'API dit qu'il manque quelque chose.",
+    "Clés i18n ajoutées hors plan : property.form.publishContact.dialogTitle, dialogPublish, dialogCancel.",
+    "/publish : la création automatique a son propre effet. Un seul effet partagé déclenchait react-hooks/set-state-in-effect. L'effet de navigation d'origine reste identique et ignore seulement host-needed.",
+    "auto-onboard.ts rend un message localisé sur échec (messageErreurApi + getTranslations), comme l'exige erreurs-traduites.test.ts ; /publish l'affiche, avec publishRedirect.auto.error en repli. Un test l'épingle.",
+    "Tests ajoutés hors plan : CGU non datées sur refus, création publique acceptée qui date les CGU, création privée qui n'exige rien, décocher WhatsApp envoie false, toArray direct à plat, message localisé de /publish, les 8 cas de la décision 3.",
+    "E11 : TERMS_VERSION ('2026-09-17') est dupliqué avec editeur.ts (« 17 septembre 2026 »), et aucune garde ne le vérifie.",
+    "php bin/impacted-tests.php répond SUITE ENTIÈRE (config/scout.php d'un autre lot) : sélection faite depuis tests/impact-map.json pour les fichiers de C. Les 727 fichiers associés à PropertyResource, User et Property n'ont pas été lancés en entier : seuls Public, Property, Auth et Onboarding l'ont été (886 verts).",
+    "Rouges d'autres lots, laissés en l'état : DateInventoryByValueTest::test_le_registre… (lot F, Credits\\CreditWalletResource) ; Pint sur Property.php (\\App\\Models\\Enums\\BoostBadge en FQCN, lot F) ; check-platform-catalogue-readers (media_watermark, lot A) ; check-i18n (properties/new/page.tsx, lot D) ; check-i18n-namespaces (boost, credits, lot F) ; tsc sur TagsManager.tsx:427 ; PropertyForm.test.tsx, 6 cas d'édition (lots D/E) ; check-design-sync-entry (ui/combobox.tsx).",
+    "check-models-spec reste rouge sur PropertyContact jusqu'à l'intégration (E8, docs/models-spec.md hors territoire)."
+  ],
+  "collisions": [
+    {
+      "fichier": "docs/models-spec.md",
+      "motif": "check-models-spec exige une mention de PropertyContact ; document hors territoire de C, prévu à l'intégration (E8).",
+      "diff": "Ajouter une section PropertyContact (table property_contacts, migration 2026_10_12_300200), relevée dans la migration : id ; property_id unsignedBigInteger, FK property_contacts_property_fk → properties.id, cascadeOnDelete ; label string(60) nullable ; phone string(30) non nul ; has_whatsapp boolean défaut false ; position unsignedSmallInteger défaut 0 ; timestamps ; index property_contacts_property_position_idx (property_id, position). Relation Property::contacts() : hasMany(PropertyContact), orderBy('position')."
+    }
+  ],
+  "corrections_apres_verif": {
+    "verdict": "Les trois refus (B1 remise en ligne par le statut, M2 second numéro conservé à l'effacement, M3 contacts sur place non modifiables) et les quatre mineurs sont corrigés, chacun vu rouge, vert, puis rougi de nouveau par ablation restaurée à md5 identique.",
+    "corrections": [
+      {
+        "defaut": "B1 — PUT …/status (et POST …/publish) remettait en ligne un bien retiré par son statut sans PublishReadiness",
+        "fichiers": [
+          "takussan-api/app/Services/Property/PublishReadiness.php : alreadyOnline() = Property::query()->public()->whereKey() (scopePublic, statut compris) ; statusPutsOnline() (statut hors Property::NON_PUBLIC_STATUSES, visibility public, published_at posé, pas déjà en ligne)",
+          "takussan-api/app/Http/Controllers/Api/PropertyController.php : updateStatus garde par ensureForProperty AVANT l'écriture (+ recordTerms) ; update() garde aussi `status` dans le corps, et ne compte `visibility=public` que comme un PASSAGE à public (le formulaire d'édition la renvoie telle quelle)"
+        ],
+        "tests": "tests/Feature/Api/PublishReadinessTest.php : +5 (S2 par PUT …/status refusé 422 property.publish_contact_incomplete, statut inchangé, hors de Property::public() ; S2 par POST …/publish refusé ; même détour par PUT /properties/{id} {status} refusé ; contact complet → 200 et public ; retirer par le statut n'exige rien) → 17 passed",
+        "ablations": [
+          "alreadyOnline() rendu à visibility + published_at → 3 rouges (status, publish, update)",
+          "garde de updateStatus neutralisée (`false &&`) → 1 rouge (remettre en ligne par le statut)",
+          "clause `status` de update() neutralisée → 1 rouge (mise à jour du statut)",
+          "md5 restaurés : PublishReadiness abbdc0b6f451c86ffb3a915b1ab5c528, PropertyController a0c336c5871ba5e63ea5574621f4d2b4"
+        ]
+      },
+      {
+        "defaut": "M2 — l'effacement du compte gardait le second numéro",
+        "fichiers": [
+          "takussan-api/app/Services/Account/AccountDeletionService.php (HORS TERRITOIRE, accordé) : anonymize() efface secondary_phone, secondary_phone_verified_at, secondary_phone_whatsapp (false) et phone_whatsapp (null = jamais répondu) ; terms_accepted_at/terms_version gardés (trace datée d'un consentement, n'identifie personne)"
+        ],
+        "tests": "tests/Feature/Auth/AccountDeletionExecuteTest.php (HORS TERRITOIRE, accordé) : +1 test_execute_efface_le_second_numero_et_les_cases_whatsapp → 6 passed",
+        "ablations": [
+          "retrait des trois lignes secondary_* → 1 rouge ('+221770000972' non nul) ; md5 restauré 21e53b0a… puis b31e6ebbff021c89c808d8998aae8344 après le passage de phone_whatsapp à null"
+        ]
+      },
+      {
+        "defaut": "M3 — contacts sur place modifiables seulement à la création",
+        "fichiers": [
+          "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx (nouveau) : GET …/contacts (useQuery), ContactsSurPlace en brouillon local, « Enregistrer les contacts » → replacePropertyContactsAction (PUT d'un bloc, 3 au plus) ; refus serveur dit, saisie gardée",
+          "takussan-web/src/components/contact/contacts-du-bien.ts (nouveau) : lireContactsDuBien(token, id), clé de requête",
+          "takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx (HORS TERRITOIRE, accordé ; Edit) : monté sous PropertyForm dans l'onglet « Modifier ». PropertyWizard n'a pas de mode édition (seul /app/properties/new l'emploie) ; PropertyForm (édité par D) non touché",
+          "takussan-web/src/messages/{fr,en,wo}.json : property.contacts.save, property.contacts.saved (Edit)"
+        ],
+        "tests": "src/components/contact/__tests__/ContactsSurPlaceDuBien.test.tsx (5 : lecture initiale, correction + enregistrement, retrait enregistré, ajout sur annonce vide, refus serveur) ; src/components/property-dashboard/__tests__/PropertyDetailTabs.contacts.tck-633.test.tsx (1 : l'onglet Modifier monte le panneau)",
+        "ablations": [
+          "valeur = brouillon ?? [] (lecture ignorée) → 4 rouges",
+          "envoi de query.data au lieu de la saisie → 3 rouges",
+          "montage retiré de PropertyDetailTabs → 1 rouge",
+          "md5 restaurés : ContactsSurPlaceDuBien 6d51fde6c01ea98cf24222a26dfacd49, PropertyDetailTabs 7d38d8197465a2e4507af42f62189aa1"
+        ]
+      },
+      {
+        "defaut": "Trou de test — le verrou contre le double clic « Publier » (création d'espace)",
+        "fichiers": [
+          "aucun changement de code"
+        ],
+        "tests": "tests/Feature/Onboarding/HostAutoOnboardTest.php : +1 test_la_ligne_du_compte_est_verrouillee_avant_de_chercher_l_espace (journal des requêtes : SELECT … FROM users … FOR UPDATE émis, et AVANT la recherche de l'espace sur agencies.primary_admin_id). Deux connexions réelles ne se rejouent pas sous RefreshDatabase (la seconde ne voit pas le compte non validé).",
+        "ablations": [
+          "retrait de lockForUpdate() (l'ablation du vérificateur) → 1 rouge « aucun SELECT … FOR UPDATE sur la ligne du compte » ; md5 restauré 0f73be3c24e2eea5a95f06ff9ef80997"
+        ]
+      },
+      {
+        "defaut": "Mineur — WhatsApp « jamais répondu » confondu avec « non »",
+        "fichiers": [
+          "takussan-api/database/migrations/2026_10_12_300100_add_contact_preferences_to_users_table.php : phone_whatsapp nullable sans défaut (migration de la branche, jamais déployée : modifiée en place ; une base de dev qui l'a déjà jouée doit la rejouer)",
+          "takussan-api/app/Http/Resources/UserResource.php ([EXT] accordé ; Edit) : phone_whatsapp rendu null tant que jamais répondu",
+          "takussan-web/src/types/user.ts : phone_whatsapp?: boolean | null",
+          "takussan-web/src/components/contact/CoordonneesPublication.tsx : question « Votre numéro reçoit-il WhatsApp ? » (Oui / Non) quand le numéro est vérifié et phone_whatsapp === null ; la vérification du numéro enregistre la case décochée comme « non »",
+          "takussan-web/src/messages/{fr,en,wo}.json : property.form.publishContact.whatsappQuestion, whatsappYes, whatsappNo (Edit)"
+        ],
+        "tests": "ContactPreferencesTest : /auth/me rend phone_whatsapp null pour un compte neuf (modèle relu par fresh() — sans lui, le modèle en mémoire ignorait le défaut de colonne et le test restait vert sous ablation), false après « non » ; CoordonneesPublication.test.tsx +4 (question posée et « Non » enregistré, « Oui » enregistré, « non » déjà répondu ne revient pas, vérifier sans cocher enregistre false)",
+        "ablations": [
+          "migration rendue à default(false) → 1 rouge ContactPreferencesTest (après correction du test par fresh() : vert sous ablation avant elle)",
+          "UserResource rendu à (bool) → 1 rouge",
+          "whatsappSansReponse forcé à false → 2 rouges ; vérification n'envoyant que `true` → 1 rouge",
+          "md5 restaurés : migration 300100 c321aae06a52f45fbb6dbd26239b13e1, UserResource 22971bedb1fcaa3ae67c67cd11aadca0, CoordonneesPublication 36834ab0d797baa166385b9f3a2d7bef"
+        ],
+        "limite": "Depuis « Mes biens » ou l'en-tête, un compte prêt publie au premier geste (décision 3) : la question n'y apparaît que si la boîte s'ouvre pour un autre manque. Elle est posée à l'étape Finition de l'assistant."
+      },
+      {
+        "defaut": "Mineur — la boîte de dialogue parlait d'un brouillon enregistré",
+        "fichiers": [
+          "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx : t('dialogIncomplete') au lieu de t('incomplete') (gardée pour l'assistant, où le brouillon existe)",
+          "takussan-web/src/messages/{fr,en,wo}.json : property.form.publishContact.dialogIncomplete (Edit, vouvoiement)"
+        ],
+        "tests": "PropertyActions.publication.tck-633.test.tsx +1 cas × 2 menus : un second refus dans la boîte dit ce qui manque, sans « brouillon » → 10 passed",
+        "ablations": [
+          "retour à t('incomplete') → 2 rouges ; md5 restauré 11a5d946d469a332af5f44d985c56a9d"
+        ]
+      },
+      {
+        "defaut": "Mineur — down() de 2026_10_12_300000 supprimait une ligne d'opérateur",
+        "fichiers": [
+          "takussan-api/database/migrations/2026_10_12_300000_enable_host_auto_space_flag.php : down() ne retire que la ligne sans updated_by_id (la console l'écrit à chaque bascule)"
+        ],
+        "tests": "HostAutoOnboardTest +2 : retour arrière qui garde une ligne réglée par un opérateur ; retour arrière qui retire la ligne de la migration",
+        "ablations": [
+          "retrait de whereNull('updated_by_id') → 1 rouge ; md5 restauré ac4aa1104393c98a8b6ec4915eff92b3"
+        ]
+      }
+    ],
+    "verifications": {
+      "api": "php artisan test sur 26 classes/dossiers liés (Api/Property, Property, Auth, Onboarding, PropertyCrud, ModerationGate, Authorization, BulkArchive, Collaborator, Media, Address, PublishReadiness, AgencySuspensionPublicPaths, BillingPlans, PropertyReportDecision, PublicPropertyStatus, validation, PublicContactEndpoint, AccountErasureListings, AdminUserLifecycle, WelcomeCreditOncePerPhone) → 783 passed (3976 assertions), 264 s, load 16 / 39 / 34 sur 8 cœurs au départ",
+      "pint": "./vendor/bin/pint --test sur les 10 fichiers PHP touchés → passed",
+      "web": "npx vitest run src/components/contact src/components/property-dashboard src/app/(dashboard)/app/properties/[id] src/components/profile PropertyWizard.publication.tck-633 → 41 fichiers, 221 passed ; npx tsc --noEmit → 0 erreur ; npx eslint sur les 10 fichiers touchés → 0 ; node scripts/check-i18n.mjs → parité tenue (en 0, wo 0)",
+      "restauration": "toutes les ablations par Edit puis Edit inverse, jamais cp ; aucune ablation dans les dictionnaires"
+    },
+    "hors_territoire": [
+      "takussan-api/app/Services/Account/AccountDeletionService.php (accordé)",
+      "takussan-api/tests/Feature/Auth/AccountDeletionExecuteTest.php (accordé, avec le service)",
+      "takussan-web/src/components/property-dashboard/PropertyDetailTabs.tsx (accordé, Edit)",
+      "takussan-web/src/components/property-dashboard/__tests__/PropertyDetailTabs.contacts.tck-633.test.tsx (nouveau, accordé avec l'écran)"
+    ],
+    "a_noter": [
+      "Le comportement d'update() change d'un cran : `visibility=public` renvoyée telle quelle sur un bien déjà public ne déclenche plus le contrôle (seul un passage à public le fait), afin que corriger une annonce retirée par son statut n'exige pas un contact complet ; `status` affichable dans le corps est désormais gardé.",
+      "PUT …/status accepte `accept_terms` (lu par $request->boolean, comme publish) ; le menu « Statut » du front ne l'envoie pas : un compte sans CGU acceptées reçoit le 422 traduit de l'API.",
+      "Interface C → tous : phone_whatsapp passe de boolean à boolean|null dans GET /api/auth/me."
+    ]
+  },
+  "corrections_tour_2": {
+    "verdict": "Les huit défauts du refus sont corrigés, et la décision de la session sur D10 est appliquée : une annonce reste en ligne, mais le public ne voit plus aucun numéro principal non vérifié. Chaque correction a été vue rouge, puis verte, puis rougie de nouveau par une ablation (Edit puis Edit inverse, md5 identique, jamais cp).",
+    "corrections": [
+      {
+        "defaut": "1 — impasse du menu « Statut » (PUT …/status refusé publish_contact_incomplete, message brut, « Publier » absent car le bien est encore public)",
+        "fichiers": [
+          "takussan-web/src/app/actions/publish-property.ts : changePropertyStatusAction(id, status, {acceptTerms}) → PUT …/status {status, accept_terms}. Elle partage avec publishPropertyAction la même lecture du refus (missing, contactIsSelf), via envoyer().",
+          "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx : le hook rend aussi changerStatut(statut). Le geste qui a ouvert la boîte (GesteDeMiseEnLigne : publier | statut) est mémorisé, et le bouton « Publier » de la boîte le rejoue avec accept_terms. onPublie(statut, geste).",
+          "takussan-web/src/components/property-dashboard/PropertyRowActions.tsx et PropertyHeaderActions.tsx (Edit) : changeStatus passe par publication.changerStatut ; le succès d'un statut dit « Statut mis à jour. » ; l'archivage garde updatePropertyStatusAction"
+        ],
+        "tests": "src/components/property-dashboard/__tests__/PropertyActions.statut.tck-633.test.tsx (3 cas × 2 menus = 6). (1) Le parcours Indisponible → Disponible d'un compte sans CGU : « Dépublier » est proposé, « Publier » ne l'est pas ; la boîte s'ouvre avec la phrase des CGU, sans message brut ; son « Publier » rejoue PUT status (47, 'available', {acceptTerms: true}), puis « Statut mis à jour. » s'affiche. (2) Un statut qui retire passe sans boîte. (3) Un refus étranger aux coordonnées se dit, sans boîte.",
+        "ablations": [
+          "Le bouton de la boîte rejoue toujours « publier » → 2 rouges.",
+          "La branche `missing` limitée à `publier` (le refus de statut redevient un message brut) → 2 rouges.",
+          "md5 PublicationAvecCoordonnees restauré : 13a16b8a2bb01b56e31d53016c43bae8"
+        ]
+      },
+      {
+        "defaut": "2 — un numéro principal non vérifié était servi au public (agent confié au bien, changement de numéro, approbation tardive)",
+        "decision_appliquee": "L'annonce reste en ligne. Ni GET …/contact, ni WhatsApp (has_whatsapp), ni « Appeler » (has_phone) ne servent un numéro principal non vérifié ; les contacts sur place restent servis. Assigner un agent non vérifié à une annonce en ligne reste permis (200), sous la même règle d'affichage.",
+        "fichiers": [
+          "takussan-api/app/Services/Property/PropertyContactNumbers.php : principalUtilisable() (numéro + phone_verified_at), employé par for() et hasWhatsApp() ; nouvelle méthode hasPhone(), qui applique les mêmes règles et compte les contacts sur place chargés",
+          "takussan-api/app/Http/Resources/PropertyResource.php (co-tenu, Edit) : 'has_phone' => PropertyContactNumbers::hasPhone(...)",
+          "takussan-web/src/components/contact/AvertissementNumeroNonVerifie.tsx (nouveau) : « Votre numéro n'est pas vérifié : il n'est pas affiché sur vos annonces. » et le lien « Vérifier mon numéro » → /app/profile#coordonnees. Il s'affiche quand le compte n'a pas de numéro vérifié et qu'au moins une annonce est en ligne.",
+          "takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx (Edit) : monté dans « Mes biens », avec user.phone_verified_at et publishedCount",
+          "takussan-web/src/messages/{fr,en,wo}.json (Edit) : property.contacts.unverifiedWarning, unverifiedLink"
+        ],
+        "tests": [
+          "PublicContactEndpointTest +3 : principal non vérifié → data [] ; la fiche rend has_phone=false et has_whatsapp=false, sans le numéro ; un contact sur place reste servi et rend has_phone=true. Numéro changé → [] jusqu'à vérification, puis rendu. Bien d'agence en ligne, PUT …/assigned-agent vers un agent non vérifié → 200 : le bien reste dans Property::public(), …/contact rend [], has_whatsapp=false ; une fois l'agent vérifié, son numéro est rendu → 8 passed",
+          "Neuf tests existants mis à jour, parce qu'ils servaient un numéro jamais vérifié (phone_verified_at posé). PrimaryPropertyContactEligibilityTest : numéros tirés par la fabrique, car l'unicité des numéros vérifiés refusait les numéros fixes répétés. PrimaryAgentDesignationTest, AccountErasureListingsTest, Public/PropertyContactTest, Public/PropertyPrimaryContactTest (2 sites), Public/PropertyContactClickTest (has_phone), Api/ProprietaireDuBienTest (2 sites), Api/PropertyCollaboratorTest : le tiers est vérifié lui aussi, sinon le test ne garderait plus rien.",
+          "AvertissementNumeroNonVerifie.test.tsx (3 cas) ; (dashboard)/app/properties/__tests__/avertissement-numero.tck-633.test.tsx : le câblage de la page (les props reçues)"
+        ],
+        "ablations": [
+          "principalUtilisable() sans phone_verified_at → 3 rouges (PublicContactEndpointTest)",
+          "hasPhone() réduit à `phone !== null` → 1 rouge",
+          "md5 PropertyContactNumbers restauré : f8780ebc317de982e5a66843d53660f9",
+          "montage retiré de la page « Mes biens » → 1 rouge ; md5 restauré : 7b2ea526716c0dd8ba20c8379e06578e",
+          "condition de vérification retirée du composant → 1 rouge ; md5 restauré : 3b38b9bffed0952b68af64c25dfa09d9"
+        ]
+      },
+      {
+        "defaut": "3a — statuts published et pending non éprouvés",
+        "fichiers": [
+          "takussan-api/tests/Feature/Api/PublishReadinessTest.php : #[DataProvider('statutsAffichables')] sur test_remettre_en_ligne_par_le_statut_est_garde (available, published, pending), avec une assertion que le statut n'est pas dans NON_PUBLIC_STATUSES → 19 passed"
+        ],
+        "ablations": [
+          "L'ablation A1 du vérificateur : statusPutsOnline réduit à `=== PropertyStatus::Available` → 2 rouges (published, pending). md5 PublishReadiness restauré : abbdc0b6f451c86ffb3a915b1ab5c528"
+        ]
+      },
+      {
+        "defaut": "3b — le down() de la migration du drapeau n'était pas épinglé à SA clé",
+        "fichiers": [
+          "takussan-api/tests/Feature/Onboarding/HostAutoOnboardTest.php (test_le_retour_arriere_retire_la_ligne_de_la_migration) : un autre drapeau est posé sans updated_by_id ; il doit survivre à down()"
+        ],
+        "ablations": [
+          "L'ablation A6 du vérificateur : down() sans ->where('key', …) → 1 rouge. md5 de la migration 300000 restauré : ac4aa1104393c98a8b6ec4915eff92b3"
+        ]
+      },
+      {
+        "defaut": "4a — changer de numéro gardait la réponse WhatsApp ; son second devenu principal perdait la sienne",
+        "fichiers": [
+          "takussan-api/app/Models/User.php (co-tenu, Edit) : static::updating — si phone change et que phone_whatsapp n'est pas écrit dans la même écriture, phone_whatsapp vaut null. Un seul point couvre AuthController::updateProfile, MeController::update et PhoneVerificationController (forceFill), sans éditer ces deux derniers, qui sont hors territoire.",
+          "takussan-api/app/Services/Auth/PhoneVerificationService.php : markVerified (isOwnSecondary) reporte secondary_phone_whatsapp sur phone_whatsapp"
+        ],
+        "tests": [
+          "ContactPreferencesTest +2 : changer de numéro par PUT /api/auth/profile, PATCH /api/me ou forceFill met phone_whatsapp à null, et une écriture sans changement de numéro ne le touche pas ; une réponse donnée dans la même requête que le nouveau numéro est gardée",
+          "SecondaryPhoneTest +1 : le second devenu principal emporte sa réponse (true) ; secondary_phone_whatsapp repasse à false"
+        ],
+        "ablations": [
+          "Garde du hook neutralisée (`false &&`) → 1 rouge ; md5 de User.php restauré : 389e4ccaa98b0ec7c4d7f5aa8c9bea54",
+          "Report retiré de markVerified → 1 rouge ; md5 restauré : 8113e4ec7e16482059e4834afa532ebf"
+        ]
+      },
+      {
+        "defaut": "4b — la réponse d'inscription omettait phone_whatsapp et terms_accepted_at",
+        "fichiers": [
+          "takussan-api/app/Http/Resources/UserResource.php ([EXT] accordé, Edit) : UserResource::pourSoi(User), qui force les clés « pour soi » quand $request->user() est nul",
+          "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php ([EXT] accordé, Edit) : register rend UserResource::pourSoi($user->fresh())"
+        ],
+        "tests": [
+          "ContactPreferencesTest +1 : POST /api/auth/register → user porte phone_whatsapp (null), secondary_phone, secondary_phone_verified_at, secondary_phone_whatsapp (false) et terms_accepted_at (null) ; AuthRegistrationTest reste vert"
+        ],
+        "ablations": [
+          "Drapeau pourSoi ignoré dans toArray → 1 rouge ; md5 de UserResource restauré : fe6141de84f13bea39e2c0c4baf7165c",
+          "Les trois ablations 4a et 4b ont été jouées ensemble, mais chaque test rougi ne dépend que d'un mécanisme"
+        ]
+      },
+      {
+        "defaut": "4c — le panneau des contacts sur place disparaissait sur une erreur de lecture",
+        "fichiers": [
+          "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx : une erreur 403 ou 404 reste silencieuse ; toute autre affiche role=alert « Les contacts sur place n'ont pas pu être chargés. » et le bouton « Réessayer » (refetch)",
+          "takussan-web/src/messages/{fr,en,wo}.json (Edit) : property.contacts.loadFailed, retry"
+        ],
+        "tests": [
+          "ContactsSurPlaceDuBien.test.tsx +2 : une erreur 500 affiche le message, « Réessayer » relit et les contacts apparaissent ; une erreur 403 reste silencieuse → 7 passed"
+        ],
+        "ablations": [
+          "Toute erreur rendue silencieuse → 1 rouge ; md5 restauré : 53af93fa954f5eefc03c07acca1b94d7"
+        ]
+      },
+      {
+        "defaut": "4d — commentaire faux dans PropertyController::update",
+        "fichiers": [
+          "takussan-api/app/Http/Controllers/Api/PropertyController.php : le commentaire est réécrit. Seul un PASSAGE à public compte ; une visibility=public renvoyée sur un bien déjà public ne change rien, puisque seul publish() pose published_at ; c'est le statut qui rouvre la mise en ligne. Le formulaire d'édition n'envoie pas visibility. Le code est inchangé."
+        ]
+      }
+    ],
+    "verifications": {
+      "charge": "uptime 5,70 / 4,40 / 8,79 au départ, 89,91 / 47,98 / 27,00 à la fin, sur 8 cœurs (autres lots actifs) : la durée ne mesure pas le dépôt.",
+      "api": "php artisan test sur 28 classes et sur tests/Feature/Auth : les classes du lot C (PublishReadiness, AccountDeletionExecute, HostAutoOnboard, ContactPreferences, PropertyContacts, PublicContactEndpoint, SecondaryPhone, PhoneVerifiedEvent, SpaceCreatedEvent) et leurs voisines (PropertyCrud, ModerationGate, Authorization, Collaborator, Public/PropertyContact*, PrimaryContact, AccountErasureListings, Eligibility, PrimaryAgentDesignation, AgencySuspension*, ProprietaireDuBien, MessagingContacts, AuthRegistration, PropertyReassignmentKeepsOwner) → 674 passed (3837 assertions), 356 s. En plus : ContactLeadConvert, ContactLeadInbox, PersonnelAuProfilActif, AgentContactLead → 25 passed.",
+      "pint": "./vendor/bin/pint --test sur les 20 fichiers PHP touchés → passed",
+      "web": "npx vitest run src/components/contact src/components/property-dashboard src/app/(dashboard)/app/properties src/components/profile PropertyWizard.publication.tck-633 PropertyAgentCard.tck-633 → 47 fichiers, 243 passed",
+      "tsc": "npx tsc --noEmit → aucune erreur",
+      "eslint": "npx eslint sur les 11 fichiers web touchés ou créés → sortie 0",
+      "i18n": "npm run check:i18n → sortie 0, parité tenue (en 0/0, wo 0/0 sur 8045 clés)",
+      "restauration": "Toutes les ablations par Edit puis Edit inverse, avec md5 identique, jamais cp. Aucune ablation dans src/messages/*.json ni dans lang/*. PropertyForm.tsx et UpdatePropertyRequest.php n'ont pas été touchés."
+    },
+    "collisions": [
+      {
+        "fichier": "takussan-api/app/Services/Auth/PhoneLoginService.php:130 (hors territoire)",
+        "pourquoi": "L'entrée par téléphone ouvre une session sans $request->user() : les clés « pour soi » manquent, comme à l'inscription (non mesuré par requête, déduit du code).",
+        "diff": "-            'user' => new UserResource($user->fresh()),\n+            'user' => UserResource::pourSoi($user->fresh()),"
+      },
+      {
+        "fichier": "takussan-api/app/Services/Auth/OAuthSessionOpener.php:114 (hors territoire)",
+        "pourquoi": "Même cause pour l'ouverture de session OAuth.",
+        "diff": "-            'user' => (new UserResource($user))->toArray($request),\n+            'user' => UserResource::pourSoi($user->fresh())->toArray($request),"
+      },
+      {
+        "fichier": "takussan-api/app/Http/Controllers/Public/PublicAgentController.php:281 (hors territoire, décision TCK-441)",
+        "pourquoi": "La fiche publique /agents/{slug}, liée depuis la carte de contact de l'annonce, sert encore agent->phone sans condition de vérification. À trancher par la session : la décision sur D10 vise le numéro du contact de l'annonce.",
+        "diff": "-                'phone' => $agent->phone,\n+                'phone' => $agent->phone_verified_at !== null ? $agent->phone : null,"
+      }
+    ],
+    "fichiers_a_commiter": [
+      "takussan-api/app/Services/Property/PropertyContactNumbers.php",
+      "takussan-api/app/Http/Resources/PropertyResource.php",
+      "takussan-api/app/Models/User.php",
+      "takussan-api/app/Services/Auth/PhoneVerificationService.php",
+      "takussan-api/app/Http/Resources/UserResource.php",
+      "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php",
+      "takussan-api/app/Http/Controllers/Api/PropertyController.php",
+      "takussan-api/tests/Feature/Public/PublicContactEndpointTest.php",
+      "takussan-api/tests/Feature/Api/PublishReadinessTest.php",
+      "takussan-api/tests/Feature/Onboarding/HostAutoOnboardTest.php",
+      "takussan-api/tests/Feature/Auth/ContactPreferencesTest.php",
+      "takussan-api/tests/Feature/Auth/Phone/SecondaryPhoneTest.php",
+      "takussan-api/tests/Unit/Services/PrimaryPropertyContactEligibilityTest.php",
+      "takussan-api/tests/Feature/Property/PrimaryAgentDesignationTest.php",
+      "takussan-api/tests/Feature/Admin/Platform/AccountErasureListingsTest.php",
+      "takussan-api/tests/Feature/Public/PropertyContactTest.php",
+      "takussan-api/tests/Feature/Public/PropertyPrimaryContactTest.php",
+      "takussan-api/tests/Feature/Public/PropertyContactClickTest.php",
+      "takussan-api/tests/Feature/Api/PropertyCollaboratorTest.php",
+      "takussan-api/tests/Feature/Api/ProprietaireDuBienTest.php",
+      "takussan-web/src/app/actions/publish-property.ts",
+      "takussan-web/src/components/contact/PublicationAvecCoordonnees.tsx",
+      "takussan-web/src/components/contact/ContactsSurPlaceDuBien.tsx",
+      "takussan-web/src/components/contact/AvertissementNumeroNonVerifie.tsx",
+      "takussan-web/src/components/property-dashboard/PropertyRowActions.tsx",
+      "takussan-web/src/components/property-dashboard/PropertyHeaderActions.tsx",
+      "takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx",
+      "takussan-web/src/messages/{fr,en,wo}.json",
+      "takussan-web/src/components/property-dashboard/__tests__/PropertyActions.statut.tck-633.test.tsx",
+      "takussan-web/src/components/contact/__tests__/ContactsSurPlaceDuBien.test.tsx",
+      "takussan-web/src/components/contact/__tests__/AvertissementNumeroNonVerifie.test.tsx",
+      "takussan-web/src/app/(dashboard)/app/properties/__tests__/avertissement-numero.tck-633.test.tsx"
+    ],
+    "a_noter": [
+      "has_phone change de sens : « un numéro SERVI existe » (principal vérifié, second vérifié, ou contact sur place chargé), et non plus « le contact a un numéro ». Le bouton « Appeler » disparaît donc pour un contact non vérifié sans contact sur place.",
+      "L'avertissement de « Mes biens » compte toutes les annonces en ligne de la liste (publishedCount). Pour un administrateur d'agence dont les agents sont les contacts, il peut s'afficher alors que son propre numéro n'est servi sur aucune annonce.",
+      "Le hook User::updating vaut pour tout écrivain du numéro, y compris ceux de la console et des futurs chemins : une réponse WhatsApp n'est gardée que si elle est écrite dans la même écriture que le numéro."
+    ]
+  },
+  "corrections_tour_3": {
+    "verdict": "Les six défauts de la revérification 2 sont corrigés. La décision de la session sur D10 est tenue sur toutes les surfaces publiques : un seul point, User::numeroPrincipalPublic(), est appelé par …/contact et par /agents/{slug}, et un test balaie toutes les routes GET api/public/* lues dans le routeur. Chaque correction a été vue rouge (ou, pour un code déjà présent, rougie par ablation), puis verte, puis rougie par une ablation faite par Edit et défaite par Edit inverse, md5 identique, jamais cp.",
+    "corrections": [
+      {
+        "defaut": "1 — /agents/{slug} servait le numéro principal non vérifié (API, tel:, JSON-LD), pour un particulier, un agent d'agence ou un compte sans annonce",
+        "fichiers": [
+          "takussan-api/app/Models/User.php (co-tenu, Edit) : numeroPrincipalPublic() et numeroSecondairePublic(), le SEUL point de la règle « numéro publiable » (numéro non vide et vérifié). Le docblock cite les appelants en texte : pint transformait les {@see} en imports d'un contrôleur dans le modèle, retirés.",
+          "takussan-api/app/Services/Property/PropertyContactNumbers.php : principalUtilisable() et secondUtilisable() délèguent à User",
+          "takussan-api/app/Http/Controllers/Public/PublicAgentController.php ([EXT] accordé) : 'phone' => $agent->numeroPrincipalPublic(), plus 'phone_verified' (même booléen que primary_contact.phone_verified de la fiche du bien) ; docblock de index() mis à jour",
+          "takussan-web/src/app/[locale]/(public)/agents/[slug]/page.tsx ([EXT] accordé) : const telephone = agent.phone_verified === true ? agent.phone : null ; ce numéro seul va à ContactSheet et à jsonLdAgent. Un champ absent vaut « non vérifié » (défense en profondeur si l'API régressait)",
+          "takussan-web/src/lib/queries/public-agent.ts : AgentDto.phone_verified?: boolean",
+          "takussan-web/src/lib/jsonld-profil.ts ([EXT] accordé) : docblock de AgentPublie.phone (numéro publiable seulement), code inchangé"
+        ],
+        "tests": [
+          "takussan-api/tests/Feature/Public/NumeroPublieVerifieTest.php (nouveau, 8 tests, 159 assertions) : la fiche ne sert pas un numéro non vérifié (data.phone null, phone_verified false, aucun motif des 9 chiffres dans le corps) pour particulier, agent d'agence, compte sans annonce ; la sert vérifié (contrôle, 3 cas) ; le point unique de la règle ; LE BALAYAGE : toutes les routes GET api/public/* (lues dans le routeur, > 20) sont appelées pour un compte à deux numéros non vérifiés, particulier ET agent, auteur d'un avis ; aucun corps ne porte l'un ou l'autre numéro, sous aucune écriture (séparateurs compris). Non-vacuité : agents/{slug}, properties/{slug}, properties/{slug}/contact, agencies/{slug} doivent avoir répondu 200.",
+          "Rouge avant correctif : 8 rouges (méthode absente ; puis le balayage nommait api/public/agents/awa-diop).",
+          "PublicProfileTest et AgentContactLeadTest : l'agent dont le numéro reste public est désormais VÉRIFIÉ (phone_verified_at posé), le non-vérifié est gardé par le nouveau test.",
+          "takussan-web/src/app/[locale]/(public)/agents/[slug]/__tests__/page.server.test.tsx : le double de ContactSheet rend le numéro reçu ; +3 cas — numéro non vérifié ET vérification absente : data-phone vide, aucun nœud JSON-LD avec telephone, aucun tel:, wa.me ni numéro dans le HTML ; contrôle vérifié : transmis et balisé. Rouge avant correctif : 2 rouges."
+        ],
+        "ablations": [
+          "PublicAgentController 'phone' => $agent->phone → 4 rouges (3 fiches + balayage) ; md5 restauré 14b681728c70cf947e0995d22ee951af",
+          "PropertyContactNumbers::principalUtilisable() → $contact->phone !== null → le BALAYAGE rougit seul, sur api/public/properties/bien-agence/contact : il attrape une surface qu'il ne nomme pas ; md5 restauré c44fb897cce7637f14dd9817aac946f5",
+          "User::numeroPrincipalPublic() sans phone_verified_at → 8 rouges (NumeroPublieVerifie 5, PublicContactEndpoint 3) ; md5 restauré (888abdf3… avant pint, 96b2805c9349c0c0a90ea3e4e8f75933 final)",
+          "page.tsx phone={agent.phone} → 2 rouges ; jsonLdAgent(agent, locale) → 2 rouges (« not to have property telephone ») ; md5 restauré 623ee4a56750d69f07f9089f459914ff"
+        ]
+      },
+      {
+        "defaut": "2 — le rejeu de la boîte depuis le menu « Statut » n'était gardé par aucun test de bout en bout",
+        "fichiers": [
+          "aucun fichier de code : le comportement existait, il n'était pas gardé"
+        ],
+        "tests": [
+          "takussan-api/tests/Feature/Api/PublishReadinessTest.php +1 (test_le_rejeu_du_statut_avec_accept_terms_remet_en_ligne_et_date_les_cgu) : bien publié puis retiré par son statut, compte sans CGU ; PUT …/status {available} → 422 missing [terms] ; PUT …/status {available, accept_terms: true} → 200, terms_accepted_at daté à la seconde, terms_version posée, bien dans Property::public()",
+          "takussan-web/src/app/actions/__tests__/publish-property.accept-terms.test.ts (nouveau, 4 tests) : apiRequest simulé ; changePropertyStatusAction(47, 'available', {acceptTerms: true}) envoie exactement {method: PUT, body: {status, accept_terms: true}} à /api/properties/47/status ; acceptTerms false → accept_terms false ; publishPropertyAction envoie {accept_terms: true} à …/publish ; un refus 422 publish_contact_incomplete rend missing et contactIsSelf"
+        ],
+        "ablations": [
+          "updateStatus : $accepte = false → 1 rouge (19 autres verts) ; md5 PropertyController restauré 06b38624ef9c383ef8be3dcf02310ead",
+          "changePropertyStatusAction sans accept_terms → 2 rouges ; md5 publish-property.ts restauré 9d7aaa4d0812d7877a8face8666e1e92"
+        ]
+      },
+      {
+        "defaut": "3 — collisions 1 et 2 : PhoneLoginService et OAuthSessionOpener rendaient un user sans les clés « pour soi »",
+        "fichiers": [
+          "takussan-api/app/Services/Auth/PhoneLoginService.php ([EXT] accordé) : 'user' => UserResource::pourSoi($user->fresh())",
+          "takussan-api/app/Services/Auth/OAuthSessionOpener.php ([EXT] accordé) : 'user' => UserResource::pourSoi($user->fresh() ?? $user)->toArray($request) — relu, pour porter aussi has_usable_password comme /api/auth/me"
+        ],
+        "tests": [
+          "tests/Feature/Auth/Phone/PhoneLoginTest.php +1 et tests/Feature/Auth/OAuthCallbackTest.php +1 : les cinq clés (phone_whatsapp, secondary_phone, secondary_phone_verified_at, secondary_phone_whatsapp, terms_accepted_at) avec leurs valeurs, ET l'ensemble des clés du user égal à celui de GET /api/auth/me avec le jeton rendu. Rouges avant correctif (« array has the key 'phone_whatsapp' »)."
+        ],
+        "ablations": [
+          "retour à new UserResource(...) dans les deux services → 2 rouges ; md5 restaurés bb4b65f8f2dda3a36791b63efec30ee3 (PhoneLoginService), 8ced29d4f021d8f63d0696b3b6971a89 (OAuthSessionOpener)",
+          "Autres ouvreurs relus : AuthController::login pose Auth::setUser avant la ressource (clés présentes), register passe par pourSoi depuis le tour 2"
+        ]
+      },
+      {
+        "defaut": "4a — deux assertions vides de ProprietaireDuBienTest (n3 et bailleur inactif)",
+        "fichiers": [
+          "takussan-api/tests/Feature/Api/ProprietaireDuBienTest.php : phone_verified_at posé sur agentParti(['phone' => '+221770001111']) et sur bailleur(['phone' => '+221770003333']) ; l'assertion devient « le numéro n'est dans AUCUNE entrée de …/contact » (assertNotContains sur data.*.phone) au lieu de data.0.phone seul"
+        ],
+        "ablations": [
+          "PropertyContactNumbers::for() sert $property->owner (le créateur) au lieu du contact principal → les 2 tests rougissent, sur ces assertions-là (« array does not contain '+221770001111' / '+221770003333' ») ; md5 restauré c44fb897cce7637f14dd9817aac946f5",
+          "Première ablation essayée (PrimaryPropertyContact::resolve sert toujours le créateur) : rougit n3 plus tôt, sur le destinataire de la demande ; écartée comme preuve, md5 restauré a0dc357959a88904a007094a4f641d47"
+        ]
+      },
+      {
+        "defaut": "4b — une réponse WhatsApp redonnée IDENTIQUE avec le nouveau numéro était perdue (pas « dirty »)",
+        "fichiers": [
+          "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php ([EXT] du tour 2) : après $user->update($data), si la requête porte phone_whatsapp et que le modèle ne l'a plus, elle est réécrite (forceFill + save, numéro déjà posé, le hook ne la touche plus). MeController n'accepte pas phone_whatsapp (UpdateMeRequest) : rien à y faire."
+        ],
+        "tests": [
+          "tests/Feature/Auth/ContactPreferencesTest.php +1 avec DataProvider (oui redonné, non redonné) : PUT /api/auth/profile {phone: nouveau, phone_whatsapp: même valeur} → la valeur est gardée en réponse et en base. Rouges avant correctif (« null is identical to true / false »)."
+        ],
+        "ablations": [
+          "réécriture neutralisée (false &&) → 2 rouges ; md5 restauré 302d10f702f65331628c4acaf9469cd5"
+        ]
+      },
+      {
+        "defaut": "4c — la boîte « Vos coordonnées » s'ouvrait vide quand le contexte client était périmé",
+        "fichiers": [
+          "takussan-web/src/components/contact/CoordonneesPublication.tsx : tant que le compte n'a pas été relu depuis le refus (même objet user qu'au refus, repéré par la référence de manquantsServeur, que les deux parents tiennent en état), ce que le serveur dit manquer (first_name, verified_phone, terms) s'ajoute aux manques locaux et s'affiche ; le compte est relu (refreshUser, une fois) ; ensuite le compte relu fait foi, sans attendre un nouveau refus"
+        ],
+        "tests": [
+          "src/components/contact/__tests__/CoordonneesPublication.test.tsx +4 : serveur [verified_phone], contexte « vérifié » → le champ s'affiche et refreshUser est appelé une fois ; serveur [first_name, terms] → prénom et phrase des CGU ; compte relu non vérifié → le champ reste, relu vérifié → il s'efface, sans seconde relecture ; contrôle : un refus que le contexte couvre ne relit rien. Rouges avant correctif : 3."
+        ],
+        "ablations": [
+          "les manques du serveur ignorés → 2 rouges ; relecture retirée → 2 rouges ; md5 restauré 0a927e96580ff09b860a910f50d8c777"
+        ]
+      }
+    ],
+    "surfaces_balayees": {
+      "api": "grep phone/whatsapp dans app/Http/Controllers/Public/* : seuls PublicAgentController::show (corrigé) et PublicAgencyController::show (agency.phone, numéro professionnel de l'agence, hors D10, comme l'a établi la revérification) servent un numéro ; PublicPropertyController ne sert que les booléens has_phone/has_whatsapp/phone_verified et …/contact (filtré). Ressources employées en public : PropertyResource (buildUserLite sans numéro), ReviewResource (auteur sans numéro). Routes publiques par jeton hors api/public (pay/{token}, share/{token}, calendar-feed) : aucun numéro (grep). Le balayage automatique couvre toutes les routes GET api/public/*.",
+      "web": "grep tel:/wa.me/telephone/phone dans src/app/[locale]/(public), src/components/public, src/lib/jsonld*, puis dans tout src : agents/[slug] (corrigé), agencies/[slug] (agency.phone, hors D10), PropertyAgentCard, WhatsAppButton et ListeDeNumeros (ne lisent que …/contact, filtré), share.ts (wa.me sans numéro), jsonld-property (aucun téléphone), editeur.ts (l'éditeur du site). Les tel: du tableau de bord (CustomerList, VisitDetail, ContactLeadsInbox, MaintenanceAccessKit) sont authentifiés, et portent des numéros de visiteurs ou de clients."
+    },
+    "verifications": {
+      "charge": "uptime 1,83 / 12,72 / 16,21 au départ (12:17), 1,73 / 3,01 / 8,06 puis 3,08 / 3,20 / 7,60 autour des tests API (12:30-12:31), 8 cœurs (hw.ncpu). Les durées ne mesurent pas le dépôt.",
+      "api": "php artisan test sur NumeroPublieVerifie, PublicProfile, AgentContactLead, PublicRole, PublicProfileIndex, PublicPortfolioPredicate, PublicContactEndpoint, Public/PropertyContact, PropertyPrimaryContact, PropertyContactClick, AgencySuspension, AgentReview, PublishReadiness, ProprietaireDuBien, tests/Feature/Auth (entier), tests/Feature/Api/Auth, PrimaryPropertyContactEligibility, PrimaryAgentDesignation → 588 passed (3159 assertions), 97 s",
+      "pint": "./vendor/bin/pint --test sur les 14 fichiers PHP touchés → passed",
+      "web": "npx vitest run src/components/contact src/components/property-dashboard src/app/actions src/app/[locale]/(public)/agents src/app/[locale]/(public)/agencies src/app/[locale]/(public)/properties/[slug] src/lib/__tests__/jsonld-profil.test.ts src/components/public PropertyWizard.publication.tck-633 → 64 fichiers, 427 passed",
+      "tsc": "npx tsc --noEmit → sortie 0",
+      "eslint": "npx eslint sur les 7 fichiers web touchés ou créés → sortie 0",
+      "i18n": "npm run check:i18n → sortie 0 (aucune clé ajoutée ce tour)",
+      "restauration": "Toutes les ablations par Edit puis Edit inverse, md5 identique, jamais cp ; aucune ablation dans src/messages/*.json. PropertyForm.tsx, UpdatePropertyRequest.php, web-ci.yml, étiquettes et géo non touchés. Aucune écriture git."
+    },
+    "fichiers_a_commiter": [
+      "takussan-api/app/Models/User.php",
+      "takussan-api/app/Services/Property/PropertyContactNumbers.php",
+      "takussan-api/app/Http/Controllers/Public/PublicAgentController.php",
+      "takussan-api/app/Services/Auth/PhoneLoginService.php",
+      "takussan-api/app/Services/Auth/OAuthSessionOpener.php",
+      "takussan-api/app/Http/Controllers/Api/Auth/AuthController.php",
+      "takussan-api/tests/Feature/Public/NumeroPublieVerifieTest.php",
+      "takussan-api/tests/Feature/Public/PublicProfileTest.php",
+      "takussan-api/tests/Feature/Public/AgentContactLeadTest.php",
+      "takussan-api/tests/Feature/Api/PublishReadinessTest.php",
+      "takussan-api/tests/Feature/Api/ProprietaireDuBienTest.php",
+      "takussan-api/tests/Feature/Auth/Phone/PhoneLoginTest.php",
+      "takussan-api/tests/Feature/Auth/OAuthCallbackTest.php",
+      "takussan-api/tests/Feature/Auth/ContactPreferencesTest.php",
+      "takussan-web/src/app/[locale]/(public)/agents/[slug]/page.tsx",
+      "takussan-web/src/app/[locale]/(public)/agents/[slug]/__tests__/page.server.test.tsx",
+      "takussan-web/src/lib/queries/public-agent.ts",
+      "takussan-web/src/lib/jsonld-profil.ts",
+      "takussan-web/src/app/actions/__tests__/publish-property.accept-terms.test.ts",
+      "takussan-web/src/components/contact/CoordonneesPublication.tsx",
+      "takussan-web/src/components/contact/__tests__/CoordonneesPublication.test.tsx"
+    ]
+  }
+}

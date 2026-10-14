@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { PARAMETRE_BOOSTER } from '@/components/boost/parametre-booster';
 import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 import { agenceDuBien } from '@/lib/visites/agence-du-bien';
@@ -37,13 +38,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export default async function Page({ params }: { params: Params }) {
+export default async function Page({ params, searchParams }: { params: Params; searchParams?: SearchParams }) {
   const t = await getTranslations('dashboard.pages.propertyDetail');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
 
   const { id } = await params;
+  // TCK-633 — `?booster=1` : le « Booster » du message de confirmation de publication y mène.
+  const ouvrirBoost = (await searchParams)?.[PARAMETRE_BOOSTER] === '1';
   const token = await getToken();
   // TCK-426 — NARROWING DE TYPE, PAS UNE DÉCISION. Le `layout.tsx` de ce segment a déjà refusé
   // l'absence de jeton, au-dessus de la frontière de suspension ; et `getMeAction()` redirige
@@ -131,7 +135,7 @@ export default async function Page({ params }: { params: Params }) {
               property={{ id: property.id, libelle: property.title }}
               agencyId={agenceDuBien(property)}
             />
-            <PropertyHeaderActions property={property} />
+            <PropertyHeaderActions property={property} ouvrirBoost={ouvrirBoost} />
           </div>
         }
       />

@@ -186,7 +186,12 @@ return [
                     // TCK-508 — `condition` : l'état déclaré, filtré par liste (`condition=new,off_plan`).
                     'floor_number', 'title_type', 'condition', 'featured', 'is_test', 'agency_id', 'user_id',
                     'available_from', 'published_at', 'city', 'neighborhood',
+                    // TCK-635 (ADR-0062 §8) — `region` départage deux villes du même nom.
+                    'region',
                     'tags', '_geo',
+                    // TCK-633 lot F (ADR-0061 §7) — `id` : les places réservées s'excluent des
+                    // résultats organiques par `NOT id IN [...]`.
+                    'id',
                 ],
                 // TCK-346 / ADR-0023 — `_geo` est ici EN PLUS de `filterableAttributes`
                 // ci-dessus : filtrer par rayon et TRIER par distance sont deux
@@ -207,7 +212,9 @@ return [
                 // (`invalid_search_sort`, HTTP 400 → 500 côté API), pas un tri
                 // dégradé : c'est un prérequis DUR, et il exige un
                 // `scout:sync-index-settings` au déploiement.
-                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', '_geo'],
+                // TCK-633 lot F (ADR-0061 §7) — `ranked_at` : l'ordre organique sans mot. `featured`
+                // reste triable pour les appelants existants, mais plus aucun tri par défaut ne le lit.
+                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', 'ranked_at', '_geo'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 // TCK-335 — mots vides français. Meilisearch les retire À LA
                 // REQUÊTE comme à l'indexation : c'est ce qui fait que

@@ -89,6 +89,15 @@ return [
         'refund_fractional' => 'This amount has decimals the payment currency does not have.',
         'refund_unpaid' => 'Only a settled payment can be refunded.',
     ],
+    'boost' => [
+        'bump_cooldown' => 'This listing was bumped less than 24 hours ago. Next bump available from :available_at.',
+        'no_space' => 'This listing belongs to no workspace: it cannot be promoted.',
+        'not_live' => 'This promotion has already ended.',
+        'offer_featured_only' => 'Only a Featured promotion can be offered.',
+        'product_inactive' => 'This offer is no longer available.',
+        'property_not_public' => 'Only a published, visible listing can be promoted.',
+        'stats_window_too_wide' => 'The period cannot exceed 92 days.',
+    ],
     'business_enum' => [
         'value_in_use' => 'This value is in use and cannot be deleted.',
         'value_not_found' => 'Value not found.',
@@ -105,6 +114,10 @@ return [
     ],
     'commission' => [
         'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+    ],
+    'credits' => [
+        'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',
+        'no_space' => 'No active workspace: select a workspace to see its credits.',
     ],
     'conversation' => [
         'participant_not_found' => 'This participant is not part of the conversation.',
@@ -155,6 +168,14 @@ return [
     ],
     'filter' => [
         'identifier_invalid' => 'The :filter filter expects a numeric identifier.',
+    ],
+    'geo' => [
+        'link_unresolved' => 'This link does not lead to a readable location.',
+        'merge_into_self' => 'A neighbourhood cannot be merged into itself.',
+        'merge_other_city' => 'Both neighbourhoods must belong to the same city.',
+        'merge_target_inactive' => 'The target neighbourhood is rejected or already merged.',
+        'name_taken' => 'This name is already used in this city.',
+        'neighborhood_not_pending' => 'This neighbourhood is no longer awaiting moderation.',
     ],
     'guarantor' => [
         'attached_to_open_lease' => 'This guarantor is attached to a lease awaiting signature or in force: detach them from the lease first.',
@@ -316,6 +337,7 @@ return [
     ],
     'onboarding' => [
         'agent_not_owner' => 'You don\'t have access to this agent profile.',
+        'auto_space_disabled' => 'Automatic space creation is turned off: use the setup wizard.',
         'checklist_item_unknown' => 'Unknown checklist step.',
         'checklist_not_found' => 'No checklist for this lease.',
         'owner_not_owner' => 'You do not have access to this owner profile.',
@@ -419,6 +441,7 @@ return [
         'not_pending_moderation' => 'The property is not awaiting moderation.',
         'primary_not_eligible' => 'Only an active agent of the property\'s agency can be its primary agent.',
         'primary_requires_agent' => 'Only a collaborator with the agent role can be the property\'s primary agent.',
+        'publish_contact_incomplete' => 'To publish, the property contact needs a first name and a verified number, and the terms of use must be accepted.',
         'responsible_agent_co_owner' => 'A co-owner of the property cannot become its responsible agent.',
         'resubmit_not_rejected' => 'Only a rejected property can be resubmitted.',
     ],
@@ -453,6 +476,14 @@ return [
     'search_alert' => [
         'invalid_token' => 'This confirmation link is no longer valid.',
         'invalid_code' => 'Incorrect or expired code.',
+    ],
+    // TCK-633 (lot C) — le second numéro d'un compte.
+    'secondary_phone' => [
+        'capacity_reached' => 'Sending codes is temporarily paused. Please try again later.',
+        'code_invalid' => 'Invalid or expired verification code.',
+        'country_not_allowed' => 'No code can be sent to this country.',
+        'same_as_primary' => 'This number is already your main number.',
+        'taken' => 'This number is already verified on another account.',
     ],
     'segregation' => [
         'approve' => 'You prepared this payout, or you are its payee: another member must approve it.',
@@ -492,6 +523,13 @@ return [
         'no_revocable_session' => 'No session to revoke.',
         'target_super_admin' => 'Support actions cannot target another super administrator.',
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',
+    ],
+    'tags' => [
+        'merge_into_self' => 'An amenity cannot be merged into itself.',
+        'merge_target_invalid' => 'The target must be an approved or pending amenity.',
+        'merge_source_invalid' => 'Only an amenity can be merged into an amenity.',
+        'name_taken' => 'This name is already used by another tag.',
+        'not_pending' => 'This amenity is no longer awaiting moderation.',
     ],
     'task' => [
         'assignee_not_staff' => 'The assignee must be yourself or a staff member of the agency.',

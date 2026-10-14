@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useId } from 'react';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
@@ -97,7 +97,37 @@ export interface PropertyCardProps {
    * similaires montre la diapositive suivante à côté de la courante à toutes les largeurs.
    */
   readonly titreSurDeuxLignes?: 'des-sm' | 'toujours';
+  /**
+   * TCK-635 (retours du porteur du 2026-10-12) — la ROBE d'une place payée : la même carte, aux mêmes
+   * dimensions, habillée d'une couleur et d'un ruban qui porte sa mention.
+   *
+   * · `sponsorise` — un emplacement « Sponsorisé » (ADR-0061 §7) ;
+   * · `vedette` — une place réservée en tête de la première page, ou la rangée vedette.
+   *
+   * ⚠ Une PROP, et non une lecture de `featured` : un bien en vedette garde aussi sa place ORGANIQUE
+   * plus bas (ADR-0061 §7), où il n'est pas présenté comme payé. Seul l'appelant sait si la place
+   * qu'il rend est payée. La mention est du TEXTE : « un résultat payé ne se présente jamais comme
+   * un résultat organique », et une couleur seule ne le dirait pas.
+   */
+  readonly robe?: 'sponsorise' | 'vedette';
+  /**
+   * TCK-635 — le Badge acheté (ADR-0061 §5), sur la photo avec les autres pastilles. Il était posé
+   * AU-DESSUS de la carte, ce qui la décalait dans la grille.
+   */
+  readonly badge?: 'urgent' | 'price_drop' | null;
 }
+
+/**
+ * TCK-635 — la robe se dessine DANS la cellule de la grille, jamais dans la gouttière : l'écart
+ * entre deux cartes en robe est celui de deux cartes nues (retour du porteur du 2026-10-12 — une
+ * première version débordait de 6 px de chaque côté, et deux robes voisines se touchaient presque).
+ *
+ * La photo garde la largeur d'une carte nue (AC1) : seul le texte reçoit une marge intérieure
+ * ({@link TEXTE_EN_ROBE}). Le liseré est un `outline` posé vers l'INTÉRIEUR (`-outline-offset-1`) :
+ * il ne prend aucune place et ne déborde pas, contrairement à un `border` ou à un `ring`.
+ */
+const ROBE = 'rounded-xl bg-primary/8 outline outline-1 -outline-offset-1 outline-primary/35';
+const TEXTE_EN_ROBE = 'px-2.5 pb-3';
 
 export function PropertyCard({
   property,
@@ -109,6 +139,8 @@ export function PropertyCard({
   sizes = CARD_SIZES_SEARCH_GRID,
   transactionFiltree,
   titreSurDeuxLignes = 'des-sm',
+  robe,
+  badge = null,
 }: PropertyCardProps) {
   const t = useTranslations('property');
   const tCards = useTranslations('property.cards');
@@ -162,9 +194,10 @@ export function PropertyCard({
     <div
       ref={ref}
       style={{ animationDelay: staggerDelay(index) }}
+      data-robe={robe}
       className={`group relative cursor-pointer transition-opacity duration-300 ${
         visible ? 'animate-fade-in-up' : 'opacity-0'
-      } ${className || ''}`}
+      } ${robe ? ROBE : ''} ${className || ''}`}
     >
       <LienDeCarte slug={property.slug} idTitre={idTitre} />
 
@@ -197,6 +230,14 @@ export function PropertyCard({
               TCK-508 — « Neuf / Sur plan » quand la place est libre (cf. `etatEnPastille`). */}
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
             {transaction && <ContractTypeChip type={transaction} compact className={PASTILLE_ETROITE} />}
+            {badge ? (
+              <span
+                data-badge-boost={badge}
+                className={`inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground shadow-sm ${PASTILLE_ETROITE}`}
+              >
+                {tCards(badge === 'urgent' ? 'badge.urgent' : 'badge.priceDrop')}
+              </span>
+            ) : null}
             {etatEnPastille && <NewBuildChip condition={etatNeuf} compact className={PASTILLE_ETROITE} />}
             {/* Bureau : l'état à côté de la transaction, comme avant ; sous `md`, dans les détails. */}
             {etatNeuf && !etatEnPastille && (
@@ -232,6 +273,19 @@ export function PropertyCard({
           </div>
         </div>
 
+        {/* TCK-635 — le ruban de la robe : plein, au bord droit de la photo, il porte la mention.
+            En bas à droite, la seule place libre de la photo (pastilles et favori en haut,
+            ancienneté en bas à gauche au bureau). */}
+        {robe ? (
+          <span
+            data-ruban
+            className="absolute bottom-2.5 right-0 inline-flex items-center gap-1 rounded-l-full bg-primary py-0.5 pl-2.5 pr-2 text-xs font-semibold text-primary-foreground shadow-sm"
+          >
+            <Sparkles className="size-3" aria-hidden="true" />
+            {tCards(robe === 'sponsorise' ? 'robe.sponsored' : 'robe.featured')}
+          </span>
+        ) : null}
+
         {/* Ancienneté — sur la photo au BUREAU seulement ; sous `md`, dans la ligne de détails. */}
         {/* TCK-628 — plaque claire, comme les pastilles : le voile sombre en faisait un troisième
             pavé sur la photo. C'était la plaque de la carte Standard de l'accueil. */}
@@ -242,7 +296,7 @@ export function PropertyCard({
       </div>
 
       {/* Body */}
-      <div className="space-y-1 mt-3.5">
+      <div className={`space-y-1 mt-3.5 ${robe ? TEXTE_EN_ROBE : ''}`}>
         {/* TCK-555 — sous `md`, le comparateur (TCK-082) quitte la photo pour la rangée du prix :
             action secondaire, à l'opposé du favori (qui reste en haut de la photo). `-my-1` : le
             rond de 32 px n'élargit pas la rangée d'un prix de 22 px au-delà de 24.

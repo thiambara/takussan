@@ -1,0 +1,100 @@
+{
+  "verdict": "refuse — (1) AC3 « depuis le site public » n'est gardé par aucun test : la régression `router.push('/auth/login')` dans la Navbar publique reste VERTE, et la preuve citée par le rapport (Navbar.deconnexion) n'asserte pas la destination ; (2) AC1 « Mon espace ouvre une page qui s'affiche » n'a jamais été exécuté dans l'application (aucun serveur local, tâche 15 non faite). Le cœur du lot (table, gardes, menus, profil, cliquets) tient : 21 ablations sur 25 ont rougi.",
+  "ablation_rejouee": true,
+  "ac_executes": [
+    "AC1 — par tests unitaires et gardes statiques (menu, profil, raccourcis, états vides, barre /app, gardes serveur) : oui ; au navigateur : NON",
+    "AC3 — tableau de bord (UserMenu, AuthContext.session) : oui, gardé ; site public (Navbar) : comportement exécuté par un test TEMPORAIRE du vérificateur (vert, rouge sous ablation, puis supprimé) — AUCUNE garde permanente"
+  ],
+  "charge": "load averages 9.92 12.02 10.75 au départ (8 cœurs) — quatre autres lots actifs",
+  "preuves": [
+    { "commande": "cd takussan-web && npx vitest run <25 fichiers : les 17 du rapport + AdminSidebar.a11y, DashboardShortcuts, 5 tests admin à mock de garde, Navbar.deconnexion>", "resultat": "25 files, 212 passed" },
+    { "commande": "npx tsc --noEmit", "resultat": "sortie 2 — 3 erreurs, toutes dans src/components/contact/__tests__/WhatsAppButton.tck-633.test.tsx (lot C, en cours). Aucune erreur dans un fichier du lot B." },
+    { "commande": "npm run lint", "resultat": "sortie 1 — 1 erreur dans src/app/publish/page.tsx:84 (react-hooks/set-state-in-effect, lot C). `npx eslint <tous les fichiers du lot B>` → sortie 0." },
+    { "commande": "npm run check:i18n && npm run check:i18n-namespaces", "resultat": "sortie 0 et 0 (« 10 frontières, table conforme »)" },
+    { "commande": "node scripts/check-pro-routes.mjs (--report)", "resultat": "sortie 0 — « surfaces pro : 2/2 », « pages admin : 15 pages gardées par garderPageAdmin, 14 chemins dans PAGES_ADMIN » ; les 15 pages listées une par une" },
+    { "commande": "node scripts/check-auth-interrupts.mjs (--report)", "resultat": "sortie 0 — « 12 refus artisanaux (plafond 12) » ; inventaire D détecté = exactement les 12 entrées de REFUS_ARTISANAL" },
+    { "commande": "git diff scripts/check-auth-interrupts.mjs", "resultat": "exactement : 10 chemins /admin retirés de REFUS_ARTISANAL (agency/billing, agency/kyc, agency, audit, moderation, moderation/properties, roles, settings/integrations, settings, team), un commentaire, PLAFOND_MESURE 22 → 12. Rien d'autre." },
+    { "commande": "curl localhost:3000 ; curl 127.0.0.1:8002/up", "resultat": "000 / 000 — aucun serveur local : vérification au navigateur impossible" },
+    { "commande": "md5 de chaque fichier ablaté avant/après", "resultat": "les 16 fichiers ablatés sont revenus à leur md5 initial (liste dans `ablations`) ; les 3 fichiers temporaires créés ont été supprimés" }
+  ],
+  "ablations": [
+    { "fichier": "lib/access/pages-admin.ts", "mutation": "entreesDeMenu ajoute toute page `role: 'admin'` même inaccessible (dérivation du menu inversée)", "resultat": "ROUGE — pages-admin.test (menu du solo), AdminSidebar.acces (solo), AdminSidebar.a11y (agence individual) : 3 rouges", "md5": "ed4f0888 → ed4f0888" },
+    { "fichier": "lib/access/pages-admin.ts", "mutation": "pageAccessible fail-OPEN sur kind inconnu (`kind === 'individual'` au lieu de `!== 'standard'`)", "resultat": "ROUGE — pages-admin (kind inconnu), pages-admin-server (kind illisible, sans jeton) : 3 rouges", "md5": "ed4f0888 → ed4f0888" },
+    { "fichier": "lib/access/pages-admin.ts", "mutation": "/admin/moderation/properties sans exigence `standard` (« Modération biens » montrée au solo)", "resultat": "ROUGE — pages-admin (2), pages-admin-server (accesAdmin du solo), AdminSidebar.a11y : 4 rouges", "md5": "ed4f0888 → ed4f0888" },
+    { "fichier": "lib/access/pages-admin.ts", "mutation": "rôle oublié : `!ctx.roles.includes('agency_admin')` au lieu de `!isAdmin(...)` (le super-admin perd tout)", "resultat": "ROUGE — pages-admin et pages-admin-server (super-admin) : 2 rouges", "md5": "ed4f0888 → ed4f0888" },
+    { "fichier": "lib/access/pages-admin.ts", "mutation": "liensDuProfil ignore l'accès (« Journal d'audit » fuit dans le profil du solo)", "resultat": "ROUGE — pages-admin (liens du profil), ProfileAdminSection (solo) : 2 rouges", "md5": "ed4f0888 → ed4f0888" },
+    { "fichier": "components/profile/ProfileAdminSection.tsx", "mutation": "libellé de rôle « Admin agence » rendu au solo au lieu de « Titulaire de l'espace »", "resultat": "ROUGE — ProfileAdminSection (solo) : 1", "md5": "1e12d834 → 1e12d834" },
+    { "fichier": "components/profile/ProfileAdminSection.tsx", "mutation": "lien codé en dur vers /admin/audit ajouté à la carte", "resultat": "ROUGE — ProfileAdminSection (solo ET standard) : 2", "md5": "1e12d834 → 1e12d834" },
+    { "fichier": "components/layout/UserMenu.tsx", "mutation": "déconnexion vers '/' non localisé", "resultat": "ROUGE — UserMenu (2), AuthContext.session (1)", "md5": "296a6f75 → 296a6f75" },
+    { "fichier": "components/layout/UserMenu.tsx", "mutation": "`void logout()` : navigation AVANT la révocation", "resultat": "RESTE VERT — UserMenu.test (« …après avoir révoqué la session ») n'asserte aucun ordre ; AuthContext.session vert aussi", "md5": "296a6f75 → 296a6f75" },
+    { "fichier": "components/layout/UserMenu.tsx", "mutation": "repli sans fournisseur forcé à « standard » (`agencyIsStandard: true`, fail-open)", "resultat": "RESTE VERT — aucun test de UserMenu sans fournisseur pour un agency_admin ; sans portée réelle aujourd'hui (UserMenu n'est monté que par AppTopbar et SuperAdminTopbar, toutes deux sous fournisseur ou super-admin)", "md5": "296a6f75 → 296a6f75" },
+    { "fichier": "app/(dashboard)/admin/audit/page.tsx", "mutation": "`void garderPageAdmin(...)` (garde non attendue)", "resultat": "ROUGE — gardes.test (/admin/audit) ; check-pro-routes RESTE VERT (il ne vérifie pas `await`)", "md5": "ed74bebd → ed74bebd" },
+    { "fichier": "app/(dashboard)/admin/audit/page.tsx", "mutation": "garde remplacée par une décision artisanale `if (!isAdmin(moi.roles)) redirect('/admin')`", "resultat": "ROUGE — check-pro-routes sortie 1 (« n'appelle pas garderPageAdmin ») ET check-auth-interrupts sortie 1 (« 1 écran de plus… plafond : 12 »)", "md5": "ed74bebd → ed74bebd" },
+    { "fichier": "app/(dashboard)/admin/moderation/properties/page.tsx", "mutation": "garde du mauvais chemin `garderPageAdmin('/admin/moderation')`", "resultat": "ROUGE — check-pro-routes sortie 1, gardes.test : 1", "md5": "2dda4c65 → 2dda4c65" },
+    { "fichier": "app/(dashboard)/admin/demain/page.tsx + admin/team/[memberId]/page.tsx (créés puis supprimés)", "mutation": "une page de demain non déclarée, et une page dynamique sans garde qui lit getMeAction", "resultat": "ROUGE — check-pro-routes sortie 1, les deux nommées (« absent de PAGES_ADMIN… », « n'appelle pas garderPageAdmin('/admin/team') ») ; gardes.test RESTE VERT (liste fermée) — la garde dynamique est donc le script, rejoué par repo-ci (paths takussan-web/src/**, l. 339 `check-pro-routes.mjs --report`)", "md5": "fichiers supprimés, dossiers retirés" },
+    { "fichier": "lib/access/pro-features.ts", "mutation": "cadenas remis : '/admin/team' rajouté à PRO_ROUTES", "resultat": "ROUGE — check-pro-routes sortie 1, pro-features.test : 1", "md5": "171ff361 → 171ff361" },
+    { "fichier": "lib/access/pages-admin-server.ts", "mutation": "garderPageAdmin laisse passer tout admin sur une page sans capacité", "resultat": "ROUGE — pages-admin-server : 4", "md5": "1c0c77c4 → 1c0c77c4" },
+    { "fichier": "lib/access/pages-admin-server.ts", "mutation": "refus renvoyé vers '/admin' fixe", "resultat": "ROUGE — pages-admin-server : 5", "md5": "1c0c77c4 → 1c0c77c4" },
+    { "fichier": "components/layout/AppSidebar.tsx (CO-TENU, Edit + Edit inverse)", "mutation": "avecEntreeAdmin garde l'href '/admin' d'origine", "resultat": "ROUGE — AppSidebar.acces-admin : 2", "md5": "b80a2761 → b80a2761" },
+    { "fichier": "components/layout/AppSidebar.tsx (CO-TENU)", "mutation": "en-tête « Administration » remontré au solo", "resultat": "ROUGE — AppSidebar.acces-admin : 1", "md5": "b80a2761 → b80a2761" },
+    { "fichier": "components/layout/AdminSidebar.tsx", "mutation": "carte « Passer en agence » rendue à tout profil qui a une page", "resultat": "ROUGE — AdminSidebar.acces (admin standard : aucune carte) : 1", "md5": "730cf181 → 730cf181" },
+    { "fichier": "components/layout/AdminSidebar.tsx", "mutation": "`<nav aria-label>` revenu à sectionLabel", "resultat": "ROUGE — AdminSidebar.acces et .a11y : 2", "md5": "730cf181 → 730cf181" },
+    { "fichier": "components/layout/AdminShell.tsx", "mutation": "aria-label du tiroir mobile revenu à sectionLabel", "resultat": "RESTE VERT — 22 fichiers (layout/__tests__ et admin/__tests__), 197 tests ; écart E18 déclaré par l'implémenteur", "md5": "75b51c5a → 75b51c5a" },
+    { "fichier": "components/dashboard/DashboardShortcuts.tsx", "mutation": "raccourci libellé 'nav.sidebar.administration' même chez un solo", "resultat": "ROUGE — DashboardShortcuts : 1", "md5": "f02a4dbd → f02a4dbd" },
+    { "fichier": "components/dashboard/DashboardEmpty.tsx", "mutation": "repli sans fournisseur forcé à « standard »", "resultat": "RESTE VERT — aucun test sans fournisseur pour un agency_admin ; sans portée réelle (le layout /app monte le fournisseur)", "md5": "c0d2b509 → c0d2b509" },
+    { "fichier": "components/shared/NoAgencyState.tsx", "mutation": "aucune page accessible → CTA '/admin' quand même", "resultat": "ROUGE — NoAgencyState : 1", "md5": "3d8dd293 → 3d8dd293" },
+    { "fichier": "components/home/Navbar.tsx (hors territoire B, Edit + Edit inverse)", "mutation": "déconnexion publique (bureau) `router.push('/auth/login')`", "resultat": "RESTE VERT — Navbar.deconnexion.test (seul test de la déconnexion publique) n'asserte que la présence d'un push ; aucun test n'asserte non plus la destination du `replace` mobile. Un test TEMPORAIRE du vérificateur (src/components/home/__tests__/zz-verif-lotb-temp.test.tsx, supprimé) est vert sur le code réel (push('/fr')) et ROUGE sous cette mutation : le comportement est juste aujourd'hui, il n'est pas gardé.", "md5": "9e05bbd2 → 9e05bbd2" }
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-web/src/components/home/Navbar.tsx:244-248 (et l'absence de test dans components/home/__tests__)",
+      "scenario": "Un futur changement envoie la déconnexion publique vers /auth/login (ou n'importe où) : toute la suite reste verte. Le rapport du lot B cite « Navbar.deconnexion vert » comme preuve de l'AC3 côté public ; ce test (TCK-509) vérifie le nettoyage de session et `expect(router.push).toHaveBeenCalled()`, jamais la destination. Ni la branche bureau (`push`) ni la branche mobile (`replace`, l. 753) ne sont gardées.",
+      "gravite": "moyenne — AC3 sans garde sur la moitié de son énoncé ; correctif : un test de destination (bureau et mobile, fr et wo) dans components/home/__tests__, sans toucher Navbar.tsx"
+    },
+    {
+      "fichier": "tâche 15 du plan du lot B (navigateur)",
+      "scenario": "« Mon espace ouvre une page qui s'affiche » (AC1) n'est prouvé que par des unités : la garde laisse passer le solo sur /admin/agency (pages-admin-server.test), mais aucun rendu réel (layout + AdminShell + page + appels API) n'a été exécuté. localhost:3000 et 127.0.0.1:8002 → 000 pour l'implémenteur comme pour le vérificateur.",
+      "gravite": "moyenne — à faire par la session, en local, avec un compte individual et un compte standard"
+    },
+    {
+      "fichier": "takussan-web/src/components/layout/__tests__/UserMenu.test.tsx:79-85",
+      "scenario": "Le test s'intitule « …après avoir révoqué la session » mais n'asserte aucun ordre : `void logout()` (navigation avant révocation, le défaut de TCK-509) reste vert.",
+      "gravite": "faible — le code est juste (`await logout()`), le test promet plus qu'il ne garde"
+    },
+    {
+      "fichier": "takussan-web/src/components/layout/AdminShell.tsx:58-62",
+      "scenario": "Le nom accessible du tiroir mobile (« Mon espace » / « Administration ») n'est gardé par aucun test : revenu à sectionLabel, 197 tests restent verts. Déclaré par l'implémenteur (E18).",
+      "gravite": "faible"
+    },
+    {
+      "fichier": "scripts/check-pro-routes.mjs (bloc TCK-633, recherche de `garderPageAdmin(`)",
+      "scenario": "Le script exige l'appel, pas son `await` : `void garderPageAdmin('/admin/audit')` passe le script (sortie 0). gardes.test.tsx l'attrape, mais seulement pour les 15 pages de sa liste fermée — une page NEUVE gardée sans `await` passerait les deux.",
+      "gravite": "faible"
+    },
+    {
+      "fichier": "takussan-web/src/components/dashboard/DashboardEmpty.tsx:28, takussan-web/src/components/layout/UserMenu.tsx:49",
+      "scenario": "Le repli sans fournisseur n'est éprouvé qu'au niveau de `contexteDeRepli` ; un appelant qui le force à « standard » reste vert. Sans portée aujourd'hui (fournisseur monté par /app et /admin ; UserMenu n'est pas rendu par la Navbar publique, contrairement à ce que dit le rapport).",
+      "gravite": "faible"
+    },
+    {
+      "fichier": "takussan-web/src/app/(dashboard)/admin/page.tsx:49-55",
+      "scenario": "Le commentaire affirme que la branche `individual` des files est « INATTEIGNABLE DEPUIS CETTE PAGE » ; depuis E8, un super-admin rattaché à une agence individual passe garderPageAdmin('/admin') et l'atteint.",
+      "gravite": "faible (documentation)"
+    },
+    {
+      "fichier": "docs/plans/rapports/tck-633-lot-b.json (écarts)",
+      "scenario": "« UserMenu dans la Navbar publique (sans fournisseur) » : faux — UserMenu n'est importé que par AppTopbar et SuperAdminTopbar. Et « npx tsc --noEmit sortie 0 / npm run lint sortie 0 » ne sont plus vrais sur l'arbre partagé (rouges du lot C, pas du lot B).",
+      "gravite": "info"
+    }
+  ],
+  "plafond_check_auth_interrupts": "Justifié, ne masque rien. Le cliquet D compare l'inventaire DÉTECTÉ à REFUS_ARTISANAL dans les deux sens (un fichier en plus est rouge, une entrée périmée est rouge), et PLAFOND_MESURE doit égaler la longueur de la liste. Détecté aujourd'hui : exactement les 12 entrées restantes (--report). Les 10 pages retirées ne portent plus de décision de rôle terminée à la main : elles délèguent à garderPageAdmin, module partagé testé (pages-admin-server.test, 14 tests). Contre-épreuve : réintroduire une décision artisanale dans /admin/audit fait sortir la garde en 1 (« 1 écran de plus… plafond : 12 »). /admin/finances et admin/layout.tsx restent dans l'inventaire, à raison (redirect('/super-admin') et redirect('/app/profile') sur le rôle).",
+  "couverture_dynamique": "Les 17 page.tsx sous app/(dashboard)/admin : 15 appellent `await garderPageAdmin('<chemin>')` en première instruction (gardes.test.tsx, 16 cas, et check-pro-routes --report), 2 sont des souches de redirection (users → /admin/team, settings/tags → /admin?notice=), reconnues par l'expression SOUCHE. Les 14 chemins de PAGES_ADMIN ont tous une page ; [statementId] est gardé par son ancêtre statique. Une page ajoutée demain sans déclaration, ou un segment dynamique sans garde, fait rougir check-pro-routes (prouvé en créant deux pages temporaires) ; gardes.test.tsx, liste fermée, ne l'attrape pas.",
+  "deconnexion_chemins": "Appelants volontaires de useAuth().logout : UserMenu (AppTopbar de /app et /admin, SuperAdminTopbar) → hrefLocalise('/', locale), gardé par UserMenu.test et AuthContext.session.test ; Navbar publique bureau (push) et mobile (replace) → hrefLocalise('/', locale), NON gardé. Appelants involontaires inchangés : GardeDoubleFacteur (401 après trop d'échecs), ReinitialiserSessionClient (filet de /auth/*), /api/auth/session-expired → /auth/login (« session expirée → connexion, inchangée »). Pas de server action de déconnexion (TCK-509) ; le route handler /api/auth/logout ne redirige pas.",
+  "i18n": "nav.admin.mySpace / openMySpace et profile.admin.{titleIndividual, subtitleIndividual, roleLabelIndividual, roleIndividual} présents en fr, en et wo, valeurs traduites et non vides (wo : « Sama barab », « Ubbi sama barab », « Tegtal yi ci sa barab. », « Sa wàll », « Boroom barab bi » — relecture du porteur demandée, E15). Vouvoiement fr respecté (« Les réglages de votre espace d'annonceur », « Votre rôle »). check:i18n et check:i18n-namespaces verts.",
+  "debordements": [
+    "Aucun fichier hors du territoire du lot B, de l'Addendum (nav.admin.*, NoAgencyState, les quatre fichiers B-E5) et de la décision 1 (ProUpgradeCard.tsx) dans le diff ; AppSidebar.tsx (co-tenu B/F) : seuls les blocs du lot B.",
+    "nav.proUpgrade.title modifié en fr/en/wo (« Passer en agence », « Become an agency », « Jóg ci ajaas ») : hors de l'espace i18n du lot (nav.admin.*, profile.admin.*). Couvert par l'esprit de la décision 1, mais le titre change aussi sur la carte de la barre /app (TCK-267), que la décision ne visait pas — à acter par la session.",
+    "scripts/check-auth-interrupts.mjs : hors territoire, modification conforme à l'accord annoncé (10 lignes retirées, 22 → 12, un commentaire), rien d'autre.",
+    "Rappel de l'incident wo.json du rapport (restauration par cp pendant une écriture du lot A) : non vérifiable par ce lot, à rejouer par le vérificateur du lot A sur ses propres clés."
+  ]
+}

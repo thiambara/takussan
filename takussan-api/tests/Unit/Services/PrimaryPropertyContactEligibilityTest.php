@@ -38,9 +38,11 @@ class PrimaryPropertyContactEligibilityTest extends TestCase
     private function bienADeuxAgents(): array
     {
         $agency = $this->agence();
-        $owner = $this->bailleur($agency, ['phone' => '+221770000001']);
-        $ancien = $this->personnel($agency, attributes: ['phone' => '+221770000002']);
-        $suivant = $this->personnel($agency, attributes: ['phone' => '+221770000003']);
+        // TCK-633 (lot C, tour 2) — `…/contact` ne sert qu'un numéro principal VÉRIFIÉ ; numéros
+        // tirés par la fabrique, l'unicité des numéros vérifiés refusant deux appels fixes.
+        $owner = $this->bailleur($agency, ['phone_verified_at' => now()]);
+        $ancien = $this->personnel($agency, attributes: ['phone_verified_at' => now()]);
+        $suivant = $this->personnel($agency, attributes: ['phone_verified_at' => now()]);
 
         $property = $this->bienDe($agency, $owner);
         $this->collaborateur($property, $ancien, '2026-01-10 09:00:00');
@@ -66,7 +68,7 @@ class PrimaryPropertyContactEligibilityTest extends TestCase
 
         $this->getJson("/api/public/properties/{$property->slug}/contact")
             ->assertOk()
-            ->assertExactJson(['phone' => $attendu->phone]);
+            ->assertJsonPath('data.0.phone', $attendu->phone);
 
         $this->getJson("/api/public/properties/{$property->slug}")
             ->assertOk()

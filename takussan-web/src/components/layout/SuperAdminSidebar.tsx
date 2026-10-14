@@ -9,6 +9,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  Coins,
   FileLock,
   CalendarClock,
   ClipboardCheck,
@@ -16,10 +17,13 @@ import {
   FlaskConical,
   Home,
   LayoutDashboard,
+  ListChecks,
   ListTree,
   ListX,
+  MapPinned,
   Megaphone,
   PlugZap,
+  Rocket,
   Send,
   Settings2,
   ShieldAlert,
@@ -131,12 +135,26 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/super-admin/payouts', labelKey: 'payouts', icon: Send },
       // TCK-602 — l'argent qui n'arrive pas : échecs, retards, webhooks non appariés ou rejouables.
       { href: '/super-admin/payments', labelKey: 'payments', icon: Wallet },
+      // TCK-633 lot F (ADR-0061) — portefeuilles de crédits, et la mise en avant (boosts, catalogue,
+      // statistiques). Sans geste déclaré : `super_admin` seul, comme les routes.
+      { href: '/super-admin/credits', labelKey: 'credits', icon: Coins },
+      { href: '/super-admin/boosts', labelKey: 'boosts', icon: Rocket },
     ],
   },
   {
     labelKey: 'content',
     items: [
-      { href: '/super-admin/tags', labelKey: 'tags', icon: Tags },
+      // TCK-633 (AC5) — les deux files de propositions. Sans geste : `super_admin` seul, comme les
+      // routes `admin/geo` et `admin/tags` qu'elles lisent (middleware `super-admin`). Les
+      // équipements proposés sont un ENFANT des tags : l'état actif est préfixe (`isActiveHref`),
+      // et le parent reste allumé sous son enfant — le fil visuel voulu plus haut.
+      {
+        href: '/super-admin/tags',
+        labelKey: 'tags',
+        icon: Tags,
+        children: [{ href: '/super-admin/tags/proposals', labelKey: 'tagProposals', icon: ListChecks }],
+      },
+      { href: '/super-admin/geo', labelKey: 'geoProposals', icon: MapPinned },
       { href: '/super-admin/enums', labelKey: 'enums', icon: ListTree },
       { href: '/super-admin/templates', labelKey: 'templates', icon: Bell },
       { href: '/super-admin/announcements', labelKey: 'announcements', icon: Megaphone },

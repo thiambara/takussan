@@ -5,7 +5,7 @@ status: todo
 phase: P0
 family: bug
 estimate: M
-wave: 74
+wave: 76
 created: 2026-10-08
 updated: 2026-10-08
 depends_on: []

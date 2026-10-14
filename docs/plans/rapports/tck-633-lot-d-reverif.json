@@ -1,0 +1,146 @@
+{
+  "verdict": "refuse — (1) D9 se rouvre en deux requêtes : GET /api/tags/{id} rend à B le nom de la proposition PENDING de A (identifiants séquentiels), puis tag_names:[ce nom] l'attache au bien de B, qui l'affiche sur sa fiche publique ; (2) le correctif du défaut 1 n'est pas épinglé dans le cas réel : élargir la branche « déjà attachée à CE bien » à « attachée à N'IMPORTE QUEL bien » (ce qu'est toute proposition réelle) laisse les 29 tests de tests/Feature/Tags verts ; (3) la garde de relecture accepte un jeu réduit à 10 villes par région et ZÉRO quartier (Dakar : 198 → 0) dès qu'il est signé — le plancher demandé « villes ET quartiers » ne porte que sur les villes. Les huit autres corrections tiennent (rejouées, et rougies par une ablation différente).",
+  "preuves": {
+    "charge": "uptime 11:39 : 3.26 8.98 14.50 ; 11:43 : 6.95 8.40 13.10 ; 11:55 : 17.88 19.42 15.23 ; 11:57 : 76.79 46.55 26.73 — 8 cœurs, autres agents actifs (lots C et E) : aucune durée n'est une mesure du dépôt.",
+    "api_lot_d": "php artisan test tests/Feature/Geo tests/Feature/Tags tests/Unit/Geo tests/Unit/Services/Geo CoutDEntreeConcordanceTest PropertyNumericBoundsTest PropertyCurrencyForcedTest AgencyFeeIndividualTest FilterCoverageTagsTest → 15 failed, 164 passed (629 assertions). Les 15 rouges sont TOUS GeoDatasetReviewedTest sur le vrai jeu : 14 « relecture humaine absente (tâche 27) » + format@dk (« Golf Sud(Cité Aliou SOW) ») — attendus.",
+    "api_voisins": "LangGroupParityTest, TagWriteAuthorizationTest, PropertyTagsTest, TagTest, PropertyWritableFieldsTest → 39 passed (109).",
+    "pint": "./vendor/bin/pint --test <PHP du lot D : requêtes, Services/Tags, Services/Geo, contrôleurs, modèles geo, routes, tests, lang/*/errors.php, seeders, migrations 4000xx> → {\"result\":\"passed\"}",
+    "front_vitest": "60 fichiers (property-form, lib/geo, libelle-equipement, cout-d-entree.concordance, composants de la fiche publique, content/legal, property-fields.coverage, property-tags.tck-633, super-admin-propositions, combobox, FileDePropositions, admin-tags, LocationPickerMap.recentrage, properties/new, SuperAdminSidebar.propositions) → 595 passed (595).",
+    "tsc": "npx tsc --noEmit → exit 0",
+    "eslint": "npx eslint <fichiers corrigés du lot D et leurs tests> → exit 0",
+    "check_i18n": "✓ parité (en 0/0, wo 0/0 sur 8045 clés fr), 0 libellé en dur non justifié — exit 0",
+    "design_sync": "node scripts/check-design-sync-entry.mjs → ✓ 26 modules, 26 racines, 63 sous-parties exclues, exit 0",
+    "property_fields_coverage": "17 passed",
+    "signature_sur_copie": {
+      "montage": "scratchpad/reverif-d : copie des 14 régions + copie de GeoDatasetReviewedTest pointée dessus (namespace Scratch\\ReverifD). Base : 39 tests, 15 rouges (comme le vrai jeu). Golf Sud corrigé SUR LA COPIE, copie signée par une copie de signer.mjs au nom « Jean Dupont » → OK (39 tests, 141 assertions) : JS et PHP s'accordent sur les 14 vrais fichiers. L'empreinte épinglée de JEU_D_ESSAI est bien celle de empreinte() de signer.mjs (recalculée par node : identique).",
+      "rouges_comme_attendu": [
+        "relu_le = 2027-01-01 → « une date à venir »",
+        "ordre des clés d'une ville inversé → empreinte",
+        "champ status=rejected ajouté à une ville → empreinte",
+        "latitude +0,001 → empreinte",
+        "slug de quartier modifié → empreinte",
+        "osm d'un quartier mis à null → empreinte",
+        "nom de région modifié → empreinte",
+        "licence modifiée (contient encore « OpenStreetMap ») → empreinte",
+        "une région rendue non signée, 13 signées → seule sn-zg rougit",
+        "regex : « x », « Amine », « relecteur@takussan.com », « A B », « Jean  Dupont » refusés"
+      ],
+      "verts": [
+        "reformatage sans indentation (sans conséquence : le contenu est le même)",
+        "zéro final ajouté à une latitude (même valeur : sans conséquence)",
+        "clé dupliquée \"name\":\"Evil\",\"name\":\"Almadies\" (les deux analyseurs gardent la dernière, comme le seeder : sans conséquence)",
+        "relu_par changé APRÈS signature (« Claude Opus ») → vert : le nom n'est pas dans l'empreinte",
+        "Dakar : 0 quartier puis re-signé → vert",
+        "14 régions réduites à 10 villes, 0 quartier, re-signées → vert",
+        "relu_par = \"Jean Dupont\\n\" → vert (le $ de PCRE accepte un saut de ligne final)",
+        "signature forgée en Python sans signer.mjs → vert (inhérent : on ne prouve pas l'humain, noté pour mémoire)",
+        "regex : « Claude Opus », « Xx Yy », « A- B- », « A' B' », « Test Test », « JEAN DUPONT » acceptés"
+      ],
+      "vrai_jeu": "NON signé, NON modifié : md5 de l'ensemble ca5caf04 avant et après ; signer.mjs c63071c7 inchangé ; GeoDatasetReviewedTest 5072270b inchangé."
+    },
+    "scenarios_inventes": {
+      "fichier": "scratchpad/reverif-d/ReverifLotDTest.php (hors dépôt, vendor/bin/phpunit -c phpunit.xml) → OK (5 tests, 16 assertions)",
+      "equipements": "B → identifiant de la proposition de A : 422 ; [approuvé, proposition de A] : 422 et rien d'attaché ; son propre refusé : 422 ; étiquette CRM : 422 ; tag_ids [1e20], [\"99999999999999999999\"], [PHP_INT_MAX] : 422 (jamais 500) ; B sur le bien de A : 403 ; A → sa propre proposition : 200 ; proposition déjà sur le bien, resynchronisée par identifiant : 200 ; la même proposition par identifiant sur un AUTRE bien de B : 422. MAIS GET /api/tags/{id de A} par B → 200 « Puits privé de A », et tag_names:[\"puits privé de a\"] → 200, le bien de B porte [« Puits privé de A », pending].",
+      "routes_qui_rattachent": "POST properties/{p}/tags (couverte) ; POST properties/{p}/duplicate (recopie les étiquettes du bien source, donc rien de plus que ce que la source porte) ; POST customers/{c}/tags (par NOM, tous types confondus : attache à un client la proposition d'équipement de A — cf. défaut 9) ; Store/UpdatePropertyRequest n'acceptent aucun tag_ids.",
+      "bornes_creation_et_modification": "Toutes à la borne exacte acceptées (201 / 200), toutes à borne+1 refusées (422), aucun 500 : area 2147483647/2147483648/-1/2147483647.0/\"2147483647.5\" ; price \"999999999999.99\"/1000000000000/\"999999999999.999\"/\"1e400\"/-1 ; year_built an+3/an+4/1800/1799 ; bedrooms 100/101 ; bathrooms 100/101 ; parking 500/501 ; floor -5/-6/200/201 ; total_floors 200/201 ; address.geo_city_id 1e20 et \"99999999999999999999\", geo_neighborhood_id \"99999999999999999999\" → 422.",
+      "fusions": "crm→amenity 422 (CRM conservée) ; amenity→crm 422 ; crm→crm 422 ; into_id=1e20 422. MAIS PUT /api/tags/{crm} {type: amenity} → 200 puis merge → 200 (cf. défaut 9). PATCH /api/admin/tags/{crm} (renommage par la file des équipements) → 200.",
+      "traductions": "Les 35 clés property.amenityCatalog.* de fr/en/wo sont exactement les Str::slug PHP des 35 noms de TagCatalog::EQUIPEMENTS (calculés par PHP, pas par slugDuCatalogue). La fiche publique reçoit slug et status (PropertyResource:175-183, show() sans sparse fieldsets). Slug ajouté demain au catalogue ('Jacuzzi' par Edit) → 3 rouges de parité (fr, en, wo) ; à l'exécution, repli sur le nom en base. Réserve : la garde ne se déclenche pas sur une PR qui ne touche que l'API (défaut 6).",
+      "parseur": "Justes : « 14.7167° N, 17.4677° W », « 14,71670° N, 17,46770° O », « N 14.7167°, W 17.4677° », « 17,4677° O, 14,7167° N », « 14.7167°N 17.4677°W », « O 17.4677°, N 14.7167° », apple ll=, osm mlat/mlon prioritaire sur #map, osm #map seul. Inconnus à juste titre : apple ?address=, osm /node/…, osm.org/go, hôte étranger porteur de mlat, mlat=95, ll=1e2. Non reconnu : « 14.7167 N, 17.4677 W » (sans °) — hors des formats déclarés, non retenu comme défaut."
+    }
+  },
+  "ablations": [
+    { "cible": "GeoDatasetReviewedTest — contrôle « date à venir » neutralisé (false &&)", "rouge": "NON : les 10 tests synthétiques restent verts (aucun cas futur)", "restaure": "md5 5072270b (Edit inverse)" },
+    { "cible": "GeoLinkResolver — HOTES_APPELES retiré (tout hôte LU devient APPELÉ : www.google.com, google.sn…)", "rouge": "NON : GeoLinkResolverTest 14 passed", "restaure": "md5 d3c62e90" },
+    { "cible": "GeoLinkResolver — contrôle user/pass retiré (port gardé)", "rouge": "OUI : port_hote_inconnu_et_chemin_non_cartographique…", "restaure": "md5 d3c62e90" },
+    { "cible": "GeoLinkResolver — chemin /maps/ de goo.gl non exigé", "rouge": "OUI : même test", "restaure": "md5 d3c62e90" },
+    { "cible": "GeoLinkResolver — SAUTS_MAX : >= devenu > (quatre requêtes)", "rouge": "OUI : au_dela_de_trois_requetes_on_renonce", "restaure": "md5 d3c62e90 (un espace perdu par l'Edit, rétabli, md5 relu)" },
+    { "cible": "routes/api/geo.php — throttle:20,1 RELEVÉ à 30 (et non retiré)", "rouge": "OUI : au_dela_de_vingt_appels…", "restaure": "md5 df79009b" },
+    { "cible": "GeoReindexation::biens — ne réindexe que le PREMIER bien", "rouge": "NON : tests/Feature/Geo + Tags 87 passed (chaque test n'a qu'un bien)", "restaure": "md5 99a9de25" },
+    { "cible": "TagModeration::renommer — sans réindexation", "rouge": "NON : Tags + GeoNeighborhoodMergeSearch 31 passed", "restaure": "md5 30dd5a84" },
+    { "cible": "TagModeration::fusionner — sans réindexation", "rouge": "NON : Tags 29 passed", "restaure": "md5 30dd5a84" },
+    { "cible": "TagModeration::fusionner — contrôle du TYPE de la cible retiré", "rouge": "OUI : les_fusions_impossibles", "restaure": "md5 30dd5a84" },
+    { "cible": "SyncPropertyTagRequest — « déjà attachée à CE bien » élargi à « attachée à un bien quelconque » (filtre taggable_id retiré)", "rouge": "NON : tests/Feature/Tags 29 passed ; mon scénario passe B_autre_bien_par_id de 422 à 200", "restaure": "md5 0ac63c57" },
+    { "cible": "StorePropertyRequest — year_built : an+3 exclu (not_in)", "rouge": "OUI : les_plus_grandes_valeurs_admises_s_enregistrent", "restaure": "md5 ed6f1833" },
+    { "cible": "UpdatePropertyRequest — area max:2147483648 (borne+1 admise en modification)", "rouge": "NON : PropertyNumericBoundsTest 14 passed (la borne exacte et borne+1 ne sont éprouvées qu'à la création)", "restaure": "md5 f75d22cf" },
+    { "cible": "TagCatalog::EQUIPEMENTS — 'Jacuzzi' ajouté sans traduction", "rouge": "OUI : 3 rouges de parité (fr, en, wo)", "restaure": "md5 6e7dac96" },
+    { "cible": "PropertyAmenities — traduction en ligne qui ignore le statut (garde pending contournée au composant)", "rouge": "NON : 3 passed — sans conséquence pratique (une proposition ne peut porter un slug du catalogue : slugLibre suffixe, et la synchronisation approuve la proposition homonyme)", "restaure": "md5 ff5704f7" },
+    { "cible": "reconnaitre-position — « O » non négatif", "rouge": "OUI : 14,7167° N, 17,4677° O", "restaure": "md5 270e09aa" },
+    { "cible": "reconnaitre-position — clé Apple 'coordinate' retirée + #map OSM lat/lon inversés", "rouge": "OUI : 2 rouges (coordinate=, #map=)", "restaure": "md5 270e09aa" },
+    { "cible": "ChampsLieu — mention ODbL rendue SEULEMENT sans ville (donc masquée quand la liste des quartiers est servie)", "rouge": "NON : ChampsLieu 10 passed (le test rend le champ sans ville)", "restaure": "md5 c43f2601" },
+    { "cible": "ChampsPosition — référence = première ville de la liste au lieu de la ville choisie", "rouge": "OUI : 2 rouges (ville CHOISIE ; sans ville)", "restaure": "md5 99eb5fdc" },
+    { "cible": ".design-sync/config.json — \"ComboboxMultiple\": null retiré", "rouge": "OUI : check-design-sync-entry exit 1", "restaure": "md5 92dacd58" }
+  ],
+  "defauts": [
+    {
+      "fichier": "takussan-api/app/Http/Controllers/Api/TagController.php:65-68 (show) ; takussan-api/app/Services/Tags/TagProposals.php:45",
+      "scenario": "A propose « Puits privé de A » (pending). B, autre compte : GET /api/tags/{id} → 200 avec le nom (index filtre, show non ; identifiants séquentiels, donc énumérables). Puis POST /api/properties/{bien de B}/tags {tag_ids:[], tag_names:[\"puits privé de a\"]} → 200 : TagProposals::parNom reprend la proposition de A, le bien de B la porte (status pending) et la fiche publique l'affiche (PropertyResource rend toutes les étiquettes). Le partage par NOM est voulu ; c'est la lecture par identifiant qui ouvre le chemin.",
+      "gravite": "moyenne — même effet que le défaut 1 du premier refus (D9 : une proposition d'un tiers sort sur une fiche publique), en deux requêtes",
+      "correctif": "show() applique la visibilité d'index() (approuvé, ou pending créé par l'appelant ; super-admin : tout) → 404 sinon ; test : B → 404 sur l'identifiant de A, A → 200."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Tags/TagProposalTest.php:104-111 (garde : app/Http/Requests/Api/SyncPropertyTagRequest.php:63-69)",
+      "scenario": "Le test du refus crée la proposition de l'autre SANS l'attacher à aucun bien ; or une proposition réelle naît attachée au bien de son auteur. Retirer ->where('taggable_id', $bien->getKey()) — B attache alors toute proposition déjà portée par un bien quelconque, c'est-à-dire toutes — laisse les 29 tests de tests/Feature/Tags verts.",
+      "gravite": "moyenne — le correctif du défaut principal du premier refus n'est pas épinglé dans le cas où il sert",
+      "correctif": "Dans le test du refus, attacher la proposition au bien de son auteur avant l'appel de B (et garder le cas non attaché)."
+    },
+    {
+      "fichier": "takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php:48, :226",
+      "scenario": "Sur une copie : les 14 régions réduites à leurs 10 premières villes, TOUS les quartiers retirés, re-signées par signer.mjs (« Jean Dupont ») → OK (39 tests). Dakar seule vidée de ses 198 quartiers et re-signée → vert. Le premier refus demandait un plancher « villes ET quartiers » ; seul celui des villes existe, et il est à 10 quand sn-dk en compte 13.",
+      "gravite": "basse à moyenne — l'empreinte lie bien la signature au contenu (toute modification APRÈS signature rougit), mais une extraction appauvrie (Overpass partiel) se signe sans que la garde la voie",
+      "correctif": "Plancher de quartiers (au moins par région qui en a dans l'extraction actuelle, ex. sn-dk ≥ 150, total ≥ 300) et plancher de villes proche des comptes actuels ; ou une ré-extraction qui écrit ses comptes dans source et que le test compare."
+    },
+    {
+      "fichier": "takussan-api/tests/Unit/Geo/GeoDatasetReviewedTest.php:51 (CHAMPS_DE_SIGNATURE), :127, :136 ; database/data/geo/signer.mjs",
+      "scenario": "(a) relu_par n'est pas dans l'empreinte : remplacer « Jean Dupont » par « Claude Opus » après signature reste vert. (b) Le contrôle « date à venir » existe mais aucun test synthétique ne l'éprouve : neutralisé, tout reste vert. (c) Le $ PCRE admet \"Jean Dupont\\n\" ; la regex admet « A- B- », « Xx Yy », « Claude Opus ».",
+      "gravite": "basse — on ne peut pas prouver l'humain ; ce sont des trous de forme",
+      "correctif": "Empreinte calculée sur le contenu + relu_par (+ relu_le), ou exclure seulement relu_empreinte ; cas « relu_le futur » dans test_une_signature_sans_empreinte_ou_mal_datee ; modificateur D (ou \\z) ; « A- B- » dans signatairesInvalides et chaque mot exigeant deux LETTRES."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Tags/TagModeration.php:46, :67, :104 ; app/Services/Geo/GeoReindexation.php",
+      "scenario": "Supprimer la réindexation du renommage OU de la fusion d'un équipement laisse tous les tests verts (aucun test d'équipement contre Meilisearch) alors que Property::toSearchableArray indexe les noms d'étiquettes. Réindexer seulement le premier bien laisse Geo + Tags verts (un seul bien par test).",
+      "gravite": "basse — le code est juste ; l'AC « réindexe » n'est prouvé que pour les quartiers, et pour un seul bien",
+      "correctif": "Un test d'équipement renommé puis cherché sous son nouveau nom (patron de GeoNeighborhoodMergeSearchTest), avec DEUX biens."
+    },
+    {
+      "fichier": ".github/workflows/web-ci.yml:20-51 et :52-75 (paths)",
+      "scenario": "Trois gardes front du lot D lisent un fichier de l'API : libelle-equipement.test.ts ↔ takussan-api/app/Services/Tags/TagCatalog.php, cout-d-entree.concordance.test.ts ↔ takussan-api/tests/fixtures/cout-d-entree.json, reconnaitre-position.test.ts ↔ takussan-api/tests/fixtures/liens-google-maps.json. Aucun de ces chemins ne déclenche web-ci : une PR qui n'ajoute un équipement QUE côté API passe ses CI, et l'équipement s'affiche en français en en/wo — la règle « les deux côtés qu'une garde compare doivent la déclencher » écrite deux fois dans ce même fichier. promotion-ci le rattrape à la promotion.",
+      "gravite": "basse",
+      "correctif": "Ajouter 'takussan-api/app/Services/Tags/TagCatalog.php' et 'takussan-api/tests/fixtures/**' aux deux listes paths."
+    },
+    {
+      "fichier": "takussan-api/app/Services/Geo/GeoLinkResolver.php:65 ; tests/Feature/Geo/GeoLinkResolverTest.php",
+      "scenario": "Retirer la restriction HOTES_APPELES (www.google.com, google.com, google.sn deviennent appelables) laisse les 14 tests verts. ADR-0062 §6 et le docblock : « une fiche www.google.com se lit, ne s'appelle pas ».",
+      "gravite": "basse — hôtes Google seulement",
+      "correctif": "Cas : redirection vers https://www.google.com/maps/place/x (sans coordonnées) → 422 et Http::assertSentCount(1)."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-form/__tests__/ChampsLieu.test.tsx:159-163",
+      "scenario": "Rendre la mention ODbL seulement quand AUCUNE ville n'est choisie — donc la masquer exactement quand la liste des quartiers OSM est servie — laisse ChampsLieu vert (10 passed) : le test rend le champ sans ville.",
+      "gravite": "basse",
+      "correctif": "Le test choisit une ville (la liste des quartiers servie) et cherche la mention."
+    },
+    {
+      "fichier": "takussan-api/tests/Feature/Api/Property/PropertyNumericBoundsTest.php:115-124",
+      "scenario": "Les plus grandes valeurs admises ne sont éprouvées qu'à la CRÉATION : UpdatePropertyRequest area max:2147483648 (borne+1, qui rendrait 500 à l'écriture) reste vert. Le comportement actuel est juste (mon scénario : 200 à la borne, 422 à borne+1, en modification).",
+      "gravite": "basse",
+      "correctif": "Rejouer les_plus_grandes_valeurs_admises en PUT, et borne+1 (2147483648, 1000000000000, an+4) des deux côtés."
+    },
+    {
+      "fichier": "takussan-api/app/Http/Requests/Api/UpdateTagRequest.php (type) ; app/Http/Controllers/Api/CustomerTagController.php:47 ; app/Services/Tags/TagModeration.php:42, :93-98",
+      "scenario": "(a) Super-admin : PUT /api/tags/{VIP crm} {type: amenity} → 200, puis merge vers WiFi → 200 : la garde tags.merge_source_invalid se contourne en deux temps, et les clients de VIP sont recopiés sur l'équipement. (b) Un agent tape « forage de a » sur un client : CustomerTagController reprend par nom, tous types confondus, la proposition d'ÉQUIPEMENT de A et l'attache au client ; un refus de cette proposition supprime alors aussi la liaison du client (taggables sans filtre de type), une fusion la recopie sur l'équipement cible.",
+      "gravite": "basse — (a) acte explicite du super-admin ; (b) recherche par nom antérieure au lot, mais le refus et la fusion du lot D agissent maintenant sur des clients",
+      "correctif": "(a) type non modifiable sur une étiquette rattachée, ou interdit de passer de crm à amenity ; (b) CustomerTagController ne reprend que des étiquettes crm (422 sinon, comme TagProposals) ; refus et fusion filtrés sur taggable_type = Property."
+    }
+  ],
+  "defauts_du_premier_refus": {
+    "1_pending_par_identifiant": "Corrigé (scénarios ci-dessus) ; reste non épinglé dans le cas réel (défaut 2) et contournable par show + nom (défaut 1).",
+    "2_traductions": "Corrigé : fr/en/wo = Str::slug PHP des 35 noms, formulaire et fiche publique, repli sur le nom en base ; un slug ajouté au catalogue rougit la parité (si web-ci tourne : défaut 6).",
+    "3_signature": "Corrigé sur l'essentiel (empreinte recalculée, toute modification après signature rougit, « x » et e-mail refusés) ; plancher de quartiers absent (défaut 3) et trous de forme (défaut 4).",
+    "4_design_sync": "Corrigé (exit 0 ; ablation → exit 1).",
+    "5_bornes_500": "Corrigé : aucun 500, bornes exactes acceptées et borne+1 refusée en création ET en modification ; borne en modification non épinglée (défaut 9).",
+    "6_fusion_crm": "Corrigé dans les deux sens ; contournement super-admin en deux temps (défaut 10a).",
+    "7_ablations_vertes": "http, préfixe, 429, renommage de quartier, Ziguinchor : rougissent sous mes ablations différentes ; restent vertes : HOTES_APPELES (défaut 7), réindexation des équipements et multi-biens (défaut 5).",
+    "prepareForValidation_Update": "Réfutation de l'implémenteur vérifiée : UpdatePropertyRequest étend Illuminate\\Foundation\\Http\\FormRequest (prepareForValidation vide) — rien n'est retiré."
+  },
+  "integrite": "Aucune écriture git. Aucune requête sortante (Http::fake des tests du dépôt ; mes scénarios n'appellent pas le résolveur). Ablations par Edit puis Edit inverse, md5 relus à la fin : GeoDatasetReviewedTest 5072270b, GeoLinkResolver d3c62e90, routes/api/geo.php df79009b, GeoReindexation 99a9de25, TagModeration 30dd5a84, SyncPropertyTagRequest 0ac63c57, StorePropertyRequest ed6f1833, UpdatePropertyRequest f75d22cf, TagCatalog 6e7dac96, PropertyAmenities ff5704f7, reconnaitre-position 270e09aa, ChampsLieu c43f2601, ChampsPosition 99eb5fdc, .design-sync/config.json 92dacd58. Jeu géographique : md5 de l'ensemble ca5caf04 avant/après, jamais signé ; signer.mjs lancé UNIQUEMENT sur la copie du scratchpad. Aucune suite entière lancée."
+}

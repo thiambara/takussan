@@ -28,11 +28,29 @@ vi.mock('@/lib/api', async () => {
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
+// sans `QueryClientProvider`.
+vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
 vi.mock('@/components/map', () => ({ PropertyMap: () => null }));
 vi.mock('@/components/favorites/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 vi.mock('@/components/property/PropertyCard', () => ({
-  PropertyCard: ({ property, transactionFiltree }: { property: { id: number }; transactionFiltree?: string }) => (
-    <article data-testid={`carte-${property.id}`} data-transaction-filtree={transactionFiltree ?? ''} />
+  PropertyCard: ({
+    property,
+    transactionFiltree,
+    robe,
+    badge,
+  }: {
+    property: { id: number };
+    transactionFiltree?: string;
+    robe?: string;
+    badge?: string | null;
+  }) => (
+    <article
+      data-testid={`carte-${property.id}`}
+      data-transaction-filtree={transactionFiltree ?? ''}
+      data-robe={robe}
+      data-badge={badge ?? undefined}
+    />
   ),
 }));
 
@@ -74,5 +92,90 @@ describe('TCK-555 — la grille de /properties', () => {
     parametres = new URLSearchParams('');
     render(withIntl(<PropertiesDiscoveryPage />));
     expect(await screen.findByTestId('carte-22')).toHaveAttribute('data-transaction-filtree', '');
+  });
+});
+
+/**
+ * TCK-635 — les places payées entrent DANS la grille des résultats, à la taille des autres
+ * cartes, et se distinguent par leur robe (retour du porteur du 2026-10-12). Elles restaient
+ * au-dessus, dans une rangée à part, sous une étiquette.
+ */
+describe('TCK-635 — les places payées dans la grille', () => {
+  function repondre(surcharge: Record<string, unknown> = {}) {
+    mockApiFetch.mockResolvedValue({
+      data: [
+        { id: 22, title: 'Villa', contract_type: 'rent', placement: 'reserved', badge: null },
+        { id: 23, title: 'Studio', contract_type: 'rent', placement: 'organic', badge: 'urgent' },
+      ],
+      sponsored: [{ id: 90, title: 'Sponsorisé', slug: 'bien-90', contract_type: 'sale', badge: null }],
+      facets: { locations: {}, bedrooms: {}, types: {} },
+      meta: { total: 2, per_page: 40, current_page: 1, last_page: 1 },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+      ...surcharge,
+    });
+  }
+
+  it('l’emplacement sponsorisé est une cellule de la grille, AVANT les biens organiques, en robe', async () => {
+    parametres = new URLSearchParams('');
+    repondre();
+    render(withIntl(<PropertiesDiscoveryPage />));
+    const organique = await screen.findByTestId('carte-22');
+    const sponsor = screen.getByTestId('carte-90');
+    const grille = organique.closest('[aria-busy]')!;
+    expect(grille).toContainElement(sponsor);
+    expect(sponsor.compareDocumentPosition(organique) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sponsor).toHaveAttribute('data-robe', 'sponsorise');
+    // Les conteneurs de l'emplacement sont `contents` : chaque `<li>` est une cellule de la grille.
+    const section = screen.getByRole('region', { name: 'Annonces sponsorisées' });
+    expect(section.className.split(/\s+/)).toContain('contents');
+    expect(section.querySelector('ul')!.className.split(/\s+/)).toContain('contents');
+  });
+
+  it('une place réservée porte la robe « vedette », un bien organique aucune ; le badge passe à la carte', async () => {
+    parametres = new URLSearchParams('');
+    repondre();
+    render(withIntl(<PropertiesDiscoveryPage />));
+    expect(await screen.findByTestId('carte-22')).toHaveAttribute('data-robe', 'vedette');
+    expect(screen.getByTestId('carte-23')).not.toHaveAttribute('data-robe');
+    expect(screen.getByTestId('carte-23')).toHaveAttribute('data-badge', 'urgent');
+  });
+
+  it('sans bien organique, aucun emplacement n’est rendu', async () => {
+    parametres = new URLSearchParams('city=Nulle-part');
+    repondre({ data: [], meta: { total: 0, per_page: 40, current_page: 1, last_page: 1 } });
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByText(/Aucun bien trouvé/);
+    expect(screen.queryByTestId('carte-90')).toBeNull();
+  });
+});
+
+describe('TCK-635 — la taille de page vit avec la pagination', () => {
+  function repondre(lastPage: number) {
+    mockApiFetch.mockResolvedValue({
+      data: [{ id: 22, title: 'Villa', contract_type: 'rent' }],
+      facets: { locations: {}, bedrooms: {}, types: {} },
+      meta: { total: lastPage * 40, per_page: 40, current_page: 1, last_page: lastPage },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+    });
+  }
+
+  it('une seule page : ni pagination ni taille de page', async () => {
+    parametres = new URLSearchParams('');
+    repondre(1);
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByTestId('carte-22');
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /par page/i })).toBeNull();
+  });
+
+  it('deux pages ou plus : la taille de page est à côté de la pagination, pas dans l’en-tête', async () => {
+    parametres = new URLSearchParams('');
+    repondre(3);
+    render(withIntl(<PropertiesDiscoveryPage />));
+    const parPage = await screen.findByRole('combobox', { name: /par page/i });
+    const pied = parPage.closest('[data-pied-de-liste]')!;
+    expect(pied).not.toBeNull();
+    expect(pied).toContainElement(screen.getByRole('navigation', { name: 'Pagination' }));
+    expect(parPage.closest('[data-rangee-outils]')).toBeNull();
   });
 });

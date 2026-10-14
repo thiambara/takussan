@@ -130,6 +130,30 @@ class PhoneLoginTest extends TestCase
         $this->assertSame([], $this->sms->sent);
     }
 
+    /**
+     * TCK-633 (lot C, tour 3) — l'entrée par téléphone ouvre une session : son `user` est posé tel
+     * quel par le front (`openSession`), il doit donc porter les clés « pour soi » comme
+     * `/api/auth/me`. Elles manquaient (`$request->user()` est nul à l'entrée) : la question
+     * WhatsApp n'était pas posée, et la phrase des CGU était proposée à tort.
+     */
+    public function test_la_reponse_porte_les_cles_pour_soi_comme_me(): void
+    {
+        $user = User::factory()->create(['phone' => self::NUMERO, 'phone_verified_at' => now(), 'phone_whatsapp' => true]);
+        $user->forceFill(['terms_accepted_at' => now(), 'terms_version' => '2026-10'])->save();
+
+        $reponse = $this->entrer(self::NUMERO)->assertOk()->assertJsonPath('user.id', $user->id);
+        $servi = $reponse->json('user');
+        foreach (['phone_whatsapp', 'secondary_phone', 'secondary_phone_verified_at', 'secondary_phone_whatsapp', 'terms_accepted_at'] as $cle) {
+            $this->assertArrayHasKey($cle, $servi, $cle);
+        }
+        $this->assertTrue($servi['phone_whatsapp']);
+        $this->assertNotNull($servi['terms_accepted_at']);
+
+        $this->app['auth']->forgetGuards();
+        $me = $this->withToken($reponse->json('token'))->getJson('/api/auth/me')->assertOk()->json();
+        $this->assertEqualsCanonicalizing(array_keys($me), array_keys($servi));
+    }
+
     private function entrer(string $numero): TestResponse
     {
         $this->postJson('/api/auth/phone/request-code', ['phone' => $numero])->assertStatus(202);

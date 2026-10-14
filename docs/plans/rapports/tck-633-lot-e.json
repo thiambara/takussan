@@ -1,0 +1,256 @@
+{
+  "verdict": "LIVRÉ — lot E complet (Tâches 1 à 13) : minimums chambres/salles de bain/étage, équipements en ET (décision 4), carte = liste (MapPublicPropertyRequest hérite des règles, FiltresDeLaCarte, parametresDeLaCarte), ville/quartier/équipements choisis dans les listes du référentiel, Meublé en trois états, Louer avant Acheter, essentiels + « Plus de filtres », puces de la barre qui n'écrasent plus une sélection multiple. Tous les tests du lot verts ; 22 ablations, toutes rouges puis restaurées md5 identique. Aucune écriture git.",
+  "charge": {
+    "hw.ncpu": 8,
+    "releves": [
+      "10:33 load 2.88 13.17 20.90 (début)",
+      "10:43 load 38.93 44.03 34.17 (autres agents)",
+      "11:03 load 98.07 49.70 31.87 (pendant vitest property)",
+      "11:13 load 7.72 25.71 29.95 (avant la passe backend)",
+      "11:16 load 3.60 16.25 25.27 (passe front finale)"
+    ]
+  },
+  "fichiers": {
+    "crees": [
+      "takussan-api/app/Services/Search/FiltresDeLaCarte.php",
+      "takussan-api/tests/Feature/Search/SearchMinimumFiltersTest.php",
+      "takussan-api/tests/Feature/Search/SearchAmenitiesAllRequiredTest.php",
+      "takussan-api/tests/Feature/Search/MapFiltersParityTest.php",
+      "takussan-web/src/lib/queries/referentiel-public.ts",
+      "takussan-web/src/lib/queries/__tests__/referentiel-public.test.tsx",
+      "takussan-web/src/components/search/ChoixDuReferentiel.tsx",
+      "takussan-web/src/components/search/__tests__/ChoixDuReferentiel.test.tsx",
+      "takussan-web/src/components/search/__tests__/doublure-choix-du-referentiel.tsx",
+      "takussan-web/src/components/search/__tests__/FilterSidebar.lot-e.test.tsx",
+      "takussan-web/src/lib/__tests__/recherche-publique.carte.test.ts",
+      "takussan-web/src/components/home/__tests__/Navbar.selection-multiple.test.tsx"
+    ],
+    "modifies": [
+      "takussan-api/app/Services/Search/PropertySearchService.php (co-tenu, Edit : minimums bedrooms/bathrooms/floor_number, tags en ET) md5 fee981dabda2b7b9fd22abd25c30bf41",
+      "takussan-api/app/Http/Controllers/Public/PublicPropertyController.php (co-tenu, Edit : map() délègue à FiltresDeLaCarte) md5 5822919dcf1333bc3ae2a33c4790789c",
+      "takussan-api/app/Http/Requests/Public/MapPublicPropertyRequest.php (hérite de SearchPublicPropertyRequest) md5 487c2e342ebabea04d155189fdff0c54",
+      "takussan-api/tests/Feature/Public/PropertySearchTest.php (test_filter_by_bedrooms_is_a_minimum)",
+      "takussan-api/tests/Feature/PublicPropertySearchFiltersTest.php (test_floor_number_filter_is_a_minimum)",
+      "takussan-api/tests/Feature/Search/SavedSearchCriteriaVocabularyTest.php (ligne floor_number, B=1)",
+      "takussan-web/src/components/search/FilterSidebar.tsx md5 1af687e682fd6f0357b50f6448b3707d",
+      "takussan-web/src/components/home/Navbar.tsx md5 c9242cd79a3702eb72987a5546f703d7",
+      "takussan-web/src/components/property/PropertiesDiscoveryPage.tsx (co-tenu, Edit : mapFilters = parametresDeLaCarte(...)) md5 867489cb8fb4435ce6771b7ac6f5abf8",
+      "takussan-web/src/lib/recherche-publique.ts (CLES_PROPRES_A_LA_LISTE, parametresDeLaCarte) md5 bc3e45c4116971394e51a419ca0e24c5",
+      "takussan-web/src/types/search.ts (puces « n+ », étage « … et + ») md5 e4c30dcb5efe3bede9ac56001ec6db2f",
+      "takussan-web/src/types/__tests__/search-filters.parity.test.ts",
+      "takussan-web/src/components/map/PropertyMap.tsx (docblock périmé seul)",
+      "takussan-web/src/lib/queries/properties.ts (docblock périmé seul)",
+      "takussan-web/src/messages/fr.json, en.json, wo.json (Edit ciblé sous search.filters.* seulement : floors, transaction, chips, furnished, place, amenityPicker, more)",
+      "takussan-web/src/test/__tests__/surface-publique.contraste.test.ts (entrée d'ardoise FilterSidebar retirée ; ENCRES_INVERSES 256 → 263 avec entrée datée et cause) md5 01015eef9f2be77d8730899403f1df5b",
+      "takussan-web/src/components/search/__tests__/FilterSidebar.test.tsx, FilterSidebar.retour.test.tsx, FilterSidebar.tiroir.test.tsx, attente-des-puces.test.tsx, SearchToolbar.test.tsx",
+      "takussan-web/src/components/property/__tests__/PropertiesDiscoveryPage.{carte-geo,carte-mobile,error,etat-vide,grille,outils,repli}.test.tsx (doublure de ChoixDuReferentiel ; carte-geo : paramètres de carte)"
+    ]
+  },
+  "tests": {
+    "base_rouge": "Avant toute édition : surface-publique.contraste « les deux trous déclarés sont COMPTÉS » 257 vs 256 (contact/ListeDeNumeros.tsx du lot C) — non imputable à E.",
+    "commandes": [
+      "php artisan test tests/Feature/Search tests/Feature/PublicPropertySearchFiltersTest.php tests/Feature/Public/{PropertySearchTest,PropertyListTest,PropertyMapTest,PropertyMapRadiusTest,HomepageDiscoveryTest,PropertyCitiesTest,PropertyNeighborhoodsTest}.php tests/Feature/Boost/{RankedOrderTest,ReservedTopResultsTest,SponsoredImpressionsTest,SponsoredRotationTest}.php tests/Feature/Api/Search/SearchSuggestTest.php → 362 passed (1575 assertions), 150 s (couvre les tests du lot F sur PropertySearchService / PublicPropertyController : classement et rotations sponsorisées intacts)",
+      "./vendor/bin/pint --test <10 fichiers PHP du lot> → passed",
+      "php bin/impacted-tests.php → SUITE ENTIÈRE (config/scout.php modifié par un autre lot) : non lancé, conformément à la règle",
+      "npx vitest run src/components/search → 18 fichiers, 172 passed",
+      "npx vitest run src/components/home → 124 passed",
+      "npx vitest run src/components/search src/components/home src/components/property src/components/map src/lib src/types src/hooks/__tests__/useSearch.{graine,geo}.test.ts src/test/__tests__/surface-publique.contraste.test.ts src/app/[locale]/(public) → 2636 passed, 2 failed hors lot E (property-dashboard/PropertyActions.publication.tck-633 ; lib/queries property-fields.coverage « agency », collision déjà déclarée par le lot D)",
+      "npx vitest run (consommateurs : src/app/[locale]/(public), admin, announcements, feedback, public, compare, legal, useSearch, lib) → 118 fichiers, 1314 passed",
+      "npx tsc --noEmit → exit 0",
+      "npx eslint <tous les fichiers du lot> → exit 0",
+      "npm run check:i18n → exit 0 (parité en 0/0, wo 0/0)",
+      "for g in scripts/check-*.mjs → 2 rouges hors lot E : check-design-sync-entry (ui/combobox.tsx du lot D non réexporté par .design-sync/entry/index.ts) ; check-models-spec (modèles neufs du lot F) ; gen-index --check vert"
+    ],
+    "intermittent": "src/components/property-dashboard/__tests__/PropertyDetailTabs.contacts.tck-633.test.tsx rouge 1 fois sur 3 sous load 98 (fichier neuf d'un autre lot, écrit pendant la passe) — hors lot E."
+  },
+  "ablations": [
+    "A1 PropertySearchService bedrooms >= -> = : rouges SearchMinimumFilters cinq_chambres, une_alerte ; PropertySearchTest filter_by_bedrooms_is_a_minimum (3 rouges). md5 fee981dabda2b7b9fd22abd25c30bf41 avant/apres (Edit inverse)",
+    "A2 PropertySearchService floor_number >= -> = : rouges quatrieme_etage, rez_de_chaussee, floor_number_filter_is_a_minimum (3) ; vocabulaire floor_number reste vert (B=1 ecarte aussi par egalite). md5 identique",
+    "A3 PropertySearchService tags ET -> OU (tableau imbrique) : rouges deux_equipements, une_alerte_a_deux (2). md5 identique",
+    "A4 MapPublicPropertyRequest retire 'sort' de CLES_PROPRES_A_LA_LISTE : rouges accepte_les_filtres (« sort » reste propre), PropertyMapRadiusTest::map_ne_declare_aucun_tri. md5 487c2e342ebabea04d155189fdff0c54 avant/apres (cp, territoire)",
+    "A5 FiltresDeLaCarte minimums >= -> = : rouge la_carte_lit_les_chambres_comme_un_minimum. md5 2103c6d777f325e18a2bbd7f47f0c2ba (cp)",
+    "A6 FiltresDeLaCarte adresseEgale sans repli de casse : rouge la_casse_de_la_ville (liste rend le bien pour city=dakar, carte []). md5 identique",
+    "A7 FiltresDeLaCarte tags ET -> OU (whereIn unique) : rouge jeu \"tags ET\". md5 identique",
+    "A8 PublicPropertyController map() appliquer() -> // ablation (Edit) : 21 rouges, verts seulement lat/lng/radius_km + 2 structurels + casse. md5 5822919dcf1333bc3ae2a33c4790789c avant/apres (Edit inverse)",
+    "A9 recherche-publique.ts retire 'sort' de CLES_PROPRES_A_LA_LISTE : 4 rouges (carte: retire q..., point sans rayon, contrat ; parite: meme des deux cotes). md5 bc3e45c4116971394e51a419ca0e24c5 (cp, territoire)",
+    "A10 PropertiesDiscoveryPage.tsx mapFilters remis a l'objet de 7 cles (Edit) : 2 rouges carte-geo (lat en nombre ; objet reduit). md5 867489cb8fb4435ce6771b7ac6f5abf8 avant/apres (Edit inverse)",
+    "A11 types/search.ts libelle bedrooms -> tags.bedrooms : 1 rouge SearchToolbar ('3 ch.'). md5 e4c30dcb5efe3bede9ac56001ec6db2f (cp)",
+    "A12 FilterSidebar CONTRACT_TYPE_VALUES ['rent','sale'] -> ['sale','rent'] : 1 rouge lot-e « propose Louer puis Acheter ». md5 dd0d7662197c975f512427c76e5985d0 (cp)",
+    "A13 FilterSidebar meubleVersChoix sans branche false : 1 rouge lot-e « Indifférent retire le filtre » (Non non pressé). md5 identique",
+    "A14 referentiel-public.ts amenities -> /api/tags + quartiers sans enabled : 2 rouges (quartiers attendent une ville ; equipements lus sans compte). md5 8a0ecb79cf4ef21d732b53c2390ce8fb (cp)",
+    "A15 ChoixDuReferentiel repli de casse retire (v.name === ville) : 1 rouge « quelle qu'en soit la casse ». md5 0483c46675414670dd143f63be4e3016 (cp)",
+    "A16 ChoixDuReferentiel optionsAvecLaValeur rend toujours les seuls noms : 1 rouge « hors referentiel reste affichee ». md5 identique",
+    "A17 FilterSidebar.tsx set({ city }) (quartier gardé) -> 1ère version du test VERTE (toHaveBeenCalledWith tient undefined = absent) ; test renforcé (clé location présente) -> rouge « choisir une ville… retire un quartier » + « re-choisir la même ville garde » ; mutation set({city, location: undefined}) -> rouge « re-choisir la même ville garde le quartier ». Restauration cp, md5 7078c723bafb5d0898dd2b9c7b181d34.",
+    "A18 FilterSidebar.tsx plusOuvert = plusOuvertChoisi ?? false -> 3 rouges (« ouvre le bloc d'office », « compte les filtres repliés actifs », attente-des-puces « Meublé attend »). Restauration cp, md5 1af687e682fd6f0357b50f6448b3707d.",
+    "A19 FilterSidebar.tsx bloc sans hidden -> 1 rouge « replié par défaut : les essentiels seuls sont visibles ». Restauration cp, md5 1af687e682fd6f0357b50f6448b3707d.",
+    "A20 Navbar.tsx `selection.length >= 99` -> 5 rouges (3 cas multiples de prochaineSelectionDeTypes, « s'y AJOUTE », « en est RETIRÉE »). Restauration cp, md5 c9242cd79a3702eb72987a5546f703d7.",
+    "A21 Navbar.tsx isActive = activeCategory === cat.type (x2) -> 1 rouge « les puces de la sélection multiple sont allumées ». Restauration cp, md5 c9242cd79a3702eb72987a5546f703d7.",
+    "A22 PropertySearchService bathrooms >= -> = (Edit) : 1 rouge « trois salles de bain et plus garde les biens qui en ont davantage ». Restauration Edit inverse, md5 fee981dabda2b7b9fd22abd25c30bf41."
+  ],
+  "ac": [
+    {
+      "ac": "AC6 — « 5+ chambres » trouve une maison de 6 chambres",
+      "preuve": "SearchMinimumFiltersTest::cinq_chambres… (liste) et MapFiltersParityTest jeu chambres (carte) ; ablations A1, A5"
+    },
+    {
+      "ac": "AC6 — carte et liste rendent le même compte pour les mêmes filtres",
+      "preuve": "MapFiltersParityTest (27 cas, dont tags ET, casse de la ville, minimums) ; recherche-publique.carte.test.ts et search-filters.parity.test.ts (mêmes clés des deux côtés) ; PropertiesDiscoveryPage.carte-geo.test.tsx ; ablations A4, A6–A10"
+    },
+    {
+      "ac": "AC6 — une ville se choisit, ne se tape plus",
+      "preuve": "FilterSidebar.lot-e.test.tsx « le panneau ne porte plus de champ de texte libre… », « choisir une ville la pose et retire un quartier… », « re-choisir la même ville garde le quartier » ; ChoixDuReferentiel.test.tsx (7) ; referentiel-public.test.tsx (3) ; ablations A14–A17"
+    },
+    {
+      "ac": "AC5 — Louer précède Acheter partout avec le même mot",
+      "preuve": "FilterSidebar.lot-e « propose Louer puis Acheter » (A12) ; le panneau lit search.filters.transaction.{rent,sale} = Louer/Acheter, Rent/Buy, Luwaa/Jënd — les mêmes mots que nav.rent/nav.buy du sélecteur de la barre (lot A, non retouché)"
+    },
+    {
+      "ac": "Delta — Meublé oui/non/indifférent",
+      "preuve": "FilterSidebar.lot-e describe « Meublé » (5 tests), attente-des-puces « le choix Meublé attend » ; A13"
+    },
+    {
+      "ac": "Delta — équipements en multi-sélection du catalogue approuvé, ET (décision 4)",
+      "preuve": "SearchAmenitiesAllRequiredTest (3, alertes comprises), MapFiltersParityTest « tags ET », ChoixDuReferentiel.test (retrait « Retirer Parking »), rappel « Biens offrant tous les équipements choisis » ; A3, A7"
+    },
+    {
+      "ac": "Delta — essentiels visibles + « Plus de filtres »",
+      "preuve": "FilterSidebar.lot-e describe « Plus de filtres » (6 tests) ; A18, A19"
+    },
+    {
+      "ac": "Delta — les puces de catégorie de la barre n'écrasent plus une sélection multiple",
+      "preuve": "Navbar.selection-multiple.test.tsx (11) ; Navbar.recherche / attente-categorie / transaction verts ; A20, A21"
+    },
+    {
+      "ac": "AC17 — ablation de chaque test neuf",
+      "preuve": "22 ablations (journal ci-dessus), chacune rouge puis restaurée md5 identique ; Edit puis Edit inverse sur les fichiers co-tenus, jamais cp"
+    }
+  ],
+  "ecarts_au_ticket": [
+    "Équipements en ET (décision 4 du porteur) et non en OU comme l'écrivait le plan de lot : buildFilter, FiltresDeLaCarte, alertes enregistrées, rappel affiché.",
+    "Équipements lus par GET /api/public/amenities (addendum) et non /api/tags.",
+    "API de la primitive combobox du lot D différente de celle du plan (Combobox/ComboboxMultiple maison, pas l'API shadcn) : l'adaptateur ChoixDuReferentiel est écrit contre elle ; clé ajoutée search.filters.amenityPicker.remove (« Retirer {name} ») exigée par ComboboxMultiple.retirer.",
+    "Rapport du lot D absent au démarrage : travail mené sur le code livré, comme demandé.",
+    "localhost:3000 ne répondait pas (curl → 000) : aucune vérification au navigateur.",
+    "Préexistant, non traité : la carte ignore q et les biens sans coordonnées — le compte carte = liste vaut à filtres égaux hors q.",
+    "Clés i18n devenues orphelines laissées en place (cityPlaceholder, quarterPlaceholder, furnishedOnly, amenitiesPlaceholder, amenitiesHint, search.tags.bedrooms/bathrooms/groundFloor/floor) : aucun script de génération lancé, dictionnaires édités seulement là où il fallait.",
+    "Test du plan ajusté : le placeholder du quartier se cherche par /^Quartier \\(ex/ ; le test « choisir une ville retire un quartier » est renforcé (clé location présente dans le patch) parce que toHaveBeenCalledWith tient une clé undefined pour absente — la première version restait verte sous ablation (A17).",
+    "A2 : la ligne floor_number de SavedSearchCriteriaVocabularyTest reste verte sous ablation (B=1 est écarté aussi par égalité) ; le minimum est prouvé par les deux autres tests rouges.",
+    "Carte des types de la barre : une puce allumée par type sélectionné (multi-sélection comprise), comme le plan."
+  ],
+  "collisions": [
+    {
+      "fichier": "takussan-web/src/test/__tests__/surface-publique.contraste.test.ts",
+      "nature": "territoire E (addendum) ; ENCRES_INVERSES = 263 compte AUSSI contact/ListeDeNumeros.tsx (lot C, +1) et ui/combobox.tsx (lot D, +7, entré par ChoixDuReferentiel). La valeur suppose ces deux fichiers commités avec le lot E ; relevé HEAD (git archive) contre arbre, numéros de ligne retirés : 7 différences, détaillées dans l'entrée datée."
+    },
+    {
+      "fichier": ".design-sync/entry/index.ts",
+      "nature": "hors territoire (lot D) : check-design-sync-entry rouge — ajouter export * from '../../takussan-web/src/components/ui/combobox';"
+    },
+    {
+      "fichier": "docs/models-spec.md",
+      "nature": "hors territoire (lot F) : check-models-spec rouge sur les modèles neufs du lot F."
+    },
+    {
+      "fichier": "takussan-web/src/lib/queries/__tests__/property-fields.coverage.test.ts",
+      "nature": "hors territoire : clé « agency » lue hors contrat (fetchDashboardProperty) — déjà déclaré par le lot D."
+    },
+    {
+      "fichier": "takussan-web/src/components/property-dashboard/__tests__/PropertyActions.publication.tck-633.test.tsx, PropertyDetailTabs.contacts.tck-633.test.tsx",
+      "nature": "hors territoire : rouges observés pendant la passe (fichiers neufs d'un autre lot en cours d'écriture)."
+    },
+    {
+      "fichier": "takussan-web/src/test/doublure-referentiel-geo.ts",
+      "nature": "non créé par le lot E (fichier neuf d'un autre lot) — à ne pas lui attribuer au commit."
+    }
+  ],
+  "commits_proposes": [
+    "feat(api): chambres, salles de bain et étage sont des minimums ; équipements en ET (TCK-633)",
+    "feat(api): la carte applique les filtres de la liste — MapPublicPropertyRequest hérite, FiltresDeLaCarte (TCK-633)",
+    "feat(web): la carte reçoit les filtres de la liste — parametresDeLaCarte (TCK-633)",
+    "feat(web): panneau — Louer d'abord, minimums, Meublé en trois états, listes du référentiel, « Plus de filtres » (TCK-633)",
+    "fix(web): les catégories de la barre n'écrasent plus une sélection multiple (TCK-633)",
+    "test(web): garde de contraste — entrée datée 256 → 263 (TCK-633)"
+  ],
+  "corrections_apres_verif": {
+    "date": "2026-10-12",
+    "charge": "hw.ncpu 8 ; uptime 11:42 : 15.05 9.76 13.89 ; 11:50 : 2.38 3.82 8.76 — autres agents actifs, aucune durée n'est une mesure du dépôt.",
+    "defauts_traites": [
+      {
+        "defaut": "D1 — la carte qui n'applique que le PREMIER équipement restait verte",
+        "fichiers": [
+          "takussan-api/tests/Feature/Search/MapFiltersParityTest.php"
+        ],
+        "tests": "ligne de données 'tags ET (premier seul)' : A offre Piscine+Parking, B Piscine seule, tags=Piscine,Parking → A seul des deux côtés, témoin → A et B",
+        "ablations": [
+          "FiltresDeLaCarte::equipements sur array_slice(…, 0, 1) (premier seul) → 1 rouge « tags ET (premier seul) » (V5 de la vérification, verte avant)",
+          "FiltresDeLaCarte::equipements sur array_slice(…, -1) (dernier seul) → 1 rouge « tags ET » (déjà gardé, rejoué)"
+        ],
+        "md5": "FiltresDeLaCarte 2103c6d7 avant/après (Edit puis Edit inverse)"
+      },
+      {
+        "defaut": "D2 — la carte qui ne garde que la DERNIÈRE valeur d'une liste en OU restait verte",
+        "fichiers": [
+          "takussan-api/tests/Feature/Search/MapFiltersParityTest.php"
+        ],
+        "tests": "test_une_liste_en_ou_garde_chacune_de_ses_valeurs (provider listesEnOu : type, condition) — trois biens, A porte la première valeur, C la seconde, B une troisième hors liste ; liste ET carte rendent [A, C]. Multi-valeurs du vocabulaire : type, condition (OU, cette méthode) et tags (ET, couvert par D1 et 'tags ET' dans les deux sens).",
+        "ablations": [
+          "FiltresDeLaCarte::parmi sur array_slice($valeurs, -1) (dernière seule, V6) → 2 rouges (type, condition)"
+        ],
+        "md5": "FiltresDeLaCarte 2103c6d7 avant/après"
+      },
+      {
+        "defaut": "D3 — CLES_REPLIEES écrite à la main, title_type retirable sans rouge",
+        "fichiers": [
+          "takussan-web/src/components/search/__tests__/FilterSidebar.place-des-filtres.test.tsx (neuf)",
+          "takussan-web/src/components/search/FilterSidebar.tsx (docblock de CLES_REPLIEES seul : renvoi à la garde)"
+        ],
+        "correctif": "Test exhaustif ancré dans le DOM, pas dans la liste : EXEMPLES typé Record<toutes les clés filtrantes> (une clé neuve = erreur tsc + rouge « chaque clé a son exemple ») ; chaque filtre est posé SEUL, le test relève les contrôles qu'il change (aria-pressed, valeur d'input, data-valeur(s), texte — la date comprise) par différence avec le panneau au repos, regarde s'ils sont dans le bloc `hidden` de « Plus de filtres », et en déduit : rangé → bloc ouvert d'office, puis « Plus de filtres (1) » une fois replié à la main ; visible → bloc fermé, « Plus de filtres » sans compte ; jamais les deux ; q hors panneau. 23 cas.",
+        "ablations": [
+          "'title_type' retiré de CLES_REPLIEES (V12c, verte avant) → 1 rouge « title_type » (« replié et actif : le bloc doit s'ouvrir »)",
+          "'bedrooms' (essentiel) ajouté à CLES_REPLIEES → 1 rouge « bedrooms » (le sens inverse)"
+        ],
+        "md5": "FilterSidebar 1af687e6 avant/après les ablations, puis 53c4b1eb après le seul docblock",
+        "choix": "Test exhaustif plutôt que dérivation : la place d'une section est dans le JSX, une dérivation aurait demandé de réécrire le rendu du panneau (co-tenu des tests du tiroir et du retour) pour un gain que le test donne déjà dans les deux sens."
+      },
+      {
+        "defaut": "Équipements du catalogue non traduits dans la recherche (réserve du lot D)",
+        "fichiers": [
+          "takussan-web/src/lib/libelle-equipement-par-nom.ts (neuf)",
+          "takussan-web/src/components/search/ChoixDuReferentiel.tsx (ChoixDEquipements : valeur = nom canonique, libellé traduit)",
+          "takussan-web/src/types/search.ts (TraducteursDeFiltre.equipement optionnel ; libellé de la puce `tags` nom par nom, joint par « , »)",
+          "takussan-web/src/components/search/SearchToolbar.tsx (PucesDeFiltres branche `equipement` — 5 lignes, barre ET état vide)",
+          "takussan-web/src/components/search/__tests__/ChoixDuReferentiel.test.tsx, SearchToolbar.test.tsx"
+        ],
+        "correctif": "libelleEquipementParNom(nom, t, catalogue?) : le slug vient de /api/public/amenities quand le nom y figure, sinon de slugDuCatalogue(nom) (règle Str::slug) — d'où des puces traduites sans QueryClient et un `tags=piscine` en minuscules lu comme la recherche le lit ; puis libelleEquipement du lot D (catalogue → t(slug), sinon le nom). La valeur de l'URL et ce que comparent Meilisearch et la carte ne changent pas. Aucune clé i18n ajoutée.",
+        "tests": "ChoixDuReferentiel +4 : en (« pool » trouve « Swimming pool », rend ['Piscine']), wo (« Pisin »), annonceur approuvé et hors catalogue tels quels (« Jardin potager », « Hammam maison »), retrait de la puce traduite rend les noms ; SearchToolbar +2 : en « Tags: Swimming pool, Jardin potager », wo « Tag : Pisin, Klimatisasioŋ » ; attendu fr mis à jour 'Tags : piscine,parking' → 'Tags : Piscine, Parking'. 5 rouges avant correctif (3 + 2, plus l'attendu fr).",
+        "ablations": [
+          "ChoixDEquipements : libellé = nom → 3 rouges",
+          "PucesDeFiltres : equipement = nom → 3 rouges",
+          "libelleEquipementParNom : un nom hors catalogue passé de force à t(slug) → 2 rouges (« tel quel », sidebar et puce)"
+        ],
+        "md5": "ChoixDuReferentiel ceea22a1, SearchToolbar 566562c0, libelle-equipement-par-nom 1f259e96 avant/après",
+        "reste": "SavedSearchesList (favoris) et PropertyListFilters (tableau de bord) appellent puceDeChaqueFiltreActif sans `equipement` : le nom s'y affiche tel quel (seul changement : les noms y sont désormais séparés par une virgule suivie d'une espace). Hors lot E, non branchés."
+      },
+      {
+        "defaut": "Lot F — SponsoredRotationTest::…parmi_les_vedettes_filtrees dépendait du tirage",
+        "fichiers": [
+          "takussan-api/tests/Feature/Boost/SponsoredRotationTest.php (accordé)"
+        ],
+        "correctif": "La graine mêle l'heure et les identifiants (nextval jamais rejoué) : un vivier hors filtres ne servait la vente qu'une fois sur trois. Deux constats indépendants du tirage, en tête : (1) contract_type=sale, une seule vedette éligible pour 2 emplacements → sponsored === [vente] (un vivier hors filtres comble forcément le second) ; (2) 10 emplacements → le tirage sert TOUTES les vedettes filtrées, exactement les 5 locations. Les assertions de forme (2 emplacements, placement, hors total, 3 en data) restent.",
+        "ablations": [
+          "featuredPool sur self::publicFilter() (V10, vivier sans filtres) → rouge au constat 1, trois exécutions sur trois",
+          "même ablation, constat 1 et sous-ensemble neutralisés dans le test (Edit puis Edit inverse, md5 77ceb8fb) → rouge au constat 2, deux sur deux"
+        ],
+        "md5": "PropertySearchService fee981da avant/après (Edit puis Edit inverse)"
+      }
+    ],
+    "verifications": {
+      "api": "php artisan test SponsoredRotationTest ReservedTopResultsTest MapFiltersParityTest → 38 passed (303 assertions) ; ./vendor/bin/pint sur les deux fichiers de test → passed",
+      "web": "npx vitest run src/components/search, PropertiesDiscoveryPage.*, src/components/favorites, src/types, libelle-equipement, recherche-publique.carte, surface-publique.contraste → 40 fichiers, 320 passed",
+      "tsc": "npx tsc --noEmit → exit 0",
+      "eslint": "8 fichiers touchés → exit 0",
+      "check_i18n": "exit 0 — parité en 0/0, wo 0/0 sur 8045 clés fr ; aucun dictionnaire modifié",
+      "integrite": "Aucune écriture git ; aucune suite entière ; aucune requête sortante ; co-tenus (PropertySearchService, FiltresDeLaCarte) touchés seulement par ablation Edit/Edit inverse, md5 relus ; PropertiesDiscoveryPage, PublicPropertyController et src/messages/*.json non touchés."
+    }
+  }
+}

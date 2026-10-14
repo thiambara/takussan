@@ -1,10 +1,9 @@
-import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Building2 } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
-import { isAdmin } from '@/lib/roles';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
 import { RegenerateWatermarksCard } from '@/components/admin-agency/RegenerateWatermarksCard';
 import { EmptyState, ErrorState } from '@/components/feedback';
@@ -21,11 +20,9 @@ import { PageHeader } from '@/components/console';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  await garderPageAdmin('/admin/agency');
   const tPage = await getTranslations('admin.pages.agencyConfig');
   const user = await getMeAction();
-  if (!isAdmin(user.roles)) {
-    redirect('/admin');
-  }
   const t = await getTranslations('agency.config');
 
   if (!user.agency_id) {
@@ -57,8 +54,10 @@ export default async function Page() {
       <PageHeader title={tPage('title')} description={tPage('subtitle')} />
       <AgencyConfigForm agency={result.data} />
       {/* HORS du `<form>` d'AgencyConfigForm, délibérément : un bouton posé dedans partage sa
-          soumission, et un `<form>` imbriqué n'est pas du HTML valide. */}
-      <RegenerateWatermarksCard agencyId={result.data.id} />
+          soumission, et un `<form>` imbriqué n'est pas du HTML valide.
+          TCK-633 — et seulement si le filigrane est allumé pour la plateforme : éteint (le
+          défaut), la carte promettait un filigrane qu'aucune photo ne recevrait. */}
+      {result.data.watermark_available === true ? <RegenerateWatermarksCard agencyId={result.data.id} /> : null}
     </div>
   );
 }

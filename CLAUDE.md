@@ -39,49 +39,27 @@ node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste de
 > [l'INDEX était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
 
 **Ce qui est vert.** Backend : Pint propre, suite entière verte sur PostgreSQL. Frontend : ESLint
-0 erreur, `tsc --noEmit` propre, suite verte. Les trois régressions qui vivaient sur `dev` au
-2026-08-12 — dont une violation Pint qui bloquait toute la CI depuis six semaines, Pint tournant
-*avant* les tests — sont corrigées.
+0 erreur, `tsc --noEmit` propre, suite verte.
 
-**Le temps de référence de la suite backend : 470 à 610 s**, deux mesures le 2026-08-22 (468 s puis
-612 s) sur ~2740 tests / ~8800 assertions / 0 échec, 8 cœurs, machine au repos. **La fourchette est
-le chiffre honnête.**
-
-⚠️ **« Au repos » est une condition de la mesure, pas une formule de style : le facteur mesuré est
-d'environ 11.** Un temps de suite pris sous charge ne dit rien du dépôt — il dit ce que la machine
-faisait d'autre. **Relever les trois moyennes d'`uptime` et `sysctl -n hw.ncpu` à côté du chiffre**,
-et ne pas se fier à la moyenne à 1 minute : elle retombe en premier.
-
-> Les quatre références successives (313 s, 204-235 s, 648 s, 470-610 s), ce qu'elles mesuraient et
-> pourquoi **elles ne se soustraient pas** : [J-09](docs/journal-des-corrections.md#j-09).
+**Temps de référence de la suite backend : 470 à 610 s** (2026-08-22, ~2740 tests, 8 cœurs,
+**machine au repos**). Sous charge, le facteur mesuré est d'environ ×11 : relever les trois moyennes
+d'`uptime` et `sysctl -n hw.ncpu` à côté de tout chiffre, sans se fier à la moyenne à 1 minute
+([les quatre références successives, qui ne se soustraient pas](docs/journal-des-corrections.md#j-09)).
 
 **La couverture est gardée par un cliquet à 86 %** sur les lignes de `app/`, évalué par
-`bin/coverage-gate.php` sur le clover (TCK-331). Dernière mesure : **86,9 %** le 2026-08-22.
-[L'historique des mesures et des resserrements](docs/journal-des-corrections.md#j-02).
+`bin/coverage-gate.php` sur le clover (TCK-331 ; 86,9 % le 2026-08-22 — [historique](docs/journal-des-corrections.md#j-02)).
 
-⚠️ **Ne pas resserrer le seuil sur une mesure locale.** Xdebug (local) et PCOV (CI) ne comptent pas
-les mêmes lignes exécutables : *resserrer un cliquet sur une mesure prise par un autre pilote, c'est
-fabriquer un rouge de CI qui n'apprend rien.* Le resserrement se décide sur un chiffre de CI.
+- ⚠️ **Ne pas resserrer le seuil sur une mesure locale** : Xdebug (local) et PCOV (CI) ne comptent
+  pas les mêmes lignes exécutables. Le resserrement se décide sur un chiffre de CI.
+- ⚠️ **`php artisan test --coverage --min=86` n'est PAS la forme de la CI et ne juge pas du
+  cliquet** : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas
+  mesuré la couverture* ([J-10](docs/journal-des-corrections.md#j-10)).
 
-⚠️ **`php artisan test --coverage --min=86` n'est PAS la forme de la CI et ne juge pas du cliquet** —
-deux défauts mesurés le rendent capable de dire « vert » sans avoir rien mesuré. Signature à
-retenir : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas mesuré
-la couverture.* [Le détail des deux défauts](docs/journal-des-corrections.md#j-10).
-
-**`--parallel` est validé, et deux agents peuvent la lancer en même temps** (TCK-321, TCK-322,
-TCK-334) — mesuré sur cinq paires simultanées sur la suite entière, 0 échec des deux côtés, cinq
-fois sur cinq. ⚠ Ça n'en fait pas la commande du quotidien : deux exécutions parallèles demandent
-16 cœurs à une machine qui en a 8. C'est le **rituel de fin de branche**, machine au repos ; pour la
-boucle quotidienne, `php bin/impacted-tests.php --run`.
-
-**`--parallel` n'est pas activé en CI, et c'est un résultat, pas un défaut** : le gain y est de
-×2,48 (mesuré), mais une seule exécution porte les tests **et** la couverture, et PCOV agrège mal
-entre processus. Le gain est réel et inutilisable dans la forme actuelle de la CI.
-
-> [Les trois causes successives qui ont bloqué `--parallel`](docs/journal-des-corrections.md#j-11)
-> — chacune masquait la suivante, et la dernière a montré qu'*un mécanisme d'isolation jamais
-> appelé n'échoue pas : un autre le couvre, plus mal, et le vert reste vert.*
-> [Le gain en CI et son obstacle](docs/journal-des-corrections.md#j-12).
+**`--parallel` est validé, y compris lancé par deux agents en même temps** (TCK-321, TCK-322,
+TCK-334), mais c'est le **rituel de fin de branche**, machine au repos — deux exécutions demandent
+16 cœurs à une machine qui en a 8. La boucle quotidienne reste `php bin/impacted-tests.php --run`.
+Il n'est **pas** activé en CI, et c'est un résultat : une seule exécution y porte les tests **et** la
+couverture, et PCOV agrège mal entre processus ([J-11](docs/journal-des-corrections.md#j-11), [J-12](docs/journal-des-corrections.md#j-12)).
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
@@ -207,70 +185,49 @@ lance elle-même, puis redonne l'artefact à l'agent.
 
 ## Environnement de développement
 
-`docker-compose.yml` sert **PostgreSQL 17 (avec pgvector), Meilisearch, Redis et Mailpit**. Chaque service couvre une
-divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée — le raisonnement, service
-par service, est dans l'en-tête du fichier.
+`docker-compose.yml` sert **PostgreSQL 17 (avec pgvector), Meilisearch, Redis et Mailpit** — le
+pourquoi de chaque service est dans l'en-tête du fichier.
 
-> **Le moteur est PostgreSQL 17 depuis le 2026-08-21** ([ADR-0020](docs/adr/0020-postgresql-sur-tous-les-environnements.md)),
-> sur tous les environnements, **suite de tests comprise**. Deux points de l'ADR gouvernent du code :
->
-> - L'image est `pgvector/pgvector:pg17` et non `postgres:17` — l'extension doit être *disponible*
->   partout dès maintenant, alors qu'aucune table ne l'utilise, sinon le motif se referme en silence
->   le jour du chatbot (TCK-344).
-> - La base est créée en `--encoding=UTF8 --locale=C` : collation **déterministe**, décision la plus
->   lourde de l'ADR, dont dépend le sens de six contraintes d'unicité sur texte.
+> **PostgreSQL 17 partout depuis le 2026-08-21, suite de tests comprise**
+> ([ADR-0020](docs/adr/0020-postgresql-sur-tous-les-environnements.md)). Deux points gouvernent du
+> code : l'image est `pgvector/pgvector:pg17` (l'extension doit être *disponible* avant qu'une table
+> l'utilise — TCK-344), et la base est créée en `--encoding=UTF8 --locale=C`, collation
+> **déterministe** dont dépend le sens de six contraintes d'unicité sur texte.
 >
 > ⚠️ **Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
-> d'installation — qui le vise.** C'est pourquoi la constante de `scripts/check-db-engine.mjs`
-> s'appelle **`CIBLE` et non `PROD`** : il n'existe **aucune** production PostgreSQL à mesurer
-> (D-04). [Le dépôt a tourné six semaines sur le mauvais moteur pour l'avoir
-> déduit](docs/journal-des-corrections.md#j-04).
+> d'installation — qui le vise.** D'où la constante **`CIBLE` et non `PROD`** de
+> `scripts/check-db-engine.mjs` : il n'existe aucune production PostgreSQL à mesurer (D-04).
+> [Six semaines sur le mauvais moteur](docs/journal-des-corrections.md#j-04).
 
-**Les ports sont décalés d'un cran** (5433, 7701, 6380, 1026/8026) : les ports canoniques étaient
-occupés par des installations natives brew et par un projet voisin. Le décalage rend les deux mondes
-simultanés au lieu d'exiger qu'on démonte l'existant.
+**Les ports sont décalés d'un cran** (5433, 7701, 6380, 1026/8026), pour cohabiter avec les services
+brew natifs. `./dev.sh doctor` signale un `.env` qui vise encore le port canonique : ce cas ne
+produit aucun rouge (ce sont les services brew qui répondent), mais plus rien de ce que
+`docker-compose.yml` garantit ne s'applique — `takussan-api/.env` est ignoré par git, le dépôt ne
+peut que l'afficher (D-48).
 
-**`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés.**
-`.env.example` ne reproduit **aucun** environnement existant : il livre `SCOUT_DRIVER=collection`
-quand la CI et la production indexent sur Meilisearch, et `CACHE_STORE=redis` sans que **lui-même** fournisse Redis — un développeur qui suit
-ce seul fichier, hors docker, obtient une application qui ne démarre pas. `.env.docker` aligne chaque
-driver sur celui de la production. `scripts/check-env-parity.mjs` garde la parité des **clés** entre
-les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison d'être
-deux), et `scripts/check-webhook-env-keys.mjs` garde ce que la parité ne peut pas voir : **une clé
-absente des DEUX fichiers est en parité parfaite** (TCK-296).
+**`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés** —
+il ne reproduit aucun environnement et ne démarre pas seul hors docker. `scripts/check-env-parity.mjs`
+garde la parité des **clés** (jamais des valeurs), `scripts/check-webhook-env-keys.mjs` ce qu'elle ne
+voit pas : une clé absente des DEUX fichiers (TCK-296).
 
-> ⚠️ **Le relevé des drivers réellement déclarés par les environnements déployés vit dans
-> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS** — il
-> était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
-> `CACHE_STORE=redis` n'est plus un écart avec la production depuis TCK-300.
-> [Détail](docs/journal-des-corrections.md#j-05). **Depuis le 2026-09-14, il est régénéré depuis
-> Dokploy** (ADR-0028 : l'environnement est un onglet, plus un `.env` sur un serveur — TCK-527) ;
-> les *clés* de chaque environnement sont dans `docs/infra/hebergement.md`.
+> ⚠️ **Les drivers réellement déclarés par les environnements déployés vivent dans
+> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS**
+> ([J-05](docs/journal-des-corrections.md#j-05)) — régénéré depuis Dokploy depuis le 2026-09-14 (TCK-527) ; les *clés* de
+> chaque environnement sont dans `docs/infra/hebergement.md`.
 
-`./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
-natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
-absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête qui meurt.
-
-> **`./dev.sh doctor` nomme aussi le cas inverse, depuis TCK-301** : un `.env` qui vise le port
-> CANONIQUE (5432 / 7700 / 6379 / 1025) alors que le dépôt publie le port décalé. Ce cas-là ne
-> produit *aucun* rouge — les services répondent, ce sont ceux de brew — mais rien de ce que
-> `docker-compose.yml` garantit ne s'applique alors : ni PostgreSQL 17, ni `--locale=C` (dont dépend
-> le sens des contraintes d'unicité sur texte), ni la disponibilité de pgvector, ni l'isolation de
-> l'index Meilisearch, ni Mailpit. `takussan-api/.env` est ignoré par git : aucun
-> fichier de ce dépôt ne peut corriger l'écart, seulement l'afficher (dette D-48).
+`./dev.sh` sonde ce que le `.env` déclare et nomme ce qui ne répond pas : sans lui, un service
+déclaré et absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête
+qui meurt.
 
 ## Workflow git
 
-**`dev` est la branche d'intégration**, et c'est aussi la branche par défaut du dépôt (mesuré :
-`gh api repos/thiambara/takussan -q .default_branch` → `dev`). Toutes les PR la ciblent — **les 10
-dernières fusionnées, sans exception**, plus de 24 au total.
+**`dev` est la branche d'intégration** et la branche par défaut du dépôt : toutes les PR la ciblent.
 
-**`master` n'est pas décorative : c'est elle qui sert le site public.** Un merge vers `master`
-déploie le front en production, via l'intégration Git Vercel — pas via un workflow de ce dépôt
-([ADR-0017](docs/adr/0017-deploiement-du-front-pilote-par-vercel.md),
-[`docs/infra/frontend-deploiement.md`](docs/infra/frontend-deploiement.md), qui portent le relevé
-mesuré et sa garde). Y pousser est donc une **action sortante** ; ce n'est pas un rangement de
-branche.
+**`master` sert le site public** : un merge vers `master` déploie le front en production par
+l'intégration Git Vercel ([ADR-0017](docs/adr/0017-deploiement-du-front-pilote-par-vercel.md),
+[`docs/infra/frontend-deploiement.md`](docs/infra/frontend-deploiement.md)). Y pousser est une
+**action sortante**, pas un rangement de branche. `master` est un ancêtre strict de `dev` : un
+merge y est un *fast-forward*.
 
 > ⚠️ **Depuis le 2026-09-13, [ADR-0028](docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md)
 > remplace ADR-0017 et la chaîne `deploy.yml` / `scripts/deploy.sh`** : l'API et le front tournent
@@ -278,91 +235,20 @@ branche.
 > sur GHCR et déploie la préproduction par `.github/workflows/images.yml` — vert seulement quand
 > l'URL publique rend le commit dans `X-Build-Sha`. **`master` reste servie par Vercel jusqu'à la
 > phase F du plan**, et cette phase se décide par une personne. Runbook et relevé :
-> [`docs/infra/hebergement.md`](docs/infra/hebergement.md). Les mesures datées ci-dessous décrivent
-> l'ancien serveur.
+> [`docs/infra/hebergement.md`](docs/infra/hebergement.md).
 
-⚠️ **Trois chiffres de ce paragraphe étaient faux, et ils l'étaient dans le sens qui rassure.
-Re-mesurés le 2026-08-20 :**
+**L'API n'a jamais servi en production, et le front public l'appelle quand même.** Le bundle de
+`www.takussan.com` porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` (inliné à la compilation,
+lisible dans les chunks servis) ; cet hôte pointe sur le VPS sans service derrière et **échoue sur
+la poignée de main TLS** (re-mesuré le 2026-09-14, TCK-523). C'est l'objet de
+[TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md) et de la phase F
+(TCK-517). Relevé et commande : [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui
+sert quoi ».
 
-| Ce que ce fichier écrivait | Mesuré le 2026-08-20 |
-|---|---|
-| `master` « figé au **2026-05-18** » | `git log -1 --format='%h %ad' --date=iso origin/master` → **`fefe2c87 2026-08-15 14:56:07 +0000`** (*Merge pull request #151 from thiambara/dev*) |
-| « **31 commits** derrière `dev` » | `git rev-list --count origin/master..origin/dev` → **273** |
-| « ne contient même pas la chaîne de déploiement » | `git cat-file -e origin/master:.github/workflows/deploy.yml` → **présent** |
-
-`master` reste un **ancêtre strict** de `dev` (`git rev-list --count origin/dev..origin/master` →
-**0**) : elle n'a aucun commit propre, un merge serait un *fast-forward*. C'est le seul point de
-l'ancien paragraphe qui ait tenu.
-
-**« La production n'a jamais été déployée » : vrai de l'API, FAUX du front — et il faut désormais
-les distinguer.**
-
-- **Le front EST en production, et il est public.** `https://www.takussan.com/` → **200**,
-  `https://takussan.com/` → **307** vers `www`. Vercel a produit **3 déploiements d'environnement
-  « Production »** (et 212 « Preview »), tous par `vercel[bot]`, et les 3 refs de Production sont
-  exactement les 3 derniers commits de `git log --first-parent origin/master`.
-- **L'API, elle, n'a jamais servi en production** — mais la raison a changé, et c'est le point
-  neuf. Ce n'est plus « `deploy.yml` n'a jamais tourné » : **il a tourné deux fois le 2026-08-15,
-  et les deux ont ÉCHOUÉ.**
-
-  ```
-  $ gh run list --workflow=deploy.yml --limit 10
-  completed  failure  Deploy Laravel API              master  workflow_dispatch  31894037166  53s  2026-08-15T15:54:29Z
-  completed  failure  Merge pull request #151 …       master  push               31891294106  48s  2026-08-15T14:56:11Z
-  $ gh run view 31891294106 --log-failed
-    SQLSTATE[HY000] [1045] Access denied for user 'takussan_prod'@'localhost' (using password: YES)
-    ERROR: Deployment failed (exit code: 1). Rolling back...
-    Removing failed release: /var/www/takussan/releases/20260815165630
-  ```
-
-  Le déploiement va jusqu'à `composer install` sur le serveur, meurt à `php artisan migrate --force`
-  sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
-  arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
-  `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
-
-  ⚠ **Re-mesuré le 2026-09-14, 22:42 Z (TCK-523) : ce serveur n'existe plus, et le 404 non plus.**
-  `api.takussan.com` pointe sur le nouveau VPS (ADR-0028), en DNS seul, **sans aucun service
-  derrière** : Traefik y présente `CN=TRAEFIK DEFAULT CERT`, et l'appel **échoue sur la poignée de
-  main TLS** — `curl` → `000` (`ssl_verify_result` 20), `-k` → `404`. Même effet pour l'utilisateur
-  du front public, jusqu'à la phase F (TCK-517). Relevé et commande :
-  [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi » ; le récit du
-  changement de serveur : [J-44](docs/journal-des-corrections.md#j-44).
-  ⚠ Ce journal ne disait **pas** de quel côté était l'écart — secret périmé, compte absent, *grant*
-  manquant se ressemblent tous ici. **La mesure a été prise le 2026-08-24, en se connectant, et
-  l'écart tient en un caractère :**
-
-  ```
-  $ grep DB_USERNAME /var/www/takussan/shared/.env      → takussan_prod   (13 caractères)
-  $ mysql -N -e 'SELECT user, LENGTH(user) FROM mysql.user WHERE user LIKE "takussan%";'
-    takussan_pre  12
-    takussan_pro  12                                    ← le compte qui EXISTE
-  $ mysql -N -e 'SHOW GRANTS FOR "takussan_pro"@"localhost";'
-    GRANT ALL PRIVILEGES ON `takussan_prod`.* TO `takussan_pro`@`localhost`
-  ```
-
-  La base existe, les droits sont posés — au nom d'un compte que le `.env` n'écrit pas. *Deux
-  identifiants qui diffèrent d'un caractère ne se vérifient pas en les relisant :* `LENGTH()` a
-  tranché en une commande ce que huit jours de relecture n'avaient pas attrapé. Le détail, et ce
-  que la bascule PostgreSQL y change, sont dans TCK-288.
-
-**Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
-public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404
-(qui échoue sur TLS depuis le 2026-09-13, voir ci-dessus).
-Re-mesuré le 2026-08-20 en téléchargeant les chunks servis par `www.takussan.com` — la valeur est
-inlinée à la compilation, elle est donc lisible sans accès à Vercel :
-
-```js
-let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
-```
-
-Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivait comme n'existant
-pas. C'est l'objet de [TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md),
-et cela relève la priorité de TCK-288.
-
-> ⚠️ **Une mesure sans sa date devient une croyance.** Chaque affirmation ci-dessus porte sa
-> commande et son 2026-08-20 : c'est ce qui permettra de savoir, la prochaine fois, ce qui est
-> périmé plutôt que de le supposer juste. Ce paragraphe a été faux deux fois, de la même manière —
-> [dont une fois DANS la correction qui l'énonçait](docs/journal-des-corrections.md#j-06).
+> ⚠️ **Une mesure sans sa date devient une croyance.** Ce paragraphe a été faux à plusieurs
+> reprises, toujours dans le sens qui rassure ([J-06](docs/journal-des-corrections.md#j-06)). Le relevé daté de l'ancien
+> serveur — `master`, les deux échecs de `deploy.yml`, le compte `takussan_pro` à un caractère
+> près — est en [J-45](docs/journal-des-corrections.md#j-45).
 
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.
@@ -382,8 +268,15 @@ déclenche pas tous. La liste se relit là, jamais ici :
 gh api repos/thiambara/takussan/branches/preview/protection -q .required_status_checks.contexts
 ```
 
+**Un arbre déjà éprouvé vert ne rejoue pas sa suite** ([ADR-0063](docs/adr/0063-attestation-de-ci-par-arbre.md),
+TCK-636) : `lint-and-test` et `quality` déposent un artefact `ci-vert-<suite>-<clé>`, la clé étant
+le `ls-tree` de ce que la suite **lit** ; le job `attestation` qui les précède les fait sauter
+quand il le trouve, et nomme le run qui a attesté. Le push du merge sur `dev` et la promotion
+sautent donc d'ordinaire ces deux jobs — sauté par `if:` vaut réussi pour un check requis. Toute
+incertitude rejoue. Images, rollback des migrations et gardes tournent toujours.
+
 ⚠ **`dev` n'est PAS protégée, et c'est voulu** : le step « Régénérer la carte d'impact »
-d'`api-ci.yml` (TCK-479) y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
+d'`api-ci.yml` (TCK-479), qui tourne **la nuit** depuis ADR-0063, y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
 `enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
 d'application, ou exception) — ticket à part si on la veut.
 
@@ -487,7 +380,7 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
 
    **Le gain principal n'est pas PostgreSQL, c'est que la base de test EST celle de la
    production.** La divergence « tests permissifs, production stricte » que le bloc de pièges
-   ci-dessous existait pour compenser **n'existe plus** : ce que la suite éprouve est ce
+   de l'API existait pour compenser **n'existe plus** : ce que la suite éprouve est ce
    que la production exécutera. Le job CI qui rejouait le DDL sur le moteur réel a donc changé de
    raison d'être — il ne garde plus que les `down()` (voir plus bas).
 
@@ -502,112 +395,12 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    par next-intl (`fr`/`en`/`wo`). *Tenu à 82 fichiers sur 875 : la règle est une intention, pas un
    état (dette D-24).*
 
-### Migrations — les pièges PostgreSQL, et ceux qui ont disparu
+### Migrations — les pièges PostgreSQL
 
-**Ce bloc a été entièrement remesuré le 2026-08-21, pendant la bascule.** Les pièges qu'il liste
-sont ceux que le chantier a réellement payés — pas une liste recopiée d'ailleurs. *Un piège qu'on
-n'a pas payé n'a pas sa place dans ce fichier : il fait perdre du temps à qui le lit sans jamais
-rien attraper.*
-
-1. **Une erreur ABANDONNE la transaction entière — et c'est le piège le plus coûteux.**
-   Après le moindre échec, PostgreSQL refuse toute commande jusqu'au `ROLLBACK` :
-   `SQLSTATE[25P02] current transaction is aborted, commands ignored until end of transaction
-   block`. MySQL et SQLite laissaient continuer.
-
-   Conséquence directe : **tout code qui attrape une exception SQL et poursuit dans la même
-   transaction est cassé.** Et comme `RefreshDatabase` enveloppe chaque test dans UNE transaction,
-   le message accuse la première requête innocente venue, jamais la coupable — dont l'erreur, elle,
-   n'apparaît que dans le journal du serveur :
-
-   ```bash
-   docker compose logs --since 2m postgres | grep ERROR | grep -v 25P02
-   ```
-
-   ```php
-   ❌ try { Modele::create($x); } catch (UniqueConstraintViolationException) { /* déjà là */ }
-   ✓ Modele::query()->insertOrIgnore($x + ['created_at' => $n, 'updated_at' => $n]);
-   ```
-
-   *Une exception attendue dans le cas NOMINAL n'est pas un mécanisme de contrôle.*
-
-2. **`FOR UPDATE` est refusé sur un agrégat.** `->lockForUpdate()->count()` et
-   `->lockForUpdate()->sum(…)` lèvent `SQLSTATE[0A000]`.
-
-   ⚠ **Ne pas corriger la syntaxe : corriger le verrou.** Verrouiller les lignes *existantes* ne
-   ferme aucune course d'INSERT concurrent — MySQL le faisait par un verrou d'intervalle en
-   REPEATABLE READ, effet de bord du moteur que personne n'avait écrit. Le point de sérialisation
-   portable est la **ligne parent** :
-
-   ```php
-   ❌ $total = $property->collaborators()->lockForUpdate()->sum('commission_share');
-   ✓ Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
-     $total = $property->collaborators()->sum('commission_share');
-   ```
-
-3. **Nom d'index/FK auto-généré > 63 caractères** — et PostgreSQL ne REFUSE pas, il **tronque**,
-   avec un simple `NOTICE`. L'index existe alors sous un nom que Laravel ne calculera jamais, et
-   c'est le `dropIndex()` d'une migration future qui échouera, sur un index « introuvable » qui est
-   pourtant là. La limite était 64 sous MySQL : **un nom de 64 exactement passait et ne passe
-   plus.**
-
-   ```php
-   ✓ $table->index(['long_col_1', 'long_col_2'], 'short_explicit_name_idx');
-   ✓ $table->foreignId('col')->constrained('table', 'id', 'short_fk_name');
-   ```
-
-4. **`jsonb`, jamais `json`.** Le type `json` de PostgreSQL n'a **aucun opérateur d'égalité** :
-   `DISTINCT`, `GROUP BY` et `UNION` y sont impossibles, et aucun index GIN ne s'y pose. Les 69
-   colonnes du dépôt sont en `jsonb` depuis ADR-0020. La conversion est gratuite tant que la table
-   est vide, et c'est un `ALTER` sous `ACCESS EXCLUSIVE` ensuite.
-
-5. **Une longueur de `VARCHAR` est APPLIQUÉE.** SQLite n'en appliquait aucune : un
-   `string('country', 2)` acceptait sept caractères, et un test pouvait asserter un comportement
-   que le schéma interdit. `SQLSTATE[22001] value too long`.
-
-6. **`nextval()` n'est pas transactionnel.** Le `ROLLBACK` de `RefreshDatabase` rend les lignes,
-   **jamais les numéros** : un identifiant ne repart pas à 1 au test suivant, contrairement à
-   SQLite. *Un identifiant écrit en dur dans un test n'affirme pas une valeur, il affirme une
-   propriété du moteur.*
-
-7. **Deux colonnes homonymes ne sont plus arbitrées en silence.** `select('t.*')` plus un
-   `withCount('relation')` dont l'alias porte le nom d'une colonne réelle rendent deux colonnes de
-   même nom : MySQL et SQLite en choisissaient une, PostgreSQL refuse
-   (`ORDER BY … is ambiguous`). Aliaser explicitement.
-
-8. **Une clé étrangère n'est PAS indexée automatiquement.** InnoDB créait un index sur toute
-   colonne portant une FK ; PostgreSQL non. Les 177 FK du dépôt étaient indexées gratuitement,
-   aucune ne l'est. À indexer **par mesure** (`EXPLAIN`) et non en masse — en commençant par les
-   colonnes `agency_id`, l'agence étant la frontière d'isolation. *C'est la contrepartie du piège
-   MySQL n°2 qui disparaît : plus rien ne refuse un `dropIndex`, et plus rien ne sert les
-   requêtes.*
-
-9. **`lower()` ne replie que l'ASCII — et c'est le piège qui a coûté le plus cher après coup.**
-   `lower()` emprunte la collation de son argument, et la base est en `--locale=C` (ADR-0020) :
-   `lower('CAFÉ')` rend **`cafÉ`**. Un index `LOWER(col)` posé pour refuser les variantes de casse
-   laisse donc passer `CAFÉ` à côté de `Café` — ce qui était le cas des trois index de
-   `2026_08_21_130000` pendant un jour, et de six requêtes applicatives.
-
-   ```php
-   ❌ ->whereRaw('LOWER(email) = ?', [strtolower($email)])      // ASCII des DEUX côtés
-   ✓ ->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)])
-   ```
-
-   **`App\Support\CaseInsensitive` porte la forme, et ses deux méthodes vont par paire** :
-   `sql()` rend `LOWER(col COLLATE "und-x-icu")`, `fold()` fait `mb_strtolower`. Replier d'un
-   seul côté déplace le défaut au lieu de le corriger — `strtolower()` de PHP est ASCII-only
-   exactement comme `lower()` nu ([ADR-0025](docs/adr/0025-repli-de-casse-par-collation-icu.md)).
-
-   ⚠ **Une requête doit écrire EXACTEMENT l'expression de l'index, sinon elle ne l'emprunte pas** :
-   mesuré sur 5000 lignes, `LOWER(name COLLATE "und-x-icu") = ?` rend un `Index Scan`, `LOWER(name)
-   = ?` un `Seq Scan`. Index et requêtes bougent ensemble ou pas du tout.
-
-   ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
-
-**Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
-par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite
-de 64 caractères (devenue 63, et silencieuse — voir n°3). L'interdiction d'`enum()` (ADR-0007)
-**reste**, mais pour sa raison propre : un `string()` plus un contrôle applicatif se fait évoluer,
-un type SQL énuméré non.
+**Les neuf pièges payés pendant la bascule vivent dans [`takussan-api/CLAUDE.md`](takussan-api/CLAUDE.md)**,
+§ « Migrations », chargé dès qu'on travaille dans l'API. Les deux à ne jamais oublier : une erreur
+SQL **abandonne la transaction entière** (pas de `try/catch` pour poursuivre — `insertOrIgnore`),
+et `lower()` ne replie que l'ASCII sous `--locale=C` (passer par `App\Support\CaseInsensitive`).
 
 ## Design & UI
 
