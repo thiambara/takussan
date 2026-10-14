@@ -1,7 +1,7 @@
 ---
 id: TCK-642
 title: Solde de crédits de l'espace affiché dans la navbar publique et la barre de /app
-status: review
+status: done
 phase: P1
 family: full
 estimate: M

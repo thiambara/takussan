@@ -1,7 +1,7 @@
 ---
 id: TCK-641
 title: Menu mobile de la navbar publique refait — sans Louer/Acheter, avec « Mes biens »
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

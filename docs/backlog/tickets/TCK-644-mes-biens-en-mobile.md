@@ -1,7 +1,7 @@
 ---
 id: TCK-644
 title: Page « Mes biens » repensée pour le mobile
-status: review
+status: done
 phase: P1
 family: front
 estimate: M
