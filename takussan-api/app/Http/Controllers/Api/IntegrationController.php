@@ -11,6 +11,7 @@ use App\Http\Resources\IntegrationResource;
 use App\Models\Integration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class IntegrationController extends Controller
 {
@@ -78,6 +79,19 @@ class IntegrationController extends Controller
             403,
             'integration.other_agency_forbidden'
         );
+
+        // TCK-640 — un couple (fournisseur, agence) n'a qu'une intégration vivante, celle de la plateforme
+        // (`agency_id` nul) comprise : l'index `integrations_provider_agency_live_unique` le garantit, ce
+        // contrôle le rend en 422 lisible plutôt qu'en 500. Il court APRÈS l'autorisation, pour ne pas
+        // apprendre à un tiers qu'une agence a configuré tel fournisseur.
+        if (Integration::query()
+            ->where('provider', $data['provider'])
+            ->when($agencyId === null, fn ($q) => $q->whereNull('agency_id'), fn ($q) => $q->where('agency_id', $agencyId))
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'provider' => __('validation.unique', ['attribute' => 'provider']),
+            ]);
+        }
 
         // TCK-078: the Integration model casts `credentials` as
         // `encrypted:array`, so Eloquent already serialises + encrypts on

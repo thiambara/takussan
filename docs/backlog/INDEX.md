@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**583 tickets** — 45 ouverts, 536 livrés.
+**584 tickets** — 45 ouverts, 537 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 536 |
+| ✅ Done | 537 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 536
+## ✅ Done — 537
 
 <details>
 <summary><strong>Vague 75 — Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)</strong> — 1 ticket</summary>
@@ -986,7 +986,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 34 tickets</summary>
+<summary><strong>Sans vague</strong> — 35 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1022,6 +1022,7 @@ _(aucun)_
 - [TCK-636](tickets/TCK-636-ci-attestation-par-arbre.md) — CI — un arbre déjà éprouvé vert ne rejoue pas sa suite (PR → dev, push sur dev, promotion), et la carte d'impact se régénère la nuit `M · P1 · technique`
 - [TCK-638](tickets/TCK-638-ci-api-ignore-markdown.md) — CI — une PR qui ne touche que de la documentation sous `takussan-api/` ne rejoue plus la suite backend `S · P2 · technique`
 - [TCK-639](tickets/TCK-639-registre-de-credits-trigger-strict-et-cles-indexees.md) — Registre de crédits : un mouvement ne se modifie que par l'action d'une clé étrangère, et les clés de TCK-633 sont indexées `S · P2 · back`
+- [TCK-640](tickets/TCK-640-lignes-globales-uniques-et-relations-executees.md) — Une clé de plateforme et une intégration globale sont uniques en base, et chaque relation de modèle s'exécute contre le schéma `S · P2 · back`
 
 </details>
 
