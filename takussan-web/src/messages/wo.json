@@ -4486,7 +4486,7 @@
       },
       "integrations": {
         "title": "Jokkale yi",
-        "subtitle": "Jottalikat yu biti (pey, SMS, imeel) ak seen webhook.",
+        "subtitle": "Jottalikat yu biti (pey, SMS, imeel) ak seen webhook. Sekere yi, duñu leen wonewaat bu ñu leen dencee.",
         "loadError": "Mënuñu yeb jokkale yi : {message}"
       }
     },

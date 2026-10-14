@@ -6262,7 +6262,7 @@
       },
       "integrations": {
         "title": "Intégrations",
-        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks.",
+        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks. Les secrets ne sont jamais ré-affichés après enregistrement.",
         "loadError": "Impossible de charger les intégrations : {message}"
       }
     },
