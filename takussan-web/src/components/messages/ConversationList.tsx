@@ -1,9 +1,11 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { BellOff, Building2, MessagesSquare, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatDate } from '@/lib/format';
@@ -27,9 +29,17 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-3" aria-busy="true">
+      // TCK-645 — le squelette a la forme d'une rangée (rond + deux lignes), pas d'une carte : sous
+      // `lg` la liste est d'un bord à l'autre, et des blocs arrondis y annonçaient une autre page.
+      <div className="divide-y divide-border" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-14 rounded-lg" />
+          <div key={i} className="flex items-center gap-3 px-4 py-3.5 lg:py-3">
+            <Skeleton className="size-12 shrink-0 rounded-full lg:size-10" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-2/3 rounded" />
+              <Skeleton className="h-3 w-1/2 rounded" />
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -45,11 +55,23 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
   const conversations = data?.data ?? [];
 
   if (conversations.length === 0) {
+    // TCK-645 — la liste EST déjà la surface : l'état vide n'y pose pas un second cadre (le
+    // pointillé d'`EmptyState` dans la carte de la page, relevé à 390 px), il remplit sa hauteur
+    // au lieu de flotter en haut d'un grand vide, et dit d'où vient une conversation. Ce qu'il dit
+    // est vrai dans le produit : le front ne crée en direct que des groupes ; un fil 1↔1 naît du
+    // bouton « Envoyer un message » d'une fiche d'annonce (`ChatDraftContext`), ou d'un tiers.
     return (
       <EmptyState
-        className="m-3"
+        data-testid="conversations-vide"
+        className="min-h-full border-0 bg-transparent px-6 py-12"
         icon={<MessagesSquare className="size-8" aria-hidden="true" />}
         title={t('list.empty')}
+        description={t('list.emptyHint')}
+        action={
+          <Link href="/properties" className={buttonVariants({ variant: 'outline' })}>
+            {t('list.emptyCta')}
+          </Link>
+        }
       />
     );
   }
@@ -100,13 +122,13 @@ function ConversationRow({
         onClick={() => onSelect(conversation.id)}
         aria-current={selected ? 'true' : undefined}
         className={cn(
-          'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+          'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 active:bg-muted lg:py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
           selected && 'bg-muted hover:bg-muted',
         )}
       >
         {isGroup ? (
           <div
-            className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            className="relative flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground lg:size-10"
             data-testid="group-avatar-stack"
           >
             <Users className="size-5" aria-hidden />
@@ -117,13 +139,13 @@ function ConversationRow({
             )}
           </div>
         ) : (
-          <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+          <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground lg:size-10">
             {conversation.property?.main_photo_url ? (
               <Image
                 src={conversation.property.main_photo_url}
                 alt=""
                 fill
-                sizes="40px"
+                sizes="48px"
                 className="object-cover outline -outline-offset-1 outline-foreground/10"
               />
             ) : (
@@ -136,7 +158,7 @@ function ConversationRow({
           <div className="flex items-center justify-between gap-2">
             <p
               className={cn(
-                'truncate text-sm',
+                'truncate text-base lg:text-sm',
                 unread > 0 ? 'font-semibold text-foreground' : 'text-foreground',
               )}
             >
@@ -165,7 +187,7 @@ function ConversationRow({
             )}
             <p
               className={cn(
-                'truncate text-xs',
+                'truncate text-sm lg:text-xs',
                 unread > 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
               )}
             >

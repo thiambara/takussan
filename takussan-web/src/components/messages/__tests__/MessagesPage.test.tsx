@@ -9,6 +9,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import frMessages from '@/messages/fr.json';
+import type { MyProfilesResponse } from '@/types/profile';
 import { MessagesPage } from '../MessagesPage';
 
 const searchParamsGet = vi.fn<(key: string) => string | null>();
@@ -43,7 +44,19 @@ vi.mock('../ChatView', () => ({
 }));
 
 vi.mock('../NewGroupDialog', () => ({
-  NewGroupDialog: () => null,
+  NewGroupDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="new-group-dialog" /> : null,
+}));
+
+/**
+ * TCK-645 — la réponse de `GET /api/me/profiles`. Par défaut un compte SANS profil (client) : le
+ * bouton « Nouveau groupe » lui était proposé avant ce ticket, et il l'est toujours.
+ */
+const mesProfils = vi.fn<() => { data: MyProfilesResponse | undefined }>(() => ({
+  data: { data: [], meta: { active_profile_id: null, count: 0 } },
+}));
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => mesProfils(),
 }));
 
 vi.mock('../PropertyDraftChatView', () => ({
@@ -84,7 +97,7 @@ function wrap(ui: React.ReactElement) {
 describe('<MessagesPage> deep-link', () => {
   it('opens the conversation given by the ?conversation= query param', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
     expect(screen.getByTestId('conv-list')).toHaveTextContent('selected=42');
@@ -92,7 +105,7 @@ describe('<MessagesPage> deep-link', () => {
 
   it('shows the empty-state when no ?conversation= param is present', () => {
     searchParamsGet.mockImplementation(() => null);
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
     expect(screen.getByText(/Sélectionnez une conversation/)).toBeInTheDocument();
@@ -102,7 +115,7 @@ describe('<MessagesPage> deep-link', () => {
     searchParamsGet.mockImplementation((key) =>
       key === 'conversation' ? 'abc' : null,
     );
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
   });
@@ -131,7 +144,7 @@ describe('<MessagesPage> ?property=', () => {
     resolution.mockReturnValue({
       data: { conversation_id: null, can_message: true, property: BIEN, recipient: null },
     });
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('chat-draft')).toHaveTextContent('draft=villa-almadies');
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
@@ -141,7 +154,7 @@ describe('<MessagesPage> ?property=', () => {
     resolution.mockReturnValue({
       data: { conversation_id: 77, can_message: true, property: BIEN, recipient: null },
     });
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=77');
     expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
@@ -151,7 +164,7 @@ describe('<MessagesPage> ?property=', () => {
     resolution.mockReturnValue({
       data: { conversation_id: null, can_message: false, property: BIEN, recipient: null },
     });
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
@@ -209,7 +222,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
 
   // AC1 — 390 px, aucune conversation choisie : la liste SEULE, sur toute la largeur.
   it('montre la liste seule quand aucune conversation n’est ouverte', () => {
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('conv-list')).toBeInTheDocument();
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
@@ -221,7 +234,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   // AC2 — une conversation ouverte occupe TOUTE la largeur : la liste n'est plus montée.
   it('montre la conversation seule, sans la liste, quand une conversation est ouverte', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
     expect(screen.queryByTestId('conv-list')).not.toBeInTheDocument();
@@ -230,7 +243,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   // AC3 — un lien `?conversation=` n'est pas un cul-de-sac.
   it('ramène à la liste depuis une conversation ouverte par ?conversation=', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     fireEvent.click(screen.getByTestId('chat-back-button'));
 
@@ -244,7 +257,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     resolution.mockReturnValue({
       data: { conversation_id: null, can_message: true, property: BIEN, recipient: null },
     });
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.queryByTestId('conv-list')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('chat-back-button'));
@@ -260,10 +273,10 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
    */
   it('ne rouvre pas la conversation de l’URL après un retour', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    const { rerender } = render(wrap(<MessagesPage />));
+    const { rerender } = render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     fireEvent.click(screen.getByTestId('chat-back-button'));
-    rerender(wrap(<MessagesPage />));
+    rerender(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('conv-list')).toBeInTheDocument();
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
@@ -273,7 +286,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   it('garde les deux panneaux côte à côte au-dessus du point de rupture', () => {
     largeurDeFenetre(1440);
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('conv-list')).toBeInTheDocument();
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
@@ -289,7 +302,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   it.each([768, 1023])('montre la conversation seule à %i px (tablette en portrait)', (largeur) => {
     largeurDeFenetre(largeur);
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
     expect(screen.queryByTestId('conv-list')).not.toBeInTheDocument();
@@ -299,7 +312,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   it('remonte les deux panneaux dès 1024 px', () => {
     largeurDeFenetre(1024);
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('conv-list')).toBeInTheDocument();
     expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
@@ -317,7 +330,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
    * tout en rouvrant deux colonnes à 768 px, là où le JS n'en remplit qu'une.
    */
   it('déclare la grille à deux colonnes à partir de lg, et une seule en dessous', () => {
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     const grille = screen.getByTestId('messagerie-grille');
     expect(grille).toHaveClass('grid-cols-1');
@@ -328,8 +341,13 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     expect(liste).toHaveClass('lg:border-r');
     expect(liste.className).not.toMatch(/\bmd:border-r\b/);
     // Contrainte 2 : `100vh` vaut la hauteur barre d'adresse RÉTRACTÉE sur un téléphone.
-    expect(grille.className).toContain('h-[calc(100dvh-12rem)]');
-    expect(grille.className).not.toContain('100vh');
+    // TCK-645 — la hauteur de bureau reste celle d'avant ; en dessous de `lg`, c'est le cadre de la
+    // page qui la porte (l'en-tête compact en fait partie), et la grille le remplit.
+    expect(grille).toHaveClass('lg:h-[calc(100dvh-12rem)]');
+    expect(grille).toHaveClass('flex-1');
+    const cadre = screen.getByTestId('messagerie');
+    expect(cadre.className).toMatch(/(^|\s)h-\[calc\(100dvh-[^\]]+\)\]/);
+    expect(cadre.className + grille.className).not.toContain('100vh');
   });
 
   /**
@@ -342,10 +360,177 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   it('borne la rangée de la grille pour que la liste et le fil défilent', () => {
     largeurDeFenetre(1440);
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
-    render(wrap(<MessagesPage />));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(screen.getByTestId('messagerie-grille')).toHaveClass('grid-rows-[minmax(0,1fr)]');
     expect(screen.getByRole('complementary')).toHaveClass('min-h-0');
     expect(screen.getByTestId('chat-view').closest('section')).toHaveClass('min-h-0');
+  });
+});
+
+
+/**
+ * TCK-645 — « Nouveau groupe » n'est pas proposé dans une agence `individual` (décision du porteur
+ * du 2026-10-14 : masquage côté front SEULEMENT, l'API garde sa règle de TCK-565).
+ *
+ * Le bouton existe en DEUX endroits du DOM — l'en-tête compact (sous `lg`) et la barre de la liste
+ * (au-dessus) —, l'un caché par CSS. jsdom n'applique aucune feuille : les deux sont montés ici,
+ * et c'est exactement ce qu'il faut pour que l'absence se juge sur LES DEUX.
+ */
+describe('<MessagesPage> « Nouveau groupe » selon l’agence du profil actif (TCK-645)', () => {
+  function profilActif(kind: 'standard' | 'individual' | null): MyProfilesResponse {
+    return {
+      data: [
+        {
+          id: 'agency_admin:5',
+          type: 'agency_admin',
+          numeric_id: 5,
+          agency_id: 12,
+          agency: { id: 12, name: 'Espace', slug: 'espace', kind },
+          status: 'active',
+          created_at: null,
+        },
+      ],
+      meta: { active_profile_id: 'agency_admin:5', count: 1 },
+    };
+  }
+
+  function boutons(): HTMLElement[] {
+    return screen.queryAllByRole('button', { name: /Nouveau groupe/ });
+  }
+
+  beforeEach(() => {
+    resolution.mockReturnValue(undefined);
+    searchParamsGet.mockImplementation(() => null);
+  });
+
+  // AC1
+  it('ne propose aucun bouton en agence individuelle', () => {
+    mesProfils.mockReturnValue({ data: profilActif('individual') });
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(boutons()).toHaveLength(0);
+    expect(screen.queryByTestId('new-group-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('new-group-button-compact')).not.toBeInTheDocument();
+  });
+
+  // AC2 — présent, et il ouvre la création.
+  it.each(['new-group-button', 'new-group-button-compact'])(
+    'propose le bouton en agence standard, qui ouvre la création (%s)',
+    (testId) => {
+      mesProfils.mockReturnValue({ data: profilActif('standard') });
+      render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+      expect(boutons()).toHaveLength(2);
+      expect(screen.queryByTestId('new-group-dialog')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByTestId(testId));
+      expect(screen.getByTestId('new-group-dialog')).toBeInTheDocument();
+    },
+  );
+
+  // Fail-closed : tant que le `kind` n'est pas lu, rien n'est proposé.
+  it.each([
+    ['profils pas encore chargés', undefined],
+    ['kind illisible', 'kind-null'],
+  ] as const)('ne propose rien quand %s', (_cas, etat) => {
+    mesProfils.mockReturnValue({ data: etat === undefined ? undefined : profilActif(null) });
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(boutons()).toHaveLength(0);
+  });
+
+  // Inchangé pour un compte sans agence : il voyait le bouton avant ce ticket.
+  it('propose toujours le bouton à un compte sans profil', () => {
+    mesProfils.mockReturnValue({ data: { data: [], meta: { active_profile_id: null, count: 0 } } });
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(boutons()).toHaveLength(2);
+  });
+});
+
+/**
+ * TCK-645 AC3 — à 390 px, la liste occupe la largeur de l'écran, sans carte encadrée imbriquée.
+ *
+ * jsdom ne calcule aucune mise en page : ce qui est gardé ici est la DÉCLARATION — le cadre arrondi
+ * et bordé n'existe qu'à partir de `lg`, la page déborde la gouttière de la coque en dessous, et
+ * l'en-tête compact remplace l'empilement titre / sous-titre / barre « Conversations ». La mesure au
+ * navigateur (360, 390, 1366) est rendue à la session principale.
+ */
+describe('<MessagesPage> mise en page mobile (TCK-645)', () => {
+  function largeurDeFenetre(largeurPx: number): void {
+    window.matchMedia = ((query: string) => {
+      const max = /\(max-width:\s*(\d+)px\)/.exec(query);
+      return {
+        matches: max !== null && largeurPx <= Number(max[1]),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      } as unknown as MediaQueryList;
+    }) as typeof window.matchMedia;
+  }
+
+  beforeEach(() => {
+    resolution.mockReturnValue(undefined);
+    searchParamsGet.mockImplementation(() => null);
+    mesProfils.mockReturnValue({ data: { data: [], meta: { active_profile_id: null, count: 0 } } });
+    largeurDeFenetre(390);
+  });
+
+  /** Les classes SANS préfixe de point de rupture : ce qui s'applique à 390 px. */
+  function classesDeBase(el: HTMLElement): string[] {
+    return el.className.split(/\s+/).filter((c) => c && !c.includes(':'));
+  }
+
+  it('ne pose ni bordure complète ni arrondi sur la grille en dessous de lg', () => {
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    const base = classesDeBase(screen.getByTestId('messagerie-grille'));
+    expect(base).not.toContain('border');
+    expect(base.some((c) => c.startsWith('rounded'))).toBe(false);
+    // …et les retrouve au-dessus : le bureau est inchangé.
+    const grille = screen.getByTestId('messagerie-grille');
+    expect(grille).toHaveClass('lg:rounded-xl', 'lg:border');
+  });
+
+  it('déborde la gouttière horizontale de la coque en dessous de lg, et seulement là', () => {
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    const cadre = screen.getByTestId('messagerie');
+    // Couplé à `px-4 md:px-6` du `<main>` d'AppShell — cf. le commentaire du composant.
+    expect(cadre).toHaveClass('-mx-4', 'md:-mx-6', 'lg:mx-0');
+  });
+
+  it('remplace l’empilement titre / sous-titre / barre par un en-tête compact', () => {
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    const compact = screen.getByTestId('messagerie-entete-compact');
+    expect(compact).toHaveClass('lg:hidden');
+    expect(compact).toHaveTextContent('Messagerie');
+    expect(compact).not.toHaveTextContent('Vos conversations');
+    // L'en-tête de bureau et la barre « Conversations » ne s'affichent qu'à partir de lg.
+    expect(screen.getByTestId('messagerie-entete-bureau')).toHaveClass('hidden', 'lg:block');
+    expect(screen.getByTestId('messagerie-barre-liste')).toHaveClass('hidden', 'lg:flex');
+  });
+
+  it('retire l’en-tête compact quand une conversation occupe l’écran', () => {
+    searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(screen.getByTestId('chat-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('messagerie-entete-compact')).not.toBeInTheDocument();
+  });
+
+  it('garde l’en-tête de bureau et ses libellés au-dessus de lg', () => {
+    largeurDeFenetre(1440);
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    const bureau = screen.getByTestId('messagerie-entete-bureau');
+    expect(bureau).toHaveTextContent('Messagerie');
+    expect(bureau).toHaveTextContent('Vos conversations');
+    expect(screen.getByTestId('messagerie-barre-liste')).toHaveTextContent('Conversations');
   });
 });
