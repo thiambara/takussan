@@ -34,10 +34,10 @@ import {
   type SettingFormValues,
 } from '@/lib/schemas/setting';
 import {
-  deleteSettingAction,
-  updateSettingAction,
-  upsertSettingAction,
-} from '@/app/actions/admin-settings';
+  deleteConsoleSettingAction,
+  updateConsoleSettingAction,
+  upsertConsoleSettingAction,
+} from '@/app/actions/console';
 import type { Setting, SettingScope } from '@/types/setting';
 
 /**
@@ -101,7 +101,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
       }
       const payload = parseSettingRawValue(editingValue);
       startTransition(async () => {
-        const result = await updateSettingAction(setting.id, payload);
+        const result = await updateConsoleSettingAction(setting.id, payload);
         if (!result.ok) {
           setRowError({ id: setting.id, message: result.message });
           return;
@@ -120,7 +120,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
     const ok = window.confirm(t('confirmDelete', { key: setting.key }));
     if (!ok) return;
     startTransition(async () => {
-      const result = await deleteSettingAction(setting.id);
+      const result = await deleteConsoleSettingAction(setting.id);
       if (!result.ok) {
         setRowError({ id: setting.id, message: result.message });
         return;
@@ -135,7 +135,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
       values: SettingFormValues,
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
       const parsedValue = parseSettingRawValue(values.value);
-      const result = await upsertSettingAction({
+      const result = await upsertConsoleSettingAction({
         key: values.key.trim(),
         scope: values.scope,
         value: parsedValue,

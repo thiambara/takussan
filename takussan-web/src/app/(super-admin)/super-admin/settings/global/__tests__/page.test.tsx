@@ -16,7 +16,7 @@ const redirect = vi.fn((url: string) => {
   throw new Error(`NEXT_REDIRECT:${url}`);
 });
 const getMeOperateurAction = vi.fn();
-const fetchSettingsAction = vi.fn();
+const fetchConsoleSettingsAction = vi.fn();
 const gestionnaire = vi.fn();
 
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
@@ -26,8 +26,8 @@ vi.mock('next/link', () => ({
 }));
 // La console lit l'identité de l'OPÉRATEUR, jamais celle d'une cible impersonnée (TCK-600).
 vi.mock('@/app/actions/auth', () => ({ getMeOperateurAction: () => getMeOperateurAction() }));
-vi.mock('@/app/actions/admin-settings', () => ({
-  fetchSettingsAction: (params: unknown) => fetchSettingsAction(params),
+vi.mock('@/app/actions/console', () => ({
+  fetchConsoleSettingsAction: (params: unknown) => fetchConsoleSettingsAction(params),
 }));
 vi.mock('@/components/admin-settings/SettingsManager', () => ({
   SettingsManager: (props: { initialSettings: Setting[]; canManageGlobal: boolean }) => {
@@ -57,23 +57,23 @@ describe('/super-admin/settings/global — AC1 : le super-admin lit et modifie',
   beforeEach(() => {
     redirect.mockClear();
     gestionnaire.mockClear();
-    fetchSettingsAction.mockReset();
+    fetchConsoleSettingsAction.mockReset();
     getMeOperateurAction.mockResolvedValue(operateur(['super_admin']));
   });
 
   it('rend l’éditeur avec les lignes lues, et le droit d’écrire le global', async () => {
-    fetchSettingsAction.mockResolvedValue({ ok: true, data: { data: [LIGNE] } });
+    fetchConsoleSettingsAction.mockResolvedValue({ ok: true, data: { data: [LIGNE] } });
 
     expect(await destination()).toBeNull();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Paramètres globaux' })).toBeInTheDocument();
     expect(screen.getByTestId('gestionnaire')).toHaveTextContent('maintenance_mode');
     expect(gestionnaire).toHaveBeenCalledWith(expect.objectContaining({ canManageGlobal: true }));
-    expect(fetchSettingsAction).toHaveBeenCalledWith({ perPage: 100 });
+    expect(fetchConsoleSettingsAction).toHaveBeenCalledWith({ perPage: 100 });
   });
 
   it('se présente comme le voisin des Paramètres plateforme, et y mène', async () => {
-    fetchSettingsAction.mockResolvedValue({ ok: true, data: { data: [] } });
+    fetchConsoleSettingsAction.mockResolvedValue({ ok: true, data: { data: [] } });
 
     await destination();
 
@@ -84,7 +84,7 @@ describe('/super-admin/settings/global — AC1 : le super-admin lit et modifie',
   });
 
   it('un échec de lecture rend l’état d’erreur, pas un éditeur vide', async () => {
-    fetchSettingsAction.mockResolvedValue({ ok: false, message: 'boum' });
+    fetchConsoleSettingsAction.mockResolvedValue({ ok: false, message: 'boum' });
 
     await destination();
 
@@ -96,7 +96,7 @@ describe('/super-admin/settings/global — AC1 : le super-admin lit et modifie',
 describe('/super-admin/settings/global — AC2 : réservée au super_admin', () => {
   beforeEach(() => {
     redirect.mockClear();
-    fetchSettingsAction.mockReset();
+    fetchConsoleSettingsAction.mockReset();
   });
 
   it.each([
@@ -106,6 +106,6 @@ describe('/super-admin/settings/global — AC2 : réservée au super_admin', () 
     getMeOperateurAction.mockResolvedValue(operateur([...roles]));
 
     expect(await destination()).toBe('/super-admin');
-    expect(fetchSettingsAction).not.toHaveBeenCalled();
+    expect(fetchConsoleSettingsAction).not.toHaveBeenCalled();
   });
 });

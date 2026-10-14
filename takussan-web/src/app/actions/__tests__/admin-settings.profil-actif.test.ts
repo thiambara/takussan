@@ -113,13 +113,8 @@ describe('TCK-370 — /app/agency/integrations pour un agency_admin multi-agence
  * le dernier test de ce fichier refuse.
  */
 const LES_DIX: readonly (readonly [string, () => Promise<unknown>])[] = [
-  ['fetchSettingsAction', () => actions.fetchSettingsAction({})],
-  [
-    'upsertSettingAction',
-    () => actions.upsertSettingAction({ key: 'k', scope: 'agency', value: {} }),
-  ],
-  ['updateSettingAction', () => actions.updateSettingAction(1, {})],
-  ['deleteSettingAction', () => actions.deleteSettingAction(1)],
+  // TCK-650 — les quatre actions de l'éditeur brut des paramètres ont rejoint `console.ts`, au jeton
+  // de l'opérateur : `console.jeton-operateur.test.ts` les garde.
   ['fetchIntegrationsAction', () => actions.fetchIntegrationsAction()],
   [
     'createIntegrationAction',

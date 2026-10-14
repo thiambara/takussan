@@ -9,17 +9,12 @@ import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   createIntegration,
   deleteIntegration,
-  deleteSetting,
   fetchIntegrations,
   fetchIntegrationWebhookEndpoint,
   fetchPaymentProviderSchemas,
-  fetchSettings,
   rotateIntegrationWebhookEndpoint,
   testIntegration,
   updateIntegration,
-  updateSetting,
-  upsertSetting,
-  type FetchSettingsParams,
 } from '@/lib/queries/settings';
 import type { IntegrationFormPayload } from '@/lib/schemas/setting';
 import type {
@@ -27,13 +22,15 @@ import type {
   IntegrationTestResult,
   IntegrationWebhookEndpoint,
   PaymentProviderSchema,
-  Setting,
-  SettingScope,
 } from '@/types/setting';
 import type { PaginatedResponse } from '@/types/api';
 
 /**
  * Admin settings & integrations server actions — TCK-068.
+ *
+ * TCK-650 — l'éditeur brut des paramètres globaux a quitté ce module pour `console.ts` : c'est un
+ * écran de la console, qui agit au jeton de l'opérateur. Ne restent ici que les intégrations de
+ * l'agence, page de l'espace applicatif (`/app/agency/integrations`).
  *
  * ⚠️ **Chaque appel passe `await getActiveProfileId()`, sans exception.**
  *
@@ -101,63 +98,6 @@ async function requireToken(): Promise<
     };
   }
   return { ok: true, token };
-}
-
-export async function fetchSettingsAction(
-  params: FetchSettingsParams = {},
-): Promise<ActionResult<PaginatedResponse<Setting>>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await fetchSettings(auth.token, params, await getActiveProfileId());
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function upsertSettingAction(payload: {
-  key: string;
-  scope: SettingScope;
-  value: Record<string, unknown>;
-  scope_id?: number | null;
-}): Promise<ActionResult<Setting>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await upsertSetting(auth.token, payload, await getActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function updateSettingAction(
-  settingId: number,
-  value: Record<string, unknown>,
-): Promise<ActionResult<Setting>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await updateSetting(auth.token, settingId, value, await getActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function deleteSettingAction(settingId: number): Promise<ActionResult<void>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    await deleteSetting(auth.token, settingId, await getActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
 }
 
 export async function fetchIntegrationsAction(): Promise<

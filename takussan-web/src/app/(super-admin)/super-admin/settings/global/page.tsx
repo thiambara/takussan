@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { SlidersHorizontal } from 'lucide-react';
 
 import { getMeOperateurAction } from '@/app/actions/auth';
-import { fetchSettingsAction } from '@/app/actions/admin-settings';
+import { fetchConsoleSettingsAction } from '@/app/actions/console';
 import { SettingsManager } from '@/components/admin-settings/SettingsManager';
 import { PageHeader } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
@@ -43,7 +43,7 @@ export default async function Page() {
   }
 
   const t = await getTranslations('superAdmin.pages.globalSettings');
-  const result = await fetchSettingsAction({ perPage: 100 });
+  const result = await fetchConsoleSettingsAction({ perPage: 100 });
   const settings = result.ok && result.data ? result.data.data : [];
 
   return (

@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 44 |
+| 📋 Todo | 43 |
 | 🚧 Doing | 1 |
-| 👀 Review | 10 |
+| 👀 Review | 11 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 537 |
 | 🗑️ Obsolete | 2 |
@@ -76,7 +76,6 @@
 - [TCK-619](tickets/TCK-619-gardes-de-test-qu-une-mutation-traverse.md) — Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596) `S · P2 · technique`
 - [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 - [TCK-637](tickets/TCK-637-ci-parallele-couverture-decouplee.md) — CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests `M · P2 · technique`
-- [TCK-650](tickets/TCK-650-console-au-jeton-operateur.md) — Les paramètres globaux et les étiquettes de la console agissent au jeton de l'opérateur `S · P1 · front`
 
 ## 🚧 Doing
 
@@ -94,6 +93,7 @@
 - [TCK-647](tickets/TCK-647-tableau-de-bord-agence-unique.md) — Un seul tableau de bord d'agence — /app/overview/agency absorbe celui de /admin `M · P1 · front`
 - [TCK-648](tickets/TCK-648-pages-super-admin-hors-de-admin.md) — Les deux pages super-admin de /admin rejoignent /super-admin `S · P1 · front`
 - [TCK-649](tickets/TCK-649-administration-d-agence-dans-app.md) — L'administration d'agence s'ouvre dans /app (/app/agency/*) — /admin supprimé `L · P1 · full`
+- [TCK-650](tickets/TCK-650-console-au-jeton-operateur.md) — Les paramètres globaux et les étiquettes de la console agissent au jeton de l'opérateur `S · P1 · front`
 
 ## ⛔ Blocked
 

@@ -6,12 +6,12 @@ import { withIntl } from '@/test/intl';
 import type { Setting } from '@/types/setting';
 import { SettingsManager } from '../SettingsManager';
 
-const updateSettingAction = vi.fn();
+const updateConsoleSettingAction = vi.fn();
 
-vi.mock('@/app/actions/admin-settings', () => ({
-  updateSettingAction: (id: number, payload: unknown) => updateSettingAction(id, payload),
-  upsertSettingAction: vi.fn(),
-  deleteSettingAction: vi.fn(),
+vi.mock('@/app/actions/console', () => ({
+  updateConsoleSettingAction: (id: number, payload: unknown) => updateConsoleSettingAction(id, payload),
+  upsertConsoleSettingAction: vi.fn(),
+  deleteConsoleSettingAction: vi.fn(),
 }));
 
 const GLOBALE = {
@@ -24,11 +24,11 @@ const GLOBALE = {
 
 /**
  * TCK-648 (AC1) — depuis `/super-admin/settings/global`, le super-admin MODIFIE une clé globale :
- * l'éditeur envoie la valeur saisie à `updateSettingAction` et affiche la ligne à jour.
+ * l'éditeur envoie la valeur saisie à `updateConsoleSettingAction` et affiche la ligne à jour.
  */
 describe('<SettingsManager> — modification d’une clé globale', () => {
   it('un super-admin modifie une clé globale', async () => {
-    updateSettingAction.mockResolvedValue({ ok: true, data: { ...GLOBALE, value: { value: 42 } } });
+    updateConsoleSettingAction.mockResolvedValue({ ok: true, data: { ...GLOBALE, value: { value: 42 } } });
     const user = userEvent.setup();
     render(withIntl(<SettingsManager initialSettings={[GLOBALE]} canManageGlobal />));
 
@@ -38,7 +38,7 @@ describe('<SettingsManager> — modification d’une clé globale', () => {
     await user.type(saisie, '42');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    expect(updateSettingAction).toHaveBeenCalledWith(7, { value: 42 });
+    expect(updateConsoleSettingAction).toHaveBeenCalledWith(7, { value: 42 });
     expect(await screen.findByText('Paramètre « support_email » mis à jour.')).toBeInTheDocument();
   });
 
