@@ -1,7 +1,7 @@
 ---
 id: TCK-645
 title: Messagerie repensée pour le mobile, « Nouveau groupe » masqué en agence individuelle
-status: review
+status: done
 phase: P1
 family: front
 estimate: M

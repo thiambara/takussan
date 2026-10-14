@@ -1,7 +1,7 @@
 ---
 id: TCK-646
 title: Menu du shell /app — six entrées en tête, dans l'ordre du porteur
-status: review
+status: done
 phase: P1
 family: front
 estimate: S
