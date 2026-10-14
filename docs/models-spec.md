@@ -589,55 +589,66 @@ un quartier réécrit le texte des adresses qui y pointent et réindexe leurs bi
 **Table :** `bookings`
 **Description :** Réservation d'un bien immobilier par un client. Étape préalable à la signature d'un bail, permettant de bloquer un bien et de recueillir un acompte.
 
+> **Réécrit sur la table réelle le 2026-10-14** (`/sync-specs` passe 012, M19). Le tableau précédent
+> décrivait un schéma qu'aucune migration n'a jamais créé (`booking_date`, `expiration_date`,
+> `confirmation_date`, `rejection_date`, `cancellation_date`, `completion_date`, `price_at_booking`,
+> `deposit_date`, `reason_for_rejection`, `reason_for_cancellation`, `customer_id` NOT NULL) et
+> taisait `agency_id`, `currency`, `expires_at`. Sources : `2026_04_17_160010_create_bookings_table`,
+> `2026_04_26_133355_add_expired_at_and_expiry_reason_to_bookings_table`,
+> `2026_06_18_000001_add_performance_indexes_to_transactional_tables` — les seules qui touchent
+> `bookings`.
+
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
-| property_id | FK properties | | | Bien réservé | |
-| customer_id | FK customers | | | Client concerné (NOT NULL — une réservation sans client n'a pas de sens) | ✏️ NOT NULL |
-| created_by_id | FK users | | | Utilisateur ayant créé la réservation | ✏️ ancien `user_id` |
-| reference_number | string | oui | null | Numéro de référence unique | |
+| property_id | FK properties | | | Bien réservé (`restrictOnDelete`) | |
+| customer_id | FK customers | oui | null | Client concerné (`nullOnDelete`). **Nullable en base** : la règle « une réservation a un client » est applicative | |
+| created_by_id | FK users | oui | null | Utilisateur ayant créé la réservation (`nullOnDelete`) | ✏️ ancien `user_id` |
+| agency_id | FK agencies | oui | null | Agence du bien (`nullOnDelete`) | |
+| reference_number | string | oui | null | Numéro de référence (unique) | |
 | status | BookingStatus | | 'pending' | Statut de la réservation | |
-| booking_date | datetime | | now | Date de création de la réservation | |
-| start_date | datetime | oui | null | Date de début souhaitée | |
-| end_date | datetime | oui | null | Date de fin souhaitée | |
-| expiration_date | datetime | oui | null | Date d'expiration de l'offre | |
-| confirmation_date | datetime | oui | null | Date de confirmation | |
-| rejection_date | datetime | oui | null | Date de rejet | |
-| cancellation_date | datetime | oui | null | Date d'annulation | |
-| completion_date | datetime | oui | null | Date de finalisation | |
-| price_at_booking | decimal(14,2) | oui | null | Prix du bien au moment de la réservation | |
-| total_amount | decimal(14,2) | oui | null | Montant total de la réservation | |
+| total_amount | decimal(14,2) | | | Montant total de la réservation (NOT NULL) | |
 | deposit_amount | decimal(14,2) | oui | null | Montant de l'acompte demandé | |
-| ~~deposit_paid~~ | — | — | — | ~~Remplacé par Accessor `deposit_paid` (calcul dynamique depuis `booking_payments`)~~ | ➖ |
-| deposit_date | datetime | oui | null | Date de paiement de l'acompte | |
+| currency | Currency | | 'XOF' | Devise (string(3)) | |
+| start_date | date | oui | null | Date d'arrivée souhaitée | |
+| end_date | date | oui | null | Date de départ souhaitée — **exclusive** (la nuit du `end_date` n'est pas réservée, cf. `property_unavailabilities.ends_on`) | |
 | notes | text | oui | null | Notes internes | |
-| reason_for_rejection | text | oui | null | Motif de rejet | |
-| reason_for_cancellation | text | oui | null | Motif d'annulation | |
-| cancellation_by | CancellationBy | oui | null | Qui a annulé (owner, customer, agent, system) | ✏️ |
+| confirmed_at | timestamp | oui | null | Date de confirmation | |
+| cancelled_at | timestamp | oui | null | Date d'annulation | |
+| expires_at | timestamp | oui | null | **Échéance** de la demande : au-delà, une demande `pending` expire (`ExpireBookings`, raison `deadline`) | |
+| expired_at | timestamp | oui | null | **Constat** de l'expiration : posé par `BookingExpirationService::expire()` en même temps que `status = expired` (TCK-596) | ➕ |
+| expiry_reason | string | oui | null | Chemin de l'expiration : `auto` (seuil de l'agence, `ExpirePendingBookingsJob`), `deadline` (échéance `expires_at` atteinte), `manual` (`expire-now`). Constantes `BookingExpirationService::REASON_*`, pas d'enum | ➕ |
+| cancellation_by | CancellationBy | oui | null | Qui a annulé | ✏️ |
+| cancellation_reason | text | oui | null | Motif d'annulation | |
 | metadata | jsonb | oui | null | | |
-| deleted_at | datetime | oui | null | Soft delete | |
-| created_at | datetime | | auto | | |
-| updated_at | datetime | | auto | | |
+| deleted_at | timestamp | oui | null | Soft delete | |
+| created_at | timestamp | | auto | | |
+| updated_at | timestamp | | auto | | |
 
-**⚠️ Bug corrigé :** `customer_id` existait dans `$fillable` du modèle mais manquait dans la migration. Ajouté et passé en NOT NULL.
+**`expires_at` et `expired_at` ne disent pas la même chose** : le premier est une échéance posée
+d'avance (et peut rester dans le passé d'une demande confirmée entre-temps), le second l'heure à
+laquelle la demande a effectivement expiré. Une demande expirée avant TCK-596 par l'ancien `update`
+de masse de `ExpireBookings` peut porter `status = expired` avec `expired_at = null`. Les deux sont
+dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
+
+**Index :** `(property_id, status)`, `customer_id`, `status`, `(agency_id, status)`, `start_date`,
+`end_date` ; unique `reference_number`.
 
 **Colonnes renommées :**
 - ✏️ `user_id` → `created_by_id` (lève l'ambiguïté avec le customer)
 
 **Colonnes supprimées :**
-- ➖ `deposit_paid` — source de désynchronisation avec `booking_payments`. Remplacé par un Accessor PHP qui calcule dynamiquement l'état de l'acompte en vérifiant l'existence d'un `BookingPayment` confirmé de type `deposit`.
-
-**Accesseurs :**
-- `deposit_paid` (bool) : `true` si au moins un `BookingPayment` avec `payment_type = deposit` et `status = paid` existe pour cette réservation. Implémenté via `Attribute::make(get: fn () => $this->booking_payments()->where('payment_type', BookingPaymentType::DEPOSIT)->where('status', PaymentStatus::PAID)->exists())`.
+- ➖ `deposit_paid` — source de désynchronisation avec `booking_payments`. ⚠ L'accesseur dynamique
+  qui devait le remplacer **n'existe pas** dans `app/Models/Booking.php` (relevé 2026-10-14) :
+  l'état de l'acompte se lit sur les `BookingPayment` de la réservation.
 
 **Relations :**
 - `property()` → belongsTo Property
 - `customer()` → belongsTo Customer
-- `creator()` → belongsTo User (via created_by_id) ✏️ ancien `user()`
-- `booking_payments()` → hasMany BookingPayment
+- `createdBy()` → belongsTo User (via created_by_id) ✏️ ancien `user()`
+- `agency()` → belongsTo Agency
+- `payments()` → hasMany BookingPayment
 - `lease()` → hasOne Lease (le bail issu de cette réservation) 🆕
-- `documents()` → morphMany Document (promesse de vente, offre signée) 🆕
-- `invoices()` → morphMany Invoice 🆕
 
 ---
 
@@ -787,12 +798,12 @@ un quartier réécrit le texte des adresses qui y pointent et réindexe leurs bi
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
-| name | string(100) | | | Nom du tag (unique) | |
-| slug | string(100) | | | Slug URL (unique) | |
+| name | string | | | Nom du tag — unique **deux fois** : `tags_name_unique` (à l'octet, `2026_04_17_160004`) et `tags_name_lower_unique` sur `LOWER(name COLLATE "und-x-icu")`, casse repliée par ICU, accents distincts (`2026_08_21_130000` puis `2026_08_22_100000`, [ADR-0025](adr/0025-repli-de-casse-par-collation-icu.md)). Une recherche par nom doit écrire exactement cette expression pour emprunter l'index | |
+| slug | string | | | Slug URL (unique `tags_slug_unique`) — dérivé de `name` par `Str::slug()` à la création s'il est vide (`Tag::booted()`) | |
 | description | text | oui | null | Description | |
-| type | TagType | oui | null | Catégorie du tag (amenity, feature, label, crm) — les `feature` sont **fondus dans `amenity`** par la migration `2026_10_12_400200` (TCK-633 : deux types disaient la même chose, le formulaire n'en laissait cocher qu'un). Le cas `Feature` subsiste dans l'enum ; la fusion n'est pas défaite par `down()` | ✏️ |
+| type | TagType | | | Catégorie du tag (amenity, feature, label, crm) — NOT NULL, sans défaut, indexé. Les `feature` sont **fondus dans `amenity`** par la migration `2026_10_12_400200` (TCK-633 : deux types disaient la même chose, le formulaire n'en laissait cocher qu'un). Le cas `Feature` subsiste dans l'enum ; la fusion n'est pas défaite par `down()` | ✏️ |
 | icon | string | oui | null | Icône d'affichage (colonne d'origine, absente de ce tableau jusqu'au 2026-10-12) | |
-| color | string(20) | oui | null | Couleur d'affichage (hex) | |
+| color | string(7) | oui | null | Couleur d'affichage (hex `#rrggbb`) | |
 | status | string(16) | | 'approved' | `ReferentialStatus` : `approved`, `pending`, `rejected`. Un nom saisi inconnu naît `pending` ; le catalogue entre `approved`. Index `tags_status_idx` (TCK-633) | ➕ |
 | created_by_id | FK users | oui | null | Auteur d'une proposition — FK `tags_created_by_id_fk`, `nullOnDelete`, index `tags_created_by_id_idx` (TCK-633) | ➕ |
 | created_at | datetime | | auto | | |
@@ -815,7 +826,12 @@ Chaque décision réindexe les biens touchés.
 là seulement où son auteur l'a rattachée. ⚠ Ne s'emploie que sur `Property::tags()` : il lit la
 table de liaison.
 
-**Pivot `taggables` (TCK-633, D9) :** `attached_by_id` (FK users, nullable, `nullOnDelete`) — qui a
+**Pivot `taggables` :** `tag_id` (FK tags, `cascadeOnDelete`), `taggable_type` / `taggable_id`
+(`morphs`, NOT NULL), `created_at` / `updated_at` ; **pas de colonne `id`** — clé primaire composite
+`taggables_primary (tag_id, taggable_id, taggable_type)` (`2026_04_17_160004`). Une même étiquette
+ne se rattache donc qu'une fois à une même cible.
+
+**`taggables.attached_by_id` (TCK-633, D9, `2026_10_12_400300`) :** FK users, nullable, `nullOnDelete` — qui a
 rattaché l'étiquette. Une proposition d'équipement `pending` ne sort sur une fiche publique que là
 où son auteur l'a rattachée (`attached_by_id = tags.created_by_id`, `Tag::scopeVisiblesSurUneFiche`).
 La même règle borne ce qui rend un bien TROUVABLE : l'index (`Property::tagsVisibles` dans
@@ -831,36 +847,68 @@ qu'elles portent reste masquée jusqu'à son approbation, ce qui est le sens sû
 ### 11. Review
 
 **Table :** `reviews`
-**Description :** Avis laissé par un utilisateur sur un bien, une agence ou un autre utilisateur. Soumis à modération avant publication.
+**Description :** Avis laissé par un utilisateur sur un bien, une agence, un agent (`User`) ou un
+prestataire (`ServiceProviderProfile`), rendu éligible par une preuve (visite, bail, réservation ou
+intervention) et soumis à modération avant publication
+([ADR-0043](adr/0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md), TCK-597).
+
+> Schéma mesuré le 2026-10-14 sur les trois migrations qui touchent `reviews` :
+> `2026_04_17_160031_create_reviews_table`, `2026_04_22_000001_add_moderation_workflow_to_reviews_table`,
+> `2026_10_08_100000_add_moderation_scope_to_reviews_table`.
 
 | Colonne | Type | Nullable | Défaut | Description | Changement |
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
-| reviewable_id | bigint | | | FK polymorphique (ID) | ✏️ ancien `model_id` |
-| reviewable_type | string | | | FK polymorphique (type) | ✏️ ancien `model_type` |
-| user_id | FK users | | | Auteur de l'avis | |
-| rating | decimal(2,1) | | | Note (1.0 à 5.0) | |
+| reviewable_type | string | | | Cible (type) — `morphs`, NOT NULL : `Property`, `Agency`, `User` (agent), `ServiceProviderProfile` | ✏️ ancien `model_type` |
+| reviewable_id | bigint | | | Cible (ID) | ✏️ ancien `model_id` |
+| author_id | FK users | | | Auteur de l'avis (`cascadeOnDelete`) | ✏️ |
+| agency_id | FK agencies | oui | null | **Périmètre de modération**, figé à la création : dérivé de la cible si l'appelant ne l'a pas posé (bien → son agence, agence → elle-même), reçu du contexte pour un agent ou un prestataire, `null` pour un avis qui relève de la plateforme seule. `Review::booted()` refuse toute réécriture. FK `reviews_agency_id_fk`, `nullOnDelete` (TCK-597) | ➕ |
+| context_type | string | oui | null | Preuve d'éligibilité (type) : visite, bail, réservation ou intervention (ADR-0043 §3) | ➕ |
+| context_id | bigint | oui | null | Preuve d'éligibilité (ID) — sans FK (morph) | ➕ |
+| rating | unsigned tinyint | | | Note **entière** de 1 à 5 — bornes applicatives (`Store*ReviewRequest` : `integer`, `min:1`, `max:5`), aucune contrainte CHECK | ✏️ |
 | title | string | oui | null | Titre de l'avis | |
 | content | text | oui | null | Contenu de l'avis | |
-| is_approved | boolean | | false | Approuvé par un modérateur | |
-| approved_by | FK users | oui | null | Modérateur | |
-| approved_at | datetime | oui | null | Date d'approbation | |
-| reported_count | integer | | 0 | Nombre de signalements | |
+| is_approved | boolean | | false | Miroir booléen de `status = approved`, écrit avec lui par `ReviewModerationService` ; c'est lui que lisent les écrans publics (moyenne, compte) | |
+| status | ReviewStatus | | 'pending' | Cycle de modération : `pending`, `approved`, `rejected`, `reported` (`2026_04_22_000001`) | ➕ |
+| reported_count | unsigned integer | | 0 | Nombre de signalements (`2026_04_22_000001`) | ➕ |
+| approved_at | timestamp | oui | null | Date d'approbation | |
+| approved_by_id | FK users | oui | null | Modérateur (`nullOnDelete`) | ✏️ |
 | reply_content | text | oui | null | Réponse publique du propriétaire/agence à l'avis | ➕ |
 | replied_by_id | FK users | oui | null | Auteur de la réponse (`nullOnDelete`) | ➕ |
-| replied_at | datetime | oui | null | Date de publication de la réponse | ➕ |
-| deleted_at | datetime | oui | null | Soft delete | |
-| created_at | datetime | | auto | | |
-| updated_at | datetime | | auto | | |
+| replied_at | timestamp | oui | null | Date de publication de la réponse | ➕ |
+| metadata | jsonb | oui | null | Dont le motif d'une décision de modération (ADR-0043 §7) | |
+| deleted_at | timestamp | oui | null | Soft delete | |
+| created_at | timestamp | | auto | | |
+| updated_at | timestamp | | auto | | |
+
+**Index :**
+- `reviews_reviewable_approved_index` `(reviewable_type, reviewable_id, is_approved)` ;
+- `reviews_reviewable_status_index` `(reviewable_type, reviewable_id, status)` ;
+- `reviews_agency_status_idx` `(agency_id, status)` — la file de modération d'une agence ;
+- **`reviews_author_context_uniq`** — unique partiel `(author_id, reviewable_type, context_type,
+  context_id) WHERE context_id IS NOT NULL` : un avis par auteur, **type de cible** et preuve.
+  `reviewable_type` y est délibérément et `reviewable_id` non : un même bail rend éligible à noter le
+  bien, l'agent et l'agence, et le formulaire commun « bien + agent » ne doit pas se refuser à
+  lui-même (docblock de `2026_10_08_100000`, ADR-0043 §3). Les avis sans preuve (`context_id` nul)
+  n'y sont pas soumis.
+
+**Reprise (`2026_10_08_100000`) :** les avis existants reçoivent `agency_id` — l'agence du bien pour
+un avis de bien, l'agence elle-même pour un avis d'agence ; un avis sur un `User` reste `null`.
 
 **Colonnes renommées :**
 - ✏️ `model_id` → `reviewable_id` / `model_type` → `reviewable_type` (convention standard Laravel pour les morphs)
 
 **Relations :**
-- `reviewable()` → morphTo (Property, Agency, User)
-- `user()` → belongsTo User
-- `approver()` → belongsTo User (via approved_by)
+- `reviewable()` → morphTo (Property, Agency, User, ServiceProviderProfile)
+- `context()` → morphTo — la preuve d'éligibilité 🆕 (TCK-597)
+- `agency()` → belongsTo Agency 🆕 (TCK-597)
+- `author()` → belongsTo User (via author_id)
+- `approvedBy()` → belongsTo User (via approved_by_id)
 - `repliedBy()` → belongsTo User (via replied_by_id) 🆕
+
+**Modération par l'agence :** `Review::AGENCY_MODERATED_TYPES` (`Property`, `User`) — un admin
+d'agence ne modère que les avis de ces cibles ; les autres relèvent de la plateforme seule
+(`isAgencyModerated()`).
 
 ---
 
@@ -994,18 +1042,24 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 **Table :** `leases`
 **Description :** Contrat formalisant un accord de location ou de vente entre un propriétaire (bailleur) et un client (locataire/acheteur). Centralise les conditions financières, la durée, et les informations du garant.
 
+> Schéma mesuré le 2026-10-14 sur les migrations qui altèrent `leases` : `2026_04_17_160011` (création),
+> `2026_04_25_120000` (pénalités), `130000` (restitution de caution), `140000` (index),
+> `150000` (départ anticipé), `2026_05_10_190000` (accueil), `2026_06_18_000001` (index),
+> `2026_10_08_020000` (empreinte du contrat), `030000` (termes figés), `150000` (négociateur).
+
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| property_id | FK properties | | | Bien concerné |
-| landlord_id | FK users | | | Propriétaire / bailleur |
-| tenant_id | FK customers | | | Locataire / acheteur |
+| property_id | FK properties | | | Bien concerné (`restrictOnDelete`) |
+| landlord_id | FK users | | | Propriétaire / bailleur (`restrictOnDelete`) |
+| tenant_id | FK customers | | | Locataire / acheteur (`restrictOnDelete`) |
 | agency_id | FK agencies | oui | null | Agence intermédiaire |
 | booking_id | FK bookings | oui | null | Réservation d'origine (si applicable) |
-| renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`) |
+| agent_id | FK users | oui | null | **Négociateur** du bail ou de la vente — FK `leases_agent_id_fk`, `nullOnDelete` ; index `leases_agent_id_signed_at_idx` `(agent_id, signed_at)` pour la vue agent et la performance d'équipe. Interne à l'agence, pas une partie au contrat (TCK-595, [ADR-0049 §1](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md), `2026_10_08_150000`) |
+| renewed_from_lease_id | FK leases | oui | null | Bail parent — rempli si ce bail est un renouvellement ou avenant (`nullOnDelete`, index `leases_renewed_from_idx`) |
 | reference_number | string | | | Numéro de contrat unique |
 | type | LeaseType | | | Type de contrat (residential_rent, commercial_rent, seasonal_rent, sale) |
-| status | LeaseStatus | | 'draft' | Statut du contrat |
+| status | LeaseStatus | | 'draft' | Statut du contrat — dont `terminating` (départ anticipé demandé, préavis en cours : le loyer reste dû jusqu'à `early_termination_effective_date`, TCK-090). Valeurs : `app/Models/Enums/LeaseStatus.php` |
 | start_date | date | | | Date de début du contrat |
 | end_date | date | oui | null | Date de fin (null si durée indéterminée) |
 | renewal_date | date | oui | null | Date de renouvellement prévue |
@@ -1013,42 +1067,80 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 | sale_price | decimal(14,2) | oui | null | Prix de vente (pour les ventes) |
 | currency | Currency | | 'XOF' | Devise (XOF, XAF, EUR, USD) |
 | deposit_amount | decimal(14,2) | oui | null | Montant de la caution |
+| deposit_refunded_amount | decimal(14,2) | oui | null | Montant de caution restitué (`2026_04_25_130000`) |
+| deposit_refunded_at | timestamp | oui | null | Date de la restitution |
+| deposit_refund_reason | text | oui | null | Motif de la restitution (sortie du bail, pas un terme du contrat). Le modèle déclare aussi une collection média `lease_deposit_refund` |
 | commission_amount | decimal(14,2) | oui | null | Commission agence/courtier |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission (%) |
 | payment_frequency | PaymentFrequency | | 'monthly' | Fréquence de paiement (monthly, quarterly, yearly) |
-| payment_day | integer | oui | null | Jour du mois pour le paiement (1-28) |
+| payment_day | unsigned tinyint | oui | null | Jour du mois pour le paiement (1-28) |
+| late_fee_percent | decimal(5,2) | oui | null | Taux de pénalité de retard, appliqué au **restant dû** de l'échéance ; nul ou 0 : aucune pénalité (`LateFeeCalculator`, TCK-087, `2026_04_25_120000`) |
+| late_fee_grace_days | unsigned smallint | oui | null | Jours de grâce avant pénalité ; nul : 0 jour |
 | terms | text | oui | null | Conditions générales du contrat |
 | special_conditions | text | oui | null | Conditions particulières |
-| guarantor_id | FK guarantors | oui | null | Garant rattaché au bail (voir modèle [Guarantor](#27-guarantor-)) ✏️ |
-| signed_at | datetime | oui | null | Date de signature |
-| terminated_at | datetime | oui | null | Date de résiliation anticipée |
+| guarantor_id | FK guarantors | oui | null | **Ancienne colonne** de garant unique (`nullOnDelete`), conservée pour compatibilité : les garants du bail — et ceux que le contrat imprime — sont ceux du pivot `lease_guarantor` (voir plus bas) ✏️ |
+| contract_sha256 | string(64) | oui | null | Empreinte du contrat **figé** que les parties signent (PDF dans la collection média privée `signed_contract`). Nulle : aucun contrat figé — brouillon, ou défigé par la modification d'une colonne du contrat hors `Lease::CONTRACT_NEUTRAL_COLUMNS` ou par un garant attaché/détaché pendant `pending_signature` (TCK-596, ADR-0042 §1, `2026_10_08_020000` ; voir [LeaseSignature](#82-leasesignature-)) |
+| signature_requested_at | timestamp | oui | null | Heure de la demande de signature (remise à `null` avec `contract_sha256`) |
+| early_termination_penalty_months | unsigned smallint | oui | null | Indemnité de départ anticipé, en mois, **figée** avec le contrat. Nulle : bail antérieur, le réglage de l'agence du bail puis le global s'appliquent (TCK-596 VERIF passe 2 N1, TCK-600, `2026_10_08_030000`) |
+| rent_review_max_pct | decimal(5,2) | oui | null | Plafond de révision du loyer, figé avec le contrat ; même repli que la colonne précédente. Un renouvellement hérite des deux du parent, sauf valeur renégociée |
+| signed_at | timestamp | oui | null | Date de signature |
+| tenant_welcomed_at | timestamp | oui | null | Sentinelle d'idempotence de la notification de bienvenue au locataire (`SendTenantWelcomeNotification` sur `LeaseActivated`) : non nulle, une nouvelle activation n'accueille pas deux fois (TCK-265, `2026_05_10_190000`) |
+| terminated_at | timestamp | oui | null | Date de résiliation |
 | termination_reason | text | oui | null | Motif de résiliation |
-| terminated_by_id | FK users | oui | null | Qui a résilié |
+| terminated_by_id | FK users | oui | null | Qui a résilié (`nullOnDelete`) |
+| early_termination_requested_at | timestamp | oui | null | Demande de départ anticipé — le bail passe `terminating` (`2026_04_25_150000`) |
+| early_termination_requested_by | FK users | oui | null | Auteur de la demande (`nullOnDelete`) — ⚠ sans suffixe `_id` |
+| early_termination_effective_date | date | oui | null | Date d'effet ; à cette date une tâche quotidienne passe le bail `terminated`, si la facture d'indemnité est réglée |
+| early_termination_penalty_amount | decimal(14,2) | oui | null | Montant de l'indemnité |
+| early_termination_reason | text | oui | null | Motif de la demande |
+| notice_period_days | unsigned smallint | oui | null | Préavis appliqué, en jours |
+| early_termination_invoice_id | FK invoices | oui | null | Facture de l'indemnité (`nullOnDelete`) |
 | metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Colonnes supprimées :**
-- ➖ `guarantor_name`, `guarantor_phone`, `guarantor_id_number` — remplacées par une FK `guarantor_id` vers le modèle [Guarantor](#27-guarantor-) (permet d'y attacher des documents justificatifs via medialibrary et de réutiliser un même garant sur plusieurs baux).
+**Index :** `(status, property_id)`, `landlord_id`, `tenant_id`, `leases_renewed_from_idx`,
+`leases_status_early_termination_idx` `(status, early_termination_effective_date)`,
+`(agency_id, status)`, `start_date`, `end_date`, `leases_agent_id_signed_at_idx` ; unique
+`reference_number`.
 
-**Relations :**
+**Pivot `lease_guarantor` (`2026_04_22_000003`) :** `id`, `lease_id` (FK, `cascadeOnDelete`),
+`guarantor_id` (FK, `cascadeOnDelete`), `role` (string, nullable), timestamps ; unique
+`lease_guarantor_unique (lease_id, guarantor_id)`. Trois garants au plus par bail — borne
+**applicative** (`LeaseController`, code `lease.max_guarantors`, sous verrou du pivot), aucune
+contrainte en base.
+
+**Colonnes supprimées :**
+- ➖ `guarantor_name`, `guarantor_phone`, `guarantor_id_number` — remplacées par une FK `guarantor_id` vers le modèle [Guarantor](#27-guarantor-) (permet d'y attacher des documents justificatifs via medialibrary et de réutiliser un même garant sur plusieurs baux), elle-même relayée depuis par le pivot `lease_guarantor`.
+
+**Collections média :** `lease_deposit_refund` ; `signed_contract` (privée, un seul fichier — le contrat figé, TCK-596).
+
+**Relations** (`app/Models/Lease.php`) :
 - `property()` → belongsTo Property
 - `landlord()` → belongsTo User
 - `tenant()` → belongsTo Customer
-- `guarantor()` → belongsTo Guarantor 🆕
 - `agency()` → belongsTo Agency
+- `agent()` → belongsTo User (via agent_id) 🆕 (TCK-595)
+- `commissionEntries()` → hasMany [CommissionEntry](#85-commissionentry-) 🆕 (TCK-595)
 - `booking()` → belongsTo Booking
-- `terminated_by_user()` → belongsTo User (via terminated_by_id)
 - `renewedFrom()` → belongsTo Lease (via renewed_from_lease_id) 🆕
 - `renewals()` → hasMany Lease (via renewed_from_lease_id) 🆕
+- `guarantor()` → belongsTo Guarantor (ancienne colonne)
+- `guarantors()` → belongsToMany Guarantor (pivot `lease_guarantor`, `role`) 🆕
+- `terminatedBy()` → belongsTo User (via terminated_by_id)
+- `earlyTerminationRequestedBy()` → belongsTo User 🆕
+- `earlyTerminationInvoice()` → belongsTo Invoice 🆕
 - `payments()` → hasMany LeasePayment
-- `payouts()` → hasMany Payout 🆕
-- `maintenance_requests()` → hasMany MaintenanceRequest
 - `inventories()` → hasMany Inventory
+- `maintenanceRequests()` → hasMany MaintenanceRequest
 - `documents()` → morphMany Document
-- `conversations()` → hasMany Conversation
+- `payouts()` → hasMany Payout 🆕
 - `invoices()` → morphMany Invoice 🆕
+- `onboardingChecklist()` → hasOne TenantOnboardingChecklist 🆕 (TCK-266)
+- `signatures()` → hasMany [LeaseSignature](#82-leasesignature-) 🆕 (TCK-596) — seules comptent celles de l'empreinte courante (`currentSignatures()`)
+
+Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le modèle ne la déclare pas.
 
 ---
 
@@ -1057,24 +1149,35 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 **Table :** `lease_payments`
 **Description :** Paiement récurrent lié à un bail : loyer, charges, régularisation ou pénalité de retard. Chaque entrée correspond à une échéance ou à un versement effectif.
 
+> Schéma mesuré le 2026-10-14 sur les migrations qui altèrent `lease_payments` :
+> `2026_04_17_160013` (création), `2026_04_25_120001` (pénalité), `2026_04_28_000004`
+> (rapprochement bancaire), `2026_05_07_000224` (commission plateforme), `2026_10_07_150000`
+> (pénalité réglée) ; `2026_10_07_150100` ne touche que des données (voir `status`).
+
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| lease_id | FK leases | | | Bail concerné |
-| payer_id | FK customers | | | Client payeur |
-| collector_id | FK users | oui | null | Utilisateur ayant collecté le paiement |
+| lease_id | FK leases | | | Bail concerné (`cascadeOnDelete`) |
+| payer_id | FK customers | | | Client payeur (`restrictOnDelete`) |
+| collector_id | FK users | oui | null | Utilisateur ayant collecté le paiement (`nullOnDelete`) |
 | reference_number | string | oui | null | Numéro de reçu / référence |
 | amount | decimal(14,2) | | | Montant dû ou payé |
-| currency | Currency | | 'XOF' | Devise (XOF, XAF, EUR, USD) |
-| payment_method | PaymentMethod | oui | null | Moyen de paiement (cash, bank_transfer, mobile_money, check, card) |
+| currency | Currency | | 'XOF' | Devise (string(3)) |
+| payment_method | PaymentMethod | oui | null | Moyen de paiement — valeurs : `app/Models/Enums/PaymentMethod.php` |
 | payment_type | LeasePaymentType | | | Nature (rent, charges, deposit, deposit_refund, regularization, penalty) |
 | period_start | date | | | Début de la période couverte |
 | period_end | date | | | Fin de la période couverte |
 | due_date | date | oui | null | Date d'échéance (nullable : un paiement hors échéancier n'en a pas) |
-| paid_at | datetime | oui | null | Date de paiement effectif |
-| status | PaymentStatus | | 'pending' | Statut du paiement |
-| late_fee | decimal(14,2) | oui | null | Pénalité de retard appliquée |
-| transaction_id | string | oui | null | ID transaction externe (mobile money, banque) |
+| paid_at | timestamp | oui | null | Date de paiement effectif |
+| bank_reconciled_at | timestamp | oui | null | Rapprochement bancaire (`2026_04_28_000004`) ; scope `whereNotReconciled()` |
+| bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de relevé rapprochée (`nullOnDelete`, voir [BankStatementLine](#41-bankstatementline-)) ; unique partiel `lease_payments_bank_line_unique` `WHERE bank_statement_line_id IS NOT NULL` |
+| platform_fee_pct_at_payment | decimal(5,2) | oui | null | Taux de commission plateforme **figé** au passage à `paid` par `PaymentPlatformFeeObserver` (TCK-223, `2026_05_07_000224`) ; jamais recalculé ensuite |
+| platform_payout_id | FK platform_payouts | oui | null | Reversement plateforme qui a retenu cette commission (`nullOnDelete`, voir [PlatformPayout](#45-platformpayout-)) |
+| status | PaymentStatus | | 'pending' | Statut du **loyer**. Depuis TCK-593, un échec de paiement en ligne n'écrit plus `failed` : les lignes `failed` existantes ont été rouvertes en `pending` et marquées `metadata.reopened_from_failed_at` (`2026_10_07_150100`) |
+| late_fee_amount | decimal(14,2) | oui | null | Pénalité de retard appliquée — **renommée** depuis `late_fee` (`2026_04_25_120001`) |
+| late_fee_applied_at | timestamp | oui | null | Application de la pénalité ; non nulle, `LateFeeCalculator` ne la réapplique jamais (une pénalité au plus par ligne) |
+| late_fee_paid_at | timestamp | oui | null | Pénalité **réglée** (TCK-593, `2026_10_07_150000`). `status` décrit le loyer : sans cette colonne, un loyer soldé faisait disparaître la pénalité des écrans. `lateFeeOutstanding()` s'en dérive |
+| transaction_id | string | oui | null | ID transaction externe (mobile money, banque) — exclu du journal d'activité |
 | notes | text | oui | null | Notes |
 | metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
@@ -1084,11 +1187,19 @@ Relation : `agency()` (belongsTo). Un admin d'agence ne lit que `agency_id = <ag
 **Traits :**
 - `HasPaymentAttributes` (`App\Models\Concerns`) — casts et scopes partagés avec BookingPayment (amount, currency, payment_method, status, transaction_id) ➕
 
-**Relations :**
+**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_bank_line_unique`
+(partiel, ci-dessus).
+
+**Relations** (`app/Models/LeasePayment.php`) :
 - `lease()` → belongsTo Lease
 - `payer()` → belongsTo Customer
 - `collector()` → belongsTo User
-- `invoice()` → morphOne Invoice (via `invoiceable`) 🆕
+- `payouts()` → belongsToMany Payout (pivot `payout_lease_payment`) 🆕
+- `bankStatementLine()` → belongsTo BankStatementLine 🆕
+
+Le modèle ne déclare **ni** `invoice()` **ni** `platformPayout()` (relevé 2026-10-14) ; la facture
+d'une échéance se lit côté Invoice (`invoiceable`), le lien de paiement côté
+[LeasePaymentLink](#84-leasepaymentlink-).
 
 ---
 
@@ -1129,32 +1240,39 @@ porte la carte complète ; les autres une projection `{id, slug, title}`, `remov
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| property_id | FK properties | | | Bien à visiter |
-| visitor_id | FK users | oui | null | Visiteur inscrit |
-| customer_id | FK customers | oui | null | Customer (géré par un agent) |
-| agent_id | FK users | oui | null | Agent accompagnateur |
+| property_id | FK properties | | | Bien à visiter (`cascadeOnDelete`) |
+| visitor_id | FK users | oui | null | Visiteur inscrit (`nullOnDelete`) |
+| customer_id | FK customers | oui | null | Customer (géré par un agent) (`nullOnDelete`) |
+| agent_id | FK users | oui | null | Agent accompagnateur (`nullOnDelete`) |
 | visitor_name | string | oui | null | Nom du visiteur (si non inscrit) |
-| visitor_phone | string | oui | null | Téléphone du visiteur (si non inscrit) |
+| visitor_phone | string(30) | oui | null | Téléphone du visiteur (si non inscrit). Les saisies antérieures ont été réécrites en E.164 quand leur forme normalisée l'était (`2026_10_07_150200_normaliser_les_telephones_saisis`, `down()` vide) |
 | visitor_email | string | oui | null | Email du visiteur (si non inscrit) |
 | type | VisitType | | 'in_person' | Type de visite (in_person, virtual, self_guided, hybrid) |
 | status | VisitStatus | | 'scheduled' | Statut de la visite |
-| scheduled_at | datetime | | | Date et heure prévues |
-| duration_minutes | integer | oui | null | Durée estimée |
-| completed_at | datetime | oui | null | Date de réalisation effective |
-| cancelled_at | datetime | oui | null | Date d'annulation |
+| scheduled_at | timestamp | | | Date et heure prévues |
+| duration_minutes | unsigned integer | oui | null | Durée estimée |
+| completed_at | timestamp | oui | null | Date de réalisation effective |
+| cancelled_at | timestamp | oui | null | Date d'annulation |
 | cancellation_reason | text | oui | null | Motif d'annulation |
 | feedback | text | oui | null | Retour du visiteur après la visite |
-| rating | decimal(2,1) | oui | null | Note donnée au bien (1.0 à 5.0) |
+| rating | decimal(2,1) | oui | null | Note donnée au bien, saisie à la clôture de la visite (`CompletePropertyVisitRequest` : 0 à 5) — distincte d'un [Review](#11-review) |
 | notes | text | oui | null | Notes internes de l'agent |
+| source | string(40) | oui | null | Provenance de la demande — le lien partagé qui l'a amenée (TCK-590, `2026_10_07_150100_add_attribution_to_property_visits`). Format `[a-z0-9_.-]`, `ContactLeadPublicRequest::ATTRIBUTION` |
+| medium | string(40) | oui | null | Canal de cette provenance, même format |
+| locale | string(5) | oui | null | Langue dans laquelle prévenir un visiteur **sans compte** (qui n'a pas de `preferred_language`) : la langue de la requête, ou la langue préférée du visiteur connu |
 | metadata | jsonb | oui | null | |
-| created_at | datetime | | auto | |
-| updated_at | datetime | | auto | |
+| created_at | timestamp | | auto | |
+| updated_at | timestamp | | auto | |
 
-**Contrainte d'intégrité :**
-```sql
-CHECK (visitor_id IS NOT NULL OR customer_id IS NOT NULL OR visitor_name IS NOT NULL)
-```
-Un visiteur doit être identifié : soit un User inscrit, soit un Customer géré par un agent, soit un visiteur anonyme (nom renseigné).
+**Index :** `(property_id, scheduled_at)`, `(scheduled_at, status)`.
+
+**Identification du visiteur — règle applicative, pas une contrainte :** aucune migration ne pose de
+`CHECK` sur `property_visits` (relevé 2026-10-14 sur les trois migrations qui la touchent). Ce que
+l'application exige : sur la route publique, un visiteur **anonyme** donne nom et téléphone
+(`VisitRequestPublicPropertyRequest`), un visiteur connecté est rattaché par `visitor_id` ; sur la
+route interne, le personnel qui gère le bien donne un `customer_id`, ou à défaut nom et téléphone
+(`StorePropertyVisitRequest`, `required_without:customer_id`). Une ligne écrite hors de ces deux
+voies peut n'identifier personne.
 
 **Relations :**
 - `property()` → belongsTo Property
@@ -1173,13 +1291,13 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
 | subject | string | oui | null | Sujet de la conversation |
-| property_id | FK properties | oui | null | Bien lié à la discussion |
-| lease_id | FK leases | oui | null | Bail lié à la discussion |
-| maintenance_request_id | FK maintenance_requests | oui | null | Demande de maintenance liée (remplace le morphOne côté MaintenanceRequest) |
-| type | ConversationType | | 'direct' | Type (direct, group, support) |
+| property_id | FK properties | oui | null | Bien lié à la discussion (`nullOnDelete`) |
+| lease_id | FK leases | oui | null | Bail lié à la discussion (`nullOnDelete`) |
+| maintenance_request_id | FK maintenance_requests | oui | null | Demande de maintenance liée (`nullOnDelete`, FK posée par `2026_04_17_160033`) (remplace le morphOne côté MaintenanceRequest) |
+| type | ConversationType | | 'direct' | Type — les six valeurs de `app/Models/Enums/ConversationType.php` : direct, group, booking, lease, property, support |
 | status | ConversationStatus | | 'active' | Statut (active, archived, closed) |
-| created_by | FK users | | | Initiateur de la conversation |
-| last_message_id | FK messages | oui | null | Dernier message envoyé (cache, mis à jour via MessageObserver::created()) |
+| created_by | FK users | | | Initiateur de la conversation (FK sans `onDelete` : la suppression physique d'un utilisateur qui a ouvert une conversation est refusée) — ⚠ sans suffixe `_id` |
+| last_message_id | FK messages | oui | null | Dernier message envoyé (`nullOnDelete`) — cache, mis à jour via `MessageObserver::created()` |
 | last_message_preview | string(255) | oui | null | Extrait texte du dernier message (cache, affichage liste sans JOIN) |
 | last_message_at | datetime | oui | null | Horodatage du dernier message (cache) |
 | metadata | jsonb | oui | null | |
@@ -1190,12 +1308,15 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 **Relations :**
 - `property()` → belongsTo Property
 - `lease()` → belongsTo Lease
-- `maintenance_request()` → belongsTo MaintenanceRequest
-- `creator()` → belongsTo User
-- `participants()` → hasMany ConversationParticipant
-- `users()` → belongsToMany User (via ConversationParticipant)
+- `maintenanceRequest()` → belongsTo MaintenanceRequest
+- `creator()` → belongsTo User (via created_by)
+- `participants()` → belongsToMany User, pivot `conversation_participants` porté par le modèle
+  ConversationParticipant (`using`), colonnes de pivot `id`, `role`, `last_read_at`, `is_muted`,
+  `joined_at`, `left_at`, `archived_at`
 - `messages()` → hasMany Message
-- `last_message()` → belongsTo Message (via last_message_id) 🆕
+- `lastMessage()` → belongsTo Message (via last_message_id) 🆕
+
+**Index :** `conversations_parent_index` `(property_id, lease_id, maintenance_request_id)`.
 
 ---
 
@@ -1233,17 +1354,20 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| conversation_id | FK conversations | | | Conversation parente |
-| sender_id | FK users | | | Expéditeur |
-| content | text | | | Contenu du message |
-| type | MessageType | | 'text' | Type (text, image, document, system) |
-| metadata | jsonb | oui | null | Métadonnées (URL image, nom fichier, etc.) |
-| deleted_at | datetime | oui | null | Soft delete |
-| created_at | datetime | | auto | |
-| updated_at | datetime | | auto | |
+| conversation_id | FK conversations | | | Conversation parente (`cascadeOnDelete`) |
+| sender_id | FK users | oui | null | Expéditeur — **nullable** depuis `2026_04_24_120000_make_messages_sender_id_nullable_for_system` : un avis `system` n'a pas d'expéditeur ; `nullOnDelete` |
+| content | text | | | Contenu du message (NOT NULL). Pour une note vocale, un aperçu neutre traduit (`messaging.audio_preview`) qui sert à la liste des conversations |
+| type | MessageType | | 'text' | Type — les cinq valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio** (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; `system` est réservé à `SystemMessageFactory` |
+| metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` |
+| deleted_at | timestamp | oui | null | Soft delete |
+| created_at | timestamp | | auto | |
+| updated_at | timestamp | | auto | |
+
+**Index :** `(conversation_id, created_at)`.
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (images, documents joints au message)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (pièces jointes ; le fichier d'une note vocale y est rangé, collection privée — ADR-0038 : formats `SendMessageConversationRequest::AUDIO_MIMETYPES`, 2 Mo et 60 s au plus)
+- `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé n'est pas indexé
 
 **Note :** Le statut de lecture est déterminé en comparant `message.created_at` avec `conversation_participant.last_read_at`. Pas de colonne `read_at` sur le message lui-même.
 
@@ -1261,39 +1385,58 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| property_id | FK properties | | | Bien concerné |
-| lease_id | FK leases | oui | null | Bail en cours (si applicable) |
-| requester_id | FK users | | | Demandeur (locataire) |
-| assigned_to | FK users | oui | null | Prestataire assigné |
+| property_id | FK properties | | | Bien concerné (`cascadeOnDelete`) |
+| lease_id | FK leases | oui | null | Bail en cours (si applicable) (`nullOnDelete`) |
+| requester_id | FK users | | | Demandeur (locataire) — FK sans `onDelete` |
+| assigned_to | FK users | oui | null | Prestataire assigné (`nullOnDelete`) — ⚠ sans suffixe `_id` |
+| accepted_at | timestamp | oui | null | Acceptation de l'assignation par le prestataire. **Pas un statut**, délibérément : l'assignation ne change pas `status`, et en faire un état aurait coupé le chemin vers le devis. Nul : assigné, pas encore accepté ; remis à `null` à chaque réassignation (TCK-592, `2026_10_07_120000`) |
 | title | string | | | Titre court du problème |
 | description | text | | | Description détaillée |
 | category | MaintenanceCategory | | | Catégorie (plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other) |
-| priority | MaintenancePriority | | 'medium' | Priorité (low, medium, high, urgent) |
-| status | MaintenanceStatus | | 'open' | Statut de la demande |
+| priority | MaintenancePriority | | 'normal' | Priorité (low, normal, high, urgent) — `medium` est devenu `normal`, données et défaut, par `2026_04_26_013446_add_priority_to_maintenance_requests_table` ; tri métier par `MaintenancePrioritySort` |
+| status | MaintenanceStatus | | 'open' | Statut de la demande — valeurs : `app/Models/Enums/MaintenanceStatus.php` (dont le circuit du devis : `quote_requested`, `quote_submitted`, `awaiting_owner`, `approved`, `rejected`) |
+| quote_amount | decimal(14,2) | oui | null | Montant du devis — la colonne lue partout (principe n°3), **calculée** depuis `quote_lines` à la soumission depuis TCK-592 (`2026_04_26_010004`) |
+| quote_currency | string(3) | oui | null | Devise du devis |
+| quote_lines | jsonb | oui | null | Lignes du devis ; les nombres y sont des **chaînes décimales** (un flottant JSON n'a pas d'arithmétique exacte) (TCK-592 P12, `2026_10_07_130000`) |
+| quote_valid_until | date | oui | null | Validité du devis |
+| quote_estimated_duration_days | unsigned smallint | oui | null | Durée estimée des travaux, en jours |
+| quote_submitted_at | timestamp | oui | null | Soumission du devis |
+| quote_decision_at | timestamp | oui | null | Décision sur le devis |
+| quote_decision_by_id | FK users | oui | null | Auteur de la décision (`nullOnDelete`) |
+| quote_rejection_reason | text | oui | null | Motif d'un refus de devis |
 | estimated_cost | decimal(14,2) | oui | null | Coût estimé |
 | actual_cost | decimal(14,2) | oui | null | Coût réel |
-| scheduled_at | datetime | oui | null | Date d'intervention planifiée |
-| started_at | datetime | oui | null | Date de début d'intervention |
-| completed_at | datetime | oui | null | Date de fin d'intervention |
-| resolution_notes | text | oui | null | Notes de résolution |
+| scheduled_at | timestamp | oui | null | Date d'intervention planifiée |
+| started_at | timestamp | oui | null | Date de début d'intervention |
+| completed_at | timestamp | oui | null | Date de fin d'intervention |
+| resolution_notes | text | oui | null | Notes de résolution — porte aussi le rapport d'intervention : **aucune** colonne `resolution_report` n'existe (TCK-474) |
+| access_instructions | text | oui | null | Kit d'accès au logement, rédigé par le donneur d'ordre pour le prestataire (TCK-592, `2026_10_07_120000`) |
 | metadata | jsonb | oui | null | |
-| deleted_at | datetime | oui | null | Soft delete |
-| created_at | datetime | | auto | |
-| updated_at | datetime | | auto | |
+| deleted_at | timestamp | oui | null | Soft delete |
+| created_at | timestamp | | auto | |
+| updated_at | timestamp | | auto | |
+
+**Index :** `(property_id, status)`, `(assigned_to, status)`.
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections `photos` (photos du problème), `completion_photos` (photos après intervention)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` (photos du problème), `before_photos` (état constaté par le prestataire avant d'intervenir, TCK-592), `completion_photos` (photos après intervention), `quotes` (devis joints)
+- `Searchable` (Scout) — `title`, `description`
 
-**Note :** `requester_id` pointe vers un User (la personne connectée). Pour récupérer le Customer associé au demandeur, utiliser `requesterCustomer()` — retourne le Customer lié via `User.customer()` (relation hasOne via `user_id`).
+**Note :** `requester_id` pointe vers un User (la personne connectée). ⚠ Le modèle ne déclare
+**aucune** relation `requesterCustomer()` (relevé 2026-10-14) : le Customer du demandeur se lit
+depuis l'utilisateur.
 
-**Relations :**
+**Relations** (`app/Models/MaintenanceRequest.php`) :
 - `property()` → belongsTo Property
 - `lease()` → belongsTo Lease
 - `requester()` → belongsTo User
-- `requesterCustomer()` → hasOneThrough Customer, User (retourne le Customer du demandeur) 🆕
-- `assigned_user()` → belongsTo User (via assigned_to)
+- `assignee()` → belongsTo User (via assigned_to)
+- `quoteDecisionBy()` → belongsTo User (via quote_decision_by_id) 🆕
 - `documents()` → morphMany Document
 - `conversation()` → hasOne Conversation (via `maintenance_request_id`)
+
+La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceproviderbill-)
+(`maintenance_request_id`, `cascadeOnDelete`), que ce modèle ne déclare pas en relation.
 
 ---
 
@@ -1368,34 +1511,44 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| lease_id | FK leases | | | Bail concerné |
-| property_id | FK properties | | | Bien inspecté |
+| lease_id | FK leases | | | Bail concerné (`cascadeOnDelete`, indexé) |
+| property_id | FK properties | | | Bien inspecté (`cascadeOnDelete`) |
 | type | InventoryType | | | Type (move_in, move_out) |
-| conducted_by | FK users | | | Personne ayant réalisé l'état des lieux |
-| tenant_id | FK customers | | | Locataire présent |
-| conducted_at | datetime | | | Date de réalisation |
+| conducted_by | FK users | | | Personne ayant réalisé l'état des lieux — FK sans `onDelete` ; ⚠ sans suffixe `_id` |
+| tenant_id | FK customers | | | Locataire présent (`restrictOnDelete`) |
+| conducted_at | timestamp | | | Date de réalisation |
 | status | InventoryStatus | | 'draft' | Statut (draft, pending_signature, signed, disputed) |
 | general_condition | InventoryCondition | | | État général (excellent, good, fair, poor) |
-| rooms | jsonb | | | Détail pièce par pièce (nom, état, commentaires, photos) |
+| rooms | jsonb | | | Détail pièce par pièce : `name`, `condition` (`InventoryCondition`), `notes`, et `elements[]` — `label`, `state` (**`InventoryElementState`** : `bon`, `usé`, `endommagé`, `manquant`, valeurs en français comme le vocabulaire montré au locataire), `notes`. Schéma validé par `InventoryStoreRequest`, pas par la base |
 | notes | text | oui | null | Observations générales |
 | tenant_signed | boolean | | false | Locataire a signé |
-| tenant_signed_at | datetime | oui | null | Date de signature locataire |
+| tenant_signed_at | timestamp | oui | null | Date de signature locataire |
+| tenant_signature_data | text | oui | null | Tracé de la signature du locataire (SVG en base64). **Caché** (`$hidden`) : jamais sérialisé par l'API, lu pour le PDF (TCK-076, `2026_04_24_120000_add_signature_data_to_inventories_table`) |
+| tenant_signature_hash | string(64) | oui | null | SHA-256 du tracé — seul ce condensat voyage |
 | owner_signed | boolean | | false | Propriétaire a signé |
-| owner_signed_at | datetime | oui | null | Date de signature propriétaire |
+| owner_signed_at | timestamp | oui | null | Date de signature propriétaire |
+| owner_signature_data | text | oui | null | Tracé de la signature côté bailleur — **caché**, comme celui du locataire |
+| owner_signature_hash | string(64) | oui | null | SHA-256 du tracé |
+| owner_signed_by_user_id | FK users | oui | null | **Qui** a signé pour le bailleur — FK `inventories_owner_signed_by_fk`, `nullOnDelete` (TCK-596 §5, `2026_10_07_235910`) |
+| owner_signed_on_behalf_of_user_id | FK users | oui | null | Bailleur pour le compte duquel un membre du personnel a signé au titre du mandat — FK `inventories_owner_on_behalf_fk`, `nullOnDelete` |
+| signed_at | timestamp | oui | null | Seconde signature : l'état des lieux est signé des deux parties |
+| traceability_hash | string(64) | oui | null | Empreinte SHA-256 complète, **figée une fois** à la seconde signature, photos par pièce comprises (`InventorySignatureService`). Nulle pour un état des lieux signé avant TCK-596 : son PDF garde l'empreinte qu'il imprimait |
 | metadata | jsonb | oui | null | |
-| deleted_at | datetime | oui | null | Soft delete |
-| created_at | datetime | | auto | |
-| updated_at | datetime | | auto | |
+| deleted_at | timestamp | oui | null | Soft delete |
+| created_at | timestamp | | auto | |
+| updated_at | timestamp | | auto | |
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `photos` (photos de l'état des lieux par pièce)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` et `room_photos` (photos par pièce)
 
-**Relations :**
+**Relations** (`app/Models/Inventory.php`) :
 - `lease()` → belongsTo Lease
 - `property()` → belongsTo Property
 - `conductor()` → belongsTo User (via conducted_by)
 - `tenant()` → belongsTo Customer
-- `documents()` → morphMany Document (PV signé, annexes)
+
+Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires `owner_signed_*`
+(relevé 2026-10-14).
 
 ---
 
@@ -1407,40 +1560,62 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| invoiceable_id | bigint | oui | null | FK polymorphique (ID de l'entité facturée) |
+| invoiceable_id | bigint | oui | null | FK polymorphique (ID de l'entité facturée) — `nullableMorphs`, indexé |
 | invoiceable_type | string | oui | null | FK polymorphique (type de l'entité facturée) |
-| customer_id | FK customers | | | Destinataire de la facture (Customer — locataire ou acheteur) |
-| issued_by_id | FK users | oui | null | Utilisateur émetteur de la facture |
-| agency_id | FK agencies | oui | null | Agence émettrice |
-| reference_number | string | | | Numéro de facture (unique) |
+| customer_id | FK customers | | | Destinataire de la facture (Customer — locataire ou acheteur) (`restrictOnDelete`) |
+| issued_by_id | FK users | oui | null | Utilisateur émetteur de la facture (`nullOnDelete`) |
+| agency_id | FK agencies | oui | null | Agence émettrice (`nullOnDelete`) |
+| reference_number | string | | | Numéro de facture — unique **par agence**, pas globalement (voir Contraintes). `FA-AAAA-NNNNN` / `AV-AAAA-NNNNN` pour une facture numérotée ; une facture sans agence garde sa référence `INV-…` |
 | status | InvoiceStatus | | 'draft' | Statut (draft, sent, paid, overdue, cancelled, void) |
+| kind | InvoiceKind (string(20)) | | 'invoice' | `invoice` ou `credit_note` (avoir) — une facture émise ne s'annule que par un avoir (TCK-594, ADR-0039 §7, `2026_10_07_200700`) |
+| credited_invoice_id | FK invoices | oui | null | Pour un avoir : la facture qu'il annule (`nullOnDelete`, FK `invoices_credited_invoice_fk`, index `invoices_credited_invoice_idx`) (TCK-594) |
+| sequence_year | smallint | oui | null | Année de la séquence de numérotation. **Non assignable en masse** : seul `InvoiceNumberAllocator` l'écrit, à l'émission — jamais au brouillon (TCK-594) |
+| sequence_number | integer | oui | null | Rang continu par `(agency_id, kind, sequence_year)` ; même écrivain unique (TCK-594) |
 | issue_date | date | | | Date d'émission |
 | due_date | date | oui | null | Date d'échéance de paiement |
+| last_reminder_sent_at | timestamp | oui | null | Dernière relance envoyée (`2026_04_25_160000`) |
+| reminders_sent_count | smallint | | 0 | Nombre de relances envoyées (`2026_04_25_160000`) |
+| bank_reconciled_at | datetime | oui | null | Date du rapprochement bancaire (`2026_04_28_000005`) |
+| bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de relevé rapprochée (`nullOnDelete`) ; unicité partielle `invoices_bank_line_unique` sur les lignes non nulles (`2026_04_28_000005`) |
 | subtotal | decimal(14,2) | | | Montant hors taxes |
 | tax_rate | decimal(5,2) | oui | null | Taux de taxe appliqué (%) |
 | tax_amount | decimal(14,2) | oui | null | Montant de la taxe |
 | total_amount | decimal(14,2) | | | Montant total TTC |
-| currency | Currency | | 'XOF' | Devise |
+| currency | Currency (string(3)) | | 'XOF' | Devise |
+| transaction_id | string | oui | null | Identifiant de transaction du fournisseur de paiement, nul tant qu'aucun paiement en ligne n'est amorcé ; index `invoices_transaction_id_idx` — lu à chaque webhook entrant (TCK-285, `2026_08_16_090000`) |
+| payment_method | string | oui | null | Canal du règlement en ligne, écrit par `PaymentGatewayService::recordInitiation()` (TCK-285, `2026_08_16_090000`) |
 | notes | text | oui | null | Libellé ou notes complémentaires |
 | metadata | jsonb | oui | null | Données complémentaires |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contrainte :** `reference_number` unique.
+**Contraintes et index** (mesurés sur `2026_04_17_160023`, `2026_04_28_000005`, `2026_06_18_000001`, `2026_08_16_090000`, `2026_10_07_200700`) :
+- `invoices_agency_reference_unique` — unique `(agency_id, reference_number)`. **L'unicité globale de `reference_number` a été retirée** par `2026_10_07_200700` : elle aurait fait collisionner `FA-2026-00001` d'une agence à l'autre.
+- `invoices_reference_no_agency_unique` — unique partiel `(reference_number) WHERE agency_id IS NULL` : PostgreSQL tient deux `NULL` pour distincts, l'unicité précédente ne couvrirait pas les factures sans agence.
+- `invoices_agency_kind_seq_unique` — unique `(agency_id, kind, sequence_year, sequence_number)` : garde de dernier recours de la numérotation continue. La garde première est `InvoiceNumberAllocator`, qui sérialise deux émissions concurrentes de la même agence sur le verrou de la ligne `agencies`.
+- `invoices_bank_line_unique` — unique partiel `(bank_statement_line_id) WHERE bank_statement_line_id IS NOT NULL`.
+- Index : `(customer_id, status)`, `(agency_id, status)`, `issue_date`, `due_date`, `transaction_id`, `credited_invoice_id`.
 
-**Relations :**
-- `invoiceable()` → morphTo (Booking, Lease, LeasePayment, BookingPayment)
+**Invariant applicatif :** une facture `paid` ne revient pas à `draft`, `sent` ni `overdue` (`Invoice::booted()`, `updating` → 422 `invoice.status_transition_invalid`).
+
+**Relations** (mesurées sur `App\Models\Invoice`) :
+- `invoiceable()` → morphTo
 - `customer()` → belongsTo Customer (destinataire)
-- `issuedBy()` → belongsTo User (via issued_by_id)
+- `issuer()` → belongsTo User (via issued_by_id)
 - `agency()` → belongsTo Agency
-- `documents()` → morphMany Document (PDF généré, pièces jointes)
+- `creditNotes()` → hasMany Invoice (via credited_invoice_id — les avoirs qui l'annulent) (TCK-594)
+- `creditedInvoice()` → belongsTo Invoice (via credited_invoice_id — pour un avoir, la facture annulée) (TCK-594)
+- `bankStatementLine()` → belongsTo BankStatementLine
+
+⚠ Le modèle ne porte **pas** de relation `documents()` : le PDF n'est pas rattaché par ce chemin.
 
 **Inverse sur les modèles liés :**
-- `Booking.invoices()` → morphMany Invoice
 - `Lease.invoices()` → morphMany Invoice
-- `LeasePayment.invoice()` → morphOne Invoice
-- `BookingPayment.invoice()` → morphOne Invoice (déjà ajouté dans les sections respectives)
+- `Agency.invoices()` → hasMany Invoice
+- `Customer.invoices()` → hasMany Invoice
+
+⚠ `Booking.invoices()`, `LeasePayment.invoice()` et `BookingPayment.invoice()`, décrites ici jusqu'au 2026-10-14, **n'existent pas** dans le code.
 
 ---
 
@@ -1512,18 +1687,23 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 ### 28. Payout 🆕
 
 **Table :** `payouts`
-**Description :** Reversement de fonds collectés par l'agence vers un bailleur (propriétaire) après déduction de la commission agence. Assure la traçabilité comptable des flux sortants associés à un bail ou à une réservation. Un `Payout` agrège typiquement un ou plusieurs `LeasePayment` / `BookingPayment` d'une période donnée.
+**Description :** Sortie d'argent de l'agence vers un bénéficiaire : le bailleur (reversement des loyers après commission), le locataire (caution rendue) ou le prestataire (facture d'intervention) — `payee_role` le dit (TCK-594, ADR-0039). Assure la traçabilité comptable des flux sortants. Un reversement au bailleur agrège typiquement un ou plusieurs `LeasePayment` / `BookingPayment` d'une période donnée, par les pivots.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| lease_id | FK leases | oui | null | Bail concerné (si reversement locatif) |
-| booking_id | FK bookings | oui | null | Réservation concernée (si reversement sur acompte) |
-| agency_id | FK agencies | oui | null | Agence émettrice du reversement |
-| landlord_id | FK users | | | Propriétaire bénéficiaire du reversement |
+| lease_id | FK leases | oui | null | Bail concerné (si reversement locatif) (`nullOnDelete`) |
+| booking_id | FK bookings | oui | null | Réservation concernée (si reversement sur acompte) (`nullOnDelete`) |
+| service_provider_bill_id | FK service_provider_bills | oui | null | Facture d'intervention payée par ce reversement, quand `payee_role = service_provider` (`nullOnDelete`, FK `payouts_sp_bill_fk`, index `payouts_sp_bill_idx`) (TCK-594, `2026_10_07_200200`) |
+| agency_id | FK agencies | oui | null | Agence émettrice du reversement (`nullOnDelete`) |
+| landlord_id | FK users | | | Utilisateur bénéficiaire (`restrictOnDelete`). Le nom est historique : pour un reversement `service_provider`, c'est l'utilisateur prestataire (`PayoutService`) ; pour une caution rendue (`tenant`), c'est le bailleur du bail, et le bénéficiaire réel se lit par `beneficiaryUserId()` (le locataire du bail) |
+| payee_role | PayeeRole (string(30)) | | 'landlord' | Qui reçoit l'argent : `landlord`, `tenant`, `service_provider`. Chaîne, pas `enum()` SQL (ADR-0007). Tout cumul de « reversements au bailleur » filtre `landlord`. Les remboursements de caution antérieurs ont été passés à `tenant` par `2026_10_07_200300` (TCK-594, ADR-0039 §2) |
 | issued_by_id | FK users | oui | null | Utilisateur ayant initié le reversement (`nullOnDelete`) |
+| approved_by_id | FK users | oui | null | Approbateur, quand le net atteint le seuil d'approbation de l'agence (`nullOnDelete`, FK `payouts_approved_by_fk`) (TCK-594, ADR-0039 §4) |
+| approved_at | timestamp | oui | null | Date de l'approbation (TCK-594) |
+| processed_by_id | FK users | oui | null | Membre qui a exécuté le paiement (`nullOnDelete`, FK `payouts_processed_by_fk`) (TCK-594) — émission, approbation et paiement sont les trois gestes d'une sortie d'argent (ADR-0039 §4) |
 | reference_number | string | | | Numéro de bordereau (unique) |
-| status | PayoutStatus | | 'pending' | Statut du reversement |
+| status | PayoutStatus | | 'pending' | Statut du reversement — `awaiting_approval` tant qu'un second membre détenant `payouts.approve` n'a pas approuvé (ADR-0039 §4). Un reversement `completed` n'en sort plus (`Payout::booted()`, 422 `payout.status_transition_invalid`) |
 | period_start | date | oui | null | Début de la période couverte |
 | period_end | date | oui | null | Fin de la période couverte |
 | gross_amount | decimal(14,2) | | | Montant brut collecté |
@@ -1532,9 +1712,12 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | net_amount | decimal(14,2) | | | Montant net reversé |
 | currency | Currency | | 'XOF' | Devise |
 | payment_method | PaymentMethod | oui | null | Moyen de reversement (bank_transfer, mobile_money, cash, check) |
+| payout_method_id | FK payout_methods | oui | null | Destination enregistrée du bénéficiaire (§76) ; la relation lit aussi une destination supprimée (`withTrashed`) (`nullOnDelete`, FK `payouts_payout_method_fk`) (TCK-594, `2026_10_07_200200`) |
 | transaction_id | string | oui | null | ID transaction externe (banque / mobile money) |
-| scheduled_at | datetime | oui | null | Date planifiée du reversement |
-| processed_at | datetime | oui | null | Date effective du reversement |
+| scheduled_at | timestamp | oui | null | Date planifiée du reversement |
+| processed_at | timestamp | oui | null | Date effective du reversement |
+| bank_reconciled_at | datetime | oui | null | Date du rapprochement bancaire (TCK-593, `2026_10_07_150200`) |
+| bank_statement_line_id | FK bank_statement_lines | oui | null | Ligne de relevé rapprochée (`nullOnDelete`, FK `payouts_bank_line_fk`) ; un reversement n'est rapproché qu'à une seule ligne (TCK-593) |
 | failed_reason | text | oui | null | Motif d'échec (si `status = failed`) |
 | notes | text | oui | null | Notes internes |
 | metadata | jsonb | oui | null | Données passerelle / complémentaires |
@@ -1542,24 +1725,38 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes :**
+**Contraintes et index** (mesurés sur `2026_04_17_160025`, `2026_08_22_090000`, `2026_10_07_150200`, `2026_10_07_200200`, `2026_10_07_200400`) :
 - `reference_number` unique.
-- CHECK : `lease_id IS NOT NULL OR booking_id IS NOT NULL` (un reversement doit être rattaché à au moins un flux d'origine).
+- `payouts_bank_line_unique` — unique partiel `(bank_statement_line_id) WHERE bank_statement_line_id IS NOT NULL`.
+- Index : `(landlord_id, status)`, `(lease_id, period_start)`, `(status, scheduled_at)`, `payouts_agency_id_created_at_index (agency_id, created_at)`, `payouts_agency_status_idx (agency_id, status)`, `payouts_sp_bill_idx (service_provider_bill_id)`.
+- **Aucune contrainte CHECK ne porte sur `payouts`.** Le CHECK « `lease_id IS NOT NULL OR booking_id IS NOT NULL` » qu'écrivait cette section n'a jamais été posé, et ne le sera pas : un reversement couvre plusieurs baux d'un même bailleur, ou une facture de prestataire. L'origine se garantit à l'écriture (au moins une pièce) et se lit dans les pivots (docblock de `2026_10_07_200200`).
 
-**Relations :**
+**Pivots `payout_lease_payment` et `payout_booking_payment`** (`2026_04_17_160025`) : `payout_id` FK `cascadeOnDelete`, `lease_payment_id` / `booking_payment_id` FK `cascadeOnDelete`, clé primaire composée. **Un paiement n'est reversé qu'une fois** : unicités `payout_lp_lease_payment_unique (lease_payment_id)` et `payout_bp_booking_payment_unique (booking_payment_id)` (TCK-594, ADR-0039 §3, `2026_10_07_200400`). Avant de les poser, la migration a détaché les pièces des reversements `cancelled` ou `failed` et gardé, pour chaque paiement, le plus ancien reversement — comme le fait désormais le service.
+
+**Relations** (mesurées sur `App\Models\Payout`) :
 - `lease()` → belongsTo Lease
 - `booking()` → belongsTo Booking
 - `agency()` → belongsTo Agency
 - `landlord()` → belongsTo User (via landlord_id)
-- `issuedBy()` → belongsTo User (via issued_by_id)
-- `lease_payments()` → belongsToMany LeasePayment (pivot `payout_lease_payment` — agrégation des paiements couverts)
-- `booking_payments()` → belongsToMany BookingPayment (pivot `payout_booking_payment`)
-- `documents()` → morphMany Document (bordereau PDF, justificatif bancaire)
+- `issuer()` → belongsTo User (via issued_by_id)
+- `approver()` → belongsTo User (via approved_by_id) (TCK-594)
+- `processor()` → belongsTo User (via processed_by_id) (TCK-594)
+- `payoutMethod()` → belongsTo PayoutMethod, `withTrashed` (TCK-594)
+- `serviceProviderBill()` → belongsTo ServiceProviderBill — la facture que ce reversement paie (TCK-594)
+- `imputedBills()` → hasMany ServiceProviderBill (via `imputed_payout_id`) — les factures d'intervention retenues en frais de ce reversement au bailleur
+- `leasePayments()` → belongsToMany LeasePayment (pivot `payout_lease_payment` — agrégation des paiements couverts)
+- `bookingPayments()` → belongsToMany BookingPayment (pivot `payout_booking_payment`)
+
+⚠ Le modèle ne porte **pas** de relation `documents()`.
 
 **Inverse sur les modèles liés :**
 - `Lease.payouts()` → hasMany Payout
-- `Booking.payouts()` → hasMany Payout
-- `User.payouts()` → hasMany Payout (via landlord_id — reversements reçus en tant que bailleur)
+- `Agency.payouts()` → hasMany Payout
+- `LeasePayment.payouts()`, `BookingPayment.payouts()` → belongsToMany Payout (par les pivots)
+- `ServiceProviderBill.payouts()` → hasMany Payout
+- `User.payouts()` → hasMany Payout (via landlord_id)
+
+⚠ `Booking.payouts()`, décrite ici jusqu'au 2026-10-14, **n'existe pas** dans le code.
 
 ---
 
@@ -1572,23 +1769,26 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
 | document_id | FK documents | | | Document partagé (`cascadeOnDelete`) |
-| token | string | | | Token unique (URL-safe, ~40 caractères) |
-| expires_at | datetime | oui | null | Date d'expiration du lien (null = pas d'expiration) |
-| password_hash | string | oui | null | Hash du mot de passe d'accès (optionnel) |
+| token | text (cast `encrypted`) | | | Jeton du lien, **chiffré** au repos — relu seulement par qui gère le document, pour réafficher l'URL. **N'est plus unique ni cherché** : la résolution passe par `token_hash` (TCK-602, ADR-0051 §7, `2026_10_08_180000`) |
+| token_hash | char(64) | | | Empreinte sha256 du jeton, unique (`dsl_token_hash_unique`) — **la seule colonne cherchée** à la résolution d'un lien public. Écrite par `DocumentShareLink::booted()` (`saving`) dès que `token` change : service, fabrique et seeders n'écrivent que `token`. Masquée à la sérialisation (`$hidden`) (TCK-602) |
+| expires_at | timestamp | oui | null | Date d'expiration du lien (null = pas d'expiration) |
+| password_hash | string | oui | null | Hash du mot de passe d'accès (optionnel) ; masqué à la sérialisation |
 | max_downloads | integer | oui | null | Nombre maximum de téléchargements autorisés |
 | downloads_count | integer | | 0 | Nombre de téléchargements effectués |
 | created_by_id | FK users | oui | null | Utilisateur ayant généré le lien (`nullOnDelete`) |
-| revoked_at | datetime | oui | null | Date de révocation manuelle |
-| last_accessed_at | datetime | oui | null | Dernière consultation |
+| revoked_at | timestamp | oui | null | Date de révocation manuelle |
+| last_accessed_at | timestamp | oui | null | Dernière consultation |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes :**
-- `token` unique.
+**Contraintes et index** (mesurés sur `2026_04_17_160026` et `2026_10_08_180000`) :
+- `dsl_token_hash_unique` — unique `(token_hash)`.
+- L'unicité de `token` (`document_share_links_token_unique`) **a été retirée** par `2026_10_08_180000` : un texte chiffré n'est pas déterministe, il ne se compare pas. Les liens existants ont été hachés et chiffrés par la même migration — un lien déjà envoyé reste valide ; `down()` rétablit le clair en déchiffrant.
+- Index : `(document_id, expires_at)`.
 
 **Relations :**
 - `document()` → belongsTo Document
-- `createdBy()` → belongsTo User (via created_by_id)
+- `creator()` → belongsTo User (via created_by_id)
 
 **Inverse :**
 - `Document.shareLinks()` → hasMany DocumentShareLink
@@ -1629,16 +1829,24 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | id | bigint PK | | auto | Identifiant unique |
 | provider | string | | | Identifiant du fournisseur (`wave`, `orange_money`, `stripe`, `mls`, `twilio`, `whatsapp_cloud`…). Pour `whatsapp_cloud` : `credentials` = phone_number_id / access_token / waba_id ; `metadata` = webhook verify token / app secret |
 | agency_id | FK agencies | oui | null | Agence propriétaire (null = intégration globale) (`cascadeOnDelete`) |
-| credentials | text (encrypted) | | | Credentials chiffrés (API keys, secrets, tokens) |
+| credentials | text (cast `encrypted:array`) | | | Credentials chiffrés (API keys, secrets, tokens) ; masqués à la sérialisation |
 | is_active | boolean | | true | Intégration activée |
-| last_used_at | datetime | oui | null | Dernière utilisation |
+| last_used_at | timestamp | oui | null | Dernière utilisation |
+| last_health_check_at | timestamp | oui | null | Dernier test de connexion (`2026_05_07_000217`) |
+| health_status | string | | 'unknown' | Résultat du dernier test : `unknown` tant qu'aucun n'a tourné, puis `healthy` ou `failed`, écrit par `IntegrationService::test()` (`2026_05_07_000217`) |
+| webhook_token_hash | char(64) | oui | null | Empreinte sha256 du jeton de l'URL de webhook, unique (`integrations_webhook_token_hash_unique`) — **la colonne cherchée** quand un webhook de paiement arrive. Nulle hors intégration de paiement (TCK-293, ADR-0046, `2026_10_08_120000`) |
+| webhook_token | text (cast `encrypted`) | oui | null | Le jeton en clair, chiffré par `APP_KEY` — relu pour construire l'URL de notification (`webhookUrl()`, sur `APP_URL`) : `notif_url` d'Orange Money, écran Wave. Masqué à la sérialisation (TCK-293) |
 | metadata | jsonb | oui | null | Configuration complémentaire (webhooks, scopes…) |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes :**
+**Contraintes et index** (mesurés sur `2026_04_17_160028`, `2026_08_22_090000`, `2026_10_08_120000`) :
 - Unique composé `(provider, agency_id)`.
+- `integrations_webhook_token_hash_unique` — unique `(webhook_token_hash)`.
+- Index `integrations_agency_id_created_at_index (agency_id, created_at)`.
+
+**Cycle du jeton de webhook** (TCK-293, ADR-0046 §2, §7 — `Integration::booted()`) : une intégration de paiement (`PaymentProvider`) **naît avec son jeton** ; elle en reçoit un neuf si son fournisseur ou son agence change, par quelque chemin que ce soit — l'ancien jeton ne doit rien ouvrir chez le nouveau titulaire ; une intégration qui cesse d'être de paiement perd le sien. `rotateWebhookToken()` tire un jeton neuf (48 caractères, CSPRNG) et l'ancien cesse de résoudre dans la même écriture. Les intégrations de paiement existantes ont reçu leur jeton par `2026_10_08_120000` : sans lui, elles ne recevraient plus aucun webhook, l'ancienne route rendant 410.
 
 **Relations :**
 - `agency()` → belongsTo Agency
@@ -1707,14 +1915,16 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| user_id | FK users | | | Identité du propriétaire (`restrictOnDelete`) |
+| user_id | FK users | oui | null | Identité du propriétaire (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe, et `user_id` se renseigne à l'acceptation (TCK-256, `2026_05_10_150000`) |
 | agency_id | FK agencies | | | Agence chez laquelle ce profil existe (`restrictOnDelete`) |
-| status | OwnerProfileStatus | | 'active' | Statut du profil (active, inactive, blocked) |
-| rib | string | oui | null | Relevé d'identité bancaire (chiffré recommandé) |
-| tax_id | string | oui | null | Numéro fiscal / NINEA |
+| agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `owner_profiles_agency_role_id_fk`). À la création, un profil qui n'en déclare pas reçoit le rôle système de son type dans son agence (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
+| status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked) |
+| rib | text (cast `encrypted`) | oui | null | Relevé d'identité bancaire — **chiffré** (TCK-601, ADR-0044 §1, `2026_10_08_601100`) |
+| tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) |
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
-| id_document_number | string | oui | null | Numéro de pièce |
-| monthly_income | decimal(12,2) | oui | null | Revenus mensuels déclarés (XOF) |
+| id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
+| monthly_income | decimal(14,2) | oui | null | Revenus mensuels déclarés (XOF) |
+| works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -1722,16 +1932,21 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes d'unicité :**
-- `(user_id, agency_id)` unique — un user a au plus un profil propriétaire par agence
+**Données sensibles** (TCK-601, ADR-0044 §1) : `rib`, `tax_id` et `id_document_number` (`OwnerProfile::SENSITIVE`) sont chiffrés en base, en `text` — une valeur chiffrée ne tient pas dans un `varchar(255)` —, absents de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets, de la recherche et du journal d'activité. Ils ne sortent que par `OwnerProfileResource` (masqués), `GET /api/owners/{id}/sensitive` (consultation journalisée) et l'export du droit d'accès.
+
+**Contraintes et index** (mesurés sur `2026_05_02_000001` et suivantes) :
+- `(user_id, agency_id)` unique — un user a au plus un profil propriétaire par agence. Les brouillons (`user_id` nul) n'y entrent pas en collision : PostgreSQL tient deux `NULL` pour distincts.
+- Index : `(agency_id, status)`, `deleted_at`.
 
 **Relations :**
 - `user()` → belongsTo User
 - `agency()` → belongsTo Agency
+- `agencyRole()` → belongsTo AgencyRole (`HasAgencyRole`)
 - `guarantor()` → belongsTo User (via guarantor_user_id)
+- `invitations()` → morphMany Invitation
 
 **Inverse :**
-- `User.owner_profiles()` → hasMany OwnerProfile
+- `User.ownerProfiles()` → hasMany OwnerProfile (`HasProfiles`)
 
 ---
 
@@ -1743,9 +1958,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| user_id | FK users | | | Identité de l'agent (`restrictOnDelete`) |
+| user_id | FK users | oui | null | Identité de l'agent (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe (TCK-258, `2026_05_10_160000`) |
 | agency_id | FK agencies | | | Agence employeuse (`restrictOnDelete`) |
-| status | AgentProfileStatus | | 'active' | Statut du profil (active, inactive, suspended) |
+| agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `agent_profiles_agency_role_id_fk`). Rôle système de son type par défaut à la création (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
+| status | AgentProfileStatus | | 'active' | Statut du profil (draft, active, inactive, suspended) |
 | license_number | string | oui | null | Numéro de licence professionnelle |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission (%) |
 | specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
@@ -1756,15 +1972,18 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes d'unicité :**
-- `(user_id, agency_id)` unique — un user a au plus un profil agent par agence
+**Contraintes et index** (mesurés sur `2026_05_02_000002` et suivantes) :
+- `(user_id, agency_id)` unique — un user a au plus un profil agent par agence ; les brouillons (`user_id` nul) n'y entrent pas en collision.
+- Index : `(agency_id, status)`, `deleted_at`.
 
 **Relations :**
 - `user()` → belongsTo User
 - `agency()` → belongsTo Agency
+- `agencyRole()` → belongsTo AgencyRole (`HasAgencyRole`)
+- `invitations()` → morphMany Invitation
 
 **Inverse :**
-- `User.agent_profiles()` → hasMany AgentProfile
+- `User.agentProfiles()` → hasMany AgentProfile (`HasProfiles`)
 
 ---
 
@@ -1816,7 +2035,8 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| user_id | FK users | | | Identité du prestataire (`restrictOnDelete`) |
+| user_id | FK users | oui | null | Identité du prestataire (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe, et `user_id` se renseigne à l'acceptation (TCK-260, `2026_05_10_170000`). **N'est plus unique** (voir Contraintes) |
+| status | ServiceProviderProfileStatus | | 'active' | Cycle de vie du profil, indépendant des rattachements : `draft` (pré-créé à l'invitation), `active` (rattaché à au moins une agence active), `inactive` (toutes ses collaborations `paused`/`ended`), `suspended` (bloqué par un admin). Indexé (TCK-260, TCK-262, `2026_05_10_170000`) |
 | specialties | jsonb | oui | null | Liste de `MaintenanceCategory` (plumbing, electrical, etc.) |
 | service_areas | jsonb | oui | null | Zones desservies (codes postaux, communes) |
 | insurance_policy_id | string | oui | null | Référence police d'assurance |
@@ -1829,16 +2049,19 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes d'unicité :**
-- `user_id` unique — un user a au plus un profil prestataire
+**Contraintes et index** (mesurés sur `2026_05_02_000004` et `2026_05_10_170000`) :
+- **Aucune unicité sur `user_id`.** L'unicité `service_provider_profiles_user_id_unique` de la création a été **retirée** par `2026_05_10_170000` (TCK-260), pour laisser coexister plusieurs brouillons. « Un user a au plus un profil prestataire » n'est plus une garantie de la base : c'est l'application qui le tient — une invitation d'une autre agence **réutilise** le profil existant et crée une collaboration à l'acceptation (`InvitationService`, TCK-262), et `User.serviceProviderProfile()` est un `hasOne`. L'unicité réelle est celle de la collaboration `(profil, agence)` (§39).
+- Index : `status`, `deleted_at`.
 
 **Relations :**
 - `user()` → belongsTo User
-- `agency_collaborations()` → hasMany ServiceProviderAgencyCollaboration
+- `agencyCollaborations()` → hasMany ServiceProviderAgencyCollaboration
 - `agencies()` → belongsToMany Agency (via ServiceProviderAgencyCollaboration)
+- `reviews()` → morphMany Review
+- `invitations()` → morphMany Invitation
 
 **Inverse :**
-- `User.service_provider_profile()` → hasOne ServiceProviderProfile
+- `User.serviceProviderProfile()` → hasOne ServiceProviderProfile (`HasProfiles`)
 
 ---
 
@@ -1877,9 +2100,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
-| service_provider_profile_id | FK service_provider_profiles | | | Prestataire (`cascadeOnDelete`) |
+| service_provider_profile_id | FK service_provider_profiles | | | Prestataire (`cascadeOnDelete`, FK `sp_agency_collab_spp_fk`) |
 | agency_id | FK agencies | | | Agence partenaire (`cascadeOnDelete`) |
-| status | CollaborationStatus | | 'active' | Statut (active, paused, ended) |
+| agency_role_id | FK agency_roles | | | Le rôle d'agence du prestataire **dans cette agence** — porté par la collaboration, pas par le profil, qui sert N agences : « 1 collaboration = 1 rôle » (`restrictOnDelete`, FK `sp_agency_collab_agency_role_fk`). Rôle système par défaut à la création (`HasAgencyRole`) (TCK-315, ADR-0016, `2026_08_17_090000` → `090200`) |
+| status | CollaborationStatus | | 'active' | Statut (active, paused, ended) — une fin de collaboration s'écrit `ended`, jamais par `delete()` (TCK-592) |
 | started_at | date | | | Début de la collaboration |
 | ended_at | date | oui | null | Fin de la collaboration |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -1887,12 +2111,14 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Contraintes d'unicité :**
-- `(service_provider_profile_id, agency_id)` unique
+**Contraintes et index** (mesurés sur `2026_05_02_000006`, `2026_08_17_090000`, `2026_10_07_120100`) :
+- `sp_agency_collab_live_unique` — unique **partiel** `(service_provider_profile_id, agency_id) WHERE deleted_at IS NULL` : une seule collaboration **vivante** par couple. Il remplace l'unique total `sp_agency_collab_unique`, qui, sur une table en `SoftDeletes`, empêchait à jamais de recréer un couple supprimé en douceur (TCK-592, `2026_10_07_120100`).
+- Index : `(agency_id, status)`, `deleted_at`.
 
 **Relations :**
-- `service_provider_profile()` → belongsTo ServiceProviderProfile
+- `serviceProviderProfile()` → belongsTo ServiceProviderProfile
 - `agency()` → belongsTo Agency
+- `agencyRole()` → belongsTo AgencyRole (`HasAgencyRole`)
 
 ---
 
@@ -1910,10 +2136,12 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | file_hash | string(64) | | | Hash SHA-256 du fichier — empêche les imports en doublon |
 | bank_name | string | oui | null | Nom de la banque (libre, parsé si possible) |
 | account_iban_masked | string | oui | null | IBAN masqué (4 derniers caractères visibles) |
+| csv_mapping | jsonb | oui | null | Le mapping CSV **effectif**, figé à l'import (`CsvDriver::effectiveMapping` sur `agencies.bank_csv_mapping`) : modifier ensuite celui de l'agence ne ré-interprète aucun relevé passé (TCK-593, `2026_10_07_150300`) |
 | period_start | date | oui | null | Début de la période couverte par le relevé |
 | period_end | date | oui | null | Fin de la période couverte |
 | lines_count | unsignedInteger | | 0 | Compteur cache des lignes parsées (cf. Règle 2) |
-| status | BankStatementStatus enum | | 'processing' | Cycle de vie (processing → ready_for_review → partially_reconciled → reconciled → archived) |
+| skipped_lines_count | unsignedInteger | | 0 | Lignes sautées à la lecture — illisibles, ou à date ou montant vide — comptées et exposées au lieu de disparaître (TCK-593, `2026_10_07_150300`) |
+| status | BankStatementStatus enum | | 'processing' | Cycle de vie (processing → ready_for_review → partially_reconciled → reconciled → archived), ou `failed` : l'analyse a échoué, ou aucune ligne d'un fichier non vide n'a pu être lue — un relevé ne reste plus `processing` à vie (TCK-593) |
 | finalized_at | datetime | oui | null | Date à laquelle le relevé a été clôturé |
 | finalized_by | FK users | oui | null | Utilisateur ayant clôturé le rapprochement (`nullOnDelete`) |
 | created_at | datetime | | auto | |
@@ -2107,27 +2335,36 @@ exigée pour `director_id`.
 | agency_id | FK agencies | | | `cascadeOnDelete` |
 | period_start | date | | | |
 | period_end | date | | | |
-| gross_amount | decimal(14,2) | | | Total encaissé sur la période (pour info) |
-| platform_fee_amount | decimal(14,2) | | | Commission plateforme retenue |
-| net_amount | decimal(14,2) | | | Montant à verser à l'agence (`gross - fees`) |
-| currency | char(3) | | | XOF, EUR, USD |
+| gross_amount | decimal(14,2) | | 0 | Total encaissé sur la période (pour info) |
+| platform_fee_amount | decimal(14,2) | | 0 | Commission plateforme retenue |
+| net_amount | decimal(14,2) | | 0 | Montant à verser à l'agence (`gross - fees`) |
+| currency | char(3) | | 'XOF' | XOF, EUR, USD |
 | status | PlatformPayoutStatus enum | | 'pending' | pending, approved, processing, paid, failed, cancelled |
-| approved_by | FK users | oui | null | Super-admin ayant approuvé |
-| processed_at | datetime | oui | null | Date d'exécution du virement |
+| closed_by_id | FK users | oui | null | Auteur de la clôture de période — qui a créé le reversement (`nullOnDelete`, FK `platform_payouts_closed_by_fk`). Ne vivait jusque-là que dans `activity_log` (TCK-594, ADR-0039 §4, `2026_10_07_200600`) |
+| approved_by | FK users | oui | null | Super-admin ayant approuvé (`nullOnDelete`) — **distinct de `closed_by_id`** et hors bénéficiaires (voir Séparation des gestes) |
+| approved_at | timestamp | oui | null | Date de l'approbation (TCK-594, `2026_10_07_200600`) |
+| paid_by_id | FK users | oui | null | Qui a exécuté le virement (`nullOnDelete`, FK `platform_payouts_paid_by_fk`) — **distinct de `approved_by`** (TCK-594, `2026_10_07_200600`) |
+| processed_at | timestamp | oui | null | Date d'exécution du virement |
+| payment_reference | string | oui | null | Référence du virement, écrite au paiement. Remplace le `metadata.bank_ref` facultatif d'avant (TCK-594, `2026_10_07_200600`) |
 | failure_reason | text | oui | null | |
-| metadata | jsonb | oui | null | Référence virement bancaire, lot, breakdown |
+| metadata | jsonb | oui | null | Lot, breakdown |
 | created_at / updated_at | datetime | | auto | |
 
-**Index :**
-- `(agency_id, period_end)` — un payout par agence/période
-- `(status)` — file d'approbation
+**Séparation des gestes** (TCK-594, ADR-0039 §4 ; `features.md` §1.5) : clôture, approbation et paiement sont trois colonnes pour que la base permette de comparer les acteurs. `PlatformPayoutService` refuse qu'on approuve un reversement qu'on a clôturé, ou qu'on paie un reversement qu'on a approuvé (`SegregationOfDuties::assertDistinct`), et qu'un bénéficiaire — l'administrateur principal de l'agence payée ou un membre de son équipe — approuve ou paie.
+
+**Contraintes et index** (mesurés sur `2026_05_07_000223`) :
+- `platform_payouts_unique_open_period` — unique partiel `(agency_id, period_end) WHERE status <> 'cancelled'` : un reversement non annulé par agence et période — c'est ce qui rend la clôture de période idempotente en base (ré-exécution = 409).
+- Index : `(agency_id, period_end)`, `(status)` — file d'approbation.
 
 **Traits :**
-- `LogsActivity`
+- `Auditable`
 
 **Relations :**
 - `agency()` → belongsTo Agency
 - `approver()` → belongsTo User (via `approved_by`)
+- `closer()` → belongsTo User (via `closed_by_id`) (TCK-594)
+- `payer()` → belongsTo User (via `paid_by_id`) (TCK-594)
+- `bookingPayments()`, `leasePayments()` → hasMany — les paiements dont ce reversement a retenu la commission (`platform_payout_id`, `2026_05_07_000224`)
 
 **Scopes :**
 - `pending()`, `approved()`, `paid()`
@@ -2242,10 +2479,10 @@ exigée pour `director_id`.
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | agency_id | FK agencies | | | `cascadeOnDelete` |
-| submitted_by | FK users | | | User (agency_admin) qui a soumis la demande |
+| submitted_by | FK users | | | User (agency_admin) qui a soumis la demande (`cascadeOnDelete`) |
 | rc | string | | | Numéro de Registre du Commerce |
-| ninea | string | | | Numéro NINEA |
-| rib_pro | string | | | RIB professionnel |
+| ninea | text (cast `encrypted`) | | | Numéro NINEA — **chiffré** (TCK-601, ADR-0044 §1, `2026_10_08_601200`) |
+| rib_pro | text (cast `encrypted`) | | | RIB professionnel — **chiffré**, et **seule source** du RIB professionnel : il n'est plus recopié sur l'agence (TCK-601, `2026_10_08_601200`) |
 | address_fiscale | string | | | Adresse fiscale |
 | company_legal_name | string | | | Raison sociale juridique |
 | planned_agents_count | integer | oui | null | Nombre estimé d'agents à inviter |
@@ -2257,9 +2494,11 @@ exigée pour `director_id`.
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Index :**
-- `(agency_id, status)` — pour empêcher plusieurs demandes `pending` simultanées (unique partiel sur `pending`)
-- `(status, submitted_at)`
+**Contraintes et index** (mesurés sur `2026_05_10_180000`) :
+- `agency_upgrade_requests_one_pending_per_agency` — unique partiel `(agency_id) WHERE status = 'pending'` : une agence n'a jamais deux demandes `pending` simultanées, garanti en base (le contrôleur de soumission rend en amont un 422 propre).
+- Index : `(agency_id, status)`, `(status, submitted_at)`.
+
+**Données sensibles** (TCK-601, ADR-0044 §1) : `ninea` et `rib_pro` sont chiffrés, en `text`. La migration `2026_10_08_601200` a aussi **supprimé** la copie du RIB dans `agencies.metadata.legal_info.rib_pro` : elle n'avait aucun lecteur, et `AgencyResource` la rendait à tout membre de l'agence.
 
 **Relations :**
 - `agency()` → belongsTo Agency
@@ -2268,7 +2507,7 @@ exigée pour `director_id`.
 - `documents()` → morphMany Document (statuts PDF, scan RC, scan NINEA)
 
 **Notes :**
-- À l'approbation : `Agency.kind` flippe vers `standard`, les champs `rc`, `ninea` populés sur l'agence si vides, notification au submitter, débloquage des features restreintes (invitation collaborateurs internes, multi-admin, custom roles, assignation, reporting cross-équipe, customisation tags/enums).
+- À l'approbation (`AgencyKindFlipService`) : `Agency.kind` flippe vers `standard` ; `rc`, `ninea`, `company_legal_name` et `address_fiscale` amorcent les colonnes `agencies.rccm`, `ninea`, `legal_name` et `legal_address` **si elles sont vides** — la demande amorce, elle ne fait pas foi (TCK-594, ADR-0039 §7) ; `rib_pro` n'est pas recopié (TCK-601). Puis notification au submitter, débloquage des features restreintes (invitation collaborateurs internes, multi-admin, custom roles, assignation, reporting cross-équipe, customisation tags/enums).
 - Pas de rétrogradation `standard` → `individual`.
 - L'utilisateur peut révoquer sa demande tant qu'elle est `pending` (`revoked` final).
 
@@ -2447,18 +2686,35 @@ exigée pour `director_id`.
 
 ### 55. NotificationTemplate — extension WhatsApp 🆕
 
-**Table :** `notification_templates` (table existante — TCK-102)
-**Description :** Le registre de templates de notification (`event`, `channel`, `locale`, `subject`, `body`) est étendu avec les colonnes nécessaires au mapping vers les **templates approuvés par Meta** pour le canal `whatsapp` (envoi hors fenêtre 24h). Une ligne `channel = 'whatsapp'` porte le nom du template Meta et sa catégorie/statut d'approbation.
+**Table :** `notification_templates` (TCK-102, `2026_05_07_000215` ; colonnes Meta : `2026_06_17_110000`)
+**Description :** Registre des gabarits de notification éditables, un par `(event, channel, locale)`. Les quatre colonnes `meta_*` portent, pour le canal `whatsapp`, le mapping vers les **gabarits approuvés par Meta** (envoi hors fenêtre 24h) : nom, catégorie et statut d'approbation. Le titre de section garde « extension WhatsApp » pour ne pas casser son ancre ; la section décrit la table entière.
 
-| Colonne ajoutée | Type | Nullable | Défaut | Description |
+| Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
-| meta_template_name | string | oui | null | Nom du template tel qu'enregistré chez Meta |
+| id | bigint PK | | auto | Identifiant unique |
+| event | string | | | Événement notifié (un code de notification) |
+| channel | string | | | Canal (`email`, `sms`, `whatsapp`…) |
+| locale | string(5) | | | Langue (`fr`, `en`, `wo`) |
+| subject | string | oui | null | Objet — nul pour les canaux qui n'en ont pas |
+| body | text | | | Corps du gabarit |
+| meta_template_name | string | oui | null | Nom du template tel qu'enregistré chez Meta (`2026_06_17_110000`) |
 | meta_category | string | oui | null | `authentication` (OTP) / `utility` (transactionnel, rappels, relances) — **jamais `marketing`** |
 | meta_status | string | oui | null | `pending` / `approved` / `rejected` (statut d'approbation Meta) |
 | meta_variables | jsonb | oui | null | Mapping **ordonné** des variables du template (défaut `[]` côté model, **pas de DEFAULT JSON en migration**) |
+| is_active | boolean | | true | Gabarit actif |
+| updated_by_id | FK users | oui | null | Dernier éditeur (`nullOnDelete`) |
+| created_at | datetime | | auto | |
+| updated_at | datetime | | auto | |
 
-**Contraintes :**
-- Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS.
+**Contraintes et index** (mesurés sur `2026_05_07_000215`) :
+- Unique composé `(event, channel, locale)`.
+- Index `(event, channel, is_active)`.
+- Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS (`TemplateResolver`).
+
+**Données posées par migration :** `2026_10_07_100100` (TCK-588, ADR-0032) inscrit les gabarits WhatsApp des codes mobiles qui visent un contact sans compte, en `fr`, `en`, `wo`, avec `meta_status = pending` et `meta_category = utility` (`insertOrIgnore`). Le passage à `approved` est un acte d'exploitation — la soumission à Meta —, pas une migration : d'ici là, l'envoi bascule en SMS.
+
+**Relations :**
+- `updatedBy()` → belongsTo User (via updated_by_id)
 
 ---
 
@@ -2717,29 +2973,51 @@ péremption.
 ### 63. IntegrationWebhookLog ✅
 
 **Table :** `integration_webhook_logs`
-**Description :** Journal des webhooks échangés avec un fournisseur d'intégration
-(cf. [31. Integration](#31-integration-)). Une ligne par webhook reçu ou émis, payload brut conservé
-pour rejeu et diagnostic.
+**Description :** Journal des webhooks **entrants** (cf. [31. Integration](#31-integration-)), sur tous les canaux — paiement, SMS, WhatsApp. Une ligne par webhook, **écrite avant tout traitement** par `WebhookJournal`, puis annotée au fil du traitement (TCK-602, ADR-0051 §4). Le corps reçu est gardé tel quel mais **chiffré** (`body`), et ne sort par aucune sérialisation ni aucun `fields[]` : seul le rejeu le relit. Ce qui se lit à l'écran est `payload`, la **vue expurgée** (`WebhookPayloadRedactor`).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| integration_id | FK integrations | oui | null | Intégration concernée — `null` si le webhook n'a pu être rattaché (`nullOnDelete`) |
-| provider | string | | | Fournisseur émetteur/destinataire |
+| integration_id | FK integrations | oui | null | Intégration concernée — `null` si le webhook n'a pu être rattaché (`nullOnDelete`) ; la relation lit aussi une intégration supprimée (`withTrashed`) |
+| agency_id | FK agencies | oui | null | Agence concernée (`nullOnDelete`, FK `iwl_agency_fk`) (TCK-602, `2026_10_08_160000`) |
+| channel | string(20) | | 'payment' | Canal : `payment`, `sms`, `whatsapp` (`IntegrationWebhookLog::CHANNELS`) ; la rétention de purge se règle par canal (`webhooks:prune`, `config/webhooks.php`) (TCK-602) |
+| route_name | string(60) | oui | null | Le **nom** de la route — jamais l'URL, qui porte des segments secrets ; le rejeu y lit quel gestionnaire rappeler (TCK-602) |
+| provider | string | | | Fournisseur émetteur |
 | direction | string | | 'incoming' | Sens du webhook |
-| status | string | | 'received' | État de traitement |
+| status | string | | 'received' | État de traitement : `received`, `processed`, `rejected`, `failed` |
 | event_type | string | oui | null | Type d'événement annoncé par le fournisseur |
-| payload | jsonb | | | Payload brut — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` §NotificationTemplate) |
+| http_method | string(10) | oui | null | Méthode HTTP reçue (TCK-602) |
+| body | text (cast `encrypted`) | oui | null | Les octets reçus, **chiffrés**, rattachés à la ligne seulement **après authentification** ; nul si le corps dépassait la taille gardée. `text` et jamais `jsonb` : PostgreSQL normalise un `jsonb`, et un HMAC calculé sur les octets bruts ne se revérifierait plus (TCK-343). Masqué à la sérialisation (TCK-602) |
+| body_sha256 | char(64) | oui | null | Empreinte des octets reçus ; masquée à la sérialisation et hors `fields[]` (TCK-602) |
+| body_truncated | boolean | | false | Le corps dépassait la taille gardée : il n'est pas conservé, et la ligne ne se rejoue pas (TCK-602) |
+| headers | text (cast `encrypted:array`) | oui | null | La liste blanche des en-têtes du canal, chiffrée ; masquée à la sérialisation (TCK-602) |
+| payload | jsonb | | | **Vue expurgée** du corps — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` [§59 AlertRule](#59-alertrule-)). Les lignes antérieures, qui gardaient le corps **en clair** dans `payload.truncated`, ont été réécrites `{"legacy": true}` par `2026_10_08_160000` |
+| authenticated_at | timestamp | oui | null | Date à laquelle la signature ou le jeton du webhook a été vérifié — condition du rejeu (TCK-602) |
+| http_status | smallint | oui | null | Code HTTP rendu au fournisseur (TCK-602) |
+| error_code | string(120) | oui | null | Code d'erreur du traitement (TCK-602) |
+| error_message | string(255) | oui | null | Message d'erreur du traitement (TCK-602) |
+| external_id | string(191) | oui | null | Identifiant de transaction annoncé par le fournisseur ; index `iwl_external_id_idx` (TCK-602) |
+| matched_count | integer | oui | null | Nombre de paiements appariés par le traitement — `0` sur une ligne `processed` = « non apparié » (`filter[unmatched]=1`) (TCK-602) |
+| attempts | integer | | 0 | Nombre de rejeux (`WebhookReplayer`) (TCK-602) |
+| replayed_at | timestamp | oui | null | Dernier rejeu (TCK-602, ADR-0051 §5) |
+| replayed_by_id | FK users | oui | null | Auteur du dernier rejeu (`nullOnDelete`, FK `iwl_replayed_by_fk`) (TCK-602) |
 | processed_at | timestamp | oui | null | Date de traitement — `null` = non traité |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Index :**
+**Rejeu** (ADR-0051 §5, `isReplayable()`) : une ligne se rejoue si elle a été **authentifiée**, que son corps est gardé entier, et qu'elle a échoué (`failed`) ou n'a rien apparié (`processed` et `matched_count = 0`). Une ligne rejetée ne se rejoue jamais : ce serait un contournement de signature.
+
+**Index** (mesurés sur `2026_05_07_000218` et `2026_10_08_160000`) :
 - `(integration_id, created_at)`
 - `(provider, created_at)`
+- `iwl_status_created_idx (status, created_at)`
+- `iwl_channel_provider_created_idx (channel, provider, created_at)`
+- `iwl_agency_created_idx (agency_id, created_at)`
+- `iwl_external_id_idx (external_id)`
 
 **Relations :**
-- `integration()` → belongsTo Integration
+- `integration()` → belongsTo Integration, `withTrashed`
+- `agency()` → belongsTo Agency
 
 ---
 
@@ -2845,15 +3123,16 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| user_id | FK users | | | Bénéficiaire de la délégation (`cascadeOnDelete`) |
+| user_id | FK users | | | Bénéficiaire de la délégation — pour une absence, le **remplaçant** (`cascadeOnDelete`) |
 | delegator_id | FK users | | | Auteur de la délégation (`restrictOnDelete` — on ne perd pas la traçabilité) |
 | agency_id | FK agencies | | | Agence de portée (`cascadeOnDelete`) |
-| role | string | | | Rôle délégué (ex. `agency_admin`) |
+| replaces_user_id | FK users | oui | null | Pour une **absence** : l'absent que `user_id` remplace ; `null` pour une délégation de rôle (`cascadeOnDelete`, FK `role_delegations_replaces_user_fk`) (TCK-591, ADR-0035, `2026_10_07_591400`) |
+| role | string | | | Rôle délégué (ex. `agency_admin`) ; pour une absence, `absence_cover` (`RoleDelegation::ABSENCE_ROLE`), qui n'existe dans aucun catalogue et **n'accorde donc rien** |
 | starts_at | dateTime | oui | null | Début — `null` = effet immédiat |
 | ends_at | dateTime | | | Fin — **obligatoire**, une délégation est bornée par construction |
 | status | RoleDelegationStatus | | 'scheduled' | scheduled, active, revoked, expired |
 | reason | text | oui | null | Motif |
-| user_native_roles_snapshot | jsonb | | | Instantané des **types de profils** que le bénéficiaire détenait déjà dans l'agence — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` §NotificationTemplate) |
+| user_native_roles_snapshot | jsonb | | | Instantané des **types de profils** que le bénéficiaire détenait déjà dans l'agence — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` [§59 AlertRule](#59-alertrule-)) |
 | activated_at | dateTime | oui | null | Date d'activation effective |
 | expired_at | dateTime | oui | null | Date d'expiration constatée |
 | revoked_at | dateTime | oui | null | Date de révocation |
@@ -2866,6 +3145,9 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 - `(agency_id, status)`
 - `ends_at` — balayage d'expiration
 - `(status, starts_at)` — balayage d'activation
+- `role_delegations_agency_replaces_idx (agency_id, replaces_user_id)` (TCK-591)
+
+**Absences** (TCK-591, ADR-0035) : une absence est une ligne de cette table qui **nomme l'absent** (`replaces_user_id`) et reprend le cycle de vie des délégations — statut, bornes, révocation, activation et expiration planifiées. Il n'y a **pas de table d'absences à part** : `AgentAvailability` est un service (`App\Services\Agency\AgentAvailability::substituteFor()`, qui rend le remplaçant de l'absence active, sans transitivité), pas un modèle ; les absences s'écrivent par `AgentAbsenceService`. **Toute lecture qui veut des délégations de rôle filtre `replaces_user_id IS NULL`** (scope `roleDelegations()`).
 
 **Traits :** `Auditable`, `HasFactory`
 
@@ -2873,11 +3155,12 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 - `user()` → belongsTo User (via `user_id`)
 - `delegator()` → belongsTo User (via `delegator_id`)
 - `agency()` → belongsTo Agency
+- `replaces()` → belongsTo User (via `replaces_user_id`) — l'absent (TCK-591)
 - `revokedBy()` → belongsTo User (via `revoked_by`)
 
-**Scopes :** `active()`, `scheduled()`, `readyToActivate()`, `readyToExpire()`, `forAgency($id)`
+**Scopes :** `active()`, `scheduled()`, `readyToActivate()`, `readyToExpire()`, `forAgency($id)`, `absences()`, `roleDelegations()` (TCK-591)
 
-**Méthodes :** `markActive()`, `markExpired()`, `markRevoked(User $by)`
+**Méthodes :** `markActive()`, `markExpired()`, `markRevoked(User $by)`, `isAbsence()` (TCK-591)
 
 > **Ce qu'une délégation accorde — TCK-395.** Une délégation active accorde la capacité `C` si, et
 > seulement si, les deux conditions tiennent : (1) le **rôle système** du type délégué, dans cette
@@ -2951,29 +3234,36 @@ marquée traitée par `handled_at`.
 
 **Table :** `property_reports`
 **Description :** Signalement d'une annonce par un visiteur ou un utilisateur connecté (contenu
-trompeur, arnaque, doublon…). Le traitement est matérialisé par `resolved_at` ; il n'y a pas de
-statut ni de décision stockée.
+trompeur, arnaque, doublon…). Le traitement est matérialisé par `resolved_at`, et le signalement
+clos **garde la décision qui l'a clos, qui l'a prise et pour quel motif codé** (TCK-597, ADR-0043 §4,
+§6, `2026_10_08_100200`). Il n'y a pas de colonne de statut : ouvert = `resolved_at` nul (scope `open()`).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | property_id | FK properties | | | Bien signalé (`cascadeOnDelete`) |
 | reporter_user_id | FK users | oui | null | Auteur si authentifié (`nullOnDelete`) |
-| reporter_ip | string(45) | oui | null | IP de l'auteur anonyme |
-| reason | string | | | Motif du signalement |
+| reporter_ip | string(45) | oui | null | **Plus écrite.** L'IP en clair des lignes antérieures a été remplacée par son empreinte puis **effacée** par `2026_10_08_100200` — le `down()` ne peut pas la rendre, c'est le but (TCK-597) |
+| reporter_fingerprint | string(64) | oui | null | Empreinte de l'auteur anonyme (HMAC-SHA256 de l'IP, clé applicative — `VisitorFingerprint`) : sert au **dédoublonnage sur 24 h** — un même auteur (compte, ou empreinte s'il est anonyme) ne signale pas deux fois le même bien en 24 h (TCK-597, ADR-0043 §6) |
+| reason | string | | | Motif du signalement, choisi par le signalant (`spam`, `misleading`, `fraud`, `inappropriate_content`, `other`) |
 | details | text | oui | null | Précisions libres |
 | resolved_at | timestamp | oui | null | Date de traitement — `null` = en attente |
+| decision | string(20) | oui | null | Décision qui a clos le signalement : `hide`, `remove` ou `reject` (`UnifiedModerationService::DECISIONS`). Pour `hide` et `remove`, **tous** les signalements ouverts du bien sont clos avec la même décision (TCK-597) |
+| resolved_by_id | FK users | oui | null | Modérateur qui a tranché (`nullOnDelete`, FK `property_reports_resolved_by_fk`) (TCK-597) |
+| reason_code | string(40) | oui | null | Motif **codé** de la décision (`ModerationReasonCode`), traduit par le front ; le texte libre n'est requis que pour `other` (TCK-597, ADR-0043 §7) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Index :**
 - `(property_id, created_at)`
+- `property_reports_fingerprint_idx (property_id, reporter_fingerprint, created_at)` — le dédoublonnage (TCK-597)
 
 **Traits :** `HasFactory`
 
 **Relations :**
 - `property()` → belongsTo Property
 - `reporter()` → belongsTo User (via `reporter_user_id`)
+- `resolvedBy()` → belongsTo User (via `resolved_by_id`) (TCK-597)
 
 **Note :** l'endpoint public est protégé par le limiteur nommé `public-report` (5 requêtes / heure).
 
@@ -3205,8 +3495,8 @@ belongsTo User.
 
 ### 76. PayoutMethod 🆕
 
-> **Entrée minimale posée par TCK-594** pour que `check-models-spec` voie le modèle ; la
-> description complète passe par `/sync-specs` après fusion. Source : ADR-0039 §6.
+> Posée par TCK-594 (ADR-0039 §6), relue colonne à colonne contre `2026_10_07_200000` et
+> `2026_10_08_100000` le 2026-10-14.
 
 **Table :** `payout_methods`
 **Description :** Destination de paiement d'un utilisateur (bailleur, prestataire) : numéro mobile
@@ -3220,10 +3510,17 @@ payé que vers une destination du bénéficiaire **vérifiée par l'agence qui p
 | kind | string(30) | | | `PayoutMethodKind` : `wave`, `orange_money`, `free_money`, `bank_transfer` |
 | account_identifier | text | | | Numéro ou IBAN — cast `encrypted`, `$hidden`, hors `$queryFields` et de la recherche |
 | account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
-| masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`, `PayoutMethod::mask()`, provisoire jusqu'à TCK-601) |
+| masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`) — écrite par `PayoutMethod::mask()`, branché sur le masqueur commun `Masking::tail()` (TCK-601) : un identifiant de quatre caractères ou moins ne se montre pas en entier |
 | is_default | boolean | | false | |
 | deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
 | created_at / updated_at | timestamp | | auto | |
+
+**Index :** `payout_methods_user_idx (user_id)`.
+
+Le modèle n'est pas `Auditable` : les identifiants ne passent jamais par `activity_log`. Ce que
+l'approbateur d'un reversement a approuvé se garde par `fingerprint()` — HMAC de la nature et du
+numéro normalisé sous la clé de l'application, jamais un hachage nu — dans `payouts.metadata`
+(VERIF-594 M-4).
 
 **Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
 (§78). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
@@ -3232,34 +3529,10 @@ agence.
 
 ---
 
-### 78. PayoutMethodVerification 🆕
-
-> **Entrée minimale posée par TCK-594** (VERIF-594 M-6) ; description complète par `/sync-specs`.
-> Source : ADR-0039 §6.
-
-**Table :** `payout_method_verifications`
-**Description :** Une destination de paiement vérifiée **par une agence**. Elle ne vaut que pour
-cette agence : un reversement d'une autre agence ne part pas vers elle. Une destination modifiée
-perd **toutes** ses vérifications.
-
-| Colonne | Type | Nullable | Défaut | Description |
-|---------|------|----------|--------|-------------|
-| id | bigint PK | | auto | |
-| agency_id | FK agencies | | | `cascadeOnDelete`, `pm_verifications_agency_fk` |
-| payout_method_id | FK payout_methods | | | `cascadeOnDelete`, indexé (`pm_verifications_method_idx`) |
-| verified_by_id | FK users | oui | null | Membre de l'agence qui a vérifié (`nullOnDelete`) |
-| verified_at | timestamp | | | Date du dernier geste de vérification |
-| created_at / updated_at | timestamp | | auto | |
-
-**Contraintes :** unique `(agency_id, payout_method_id)` (`pm_verifications_agency_method_unique`) ;
-une vérification rejouée met à jour la ligne (`upsert`).
-
----
-
 ### 77. ServiceProviderBill 🆕
 
-> **Entrée minimale posée par TCK-594** ; description complète par `/sync-specs`. Source :
-> ADR-0039 §8.
+> Posée par TCK-594 (ADR-0039 §8), relue colonne à colonne contre `2026_10_07_200100` le
+> 2026-10-14.
 
 **Table :** `service_provider_bills`
 **Description :** Facture d'intervention **reçue** d'un prestataire, créée quand une demande de
@@ -3270,28 +3543,59 @@ reversement (`imputed_payout_id`).
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| maintenance_request_id | FK maintenance_requests | | | `cascadeOnDelete` |
-| agency_id | FK agencies | oui | null | `nullOnDelete` |
-| property_id | FK properties | oui | null | `nullOnDelete` |
-| provider_id | FK users | | | Prestataire (`restrictOnDelete`) |
-| reference_number | string | | | Unique |
+| maintenance_request_id | FK maintenance_requests | | | `cascadeOnDelete`, `sp_bills_request_fk` |
+| agency_id | FK agencies | oui | null | `nullOnDelete`, `sp_bills_agency_fk` |
+| property_id | FK properties | oui | null | `nullOnDelete`, `sp_bills_property_fk` |
+| provider_id | FK users | | | Prestataire (`restrictOnDelete`, `sp_bills_provider_fk`) |
+| reference_number | string | | | Unique (`sp_bills_reference_unique`) |
 | provider_reference | string | oui | null | Référence de la facture du prestataire |
 | amount | decimal(14,2) | | | Coût réel, à défaut devis approuvé |
 | currency | string(3) | | 'XOF' | |
 | exceeds_quote | boolean | | false | Coût réel > devis approuvé |
 | status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
-| validated_by_id | FK users | oui | null | |
+| validated_by_id | FK users | oui | null | `nullOnDelete`, `sp_bills_validated_by_fk` |
 | validated_at | timestamp | oui | null | |
 | rejection_reason | text | oui | null | |
 | rechargeable_to_landlord | boolean | | true | |
-| imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`) |
+| imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`, `sp_bills_imputed_payout_fk`) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** index unique partiel `sp_bills_one_open_per_request` sur `maintenance_request_id`
-`WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande.
+`WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande. C'est ce qui
+permet à l'observateur de créer la facture par `insertOrIgnore`, sans exception attendue.
+
+**Index :** `sp_bills_agency_status_idx (agency_id, status)`, `sp_bills_provider_idx (provider_id)`.
 
 **Relations :** `maintenanceRequest()`, `agency()`, `property()`, `provider()`, `validator()`,
 `imputedPayout()` → belongsTo ; `payouts()` → hasMany Payout (`service_provider_bill_id`).
+
+---
+
+### 78. PayoutMethodVerification 🆕
+
+> Posée par TCK-594 (VERIF-594 M-6, ADR-0039 §6), relue colonne à colonne contre
+> `2026_10_08_100000` le 2026-10-14.
+
+**Table :** `payout_method_verifications`
+**Description :** Une destination de paiement vérifiée **par une agence**. Elle ne vaut que pour
+cette agence : un reversement d'une autre agence ne part pas vers elle. Une destination modifiée
+perd **toutes** ses vérifications. Les vérifications globales d'avant (`payout_methods.verified_at`)
+n'ont pas été migrées : elles sont invalidées, faute de savoir au nom de quelle agence le
+vérificateur agissait.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| agency_id | FK agencies | | | `cascadeOnDelete`, `pm_verifications_agency_fk` |
+| payout_method_id | FK payout_methods | | | `cascadeOnDelete`, `pm_verifications_method_fk`, indexé (`pm_verifications_method_idx`) |
+| verified_by_id | FK users | oui | null | Membre de l'agence qui a vérifié (`nullOnDelete`, `pm_verifications_verifier_fk`) |
+| verified_at | timestamp | | | Date du dernier geste de vérification |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `(agency_id, payout_method_id)` (`pm_verifications_agency_method_unique`) ;
+une vérification rejouée met à jour la ligne (`upsert`).
+
+**Relations :** `agency()`, `payoutMethod()`, `verifier()` (via `verified_by_id`) → belongsTo.
 
 ---
 
@@ -3470,8 +3774,8 @@ activité écrite pendant une requête authentifiée par le jeton d'une session 
 
 ### 84. LeasePaymentLink 🆕
 
-> **Entrée minimale posée par TCK-602** ; description complète par `/sync-specs`. Source :
-> ADR-0051 §1.
+> Posée par TCK-602 (ADR-0051 §1), relue colonne à colonne contre `2026_10_08_170000` le
+> 2026-10-14.
 
 **Table :** `lease_payment_links`
 **Description :** Lien de paiement `/pay/{jeton}` d'une échéance de loyer, pour un locataire sans
@@ -3499,9 +3803,9 @@ compte. Un seul lien actif par échéance ; le jeton se cherche par son empreint
 
 ### 85. CommissionEntry 🆕
 
-> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
-> description complète passe par `/sync-specs` après fusion. Source : ADR-0049 §3. Le même ticket
-> ajoute `leases.agent_id` (FK users, `nullOnDelete`, le négociateur, ADR-0049 §1).
+> Posée par TCK-595 (ADR-0049 §3), relue colonne à colonne contre `2026_10_08_150100` le
+> 2026-10-14. Le négociateur que le grand livre rémunère est `leases.agent_id`, ajouté par le même
+> ticket (ADR-0049 §1, `2026_10_08_150000`) et décrit en [§14 Lease](#14-lease-).
 
 **Table :** `commission_entries`
 **Description :** Grand livre des commissions d'agence : la part d'un bénéficiaire (négociateur du
@@ -3511,9 +3815,9 @@ bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| agency_id | FK agencies | | | `cascadeOnDelete` |
-| lease_id | FK leases | | | `cascadeOnDelete` |
-| beneficiary_id | FK users | | | `cascadeOnDelete` |
+| agency_id | FK agencies | | | `cascadeOnDelete` (`commission_entries_agency_fk`) |
+| lease_id | FK leases | | | `cascadeOnDelete` (`commission_entries_lease_fk`) |
+| beneficiary_id | FK users | | | `cascadeOnDelete` (`commission_entries_beneficiary_fk`) |
 | origin | string(20) | | | `CommissionOrigin` : `negotiator`, `collaborator` |
 | base_amount | decimal(14,2) | | | `commission_amount` du bail à l'activation |
 | share_percent | decimal(5,2) | | | Part servie |
@@ -3521,13 +3825,18 @@ bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à
 | currency | string(3) | | XOF | |
 | status | string(20) | | due | `CommissionEntryStatus` : `due`, `paid`, `cancelled` |
 | earned_at | timestamp | | | `signed_at` du bail |
-| paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) |
-| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) |
+| paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) ; FK `nullOnDelete` (`commission_entries_paid_by_fk`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) ; FK `nullOnDelete` (`commission_entries_cancelled_by_fk`) |
 | metadata | jsonb | oui | null | Détail des parts du négociateur également collaborateur |
 | created_at / updated_at | timestamp | | auto | |
 
 Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
-`commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)`.
+`commission_entries_agency_benef_idx (agency_id, beneficiary_id, earned_at)` et
+`commission_entries_beneficiary_idx (beneficiary_id)`.
+
+**Lecture** (`CommissionEntry::visibleTo()`, relevé `GET /api/commissions` et export) : le
+personnel de l'agence active ne lit que ses propres lignes, sauf sous `AgencyPolicy::viewReports`,
+qui ouvre toute l'agence ; le super-admin lit tout ; hors personnel, rien.
 
 **Relations :** `agency()`, `lease()`, `beneficiary()` → belongsTo. Inverse :
 `Lease.commissionEntries()`.
@@ -3536,8 +3845,7 @@ Unicité `commission_entries_lease_benef_uq (lease_id, beneficiary_id)` ; index
 
 ### 86. PlatformMetricDaily 🆕
 
-> **Entrée minimale posée par TCK-595** pour que `check-models-spec` voie le modèle ; la
-> description complète passe par `/sync-specs` après fusion. Source : ADR-0057.
+> Posée par TCK-595 (ADR-0057), relue colonne à colonne contre `2026_10_08_150200` le 2026-10-14.
 
 **Table :** `platform_metrics_daily`
 **Description :** Instantané quotidien des métriques de la console plateforme, écrit à 00:30 pour la
@@ -3551,7 +3859,11 @@ de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part a
 | gmv_amount / platform_fees_amount | decimal(16,2) | | 0 | Flux du jour (`paid_at`), rattrapables |
 | collected_total_amount | decimal(16,2) | | 0 | *Encaissé* cumulé à la fin du jour, rattrapable |
 | mrr_amount / mrr_trialing_amount | decimal(16,2) | oui | null | Stock, hors essais / essais seuls ; jamais rattrapé |
-| active_subscriptions, agencies_*, users_*, properties_*, leases_active | integer | oui | null | Stocks par statut courant ; jamais rattrapés |
+| active_subscriptions | integer | oui | null | Abonnements actifs — stock ; jamais rattrapé |
+| agencies_total, agencies_active, agencies_verified, agencies_suspended | integer | oui | null | Agences par statut courant — stocks ; jamais rattrapés |
+| users_total, users_active | integer | oui | null | Utilisateurs — stocks ; jamais rattrapés |
+| properties_published, properties_pending_review | integer | oui | null | Biens publiés / en attente de modération — stocks ; jamais rattrapés |
+| leases_active | integer | oui | null | Baux actifs — stock ; jamais rattrapé |
 | stocks_captured_at | timestamp | oui | null | Instant de mesure des stocks, `null` sur une ligne rattrapée |
 | created_at / updated_at | timestamp | | auto | |
 
