@@ -90,6 +90,15 @@ describe('<PropertyList> — cartes sous lg (TCK-644)', () => {
     }
   });
 
+  it('AC5 — la colonne des cartes est bornée à la largeur disponible (minmax(0, 1fr))', () => {
+    // Relevé au navigateur à 390 px : sans colonne déclarée, la piste implicite d'une grille se
+    // dimensionne au contenu maximal — la ligne « Propriétaire · Agent » (`truncate`) élargissait
+    // la carte à 498 px, bord droit et actions hors de l'écran. jsdom ne mesure rien : on garde
+    // la déclaration qui borne la piste.
+    render(withIntl(<PropertyList page={page} />));
+    expect(cartes().className.split(/\s+/)).toContain('grid-cols-1');
+  });
+
   it('la référence a sa ligne, entière', () => {
     render(withIntl(<PropertyList page={page} />));
     const carte = within(cartes()).getByRole('listitem');

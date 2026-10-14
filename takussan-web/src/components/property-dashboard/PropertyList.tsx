@@ -245,7 +245,7 @@ export function PropertyList({
           sur elle par `after:inset-0`) ; la case et les actions passent au-dessus (`z-10`). Le
           titre tient sur deux lignes (AC3) et la référence a sa propre ligne, entière : toutes
           deux étaient coupées par `truncate` à 390 px. */}
-      <ul aria-label={t('caption')} className="grid gap-3 lg:hidden">
+      <ul aria-label={t('caption')} className="grid grid-cols-1 gap-3 lg:hidden">
         {properties.map((property) => {
           const isSelected = selectedIds.includes(property.id);
           return (
