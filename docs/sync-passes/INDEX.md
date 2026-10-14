@@ -81,6 +81,9 @@ l.671 promet « une seule voie validée et journalisée » — décision au port
 `features.md`, 29 actions à `models-spec.md`. Détail : [`pass-014-2026-10-14-2220/00-summary.md`](./pass-014-2026-10-14-2220/00-summary.md).
 
 > *Différentielle : sept lignes et huit sections re-mesurées, le reste repris de la 013.*
+>
+> **Correctif du même jour** : la passe disait sans lecteur les clés globales hors catalogue ; cinq le
+> sont (`ScopedSetting`). FC1 (b) n'est donc pas la bonne option — voir le correctif en tête de son `00-summary.md`.
 
 ### Passe 013 (2026-10-14)
 

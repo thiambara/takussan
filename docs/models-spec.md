@@ -4921,7 +4921,7 @@ porteur s'obtient en lisant un seul rôle (trait `HasAgencyRole`). Entre profils
 une même agence, les capacités s'additionnent (OU).
 
 - **Rôles système** : à la création d'une agence, `AgencyObserver::created()` amorce un `AgencyRole` `is_system=true` par `base_profile_type` (`AgencySystemRoleSeeder`). Tout porteur créé sans rôle reçoit le rôle système de son type (`HasAgencyRole::bootHasAgencyRole`).
-- **Personnalisation** : l'admin d'agence **clone** un rôle (`clone_from`, `is_system=false`), édite ses capacités (`PUT /api/agencies/{agency}/roles/{role}/capabilities`), puis réaffecte les profils via `PATCH /api/profiles/{profile}/agency-role`. Écran : `/admin/roles`. Réservé aux agences `standard` (`AgencyKindGuard::allowsCustomRoles()`).
+- **Personnalisation** : l'admin d'agence **clone** un rôle (`clone_from`, `is_system=false`), édite ses capacités (`PUT /api/agencies/{agency}/roles/{role}/capabilities`), puis réaffecte les profils via `PATCH /api/profiles/{profile}/agency-role`. Écran : `/app/agency/roles` (ADR-0064). Réservé aux agences `standard` (`AgencyKindGuard::allowsCustomRoles()`).
 - **Cumul de capacités** : pour qu'un user cumule deux rôles dans une même agence (« Agent + Validateur »), créer un `AgencyRole` qui bundle les deux. Pas de second profil de même type (unicité `(user_id, agency_id)` de chaque table de profil).
 - **Cross-agence** : un user avec des profils dans plusieurs agences a un `AgencyRole` distinct par agence — celui du profil actif.
 - **Suppression d'un AgencyRole utilisé** : refusée (FK `restrictOnDelete`, précédée d'un 409 de l'API). La transition passe par la réaffectation explicite, puis la suppression.

@@ -4,6 +4,17 @@
 restent ouvertes et ne sont pas répétées : `features.md` n'a pas changé depuis
 ([texte intégral](../pass-013-2026-10-14-1023/02-recommendations-features.md)).
 
+> **Correctif du 2026-10-14, après la passe — ce qui suit sur FC1 et MC1 est faux sur un point.**
+> La passe affirme que les clés globales qu'écrit la route brute « ne sont lues par aucun code ». Re-mesuré
+> avant d'appliquer FC1 : **cinq clés hors de tout catalogue sont lues** par `App\Support\ScopedSetting`
+> (ligne de l'agence, sinon **ligne globale**, sinon défaut) — `invoice.reminder_offsets_days`,
+> `lease.rent_review_max_pct`, `lease.early_termination_penalty_months`, `lease.require_signature`,
+> `late_fees.cap_percent`. Leur valeur globale ne s'écrit **que** par la route brute. L'option (b) de FC1
+> (fermer la voie brute en portée `global`) supprimerait donc le seul réglage de ces cinq défauts de
+> plateforme. Le constat de dérive de l.671 et §30 tient ; la conséquence et l'option recommandée,
+> non. Toute autre clé globale écrite par cette route reste sans lecteur (relevé : `PlatformSettingService`,
+> `BusinessEnumService` et `ScopedSetting` sont les trois seuls lecteurs de `settings`).
+
 | ID | Ligne | Objet | Priorité |
 |----|-------|-------|----------|
 | FC1 | §2.9 l.671 | Deux voies d'écriture des paramètres globaux, dont une sans journal | **Moyenne — décision au porteur** |
