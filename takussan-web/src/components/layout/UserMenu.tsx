@@ -43,9 +43,9 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const t = useTranslations('nav');
   const tAdmin = useTranslations('nav.admin');
   const locale = useLocale() as Locale;
-  // TCK-633 (lot B) — l'entrée mène à la première page `/admin/*` que le profil peut ouvrir.
-  // Sans fournisseur (barre publique), le repli ne connaît pas le `kind` : il ne propose que les
-  // pages qu'aucune agence ne refuse (fail-closed), jamais `/admin`.
+  // TCK-633 (lot B) — l'entrée mène à la première page d'administration que le profil peut ouvrir
+  // (`/app/agency/*` depuis TCK-649). Sans fournisseur (barre publique), le repli ne connaît pas le
+  // `kind` : il ne propose que les pages qu'aucune agence ne refuse (fail-closed).
   const entree = entreeAdmin(useAccesAdminOuRepli({ roles: user.roles, agencyId: user.agency_id }));
   // TCK-623 — `initialesDe` garde le `Array.from` (un emoji en tête reste entier) et rend `null`
   // pour un compte sans nom ni e-mail : une silhouette, plutôt qu'une pastille vide.

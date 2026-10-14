@@ -23,7 +23,7 @@ import type { Locale } from '@/i18n/config';
 type Ligne = AgingBalance['rows'][number];
 
 /**
- * TCK-595 (AD17) — l'onglet « Impayés » de `/admin/finances` : la BALANCE ÂGÉE.
+ * TCK-595 (AD17) — l'onglet « Impayés » de `/app/agency/finances` : la BALANCE ÂGÉE.
  *
  * Il listait `/api/payments/history` avec `filter[status]=late` épinglé. Or un loyer échu reste
  * `pending` tant que le job de retard ne l'a pas basculé — et ne le bascule jamais sur un bail sans

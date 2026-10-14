@@ -3,9 +3,9 @@
  * TCK-370, réserve de revue — **le profil actif traverse tout `admin-settings`, ou l'écran ment**
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
- * TCK-370 a ajouté l'entrée de menu « Intégrations » et ouvert `/admin/settings/integrations` aux
- * `agency_admin`. Le module de requêtes derrière, lui, n'a pas bougé — et il ne transmettait pas
- * le profil actif :
+ * TCK-370 a ajouté l'entrée de menu « Intégrations » et ouvert la page des intégrations
+ * (`/app/agency/integrations` depuis TCK-649) aux `agency_admin`. Le module de requêtes derrière,
+ * lui, n'a pas bougé — et il ne transmettait pas le profil actif :
  *
  * ```
  * $ grep -n getActiveProfileId src/app/actions/admin-settings.ts
@@ -79,7 +79,7 @@ beforeEach(() => {
  * Le cas nommé par la revue, monté de bout en bout. Sans le correctif, les
  * options ne portent que `token` et cette assertion rougit.
  */
-describe('TCK-370 — /admin/settings/integrations pour un agency_admin multi-agences', () => {
+describe('TCK-370 — /app/agency/integrations pour un agency_admin multi-agences', () => {
   it('transmet le profil actif à /api/integrations, sans quoi le serveur rend 403', async () => {
     await actions.fetchIntegrationsAction();
 
@@ -113,13 +113,8 @@ describe('TCK-370 — /admin/settings/integrations pour un agency_admin multi-ag
  * le dernier test de ce fichier refuse.
  */
 const LES_DIX: readonly (readonly [string, () => Promise<unknown>])[] = [
-  ['fetchSettingsAction', () => actions.fetchSettingsAction({})],
-  [
-    'upsertSettingAction',
-    () => actions.upsertSettingAction({ key: 'k', scope: 'agency', value: {} }),
-  ],
-  ['updateSettingAction', () => actions.updateSettingAction(1, {})],
-  ['deleteSettingAction', () => actions.deleteSettingAction(1)],
+  // TCK-650 — les quatre actions de l'éditeur brut des paramètres ont rejoint `console.ts`, au jeton
+  // de l'opérateur : `console.jeton-operateur.test.ts` les garde.
   ['fetchIntegrationsAction', () => actions.fetchIntegrationsAction()],
   [
     'createIntegrationAction',

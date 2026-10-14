@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
  * TCK-621 — deux tons. `encre` (défaut) : toit, horizon et nom à `--foreground`, pour les fonds
  * clairs — et pour les coques `.dark`, où le jeton s'inverse de lui-même. `clair` : toit, horizon
  * et nom à `--background`, pour les fonds sombres qui ne sont PAS sous `.dark` (la barre d'encre
- * de `/app`, la barre latérale de `/admin`, la photo de `/auth`) — le traitement même de
+ * de `/app`, la barre latérale de `/super-admin`, la photo de `/auth`) — le traitement même de
  * `icon.svg`, tuile d'encre et traits de lin. Les rayons restent terracotta dans les deux.
  */
 

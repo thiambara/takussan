@@ -174,7 +174,7 @@ describe('TCK-382 — la table des listes ne peut pas se périmer', () => {
   });
 
   it('listePour ignore ce qui n’est pas sous /app', () => {
-    expect(listePour('/admin/properties/9')).toBeNull();
+    expect(listePour('/super-admin/properties/9')).toBeNull();
     expect(listePour('/app')).toBeNull();
     expect(listePour(null)).toBeNull();
   });

@@ -18,8 +18,9 @@
  *
  * Deux mots pour une couleur, c'est deux endroits où la changer et un seul qui sera trouvé. Et
  * le doublon n'était pas symétrique : le bloc `.dark` de `globals.css` redéfinissait `--background`,
- * `--card`, `--sidebar` et leurs voisins, et **pas un seul `--app-*`**. Le shell de `/admin`,
- * bâti entièrement sur ce dialecte, serait resté en clair au premier commutateur de thème.
+ * `--card`, `--sidebar` et leurs voisins, et **pas un seul `--app-*`**. Le shell de `/admin`
+ * (`AdminShell`, supprimé depuis avec `/admin` par ADR-0064), bâti entièrement sur ce dialecte,
+ * serait resté en clair au premier commutateur de thème.
  *
  * TCK-244 avait déjà entrepris cette migration et avait été marqué `done`. Ses critères rejoués
  * verbatim le 2026-08-26, quatre mois plus tard :

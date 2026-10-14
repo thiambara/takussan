@@ -36,9 +36,9 @@
  * `->previousPageUrl()`, `->nextPageUrl()` : appelées hors du point canonique, elles ne servent
  * qu'à recopier l'enveloppe. `->total()` est **exclu** de la règle, et l'exclusion est prouvée :
  * `Admin/PropertyModerationController` en tire `pending_count`, un compteur métier que le front lit
- * réellement (`ModerationWorkspace.tsx`, `PropertyModerationWorkspace.tsx`, `AdminSidebar.tsx`) et
- * qu'un test backend assère. Ce n'est pas une enveloppe, et la Règle A l'attrape de toute façon dès
- * qu'il s'agit d'une.
+ * réellement (`ModerationWorkspace.tsx`, `PropertyModerationWorkspace.tsx`, `AppSidebar.tsx` —
+ * `AdminSidebar.tsx` avant TCK-649) et qu'un test backend assère. Ce n'est pas une enveloppe, et
+ * la Règle A l'attrape de toute façon dès qu'il s'agit d'une.
  *
  * ## Le mode de défaillance qu'elle refuse : passer au vert en ne voyant rien
  *

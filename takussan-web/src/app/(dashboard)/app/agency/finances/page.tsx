@@ -1,0 +1,74 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getMeAction } from '@/app/actions/auth';
+import { NoAgencyState } from '@/components/shared/NoAgencyState';
+import { garderPageAdmin } from '@/lib/access/pages-admin-server';
+import { isSuperAdmin } from '@/lib/roles';
+import { AdminFinancesClient } from './AdminFinancesClient';
+import { PageHeader } from '@/components/console';
+import { buttonVariants } from '@/components/ui/button';
+import { getTranslations } from 'next-intl/server';
+import type { Metadata } from 'next';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('admin.pages.finances');
+  return { title: t('title') };
+}
+
+/**
+ * TCK-134 — `/app/agency/finances` agency-scoped finance overview.
+ * `garderPageAdmin` judges the admin role from `PAGES_ADMIN`, so a stale
+ * link can't leak the page shell to a non-admin user.
+ *
+ * Routing logic (cf. ticket "Impact TCK-138 → TCK-146"):
+ *   1. super_admin without an active agency context → redirect to
+ *      `/super-admin` (no NoAgencyState — the platform view lives there).
+ *   2. agency_admin (or super_admin browsing as a profile) without any
+ *      resolvable agency → render `NoAgencyState`.
+ *   3. otherwise mount the client which fetches KPIs + tables.
+ *
+ * Permissions: `agency_admin` and the super_admin pseudo-role both have
+ * the finance permissions in our simplified RBAC. The client component
+ * receives a `canViewFinances` flag derived from the role array — keeps
+ * the gate purely declarative without prop-drilling the permissions list.
+ */
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
+  await garderPageAdmin('/app/agency/finances');
+  const t = await getTranslations('admin.pages.finances');
+  const user = await getMeAction();
+
+  const superAdmin = isSuperAdmin(user.roles);
+  const agencyId = user.agency_id;
+
+  if (superAdmin && !agencyId) {
+    redirect('/super-admin');
+  }
+
+  if (!agencyId) {
+    return <NoAgencyState title={t('noAgency')} />;
+  }
+
+  // TCK-594 (ADR-0039 §1) — le taux de commission ne pré-remplit plus aucun champ : la commission
+  // se calcule côté serveur, ligne par ligne, depuis le taux du bail ou, à défaut, de l'agence
+  // (TCK-370 transmettait ce taux au dialogue de reversement, qui n'a plus de champ à remplir).
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          // TCK-593 — le rapprochement bancaire vit sous les finances de l'agence.
+          <Link
+            href="/app/agency/finances/reconciliation"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('reconciliationLink')}
+          </Link>
+        }
+      />
+      <AdminFinancesClient canViewFinances canEmitFinances />
+    </div>
+  );
+}

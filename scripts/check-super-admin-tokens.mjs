@@ -1523,6 +1523,20 @@ const PERIMETRES_APP = [
   // réellement entrent — cf. le docblock du type `cloture`.
   ...['bookings', 'compare', 'favorites', 'maintenance', 'search']
     .map((d) => ({ type: 'cloture', chemin: join(WEB_SRC, 'components', d) })),
+  //
+  // TCK-649 (ADR-0064) — LA CONSOLE D'AGENCE ENTRE DANS `/app`. Ses pages ont déménagé de
+  // `(dashboard)/admin` à `(dashboard)/app/agency` : la première ligne de cette liste les couvre
+  // d'office. Ses composants, eux, vivent dans `components/admin`, que l'espace super-admin
+  // couvre déjà pour son sous-répertoire `super/` — d'où le type `cloture` et pas `dir` : n'entre
+  // que ce que `/app` monte, et `super/` reste gardé une seule fois, par la console.
+  //
+  // ⚠ Aucun espace ne mesurait `/admin` : sa clôture n'était la racine d'aucune entrée de
+  // {@link ESPACES}. Le déménagement a donc fait apparaître dans le reste de `/app`, au premier
+  // passage (2026-10-14), neuf classes brutes de `components/admin` — toutes dans des DOCBLOCKS
+  // (`AuditTrail`, `ModerationQueueList`, `AdminUsersTable`) — plus `AdminShell`/`AdminSidebar`,
+  // supprimés par le même ticket. Les docblocks réécrits en toutes lettres, le répertoire entre
+  // à zéro : *le seul moment où ça ne coûte rien*.
+  { type: 'cloture', chemin: join(WEB_SRC, 'components', 'admin') },
 ];
 
 /**
@@ -1561,7 +1575,7 @@ const PERIMETRES_ONBOARDING = [
   { type: 'dir', chemin: join(WEB_SRC, 'app', 'onboarding') },
   // La forme `file`, pour la raison exacte qui la justifie dans `PERIMETRES` : ses voisins de
   // `src/components/kyc/` ne sont PAS rendus par les assistants (`kyc-components.tsx` l'est par
-  // la console, `AgencyKycClient.tsx` par `/admin`).
+  // la console, `AgencyKycClient.tsx` par `/app/agency/kyc` — `/admin/agency/kyc` avant ADR-0064).
   { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx') },
 ];
 
@@ -1573,7 +1587,8 @@ const PERIMETRES_ONBOARDING = [
  *
  * C'est le trou T5, déclaré : **la clôture part de `app/(dashboard)/app`, pas des layouts qui
  * l'enveloppent.** `app/layout.tsx` et `app/(dashboard)/layout.tsx` rendent sur `/app`, mais ils
- * rendent aussi sur `/admin` et sur le site public ; les prendre pour racine ferait entrer le
+ * rendent aussi sur `/super-admin` et sur le site public (et sur `/admin`, jusqu'à ADR-0064) ;
+ * les prendre pour racine ferait entrer le
  * produit entier dans la « clôture de /app » et viderait le cliquet de son sens. La définition
  * retenue est celle du ticket, et elle laisse trois surfaces hors compte : le widget de
  * conversation, la bannière de maintenance globale et le sélecteur de langue du pied de page.
@@ -1631,6 +1646,11 @@ const TEMOINS = {
     join(WEB_SRC, 'components', 'property-dashboard', 'PropertyList.tsx'),
     join(WEB_SRC, 'components', 'profile', 'ProfileReviewsList.tsx'),
     join(WEB_SRC, 'components', 'messages', 'ChatView.tsx'),
+    // TCK-649 — la console d'agence : une page déménagée, et un composant que seule la clôture
+    // de `/app` fait entrer. Retirer la ligne `cloture` de `components/admin` laissait la garde
+    // verte, ses fichiers retombant dans un reste que leur propreté laisse immobile.
+    join(WEB_SRC, 'app', '(dashboard)', 'app', 'agency', 'page.tsx'),
+    join(WEB_SRC, 'components', 'admin', 'AuditTrail.tsx'),
   ],
 };
 

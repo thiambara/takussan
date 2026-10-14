@@ -4,7 +4,7 @@
  * ## Pourquoi ce fichier existe
  *
  * Les gardes d'accessibilité de la console éprouvaient des CHAÎNES DE CLASSES. Une ablation l'a
- * montré au chiffre : remplacer le fond de l'entrée active de `/admin` par `bg-primary` rend
+ * montré au chiffre : remplacer le fond de l'entrée active de l'ancienne console par `bg-primary` rend
  * l'anneau `--ring` **exactement de la couleur de son propre fond — 1,00:1, littéralement
  * invisible** — et la suite restait verte. Un critère qui coche aussi la régression ne garde rien.
  *

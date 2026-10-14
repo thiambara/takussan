@@ -124,7 +124,7 @@ describe('service worker — ce qui n\'entre JAMAIS dans un cache', () => {
 
   it.each([
     `${SITE}/app/properties`,
-    `${SITE}/admin/users`,
+    `${SITE}/app/agency/team`,
     `${SITE}/super-admin/agencies`,
     `${SITE}/api/auth/me`,
     `${SITE}/api/me/favorites`,

@@ -154,7 +154,7 @@ interface RoleDelegationsSectionProps {
 }
 
 /**
- * TCK-369 — les délégations temporaires, sur `/admin/roles`.
+ * TCK-369 — les délégations temporaires, sur `/app/agency/roles`.
  *
  * TCK-108 a livré le modèle, le job, les policies et les trois endpoints, et
  * **aucun écran** : ses dix critères d'acceptation portaient tous sur le

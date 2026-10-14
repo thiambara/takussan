@@ -140,7 +140,7 @@ export async function fetchPendingAgencyInvitations(
  * Cet endpoint existait depuis TCK-258 — avec son service, sa policy, son garde
  * `kind=individual`, son profil `draft`, son mail et ses tests — et
  * `grep -rn "agents/invite" src` ne rendait **aucun résultat** : il n'avait pas
- * un seul appelant. Le bouton « Inviter » de `/admin/team` appelait
+ * un seul appelant. Le bouton « Inviter » de `/app/agency/team` appelait
  * `POST /api/agencies/{id}/members`, qui exige un `User` DÉJÀ INSCRIT et n'écrit
  * aucune ligne `invitations`. *Un endpoint sans appelant et un bouton qui ment
  * sur ce qu'il fait sont le même défaut vu des deux bouts.*

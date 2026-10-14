@@ -201,7 +201,7 @@ function rendreMembres() {
   );
 }
 
-describe('AC2 — /admin/team : le menu d’actions de la dernière colonne reste atteignable', () => {
+describe('AC2 — /app/agency/team : le menu d’actions de la dernière colonne reste atteignable', () => {
   it('rend le déclencheur du menu d’actions, nommé, pour chaque ligne', () => {
     const { container } = rendreMembres();
 
@@ -451,13 +451,13 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('/admin/team — en-têtes de tri, lien mailto, cellule « Membre »', () => {
+  it('/app/agency/team — en-têtes de tri, lien mailto, cellule « Membre »', () => {
     const { container } = rendreMembres();
     // 3 en-têtes triables + le lien mailto + le bouton « Membre » au minimum.
     mesureLesAnneaux(container, 5);
   });
 
-  it('/admin/finances — lien de la dernière colonne du tableau des impayés', async () => {
+  it('/app/agency/finances — lien de la dernière colonne du tableau des impayés', async () => {
     // Une ligne, sinon le tableau ne rend que son état vide et la boucle serait verte par vacuité.
     vi.stubGlobal('fetch', async () => ({
       ok: true,
@@ -471,7 +471,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     mesureLesAnneaux(container, 1);
   });
 
-  it('/admin/roles — matrice de capacités : « tout cocher », « vider », repli par domaine', () => {
+  it('/app/agency/roles — matrice de capacités : « tout cocher », « vider », repli par domaine', () => {
     const { container } = render(
       withIntl(<CapabilityMatrix catalogue={CATALOGUE} value={[]} onChange={vi.fn()} />),
     );
@@ -482,7 +482,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     expect(container.querySelectorAll('[data-slot="button"]').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('/admin/roles — liste des rôles : le bouton de sélection de chaque rôle', () => {
+  it('/app/agency/roles — liste des rôles : le bouton de sélection de chaque rôle', () => {
     const { container } = render(
       withIntl(
         <AgencyRolesList
@@ -500,7 +500,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     mesureLesAnneaux(container, 2);
   });
 
-  it('/admin/moderation — file des avis, entrée sélectionnée comprise', () => {
+  it('/app/agency/moderation — file des avis, entrée sélectionnée comprise', () => {
     const { container } = render(
       withIntl(
         <ModerationQueueList reviews={AVIS} selectedId={AVIS[0].id} onSelect={vi.fn()} />,
@@ -509,7 +509,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     mesureLesAnneaux(container, 2);
   });
 
-  it('/admin/moderation/properties — file des annonces', () => {
+  it('/app/agency/moderation/properties — file des annonces', () => {
     const { container } = render(
       withIntl(
         <PropertyModerationQueueList
@@ -542,7 +542,7 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
    * `<body>`** (donc `container` ne le voit plus — on cherche dans `document.body`), et le
    * déclencheur veut de VRAIS événements de pointeur (`userEvent`, pas `.click()`).
    */
-  it('/admin/audit — les deux entrées du menu d’export, une fois le menu ouvert', async () => {
+  it('/app/agency/audit — les deux entrées du menu d’export, une fois le menu ouvert', async () => {
     const user = userEvent.setup();
     avecQuery(<AuditTrail />);
 

@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**590 tickets** — 45 ouverts, 543 livrés.
+**594 tickets** — 45 ouverts, 547 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 543 |
+| ✅ Done | 547 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,17 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 543
+## ✅ Done — 547
+
+<details>
+<summary><strong>Vague 78 — /admin absorbé par /app : administration d'agence sous /app/agency, un seul tableau de bord d'agence, pages super-admin vers /super-admin — ADR-0064 (2026-10-14)</strong> — 4 tickets</summary>
+
+- [TCK-647](tickets/TCK-647-tableau-de-bord-agence-unique.md) — Un seul tableau de bord d'agence — /app/overview/agency absorbe celui de /admin `M · P1 · front`
+- [TCK-648](tickets/TCK-648-pages-super-admin-hors-de-admin.md) — Les deux pages super-admin de /admin rejoignent /super-admin `S · P1 · front`
+- [TCK-649](tickets/TCK-649-administration-d-agence-dans-app.md) — L'administration d'agence s'ouvre dans /app (/app/agency/*) — /admin supprimé `L · P1 · full`
+- [TCK-650](tickets/TCK-650-console-au-jeton-operateur.md) — Les paramètres globaux et les étiquettes de la console agissent au jeton de l'opérateur `S · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 77 — Retours du porteur du 2026-10-14 : navigation mobile premium, solde de crédits dans les barres, numéros vérifiés à la publication, Mes biens et Messagerie en mobile, ordre du menu de /app (TCK-641 → TCK-646)</strong> — 6 tickets</summary>

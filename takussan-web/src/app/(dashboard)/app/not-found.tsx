@@ -22,8 +22,8 @@ import { RetourVersLaListe } from './RetourVersLaListe';
  * segment**, et des layouts plus profonds aussi. Posé sur `(dashboard)`, il aurait été rendu par
  * `(dashboard)/layout.tsx` — la chrome nue — mais rien ne garantissait `app/layout.tsx`, qui est
  * celui qui monte `AppShell` et donc la barre latérale. Posé ici, `AppShell` est un ancêtre
- * certain. Il ne couvre par construction que `/app` ; `/admin` et `/super-admin` sont des frères,
- * hors du périmètre de TCK-382.
+ * certain. Il ne couvre par construction que `/app` — section d'agence `/app/agency` comprise
+ * depuis TCK-649 ; `/super-admin` est un frère, hors du périmètre de TCK-382.
  *
  * ## Il ne dit pas ce qu'il ne sait pas
  *

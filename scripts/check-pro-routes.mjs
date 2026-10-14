@@ -16,13 +16,21 @@
  *
  * *Une propriété proclamée dans un commentaire et prouvée par aucun test.*
  *
- * TCK-633 (lot B) — **les pages `/admin/*` ont quitté `PRO_ROUTES`.** Elles sont décrites par
- * `PAGES_ADMIN` (`takussan-web/src/lib/access/pages-admin.ts`), et chacune ATTEND
- * `await garderPageAdmin('<son chemin>')` en première instruction. Cette garde le vérifie aussi : toute
- * route `/admin` remise dans `PRO_ROUTES` est refusée ; chaque `page.tsx` sous
- * `app/(dashboard)/admin` est soit une souche de redirection, soit gardée par SON chemin (un
- * segment dynamique, par son plus proche ancêtre statique), avant toute lecture de l'utilisateur ;
- * chaque chemin de la table a sa page.
+ * TCK-633 (lot B) — **les pages d'administration d'agence ont quitté `PRO_ROUTES`.** Elles sont
+ * décrites par `PAGES_ADMIN` (`takussan-web/src/lib/access/pages-admin.ts`), et chacune ATTEND
+ * `await garderPageAdmin('<son chemin>')` en première instruction.
+ *
+ * TCK-649 / ADR-0064 — **elles vivent sous `/app/agency/*`, et `/admin` n'existe plus, sans
+ * redirection.** Cette garde vérifie :
+ *   · aucune route `/app/agency/*` ni `/admin/*` dans `PRO_ROUTES` ;
+ *   · aucun chemin `/admin…` dans la table, et chaque chemin de la table a sa page ;
+ *   · chaque `page.tsx` sous `app/(dashboard)/app/agency` — et chaque page qui sert un chemin de
+ *     la table, où qu'elle vive — sert un chemin de la table et appelle `await garderPageAdmin`
+ *     de SON chemin (un segment dynamique, par son plus proche ancêtre statique), avant toute
+ *     lecture de l'utilisateur, sans `loading.tsx` au-dessus d'elle (TCK-426 : 200 au lieu de 307) ;
+ *   · **aucun fichier de route de `src/app`, quel que soit son groupe, ne sert `/admin` ni
+ *     `/admin/…`**, et l'ancien dossier `app/(dashboard)/admin` ne contient plus aucun fichier.
+ *     Les souches de redirection que la garde tolérait (`users`, `settings/tags`) sont parties.
  *
  * ⚠ Elle ne lit pas `docs/features.md` : l'accord entre la liste et la spec §1.12 est tenu par
  * `takussan-web/src/lib/access/__tests__/pro-features.test.ts`.
@@ -62,7 +70,8 @@ const HELPER = join(WEB, 'lib', 'access', 'server-guards.ts');
  * de la déclarer nue.
  */
 const GARDES = [
-  // 1. le helper nommé — les routes /admin/*
+  // 1. le helper nommé — écrit pour les anciennes routes /admin/* ; aucune route de `PRO_ROUTES`
+  //    ne l'appelle plus depuis TCK-633 (relevé 2026-10-14), le motif reste pour la suivante.
   { nom: 'ensureStandardAgencyOrRedirect', motif: /ensureStandardAgencyOrRedirect\s*\(/ },
   // 2. la garde écrite en ligne — les routes /app/*
   //
@@ -418,48 +427,68 @@ for (const [r] of nues) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// TCK-633 (lot B) — les pages `/admin/*` : la table `PAGES_ADMIN` et `garderPageAdmin`.
+// TCK-633 (lot B), TCK-649 — les pages d'administration d'agence : la table `PAGES_ADMIN` et
+// `garderPageAdmin`. Elles vivent sous `/app/agency/*` depuis ADR-0064 ; `/admin` n'existe plus.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 const TABLE_ADMIN = join(WEB, 'lib', 'access', 'pages-admin.ts');
-const DOSSIER_ADMIN = join(WEB, 'app', '(dashboard)', 'admin');
+const DOSSIER_AGENCE = join(WEB, 'app', '(dashboard)', 'app', 'agency');
+const PREFIXE_AGENCE = '/app/agency';
+
+/** Une URL de l'ancienne surface : `/admin` ou `/admin/…` — jamais `/api/admin`, ni `/super-admin`. */
+const estAdmin = (r) => r === '/admin' || r.startsWith('/admin/');
 
 for (const r of routes) {
-  if (r === '/admin' || r.startsWith('/admin/')) {
-    erreurs.push(`\`${r}\` est dans PRO_ROUTES : les pages /admin/* se décrivent dans PAGES_ADMIN et se gardent par \`garderPageAdmin\` (TCK-633), pas par un cadenas.`);
+  if (estAdmin(r)) {
+    erreurs.push(`\`${r}\` est dans PRO_ROUTES : \`/admin\` n'existe plus (ADR-0064), ses pages vivent sous \`${PREFIXE_AGENCE}\`.`);
+  } else if (r === PREFIXE_AGENCE || r.startsWith(`${PREFIXE_AGENCE}/`)) {
+    erreurs.push(`\`${r}\` est dans PRO_ROUTES : les pages ${PREFIXE_AGENCE}/* se décrivent dans PAGES_ADMIN et se gardent par \`garderPageAdmin\` (TCK-633), pas par un cadenas.`);
   }
 }
 
 // Comme pour `PRO_ROUTES` : commentaires retirés AVANT de lire — un `chemin:` mis en commentaire
 // n'est pas une page.
+//
+// ⚠ Le motif lit TOUT chemin littéral, et plus seulement ceux qui commencent par `/admin` : c'est
+// en lisant `'/admin…'` que cette garde est tombée à « aucun `chemin:` lu » le jour où la table a
+// changé de préfixe (TCK-649, mesuré). Un motif qui fige le préfixe juge la table d'hier ; c'est
+// la règle d'en dessous qui dit quels préfixes sont admis.
 const cheminsAdmin = existsSync(TABLE_ADMIN)
-  ? [...sansCommentaires(readFileSync(TABLE_ADMIN, 'utf8')).matchAll(/\bchemin:\s*'(\/admin[\w/-]*)'/g)].map((m) => m[1])
+  ? [...sansCommentaires(readFileSync(TABLE_ADMIN, 'utf8')).matchAll(/\bchemin:\s*'(\/[\w/-]*)'/g)].map((m) => m[1])
   : [];
 if (cheminsAdmin.length === 0) {
   erreurs.push(`aucun \`chemin:\` lu dans ${TABLE_ADMIN.slice(ROOT.length + 1)} — table introuvable ou de forme inconnue : la garde n'aurait rien vérifié.`);
 }
 for (const c of cheminsAdmin) {
-  if (!page(c)) erreurs.push(`\`${c}\` est dans PAGES_ADMIN mais aucune page ne la sert.`);
+  if (estAdmin(c)) {
+    erreurs.push(`\`${c}\` est dans PAGES_ADMIN : \`/admin\` n'existe plus et ne redirige pas (ADR-0064 §4) — la page vit sous \`${PREFIXE_AGENCE}\`.`);
+  } else if (!page(c)) {
+    erreurs.push(`\`${c}\` est dans PAGES_ADMIN mais aucune page ne la sert.`);
+  }
 }
 
-function pagesSous(dossier) {
+/** Les fichiers de route d'un dossier, tests écartés (`page.tsx` seuls, ou tous les fichiers de route). */
+function fichiersDeRoute(dossier, noms) {
   const sortie = [];
   for (const entree of readdirSync(dossier, { withFileTypes: true })) {
     const chemin = join(dossier, entree.name);
     if (entree.isDirectory()) {
-      if (entree.name !== '__tests__') sortie.push(...pagesSous(chemin));
-    } else if (entree.name === 'page.tsx') {
+      if (entree.name !== '__tests__') sortie.push(...fichiersDeRoute(chemin, noms));
+    } else if (noms.test(entree.name)) {
       sortie.push(chemin);
     }
   }
   return sortie;
 }
 
-/** Le chemin d'URL d'une page : groupes `(x)` retirés. */
+/**
+ * Le chemin d'URL d'un fichier de route : groupes `(x)` et emplacements parallèles `@x` retirés —
+ * aucun des deux ne consomme de segment d'URL.
+ */
 function routeDe(fichier) {
   const segments = dirname(fichier)
     .slice(join(WEB, 'app').length)
     .split(/[\\/]/)
-    .filter((s) => s && !/^\(.*\)$/.test(s));
+    .filter((s) => s && !/^\(.*\)$/.test(s) && !s.startsWith('@'));
   return `/${segments.join('/')}`;
 }
 
@@ -470,17 +499,84 @@ function cheminAttendu(route) {
   return i === -1 ? route : segments.slice(0, i).join('/');
 }
 
-// Une souche : l'export par défaut ne fait QUE rediriger (`users`, `settings/tags`).
-const SOUCHE = /export\s+default\s+(?:async\s+)?function\s*\w*\s*\([^)]*\)[^{]*\{\s*(?:permanentRedirect|redirect)\s*\([^;]*\)\s*;?\s*\}\s*$/;
+/**
+ * ADR-0064 §4 — `/admin` ne REVIENT pas, et il n'est pas seulement interdit dans un dossier.
+ *
+ * La consigne littérale était « casser si `app/(dashboard)/admin` réapparaît ». Un contrôle sur ce
+ * seul dossier laisse passer `app/admin/page.tsx`, `app/(super-admin)/admin/x/page.tsx` ou
+ * `app/(dashboard)/(x)/admin/route.ts` — trois façons de servir `/admin` à nouveau, toutes hors du
+ * dossier nommé. *Interdire un CHEMIN DE FICHIER quand c'est une URL qu'on veut voir disparaître,
+ * c'est garder la forme du dernier défaut.* On calcule donc l'URL de CHAQUE fichier de route de
+ * `src/app`, et toute URL `/admin` ou `/admin/…` est refusée, quel que soit le groupe qui la porte.
+ *
+ * Un dossier VIDE n'est pas refusé : Next ne sert rien d'un répertoire sans fichier de route, et git
+ * ne transporte pas les répertoires vides — en refuser un ferait rougir un poste local sur un arbre
+ * que la CI ne verra jamais. Un `__tests__` sous l'ancienne adresse ne sert pas d'URL non plus,
+ * mais il dit « cette surface existe » à qui le lit : refusé (boucle suivante).
+ */
+const FICHIERS_DE_ROUTE = /^(?:page|layout|route|default|template|loading|not-found|error)\.(?:tsx?|jsx?)$/;
+const servisSousAdmin = fichiersDeRoute(join(WEB, 'app'), FICHIERS_DE_ROUTE).filter((f) => estAdmin(routeDe(f)));
+for (const f of servisSousAdmin) {
+  erreurs.push(`${f.slice(ROOT.length + 1)} sert \`${routeDe(f)}\` : \`/admin\` a été supprimé sans redirection (ADR-0064 §4). L'administration d'agence vit sous \`${PREFIXE_AGENCE}\`.`);
+}
+// Le reste de l'ancien dossier — tests, composants voisins : rien n'y sert d'URL, mais tout y dit
+// « cette surface existe » à qui le lit, et c'est là que le prochain fichier se poserait.
+function toutSous(dossier) {
+  const sortie = [];
+  for (const entree of readdirSync(dossier, { withFileTypes: true })) {
+    const chemin = join(dossier, entree.name);
+    if (entree.isDirectory()) sortie.push(...toutSous(chemin));
+    else sortie.push(chemin);
+  }
+  return sortie;
+}
+const ANCIEN_DOSSIER = join(WEB, 'app', '(dashboard)', 'admin');
+for (const f of existsSync(ANCIEN_DOSSIER) ? toutSous(ANCIEN_DOSSIER) : []) {
+  if (servisSousAdmin.includes(f)) continue;
+  erreurs.push(`${f.slice(ROOT.length + 1)} vit sous l'ancien \`(dashboard)/admin\` (ADR-0064) : sa place est sous \`app/(dashboard)/app/agency\`.`);
+}
+
+/**
+ * TCK-426, appliqué à la table — une garde de PAGE sous un `loading.tsx` rend 200.
+ *
+ * `garderPageAdmin` est appelée dans `page.tsx`. Un `loading.tsx` dans le dossier de la page ou dans
+ * l'un de ses ancêtres ouvre une frontière de suspension AU-DESSUS d'elle : Next envoie la coque et
+ * le statut avant que la garde ait tranché, et le refus part en **200** + squelette au lieu d'un
+ * 307 (mesuré par TCK-426 sur le Next 16.3.1 du dépôt). Aucun ancêtre de `/app/agency` n'en porte
+ * le jour du déménagement (relevé 2026-10-14) ; le premier qui en ajoute un doit remonter la garde
+ * dans un layout, pas découvrir le 200 en production.
+ */
+function loadingsAncetres(fichierPage) {
+  const sortie = [];
+  for (let dossier = dirname(fichierPage); dossier.startsWith(join(WEB, 'app')); dossier = dirname(dossier)) {
+    for (const ext of ['tsx', 'ts', 'jsx', 'js']) {
+      const l = join(dossier, `loading.${ext}`);
+      if (existsSync(l)) sortie.push(l);
+    }
+  }
+  return sortie;
+}
+
+// Les pages à juger : celles du dossier de l'agence, ET celles qui servent un chemin de la table où
+// qu'elles vivent — une entrée posée hors de `/app/agency` reste tenue d'appeler sa garde.
+if (!existsSync(DOSSIER_AGENCE)) {
+  erreurs.push(`${DOSSIER_AGENCE.slice(ROOT.length + 1)} est introuvable : la garde n'aurait aucune page d'agence à juger.`);
+}
+const aJuger = new Set(existsSync(DOSSIER_AGENCE) ? fichiersDeRoute(DOSSIER_AGENCE, /^page\.tsx$/) : []);
+for (const c of cheminsAdmin) {
+  const p = page(c);
+  if (p) aJuger.add(p);
+}
 
 const pagesAdminGardees = [];
-for (const fichier of existsSync(DOSSIER_ADMIN) ? pagesSous(DOSSIER_ADMIN) : []) {
+for (const fichier of aJuger) {
   const rel = fichier.slice(ROOT.length + 1);
   const code = sansCommentaires(readFileSync(fichier, 'utf8'));
   const attendu = cheminAttendu(routeDe(fichier));
+  // Plus de « souche de redirection » tolérée : les deux que la table contournait (`users`,
+  // `settings/tags`) sont parties avec `/admin`, et ADR-0064 §4 n'en veut aucune.
   if (!cheminsAdmin.includes(attendu)) {
-    if (SOUCHE.test(code.trim())) continue;
-    erreurs.push(`${rel} sert \`${attendu}\`, absent de PAGES_ADMIN, et n'est pas une souche de redirection : ajoute la page à la table, ou fais-en une souche.`);
+    erreurs.push(`${rel} sert \`${attendu}\`, absent de PAGES_ADMIN : ajoute la page à la table (c'est elle qui fait le menu et la garde), ou sors-la de \`${PREFIXE_AGENCE}\`.`);
     continue;
   }
   // L'appel doit être ATTENDU : `garderPageAdmin` est asynchrone, et `void garderPageAdmin(…)` ou
@@ -499,6 +595,11 @@ for (const fichier of existsSync(DOSSIER_ADMIN) ? pagesSous(DOSSIER_ADMIN) : [])
   const lecture = code.search(/\bgetMeAction\s*\(/);
   if (lecture !== -1 && lecture < appel) {
     erreurs.push(`${rel} lit l'utilisateur AVANT \`garderPageAdmin\` : la garde doit être la première instruction.`);
+    continue;
+  }
+  const loadings = loadingsAncetres(fichier);
+  if (loadings.length > 0) {
+    erreurs.push(`${rel} se garde dans la page, sous ${loadings.map((l) => l.slice(ROOT.length + 1)).join(', ')} : un refus y rend 200 + squelette, pas 307 (TCK-426). Remonte la garde dans le layout du segment.`);
     continue;
   }
   pagesAdminGardees.push(rel);

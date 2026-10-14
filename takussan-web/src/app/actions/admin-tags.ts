@@ -1,23 +1,19 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import {
-  createTag,
-  deleteTag,
-  fetchTags,
-  updateTag,
-  type FetchTagsParams,
-} from '@/lib/queries/tags';
-import type { TagFormPayload } from '@/lib/schemas/tag';
+import { fetchTags, type FetchTagsParams } from '@/lib/queries/tags';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
 
 /**
  * Admin tags & amenities server actions — TCK-066.
+ *
+ * TCK-650 — ne reste ici que la LECTURE, au jeton courant : les formulaires de bien de `/app` la
+ * lisent, en tant que la cible pendant une impersonation. L'écran `/super-admin/tags` et ses
+ * écritures passent par `console.ts`, au jeton de l'opérateur.
  */
 
 type ActionResult<T = void> =
@@ -69,47 +65,6 @@ export async function fetchTagsAction(
   try {
     const data = await fetchTags(auth.token, params);
     return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function createTagAction(
-  payload: TagFormPayload,
-): Promise<ActionResult<Tag>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await createTag(auth.token, payload);
-    revalidatePath('/super-admin/tags');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function updateTagAction(
-  tagId: number,
-  payload: Partial<TagFormPayload>,
-): Promise<ActionResult<Tag>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await updateTag(auth.token, tagId, payload);
-    revalidatePath('/super-admin/tags');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function deleteTagAction(tagId: number): Promise<ActionResult<void>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    await deleteTag(auth.token, tagId);
-    revalidatePath('/super-admin/tags');
-    return { ok: true };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }

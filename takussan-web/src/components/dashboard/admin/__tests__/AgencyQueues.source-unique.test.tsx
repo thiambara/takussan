@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { AgencyQueues } from '../AgencyQueues';
-import { AdminSidebar } from '@/components/layout/AdminSidebar';
+import { AppSidebar } from '@/components/layout/AppSidebar';
 import type { User } from '@/types/user';
 
 /**
@@ -14,15 +14,22 @@ import type { User } from '@/types/user';
  * POURQUOI CE TEST MONTE LES DEUX COMPOSANTS ENSEMBLE
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Pris isolément, chacun des deux est irréprochable : `AdminSidebar` fait UNE requête,
- * `AgencyQueues` en fait UNE. Le défaut ne vit que dans leur COEXISTENCE — et `/admin` les monte
- * tous les deux, la barre latérale venant du layout et le bloc de files de la page.
+ * Pris isolément, chacun des deux est irréprochable : la barre latérale fait UNE requête,
+ * `AgencyQueues` en fait UNE. Le défaut ne vit que dans leur COEXISTENCE — et le tableau de bord
+ * d'agence les monte tous les deux, la barre latérale venant du layout et le bloc de files de la
+ * page.
+ *
+ * TCK-649 (ADR-0064 §2) — la barre est désormais `AppSidebar` : la console d'agence a rejoint la
+ * coque de `/app`, et sa section d'agence porte le badge de modération que portait la barre de
+ * l'ancienne console. Le bloc de files vit sous `/app/overview/agency` depuis TCK-647 : les deux
+ * se rencontrent donc dans la MÊME coque, ce que ce test monte.
  *
  * Deux `queryKey` divergentes, ce seraient deux requêtes réseau pour le même nombre, puis — après
  * une décision de modération qui n'invalide qu'une des deux — un badge à 3 devant une tuile à 4.
  * Aucun test de rendu pris séparément ne le voit ; c'est le `QueryClient` PARTAGÉ qui le montre.
  *
- * ⚠ Vérifié par ablation le 2026-08-27 : en redonnant à `AdminSidebar` sa `queryKey` d'origine
+ * ⚠ Vérifié par ablation le 2026-08-27 (sur la barre de l'ancienne console, dont `AppSidebar` a
+ * repris le sondage à l'identique) : en lui redonnant sa `queryKey` d'origine
  * écrite en ligne (`['property-moderation', 'pending-count']` avec sa propre `queryFn`, forme
  * d'avant ce ticket), `fetchPropertyModerationQueue` est appelé **2 fois** et ce test rougit. Le
  * partage de la clé n'est donc pas décoratif : c'est lui que le test mesure.
@@ -55,7 +62,7 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/admin',
+  usePathname: () => '/app/overview/agency',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(''),
 }));
@@ -100,7 +107,7 @@ describe('compteur de modération — une seule source (TCK-375, AC5)', () => {
     render(
       withIntl(
         <QueryClientProvider client={client}>
-          <AdminSidebar user={ADMIN} agencyIsStandard />
+          <AppSidebar user={ADMIN} agencyIsStandard />
           <AgencyQueues agencyId={7} agencyIsStandard overdueCount={0} />
         </QueryClientProvider>,
       ),

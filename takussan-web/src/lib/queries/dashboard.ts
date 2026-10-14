@@ -5,6 +5,10 @@ import { cheminApi, requete } from '@/lib/chemin-api';
 /**
  * Server-side fetchers for the role-based dashboards (TCK-032 P1).
  *
+ * Le tableau de bord d'AGENCE n'est plus ici (TCK-647) : `/app/overview/agency` est le seul, et il
+ * lit `GET /api/dashboard/agency` une fois, par `fetchDashboardAgency` (`./dashboard-agency`), qui
+ * rend `null` sur 403/404 — d'où l'état dégradé — là où `call` ci-dessous lève.
+ *
  * All endpoints are already returning aggregates; we simply forward the
  * spatie-style params we want (include=timeseries, months=…, fields[summary]).
  * Each function returns `null` when the user isn't authenticated — callers
@@ -12,25 +16,6 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  */
 
 export type PeriodWindow = { start: string; end: string };
-
-export type AgencyDashboard = {
-  agency_id: number;
-  period: PeriodWindow;
-  properties?: { total: number; published: number; rented: number; available: number };
-  leases?: { active: number };
-  customers_count?: number;
-  members_count?: number;
-  bookings?: { pending: number };
-  maintenance?: { open: number };
-  finance?: {
-    revenue_month: number;
-    commission_month: number;
-    overdue_count: number;
-    overdue_amount: number;
-    unpaid_rate_percent: number;
-  };
-  occupancy?: { rate_percent: number };
-};
 
 export type OwnerDashboard = {
   owner_id: number;
@@ -159,7 +144,7 @@ type FetchOpts = {
   signal?: AbortSignal;
 };
 
-async function call<T>(tableau: 'agency' | 'owner' | 'agent' | 'tenant', opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
+async function call<T>(tableau: 'owner' | 'agent' | 'tenant', opts: FetchOpts = {}): Promise<DashboardEnvelope<T> | null> {
   const token = await getToken();
   if (!token) return null;
 
@@ -174,10 +159,6 @@ async function call<T>(tableau: 'agency' | 'owner' | 'agent' | 'tenant', opts: F
   const url = cheminApi`/api/dashboard/${tableau}${requete(qs)}`;
 
   return apiRequest<DashboardEnvelope<T>>(url, { token, signal: opts.signal });
-}
-
-export function fetchAgencyDashboard(opts?: FetchOpts) {
-  return call<AgencyDashboard>('agency', { include: ['timeseries'], months: 12, ...opts });
 }
 
 export function fetchOwnerDashboard(opts?: FetchOpts) {

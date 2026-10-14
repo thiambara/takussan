@@ -137,8 +137,8 @@ function thirtyDaysAgo(): string {
 /**
  * L'événement d'audit rendu en TON sémantique, jamais en couleur.
  *
- * Les quatre paires de classes qui vivaient ici (`bg-emerald-100`, `bg-blue-100`, `bg-red-100`,
- * `bg-orange-100`) étaient la palette Tailwind brute, et `bg-emerald-100` était l'une des quatre
+ * Les quatre paires de classes qui vivaient ici (fonds émeraude, bleu, rouge et orange clairs)
+ * étaient la palette Tailwind brute, et l'émeraude était l'une des quatre
  * recettes de « succès » que la console portait — aucune n'était le sage de la charte. La couleur
  * se décide désormais dans `StatusBadge`, une fois.
  */

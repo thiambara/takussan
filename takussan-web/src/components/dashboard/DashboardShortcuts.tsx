@@ -54,7 +54,8 @@ function buildShortcuts(
   const list: Shortcut[] = [];
 
   if ((isAdmin(roles) || isSuperAdmin(roles)) && agencyId) {
-    // TCK-633 (lot B) — la première page `/admin/*` que le profil peut ouvrir, ou aucun raccourci.
+    // TCK-633 (lot B) — la première page d'administration que le profil peut ouvrir, ou aucun
+    // raccourci.
     if (entree) list.push({ href: entree.href, labelKey: `nav.admin.${entree.cle}`, icon: ShieldCheck });
     list.push({ href: '/app/overview', labelKey: 'nav.sidebar.statistics', icon: BarChart3 });
     list.push({ href: '/app/overview/exports', labelKey: 'nav.sidebar.exports', icon: Download });

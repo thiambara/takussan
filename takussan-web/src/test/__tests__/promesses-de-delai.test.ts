@@ -85,7 +85,6 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, via sendCodeTo(\'search_alert:…\')',
   // Libellés de PÉRIODE (« ci 12 weer » = « sur 12 mois ») : la tournure wolof ressemble à un délai.
   'dashboard.tenant.upcoming30d': 'période affichée, pas une promesse',
-  'dashboard.agency.chartTitle': 'période affichée, pas une promesse',
   'dashboard.agent.chartTitle': 'période affichée, pas une promesse',
   'dashboard.owner.chartTitle': 'période affichée, pas une promesse',
   'superAdmin.metrics.gmvHint': 'période affichée (« sur 30 jours »), pas une promesse',

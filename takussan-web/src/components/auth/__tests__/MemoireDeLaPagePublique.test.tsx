@@ -45,7 +45,7 @@ describe('ce qu’elle retient', () => {
     expect(pagePubliqueMemorisee()).toBe('/fr/properties/villa-a-fann');
   });
 
-  it.each(['/auth/login', '/app/messages', '/admin/users', '/onboarding/intention', '/api/auth/me'])(
+  it.each(['/auth/login', '/app/messages', '/app/agency/team', '/onboarding/intention', '/api/auth/me'])(
     '%s n’efface pas la dernière page publique',
     (chemin) => {
       visiter('/fr/agents');

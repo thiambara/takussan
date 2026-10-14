@@ -56,6 +56,12 @@ describe('<IntegrationsManager />', () => {
     expect(screen.getByText(/Active/)).toBeInTheDocument();
   });
 
+  it('ne répète pas l’introduction : l’en-tête de la page la porte déjà', () => {
+    renderWithIntl(<IntegrationsManager initialIntegrations={initial} />);
+    expect(screen.queryByText(/jamais ré-affichés/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ajouter/i })).toBeInTheDocument();
+  });
+
   it('TCK-293 — la carte de paiement porte son adresse de notification, pas celle d’un SMS', () => {
     const sms = { ...initial[0], id: 43, provider: 'sms_orange' };
     renderWithIntl(

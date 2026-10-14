@@ -14,7 +14,7 @@ import type { User } from '@/types/user';
  * qu'elle connaisse la seconde :
  *
  *  1. l'appel au helper `ensureStandardAgencyOrRedirect(user)` — il gardait les
- *     routes `/admin/*` jusqu'à TCK-633, qui les a sorties de cette liste ;
+ *     routes d'administration jusqu'à TCK-633, qui les a sorties de cette liste ;
  *  2. la garde **écrite en ligne** — `if (agency.kind !== 'standard')
  *     redirect('/app')` — les routes `/app/*`, qui résolvent déjà l'agence
  *     pour leur propre affichage et n'avaient pas besoin du helper.
@@ -51,13 +51,13 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // la règle.*
   '/app/overview/agency',
   '/app/owners',
-  // TCK-633 (lot B) — `/admin` et ses sous-pages NE SONT PLUS ICI. Elles vivent dans `PAGES_ADMIN`
+  // TCK-633 (lot B) — les pages d'administration NE SONT PAS ICI. Elles vivent dans `PAGES_ADMIN`
   // ⚠ Pas d'astérisque après une barre oblique dans ce bloc : `check-pro-routes.mjs` retire les
   // commentaires par expression régulière, et y verrait l'ouverture d'un commentaire de bloc.
   // (`@/lib/access/pages-admin`), qui porte pour chacune son exigence (rôle, agence `standard`,
   // capacité) ; chaque page l'applique par `garderPageAdmin`, et le menu ne montre que ce qui passe.
-  // Un cadenas n'y a plus de sens : une porte fermée ne se montre pas. `scripts/check-pro-routes.mjs`
-  // refuse désormais toute route `/admin` dans cette liste.
+  // Un cadenas n'y a plus de sens : une porte fermée ne se montre pas. TCK-649 — elles vivent sous
+  // `/app/agency`, et `__tests__/pro-features.test.ts` refuse qu'une page de la table revienne ici.
 ]);
 
 /**
@@ -75,7 +75,7 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
  * `/app`. *Une porte fermée sans panneau se lit comme une panne.*
  *
  * Aucun autre couple (rôle, route) ne change : `/app/owners` n'est jamais
- * poussé aux agents, et les routes `/admin/*` ne passent plus par ce prédicat
+ * poussé aux agents, et les pages d'administration ne passent plus par ce prédicat
  * (TCK-633 : `PAGES_ADMIN`, `garderPageAdmin`).
  */
 export function isProRouteLocked(

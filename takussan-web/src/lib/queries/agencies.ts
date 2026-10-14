@@ -80,7 +80,7 @@ export async function fetchAgency(
  *
  * `AgencyController::update` autorise sur `activeProfile()?->agency_id === $agency->id`. Sans le
  * hint, un `agency_admin` multi-agences qui n'est pas `primary_admin_id` CHARGEAIT bien
- * `/admin/agency` — la lecture, elle, le transmet — et recevait 403 à l'enregistrement. Le
+ * `/app/agency` — la lecture, elle, le transmet — et recevait 403 à l'enregistrement. Le
  * correctif avait été appliqué à deux des trois appels du fichier pour lequel il a été écrit.
  *
  * *Un correctif qui s'arrête au site signalé laisse le suivant plus difficile à trouver, parce

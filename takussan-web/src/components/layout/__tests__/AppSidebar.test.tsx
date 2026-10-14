@@ -26,7 +26,6 @@ import {
   type NavCounterKey,
   type NavItem,
 } from '../AppSidebar';
-import { AdminSidebar } from '../AdminSidebar';
 import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path';
 
 let pathname = '/app';
@@ -61,7 +60,7 @@ vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (options: { enabled: boolean }) => soldeMock(options),
 }));
 
-// `AdminSidebar` sonde deux files de modération ; on ne teste ici que son `aria-current`.
+// La section d'agence sonde deux files de modération ; on ne teste ici que son `aria-current`.
 vi.mock('@/lib/queries/reviews-moderation', () => ({
   fetchModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
 }));
@@ -177,7 +176,9 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
+    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
+    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
     '/app/credits',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
@@ -205,7 +206,9 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
+    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
+    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
     '/app/credits',
   ],
 };
@@ -301,37 +304,12 @@ describe('AC3 — aria-current="page"', () => {
     expect(screen.getByRole('link', { name: 'Baux' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('AdminSidebar le porte aussi', () => {
-    pathname = '/admin/settings/tags';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AdminSidebar user={userWith(['super_admin'])} agencyIsStandard />
-        </QueryClientProvider>,
-      ),
-    );
-    const actifs = screen
-      .getAllByRole('link')
-      .filter((el) => el.getAttribute('aria-current') === 'page');
-    expect(actifs).toHaveLength(1);
-    expect(actifs[0]).toHaveTextContent('Paramètres');
-  });
-
-  it('AdminSidebar n’allume plus DEUX modérations sur /admin/moderation/properties', () => {
-    pathname = '/admin/moderation/properties';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AdminSidebar user={userWith(['super_admin'])} agencyIsStandard />
-        </QueryClientProvider>,
-      ),
-    );
-    const actifs = screen
-      .getAllByRole('link')
-      .filter((el) => el.getAttribute('aria-current') === 'page');
-    expect(actifs).toHaveLength(1);
+  // TCK-649 — la barre de l'ancienne console est partie ; sa règle reste, sur la section d'agence :
+  // sur `/app/agency/moderation/properties`, « Modération avis » et « Modération biens » sont deux
+  // préfixes valides, et une seule entrée s'allume.
+  it('la section d’agence n’allume qu’UNE modération sur /app/agency/moderation/properties', () => {
+    renderSidebar(['super_admin'], '/app/agency/moderation/properties');
+    expect(activeLabels()).toEqual(['Modération biens']);
   });
 });
 
@@ -349,13 +327,15 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
   // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
   // TCK-633 lot F — 26 → 27 : le portefeuille de crédits (`/app/credits`).
-  it('les 27 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-649 — 27 → 26 : l'emplacement « Administration » ne vient plus de `buildNavItems` ; la
+  // section d'agence est ajoutée depuis la table (`avecSectionAgence`).
+  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(27);
+    expect(items).toHaveLength(26);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(27);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
   });
 
   it('aucun rôle ne voit de césure vide', () => {

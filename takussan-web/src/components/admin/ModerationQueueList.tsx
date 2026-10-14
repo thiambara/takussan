@@ -17,7 +17,7 @@ const STATUTS_CONNUS = new Set(['pending', 'reported', 'approved', 'rejected']);
 
 /**
  * TCK-373 — le statut porte un TON, plus une paire de classes. `approved` était
- * `bg-emerald-50`, l'une des quatre recettes de « succès » de la console ; aucune n'était le
+ * un fond émeraude très clair de la palette brute, l'une des quatre recettes de « succès » de la console ; aucune n'était le
  * sage de la charte. La couleur se décide dans `StatusBadge`, une fois.
  */
 const STATUS_TONES: Record<string, StatusTone> = {

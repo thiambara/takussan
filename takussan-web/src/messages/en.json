@@ -147,7 +147,6 @@
       "crm": "Clients (CRM)",
       "calendar": "Calendar",
       "onboardingPending": "Pending onboardings",
-      "administration": "Administration",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
       "sections": {
@@ -165,20 +164,15 @@
       "commissions": "Commissions"
     },
     "admin": {
-      "dashboard": "Dashboard",
-      "properties": "Properties",
       "team": "Team",
       "agency": "Agency",
       "kyc": "Agency KYC",
       "billing": "Subscription",
-      "finances": "Finances",
+      "finances": "Agency finances",
       "reviewModeration": "Review moderation",
       "propertyModeration": "Property moderation",
       "auditLog": "Audit log",
-      "settings": "Settings",
       "sectionLabel": "Administration",
-      "backToPersonal": "Back to my workspace",
-      "proLocked": "Pro accounts only",
       "pendingBadge": "{count} pending",
       "roles": "Roles",
       "integrations": "Integrations",
@@ -232,7 +226,8 @@
         "privacyRequests": "Rights requests",
         "payments": "Payments",
         "credits": "Credits",
-        "boosts": "Promotion"
+        "boosts": "Promotion",
+        "globalSettings": "Global settings"
       }
     },
     "notifications": {
@@ -1767,24 +1762,9 @@
     },
     "agency": {
       "title": "Agency overview",
-      "loadError": "The data could not be loaded.",
       "period": "Key indicators for the period — {start} to {end}",
-      "activeProperties": "Active properties",
-      "publishedHint": "{count} published",
-      "activeLeases": "Active leases",
-      "rentedHint": "{count} properties rented",
-      "revenueMonth": "Revenue this month",
-      "commissionHint": "Commissions: {amount}",
-      "overdue": "Overdue",
-      "overdueHint": "{amount} · {rate}%",
-      "customers": "Customers",
-      "team": "Team",
-      "pendingRequests": "Pending requests",
-      "bookingsHint": "Bookings",
-      "openMaintenance": "Open maintenance",
-      "chartTitle": "Revenue and occupancy over 12 months",
-      "chartRevenue": "Revenue",
-      "chartOccupancy": "Occupancy rate (%)"
+      "chartOccupancy": "Occupancy rate (%)",
+      "occupancyHeading": "Occupancy — last 12 months"
     },
     "pipelineStages": {
       "lead": "Leads",
@@ -2248,11 +2228,11 @@
       "publishedHint": "{count} published",
       "activeLeases": "Active leases",
       "occupancyRate": "Occupancy rate",
-      "occupancyHint": "{rented} rented / {total}",
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
-      "overdueHint": "{count} due dates",
-      "unpaidRate": "Unpaid rate"
+      "unpaidRate": "Unpaid rate",
+      "rentedHint": "{count} properties rented",
+      "commissionHint": "Commissions: {amount}"
     },
     "agencyActivity": {
       "heading": "Recent activity",
@@ -2319,6 +2299,22 @@
       "description": "This item does not exist, or it does not belong to your agency. Check the link, or go back to the list.",
       "backToList": "Back to the list",
       "backToDashboard": "Back to the dashboard"
+    },
+    "agencySetup": {
+      "title": "Agency setup",
+      "description": "What’s left for the agency to be fully up and running.",
+      "progress": "{done} of {total} steps completed",
+      "done": "Done",
+      "todo": "To do",
+      "steps": {
+        "kyc_verified": "KYC file verified",
+        "logo": "Agency logo added",
+        "commission_rate": "Commission rate set",
+        "payment_integration": "Payment method connected",
+        "first_member": "First team member invited",
+        "first_published_property": "First property published",
+        "admin_two_factor": "Administrator two-factor authentication turned on"
+      }
     }
   },
   "errors": {
@@ -5702,12 +5698,6 @@
     }
   },
   "admin": {
-    "notices": {
-      "tagsPlatformManaged": {
-        "title": "Tags are managed by the platform",
-        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
-      }
-    },
     "moderation": {
       "reviews": {
         "empty_title": "No review to moderate",
@@ -6162,27 +6152,6 @@
       }
     },
     "pages": {
-      "home": {
-        "noAgency": "Agency dashboard",
-        "title": "Agency dashboard",
-        "subtitle": "Agency overview"
-      },
-      "setupStatus": {
-        "title": "Agency setup",
-        "description": "What’s left for the agency to be fully up and running.",
-        "progress": "{done} of {total} steps completed",
-        "done": "Done",
-        "todo": "To do",
-        "steps": {
-          "kyc_verified": "KYC file verified",
-          "logo": "Agency logo added",
-          "commission_rate": "Commission rate set",
-          "payment_integration": "Payment method connected",
-          "first_member": "First team member invited",
-          "first_published_property": "First property published",
-          "admin_two_factor": "Administrator two-factor authentication turned on"
-        }
-      },
       "team": {
         "shortTitle": "Team",
         "shortSubtitle": "Manage the agency's members",
@@ -6226,17 +6195,9 @@
         "payoutsBody": "Tracking of transfers issued by the platform after collection.",
         "payoutsBodyFull": "Tracking of transfers issued by the platform after the commission is withheld."
       },
-      "settings": {
-        "title": "Settings",
-        "subtitle": "Global key/value settings, feature flags and integrations.",
-        "navAria": "Settings sections",
-        "tabGeneral": "General",
-        "tabIntegrations": "Integrations",
-        "loadError": "The settings could not be loaded: {message}"
-      },
       "integrations": {
         "title": "Integrations",
-        "subtitle": "External providers (payment, SMS, email) and their webhooks.",
+        "subtitle": "External providers (payment, SMS, email) and their webhooks. Secrets are never shown again once saved.",
         "loadError": "The integrations could not be loaded: {message}"
       }
     },
@@ -6641,7 +6602,8 @@
         "finalizeFailed": "The statement couldn’t be finalized.",
         "previous": "Previous",
         "next": "Next",
-        "pageOf": "Page {page} of {total}"
+        "pageOf": "Page {page} of {total}",
+        "metaTitle": "Bank statement"
       },
       "search": {
         "title": "Find the payment",
@@ -8257,6 +8219,13 @@
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
+      },
+      "globalSettings": {
+        "eyebrow": "Platform",
+        "title": "Global settings",
+        "subtitle": "The key/value table as it stands: global settings and each agency’s settings. Catalogue keys are set in the platform settings.",
+        "platformLink": "Platform settings",
+        "loadError": "The settings could not be loaded: {message}"
       }
     },
     "featureFlags": {
@@ -8853,7 +8822,6 @@
     "integrations": {
       "empty_title": "No integration configured",
       "empty_description": "Add one to enable Wave, Orange Money or Stripe payments.",
-      "intro": "Connect external providers (payment, SMS, email). Secrets are never shown again once saved.",
       "add": "Add an integration",
       "statusActive": "Active",
       "statusInactive": "Disabled",

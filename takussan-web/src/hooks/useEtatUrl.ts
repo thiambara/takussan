@@ -52,8 +52,8 @@ const CLES_DE_POSITION = ['page', 'selected'] as const;
  *
  * ## Pourquoi un hook et pas trois `useState`
  *
- * Trois écrans d'`/admin` rangeaient déjà leur état dans la barre d'adresse (`/admin/team`,
- * `/admin/finances`, `/admin/users`) et trois autres non — dont les deux files de modération, qui
+ * Trois écrans de l'administration d'agence rangeaient déjà leur état dans la barre d'adresse
+ * (l'équipe, les finances, les utilisateurs) et trois autres non — dont les deux files de modération, qui
  * perdaient leurs filtres au rechargement et ne se partageaient pas par un lien. Le geste est le
  * même partout ; ce qui différait à chaque copie, c'est le détail ci-dessous.
  *

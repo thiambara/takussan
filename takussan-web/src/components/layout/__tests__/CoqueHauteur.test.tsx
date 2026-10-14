@@ -1,5 +1,6 @@
 /**
- * TCK-503 — la hauteur des trois coques de tableau de bord, gardée sur l'UNITÉ.
+ * TCK-503 — la hauteur des coques de tableau de bord, gardée sur l'UNITÉ (deux depuis TCK-649 :
+ * `AdminShell` est partie avec l'ancienne console).
  *
  * ⚠ Ce que jsdom ne peut PAS éprouver, et pourquoi le test a cette forme : `100vh` et `100dvh`
  * valent la même chose partout sauf sur un navigateur mobile à barre d'adresse rétractable —
@@ -23,7 +24,6 @@ import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
-import { AdminShell } from '../AdminShell';
 import { SuperAdminShell } from '../SuperAdminShell';
 
 vi.mock('next/navigation', () => ({
@@ -108,12 +108,6 @@ const COQUES: ReadonlyArray<readonly [string, React.ReactNode]> = [
     </AppShell>,
   ],
   [
-    'AdminShell',
-    <AdminShell key='admin' user={user}>
-      <p>contenu</p>
-    </AdminShell>,
-  ],
-  [
     'SuperAdminShell',
     <SuperAdminShell key='super' user={user} abilities={SUPER_ADMIN}>
       <p>contenu</p>
@@ -123,7 +117,7 @@ const COQUES: ReadonlyArray<readonly [string, React.ReactNode]> = [
 
 describe('TCK-503 — hauteur des coques de tableau de bord', () => {
   /**
-   * AC4 — l'ablation. Rétablir `h-screen` (c'est-à-dire `100vh`) sur l'une des trois coques doit
+   * AC4 — l'ablation. Rétablir `h-screen` (c'est-à-dire `100vh`) sur l'une des coques doit
    * rougir ici, et le `not.toContain('h-screen')` est ce qui l'assure : une assertion qui se
    * contenterait d'exiger `h-dvh` resterait verte sur `h-screen h-dvh`, où c'est la dernière
    * déclarée qui gagne.

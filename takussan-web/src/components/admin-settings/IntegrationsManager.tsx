@@ -235,8 +235,7 @@ export function IntegrationsManager({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t('intro')}</p>
+      <div className="flex justify-end">
         <Button type="button" onClick={() => setDialogMode('create')}>
           <Plus aria-hidden="true" />
           <span>{t('add')}</span>

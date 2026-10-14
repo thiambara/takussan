@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
  * TCK-589 §7 — la « mise en service » d'une agence : sept étapes, chacune lue sur
  * l'état réel de la base, jamais sur un drapeau que l'onboarding aurait posé.
  *
- * L'ordre et les clés sont le contrat que lit la carte de `/admin` : le front
+ * L'ordre et les clés sont le contrat que lit la carte du tableau de bord d'agence : le front
  * n'invente aucune étape, il libelle celles-ci.
  *
  *  - `kyc_verified` : le dossier KYC de l'agence est `verified` — lu SANS

@@ -42,7 +42,7 @@ export default function DashboardError({
     console.error('[dashboard] erreur non rattrapée', error);
   }, [error]);
 
-  // TCK-621 — la frontière remplace le layout de `/app` et de `/admin`, coque comprise : sans sa
+  // TCK-621 — la frontière remplace le layout de `/app`, coque comprise : sans sa
   // propre barre, l'écran d'erreur était le seul du tableau de bord sans marque.
   return (
     <div className="flex min-h-dvh flex-col bg-background">

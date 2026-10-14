@@ -13,9 +13,9 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  * POURQUOI UN MODULE ET PAS UN `useQuery` PAR POINT D'APPEL
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Le compte de la modération est lu à DEUX endroits qui sont montés en même temps sur `/admin`
- * et qui ne se voient pas : le badge d'`AdminSidebar` (sondage de 60 s posé par TCK-098) et le
- * bloc de files de l'accueil. Deux `queryKey` divergentes, ce sont deux requêtes réseau pour le
+ * Le compte de la modération est lu à DEUX endroits qui sont montés en même temps et qui ne se
+ * voient pas : le badge de la barre latérale (sondage de 60 s posé par TCK-098) et le bloc de
+ * files du tableau de bord d'agence. Deux `queryKey` divergentes, ce sont deux requêtes réseau pour le
  * même nombre — et, le jour d'une décision de modération, un badge qui se rafraîchit pendant que
  * la ligne d'en face reste périmée. **La clé de cache EST le point de rendez-vous** : elle se
  * déclare une fois, ici, et les deux appelants la prennent d'ici.
@@ -41,14 +41,14 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  * rapatriée rendrait « 1 » pour une file de quarante.
  */
 
-/** Cadence du sondage de `AdminSidebar` (TCK-098), reconduite à l'identique. */
+/** Cadence du sondage de la barre latérale (TCK-098, `AppSidebar` depuis TCK-649), reconduite à l'identique. */
 export const AGENCY_QUEUE_REFETCH_INTERVAL_MS = 60_000;
 export const AGENCY_QUEUE_STALE_TIME_MS = 30_000;
 
 /**
  * La clé du compte de modération des biens.
  *
- * Elle est **inchangée** depuis TCK-098 (`AdminSidebar`) : la déplacer ici sans la renommer est
+ * Elle est **inchangée** depuis TCK-098 (barre de l'ancienne console, `AppSidebar` depuis TCK-649) : la déplacer ici sans la renommer est
  * ce qui permet au badge et à la tuile de partager le cache sans qu'aucun autre appelant n'ait à
  * bouger.
  */

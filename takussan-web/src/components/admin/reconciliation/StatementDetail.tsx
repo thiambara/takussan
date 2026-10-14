@@ -100,7 +100,7 @@ export function StatementDetail({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
-            href="/admin/finances/reconciliation"
+            href="/app/agency/finances/reconciliation"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" aria-hidden="true" />

@@ -12,7 +12,8 @@ import {
 } from '../pages-admin';
 
 /**
- * TCK-633 (lot B, AC1) — la table des pages `/admin/*` et ce qu'on en tire.
+ * TCK-633 (lot B, AC1) — la table des pages d'administration et ce qu'on en tire. TCK-649 — leurs
+ * chemins vivent sous `/app/agency` (ADR-0064 §1) ; aucune exigence n'a bougé.
  *
  * Chaque propriété est écrite pour rougir sur la régression qu'elle garde : une ligne qui perd son
  * exigence `standard`, un super-admin qui cesse de tout ouvrir, un « je ne sais pas » lu comme « oui ».
@@ -30,43 +31,71 @@ const STANDARD: ContexteAdmin = {
 const SUPER_ADMIN: ContexteAdmin = { roles: ['super_admin'], agence: null, capacites: [] };
 
 const PAGES_DU_SOLO = [
-  '/admin/agency',
-  '/admin/agency/kyc',
-  '/admin/agency/billing',
-  '/admin/finances',
-  '/admin/finances/reconciliation',
-  '/admin/settings/integrations',
+  '/app/agency',
+  '/app/agency/kyc',
+  '/app/agency/billing',
+  '/app/agency/finances',
+  '/app/agency/finances/reconciliation',
+  '/app/agency/integrations',
 ];
 
 describe('PAGES_ADMIN', () => {
-  it('déclare chaque chemin une fois, tous sous /admin', () => {
-    const chemins = PAGES_ADMIN.map((p) => p.chemin);
+  it('déclare chaque chemin une fois, tous dans la section d’agence de /app (TCK-649)', () => {
+    const chemins = PAGES_ADMIN.map((p) => p.chemin as string);
     expect(new Set(chemins).size).toBe(chemins.length);
-    for (const c of chemins) expect(c === '/admin' || c.startsWith('/admin/')).toBe(true);
+    for (const c of chemins) expect(c === '/app/agency' || c.startsWith('/app/agency/')).toBe(true);
+  });
+
+  // TCK-649 (ADR-0064 §1) — la correspondance de l'ADR, ligne à ligne, ET les exigences de TCK-633
+  // inchangées : un déplacement qui changerait une règle au passage rougit ici.
+  it('suit la table de l’ADR-0064 §1 sans changer une exigence', () => {
+    expect(PAGES_ADMIN.map((p) => [p.chemin, p.exige])).toEqual([
+      ['/app/agency/team', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/roles', { role: 'admin', agence: 'standard' }],
+      ['/app/agency', { role: 'admin' }],
+      ['/app/agency/kyc', { role: 'admin' }],
+      ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
+      ['/app/agency/finances', { role: 'admin' }],
+      ['/app/agency/finances/reconciliation', { role: 'admin' }],
+      ['/app/agency/moderation', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/moderation/properties', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/audit', { role: 'admin', agence: 'standard' }],
+      ['/app/agency/integrations', { role: 'admin' }],
+    ]);
   });
 
   it("garde l'ordre du menu d'avant TCK-633", () => {
     expect(PAGES_ADMIN.filter((p) => p.menu !== null).map((p) => p.chemin)).toEqual([
-      '/admin',
-      '/admin/properties',
-      '/admin/team',
-      '/admin/roles',
-      '/admin/agency',
-      '/admin/agency/kyc',
-      '/admin/agency/billing',
-      '/admin/finances',
-      '/admin/moderation',
-      '/admin/moderation/properties',
-      '/admin/audit',
-      '/admin/settings/integrations',
-      '/admin/settings',
+      '/app/agency/team',
+      '/app/agency/roles',
+      '/app/agency',
+      '/app/agency/kyc',
+      '/app/agency/billing',
+      '/app/agency/finances',
+      '/app/agency/moderation',
+      '/app/agency/moderation/properties',
+      '/app/agency/audit',
+      '/app/agency/integrations',
     ]);
+  });
+
+  // TCK-648 (ADR-0064 §1) — les deux pages du super-admin ont quitté la table : l'éditeur de la
+  // table `settings` vit à `/super-admin/settings/global`, la liste transverse des biens à
+  // `/super-admin/properties`. Plus aucune ligne de la table n'exige `super_admin`.
+  it("ne porte plus aucune page du super-admin (TCK-648)", () => {
+    expect(PAGES_ADMIN.filter((p) => p.exige.role === 'super_admin')).toEqual([]);
   });
 });
 
+// TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence est `/app/overview/agency`, gardé par son
+// layout : il n'est pas une ligne de la table.
+it("ne porte pas le tableau de bord de l'agence (TCK-647)", () => {
+  expect(PAGES_ADMIN.map((p) => p.chemin as string)).not.toContain('/app/overview/agency');
+});
+
 describe('pageAccessible / accesDepuis', () => {
-  it('le tableau de bord admin est refusé au solo', () => {
-    expect(pageAccessible(PAGES_ADMIN[0], SOLO)).toBe(false);
+  it('une page « standard » est refusée au solo', () => {
+    expect(pageAccessible(PAGES_ADMIN.find((p) => p.chemin === '/app/agency/team')!, SOLO)).toBe(false);
   });
 
   it("un solo n'a que les pages sans exigence « standard », et c'est un espace individuel", () => {
@@ -90,16 +119,16 @@ describe('pageAccessible / accesDepuis', () => {
 
   it('kind inconnu : les pages « standard » sont refusées (fail-closed)', () => {
     const chemins = accesDepuis({ ...STANDARD, agence: { kind: null } }).chemins;
-    expect(chemins).not.toContain('/admin');
-    expect(chemins[0]).toBe('/admin/agency');
+    expect(chemins).not.toContain('/app/agency/team');
+    expect(chemins[0]).toBe('/app/agency');
   });
 
   it('capacités inconnues : la page à capacité est refusée', () => {
-    expect(accesDepuis({ ...STANDARD, capacites: null }).chemins).not.toContain('/admin/agency/billing');
+    expect(accesDepuis({ ...STANDARD, capacites: null }).chemins).not.toContain('/app/agency/billing');
   });
 
   it("sans agence rattachée, l'exigence « standard » ne bloque pas (comme AgencyKindGuard)", () => {
-    expect(accesDepuis({ ...STANDARD, agence: null }).chemins).toContain('/admin');
+    expect(accesDepuis({ ...STANDARD, agence: null }).chemins).toContain('/app/agency/team');
   });
 
   it("un compte sans rôle d'admin n'a rien", () => {
@@ -112,11 +141,12 @@ describe('pageAccessible / accesDepuis', () => {
 
 describe('entreeAdmin', () => {
   it('solo : « Mon espace » vers sa première page', () => {
-    expect(entreeAdmin(accesDepuis(SOLO))).toEqual({ href: '/admin/agency', cle: 'mySpace' });
+    expect(entreeAdmin(accesDepuis(SOLO))).toEqual({ href: '/app/agency', cle: 'mySpace' });
   });
 
-  it('standard : « Administration » vers /admin', () => {
-    expect(entreeAdmin(accesDepuis(STANDARD))).toEqual({ href: '/admin', cle: 'sectionLabel' });
+  // TCK-647 — le tableau de bord a quitté la table : l'entrée mène à la première page restante.
+  it('standard : « Administration » vers sa première page, /app/agency/team', () => {
+    expect(entreeAdmin(accesDepuis(STANDARD))).toEqual({ href: '/app/agency/team', cle: 'sectionLabel' });
   });
 
   it('aucune page : aucune entrée', () => {
@@ -127,19 +157,19 @@ describe('entreeAdmin', () => {
 describe('entreesDeMenu / liensDuProfil', () => {
   it("le menu du solo, sans la page qui n'a pas d'entrée (rapprochement)", () => {
     expect(entreesDeMenu(accesDepuis(SOLO)).map((e) => [e.chemin, e.cle])).toEqual([
-      ['/admin/agency', 'agency'],
-      ['/admin/agency/kyc', 'kyc'],
-      ['/admin/agency/billing', 'billing'],
-      ['/admin/finances', 'finances'],
-      ['/admin/settings/integrations', 'integrations'],
+      ['/app/agency', 'agency'],
+      ['/app/agency/kyc', 'kyc'],
+      ['/app/agency/billing', 'billing'],
+      ['/app/agency/finances', 'finances'],
+      ['/app/agency/integrations', 'integrations'],
     ]);
   });
 
   it('les liens du profil ne mènent qu’à des pages accessibles', () => {
-    expect(liensDuProfil(accesDepuis(SOLO))).toEqual([{ chemin: '/admin/agency', cle: 'manageAgency' }]);
+    expect(liensDuProfil(accesDepuis(SOLO))).toEqual([{ chemin: '/app/agency', cle: 'manageAgency' }]);
     expect(liensDuProfil(accesDepuis(STANDARD))).toEqual([
-      { chemin: '/admin/agency', cle: 'manageAgency' },
-      { chemin: '/admin/audit', cle: 'auditLog' },
+      { chemin: '/app/agency', cle: 'manageAgency' },
+      { chemin: '/app/agency/audit', cle: 'auditLog' },
     ]);
   });
 });

@@ -77,9 +77,9 @@ interface TeamConsoleProps {
 }
 
 /**
- * TCK-277 — unified team management console for `/admin/team`. Absorbs
- * the historical `/admin/users` page (cycle-of-life actions, role
- * editor) and the `/admin/team` page (invitation, retrait) into a
+ * TCK-277 — unified team management console for `/app/agency/team`.
+ * Absorbs the historical users page (cycle-of-life actions, role
+ * editor) and the team page (invitation, retrait) into a
  * single screen with segmented tabs per role typology.
  *
  * Tab selection is mirrored as `filter[role]` in the URL so the filter
@@ -270,7 +270,7 @@ export function TeamConsole({
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* TCK-595 — un cinquième onglet ne tient plus à 360 px : le ruban défile dans son
-              conteneur plutôt que de pousser la page (même forme que `/admin/finances`). */}
+              conteneur plutôt que de pousser la page (même forme que `/app/agency/finances`). */}
           <div className="-mx-1 max-w-full overflow-x-auto px-1">
             <TabsList>
               <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>

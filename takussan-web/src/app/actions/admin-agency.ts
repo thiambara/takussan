@@ -83,7 +83,7 @@ export async function updateAgencyAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await updateAgency(auth.token, agencyId, payload, await getActiveProfileId());
-    revalidatePath('/admin/agency');
+    revalidatePath('/app/agency');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -98,7 +98,7 @@ export async function confirmPayoutThresholdAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await confirmAgencyPayoutThreshold(auth.token, agencyId, expectedThreshold, await getActiveProfileId());
-    revalidatePath('/admin/agency');
+    revalidatePath('/app/agency');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -131,7 +131,7 @@ export async function uploadAgencyLogoAction(
   }
   try {
     const data = await uploadAgencyLogo(auth.token, agencyId, file, await getActiveProfileId());
-    revalidatePath('/admin/agency');
+    revalidatePath('/app/agency');
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

@@ -354,6 +354,13 @@ jobs:
         # elle ne comprend pas une page — « je ne sais pas » plutôt que « il n'y en a pas ».
         run: node scripts/check-pro-routes.mjs --report
 
+      - name: Toute cible de notification mène à une page du front
+        # Le lien de la cloche s'écrit côté API (`NotificationTarget::PATHS`) pour une page qui
+        # vit côté front. Sa première lecture (TCK-649) a trouvé DEUX chemins morts depuis
+        # TCK-597 — `/admin/reviews` et `/app/reviews` — et ADR-0064 en déplaçait six autres.
+        # Déclenchée par `takussan-api/app/**` ET `takussan-web/src/**` : les deux côtés.
+        run: node scripts/check-notification-target-paths.mjs --report
+
       - name: Aucun écran ne réinvente son état vide ni son bloc d'erreur
         # `docs/design-guidelines.md:13` demande « une seule façon d'afficher un état vide ».
         # Mesuré avant TCK-246 : le nom `EmptyState` était pris ONZE fois, chaque fois comme
@@ -379,8 +386,8 @@ jobs:
       - name: Il n'y a qu'un jeu de jetons de couleur — le dialecte app-* ne repousse pas
         # `globals.css` déclarait HUIT variables `--app-*` qui redisaient au hex près des jetons
         # déjà documentés (`--app-ink` ≡ `--foreground`, `--app-surface-1` ≡ `--card`…), et le
-        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin`, bâti dessus, serait
-        # resté en clair au premier commutateur de thème.
+        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin` (supprimé depuis par
+        # ADR-0064), bâti dessus, serait resté en clair au premier commutateur de thème.
         #
         # TCK-244 avait déjà fait cette migration et était `done`. Son AC1 rejouée verbatim le
         # 2026-08-26 rendait 7 là où elle exigeait 0 — elle échouait DANS SON PROPRE PÉRIMÈTRE,

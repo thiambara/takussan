@@ -53,7 +53,7 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
           {t('timeline.title')}
         </CardTitle>
       </CardHeader>
-      {/* `@container` : ce suivi vit en pleine largeur dans `/admin/agency/kyc` et dans un panneau
+      {/* `@container` : ce suivi vit en pleine largeur dans `/app/agency/kyc` et dans un panneau
           de ~550 px sur `/super-admin/agencies/[id]` — la grille se règle sur la carte, pas sur l'écran. */}
       <CardContent className="@container space-y-4">
         <div className="flex flex-wrap items-center gap-2">

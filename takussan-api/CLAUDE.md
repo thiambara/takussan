@@ -864,8 +864,15 @@ Le mot « admin » recouvre trois surfaces distinctes dans ce produit, et les co
 
 | Surface | Où | Qui |
 |---|---|---|
-| **Admin d'agence** | front, `/admin/*` — 10 pages | le patron d'une agence, sur **son** agence |
+| **Admin d'agence** | front, `/app/agency/*` — une section de `/app`, dans sa coque | le patron d'une agence, sur **son** agence |
 | **Super-admin** | front, `/super-admin/*` — 26 pages | l'équipe Takussan, sur **la plateforme** |
 | **`/api/admin/*`** | back, gardé par le middleware alias `super-admin` | l'API qui sert la console super-admin |
 
 Le disparu s'appelait `/admin` **sur le domaine de l'API** — d'où la confusion. Il n'en reste rien.
+
+**Plus aucune URL du front ne commence par `/admin`** depuis ADR-0064 (TCK-649) : l'administration
+d'agence a quitté `/admin/*` pour `/app/agency/*`, sans redirection — une ancienne URL rend 404. Le
+mot reste dans le code (`PAGES_ADMIN`, `garderPageAdmin`, le rôle `admin` de la table des pages) et
+dans `/api/admin/*`, qui n'a rien à voir. Un chemin émis par l'API vers le front
+(`NotificationTarget::PATHS`) vise donc `/app/agency/*` ; `scripts/check-notification-target-paths.mjs`
+casse si l'un d'eux ne correspond à aucune page.

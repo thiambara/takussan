@@ -184,6 +184,38 @@ class NotificationTest extends TestCase
         $this->assertNull($items['sans cible']['target']);
     }
 
+    /**
+     * TCK-649 (ADR-0064) — l'administration d'agence vit sous `/app/agency` : `/admin` n'existe plus.
+     * Le chemin se calcule à la lecture, donc une ligne stockée AVANT le changement suit aussi.
+     * `review_moderation` visait `/admin/reviews`, page qui n'a jamais existé. `reviews` visait
+     * `/app/reviews`, pas davantage.
+     */
+    public function test_les_cibles_d_administration_visent_app_agency(): void
+    {
+        $user = User::factory()->create();
+        foreach (['agency_kyc', 'finances', 'team', 'agency_settings', 'audit', 'review_moderation', 'reviews'] as $kind) {
+            $this->makeNotification($user, ['title' => $kind, 'target' => ['kind' => $kind, 'id' => null]]);
+        }
+        Sanctum::actingAs($user);
+
+        $chemins = collect($this->getJson('/api/notifications')->assertOk()->json('data'))
+            ->mapWithKeys(fn (array $item) => [$item['title'] => $item['target']['path'] ?? null])
+            ->all();
+
+        $this->assertEquals([
+            'agency_kyc' => '/app/agency/kyc',
+            'finances' => '/app/agency/finances',
+            'team' => '/app/agency/team',
+            'agency_settings' => '/app/agency',
+            'audit' => '/app/agency/audit',
+            'review_moderation' => '/app/agency/moderation',
+            'reviews' => '/app/profile/reviews',
+        ], $chemins);
+        foreach (NotificationTarget::PATHS as $kind => $chemin) {
+            $this->assertStringStartsNotWith('/admin', $chemin, "{$kind} vise encore /admin");
+        }
+    }
+
     public function test_endpoints_require_auth(): void
     {
         $this->getJson('/api/notifications')->assertUnauthorized();

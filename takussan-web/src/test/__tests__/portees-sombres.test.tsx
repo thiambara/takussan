@@ -56,7 +56,7 @@ import { CLASSE_SOMBRE, estSousPorteeSombre, fichiersSousPorteeSombre, porteesSo
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => '/admin',
+  usePathname: () => '/app/agency',
   useSearchParams: () => new URLSearchParams(''),
 }));
 

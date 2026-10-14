@@ -7,8 +7,8 @@ import type { AccesAdmin } from '@/lib/access/pages-admin';
 
 import { DashboardShortcuts } from '../DashboardShortcuts';
 
-const STANDARD: AccesAdmin = { chemins: ['/admin', '/admin/agency'], espaceIndividuel: false };
-const SOLO: AccesAdmin = { chemins: ['/admin/agency', '/admin/finances'], espaceIndividuel: true };
+const STANDARD: AccesAdmin = { chemins: ['/app/agency/team', '/app/agency'], espaceIndividuel: false };
+const SOLO: AccesAdmin = { chemins: ['/app/agency', '/app/agency/finances'], espaceIndividuel: true };
 
 function hrefs(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href') ?? '');
@@ -58,7 +58,7 @@ describe('<DashboardShortcuts>', () => {
         </AccesAdminProvider>,
       ),
     );
-    expect(hrefs(withAgency)).toContain('/admin');
+    expect(hrefs(withAgency)).toContain('/app/agency/team');
 
     const { container: withoutAgency } = render(
       withIntl(
@@ -67,10 +67,10 @@ describe('<DashboardShortcuts>', () => {
         </AccesAdminProvider>,
       ),
     );
-    expect(hrefs(withoutAgency)).not.toContain('/admin');
+    expect(hrefs(withoutAgency).filter((h) => h.startsWith('/app/agency'))).toEqual([]);
   });
 
-  it('TCK-633 — un solo : « Mon espace » vers sa première page, jamais /admin', () => {
+  it('TCK-633 — un solo : « Mon espace » vers sa première page', () => {
     const { container } = render(
       withIntl(
         <AccesAdminProvider acces={SOLO}>
@@ -78,8 +78,8 @@ describe('<DashboardShortcuts>', () => {
         </AccesAdminProvider>,
       ),
     );
-    expect(hrefs(container)).not.toContain('/admin');
-    expect(screen.getByRole('link', { name: 'Mon espace' })).toHaveAttribute('href', '/admin/agency');
+    expect(hrefs(container)).not.toContain('/app/agency/team');
+    expect(screen.getByRole('link', { name: 'Mon espace' })).toHaveAttribute('href', '/app/agency');
   });
 
   it("TCK-633 — aucune page d'admin accessible : aucun raccourci d'admin", () => {
@@ -90,7 +90,7 @@ describe('<DashboardShortcuts>', () => {
         </AccesAdminProvider>,
       ),
     );
-    expect(hrefs(container).filter((h) => h.startsWith('/admin'))).toEqual([]);
+    expect(hrefs(container).filter((h) => h.startsWith('/app/agency'))).toEqual([]);
   });
 
   it('renders the heading "Raccourcis" for screen readers', () => {

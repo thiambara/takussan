@@ -147,7 +147,6 @@
       "crm": "Clients (CRM)",
       "calendar": "Calendrier",
       "onboardingPending": "Onboardings en attente",
-      "administration": "Administration",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
       "sections": {
@@ -165,20 +164,15 @@
       "commissions": "Commissions"
     },
     "admin": {
-      "dashboard": "Tableau de bord",
-      "properties": "Biens",
       "team": "Équipe",
       "agency": "Agence",
       "kyc": "KYC agence",
       "billing": "Abonnement",
-      "finances": "Finances",
+      "finances": "Finances de l'agence",
       "reviewModeration": "Modération avis",
       "propertyModeration": "Modération biens",
       "auditLog": "Journal d'audit",
-      "settings": "Paramètres",
       "sectionLabel": "Administration",
-      "backToPersonal": "Retour à l'espace perso",
-      "proLocked": "Réservé aux comptes pro",
       "pendingBadge": "{count} en attente",
       "roles": "Rôles",
       "integrations": "Intégrations",
@@ -232,7 +226,8 @@
         "privacyRequests": "Demandes de droits",
         "payments": "Paiements",
         "credits": "Crédits",
-        "boosts": "Mise en avant"
+        "boosts": "Mise en avant",
+        "globalSettings": "Paramètres globaux"
       }
     },
     "notifications": {
@@ -1738,24 +1733,9 @@
     },
     "agency": {
       "title": "Vue agence",
-      "loadError": "Impossible de charger les données.",
       "period": "Indicateurs clés sur la période — {start} au {end}",
-      "activeProperties": "Biens actifs",
-      "publishedHint": "{count} publiés",
-      "activeLeases": "Baux actifs",
-      "rentedHint": "{count} biens loués",
-      "revenueMonth": "Revenus du mois",
-      "commissionHint": "Commissions : {amount}",
-      "overdue": "Impayés",
-      "overdueHint": "{amount} · {rate}%",
-      "customers": "Clients",
-      "team": "Équipe",
-      "pendingRequests": "Demandes en attente",
-      "bookingsHint": "Réservations",
-      "openMaintenance": "Maintenance ouverte",
-      "chartTitle": "Revenus et occupation sur 12 mois",
-      "chartRevenue": "Revenus",
-      "chartOccupancy": "Taux d'occupation (%)"
+      "chartOccupancy": "Taux d'occupation (%)",
+      "occupancyHeading": "Occupation — 12 derniers mois"
     },
     "pipelineStages": {
       "lead": "Leads",
@@ -2219,11 +2199,11 @@
       "publishedHint": "{count} publiés",
       "activeLeases": "Baux actifs",
       "occupancyRate": "Taux d'occupation",
-      "occupancyHint": "{rented} loués / {total}",
       "revenueMonth": "Revenus du mois",
       "overdue": "Impayés",
-      "overdueHint": "{count} échéances",
-      "unpaidRate": "Taux d'impayés"
+      "unpaidRate": "Taux d'impayés",
+      "rentedHint": "{count} biens loués",
+      "commissionHint": "Commissions : {amount}"
     },
     "agencyActivity": {
       "heading": "Activité récente",
@@ -2290,6 +2270,22 @@
       "description": "Cet élément n'existe pas, ou il ne relève pas de votre agence. Vérifiez le lien, ou revenez à la liste.",
       "backToList": "Revenir à la liste",
       "backToDashboard": "Retour au tableau de bord"
+    },
+    "agencySetup": {
+      "title": "Mise en service de l’agence",
+      "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
+      "progress": "{done} sur {total} étapes terminées",
+      "done": "Fait",
+      "todo": "À faire",
+      "steps": {
+        "kyc_verified": "Dossier KYC vérifié",
+        "logo": "Logo de l’agence ajouté",
+        "commission_rate": "Taux de commission renseigné",
+        "payment_integration": "Moyen de paiement connecté",
+        "first_member": "Premier membre invité dans l’équipe",
+        "first_published_property": "Premier bien publié",
+        "admin_two_factor": "Double authentification de l’administrateur activée"
+      }
     }
   },
   "errors": {
@@ -5702,12 +5698,6 @@
     }
   },
   "admin": {
-    "notices": {
-      "tagsPlatformManaged": {
-        "title": "Les tags sont gérés par la plateforme",
-        "body": "Il n'existe pas de page « Tags » au niveau d'une agence : le référentiel des tags est maintenu par Takussan pour rester commun à tout le catalogue. Vous avez été redirigé vers le tableau de bord."
-      }
-    },
     "moderation": {
       "reviews": {
         "empty_title": "Aucun avis à modérer",
@@ -6162,27 +6152,6 @@
       }
     },
     "pages": {
-      "home": {
-        "noAgency": "Tableau de bord agence",
-        "title": "Tableau de bord agence",
-        "subtitle": "Vue d'ensemble de l'agence"
-      },
-      "setupStatus": {
-        "title": "Mise en service de l’agence",
-        "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
-        "progress": "{done} sur {total} étapes terminées",
-        "done": "Fait",
-        "todo": "À faire",
-        "steps": {
-          "kyc_verified": "Dossier KYC vérifié",
-          "logo": "Logo de l’agence ajouté",
-          "commission_rate": "Taux de commission renseigné",
-          "payment_integration": "Moyen de paiement connecté",
-          "first_member": "Premier membre invité dans l’équipe",
-          "first_published_property": "Premier bien publié",
-          "admin_two_factor": "Double authentification de l’administrateur activée"
-        }
-      },
       "team": {
         "shortTitle": "Équipe",
         "shortSubtitle": "Gestion des membres de l'agence",
@@ -6226,17 +6195,9 @@
         "payoutsBody": "Suivi des virements émis par la plateforme après encaissement.",
         "payoutsBodyFull": "Suivi des virements émis par la plateforme après retenue de la commission."
       },
-      "settings": {
-        "title": "Paramètres",
-        "subtitle": "Paramètres globaux clé/valeur, feature flags et intégrations.",
-        "navAria": "Sections des paramètres",
-        "tabGeneral": "Général",
-        "tabIntegrations": "Intégrations",
-        "loadError": "Impossible de charger les paramètres : {message}"
-      },
       "integrations": {
         "title": "Intégrations",
-        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks.",
+        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks. Les secrets ne sont jamais ré-affichés après enregistrement.",
         "loadError": "Impossible de charger les intégrations : {message}"
       }
     },
@@ -6641,7 +6602,8 @@
         "finalizeFailed": "Le relevé n’a pas pu être finalisé.",
         "previous": "Précédent",
         "next": "Suivant",
-        "pageOf": "Page {page} sur {total}"
+        "pageOf": "Page {page} sur {total}",
+        "metaTitle": "Relevé bancaire"
       },
       "search": {
         "title": "Chercher le paiement",
@@ -8257,6 +8219,13 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
+      },
+      "globalSettings": {
+        "eyebrow": "Plateforme",
+        "title": "Paramètres globaux",
+        "subtitle": "La table clé/valeur telle qu’elle est : réglages globaux et réglages de chaque agence. Les clés du catalogue se règlent dans les paramètres plateforme.",
+        "platformLink": "Paramètres plateforme",
+        "loadError": "Impossible de charger les paramètres : {message}"
       }
     },
     "featureFlags": {
@@ -8853,7 +8822,6 @@
     "integrations": {
       "empty_title": "Aucune intégration configurée",
       "empty_description": "Ajoutez-en une pour activer les paiements Wave, Orange Money, Stripe, etc.",
-      "intro": "Connectez les providers externes (paiement, SMS, e-mail). Les secrets ne sont jamais ré-affichés après enregistrement.",
       "add": "Ajouter une intégration",
       "statusActive": "Active",
       "statusInactive": "Désactivée",

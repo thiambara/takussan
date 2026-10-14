@@ -11,8 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
  * request to the backend at `/api/admin/<path>` with the auth bearer pulled
  * from the httpOnly cookie. Lives behind the `/super-admin/*` URL space on
- * the frontend so the agency_admin dashboard at `/admin/*` (TCK-131) keeps
- * its routes; the backend itself exposes the canonical `/api/admin/*` paths.
+ * the frontend; the backend itself exposes the canonical `/api/admin/*` paths.
  */
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const chemin = cheminAmont(segments);

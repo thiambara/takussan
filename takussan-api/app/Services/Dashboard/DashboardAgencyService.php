@@ -151,7 +151,7 @@ class DashboardAgencyService
     /**
      * TCK-595 (5 bis) — l'ÉQUIPE : utilisateurs distincts portant un profil agent ou admin d'agence
      * ACTIF dans l'agence. L'ancien compte additionnait agents et bailleurs, de tout statut, et omettait
-     * les admins, sous une tuile « Équipe » qui mène à `/admin/team`.
+     * les admins, sous une tuile « Équipe » qui mène à `/app/agency/team`.
      */
     public static function membersCount(int $agencyId): int
     {

@@ -8,7 +8,7 @@ use App\Models\AgencyRoleCapability;
 use Illuminate\Http\Request;
 
 /**
- * TCK-279 — `AgencyRole` exposé à la console `/admin/roles`.
+ * TCK-279 — `AgencyRole` exposé à la console `/app/agency/roles` (ex-`/admin/roles`, ADR-0064).
  *
  * `capabilities` est une liste plate de valeurs (`properties.publish`, …)
  * et non d'objets pivot : c'est ce que la matrice de l'UI coche, et le

@@ -22,6 +22,7 @@
 | 011 | 2026-10-08 | [`pass-011-2026-10-08-2221`](./pass-011-2026-10-08-2221/00-summary.md) | **Convergence rompue, mesurée sur les migrations** — courtier décrit vivant après suppression de ses tables, deux modèles sans section, rôles personnalisés dits non livrés, sorties d'argent en entrées minimales |
 | 012 | 2026-10-14 | [`pass-012-2026-10-14-0909`](./pass-012-2026-10-14-0909/00-summary.md) | **Convergence rompue** — aucune des 54 recommandations de la 011 appliquée ; TCK-633 mesuré (9 sections sur 10 exactes) ; §4 `Address` et §10 `Tag`, faux positifs de la 011, re-jugés |
 | 013 | 2026-10-14 | [`pass-013-2026-10-14-1023`](./pass-013-2026-10-14-1023/00-summary.md) | **Zéro ❌ côté modèles** — lots 1-3 de convergence appliqués, M1-M49 soldées (sauf M44, TCK-639) ; première relecture intégrale : 19 sections et la ligne push (❌) découvertes |
+| 014 | 2026-10-14 | [`pass-014-2026-10-14-2220`](./pass-014-2026-10-14-2220/00-summary.md) | **Différentielle après ADR-0064** — §96 conforme (TCK-639), unicités globales en base (TCK-640) ; la voie brute des paramètres globaux, servie par la console depuis TCK-648, contredit l.671 et §30 |
 
 ## Tableau d'évolution
 
@@ -40,6 +41,7 @@
 | 011 | 2026-10-08 | **368** | **89** | **328** | **125** | **4** | n.c. | n.c. | n.c. |
 | 012 | 2026-10-14 | **379** | **99** | **343** | **131** | **4** | **+15** | **+6** | **0** |
 | 013 | 2026-10-14 | **380** | **99** | **385** | **93** | **1** | **+42** | **−38** | **−3** |
+| 014 | 2026-10-14 | 380 | 99 | 384 | 94 | 1 | −1 | +1 | 0 |
 
 > **n.c. = non comparable.** La passe 011 juge la spec contre les migrations, plus contre le seul
 > catalogue, et ses unités ont changé (lignes de features : ~208 → 368 ; modèles : 39 → 87 sections
@@ -49,6 +51,9 @@
 > **Passe 012 : comparable à la 011** (même méthode, mêmes unités). Son Δ mêle deux causes, séparées
 > dans son `00-summary.md` : le delta TCK-633 (+19 ✅ / +2 ⚠️) et deux re-jugements de sections que la
 > 011 avait comptées ✅ sans les relire (−4 ✅ / +4 ⚠️). Aucune recommandation appliquée entre les deux.
+>
+> **Passe 014 : comparable à la 013** (même méthode, mêmes unités), mais différentielle : elle ne
+> re-mesure que ce qui a bougé depuis.
 >
 > **Passe 013 : plus sévère que la 012 à état égal** — elle relit les 99 sections colonne à colonne
 > et compte ⚠️ une donnée rangée hors colonne sans que la spec dise où. Son Δ mêle les corrections des
@@ -66,7 +71,18 @@
 > passe 010 était honnête **le jour où elle a été écrite** ; c'est de l'avoir laissée parler au
 > présent qui a coûté.
 
-### Passe 013 (2026-10-14) — l'état courant
+### Passe 014 (2026-10-14) — l'état courant
+
+**Convergence rompue — passe différentielle**, sur la branche d'ADR-0064 (`feat/app-absorbe-admin`,
+non fusionnée). `features.md` inchangé depuis la 013 ; §96 devient conforme (TCK-639) et les deux
+candidats à ticket de la 013 sont soldés (TCK-640). Un défaut que la 013 n'avait pas vu, révélé par
+TCK-648 : la route brute `/api/settings` écrit toute clé globale hors catalogue, sans journal, alors que
+l.671 promet « une seule voie validée et journalisée » — décision au porteur (FC1). 19 recommandations à
+`features.md`, 29 actions à `models-spec.md`. Détail : [`pass-014-2026-10-14-2220/00-summary.md`](./pass-014-2026-10-14-2220/00-summary.md).
+
+> *Différentielle : sept lignes et huit sections re-mesurées, le reste repris de la 013.*
+
+### Passe 013 (2026-10-14)
 
 **Convergence rompue, mais 0 ❌ côté modèles** — une première depuis la passe 008. Les trois lots de
 convergence (#379 → #381, empilées) ont soldé M1 à M49 sauf M44, que porte TCK-639 (#378). La relecture

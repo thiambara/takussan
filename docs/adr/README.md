@@ -85,6 +85,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0061](0061-credits-d-espace-et-boost-des-annonces.md) | Les crédits appartiennent à l'espace, en lots datés d'un registre en insertion seule (offerts : expirent ; achetés : jamais) ; ils paient Remontée, Vedette et Badge ; la Vedette achète un tour dans des emplacements « Sponsorisé » tournants et les X places réservées en tête de la première page (ordre organique, badge), `featured` devient un état dérivé | Accepté |
 | [0062](0062-referentiel-geographique-region-ville-quartier.md) | Région → Ville → Quartier en base, rempli par un jeu de données versionné (OSM, ODbL) ; l'adresse y pointe et garde son texte canonique ; un quartier inconnu sert l'annonce et attend la validation super-admin ; les liens courts se résolvent côté API sur liste d'hôtes | Accepté |
 | [0063](0063-attestation-de-ci-par-arbre.md) | Une suite verte dépose une attestation nommée par l'arbre qu'elle a éprouvé (SHA-256 du `ls-tree` de son périmètre de lecture, pas de ses `paths`) ; un arbre attesté ne rejoue pas `lint-and-test` ni `quality` — toute incertitude rejoue ; la carte d'impact se régénère la nuit | Accepté |
+| [0064](0064-l-administration-d-agence-vit-dans-app.md) | L'administration d'agence vit dans `/app` (`/app/agency/*`), servie par `AppShell` et un menu dérivé de la table des pages ; un seul tableau de bord d'agence ; `/admin` disparaît sans redirection, ses deux pages super-admin rejoignent `/super-admin` | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

@@ -40,7 +40,7 @@ const LANGUAGE_OPTIONS: Array<{ value: 'fr' | 'en' | 'wo'; label: string }> = [
 
 // TCK-270 — Currency picker added to step 1 of the provisioning wizard so
 // the new agency lands with the right display currency from day 1 (no
-// detour through /admin/agency settings post-activation). Mirrors the
+// detour through /app/agency settings post-activation). Mirrors the
 // codes accepted by the backend Currency enum (Senegal-first, then EU/US).
 // TCK-292 — la donnée porte la CLÉ, le rendu la résout.
 // ⚠ Le dictionnaire porte DÉJÀ un vocabulaire de devises sous `property.currencies.*`

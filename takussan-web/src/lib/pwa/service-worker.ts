@@ -17,7 +17,7 @@
  *     l'utilisateur connecté, et un cache resservirait ses données après la déconnexion. Hors
  *     ligne, la page rendue est CONSTRUITE ici, elle n'a jamais été une réponse du serveur.
  *
- * Tout le reste — `/app`, `/admin`, `/super-admin`, les handlers BFF `/api/*` du front, un `.ics`,
+ * Tout le reste — `/app`, `/super-admin`, les handlers BFF `/api/*` du front, un `.ics`,
  * une requête qui porte `Authorization` ou `credentials: 'include'` — n'est même pas intercepté :
  * le navigateur le traite comme sans service worker. Une liste d'EXCLUSIONS oublierait la
  * prochaine surface privée ; une liste d'autorisation ne peut qu'oublier de mettre en cache.
