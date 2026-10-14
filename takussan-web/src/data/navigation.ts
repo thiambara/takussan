@@ -67,39 +67,12 @@ export const moreCategories: readonly Category[] = [
 ];
 
 /**
- * Les entrées du MENU MOBILE de la navbar — `navLinks` n'est consommé que là (`Navbar.tsx`).
- *
- * ⚠ **Aucun `href: '#'`.** Deux y vivaient — `sell` et `services` — et le menu les rendait comme
- * des liens : le panneau se refermait, la page ne bougeait pas. C'est le motif de TCK-419 (un
- * chemin sans écran) sous sa forme la plus visible, puisqu'ici la cible n'est pas seulement
- * absente, elle est écrite. `src/data/__tests__/navigation.test.ts` refuse désormais qu'une
- * nouvelle entrée en porte un, et vérifie que chaque `href` résout vers une route qui existe
- * RÉELLEMENT sous `src/app` (inventaire dérivé du système de fichiers, jamais recopié).
- *
- * Le sort des deux entrées mortes a été tranché séparément, parce qu'elles ne se ressemblent
- * qu'en surface (TCK-439) :
- *
- * · **`sell` → `/publish`, puis RETIRÉ (TCK-625).** La redondance avec le bouton « Publier une
- *   annonce » avait été assumée comme un couple intention / action. Revue du parcours du
- *   2026-10-10 : dans un menu de trois lignes, c'étaient deux entrées pour un geste, et « Vendre »
- *   écartait qui voulait mettre en location. Le bouton reste ; la clé `nav.links.sell` part des
- *   trois dictionnaires.
- *
- * · **`services` → RETIRÉ.** Aucune surface de services n'existe, ni publique ni ticketée. Le
- *   dépôt a des `ServiceProviderProfile` côté API, mais rien qu'un visiteur puisse atteindre :
- *   pointer le lien quelque part demanderait d'inventer la page, ce que TCK-439 exclut
- *   explicitement de son périmètre. La clé `nav.links.services` est retirée des trois
- *   dictionnaires avec l'entrée — un libellé qui ne s'affiche plus est un piège pour la
- *   prochaine personne qui le trouvera et croira la surface livrée.
- *
- * · **« Louer » d'abord (TCK-633, AC5)** : le même ordre que le sélecteur de la barre
- *   (`SelecteurDeTransaction`) et que le panneau de filtres. Un seul vocabulaire : Louer, Acheter.
+ * Le MENU MOBILE de la navbar ne porte plus de liens de transaction (TCK-641) : « Louer » et
+ * « Acheter » en sont retirés à la demande du porteur (2026-10-14), et `navLinks` avec eux — la
+ * recherche se fait par la barre (`SelecteurDeTransaction`). Les clés `nav.links.*` partent des
+ * trois dictionnaires : un libellé qui ne s'affiche plus est un piège pour qui le retrouvera.
+ * L'historique (`sell`, `services`, TCK-439, TCK-625) vit dans `git log` de ce fichier.
  */
-export const navLinks = [
-  { labelKey: 'rent', href: '/properties?contract_type=rent' },
-  { labelKey: 'buy',  href: '/properties?contract_type=sale' },
-] as const;
-
 /** Une entrée de colonne du pied de page : une clé de libellé, un chemin qui doit exister. */
 export interface LienDePiedDePage {
   readonly labelKey: string;

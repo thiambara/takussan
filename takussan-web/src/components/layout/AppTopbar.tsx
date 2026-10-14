@@ -11,6 +11,8 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/brand/Logo';
+import { PastilleCredits } from '@/components/credits/PastilleCredits';
+import { voitLePortefeuille } from '@/lib/navigation/acces-app';
 
 /**
  * TCK-371 (revue adverse) — l'anneau de focus des deux contrôles ÉCRITS À LA MAIN de la barre
@@ -76,6 +78,9 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
           prénom) se cachent sous `lg`, il ne reste que les icônes. */}
       <div className="ml-auto flex min-w-0 shrink items-center gap-2">
         <ProfileSwitcher user={user} />
+        {/* TCK-642 — le solde de l'espace actif, juste après le sélecteur qui le choisit. Dès `md`
+            seulement : sous ce seuil, il est dans le tiroir (entrée « Crédits »). */}
+        {voitLePortefeuille(user.roles) ? <PastilleCredits ton="sombre" className="hidden md:inline-flex" /> : null}
         {/* TCK-017 — language switcher persisted via cookie + (when logged in)
             PATCH /api/users/me by the client inside the switcher. */}
         <LanguageSwitcher

@@ -96,10 +96,6 @@
     "userMenuFor": "User menu — {name}",
     "accountFallback": "My account",
     "administration": "Administration",
-    "links": {
-      "buy": "Buy",
-      "rent": "Rent"
-    },
     "categories": {
       "apartment": "Apartment",
       "house": "House",
@@ -155,7 +151,6 @@
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
       "sections": {
-        "catalog": "Catalogue",
         "discover": "Discover",
         "requests": "Requests",
         "engagements": "Commitments",
@@ -268,7 +263,8 @@
     "searchSurface": {
       "title": "Find a property",
       "back": "Back"
-    }
+    },
+    "creditsBalance": "Credits: {count, plural, one {# credit} other {# credits}}"
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
@@ -1192,7 +1188,9 @@
         "whatsappQuestion": "Does this number have WhatsApp?",
         "verifiedBadge": "Verified",
         "whatsappYes": "Yes",
-        "whatsappNo": "No"
+        "whatsappNo": "No",
+        "subtitleMany": "Visitors will reach you at these numbers. They are only revealed when they ask.",
+        "numbersAria": "Your verified numbers"
       }
     },
     "contacts": {
@@ -1305,7 +1303,8 @@
         "bulkError": "Bulk action failed.",
         "bulkArchived": "Properties archived.",
         "bulkUnpublished": "Properties unpublished.",
-        "caption": "Dashboard property list"
+        "caption": "Dashboard property list",
+        "reference": "Ref. {value}"
       },
       "filters": {
         "searchLabel": "Search a property",
@@ -1356,6 +1355,16 @@
           "createdFrom": "Created after",
           "createdTo": "Created before",
           "agent": "Agent"
+        },
+        "mobile": {
+          "button": "Filters",
+          "buttonAria": "Filters and sort — {count, plural, =0 {no active filter} =1 {# active filter} other {# active filters}}",
+          "title": "Filters and sort",
+          "description": "Each choice applies to the list right away.",
+          "sortHeading": "Sort by",
+          "scopeHeading": "Show",
+          "criteriaHeading": "Criteria",
+          "showResults": "Show results"
         }
       },
       "actions": {
@@ -1972,7 +1981,8 @@
       "publish": "Publish a property",
       "published": "Published",
       "soldRented": "Sold / Rented",
-      "archived": "Archived"
+      "archived": "Archived",
+      "countersAria": "Property counters — filter the list"
     },
     "profile": {
       "metaTitle": "My profile",
@@ -3256,7 +3266,9 @@
       "loadError": "Conversations could not be loaded.",
       "empty": "No conversation yet.",
       "groupBadge": "Group",
-      "muted": "Muted conversation"
+      "muted": "Muted conversation",
+      "emptyHint": "A conversation starts when you write about a listing from its page — or when someone writes to you.",
+      "emptyCta": "Browse listings"
     },
     "propertyDraft": {
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",

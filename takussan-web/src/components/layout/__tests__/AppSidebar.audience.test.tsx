@@ -200,7 +200,10 @@ describe('AppSidebar — table des href par rôle', () => {
   for (const [role, attendu] of Object.entries(ATTENDU)) {
     it(`${role} reçoit exactement ses entrées`, () => {
       const hrefs = buildNavItems(utilisateur([role as UserRole])).map((i) => i.href);
-      expect(hrefs).toEqual(attendu);
+      // TCK-646 — à l'ordre près : six entrées sont montées en tête du menu, ce qui ne change AUCUN
+      // droit. L'ordre est gardé par `AppSidebar.test.tsx` (« six entrées en tête »), le jeu ici.
+      expect([...hrefs].sort()).toEqual([...attendu].sort());
+      expect(hrefs).toHaveLength(attendu.length);
     });
   }
 

@@ -236,8 +236,9 @@ describe('Menu mobile — une seule surface de saisie (TCK-549 AC5)', () => {
 
     expect(panneau!.querySelectorAll('[aria-pressed]')).toHaveLength(0);
     expect(panneau!.querySelectorAll('input')).toHaveLength(0);
-    // Le lien de navigation, lui, reste — et reste le seul à dire où l'on est.
-    expect(within(panneau as HTMLElement).getByRole('link', { name: 'Louer' })).toHaveAttribute('aria-current', 'page');
+    // TCK-641 — et plus de lien « Louer » / « Acheter » non plus : la pastille porte la transaction.
+    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Louer' })).toBeNull();
+    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Acheter' })).toBeNull();
   });
 });
 

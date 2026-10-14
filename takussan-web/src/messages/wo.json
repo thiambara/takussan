@@ -86,10 +86,6 @@
     "userMenuFor": "Menu jëfandikukat — {name}",
     "accountFallback": "Sama kont",
     "administration": "Yoonu njiit",
-    "links": {
-      "buy": "Jënd",
-      "rent": "Luwaa"
-    },
     "categories": {
       "apartment": "Apartama",
       "house": "Kër",
@@ -145,7 +141,6 @@
       "proLocked": "Kont pro rekk",
       "navLabel": "Joowiin bu tablo bi",
       "sections": {
-        "catalog": "Katalog",
         "discover": "Gis",
         "requests": "Ñaan",
         "engagements": "Digante",
@@ -268,7 +263,8 @@
     "searchSurface": {
       "title": "Seet benn kër",
       "back": "Dellu"
-    }
+    },
+    "creditsBalance": "Kredi : {count, plural, one {# kredi} other {# kredi}}"
   },
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal.",
@@ -1519,7 +1515,9 @@
       "loadError": "Mënunu yeb waxtaan yi.",
       "empty": "Amul benn waxtaan ba tey.",
       "groupBadge": "Kuréel",
-      "muted": "Waxtaan bu ñu tëj coow li"
+      "muted": "Waxtaan bu ñu tëj coow li",
+      "emptyHint": "Waxtaan dafay tàmbali saa yoo bindee ci mbirum benn yéenekaay, jóge ci xëtam — walla saa yu kenn bindal la.",
+      "emptyCta": "Xool yéenekaay yi"
     },
     "propertyDraft": {
       "message": "Salaam, bëgg naa xam lu ëpp ci « {title} » (réf. {reference}). Ndax mu ngi am ba tey ?",
@@ -5452,7 +5450,9 @@
         "whatsappQuestion": "Nimero bii am na WhatsApp ?",
         "verifiedBadge": "Wóor na",
         "whatsappYes": "Waaw",
-        "whatsappNo": "Déedéet"
+        "whatsappNo": "Déedéet",
+        "subtitleMany": "Ñi seetsi dinañu la woo ci nimero yii. Duñu feeñ lu dul ñu laaj ko.",
+        "numbersAria": "Say nimero yu wóor"
       }
     },
     "contacts": {
@@ -5565,7 +5565,8 @@
         "bulkError": "Aksioŋ bu booloo bi antuwul.",
         "bulkArchived": "Denc nañu kër yi.",
         "bulkUnpublished": "Dindi nañu leen ci génn gi.",
-        "caption": "Limu kër yi ci tablo bi"
+        "caption": "Limu kër yi ci tablo bi",
+        "reference": "Nomboro {value}"
       },
       "filters": {
         "searchLabel": "Seet ab kër",
@@ -5616,6 +5617,16 @@
           "createdFrom": "Sosu ginnaaw",
           "createdTo": "Sosu laata",
           "agent": "Ajaŋ"
+        },
+        "mobile": {
+          "button": "Filtre yi",
+          "buttonAria": "Filtre ak toftal — {count, plural, =0 {benn filtre doxul} =1 {# filtre moo dox} other {# filtre ñoo dox}}",
+          "title": "Filtre ak toftal",
+          "description": "Bépp tànn dina dox ci saa si ci lim bi.",
+          "sortHeading": "Toftale ko ci",
+          "scopeHeading": "Wone",
+          "criteriaHeading": "Natt yi",
+          "showResults": "Xool njureef yi"
         }
       },
       "actions": {
@@ -9095,7 +9106,8 @@
       "publish": "Génne benn kër",
       "published": "Yu ñu génne",
       "soldRented": "Yu ñu jaay / luwaa",
-      "archived": "Yu ñu denc"
+      "archived": "Yu ñu denc",
+      "countersAria": "Limu kër yi — tànnal ci lim bi"
     },
     "profile": {
       "metaTitle": "Sama profil",

@@ -96,10 +96,6 @@
     "userMenuFor": "Menu utilisateur — {name}",
     "accountFallback": "Mon compte",
     "administration": "Administration",
-    "links": {
-      "buy": "Acheter",
-      "rent": "Louer"
-    },
     "categories": {
       "apartment": "Appartement",
       "house": "Maison",
@@ -155,7 +151,6 @@
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
       "sections": {
-        "catalog": "Catalogue",
         "discover": "Découvrir",
         "requests": "Demandes",
         "engagements": "Engagements",
@@ -268,7 +263,8 @@
     "searchSurface": {
       "title": "Rechercher un bien",
       "back": "Retour"
-    }
+    },
+    "creditsBalance": "Crédits : {count, plural, one {# crédit} other {# crédits}}"
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
@@ -1163,7 +1159,9 @@
         "whatsappQuestion": "Ce numéro reçoit-il WhatsApp ?",
         "verifiedBadge": "Vérifié",
         "whatsappYes": "Oui",
-        "whatsappNo": "Non"
+        "whatsappNo": "Non",
+        "subtitleMany": "Les visiteurs vous joindront à ces numéros. Ils ne sont révélés qu’à leur demande.",
+        "numbersAria": "Vos numéros vérifiés"
       }
     },
     "contacts": {
@@ -1276,7 +1274,8 @@
         "bulkError": "Action en lot impossible.",
         "bulkArchived": "Biens archivés.",
         "bulkUnpublished": "Biens dépubliés.",
-        "caption": "Liste des biens du tableau de bord"
+        "caption": "Liste des biens du tableau de bord",
+        "reference": "Réf. {value}"
       },
       "filters": {
         "searchLabel": "Rechercher un bien",
@@ -1327,6 +1326,16 @@
           "createdFrom": "Créé après",
           "createdTo": "Créé avant",
           "agent": "Agent"
+        },
+        "mobile": {
+          "button": "Filtres",
+          "buttonAria": "Filtres et tri — {count, plural, =0 {aucun filtre actif} =1 {# filtre actif} other {# filtres actifs}}",
+          "title": "Filtres et tri",
+          "description": "Chaque choix s’applique aussitôt à la liste.",
+          "sortHeading": "Trier par",
+          "scopeHeading": "Afficher",
+          "criteriaHeading": "Critères",
+          "showResults": "Voir les résultats"
         }
       },
       "actions": {
@@ -1943,7 +1952,8 @@
       "publish": "Publier un bien",
       "published": "Publiés",
       "soldRented": "Vendus / Loués",
-      "archived": "Archivés"
+      "archived": "Archivés",
+      "countersAria": "Compteurs de biens — filtrer la liste"
     },
     "profile": {
       "metaTitle": "Mon profil",
@@ -3227,7 +3237,9 @@
       "loadError": "Impossible de charger les conversations.",
       "empty": "Pas encore de conversation.",
       "groupBadge": "Groupe",
-      "muted": "Conversation en sourdine"
+      "muted": "Conversation en sourdine",
+      "emptyHint": "Une conversation commence quand vous écrivez au sujet d’une annonce, depuis sa fiche — ou quand quelqu’un vous écrit.",
+      "emptyCta": "Parcourir les annonces"
     },
     "propertyDraft": {
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",

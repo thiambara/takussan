@@ -1,7 +1,7 @@
 /**
  * Les DONNÉES de navigation ne peuvent plus mentir — TCK-439 (AC4), TCK-437 (AC4).
  *
- * Deux entrées de `navLinks` portaient `href: '#'`, et le menu mobile les rendait comme des
+ * Deux entrées de `navLinks` (retiré depuis, TCK-641) portaient `href: '#'`, et le menu mobile les rendait comme des
  * liens : le panneau se refermait, la page ne bougeait pas. Un test qui vérifierait seulement
  * « les deux entrées fautives sont parties » cocherait aussi une régression qui en réintroduit
  * une troisième — c'est pourquoi il est écrit sur la FORME (`#`, une ancre nue, un chemin sans
@@ -13,11 +13,10 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { navLinks, footerLinks, categories, moreCategories } from '@/data/navigation';
+import { footerLinks, categories, moreCategories } from '@/data/navigation';
 import { MOTIFS_DE_ROUTE, routeExiste } from '@/test/routes-publiques';
 
 const toutesLesEntrees = [
-  ...navLinks.map((l) => ({ source: 'navLinks', ...l })),
   ...Object.entries(footerLinks).flatMap(([colonne, liens]) =>
     (liens as readonly { labelKey: string; href: string }[]).map((l) => ({
       source: `footerLinks.${colonne}`,
@@ -98,11 +97,3 @@ describe('bande de catégories (TCK-628)', () => {
   });
 });
 
-describe('menu mobile — « Louer » d’abord (TCK-633, AC5)', () => {
-  it('propose Louer, puis Acheter, chacun vers SA transaction', () => {
-    expect(navLinks.map((l) => [l.labelKey, l.href])).toEqual([
-      ['rent', '/properties?contract_type=rent'],
-      ['buy', '/properties?contract_type=sale'],
-    ]);
-  });
-});

@@ -128,7 +128,7 @@ describe('Menu mobile — une modale (TCK-551, N5)', () => {
 
   it('suivre un lien du menu le referme', async () => {
     const { user, panneau } = await ouvrir();
-    await user.click(within(panneau).getByRole('link', { name: 'Louer' }));
+    await user.click(within(panneau).getByRole('link', { name: 'Connexion' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull());
   });
 
@@ -231,8 +231,10 @@ describe('Menu mobile — un menu de NAVIGATION (TCK-551, N6)', () => {
       expect(within(panneau).queryByRole('button', { name: nom }), nom).toBeNull();
     }
     expect(panneau.querySelector('.overflow-x-auto')).toBeNull();
-    // La navigation, elle, reste.
-    expect(within(panneau).getByRole('link', { name: 'Acheter' })).toHaveAttribute('aria-current', 'page');
+    // TCK-641 — ni « Acheter » ni « Louer » non plus ; le parcours de connexion, lui, reste.
+    expect(within(panneau).queryByRole('link', { name: 'Acheter' })).toBeNull();
+    expect(within(panneau).queryByRole('link', { name: 'Louer' })).toBeNull();
+    expect(within(panneau).getByRole('link', { name: 'Connexion' })).toBeInTheDocument();
   });
 });
 
@@ -246,20 +248,23 @@ describe('Menu mobile — alignements (TCK-551, N7)', () => {
     expect(attendue).toEqual(['px-4', 'sm:px-6']);
     const entete = panneau.firstElementChild!;
     const defilant = panneau.querySelector('.overflow-y-auto')!;
-    // Les blocs : l'en-tête, puis chaque enfant de la zone qui défile (liens, langue, compte).
+    // Les blocs : l'en-tête, puis chaque enfant de la zone qui défile (compte, langue).
     // Ouvert entre 640 et 1023 px, un panneau en `px-4` aurait décalé le logo de 8 px.
     const blocs = [entete, ...defilant.children];
-    expect(blocs.length).toBeGreaterThanOrEqual(4);
+    expect(blocs.length).toBeGreaterThanOrEqual(3);
     for (const bloc of blocs) {
       expect(gouttiereDe(bloc), bloc.outerHTML.slice(0, 100)).toEqual(attendue);
     }
   });
 
-  it('« Connexion » : la classe `px-0` de l’appelant REMPLACE `px-2.5` de la variante (fusion)', async () => {
+  // TCK-641 — « Connexion » est devenu un bouton secondaire pleine largeur : la hauteur et l'arrondi
+  // de l'appelant doivent REMPLACER ceux de la variante (`cn()`, pas `buttonVariants({ className })`).
+  it('« Connexion » : `h-12 rounded-full` de l’appelant REMPLACENT `h-8 rounded-lg` de la variante (fusion)', async () => {
     const { panneau } = await ouvrir();
     const connexion = within(panneau).getByRole('link', { name: 'Connexion' });
-    expect(classesDe(connexion)).toContain('px-0');
-    expect(classesDe(connexion)).not.toContain('px-2.5');
+    expect(classesDe(connexion)).toEqual(expect.arrayContaining(['h-12', 'rounded-full', 'w-full']));
+    expect(classesDe(connexion)).not.toContain('h-8');
+    expect(classesDe(connexion)).not.toContain('rounded-lg');
   });
 });
 

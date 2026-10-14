@@ -169,17 +169,19 @@ describe('Navbar — un champ, un sens (TCK-439)', () => {
     document.addEventListener('click', (e) => evenements.push(e as MouseEvent));
 
     await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    const panneau = screen.getByRole('link', { name: 'Acheter' }).closest('div')!;
+    // TCK-641 — « Acheter » a quitté le panneau : « Connexion » est un lien du menu comme un autre.
+    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
 
     push.mockReset();
     evenements.length = 0;
-    await user.click(within(panneau).getByRole('link', { name: 'Acheter' }));
+    await user.click(within(panneau).getByRole('link', { name: 'Connexion' }));
 
     // `defaultPrevented` est la seule chose qui sépare une navigation client d'un rechargement
     // de document — un `<a href>` nu laisse le navigateur suivre le lien.
     expect(evenements.at(-1)?.defaultPrevented, "l'action par défaut du navigateur n'est pas empêchée").toBe(true);
     // …et le routeur client a bien été sollicité, avec la langue courante.
-    expect(push).toHaveBeenCalledWith('/fr/properties?contract_type=sale');
+    // `/auth/*` n'est pas localisé ; depuis l'accueil, la connexion ne porte pas de `redirect`.
+    expect(push).toHaveBeenCalledWith('/auth/login');
   });
 
   it("AC5 (suite) — « Publier une annonce » mène à /publish, qui n'est PAS localisé, et « Vendre » ne la double plus (TCK-625)", async () => {

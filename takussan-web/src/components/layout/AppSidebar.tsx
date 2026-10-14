@@ -40,11 +40,13 @@ import { entreeAdmin, type EntreeAdmin } from '@/lib/access/pages-admin';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { initialesDe, libelleDe } from '@/lib/identite';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
+import { HREF_CREDITS, HREF_MES_BIENS, peutOuvrirMesBiens, voitLePortefeuille } from '@/lib/navigation/acces-app';
+import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
@@ -60,8 +62,12 @@ import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 
 /**
  * TCK-377 — Les sections se lisent dans l'ordre où le métier arrive, pas dans celui de
- * l'inventaire technique : ce qu'on ouvre à chaque fois → son catalogue → ce qu'on cherche →
- * ce qu'on demande → ce à quoi on s'est engagé → ce qu'on pilote → l'administration.
+ * l'inventaire technique : ce qu'on ouvre à chaque fois → ce qu'on cherche → ce qu'on demande →
+ * ce à quoi on s'est engagé → ce qu'on pilote → l'administration.
+ *
+ * TCK-646 — la section `catalog` (« Mes biens », « Publier un bien ») n'existe plus : ses entrées
+ * sont montées en tête, dans `primary` ({@link RANG_EN_TETE}). Gardée, elle serait restée vide
+ * pour tous les rôles.
  *
  * `primary` n'a **pas** de libellé, et ce n'est pas un oubli : une césure placée avant la
  * première entrée ne coupe rien. C'est la DONNÉE qui le dit ({@link SECTION_LABEL_KEYS}), pas un
@@ -70,7 +76,6 @@ import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
  */
 export type NavSection =
   | 'primary'
-  | 'catalog'
   | 'discover'
   | 'requests'
   | 'engagements'
@@ -79,7 +84,6 @@ export type NavSection =
 
 export const SECTION_ORDER: readonly NavSection[] = [
   'primary',
-  'catalog',
   'discover',
   'requests',
   'engagements',
@@ -90,7 +94,6 @@ export const SECTION_ORDER: readonly NavSection[] = [
 /** `null` = section rendue SANS en-tête. Clés sous `nav.sidebar.sections`. */
 export const SECTION_LABEL_KEYS: Record<NavSection, string | null> = {
   primary: null,
-  catalog: 'catalog',
   discover: 'discover',
   requests: 'requests',
   engagements: 'engagements',
@@ -156,21 +159,52 @@ function occupeUnLogement(roles: UserRole[]): boolean {
   );
 }
 
+/**
+ * TCK-646 — décision du porteur du 2026-10-14 : six destinations sont DÉPLACÉES en tête du menu,
+ * juste après « Tableau de bord » (l'accueil de l'espace), dans cet ordre exact :
+ * **Mes biens · Publier un bien · Messagerie · Réservations · Visites · Crédits**. Pas de raccourci
+ * sur l'accueil (écartés le même jour) : l'entrée quitte sa place d'origine, et le dédoublonnage
+ * par `href` garantit qu'elle n'apparaît qu'une fois.
+ *
+ * ⚠ **Ce tableau ORDONNE, il n'accorde rien.** Chaque entrée reste poussée — ou non — par sa garde
+ * de rôle ci-dessous (TCK-379) : un profil qui ne peut pas ouvrir une page ne voit pas son entrée,
+ * et les autres gardent leur ordre relatif. Toutes sont poussées en section `primary`, la seule
+ * sans en-tête : sept lignes en tête se lisent sans césure.
+ *
+ * « Publier un bien » a deux formes et un rôle n'en reçoit jamais qu'une : `/app/properties/new`
+ * pour le personnel (« Publier un bien ») et le bailleur (« Proposer un bien à mon agence »,
+ * TCK-587), `/publish` pour le client seul (TCK-625). Même rang pour les deux.
+ */
+const RANG_EN_TETE: Readonly<Record<string, number>> = {
+  '/app': 0,
+  [HREF_MES_BIENS]: 1,
+  '/app/properties/new': 2,
+  '/publish': 2,
+  '/app/messages': 3,
+  '/app/bookings': 4,
+  '/app/visits': 5,
+  [HREF_CREDITS]: 6,
+};
+
+function rangEnTete(item: NavItem): number {
+  return RANG_EN_TETE[item.href] ?? Number.MAX_SAFE_INTEGER;
+}
+
 export function buildNavItems(user: User): NavItem[] {
   const items: NavItem[] = [];
   const roles = user.roles;
 
   items.push({ href: '/app', labelKey: 'dashboard', icon: LayoutDashboard, section: 'primary' });
 
-  if (isOwner(roles) || isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/properties', labelKey: 'myProperties', icon: Building2, section: 'catalog' });
+  if (peutOuvrirMesBiens(roles)) {
+    items.push({ href: HREF_MES_BIENS, labelKey: 'myProperties', icon: Building2, section: 'primary' });
   }
   if (isAgent(roles) || isAdmin(roles)) {
     items.push({
       href: '/app/properties/new',
       labelKey: 'publishProperty',
       icon: PlusCircle,
-      section: 'catalog',
+      section: 'primary',
       emphasized: true,
     });
   } else if (isOwner(roles)) {
@@ -181,7 +215,7 @@ export function buildNavItems(user: User): NavItem[] {
       href: '/app/properties/new',
       labelKey: 'proposeProperty',
       icon: PlusCircle,
-      section: 'catalog',
+      section: 'primary',
       emphasized: true,
     });
   }
@@ -189,7 +223,7 @@ export function buildNavItems(user: User): NavItem[] {
   // TCK-625 — un client (ni bailleur, ni membre d'une agence) peut devenir hôte : rien, dans son
   // espace, ne le lui disait. L'entrée mène à `/publish`, qui l'emmène à l'assistant hôte.
   if (isCustomerOnly(roles)) {
-    items.push({ href: '/publish', labelKey: 'publishProperty', icon: PlusCircle, section: 'catalog' });
+    items.push({ href: '/publish', labelKey: 'publishProperty', icon: PlusCircle, section: 'primary' });
   }
 
   // Discovery shortcuts (Wave 3 / TCK-047).
@@ -215,20 +249,20 @@ export function buildNavItems(user: User): NavItem[] {
     // discovery (favorites/saved searches above) →
     // requests (visits, bookings, maintenance) →
     // engagements (leases, payments, inventories).
-    items.push({ href: '/app/visits', labelKey: 'myVisits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
-    items.push({ href: '/app/bookings', labelKey: 'myBookings', icon: CalendarCheck, section: 'requests' });
+    items.push({ href: '/app/visits', labelKey: 'myVisits', icon: CalendarClock, section: 'primary', counterKey: 'pendingVisits' });
+    items.push({ href: '/app/bookings', labelKey: 'myBookings', icon: CalendarCheck, section: 'primary' });
     items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench, section: 'requests' });
     items.push({ href: '/app/leases', labelKey: 'myLeases', icon: FileText, section: 'engagements' });
     items.push({ href: '/app/payments', labelKey: 'payments', icon: CreditCard, section: 'engagements' });
     items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList, section: 'engagements' });
     items.push({ href: '/app/profile/reviews', labelKey: 'myReviews', icon: BookmarkCheck, section: 'engagements' });
   } else if (isOwner(roles)) {
-    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'requests' });
+    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'primary' });
     items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench, section: 'requests' });
     items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText, section: 'engagements' });
     items.push({ href: '/app/payments', labelKey: 'finances', icon: CreditCard, section: 'engagements' });
   } else if (isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'requests' });
+    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'primary' });
     items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText, section: 'engagements' });
   }
 
@@ -306,8 +340,8 @@ export function buildNavItems(user: User): NavItem[] {
 
   // TCK-633 lot F (ADR-0061 §1) — le portefeuille de crédits de l'espace. Le rôle approche
   // `boost.spend` (accordée à l'admin d'espace) ; la page et l'API tranchent (403 sinon).
-  if (roles.includes('agency_admin') || isAdmin(roles)) {
-    items.push({ href: '/app/credits', labelKey: 'credits', icon: Coins, section: 'manage' });
+  if (voitLePortefeuille(roles)) {
+    items.push({ href: HREF_CREDITS, labelKey: 'credits', icon: Coins, section: 'primary' });
   }
   if (isAdmin(roles) || roles.includes('agency_admin')) {
     // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
@@ -357,9 +391,9 @@ export function buildNavItems(user: User): NavItem[] {
   // prestataire, seul rôle à qui ces trois entrées n'arrivaient QUE par ici.
   if (occupeUnLogement(roles)) {
     // TCK-043 bookings
-    items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'requests' });
+    items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'primary' });
     // TCK-075 visits — customers see their requests, agents see what to manage.
-    items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
+    items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'primary', counterKey: 'pendingVisits' });
   }
   // TCK-590 — la boîte « Demandes » : les messages laissés sur le site public, avec le nombre de
   // non traitées. Même audience que l'agenda : le bailleur est destinataire des demandes de ses
@@ -402,11 +436,14 @@ export function buildNavItems(user: User): NavItem[] {
 
   // Dedup by href while preserving first occurrence
   const seen = new Set<string>();
-  return items.filter((item) => {
+  const uniques = items.filter((item) => {
     if (seen.has(item.href)) return false;
     seen.add(item.href);
     return true;
   });
+  // TCK-646 — la tête du menu dans l'ordre du porteur ; le reste garde son ordre de poussée (le
+  // tri de `Array.prototype.sort` est stable).
+  return uniques.sort((a, b) => rangEnTete(a) - rangEnTete(b));
 }
 
 
@@ -462,7 +499,16 @@ function SidebarItem({
   counter,
   onNavigate,
   labelSpace,
-}: NavItem & { active: boolean; counter?: number; onNavigate?: () => void }) {
+  valeur,
+  nomAccessible,
+}: NavItem & {
+  active: boolean;
+  counter?: number;
+  onNavigate?: () => void;
+  /** TCK-642 — une valeur en bout de ligne (le solde de crédits), déjà mise en forme. */
+  valeur?: string;
+  nomAccessible?: string;
+}) {
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
   const label = labelSpace === 'nav.admin' ? tAdmin(labelKey) : t(labelKey);
@@ -486,6 +532,7 @@ function SidebarItem({
       href={href}
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
+      aria-label={nomAccessible}
       className={cn(
         // `max-md:` = le tiroir seul (la barre fixe n'existe qu'à partir de `md`) : 40 px par
         // entrée au doigt, 36 px inchangés au pointeur.
@@ -501,6 +548,16 @@ function SidebarItem({
       <span className="truncate">{label}</span>
       {counterKey && counter && counter > 0 ? (
         <SidebarCounter value={counter} label={t(`counters.${counterKey}`, { count: counter })} />
+      ) : null}
+      {/* `md:hidden` : à partir de `md`, la pastille de la barre haute porte déjà le solde — la
+          valeur ne s'affiche que dans le tiroir, le « menu mobile » de `/app`. */}
+      {valeur !== undefined ? (
+        <span
+          data-slot="valeur-entree"
+          className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground md:hidden"
+        >
+          {valeur}
+        </span>
       ) : null}
     </Link>
   );
@@ -616,7 +673,9 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
+  const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const format = useFormatter();
   const accesAdmin = useAccesAdminOuRepli({
     roles: user.roles,
     agencyId: user.agency_id,
@@ -639,6 +698,11 @@ export function AppSidebar({
     pendingVisits: pendingVisits.data?.meta.total ?? 0,
     unhandledLeads: unhandledLeads.data?.meta?.total ?? 0,
   };
+  // TCK-642 — le solde de l'espace, lu par la PRÉSENCE de l'entrée « Crédits » (même principe que
+  // les compteurs) ; `null` tant qu'il n'est pas connu, et alors l'entrée reste nue.
+  const solde = useSoldeCredits({
+    enabled: navItems.some((item) => item.href === HREF_CREDITS && !item.locked),
+  });
 
   const activeHref = resolveActiveHref(
     pathname,
@@ -690,6 +754,9 @@ export function AppSidebar({
                   active={item.href === activeHref}
                   counter={item.counterKey ? counters[item.counterKey] : undefined}
                   onNavigate={onNavigate}
+                  {...(item.href === HREF_CREDITS && solde !== null
+                    ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
+                    : {})}
                 />
               ))}
             </div>
