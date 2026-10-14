@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**594 tickets** — 55 ouverts, 537 livrés.
+**594 tickets** — 49 ouverts, 543 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 43 |
 | 🚧 Doing | 1 |
-| 👀 Review | 11 |
+| 👀 Review | 5 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 537 |
+| ✅ Done | 543 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -84,12 +84,6 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
-- [TCK-641](tickets/TCK-641-menu-mobile-navbar-publique.md) — Menu mobile de la navbar publique refait — sans Louer/Acheter, avec « Mes biens » `S · P1 · front`
-- [TCK-642](tickets/TCK-642-solde-credits-dans-les-barres.md) — Solde de crédits de l'espace affiché dans la navbar publique et la barre de /app `M · P1 · full`
-- [TCK-643](tickets/TCK-643-numeros-verifies-a-la-publication.md) — La dernière étape de publication affiche aussi les numéros déjà vérifiés `S · P1 · front`
-- [TCK-644](tickets/TCK-644-mes-biens-en-mobile.md) — Page « Mes biens » repensée pour le mobile `M · P1 · front`
-- [TCK-645](tickets/TCK-645-messagerie-mobile-groupe-individuel.md) — Messagerie repensée pour le mobile, « Nouveau groupe » masqué en agence individuelle `M · P1 · front`
-- [TCK-646](tickets/TCK-646-ordre-du-menu-de-app.md) — Menu du shell /app — six entrées en tête, dans l'ordre du porteur `S · P1 · front`
 - [TCK-647](tickets/TCK-647-tableau-de-bord-agence-unique.md) — Un seul tableau de bord d'agence — /app/overview/agency absorbe celui de /admin `M · P1 · front`
 - [TCK-648](tickets/TCK-648-pages-super-admin-hors-de-admin.md) — Les deux pages super-admin de /admin rejoignent /super-admin `S · P1 · front`
 - [TCK-649](tickets/TCK-649-administration-d-agence-dans-app.md) — L'administration d'agence s'ouvre dans /app (/app/agency/*) — /admin supprimé `L · P1 · full`
@@ -101,7 +95,19 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 537
+## ✅ Done — 543
+
+<details>
+<summary><strong>Vague 77 — Retours du porteur du 2026-10-14 : navigation mobile premium, solde de crédits dans les barres, numéros vérifiés à la publication, Mes biens et Messagerie en mobile, ordre du menu de /app (TCK-641 → TCK-646)</strong> — 6 tickets</summary>
+
+- [TCK-641](tickets/TCK-641-menu-mobile-navbar-publique.md) — Menu mobile de la navbar publique refait — sans Louer/Acheter, avec « Mes biens » `S · P1 · front`
+- [TCK-642](tickets/TCK-642-solde-credits-dans-les-barres.md) — Solde de crédits de l'espace affiché dans la navbar publique et la barre de /app `M · P1 · full`
+- [TCK-643](tickets/TCK-643-numeros-verifies-a-la-publication.md) — La dernière étape de publication affiche aussi les numéros déjà vérifiés `S · P1 · front`
+- [TCK-644](tickets/TCK-644-mes-biens-en-mobile.md) — Page « Mes biens » repensée pour le mobile `M · P1 · front`
+- [TCK-645](tickets/TCK-645-messagerie-mobile-groupe-individuel.md) — Messagerie repensée pour le mobile, « Nouveau groupe » masqué en agence individuelle `M · P1 · front`
+- [TCK-646](tickets/TCK-646-ordre-du-menu-de-app.md) — Menu du shell /app — six entrées en tête, dans l'ordre du porteur `S · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 75 — Retours du porteur du 2026-10-12 : robe des biens en vedette, page de recherche refaite, échelle à 90 % au bureau (TCK-635)</strong> — 1 ticket</summary>

@@ -1,7 +1,7 @@
 ---
 id: TCK-643
 title: La dernière étape de publication affiche aussi les numéros déjà vérifiés
-status: review
+status: done
 phase: P1
 family: front
 estimate: S
