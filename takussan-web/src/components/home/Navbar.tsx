@@ -65,7 +65,7 @@ function EntreeDuMenu({ href, icone: Icone, libelle, onClick, valeur, nomAccessi
         replace
         onClick={onClick}
         aria-label={nomAccessible}
-        className="flex min-h-14 items-center gap-3.5 px-3.5 py-2 text-[15px] font-medium text-foreground outline-none transition-colors hover:bg-muted/50 active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-h-14 items-center gap-3.5 px-3.5 py-2 text-[15px] font-medium text-foreground outline-none transition-colors hover:bg-muted active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
           <Icone className="size-[18px]" aria-hidden="true" />
@@ -99,7 +99,7 @@ function EntreeCredits({ onClick }: { readonly onClick: EntreeDuMenuProps['onCli
       valeur={
         <span
           data-slot="solde-credits"
-          className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-sm font-semibold tabular-nums text-primary"
+          className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-sm font-semibold tabular-nums text-primary-foreground"
         >
           {format.number(solde)}
         </span>
