@@ -30,7 +30,7 @@ amélioration.
 | 13 | Code mort et doublons : services, composants, routes, clés i18n | fait |
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | fait |
 | 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | fait |
-| 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | en cours |
+| 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | fait |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
@@ -65,6 +65,9 @@ amélioration.
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | à faire |
 | 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | à faire |
 | 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | à faire |
+| 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | à faire |
+| 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
+| 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
 
 ---
 
@@ -1648,3 +1651,72 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
+
+## Angle 16 — Listes internes sur un modèle `Searchable`
+
+Les deux 🔴 ont été relus par la session dans le code :
+- `YearOfActivitySeeder::SEARCHABLE_MODELS` (l. 123-127) ne contient que `Property`, `Document` et `Message` ;
+- les cinq requêtes du front (`customers.ts:91`, `maintenance.ts:111`, `documents.ts:75`, `super-admin.ts:102`, `admin-users.ts:60`) envoient `sort` avec `'-created_at'` comme valeur de repli ;
+- le docblock de `HasQueryBuilder.php:150-160` confirme que `defaultSorts()` ne fait rien dès qu'un `sort=` explicite est présent.
+
+⚠ Les comptes d'index ont été pris sur le Meilisearch brew (port 7700) que vise `takussan-api/.env`, alors que la base est celle de docker (5433). C'est le piège D-48 : les nombres décrivent ce poste, pas un environnement déployé.
+
+### Après un seed, les recherches de clients, d'interventions et d'utilisateurs ne trouvent presque rien
+- Gravité : 🔴 défaut avéré (sur les environnements seedés)
+- Où : `takussan-api/database/seeders/YearOfActivitySeeder.php:123-127,266-269`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-235`
+- Constat :
+  - Le seeder coupe Scout, puis ne réindexe que `Property`, `Document` et `Message`.
+  - `Customer`, `MaintenanceRequest`, `User` et `Agency` sont devenus `Searchable` avec TCK-281, mais n'ont pas été ajoutés à la liste.
+  - Or `filter[search]` rend un `whereIn(ids)` vide pour tout document absent de l'index.
+  - Mesuré : clients, 2 indexés pour 564 en base ; interventions, 0 pour 212 ; utilisateurs, 52 pour 304 ; agences, 8 pour 5.
+  - Chemin lu : `lib/queries/customers.ts:83`, puis `CustomerController.php:37`, puis `buildQuery`, puis Scout.
+  - `release.sh` (l. 39-46) importe tous les modèles. Un déploiement n'est donc touché que si son marqueur de forme n'a pas bougé depuis TCK-281 (à vérifier sur Dokploy).
+- Piste : dériver `SEARCHABLE_MODELS` de la même source que les modèles indexés de `release.sh`, plutôt que d'une liste écrite à la main. Ajouter une garde qui compare le nombre de documents indexés au nombre de lignes non supprimées.
+
+### La pertinence de TCK-281 n'agit nulle part : le front impose toujours `sort=-created_at`
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/customers.ts:91`, `maintenance.ts:111`, `documents.ts:75`, `super-admin.ts:102`, `admin-users.ts:60` ; `takussan-api/app/Http/Controllers/Api/CustomerController.php:40`, `MaintenanceRequestController.php:55,81`, `AgencyController.php:41,177`
+- Constat :
+  - `defaultSortsWithRelevance()` passe par `defaultSorts()`, qui s'efface devant tout `sort=` explicite.
+  - Les cinq listes du front envoient `sort` sans condition, recherche comprise.
+  - Résultat : une recherche tolérante aux fautes, mais classée par date. C'est le défaut de l'angle 1, reproduit sur toutes les listes internes.
+  - Établi comment : lu, des deux côtés.
+- Piste : ne pas envoyer `sort` quand `search` n'est pas vide (ou envoyer un `sort=relevance` explicite), avec un test front par liste.
+
+### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
+- Constat :
+  - `index()` combine la recherche Scout avec `->defaultSort('-created_at')` en dur, sans `defaultSortsWithRelevance`.
+  - Le périmètre est `uploaded_by = moi` : un agent ne retrouve pas le bail déposé par un collègue sur un bien de l'agence.
+  - Établi comment : lu.
+- Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
+
+### Plafond réel de 1 000 identifiants, toutes agences confondues
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
+- Constat :
+  - Le commentaire annonce `SEARCH_ID_CAP = 5000`, mais `pagination.maxTotalHits` vaut 1 000 sur tous les index locaux (mesuré), et `index-settings` ne le relève nulle part (lu).
+  - Pour `customers`, `maintenance_requests`, `users` et `agencies`, aucun attribut n'est filtrable (mesuré) : le filtre d'agence s'applique en SQL, **après** les 1 000 premiers résultats pris sur toutes les agences.
+  - Sur une requête large (« 77 », « gmail », un patronyme courant), les correspondances de l'agence au-delà du rang 1 000 disparaissent sans signal. Le total reste cohérent, ce qui rend le défaut invisible.
+  - Le volume de production est à vérifier.
+- Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
+
+### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
+- Gravité : 🟠 risque ou dette (routes sans appelant)
+- Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
+- Constat :
+  - `date_from` et `date_to` passent par `$search->query(...)`, donc en SQL sur une page déjà découpée par Meilisearch : les pages sont incomplètes, et des correspondances deviennent inatteignables.
+  - Le commentaire invoque « datetime vs timestamp », alors que `created_at` est déjà indexé en timestamp et filtrable (`config/scout.php:259,263`).
+  - Aucun appelant dans le front (mesuré). Ce sont des routes mortes de l'angle 13.
+  - Établi comment : lu.
+- Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat :
+  - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
+  - **Ce qui tient** :
+    - les mises à jour en masse sur des modèles `Searchable` ne touchent que des colonnes non indexées (`AgentHandoverService.php:196,200`, `AccountDeletionService.php:229`) ;
+    - aucun index ne dénormalise une relation (lu).
+- Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
