@@ -8,7 +8,6 @@ use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\RateLimiter;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -195,14 +194,32 @@ class SearchSuggestTest extends TestCase
 
     public function test_rate_limit_returns_429_after_60_requests(): void
     {
-        RateLimiter::clear('search-suggest|'.request()->ip());
-
         for ($i = 0; $i < 60; $i++) {
             $this->getJson($this->url.'?q=da');
         }
 
         $response = $this->getJson($this->url.'?q=da');
         $response->assertStatus(429);
+    }
+
+    /**
+     * TCK-652 (piste P01.03) — la limite est PAR VISITEUR (TCK-107 : « 60 req/min/IP »).
+     * Sans `->by()`, `ThrottleRequests` compte sous une clé unique pour tout le site : les
+     * 60 appels d'un visiteur faisaient répondre 429 au suivant, quel qu'il soit.
+     */
+    public function test_rate_limit_is_counted_per_visitor_ip(): void
+    {
+        for ($i = 0; $i < 60; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson($this->url.'?q=da');
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->getJson($this->url.'?q=da')
+            ->assertStatus(429);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.2'])
+            ->getJson($this->url.'?q=da')
+            ->assertOk();
     }
 
     public function test_cache_control_header_set_to_60_seconds(): void
