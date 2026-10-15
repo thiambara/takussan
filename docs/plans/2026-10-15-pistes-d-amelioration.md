@@ -298,7 +298,7 @@ Déjà sain (mesuré ou lu) :
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
 - Réf : P02.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasProfiles.php:281-291`, avec un docblock faux en `:221-223`
 - Constat :
@@ -311,10 +311,11 @@ Déjà sain (mesuré ou lu) :
     - `conversations.lease_id` ;
     - `inventories.property_id` et `.tenant_id`.
 - Piste : `customers.user_id` d'abord, puis les autres une par une, sur `EXPLAIN` (piège PostgreSQL n° 8).
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `HasProfiles.php:281-292` (`hasActiveTenantLease()` inchangé) et `:222-225` (le docblock dit encore « les deux colonnes portant un index ») ; `SELECT indexdef FROM pg_indexes` sur la base de dev, migrée jusqu'à `2026_10_14_120100` → `customers` n'a aucun index sur `user_id` (`leases_tenant_id_index` existe) ; `EXPLAIN` de la jointure `customers ⋈ leases` filtrée sur `customers.user_id` → `Seq Scan on customers` ; requête sur `pg_constraint`/`pg_index` → 252 FK, dont 110 sans index qui commence par elles ; aucun ticket ni commit ne pose cet index (`grep` du backlog, `git log -S customers_user_id`). Classement : A2 pour la seule partie `customers.user_id` (migration neuve d'index avec son `down()`, et le docblock de `:222-225` ramené à ce que fait le schéma, A6) ; les 109 autres FK ne sont pas couvertes par ce classement, elles relèvent d'un `EXPLAIN` chacune et de plus d'un ticket.
 
 ### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
 - Réf : P02.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : faire apparaître les suggestions CRM, jamais rendues, et choisir leur ordre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:20,45,143-147`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62,104`, `takussan-api/app/Models/Tag.php:32`
 - Constat :
@@ -322,38 +323,43 @@ Déjà sain (mesuré ou lu) :
   - Ces équipements ne sont demandés qu'après la réponse du bien : deux requêtes en série (lu).
   - À vérifier : `fetchCrmTags` envoie `sort=-usage_count`, absent de `$requestSortable`. Le 400 serait masqué par `.catch(() => [])`, et les suggestions CRM seraient toujours vides.
 - Piste : lire `properties_count`/`customers_count`, et lancer la requête des tags en parallèle de celle du bien.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `TagController.php:20,43-47,143-148` et `Tag.php:32` (`$requestSortable = ['id','name','type','created_at']`), `customers.ts:36,232-246`, `customers/[id]/page.tsx:91`, `properties/[id]/page.tsx:62-104` ; test temporaire, retiré depuis, agent d'agence, 5 étiquettes CRM et 5 équipements → `GET /api/tags?filter[type]=crm&fields[tags]=id,name,color,usage_count&sort=-usage_count` rend 400 `http.bad_request`, et rend encore 400 sans le `sort` : c'est `fields[tags]=usage_count` qui suffit à le refuser ; sans `usage_count` → 200 ; `filter[type]=amenity` → 20 requêtes dont 12 `count(*)`, soit deux comptes par étiquette. Correction du constat : le compte `customers` de `format()` est borné à l'agence, ce que `withCount` ne fait pas ; seul le compte `properties` est redondant. Classement : V7, la part de performance seule serait A2, mais corriger le 400 rend visibles des suggestions qui n'ont jamais été affichées, et l'ordre « par usage dans l'agence » demande un tri neuf ou un choix de produit.
 
 ### `whereDate()` sur un horodatage empêche l'usage de l'index
 - Réf : P02.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:453-460`
 - Constat : `scheduled_at::date >= …` force un Seq Scan. Écrite en plage, la même borne passe par l'index `property_visits_scheduled_at_status_index` (mesuré). Sur une colonne `date`, le cast ne coûte rien.
 - Piste : des plages `>= début du jour`, `< lendemain`.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : relu par `grep whereDate` : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:456,459` (les lignes citées `453-460` ont glissé à `456,459`, et `:281` porte un `whereDate` sur `due_date`) ; `information_schema` → `property_visits.scheduled_at` est un `timestamp without time zone`, `config/app.php:70` et `SHOW timezone` valent UTC ; `EXPLAIN` avec `enable_seqscan=off` sur la base de dev → `scheduled_at::date >= … AND <= …` reste un `Seq Scan`, la même borne en plage `>= '2026-10-01' AND < '2026-11-01'` passe par `Bitmap Index Scan on property_visits_scheduled_at_status_index`. Classement : A2, sur une colonne horodatée sans fuseau la plage `[début du jour, lendemain)` rend exactement les mêmes lignes que le cast, sans choix de produit ; les colonnes de type `date` (`start_date`, `end_date`, `due_date`) restent hors du correctif.
 
 ### Export synchrone jusqu'à 50 000 modèles complets
 - Réf : P02.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : export en flux ou en file, ou plafond abaissé, est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:109,139,463-467`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82`
 - Constat : `limit(≤ 50 000)->get()` sans `select`, jsonb compris, pendant la requête HTTP (lu).
 - Piste : sélectionner les colonnes exportées, `lazyById()` avec une réponse en flux, ou une tâche en file au-delà d'un seuil.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `ExportDataService.php:103-128,134-140,455-467` (`limit(≤ 50 000)->get()` sans `select`, puis `map` en tableau), `ShowExportRequest.php:32,35` (`limit` jusqu'à 50 000, formats `csv`, `xlsx`, `pdf`), `ExportController.php:82` (`collect()` pendant la requête) et le rédacteur d'export (`csv()` diffuse un tableau déjà chargé en entier). Classement : V7, sélectionner les colonnes serait A2, mais le défaut porté par l'entrée (50 000 lignes, PDF compris, dans la requête HTTP) ne se ferme qu'en changeant ce que l'utilisateur reçoit : un flux, une tâche en file avec notification, ou un plafond plus bas.
 
 ### La liste pro des biens fait six requêtes HTTP, dont deux en série
 - Réf : P02.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:97-125,210-229`
 - Constat : la liste plus cinq `countProperties` (`per_page=1`), dont « vendus » suivi de « loués » en `.then` (lu).
 - Piste : un seul endpoint de compteurs en `COUNT(*) FILTER (WHERE …)`, comme `DashboardAgencyService.php:42-52`.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `properties/(liste)/page.tsx:97-125` : `Promise.all` de la liste et de quatre membres, dont le compte « vendus » suivi par `.then` du compte « loués », et `countProperties` en `:210`. Classement : A2, lancer « loués » comme membre propre du `Promise.all` retire la requête en série sans changer aucun chiffre ; l'endpoint de compteurs proposé par la piste ajoute une surface d'API dont le périmètre doit reproduire celui de l'index, et n'est pas couvert par ce classement.
 
 ### Fiche client : les notes sont chargées deux fois
 - Réf : P02.09
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/customers.ts:114`, `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:87-91`
 - Constat : `include=notes` sérialise toutes les notes, puis la page les redemande paginées (lu).
 - Piste : retirer `notes` de l'`include`.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `customers.ts:108-121` (`include: ['notes','documents','tags']`), `CustomerResource.php:30` (`'notes' => $this->notes` : la colonne `notes` n'est pas dans `DASHBOARD_CUSTOMER_DETAIL_FIELDS`, c'est donc la relation qui est rendue), `customers/[id]/page.tsx:87-91` ; `grep` de `.notes` dans `takussan-web/src` → aucun lecteur de `customer.notes` sur la fiche ni dans `CustomerDetailSheet.tsx`, qui charge ses notes à part ; test temporaire, retiré depuis, client à 30 notes → `GET /api/customers/{id}` avec les champs et l'`include` du front rend `data.notes` à 30 éléments, et `GET /api/customers/{id}/notes` rend 20 notes, `meta.total` 30. Classement : A2, retirer `notes` de l'`include` de `fetchDashboardCustomer` ne change rien à l'écran puisque rien ne lit ce champ.
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
@@ -444,17 +450,18 @@ Ce qui tient (lu) :
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
 - Réf : P03.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : lecture sous impersonation ; V3 : coordonnées bancaires
 - Gravité : 🟠 risque
 - Où : `takussan-api/app/Http/Controllers/Api/Me/PayoutMethodController.php:21-31`, `takussan-api/app/Http/Resources/PayoutMethodResource.php:19-33`, `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`
 - Constat :
   - `account_identifier` et `account_holder_name` sont rendus au « titulaire », c'est-à-dire à la cible pendant une impersonation.
   - La route n'est ni dans `REFUSED_READS` ni sous step-up, alors que la donnée est chiffrée et cachée ailleurs (TCK-601). Le RIB du bailleur, lui, exige un step-up.
 - Piste : masquer la forme claire sous `ImpersonationContext`, ou ajouter `api/me/payout-methods*` à `REFUSED_READS`.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `PayoutMethodResource.php:19-33` (`$holder` = l'utilisateur de la requête), `EnforceImpersonationReadOnly.php:44-58,81-84` (`api/me/payout-methods` absent de `REFUSED_READS`), `ProtectedActions.php:240-242` (step-up sur `store`, `update`, `destroy`, pas sur `index`) ; test temporaire, retiré depuis, par `SessionsDImpersonation` → `GET /api/me/payout-methods` sous le jeton d'impersonation rend 200 avec `account_identifier` en clair et `account_holder_name`. Classement : V2 et V3, refuser ou masquer cette lecture change ce qu'un opérateur peut voir sous impersonation, et touche des coordonnées bancaires.
 
 ### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
 - Réf : P03.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : autorisation déplacée sur 28 FormRequests ; V8 : plus d'un ticket
 - Gravité : 🟠 dette
 - Où :
   - `Api/PropertyController.php:183-185` ;
@@ -471,6 +478,7 @@ Ce qui tient (lu) :
   - `AuthorizationPrecedesValidationTest` n'en couvre aucune.
   - `PUT /api/properties/{id}` est l'endpoint le plus utilisé du lot (lu ; compte par grep).
 - Piste : déléguer dans `authorize()` (`can('update', $this->route('property'))`), et une garde qui refuse `extends FormRequest` hors de `BaseFormRequest`.
+- Mesure (2026-10-15, 8ebb0cc3, mesureur) : `grep -rlE 'extends FormRequest'` hors `Admin/` et `Auth/` → 28 FormRequests ; lu `UpdatePropertyRequest.php:31-36` (`authorize()` rend `user() !== null`) et `PropertyController.php:183-185` (`authorize('update')` dans le corps) ; test temporaire, retiré depuis, utilisateur sans lien avec le bien → `PUT /api/properties/{id}` avec un corps invalide rend 422 et nomme les champs `type` et `price`, avec un corps vide rend 403. Les autres endpoints cités n'ont pas été rejoués un à un. Classement : V2 et V8, déléguer l'autorisation dans 28 `authorize()` peut refuser un appelant légitime si une délégation diffère de la règle du contrôleur, et l'ensemble, garde comprise, dépasse un ticket.
 
 ### Oracles d'existence entre agences
 - Réf : P03.06
