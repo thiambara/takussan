@@ -92,7 +92,7 @@ voie d'écriture (angle 13, puis 47).
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | fait |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | fait |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | fait |
-| 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
+| 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | fait |
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
@@ -130,6 +130,8 @@ voie d'écriture (angle 13, puis 47).
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
+| 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
+| 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
 
 ---
 
@@ -2449,3 +2451,95 @@ ajoutent que des faits neufs.*
   - **`next_due_at` vaut toujours `null`** dans l'inspecteur des tâches (lu, `ScheduledTaskInspector.php:43`).
   - **Ce qui tient** : `integration_webhook_logs` (`webhooks:prune`), les jetons (`sanctum:prune-expired`, `sessions:prune-idle`), les brouillons, les archives d'export et les alertes non confirmées ont leur purge planifiée (lu, `console.php:49,79,101-104,118,169`). `platform_metrics_daily` écrit une ligne par jour (lu, ADR-0057 : « ne demande aucune purge ») ; `property_boost_daily_stats` une par bien et par jour (mesuré : 71 lignes en dev). Les sessions sont en Redis (lu, `prod-drivers.json`) : la table `sessions` ne grossit pas.
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
+
+## Angle 20 — Nombre réel de requêtes SQL par écran
+
+*Exploré le 2026-10-15 sur `pre-dev` ccabd662, par l'explorateur. Mesure par un test temporaire,
+retiré depuis : pour chaque liste, l'appel exact du front (champs, `include`, tri, `per_page`, lus
+dans `takussan-web/src/lib/queries/*.ts`) est joué par un admin d'agence sous
+`DB::enableQueryLog()`, à 2 lignes puis à 12, après un appel d'amorce. Les requêtes en plus sont
+attribuées par `debug_backtrace` à leur ligne de `app/`. Charge relevée avant : `vm.loadavg`
+2,57 sur 8 cœurs. Tout a été relu par l'explorateur, sans sous-agent. Limites : base de test
+`RefreshDatabase`, une ligne de chaque liste a son bien, son client et sa photo propres (le pire
+cas, pas la moyenne) ; les listes passées par `filter[search]` et la recherche publique n'ont pas
+été mesurées (Scout coupé dans la suite) ; un appel HTTP mesuré n'est pas un écran entier, qui en
+fait parfois plusieurs (voir P02.08, P02.10).*
+
+Déjà sain (mesuré, 2 puis 12 lignes) : `GET /api/property-visits` 17 → 17 requêtes,
+`GET /api/contact-leads` 23 → 23, `GET /api/invoices` 13 → 13 ; la fiche publique
+`GET /api/public/properties/{slug}` 18 requêtes avec 1 photo, 19 avec 10 photos et 5 documents
+publics ; `GET /api/auth/me` 12 requêtes pour un admin d'agence. La liste pro des biens, le tableau
+de bord, les membres d'agence et les signalements d'avis ont déjà leur budget gardé par un test
+(`PropertyIndexQueryBudgetTest`, `DashboardQueryBudgetTest`, `AgencyMembersQueryCountTest`,
+`ReviewFlagsQueryCountTest`).
+
+### La liste des clients charge et rend toutes les notes internes de chaque fiche
+- Réf : P20.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-api/app/Models/Customer.php:60,273`, `takussan-web/src/lib/queries/customers.ts:88-90`
+- Constat :
+  - `'notes' => $this->notes` lit d'abord l'attribut. `notes` est à la fois une colonne (lu, `Customer.php:60`) et une relation `HasMany` (lu, `:273`). Le front ne demande pas la colonne dans `fields[customers]` (lu, `customers.ts:88`) : l'attribut est absent, et Eloquent retombe sur la relation, chargée paresseusement ligne par ligne (lu).
+  - mesuré : `GET /api/customers` avec les champs et l'`include=tags` du front → 29 requêtes pour 2 fiches, 49 pour 12 ; une `select * from "customer_notes" where "customer_id" = ?` par ligne, attribuée à `CustomerResource.php:30`.
+  - mesuré : un client à trois notes → `data.0.notes` rend les trois notes entières (`id`, `author_id`, `body`, `pinned`, `kind`, `deleted_at`…), sérialisées brutes, dates en `2026-10-15T16:49:14.000000Z` et non par `iso()` (ADR-0018). Personne ne les a demandées, et la liste n'en lit aucune (à vérifier côté composant).
+  - Le même repli vaut pour la fiche (`DASHBOARD_CUSTOMER_DETAIL_FIELDS` n'a pas `notes` non plus, lu) : retirer `notes` de l'`include` comme le propose P02.09 ne suffit pas, la relation serait encore chargée par la ressource (déduit, à vérifier).
+- Établi comment : test temporaire, puis relecture de la ressource et du modèle.
+- Piste : rendre la colonne seulement si elle est sélectionnée (`array_key_exists('notes', $this->resource->getAttributes())`), et la relation sous une autre clé par `whenLoaded`, ou ne plus la rendre du tout ; garder par un test de budget « 2 lignes = 12 lignes » sur `GET /api/customers`.
+
+### La liste des demandes d'intervention fait six requêtes par ligne
+- Réf : P20.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:71,77,237-253`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:264-283`, `takussan-api/app/Models/User.php:299`
+- Constat :
+  - mesuré : `GET /api/maintenance-requests` avec l'appel du front → 37 requêtes pour 2 lignes, 97 pour 12. Par ligne : deux `platform_profiles`, deux `exists` sur `agent_profiles`, deux sur `agency_admin_profiles`, attribuées à `MembershipCapabilityResolver.php:457-480` via `User::staffAgencyId()`.
+  - Chaque ligne appelle `seesQuote()` (`:71`) et `isPrincipal()` (`:77`), qui appellent tous deux `MaintenanceRequestPolicy::isPrincipalFor()` : `isSuperAdmin()` puis `staffAgencyId()`, sans mémoïsation (lu). À la page de 20 du front, cela fait de l'ordre de 145 requêtes (déduit de la pente).
+  - `LeaseResource` et `CustomerResource` mettent déjà l'agence du personnel en cache dans `$request->attributes` (lu, `LeaseResource.php:128-132`, `CustomerResource.php:90-93`) ; cette ressource ne le fait pas.
+- Établi comment : test temporaire avec pile d'appel, relecture de la ressource et de la politique.
+- Piste : calculer `isPrincipal` une fois par ligne et le réutiliser dans `seesQuote`, et lire `staffAgencyId()` une fois par requête comme les deux ressources voisines ; test de budget sur la liste.
+
+### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
+- Réf : P20.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/LeaseResource.php:119-136`, `takussan-api/app/Models/Customer.php:146-149`, `takussan-api/app/Http/Resources/CustomerResource.php:83-96`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `takussan-api/app/Http/Controllers/Api/BookingController.php:25`
+- Constat :
+  - mesuré : une `select * from "platform_profiles"` par ligne de `GET /api/customers` (via `Customer::criteriaBelongTo()`, `Customer.php:148`), de `GET /api/bookings` (même chemin, par le client que le contrôleur charge toujours) et deux par ligne de `GET /api/leases` (`LeaseResource.php:125`, plus le locataire par `Customer.php:148`).
+  - Le docblock de `viewerIsAgencyStaff()` dit « son agence de personnel se lit une fois par requête, pas une fois par ligne » (lu, `LeaseResource.php:116-117`) : c'est vrai de l'agence, mais `isSuperAdmin()` est appelé avant le cache, à chaque ligne (lu, `:125`). Même forme dans `CustomerResource::readsCriteria()`, qui met en cache les agences et pas le profil plateforme.
+  - Voir P02.03, qui porte la cause (pas de mémoïsation du profil plateforme) et la classe « à valider » (V2). Ce constat ajoute la pente mesurée sur trois listes ; la correction locale, mettre le résultat en cache dans `$request->attributes` comme l'agence, ne touche pas au contournement de `Gate::before`.
+- Établi comment : test temporaire avec pile d'appel.
+- Piste : lire `isSuperAdmin()` une fois par requête dans les deux ressources, à côté du cache existant ; ou traiter P02.03.
+
+### Le bien imbriqué par `include=property` charge sa photo ligne par ligne
+- Réf : P20.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/PropertyResource.php:137`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `BookingController.php:25`, `ConversationController.php:37`
+- Constat :
+  - mesuré : une `select * from "media" where "model_id" in (<un id>)` par ligne de `GET /api/leases`, `GET /api/bookings` et `GET /api/conversations`, attribuée à `PropertyResource.php:137` (`getFirstMedia('photos')` pour `main_photo_url`). Conversations : 24 requêtes pour 2 lignes, 34 pour 12, toute la pente vient de là.
+  - La liste pro des biens précharge les médias (TCK-595, gardé par `PropertyIndexQueryBudgetTest`) ; les contrôleurs qui imbriquent le bien chargent `property` sans `property.media` (lu).
+  - Le front affiche `main_photo_url` dans la liste des conversations (lu, `components/messages/ConversationList.tsx`) ; dans les baux et les réservations, à vérifier.
+- Établi comment : test temporaire avec pile d'appel, relecture des `with()` des trois contrôleurs.
+- Piste : précharger `property.media` (filtré sur la collection `photos`) dans les trois `index()`, ou un helper commun aux contrôleurs qui imbriquent `PropertyResource` ; test de budget.
+
+### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
+- Réf : P20.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/DocumentResource.php:16-18`, `takussan-api/app/Models/Document.php:84-91`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`
+- Constat :
+  - mesuré : `GET /api/documents` avec les champs du front → 14 requêtes pour 2 documents, 34 pour 12. Par ligne : le chargement de `media` par `getFirstMedia('file')` (`DocumentResource.php:16`) et une requête `Media::query()…->where('collection_name', 'versions')` (`Document.php:86-90`, appelée par `DocumentResource.php:19`).
+  - Le commentaire de `DocumentResource.php:18` dit « Active version from the `versions` collection (if the collection is loaded) ». `activeVersion()` interroge la table à chaque appel, sans regarder la relation chargée (lu).
+- Établi comment : test temporaire avec pile d'appel, relecture.
+- Piste : précharger `media` dans `index()`, et faire lire à `activeVersion()` la relation chargée quand elle l'est ; corriger le commentaire ; test de budget.
+
+### Aucune garde générale contre la requête par ligne
+- Réf : P20.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Providers/AppServiceProvider.php`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`
+- Constat :
+  - `Model::preventLazyLoading` n'est posé nulle part, ni dans l'application ni dans les tests (mesuré : `grep -rn preventLazyLoading app tests bootstrap` → aucun résultat).
+  - Quatre listes ont un test de budget ; les cinq défauts ci-dessus sont sur des listes qui n'en ont pas (lu).
+  - Une interdiction du chargement paresseux en test attraperait P20.01 et P20.04, et le média de P20.05 ; elle ne verrait pas les requêtes directes (`isSuperAdmin()`, `activeVersion()`, `staffAgencyId()`) (déduit, à vérifier).
+- Piste : un test paramétré « 2 lignes = 12 lignes » sur les listes pro appelées par le front (baux, clients, réservations, demandes d'intervention, documents, conversations), sur le modèle de `PropertyIndexQueryBudgetTest::test_ac15…` ; et, à mesurer d'abord, `Model::preventLazyLoading()` dans `Tests\TestCase`.
