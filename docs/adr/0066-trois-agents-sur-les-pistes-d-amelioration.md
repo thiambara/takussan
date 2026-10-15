@@ -1,6 +1,6 @@
 # ADR-0066 — Trois agents planifiés traitent le fichier de pistes : l'explorateur relève, le mesureur re-mesure et classe, l'implémenteur corrige ce qui est classé autonome ; tout passe par une PR vers `pre-dev`, vérifiée avant le push par un script et non par l'agent
 
-- **Statut** : Proposé — deux points restent au porteur (§ « Questions ouvertes »)
+- **Statut** : Accepté (2026-10-15)
 - **Date** : 2026-10-15
 - **Tickets** : aucun (outillage du porteur)
 
@@ -176,17 +176,22 @@ Le hook appliqué n'est **pas** celui de l'arbre de l'agent. C'est une copie fig
 l'installation, sous `~/.takussan-agents/outils/` : un agent ne desserre pas la garde qui le
 borne, même par une PR fusionnée.
 
-## Questions ouvertes (au porteur)
+## Décisions du porteur (2026-10-15)
 
-- **Q1 — Qui fusionne dans `pre-dev` ?**
-  - (a) Le script fusionne la PR d'un agent quand sa CI est verte. `pre-dev` est alors un
-    tampon, et la porte du porteur est la PR `pre-dev → dev`.
-  - (b) Le porteur fusionne chaque PR. La chaîne avance à son rythme.
-
-  Valeur posée tant que rien n'est tranché : **(b)** (`FUSION=manuelle`), conforme à la règle
-  « jamais de fusion sans demande explicite ».
-- **Q2 — Cadences x, y, z et mode de planification.** Proposé : `launchd` sur ce poste, car
-  l'implémenteur a besoin de PostgreSQL et de Meilisearch locaux, que n'a pas un agent en nuage.
+- **Q1 — Fusion dans `pre-dev` : (a).** Le script fusionne la PR d'un agent quand sa CI est
+  verte (`FUSION=auto`). `pre-dev` est un tampon. La porte du porteur est la PR `pre-dev → dev`,
+  ainsi que le statut `validé`.
+- **Q2 — Planification : `launchd` sur ce poste.**
+  - L'explorateur passe toutes les 180 min, le mesureur toutes les 90 min, l'implémenteur toutes
+    les 120 min.
+  - L'implémenteur a besoin de PostgreSQL et de Meilisearch locaux.
+  - ⚠ **Les agents dorment avec le Mac.** Selon `man launchd.plist` (`StartInterval`), un
+    lancement qui tombe pendant la veille est sauté. Capot fermé, rien ne tourne, et la reprise se
+    fait au réveil.
+  - Un passage surpris par la veille est sauvé par le passage suivant, sans rien publier à
+    moitié.
+  - Les faire tourner ordinateur fermé (GitHub Actions en `cron`, clé d'API à l'usage) serait un
+    amendement de cet ADR.
 
 ## Conséquences
 
