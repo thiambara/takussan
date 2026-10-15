@@ -235,11 +235,12 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer ou afficher les facettes
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:76,97,152`
 - Constat : `neighborhood`, `bedrooms` et `type` sont demandées à Meilisearch à chaque requête. Le front ne lit `facets` nulle part : seule la déclaration de type `types/search.ts:608` le mentionne.
 - Piste : les retirer, ou les afficher (« Mermoz (43) ») en facettes disjonctives.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `PropertySearchService.php:76` (`FACETS = ['neighborhood', 'bedrooms', 'type']`), `:97` et `:152` ; `grep -rn facets takussan-web/src` hors tests → seules `types/search.ts:580,608` (déclaration) ; la clé `facets` est au contrat de `GET /api/public/properties/search` (ADR-0024 l. 101-112) et assertée par `PropertySearchServiceTest.php:70-81` → le constat tient : facettes calculées, jamais lues. Classement : V7, la piste offre deux voies (retrait de la clé, ou facettes visibles) et choisir entre elles est un choix de produit ; le coût côté Meilisearch n'est pas mesuré.
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
 - Réf : P01.09
@@ -2974,7 +2975,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : remboursement de crédits d'une Vedette prolongée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -2984,6 +2985,7 @@ sont pas reprises.*
   - ADR-0061 § 8 dit « au prorata du prix figé » sans traiter la prolongation (lu).
   - Établi comment : lu, et test temporaire.
 - Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
 
 ### Petites améliorations
 - Réf : P24.06
@@ -3009,7 +3011,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Un loyer payé en ligne pénalité comprise est introuvable par la recherche manuelle au montant de la ligne
 - Réf : P25.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant attendu d'une échéance, lié à P25.02
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/PaymentSearchService.php:159-170`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:86-91`, `takussan-web/src/components/admin/reconciliation/PaymentSearchDialog.tsx:46-48`
 - Constat :
@@ -3020,10 +3022,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Conséquence : quand la suggestion automatique manque (hors fenêtre de ±7 jours, ou ambiguïté), la ligne de 157 500 ne retrouve pas son échéance par la recherche telle qu'elle s'ouvre.
   - Établi comment : lu, puis test temporaire.
 - Piste : une seule expression du « montant attendu sur le compte » pour une `LeasePayment`, partagée par le matcher et la recherche (scope ou méthode du modèle). Garde : le test AC14 de `BankReconciliationTest` doublé côté recherche manuelle.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `PaymentSearchService.php:159-170` (`applySearch` : `ABS(amount - ?) < 1`, utilisé par `searchLeasePayments` l. 84) contre `ReconciliationMatcher.php:86-91` (`COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, échéance initiée en ligne puis soldée par webhook Wave à 157 500, `GET /api/agencies/{agency}/bank-statements/payment-search?amount=…&direction=credit` en admin d'agence → `200 []` à 157 500, 1 résultat à 150 000 (le chemin exact de la route est sous `agencies/{agency}`, le constat l'abrégeait). Classement : V1, l'expression à partager est celle du montant attendu d'un paiement, que P25.02 montre fausse après un règlement manuel : la corriger ici sans trancher P25.02 propagerait le défaut.
 
 ### Après un checkout abandonné et un règlement manuel, le matcher cherche encore le montant du checkout
 - Réf : P25.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : quel montant attendre d'une échéance soldée hors ligne
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:671`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:919-926`, `takussan-api/app/Services/Model/LeasePaymentService.php:59-66`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:89-91`
 - Constat :
@@ -3034,10 +3037,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Même effet attendu pour tout checkout initié puis abandonné avant un règlement hors ligne, dès que son montant différait de `amount` (à vérifier pour un checkout sans pénalité : le montant figé y vaut `amount`, donc sans effet).
   - Établi comment : lu, puis test temporaire.
 - Piste : ne lire le montant figé que si l'échéance a été soldée en ligne (`gateway.settled_by` ≠ `manual`, ou le montant de la transaction qui a soldé), sinon `amount`. Garde : un test « checkout abandonné puis virement ».
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `PaymentGatewayService.php:671` (`gateway_expected_amount` figé à l'initiation), `:919-926` (`markManualSettlement` ne pose que `settled_by = manual`), `:869-893` (`supersedeOpenCheckout` ne touche pas au montant figé) et `ReconciliationMatcher.php:89-91` ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence qui encaisse la pénalité en ligne, checkout ouvert puis abandonné, 3 h plus tard `LeasePaymentService::markPaid` (virement) → `paid`, `gateway_expected_amount = 157500`, `settled_by = manual`, `late_fee_paid_at = null` ; crédit de 150 000 à J+1 → `suggestFor()` rend `null`. Classement : V1, choisir le montant attendu (montant figé, `amount`, ou montant de la transaction qui a soldé) est une règle sur un montant de paiement.
 
 ### La règle « contrepartie ≥ 85 % » du matcher ne peut jamais s'appliquer aux encaissements
 - Réf : P25.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:98`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:184-200`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:218-232`
 - Constat :
@@ -3047,10 +3051,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Les reversements, eux, chargent `landlord_id` (lu, `:130`) : seule la branche débit a sa règle 80.
   - Établi comment : lu, puis test temporaire.
 - Piste : charger la clé étrangère du payeur (et la relation par `with()` pour éviter un N+1). Garde : un test de la règle 80 sur un crédit, rouge aujourd'hui.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:98` (`get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn])`, sans `payer_id` ni `customer_id`) et `:218-232` (`resolvePayerName` lit `$model->payer` / `$model->customer`), branche débit à `:130` qui charge `landlord_id` ; aucune confirmation automatique sur la confiance (`BankStatementLine::scopeReadyToConfirm` n'a aucun appelant dans `app/`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, échéance payée de 150 000, crédit de 150 000 à J+5 dont `counterparty` est exactement le `full_name` du payeur → `LeasePayment conf=60` au lieu de 80. Classement : A1, la règle 80 est déjà écrite dans `scoreCandidate()` et ne s'applique pas faute de clé chargée ; correctif : charger `payer_id` (`BookingPayment`, `LeasePayment`) et `customer_id` (`Invoice`) avec `with()` de la relation, et un test de la règle 80 sur un crédit, rouge aujourd'hui.
 
 ### Le matcher propose des factures brouillon, annulées et nulles
 - Réf : P25.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : statuts de facture rapprochables, et refus dans `confirmMatch()`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:69-96`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:99-114`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`
 - Constat :
@@ -3060,10 +3065,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - `PaymentGatewayService::isPayable()` tient déjà la règle « une facture se paie en `sent|overdue` » (lu, `:1294-1296`).
   - Établi comment : lu, puis test temporaire.
 - Piste : borner les factures candidates aux statuts encaissables (`sent`, `overdue`, `paid`) dans le matcher, la recherche et `confirmMatch()`. Garde : un test par statut exclu.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:69-96` (aucun filtre de statut), `PaymentSearchService.php:99-114` (idem), `ReconciliationManager.php:39-97` (seul `payout_not_completed` juge un statut) et `PaymentGatewayService.php:1294-1296` (`isPayable` : `sent|overdue`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, facture de 33 333 émise le jour même en `draft`, `cancelled` puis `void`, crédit de 33 333 à J+1 → `Invoice conf=70` dans les trois cas. Classement : V1, la liste des statuts rapprochables (`paid` inclus ou non, `isPayable` ne la donne pas) et un refus neuf dans `confirmMatch()` sur une écriture comptable sont à décider.
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : des lignes suggérées aujourd'hui ne le seraient plus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3072,10 +3078,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Le cas est ordinaire : des loyers identiques dans une même résidence, réglés en début de mois.
   - Établi comment : lu, puis test temporaire.
 - Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:144-176` (ambiguïté jugée seulement `if ($bestScore === 60)`, `>` strict à `:149`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, deux loyers de 150 000 de deux baux de la même agence payés le même jour, crédit de 150 000 à J+1 → `LeasePayment conf=70` (le premier), à J+5 → `null`. Classement : V7, étendre l'ambiguïté aux paliers 70 et 80 change ce que voit l'agence (suggestion retirée, à apparier à la main), et la règle de départage (ambiguïté ou critère de plus) est un choix de produit.
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : choix de modèle comptable de la pénalité
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3085,6 +3092,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Le premier se confirme à la main sur l'échéance : `confirmMatch()` ne compare aucun montant (lu, `:39-97`). Le second ne peut être que `ignored`, et le relevé ne finalise alors en `reconciled` qu'en déclarant ignoré un encaissement réel.
   - Établi comment : lu, puis test temporaire.
 - Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
+- Mesure (2026-10-15, fda326cd, mesureur) : relu `LateFeeSettlement.php:47-56` (pose `late_fee_paid_at` et `late_fee_payment_method`, rien d'autre) et `ReconciliationManager.php:123-134` (un-pour-un) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence sans encaissement en ligne de la pénalité, loyer puis pénalité marqués réglés par virement → crédit de 157 500 : `null` ; crédit de 7 500 : `null` ; témoin à 150 000 : `LeasePayment conf=70`. Classement : V1, la piste elle-même demande un choix de modèle comptable (montant attendu pénalité comprise, ou pénalité rapprochable seule).
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
