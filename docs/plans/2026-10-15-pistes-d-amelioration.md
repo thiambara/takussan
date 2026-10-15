@@ -21,8 +21,8 @@ amélioration.
 | 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | fait |
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | fait |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | fait |
-| 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | à faire |
-| 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | à faire |
+| 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | fait |
+| 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | en cours |
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | à faire |
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | à faire |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | à faire |
@@ -45,6 +45,7 @@ amélioration.
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | à faire |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
+| 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
 
 ---
 
@@ -647,3 +648,111 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Où : `takussan-web/src/content/legal/terms.ts:445`, `privacy.ts:351`, `notice.ts:125`
 - Constat : ``export const wo = ``;``. La page affiche le français avec une mention, et c'est documenté (lu).
 - Piste : traduction à planifier, ou mention dans la spec.
+
+## Angle 7 — Accessibilité du front (WCAG 2.2 AA)
+
+*Exploré le 2026-10-15 vers 1 h 25. Les ratios ont été calculés par script depuis `globals.css`, et
+la session en a recalculé un (pastille de prix : 3,14:1). Les cinq 🔴 ont été relus contre le code.*
+
+Sain (vérifié par l'agent) :
+- `lang` de `<html>` et des fragments ;
+- toasts en région `aria-live` ;
+- `h1` unique sur les pages principales ;
+- cibles tactiles ;
+- aucun bouton-icône sans nom ;
+- connexion et assistant de publication.
+
+### Pastille de prix de la carte et surlignage des suggestions sous 4,5:1
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/globals.css:758-760,773-777`, `takussan-web/src/components/search/SearchAutocomplete.tsx:65`
+- Constat :
+  - Pastille de prix : `#fcf9f3` sur `#c87a52` est à **3,14:1**, et **3,83:1** au survol (`#b66c43`), en 12 px gras.
+  - Surlignage des suggestions : `<mark>` en `text-primary` sur `bg-primary/15`, à 4,33:1 (mesuré).
+- Piste : la pastille lit `--primary` (5,06:1) au lieu d'une valeur recopiée en dur ; `--primary-deep` pour le surlignage.
+
+### Encre atténuée sous le seuil sur quatre parcours
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/agency/BrandingBanner.tsx:42`, `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:93`, `takussan-web/src/components/property-dashboard/ProprietaireEtResponsable.tsx:45,52`, `PropertyVisitDialog.tsx:288,352`
+- Constat :
+  - `text-warning/80` sur `bg-warning/10` : 3,53:1.
+  - `text-muted-foreground/70` : de 2,95 à 3,03:1.
+  - Même famille : `AvailabilityGrid.tsx:109` (3,70:1) et `ui/calendar.tsx:82`, où les jours hors du mois sont à 2,11:1 (mesuré).
+- Piste : retirer l'opacité (`text-warning` est à 5,17:1, `text-muted-foreground` à 5,44:1), et une garde « pas d'alpha sur une encre de texte », comme TCK-359 pour les onglets.
+
+### L'erreur de la barre d'actions groupées est illisible
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/property-dashboard/PropertyList.tsx:688,757`
+- Constat : `role="alert"` en `text-destructive` sur `bg-foreground/95`, à **2,22:1**. Les gardes `check-destructive-contrast` ne mesurent pas ce fond (mesuré).
+- Piste : une pastille claire (`bg-background text-destructive`), ou l'encre claire de la barre avec une icône.
+
+### La note des avis est invisible au lecteur d'écran
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:73-81`
+- Constat :
+  - La note n'est rendue que par cinq `<Star>`, que lucide marque `aria-hidden`, et aucun texte ne la porte.
+  - Les étoiles vides (`/40`) sont à 1,78:1, sous les 3:1 d'un objet graphique (lu, mesuré).
+- Piste : `role="img" aria-label={t('rating', {n})}`, ou un `sr-only` « 4 sur 5 », et les étoiles vides en `text-muted-foreground` plein.
+
+### Une ligne de versement cliquable seulement à la souris
+- Gravité : 🔴 défaut avéré (console super-admin)
+- Où : `takussan-web/src/components/billing/PayoutTable.tsx:120-123`, appelée avec `onSelect` par `AdminPayoutsClient.tsx:96`
+- Constat : `<tr onClick>` sans rôle, sans `tabIndex` ni clavier, et aucun bouton dans la ligne : le détail est inatteignable au clavier (lu).
+- Piste : un `<button>` dans la cellule de période, comme `InvoicesTable.tsx:100`.
+
+### Champ de recherche principal : pas de libellé, et focus peu visible
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `takussan-web/src/components/home/Navbar.tsx:419,677`
+- Constat :
+  - L'input n'a ni `<label>` ni `aria-label` : le placeholder seul le nomme.
+  - Il porte `outline-none`, sans `focus-within:` sur la pilule.
+  - `role="combobox"` est sur le `div`, selon le motif ARIA 1.1 (lu ; rendu du focus à vérifier).
+- Piste : un `aria-label` traduit, le motif ARIA 1.2, et `focus-within:ring-2` sur la pilule.
+
+### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
+- Gravité : 🟠 risque ou dette
+- Où : `PropertyVisitDialog.tsx:263,270,276,283`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440`, `PropertyReviews.tsx:281`, `leases/CreateLeaseForm.tsx:347,359`, `leases/DepositRefundModal.tsx:182,215`
+- Constat : 13 contrôles sur 49 qui portent `aria-invalid` n'ont pas de `aria-describedby`, et 48 `<p class="text-destructive">` n'ont pas de `role`. Les `Form*` sont bien câblés (mesuré).
+- Piste : migrer ces champs vers `FormInput`/`FormError`.
+
+### Des champs nommés par le seul placeholder
+- Gravité : 🟠 risque ou dette
+- Où : `search/FilterSidebar.tsx:161,172,183`, `PropertyContactMessageDialog.tsx:89`, `PropertyReviewForm.tsx:94,102`, `PropertyPagination.tsx:113`
+- Constat :
+  - 21 champs ne sont nommés que par leur placeholder, et 2 n'ont aucun nom.
+  - Le sélecteur de taille de page (un `SelectTrigger`, donc un `<button role="combobox">`) est sans nom, dans 8 listes (mesuré).
+- Piste : `aria-labelledby` vers le titre de section, et un `aria-label` sur le sélecteur de taille de page.
+
+### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
+- Constat :
+  - `ring-ring/50` est à 2,08:1 sur `--background` ; sur un bouton plein, c'est le seul signal de focus. TCK-371 l'avait relevé, et aucun ticket n'a été ouvert.
+  - `--input: #ebe5d5`, seul contour d'un champ, est à 1,26:1 (WCAG 1.4.11, mesuré).
+- Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
+
+### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
+- Constat :
+  - Le marqueur au focus n'a qu'un écart de 1,22:1 avec son état normal, et porte `outline: none`.
+  - Le `Popup` de la visionneuse n'a pas de nom.
+  - `<span role="link" aria-disabled title>` n'est pas focusable, et la raison du verrou n'est que dans `title` (signalé par TCK-371, toujours présent).
+- Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
+
+### Le mouvement réduit est ignoré par les primitives
+- Gravité : 🟠 risque ou dette (AAA, mais la charte en fait une règle)
+- Où : `ui/sheet.tsx:104-110`, `ui/dialog.tsx:58`, `ui/popover.tsx`, `ui/select.tsx`, `property/cards/PropertyRow.tsx:184`
+- Constat : `slide-in` et `zoom-in` de tw-animate-css ignorent `prefers-reduced-motion`, aucun `motion-reduce:` n'apparaît, et `scrollBy({behavior:'smooth'})` n'est pas conditionné (mesuré).
+- Piste : `motion-reduce:animate-none` dans les primitives.
+
+### Le lint d'accessibilité est presque éteint
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/eslint.config.mjs:37-39`
+- Constat : 6 règles `jsx-a11y` seulement, en `warn`. Ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` : aucune garde n'aurait attrapé les constats ci-dessus (lu).
+- Piste : ces règles en `error`, sous un cliquet par fichier comme `check-i18n`.
+
+### Boutons « Ouvrir » sans contexte, tableaux sans titre
+- Gravité : 🟢 amélioration
+- Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
+- Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
+- Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
