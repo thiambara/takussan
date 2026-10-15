@@ -27,9 +27,9 @@ amélioration.
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | fait |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | fait |
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | fait |
-| 13 | Code mort et doublons : services, composants, routes, clés i18n | en cours |
+| 13 | Code mort et doublons : services, composants, routes, clés i18n | fait |
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | fait |
-| 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | à faire |
+| 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | en cours |
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | à faire |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
@@ -59,6 +59,9 @@ amélioration.
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
+| 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | à faire |
+| 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | à faire |
+| 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | à faire |
 
 ---
 
@@ -1406,3 +1409,133 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
+
+## Angle 13 — Code mort et doublons
+
+Les cinq 🔴 ont été relus par la session dans le code, et les routes relevées par `php artisan route:list --json` :
+- `POST api/leases/{lease}/payments/generate-schedule` existe, et `api/leases/{id}/generate-schedule` n'existe pas ;
+- aucune route ne contient `attach` ;
+- aucune route `api/customers/{customer}/documents` ;
+- `POST api/lease-payments/{payment}/mark-paid` existe, et le front n'appelle que `…/late-fee/mark-paid` ;
+- `PaymentController::store` transmet `status` et `paid_at`, puis `authorizeLeaseManage` admet le locataire.
+
+L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du code mort au sens strict. C'est l'objet de l'angle 45.
+
+### « Enregistrer un paiement » crée une échéance en attente, et aucun écran n'atteint `mark-paid`
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:55-56,122-127`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:38-47`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/routes/api/leases.php:60`
+- Constat :
+  - Le dialogue envoie `paid_at` et `reference_number`. Aucun des deux ne figure dans les règles, `status` non plus : `validated()` les retire.
+  - `create()` écrit alors une ligne `pending`, sans date. Saisir un loyer reçu ajoute une échéance en attente au lieu de régler l'échéance existante.
+  - `POST /api/lease-payments/{id}/mark-paid`, la voie gardée (verrou, checkout ouvert, caution), n'a aucun appelant dans le front.
+  - Établi comment : lu de bout en bout, et grep.
+- Piste : faire appeler `mark-paid` par l'écran sur l'échéance choisie ; refuser `paid_at` à la création, ou le prendre en compte.
+
+### « Générer l'échéancier » appelle une route qui n'existe pas
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/leases.ts:436`, `takussan-api/routes/api/leases.php:33`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:154`
+- Constat :
+  - Le front poste sur `/api/leases/{id}/generate-schedule`, alors que la route est `/api/leases/{id}/payments/generate-schedule` : l'appel rend un 404.
+  - Le front attend `generated` dans la réponse, l'API rend `payments_created`.
+  - Le bouton est monté sur `/app/leases/[id]` (`LeaseDetail.tsx:181`). L'écart date de TCK-044.
+  - Établi comment : mesuré par `route:list`, et lu.
+- Piste : aligner le chemin et la clé de réponse.
+
+### Pièces jointes de la messagerie : envoi vers une route absente
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/messages/ChatView.tsx:226,442`, `takussan-web/src/lib/queries/conversations.ts:423`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-299`
+- Constat :
+  - Le trombone poste sur `/api/conversations/{c}/messages/{m}/attachments`, et aucune route ne contient `attach`.
+  - L'API n'accepte que la note vocale, dans `sendMessage` : le texte part, le fichier échoue sur « uploadFailed ».
+  - Établi comment : mesuré, et lu.
+- Piste : accepter le fichier dans `sendMessage`, comme l'audio, ou retirer le trombone.
+
+### Documents de la fiche client : envoi vers une route absente
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/customers.ts:187`, `takussan-web/src/components/customer-dashboard/CustomerDocumentsPanel.tsx:46`
+- Constat :
+  - L'onglet Documents (`CustomerDetailTabs.tsx:107`) poste sur `/api/customers/{id}/documents`, qui n'existe pas.
+  - La même page offre `AddDocumentButton`, qui passe par `/api/documents` : deux voies d'ajout, dont une cassée.
+  - Établi comment : mesuré, et lu.
+- Piste : faire passer le panneau par `AddDocumentButton`.
+
+### `POST /api/payments`, sans appelant, laisse le locataire se déclarer payé
+- Gravité : 🔴 défaut avéré (effets en aval à vérifier)
+- Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:37-92,372-382`, `takussan-api/app/Http/Requests/PaymentStoreRequest.php:13-15,30-32`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/app/Services/Model/BookingPaymentService.php:22-24`
+- Constat :
+  - `authorize()` accepte tout compte connecté. `authorizeLeaseManage` admet le locataire (« tenant can create their own **pending** lease payment »), `authorizeBookingManage` le client.
+  - Mais `status` (sauf `cancelled`) et `paid_at` sont validés puis transmis tels quels, et `LeasePaymentService::create` garde le statut fourni.
+  - Pour une réservation, l'absence de statut vaut déjà `Paid`.
+  - La route contourne `recordPayment` (TCK-587) et toutes les gardes de `markPaid`, et aucun test n'essaie le locataire ni le client.
+  - Établi comment : écriture lue ; soldes, reçus et relevés en aval à vérifier.
+- Piste : retirer la route, qui n'a aucun appelant. À défaut, forcer `pending` et refuser `paid_at` à tout autre que le personnel.
+
+### La colonne « Push » des préférences ne pilote rien
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:46`, `takussan-api/app/Notifications/NewBookingNotification.php:75-76`, `takussan-api/app/Events/NewMessage.php`
+- Constat :
+  - L'écran des préférences affiche une colonne Push. Elle correspond à `broadcast` dans 14 notifications.
+  - Le pilote est `log`, et il n'y a ni client Echo ou Pusher, ni Reverb.
+  - `NewMessage` n'est jamais déclenché.
+  - Le constat est plus large que celui de l'angle 11, qui ne relevait que `NewNotification`.
+  - Établi comment : mesuré, et lu.
+- Piste : retirer `push` de `CHANNELS` et le canal `broadcast`, ou décider d'un temps réel par un ADR.
+
+### Réglages d'agence : trois magasins, dont deux sans écrivain
+- Gravité : 🟠 risque ou dette — **concerne cette branche**
+- Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
+- Constat :
+  - **Table `settings`, portée agence** : lue par les cinq services de TCK-651 (`agencyRow()`), mais son seul écrivain est `POST /api/settings`, que le front n'appelle pas. ADR-0065 l'avait écrit dans son hors-périmètre : « l'API seule le permet ».
+  - **Colonne JSON `agencies.settings`** : `booking_pending_expiry_hours` et `currency` y sont lues, mais aucune requête ne les écrit. `excludeUnvalidatedArrayKeys` les retire.
+  - **Devise** : `settings['currency']` l'emporte sur la colonne `agencies.currency`, la seule validée.
+  - **Seeder** : il écrit sept clés globales et `branding`, que rien ne lit, dont `late_payment_penalty_rate`. Ce sont les clés mortes déjà notées hors périmètre de TCK-651.
+  - **Déballage** : cinq copies de `$value['value'] ?? array_values($value)[0]` coexistent avec `PlatformSettingService::unwrap()`, qui exige exactement `['value']`. Les deux formes divergent sur `{"months":3}`.
+  - Établi comment : lu, et mesuré.
+- Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
+
+### Routes en double et routes sans appelant
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
+- Constat :
+  - **Doublons** : `verify-phone` et `phone/verify-otp`, `phone/resend` et `phone/send-otp`, `notifications/preferences` et `me/notification-preferences`.
+  - **Sans appelant** :
+    - le CRUD des garants ;
+    - `search/messages` et `search/documents` ;
+    - `archive` et `unarchive` ;
+    - `rent-history`, `expire-now`, `agencies/{a}/stats` ;
+    - `settings/public` ;
+    - `two-factor/qr` et `recovery-codes` (GET).
+  - `leases/{l}/terminate` résilie sur-le-champ, à côté du parcours de résiliation anticipée qu'utilise le front.
+  - Les routes appelées par des tiers ou par des liens émis par l'API sont classées à part : `health`, `media/{m}/file|sign`, `pay/{t}/receipt`, `share/{t}/download`, `saved-searches/unsubscribe`.
+  - Établi comment : mesuré. Sur 686 routes `api/*`, une vingtaine est confirmée à la main ; le reste est à vérifier.
+- Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
+
+### Page orpheline `/onboarding/agency-admin`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-12`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:43`
+- Constat : le docblock la dit atteinte par la redirection de l'e-mail d'activation. Mais la réinitialisation renvoie vers `/auth/login`, et aucun lien ne mène à cette page ni à `AgencyAdminOnboardingWizard` (mesuré, et lu).
+- Piste : relier la page depuis l'invitation, ou la retirer.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
+  - **Fichiers front morts** : 8, dont :
+    - `Money` et `useAgencyCurrency`, un troisième formateur de montant ;
+    - `ShareButton` et `lib/share.ts` ;
+    - `useRequireAuth`.
+  - **Exports sans appelant** : environ 35, dont :
+    - `fetch/upsert/deleteWizardDraft`, en double de `useWizardDraft` ;
+    - `useUpdateLease`, `useRefundDeposit`, `useConfirmEarlyTermination` ;
+    - `switchActiveProfileAction`.
+  - **Deux `formatCurrency` homonymes** (`lib/format.ts:158`, `lib/format/currency.ts:73`) : le second argument est une langue dans l'un et une devise dans l'autre. `formatRelativeDate` fixe `'fr'` en dur (lu ; rendu à vérifier).
+  - **Téléphone** :
+    - `PhoneRule` n'est employée nulle part, et `CurrencyRule`, `DateRangeRule` et `StrongPasswordRule` ne sont atteintes que par les tests ;
+    - la recherche admin (`AdminGlobalSearchService.php:155-160`) et `CustomerPhoneNormalizer` ne normalisent pas pareil.
+  - **API, sans appelant** :
+    - `InvitationService::acceptForAuthenticatedUser` ;
+    - `PreferenceResolver::filterChannels`, recopiée par 14 `via()` ;
+    - `QuotaResolver::effectiveLimitsForAgency` ;
+    - l'enum `UserRole`.
+  - **Colonnes jamais lues ni écrites** : `Property.lot_position` et `admin_monitored`, `ServiceProviderProfile.insurance_policy_id` et `hourly_rate_max`, `OwnerProfile.guarantor_user_id`, `NotificationTemplate.meta_category` et `meta_variables`.
+  - **Clés i18n** : environ 202 feuilles sur 8 032 ont un nom absent du code, une partie dynamique. Aucune garde ne les voit.
+- Piste : supprimer après relecture des cinq ou six éléments qui touchent un parcours ; un seul `formatCurrency` ; documenter ou retirer les colonnes ; un rapport des clés i18n inutilisées (pas encore un cliquet).
