@@ -19,7 +19,7 @@ class CustomerNoteController extends Controller
             ->with('author')
             ->orderByDesc('pinned')
             ->latest()
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
     }

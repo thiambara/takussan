@@ -29,7 +29,7 @@ class ServiceProviderBillController extends Controller
     {
         $bills = ServiceProviderBill::buildQuery(baseQuery: $this->visibleTo($request), request: $request)
             ->defaultSort('-created_at')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($bills, ServiceProviderBillResource::collection($bills->items())->resolve($request));
     }

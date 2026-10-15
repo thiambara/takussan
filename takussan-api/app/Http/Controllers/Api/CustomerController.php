@@ -260,7 +260,7 @@ class CustomerController extends Controller
     {
         $this->authorize('view', $customer);
 
-        $paginator = $feed->paginate($customer, (int) $request->input('per_page', 20));
+        $paginator = $feed->paginate($customer, $this->tailleDePage($request, 20));
 
         return $this->paginated(
             $paginator,

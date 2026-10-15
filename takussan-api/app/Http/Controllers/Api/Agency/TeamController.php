@@ -45,7 +45,7 @@ class TeamController extends Controller
 
         $paginator = AgentProfile::buildQuery($base, $request)
             ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         // TCK-589 — la colonne 2FA de l'équipe : un champ CALCULÉ, une requête pour
         // la page, et non une entrée de `User::$queryFields`, qui l'exposerait à

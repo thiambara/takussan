@@ -41,7 +41,7 @@ class ServiceProviderProfileController extends Controller
             // TCK-597 (ADR-0043 §2) — la note moyenne des seuls avis approuvés, lue à la demande.
             ->withAvg(['reviews as average_rating' => fn (Builder $q) => $q->where('is_approved', true)], 'rating')
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->json([
             'data' => $paginator->items(),

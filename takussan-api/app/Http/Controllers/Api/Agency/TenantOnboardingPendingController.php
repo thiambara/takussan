@@ -62,8 +62,7 @@ class TenantOnboardingPendingController extends Controller
         $query = TenantOnboardingChecklist::buildQuery($base, $request)
             ->defaultSort('created_at');
 
-        $perPage = (int) $request->integer('per_page', 20);
-        $perPage = max(1, min($perPage, 100));
+        $perPage = max(1, min($request->integer('per_page', 20), 100));
 
         $page = $query->paginate($perPage);
 

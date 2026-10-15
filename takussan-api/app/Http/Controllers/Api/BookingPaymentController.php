@@ -27,7 +27,7 @@ class BookingPaymentController extends Controller
 
         $payments = $booking->payments()
             ->latest()
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($payments, BookingPaymentResource::collection($payments)->toArray($request));
     }

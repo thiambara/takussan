@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Base;
 
 use App\Http\Responses\PaginationMeta;
+use App\Models\Bases\AbstractModel;
+use App\Models\Concerns\HasQueryBuilder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 
 abstract class Controller extends BaseController
@@ -59,5 +62,24 @@ abstract class Controller extends BaseController
     protected function paginationMeta(LengthAwarePaginator $paginator, array $extra = []): array
     {
         return PaginationMeta::from($paginator, $extra);
+    }
+
+    /**
+     * La taille de page demandée par `per_page`, bornée à `[1, $max]` ; `$defaut` si elle est
+     * absente, non numérique ou < 1 — la même règle que {@see HasQueryBuilder::getPerPage()}.
+     *
+     * TCK-654 (piste P02.02) : 26 lectures passaient `per_page` tel quel à `paginate()`, que
+     * `HasQueryBuilder::PER_PAGE_MAX` ne borne pas quand la taille est explicite. Une lecture
+     * non bornée est refusée par `Tests\Unit\Architecture\PerPageBorneTest`.
+     */
+    protected function tailleDePage(Request $request, int $defaut = 20, int $max = AbstractModel::PER_PAGE_MAX): int
+    {
+        $demande = $request->input('per_page');
+
+        if (is_numeric($demande) && (int) $demande >= 1) {
+            return min((int) $demande, $max);
+        }
+
+        return $defaut;
     }
 }

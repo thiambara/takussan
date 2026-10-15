@@ -25,7 +25,7 @@ class LeasePaymentController extends Controller
 
         $payments = $lease->payments()
             ->orderBy('period_start', 'desc')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         // TCK-593 — `amount_due` lit le réglage de l'agence du bail : un bail, une agence, chargés
         // une fois pour toute la page plutôt qu'une fois par échéance.

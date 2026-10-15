@@ -54,7 +54,7 @@ class PropertyModerationController extends Controller
 
         $query->orderBy('submitted_at');
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = $this->tailleDePage($request, 20);
         $paginator = $query->paginate($perPage);
 
         return $this->json([
