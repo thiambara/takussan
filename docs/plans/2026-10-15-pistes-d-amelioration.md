@@ -97,7 +97,7 @@ voie d'écriture (angle 13, puis 47).
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | fait |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | fait |
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | fait |
-| 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
+| 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | fait |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | à faire |
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | à faire |
@@ -2995,3 +2995,106 @@ sont pas reprises.*
   - **Préavis d'expiration répété** : un lot `refund` hérite de l'expiration de son lot d'origine et naît sans `expiry_notice_sent_at` (lu, `CreditLedger.php:227`). Mesuré, test temporaire : lot de bienvenue expirant à J+20, Vedette 30 jours, préavis envoyé à J+14 ; bien loué à J+15 → lot `refund` de 30 crédits, même échéance, et un **second préavis** au passage suivant (2 notifications pour la même date).
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
+
+## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
+
+*Exploré le 2026-10-15 sur `pre-dev` bdb71428, par l'explorateur. Tout a été relu par l'explorateur
+lui-même, sans sous-agent : `ReconciliationMatcher`, `ReconciliationManager`, `PaymentSearchService`,
+`MatchBankStatementJob`, `LateFeeSettlement`, `LeasePaymentService::markPaid` et les parties de
+`PaymentGatewayService` qui figent le montant (`recordInitiation`, `markManualSettlement`,
+`supersedeOpenCheckout`, `amountDue`). Mesures par un test temporaire (`tests/Feature/Tmp/…`, retiré),
+bâti sur `Tests\Support\LeaseDueFixture` (échéance de 150 000, pénalité de 7 500) et lancé seul,
+`load average` 1,44 / 1,99 / 2,30 sur 8 cœurs, base de test propre au processus. Non mesuré : un
+relevé réel (D-67), et ce que le front affiche d'une suggestion.*
+
+### Un loyer payé en ligne pénalité comprise est introuvable par la recherche manuelle au montant de la ligne
+- Réf : P25.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/PaymentSearchService.php:159-170`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:86-91`, `takussan-web/src/components/admin/reconciliation/PaymentSearchDialog.tsx:46-48`
+- Constat :
+  - TCK-593 a appris au matcher automatique que l'échéance payée en ligne arrive pour le montant figé, pénalité comprise (`COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)`) (lu, `ReconciliationMatcher.php:86-91`).
+  - La recherche manuelle compare toujours `amount` seul (`ABS(amount - ?) < 1`) (lu, `PaymentSearchService.php:168-169`).
+  - Le dialogue de recherche préremplit le montant avec celui de la ligne (lu, `PaymentSearchDialog.tsx:46-48`).
+  - Mesuré, test temporaire : échéance initiée en ligne puis soldée par webhook Wave à 157 500 ; `GET …/bank-statements/payment-search?amount=157500&direction=credit` → `200 []`. Même appel à `amount=150000` → 1 résultat.
+  - Conséquence : quand la suggestion automatique manque (hors fenêtre de ±7 jours, ou ambiguïté), la ligne de 157 500 ne retrouve pas son échéance par la recherche telle qu'elle s'ouvre.
+  - Établi comment : lu, puis test temporaire.
+- Piste : une seule expression du « montant attendu sur le compte » pour une `LeasePayment`, partagée par le matcher et la recherche (scope ou méthode du modèle). Garde : le test AC14 de `BankReconciliationTest` doublé côté recherche manuelle.
+
+### Après un checkout abandonné et un règlement manuel, le matcher cherche encore le montant du checkout
+- Réf : P25.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:671`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:919-926`, `takussan-api/app/Services/Model/LeasePaymentService.php:59-66`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:89-91`
+- Constat :
+  - `recordInitiation()` fige `metadata.gateway_expected_amount` à chaque initiation (lu, `:671`).
+  - Un règlement manuel ne fait que poser `gateway.settled_by = manual` (lu, `markManualSettlement`, `:919-926`). `supersedeOpenCheckout()` ne touche pas non plus au montant figé (lu). La clé reste donc sur la ligne.
+  - Le matcher la préfère à `amount` sans regarder comment l'échéance a été soldée (lu, `COALESCE`, `:90`).
+  - Mesuré, test temporaire : agence qui encaisse la pénalité en ligne, checkout ouvert à 157 500 et abandonné ; deux heures plus tard, `markPaid` (virement) passe sans passage outre. L'échéance est `paid`, `gateway_expected_amount` vaut toujours 157 500 et la pénalité reste due. Un crédit de 150 000 au relevé → `unmatched`.
+  - Même effet attendu pour tout checkout initié puis abandonné avant un règlement hors ligne, dès que son montant différait de `amount` (à vérifier pour un checkout sans pénalité : le montant figé y vaut `amount`, donc sans effet).
+  - Établi comment : lu, puis test temporaire.
+- Piste : ne lire le montant figé que si l'échéance a été soldée en ligne (`gateway.settled_by` ≠ `manual`, ou le montant de la transaction qui a soldé), sinon `amount`. Garde : un test « checkout abandonné puis virement ».
+
+### La règle « contrepartie ≥ 85 % » du matcher ne peut jamais s'appliquer aux encaissements
+- Réf : P25.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:98`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:184-200`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:218-232`
+- Constat :
+  - Les candidats d'encaissement sont chargés avec `get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn])` (lu, `:98`) : ni `payer_id` (`BookingPayment`, `LeasePayment`), ni `customer_id` (`Invoice`).
+  - `resolvePayerName()` lit `$model->payer` ou `$model->customer` sur ces modèles. Sans la clé étrangère, la relation rend `null` sans erreur : aucun mode strict n'est activé (mesuré, `grep -rn "shouldBeStrict\|preventAccessingMissingAttributes" app bootstrap config` → rien).
+  - Mesuré, test temporaire : échéance de 150 000 payée, ligne de 150 000 à J+5 dont `counterparty` est exactement le `full_name` du payeur → `suggested`, `conf=60`. La règle 80 aurait dû répondre.
+  - Les reversements, eux, chargent `landlord_id` (lu, `:130`) : seule la branche débit a sa règle 80.
+  - Établi comment : lu, puis test temporaire.
+- Piste : charger la clé étrangère du payeur (et la relation par `with()` pour éviter un N+1). Garde : un test de la règle 80 sur un crédit, rouge aujourd'hui.
+
+### Le matcher propose des factures brouillon, annulées et nulles
+- Réf : P25.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:69-96`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:99-114`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`
+- Constat :
+  - `fetchCandidates()` ne filtre les factures que par agence, devise, montant, `issue_date` et `bank_reconciled_at` : aucun statut (lu, `:69-96`). La recherche manuelle non plus (lu, `PaymentSearchService.php:101-114`).
+  - Mesuré, test temporaire : une facture de 33 333 `draft`, puis `cancelled`, puis `void`, émise le jour même. Un crédit de 33 333 → `suggested Invoice conf=70` dans les trois cas.
+  - `confirmMatch()` ne juge pas non plus le statut d'un encaissement : il ne le fait que pour les reversements (`payout_not_completed`) (lu, `:70-74`). Une facture annulée peut donc recevoir `bank_reconciled_at`.
+  - `PaymentGatewayService::isPayable()` tient déjà la règle « une facture se paie en `sent|overdue` » (lu, `:1294-1296`).
+  - Établi comment : lu, puis test temporaire.
+- Piste : borner les factures candidates aux statuts encaissables (`sent`, `overdue`, `paid`) dans le matcher, la recherche et `confirmMatch()`. Garde : un test par statut exclu.
+
+### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
+- Réf : P25.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
+- Constat :
+  - L'ambiguïté n'est jugée qu'au score 60 (`if ($bestScore === 60)`, lu, `:156`). À 70 (montant et date à ±2 jours) ou à 80, le premier candidat rencontré l'emporte (`>` strict, `:149`), dans l'ordre de la requête et des modèles.
+  - Mesuré, test temporaire : deux loyers de 150 000 de deux baux de l'agence, payés le même jour ; un crédit de 150 000 → `suggested LeasePayment#1 conf=70`. Les mêmes, cinq jours plus tard (règle 60) → `unmatched`.
+  - Le cas est ordinaire : des loyers identiques dans une même résidence, réglés en début de mois.
+  - Établi comment : lu, puis test temporaire.
+- Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
+
+### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
+- Réf : P25.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
+- Constat :
+  - La pénalité n'est pas un encaissement à part : `LateFeeSettlement::markPaid()` pose `late_fee_paid_at` (et le moyen de règlement en métadonnée) sur l'échéance, rien d'autre (lu, `:47-56`).
+  - Le rapprochement est un-pour-un : une ligne vise un seul paiement, et un paiement porte un seul `bank_statement_line_id` (lu, `ReconciliationManager.php:123-134`).
+  - Mesuré, test temporaire : agence qui n'encaisse pas la pénalité en ligne, loyer marqué payé puis pénalité marquée réglée, tous deux par virement. Un crédit de 157 500 (loyer et pénalité en un virement) → `unmatched` ; un crédit de 7 500 (pénalité seule) → `unmatched`.
+  - Le premier se confirme à la main sur l'échéance : `confirmMatch()` ne compare aucun montant (lu, `:39-97`). Le second ne peut être que `ignored`, et le relevé ne finalise alors en `reconciled` qu'en déclarant ignoré un encaissement réel.
+  - Établi comment : lu, puis test temporaire.
+- Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
+
+### Petites améliorations du rapprochement
+- Réf : P25.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
+- Constat :
+  - **Date d'une facture** : la fenêtre de ±7 jours porte sur `issue_date` (lu, `:95`). La table `invoices` n'a pas de date d'encaissement (lu, migration de création : `issue_date`, `due_date`). Une facture réglée à son échéance, à 30 jours, n'est jamais suggérée (à vérifier sur données réelles).
+  - **Confirmation sans montant ni statut** : `confirmMatch()` accepte une ligne de 7 500 sur une échéance de 150 000, et une `LeasePayment` `pending` (lu, `:39-97`). Ni avertissement ni trace du montant dans l'activité (`withProperties` : type, id, confiance).
+  - **Recherche manuelle sans statut** : les échéances `pending`, `late` ou `cancelled` sortent comme candidates à un crédit (lu, `PaymentSearchService.php:79-84`).
+  - **Même paiement suggéré pour deux lignes** : le job ne retire pas des candidats un paiement déjà suggéré sur une autre ligne du relevé (lu, `MatchBankStatementJob.php:30-49`). La seconde confirmation rend `already_reconciled`.
+  - Établi comment : lu.
+- Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
