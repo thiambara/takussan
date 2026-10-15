@@ -2831,7 +2831,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Le bailleur lit la pièce d'identité et le contact d'urgence de son locataire par le bail et la réservation, alors que la fiche client lui est refusée
 - Réf : P23.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que le bailleur lit de la pièce et du contact d'urgence de son locataire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/CustomerResource.php:19-27`, `takussan-api/app/Http/Resources/LeaseResource.php:77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:69`, `takussan-api/app/Http/Resources/BookingResource.php:44`, `takussan-api/app/Http/Controllers/Api/BookingController.php:63`, `takussan-api/app/Policies/CustomerPolicy.php:8-14`
 - Constat :
@@ -2842,10 +2842,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Voir P21.05, qui relève `Booking.customer` rendu par `CustomerResource` sans relever les champs sensibles.
   - Établi comment : lu, et test temporaire.
 - Piste : réserver `id_type`, `id_number`, `emergency_contact_*`, `notes` et `metadata` au lecteur que `CustomerPolicy::view` admet, par la même forme que `readsCriteria()`. Étendre `CustomerScopeTest::test_search_criteria_are_rendered_to_agency_staff_only` à ces champs.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `CustomerResource.php:19-30` (`id_type`, `id_number`, `emergency_contact_*`, `metadata`, `notes` hors de `readsCriteria()`), `LeaseController.php:69` et `BookingController.php:63` (chargent `tenant` et `customer` sans `include=`), `CustomerPolicy::view` ; aucun commit sur ces fichiers depuis le 2026-10-14 ; test temporaire, retiré depuis (charge 5,75 sur 8 cœurs) : bailleur membre `owner` d'une agence, locataire ajouté par un agent avec `id_number = SN-998877` → `GET /api/customers/{id}` 403, `GET /api/leases/{id}` 200 avec `tenant.id_number` et `tenant.emergency_contact_phone`, `GET /api/leases?include=tenant` 200 avec `tenant.id_number`. La voie de la réservation n'est pas rejouée, `BookingResource.php:44` rendant le même `CustomerResource` (lu). Classement : V3, le correctif décide ce qui est exposé de la pièce d'identité d'un locataire à son bailleur, et ce que le bailleur doit voir n'est écrit nulle part.
 
 ### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
 - Réf : P23.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : chiffrement de deux colonnes par migration, et V3
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
 - Constat :
@@ -2856,10 +2857,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Le dépôt traite déjà `id_number` comme sensible ailleurs : exclu du journal d'activité (lu, `Customer.php:35-50`), de l'index Meilisearch (lu, `Customer.php:205-219`) et de l'export CSV (lu, `ExportDataService.php:103-127`).
   - Établi comment : lu, et test temporaire.
 - Piste : étendre ADR-0044 §1 aux deux colonnes : chiffrement par migration réversible, forme masquée par défaut, valeur claire par une lecture dédiée sous step-up et journalisée, comme `owners/{id}/sensitive`. C'est un choix de produit et de schéma, à poser par ADR. À défaut, au moins la masquer dans les listes et sous impersonation.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu les migrations `2026_04_17_160006` (l. 21) et `2026_04_17_160007` (l. 18, 21) : `id_number` et `monthly_income` en `string` et `decimal` clairs ; `grep -n encrypted` sur `Customer.php` et `Guarantor.php` → rien ; `CustomerResource.php:20` et `GuarantorController.php:93,96` les rendent en clair ; aucun ticket ne traite leur chiffrement (`grep` dans `docs/backlog/tickets`). Le scénario sous impersonation n'est pas rejoué : la lecture du code est inchangée, et le test de P23.02 rend `id_number` en clair à un autre lecteur. Classement : V4, la piste chiffre deux colonnes par migration, avec un ADR (V6) sur ce qui est exposé (V3).
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : lecture et journal des pièces d'identité par le super-admin
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Models/Document.php:36`, `takussan-api/app/Policies/DocumentPolicy.php:38`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:37,46`
 - Constat :
@@ -2869,10 +2871,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - La route est sous `auth:sanctum` et non sous `/api/admin/*` : ni le middleware `super-admin`, ni le refus d'impersonation de `/api/admin/*` ne s'y appliquent.
   - Établi comment : lu et grep.
 - Piste : journaliser par `PersonalDataAccessLogger` toute lecture par un profil plateforme d'un `Document` de type pièce dont il n'est pas le téléverseur, ou retirer le pouvoir global de `index` au profit d'une voie de console. Garde : un test qui vérifie la ligne de journal.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `DocumentController::index` (filtre `uploaded_by` hors super-admin seulement), `Document.php:36` (`type` filtrable), `DocumentPolicy.php:38` ; le point « à vérifier » est vérifié par test temporaire, retiré depuis : une `id_card` avec fichier, téléversée par un autre compte, puis super-admin (`operateur()` avec step-up) → `GET /api/documents?filter[type]=id_card` 200, 1 document, `file_url` signée ; `GET /api/documents/{id}` 200 ; `GET <file_url>` 302 ; 0 ligne `PersonalDataAccess` dans `activity_log`. Classement : V3, la piste propose deux voies (journaliser, ou retirer le pouvoir de `index`, ce qui touche aussi V2), un choix sur la consultation des pièces d'identité.
 
 ### Des URL signées de 7 jours vers des pièces privées sont rangées dans `app_notifications.data`, et relues par `GET /api/notifications`
 - Réf : P23.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que la cloche conserve et expose des pièces justificatives
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:35,94-104,123-136`, `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:155-189`, `takussan-api/app/Http/Resources/AppNotificationResource.php:46`
 - Constat :
@@ -2883,6 +2886,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Aucune donnée réelle en base de dev (`app_notifications` dont `data` contient `attachments` → 0).
   - Établi comment : lu.
 - Piste : ne ranger en base que les identifiants des médias, et signer à la lecture, dans `AppNotificationResource` ou un point de lecture dédié, après autorisation. Garder l'URL longue pour le seul courriel. Garde : un test qui vérifie qu'aucune `data` de notification écrite ne contient `signature=`.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `LeaseDepositRefundNotification.php:35,103,129-131` et `AppNotificationResource.php:46` (`data` rendu tel quel) ; `EnforceImpersonationReadOnly` ne cite pas `api/notifications` (grep) ; les trois points « à vérifier » le sont par test temporaire, retiré depuis : remboursement de caution avec une photo → 1 ligne `app_notifications` dont `data` contient `signature=` ; session d'impersonation sur le locataire → `GET /api/notifications` 200, corps avec `signature=` ; l'URL relue sans session → 302 ; la même au huitième jour (`travel(8)->days()`) → 403. Classement : V3, le correctif change ce qui est conservé dans `app_notifications` et la forme de `data` relue par le front.
 
 ### Petites améliorations
 - Réf : P23.06
@@ -2917,7 +2921,7 @@ sont pas reprises.*
 
 ### Un même achat de boost rejoué est débité deux fois : deux badges identiques coûtent 20 crédits pour un seul badge
 - Réf : P24.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : débit de crédits rejoué, et clé d'idempotence neuve dans le contrat
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:32-41`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:112-185`, `takussan-web/src/components/boost/BoostDialog.tsx:66-77,143`
 - Constat :
@@ -2927,10 +2931,11 @@ sont pas reprises.*
   - Pour un badge, le second achat **remplace** le premier sans remboursement (ADR-0061 § 5) : l'espace paie deux fois pour un seul badge, sans rien de plus.
   - Établi comment : lu, et test temporaire.
 - Piste : une clé d'idempotence par ouverture du dialogue (`Idempotency-Key` ou champ `request_id`, unique par espace sur une courte fenêtre), rejouée en 200 avec le boost déjà écrit. Garde : un test qui rejoue la même clé et constate un seul débit.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` et `badge()` (aucune clé d'idempotence, `debit()` à chaque appel) ; aucun ticket ne la prévoit (`grep -il idempoten` dans `docs/backlog/tickets` croisé avec « boost » → seul TCK-633, sur l'espace automatique) ; test temporaire, retiré depuis : deux `POST /api/properties/{id}/boosts` du premier badge (10 crédits), à 30 s d'écart → 201 et 201, solde 500 → 480, lignes `ended` puis `active`. La Vedette rejouée n'est pas remesurée. Classement : V1, le correctif touche l'écriture d'un débit de crédits et ajoute une clé au contrat de l'achat, dont la forme et la fenêtre sont à choisir.
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : avertissement neuf dans le dialogue d'achat
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/boost/BoostDialog.tsx:29-55`, `takussan-web/src/components/boost/api.ts:12-31`, `takussan-api/routes/api/credits.php:14`, `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:18-30`
 - Constat :
@@ -2938,10 +2943,11 @@ sont pas reprises.*
   - mesuré : `grep -rn "/boosts" takussan-web/src` → le seul appel est le `POST` de `api.ts:28`. La lecture `GET /api/properties/{property}/boosts`, décrite par TCK-633 (l. 133), n'est appelée par aucun écran.
   - Établi comment : lu, et `grep`.
 - Piste : lire `GET …/boosts` à l'ouverture du dialogue et dire, pour l'offre choisie, ce qui arrivera (« remplace le badge “Urgent” actif jusqu'au … », « prolonge la Vedette jusqu'au … », « Remontée possible à partir de … »). Garde : un test du dialogue qui monte un badge actif et attend l'avertissement.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostDialog.tsx:38-39` (seuls `useCredits` et `useBoostProducts`) ; `grep -rn "/boosts" takussan-web/src` → seul le `POST` de `components/boost/api.ts:28`, plus les routes `/super-admin/boosts` et `/api/super-admin/boosts`, sans rapport avec la lecture `GET /api/properties/{property}/boosts`, qui n'a toujours aucun appelant. Classement : V7, la piste ajoute un comportement visible et des textes métier neufs (« remplace le badge… », « prolonge la Vedette… »).
 
 ### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
 - Réf : P24.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la page « Crédits » montre les boosts, ou la spec recule
 - Gravité : 🟠 risque ou dette
 - Où : `docs/features.md:428`, `takussan-web/src/components/boost/CreditsPanel.tsx:21-24`, `takussan-api/app/Http/Resources/Credits/CreditMovementResource.php:12-22`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:187-191`
 - Constat :
@@ -2950,10 +2956,11 @@ sont pas reprises.*
   - Un remboursement automatique (bien loué) a lui aussi un motif nul quand l'acteur n'en donne pas (lu, `BoostLifecycle.php:54`).
   - Établi comment : lu.
 - Piste : soit rendre le bien et l'offre dans le journal (relation `propertyBoost.property` chargée, colonne « Objet »), soit corriger `features.md` pour dire ce que la page montre. Garde : un test de `CreditsPanel` sur une ligne de dépense rattachée à un boost.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `docs/features.md:428` (« page « Crédits » (solde, lots, historique, boosts) ») ; `CreditsPanel.tsx:22-24` : colonnes type, montant, motif (`m.reason ?? '—'`), aucune occurrence de « boost » ; `BoostPurchaseService::debit()` appelle `spend(…, $boost, $actor)` sans motif (l. 187-191). Classement : V7, la piste laisse le choix entre une colonne visible neuve et le retrait d'une fonction annoncée par la spec.
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : débit de crédits sur un bien sorti du public
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:30-48,63-77,79-110`
 - Constat :
@@ -2962,6 +2969,7 @@ sont pas reprises.*
   - La fenêtre est courte (deux requêtes SQL) ; aucun cas réel n'est observé.
   - Établi comment : lu.
 - Piste : déplacer les deux contrôles sous le verrou, sur la ligne verrouillée (`Property::query()->public()->whereKey(…)` après `lock()`). Garde : un test qui dépublie le bien par `DB::beforeExecuting` entre le contrôle et le verrou, et attend 422 sans débit.
+- Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` : `abort_code_unless($product->is_active, …)` et `assertBoostable()` avant `DB::transaction` et `lock()`, rien de re-vérifié sous le verrou ; le point « à vérifier » l'est par test temporaire, retiré depuis : `DB::beforeExecuting` passe le bien à `rented` juste avant le `FOR UPDATE` sur `agencies` → `POST` d'une Vedette 7 jours 201, boost `active`, solde 500 → 480, bien `rented`. Classement : V1, le correctif touche le chemin qui débite les crédits, et le doute entre A1 et V1 classe à valider.
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
