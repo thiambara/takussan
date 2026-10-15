@@ -1537,7 +1537,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le résumé par e-mail est injoignable, et doublerait chaque e-mail le jour où il le deviendrait
 - Réf : P11.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer le résumé ou le brancher est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:36-40`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:28-36`, `takussan-api/app/Notifications/CodedNotification.php:77`, `takussan-api/routes/web.php:12`
 - Constat :
@@ -1547,10 +1547,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - `SendDailyNotificationDigest` n'est ni planifié ni dispatché.
   - Établi comment : lu.
 - Piste : retirer ce sous-système, ou faire lire `email_frequency` par `via()` et passer le désabonnement en `POST`.
+- Mesure (2026-10-15, 89a52efe, mesureur) : lu `grep -rn email_frequency app routes` et le front → seul `NotificationUnsubscribeController.php:20` écrit `email_frequency` (`UpdateNotificationPreferencesRequest` ne l'accepte pas, aucune occurrence dans `takussan-web/src` hors messages), la colonne vaut `instant` par défaut (`2026_04_26_200001_add_digest_preferences_to_users_table.php:20`), donc `BuildUserDigestJob::handle()` sort à sa garde pour tout compte ; `CodedNotification::via()` ne lit ni `email_frequency` ni `notifications_email_enabled` ; le désabonnement est un `GET` signé par `URL::signedRoute` sans expiration (`routes/web.php:12`, `BuildUserDigestJob.php:58`). Constat inexact sur un point : `SendNotificationDigestJob` EST planifié (`routes/console.php:66`, `hourly()`) ; c'est son jumeau `App\Jobs\SendDailyNotificationDigest` qui n'est ni planifié ni dispatché (seul `NotificationDigestTest` le cite). Classement : V7, la piste offre deux voies (retrait d'une fonction ou comportement d'envoi neuf) que seul le porteur tranche.
 
 ### Aucun `afterCommit` : pas de dégât aujourd'hui, grâce à la seule file `database`
 - Réf : P11.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : sémantique de mise en file de toutes les notifications
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,73`, `takussan-api/app/Notifications/CodedNotification.php:40`
 - Constat :
@@ -1559,6 +1560,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Un passage à Redis enverrait des notifications pour des transactions annulées.
   - Établi comment : lu.
 - Piste : `ShouldQueueAfterCommit` sur `CodedNotification` et les autres notifications en file.
+- Mesure (2026-10-15, 89a52efe, mesureur) : lu `config/queue.php:44,53,64,73` → `after_commit => false` sur les quatre connexions ; `grep -rn 'AfterCommit' app` → seuls `RevalidatePublicPropertyPage` (`afterCommit()`) et trois événements `ShouldDispatchAfterCommit`, aucune notification ; 24 fichiers de `app/Notifications` sont `ShouldQueue` ; `docs/infra/prod-drivers.json` donne `QUEUE_CONNECTION=database` en préproduction (mesuré le 2026-09-14) et en production (prescrit), et `DB_QUEUE_CONNECTION` n'est pas posé dans `.env.example` → le constat tient tel qu'écrit : aucun dégât tant que la file est `database` sur la connexion par défaut. Classement : V6, poser l'envoi après commit sur toutes les notifications (ou par `after_commit` de la connexion) est une décision transverse sur la file, au-delà d'un défaut au comportement écrit.
 
 ### Petites améliorations
 - Réf : P11.10
@@ -1627,7 +1629,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'horodatage de la signature Wave n'est jamais comparé à l'heure
 - Réf : P12.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : authenticité des webhooks de paiement, et lacune assumée par ADR-0046
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:146-151`
 - Constat :
@@ -1635,10 +1637,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Le test de refus (`t=1,v1=deadbeef`) échoue sur le HMAC, et il resterait vert qu'il y ait une fenêtre de temps ou non.
   - Établi comment : lu. L'effet d'un `refund` ou d'un `failed` rejoué est à vérifier (angle 39).
 - Piste : refuser un `t` hors d'une tolérance de 5 min ; tester une signature valide avec un `t` vieux d'une heure.
+- Mesure (2026-10-15, 89a52efe, mesureur) : lu `WaveDriver.php:135-151` → `t` n'entre que dans le HMAC, aucune comparaison à l'heure ; les tests de refus (`PaymentWebhookTest.php:96`, `t=1,v1=deadbeef` ; `PaymentDriverTest.php:91`, `t=1,v1=bad`) échouent sur le HMAC. `docs/adr/0046-un-webhook-de-paiement-par-integration.md:172-174` nomme cette lacune « assumée, hors de ce ticket » et dit que l'idempotence de `gateway_events` (fournisseur, transaction, type) en neutralise l'effet sur les montants ; l'effet d'un `refund` ou `failed` rejoué n'est pas re-mesuré ici. Classement : V2, une fenêtre de temps refuserait des webhooks aujourd'hui acceptés, et sa largeur (retards de relivraison de Wave) se décide ; ADR-0046 la tient pour une lacune assumée.
 
 ### Le cliquet de couverture laisse sept points de marge
 - Réf : P12.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V9 : seuil du cliquet de couverture
 - Gravité : 🟠 risque ou dette
 - Où : `.github/workflows/api-ci.yml:464`
 - Constat :
@@ -1646,6 +1649,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Le seuil est à 86 % : environ 2 950 instructions peuvent perdre leur couverture sans rouge.
   - Établi comment : mesuré, sur une seule exécution de PR.
 - Piste : selon CLAUDE.md, le seuil se resserre sur un chiffre de CI. Relever un second run sur `dev`, puis passer à 92 %.
+- Mesure (2026-10-15, 89a52efe, mesureur) : `gh run download 38700039987 -n couverture-api-clover` (run `schedule` sur `dev`, 53b3d2ee) puis `php bin/coverage-gate.php <clover> --min=86` → « Total: 93.1 % (38381 / 41218 lignes exécutables) … ✓ cliquet tenu » ; `.github/workflows/api-ci.yml:464` porte toujours `--min=86`. C'est le second chiffre de CI que la piste demandait, et il confirme celui de la PR (93,15 %). Le dernier run de `dev` (38711643375) n'a pas d'artefact de couverture : sauté par l'attestation (ADR-0063). Classement : V9, resserrer un seuil de garde revient au porteur.
 
 ### Le clover local est périmé et trompe qui le lit
 - Réf : P12.06
@@ -1661,7 +1665,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La policy du registre RGPD n'est jamais exécutée
 - Réf : P12.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PrivacyRequestPolicy.php:18,23,28,33`
 - Constat :
@@ -1670,18 +1674,20 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Un `return false` changé en `true` resterait vert.
   - Établi comment : mesuré.
 - Piste : un test unitaire de la policy par méthode.
+- Mesure (2026-10-15, 89a52efe, mesureur) : lu `PrivacyRequestPolicy.php:16-34` (quatre `return false`), appelée par `PrivacyRequestController.php:31,81` et `Store/UpdatePrivacyRequestRequest::authorize()` ; clover CI du run 38700039987 (`dev`, 53b3d2ee, aucun commit depuis sur la policy) → lignes 18, 23, 28, 33 à `count=0` ; `grep -rl PrivacyRequestPolicy tests` → seule `tests/impact-map.json`. Le constat tient : le super-admin passe par `Gate::before` et tout autre appelant est arrêté par le middleware `super-admin` avant la policy. Classement : A5, un test unitaire par méthode (refus pour un non-super-admin, accord du super-admin par `Gate::before`) sans toucher à l'autorisation.
 
 ### Le code de signature de bail envoyé par e-mail n'est jamais rendu
 - Réf : P12.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:41-48`
 - Constat : `toMail` est à 0 dans le clover CI, alors que le code OTP n'existe que là. Les tests figent la notification sans la rendre (mesuré).
 - Piste : rendre le mail et asserter qu'il contient le code.
+- Mesure (2026-10-15, 89a52efe, mesureur) : clover CI du run 38700039987 (`dev`, 53b3d2ee ; fichier inchangé depuis) → `LeaseSignatureCodeNotification::toMail` à `count=0` (lignes 41-48), `toSms` à 1 ; lu `toMail()` (`LeaseSignatureCodeNotification.php:39-49`) : le code n'y paraît qu'en `->line('**'.$code.'**')` ; les deux tests qui la citent (`LeaseSignatureTest.php`, `MobileClassEventsTest.php`) n'appellent pas `toMail`. Classement : A5, ajouter un test qui rend le mail et y cherche le code, sans changer le code de production.
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : une douzaine de tests à écrire, plus d'un ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
 - Constat :
@@ -1695,6 +1701,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Les deux gardes génériques (`codes-erreur-bff.test.ts`, `segments-amont.garde.test.ts`) n'éprouvent pas le chemin nominal.
   - Établi comment : mesuré, par un script qui résout les imports.
 - Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
+- Mesure (2026-10-15, 89a52efe, mesureur) : script node hors dépôt qui cherche, dans les `*.test.ts(x)` de `takussan-web/src`, un import de chaque action non remplacé par `vi.mock` → 15 actions sur 27 sans test : `account-deletion`, `agent-onboarding`, `auto-onboard`, `contact-preferences`, `invitations`, `kpis`, `locale`, `notification-preferences`, `notifications`, `onboarding`, `owner-onboarding`, `property-contacts`, `secondary-phone`, `service-provider-onboarding`, `super-admin-cooptation` ; `find src/app/api -name route.ts` → 36 handlers, et aucun `*.test.ts*` sous `data-exports/[id]/download`, `me/owner-profiles/[id]/kyc`, `admin-users`, `super-admin-properties`, `me/wizard-drafts`. Le décompte des 24 handlers n'est pas refait. La PR ouverte #421 touche `locale` et peut en couvrir une. Classement : V8, chaque test relève de A5, mais l'ensemble dépasse M et demande un découpage.
 
 ### Petites améliorations
 - Réf : P12.10
@@ -1751,11 +1758,12 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la piste écrit dans `release.sh` et tire le destinataire de l'environnement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
 - Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
 - Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
+- Mesure (2026-10-15, 89a52efe, mesureur) : lu `AlertRuleService::dispatchForActivity()` (`AlertRuleService.php:64-75`) → n'envoie que pour une ligne `alert_rules` active ; `grep -rln 'AlertRule\|alert_rules' database app/Console deploy docs/infra` → seule la migration `2026_05_07_000221_create_alert_rules_table.php`, aucun seeder, aucune commande, rien dans `deploy/`. L'état de la base de préproduction n'est pas mesuré : sortir du poste est interdit à ce rôle. Classement : V5, la piste touche au déploiement et à une variable d'environnement.
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
