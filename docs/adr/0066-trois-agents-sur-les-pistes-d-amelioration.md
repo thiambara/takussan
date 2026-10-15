@@ -126,12 +126,16 @@ d'implémenter.
    mesureur ne démarrent pas).
 2. **État de sa PR** : un agent a au plus une PR ouverte vers `pre-dev`.
    - Si elle est en attente, le passage s'arrête.
-   - Si elle est verte, elle est fusionnée seulement si le porteur l'a permis (§ « Questions
-     ouvertes »).
+   - Si elle est verte, elle est fusionnée seulement si le porteur l'a permis (§ « Décisions du
+     porteur », Q1). C'est d'ordinaire le fusionneur qui l'a déjà fusionnée (Q1 ci-dessous).
    - Si elle est rouge ou en conflit, le passage la répare. Après trois réparations, il abandonne
      et le dit.
-3. **Un arbre de travail dédié par rôle**, hors de l'arbre principal, remis à `origin/pre-dev` ou
-   à la branche à réparer. Ce qu'un passage interrompu y a laissé est sauvé dans le journal avant
+3. **Un arbre de travail dédié par rôle**, remis à `origin/pre-dev` ou à la branche à réparer.
+   Ces arbres sont des worktrees d'un **clone propre aux agents** (`~/.takussan-agents/depot`),
+   pas de l'arbre principal. Mesuré le 2026-10-15, au premier passage lancé par `launchd` : macOS
+   refuse à un job `launchd` la lecture de `~/Documents`, et la copie de `takussan-api/.env` a
+   échoué en « Operation not permitted ». Le même script, lancé d'un terminal, passait. Les `.env`
+   sont donc copiés par `installer`, depuis le terminal. Ce qu'un passage interrompu y a laissé est sauvé dans le journal avant
    la remise à zéro.
 4. **L'agent tourne en `claude -p`** :
    - les réglages de l'utilisateur ne sont pas chargés, ni greffon ni MCP ;
@@ -181,6 +185,18 @@ borne, même par une PR fusionnée.
 - **Q1 — Fusion dans `pre-dev` : (a).** Le script fusionne la PR d'un agent quand sa CI est
   verte (`FUSION=auto`). `pre-dev` est un tampon. La porte du porteur est la PR `pre-dev → dev`,
   ainsi que le statut `validé`.
+
+  La fusion a lieu **dès que la CI est verte**, par un quatrième job `launchd`, le fusionneur
+  (`pistes.sh fusionner`, toutes les 10 min) :
+  - il ne lance aucun modèle, donc ne coûte rien ;
+  - il ne fusionne que les PR ouvertes par le script : une branche `agents/*` étiquetée
+    `agent:*`, ou la PR `dev → pre-dev` étiquetée `agents:synchro`, et jamais avec
+    `--delete-branch` pour cette dernière ;
+  - une PR du porteur vers `pre-dev` n'est jamais touchée.
+
+  Ajouté le 2026-10-15, après le premier cycle : sans lui, une PR verte attendait le passage
+  suivant de son propre agent (jusqu'à 3 h pour l'explorateur). L'agent restait bloqué pendant ce
+  temps, puisqu'il n'a qu'une PR ouverte à la fois, et l'agent suivant ne voyait pas son travail.
 - **Q2 — Planification : `launchd` sur ce poste.**
   - L'explorateur passe toutes les 180 min, le mesureur toutes les 90 min, l'implémenteur toutes
     les 120 min.

@@ -14,11 +14,15 @@
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle> --a-blanc
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
+#   ~/.takussan-agents/outils/pistes.sh fusionner   # fusionne les PR vertes (launchd, toutes les 10 min)
 #   ~/.takussan-agents/outils/pistes.sh etat
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
+# launchd passe LANG=fr_FR.UTF-8 : sysctl écrirait alors la charge « 2,87 », qu'awk compare comme
+# du TEXTE (« 2,87 » > « 12 »). Mesuré le 2026-10-15 : tous les passages s'arrêtaient pour « charge ».
+export LC_NUMERIC=C
 
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
 ROLES="explorateur mesureur implementeur"
@@ -72,7 +76,24 @@ installer() {
   sha="$(git -C "$ici" rev-parse --short HEAD)"
   if [ -n "$(git -C "$ici" status --porcelain -- .)" ]; then sha="$sha+modifs"; fi
 
-  mkdir -p "$BASE/outils" "$BASE/arbres" "$BASE/sorties" "$BASE/verrous" "$BASE/etat" "$BASE/journaux"
+  mkdir -p "$BASE/outils" "$BASE/arbres" "$BASE/sorties" "$BASE/verrous" "$BASE/etat" "$BASE/journaux" "$BASE/env"
+
+  # Les agents travaillent dans LEUR clone, hors de ~/Documents, jamais dans des worktrees de l'arbre
+  # principal. Mesuré le 2026-10-15 au premier passage lancé par launchd : macOS refuse à un job
+  # launchd la lecture de ~/Documents (« Operation not permitted » sur takussan-api/.env), alors
+  # que le même script lancé d'un terminal passe. Un clone propre isole aussi les références des
+  # agents de celles du porteur.
+  if [ ! -d "$BASE/depot/.git" ]; then
+    git clone --quiet --no-checkout "https://github.com/$depot_gh.git" "$BASE/depot"
+  fi
+  git -C "$BASE/depot" config user.name "$(git -C "$depot" config user.name)"
+  git -C "$BASE/depot" config user.email "$(git -C "$depot" config user.email)"
+  git -C "$BASE/depot" fetch --quiet origin --prune
+  # Les .env se copient ICI, depuis le terminal qui y a accès : launchd ne les lirait pas.
+  # Un .env modifié dans l'arbre principal n'atteint les agents qu'à la réinstallation.
+  if [ -f "$depot/takussan-api/.env" ]; then cp "$depot/takussan-api/.env" "$BASE/env/takussan-api.env"; fi
+  if [ -f "$depot/takussan-web/.env.local" ]; then cp "$depot/takussan-web/.env.local" "$BASE/env/takussan-web.env.local"; fi
+  chmod 600 "$BASE"/env/* 2> /dev/null || true
   # Copies FIGÉES : un agent ne desserre pas, par son arbre ou par une PR fusionnée, la garde
   # qui le borne. Seule une réinstallation par le porteur les change.
   cp "$ici/garde.mjs" "$BASE/outils/garde.mjs"
@@ -88,8 +109,8 @@ installer() {
 
   {
     printf '# Écrit par « pistes.sh installer » le %s — ne pas éditer, réinstaller.\n' "$(date '+%Y-%m-%d %H:%M')"
-    printf 'DEPOT=%q\nCLAUDE_BIN=%q\nGH_REPO=%q\nPATH_LANCEMENT=%q\nOUTILS_SHA=%q\n' \
-      "$depot" "$claude_bin" "$depot_gh" "$PATH" "$sha"
+    printf 'DEPOT=%q\nCLONE=%q\nCLAUDE_BIN=%q\nGH_REPO=%q\nPATH_LANCEMENT=%q\nOUTILS_SHA=%q\n' \
+      "$depot" "$BASE/depot" "$claude_bin" "$depot_gh" "$PATH" "$sha"
   } > "$BASE/machine.env"
 
   if [ ! -f "$BASE/config.env" ]; then
@@ -131,26 +152,21 @@ CONFIG
 
 # ─── planification launchd ────────────────────────────────────────────────────────────────────
 
-planifier() {
-  charger_config
-  [ $# -eq 3 ] || die "usage : planifier <x> <y> <z>  (minutes : explorateur, mesureur, implementeur)"
-  local minutes role plist secondes uid
+# Pose (ou remplace) un job launchd : poser_job <nom> <secondes> <argument de pistes.sh>…
+poser_job() {
+  local nom="$1" secondes="$2" uid plist args="" a
+  shift 2
   uid="$(id -u)"
-  for role in $ROLES; do
-    minutes="$1"
-    shift
-    case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
-    [ "$minutes" -ge 10 ] || die "$role : 10 minutes au moins entre deux passages"
-    secondes=$((minutes * 60))
-    plist="$HOME/Library/LaunchAgents/$LAUNCHD.$role.plist"
-    cat > "$plist" << PLIST
+  for a in "$@"; do args="$args<string>$a</string>"; done
+  plist="$HOME/Library/LaunchAgents/$LAUNCHD.$nom.plist"
+  cat > "$plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>${LAUNCHD}.${role}</string>
+  <key>Label</key><string>${LAUNCHD}.${nom}</string>
   <key>ProgramArguments</key>
-  <array><string>/bin/bash</string><string>${BASE}/outils/pistes.sh</string><string>lancer</string><string>${role}</string></array>
+  <array><string>/bin/bash</string><string>${BASE}/outils/pistes.sh</string>${args}</array>
   <key>StartInterval</key><integer>${secondes}</integer>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
@@ -160,25 +176,84 @@ planifier() {
     <key>HOME</key><string>${HOME}</string>
     <key>LANG</key><string>fr_FR.UTF-8</string>
   </dict>
-  <key>StandardOutPath</key><string>${BASE}/journaux/launchd-${role}.log</string>
-  <key>StandardErrorPath</key><string>${BASE}/journaux/launchd-${role}.log</string>
+  <key>StandardOutPath</key><string>${BASE}/journaux/launchd-${nom}.log</string>
+  <key>StandardErrorPath</key><string>${BASE}/journaux/launchd-${nom}.log</string>
 </dict>
 </plist>
 PLIST
-    launchctl bootout "gui/$uid/$LAUNCHD.$role" 2> /dev/null || true
-    launchctl bootstrap "gui/$uid" "$plist"
+  launchctl bootout "gui/$uid/$LAUNCHD.$nom" 2> /dev/null || true
+  launchctl bootstrap "gui/$uid" "$plist"
+}
+
+planifier() {
+  charger_config
+  [ $# -eq 3 ] || die "usage : planifier <x> <y> <z>  (minutes : explorateur, mesureur, implementeur)"
+  local minutes role
+  for role in $ROLES; do
+    minutes="$1"
+    shift
+    case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
+    [ "$minutes" -ge 10 ] || die "$role : 10 minutes au moins entre deux passages"
+    poser_job "$role" $((minutes * 60)) lancer "$role"
     info "$role : toutes les $minutes min"
   done
+  poser_job fusionneur 600 fusionner
+  info "fusionneur : toutes les 10 min (sans modèle)"
 }
 
 deplanifier() {
-  local role uid
+  local job uid
   uid="$(id -u)"
-  for role in $ROLES; do
-    launchctl bootout "gui/$uid/$LAUNCHD.$role" 2> /dev/null || true
-    rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$role.plist"
+  for job in $ROLES fusionneur; do
+    launchctl bootout "gui/$uid/$LAUNCHD.$job" 2> /dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$job.plist"
   done
   info "déplanifié (les passages en cours finissent)"
+}
+
+# ─── fusionneur ───────────────────────────────────────────────────────────────────────────────
+
+# Fusionne dans pre-dev, DÈS que leur CI est verte et sans conflit, les PR des agents et la PR de
+# synchronisation dev → pre-dev. Aucun modèle : rien n'y décide, tout y est vérifié, et un passage
+# ne coûte rien. Sans lui, une PR verte attendait le passage suivant de SON agent (jusqu'à 3 h pour
+# l'explorateur), qui restait bloqué entre-temps (une PR ouverte par rôle). ADR-0066 § 4.
+fusionner() {
+  charger_config
+  if [ -e "$BASE/PAUSE" ] || [ "$FUSION" != auto ]; then return 0; fi
+  local verrou="$BASE/verrous/fusionneur" pid
+  if ! mkdir "$verrou" 2> /dev/null; then
+    pid="$(cat "$verrou/pid" 2> /dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; then return 0; fi
+    rm -rf "$verrou"
+    mkdir "$verrou"
+  fi
+  printf '%s' "$$" > "$verrou/pid"
+  # Chemin littéral : le trap court à la sortie du SCRIPT, quand la locale `verrou` n'existe plus.
+  trap 'rm -rf "$BASE/verrous/fusionneur"' EXIT
+
+  local lignes num tete mergeable etiquettes
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,headRefName,mergeable,labels \
+    --jq '.[] | "\(.number)\t\(.headRefName)\t\(.mergeable)\t\([.labels[].name] | join(","))"')"
+  [ -n "$lignes" ] || return 0
+  printf '%s\n' "$lignes" | while IFS=$'\t' read -r num tete mergeable etiquettes; do
+    # Seules les PR que le script a ouvertes : une PR du porteur vers pre-dev n'est jamais touchée.
+    case "$tete" in
+      agents/*) case ",$etiquettes," in *,agent:*) ;; *) continue ;; esac ;;
+      dev) case ",$etiquettes," in *,agents:synchro,*) ;; *) continue ;; esac ;;
+      *) continue ;;
+    esac
+    # UNKNOWN juste après une autre fusion : GitHub recalcule, le tour suivant tranchera.
+    [ "$mergeable" = MERGEABLE ] || continue
+    [ "$(etat_ci "$num")" = vert ] || continue
+    if [ "$tete" = dev ]; then
+      # Jamais --delete-branch ici : la tête de cette PR est dev.
+      GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null || continue
+    else
+      GH_REPO="$GH_REPO" gh pr merge "$num" --merge --delete-branch > /dev/null || continue
+    fi
+    info "#$num fusionnée dans pre-dev ($tete)"
+    printf '%s\tfusionneur\t-\tfusionne\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$tete" >> "$BASE/journal.tsv"
+  done
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -197,6 +272,9 @@ etat() {
       awk -F '\t' -v r="$role" '$2 == r' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'
     fi
   done
+  printf '\n%s\n' "── fusionneur"
+  if launchctl print "gui/$uid/$LAUNCHD.fusionneur" > /dev/null 2>&1; then echo "  planifié (launchd, 10 min)"; else echo "  non planifié"; fi
+  if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "fusionneur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
   GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,title,labels \
     --jq '.[] | "  #\(.number)  \(.title)"'
@@ -258,7 +336,7 @@ etat_ci() {
 # La PR dev → pre-dev, quand dev a des commits que pre-dev n'a pas. Une seule à la fois.
 synchroniser_pre_dev() {
   local retard num
-  retard="$(git -C "$DEPOT" rev-list --count "$BASE_REF"..origin/dev)"
+  retard="$(git -C "$CLONE" rev-list --count "$BASE_REF"..origin/dev)"
   [ "$retard" -gt 0 ] || return 0
   num="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --head dev --state open --json number --jq '.[0].number // empty')"
   if [ -z "$num" ]; then
@@ -271,21 +349,21 @@ synchroniser_pre_dev() {
   elif [ "$FUSION" = auto ] && [ "$(etat_ci "$num")" = vert ]; then
     if GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null 2>&1; then
       info "synchronisation #$num fusionnée"
-      git -C "$DEPOT" fetch origin --prune --quiet
+      git -C "$CLONE" fetch origin --prune --quiet
     fi
   fi
 }
 
 recuperer() {
-  git -C "$DEPOT" fetch origin --prune --quiet
-  git -C "$DEPOT" rev-parse --verify --quiet "$BASE_REF" > /dev/null || die "$BASE_REF n'existe pas"
+  git -C "$CLONE" fetch origin --prune --quiet
+  git -C "$CLONE" rev-parse --verify --quiet "$BASE_REF" > /dev/null || die "$BASE_REF n'existe pas"
   if [ "$A_BLANC" -eq 0 ]; then synchroniser_pre_dev; fi
 }
 
 preparer_arbre() {
   local arbre="$1" branche="$2" depart="$3" sortie="$4"
   if [ ! -d "$arbre" ]; then
-    git -C "$DEPOT" worktree add --quiet --detach "$arbre" "$depart"
+    git -C "$CLONE" worktree add --quiet --detach "$arbre" "$depart"
   fi
   # Ce qu'un passage interrompu a laissé se sauve avant la remise à zéro, jamais ne se perd.
   if [ -n "$(git -C "$arbre" status --porcelain)" ]; then
@@ -297,8 +375,8 @@ preparer_arbre() {
   git -C "$arbre" clean -fdq
   git -C "$arbre" switch --quiet --force-create "$branche" "$depart"
   # Les branches locales d'agent restées d'un passage refusé : leur correctif est dans leur sortie.
-  git -C "$DEPOT" for-each-ref --format='%(refname:short)' "refs/heads/agents/$ROLE/" | while read -r b; do
-    [ "$b" = "$branche" ] || git -C "$DEPOT" branch -D --quiet "$b" 2> /dev/null || true
+  git -C "$CLONE" for-each-ref --format='%(refname:short)' "refs/heads/agents/$ROLE/" | while read -r b; do
+    [ "$b" = "$branche" ] || git -C "$CLONE" branch -D --quiet "$b" 2> /dev/null || true
   done
 }
 
@@ -314,11 +392,9 @@ installer_dependances() {
     (cd "$arbre/takussan-web" && npm ci --silent --no-audit --no-fund)
     printf '%s' "$h" > "$BASE/etat/npm-$ROLE"
   fi
-  # Copies, jamais de lien : un lien ferait lire à l'arbre de l'agent l'état de l'arbre principal.
-  local f
-  for f in takussan-api/.env takussan-web/.env.local; do
-    if [ -f "$DEPOT/$f" ]; then cp -p "$DEPOT/$f" "$arbre/$f"; fi
-  done
+  # Copies posées par « installer », jamais de lien vers l'arbre principal (illisible sous launchd).
+  if [ -f "$BASE/env/takussan-api.env" ]; then cp "$BASE/env/takussan-api.env" "$arbre/takussan-api/.env"; fi
+  if [ -f "$BASE/env/takussan-web.env.local" ]; then cp "$BASE/env/takussan-web.env.local" "$arbre/takussan-web/.env.local"; fi
 }
 
 # Lance claude sous une durée bornée ; à l'échéance, TOUT le groupe de processus est tué (les
@@ -351,7 +427,7 @@ verifier() {
     return 1
   fi
   # La garde de périmètre jouée est celle d'origin/pre-dev, pas celle de la branche de l'agent.
-  git -C "$DEPOT" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
+  git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
   if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role "$ROLE" --base "$BASE_REF") > "$sortie/verif-pistes.txt" 2>&1; then
     info "✗ check-pistes --role $ROLE (verif-pistes.txt)"
     echecs=$((echecs + 1))
@@ -408,7 +484,7 @@ lancer() {
   trap 'rm -rf "$verrou"; journaliser' EXIT
 
   local charge max
-  charge="$(sysctl -n vm.loadavg | awk '{print $3}')"
+  charge="$(sysctl -n vm.loadavg | awk '{print $3}' | tr ',' '.')"
   max="${CHARGE_MAX:-$(($(sysctl -n hw.ncpu) * 3 / 2))}"
   if awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
 
@@ -430,7 +506,10 @@ lancer() {
     if [ "$ci" = vert ] && [ "$conflit" = non ]; then
       if [ "$FUSION" != auto ]; then fin attente "PR #$PR verte, en attente de fusion par le porteur"; fi
       if [ "$A_BLANC" -eq 1 ]; then fin a-blanc "aurait fusionné la PR #$PR"; fi
-      GH_REPO="$GH_REPO" gh pr merge "$PR" --merge --delete-branch > /dev/null
+      if ! GH_REPO="$GH_REPO" gh pr merge "$PR" --merge --delete-branch > /dev/null 2>&1; then
+        # Le fusionneur a pu passer entre-temps.
+        [ "$(GH_REPO="$GH_REPO" gh pr view "$PR" --json state --jq .state)" = MERGED ] || die "fusion de la PR #$PR refusée"
+      fi
       info "PR #$PR fusionnée dans pre-dev"
       PR=""
       avec_verrou_git recuperer
@@ -453,7 +532,7 @@ lancer() {
   avec_verrou_git preparer_arbre "$arbre" "$branche" "$depart" "$sortie"
   installer_dependances "$arbre"
   local sha_pre_dev
-  sha_pre_dev="$(git -C "$DEPOT" rev-parse --short "$BASE_REF")"
+  sha_pre_dev="$(git -C "$CLONE" rev-parse --short "$BASE_REF")"
 
   # 4. L'agent.
   local message autres
@@ -538,7 +617,8 @@ case "${1:-}" in
     lancer "${2:-}"
     ;;
   etat) etat ;;
+  fusionner) fusionner ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
