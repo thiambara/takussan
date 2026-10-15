@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**596 tickets** — 45 ouverts, 549 livrés.
+**597 tickets** — 45 ouverts, 550 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 549 |
+| ✅ Done | 550 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 549
+## ✅ Done — 550
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 36 tickets</summary>
+<summary><strong>Sans vague</strong> — 37 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1053,6 +1053,7 @@ _(aucun)_
 - [TCK-639](tickets/TCK-639-registre-de-credits-trigger-strict-et-cles-indexees.md) — Registre de crédits : un mouvement ne se modifie que par l'action d'une clé étrangère, et les clés de TCK-633 sont indexées `S · P2 · back`
 - [TCK-640](tickets/TCK-640-lignes-globales-uniques-et-relations-executees.md) — Une clé de plateforme et une intégration globale sont uniques en base, et chaque relation de modèle s'exécute contre le schéma `S · P2 · back`
 - [TCK-652](tickets/TCK-652-suggestions-limite-par-visiteur.md) — Suggestions de recherche : limite de débit par visiteur `S · P2 · bug`
+- [TCK-653](tickets/TCK-653-membres-agence-sans-n-plus-un.md) — Liste des membres d'agence : plus de requêtes par ligne `S · P2 · bug`
 
 </details>
 

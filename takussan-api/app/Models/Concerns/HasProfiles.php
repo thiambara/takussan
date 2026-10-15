@@ -35,6 +35,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 trait HasProfiles
 {
+    /**
+     * TCK-492 — les statuts d'un bail EN COURS pour le rôle dérivé `tenant` (voir
+     * {@see self::hasActiveTenantLease()}). Constante pour que le préchargement de
+     * `tenantLeases` (TCK-653, liste des membres) filtre exactement comme la requête.
+     */
+    public const ACTIVE_TENANT_LEASE_STATUSES = [LeaseStatus::Active->value, LeaseStatus::Terminating->value];
+
     public function ownerProfiles(): HasMany
     {
         return $this->hasMany(OwnerProfile::class);
@@ -232,18 +239,20 @@ trait HasProfiles
         if ($this->hasActiveSuperAdminProfile()) {
             $types->push('super_admin');
         }
-        if ($this->agencyAdminProfiles()->exists()) {
+        // TCK-653 — chaque test relit la relation quand elle est préchargée, comme
+        // `profiles()` : sans quoi une liste de N utilisateurs émet 5N `exists()`.
+        if ($this->profileRelationExists('agencyAdminProfiles')) {
             $types->push('agency_admin');
         }
-        if ($this->agentProfiles()->exists()) {
+        if ($this->profileRelationExists('agentProfiles')) {
             $types->push('agent');
         }
-        if ($this->ownerProfiles()->exists()) {
+        if ($this->profileRelationExists('ownerProfiles')) {
             $types->push('owner');
         }
         // Le courtier n'est plus un profil (ADR-0030) : `roles` ne nomme que
         // ce à quoi `buildNavItems` côté front associe une entrée de menu.
-        if ($this->serviceProviderProfile()->exists()) {
+        if ($this->profileRelationExists('serviceProviderProfile')) {
             $types->push('service_provider');
         }
 
@@ -280,6 +289,14 @@ trait HasProfiles
      */
     public function hasActiveTenantLease(): bool
     {
+        // TCK-653 — préchargée (liste des membres), la relation se filtre en mémoire, sur les
+        // mêmes statuts : le préchargement peut l'avoir déjà restreinte, ou non.
+        if ($this->relationLoaded('tenantLeases')) {
+            return $this->tenantLeases->contains(
+                fn ($lease) => in_array($lease->status?->value, self::ACTIVE_TENANT_LEASE_STATUSES, true),
+            );
+        }
+
         // ⚠ `leases.status` QUALIFIÉ, jamais `status` nu : `tenantLeases()` est
         // un `hasManyThrough` qui joint `customers`, et cette table porte elle
         // aussi une colonne `status`. PostgreSQL REFUSE l'ambiguïté au lieu de
@@ -287,8 +304,23 @@ trait HasProfiles
         // de CLAUDE.md) — ici la requête aurait filtré sur le statut du dossier
         // client, ou n'aurait pas tourné du tout.
         return $this->tenantLeases()
-            ->whereIn('leases.status', [LeaseStatus::Active->value, LeaseStatus::Terminating->value])
+            ->whereIn('leases.status', self::ACTIVE_TENANT_LEASE_STATUSES)
             ->exists();
+    }
+
+    /**
+     * TCK-653 — la relation de profil `$relation` a-t-elle au moins une ligne ? Relit la
+     * relation préchargée quand elle l'est, sinon émet un `exists()`.
+     */
+    private function profileRelationExists(string $relation): bool
+    {
+        if (! $this->relationLoaded($relation)) {
+            return $this->{$relation}()->exists();
+        }
+
+        $loaded = $this->getRelation($relation);
+
+        return $loaded instanceof Collection ? $loaded->isNotEmpty() : $loaded !== null;
     }
 
     /**
