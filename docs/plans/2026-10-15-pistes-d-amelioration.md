@@ -22,7 +22,7 @@ amélioration.
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | fait |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | fait |
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | fait |
-| 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | en cours |
+| 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | fait |
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | à faire |
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | à faire |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | à faire |
@@ -46,6 +46,8 @@ amélioration.
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
+| 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | à faire |
+| 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
 
 ---
 
@@ -756,3 +758,88 @@ Sain (vérifié par l'agent) :
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
 - Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
+
+## Angle 8 — Parcours sur téléphone
+
+*Exploré le 2026-10-15 vers 1 h 35, par lecture et comptage ; aucun rendu réel. Les deux premiers
+🔴 ont été relus contre le code par la session, y compris dans le code de Next.*
+
+Sain (vérifié par l'agent) :
+- `tel:`, WhatsApp et `navigator.share` sont présents ;
+- les cartes Leaflet sont chargées en différé ;
+- les actions au survol sont gardées par `pointer-fine:` ;
+- les coques sont en `h-dvh` ;
+- l'authentification pose ses `autoComplete`.
+
+### Les photos d'un bien partent par une server action plafonnée à 1 Mo
+- Gravité : 🔴 défaut avéré (un envoi réel reste à rejouer)
+- Où : `takussan-web/next.config.ts` (pas de clé `serverActions`), `takussan-web/src/app/actions/dashboard-properties.ts:243`, `takussan-web/src/components/property-form/PropertyWizard.tsx:325-329`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:71`
+- Constat :
+  - Sans `serverActions.bodySizeLimit`, Next refuse tout corps de server action au-delà de 1 Mo (`node_modules/next/dist/server/app-render/action-handler.js:517-519`, relu par la session). Le multipart est concerné.
+  - Le wizard met toutes les photos dans un seul `FormData`, alors qu'une seule photo réduite pèse 1 446 048 o (mesure de TCK-542, qui dit n'avoir « rejoué aucun envoi réel vers l'API »).
+  - Même plafond pour `dashboard-customers.ts:175` (documents) et `admin-agency.ts:110`.
+  - `MediaManager.tsx:172-190` simule la progression jusqu'à 85 %, puis tout tombe d'un coup.
+- Piste : une photo par requête, par route handler BFF ou directement vers l'API, avec une vraie progression (XHR) et une reprise par fichier. Relever `bodySizeLimit` seul ne règle pas le réseau lent.
+
+### Les dialogues n'ont ni hauteur maximale ni défilement
+- Gravité : 🔴 défaut avéré (rendu à vérifier)
+- Où : `takussan-web/src/components/ui/dialog.tsx:58`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:172`
+- Constat :
+  - La primitive est `fixed top-1/2 -translate-y-1/2`, sans `max-h` ni `overflow-y-auto` (relu). Seuls 3 `DialogContent` sur 75 l'ajoutent.
+  - Le dialogue de visite empile la date, 20 créneaux en 5 rangées, quatre champs et le bouton : environ 640 px estimés. Sur un 360×640, le titre et « Envoyer » sortent de l'écran, et le verrou de défilement interdit d'y aller.
+  - Même risque pour `CreateInvoiceDialog`, `InviteAgentDialog` et `GuarantorSection` (comptage).
+- Piste : `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive, ou un pied collant ; une feuille du bas sous `sm`.
+
+### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
+- Gravité : 🔴 défaut avéré — même famille que « Restitution de caution » à l'angle 4
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:233,243,253`, `LeasePaymentDialog.tsx:92`, `DepositRefundModal.tsx:172`, `bookings/BookingPaymentDialog.tsx:91`, `payments/CreateInvoiceDialog.tsx:227`
+- Constat : `FormInput` transmet `step` (`components/forms/FormInput.tsx:90`), et aucun de ces 5 formulaires n'a `noValidate`. Un loyer de 75 500 ou un paiement de 12 350 sont refusés avant `onSubmit` (lu).
+- Piste : retirer `step` (zod valide déjà), ou poser `noValidate`. À traiter avec l'angle 4, en un seul ticket.
+
+### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/layout.tsx` (pas d'export `viewport`) ; 9 usages d'`env(safe-area-inset-bottom)`, dont `home/Navbar.tsx:676,811,855`, `search/FilterSidebar.tsx:1099`, `wizard/WizardShell.tsx:99`
+- Constat : `viewport-fit` est absent de `src/`, donc iOS rend `env(safe-area-*)` à 0. TCK-477 garde le consommateur, pas le viewport (mesuré ; iPhone réel à vérifier).
+- Piste : `export const viewport = { viewportFit: 'cover' }`, puis relire les en-têtes fixes en paysage.
+
+### Brouillons : les photos ne sont jamais sauvées, rien n'est gardé hors ligne
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property-form/PropertyWizard.tsx:240,465-470`, `takussan-web/src/hooks/useWizardDraft.ts:166-188`
+- Constat :
+  - Les photos ne vivent qu'en mémoire : un onglet tué par Android pendant l'appareil photo les perd.
+  - L'autosave fait un `PUT` serveur sans copie locale, et sans relance au retour du réseau (aucun `online` ni `offline` dans `src/`, mesuré).
+- Piste : une copie IndexedDB (valeurs et `File`) et une relance sur `online`.
+
+### Les formulaires longs hors wizard n'ont aucun brouillon
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
+- Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
+- Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
+
+### Des tableaux sans alternative en cartes, l'action en dernière colonne
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/console/DataTable.tsx:140`, `owners/OwnersList.tsx:209-230`, `service-providers/ServiceProvidersList.tsx:163,223`, `commissions/CommissionsLedger.tsx:126,212`, `payments/InvoicesTable.tsx:74,99-106`
+- Constat : sur 32 consommateurs de `DataTable`, seuls `CustomerList` et `PropertyList` ont une liste mobile. Ailleurs, l'action ne s'atteint qu'après un défilement horizontal (mesuré).
+- Piste : une option `carteMobile` dans `DataTable`, ou la ligne cliquable avec l'action en tête.
+
+### Barres d'onglets sans défilement
+- Gravité : 🟠 risque ou dette (à vérifier)
+- Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
+- Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
+- Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
+
+### Zoom iOS sur des champs faits main en `text-sm`
+- Gravité : 🟠 risque ou dette
+- Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
+- Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
+- Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Où et constat (lu ou mesuré) :
+  - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
+  - `CreateLeaseForm.tsx:229-253` : `type="number"` sans `inputMode` ;
+  - `ui/sheet.tsx:102` : `max-h-[90vh]`, alors que `PropertyListFilters.tsx:395` corrige déjà en `88dvh` ;
+  - fiches publiques de bien, d'agence et d'agent sans `loading.tsx` : ce sont les pages ouvertes depuis WhatsApp ;
+  - `capture` absent de l'état des lieux et des photos du bien (`InventoryDetail.tsx:263`, `StepPhotos.tsx:31`).
+- Piste : `PhoneInput`, `FormAmountInput`, `90dvh` dans la primitive, des squelettes de chargement, et un second bouton « Prendre une photo » avec `capture="environment"`.
