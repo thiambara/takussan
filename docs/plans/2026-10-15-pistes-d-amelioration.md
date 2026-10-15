@@ -1255,19 +1255,21 @@ Correct (mesuré ou lu) :
 
 ### Tout le site public est rendu de façon dynamique
 - Réf : P09.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 et V8 : sortir la session de la mise en page racine est une décision d'architecture, sur plusieurs tickets
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:67`
 - Constat : le layout racine lit `cookies()`, ce qui rend toute page publique dynamique, sans cache HTML. Chaque passage de robot refait le rendu complet (lu ; build courant à vérifier).
 - Piste : sortir la session du rendu serveur de la coque publique, puis de l'ISR avec `revalidate` et des tags sur les fiches et les facettes.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `takussan-web/src/app/layout.tsx:66-80` (inchangé, l. 67 : `await cookies()`, puis `getMe()` quand un jeton ou une impersonation est présent) ; `npx next build` sur cet arbre (6 min 15, sortie 0) → **toutes** les pages de `[locale]` sont `ƒ (Dynamic)`, `/[locale]`, `/[locale]/properties` et `/[locale]/properties/[slug]` compris, et seuls `apple-icon.png`, `icon.svg`, `manifest.webmanifest`, `robots.txt` et `sitemap.xml` sont `○ (Static)`. Le constat tient pour le HTML. TCK-598 (done) a depuis mis en cache les **données** de la fiche (`public-property.ts:88`, `revalidate` et étiquette par slug) et des facettes (`facettes.ts:52,112,147`), et écrit que « l'ISR du HTML reste hors périmètre : c'est une limite d'architecture (la mise en page racine lit le cookie) ». Le robot repaie donc le rendu, pas l'appel de la fiche. Classement : V6 et V8, déplacer la session hors de la coque publique touche l'authentification de toutes les pages et TCK-598 l'a déjà renvoyé à une décision d'architecture.
 
 ### La bascule fera répondre 307 aux URL non préfixées déjà indexées
 - Réf : P09.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : revenir sur le 307 revient sur ADR-0026 § 3
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/proxy.ts:161`
 - Constat : le 307 avec `Vary: Cookie, Accept-Language` est délibéré (ADR-0026). Mais la production sert aujourd'hui `/properties` sans préfixe : tout l'index actuel passera par une redirection temporaire, et Googlebot finira sur `/fr` (mesuré, lu).
 - Piste : le décider dans le plan de bascule, par exemple une 308 pour les robots, ou accepter le délai explicitement.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `takussan-web/src/proxy.ts:153-162` (inchangé : `NextResponse.redirect(url, 307)` puis `Vary: Cookie, Accept-Language`) et ADR-0026 § 3 et « Ce que ça coûte », qui écrit déjà le prix de la bascule (« des signaux d'indexation à reconstruire ») sans parler du plan de bascule ; `grep -rn '307\|308' docs/backlog/tickets/TCK-517*` → vide : le plan de bascule ne tranche pas la question. La production n'a pas été mesurée (sortir du poste est interdit au mesureur) : « la production sert `/properties` sans préfixe » reste à vérifier. Classement : V6, toute réponse autre qu'« accepter le délai » (308 pour les robots, par exemple) revient sur une décision d'ADR, et l'accepter est une décision du porteur.
 
 ### Petites améliorations
 - Réf : P09.08
@@ -1323,7 +1325,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
 - Réf : P10.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V7 : bornes de Caddy et de PHP, et nouvelle façon d'envoyer un lot
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/media/MediaManager.tsx:78-79`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:70`, `takussan-api/docker/Caddyfile:22-31`, `takussan-api/docker/php.ini:5-6`, `takussan-api/config/media-library.php:55`
 - Constat : l'interface annonce 20 fichiers de 10 Mo et les envoie en une seule requête. Côté API, les couches se succèdent ainsi :
@@ -1335,10 +1337,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   Même réduites à 2560 px (environ 1 à 2 Mo chacune, estimé), 20 photos dépassent 25 MiB et reçoivent un 413 sans corps JSON. Le proxy Traefik n'a pas été mesuré.
   Établi comment : lu ; la valeur par défaut de `max_file_uploads` est mesurée en local.
 - Piste : une requête par photo, ou des paquets bornés à moins de 25 MiB. Fixer `max_file_uploads` explicitement et ajouter `photos` `max:20`.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaManager.tsx:78-79` (`DEFAULT_MAX_SIZE` 10 Mo, `DEFAULT_MAX_FILES` 20), `PropertyMediaPanel.tsx:69-71` (tout le lot dans une seule `FormData`, envoyée à `uploadPropertyPhotosAction`), `dashboard-properties.ts:243-256` puis `properties-server.ts:309-322` (une seule requête `photos[]` vers l'API), `docker/Caddyfile` (`request_body max_size 25MiB`, et 413 sur `Content-Length` > 26214400), `docker/php.ini` (`upload_max_filesize 25M`, `post_max_size 26M`, `max_file_uploads` non fixé), `StorePropertyMediaRequest.php:36` (`photos` : `required`, `array`, sans `max`) ; mesuré `ini_get('max_file_uploads')` en CLI → `20`. Les couches de l'API sont telles que décrites. Le lot n'atteint d'ailleurs pas l'API au-delà de 1 Mo : il passe d'abord par une server action sans `serverActions.bodySizeLimit` (`node_modules/next/dist/server/app-render/action-handler.js:517-519`, 413 « Body exceeded 1 MB »), ce que porte déjà P08.01. Classement : V5 et V7, fixer `max_file_uploads` touche `takussan-api/docker/`, et découper l'envoi change le comportement de l'écran ; à traiter avec P08.01, qui choisit la voie d'envoi.
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : quelles données d'un bien supprimé on garde, et combien de temps
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1349,10 +1352,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - La commande fait une requête par média, sur tout le parc, chaque nuit.
   - Établi comment : lu.
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaCleanup.php:23-60` (inchangé depuis TCK-050, `git log` : 2 commits ; `isOrphan()` fait `$type::query()->whereKey($id)->exists()`, et son commentaire dit « soft-deleted targets count as orphans (per ticket spec) », ce que TCK-050 écrit l. 96) et `routes/console.php:67` (`dailyAt('03:00')`) ; test Feature temporaire (retiré) : un `Property` avec une photo datée de 2 jours, supprimé en douceur, puis `media:cleanup` → **0** média restant, en 3 requêtes pour un média. `Lease` porte déjà `SoftDeletes` (`Lease.php:28`) : le constat dit « le jour où un bail serait supprimé en douceur », mais aucun `->delete()` de bail n'a été trouvé dans `app/` (grep), donc le chemin reste théorique pour les baux. La requête par média tient (une `exists()` par ligne, lu). Classement : V3, garder les médias d'un bien supprimé, et pour combien de temps, est un choix de conservation qui contredit la règle écrite par TCK-050.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : métadonnées personnelles publiées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
 - Constat :
@@ -1361,10 +1365,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Les photos de bien ne fuient pas : l'original est privé, et les conversions GD ne recopient pas l'EXIF.
   - Établi comment : lu.
 - Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `User.php:404` (collection `avatar` sur le disque public), `AuthController.php:209-213` (`addMediaFromRequest('avatar')`, aucun traitement), `UserResource.php:37` (`getFirstMediaUrl('avatar')`, l'original), et les mêmes URL d'original dans `PublicAgentController.php:180`, `PublicPropertyController.php:1066`, `PropertyResource.php:411` ; test Feature temporaire (retiré) : un JPEG portant un segment EXIF avec `GPSLatitudeRef = N`, envoyé à `PUT /api/auth/profile` → 200, média sur le disque `public`, URL `/storage/1/selfie.jpg`, et `exif_read_data` du fichier stocké rend toujours `GPSLatitudeRef = "N"`. Les trois conversions (`full`, `preview`, `thumbnail`) sont produites et rien ne les sert. Le front ne réencode que l'image au-delà de 2 560 px (`reduire-photo.ts:1-22`). Classement : V3, la piste change ce qui est exposé d'une donnée personnelle, et le choix entre conversion servie et retrait de l'EXIF reste ouvert.
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser le HEIC ou le convertir est un choix de comportement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1375,18 +1380,20 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Le SVG est refusé partout.
   - Établi comment : lu.
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `UploadRoomPhotosInventoryRequest.php:39` (`required`, `image`, `max:5120`), `UpdateProfileRequest.php:50` (`nullable`, `image`, `max:2048`), `vendor/…/ValidatesAttributes.php:1533` (`heic`, `heif` dans la liste de `image`), `PdfImageEmbedder.php:30,108-116` (rend `null` hors jpeg, png, webp, gif) ; mesuré `function_exists('imagecreatefromheif')` → `false` et `gd_info()` sans prise en charge HEIF ; HEIC réel produit par `sips -s format heic` (finfo : `image/heic`), puis test Feature temporaire (retiré) : la règle de l'état des lieux **passe**, et `PUT /api/auth/profile` avec ce fichier → 200, média `image/heic` sur le disque public, `generated_conversions` vide, `avatar_url` = l'original `.heic`. L'absence au PDF de l'état des lieux est déduite de `PdfImageEmbedder::encode`, non rejouée. Classement : V7, la piste laisse ouvert le choix entre refuser le HEIC (`mimes:`) et le convertir à l'entrée, et un refus change ce qu'un utilisateur de l'API peut envoyer.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V9 : choisir lequel des deux plafonds de taille fait foi
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
 - Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
 - Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaUploadRequest.php:16` et `GenericMediaUploadRequest.php:19` (`MAX_DOCUMENT_KB = 25 * 1024`), `config/media-library.php:55` (`max_file_size` 10 Mo) ; `grep -rn 'FileIsTooBig\|FileCannotBeAdded' app bootstrap config` → vide ; test Feature temporaire (retiré) : un PDF réel de 15 Mo, collection `documents`, sur `POST /api/media` et sur `POST /api/media/upload` → **500** sur les deux, message de Spatie « has a size of 15 MB which is greater than the maximum ». Le seul appelant du front (`agencies.ts:144`) envoie un logo, pas un document. Classement : V9, aligner les plafonds demande de choisir entre baisser la validation à 10 Mo et monter le plafond global de Spatie à 25 Mo, qui vaut pour toutes les collections ; la traduction de `FileCannotBeAdded` en 422, seule, serait A1.
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
 - Réf : P10.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
 - Constat :
@@ -1395,6 +1402,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - `HasMediaConversions` produit trois conversions pour chaque image de `User`, avatar compris, sans que rien ne les serve : des écritures R2 de classe A pour rien.
   - Établi comment : lu.
 - Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
+- Mesure (2026-10-15, 77c482e1, mesureur) : relu `routes/api/media.php:12-14` (route `media.upload`, `throttle:30,1`) et `MediaController.php:70-93` (attache le fichier à l'appelant, collection `photos` par défaut) ; `grep -rn 'media/upload\|media.upload' takussan-web/src takussan-api/app takussan-api/routes` → aucun appelant (seul un commentaire de `User.php:403`) ; seuls `tests/Feature/Media/MediaGenericUploadTest.php` et `MediaDiskPrivatePhotosTest.php` l'appellent ; aucune lecture de `User.photos` ni de `User.documents` dans `app/` (grep). Les trois conversions sur chaque image de `User`, avatar compris, sont mesurées sous P10.05 (`generated_conversions` = `full`, `preview`, `thumbnail`), et aucune ressource ne sert une conversion d'avatar (grep `getFirstMediaUrl('avatar'` : l'original partout). La route avait été demandée par TCK-016, sans écran pour l'appeler, et `docs/features.md` ne la cite pas. Classement : A3 pour le seul retrait de la route sans appelant ; la partie « conversions » est laissée à P10.05, qui choisit ce que l'avatar sert.
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
