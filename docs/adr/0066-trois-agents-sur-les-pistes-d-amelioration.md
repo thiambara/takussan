@@ -78,6 +78,18 @@ Les transitions permises par rôle, les chemins qu'un rôle peut toucher et la f
 [`scripts/check-pistes.mjs`](../../scripts/check-pistes.mjs), qui fait foi. Pour valider une
 piste, le porteur passe sa ligne `Statut` à `validé` sur `pre-dev`, par un commit direct ou une PR.
 
+**Ce que `validé` accorde** (précisé le 2026-10-15, avant toute première validation) :
+- **le critère V que cite le dernier classement de la piste**, et lui seul. L'implémenteur ne
+  reclasse plus pour ce critère, mais il reclasse pour un autre ;
+- **le choix que décrit la précision** `validé — …`. Le ticket la recopie mot pour mot, et
+  `check-pistes.mjs` le vérifie au passage à `fait`. Sans précision, c'est l'option unique de la
+  `Piste` qui est accordée ; si la `Piste` en propose plusieurs, la piste revient au porteur ;
+- **aucun chemin** : une piste dont le correctif passe par un chemin fermé à l'implémenteur
+  (V5, V6, V9) revient au porteur (`retenu · à valider — chemin fermé : …`), qui la traite
+  lui-même.
+
+Une piste `validé` ne revient jamais au porteur sans raison écrite : la garde le refuse.
+
 ### 3. Ce que le mesureur peut classer « autonome »
 
 **Le doute classe « à valider ».** Une entrée est `retenu · autonome` seulement si elle relève
@@ -114,7 +126,8 @@ d'un critère A et ne touche aucun critère V.
 - **V9** — Seuil d'une garde (couverture, budgets, plafonds) ou instructions et gardes des agents.
 
 Le mesureur cite le critère dans sa ligne `Mesure` (« Classement : A2, … »). L'implémenteur
-re-mesure avant de coder. S'il découvre un critère V, il reclasse en `retenu · à valider` au lieu
+re-mesure avant de coder. S'il découvre un critère V (pour une piste `validé` : un critère autre
+que celui accordé, § 2), il reclasse en `retenu · à valider` au lieu
 d'implémenter.
 
 ### 4. Le passage : l'agent propose, `pistes.sh` vérifie et publie
@@ -204,6 +217,11 @@ borne, même par une PR fusionnée.
     l'explorateur, 15 pour le mesureur et 15 pour l'implémenteur. Attendre ne coûte rien : un
     passage dont la PR est ouverte, ou qui n'a rien à faire, s'arrête avant de lancer le modèle.
     Le rythme réel est borné par le cycle passage → CI → fusionneur, pas par l'intervalle.
+  - Le mesureur est passé à 30 min le même jour : ses tests, joués en même temps que ceux de
+    l'implémenteur, portaient la charge à 18 sur 8 cœurs. Un passage de l'implémenteur a pris
+    4 628 s sur un plafond de 5 400 s, alors que le mesureur avait déjà 28 pistes d'avance.
+  - Une cadence seule se change sur le plist du job concerné, au repos. `planifier` retire et
+    repose les trois jobs à la fois.
   - L'implémenteur a besoin de PostgreSQL et de Meilisearch locaux.
   - ⚠ **Les agents dorment avec le Mac.** Selon `man launchd.plist` (`StartInterval`), un
     lancement qui tombe pendant la veille est sauté. Capot fermé, rien ne tourne, et la reprise se

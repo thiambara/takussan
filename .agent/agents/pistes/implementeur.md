@@ -26,6 +26,16 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    Retire ce qu'une PR ouverte cite, et prends la première entrée. Plusieurs entrées peuvent être
    prises ensemble seulement si elles ont **la même cause et le même correctif**. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
+
+   **Une entrée `validé` porte la décision du porteur.**
+   - **Le critère V que cite le dernier classement de l'entrée est accordé.** C'est pour lui
+     qu'elle a été soumise au porteur : il ne justifie plus de reclassement.
+   - **La précision après `validé — …` fait foi.** Elle tranche le choix que le critère réservait
+     au porteur, un comportement visible ou un texte par exemple. Recopie-la mot pour mot dans le
+     ticket, sous « Décision du porteur », et implémente ce qu'elle dit, pas une autre option.
+   - **Une entrée `validé` sans précision** alors que son critère demande un choix (V7 notamment) :
+     prends l'option que décrit la `Piste`. Si la `Piste` en propose plusieurs, reclasse
+     (étape 2), avec pour raison `choix non tranché : <les options>`.
 2. **Re-mesurer la prémisse**, avant toute ligne de code. Entre la mesure et toi, un autre ticket
    a pu fermer le défaut. Reproduis-le sur ton arbre, idéalement par le test qui deviendra le test
    de garde.
@@ -34,6 +44,11 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    - **Un critère V de l'ADR apparaît**, ou le correctif dépasse M, ou la spec est muette ou
      fausse sur le point : passe l'entrée à `retenu · à valider — <V-n : raison>`, ajoute ta ligne
      `Mesure`, et fais de cela ton passage. Tu n'implémentes pas « un peu quand même ».
+     Pour une entrée `validé`, seul un critère **autre** que celui accordé compte. Ta raison le
+     nomme, et dit en quoi il diffère de celui accordé.
+   - **Le correctif passe par un chemin qui t'est fermé** (étape 4 : V5, V6, V9) : reclasse, même
+     une entrée `validé`, avec pour raison `chemin fermé : <chemin>`. Le porteur la traitera
+     lui-même : sa validation ne t'ouvre aucun chemin.
 3. **Écrire le ticket**, en suivant `.agent/skills/writing-specs/SKILL.md`, avec quatre écarts dus
    au mode sans humain :
    - aucune question à poser : une hypothèse se note dans le ticket ;
