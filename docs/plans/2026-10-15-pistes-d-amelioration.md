@@ -180,7 +180,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Deux recherches par changement de filtre, et des impressions Boost gonflées
 - Réf : P01.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : compter l'impression autrement change une métrique vendue aux agences
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useSearch.ts:183,360-364`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:133-134`, `takussan-api/app/Services/Search/PropertySearchService.php:659`
 - Constat :
@@ -188,20 +188,22 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Chaque appel enregistre une impression sponsorisée, sans dédoublonnage (`BoostStatsRecorder.php:28`). C'est aussi le cas des revalidations ETag : un 304 recalcule tout (`routes/api/public.php:18-34`).
   - Or les impressions sont une métrique vendue aux agences.
 - Piste : naviguer sans rendu serveur, ou consommer la graine à chaque nouvelle clé. Compter l'impression côté client, ou la dédoublonner par visiteur.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `useSearch.ts:166-183` (graine et `requeteDejaServie` lues au seul montage, remises à `null` au premier passage de l'effet), `useSearch.ts:258-269` (`router.push`/`replace` dans une transition RSC), `useSearch.ts:360-366` (le client refait `apiFetch` dès que la clé change), `(liste)/page.tsx:120-134` (le rendu serveur appelle `rechercherBiensPublics`, mémoïsé par le seul `cache()` de React, donc par requête), `routes/api/public.php:19-49` (`cache.headers:etag` : un 304 recalcule tout, dit le commentaire mesuré de TCK-341) ; les deux appels n'ont pas été relevés dans un journal. Classement : V7, la partie « impressions comptées à chaque appel et à chaque 304 » tient par lecture, et les deux issues de la piste (naviguer sans rendu serveur, ou compter côté client ou par visiteur) changent la définition d'une impression.
 
 ### Avec un tri par prix, la recherche élargie classe mal
 - Réf : P01.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : décider si le prix ou la pertinence prime en recherche élargie
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/scout.php:218`, `takussan-api/app/Services/Search/PropertySearchService.php:263-265`
 - Constat :
   - `rankingRules` commence par `sort`. En régime élargi avec `price:asc`, le prix passe donc avant le nombre de mots trouvés.
   - Mesuré : `studio climatisation Thiès` rend [2,2,1…] mots trouvés sans tri, et [1,1,1…] avec.
 - Piste : ranger `sort` après `words`, ou ne pas envoyer le tri dans le plan de repli.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `config/scout.php:218` (`rankingRules` ouvre sur `sort`) et `PropertySearchService.php:255-265` (le plan élargi, `matchingStrategy=last`, reçoit le tri) ; `GET` en lecture sur l'index local `takussan_localproperties`, `q=studio climatisation Thiès`, `matchingStrategy=last`, `showRankingScoreDetails=true` → mots trouvés des huit premiers `[2,2,2,2,1,1,1,1]` sans tri, `[1,1,1,1,1,1,1,1]` avec `sort=price:asc` (75 résultats dans les deux cas). Classement : V7, le constat tient, mais aucun texte n'écrit si un tri demandé doit céder devant le nombre de mots trouvés, et les deux issues de la piste changent l'ordre que voit le visiteur.
 
 ### `SEARCH_ID_CAP` vaut en fait 1000, et la pagination publique aussi
 - Réf : P01.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le plafond choisi fixe le total et les pages que voit le public
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:28`, `takussan-api/config/scout.php:150-254`
 - Constat :
@@ -209,16 +211,18 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Côté public, au-delà de la page 25 (à 40 par page), les pages sont inaccessibles (lu ; à vérifier avec plus de 1000 biens).
   - `takussan-api/CLAUDE.md` annonce 5000.
 - Piste : déclarer `maxTotalHits` dans `index-settings`, et corriger la doc.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `HasQueryBuilder.php:28` (`SEARCH_ID_CAP = 5000`), `config/scout.php` (aucune clé `pagination` dans `index-settings`), `takussan-api/CLAUDE.md:434` (annonce 5000) ; `GET …/indexes/takussan_localproperties/settings/pagination` → `{"maxTotalHits":1000}` ; test temporaire, retiré depuis, sur l'index de test ramené à `maxTotalHits: 3` avec six biens → `Property::search('')->take(5000)->keys()` rend 3 identifiants, et `PropertySearchService::search(per_page 2)` rend `total: 3`, `last_page: 2`, et une page 3 vide : le plafond borne bien la liste d'identifiants et la pagination publique (l'index local, à 795 biens, ne permet pas de le voir à 1000). Classement : V7, la correction de `CLAUDE.md` relèverait d'A6, mais le correctif du code choisit la valeur qui fixe le total affiché et les pages atteignables du catalogue public.
 
 ### Des réglages d'index périmés font échouer la liste par défaut
 - Réf : P01.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la piste touche `docker/release.sh`, ou le choix de dégrader le tri
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/scout.php:217`, `takussan-api/app/Services/Search/PropertySearchService.php:615`, `takussan-api/docker/release.sh:27-28`
 - Constat :
   - Sur l'index local, `ranked_at` n'est pas triable, et les documents n'ont ni `ranked_at` ni `region`. `sort=ranked_at:desc` rend `invalid_search_sort` (mesuré) : une liste publique sans mot échoue en 500.
   - `release.sh` ne fait qu'avertir quand la synchronisation des réglages échoue.
 - Piste : faire échouer le déploiement sur une synchronisation ratée, ou dégrader le tri au lieu de lever.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `config/scout.php:217` (`ranked_at` déclaré triable), `PropertySearchService.php:613-615` (`ranked_at:desc` par défaut sans mot), `docker/release.sh:26-28` (un échec de `scout:sync-index-settings` n'écrit qu'un avertissement) ; `GET` en lecture sur l'index local → attributs triables `[_geo, created_at, featured, price, published_at]`, et `search?q=&sort=ranked_at:desc` → `invalid_search_sort` ; le document 1 n'a ni `ranked_at` ni `region`. Classement : V5, le défaut tient sur l'index local, et l'issue principale de la piste (faire échouer le déploiement) modifie `release.sh` ; l'autre (dégrader le tri au lieu de lever) est un choix sur ce que la liste montre quand l'index est périmé.
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
@@ -282,7 +286,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Le profil plateforme est relu à chaque autorisation
 - Réf : P02.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : la mémoïsation porte sur le contournement super-admin de chaque autorisation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:678`, `takussan-api/app/Models/Concerns/HasProfiles.php:327-331`, `RequireTwoFactor.php:64`, `RequireRecentTwoFactor.php:45`, `LeaseResource.php:125`
 - Constat :
@@ -290,6 +294,7 @@ Déjà sain (mesuré ou lu) :
   - Les middlewares 2FA ajoutent chacun un `exists()`.
   - `LeaseResource` l'appelle une fois par ligne. `ReviewController.php:67-70` contourne déjà le problème localement (lu).
 - Piste : charger `platformProfile` une fois par requête, dans `ResolveActiveProfile`.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `AppServiceProvider.php:680` (`Gate::before` → `isSuperAdmin()`), `HasProfiles.php:327-334` (`activePlatformLevel()` relit `platformProfile()->active()->first()` si la relation n'est pas chargée), `RequireTwoFactor.php:64` et `RequireRecentTwoFactor.php:45` (`platformProfile()->exists()`), `LeaseResource.php:125`, `ReviewController.php:68-70` (`loadMissing('platformProfile')` local) ; tinker en lecture sur la base de dev → `isSuperAdmin()` trois fois = 3 requêtes `platform_profiles`, `Gate::allows('leases.terminate')` trois fois = 18 requêtes, dont une `platform_profiles` par appel. Classement : V2, le gain est de performance, mais charger le profil plateforme une fois par requête fige le contournement super-admin de toutes les autorisations pour la durée de la requête, ce qui demande l'accord du porteur.
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
 - Réf : P02.04
@@ -2162,7 +2167,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Une adresse envoyée avec `city: null` rend 500 sur les trois voies d'écriture
 - Réf : P17.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:83`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:75`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:39`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:17`
 - Constat :
@@ -2170,6 +2175,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Mesuré par test temporaire : `POST /api/properties` avec `address: {city: null, street: …}`, `PUT /api/properties/{id}/address` avec `city: null`, et `PATCH /api/properties/{id}` avec `address: {city: null}` rendent **500**. L'exception est `SQLSTATE[23502] null value in column "city"` dans les trois cas.
   - Le front n'y arrive pas : `city` est requis par `lib/schemas/property.ts:163` (lu). Le défaut touche les clients directs de l'API.
 - Piste : `address.city` en `required_with:address` (ou `required` sur l'upsert), pour un 422 au lieu d'un 500. Un test par voie, qui attend 422.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `StorePropertyRequest.php:83` et `UpdatePropertyRequest.php:75` (`address.city` `nullable`), `UpsertPropertyAddressRequest.php:39` (`city` `nullable`), migration `2026_04_17_160003…:17` (`string('city')->default('Dakar')`, donc NOT NULL) ; aucun commit ni ticket ne les a touchées depuis TCK-633 ; test temporaire, retiré depuis (charge 3,06 / 2,50 / 2,38 sur 8 cœurs) → `POST /api/properties` avec `address.city: null`, `PUT /api/properties/{id}/address` avec `city: null` et `PATCH /api/properties/{id}` avec `address.city: null` rendent tous trois **500** `SQLSTATE[23502] null value in column "city"` ; le front exige la ville (`lib/schemas/property.ts:163`). Classement : A1, le contrat est écrit par la colonne NOT NULL et par le schéma du front, et retirer `nullable` des trois règles (en gardant `sometimes` pour le PATCH et l'upsert) fait d'un `null` explicite un 422 sans rien changer à un appel qui omet la clé.
 
 ### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
 - Réf : P17.02
@@ -2243,7 +2249,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### La rangée « À vendre » de l'accueil compte des impressions sponsorisées qu'elle n'affiche jamais, et montre des places payées sans le badge
 - Réf : P18.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : couper les emplacements de la rangée ou y montrer la robe change ce que l'accueil affiche
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/raccourcis-de-l-accueil.ts:24-31`, `takussan-web/src/components/property/HomepageDiscovery.tsx:221-231`, `takussan-api/app/Services/Search/PropertySearchService.php:143-146,634-673`, `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-34`
 - Constat :
@@ -2253,10 +2259,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - La même réponse place deux vedettes en tête de `data` avec `placement: "reserved"` (mesuré). La rangée « À vendre » les montre sans robe : `robeVedette` n'est pas passé (lu, `HomepageDiscovery.tsx:221-231`). L'ADR-0061 § 7 dit pourtant qu'« un résultat payé ne se présente jamais comme un résultat organique ».
   - Les places réservées ne comptent pas d'impression, ni sur l'accueil ni sur `/properties` : seules les entrées de `sponsored` sont comptées (lu, `PropertySearchService.php:657-659`). L'ADR-0061 § 10 ne parle que des « emplacements » : est-ce voulu ? À vérifier.
 - Piste : un paramètre qui coupe les emplacements, ou un endpoint dédié pour la rangée. Côté front, la robe pour `placement === 'reserved'`, ou pas de place réservée hors de `/properties`. Un test API : la requête de l'accueil ne compte aucune impression. Un test front : une place réservée porte toujours la robe.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `raccourcis-de-l-accueil.ts:24-31` (`contract_type=sale&per_page=12`, seul `data` est lu), `HomepageDiscovery.tsx:221-231` (rangée « À vendre » sans `robeVedette`), `PropertySearchService.php:143-146,634-673` (régime strict → `placements()` → `BoostStatsRecorder::impressions()`), aucun commit sur ces chemins depuis 6c8a08b0 ; test temporaire, retiré depuis : cinq vedettes de vente, sept biens, réglages par défaut, `GET /api/public/properties/search?contract_type=sale&per_page=12` sous `Googlebot/2.1` → `sponsored = [4,5,2]`, **3 impressions** comptées, et `data` ouvre sur deux `placement: "reserved"`. Classement : V7, le défaut tient en entier, mais la piste offre trois issues (paramètre qui coupe, endpoint dédié, robe sur la place réservée) qui changent chacune ce que voit le visiteur, et la question des impressions des places réservées (ADR-0061 § 10) reste au porteur.
 
 ### Les impressions de la rangée vedette de l'accueil ne peuvent jamais devenir des clics
 - Réf : P18.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`, `takussan-web/src/components/property/HomepageDiscovery.tsx:207-217`, `takussan-web/src/components/boost/EmplacementSponsorise.tsx:37`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:9-25`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostStatsController.php:15-37`
 - Constat :
@@ -2264,6 +2271,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Un clic n'est compté que si la fiche est ouverte depuis un lien marqué par `marquerArriveeSponsorisee` (lu, `CompteurDeVue.tsx:34`). Seul `EmplacementSponsorise` marque, et il n'est monté que par `PropertiesDiscoveryPage`, la page `/properties` (mesuré : `grep -rln EmplacementSponsorise takussan-web/src`). La rangée de l'accueil passe par `PropertyRow`, qui ne marque rien (lu).
   - La console super-admin somme toutes les impressions et tous les clics par jour, sans distinguer la surface (lu, `AdminBoostStatsController.php:15-19`). Le taux de clic affiché mêle donc des impressions de l'accueil, dont aucune ne peut produire un clic, à celles de la recherche. Il est biaisé vers le bas d'une part inconnue.
 - Piste : marquer l'arrivée depuis la rangée vedette, comme le fait l'emplacement de recherche. Ou ne pas compter cette rangée, et le dire dans l'ADR. Un test front : un clic sur une carte de la rangée vedette pose le marqueur.
+- Mesure (2026-10-15, 48195c53, mesureur) : lu `HomepageDiscoveryService.php:107-113` (la rangée vedette compte une impression par bien servi), `arrivee-sponsorisee.ts:9-25`, `AdminBoostStatsController.php:15-37` (somme toutes surfaces) ; `grep -rln "EmplacementSponsorise\|marquerArriveeSponsorisee" takussan-web/src` → seuls `EmplacementSponsorise.tsx`, `arrivee-sponsorisee.ts`, `PropertiesDiscoveryPage.tsx` et deux tests ; `PropertyRow.tsx` ne marque rien (lu, l. 147 et 265). L'ADR-0061 § 7 fait de la rangée vedette un emplacement et le § 10 définit le clic comme « une vue de la fiche arrivée par un lien d'emplacement ». Classement : A1, le comportement attendu est écrit dans l'ADR-0061 ; le correctif marque l'arrivée (`marquerArriveeSponsorisee(slug)`) au clic d'une carte de la rangée vedette, sans rien changer à l'affichage, et la variante « ne pas compter cette rangée » de la piste n'est pas couverte par ce classement.
 
 ### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
 - Réf : P18.03
