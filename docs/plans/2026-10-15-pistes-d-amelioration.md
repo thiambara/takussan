@@ -277,7 +277,7 @@ Déjà sain (mesuré ou lu) :
 
 ### `per_page` sans plafond sur une vingtaine de routes
 - Réf : P02.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-654
 - Gravité : 🔴 défaut avéré
 - Où : `AgencyController.php:191`, `AuditLogController.php:57`, `PropertyPriceHistoryController.php:18`, `ServiceProviderProfileController.php:44`… (sous `takussan-api/app/Http/Controllers/Api/`)
 - Constat :
@@ -286,6 +286,7 @@ Déjà sain (mesuré ou lu) :
   - TCK-599 n'a corrigé que les favoris. Combiné au constat précédent, `per_page=10000` sur les membres d'agence déclenche de l'ordre de 100 000 requêtes.
 - Piste : une méthode unique `Controller::perPage($request, $défaut, $max)`, et une garde `scripts/check-*.mjs` qui refuse `paginate(` nourri de `$request->`.
 - Mesure (2026-10-15, c8f7f127, mesureur) : `grep -rnE "paginate\([^)]*\$request"` sous `app/Http/Controllers` → 17 `paginate((int) $request->input('per_page', …))`, 3 `paginate($request->integer('per_page', 20))` (`ServiceProviderBillController`, deux `PlatformPayoutController`), 1 `paginate($request->input('per_page', 20))` brut (`RoleDelegationController.php:40`), aucun borné ; `ReviewController` et `FavoriteController` passent par `validated()` et sont exclus du compte. Test temporaire, retiré depuis : `per_page=1000` sur les membres d'agence → 200, `meta.per_page` = 1000. Aucun appelant du front n'envoie plus de 100 à ces routes (`grep per_page` dans `takussan-web/src`). Classement : A1 et A5, le plafond attendu est écrit (`HasQueryBuilder::PER_PAGE_MAX = 100`, borné par `min()`, appliqué aux favoris par TCK-599) et la garde ne resserre aucun seuil existant.
+- Mesure (2026-10-15, e9f9289c, implementeur) : `PerPagePlafondTest` écrit d'abord, rouge avant correctif : `per_page=1000` → `meta.per_page` = 1000 sur `/api/agencies/{id}/members` et `/api/admin/announcements`, et `per_page=abc` rendait 15 au lieu du défaut 20 ; `PerPageBorneTest` (balayage de `app/Http/Controllers`) rouge sur 28 lectures de `per_page` sans `min(` sur la ligne, dont 26 sans aucun plafond (2 bornées à la ligne suivante). Correctif : `Base\Controller::tailleDePage()` borné à 100 (200 gardé pour l'audit transverse), appliqué aux 26 ; les 2 autres ramenées sur une ligne à l'identique → 5 tests verts. Ablation : contrôleurs remis à l'état d'avant → 4 rouges sur 5 ; plafond retiré du helper seul → 2 rouges (1000 au lieu de 100). Garde écrite en PHPUnit et non en `scripts/check-*.mjs` : `repo-ci.yml` ne joue que les gardes qu'il nomme.
 
 ### Le profil plateforme est relu à chaque autorisation
 - Réf : P02.03
