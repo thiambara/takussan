@@ -27,7 +27,7 @@ class PlatformPayoutController extends Controller
 
         $payouts = PlatformPayout::buildQuery(baseQuery: $base, request: $request)
             ->defaultSort('-period_end')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($payouts, PlatformPayoutResource::collection($payouts->items())->resolve($request));
     }

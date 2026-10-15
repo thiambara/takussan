@@ -176,7 +176,7 @@ class OwnerProfileController extends Controller
 
         $paginator = Property::buildQuery($base, $request)
             ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->json([
             'data' => $paginator->items(),

@@ -37,7 +37,7 @@ class RoleDelegationController extends Controller
             ->defaultSort('-created_at')
             ->with(['user', 'delegator', 'revokedBy']);
 
-        $paginated = $query->paginate($request->input('per_page', 20));
+        $paginated = $query->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginated, RoleDelegationResource::collection($paginated));
     }

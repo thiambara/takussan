@@ -58,7 +58,7 @@ class ConversationController extends Controller
             // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
             ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user))
             ->orderByDesc('last_message_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, ConversationResource::collection($paginator)->toArray($request));
     }

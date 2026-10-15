@@ -19,7 +19,7 @@ class DataExportController extends Controller
                 ->where('user_id', $request->user()->id)
                 ->orWhere('requested_by', $request->user()->id))
             ->latest('requested_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($exports, DataExportResource::collection($exports->items())->resolve());
     }

@@ -41,7 +41,7 @@ class InvitationController extends Controller
         $base = $this->visibleScope($user);
         $paginator = Invitation::buildQuery($base, $request)
             ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, InvitationResource::collection($paginator)->toArray($request));
     }

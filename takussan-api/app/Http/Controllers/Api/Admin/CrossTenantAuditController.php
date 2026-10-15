@@ -56,8 +56,7 @@ class CrossTenantAuditController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = (int) ($request->query('per_page') ?? 50);
-        $perPage = $perPage > 0 ? min($perPage, 200) : 50;
+        $perPage = $this->tailleDePage($request, 50, 200);
 
         $paginator = $this->filteredQuery($request)->paginate($perPage);
 

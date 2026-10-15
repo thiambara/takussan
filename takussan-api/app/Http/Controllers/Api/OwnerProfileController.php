@@ -68,7 +68,7 @@ class OwnerProfileController extends Controller
             ));
         }
 
-        $paginator = $query->paginate((int) $request->input('per_page', 20));
+        $paginator = $query->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request));
     }

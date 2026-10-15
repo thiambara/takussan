@@ -54,7 +54,7 @@ class AuditLogController extends Controller
 
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
         $paginator = $query->orderBy('created_at', $order)
-            ->paginate((int) $request->input('per_page', 50));
+            ->paginate($this->tailleDePage($request, 50));
 
         return $this->json([
             'data' => $paginator->getCollection()->map(fn (Activity $log) => [

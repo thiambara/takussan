@@ -188,7 +188,7 @@ class AgencyController extends Controller
             };
         }
 
-        $paginator = $query->paginate((int) $request->input('per_page', 20));
+        $paginator = $query->paginate($this->tailleDePage($request, 20));
 
         // TCK-653 (piste P02.01) — `UserResource` lit, pour chaque membre, les profils (`roles`,
         // `agency_id`), le bail en cours (`tenant`) et l'avatar. Sans ce préchargement, environ
