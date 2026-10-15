@@ -127,6 +127,18 @@ se lit « aucun plafond », pas zéro.
   - refus du `global` retiré de `store` → `GenericSettingsCatalogueBypassTest` rouge.
   - menu : entrée « Paramètres globaux » remise → 2 rouges sur 3 dans
     `SuperAdminSidebar.parametres.test.tsx`.
+- **Vérifié de bout en bout, le 2026-10-15** (serveurs de dev, super-admin seedé avec une 2FA posée
+  le temps de la mesure, jeton `verif-tck651` révoqué et lignes écrites supprimées ensuite) :
+  - `/super-admin/settings` rend 200, et `/super-admin/settings/global` rend 404 ;
+  - le BFF sert la catégorie `rentals` avec ses cinq types ;
+  - `"abc"` et une liste vide rendent 422 sans rien écrire ;
+  - `[20,5,10,5]` est relu `[5,10,20]`, et un plafond `null` est accepté, l'auteur tracé ;
+  - la capture montre la section « Location » rendue avec ses cinq champs.
+
+  Reste visible au passage, et ce n'est pas neuf : le message de validation dit « le champ value »
+  pour toutes les clés du catalogue.
+- **Suites** : API entière verte, 6 383 tests (durée prise sous charge, sans valeur de référence) ;
+  Vitest 6 363 tests sur 740 fichiers, vert.
 - **Correctif connexe** : la note de TCK-650 lisait le 422 de l'opérateur comme le refus d'une clé du
   catalogue. C'était une erreur de validation, et la note est corrigée.
 - **Docs** : `models-spec.md` §30 (MC1 de la passe 014, MB13 de la passe 013) nomme les deux
