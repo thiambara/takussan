@@ -74,16 +74,16 @@ class StoreRoleDelegationRequest extends FormRequest
         }
     }
 
+    /**
+     * TCK-656 — `required`, `after` et `max` n'ont pas de surcharge : le message par défaut et
+     * `validation.attributes` nomment le champ dans la langue de la requête. Les surcharges
+     * retirées y injectaient un nom français (« The utilisateur field is required. »).
+     */
     public function messages(): array
     {
         return [
-            'user_id.required' => __('validation.required', ['attribute' => 'utilisateur']),
-            'role.required' => __('validation.required', ['attribute' => 'rôle']),
             'role.in' => __('role_delegations.validation.non_delegable_role'),
-            'ends_at.required' => __('validation.required', ['attribute' => 'date de fin']),
-            'ends_at.after' => __('validation.after', ['attribute' => 'date de fin', 'date' => 'date de début']),
             'ends_at.before_or_equal' => __('role_delegations.validation.max_duration'),
-            'reason.max' => __('validation.max.string', ['attribute' => 'motif', 'max' => 500]),
         ];
     }
 }

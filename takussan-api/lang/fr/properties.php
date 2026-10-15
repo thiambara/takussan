@@ -53,4 +53,11 @@ return [
         'good' => 'Bon état',
         'to_renovate' => 'À rénover',
     ],
+    // TCK-656 — messages de validation, rendus dans la langue de la requête.
+    'validation' => [
+        'photos_required' => 'Sélectionnez au moins une photo.',
+        'photo_image' => 'Le fichier doit être une image lisible.',
+        'photo_mimes' => 'Formats acceptés : JPG, PNG ou WebP.',
+        'photo_max' => 'Chaque photo doit peser 10 Mo maximum.',
+    ],
 ];
