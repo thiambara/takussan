@@ -27,7 +27,9 @@
  * après chaque passage d'agent, AVANT tout push, contre la base de fusion avec `pre-dev`. Il
  * vérifie les fichiers touchés et les transitions de statut faites, au regard du rôle. Un agent ne
  * s'accorde pas ce que son rôle n'a pas : l'explorateur ne classe pas, le mesureur n'implémente
- * pas, et aucun agent n'écrit `validé`, qui est la signature du porteur.
+ * pas, et aucun agent n'écrit `validé`, qui est la signature du porteur. Une piste `validé` ne
+ * revient au porteur qu'avec une raison. Sa précision (`validé — …`) se retrouve mot pour mot dans
+ * le ticket qui la passe à `fait`.
  *
  * ─── Ce qu'elle ne vérifie PAS ───────────────────────────────────────────────────────────────
  *
@@ -246,7 +248,7 @@ const sansSuivi = (texte) =>
     .join('\n');
 
 /** Le périmètre d'un rôle : fichiers touchés et transitions, contre la version de base. */
-export function verifierRole(role, base, tete, fichiers) {
+export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {}) {
   const erreurs = [];
   const touche = fichiers.map((f) => f.chemin);
 
@@ -322,6 +324,23 @@ export function verifierRole(role, base, tete, fichiers) {
     if (!miennes.length) erreurs.push(`${ref} : la transition « ${de} » → « ${vers} » demande une ligne Mesure neuve du rôle ${role}`);
     if (vers.startsWith('retenu') && role === 'mesureur' && !miennes.some((x) => /Classement : .{20,}/.test(x.m[4]))) {
       erreurs.push(`${ref} : un classement « ${vers} » dit pourquoi (« Classement : … », 20 caractères au moins)`);
+    }
+    // Une piste `validé` porte la décision du porteur : elle ne lui revient pas sans raison, et sa
+    // précision (`validé — …`) arrive mot pour mot dans le ticket qui l'implémente.
+    if (de === 'validé') {
+      const accord = champ(avantE, 'Statut').valeur.match(/^validé — (.+)$/)?.[1];
+      if (vers === 'retenu · à valider' && !champ(e, 'Statut').valeur.includes(' — ')) {
+        erreurs.push(`${ref} : une piste validée ne revient au porteur qu'avec sa raison (« retenu · à valider — … »)`);
+      }
+      if (vers === 'fait' && accord) {
+        const tck = champ(e, 'Statut').valeur.match(/TCK-\d+/)[0];
+        const dossier = join(racine, TICKETS);
+        const nom = existsSync(dossier) ? readdirSync(dossier).find((f) => f.startsWith(`${tck}-`)) : undefined;
+        const plat = (t) => t.replace(/\s+/g, ' ').trim();
+        if (nom && !plat(readFileSync(join(dossier, nom), 'utf8')).includes(plat(accord))) {
+          erreurs.push(`${ref} : ${tck} ne recopie pas la décision du porteur (« ${accord} »)`);
+        }
+      }
     }
   }
   return erreurs;
