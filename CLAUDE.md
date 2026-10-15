@@ -280,6 +280,12 @@ d'`api-ci.yml` (TCK-479), qui tourne **la nuit** depuis ADR-0063, y pousse un co
 `enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
 d'application, ou exception) — ticket à part si on la veut.
 
+**`pre-dev` est la branche des agents planifiés** ([ADR-0066](docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md)) :
+l'explorateur, le mesureur et l'implémenteur du fichier de pistes y ouvrent leurs PR, jamais
+vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-mêmes :
+`scripts/agents/pistes.sh` vérifie le périmètre de chaque rôle avant tout push
+(`~/.takussan-agents/outils/pistes.sh etat`, `pause`).
+
 ## Specs & backlog
 
 **Sources de vérité fonctionnelles** (ne jamais dupliquer dans un ticket) :
