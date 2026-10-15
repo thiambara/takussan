@@ -604,7 +604,7 @@ contre le code par la session.*
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : devise d'une facture ; V7 : affichage des montants
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/InvoiceService.php:75`, `takussan-web/src/lib/format/useFormatteurs.ts:131-133`, `RevenueChart.tsx:171`
 - Constat :
@@ -612,14 +612,16 @@ contre le code par la session.*
   - `fmt.montant` impose 0 décimale à toute devise : 12,50 € s'affiche « 13 € ».
   - `RevenueChart` formate toujours en XOF (lu).
 - Piste : par défaut, la devise de l'agence, et les décimales de `CURRENCY_METADATA`.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Services/Model/InvoiceService.php:75` (le fichier a quitté `Services/Invoice/`) : `'currency' => $data['currency'] ?? 'XOF'`, alors que `Agency` porte une colonne `currency` castée en `Currency` (`Agency.php:68`) ; `takussan-web/src/lib/format/useFormatteurs.ts:129-135` : `fmt.montant` pose `minimumFractionDigits: 0, maximumFractionDigits: 0` sauf option contraire ; `RevenueChart.tsx:171` : `fmt.montant(…, 'XOF', { maximumFractionDigits: 0 })` → les trois points du constat tiennent, aucun commit ni ticket ne les traite (`grep maximumFractionDigits` dans les tickets : rien). Classement : V1 et V7, la devise par défaut d'une facture est une écriture de montant, et l'affichage des décimales hors XOF change ce que l'utilisateur voit.
 
 ### Restitution d'une caution jamais encaissée
 - Réf : P04.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant d'une restitution de caution
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/DepositRefundService.php:55,74`
 - Constat : le restituable part de `leases.deposit_amount`, jamais rapproché d'une `LeasePayment` de type `deposit` payée (lu).
 - Piste : borner la restitution à ce qui a été encaissé.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Services/Lease/DepositRefundService.php:55-80` et `Lease::getDepositRemainingAttribute()` (`Lease.php:383-389`) : le restituable vaut `deposit_amount − deposit_refunded_amount − liveDepositRetention()`, et aucune ligne ne lit une `LeasePayment` de type `deposit` (`LeasePaymentType::Deposit`) payée ; les trois derniers commits du fichier (TCK-594) portent sur la retenue et les quatre yeux, pas sur l'encaissement → constat confirmé. Classement : V1, borner une restitution est un calcul de montant, et le cas d'une caution remise hors plateforme demande un choix.
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
 - Réf : P04.11
@@ -645,7 +647,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Un verrou `withoutOverlapping` reste orphelin 24 h si le scheduler est tué au redéploiement
 - Réf : P05.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : `stop_grace_period` dans `deploy/`
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:65-68`, `takussan-api/routes/console.php:106,113,115,151,174`
 - Constat :
@@ -654,10 +656,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Le verrou vit dans Redis (`appendonly`) pendant `expiresAt = 1440` minutes.
   - `impersonation:close-expired`, `health:probe` et `boosts:tick` durent de 12 à 25 s en dev (mesuré). Un déploiement qui tombe pendant l'une d'elles la saute donc 24 h (lu ; non observé en préproduction).
 - Piste : `->withoutOverlapping(N)` avec N proche de la période, et `stop_grace_period: 120s`.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `deploy/takussan/compose.api.yml:64-67` (service `scheduler` sans `stop_grace_period`), `takussan-api/docker/entrypoint.sh` (`exec "$@"` : `schedule:work` est PID 1), `routes/console.php:106,113,115,151,174` (lignes inchangées), et le framework v13.25.0 : `ScheduleWorkCommand::listenForSignals()` piège SIGTERM et attend la fin des `schedule:run` en cours sans leur relayer le signal, `Event::ensureMutexIsReleasedOnSignal()` ne libère le verrou que si le processus enfant reçoit lui-même le signal, `expiresAt = 1440` ; `CACHE_STORE=redis` en préproduction (`prod-drivers.json`, mesuré le 2026-09-14) → le constat tient, mais seulement pour une exécution qui dépasse les 10 s de grâce : une exécution plus courte finit et rend son verrou, ce que le constat ne disait pas ; le saut de 24 h n'est pas observé. Classement : V5, la moitié du correctif est un réglage de `deploy/takussan/compose.api.yml`.
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
 - Réf : P05.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rattrapage des relances, contre un choix documenté
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
 - Constat :
@@ -670,10 +673,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `ApplyLateFeesJob` (`<= today`) et `KycExpiryService` rattrapent, eux.
   - Aucun test ne couvre un jour manqué (lu).
 - Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `OverdueReminderService.php:127-131` (`in_array($daysOverdue, $offsets, true)`, correspondance exacte), `SendLeasePaymentReminders.php:57,68,123` (`whereDate('due_date', …)` exact), `SendNotificationDigestJob.php:52-66` (heure locale exactement égale à `digest_send_at`, aucune colonne `digested_at` lue), `SendPropertyVisitReminders.php:60-66` (fenêtre de ±5 min), `routes/console.php:159` (`monthlyOn(1, '08:00')`) → aucun ne rattrape une exécution manquée ; mais `TCK-092` (done), l. 170-175, écrit que « la J+3 manquée n'est pas rattrapée (hors scope V1 — comportement documenté) » : pour les factures, c'est un choix posé, pas un oubli. Classement : V7 et V8, rattraper change quelles relances partent, contre un choix écrit, sur cinq jobs distincts.
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
 - Réf : P05.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : relance au plus une fois ou au moins une fois
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
 - Constat :
@@ -681,36 +685,40 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Si une exception survient au milieu, ou si le job est coupé à 60 s faute de `$timeout`, le reste est déjà marqué : le rejeu ne le renvoie jamais.
   - Aucun test ne simule un échec en cours de boucle (lu).
 - Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Jobs/SendLeasePaymentReminders.php:55-147` : `claim()` pose `reminder_<jalon>_sent_at` sur toutes les échéances du jalon (une transaction par échéance) avant toute boucle d'envoi, sans `$timeout` ni `catch` ; `NotificationService::send()` (`Services/Model/NotificationService.php:75-117`) ne capture que l'événement de diffusion, l'écriture et `notify()` peuvent lever ; `tests/Feature/Jobs/SendLeasePaymentRemindersTest.php` : 12 tests, aucun n'échoue en cours de boucle → constat confirmé. Classement : V7, réserver par échéance ou rendre la réservation fait passer la relance d'« au plus une fois » à « au moins une fois », un choix que voit le locataire.
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
 - Réf : P05.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : exécution des suppressions RGPD
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
 - Constat :
   - Il n'y a ni `catch` par demande ni `orderBy` : une `anonymize()` qui lève bloque, toutes les heures, toutes les suppressions RGPD échues après elle.
   - La seule trace est une ligne `failed` dans `scheduled_task_runs` (lu).
 - Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:43-50` (boucle sans `try/catch`) et `AccountDeletionService::dueForExecution()` (`AccountDeletionService.php:406-414`, sans `orderBy`) → une exception d'`executeDeletion()` arrête la commande, et les demandes suivantes, dans l'ordre que rend PostgreSQL, attendent l'heure suivante ; aucun ticket ouvert ne le traite (`TCK-080`, `TCK-600` : done). Classement : V3, le correctif touche à l'exécution des suppressions de données personnelles.
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
 - Réf : P05.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : réglage global des files, ou garde
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,64,73` (`after_commit => false`), par exemple `LateFeeCalculator.php:162` et `BookingExpirationService.php:204-206`
 - Constat :
   - Des notifications et des écouteurs `ShouldQueue` sont dispatchés dans des transactions. Avec la file `database`, la ligne `jobs` est annulée avec la transaction, donc le comportement est juste aujourd'hui.
   - Passer `QUEUE_CONNECTION` à `redis` (évoqué en `docs/configuration.md:136`) enverrait des notifications pour des écritures annulées. Rien ne garde cette propriété (lu ; aucun test trouvé).
 - Piste : `after_commit => true` sur toutes les connexions de file, ou une garde.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/config/queue.php:44,53,64,73` : `after_commit => false` sur les quatre connexions ; la file `database` prend `DB_QUEUE_CONNECTION`, vide, donc la connexion par défaut et sa transaction ; `LateFeeCalculator.php:162` dispatche `LeasePaymentLateFeeApplied` dans `DB::transaction` ; `afterCommit` n'apparaît qu'en cinq dispatchs ponctuels (`LeaseService`, `AgencyObserver`, …) ; `docs/configuration.md:136` : `QUEUE_CONNECTION=database # ou redis / sqs` ; aucun test ne garde la propriété → constat confirmé. Classement : V6, passer `after_commit` à `true` partout change le moment de tous les dispatchs, une décision transverse.
 
 ### `retry_after` à 90 s est sous le `$timeout` de quatre jobs ; un seul worker sert aussi la file urgente
 - Réf : P05.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : `DB_QUEUE_RETRY_AFTER` et workers de `deploy/`
 - Gravité : 🟠 risque ou dette
 - Où : `ExpirePendingBookingsJob.php:21,26` (300 s), `SyncPropertyCalendarFeedsJob.php:25` (540 s), `SendSavedSearchAlerts.php:83` et `SendFavoriteChangeAlerts.php:61` (1800 s) ; `docs/infra/hebergement.md:101` ; `deploy/takussan/compose.api.yml:55`
 - Constat :
   - Un second consommateur, ou le worker relancé après un SIGKILL, réserve à nouveau un job en cours : rejeu ou échec parasite.
   - `worker` consomme `notifications-urgent,default` : une alerte de 30 min retarde d'autant une notification de maintenance urgente (lu ; durées en production à vérifier).
 - Piste : `DB_QUEUE_RETRY_AFTER` au-dessus de 1800 s, ou une file dédiée aux balayages longs.
+- Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `config/queue.php:43` (`retry_after` = `DB_QUEUE_RETRY_AFTER`, 90 par défaut), les `$timeout` : `Jobs/Booking/ExpirePendingBookingsJob.php:26` (300, le fichier a quitté `Jobs/`), `SyncPropertyCalendarFeedsJob.php:25` (540), `SendSavedSearchAlerts.php:83` et `SendFavoriteChangeAlerts.php:61` (1800), aucun n'appelant `onQueue` ; `docs/infra/hebergement.md:101` : clé non posée en préproduction, 90 s relu dans le conteneur le 2026-09-22 ; `compose.api.yml:53` : `worker` sert `notifications-urgent,default` → constat confirmé ; les durées réelles en préproduction ne sont pas mesurées. Classement : V5, le correctif est une variable d'environnement ou un worker de plus.
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
 - Réf : P05.07
