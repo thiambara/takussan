@@ -2,8 +2,9 @@
  * Piste P07.03 — l'erreur de la barre d'actions groupées doit être lisible.
  *
  * La barre est sombre (`bg-foreground/95`) ; l'alerte y était posée en `text-destructive`, encre
- * pensée pour un fond clair : 2,22:1 en thème clair, 2,11:1 en sombre (WCAG 2.2 §1.4.3 demande
- * 4,5:1). `check-destructive-contrast.mjs` ne lit que `bg-destructive/NN`, jamais ce fond.
+ * pensée pour un fond clair : 2,23:1 en thème clair, 2,11:1 en sombre (WCAG 2.2 §1.4.3 demande
+ * 4,5:1). `check-destructive-contrast.mjs` ne lit que les aplats destructifs translucides,
+ * jamais ce fond.
  *
  * Le test rend la barre, provoque l'échec d'un lot, puis compose l'encre de l'alerte sur CHACUN
  * des fonds qu'elle peut avoir — le sien, ou celui qu'elle hérite de la barre — dans les deux
