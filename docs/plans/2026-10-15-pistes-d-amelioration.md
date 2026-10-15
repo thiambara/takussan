@@ -89,7 +89,7 @@ voie d'écriture (angle 13, puis 47).
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | fait |
 | 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | fait |
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | fait |
-| 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
+| 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | fait |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
@@ -126,6 +126,7 @@ voie d'écriture (angle 13, puis 47).
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | à faire |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
+| 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
 
 ---
 
@@ -2104,3 +2105,78 @@ Les deux 🔴 ont été relus par la session dans le code :
     - les mises à jour en masse sur des modèles `Searchable` ne touchent que des colonnes non indexées (`AgentHandoverService.php:196,200`, `AccountDeletionService.php:229`) ;
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
+
+## Angle 17 — Qualité des adresses : référentiel ou texte libre
+
+*Exploré le 2026-10-15 sur `pre-dev` c8f7f127, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `GeoAddressCanonicalizer`, `GeoNeighborhoodResolver`, `GeoAddressRules`, `GeoAddressAttacher`, `GeoReferentialLoader`, les trois FormRequests d'adresse, `ChampsLieu.tsx`, `combobox.tsx` et les seeders. Les comportements des entrées P17.01 et P17.02 ont été établis par un test temporaire (`tests/Feature/Geo/`, retiré), charge `3.22 3.28 2.35` sur 8 cœurs. Les comptes viennent de la base docker (5433), en `SELECT` : ils décrivent un environnement seedé, pas la production. Le formulaire est déjà branché sur le référentiel (TCK-633, ADR-0062) : l'angle relève ce qui lui échappe encore.*
+
+### Une adresse envoyée avec `city: null` rend 500 sur les trois voies d'écriture
+- Réf : P17.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:83`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:75`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:39`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:17`
+- Constat :
+  - Les trois règles déclarent la ville `nullable`, alors que la colonne `addresses.city` est `NOT NULL DEFAULT 'Dakar'` (lu, et mesuré par `\d addresses`). Une valeur `null` explicite ne prend pas le défaut.
+  - Mesuré par test temporaire : `POST /api/properties` avec `address: {city: null, street: …}`, `PUT /api/properties/{id}/address` avec `city: null`, et `PATCH /api/properties/{id}` avec `address: {city: null}` rendent **500**. L'exception est `SQLSTATE[23502] null value in column "city"` dans les trois cas.
+  - Le front n'y arrive pas : `city` est requis par `lib/schemas/property.ts:163` (lu). Le défaut touche les clients directs de l'API.
+- Piste : `address.city` en `required_with:address` (ou `required` sur l'upsert), pour un 422 au lieu d'un 500. Un test par voie, qui attend 422.
+
+### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
+- Réf : P17.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoNeighborhoodResolver.php:24-43`, `takussan-web/src/components/ui/combobox.tsx:34-39`, `takussan-web/src/components/property-form/ChampsLieu.tsx:15-21`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:22-57`
+- Constat :
+  - Le résolveur ne replie que la casse et les espaces (`CaseInsensitive::fold`, `preg_replace('/\s+/u')`). Ni les tirets ni les accents ne sont repliés (lu).
+  - Mesuré par test temporaire, avec « Grand Yoff » et « Médina » approuvés dans Dakar :
+    - créer un bien avec le quartier `Grand-Yoff` crée une proposition `pending` « Grand-Yoff » ;
+    - créer un bien avec le quartier `Medina` crée une proposition `pending` « Medina ».
+  - Côté front, la recherche de la liste replie les accents mais pas les tirets (`replierPourRecherche`, `combobox.tsx:34-35`) : taper « Grand-Yoff » n'affiche pas « Grand Yoff » et propose « Créer « Grand-Yoff » ». Taper « Medina » affiche « Médina », mais l'option de création reste offerte, et un texte laissé tel quel ne se rapproche pas (`seulHomonyme` compare à l'accent près) (lu).
+  - L'ADR-0062 § 1 assume les accents (« se résout par la recherche de la liste »). Les tirets n'y sont pas traités.
+  - Conséquence : le bien pointe une proposition que les listes publiques ne servent pas (§ 5), et le filtre texte de la recherche ne le trouve pas sous le nom approuvé (voir P01.02). Le rattrapage est la fusion par le super-admin, et la liste de modération ne propose aucun quartier proche (lu).
+  - Le nombre de propositions en double en production est à vérifier : la base de dev n'en a aucune (`select status, origin, count(*) from geo_neighborhoods` → 365 `approved/dataset`).
+- Piste : replier aussi tirets et apostrophes, des deux côtés (`replierPourRecherche` et une clé de comparaison du résolveur). Montrer dans la liste de modération les quartiers approuvés dont la clé repliée sans accents ni ponctuation coïncide. Ajouter un test « Grand-Yoff se replie sur Grand Yoff ».
+
+### Rejouer le référentiel ne réaligne pas les adresses existantes
+- Réf : P17.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-85,93-137`, `takussan-api/app/Services/Geo/GeoAddressAttacher.php:20-42`
+- Constat :
+  - Le chargeur renomme un quartier ou une ville du jeu par un simple `save()` (l. 83 et 134). Il ne réécrit pas le texte `addresses.neighborhood` / `city` qui y pointe, et ne réindexe pas les biens (lu). La modération, elle, le fait (`GeoNeighborhoodModeration::reecrireAdresses`), et l'ADR-0062 § 4 l'exige pour « renommer ou fusionner ».
+  - Le rattacheur ne relit que les adresses **sans ville** (`whereNull('geo_city_id')`, l. 24-26). Une adresse déjà rattachée à sa ville, dont le texte de quartier n'existait pas au premier passage, n'est jamais rattachée quand une mise à jour du jeu ajoute ce quartier (lu).
+  - Aujourd'hui : 0 adresse de dev dont le texte égale un quartier de sa ville sans y être rattachée (mesuré, `SELECT` avec `LOWER(… COLLATE "und-x-icu")`). Le défaut ne se voit qu'à la prochaine mise à jour du jeu : à vérifier.
+- Piste : dans le chargeur, réécrire le texte des adresses et réindexer les biens quand un nom change. Dans le rattacheur, traiter aussi `geo_city_id IS NOT NULL AND geo_neighborhood_id IS NULL AND neighborhood <> ''`. Garder chaque cas par un test de `GeoReferentialSync` rejoué deux fois.
+
+### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
+- Réf : P17.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/database/seeders/Support/FilterCoverageSeeder.php:241-249`, `takussan-api/database/seeders/Catalog/PropertySeeder.php:62-78,191-204`, `takussan-api/database/seeders/Support/SenegalFakerProvider.php:21-36,168-171`
+- Constat :
+  - `FilterCoverageSeeder` combine un quartier de Dakar, une ville tirée au hasard, la région `Dakar` et des coordonnées dakaroises (lu). Mesuré : 200 adresses hors de Dakar portent un quartier, dont « Fann » à Kaolack et « Ouakam » à Thiès.
+  - `PropertySeeder` tire les coordonnées des villes hors de Dakar dans tout le cadre du pays (lu). Mesuré : en moyenne 100 à 270 km du centre de leur ville, et jusqu'à 584 km pour Thiès.
+  - Les noms de quartiers du faker ne sont pas ceux du jeu (lu) :
+    - « Plateau » au lieu de « Dakar-Plateau » ;
+    - « Grand-Yoff » au lieu de « Grand Yoff » ;
+    - « Dieupeul » et « Dieuppeul » au lieu de « Dieuppeul-Derklé » ;
+    - « Hann Maristes » au lieu de « Hann Maristes 1 ».
+
+    « Pikine » et « Guédiawaye » y sont des quartiers de Dakar, alors que l'ADR-0062 § 2 en fait des villes.
+  - Mesuré : 180 adresses de Dakar ont un texte de quartier sans rattachement. Les 205 « quartiers hors référentiel » de P01.02 sont donc pour l'essentiel un artefact du seed : le défaut de filtre qu'elle décrit tient, mais ses comptes ne disent rien de la production (voir P01.02).
+- Piste : tirer les quartiers seedés dans `geo_neighborhoods` de la ville choisie, et les coordonnées autour du centre de cette ville. Une garde de seed : toute adresse seedée avec un texte de quartier est rattachée.
+
+### Petites améliorations
+- Réf : P17.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
+- Constat :
+  - **`PUT` et `DELETE /api/properties/{property}/address` n'ont aucun appelant dans le front** (mesuré, `grep -rn "/address" takussan-web/src`). `payload.ts:17` raconte le retrait du dernier. Leurs règles divergent de la création : 255 caractères au lieu de 120, et ni `geo_city_id` ni `geo_neighborhood_id`. À rapprocher de l'angle 13.
+  - **La position n'est confrontée qu'au cadre du pays** (`Senegal::contient`), jamais à la ville choisie (lu). Un bien de Thiès placé à Dakar ne déclenche aucun signal. L'affichage de la carte recentrée côté front est à vérifier.
+  - **Ce qui tient** :
+    - toute écriture d'adresse passe par le crochet `saving` (`Address.php:41`) ;
+    - la règle `GeoAddressRules` refuse la proposition d'un autre ;
+    - le chargeur ne recrée pas un quartier refusé ou fusionné ;
+    - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
+- Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
