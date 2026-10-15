@@ -1402,7 +1402,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
 - Réf : P11.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que la file conserve en clair de données personnelles et de liens porteurs
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:56-57,214`, `takussan-api/app/Jobs/SendDeferredSmsJob.php:16`, `takussan-api/config/sms.php:125-129`
 - Constat :
@@ -1412,6 +1412,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Le chemin est réel : `invitations:remind` tourne toutes les heures, et le webhook de paiement arrive à toute heure.
   - Établi comment : lu, chemin complet.
 - Piste : `ShouldBeEncrypted` sur `SendDeferredSmsJob`, plus une garde qui l'exige de tout job portant un texte de SMS.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `SendDeferredSmsJob.php:16` (`implements ShouldQueue` seul, aucun `ShouldBeEncrypted` ; `git log` : intact depuis TCK-102), `SmsRouterDriver.php:56-57,211-214` (`deferAll` remet le texte rendu au job, retardé à la fin de la fenêtre), `config/sms.php` (`quiet_hours` 22 h-6 h, actif par défaut), `CodedNotification.php:40,172-175` (chiffrée, mais `isCriticalSms()` rend `false`, donc reportée la nuit) et `lang/fr/notifications.php:294,301,328` (`sms_link` porte `:payment_url` et `:receipt_url`) ; `grep ShouldBeEncrypted app/` → seuls `CodedNotification` et `RecordPublicSearchAlert`. Aucun ticket ne le traite. Le lien d'invitation n'a pas été suivi jusqu'au SMS → le constat tient pour les liens de paiement et de quittance. Classement : V3, la piste change ce que la base conserve en clair de liens porteurs ; le comportement attendu est écrit par TCK-602, mais le doute sur V3 classe à valider.
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
@@ -1515,7 +1516,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le test d'isolation à l'initiation du paiement ne peut pas voir le défaut
 - Réf : P12.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Api/PaymentGatewayInitiateTest.php:187-204`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:76-77`
 - Constat :
@@ -1525,10 +1526,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Le seul test qui regarde `integration_id` (`PaymentWebhookEndpointTest.php:325`) ne crée qu'une intégration.
   - Établi comment : lu.
 - Piste : asserter `metadata.gateway.integration_id`, ou `Http::assertSent` sur l'en-tête `Authorization: Bearer wave_test_key`.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `PaymentGatewayInitiateTest.php:187-204` (seule assertion `assertOk()`) et `PaymentGatewayService::resolveIntegration` (la ligne citée a bougé : le filtre est aujourd'hui `:76-78`, `where agency_id = ? or agency_id is null`) ; ablation (charge 3,23 / 8 cœurs) en remplaçant le filtre par `orderByDesc('id')->first()` → **rouge** (422 au lieu de 200), mais parce que l'intégration étrangère du test n'a pas de `webhook_secret` (`WaveDriver::CREDENTIAL_KEYS`) et rend le fournisseur indisponible ; même ablation avec `'webhook_secret' => 'foreign_secret'` ajouté au test → **vert**. Code et test restaurés. Le test ne voit donc la fuite que par accident de fixture. Classement : A5, ajouter une assertion sur l'intégration réellement utilisée (`Http::assertSent` sur `Authorization: Bearer`, ou `integration_id`) et compléter les identifiants de la fixture, sans toucher au code ni à un seuil.
 
 ### Les obligations qui bloquent la suppression d'un compte ne sont gardées que pour le bail actif
 - Réf : P12.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Auth/AccountDeletionRequestTest.php:151-168`, `takussan-api/app/Services/Account/AccountDeletionService.php:326-375`
 - Constat :
@@ -1537,10 +1539,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Les supprimer laisserait un ancien locataire débiteur effacer son compte, sans un rouge.
   - Établi comment : mesuré sur le clover CI, et lu.
 - Piste : un test par type d'obligation (bail résilié et échéance `Late`, facture due, réservation ouverte), plus le cas d'une restitution de caution en attente, qui ne doit pas bloquer (TCK-595 H-2).
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `AccountDeletionService::collectOpenObligations` (`:286-380`, loyers en attente `:329-333`, factures `:346-349`, réservations `:362-365`) et `AccountDeletionRequestTest.php:151` ; ablation (charge 3,04 / 8 cœurs) en ajoutant `whereRaw("false")` aux trois requêtes, puis les 13 fichiers de `tests/` qui citent la suppression de compte (`AccountDeletion*`, `AccountErasureListingsTest`, `AdminUserLifecycleTest`, `PrivacyRequestRegistryTest`, `DashboardTenantDepositRefundTest`…) → **79 verts, 376 assertions**. Code restauré. Classement : A5, des tests de bout en bout par type d'obligation (et la restitution de caution qui ne bloque pas, TCK-595 H-2) sur un comportement déjà écrit, sans toucher au code.
 
 ### La signature Orange Money n'est jamais testée en refus
 - Réf : P12.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:130-133`, `takussan-api/tests/Feature/Api/PaymentDriverTest.php:131-150`
 - Constat :
@@ -1549,6 +1552,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Wave a son test de refus (`PaymentWebhookTest.php:84`).
   - Établi comment : lu et grep.
 - Piste : trois cas de bout en bout sur `/api/webhooks/payments/orange_money/{token}` (signature fausse, absente, secret d'une autre agence), en vérifiant que le paiement n'a pas bougé.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `OrangeMoneyDriver.php:130-133` ; ablation (charge ≈ 3 / 8 cœurs) en remplaçant la condition de `abort_code_unless` par `true || …`, puis les 12 fichiers de `tests/` qui citent `orange_money` ou `OrangeMoney`, plus `PaymentWebhookTest` et `PaymentWebhookMultiTenantTest` → **117 verts, 798 assertions**. Code restauré ; `grep X-OM-Signature docs/backlog/tickets` → rien. Classement : A5, trois tests de refus de signature (fausse, absente, secret d'une autre agence) sur une garde existante, sans toucher au code.
 
 ### L'horodatage de la signature Wave n'est jamais comparé à l'heure
 - Réf : P12.04
@@ -1644,7 +1648,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### L'alerte « file à l'arrêt » part sur la file arrêtée
 - Réf : P14.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le correctif choisit le conteneur ou le canal qui porte les alertes d'exploitation
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:76`, `takussan-api/app/Jobs/SendAdminAlert.php:14`, `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:41`
 - Constat :
@@ -1654,10 +1658,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Elle n'arrive que si c'est `worker-media` qui tombe.
   - Établi comment : lu, chemin suivi de bout en bout.
 - Piste : envoyer les alertes `ops_*` de façon synchrone (`dispatchSync`) ou depuis un autre conteneur. Mieux, par un canal extérieur à l'application, comme le Telegram de `seuils.sh`.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `EvaluateOperationalAlerts.php:41,72` (`activity('Ops')->event('ops_queue_stalled')`), `AppServiceProvider.php:640` (`AuditActivity::created` → `DispatchAlerts`, synchrone), `AlertRuleService::dispatchForActivity` (`SendAdminAlert::dispatch` sans `onQueue`), `SendAdminAlert.php:14` (`ShouldQueue`), `config/queue.php:42` (`DB_QUEUE` par défaut `default`) et `compose.api.yml:55,61` (`default` lu par le seul `worker` ; `worker-media` lit `media,reconciliation`) → le chemin du constat tient. Non exécuté : la mort du worker. Classement : V5, la piste (envoi synchrone, autre conteneur, ou canal hors application) est un choix d'infrastructure et de canal.
 
 ### Si le planificateur meurt, personne ne le voit
 - Réf : P14.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : sondes, healthchecks de conteneurs et UptimeRobot
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/console.php:110-115`, `takussan-api/app/Services/Admin/HealthcheckService.php:139-143`, `takussan-api/app/Http/Controllers/Api/HealthController.php:17`, `deploy/takussan/compose.api.yml:44,67`, `docs/infra/hebergement.md:92`
 - Constat :
@@ -1671,6 +1676,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - `/api/health` en 503 quand le statut est `unknown` ou `failed`, et une sonde UptimeRobot par mot-clé dessus ;
   - un `status` pour la sonde `scheduler` (dernière exécution plus vieille que quelques minutes = échec) ;
   - un healthcheck de battement sur `scheduler` et sur les workers.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `routes/console.php:110-115` (battements, `health:probe`, `alerts:evaluate` planifiés), `HealthcheckService.php:139-143` (sonde `scheduler` sans `status`, hors du `worst()`), `HealthcheckService::publicStatus` (`unknown` par défaut) et `HealthController` (`json()` sans code, donc 200), `grep DiagnosingHealth app bootstrap` → rien ; `compose.api.yml` : un seul `healthcheck` (l. 44, `api`) ; `docs/infra/hebergement.md`, ligne « Surveillance externe » : UptimeRobot ne sonde que `/up` (et la sonde de `deploy.takussan.com`). Le compte UptimeRobot lui-même n'a pas été consulté. Classement : V5, la piste touche `deploy/` et la surveillance externe, et changer le code HTTP de `/api/health` modifie un contrat public.
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03
@@ -1795,7 +1801,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### « Enregistrer un paiement » crée une échéance en attente, et aucun écran n'atteint `mark-paid`
 - Réf : P13.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture du règlement d'une échéance de loyer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:55-56,122-127`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:38-47`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/routes/api/leases.php:60`
 - Constat :
@@ -1804,10 +1810,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - `POST /api/lease-payments/{id}/mark-paid`, la voie gardée (verrou, checkout ouvert, caution), n'a aucun appelant dans le front.
   - Établi comment : lu de bout en bout, et grep.
 - Piste : faire appeler `mark-paid` par l'écran sur l'échéance choisie ; refuser `paid_at` à la création, ou le prendre en compte.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `LeasePaymentDialog.tsx:55-56,122-131` (envoie `paid_at` et `reference_number`), `StoreLeasePaymentRequest::rules()` (ni `paid_at`, ni `reference_number`, ni `status`), `LeasePaymentController` (`validated()` puis `create`) et `LeasePaymentService::create` (`status` par défaut `pending`) ; `grep -rn 'mark-paid' takussan-web/src` hors tests → seuls `/api/lease-payments/{id}/late-fee/mark-paid`, les commissions et les factures ; la route `lease-payments/{payment}/mark-paid` (`routes/api/leases.php:60`) n'a aucun appelant. TCK-619 (`todo`) ne garde que le verrou serveur de `mark-paid`. Classement : V1, la piste change la façon dont un loyer reçu est écrit et réglé.
 
 ### « Générer l'échéancier » appelle une route qui n'existe pas
 - Réf : P13.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le bouton réparé écrit des échéances
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/leases.ts:436`, `takussan-api/routes/api/leases.php:33`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:154`
 - Constat :
@@ -1816,6 +1823,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Le bouton est monté sur `/app/leases/[id]` (`LeaseDetail.tsx:181`). L'écart date de TCK-044.
   - Établi comment : mesuré par `route:list`, et lu.
 - Piste : aligner le chemin et la clé de réponse.
+- Mesure (2026-10-15, 6c8a08b0, mesureur) : `php artisan route:list --path=generate-schedule` → une seule route, `POST api/leases/{lease}/payments/generate-schedule` ; lu `leases.ts:434-444` (`/api/leases/${leaseId}/generate-schedule`, réponse typée `{ generated: number }`), `LeaseController.php:149-154` (rend `payments_created`) et `LeaseDetail.tsx:65,181-184` (bouton monté) → le chemin du front n'existe pas. Aucun ticket ouvert ne le traite (TCK-044, TCK-596 `done`). Classement : V1, le correctif est un alignement de chemin et de clé (A1 par le contrat de la route), mais il rend atteignable depuis l'écran l'écriture d'échéances de loyer, et le doute classe à valider.
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
 - Réf : P13.03
