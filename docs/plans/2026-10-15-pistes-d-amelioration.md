@@ -484,7 +484,7 @@ Ce qui tient (lu) :
 
 ### Oracles d'existence entre agences
 - Réf : P03.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : changer l'ordre ou le code de réponse d'autorisations que le front lit aujourd'hui
 - Gravité : 🟠 risque faible
 - Où : `Api/DocumentController.php:57-63`, `Api/Accounting/BankStatementLineController.php:42` (avec `ReconciliationManager.php:51-53`), `Requests/Api/StoreConversationRequest.php:103-108`
 - Constat :
@@ -492,6 +492,7 @@ Ce qui tient (lu) :
   - Le rapprochement bancaire distingue 404 et 403.
   - La conversation distingue « introuvable » et « non joignable » (lu).
 - Piste : autoriser avant de résoudre, ou rendre le même code dans les deux cas.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `DocumentController::store()` (`find()` puis `abort_code_if(null, 404, 'document.owner_not_found')` avant `authorize('attachTo')`, lignes 51-62), `BankStatementLineController::match()` (`findOrFail` du paiement → 404, puis `ReconciliationManager::confirmMatch()` → 403 `reconciliation.cross_agency`, `:51-53`) et `StoreConversationRequest` (`participants_unavailable` quand l'identifiant n'existe pas, puis `guardReach()` pour un utilisateur existant non joignable, lignes 108-130). Les trois distinctions tiennent ; lignes du rapprochement à `:42` comme écrit. Classement : V2, la piste change le code rendu à des appelants légitimes et le choix entre « autoriser d'abord » et « même code partout » n'est écrit nulle part.
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
@@ -560,7 +561,7 @@ contre le code par la session.*
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : périmètre et devise d'un reversement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:234-276`
 - Constat :
@@ -568,34 +569,38 @@ contre le code par la session.*
   - La devise retenue est celle de la première ligne, sans contrôle de mélange.
   - La pénalité encaissée avec le loyer est absente du brut (lu ; intention à vérifier).
 - Piste : borner aux paiements soldés par une intégration globale, inclure la pénalité, et refuser les devises mélangées comme le fait `PayoutCalculator`.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `PlatformPayoutService::closeForAgency()` (lignes 220-290) : `BookingPayment` et `LeasePayment` `paid` de l'agence sans filtre de canal ni d'intégration (seul `deposit_refund` est exclu), `currency` prise sur `$eligible->first()` sans contrôle de mélange ; `amountDue()` (`PaymentGatewayService.php:1238-1258`) ajoute au loyer la pénalité restant due quand l'agence l'encaisse en ligne, alors que la clôture ne somme que `amount` : la pénalité encaissée avec le loyer n'entre pas au brut (lu ; intention de TCK-223 non tranchée). Classement : V1, montant et devise d'un reversement.
 
 ### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
 - Réf : P04.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : garde de sous-paiement d'un encaissement
 - Gravité : 🟠 risque ou dette
 - Où : `PaymentGatewayService.php:606-609`, `LemonSqueezyDriver.php:159-172`, `OrangeMoneyDriver.php:65,148-149` (sous `takussan-api/app/Services/Payments/`)
 - Constat :
   - La garde sort quand `metadata.amount` est absent, et `extractFees()` de Lemon Squeezy n'en fournit jamais.
   - Orange Money envoie `OUV`, la devise du bac à sable, pour du XOF. Le format des notifications est à vérifier.
 - Piste : chaque pilote fournit le montant (en unité majeure) et la devise ; la devise Orange Money passe en configuration par environnement.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `assertReportedAmountCoversPayment()` (`PaymentGatewayService.php:605-615`, sort quand `metadata.amount` ou `currency` manque), `LemonSqueezyDriver::extractFees()` (rend `gross_amount`, `fees_amount`, `net_amount`, `currency`, jamais `amount`) et `OrangeMoneyDriver.php:65` (`XOF` → `OUV`), `:148-149` (`amount`/`currency` repris du payload). La partie Lemon Squeezy tient ; la forme réelle des notifications Orange Money (devise renvoyée `OUV` ou `XOF`) n'est pas re-mesurée, faute d'exemple dans le dépôt. Classement : V1, garde d'un paiement.
 
 ### Lemon Squeezy ignore la devise du payable
 - Réf : P04.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : devise d'un encaissement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:47-55,164`
 - Constat : `$currency` n'est pas lu, et `custom_price` est exprimé dans la devise de la boutique. `extractFees()` mélange `total_usd` et des taxes en devise de boutique (lu ; comportement de l'API à vérifier).
 - Piste : refuser quand la devise du payable diffère de celle de la boutique.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `LemonSqueezyDriver::initiate()` (lignes 47-60 : `$currency` jamais lu, `custom_price => $amountCents`) et `extractFees()` (`gross` = `total` ou `total_usd`, `net` = `total_usd` ou `total` moins `tax` et `discount_total`, devise par défaut `USD`). Le code tient tel que décrit ; le comportement de l'API Lemon Squeezy n'est pas re-mesuré (hors poste). Classement : V1, montant et devise d'un paiement.
 
 ### Arrondis au centime sur du XOF
 - Réf : P04.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : arrondi de montants facturés et reversés
 - Gravité : 🟠 risque ou dette
 - Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
 - Constat :
   - Ces calculs arrondissent à 2 décimales, alors que `PayoutCalculator` et `amountDue()` arrondissent à l'unité de la devise. Une TVA de 18 % sur 100 001 donne 118 001,18 XOF facturés pour 118 001 encaissés.
   - La clôture (arrondi par ligne, en PHP) et le détail (`SUM` en SQL) peuvent différer (lu).
 - Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `app/Services/Model/InvoiceService.php:58` (`round($subtotal * $taxRate / 100, 2)`, le constat ne donnait pas le dossier), `CommissionLedgerService.php:82` (`floor(round($base * $share, 6)) / 100`, au centime), `DepositRefundService.php:58,85,166` (`round(…, 2)`), `PlatformPayoutService` (arrondi par ligne à 2 décimales dans `closeForAgency()`, `SUM` SQL puis `round(…, 2)` dans `breakdown()`), contre `PaymentGatewayService::roundToCurrencyUnit()` (`Currency::decimalPlacesOf`) et `PayoutCalculator::round()`. Constat confirmé ; l'exemple 118 001,18 n'est pas re-calculé par exécution. Classement : V1, calcul de montants de facture, de commission et de reversement.
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
@@ -2343,7 +2348,7 @@ ajoutent que des faits neufs.*
 
 ### L'anonymisation d'un compte recopie son identité d'origine dans `activity_log`, qui n'est jamais purgé
 - Réf : P19.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : effacer ou réécrire l'identité dans `activity_log` touche ce qui est conservé après suppression
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/routes/console.php` (aucune entrée `activitylog:clean`), `takussan-web/src/content/legal/privacy.ts:123,129`
 - Constat :
@@ -2354,10 +2359,11 @@ ajoutent que des faits neufs.*
   - La politique dit qu'après le délai de 30 jours « les données d'identification du compte et des profils sont ensuite effacées ou anonymisées » (lu, `privacy.ts:123`). TCK-537 relève que la purge n'est pas planifiée, mais pas que l'anonymisation elle-même écrit l'identité dans le journal.
   - Établi comment : test temporaire `anonymize()` sur la base de test, puis lecture de `activity_log` filtrée par sujet.
 - Piste : anonymiser sans journaliser les valeurs (`$user->disableLogging()` autour du `save()`, ou une ligne `Account` sans diff), et effacer `attribute_changes` des lignes dont le sujet ou le causeur est ce compte. Un test : après `anonymize()`, aucune ligne de `activity_log` ne contient l'e-mail ni le téléphone d'origine. Ablation : retirer la coupure → rouge.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `AccountDeletionService::anonymize()` (`forceFill([...])->save()` puis `delete()`, aucune coupure du journal, lignes 218-279) et `User::getActivitylogOptions()` (`User.php:379-398`, `email`, `phone`, noms, `username` journalisés) ; `routes/console.php` sans `activitylog:clean` ; `clean_after_days = 365` ; `grep` des tickets → TCK-537 (`todo`) planifie la purge mais ne traite pas l'identité recopiée par l'anonymisation ; test temporaire `tests/Feature/Tmp/MesureurP19Test.php`, retiré depuis (charge 1,58 / 1,54 / 1,89 sur 8 cœurs), qui crée un utilisateur, le modifie puis l'anonymise → quatre lignes `default` sur ce sujet ; la ligne `updated` de l'anonymisation porte sous `attribute_changes.old` l'e-mail, le téléphone, le prénom, le nom et l'identifiant d'origine, la ligne `created` aussi ; `attribute_changes::text like` sur l'e-mail ou le numéro → 2 lignes. Constat confirmé tel qu'écrit. Classement : V3, la piste décide ce que le journal conserve d'un compte supprimé et réécrit des lignes de preuve existantes (V4 aussi pour la réécriture de l'historique).
 
 ### Le numéro de téléphone survit à l'anonymisation dans `notification_delivery_attempts.to`, une table sans purge
 - Réf : P19.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : fixer ce que l'anonymisation efface et une durée de rétention des tentatives
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:26`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:255`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:320`
 - Constat :
@@ -2366,10 +2372,11 @@ ajoutent que des faits neufs.*
   - Mesuré par le même test temporaire : une notification et une tentative `to = +221771234567` pour l'utilisateur, puis `anonymize()`. La tentative garde `to = +221771234567`, et la notification existe toujours.
   - Aucune commande planifiée ne purge `notification_delivery_attempts` (lu, `routes/console.php`). La politique ne lui donne aucune durée (lu, `privacy.ts:121-134`).
 - Piste : à l'anonymisation, mettre `to` à `null` (ou le masquer) sur les tentatives des notifications du compte ; fixer une durée de rétention des tentatives et la planifier. Un test : après `anonymize()`, aucune tentative ne porte le numéro d'origine.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `anonymize()` (ni `notification_delivery_attempts` ni `app_notifications` touchées) et la migration `2026_04_27_000001` (`to` nullable, FK `cascadeOnDelete` sur `app_notifications`, que le soft-delete du compte ne déclenche pas) ; `routes/console.php` : aucune purge de la table ; même test temporaire, retiré depuis, avec une notification et une tentative `to = +221771234567` → après `anonymize()`, la tentative garde `to = +221771234567` et la notification existe toujours. Constat confirmé. Classement : V3, la piste choisit ce qui est effacé ou masqué et une durée de rétention que la politique ne donne pas.
 
 ### L'export CSV du journal rend `properties_diff` vide pour toute modification d'un modèle
 - Réf : P19.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : réparer l'export met l'e-mail et le téléphone d'avant et d'après dans le CSV
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:135-158`, `takussan-api/app/Services/Crm/CustomerActivityFeed.php:65-67`
 - Constat :
@@ -2378,6 +2385,7 @@ ajoutent que des faits neufs.*
   - Mesuré : `mapRow()` appelé par réflexion sur la ligne `updated` d'un `User` rend `properties_diff = NULL`. Le CSV d'audit, celui de l'agence comme celui de la console (`payloadForQuery`), ne contient donc aucun avant/après.
   - Aucun test ne vérifie `properties_diff` (mesuré : `grep -rln properties_diff takussan-api/tests` → rien).
 - Piste : lire `attribute_changes`, le passer par `PropertyRedactor` comme `properties`. Un test : l'export d'une ligne `updated` porte l'ancienne et la nouvelle valeur, expurgées. L'angle 56 cherche les autres lecteurs restés sur l'ancienne forme.
+- Mesure (2026-10-15, 92e465d6, mesureur) : relu `ActivityLogExporter::mapRow()` (cherche `attributes`/`old` dans `properties` seulement) et `CustomerActivityFeed::format()` (lit `attribute_changes`) ; `PropertyRedactor` ne masque que des secrets et `rib`/`iban`/`tax_id`/`ninea`/`id_document`, pas `email` ni `phone` ; même test temporaire, retiré depuis → les lignes `created`/`updated`/`deleted` d'un `User` ont `properties = []` et le diff dans `attribute_changes` ; `mapRow()` appelé par réflexion sur la ligne `updated` rend `properties_diff = NULL` ; `grep properties_diff tests` → seul `tests/impact-map.json`, aucun test ne le vérifie. Constat confirmé. Classement : V3, la correction fait sortir dans un fichier téléchargé les valeurs personnelles avant/après que `PropertyRedactor` laisse passer, ce que TCK-613 (`todo`, export du journal et données personnelles) doit trancher.
 
 ### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
 - Réf : P19.04
