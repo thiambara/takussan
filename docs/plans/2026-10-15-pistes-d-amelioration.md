@@ -20,7 +20,7 @@ amélioration.
 | 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | fait |
 | 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | fait |
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | fait |
-| 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | à faire |
+| 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | fait |
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | à faire |
 | 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | à faire |
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | à faire |
@@ -42,6 +42,9 @@ amélioration.
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | à faire |
+| 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | à faire |
+| 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
+| 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
 
 ---
 
@@ -523,3 +526,124 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Il n'y a qu'un scheduler, et Dakar est en UTC+0 sans heure d'été.
   - La préproduction et la future production partageront `redis-takussan`. Avec le même `APP_NAME` et le même `REDIS_CACHE_DB`, leurs verrous de scheduler entreraient en collision : chaque environnement sauterait les tâches de l'autre (à vérifier quand la production existera).
 - Piste : un `CACHE_PREFIX` par environnement.
+
+## Angle 6 — Texte affiché par l'API et i18n fr/en/wo
+
+*Exploré le 2026-10-15 vers 1 h 15, par lecture et par scripts node en lecture seule. Les six 🔴
+ont été relus contre le code par la session ; le premier est mesuré (`route:list`).*
+
+### La langue choisie dans l'interface n'atteint jamais le compte : e-mails, SMS et cloche partent en français
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/routes/api/me.php:32`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`
+- Constat :
+  - Le sélecteur de langue envoie `PATCH /api/users/me`, une route qui n'existe pas : `php artisan route:list --path=users/me` ne rend rien (mesuré par la session). L'échec est avalé par un `catch {}`.
+  - Aucun FormRequest n'accepte `preferred_language`.
+  - L'inscription ne l'écrit pas, et il vaut `'fr'` par défaut. Le provisionnement d'agence l'expose, et l'écrit peut-être (à vérifier).
+  - Or `User::preferredLocale()` gouverne la langue des e-mails (`NotificationService.php:89`), des SMS, des résumés (`NotificationDigestMail.php:34`) et des titres stockés.
+  - 26 classes de notification écrivent un `title` sans `code`, et le front les affiche tels quels (`texteNotification.ts`).
+- Piste : accepter `preferred_language` sur `PATCH /api/me`, corriger le chemin dans `locale.ts`, et le renseigner à l'inscription depuis `Accept-Language`.
+
+### Messages système des groupes : rôle toujours « member », aperçu figé en français
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Messaging/SystemMessageFactory.php:75,129-143`, `takussan-web/src/components/messages/SystemMessageBubble.tsx:36`, `takussan-api/app/Observers/MessageObserver.php:13`
+- Constat :
+  - L'API émet `metadata.role`, le front lit `meta.new_role ?? 'member'` : « X a changé le rôle de Y en member », pour tout changement, en jeton anglais brut, dans les trois langues.
+  - `humanise()` écrit des `sprintf` en français dont l'observer tire `last_message_preview`, affiché tel quel par `ConversationList.tsx:194` (lu).
+- Piste : aligner la clé, traduire le rôle, et dériver l'aperçu côté front depuis `metadata.event`.
+
+### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/resources/views/pdf/leases/contract.blade.php`, `inventories/report.blade.php`, `receipts/rent.blade.php:22`, `receipts/booking.blade.php`, `invoices/default.blade.php`, `layouts/base.blade.php:18`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:143`
+- Constat :
+  - 5 gabarits portent 55 textes français et aucun `__()` : 0 dans `receipts/rent.blade.php` (relu). Seuls `statements/owner` et `maintenance/quote` sont traduits.
+  - `<html lang="fr">` est en dur.
+  - `translatedFormat('F Y')` suit la locale active : « Quittance de loyer — October 2026 » pour un anglophone.
+  - Les titres `'État des lieux #'` (`InventoryController.php:209`) et `'Réservation #'` (`PaymentReceiptPdf.php:58`) sont en dur.
+  - Aucun ADR ne dit que ces actes sont en français par choix (mesuré par script).
+- Piste : décider par ADR (français juridique, ou acte bilingue), puis passer par `lang/*`.
+
+### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:45-48`, `RejectPropertyRequest.php:24-26`, `InventorySignRequest.php:94-126`, `Agency/AssignAgencyRoleRequest.php:53`, `Agency/SyncCapabilitiesRequest.php:55`, `Permissions/StoreRoleDelegationRequest.php:80-86`
+- Constat :
+  - 14 messages sont des littéraux français.
+  - `StoreRoleDelegationRequest` injecte des noms d'attribut français dans le gabarit de la langue active : « The utilisateur field is required. ».
+  - Le front affiche `message` en le supposant localisé (`takussan-web/src/lib/api.ts:543`).
+- Piste : des clés `lang/*/validation.php` ou des codes, et une garde qui refuse tout littéral dans `messages()`.
+
+### Dates du site public figées en `fr-FR`
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
+- Constat :
+  - En `/en`, la fiche publique affiche « 12 octobre 2026 ».
+  - 11 autres locales sont figées : `PropertyModerationBanner.tsx:86`, `UpgradeRequestStatus.tsx:60,65`, `FilterSidebar.tsx:451-452`, `ActiveSessionsSection.tsx:103`, `PropertyKpiStrip.tsx:71`, `PropertyList.tsx:504`, `types/search.ts:388`.
+  - 7 `toLocaleString()` nus dans `components/leases/*`.
+  - `check-locale-figee.mjs` les tolère dans son cliquet (mesuré).
+- Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
+
+### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
+- Constat :
+  - La parité des clés est exacte, mais 334 valeurs `wo` sont égales au `fr`, dont 46 visiblement françaises. Par exemple la navigation de l'assistant de publication (« Étape {current} sur {total} », « Précédent », « Continuer », « Plus tard »), `property.conditions.*` et `crm.pipeline.stage.*`.
+  - `lease.form.customerFallback` vaut « Customer #{id} » en `fr`.
+  - En anglais, seules 4 valeurs ressemblent à du français, toutes des noms propres (mesuré).
+- Piste : relecture des 46 valeurs par un locuteur, et un cliquet décroissant « wo == fr hors emprunts » dans `check-i18n`.
+
+### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
+- Constat :
+  - `fallbackBody()` ignore `$locale` et renvoie le corps français pour les trois langues.
+  - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
+- Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
+
+### Noms de champs non traduits : « Le champ is active est obligatoire »
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
+- Constat :
+  - 55 attributs sont traduits en `fr` et `wo`, aucun en `en`, sur 406 noms de champ validés (mesuré).
+  - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
+- Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
+
+### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/admin/AuditTrail.tsx:536`, `admin/super/ConsoleRecentActivity.tsx:77`, `user-detail.tsx:479`
+- Constat : 147 `->log('…')` littéraux, dont 31 en français. Les autres sont en anglais (« Exported audit trail ») ou sont des codes (mesuré).
+- Piste : afficher `event` traduit (`admin.audit.events.*`), et réserver `description` à l'export.
+
+### Pluriels absents
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
+- Constat :
+  - 49 messages `fr` (50 en `en`) écrivent `{count} <nom>` sans ICU `plural` : « 1 biens », « 1 months ».
+  - 7 formes « (s) ».
+  - `AgencyKpis` passe un nombre déjà formaté dans `count` (mesuré).
+- Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
+
+### Titre d'annonce suggéré en langue mêlée
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property-form/wizard/suggest-title.ts:47,59`
+- Constat : « chambres » et « à » sont en dur. Résultat en `en` : « Apartment 3 chambres à Almadies » (lu).
+- Piste : une clé ICU avec `plural`.
+
+### Libellés du catalogue super-admin écrits en français par l'API
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Domain/Settings/EditableBusinessEnums.php:20-40`, `Domain/Notifications/EditableNotificationEvents.php:13-29`, `Domain/Integrations/Providers/MailProvider.php:26`
+- Constat : `name` et `description` sont affichés tels quels par `business-enums.tsx:117-118` et `notification-templates.tsx:101` (lu). Les paramètres plateforme, eux, sont traduits par clé depuis TCK-600.
+- Piste : émettre une clé, et rendre le libellé côté front.
+
+### Des documents qui affirment l'inverse de la mesure
+- Gravité : 🟢 amélioration
+- Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
+- Constat :
+  - `check-i18n --report` mesure 0 texte en dur toléré : « tenue à 82 fichiers sur 875 » est périmé.
+  - « wo traîne 88 clés manquantes » est faux : il en manque 0.
+  - « `lang/fr/validation.php` ne porte pas `boolean` » est faux aussi (mesuré).
+- Piste : remplacer ces chiffres par la commande qui les donne.
+
+### Pages légales vides en wolof
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/content/legal/terms.ts:445`, `privacy.ts:351`, `notice.ts:125`
+- Constat : ``export const wo = ``;``. La page affiche le français avec une mention, et c'est documenté (lu).
+- Piste : traduction à planifier, ou mention dans la spec.
