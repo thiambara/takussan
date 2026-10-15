@@ -79,7 +79,7 @@ export function Calendar({
           defaults.today,
           "[&>button]:ring-1 [&>button]:ring-primary/40",
         ),
-        outside: cn(defaults.outside, "text-muted-foreground/50 [&>button]:text-muted-foreground/50"),
+        outside: cn(defaults.outside, "text-muted-foreground [&>button]:text-muted-foreground"),
         disabled: cn(defaults.disabled, "text-muted-foreground/40 [&>button]:text-muted-foreground/40"),
         selected: cn(
           defaults.selected,

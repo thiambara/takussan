@@ -951,7 +951,7 @@ Sain (vérifié par l'agent) :
 
 ### Encre atténuée sous le seuil sur quatre parcours
 - Réf : P07.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-658
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/agency/BrandingBanner.tsx:42`, `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:93`, `takussan-web/src/components/property-dashboard/ProprietaireEtResponsable.tsx:45,52`, `PropertyVisitDialog.tsx:288,352`
 - Constat :
@@ -960,6 +960,7 @@ Sain (vérifié par l'agent) :
   - Même famille : `AvailabilityGrid.tsx:109` (3,70:1) et `ui/calendar.tsx:82`, où les jours hors du mois sont à 2,11:1 (mesuré).
 - Piste : retirer l'opacité (`text-warning` est à 5,17:1, `text-muted-foreground` à 5,44:1), et une garde « pas d'alpha sur une encre de texte », comme TCK-359 pour les onglets.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `BrandingBanner.tsx:42` et `EarlyTerminationBanner.tsx:93` (`text-warning/80` sur `bg-warning/10`), `ProprietaireEtResponsable.tsx:45,52` et `PropertyVisitDialog.tsx:288,352` (`text-muted-foreground/70`), `AvailabilityGrid.tsx:109` (`text-muted-foreground/80`) et `ui/calendar.tsx:82` (`outside` à `/50`) ; contraste calculé → 3,53:1, 2,95 à 3,03:1, 3,70:1 et 2,11:1 ; sans opacité, `text-warning` sur `bg-warning/10` rend 5,17:1 et `text-muted-foreground` 5,44:1 sur `--background` → le constat tient, lignes inchangées. Classement : A4, retirer l'opacité ramène chaque encre sur son jeton existant sans texte neuf (les jours hors du mois restent distincts des jours du mois, en `text-foreground`) ; la garde proposée relève d'A5.
+- Mesure (2026-10-15, 2d25d35d, implementeur) : avant correctif, `encre-sans-alpha.contraste.test.ts` (retrouve chaque site par une ancre de texte, compose l'encre et son alpha sur le fond réel, deux thèmes) → 16 rouges sur 17 : bannières 3,65:1 en clair et 4,46:1 en sombre sur `bg-warning/10`, `text-muted-foreground/70` 3,03:1 (clair) et 4,17:1 (sombre), horaires 3,70:1, jours hors du mois 2,11 et 2,81:1, et le relevé des encres translucides à 17 fichiers. Correctif : opacité retirée des sept sites et de la classe `outside` du calendrier ; garde = cliquet à deux sens sur les 12 fichiers qui gardent une encre `text-<jeton>/NN` (non mesurés, hors périmètre). Ablation (six fichiers remis, test gardé) → 16 rouges ; correctif remis → 17 verts.
 
 ### L'erreur de la barre d'actions groupées est illisible
 - Réf : P07.03

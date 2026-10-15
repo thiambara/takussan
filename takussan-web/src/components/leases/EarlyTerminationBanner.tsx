@@ -90,7 +90,7 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
               ? t('banner_countdown', { days: remaining })
               : t('banner_due_today')}
           </h3>
-          <p className="text-sm text-warning/80">
+          <p className="text-sm text-warning">
             {t('banner_effective', { date: lease.early_termination_effective_date })}
           </p>
         </div>
