@@ -779,7 +779,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : TCK-347 (todo, L) porte déjà ce delta
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -788,10 +788,11 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - 7 `toLocaleString()` nus dans `components/leases/*`.
   - `check-locale-figee.mjs` les tolère dans son cliquet (mesuré).
 - Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16` et `ReviewsSection.tsx:23` (`toLocaleDateString('fr-FR', …)` quelle que soit la locale) et les sites cités, lignes inchangées, sauf `PropertyList.tsx:504`, qui fige `'fr-SN'` par `Intl.DateTimeFormat` et non `'fr-FR'` ; `grep -rn "toLocaleString()" components/leases` → 7 hors tests ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20) et console hors périmètre 1 (`lib/utils.ts`) ; `lib/format.ts:75-79` a déjà tranché `fr → 'fr-SN'` et `useFormatteurs()` existe → le constat tient. Classement : V8, TCK-347 (`todo`, estimé L) décrit déjà ce delta avec des comptes périmés (86 sites) ; le reprendre ou le découper, et faire descendre les cliquets de la garde (V9), revient au porteur.
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : texte wolof neuf, à écrire par un locuteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
 - Constat :
@@ -799,6 +800,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `lease.form.customerFallback` vaut « Customer #{id} » en `fr`.
   - En anglais, seules 4 valeurs ressemblent à du français, toutes des noms propres (mesuré).
 - Piste : relecture des 46 valeurs par un locuteur, et un cliquet décroissant « wo == fr hors emprunts » dans `check-i18n`.
+- Mesure (2026-10-15, 5e758845, mesureur) : `node -e` qui aplatit `fr.json`, `en.json` et `wo.json` → 8 032 clés dans chacun, aucune absente ; **360** valeurs `wo` égales au `fr` (le constat en comptait 334), dont `property.wizard.position` « Étape {current} sur {total} », `.back`, `.continue`, `.skip`, `property.conditions.*` et `crm.pipeline.stage.*` ; `lease.form.customerFallback` vaut « Customer #{id} » en `fr` comme en `en` → le constat tient. Classement : V7, la piste demande une traduction wolof qu'un locuteur doit écrire ; seule la valeur anglaise du `fr` relèverait d'A4.
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
@@ -889,17 +891,18 @@ Sain (vérifié par l'agent) :
 
 ### Pastille de prix de la carte et surlignage des suggestions sous 4,5:1
 - Réf : P07.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/globals.css:758-760,773-777`, `takussan-web/src/components/search/SearchAutocomplete.tsx:65`
 - Constat :
   - Pastille de prix : `#fcf9f3` sur `#c87a52` est à **3,14:1**, et **3,83:1** au survol (`#b66c43`), en 12 px gras.
   - Surlignage des suggestions : `<mark>` en `text-primary` sur `bg-primary/15`, à 4,33:1 (mesuré).
 - Piste : la pastille lit `--primary` (5,06:1) au lieu d'une valeur recopiée en dur ; `--primary-deep` pour le surlignage.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `globals.css:758,775` (`#c87a52` et `#b66c43` en dur, encre `#fcf9f3`, 12 px en 600) et `SearchAutocomplete.tsx:65` (`<mark>` en `bg-primary/15 text-primary`) ; contraste calculé par la formule WCAG (`node`) → pastille 3,14:1, survol 3,83:1, `--primary` (`#a85332`) 5,06:1 ; surlignage 4,33:1 sur `--popover` blanc, 4,14:1 sur `--background`, et `--primary-deep` (`#823c20`) sur le même aplat 6,53:1 → le constat tient. En thème sombre, `--primary` vaut `#c87a52` : la pastille n'y gagne rien, sans y perdre. Classement : A4, la pastille passe sur `var(--primary)` (et un survol sur `var(--primary-deep)`), le surlignage sur `text-primary-deep`, jetons existants, sans texte ni choix de produit.
 
 ### Encre atténuée sous le seuil sur quatre parcours
 - Réf : P07.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/agency/BrandingBanner.tsx:42`, `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:93`, `takussan-web/src/components/property-dashboard/ProprietaireEtResponsable.tsx:45,52`, `PropertyVisitDialog.tsx:288,352`
 - Constat :
@@ -907,32 +910,36 @@ Sain (vérifié par l'agent) :
   - `text-muted-foreground/70` : de 2,95 à 3,03:1.
   - Même famille : `AvailabilityGrid.tsx:109` (3,70:1) et `ui/calendar.tsx:82`, où les jours hors du mois sont à 2,11:1 (mesuré).
 - Piste : retirer l'opacité (`text-warning` est à 5,17:1, `text-muted-foreground` à 5,44:1), et une garde « pas d'alpha sur une encre de texte », comme TCK-359 pour les onglets.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `BrandingBanner.tsx:42` et `EarlyTerminationBanner.tsx:93` (`text-warning/80` sur `bg-warning/10`), `ProprietaireEtResponsable.tsx:45,52` et `PropertyVisitDialog.tsx:288,352` (`text-muted-foreground/70`), `AvailabilityGrid.tsx:109` (`text-muted-foreground/80`) et `ui/calendar.tsx:82` (`outside` à `/50`) ; contraste calculé → 3,53:1, 2,95 à 3,03:1, 3,70:1 et 2,11:1 ; sans opacité, `text-warning` sur `bg-warning/10` rend 5,17:1 et `text-muted-foreground` 5,44:1 sur `--background` → le constat tient, lignes inchangées. Classement : A4, retirer l'opacité ramène chaque encre sur son jeton existant sans texte neuf (les jours hors du mois restent distincts des jours du mois, en `text-foreground`) ; la garde proposée relève d'A5.
 
 ### L'erreur de la barre d'actions groupées est illisible
 - Réf : P07.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property-dashboard/PropertyList.tsx:688,757`
 - Constat : `role="alert"` en `text-destructive` sur `bg-foreground/95`, à **2,22:1**. Les gardes `check-destructive-contrast` ne mesurent pas ce fond (mesuré).
 - Piste : une pastille claire (`bg-background text-destructive`), ou l'encre claire de la barre avec une icône.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyList.tsx:688` (barre `bg-foreground/95`, encre `text-primary-foreground`) et `:757` (`<span role="alert" class="text-destructive">`, dans cette barre) ; contraste calculé → 2,22:1 en clair, 2,11:1 en sombre (`#ff7f7d` sur `#fcf9f3` à 95 %) ; `check-destructive-contrast.mjs:158` ne lit que `bg-destructive/NN`, jamais ce fond → le constat tient. Une pastille `bg-background text-destructive` rendrait 6,61:1 en clair et 7,17:1 en sombre. Classement : A4, le contraste est ramené sur des jetons existants, sans texte neuf.
 
 ### La note des avis est invisible au lecteur d'écran
 - Réf : P07.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:73-81`
 - Constat :
   - La note n'est rendue que par cinq `<Star>`, que lucide marque `aria-hidden`, et aucun texte ne la porte.
   - Les étoiles vides (`/40`) sont à 1,78:1, sous les 3:1 d'un objet graphique (lu, mesuré).
 - Piste : `role="img" aria-label={t('rating', {n})}`, ou un `sr-only` « 4 sur 5 », et les étoiles vides en `text-muted-foreground` plein.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:73-81` (cinq `<Star>` sans nom, étoiles vides en `text-muted-foreground/40`) et `node_modules/lucide-react/dist/esm/Icon.mjs:36` (`aria-hidden="true"` posé dès qu'aucun attribut `aria-*` n'est passé) → aucun texte ne porte la note ; étoiles vides à 1,78:1 sur blanc (calculé) ; `ReviewsSection.tsx:77` fait déjà ce qu'il faut avec `publicProfile.reviews.ratingAria` (« {rating} étoiles sur 5 », présent en `en` et `wo`) → le constat tient. Classement : A4, un nom accessible qui reprend un libellé déjà traduit, et les étoiles vides en `text-muted-foreground` plein, sans texte de produit neuf.
 
 ### Une ligne de versement cliquable seulement à la souris
 - Réf : P07.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré (console super-admin)
 - Où : `takussan-web/src/components/billing/PayoutTable.tsx:120-123`, appelée avec `onSelect` par `AdminPayoutsClient.tsx:96`
 - Constat : `<tr onClick>` sans rôle, sans `tabIndex` ni clavier, et aucun bouton dans la ligne : le détail est inatteignable au clavier (lu).
 - Piste : un `<button>` dans la cellule de période, comme `InvoicesTable.tsx:100`.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `PayoutTable.tsx:120-123` (`<tr onClick>` sans rôle, sans `tabIndex` ni gestion du clavier, aucun élément focusable dans la ligne) et `AdminPayoutsClient.tsx:96-100` (`onSelect` → `setSelectedId`, seul chemin vers `PayoutDetailPanel`) ; `InvoicesTable.tsx:100-106` porte le patron du bouton → le constat tient. Classement : A4, rendre la période cliquable par un `<button>` quand `onSelect` est fourni, avec le texte de période qu'elle affiche déjà, n'ajoute ni texte ni comportement neuf.
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
 - Réf : P07.06
@@ -1022,7 +1029,7 @@ Sain (vérifié par l'agent) :
 
 ### Les photos d'un bien partent par une server action plafonnée à 1 Mo
 - Réf : P08.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V8 : nouvelle voie d'envoi des photos
 - Gravité : 🔴 défaut avéré (un envoi réel reste à rejouer)
 - Où : `takussan-web/next.config.ts` (pas de clé `serverActions`), `takussan-web/src/app/actions/dashboard-properties.ts:243`, `takussan-web/src/components/property-form/PropertyWizard.tsx:325-329`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:71`
 - Constat :
@@ -1031,6 +1038,7 @@ Sain (vérifié par l'agent) :
   - Même plafond pour `dashboard-customers.ts:175` (documents) et `admin-agency.ts:110`.
   - `MediaManager.tsx:172-190` simule la progression jusqu'à 85 %, puis tout tombe d'un coup.
 - Piste : une photo par requête, par route handler BFF ou directement vers l'API, avec une vraie progression (XHR) et une reprise par fichier. Relever `bodySizeLimit` seul ne règle pas le réseau lent.
+- Mesure (2026-10-15, 5e758845, mesureur) : lu `next.config.ts` (aucune clé `serverActions`), `next/dist/server/app-render/action-handler.js:517-519` (Next 16.3.1, `'1 MB'` par défaut) et `:665-700` (le corps multipart passe par `sizeLimitTransform` et lève un 413 au-delà), `PropertyWizard.tsx:325-329` (toutes les photos dans un seul `FormData` vers `uploadPropertyPhotosAction`, `dashboard-properties.ts:243`), `reduire-photo.ts:24` (`COTE_MAX = 2560`) et TCK-542 l. 128 (1 446 048 o pour une photo réduite) → le constat tient à la lecture ; ce passage n'a rejoué aucun envoi réel. Classement : V7 et V8, la piste change la voie d'envoi (route handler ou API directe), la progression visible et la reprise par fichier, sur trois écrans : plus d'un ticket et des choix de produit.
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
 - Réf : P08.02
