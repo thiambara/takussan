@@ -72,7 +72,7 @@ chacune est datée, rattachée au sha de `pre-dev` mesuré et signée de son rô
 | `retenu · à valider` (`— raison`) | mesureur, implémenteur | tient, et touche un critère V du § 3 |
 | `validé` | **le porteur seul** | le porteur accorde l'implémentation |
 | `refusé` | **le porteur seul** | le porteur l'écarte |
-| `fait · TCK-NNN` | implémenteur | implémenté par ce ticket |
+| `fait · TCK-NNN` (`— reste : …`) | implémenteur | implémenté par ce ticket ; le reste, s'il y en a, n'est pas fait |
 
 Les transitions permises par rôle, les chemins qu'un rôle peut toucher et la forme sont tenus par
 [`scripts/check-pistes.mjs`](../../scripts/check-pistes.mjs), qui fait foi. Pour valider une
@@ -89,6 +89,16 @@ piste, le porteur passe sa ligne `Statut` à `validé` sur `pre-dev`, par un com
   lui-même.
 
 Une piste `validé` ne revient jamais au porteur sans raison écrite : la garde le refuse.
+
+**Ce qui reste d'une validation partielle** (ajouté le 2026-10-15). Le porteur peut ne valider
+qu'une partie d'une `Piste`. Il écrit alors ce qu'il garde pour plus tard à la fin de la
+précision, après `; reste :` : `validé — <décision> ; reste : <ce qui n'est pas confié>`.
+L'implémenteur n'implémente pas le reste. Il le recopie dans le ticket, et l'entrée passe à
+`fait · TCK-NNN — reste : <le même texte>`, que la garde compare à la précision. L'implémenteur
+écrit aussi un reste quand il laisse lui-même de côté une partie de la `Piste`. Sans cela, une
+fois l'entrée `fait`, ce qui n'a pas été fait ne serait plus suivi nulle part : seul
+l'explorateur crée une entrée. `node scripts/check-pistes.mjs --restes` les liste, pour qu'on y
+revienne.
 
 ### 3. Ce que le mesureur peut classer « autonome »
 
