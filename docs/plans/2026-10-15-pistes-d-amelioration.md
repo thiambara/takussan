@@ -147,7 +147,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### La recherche dans `/app` ne trouve ni les brouillons ni les biens privés, et ne trie pas par pertinence
 - Réf : P01.01
-- Statut : validé — pertinence seule (defaultSortsWithRelevance, sort non forcé pendant une recherche)
+- Statut : fait · TCK-662
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:235`, `takussan-api/app/Models/Property.php:499-508`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:80`, `takussan-web/src/lib/queries/properties-server.ts:126`
 - Constat :
@@ -157,6 +157,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - `defaultSort('-created_at')` est en dur, et le front envoie toujours `sort=-created_at` : la pertinence est perdue (lu).
 - Piste : une recherche SQL sur le titre et la référence pour les listes internes, ou un index interne sans `shouldBeSearchable`. Utiliser `defaultSortsWithRelevance()`, et ne pas forcer `sort` quand une recherche est active.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `HasQueryBuilder.php:234-236` (filtre `filter[search]` = `search()->keys()` puis `whereIn`), `Property::shouldBeSearchable()` (`Property.php:499-509`), `PropertyController.php:80` (`->defaultSort('-created_at')` en dur) et `properties-server.ts:126` (`sort ?? '-created_at'`) ; tinker en lecture sur la base et l'index de dev, titre exact de trois biens non indexables (822 et 827 privés brouillons, 623 public brouillon) → 211 clés rendues pour chacun, jamais le bien cherché. Le défaut central est déjà décrit par TCK-578 (`todo`, étiqueté `adr-requise`), que le constat ne cite pas. `matchingStrategy` non re-mesuré. Classement : V6, la piste (recherche SQL interne ou second index) ouvre un second mécanisme de recherche que `check-filtering-single-mechanism.mjs` refuse et que TCK-578 renvoie à un ADR ; seule la restitution de la pertinence par `defaultSortsWithRelevance()` relèverait d'A1.
+- Mesure (2026-10-15, bdb71428, implementeur) : avant correctif, `PropertyDashboardSearchTest::test_dashboard_search_ranks_by_relevance_not_by_date` (trois biens créés dans l'ordre inverse de leur pertinence, `filter[search]` sans `sort`) rend `[2 fautes, 1 faute, exact]`, l'ordre par date ; côté front, la page `/app/properties` et `fetchDashboardProperties` envoient `sort=-created_at` pendant une recherche (deux tests vitest rouges). Correctif : `defaultSortsWithRelevance('-created_at')` dans `PropertyController::index`, aucun `sort` par défaut pendant une recherche côté front. Ablation correctif par correctif : chacun retiré rend son seul test rouge, remis tout est vert ; un `sort=` explicite reste souverain (test). Brouillons et biens privés hors index : non traité, TCK-578.
 
 ### Les quartiers proposés par le panneau ne correspondent pas aux quartiers indexés
 - Réf : P01.02
