@@ -490,7 +490,7 @@ contre le code par la session.*
 
 ### Échéancier trimestriel ou annuel : un seul mois de loyer facturé par période
 - Réf : P04.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : montant et période des échéances de loyer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:203,220,245`
 - Constat :
@@ -499,10 +499,11 @@ contre le code par la session.*
   - Le formulaire propose « Trimestriel » avec un champ « Loyer mensuel » (`CreateLeaseForm.tsx:238`).
   - `GenerateLeasePaymentScheduleTest` ne teste aucune fréquence (lu).
 - Piste : multiplier par le nombre de mois de la période, couvrir toute la période, et un test par fréquence.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `LeaseService.php` `scheduleUnderLock()` (`$amount = monthly_rent`, l. 203 ; `period_start`/`period_end` = début et fin du mois de l'échéance, l. 224-225) et `advancePeriod()` (l. 241-247 : +1, +3 ou +12 mois), `CreateLeaseForm.tsx:43` (`quarterly`, `yearly` proposés) ; `git log -S` et `grep` des tickets → aucun correctif ni ticket ouvert ; seul `LeaseContractTermsTest.php` cite `quarterly`, aucun test d'échéancier par fréquence → le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif réécrit le montant et la période de chaque échéance de loyer.
 
 ### La révision de loyer n'atteint jamais les échéances déjà générées
 - Réf : P04.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : réécriture du montant d'échéances déjà générées
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/RentReviewService.php:109`, `takussan-api/app/Services/Model/LeaseService.php:152,198`
 - Constat :
@@ -511,10 +512,11 @@ contre le code par la session.*
   - Le locataire est notifié du nouveau loyer, puis facturé à l'ancien jusqu'à la fin du bail. Le docblock (`:19-22`) dit le contraire.
   - Aucun test ne lit les `LeasePayment` après une révision (lu).
 - Piste : à `effective_date`, réécrire le montant des échéances `pending` à venir, sous verrou du bail, et un test.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `RentReviewService.php:109` (seul `forceFill(['monthly_rent' => …])`), `LeaseService.php:198` (`lease.schedule_exists`), `grep -rn effective_date app` → aucun lecteur hors `RentReviewService` et l'historique (`LeaseRentController.php:68`), aucun observateur ni écouteur sur `monthly_rent` ; `RentReviewServiceTest.php` ne lit aucun `LeasePayment` → le défaut tient. Précision : le docblock (l. 18-22) dit que le générateur lira `effective_date` comme borne, et que les échéances déjà émises ne sont PAS modifiées ; il décrit donc un générateur qui n'existe pas plutôt que « le contraire ». Classement : V1, la piste réécrit le montant d'échéances existantes, et le docblock en fait un choix (quelles échéances amender).
 
 ### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
 - Réf : P04.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : annulation d'une facture émise et avoir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/EarlyTerminationService.php:162-163` (création en `:337`)
 - Constat :
@@ -522,10 +524,11 @@ contre le code par la session.*
   - `cancel()` la passe en `Cancelled` par `forceFill`, sans `InvoiceService::cancel()`, donc sans avoir. ADR-0039 §7 exige un avoir pour annuler une facture émise.
   - Un numéro `FA-…` disparaît ainsi sans contrepassation. `EarlyTerminationServiceTest.php:151` ne vérifie pas l'avoir (lu).
 - Piste : passer par `InvoiceService::cancel()`, et asserter `credited_invoice_id`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `EarlyTerminationService.php:162-164` (`$invoice->forceFill(['status' => Cancelled])->save()`), `:338-345` (facture créée `Sent` puis numérotée par `InvoiceNumberAllocator`) et `InvoiceService::cancel()` (l. 119-140 : avoir créé pour une facture `Sent`/`Overdue`, ADR-0039 §7) ; `EarlyTerminationServiceTest.php` ne cite ni `Cancelled` ni avoir → le constat tient, lignes inchangées. Classement : V1, le comportement attendu est écrit (ADR-0039 §7, A1), mais le correctif écrit une facture d'avoir, ce que V1 réserve au porteur.
 
 ### Restitution de caution : le champ refuse tout montant rond
 - Réf : P04.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : saisie des montants de caution, de loyer et de renouvellement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:171-172`
 - Constat :
@@ -535,6 +538,7 @@ contre le code par la session.*
   - Même défaut, en moins grave, dans `CreateLeaseForm.tsx:233,243,253` et `LeaseRenewalDialog.tsx:230,251` (`step={1000}`) : un loyer de 152 500 est refusé (mesuré).
   - La modale est simulée dans son seul test.
 - Piste : `step="any"` ou `step={1}` avec `min={1}`, ou passer par `FormAmountInput`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `DepositRefundModal.tsx:158-172` (`<form>` sans `noValidate`, `min={0.01} step={1000}`), `CreateLeaseForm.tsx:233,243,253` et `LeaseRenewalDialog.tsx:230,251` (`step={1000}`) ; mesuré sous jsdom (`node -e`, `validity.stepMismatch`) → `min=0.01 step=1000` : 150000 → `true`, 150000.01 → `false` ; `min=0 step=1000` : 152500 → `true`, 150000 → `false`. Le constat tient tel qu'écrit. Classement : V1, le correctif change les montants qu'un écran de restitution, de bail et de renouvellement peut envoyer, et le choix du pas (`any`, `1`, `FormAmountInput`) en est un ; dans le doute, à valider.
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
@@ -723,7 +727,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### La langue choisie dans l'interface n'atteint jamais le compte : e-mails, SMS et cloche partent en français
 - Réf : P06.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/routes/api/me.php:32`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`
 - Constat :
@@ -733,20 +737,22 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Or `User::preferredLocale()` gouverne la langue des e-mails (`NotificationService.php:89`), des SMS, des résumés (`NotificationDigestMail.php:34`) et des titres stockés.
   - 26 classes de notification écrivent un `title` sans `code`, et le front les affiche tels quels (`texteNotification.ts`).
 - Piste : accepter `preferred_language` sur `PATCH /api/me`, corriger le chemin dans `locale.ts`, et le renseigner à l'inscription depuis `Accept-Language`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `locale.ts:41-45` (`PATCH /api/users/me`, `catch {}` muet) ; `php artisan route:list --path=users/me` → « doesn't have any routes » ; `route:list --path=api/me` → `PATCH api/me` (`MeController@update`, `UpdateMeRequest`) ; `grep -rn preferred_language app/Http` → aucun FormRequest ne l'accepte. Le « à vérifier » du constat est levé : `AgencyProvisioningService.php:76` écrit `preferred_language` (`$adminPayload['language'] ?? 'fr'`). TCK-550 (done) a relevé le même écart en base et l'a laissé hors périmètre, sans ticket ouvert. Classement : A1, TCK-017 écrit le comportement attendu (sélecteur « persisté via `preferred_language` », l. 36 et 70) ; le correctif autonome se borne à accepter `preferred_language` (`in:fr,en,wo`) dans `UpdateMeRequest` et à viser `/api/me` dans `locale.ts`, et le remplissage à l'inscription depuis `Accept-Language` reste hors de ce classement (V7).
 
 ### Messages système des groupes : rôle toujours « member », aperçu figé en français
 - Réf : P06.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : forme de l'aperçu des conversations
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/SystemMessageFactory.php:75,129-143`, `takussan-web/src/components/messages/SystemMessageBubble.tsx:36`, `takussan-api/app/Observers/MessageObserver.php:13`
 - Constat :
   - L'API émet `metadata.role`, le front lit `meta.new_role ?? 'member'` : « X a changé le rôle de Y en member », pour tout changement, en jeton anglais brut, dans les trois langues.
   - `humanise()` écrit des `sprintf` en français dont l'observer tire `last_message_preview`, affiché tel quel par `ConversationList.tsx:194` (lu).
 - Piste : aligner la clé, traduire le rôle, et dériver l'aperçu côté front depuis `metadata.event`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu `SystemMessageFactory.php:68-75` (`metadata.role`), `:113` (`content` = `humanise()`), `:125-143` (`sprintf` français), `SystemMessageBubble.tsx:36` (`meta.new_role ?? 'member'`), `MessageObserver.php:13-17` (aperçu tiré de `content`) et `ConversationList.tsx:194` (affiché tel quel) → les deux défauts tiennent, lignes inchangées. Classement : V7, l'alignement de la clé `role` relèverait seul d'A1, mais dériver l'aperçu de `metadata.event` change le contrat de la liste des conversations et son rendu, un choix de produit.
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
 - Réf : P06.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : langue des actes juridiques, à décider par ADR
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/leases/contract.blade.php`, `inventories/report.blade.php`, `receipts/rent.blade.php:22`, `receipts/booking.blade.php`, `invoices/default.blade.php`, `layouts/base.blade.php:18`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:143`
 - Constat :
@@ -756,10 +762,11 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Les titres `'État des lieux #'` (`InventoryController.php:209`) et `'Réservation #'` (`PaymentReceiptPdf.php:58`) sont en dur.
   - Aucun ADR ne dit que ces actes sont en français par choix (mesuré par script).
 - Piste : décider par ADR (français juridique, ou acte bilingue), puis passer par `lang/*`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : compté `__(`/`@lang`/`trans(` par gabarit → 0 dans `leases/contract`, `inventories/report`, `receipts/rent`, `receipts/booking` et `invoices/default`, 17 dans `statements/owner`, 1 dans `maintenance/quote` ; lu `layouts/base.blade.php:18` (`<html lang="fr">`), `receipts/rent.blade.php:12` (`translatedFormat('F Y')` ; le constat citait la l. 22), `InventoryController.php:209` et `PaymentReceiptPdf.php:58` (titres en dur ; ce dernier vit sous `app/Services/Payments/`) → le constat tient. Classement : V6, la piste elle-même demande un ADR (français juridique ou acte bilingue), et la langue d'un bail signé est un choix de produit.
 
 ### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
 - Réf : P06.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:45-48`, `RejectPropertyRequest.php:24-26`, `InventorySignRequest.php:94-126`, `Agency/AssignAgencyRoleRequest.php:53`, `Agency/SyncCapabilitiesRequest.php:55`, `Permissions/StoreRoleDelegationRequest.php:80-86`
 - Constat :
@@ -767,6 +774,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `StoreRoleDelegationRequest` injecte des noms d'attribut français dans le gabarit de la langue active : « The utilisateur field is required. ».
   - Le front affiche `message` en le supposant localisé (`takussan-web/src/lib/api.ts:543`).
 - Piste : des clés `lang/*/validation.php` ou des codes, et une garde qui refuse tout littéral dans `messages()`.
+- Mesure (2026-10-15, f74f3d21, mesureur) : lu les six FormRequests → 14 littéraux français : `StorePropertyMediaRequest.php:45-48` (4), `RejectPropertyRequest.php:24-26` (3, fichier sous `Http/Requests/`, pas `Api/`), `InventorySignRequest.php` (5 `bail($fail, '…')` vers l. 94-126), `AssignAgencyRoleRequest.php:53` (1), `SyncCapabilitiesRequest.php:55` (1) ; `StoreRoleDelegationRequest.php:80-86` passe `'utilisateur'`, `'rôle'`, `'date de fin'`, `'motif'` comme `attribute` de `__('validation.*')` → le constat tient. Classement : A4, déplacer ces messages existants vers des clés `lang/{fr,en,wo}` sans changer le texte français n'ajoute aucun texte de produit, et la garde proposée relève d'A5 sans seuil à resserrer.
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
