@@ -136,7 +136,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### La recherche dans `/app` ne trouve ni les brouillons ni les biens privés, et ne trie pas par pertinence
 - Réf : P01.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : un second chemin de recherche interne demande un ADR (TCK-578)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:235`, `takussan-api/app/Models/Property.php:499-508`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:80`, `takussan-web/src/lib/queries/properties-server.ts:126`
 - Constat :
@@ -145,10 +145,11 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Pas de `matchingStrategy` (relâchement `last`, corrigé côté public par TCK-338).
   - `defaultSort('-created_at')` est en dur, et le front envoie toujours `sort=-created_at` : la pertinence est perdue (lu).
 - Piste : une recherche SQL sur le titre et la référence pour les listes internes, ou un index interne sans `shouldBeSearchable`. Utiliser `defaultSortsWithRelevance()`, et ne pas forcer `sort` quand une recherche est active.
+- Mesure (2026-10-15, c8f7f127, mesureur) : lu `HasQueryBuilder.php:234-236` (filtre `filter[search]` = `search()->keys()` puis `whereIn`), `Property::shouldBeSearchable()` (`Property.php:499-509`), `PropertyController.php:80` (`->defaultSort('-created_at')` en dur) et `properties-server.ts:126` (`sort ?? '-created_at'`) ; tinker en lecture sur la base et l'index de dev, titre exact de trois biens non indexables (822 et 827 privés brouillons, 623 public brouillon) → 211 clés rendues pour chacun, jamais le bien cherché. Le défaut central est déjà décrit par TCK-578 (`todo`, étiqueté `adr-requise`), que le constat ne cite pas. `matchingStrategy` non re-mesuré. Classement : V6, la piste (recherche SQL interne ou second index) ouvre un second mécanisme de recherche que `check-filtering-single-mechanism.mjs` refuse et que TCK-578 renvoie à un ADR ; seule la restitution de la pertinence par `defaultSortsWithRelevance()` relèverait d'A1.
 
 ### Les quartiers proposés par le panneau ne correspondent pas aux quartiers indexés
 - Réf : P01.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : la piste est une migration de données sur les adresses
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/ChoixDuReferentiel.tsx:227-233`, `takussan-api/app/Services/Search/PropertySearchService.php:446-447`
 - Constat :
@@ -159,10 +160,11 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Le filtre tient compte des accents : `Guediawaye` rend 0, contre 23 pour `Guédiawaye`. `Dieupeul` et `Dieuppeul` coexistent.
   - En production : à vérifier.
 - Piste : rattacher les adresses au référentiel (migration de données), puis indexer et filtrer par le nom canonique ou par `geo_neighborhood_id`.
+- Mesure (2026-10-15, c8f7f127, mesureur) : lu `PropertySearchService.php:446-447` (`neighborhood = <nom>` en égalité stricte) et `ChoixDuReferentiel.tsx:226-233` (noms du référentiel proposés) ; tinker en lecture → `PropertySearchService::search(['location' => 'Grand Yoff'])` rend 0, `'Grand-Yoff'` en rend 9 (le constat disait 39 : ce chiffre ne compte que les biens publics) ; `geo_neighborhoods` ne connaît que `Grand Yoff`, `addresses` que `Grand-Yoff` (42) ; 205 adresses sur 826 portent un quartier absent du référentiel, 322 sont rattachées à `geo_neighborhood_id`. Classement : V4, rattacher les adresses au référentiel réécrit des données existantes.
 
 ### Les suggestions de recherche ont une limite unique de 60 requêtes par minute pour tout le site
 - Réf : P01.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:373`
 - Constat :
@@ -171,6 +173,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Le test (`tests/Feature/Api/Search/SearchSuggestTest.php:198`) vide une clé qui n'existe pas : il resterait vert dans les deux cas.
   - Avec un anti-rebond de 150 ms, une dizaine de personnes qui tapent en même temps font répondre 429 à tout le monde.
 - Piste : `->by($this->visitorRateLimitKey($request))`, comme `public-read`, et un test avec deux IP distinctes.
+- Mesure (2026-10-15, c8f7f127, mesureur) : lu `AppServiceProvider.php:372-373` (`Limit::perMinute(60)` sans `->by()`) et `ThrottleRequests` (clé `md5($limiterName.$limit->key)`, donc une seule clé pour tous) ; test temporaire, retiré depuis, qui envoie 60 appels de `10.0.0.1` à `/api/search/suggest` → l'appel suivant depuis `10.0.0.2` rend **429**. TCK-107 écrit la règle attendue (« rate-limit 60 req/min/IP », AC5 « depuis la même IP »). Classement : A1, le comportement attendu est écrit dans TCK-107 et dans le commentaire de la ligne 372, et le correctif reprend la clé `visitorRateLimitKey()` des limiteurs voisins, sans choix de produit.
 
 ### Deux recherches par changement de filtre, et des impressions Boost gonflées
 - Réf : P01.04
@@ -252,7 +255,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Liste des membres d'agence : une dizaine de requêtes par ligne
 - Réf : P02.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:191`, `takussan-api/app/Http/Resources/UserResource.php:37,86-87`, `takussan-api/app/Models/Concerns/HasProfiles.php:82-95,229-262`, `takussan-api/app/Models/User.php:263-289`
 - Constat :
@@ -260,10 +263,11 @@ Déjà sain (mesuré ou lu) :
   - Le front appelle cette route avec `per_page=100` juste pour remplir des listes de noms : `AuditTrail.tsx:203`, `ContactLeadsInbox.tsx:242`, `role-delegations.ts:157`.
   - Le sparse fieldset ne coupe aucun de ces calculs. Cela fait environ 1 100 requêtes par appel (lu ; le compte exact reste à mesurer).
 - Piste : précharger les profils et `media`, ou ne sortir `roles` et `agency_id` que pour soi.
+- Mesure (2026-10-15, c8f7f127, mesureur) : test temporaire, retiré depuis, `GET /api/agencies/{id}/members?per_page=1000&fields[users]=id,first_name,last_name` sous `DB::enableQueryLog()` → 129 requêtes pour 11 lignes, 459 pour 41, 1 669 pour 151, soit environ 11 par ligne, sparse fieldset compris. Lu `UserResource.php:37,86-87` (`getFirstMediaUrl`, `agency_id`, `profileTypes()`), `HasProfiles::profileTypes()` (cinq `exists()` sans regard pour les relations chargées, alors que `profiles()` les réutilise déjà). Classement : A2, précharger les profils et `media` et faire relire à `profileTypes()` les relations chargées rend la même sortie ; la variante de la piste qui retire `roles`/`agency_id` de la sortie relèverait de V7 et n'est pas couverte par ce classement.
 
 ### `per_page` sans plafond sur une vingtaine de routes
 - Réf : P02.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `AgencyController.php:191`, `AuditLogController.php:57`, `PropertyPriceHistoryController.php:18`, `ServiceProviderProfileController.php:44`… (sous `takussan-api/app/Http/Controllers/Api/`)
 - Constat :
@@ -271,6 +275,7 @@ Déjà sain (mesuré ou lu) :
   - La session en relit 17 de cette forme exacte ; l'agent en compte 23 en incluant les variantes.
   - TCK-599 n'a corrigé que les favoris. Combiné au constat précédent, `per_page=10000` sur les membres d'agence déclenche de l'ordre de 100 000 requêtes.
 - Piste : une méthode unique `Controller::perPage($request, $défaut, $max)`, et une garde `scripts/check-*.mjs` qui refuse `paginate(` nourri de `$request->`.
+- Mesure (2026-10-15, c8f7f127, mesureur) : `grep -rnE "paginate\([^)]*\$request"` sous `app/Http/Controllers` → 17 `paginate((int) $request->input('per_page', …))`, 3 `paginate($request->integer('per_page', 20))` (`ServiceProviderBillController`, deux `PlatformPayoutController`), 1 `paginate($request->input('per_page', 20))` brut (`RoleDelegationController.php:40`), aucun borné ; `ReviewController` et `FavoriteController` passent par `validated()` et sont exclus du compte. Test temporaire, retiré depuis : `per_page=1000` sur les membres d'agence → 200, `meta.per_page` = 1000. Aucun appelant du front n'envoie plus de 100 à ces routes (`grep per_page` dans `takussan-web/src`). Classement : A1 et A5, le plafond attendu est écrit (`HasQueryBuilder::PER_PAGE_MAX = 100`, borné par `min()`, appliqué aux favoris par TCK-599) et la garde ne resserre aucun seuil existant.
 
 ### Le profil plateforme est relu à chaque autorisation
 - Réf : P02.03
@@ -388,7 +393,7 @@ Ce qui tient (lu) :
 
 ### `PUT /api/users/{user}/role` contourne les garde-fous de l'équipe
 - Réf : P03.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : garde d'autorisation sur un changement de rôle utilisé par le front
 - Gravité : 🔴 défaut avéré, au sein d'une même agence
 - Où : `takussan-api/app/Http/Controllers/Api/UserRoleController.php:38-74,104-135`, `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:10-16`
 - Constat :
@@ -398,10 +403,11 @@ Ce qui tient (lu) :
   - Le front appelle cette route (`takussan-web/src/lib/queries/admin-users.ts:81`).
   - Aucun test de `UserRoleControllerTest` ne vise ces cas (lu).
 - Piste : une policy `changeMemberRole` qui réutilise les gardes d'`AgencyMemberRemovalService`, un refus des cibles non actives, et un test par garde.
+- Mesure (2026-10-15, c8f7f127, mesureur) : lu `UserRoleController.php:37-135` (appartenance sans statut, `setAgent()`/`setOwner()` suppriment les profils `agency_admin`, aucune garde sur soi, le dernier admin ni la suspension) ; test temporaire, retiré depuis, admin unique de l'agence → `PUT /api/users/{agent suspendu}/role {role: agency_admin}` rend 200 et un profil admin `active`, puis `PUT /api/users/{soi}/role {role: agent}` rend 200 et laisse l'agence sans aucun profil admin. Le front l'appelle par le BFF `/api/admin-users/{id}/role` (`admin-users.ts:81`). Classement : V2, le correctif ajoute des refus sur une autorisation qu'un admin d'agence légitime utilise aujourd'hui.
 
 ### `/api/users?include=…Profiles` fait sortir les profils des autres agences
 - Réf : P03.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2/V3 : périmètre d'agence et données personnelles exposées
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:35-49`, `takussan-api/app/Models/User.php:156`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:277-280`
 - Constat :
@@ -412,10 +418,11 @@ Ce qui tient (lu) :
   - À vérifier : `include=platformProfile` dit si une personne est opératrice de la plateforme.
   - `UserAdminAgencyScopeTest` n'a aucun cas avec `include` (lu).
 - Piste : des `AllowedInclude::custom` contraints à l'agence active, idem pour `filter[role]`, et un test avec une personne présente dans deux agences.
+- Mesure (2026-10-15, c8f7f127, mesureur) : test temporaire, retiré depuis, admin de l'agence A, personne bailleur dans A et agent dans B (`license_number` `LIC-B-42`, `commission_rate` 7,5) → `GET /api/users?include=agentProfiles` rend 200 avec le profil d'agent de B entier (`agency_id` de B, licence, commission, `metadata`) ; `GET /api/users?filter[role]=agent` rend cette personne. Lu `User.php:156` (`$requestLoadable`) et `UserAdminController.php:35-50`. Non re-mesuré : `include=platformProfile`, qui reste à vérifier. Classement : V2 et V3, contraindre les includes et le filtre à l'agence active change ce qu'une autorisation livre et touche des données personnelles d'une agence tierce.
 
 ### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
 - Réf : P03.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : restreindre une lecture que la recherche d'étiquettes utilise
 - Gravité : 🔴 défaut avéré, impact modéré (des libellés, pas des fiches)
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:18-45,67-77`, `takussan-api/app/Http/Controllers/Api/CustomerTagController.php:60-66`, `takussan-api/app/Models/Tag.php:21-23`
 - Constat :
@@ -425,6 +432,7 @@ Ce qui tient (lu) :
   - La comparaison passe par une variable intermédiaire, que `scripts/check-agency-scope-clause.mjs` ne voit pas.
   - Aucun test entre deux agences (lu).
 - Piste : exclure le type `crm` hors de l'agence du personnel, dans `index` comme dans `show`, et un test entre deux agences.
+- Mesure (2026-10-15, c8f7f127, mesureur) : lu `TagController.php:17-46,62-73` (le périmètre d'agence n'agit que si `filter[type]=crm` est envoyé et `agency_id` non nul ; `show` ne regarde que le statut) et `Tag.php:21-23` (statut `approved` par défaut) ; test temporaire, retiré depuis, étiquette CRM créée comme `CustomerTagController` la crée et posée sur un client de l'agence A, compte `customer` sans agence → `GET /api/tags` la liste (200) et `GET /api/tags/{id}` la rend (200). Non re-mesuré : l'angle mort de `check-agency-scope-clause.mjs`. Classement : V2, exclure le type `crm` hors de l'agence du personnel restreint une lecture que des appelants légitimes (autocomplétion des étiquettes) utilisent aujourd'hui.
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
 - Réf : P03.04
