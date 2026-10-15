@@ -96,7 +96,7 @@ voie d'écriture (angle 13, puis 47).
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | fait |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | fait |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | fait |
-| 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
+| 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | fait |
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | à faire |
@@ -2885,3 +2885,94 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Le relevé des « autres lectures GET » du docblock (l. 21-24 : `auth/sessions`, `me/calendar-feed`, `integrations`, `invitations`) ne cite ni `documents`, ni `customers`, ni `notifications`.
   - Établi comment : lu.
 - Piste : une garde qui ouvre une session d'impersonation sur une cible garnie (pièce de profil, fiche client avec pièce, notification à pièces jointes) et balaie les `GET` de `route:list`. Elle échoue sur toute réponse 200 qui porte un champ `signature=`, `token`, `file_url` vers une pièce, ou `id_number`. Corriger l'ADR pour qu'il écrive le code réellement émis.
+
+## Angle 24 — Crédits et Boost : idempotence des achats, remboursements, ce que voit l'espace
+
+*Exploré le 2026-10-15 sur `pre-dev` afc07775, par l'explorateur. Tout a été relu par
+l'explorateur, sans sous-agent : `CreditLedger`, `BoostPurchaseService`, `BoostLifecycle`,
+`WelcomeCreditService`, `CreditExpiryNotifier`, `BoostsTick`, les contrôleurs `Credits/` et
+`AdminCreditWalletController`, `PropertyBoostPolicy`, l'ADR-0061 et, côté front, `BoostDialog`,
+`BoostButton`, `CreditsPanel` et `components/boost/api.ts`. Mesures par deux tests temporaires
+(`tests/Feature/TmpExplo/`), retirés depuis : base de test `RefreshDatabase`, catalogue initial
+d'ADR-0061 § 6. Charge avant les tests : `vm.loadavg` 1,35 sur 8 cœurs. **La moitié « Lemon
+Squeezy » de l'intitulé est sans objet** : aucun achat de crédits n'existe (`CreditLedger::grant()`
+refuse l'origine `purchase`, `CreditLedger.php:45-47` ; `CreditLotOrigin.php`), et ADR-0061 § 11
+prévoit la phase 2 par Wave ou Orange Money, non par Lemon Squeezy. La devise et le montant des
+paiements Lemon Squeezy sont déjà en P04 (« Lemon Squeezy ignore la devise du payable », « La garde
+de sous-paiement ne s'applique pas à Lemon Squeezy… »). Relu et trouvé conforme : verrou de l'espace
+avant la lecture des lots (`spend`), réclamation des clôtures par `UPDATE … WHERE status IN (live)`,
+offre de bienvenue par `insertOrIgnore` sur deux index, préavis réclamé par lot, délai de Remontée
+(un second achat immédiat rend 422). La pause et la reprise non réclamées sont déjà en P05 et ne
+sont pas reprises.*
+
+### Un même achat de boost rejoué est débité deux fois : deux badges identiques coûtent 20 crédits pour un seul badge
+- Réf : P24.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:32-41`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:112-185`, `takussan-web/src/components/boost/BoostDialog.tsx:66-77,143`
+- Constat :
+  - mesuré, test temporaire : deux `POST /api/properties/{id}/boosts` avec le même `product_id` (badge « Urgent » 7 jours), à 30 s d'écart → 201 et 201, solde 500 → 480, le premier badge `ended` avec ses 7 jours, le second `active`. Même chose pour une Vedette 7 jours rejouée : 201 et 201, 40 crédits débités, durée prolongée deux fois. La Remontée seule est protégée, par son délai (422 `boost.bump_cooldown`).
+  - La route ne reçoit aucune clé d'idempotence ; la requête ne porte que `product_id` (lu, `StorePropertyBoostRequest`).
+  - Le front empêche le double clic pendant l'envoi (`disabled={… achat.isPending …}`, lu `:143`), et les mutations ne sont pas rejouées (`retry: false`, lu `src/lib/query-client.ts:28`). Mais après une erreur, le bouton « Confirmer » redevient actif : une réponse perdue (coupure réseau, délai du proxy) alors que l'achat a été écrit invite à confirmer de nouveau (lu ; l'occurrence réelle est à vérifier).
+  - Pour un badge, le second achat **remplace** le premier sans remboursement (ADR-0061 § 5) : l'espace paie deux fois pour un seul badge, sans rien de plus.
+  - Établi comment : lu, et test temporaire.
+- Piste : une clé d'idempotence par ouverture du dialogue (`Idempotency-Key` ou champ `request_id`, unique par espace sur une courte fenêtre), rejouée en 200 avec le boost déjà écrit. Garde : un test qui rejoue la même clé et constate un seul débit.
+
+### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
+- Réf : P24.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/boost/BoostDialog.tsx:29-55`, `takussan-web/src/components/boost/api.ts:12-31`, `takussan-api/routes/api/credits.php:14`, `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:18-30`
+- Constat :
+  - Le dialogue ne lit que le solde et le catalogue (`useCredits`, `useBoostProducts`, lu `:37-40`). Il propose les trois genres sans dire qu'un badge est déjà actif et sera **remplacé sans remboursement**, qu'une Vedette en cours sera prolongée, ni qu'une Remontée est encore en délai. Les règles d'ADR-0061 § 5 ne sont dites nulle part avant la confirmation (lu, libellés `boost.dialog.*` et `boost.kinds.*` de `src/messages/fr.json`).
+  - mesuré : `grep -rn "/boosts" takussan-web/src` → le seul appel est le `POST` de `api.ts:28`. La lecture `GET /api/properties/{property}/boosts`, décrite par TCK-633 (l. 133), n'est appelée par aucun écran.
+  - Établi comment : lu, et `grep`.
+- Piste : lire `GET …/boosts` à l'ouverture du dialogue et dire, pour l'offre choisie, ce qui arrivera (« remplace le badge “Urgent” actif jusqu'au … », « prolonge la Vedette jusqu'au … », « Remontée possible à partir de … »). Garde : un test du dialogue qui monte un badge actif et attend l'avertissement.
+
+### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
+- Réf : P24.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/features.md:428`, `takussan-web/src/components/boost/CreditsPanel.tsx:21-24`, `takussan-api/app/Http/Resources/Credits/CreditMovementResource.php:12-22`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:187-191`
+- Constat :
+  - `features.md:428` annonce une page « Crédits » avec « solde, lots, historique, boosts » (lu). `CreditsPanel` rend le solde, les lots et le journal, et aucun boost (lu, `grep -n "boost" CreditsPanel.tsx` → rien).
+  - Le journal affiche date, type, montant et motif (lu, `:21-24`). Une dépense de boost est écrite sans motif (`spend(…, $boost, $actor)`, lu `BoostPurchaseService.php:190`) : sa ligne se lit « Dépense −20 — », sans bien ni offre. `property_boost_id` est émis par la ressource mais n'est lu par aucune colonne (lu). Une dépense répartie sur deux lots fait deux lignes (ADR-0061 § 2).
+  - Un remboursement automatique (bien loué) a lui aussi un motif nul quand l'acteur n'en donne pas (lu, `BoostLifecycle.php:54`).
+  - Établi comment : lu.
+- Piste : soit rendre le bien et l'offre dans le journal (relation `propertyBoost.property` chargée, colonne « Objet »), soit corriger `features.md` pour dire ce que la page montre. Garde : un test de `CreditsPanel` sur une ligne de dépense rattachée à un boost.
+
+### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
+- Réf : P24.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:30-48,63-77,79-110`
+- Constat :
+  - `purchase()` appelle `abort_code_unless($product->is_active, …)` et `assertBoostable($property)` (lu, `:32-33`), **puis** ouvre la transaction et verrouille l'espace et le bien (`:36-37`). Rien n'est re-vérifié sous le verrou (lu).
+  - Une dépublication, une location ou un retrait de l'offre écrit entre les deux passe donc (déduit, à vérifier) : une Remontée est débitée sur un bien hors du public et n'est jamais remboursée (ADR-0061 § 5) ; une Vedette ou un Badge naît `active` sur un bien hors du public, l'observateur du bien ayant déjà joué, et ne passe en pause qu'au `boosts:tick` suivant (≤ 5 min, temps consommé).
+  - La fenêtre est courte (deux requêtes SQL) ; aucun cas réel n'est observé.
+  - Établi comment : lu.
+- Piste : déplacer les deux contrôles sous le verrou, sur la ligne verrouillée (`Property::query()->public()->whereKey(…)` après `lock()`). Garde : un test qui dépublie le bien par `DB::beforeExecuting` entre le contrôle et le verrou, et attend 422 sans débit.
+
+### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
+- Réf : P24.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
+- Constat :
+  - Une prolongation additionne prix et durée sur la même ligne (`price_credits + $price`, `duration_days + …`, lu `:129-130`), et le remboursement rend `price_credits × jours pleins restants / duration_days` (lu, `:149-151`). Le prix est donc étalé uniformément sur toute la durée cumulée, alors que les jours payés sont au bout.
+  - mesuré, test temporaire : Vedette offerte de 30 jours (prix 0), puis Vedette 7 jours achetée (20 crédits) → ligne à prix 20, durée 37. Bien loué au jour 25 : 12 jours pleins restent, dont les 7 payés ; **6 crédits** rendus, solde 486.
+  - Le cas inverse (achat, puis Vedette offerte par la plateforme) rend plus que les jours payés restants (déduit du même calcul, à vérifier).
+  - ADR-0061 § 8 dit « au prorata du prix figé » sans traiter la prolongation (lu).
+  - Établi comment : lu, et test temporaire.
+- Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
+
+### Petites améliorations
+- Réf : P24.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
+- Constat :
+  - **Délai de Remontée** : le message dit « moins de 24 heures » en dur (lu, `errors.php:93`, même chose en `en` et `wo`), alors que le délai est le réglage `boost.bump_cooldown_hours` (lu, `:81`). Et `available_at` est passé en ISO brut : mesuré, test temporaire → `message` « …Next bump available from 2026-10-13T10:00:30+00:00. ». Le code `boost.bump_cooldown` n'a pas de clé côté front (mesuré, `grep -rn bump_cooldown takussan-web/src` → un commentaire seulement) : c'est cette prose que le dialogue affiche (lu, `messageErreurApi`, `src/lib/api.ts:514-517`).
+  - **Préavis d'expiration répété** : un lot `refund` hérite de l'expiration de son lot d'origine et naît sans `expiry_notice_sent_at` (lu, `CreditLedger.php:227`). Mesuré, test temporaire : lot de bienvenue expirant à J+20, Vedette 30 jours, préavis envoyé à J+14 ; bien loué à J+15 → lot `refund` de 30 crédits, même échéance, et un **second préavis** au passage suivant (2 notifications pour la même date).
+  - Établi comment : lu, et test temporaire.
+- Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
