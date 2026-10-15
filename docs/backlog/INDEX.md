@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 44 |
+| 📋 Todo | 43 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 547 |
 | 🗑️ Obsolete | 2 |
@@ -76,7 +76,6 @@
 - [TCK-619](tickets/TCK-619-gardes-de-test-qu-une-mutation-traverse.md) — Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596) `S · P2 · technique`
 - [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 - [TCK-637](tickets/TCK-637-ci-parallele-couverture-decouplee.md) — CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests `M · P2 · technique`
-- [TCK-651](tickets/TCK-651-reglages-metier-au-catalogue.md) — Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale `M · P2 · full`
 
 ## 🚧 Doing
 
@@ -85,6 +84,7 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
+- [TCK-651](tickets/TCK-651-reglages-metier-au-catalogue.md) — Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale `M · P2 · full`
 
 ## ⛔ Blocked
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-651
 title: Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale
-status: todo
+status: review
 phase: P2
 family: full
 estimate: M
 wave: 79
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 depends_on: [TCK-648]
 blocks: []
 spec_refs:
@@ -53,33 +53,33 @@ se lit « aucun plafond », pas zéro.
 
 ## Delta à produire
 
-- [ ] `EditablePlatformSettings` : les cinq clés, catégorie `rentals`, types `integer_list`,
+- [x] `EditablePlatformSettings` : les cinq clés, catégorie `rentals`, types `integer_list`,
       `decimal`, `integer`, `boolean`.
-- [ ] `PlatformSettingService` : normalisation et validation des trois types neufs (valeur vide
+- [x] `PlatformSettingService` : normalisation et validation des trois types neufs (valeur vide
       admise pour le plafond des pénalités).
-- [ ] `ScopedSetting` et les cinq lecteurs : ligne de l'agence, sinon `getValue('<clé>')` littéral.
-- [ ] Route brute : refus de la portée `global` sur `store`, `update`, `destroy` ; code d'erreur
+- [x] `ScopedSetting` et les cinq lecteurs : ligne de l'agence, sinon `getValue('<clé>')` littéral.
+- [x] Route brute : refus de la portée `global` sur `store`, `update`, `destroy` ; code d'erreur
       traduit.
-- [ ] Front : l'éditeur du catalogue rend les trois types neufs ; section « Location » et libellés
+- [x] Front : l'éditeur du catalogue rend les trois types neufs ; section « Location » et libellés
       des cinq clés (fr/en/wo).
-- [ ] Front : `/super-admin/settings/global`, son entrée de menu et ce qui ne servait qu'elle
+- [x] Front : `/super-admin/settings/global`, son entrée de menu et ce qui ne servait qu'elle
       disparaissent.
-- [ ] Tests : les cinq clés au catalogue (validation, journal) ; les lecteurs suivent la valeur du
+- [x] Tests : les cinq clés au catalogue (validation, journal) ; les lecteurs suivent la valeur du
       catalogue et la ligne d'agence l'emporte ; la route brute refuse le global et garde l'agence.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une valeur réglée dans « Paramètres plateforme » pour chacune des cinq clés est celle
+- [x] AC1 — une valeur réglée dans « Paramètres plateforme » pour chacune des cinq clés est celle
       que lit son service pour une agence sans réglage propre ; une agence qui a sa ligne garde la
       sienne.
-- [ ] AC2 — une valeur hors règles (plafond de révision à `"abc"`, liste vide de relances) est
+- [x] AC2 — une valeur hors règles (plafond de révision à `"abc"`, liste vide de relances) est
       refusée en 422 et n'est pas écrite ; une valeur acceptée laisse une entrée de journal.
-- [ ] AC3 — `POST`/`PUT`/`DELETE /api/settings` en portée `global` rendent 422
+- [x] AC3 — `POST`/`PUT`/`DELETE /api/settings` en portée `global` rendent 422
       `setting.global_not_writable` pour un super-admin ; en portée `agency`, l'admin de l'agence
       écrit toujours.
-- [ ] AC4 — retirer une des cinq clés du catalogue, ou faire lire à un lecteur la ligne globale
+- [x] AC4 — retirer une des cinq clés du catalogue, ou faire lire à un lecteur la ligne globale
       sans passer par `getValue`, fait rougir un test ou une garde (vérifié par ablation).
-- [ ] AC5 — `/super-admin/settings/global` rend 404 ; aucun lien du front n'y mène.
+- [x] AC5 — `/super-admin/settings/global` rend 404 ; aucun lien du front n'y mène.
 
 ## Hors périmètre
 
@@ -89,4 +89,46 @@ se lit « aucun plafond », pas zéro.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Catalogue** (`EditablePlatformSettings`) : cinq entrées `rentals`. Les défauts référencent
+  `OverdueReminderService::DEFAULT_OFFSETS`, `RentReviewService::DEFAULT_MAX_PCT` et
+  `EarlyTerminationService::SETTING_DEFAULT_MONTHS` ; `false` et `null` sont littéraux, faute de
+  constante dans le service. `managedByCatalogue()` est supprimée : plus aucun appelant.
+- **`PlatformSettingService`** : normalisation par type (`integer_list` triée, dédoublonnée), champ
+  `nullable` servi à la console. Une ligne globale `{"value": …}` écrite autrefois par la route brute
+  se relit déballée (`unwrap`), y compris dans l'ancienne valeur du journal. ⚠ `settings.value` est
+  `NOT NULL` : un plafond vide s'écrit `{"value": null}`. La première version écrivait `null` nu et
+  rendait 500 ; le test du plafond vide l'a attrapé.
+- **Cache** : `Setting::booted()` vide le cache du catalogue à chaque écriture d'une ligne globale.
+  Un seeder ou un test qui écrit la table directement ne laisse donc plus dix minutes de valeur
+  périmée aux lecteurs.
+- **Lecteurs** : `ScopedSetting::row()` (agence puis global) est remplacée par `agencyRow()`. Le repli
+  global passe par `getValue('<clé>')` littéral, ce qui met les cinq lecteurs sous la garde
+  `check-platform-catalogue-readers.mjs` (14 paramètres).
+- **Route brute** : `store` rend 403 `global_forbidden` à qui n'est pas super-admin (inchangé), puis
+  422 `setting.global_not_writable` ; `update` (dans `passedValidation`, après le 403 d'`authorize`)
+  et `destroy` font de même. `setting.managed_by_catalogue` est remplacée en fr/en/wo.
+- **Front** : l'éditeur rend `decimal` (vide = `null` si la clé l'admet, texte indicatif « Aucun
+  plafond »), `boolean` (case `role="switch"`, patron d'`AgencyConfigForm`) et `integer_list`
+  (saisie « 3, 7, 15 » ; un jeton non entier ou une liste vide bloque l'enregistrement côté client).
+  Section « Location ». Supprimés : la page `/super-admin/settings/global` et son test,
+  `SettingsManager`, les quatre actions de paramètres de `console.ts`, `fetchSettings` /
+  `upsertSetting` / `updateSetting` / `deleteSetting` / `renderSettingValue`, le schéma
+  `settingFormSchema` et ses deux auxiliaires, les types `Setting` / `SettingScope` /
+  `SettingValue`, et les clés i18n mortes (`adminSettings.settings`,
+  `superAdmin.pages.globalSettings`, `nav.superAdmin.items.globalSettings`,
+  `validation.setting.key*`). `namespaces.json` est régénéré : `adminSettings` quitte la frontière
+  super-admin. Le plafond de `/app` passe de 71 à 72 % sans que son code change : le dictionnaire a
+  rétréci, et le plafond vaut `ceil(part) + 5`.
+- **Ablations** (2026-10-15) :
+  - `lease.rent_review_max_pct` retirée du catalogue → 4 rouges (dont AC1 et le défaut) ; la garde
+    reste verte, ce sens n'est pas le sien.
+  - `RentReviewService` lisant la ligne globale sans `getValue` → la garde sort en 1 (« la console
+    l'édite et aucun code ne le lit »). Les tests restent verts : c'est la garde qui tient ce sens.
+  - refus du `global` retiré de `store` → `GenericSettingsCatalogueBypassTest` rouge.
+  - menu : entrée « Paramètres globaux » remise → 2 rouges sur 3 dans
+    `SuperAdminSidebar.parametres.test.tsx`.
+- **Correctif connexe** : la note de TCK-650 lisait le 422 de l'opérateur comme le refus d'une clé du
+  catalogue. C'était une erreur de validation, et la note est corrigée.
+- **Docs** : `models-spec.md` §30 (MC1 de la passe 014, MB13 de la passe 013) nomme les deux
+  catalogues et la route brute limitée à l'agence. `features.md` l.671 est vraie telle quelle et ne
+  change pas.

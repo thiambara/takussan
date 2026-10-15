@@ -56,7 +56,7 @@ brute `/api/settings` ne fait plus que la portée `agency`.**
    L'appel est littéral, ce qui les met sous la garde `check-platform-catalogue-readers.mjs`.
 3. **La route brute refuse toute écriture en portée `global`** (`store`, `update`, `destroy`), pour
    tout appelant, super-admin compris : 422 `setting.global_not_writable`. La portée `agency`
-   reste ouverte (admin de l'agence, ou profil plateforme sous second facteur). La lecture
+   reste ouverte (admin de l'agence, ou super-admin sous second facteur). La lecture
    (`index`) ne change pas.
 4. **`/super-admin/settings/global` disparaît** (amende ADR-0064 §1) : son seul objet était
    d'écrire la portée globale par la route brute. Sans redirection, comme le reste d'ADR-0064.

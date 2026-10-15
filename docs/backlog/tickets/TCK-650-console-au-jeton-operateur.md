@@ -95,7 +95,10 @@ comportent exactement comme sans elle.
 - **Mesure à l'API, 2026-10-14** (le contexte de ce ticket disait « la console se vide », c'était
   faux, corrigé) : la cible LIT aussi les clés globales (`GET /api/settings` 200, clé visible), donc
   un rendu de page ne distingue pas les deux jetons ; l'écart est à l'ÉCRITURE — `PUT` d'une clé
-  globale : 403 au jeton de la cible, 422 au jeton de l'opérateur (clé du catalogue, refus attendu).
+  globale : 403 au jeton de la cible, 422 au jeton de l'opérateur. ⚠ *Correctif du 2026-10-14
+  (TCK-651)* : ce 422 n'était pas le refus d'une clé du catalogue, mais une erreur de validation —
+  la valeur envoyée était une chaîne, la route exige un objet. La conclusion (l'opérateur passe
+  l'autorisation, la cible non) tient ; la raison du 422 était mal lue.
   Pages rendues en 200 avec leur contenu, avec et sans cookie d'impersonation (super-admin de
   démonstration, 2FA posée le temps de la mesure puis rendue, jetons `verif-tck650` révoqués).
 - `depends_on: TCK-648` est en `review` sur la même branche (non fusionnée) : implémenté à la suite,
