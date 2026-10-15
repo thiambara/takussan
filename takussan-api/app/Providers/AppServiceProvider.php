@@ -369,8 +369,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootRateLimiters(): void
     {
-        // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
-        RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
+        // TCK-107 — 60 req/min PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour
+        // tout le site (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur
+        // qui tapait vite faisait répondre 429 à tous les autres.
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($this->visitorRateLimitKey($request)));
 
         // Public POST endpoints — keyed by authenticated user_id when a valid
         // Bearer token is present, otherwise by the visitor IP (resolved via
