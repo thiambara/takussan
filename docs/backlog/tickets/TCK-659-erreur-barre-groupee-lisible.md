@@ -1,7 +1,7 @@
 ---
 id: TCK-659
 title: "L'erreur de la barre d'actions groupées tient 4,5:1"
-status: todo
+status: done
 phase: P0
 family: bug
 estimate: S
@@ -33,14 +33,14 @@ Le message d'erreur d'un lot est lisible (≥ 4,5:1) dans les deux thèmes.
 
 ## Delta à produire
 
-- [ ] `PropertyList.tsx` (barre d'actions groupées) : l'alerte devient une pastille claire
+- [x] `PropertyList.tsx` (barre d'actions groupées) : l'alerte devient une pastille claire
       `bg-background text-destructive` (avec `rounded-md px-2 py-0.5`).
-- [ ] Test : `PropertyList.bulk-alerte.contraste.test.tsx`, qui rend la barre, fait échouer un
+- [x] Test : `PropertyList.bulk-alerte.contraste.test.tsx`, qui rend la barre, fait échouer un
       lot, et compose l'encre de l'alerte sur chacun de ses fonds possibles, dans les deux thèmes.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — L'alerte rendue après l'échec d'un lot tient ≥ 4,5:1 sur chacun de ses fonds
+- [x] AC1 — L'alerte rendue après l'échec d'un lot tient ≥ 4,5:1 sur chacun de ses fonds
       (le sien, ou celui hérité de la barre), en thème clair et en thème sombre.
 
 ## Hypothèses (mode sans humain)
@@ -55,3 +55,9 @@ Le message d'erreur d'un lot est lisible (≥ 4,5:1) dans les deux thèmes.
 - Les motifs de refus de la même barre (`text-primary-foreground/80`), non mesurés ici.
 
 ## Notes d'implémentation
+
+- Rouge avant correctif : 2 écarts — clair 2,23:1 (`text-destructive` sur `bg-foreground/95`
+  posé sur `#fcf9f3`), sombre 2,11:1.
+- Ablation (`PropertyList.tsx` remis, test gardé) : les deux mêmes écarts ; correctif remis : vert.
+- Le test passe par le DOM rendu (`fondsPossibles`) et non par le lecteur statique : l'alerte
+  n'existe qu'après l'échec d'un lot, et son fond est hérité de la barre.

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**603 tickets** — 46 ouverts, 555 livrés.
+**603 tickets** — 45 ouverts, 556 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 44 |
+| 📋 Todo | 43 |
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 555 |
+| ✅ Done | 556 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -76,7 +76,6 @@
 - [TCK-619](tickets/TCK-619-gardes-de-test-qu-une-mutation-traverse.md) — Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596) `S · P2 · technique`
 - [TCK-634](tickets/TCK-634-limiteur-de-connexion-nomme.md) — Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative) `S · P1 · bug`
 - [TCK-637](tickets/TCK-637-ci-parallele-couverture-decouplee.md) — CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests `M · P2 · technique`
-- [TCK-659](tickets/TCK-659-erreur-barre-groupee-lisible.md) — L'erreur de la barre d'actions groupées tient 4,5:1 `S · P0 · bug`
 
 ## 🚧 Doing
 
@@ -92,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 555
+## ✅ Done — 556
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1016,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 42 tickets</summary>
+<summary><strong>Sans vague</strong> — 43 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1060,6 +1059,7 @@ _(aucun)_
 - [TCK-656](tickets/TCK-656-messages-de-validation-traduits.md) — Les messages de validation écrits en français en dur passent par `lang/{fr,en,wo}` `S · P0 · bug`
 - [TCK-657](tickets/TCK-657-pastille-et-surlignage-contraste.md) — La pastille de prix de la carte et le surlignage des suggestions tiennent 4,5:1 `S · P0 · bug`
 - [TCK-658](tickets/TCK-658-encre-attenuee-sans-alpha.md) — Les encres atténuées de quatre parcours tiennent 4,5:1, sans opacité `S · P0 · bug`
+- [TCK-659](tickets/TCK-659-erreur-barre-groupee-lisible.md) — L'erreur de la barre d'actions groupées tient 4,5:1 `S · P0 · bug`
 
 </details>
 
