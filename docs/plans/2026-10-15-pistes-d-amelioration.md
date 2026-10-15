@@ -986,12 +986,13 @@ Sain (vérifié par l'agent) :
 
 ### Une ligne de versement cliquable seulement à la souris
 - Réf : P07.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-661
 - Gravité : 🔴 défaut avéré (console super-admin)
 - Où : `takussan-web/src/components/billing/PayoutTable.tsx:120-123`, appelée avec `onSelect` par `AdminPayoutsClient.tsx:96`
 - Constat : `<tr onClick>` sans rôle, sans `tabIndex` ni clavier, et aucun bouton dans la ligne : le détail est inatteignable au clavier (lu).
 - Piste : un `<button>` dans la cellule de période, comme `InvoicesTable.tsx:100`.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PayoutTable.tsx:120-123` (`<tr onClick>` sans rôle, sans `tabIndex` ni gestion du clavier, aucun élément focusable dans la ligne) et `AdminPayoutsClient.tsx:96-100` (`onSelect` → `setSelectedId`, seul chemin vers `PayoutDetailPanel`) ; `InvoicesTable.tsx:100-106` porte le patron du bouton → le constat tient. Classement : A4, rendre la période cliquable par un `<button>` quand `onSelect` est fourni, avec le texte de période qu'elle affiche déjà, n'ajoute ni texte ni comportement neuf.
+- Mesure (2026-10-15, eee06c10, implementeur) : avant correctif, `PayoutTable.clavier.test.tsx` (rend la table avec `onSelect`, Tab puis Entrée ou Espace) → 2 rouges : le focus reste sur `BODY`, `onSelect` jamais appelé. Correctif : la période devient un `<button type="button">` quand `onSelect` est fourni, avec `stopPropagation` pour que le `<tr onClick>` gardé pour la souris ne rejoue pas la sélection ; sans `onSelect`, aucun bouton. Ablation : correctif retiré → les 2 mêmes rouges ; `stopPropagation` seul retiré → 2 rouges « appelé 2 fois » ; correctif remis → 3 verts.
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
 - Réf : P07.06
