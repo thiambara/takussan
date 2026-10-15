@@ -42,6 +42,7 @@
  *   node scripts/check-pistes.mjs --report                # + comptes par statut et par gravité
  *   node scripts/check-pistes.mjs --liste "à mesurer"     # entrées dont le statut commence ainsi
  *   node scripts/check-pistes.mjs --angles-a-faire        # angles encore à explorer, dans l'ordre
+ *   node scripts/check-pistes.mjs --restes                # ce qui reste des validations partielles
  *   node scripts/check-pistes.mjs --role mesureur --base origin/pre-dev
  */
 import { execFileSync } from 'node:child_process';
@@ -64,7 +65,7 @@ const STATUTS = [
   { nom: 'retenu · à valider', motif: /^retenu · à valider( — .{10,})?$/ },
   { nom: 'validé', motif: /^validé( — .+)?$/ },
   { nom: 'refusé', motif: /^refusé( — .+)?$/ },
-  { nom: 'fait', motif: /^fait · TCK-\d{3,}$/ },
+  { nom: 'fait', motif: /^fait · TCK-\d{3,}( — reste : .{10,})?$/ },
 ];
 
 const ROLES = ['explorateur', 'mesureur', 'implementeur'];
@@ -340,6 +341,12 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
         if (nom && !plat(readFileSync(join(dossier, nom), 'utf8')).includes(plat(accord))) {
           erreurs.push(`${ref} : ${tck} ne recopie pas la décision du porteur (« ${accord} »)`);
         }
+        // Ce que le porteur a gardé pour plus tard survit à `fait` : sinon plus rien ne le suit.
+        const reste = accord.match(/ ; reste : (.+)$/)?.[1];
+        const resteFait = champ(e, 'Statut').valeur.match(/ — reste : (.+)$/)?.[1];
+        if (reste && plat(resteFait ?? '') !== plat(reste)) {
+          erreurs.push(`${ref} : la précision garde un reste ; l'entrée passe à « fait · ${tck} — reste : ${reste} »`);
+        }
       }
     }
   }
@@ -390,6 +397,17 @@ function principal(argv) {
     erreurs.push(...verifierRole(role, base, tete, fichiers));
   }
 
+  if (argv.includes('--restes')) {
+    // Ce qui reste d'une validation partielle : à faire (`validé — … ; reste : …`) ou laissé par
+    // le ticket qui l'a implémentée (`fait · TCK-NNN — reste : …`).
+    for (const e of tete.entrees) {
+      const s = champ(e, 'Statut')?.valeur ?? '';
+      const fait = s.match(/^fait · (TCK-\d+) — reste : (.+)$/);
+      const valide = s.match(/^validé — .* ; reste : (.+)$/);
+      if (fait) console.log(`${refDe(e)}\t${fait[1]}\t${fait[2]}`);
+      else if (valide) console.log(`${refDe(e)}\tpas encore fait\t${valide[1]}`);
+    }
+  }
   if (argv.includes('--angles-a-faire')) {
     for (const a of tete.tableau.values()) if (a.etat === 'à faire') console.log(`${a.num}\t${a.sujet}`);
   }
@@ -423,7 +441,7 @@ function principal(argv) {
     console.error(`\n${erreurs.length} erreur(s) — forme et protocole : docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md`);
     return 1;
   }
-  if (liste === null && !argv.includes('--angles-a-faire')) {
+  if (liste === null && !argv.includes('--angles-a-faire') && !argv.includes('--restes')) {
     console.log(`✓ ${FICHIER} : ${tete.entrees.length} entrées bien formées${role ? `, périmètre du rôle ${role} tenu` : ''}`);
   }
   return 0;
