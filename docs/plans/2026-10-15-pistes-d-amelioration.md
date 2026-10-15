@@ -91,7 +91,7 @@ voie d'écriture (angle 13, puis 47).
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | fait |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | fait |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | fait |
-| 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
+| 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | fait |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
@@ -128,6 +128,8 @@ voie d'écriture (angle 13, puis 47).
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
+| 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
+| 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
 
 ---
 
@@ -2317,3 +2319,100 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **`/playground` est servi sur le site public** (noindex, mais non interdit par `robots.txt`) et appelle la recherche par `useProperties` pour ses rangées « près de toi » et « location » (lu). Chaque affichage compte des impressions sponsorisées qu'il ne montre pas.
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
+
+## Angle 19 — Rétention des tables qui grossissent
+
+*Exploré le 2026-10-15 sur `pre-dev` 8ebb0cc3, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `routes/console.php`, `config/activitylog.php`, la
+commande `activitylog:clean` du paquet, `AccountDeletionService::anonymize`, `User::getActivitylogOptions`,
+`ActivityLogExporter`, `ScheduledRunRecorder`, `ScheduledTaskInspector`, `NotificationController`,
+TCK-537, ADR-0044 § 4 et `privacy.ts` § 6. Volumes lus en `SELECT` sur la base de développement
+(port 5433) : une base de dev, alimentée par les seeders et un planificateur qui ne tourne pas en
+continu ; elle ne dit rien des volumes de préproduction, qui n'ont pas été lus. Un test temporaire,
+retiré depuis, sur la base de test (charge 3,34 / 3,11 / 2,67 sur 8 cœurs). Ce qui touche la purge
+du journal d'activité elle-même est déjà porté par TCK-537 et P02.11 : les entrées ci-dessous n'y
+ajoutent que des faits neufs.*
+
+### L'anonymisation d'un compte recopie son identité d'origine dans `activity_log`, qui n'est jamais purgé
+- Réf : P19.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/routes/console.php` (aucune entrée `activitylog:clean`), `takussan-web/src/content/legal/privacy.ts:123,129`
+- Constat :
+  - `User` journalise `email`, `first_name`, `last_name`, `phone`, `username` et `email_verified_at`, avec `logOnlyDirty()` (lu, `User.php:381-392`).
+  - `anonymize()` efface ces champs par un `forceFill()->save()`, puis un `delete()` (lu, `AccountDeletionService.php:235-271`). Rien n'y coupe le journal.
+  - Mesuré par un test temporaire : un utilisateur créé avec un e-mail, un téléphone, un prénom et un nom, puis anonymisé. `activity_log` porte ensuite quatre lignes `default` sur ce sujet. La ligne `updated` de l'anonymisation contient, sous `attribute_changes.old`, l'e-mail, le téléphone, le prénom, le nom et l'identifiant d'origine. La ligne `created` les contient aussi.
+  - `activitylog:clean` n'est pas planifiée (lu, `routes/console.php`), et `clean_after_days` vaut 365 (lu, `config/activitylog.php:18`). Ces lignes restent donc sans limite. Même planifiée, la purge les garderait douze mois.
+  - La politique dit qu'après le délai de 30 jours « les données d'identification du compte et des profils sont ensuite effacées ou anonymisées » (lu, `privacy.ts:123`). TCK-537 relève que la purge n'est pas planifiée, mais pas que l'anonymisation elle-même écrit l'identité dans le journal.
+  - Établi comment : test temporaire `anonymize()` sur la base de test, puis lecture de `activity_log` filtrée par sujet.
+- Piste : anonymiser sans journaliser les valeurs (`$user->disableLogging()` autour du `save()`, ou une ligne `Account` sans diff), et effacer `attribute_changes` des lignes dont le sujet ou le causeur est ce compte. Un test : après `anonymize()`, aucune ligne de `activity_log` ne contient l'e-mail ni le téléphone d'origine. Ablation : retirer la coupure → rouge.
+
+### Le numéro de téléphone survit à l'anonymisation dans `notification_delivery_attempts.to`, une table sans purge
+- Réf : P19.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:26`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:255`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:320`
+- Constat :
+  - Chaque envoi SMS ou WhatsApp écrit une ligne avec `to`, le numéro du destinataire (lu, `SmsRouterDriver.php:255`, `WhatsappChannel.php:320`).
+  - `anonymize()` ne touche ni cette table ni `app_notifications` (lu). La FK `app_notifications.user_id` est en `cascadeOnDelete`, mais le compte n'est que soft-deleted : rien ne cascade.
+  - Mesuré par le même test temporaire : une notification et une tentative `to = +221771234567` pour l'utilisateur, puis `anonymize()`. La tentative garde `to = +221771234567`, et la notification existe toujours.
+  - Aucune commande planifiée ne purge `notification_delivery_attempts` (lu, `routes/console.php`). La politique ne lui donne aucune durée (lu, `privacy.ts:121-134`).
+- Piste : à l'anonymisation, mettre `to` à `null` (ou le masquer) sur les tentatives des notifications du compte ; fixer une durée de rétention des tentatives et la planifier. Un test : après `anonymize()`, aucune tentative ne porte le numéro d'origine.
+
+### L'export CSV du journal rend `properties_diff` vide pour toute modification d'un modèle
+- Réf : P19.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:135-158`, `takussan-api/app/Services/Crm/CustomerActivityFeed.php:65-67`
+- Constat :
+  - Depuis activitylog v5, les changements de champs vivent dans `attribute_changes`, et `properties` reste `[]` (mesuré : lignes `created`, `updated` et `deleted` de `User` dans le test temporaire). `CustomerActivityFeed` le dit et lit `attribute_changes` (lu, `:65-67`).
+  - `mapRow()` cherche `attributes` et `old` dans `properties` seulement (lu, `ActivityLogExporter.php:139-145`).
+  - Mesuré : `mapRow()` appelé par réflexion sur la ligne `updated` d'un `User` rend `properties_diff = NULL`. Le CSV d'audit, celui de l'agence comme celui de la console (`payloadForQuery`), ne contient donc aucun avant/après.
+  - Aucun test ne vérifie `properties_diff` (mesuré : `grep -rln properties_diff takussan-api/tests` → rien).
+- Piste : lire `attribute_changes`, le passer par `PropertyRedactor` comme `properties`. Un test : l'export d'une ligne `updated` porte l'ancienne et la nouvelle valeur, expurgées. L'angle 56 cherche les autres lecteurs restés sur l'ancienne forme.
+
+### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
+- Réf : P19.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
+- Constat :
+  - `activitylog:clean {log?}` purge un seul journal ou tous (lu, `CleanActivitylogCommand.php:13-40`). La commande ne sait pas exclure des journaux. L'exemption que demande TCK-537 passe donc par l'action surchargeable `actions.clean_log` (lu, `config/activitylog.php:73`) ou par une commande à part.
+  - TCK-537 n'exempte que `PersonalDataAccess` et `Privacy`. La console tient pourtant onze journaux pour sensibles : `PrivacyRequest`, `Security`, `UserSupport`, `KYC`, `KycDossier`, `Membership`, `AgencyRole`, `Integration`, `export`… (lu, `CrossTenantAuditController.php:40-52`). Le registre des droits écrit sous `PrivacyRequest` (lu, `activity(PrivacyRequest::LOG_NAME)`), et l'exécution d'une suppression de compte sous `Account` (lu, `AccountDeletionService.php:115,154,193`). Une purge à 365 jours effacerait ces traces.
+  - `LeasePayment`, `BookingPayment`, `Invoice`, `Payout` et `CommissionEntry` portent `Auditable` (mesuré : `grep -rln "use Auditable" app/Models`). La politique garde ces pièces 10 ans (lu, `privacy.ts:125`). Leur journal de modification relève-t-il de cette durée ? À vérifier par le porteur.
+- Piste : écrire dans TCK-537 la liste des journaux exemptés à partir de ceux qui existent (`grep -rhoE "activity\('[A-Za-z_]+'\)" app` et `useLogName`), et une durée par journal plutôt qu'une exemption. Un test par journal exempté, en plus de l'AC3b.
+
+### `scheduled_task_runs` : environ 10 000 lignes par jour en production, et la console agrège tout l'historique
+- Réf : P19.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/console.php:106-115`, `takussan-api/app/Services/Admin/ScheduledRunRecorder.php:56-73`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:17-48`
+- Constat :
+  - Voir P02.11 pour l'absence de purge et le balayage de la sonde. Les faits qui suivent sont neufs.
+  - Une ligne par exécution (lu, `ScheduledRunRecorder.php:56`). Chaque minute : quatre battements de file, `impersonation:close-expired` et `health:probe` (lu, `console.php:106-113`). Mesuré en dev : 7 856 lignes `RecordQueueHeartbeat` contre 1 964 `health:probe`, soit quatre par minute. Avec les cinq tâches toutes les cinq minutes, un planificateur continu écrit environ 6 × 1 440 + 5 × 288 ≈ 10 000 lignes par jour, soit 3,7 millions par an. C'est déduit du calendrier : le volume de préproduction est à vérifier.
+  - `ScheduledTaskInspector::all()` fait un `GROUP BY task` sur toute la table, avec `avg(duration_ms)` depuis la première exécution et une sous-requête triée par tâche (lu, `:17-48`). Mesuré par `EXPLAIN ANALYZE` en dev : Seq Scan des 14 948 lignes, puis 39 sous-plans en Bitmap Heap Scan et Sort, 7 ms. Le coût croît avec l'historique, et la durée moyenne affichée ne reflète jamais une régression récente.
+  - Le nom d'une commande est sa ligne de commande complète, chemin absolu du binaire PHP compris (mesuré : `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe`). Changer de version de PHP ou d'image coupe l'historique en deux, et l'ancien nom reste listé dans la console à jamais : aucune ligne ne disparaît.
+- Piste : une purge planifiée à quelques jours, bornée à la dernière exécution conservée par tâche ; une moyenne sur une fenêtre (7 jours) ; un nom stable par `->name()` ou dérivé de la commande Artisan sans le binaire. Un test : deux chemins de binaire différents donnent le même nom.
+
+### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
+- Réf : P19.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/NotificationController.php:20-31`, `takussan-api/database/migrations/2026_04_17_160032_create_app_notifications_table.php:13,26`, `takussan-web/src/content/legal/privacy.ts:121-134`
+- Constat :
+  - Aucune purge des notifications in-app (lu, `routes/console.php`), et la politique ne leur donne aucune durée (lu). Mesuré en dev : 10 271 lignes depuis le 2025-07-24, dont 6 202 lues ; l'utilisateur qui en a le plus en porte 253.
+  - La liste et le compteur filtrent sur `read_at` (lu, `NotificationController.php:21,29-30`). L'index posé est `(user_id, is_read)`. Mesuré par `EXPLAIN ANALYZE` : PostgreSQL passe par `app_notifications_user_id_digested_at_index` sur `user_id` seul, filtre `read_at` en mémoire, puis trie par `created_at`. 0,2 ms à ce volume.
+  - `is_read` et `read_at` disent la même chose : mesuré, 4 069 lignes `false`/`null` et 6 202 `true`/non nul, aucune divergence. Seuls les deux résumés lisent encore `is_read` (lu, `SendDailyNotificationDigest.php:40`, `DigestBuilderService.php:30`).
+- Piste : une durée pour les notifications lues (par exemple 6 mois), écrite dans la politique ; un index `(user_id, created_at DESC, id DESC)`, avec une condition partielle `WHERE read_at IS NULL` pour le compteur, posé sur mesure d'un volume réel.
+
+### Petites améliorations
+- Réf : P19.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
+- Constat :
+  - **`queue:prune-failed` et `queue:prune-batches` ne sont pas planifiées** (lu). `failed_jobs.payload` est gardé tel quel, pour le rejeu (lu, `SanitizingFailedJobProvider.php:12`), sans limite de durée. La file est `database` en préproduction (lu, `docs/infra/prod-drivers.json`).
+  - **Le journal de `User` tombe dans `default`** (mesuré : les quatre lignes du test temporaire), avec les écritures sans nom de journal. `User` ne pose pas `useLogName`, quand `Auditable` nomme par classe (lu, `Auditable.php:31`). Une purge ou une exemption par nom ne peut donc pas viser les changements d'identité seuls.
+  - **`next_due_at` vaut toujours `null`** dans l'inspecteur des tâches (lu, `ScheduledTaskInspector.php:43`).
+  - **Ce qui tient** : `integration_webhook_logs` (`webhooks:prune`), les jetons (`sanctum:prune-expired`, `sessions:prune-idle`), les brouillons, les archives d'export et les alertes non confirmées ont leur purge planifiée (lu, `console.php:49,79,101-104,118,169`). `platform_metrics_daily` écrit une ligne par jour (lu, ADR-0057 : « ne demande aucune purge ») ; `property_boost_daily_stats` une par bien et par jour (mesuré : 71 lignes en dev). Les sessions sont en Redis (lu, `prod-drivers.json`) : la table `sessions` ne grossit pas.
+- Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
