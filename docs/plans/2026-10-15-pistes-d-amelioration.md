@@ -765,7 +765,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### La langue choisie dans l'interface n'atteint jamais le compte : e-mails, SMS et cloche partent en français
 - Réf : P06.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-655
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/routes/api/me.php:32`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`
 - Constat :
@@ -776,6 +776,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - 26 classes de notification écrivent un `title` sans `code`, et le front les affiche tels quels (`texteNotification.ts`).
 - Piste : accepter `preferred_language` sur `PATCH /api/me`, corriger le chemin dans `locale.ts`, et le renseigner à l'inscription depuis `Accept-Language`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `locale.ts:41-45` (`PATCH /api/users/me`, `catch {}` muet) ; `php artisan route:list --path=users/me` → « doesn't have any routes » ; `route:list --path=api/me` → `PATCH api/me` (`MeController@update`, `UpdateMeRequest`) ; `grep -rn preferred_language app/Http` → aucun FormRequest ne l'accepte. Le « à vérifier » du constat est levé : `AgencyProvisioningService.php:76` écrit `preferred_language` (`$adminPayload['language'] ?? 'fr'`). TCK-550 (done) a relevé le même écart en base et l'a laissé hors périmètre, sans ticket ouvert. Classement : A1, TCK-017 écrit le comportement attendu (sélecteur « persisté via `preferred_language` », l. 36 et 70) ; le correctif autonome se borne à accepter `preferred_language` (`in:fr,en,wo`) dans `UpdateMeRequest` et à viser `/api/me` dans `locale.ts`, et le remplissage à l'inscription depuis `Accept-Language` reste hors de ce classement (V7).
+- Mesure (2026-10-15, 1bfcf09c, implementeur) : reproduit par `MeUpdateTest` avant correctif → `PATCH /api/me {preferred_language: "wo"}` rendait 200 et laissait `fr`, `de` rendait 200 ; `locale.persistance.test.ts` lisait `/api/users/me`. Correctif : règle `in:fr,en,wo` dans `UpdateMeRequest`, écriture dans `MeController::update()`, chemin `/api/me` dans `locale.ts` → 13/13 et 2/2 verts. Ablation : contrôleur retiré → AC1 rouge ; règle retirée → 2 rouges ; chemin front remis → rouge. Le remplissage à l'inscription reste hors périmètre (V7).
 
 ### Messages système des groupes : rôle toujours « member », aperçu figé en français
 - Réf : P06.02
