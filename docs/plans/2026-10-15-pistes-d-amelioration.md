@@ -2310,7 +2310,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : réécrit le jeu de données seedé, et choisit ce que les données de démonstration représentent
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/seeders/Support/FilterCoverageSeeder.php:241-249`, `takussan-api/database/seeders/Catalog/PropertySeeder.php:62-78,191-204`, `takussan-api/database/seeders/Support/SenegalFakerProvider.php:21-36,168-171`
 - Constat :
@@ -2325,6 +2325,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     « Pikine » et « Guédiawaye » y sont des quartiers de Dakar, alors que l'ADR-0062 § 2 en fait des villes.
   - Mesuré : 180 adresses de Dakar ont un texte de quartier sans rattachement. Les 205 « quartiers hors référentiel » de P01.02 sont donc pour l'essentiel un artefact du seed : le défaut de filtre qu'elle décrit tient, mais ses comptes ne disent rien de la production (voir P01.02).
 - Piste : tirer les quartiers seedés dans `geo_neighborhoods` de la ville choisie, et les coordonnées autour du centre de cette ville. Une garde de seed : toute adresse seedée avec un texte de quartier est rattachée.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `FilterCoverageSeeder.php:241-251` (quartier `dakarNeighborhood()`, ville `senegaleseCity()`, région `Dakar`, coordonnées 14,6-14,8 / -17,5 à -17,3), `PropertySeeder.php:62-78` et `:191-204` (hors Dakar : latitude 12,5-16,7, longitude -17,5 à -11,5), `SenegalFakerProvider.php:18-40` (`Plateau`, `Grand-Yoff`, `Dieuppeul`, `Hann Maristes`, `Pikine`, `Guédiawaye` comme quartiers de Dakar) ; aucun commit sur ces trois fichiers depuis le constat ; `SELECT` en lecture sur la base de dev (adresses de biens) → 200 adresses hors de Dakar portent un quartier, 180 adresses de Dakar ont un quartier sans `geo_neighborhood_id`, sur 826. Constat confirmé, comptes identiques. Classement : V4, le correctif change les données que les seeders écrivent (noms de quartiers, coordonnées) et la garde de seed porte sur la suite entière (`database/seeders/` est un déclencheur dur), ce qui demande un choix sur le jeu de démonstration plutôt qu'un défaut au comportement écrit.
 
 ### Petites améliorations
 - Réf : P17.05
@@ -2379,7 +2380,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
 - Réf : P18.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux correctifs possibles, qui changent ce qu'une visite compte ou le contrat de l'API publique
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/public-discovery.ts:54-71`, `takussan-web/src/hooks/useHomepageDiscovery.ts:99-123`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`
 - Constat :
@@ -2387,10 +2388,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Chacun des deux appels compte les impressions de la rangée vedette (lu, `HomepageDiscoveryService.php:113`). La graine de cette rangée ne dépend que de la surface et de l'heure (`seed(['surface' => 'homepage.featured'])`) : les deux appels servent les mêmes biens, affichés une seule fois.
   - La part des visiteurs dont la ville est devinée (ipapi.co, échéance de 1 200 ms) n'est pas connue. À vérifier.
 - Piste : ne compter la rangée vedette que sur l'appel sans ville, ou passer un paramètre `count=0` au rappel du client. Un test API : deux appels, l'un avec `near_city`, comptent une seule fois.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `HomepageDiscoveryService.php:107-113` (impressions de la rangée vedette à chaque appel), `SponsoredRotation::seed()` (graine = paramètres + heure UTC), `public/page.tsx:62` (rendu serveur sans ville), `useHomepageDiscovery.ts:99-123` (rappel client avec `near_city` quand une ville est devinée) ; test temporaire calqué sur `BoostStatsTest`, retiré depuis : `GET /api/public/properties/discovery` puis `?near_city=Dakar` → compteur d'impressions du boost à 2 pour une rangée vedette affichée une fois. Charge 2,55 sur 8 cœurs. La part des visiteurs dont la ville est devinée reste non mesurée. Classement : V7, « ne compter que l'appel sans ville » perd l'impression quand le rendu serveur a échoué et que le client appelle avec sa ville, et `count=0` ajoute un paramètre public : le choix revient au porteur.
 
 ### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
 - Réf : P18.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ce qui compte comme une impression (liste de robots, ou comptage depuis le navigateur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-44`, `takussan-web/src/lib/queries/public-search.ts:48-60`, `takussan-web/src/lib/queries/public-discovery.ts:54-71`
 - Constat :
@@ -2398,10 +2400,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Les rendus serveur de `/` et de `/properties` appellent l'API sans `partage` (lu, `public-search.ts:51`, `public-discovery.ts:60`). Ils ne passent donc pas par le cache de données de Next : chaque passage d'un robot, sur chaque URL de facette, compte ses impressions. L'accueil et la recherche ne sont pas mis en cache côté API non plus (mesuré : aucun `Cache::` dans `HomepageDiscoveryService` ni dans `discovery()`).
   - Les clics, eux, exigent un clic réel suivi d'un `POST` depuis le navigateur (lu, `CompteurDeVue.tsx:29-41`). Un robot gonfle donc les impressions sans clic, et le taux de clic baisse d'autant. Le volume réel est à vérifier dans les journaux de préproduction.
 - Piste : ne pas compter quand l'agent est reconnu comme robot (liste courte, sans dépendance), ou compter l'impression depuis le navigateur après affichage, comme la vue de fiche (TCK-598). Un test : une recherche sous `Googlebot` ne compte rien.
+- Mesure (2026-10-15, d62e3290, mesureur) : `grep -rniE "isbot|crawler|googlebot|bingbot|userAgent\(\)"` sur `takussan-api/app` et `takussan-web/src` → seulement `LeaseSignatureService.php:164` et `ContactLeadService.php:213,311` (journalisation), aucun filtre ; `BoostStatsRecorder::impressions()` est appelé par `HomepageDiscoveryService.php:113` et `PropertySearchService.php:659` sans regarder l'agent (lu) ; `public-search.ts:48-60` appelle sans `partage` (lu) ; test temporaire, retiré depuis : un troisième `GET /api/public/properties/discovery` sous l'agent `Googlebot/2.1` fait passer le compteur de 2 à 3. Le volume réel des robots n'est pas mesuré. Classement : V7, la piste propose deux définitions de l'impression (liste courte d'agents, ou comptage par le navigateur comme TCK-598), et choisir l'une est un choix de mesure produit, la seconde changeant aussi l'architecture du comptage.
 
 ### Un vidage qui échoue perd les compteurs de l'heure
 - Réf : P18.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:69-90`, `takussan-api/app/Console/Commands/BoostsTick.php:23-30`
 - Constat :
@@ -2409,6 +2412,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - `pull` lit puis efface en deux commandes, sans atomicité (lu). Deux vidages simultanés peuvent lire la même valeur et la verser deux fois. `withoutOverlapping()` les en empêche sur un seul serveur, et l'en-tête de `BoostsTick` affirme pourtant que deux ticks qui se chevauchent « ne produisent rien de plus ». À vérifier si l'API tourne un jour sur plusieurs conteneurs planificateurs.
   - `flush()` vient en dernier dans le tick (lu, ligne 28). Une exception d'une étape précédente le saute tant qu'elle se répète. Les compteurs vivent 48 h (`TTL_HOURS`) : au-delà, ils sont perdus sans trace.
 - Piste : lire avec `get`, écrire, puis `forget` dans le même passage, ou `GETDEL` Redis par heure complète. Isoler `flush()` des autres étapes du tick. Un test : un `upsert` qui lève laisse les compteurs en cache pour le tick suivant.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `BoostStatsRecorder::flush()` (`Cache::pull` des deux compteurs, puis `upsert`, puis `LAST_FLUSHED_KEY`) et `BoostsTick.php:23-30` (`flush()` en dernière étape) ; test temporaire, retiré depuis : deux impressions, une heure plus tard un `flush()` dont l'`insert` dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → exception propagée, clé de cache de l'heure à `NULL`, puis `boosts:tick` normal → 0 ligne, les deux impressions sont perdues. Charge 2,55 sur 8 cœurs. Les deux autres parties ne sont pas re-mesurées par exécution : le double versement demande deux planificateurs (aucun aujourd'hui), et le saut de `flush()` quand une étape antérieure lève tient par lecture seulement. Classement : A1, l'en-tête de la classe et l'ADR-0061 § 10 écrivent que les compteurs sont versés dans `property_boost_daily_stats` ; le correctif lit chaque compteur par `get`, écrit la ligne, puis `forget` la clé après l'`upsert` réussi, sans toucher à l'ordre des étapes du tick ni au verrou entre serveurs, hors de ce classement.
 
 ### Petites améliorations
 - Réf : P18.06
@@ -2478,7 +2482,7 @@ ajoutent que des faits neufs.*
 
 ### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
 - Réf : P19.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : durée de conservation de journaux qui portent des données personnelles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
 - Constat :
@@ -2486,10 +2490,11 @@ ajoutent que des faits neufs.*
   - TCK-537 n'exempte que `PersonalDataAccess` et `Privacy`. La console tient pourtant onze journaux pour sensibles : `PrivacyRequest`, `Security`, `UserSupport`, `KYC`, `KycDossier`, `Membership`, `AgencyRole`, `Integration`, `export`… (lu, `CrossTenantAuditController.php:40-52`). Le registre des droits écrit sous `PrivacyRequest` (lu, `activity(PrivacyRequest::LOG_NAME)`), et l'exécution d'une suppression de compte sous `Account` (lu, `AccountDeletionService.php:115,154,193`). Une purge à 365 jours effacerait ces traces.
   - `LeasePayment`, `BookingPayment`, `Invoice`, `Payout` et `CommissionEntry` portent `Auditable` (mesuré : `grep -rln "use Auditable" app/Models`). La politique garde ces pièces 10 ans (lu, `privacy.ts:125`). Leur journal de modification relève-t-il de cette durée ? À vérifier par le porteur.
 - Piste : écrire dans TCK-537 la liste des journaux exemptés à partir de ceux qui existent (`grep -rhoE "activity\('[A-Za-z_]+'\)" app` et `useLogName`), et une durée par journal plutôt qu'une exemption. Un test par journal exempté, en plus de l'AC3b.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `CleanActivitylogCommand.php:13-40` (argument `{log?}` unique, pas d'exclusion), `config/activitylog.php:71-74` (`clean_log` surchargeable), `CrossTenantAuditController::SENSITIVE_LOG_NAMES` (onze journaux), TCK-537 contrainte 5 et AC3b (exempte seulement `PersonalDataAccess` et `Privacy`, ticket `todo`, dernière modification `e8882992`) ; `grep activitylog:clean routes/console.php` → rien, purge toujours non planifiée ; `grep -rhoE "activity\('…'\)|LOG_NAME|useLogName"` → 30 noms de journaux, dont `Account` (3, `AccountDeletionService.php:115,154,193`) que rien n'exempte. Inexact dans le constat : `PrivacyRequest::LOG_NAME` vaut `'Privacy'` (`PrivacyRequest.php:34`), donc le registre des droits écrit sous `Privacy`, déjà exempté par TCK-537, et aucun code n'écrit sous `'PrivacyRequest'` (seule mention : `CrossTenantAuditController.php:43`). Le reste du constat tient. Classement : V3, fixer la durée de conservation de chaque journal (et celle des journaux de pièces comptables) est une décision RGPD que la piste renvoie elle-même au porteur.
 
 ### `scheduled_task_runs` : environ 10 000 lignes par jour en production, et la console agrège tout l'historique
 - Réf : P19.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : purge de lignes, et la moyenne affichée change de sens
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/console.php:106-115`, `takussan-api/app/Services/Admin/ScheduledRunRecorder.php:56-73`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:17-48`
 - Constat :
@@ -2498,6 +2503,7 @@ ajoutent que des faits neufs.*
   - `ScheduledTaskInspector::all()` fait un `GROUP BY task` sur toute la table, avec `avg(duration_ms)` depuis la première exécution et une sous-requête triée par tâche (lu, `:17-48`). Mesuré par `EXPLAIN ANALYZE` en dev : Seq Scan des 14 948 lignes, puis 39 sous-plans en Bitmap Heap Scan et Sort, 7 ms. Le coût croît avec l'historique, et la durée moyenne affichée ne reflète jamais une régression récente.
   - Le nom d'une commande est sa ligne de commande complète, chemin absolu du binaire PHP compris (mesuré : `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe`). Changer de version de PHP ou d'image coupe l'historique en deux, et l'ancien nom reste listé dans la console à jamais : aucune ligne ne disparaît.
 - Piste : une purge planifiée à quelques jours, bornée à la dernière exécution conservée par tâche ; une moyenne sur une fenêtre (7 jours) ; un nom stable par `->name()` ou dérivé de la commande Artisan sans le binaire. Un test : deux chemins de binaire différents donnent le même nom.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `routes/console.php:106-113` (quatre battements, `impersonation:close-expired` et `health:probe` chaque minute), `ScheduledRunRecorder::record()` (une ligne par exécution) et `nomDe()` (`description` sinon la commande complète), `ScheduledTaskInspector::all()` (`GROUP BY task`, `avg(duration_ms)` sur tout l'historique, sous-requête triée) ; `grep -rln scheduled_task_runs app/Console database/migrations` → seule la migration de création, aucune purge ; `SELECT` en lecture sur la base de dev → 14 948 lignes, 39 tâches, et `health:probe` nommée `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe` (1 964 lignes). Le volume de préproduction reste à vérifier. Classement : V4, la purge supprime des données, et la fenêtre de moyenne change ce que la console affiche (V7) : deux choix pour le porteur.
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
@@ -2559,7 +2565,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des demandes d'intervention fait six requêtes par ligne
 - Réf : P20.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:71,77,237-253`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:264-283`, `takussan-api/app/Models/User.php:299`
 - Constat :
@@ -2568,6 +2574,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - `LeaseResource` et `CustomerResource` mettent déjà l'agence du personnel en cache dans `$request->attributes` (lu, `LeaseResource.php:128-132`, `CustomerResource.php:90-93`) ; cette ressource ne le fait pas.
 - Établi comment : test temporaire avec pile d'appel, relecture de la ressource et de la politique.
 - Piste : calculer `isPrincipal` une fois par ligne et le réutiliser dans `seesQuote`, et lire `staffAgencyId()` une fois par requête comme les deux ressources voisines ; test de budget sur la liste.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `MaintenanceRequestResource.php:71,77,237-253` (`seesQuote()` et `isPrincipal()` appellent chacun `MaintenanceRequestPolicy::isPrincipalFor()`), `MaintenanceRequestPolicy.php:264-283` (`isSuperAdmin()` puis `staffAgencyId()`), `User.php:299-302` (résolveur, sans cache) ; test temporaire, retiré depuis, `GET /api/maintenance-requests?include=property&fields[properties]=…&per_page=20` en admin d'agence → 36 requêtes pour 2 lignes, 96 pour 12 (6 par ligne : `agent_profiles`, `agency_admin_profiles`, `platform_profiles`, deux de chaque). Charge 3,45 sur 8 cœurs. Constat confirmé. Classement : A2, la réponse ne change pas ; le correctif calcule `isPrincipal` une fois par ligne et le réutilise dans `seesQuote`, et lit `staffAgencyId()` une fois par requête dans `$request->attributes` comme `LeaseResource.php` et `CustomerResource.php`, avec un test de budget de requêtes sur la liste ; la relecture de `isSuperAdmin()` par ligne relève de P20.03.
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
@@ -2799,7 +2806,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Sous impersonation, l'opérateur ouvre la pièce d'identité du bailleur, de l'agent ou du prestataire par `/api/documents`, alors que `api/kyc/documents/*` est refusé
 - Réf : P23.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : autorisation sous impersonation et lecture d'une pièce d'identité (V3)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Http/Resources/DocumentResource.php:38`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-87`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-80`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:18-23`
 - Constat :
@@ -2810,6 +2817,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - La justification de l'ADR pour la pièce d'agence (« tout opérateur la lit déjà par `/api/admin/kyc`, sous son nom ») ne vaut pas ici : aucune voie de la console ne sert ces pièces, et leur lecture n'est pas journalisée (voir P23.04).
   - Établi comment : lu, et test temporaire.
 - Piste : refuser sous impersonation les `Document` de type pièce (`id_card`, `rib`, `ninea`) rattachés à un profil, au niveau de `DocumentPolicy::view` ou de la ressource (masquer `file_url` quand `ImpersonationContext` est lié). Un préfixe de route ne suffit pas : `api/documents*` sert aussi les baux. Garde : un test qui rejoue le scénario mesuré pour les trois profils.
+- Mesure (2026-10-15, d62e3290, mesureur) : relu `EnforceImpersonationReadOnly::REFUSED_READS` (seule `api/kyc/documents/*` pour les pièces), `DocumentController::index()` (`where('uploaded_by', …)` hors super-admin), `DocumentPolicy::view()` (le téléverseur voit), `DocumentResource.php:38` (`file_url` signée) ; aucun commit sur ces fichiers depuis `f7af6b12` ; test temporaire, retiré depuis, sur le seul profil propriétaire : une `id_card` rattachée à l'`OwnerProfile`, téléversée par la cible, puis session d'impersonation (`SessionsDImpersonation`) → `GET /api/documents` 200 avec un document `id_card`, `GET /api/documents/{id}` 200, `GET <file_url>` 302, 0 ligne `PersonalDataAccess` dans `activity_log`. Charge 2,20 sur 8 cœurs. Les profils agent et prestataire ne sont pas rejoués, leurs contrôleurs `Me/` écrivant la même forme (lu). Classement : V2, le correctif refuse une lecture sous impersonation, au niveau de la policy ou de la ressource, que la piste laisse à choisir, et touche l'exposition d'une pièce d'identité (V3).
 
 ### Le bailleur lit la pièce d'identité et le contact d'urgence de son locataire par le bail et la réservation, alors que la fiche client lui est refusée
 - Réf : P23.02
