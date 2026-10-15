@@ -62,7 +62,7 @@ function HighlightedText({ label, query }: { label: string; query: string }) {
   return (
     <span>
       {before}
-      <mark className="bg-primary/15 text-primary font-semibold not-italic rounded-sm px-px">{match}</mark>
+      <mark className="bg-primary/10 text-[var(--primary-deep)] font-semibold not-italic rounded-sm px-px">{match}</mark>
       {after}
     </span>
   );
