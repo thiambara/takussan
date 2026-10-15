@@ -1130,35 +1130,39 @@ Sain (vérifié par l'agent) :
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : proposer de reprendre un formulaire est un comportement visible neuf
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
+- Mesure (2026-10-15, 66ed4340, mesureur) : `grep -l 'useWizardDraft\|localStorage\|sessionStorage'` sur `CreateLeaseForm.tsx`, `CustomerForm.tsx` et `PropertyForm.tsx` → rien ; `grep -rln beforeunload takussan-web/src` hors tests → `hooks/useWizardDraft.ts:264`, un **commentaire** seulement (le constat disait « aucun » : il n'y a aucun gestionnaire) → tient. Classement : V7, une reprise de brouillon ou un avertissement de départ sur trois écrans est une interaction neuve (quand proposer, quand purger), qu'aucune spec n'écrit pour ces formulaires.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V8 : une présentation mobile de 30 tableaux est un choix de design
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/console/DataTable.tsx:140`, `owners/OwnersList.tsx:209-230`, `service-providers/ServiceProvidersList.tsx:163,223`, `commissions/CommissionsLedger.tsx:126,212`, `payments/InvoicesTable.tsx:74,99-106`
 - Constat : sur 32 consommateurs de `DataTable`, seuls `CustomerList` et `PropertyList` ont une liste mobile. Ailleurs, l'action ne s'atteint qu'après un défilement horizontal (mesuré).
 - Piste : une option `carteMobile` dans `DataTable`, ou la ligne cliquable avec l'action en tête.
+- Mesure (2026-10-15, 66ed4340, mesureur) : `grep -rl '<DataTable' takussan-web/src` hors tests → **32** fichiers ; parmi eux, seuls `CustomerList.tsx` et `PropertyList.tsx` portent un `md:hidden`/`sm:hidden`/`lg:hidden` ; `DataTable.tsx:140` enveloppe la table sans vue en cartes → tient. La position de l'action en dernière colonne n'a pas été relue fichier par fichier. Classement : V7 et V8, choisir entre cartes et ligne cliquable est du design, et l'appliquer à 30 consommateurs dépasse un ticket M.
 
 ### Barres d'onglets sans défilement
 - Réf : P08.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le défilement de la primitive change la présentation de toutes les barres d'onglets
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
+- Mesure (2026-10-15, 66ed4340, mesureur) : relu `tabs.tsx:27` (`inline-flex w-fit`, aucun `overflow`) et `:87` (déclencheurs `whitespace-nowrap`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu), `CustomerDetailTabs.tsx:65` (enveloppe `overflow-x-auto`) ; largeur rendue par Chromium headless des libellés `fr` (14 px, graisse 500, padding de la primitive, **police de repli** Helvetica et non DM Sans) → **454 px** pour les cinq onglets des paiements, **394 px** pour ceux du bien, contre 328 px disponibles → la barre déborde. Que ce soit `<main>` qui défile n'a **pas** été mesuré : retenu pour le débordement seul. Classement : V7, faire défiler la primitive touche toutes les barres, et la règle « défile dans son conteneur » n'est écrite que pour les tables.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
+- Mesure (2026-10-15, 66ed4340, mesureur) : relu `RoomEditor.tsx:140` (`<textarea>` en `text-sm`), `InviteAgentDialog.tsx:136,154,175,194` et `InviteMemberDialog.tsx:111` (`<input>` en `text-sm`, sans `text-base`) — lignes inchangées ; `ui/input.tsx:18-20` écrit la règle (« 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus ») et `ui/textarea.tsx:10` l'applique → tient. Le zoom lui-même n'a pas été observé sur un iPhone. Classement : A1, le comportement attendu est écrit dans la primitive, et le correctif aligne six champs sur elle sans choix de produit.
 
 ### Petites améliorations
 - Réf : P08.10
@@ -1216,7 +1220,7 @@ Correct (mesuré ou lu) :
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : l'image et le texte de partage sont un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
 - Constat :
@@ -1224,10 +1228,11 @@ Correct (mesuré ou lu) :
   - Aucun `opengraph-image`.
   - Sur la fiche manquent `og:url`, `og:locale`, `og:site_name` et les dimensions, et l'image vient de la conversion `preview` en 800×600 (mesuré pour `/fr` ; `og:image` d'une fiche avec photo à vérifier).
 - Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
+- Mesure (2026-10-15, 66ed4340, mesureur) : `find takussan-web/src/app -name 'opengraph-image*' -o -name 'twitter-image*'` → rien ; `(public)/page.tsx:20-23` ne rend que `alternates`, `(public)/layout.tsx:45-57` et `app/layout.tsx:57-63` aucun `openGraph` ; seules les fiches de bien, d'agence et d'agent en déclarent ; `properties/[slug]/page.tsx:115-126` pose `title`, `description`, `type` et `images` sans `url`, `locale`, `siteName` ni dimensions ; l'image vient de `main_photo_url`, soit la conversion `preview` (`PropertyResource.php:137`), `width(800)->height(600)` (`Property.php:779`) → tient. Aucune page n'a été rendue. Classement : V7, une image de partage 1200×630 et des textes par ville ou quartier sont un visuel et un texte neufs.
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la correspondance contrat et période vers schema.org est un choix de référencement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -1235,16 +1240,18 @@ Correct (mesuré ou lu) :
   - `contract_type` et `rent_period` ne sont pas émis : un loyer ressemble à un prix de vente.
   - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
+- Mesure (2026-10-15, 66ed4340, mesureur) : relu `jsonld-property.ts:80-113` : `priceSpecification` est posé dans `mainEntity`, typé par `SOUS_TYPE_SCHEMA` (`:17-33`, `Apartment`, `House`, `Room`, `Accommodation` ou `Place`), aucun `offers`, ni `contract_type` ni `rent_period` émis ; `floorSize`, `numberOfBedrooms` et `yearBuilt` sont posés aussi sur `Place` (terrain, bureau, parking), où schema.org ne les définit pas ; `priceCurrency` vaut bien `XOF` par défaut → tient. Aucun validateur de données structurées n'a été lancé. Classement : V7, choisir `businessFunction` et le `unitCode` de chaque `rent_period` n'est écrit par aucun ticket ni ADR.
 
 ### Chaque fiche a trois URL au contenu principal identique
 - Réf : P09.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : revenir sur l'indexation des trois langues demande un ADR
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/alternates.ts:172`, `takussan-web/src/i18n/routing.ts:252`
 - Constat :
   - `/fr`, `/en` et `/wo` sont indexables, chacune canonique à elle-même, alors que le titre et la description ne sont saisis qu'en français : l'API ne traduit pas le contenu.
   - Le sitemap triple le volume (lu ; effet sur l'index à vérifier).
 - Piste : un ADR qui tranche entre fiches `en`/`wo` indexables, ou canonique vers `fr` et retrait du sitemap.
+- Mesure (2026-10-15, 66ed4340, mesureur) : relu `alternates.ts:172-185` (hreflang vers les trois langues de `LOCALES_INDEXABLES`), `routing.ts:252` (`LOCALES_INDEXABLES = LOCALES`) ; `grep translat\|title_en Property.php` → aucun champ traduit : titre et description sont ceux qu'on a saisis ; ADR-0026 § 4 décide que `wo` est indexable « dès maintenant » et § 1 la canonique par langue, sans parler du contenu saisi en une seule langue → tient. L'effet sur l'index n'a pas été mesuré, il est hors du poste. Classement : V6, la piste revient sur une décision d'ADR-0026.
 
 ### Tout le site public est rendu de façon dynamique
 - Réf : P09.06
@@ -2483,7 +2490,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des clients charge et rend toutes les notes internes de chaque fiche
 - Réf : P20.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-api/app/Models/Customer.php:60,273`, `takussan-web/src/lib/queries/customers.ts:88-90`
 - Constat :
@@ -2493,6 +2500,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Le même repli vaut pour la fiche (`DASHBOARD_CUSTOMER_DETAIL_FIELDS` n'a pas `notes` non plus, lu) : retirer `notes` de l'`include` comme le propose P02.09 ne suffit pas, la relation serait encore chargée par la ressource (déduit, à vérifier).
 - Établi comment : test temporaire, puis relecture de la ressource et du modèle.
 - Piste : rendre la colonne seulement si elle est sélectionnée (`array_key_exists('notes', $this->resource->getAttributes())`), et la relation sous une autre clé par `whenLoaded`, ou ne plus la rendre du tout ; garder par un test de budget « 2 lignes = 12 lignes » sur `GET /api/customers`.
+- Mesure (2026-10-15, 66ed4340, mesureur) : relu `CustomerResource.php:30` (`'notes' => $this->notes`), `Customer.php:60` (colonne `notes` fillable) et `:273` (relation `notes(): HasMany`), `customers.ts:24-34` (`DASHBOARD_CUSTOMER_FIELDS` sans `notes`) ; test temporaire, retiré, `GET /api/customers` avec ces champs et `include=tags`, une note par client → **28 requêtes pour 2 clients, 47 pour 12**, dont une `customer_notes` par ligne (2, puis 12), et `data.0.notes` rend la note brute (`author_id`, `body`, `deleted_at`, `created_at` en `…000000Z`) ; aucun appelant du front ne lit `customer.notes` : la fiche et le tiroir lisent `/api/customers/<built-in function id>/notes` (`customers/[id]/page.tsx:87`, `CustomerDetailSheet.tsx:45`), et les notes rendues sont celles que `view` sur le client ouvre déjà, sans fuite hors agence. Charge 2,37 sur 8 cœurs. Classement : A2, la requête par ligne disparaît sans retirer rien de ce qu'un appelant demande (colonne si sélectionnée, relation seulement si chargée par `include=notes`).
 
 ### La liste des demandes d'intervention fait six requêtes par ligne
 - Réf : P20.02
