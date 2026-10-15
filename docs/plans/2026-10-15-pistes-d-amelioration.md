@@ -964,12 +964,13 @@ Sain (vérifié par l'agent) :
 
 ### L'erreur de la barre d'actions groupées est illisible
 - Réf : P07.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-659
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property-dashboard/PropertyList.tsx:688,757`
 - Constat : `role="alert"` en `text-destructive` sur `bg-foreground/95`, à **2,22:1**. Les gardes `check-destructive-contrast` ne mesurent pas ce fond (mesuré).
 - Piste : une pastille claire (`bg-background text-destructive`), ou l'encre claire de la barre avec une icône.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyList.tsx:688` (barre `bg-foreground/95`, encre `text-primary-foreground`) et `:757` (`<span role="alert" class="text-destructive">`, dans cette barre) ; contraste calculé → 2,22:1 en clair, 2,11:1 en sombre (`#ff7f7d` sur `#fcf9f3` à 95 %) ; `check-destructive-contrast.mjs:158` ne lit que `bg-destructive/NN`, jamais ce fond → le constat tient. Une pastille `bg-background text-destructive` rendrait 6,61:1 en clair et 7,17:1 en sombre. Classement : A4, le contraste est ramené sur des jetons existants, sans texte neuf.
+- Mesure (2026-10-15, d62e3290, implementeur) : avant correctif, `PropertyList.bulk-alerte.contraste.test.tsx` (rend la barre, fait échouer un lot, compose l'encre de l'`alert` sur chacun de ses fonds par `fondsPossibles`, deux thèmes) → rouge : `text-destructive` sur `bg-foreground/95` à 2,23:1 en clair et 2,11:1 en sombre. Correctif : pastille `rounded-md bg-background px-2 py-0.5 text-destructive` (6,61:1 et 7,17:1). Ablation (`PropertyList.tsx` remis, test gardé) → les deux mêmes rouges ; correctif remis → vert.
 
 ### La note des avis est invisible au lecteur d'écran
 - Réf : P07.04
