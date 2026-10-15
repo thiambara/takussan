@@ -3,9 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TAG_ADMIN_FIELDS, fetchTags, createTag } from '../tags';
 import { AGENCY_ADMIN_FIELDS, fetchAgency } from '../agencies';
 import {
-  SETTING_ADMIN_FIELDS,
   INTEGRATION_ADMIN_FIELDS,
-  fetchSettings,
   fetchIntegrations,
   testIntegration,
 } from '../settings';
@@ -47,14 +45,6 @@ describe('admin query builders — spatie conventions', () => {
     await fetchAgency('tok', 1);
     const url = String(spy.mock.calls[0][0]);
     expect(url).toContain(`fields%5Bagencies%5D=${AGENCY_ADMIN_FIELDS.join('%2C')}`);
-  });
-
-  it('settings list uses sparse fields + scope filter', async () => {
-    const spy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 100, total: 0 } });
-    await fetchSettings('tok', { scope: 'global' });
-    const url = String(spy.mock.calls[0][0]);
-    expect(url).toContain(`fields%5Bsettings%5D=${SETTING_ADMIN_FIELDS.join('%2C')}`);
-    expect(url).toContain('filter%5Bscope%5D=global');
   });
 
   it('integrations list uses sparse fields', async () => {

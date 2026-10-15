@@ -12,7 +12,7 @@ import { render, screen } from '@testing-library/react';
  * de l'acteur.
  *
  * TCK-649 (ADR-0064 §1) — la page vit sous `/app/agency/integrations`, et n'a plus de barre
- * d'onglets : TCK-648 avait retiré « Général » (parti dans `/super-admin/settings/global`), et un
+ * d'onglets : TCK-648 avait retiré « Général » (l'éditeur brut des paramètres, depuis retiré par TCK-651), et un
  * onglet seul n'est pas une navigation — c'était un lien vers la page où l'on est déjà.
  */
 

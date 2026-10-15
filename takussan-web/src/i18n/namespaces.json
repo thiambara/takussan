@@ -228,7 +228,6 @@
       "wizardDrafts"
     ],
     "(super-admin)/super-admin": [
-      "adminSettings",
       "adminTags",
       "announcements",
       "auth",
@@ -258,9 +257,9 @@
     "onboarding": 46,
     "(dashboard)": 16,
     "invitations": 14,
-    "(dashboard)/app": 71,
+    "(dashboard)/app": 72,
     "[locale]/(public)": 37,
-    "(dashboard)/app/agency": 84,
-    "(super-admin)/super-admin": 47
+    "(dashboard)/app/agency": 83,
+    "(super-admin)/super-admin": 46
   }
 }

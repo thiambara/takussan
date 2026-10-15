@@ -313,11 +313,11 @@ final class ProtectedActions
         ReviewController::class.'@moderate',
         ReviewController::class.'@approve',
         ReviewController::class.'@reject',
-        // TCK-600 (verif-600 R1) — les réglages génériques : la portée `global` est réservée au
-        // `super_admin` (`setting.global_forbidden`) et règle tout le parc, y compris les clés hors
-        // catalogue que lisent les services métier (`invoice.reminder_offsets_days`,
-        // `lease.require_signature`…). La portée `agency` de l'admin d'agence reste hors de cette
-        // liste : elle ne s'applique qu'aux profils plateforme.
+        // TCK-600 (verif-600 R1) — les réglages génériques. TCK-651 (ADR-0065) : la portée `global`
+        // n'y est plus écrite (422 `setting.global_not_writable`) — les réglages métier qu'elle
+        // portait sont au catalogue, sous la même garde. Reste la portée `agency` écrite par un
+        // profil plateforme (n'importe quelle agence) ; celle de l'admin d'agence reste hors de
+        // cette liste : elle ne s'applique qu'aux profils plateforme.
         SettingController::class.'@store',
         SettingController::class.'@update',
         SettingController::class.'@destroy',

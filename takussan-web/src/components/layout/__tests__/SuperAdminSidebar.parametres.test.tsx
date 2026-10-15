@@ -7,7 +7,7 @@ import { avecGestes, SUPER_ADMIN } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
 import { SuperAdminSidebar } from '../SuperAdminSidebar';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/super-admin/settings/global' }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/super-admin/settings' }));
 vi.mock('@/lib/queries/super-admin', () => ({
   fetchAdminAgencyUpgradePendingCount: vi.fn().mockResolvedValue(0),
   fetchAdminKycQueue: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
@@ -34,26 +34,29 @@ function monter(value: PlatformAbilities) {
 }
 
 /**
- * TCK-648 — l'éditeur de la table `settings` quitte l'ancienne console d'agence : son entrée vit dans la
- * console, SOUS « Paramètres » (la page des paramètres plateforme), dont elle est la voisine.
+ * TCK-651 (ADR-0065) — l'éditeur brut de la table `settings` (`/super-admin/settings/global`,
+ * TCK-648) a disparu : la portée `global` s'écrit au catalogue, à « Paramètres », et seulement là.
+ * Aucune entrée du menu ne mène plus à l'ancienne page, pour aucun niveau d'opérateur.
  */
-describe('SuperAdminSidebar — paramètres globaux (TCK-648)', () => {
-  it('un super_admin la trouve sous « Paramètres », et c’est la page courante', () => {
+describe('SuperAdminSidebar — paramètres (TCK-651)', () => {
+  it.each([['super_admin', SUPER_ADMIN], ['support', SUPPORT]] as const)(
+    'un %s ne trouve aucun lien vers l’éditeur brut supprimé',
+    (_niveau, gestes) => {
+      const nav = monter(gestes);
+
+      const cibles = nav.queryAllByRole('link').map((lien) => lien.getAttribute('href'));
+      expect(cibles.length).toBeGreaterThan(0);
+      expect(cibles).not.toContain('/super-admin/settings/global');
+      expect(nav.queryByRole('link', { name: 'Paramètres globaux' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('un super_admin trouve « Paramètres », la page du catalogue, sans enfant', () => {
     const nav = monter(SUPER_ADMIN);
 
-    const globaux = nav.getByRole('link', { name: 'Paramètres globaux' });
-    expect(globaux).toHaveAttribute('href', '/super-admin/settings/global');
-    expect(globaux).toHaveAttribute('aria-current', 'page');
-    // Un ENFANT de « Paramètres » : rendu dans son bloc, et le parent n'est pas la page courante.
     const parametres = nav.getByRole('link', { name: 'Paramètres' });
     expect(parametres).toHaveAttribute('href', '/super-admin/settings');
-    expect(parametres.parentElement).toContainElement(globaux);
-    expect(parametres).not.toHaveAttribute('aria-current');
-  });
-
-  it('un support ne la voit pas : `/api/settings` ne sert la table entière qu’au super_admin', () => {
-    const nav = monter(SUPPORT);
-
-    expect(nav.queryByRole('link', { name: 'Paramètres globaux' })).not.toBeInTheDocument();
+    expect(parametres).toHaveAttribute('aria-current', 'page');
+    expect(within(parametres.parentElement as HTMLElement).getAllByRole('link')).toHaveLength(1);
   });
 });

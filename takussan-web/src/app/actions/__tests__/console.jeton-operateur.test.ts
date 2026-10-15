@@ -3,7 +3,8 @@
  *
  * Les paramètres globaux et les étiquettes de `/super-admin` passaient par des actions qui lisent
  * `getToken()`, donc le cookie d'impersonation d'abord : pendant une session, l'opérateur y lisait
- * et y écrivait en tant que la cible.
+ * et y écrivait en tant que la cible. Les paramètres globaux ont quitté le module avec leur écran
+ * (TCK-651, ADR-0065) ; restent les étiquettes.
  *
  * Le seul maillon doublé est `apiRequest`, plus le magasin de cookies de `next/headers` : les
  * actions, `lib/session` et les modules de requêtes sont les VRAIS. Les DEUX cookies sont posés —
@@ -48,13 +49,6 @@ function optionsDuPremierAppel(): Record<string, unknown> {
 }
 
 const LES_ACTIONS: readonly (readonly [string, () => Promise<unknown>])[] = [
-  ['fetchConsoleSettingsAction', () => console_.fetchConsoleSettingsAction({})],
-  [
-    'upsertConsoleSettingAction',
-    () => console_.upsertConsoleSettingAction({ key: 'k', scope: 'global', value: {} }),
-  ],
-  ['updateConsoleSettingAction', () => console_.updateConsoleSettingAction(1, {})],
-  ['deleteConsoleSettingAction', () => console_.deleteConsoleSettingAction(1)],
   ['fetchConsoleTagsAction', () => console_.fetchConsoleTagsAction({})],
   ['createConsoleTagAction', () => console_.createConsoleTagAction({ name: 'Piscine' } as never)],
   ['updateConsoleTagAction', () => console_.updateConsoleTagAction(1, {})],
@@ -66,12 +60,6 @@ describe('TCK-650 — la console, pendant une impersonation', () => {
     await expect(appel()).resolves.toMatchObject({ ok: true });
 
     expect(optionsDuPremierAppel().token).toBe('jeton-operateur');
-  });
-
-  it("les paramètres portent le profil actif de l'opérateur, que `getActiveProfileId` tait pendant une session", async () => {
-    await console_.fetchConsoleSettingsAction({});
-
-    expect(optionsDuPremierAppel().activeProfileId).toBe('profil-operateur');
   });
 
   it('ne laisse aucune action du module hors de la table', () => {

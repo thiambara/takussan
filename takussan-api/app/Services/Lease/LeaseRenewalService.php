@@ -11,6 +11,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
@@ -467,11 +468,9 @@ class LeaseRenewalService
 
     protected function requireSignatureFlag(?int $agencyId = null): bool
     {
-        $row = ScopedSetting::row('lease.require_signature', $agencyId); // TCK-600 (verif-600 H1)
-        if ($row === null) {
-            return false;
-        }
-        $value = $row->value;
+        // TCK-600 (verif-600 H1), TCK-651 (ADR-0065) — l'agence, sinon le catalogue.
+        $value = ScopedSetting::agencyRow('lease.require_signature', $agencyId)?->value
+            ?? app(PlatformSettingService::class)->getValue('lease.require_signature');
         if (is_array($value)) {
             $value = $value['value'] ?? array_values($value)[0] ?? null;
         }

@@ -226,8 +226,7 @@
         "privacyRequests": "Rights requests",
         "payments": "Payments",
         "credits": "Credits",
-        "boosts": "Promotion",
-        "globalSettings": "Global settings"
+        "boosts": "Promotion"
       }
     },
     "notifications": {
@@ -8219,13 +8218,6 @@
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
-      },
-      "globalSettings": {
-        "eyebrow": "Platform",
-        "title": "Global settings",
-        "subtitle": "The key/value table as it stands: global settings and each agency’s settings. Catalogue keys are set in the platform settings.",
-        "platformLink": "Platform settings",
-        "loadError": "The settings could not be loaded: {message}"
       }
     },
     "featureFlags": {
@@ -8379,12 +8371,14 @@
       "updatedByOn": "Updated by {name} on {date}",
       "defaultValue": "Default value",
       "errors": {
-        "xofRequired": "XOF must remain among the supported currencies."
+        "xofRequired": "XOF must remain among the supported currencies.",
+        "integerList": "Enter at least one whole number of days, separated by commas."
       },
       "categories": {
         "currency": "Currencies",
         "limits": "Technical limits",
-        "boost": "Credits and promotion"
+        "boost": "Credits and promotion",
+        "rentals": "Rentals"
       },
       "keys": {
         "currency": {
@@ -8430,8 +8424,38 @@
             "label": "Reserved places at the top of the first page",
             "description": "From 0 to 10. 0 disables reserved places."
           }
+        },
+        "invoice": {
+          "reminder_offsets_days": {
+            "label": "Unpaid invoice reminders",
+            "description": "In days after the due date, from 1 to 365, ten reminders at most. An agency with its own setting keeps it."
+          }
+        },
+        "lease": {
+          "rent_review_max_pct": {
+            "label": "Rent review cap",
+            "description": "As a percentage, above 0 and up to 100. An agency with its own setting keeps it."
+          },
+          "early_termination_penalty_months": {
+            "label": "Early termination penalty",
+            "description": "In months of rent, from 1 to 24. An agency with its own setting keeps it."
+          },
+          "require_signature": {
+            "label": "Signature required on renewal",
+            "description": "A renewed lease waits for the parties’ signatures before taking effect. An agency with its own setting keeps it."
+          }
+        },
+        "late_fees": {
+          "cap_percent": {
+            "label": "Late fee cap",
+            "description": "As a percentage of the instalment amount, from 0 to 100. Empty: no cap. An agency with its own setting keeps it."
+          }
         }
-      }
+      },
+      "noLimit": "No cap",
+      "enabled": "On",
+      "disabled": "Off",
+      "integerListPlaceholder": "3, 7, 15"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Agency created",
@@ -8897,40 +8921,6 @@
         "signing_secret": "Signing secret",
         "secret_key": "Secret key"
       }
-    },
-    "settings": {
-      "empty_title": "No setting for this filter",
-      "empty_description": "Change the scope or clear the search to see the other keys.",
-      "filterByScope": "Filter by scope",
-      "scopes": {
-        "all": "All",
-        "global": "Global",
-        "agency": "Agency"
-      },
-      "new": "New setting",
-      "tableCaption": "Platform settings",
-      "columns": {
-        "key": "Key",
-        "scope": "Scope",
-        "value": "Value",
-        "actions": "Actions"
-      },
-      "actions": {
-        "edit": "Edit {key}",
-        "delete": "Delete {key}"
-      },
-      "confirmSensitive": "The “{key}” setting has a global impact. Confirm the change?",
-      "confirmDelete": "Delete the “{key}” setting?",
-      "updated": "Setting “{key}” updated.",
-      "deleted": "Setting “{key}” deleted.",
-      "saved": "Setting “{key}” saved.",
-      "keyRequired": "The key is required.",
-      "create": {
-        "description": "Settings accept any JSON value. Simple scalars (text, number, boolean) are wrapped automatically.",
-        "keyPlaceholder": "e.g. maintenance_mode",
-        "saving": "Saving…"
-      },
-      "valuePlaceholder": "true  •  42  •  \"hello\"  •  '{'\"enabled\": true'}'"
     }
   },
   "adminTags": {
@@ -9843,9 +9833,6 @@
       "savedSearchNameRequired": "Give this search a name."
     },
     "setting": {
-      "keyRequired": "The key is required.",
-      "keyTooLong": "The key is too long.",
-      "keyPattern": "Invalid characters (alphanumeric, \".\", \"_\" and \"-\").",
       "providerRequired": "The provider is required.",
       "providerTooLong": "The provider name is too long.",
       "webhookUrlInvalid": "Invalid URL. Example: https://exemple.sn/webhook",

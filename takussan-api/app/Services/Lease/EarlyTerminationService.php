@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Support\ScopedSetting;
@@ -291,12 +292,9 @@ class EarlyTerminationService
     public function resolvePenaltyMonths(?int $agencyId = null): int
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
-        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
-        if ($row === null) {
-            return self::SETTING_DEFAULT_MONTHS;
-        }
-
-        $value = $row->value;
+        // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
+        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
+            ?? app(PlatformSettingService::class)->getValue('lease.early_termination_penalty_months');
         if (is_array($value)) {
             $value = $value['value'] ?? array_values($value)[0] ?? null;
         }

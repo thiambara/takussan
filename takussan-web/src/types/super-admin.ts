@@ -507,17 +507,21 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits' | 'boost';
-export type PlatformSettingType = 'select' | 'multi_select' | 'integer';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals';
+/** TCK-651 (ADR-0065) — `boolean`, `decimal` et `integer_list` servent les réglages métier `rentals`. */
+export type PlatformSettingType = 'select' | 'multi_select' | 'integer' | 'decimal' | 'boolean' | 'integer_list';
+export type PlatformSettingValue = string | number | boolean | null | string[] | number[];
 
 export type PlatformSetting = {
   key: string;
   category: PlatformSettingCategory;
   /** TCK-600 — ni libellé ni description servis par l'API : traduits par clé (`superAdmin.platformSettings.keys`). */
   type: PlatformSettingType;
-  value: string | number | string[];
-  default_value: string | number | string[];
+  value: PlatformSettingValue;
+  default_value: PlatformSettingValue;
   options: string[] | null;
+  /** TCK-651 — la valeur peut être vide (`late_fees.cap_percent` : vide = aucun plafond). */
+  nullable: boolean;
   public: boolean;
   requires_restart: boolean;
   updated_at: string | null;

@@ -4,17 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
-import { getOperatorActiveProfileId, getOperatorToken } from '@/lib/session';
-import {
-  deleteSetting,
-  fetchSettings,
-  updateSetting,
-  upsertSetting,
-  type FetchSettingsParams,
-} from '@/lib/queries/settings';
+import { getOperatorToken } from '@/lib/session';
 import { createTag, deleteTag, fetchTags, updateTag, type FetchTagsParams } from '@/lib/queries/tags';
 import type { TagFormPayload } from '@/lib/schemas/tag';
-import type { Setting, SettingScope } from '@/types/setting';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
 
@@ -29,6 +21,9 @@ import type { PaginatedResponse } from '@/types/api';
  * l'opérateur. Les écrans des paramètres globaux et des étiquettes passaient par
  * `admin-settings.ts` et `admin-tags.ts` : pendant une impersonation, ils lisaient en tant que la
  * cible et leurs écritures globales rendaient 403.
+ *
+ * TCK-651 (ADR-0065) — les paramètres globaux ont quitté ce module avec leur écran : la portée
+ * `global` s'écrit au catalogue (`/super-admin/settings`, route handler au jeton de l'opérateur).
  *
  * `fetchTagsAction` d'`admin-tags.ts` reste au jeton courant : les formulaires de bien de `/app`
  * la lisent, et l'espace applicatif ne change pas de règle.
@@ -72,65 +67,6 @@ async function requireOperatorToken(): Promise<
     };
   }
   return { ok: true, token };
-}
-
-// ── Paramètres globaux — `/super-admin/settings/global` (TCK-648) ──────────────────────────────
-
-export async function fetchConsoleSettingsAction(
-  params: FetchSettingsParams = {},
-): Promise<ActionResult<PaginatedResponse<Setting>>> {
-  const auth = await requireOperatorToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await fetchSettings(auth.token, params, await getOperatorActiveProfileId());
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function upsertConsoleSettingAction(payload: {
-  key: string;
-  scope: SettingScope;
-  value: Record<string, unknown>;
-  scope_id?: number | null;
-}): Promise<ActionResult<Setting>> {
-  const auth = await requireOperatorToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await upsertSetting(auth.token, payload, await getOperatorActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function updateConsoleSettingAction(
-  settingId: number,
-  value: Record<string, unknown>,
-): Promise<ActionResult<Setting>> {
-  const auth = await requireOperatorToken();
-  if (!auth.ok) return auth.result;
-  try {
-    const data = await updateSetting(auth.token, settingId, value, await getOperatorActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function deleteConsoleSettingAction(settingId: number): Promise<ActionResult<void>> {
-  const auth = await requireOperatorToken();
-  if (!auth.ok) return auth.result;
-  try {
-    await deleteSetting(auth.token, settingId, await getOperatorActiveProfileId());
-    revalidatePath('/super-admin/settings/global');
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
 }
 
 // ── Étiquettes — `/super-admin/tags` (TCK-066) ─────────────────────────────────────────────────

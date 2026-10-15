@@ -226,8 +226,7 @@
         "privacyRequests": "Demandes de droits",
         "payments": "Paiements",
         "credits": "Crédits",
-        "boosts": "Mise en avant",
-        "globalSettings": "Paramètres globaux"
+        "boosts": "Mise en avant"
       }
     },
     "notifications": {
@@ -8219,13 +8218,6 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
-      },
-      "globalSettings": {
-        "eyebrow": "Plateforme",
-        "title": "Paramètres globaux",
-        "subtitle": "La table clé/valeur telle qu’elle est : réglages globaux et réglages de chaque agence. Les clés du catalogue se règlent dans les paramètres plateforme.",
-        "platformLink": "Paramètres plateforme",
-        "loadError": "Impossible de charger les paramètres : {message}"
       }
     },
     "featureFlags": {
@@ -8379,12 +8371,14 @@
       "updatedByOn": "Modifié par {name} le {date}",
       "defaultValue": "Valeur par défaut",
       "errors": {
-        "xofRequired": "XOF doit rester dans les devises supportées."
+        "xofRequired": "XOF doit rester dans les devises supportées.",
+        "integerList": "Saisissez au moins un nombre entier de jours, séparés par des virgules."
       },
       "categories": {
         "currency": "Devises",
         "limits": "Limites techniques",
-        "boost": "Crédits et mise en avant"
+        "boost": "Crédits et mise en avant",
+        "rentals": "Location"
       },
       "keys": {
         "currency": {
@@ -8430,8 +8424,38 @@
             "label": "Places réservées en tête de la première page",
             "description": "De 0 à 10. 0 désactive les places réservées."
           }
+        },
+        "invoice": {
+          "reminder_offsets_days": {
+            "label": "Relances de facture impayée",
+            "description": "En jours après l’échéance, de 1 à 365, dix relances au plus. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "lease": {
+          "rent_review_max_pct": {
+            "label": "Plafond de révision du loyer",
+            "description": "En pourcentage, au-dessus de 0 et jusqu’à 100. Une agence qui a son propre réglage garde le sien."
+          },
+          "early_termination_penalty_months": {
+            "label": "Pénalité de résiliation anticipée",
+            "description": "En mois de loyer, de 1 à 24. Une agence qui a son propre réglage garde le sien."
+          },
+          "require_signature": {
+            "label": "Signature exigée au renouvellement",
+            "description": "Un bail renouvelé attend la signature des parties avant de prendre effet. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "late_fees": {
+          "cap_percent": {
+            "label": "Plafond des pénalités de retard",
+            "description": "En pourcentage du montant de l’échéance, de 0 à 100. Vide : aucun plafond. Une agence qui a son propre réglage garde le sien."
+          }
         }
-      }
+      },
+      "noLimit": "Aucun plafond",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "integerListPlaceholder": "3, 7, 15"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Agence créée",
@@ -8897,40 +8921,6 @@
         "signing_secret": "Secret de signature",
         "secret_key": "Clé secrète"
       }
-    },
-    "settings": {
-      "empty_title": "Aucun paramètre pour ce filtre",
-      "empty_description": "Changez de portée ou effacez la recherche pour voir les autres clés.",
-      "filterByScope": "Filtrer par portée",
-      "scopes": {
-        "all": "Tous",
-        "global": "Globaux",
-        "agency": "Agence"
-      },
-      "new": "Nouveau paramètre",
-      "tableCaption": "Réglages de la plateforme",
-      "columns": {
-        "key": "Clé",
-        "scope": "Portée",
-        "value": "Valeur",
-        "actions": "Actions"
-      },
-      "actions": {
-        "edit": "Modifier {key}",
-        "delete": "Supprimer {key}"
-      },
-      "confirmSensitive": "Le paramètre « {key} » a un impact global. Confirmer la modification ?",
-      "confirmDelete": "Supprimer le paramètre « {key} » ?",
-      "updated": "Paramètre « {key} » mis à jour.",
-      "deleted": "Paramètre « {key} » supprimé.",
-      "saved": "Paramètre « {key} » enregistré.",
-      "keyRequired": "La clé est requise.",
-      "create": {
-        "description": "Les paramètres acceptent n’importe quelle valeur JSON. Les scalaires simples (texte, nombre, booléen) sont encapsulés automatiquement.",
-        "keyPlaceholder": "ex : maintenance_mode",
-        "saving": "Enregistrement…"
-      },
-      "valuePlaceholder": "true  •  42  •  \"bonjour\"  •  '{'\"enabled\": true'}'"
     }
   },
   "adminTags": {
@@ -9843,9 +9833,6 @@
       "savedSearchNameRequired": "Donnez un nom à cette recherche."
     },
     "setting": {
-      "keyRequired": "La clé est requise.",
-      "keyTooLong": "La clé est trop longue.",
-      "keyPattern": "Caractères invalides (alphanumériques, \".\", \"_\" et \"-\").",
       "providerRequired": "Le fournisseur est requis.",
       "providerTooLong": "Le nom du fournisseur est trop long.",
       "webhookUrlInvalid": "URL invalide. Exemple : https://exemple.sn/webhook",

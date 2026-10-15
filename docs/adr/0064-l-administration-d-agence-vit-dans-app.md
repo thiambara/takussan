@@ -1,6 +1,6 @@
 # ADR-0064 — L'administration d'agence vit dans `/app` : une seule coque, un menu dérivé de la table des pages, un seul tableau de bord d'agence ; `/admin` disparaît sans redirection
 
-- **Statut** : Accepté
+- **Statut** : Accepté — §1 amendé par [ADR-0065](0065-les-reglages-metier-a-repli-global-entrent-au-catalogue.md) (`/super-admin/settings/global` retirée)
 - **Date** : 2026-10-14
 - **Tickets** : TCK-647, TCK-648, TCK-649
 
