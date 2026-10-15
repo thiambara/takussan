@@ -16,8 +16,8 @@ amélioration.
 | # | Angle | État |
 |---|-------|------|
 | 1 | Recherche d'un bien (public et `/app`) : pertinence, filtres, performances, UX | fait |
-| 2 | Performances des requêtes : N+1, index manquants (FK non indexées sous PostgreSQL), pagination | en cours |
-| 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | à faire |
+| 2 | Performances des requêtes : N+1, index manquants (FK non indexées sous PostgreSQL), pagination | fait |
+| 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | en cours |
 | 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | à faire |
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | à faire |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | à faire |
@@ -33,6 +33,8 @@ amélioration.
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | à faire |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
+| 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
+| 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
 
 ---
 
@@ -126,3 +128,111 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:521`, `takussan-api/app/Http/Resources/PropertyMapGeoJsonResource.php:49`
 - Constat : `with('media')` charge toutes les photos de jusqu'à 501 biens pour n'en lire qu'une. `addresses` n'a aucun index sur `latitude`/`longitude` (mesuré, `pg_indexes`).
 - Piste : charger la seule première photo, et ajouter un index `(latitude, longitude)` si la carte grossit.
+
+## Angle 2 — Performances des requêtes
+
+*Exploré le 2026-10-15 vers 0 h 45, sur la base de développement : `EXPLAIN` sans `ANALYZE` et
+catalogue `pg_index`. Les deux 🔴 ont été relus contre le code par la session.*
+
+Déjà sain (mesuré ou lu) :
+- toutes les colonnes `agency_id` sont indexées ;
+- `staleTime` vaut 5 min par défaut (`takussan-web/src/lib/query-client.ts:18`) ;
+- les ressources utilisent `whenLoaded`.
+
+### Liste des membres d'agence : une dizaine de requêtes par ligne
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:191`, `takussan-api/app/Http/Resources/UserResource.php:37,86-87`, `takussan-api/app/Models/Concerns/HasProfiles.php:82-95,229-262`, `takussan-api/app/Models/User.php:263-289`
+- Constat :
+  - Par membre, `UserResource` appelle `profileTypes()` (un `first()` et cinq `exists()`), l'accesseur `agency_id` (quatre `get()` sur les profils) et `getFirstMediaUrl('avatar')`.
+  - Le front appelle cette route avec `per_page=100` juste pour remplir des listes de noms : `AuditTrail.tsx:203`, `ContactLeadsInbox.tsx:242`, `role-delegations.ts:157`.
+  - Le sparse fieldset ne coupe aucun de ces calculs. Cela fait environ 1 100 requêtes par appel (lu ; le compte exact reste à mesurer).
+- Piste : précharger les profils et `media`, ou ne sortir `roles` et `agency_id` que pour soi.
+
+### `per_page` sans plafond sur une vingtaine de routes
+- Gravité : 🔴 défaut avéré
+- Où : `AgencyController.php:191`, `AuditLogController.php:57`, `PropertyPriceHistoryController.php:18`, `ServiceProviderProfileController.php:44`… (sous `takussan-api/app/Http/Controllers/Api/`)
+- Constat :
+  - `HasQueryBuilder::PER_PAGE_MAX = 100` ne borne que le `paginate()` sans argument. Un `paginate((int) $request->input('per_page', …))` le contourne.
+  - La session en relit 17 de cette forme exacte ; l'agent en compte 23 en incluant les variantes.
+  - TCK-599 n'a corrigé que les favoris. Combiné au constat précédent, `per_page=10000` sur les membres d'agence déclenche de l'ordre de 100 000 requêtes.
+- Piste : une méthode unique `Controller::perPage($request, $défaut, $max)`, et une garde `scripts/check-*.mjs` qui refuse `paginate(` nourri de `$request->`.
+
+### Le profil plateforme est relu à chaque autorisation
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Providers/AppServiceProvider.php:678`, `takussan-api/app/Models/Concerns/HasProfiles.php:327-331`, `RequireTwoFactor.php:64`, `RequireRecentTwoFactor.php:45`, `LeaseResource.php:125`
+- Constat :
+  - `Gate::before` appelle `isSuperAdmin()`, qui fait une requête à chaque `can()`, sans mémoïsation.
+  - Les middlewares 2FA ajoutent chacun un `exists()`.
+  - `LeaseResource` l'appelle une fois par ligne. `ReviewController.php:67-70` contourne déjà le problème localement (lu).
+- Piste : charger `platformProfile` une fois par requête, dans `ResolveActiveProfile`.
+
+### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Concerns/HasProfiles.php:281-291`, avec un docblock faux en `:221-223`
+- Constat :
+  - `hasActiveTenantLease()` parcourt tout `customers_pkey` avec un filtre `user_id`, même quand le Seq Scan est interdit (mesuré). Le docblock dit pourtant que les deux colonnes sont indexées.
+  - Au total, 110 FK sur 252 n'ont aucun index qui commence par elles (mesuré). Notamment :
+    - `customers.user_id` ;
+    - `property_visits.customer_id` et `.agent_id` ;
+    - `property_collaborators.user_id` ;
+    - `maintenance_requests.lease_id` ;
+    - `conversations.lease_id` ;
+    - `inventories.property_id` et `.tenant_id`.
+- Piste : `customers.user_id` d'abord, puis les autres une par une, sur `EXPLAIN` (piège PostgreSQL n° 8).
+
+### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/TagController.php:20,45,143-147`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62,104`, `takussan-api/app/Models/Tag.php:32`
+- Constat :
+  - Deux `count()` par tag sont faits après `withCount`. Cela fait environ 72 comptes à chaque ouverture d'une fiche de bien.
+  - Ces équipements ne sont demandés qu'après la réponse du bien : deux requêtes en série (lu).
+  - À vérifier : `fetchCrmTags` envoie `sort=-usage_count`, absent de `$requestSortable`. Le 400 serait masqué par `.catch(() => [])`, et les suggestions CRM seraient toujours vides.
+- Piste : lire `properties_count`/`customers_count`, et lancer la requête des tags en parallèle de celle du bien.
+
+### `whereDate()` sur un horodatage empêche l'usage de l'index
+- Gravité : 🟠 risque ou dette
+- Où : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:453-460`
+- Constat : `scheduled_at::date >= …` force un Seq Scan. Écrite en plage, la même borne passe par l'index `property_visits_scheduled_at_status_index` (mesuré). Sur une colonne `date`, le cast ne coûte rien.
+- Piste : des plages `>= début du jour`, `< lendemain`.
+
+### Export synchrone jusqu'à 50 000 modèles complets
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Export/ExportDataService.php:109,139,463-467`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82`
+- Constat : `limit(≤ 50 000)->get()` sans `select`, jsonb compris, pendant la requête HTTP (lu).
+- Piste : sélectionner les colonnes exportées, `lazyById()` avec une réponse en flux, ou une tâche en file au-delà d'un seuil.
+
+### La liste pro des biens fait six requêtes HTTP, dont deux en série
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:97-125,210-229`
+- Constat : la liste plus cinq `countProperties` (`per_page=1`), dont « vendus » suivi de « loués » en `.then` (lu).
+- Piste : un seul endpoint de compteurs en `COUNT(*) FILTER (WHERE …)`, comme `DashboardAgencyService.php:42-52`.
+
+### Fiche client : les notes sont chargées deux fois
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/customers.ts:114`, `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:87-91`
+- Constat : `include=notes` sérialise toutes les notes, puis la page les redemande paginées (lu).
+- Piste : retirer `notes` de l'`include`.
+
+### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
+- Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
+- Piste : `enabled` réservé à l'onglet actif, et `nowIso` arrondi à la minute.
+
+### `scheduled_task_runs` grossit sans purge
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
+- Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
+- Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
+
+### Tri du catalogue public sans index adapté
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:156`
+- Constat : `ORDER BY ranked_at DESC NULLS LAST, id DESC` force un Sort : l'index `ranked_at` est en ASC (mesuré).
+- Piste : un index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`.
+
+### Pénalités de retard : le plafond est relu pour chaque échéance
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
+- Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
+- Piste : lire le plafond une fois par agence dans `applyForAgency`.
