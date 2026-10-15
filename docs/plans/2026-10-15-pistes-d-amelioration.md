@@ -2132,7 +2132,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
 - Réf : P15.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : flux d'activation d'un compte privilégié
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:28-32,108-114`, `takussan-api/lang/fr/notifications.php:42-49`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -2140,10 +2140,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Un gérant déjà inscrit fait échouer le provisionnement : 409 `agency.admin_email_taken`.
   - Établi comment : lu.
 - Piste : un gabarit d'activation dédié, valable plus longtemps, et le rattachement d'un compte existant.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `AgencyProvisioningService.php:27-32` (409 `agency.admin_email_taken` si l'e-mail existe) et `:108-115` (`sendActivationLink` = `Password::broker()->sendResetLink`), `User.php:596-599` → `ResetPasswordNotification`, gabarit `lang/fr/notifications.php:42-49` (« demande de réinitialisation… », « Si vous n'avez pas demandé… »), `config/auth.php:99` (`expire` 60) ; `git log` sans correctif depuis TCK-588. Le 409 est voulu par TCK-209 (« si déjà existant… refuser (409) ») ; TCK-209 promettait un e-mail « Activez votre compte » valable ≤ 7 jours (AC l. 69) mais sa note l. 82 assume le broker de réinitialisation à 60 min → seule la partie gabarit et durée tient. Classement : V2, la durée d'un lien d'activation de gérant et le rattachement d'un compte existant touchent l'authentification, et le gabarit est un texte métier neuf (V7).
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
 - Réf : P15.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : emplacement d'une carte visible
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
 - Constat :
@@ -2151,10 +2152,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - L'hôte solo ne la voit jamais, et le gérant neuf n'a sur `/app` qu'une bannière de logo et un état vide générique.
   - Établi comment : lu.
 - Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `overview/agency/page.tsx:92-93` (seul montage de `MiseEnService`, avec son test), `overview/agency/layout.tsx:38,54-59` (non-admin redirigé, `kind !== 'standard'` → `redirect('/app')`) et `(accueil)/page.tsx:52-77` (bannière de logo, brouillons, check-list locataire, KPI ou `DashboardEmpty`, raccourcis : aucune mise en service) ; `grep -rl MiseEnService src` → 4 fichiers, tous sous `overview/agency` ou le composant. Le constat tient. TCK-589 l. 204 place la carte « en tête de `/admin` », sans trancher l'agence individuelle. Classement : V7, monter la carte sur l'accueil et filtrer ses étapes par `kind` change ce que voit l'hôte solo.
 
 ### Premier bail : sélecteur de biens vide, sans explication
 - Réf : P15.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : statuts de bien louables et état vide neuf
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
 - Constat :
@@ -2163,6 +2165,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Après ce formulaire, l'enregistrement du paiement et la génération de l'échéancier sont cassés (angle 13).
   - Établi comment : lu.
 - Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `lib/queries/leases.ts:117` (`filter: { status: 'available' }`) et `CreateLeaseForm.tsx:112,136-146` (options = biens rendus, aucun état vide ni lien) ; `StoreLeaseRequest.php:37` n'exige que `exists:properties,id`, et `LeaseService.php` ne lit aucun `PropertyStatus` (grep) ; `PropertyStatus` compte 11 cas (`draft`, `pending_review`, `published`…). Le renvoi à l'angle 13 n'est pas re-mesuré ici. Classement : V7, choisir quels statuts de bien ouvrent un bail et écrire l'état vide avec ses appels à l'action sont des choix de produit.
 
 ### Petites améliorations
 - Réf : P15.10
@@ -2210,7 +2213,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : périmètre de lecture des documents
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
 - Constat :
@@ -2218,10 +2221,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le périmètre est `uploaded_by = moi` : un agent ne retrouve pas le bail déposé par un collègue sur un bien de l'agence.
   - Établi comment : lu.
 - Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentController.php:35-50` (`where('uploaded_by', $user->id)` hors super-admin, puis `->defaultSort('-created_at')` en dur), `Document.php:42` (`$requestSearchFields` → `filter[search]` passe par Scout, `HasQueryBuilder.php:232-243`) et `lib/queries/documents.ts:69` (le front envoie `filter.search`) ; `defaultSortsWithRelevance` est appelé par 4 contrôleurs (agences, maintenance, clients, utilisateurs), pas par celui-ci. Les deux parties tiennent. TCK-281 AC1 ne cite pas les documents : la pertinence seule n'est donc pas un comportement déjà écrit. Classement : V2, élargir le périmètre à l'agence ou au `documentable` change une autorisation de lecture ; la partie tri, isolée, resterait un choix (V7) faute de spec.
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : l'isolation d'agence passerait au moteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
 - Constat :
@@ -2230,10 +2234,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Sur une requête large (« 77 », « gmail », un patronyme courant), les correspondances de l'agence au-delà du rang 1 000 disparaissent sans signal. Le total reste cohérent, ce qui rend le défaut invisible.
   - Le volume de production est à vérifier.
 - Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `HasQueryBuilder.php:18-27` (`SEARCH_ID_CAP = 5000`, commentaire) et `:232` (`search()->take(5000)->keys()`), `config/scout.php:273-288` (clients, maintenance, agences, utilisateurs sans `filterableAttributes` ni `pagination`) ; tinker en lecture sur Meilisearch local → `maxTotalHits` vaut 1000 sur les 17 index (`takussan_local*` et `testing_*`), filtrables vides pour `customers`, `maintenance_requests`, `users`, `agencies`. Aucun index local ne dépasse 1 000 documents (802 biens, 52 utilisateurs, 2 clients indexés) : la troncature à 1 000 est déduite du plafond de Meilisearch, pas observée ; le volume de production reste à vérifier. Classement : V2, la piste fait porter le filtre d'agence par l'index au lieu du SQL, et en propose une seconde (relever `maxTotalHits`) entre lesquelles il faut choisir.
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
 - Réf : P16.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette (routes sans appelant)
 - Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
 - Constat :
@@ -2242,6 +2247,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Aucun appelant dans le front (mesuré). Ce sont des routes mortes de l'angle 13.
   - Établi comment : lu.
 - Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentSearchService.php:33-46` et `MessageSearchService.php:35-48` (`date_from`/`date_to` dans `$search->query(...)`), `Document.php:60` et `Message.php:34` (`created_at` indexé en timestamp), Scout v11.3.0 `Builder::paginate`/`getTotalCount` (le total est recompté en SQL, les lignes viennent de la page Meilisearch) ; test temporaire retiré (Meilisearch réel, 4 documents « daterange », un seul dans la plage, créé en dernier, `per_page=1`) → pages 1 à 3 vides, `total` 1 et `last_page` 1, le document n'apparaît qu'en page 4 ; aucun appelant front (`grep` sur `takussan-web/src`), mais les routes sont gardées par `DocumentSearchTest`, `MessageSearchTest` et `MaintenanceThreadAccessTest`. Classement : A1, TCK-094 spécifie `filter[date_from]`/`filter[date_to]` et `DocumentSearchTest::test_date_range_filter` en est le contrat ; le correctif garde les routes et passe la plage en clauses Scout natives sur le timestamp.
 
 ### Petites améliorations
 - Réf : P16.06
@@ -2272,7 +2278,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
 - Réf : P17.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : règle de repli des noms de quartier, assumée par ADR-0062 § 1
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodResolver.php:24-43`, `takussan-web/src/components/ui/combobox.tsx:34-39`, `takussan-web/src/components/property-form/ChampsLieu.tsx:15-21`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:22-57`
 - Constat :
@@ -2285,10 +2291,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Conséquence : le bien pointe une proposition que les listes publiques ne servent pas (§ 5), et le filtre texte de la recherche ne le trouve pas sous le nom approuvé (voir P01.02). Le rattrapage est la fusion par le super-admin, et la liste de modération ne propose aucun quartier proche (lu).
   - Le nombre de propositions en double en production est à vérifier : la base de dev n'en a aucune (`select status, origin, count(*) from geo_neighborhoods` → 365 `approved/dataset`).
 - Piste : replier aussi tirets et apostrophes, des deux côtés (`replierPourRecherche` et une clé de comparaison du résolveur). Montrer dans la liste de modération les quartiers approuvés dont la clé repliée sans accents ni ponctuation coïncide. Ajouter un test « Grand-Yoff se replie sur Grand Yoff ».
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoNeighborhoodResolver.php:24-43` (`nettoyer` ne replie que les espaces, `trouver` compare par `CaseInsensitive`) et `combobox.tsx:34-40` (`replierPourRecherche` retire les accents, pas les tirets) ; test temporaire retiré, « Grand Yoff » et « Médina » approuvés dans une ville → `resoudreOuProposer` : `grand yoff` et `MÉDINA` rendent le quartier approuvé, `Grand-Yoff` et `Medina` créent chacun une proposition `pending`. Le constat tient en entier. Classement : V7, replier les accents revient sur un choix écrit d'ADR-0062 § 1, et la liste de modération enrichie de quartiers proches est un comportement visible neuf.
 
 ### Rejouer le référentiel ne réaligne pas les adresses existantes
 - Réf : P17.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : réécriture du texte des adresses existantes
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-85,93-137`, `takussan-api/app/Services/Geo/GeoAddressAttacher.php:20-42`
 - Constat :
@@ -2296,6 +2303,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le rattacheur ne relit que les adresses **sans ville** (`whereNull('geo_city_id')`, l. 24-26). Une adresse déjà rattachée à sa ville, dont le texte de quartier n'existait pas au premier passage, n'est jamais rattachée quand une mise à jour du jeu ajoute ce quartier (lu).
   - Aujourd'hui : 0 adresse de dev dont le texte égale un quartier de sa ville sans y être rattachée (mesuré, `SELECT` avec `LOWER(… COLLATE "und-x-icu")`). Le défaut ne se voit qu'à la prochaine mise à jour du jeu : à vérifier.
 - Piste : dans le chargeur, réécrire le texte des adresses et réindexer les biens quand un nom change. Dans le rattacheur, traiter aussi `geo_city_id IS NOT NULL AND geo_neighborhood_id IS NULL AND neighborhood <> ''`. Garder chaque cas par un test de `GeoReferentialSync` rejoué deux fois.
+- Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoReferentialLoader.php:73-86` (ville renommée par `fill`/`save`) et `:93-137` (quartier renommé si `renamed_at` est nul, sans toucher `addresses` ni réindexer), `GeoAddressAttacher.php:20-42` (`whereNull('geo_city_id')` seulement), `GeoNeighborhoodModeration.php:47,71,100` (`reecrireAdresses`), ADR-0062 l. 76 (« Renommer ou fusionner un quartier réécrit le texte des adresses… et réindexe »). Les deux parties tiennent par lecture ; l'effet attend une mise à jour du jeu, non re-mesuré. Classement : V4, le correctif réécrit des données existantes (texte des adresses) à chaque chargement, même si ADR-0062 § 4 en décrit l'intention.
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04
