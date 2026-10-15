@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**599 tickets** — 45 ouverts, 552 livrés.
+**600 tickets** — 45 ouverts, 553 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 552 |
+| ✅ Done | 553 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 552
+## ✅ Done — 553
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 39 tickets</summary>
+<summary><strong>Sans vague</strong> — 40 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1056,6 +1056,7 @@ _(aucun)_
 - [TCK-653](tickets/TCK-653-membres-agence-sans-n-plus-un.md) — Liste des membres d'agence : plus de requêtes par ligne `S · P2 · bug`
 - [TCK-654](tickets/TCK-654-per-page-plafonne-partout.md) — `per_page` plafonné sur toutes les listes paginées par le contrôleur `S · P2 · bug`
 - [TCK-655](tickets/TCK-655-langue-choisie-persistee-sur-le-compte.md) — La langue choisie dans l'interface est persistée sur le compte (`PATCH /api/me`) `S · P0 · bug`
+- [TCK-656](tickets/TCK-656-messages-de-validation-traduits.md) — Les messages de validation écrits en français en dur passent par `lang/{fr,en,wo}` `S · P0 · bug`
 
 </details>
 

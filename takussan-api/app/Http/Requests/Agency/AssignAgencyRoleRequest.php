@@ -50,7 +50,7 @@ class AssignAgencyRoleRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
-            'profile_type.in' => 'Ce type de profil ne porte pas de rôle d\'agence.',
+            'profile_type.in' => __('agencies.validation.profile_type_without_role'),
         ];
     }
 }

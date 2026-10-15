@@ -806,7 +806,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
 - Réf : P06.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-656
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:45-48`, `RejectPropertyRequest.php:24-26`, `InventorySignRequest.php:94-126`, `Agency/AssignAgencyRoleRequest.php:53`, `Agency/SyncCapabilitiesRequest.php:55`, `Permissions/StoreRoleDelegationRequest.php:80-86`
 - Constat :
@@ -815,6 +815,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Le front affiche `message` en le supposant localisé (`takussan-web/src/lib/api.ts:543`).
 - Piste : des clés `lang/*/validation.php` ou des codes, et une garde qui refuse tout littéral dans `messages()`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu les six FormRequests → 14 littéraux français : `StorePropertyMediaRequest.php:45-48` (4), `RejectPropertyRequest.php:24-26` (3, fichier sous `Http/Requests/`, pas `Api/`), `InventorySignRequest.php` (5 `bail($fail, '…')` vers l. 94-126), `AssignAgencyRoleRequest.php:53` (1), `SyncCapabilitiesRequest.php:55` (1) ; `StoreRoleDelegationRequest.php:80-86` passe `'utilisateur'`, `'rôle'`, `'date de fin'`, `'motif'` comme `attribute` de `__('validation.*')` → le constat tient. Classement : A4, déplacer ces messages existants vers des clés `lang/{fr,en,wo}` sans changer le texte français n'ajoute aucun texte de produit, et la garde proposée relève d'A5 sans seuil à resserrer.
+- Mesure (2026-10-15, 0b57251a, implementeur) : re-lu les six FormRequests, les 14 littéraux et les 5 noms de champ français de `StoreRoleDelegationRequest` sont là ; `MessagesDeValidationTraduitsTest` avant correctif → 15 rouges sur 30 (les 14 phrases identiques au français en `en` et `wo`, et « The utilisateur field is required. »), les 15 cas `fr` verts → clés `lang/{fr,en,wo}/{properties,moderation,inventories,agencies}.php`, surcharges de la délégation retirées au profit de `validation.attributes`, garde `ProseLitteraleScanner` (h) `messages()`/`attributes()` et (i) `$fail(…)` ; ablation (`app/` et `lang/` remis) → 16 rouges, garde comprise ; remis → vert, 211 tests des classes touchées verts.
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05

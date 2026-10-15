@@ -42,10 +42,10 @@ class StorePropertyMediaRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
-            'photos.required' => 'Sélectionnez au moins une photo.',
-            'photos.*.image' => 'Le fichier doit être une image lisible.',
-            'photos.*.mimes' => 'Formats acceptés : JPG, PNG ou WebP.',
-            'photos.*.max' => 'Chaque photo doit peser 10 Mo maximum.',
+            'photos.required' => __('properties.validation.photos_required'),
+            'photos.*.image' => __('properties.validation.photo_image'),
+            'photos.*.mimes' => __('properties.validation.photo_mimes'),
+            'photos.*.max' => __('properties.validation.photo_max'),
         ];
     }
 }
