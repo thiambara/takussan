@@ -9,6 +9,17 @@
   migrée, en lecture seule (aucune migration en attente) ; le code touché par TCK-639, TCK-640 et
   TCK-647 → TCK-650.
 
+> **Correctif du 2026-10-14, après la passe — ce qui suit sur FC1 et MC1 est faux sur un point.**
+> La passe affirme que les clés globales qu'écrit la route brute « ne sont lues par aucun code ». Re-mesuré
+> avant d'appliquer FC1 : **cinq clés hors de tout catalogue sont lues** par `App\Support\ScopedSetting`
+> (ligne de l'agence, sinon **ligne globale**, sinon défaut) — `invoice.reminder_offsets_days`,
+> `lease.rent_review_max_pct`, `lease.early_termination_penalty_months`, `lease.require_signature`,
+> `late_fees.cap_percent`. Leur valeur globale ne s'écrit **que** par la route brute. L'option (b) de FC1
+> (fermer la voie brute en portée `global`) supprimerait donc le seul réglage de ces cinq défauts de
+> plateforme. Le constat de dérive de l.671 et §30 tient ; la conséquence et l'option recommandée,
+> non. Toute autre clé globale écrite par cette route reste sans lecteur (relevé : `PlatformSettingService`,
+> `BusinessEnumService` et `ScopedSetting` sont les trois seuls lecteurs de `settings`).
+
 ## Méthode — une passe différentielle, et pourquoi
 
 La passe 013 est la première relecture intégrale (99 sections, 380 lignes), du même jour. Depuis :
