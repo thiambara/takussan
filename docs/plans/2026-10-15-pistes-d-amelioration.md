@@ -19,7 +19,7 @@ amélioration.
 | 2 | Performances des requêtes : N+1, index manquants (FK non indexées sous PostgreSQL), pagination | fait |
 | 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | fait |
 | 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | fait |
-| 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | à faire |
+| 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | fait |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | à faire |
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | à faire |
 | 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | à faire |
@@ -41,6 +41,7 @@ amélioration.
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
+| 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | à faire |
 
 ---
 
@@ -435,3 +436,90 @@ contre le code par la session.*
 - la numérotation des factures est sérialisée sur la ligne de l'agence, avec un index unique en dernier recours (`InvoiceNumberAllocator.php:36-58`) ;
 - les reversements verrouillent leurs pièces (`PayoutService.php:414-473`) ;
 - un webhook rejoué n'est pas recompté.
+
+## Angle 5 — Jobs planifiés et files
+
+*Exploré le 2026-10-15 vers 1 h 05, par lecture, avec une mesure sur `scheduled_task_runs` en dev. Aucun
+défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils se produisent.*
+
+### Un verrou `withoutOverlapping` reste orphelin 24 h si le scheduler est tué au redéploiement
+- Gravité : 🟠 risque ou dette
+- Où : `deploy/takussan/compose.api.yml:65-68`, `takussan-api/routes/console.php:106,113,115,151,174`
+- Constat :
+  - Le service `scheduler` n'a pas de `stop_grace_period`, donc Docker attend 10 s.
+  - PID 1 est `schedule:work`, et le sous-processus `schedule:run` ne reçoit jamais le signal : son verrou n'est pas rendu.
+  - Le verrou vit dans Redis (`appendonly`) pendant `expiresAt = 1440` minutes.
+  - `impersonation:close-expired`, `health:probe` et `boosts:tick` durent de 12 à 25 s en dev (mesuré). Un déploiement qui tombe pendant l'une d'elles la saute donc 24 h (lu ; non observé en préproduction).
+- Piste : `->withoutOverlapping(N)` avec N proche de la période, et `stop_grace_period: 120s`.
+
+### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
+- Constat :
+  - Le scheduler ne rattrape pas une exécution manquée. Une panne à la minute prévue perd définitivement :
+    - la relance de facture J+3 (`due_date = today − offset`) ;
+    - les relances de loyer ;
+    - le résumé de notifications du jour ;
+    - le rappel de visite, après 10 min d'arrêt ;
+    - l'avis du relevé de gérance mensuel.
+  - `ApplyLateFeesJob` (`<= today`) et `KycExpiryService` rattrapent, eux.
+  - Aucun test ne couvre un jour manqué (lu).
+- Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
+
+### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
+- Constat :
+  - `claim()` marque toutes les échéances du jalon, puis la boucle envoie.
+  - Si une exception survient au milieu, ou si le job est coupé à 60 s faute de `$timeout`, le reste est déjà marqué : le rejeu ne le renvoie jamais.
+  - Aucun test ne simule un échec en cours de boucle (lu).
+- Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
+
+### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
+- Constat :
+  - Il n'y a ni `catch` par demande ni `orderBy` : une `anonymize()` qui lève bloque, toutes les heures, toutes les suppressions RGPD échues après elle.
+  - La seule trace est une ligne `failed` dans `scheduled_task_runs` (lu).
+- Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
+
+### Les notifications ne partent après le commit que grâce au driver `database`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/queue.php:44,64,73` (`after_commit => false`), par exemple `LateFeeCalculator.php:162` et `BookingExpirationService.php:204-206`
+- Constat :
+  - Des notifications et des écouteurs `ShouldQueue` sont dispatchés dans des transactions. Avec la file `database`, la ligne `jobs` est annulée avec la transaction, donc le comportement est juste aujourd'hui.
+  - Passer `QUEUE_CONNECTION` à `redis` (évoqué en `docs/configuration.md:136`) enverrait des notifications pour des écritures annulées. Rien ne garde cette propriété (lu ; aucun test trouvé).
+- Piste : `after_commit => true` sur toutes les connexions de file, ou une garde.
+
+### `retry_after` à 90 s est sous le `$timeout` de quatre jobs ; un seul worker sert aussi la file urgente
+- Gravité : 🟠 risque ou dette
+- Où : `ExpirePendingBookingsJob.php:21,26` (300 s), `SyncPropertyCalendarFeedsJob.php:25` (540 s), `SendSavedSearchAlerts.php:83` et `SendFavoriteChangeAlerts.php:61` (1800 s) ; `docs/infra/hebergement.md:101` ; `deploy/takussan/compose.api.yml:55`
+- Constat :
+  - Un second consommateur, ou le worker relancé après un SIGKILL, réserve à nouveau un job en cours : rejeu ou échec parasite.
+  - `worker` consomme `notifications-urgent,default` : une alerte de 30 min retarde d'autant une notification de maintenance urgente (lu ; durées en production à vérifier).
+- Piste : `DB_QUEUE_RETRY_AFTER` au-dessus de 1800 s, ou une file dédiée aux balayages longs.
+
+### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
+- Constat :
+  - Pour les 19 jobs planifiés, la ligne mesure le dispatch : de 0 à 80 ms, toujours `finished` (mesuré). Un échec dans le worker n'apparaît que dans `failed_jobs`.
+  - Le verrou du scheduler ne protège pas l'exécution, et aucun job planifié n'est `ShouldBeUnique` (lu).
+- Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
+
+### Petits écarts entre docblock et code
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
+- Constat :
+  - `SendRawNotificationEmailJob` attrape `\Throwable` dès le premier essai : `$tries` et `backoff()` sont inutiles. Son seul appelant n'est appelé nulle part (code mort, à vérifier). `SendDailyNotificationDigest` n'est ni planifié ni dispatché.
+  - `boosts:tick` annonce que « chaque transition » est réclamée, mais `pause()` et `resume()` écrivent le modèle chargé.
+  - `SendProspectMatchDigest` envoie avant de poser sa clé d'idempotence, et journalise `$e->getMessage()`, ce que TCK-601 interdit (lu).
+- Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
+
+### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
+- Gravité : 🟢 amélioration
+- Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
+- Constat :
+  - Il n'y a qu'un scheduler, et Dakar est en UTC+0 sans heure d'été.
+  - La préproduction et la future production partageront `redis-takussan`. Avec le même `APP_NAME` et le même `REDIS_CACHE_DB`, leurs verrous de scheduler entreraient en collision : chaque environnement sauterait les tâches de l'autre (à vérifier quand la production existera).
+- Piste : un `CACHE_PREFIX` par environnement.
