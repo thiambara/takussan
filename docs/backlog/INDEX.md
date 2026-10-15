@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**595 tickets** — 46 ouverts, 547 livrés.
+**595 tickets** — 45 ouverts, 548 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 43 |
 | 🚧 Doing | 1 |
-| 👀 Review | 2 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 547 |
+| ✅ Done | 548 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -84,7 +84,6 @@
 ## 👀 Review
 
 - [TCK-585](tickets/TCK-585-photos-servies-sans-transformations.md) — Les photos de biens sont servies en WebP depuis leurs conversions — plus aucune transformation Cloudflare facturée pour elles `M · P2 · full`
-- [TCK-651](tickets/TCK-651-reglages-metier-au-catalogue.md) — Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale `M · P2 · full`
 
 ## ⛔ Blocked
 
@@ -92,7 +91,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 547
+## ✅ Done — 548
+
+<details>
+<summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
+
+- [TCK-651](tickets/TCK-651-reglages-metier-au-catalogue.md) — Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale `M · P2 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 78 — /admin absorbé par /app : administration d'agence sous /app/agency, un seul tableau de bord d'agence, pages super-admin vers /super-admin — ADR-0064 (2026-10-14)</strong> — 4 tickets</summary>

@@ -1,7 +1,7 @@
 ---
 id: TCK-651
 title: Les réglages métier à repli global entrent au catalogue, la route brute n'écrit plus la portée globale
-status: review
+status: done
 phase: P2
 family: full
 estimate: M
