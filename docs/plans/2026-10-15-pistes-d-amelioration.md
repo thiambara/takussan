@@ -165,7 +165,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les suggestions de recherche ont une limite unique de 60 requêtes par minute pour tout le site
 - Réf : P01.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-652
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:373`
 - Constat :
@@ -175,6 +175,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Avec un anti-rebond de 150 ms, une dizaine de personnes qui tapent en même temps font répondre 429 à tout le monde.
 - Piste : `->by($this->visitorRateLimitKey($request))`, comme `public-read`, et un test avec deux IP distinctes.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `AppServiceProvider.php:372-373` (`Limit::perMinute(60)` sans `->by()`) et `ThrottleRequests` (clé `md5($limiterName.$limit->key)`, donc une seule clé pour tous) ; test temporaire, retiré depuis, qui envoie 60 appels de `10.0.0.1` à `/api/search/suggest` → l'appel suivant depuis `10.0.0.2` rend **429**. TCK-107 écrit la règle attendue (« rate-limit 60 req/min/IP », AC5 « depuis la même IP »). Classement : A1, le comportement attendu est écrit dans TCK-107 et dans le commentaire de la ligne 372, et le correctif reprend la clé `visitorRateLimitKey()` des limiteurs voisins, sans choix de produit.
+- Mesure (2026-10-15, 5e758845, implementeur) : reproduit avant correctif par `SearchSuggestTest::test_rate_limit_is_counted_per_visitor_ip` (60 appels de `198.51.100.1`, puis un de `198.51.100.2`) → **429** au lieu de 200 ; correctif `->by($this->visitorRateLimitKey($request))` → 12/12 verts dans la classe ; ablation (limiteur ramené à `fn () => Limit::perMinute(60)`) → rouge sur la même assertion, correctif remis → vert.
 
 ### Deux recherches par changement de filtre, et des impressions Boost gonflées
 - Réf : P01.04
