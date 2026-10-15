@@ -25,7 +25,7 @@ amélioration.
 | 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | fait |
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | fait |
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | fait |
-| 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | à faire |
+| 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | fait |
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | à faire |
 | 13 | Code mort et doublons : services, composants, routes, clés i18n | à faire |
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | à faire |
@@ -46,10 +46,13 @@ amélioration.
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
-| 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | à faire |
+| 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
 | 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
 | 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
+| 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
+| 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | à faire |
+| 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | à faire |
 
 ---
 
@@ -1042,3 +1045,124 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : installer les binaires ou retirer le bloc ; couper les deux options `dangerously*` hors développement ; servir l'avatar en conversion.
 
 Angles voisins : mémoire et `--timeout` de `worker-media` face aux originaux de 48 Mpx ; contenu réel de `storage/media-library/temp` en préproduction ; facture Transformations et R2 au tableau de bord Cloudflare.
+
+## Angle 11 — Notifications : doublons, préférences, échecs
+
+Les trois 🔴 ont été relus par la session dans le code :
+- `AuthController::register` crée l'utilisateur sans `preferred_language`, et `NotificationService.php:89` lit `preferredLocale()` ;
+- `AgentInvitationService.php:84` appelle `send()` depuis son propre `DB::transaction`, et `InvitationMailable` n'implémente pas `ShouldQueue` ;
+- `SmsRouterDriver::deferAll()` (l. 214) remet le texte rendu à `SendDeferredSmsJob`, qui n'implémente que `ShouldQueue`.
+
+### Les comptes inscrits par e-mail reçoivent tout en français, quelle que soit leur langue
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:35`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`, `takussan-api/app/Services/Model/NotificationService.php:89`
+- Constat : c'est la conséquence visible du 🔴 de l'angle 6.
+  - Le sélecteur de langue écrit par `PATCH /api/users/me`, une route absente (mesuré par `route:list`), et le 404 est avalé par un `catch {}` vide.
+  - `PATCH /api/me` n'accepte que `city`, `search_intent` et `entry_intent`.
+  - L'inscription n'écrit pas `preferred_language`, qui prend donc le défaut `'fr'`.
+  - `send()` fixe donc `->locale('fr')` : e-mails, SMS et WhatsApp partent en français pour tout compte inscrit par e-mail.
+  - Seuls la connexion par téléphone (`PhoneLoginService.php:171`) et le provisionnement écrivent la colonne.
+  - Établi comment : lu, route mesurée.
+- Piste :
+  - accepter `preferred_language` dans `UpdateMeRequest` et corriger le chemin côté front ;
+  - écrire la langue négociée à l'inscription ;
+  - un test bout en bout : changer de langue, puis vérifier la langue d'un `CodedNotification`.
+
+### Le courriel d'invitation part à l'intérieur de la transaction de l'appelant
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:84,99`, `OwnerInvitationService.php:96`, `ServiceProviderInvitationService.php:151`, `InvitationService.php:232-238`
+- Constat :
+  - `InvitationService::send()` déclare envoyer le courriel « intentionally outside the DB transaction ».
+  - Mais ses trois appelants l'appellent depuis leur propre `DB::transaction`, et `deliver()` fait un `Mail::send` synchrone.
+  - Une panne du transport (la préproduction a relevé 35 échecs Resend) annule le profil et l'invitation, puis rend un 500.
+  - À l'inverse, un échec survenu après l'envoi laisse un e-mail dont le jeton ne pointe plus vers rien.
+  - Établi comment : lu, et mesuré par l'agent avec une sonde tokenizer.
+- Piste : `DB::afterCommit(fn () => $this->deliver(...))`, ou un mailable mis en file avec `afterCommit()`.
+
+### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:56-57,214`, `takussan-api/app/Jobs/SendDeferredSmsJob.php:16`, `takussan-api/config/sms.php:125-129`
+- Constat :
+  - `CodedNotification` est chiffrée en file exprès (TCK-602).
+  - Entre 22 h et 6 h, le routeur remet le texte **déjà rendu** à `SendDeferredSmsJob`, qui n'implémente pas `ShouldBeEncrypted`.
+  - Ce texte porte `payment_url`, `receipt_url` et `/invitations/accept?token=`.
+  - Le chemin est réel : `invitations:remind` tourne toutes les heures, et le webhook de paiement arrive à toute heure.
+  - Établi comment : lu, chemin complet.
+- Piste : `ShouldBeEncrypted` sur `SendDeferredSmsJob`, plus une garde qui l'exige de tout job portant un texte de SMS.
+
+### L'e-mail de vérification à l'inscription est synchrone
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33-46`, `takussan-api/app/Notifications/RegistrationConfirmationNotification.php`
+- Constat :
+  - `User::create` est appelé hors transaction, puis `Registered` déclenche une notification sans file.
+  - Si le transport échoue, la réponse est un 500 alors que le compte existe déjà, et aucun jeton n'est rendu. Une nouvelle tentative bute sur « e-mail déjà pris ».
+  - Même chose pour `ResetPasswordNotification` et `AccountDeletion*`.
+  - Établi comment : lu.
+- Piste : `ShouldQueue`, avec les codes à usage unique sur `notifications-urgent`.
+
+### Un SMS qui échoue ne laisse ni trace ni alerte
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
+- Constat :
+  - `no_provider_available` rend un résultat, sans exception ni log.
+  - Sans `notification_id` (contact sans compte), aucune tentative n'est journalisée.
+  - Le docblock promet une bascule vers l'e-mail que Laravel ne fait pas.
+  - Le code de signature de bail partage le seau de 5 SMS par heure avec les rappels, et l'API répond `channel: sms` même quand rien n'est parti.
+  - Les clés `SMS_*` sont absentes en préproduction (`docs/infra/hebergement.md:148`).
+  - Établi comment : lu.
+- Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
+
+### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
+- Gravité : 🟠 risque ou dette (intention à vérifier)
+- Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
+- Constat :
+  - Avec un `agency_id`, seule l'intégration de l'agence est cherchée, sans repli sur la plateforme.
+  - `agency_id` vaut l'agence pour un professionnel mono-agence et `null` pour un multi-agences. Les SMS du premier dépendent donc du fournisseur de son agence, alors qu'ADR-0032 met le coût à la charge de la plateforme.
+  - `IntegrationLocator` est un singleton qui met en cache aussi les résultats nuls. Dans le worker (`--max-time=3600`), une intégration activée ou tournée met jusqu'à une heure à prendre effet.
+  - Établi comment : lu.
+- Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
+
+### Diffusion en double, avant le commit, avec le contenu écrit au journal
+- Gravité : 🟠 risque ou dette (valeur de préproduction à vérifier)
+- Où : `takussan-api/app/Services/Model/NotificationService.php:108-114`, `takussan-api/app/Events/NewNotification.php:13`, `takussan-api/app/Notifications/CodedNotification.php:85`, `.env.example:121`
+- Constat :
+  - `NewNotification` est `ShouldBroadcastNow` et part dans la transaction, avant le commit. `CodedNotification` y ajoute un canal `broadcast` sur le même canal privé.
+  - Le front n'écoute rien : aucun `echo`, `pusher` ni `notification.new` (mesuré).
+  - Avec `BROADCAST_CONNECTION=log`, titre et corps (noms, montants) sont écrits au niveau info.
+  - Établi comment : lu, et mesuré pour le front.
+- Piste : supprimer `NewNotification`, ou la passer en `ShouldDispatchAfterCommit` et la faire taire tant que D-65 est ouvert.
+
+### Le résumé par e-mail est injoignable, et doublerait chaque e-mail le jour où il le deviendrait
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:36-40`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:28-36`, `takussan-api/app/Notifications/CodedNotification.php:77`, `takussan-api/routes/web.php:12`
+- Constat :
+  - Aucun point d'API n'écrit `email_frequency`, hormis le lien de désabonnement.
+  - `via()` ignore `email_frequency` et `notifications_email_enabled`.
+  - Le désabonnement est un `GET` signé, sans expiration, qui modifie l'état : un scanner de liens suffit à désabonner.
+  - `SendDailyNotificationDigest` n'est ni planifié ni dispatché.
+  - Établi comment : lu.
+- Piste : retirer ce sous-système, ou faire lire `email_frequency` par `via()` et passer le désabonnement en `POST`.
+
+### Aucun `afterCommit` : pas de dégât aujourd'hui, grâce à la seule file `database`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/queue.php:44,73`, `takussan-api/app/Notifications/CodedNotification.php:40`
+- Constat :
+  - `after_commit => false` partout.
+  - La file `database` écrit le job dans la même transaction, qui les annule ensemble.
+  - Un passage à Redis enverrait des notifications pour des transactions annulées.
+  - Établi comment : lu.
+- Piste : `ShouldQueueAfterCommit` sur `CodedNotification` et les autres notifications en file.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (lu, sauf mention) :
+  - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
+  - **Journaux** : `SmsChannel.php:54` et `WhatsappChannel.php:77` écrivent le numéro complet, alors que le reste du dépôt ne journalise que le suffixe (`PhoneVerificationService.php:396`).
+  - **Ce qui tient** :
+    - `event:list` : 178 écouteurs, aucun doublon (mesuré) ;
+    - un seul conteneur `scheduler` ;
+    - relances posées sous `lockForUpdate` ;
+    - fil in-app isolé par `user_id`, `per_page` plafonné à 50.
+
+    `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
+- Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
