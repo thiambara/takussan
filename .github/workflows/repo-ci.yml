@@ -319,6 +319,14 @@ jobs:
         # QUOTÉ, et la garde balaie tout le shell du dépôt.
         run: node scripts/check-heredocs.mjs --report
 
+      - name: Le fichier de pistes garde la forme que lisent les trois agents (ADR-0066)
+        # Trois agents planifiés s'y passent la main, sans relecture entre deux passages. Un statut
+        # mal écrit retire l'entrée de la liste du suivant sans rien faire échouer ; une Réf en
+        # double fait implémenter deux fois ; un classement sans mesure fait coder sur une
+        # prémisse que personne n'a revérifiée. Le périmètre de chaque rôle (`--role`) est joué
+        # par `scripts/agents/pistes.sh` avant tout push, pas ici.
+        run: node scripts/check-pistes.mjs --report
+
       - name: La décision de réindexation de `release.sh` fait ce qu'elle annonce
         # Successeur du test de la décision de `deploy.sh`, retiré avec lui (ADR-0028). Même
         # raison d'être : ni PHPUnit ni vitest ne lisent du shell, et se tromper est muet des deux

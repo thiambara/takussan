@@ -11,6 +11,14 @@ déduite d'un nom ou d'un docblock n'est pas un constat* : elle est marquée **�
 Gravité : 🔴 défaut avéré (comportement faux aujourd'hui) · 🟠 risque ou dette qui coûte · 🟢
 amélioration.
 
+**Depuis [ADR-0066](../adr/0066-trois-agents-sur-les-pistes-d-amelioration.md), trois agents
+planifiés traitent ce fichier.** L'explorateur relève les angles « à faire ». Le mesureur
+re-mesure, puis classe. L'implémenteur corrige ce qui est classé autonome ou validé. Chaque entrée
+porte une `Réf` stable et un `Statut`. Le format, le vocabulaire et les critères de classement
+sont dans l'ADR, et `node scripts/check-pistes.mjs` les tient. **Pour accorder une piste**, passez
+sa ligne `Statut` à `validé` sur `pre-dev`. Les comptes courants se prennent par
+`node scripts/check-pistes.mjs --report` : ceux du résumé ci-dessous sont ceux de la clôture.
+
 ## Résumé de la clôture (2026-10-15, 03 h 04)
 
 **16 angles explorés** sur les 53 listés, de 00 h à 3 h, chacun par un agent en lecture seule. Chaque 🔴 a été relu
@@ -127,6 +135,8 @@ voie d'écriture (angle 13, puis 47).
 chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch de développement.*
 
 ### La recherche dans `/app` ne trouve ni les brouillons ni les biens privés, et ne trie pas par pertinence
+- Réf : P01.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:235`, `takussan-api/app/Models/Property.php:499-508`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:80`, `takussan-web/src/lib/queries/properties-server.ts:126`
 - Constat :
@@ -137,6 +147,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : une recherche SQL sur le titre et la référence pour les listes internes, ou un index interne sans `shouldBeSearchable`. Utiliser `defaultSortsWithRelevance()`, et ne pas forcer `sort` quand une recherche est active.
 
 ### Les quartiers proposés par le panneau ne correspondent pas aux quartiers indexés
+- Réf : P01.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/ChoixDuReferentiel.tsx:227-233`, `takussan-api/app/Services/Search/PropertySearchService.php:446-447`
 - Constat :
@@ -149,6 +161,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : rattacher les adresses au référentiel (migration de données), puis indexer et filtrer par le nom canonique ou par `geo_neighborhood_id`.
 
 ### Les suggestions de recherche ont une limite unique de 60 requêtes par minute pour tout le site
+- Réf : P01.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:373`
 - Constat :
@@ -159,6 +173,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : `->by($this->visitorRateLimitKey($request))`, comme `public-read`, et un test avec deux IP distinctes.
 
 ### Deux recherches par changement de filtre, et des impressions Boost gonflées
+- Réf : P01.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useSearch.ts:183,360-364`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:133-134`, `takussan-api/app/Services/Search/PropertySearchService.php:659`
 - Constat :
@@ -168,6 +184,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : naviguer sans rendu serveur, ou consommer la graine à chaque nouvelle clé. Compter l'impression côté client, ou la dédoublonner par visiteur.
 
 ### Avec un tri par prix, la recherche élargie classe mal
+- Réf : P01.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/scout.php:218`, `takussan-api/app/Services/Search/PropertySearchService.php:263-265`
 - Constat :
@@ -176,6 +194,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : ranger `sort` après `words`, ou ne pas envoyer le tri dans le plan de repli.
 
 ### `SEARCH_ID_CAP` vaut en fait 1000, et la pagination publique aussi
+- Réf : P01.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:28`, `takussan-api/config/scout.php:150-254`
 - Constat :
@@ -185,6 +205,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : déclarer `maxTotalHits` dans `index-settings`, et corriger la doc.
 
 ### Des réglages d'index périmés font échouer la liste par défaut
+- Réf : P01.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/scout.php:217`, `takussan-api/app/Services/Search/PropertySearchService.php:615`, `takussan-api/docker/release.sh:27-28`
 - Constat :
@@ -193,12 +215,16 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : faire échouer le déploiement sur une synchronisation ratée, ou dégrader le tri au lieu de lever.
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
+- Réf : P01.08
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:76,97,152`
 - Constat : `neighborhood`, `bedrooms` et `type` sont demandées à Meilisearch à chaque requête. Le front ne lit `facets` nulle part : seule la déclaration de type `types/search.ts:608` le mentionne.
 - Piste : les retirer, ou les afficher (« Mermoz (43) ») en facettes disjonctives.
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
+- Réf : P01.09
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:125`, `takussan-api/app/Models/Property.php:321-338`
 - Constat :
@@ -207,6 +233,8 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 - Piste : en cas de zéro résultat, proposer les suggestions de `SuggestService` dans `SearchEmpty`.
 
 ### La carte charge toutes les photos, et les coordonnées ne sont pas indexées
+- Réf : P01.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:521`, `takussan-api/app/Http/Resources/PropertyMapGeoJsonResource.php:49`
 - Constat : `with('media')` charge toutes les photos de jusqu'à 501 biens pour n'en lire qu'une. `addresses` n'a aucun index sur `latitude`/`longitude` (mesuré, `pg_indexes`).
@@ -223,6 +251,8 @@ Déjà sain (mesuré ou lu) :
 - les ressources utilisent `whenLoaded`.
 
 ### Liste des membres d'agence : une dizaine de requêtes par ligne
+- Réf : P02.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:191`, `takussan-api/app/Http/Resources/UserResource.php:37,86-87`, `takussan-api/app/Models/Concerns/HasProfiles.php:82-95,229-262`, `takussan-api/app/Models/User.php:263-289`
 - Constat :
@@ -232,6 +262,8 @@ Déjà sain (mesuré ou lu) :
 - Piste : précharger les profils et `media`, ou ne sortir `roles` et `agency_id` que pour soi.
 
 ### `per_page` sans plafond sur une vingtaine de routes
+- Réf : P02.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `AgencyController.php:191`, `AuditLogController.php:57`, `PropertyPriceHistoryController.php:18`, `ServiceProviderProfileController.php:44`… (sous `takussan-api/app/Http/Controllers/Api/`)
 - Constat :
@@ -241,6 +273,8 @@ Déjà sain (mesuré ou lu) :
 - Piste : une méthode unique `Controller::perPage($request, $défaut, $max)`, et une garde `scripts/check-*.mjs` qui refuse `paginate(` nourri de `$request->`.
 
 ### Le profil plateforme est relu à chaque autorisation
+- Réf : P02.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:678`, `takussan-api/app/Models/Concerns/HasProfiles.php:327-331`, `RequireTwoFactor.php:64`, `RequireRecentTwoFactor.php:45`, `LeaseResource.php:125`
 - Constat :
@@ -250,6 +284,8 @@ Déjà sain (mesuré ou lu) :
 - Piste : charger `platformProfile` une fois par requête, dans `ResolveActiveProfile`.
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
+- Réf : P02.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasProfiles.php:281-291`, avec un docblock faux en `:221-223`
 - Constat :
@@ -264,6 +300,8 @@ Déjà sain (mesuré ou lu) :
 - Piste : `customers.user_id` d'abord, puis les autres une par une, sur `EXPLAIN` (piège PostgreSQL n° 8).
 
 ### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
+- Réf : P02.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:20,45,143-147`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62,104`, `takussan-api/app/Models/Tag.php:32`
 - Constat :
@@ -273,48 +311,64 @@ Déjà sain (mesuré ou lu) :
 - Piste : lire `properties_count`/`customers_count`, et lancer la requête des tags en parallèle de celle du bien.
 
 ### `whereDate()` sur un horodatage empêche l'usage de l'index
+- Réf : P02.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:453-460`
 - Constat : `scheduled_at::date >= …` force un Seq Scan. Écrite en plage, la même borne passe par l'index `property_visits_scheduled_at_status_index` (mesuré). Sur une colonne `date`, le cast ne coûte rien.
 - Piste : des plages `>= début du jour`, `< lendemain`.
 
 ### Export synchrone jusqu'à 50 000 modèles complets
+- Réf : P02.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:109,139,463-467`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82`
 - Constat : `limit(≤ 50 000)->get()` sans `select`, jsonb compris, pendant la requête HTTP (lu).
 - Piste : sélectionner les colonnes exportées, `lazyById()` avec une réponse en flux, ou une tâche en file au-delà d'un seuil.
 
 ### La liste pro des biens fait six requêtes HTTP, dont deux en série
+- Réf : P02.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:97-125,210-229`
 - Constat : la liste plus cinq `countProperties` (`per_page=1`), dont « vendus » suivi de « loués » en `.then` (lu).
 - Piste : un seul endpoint de compteurs en `COUNT(*) FILTER (WHERE …)`, comme `DashboardAgencyService.php:42-52`.
 
 ### Fiche client : les notes sont chargées deux fois
+- Réf : P02.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/customers.ts:114`, `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:87-91`
 - Constat : `include=notes` sérialise toutes les notes, puis la page les redemande paginées (lu).
 - Piste : retirer `notes` de l'`include`.
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
+- Réf : P02.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
 - Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
 - Piste : `enabled` réservé à l'onglet actif, et `nowIso` arrondi à la minute.
 
 ### `scheduled_task_runs` grossit sans purge
+- Réf : P02.11
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
 - Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
 
 ### Tri du catalogue public sans index adapté
+- Réf : P02.12
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:156`
 - Constat : `ORDER BY ranked_at DESC NULLS LAST, id DESC` force un Sort : l'index `ranked_at` est en ASC (mesuré).
 - Piste : un index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`.
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
+- Réf : P02.13
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
@@ -333,6 +387,8 @@ Ce qui tient (lu) :
 - les proxys BFF à segments filtrés (`cheminAmont`).
 
 ### `PUT /api/users/{user}/role` contourne les garde-fous de l'équipe
+- Réf : P03.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré, au sein d'une même agence
 - Où : `takussan-api/app/Http/Controllers/Api/UserRoleController.php:38-74,104-135`, `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:10-16`
 - Constat :
@@ -344,6 +400,8 @@ Ce qui tient (lu) :
 - Piste : une policy `changeMemberRole` qui réutilise les gardes d'`AgencyMemberRemovalService`, un refus des cibles non actives, et un test par garde.
 
 ### `/api/users?include=…Profiles` fait sortir les profils des autres agences
+- Réf : P03.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:35-49`, `takussan-api/app/Models/User.php:156`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:277-280`
 - Constat :
@@ -356,6 +414,8 @@ Ce qui tient (lu) :
 - Piste : des `AllowedInclude::custom` contraints à l'agence active, idem pour `filter[role]`, et un test avec une personne présente dans deux agences.
 
 ### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
+- Réf : P03.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré, impact modéré (des libellés, pas des fiches)
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:18-45,67-77`, `takussan-api/app/Http/Controllers/Api/CustomerTagController.php:60-66`, `takussan-api/app/Models/Tag.php:21-23`
 - Constat :
@@ -367,6 +427,8 @@ Ce qui tient (lu) :
 - Piste : exclure le type `crm` hors de l'agence du personnel, dans `index` comme dans `show`, et un test entre deux agences.
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
+- Réf : P03.04
+- Statut : à mesurer
 - Gravité : 🟠 risque
 - Où : `takussan-api/app/Http/Controllers/Api/Me/PayoutMethodController.php:21-31`, `takussan-api/app/Http/Resources/PayoutMethodResource.php:19-33`, `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`
 - Constat :
@@ -375,6 +437,8 @@ Ce qui tient (lu) :
 - Piste : masquer la forme claire sous `ImpersonationContext`, ou ajouter `api/me/payout-methods*` à `REFUSED_READS`.
 
 ### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
+- Réf : P03.05
+- Statut : à mesurer
 - Gravité : 🟠 dette
 - Où :
   - `Api/PropertyController.php:183-185` ;
@@ -393,6 +457,8 @@ Ce qui tient (lu) :
 - Piste : déléguer dans `authorize()` (`can('update', $this->route('property'))`), et une garde qui refuse `extends FormRequest` hors de `BaseFormRequest`.
 
 ### Oracles d'existence entre agences
+- Réf : P03.06
+- Statut : à mesurer
 - Gravité : 🟠 risque faible
 - Où : `Api/DocumentController.php:57-63`, `Api/Accounting/BankStatementLineController.php:42` (avec `ReconciliationManager.php:51-53`), `Requests/Api/StoreConversationRequest.php:103-108`
 - Constat :
@@ -402,6 +468,8 @@ Ce qui tient (lu) :
 - Piste : autoriser avant de résoudre, ou rendre le même code dans les deux cas.
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
+- Réf : P03.07
+- Statut : à mesurer
 - Gravité : 🟢 à vérifier
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
@@ -413,6 +481,8 @@ Ce qui tient (lu) :
 contre le code par la session.*
 
 ### Échéancier trimestriel ou annuel : un seul mois de loyer facturé par période
+- Réf : P04.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:203,220,245`
 - Constat :
@@ -423,6 +493,8 @@ contre le code par la session.*
 - Piste : multiplier par le nombre de mois de la période, couvrir toute la période, et un test par fréquence.
 
 ### La révision de loyer n'atteint jamais les échéances déjà générées
+- Réf : P04.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/RentReviewService.php:109`, `takussan-api/app/Services/Model/LeaseService.php:152,198`
 - Constat :
@@ -433,6 +505,8 @@ contre le code par la session.*
 - Piste : à `effective_date`, réécrire le montant des échéances `pending` à venir, sous verrou du bail, et un test.
 
 ### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
+- Réf : P04.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/EarlyTerminationService.php:162-163` (création en `:337`)
 - Constat :
@@ -442,6 +516,8 @@ contre le code par la session.*
 - Piste : passer par `InvoiceService::cancel()`, et asserter `credited_invoice_id`.
 
 ### Restitution de caution : le champ refuse tout montant rond
+- Réf : P04.04
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:171-172`
 - Constat :
@@ -453,6 +529,8 @@ contre le code par la session.*
 - Piste : `step="any"` ou `step={1}` avec `min={1}`, ou passer par `FormAmountInput`.
 
 ### Clôture plateforme : périmètre et devise du reversement
+- Réf : P04.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:234-276`
 - Constat :
@@ -462,6 +540,8 @@ contre le code par la session.*
 - Piste : borner aux paiements soldés par une intégration globale, inclure la pénalité, et refuser les devises mélangées comme le fait `PayoutCalculator`.
 
 ### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
+- Réf : P04.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `PaymentGatewayService.php:606-609`, `LemonSqueezyDriver.php:159-172`, `OrangeMoneyDriver.php:65,148-149` (sous `takussan-api/app/Services/Payments/`)
 - Constat :
@@ -470,12 +550,16 @@ contre le code par la session.*
 - Piste : chaque pilote fournit le montant (en unité majeure) et la devise ; la devise Orange Money passe en configuration par environnement.
 
 ### Lemon Squeezy ignore la devise du payable
+- Réf : P04.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:47-55,164`
 - Constat : `$currency` n'est pas lu, et `custom_price` est exprimé dans la devise de la boutique. `extractFees()` mélange `total_usd` et des taxes en devise de boutique (lu ; comportement de l'API à vérifier).
 - Piste : refuser quand la devise du payable diffère de celle de la boutique.
 
 ### Arrondis au centime sur du XOF
+- Réf : P04.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
 - Constat :
@@ -484,6 +568,8 @@ contre le code par la session.*
 - Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
 
 ### Devise forcée, et affichage sans décimales hors XOF
+- Réf : P04.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/InvoiceService.php:75`, `takussan-web/src/lib/format/useFormatteurs.ts:131-133`, `RevenueChart.tsx:171`
 - Constat :
@@ -493,12 +579,16 @@ contre le code par la session.*
 - Piste : par défaut, la devise de l'agence, et les décimales de `CURRENCY_METADATA`.
 
 ### Restitution d'une caution jamais encaissée
+- Réf : P04.10
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/DepositRefundService.php:55,74`
 - Constat : le restituable part de `leases.deposit_amount`, jamais rapproché d'une `LeasePayment` de type `deposit` payée (lu).
 - Piste : borner la restitution à ce qui a été encaissé.
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
+- Réf : P04.11
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
 - Constat :
@@ -519,6 +609,8 @@ contre le code par la session.*
 défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils se produisent.*
 
 ### Un verrou `withoutOverlapping` reste orphelin 24 h si le scheduler est tué au redéploiement
+- Réf : P05.01
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:65-68`, `takussan-api/routes/console.php:106,113,115,151,174`
 - Constat :
@@ -529,6 +621,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : `->withoutOverlapping(N)` avec N proche de la période, et `stop_grace_period: 120s`.
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
+- Réf : P05.02
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
 - Constat :
@@ -543,6 +637,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
+- Réf : P05.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
 - Constat :
@@ -552,6 +648,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
+- Réf : P05.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
 - Constat :
@@ -560,6 +658,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
+- Réf : P05.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,64,73` (`after_commit => false`), par exemple `LateFeeCalculator.php:162` et `BookingExpirationService.php:204-206`
 - Constat :
@@ -568,6 +668,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : `after_commit => true` sur toutes les connexions de file, ou une garde.
 
 ### `retry_after` à 90 s est sous le `$timeout` de quatre jobs ; un seul worker sert aussi la file urgente
+- Réf : P05.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `ExpirePendingBookingsJob.php:21,26` (300 s), `SyncPropertyCalendarFeedsJob.php:25` (540 s), `SendSavedSearchAlerts.php:83` et `SendFavoriteChangeAlerts.php:61` (1800 s) ; `docs/infra/hebergement.md:101` ; `deploy/takussan/compose.api.yml:55`
 - Constat :
@@ -576,6 +678,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : `DB_QUEUE_RETRY_AFTER` au-dessus de 1800 s, ou une file dédiée aux balayages longs.
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
+- Réf : P05.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
 - Constat :
@@ -584,6 +688,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
 
 ### Petits écarts entre docblock et code
+- Réf : P05.08
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -593,6 +699,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
+- Réf : P05.09
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
 - Constat :
@@ -606,6 +714,8 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 ont été relus contre le code par la session ; le premier est mesuré (`route:list`).*
 
 ### La langue choisie dans l'interface n'atteint jamais le compte : e-mails, SMS et cloche partent en français
+- Réf : P06.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/routes/api/me.php:32`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`
 - Constat :
@@ -617,6 +727,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : accepter `preferred_language` sur `PATCH /api/me`, corriger le chemin dans `locale.ts`, et le renseigner à l'inscription depuis `Accept-Language`.
 
 ### Messages système des groupes : rôle toujours « member », aperçu figé en français
+- Réf : P06.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/SystemMessageFactory.php:75,129-143`, `takussan-web/src/components/messages/SystemMessageBubble.tsx:36`, `takussan-api/app/Observers/MessageObserver.php:13`
 - Constat :
@@ -625,6 +737,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : aligner la clé, traduire le rôle, et dériver l'aperçu côté front depuis `metadata.event`.
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
+- Réf : P06.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/leases/contract.blade.php`, `inventories/report.blade.php`, `receipts/rent.blade.php:22`, `receipts/booking.blade.php`, `invoices/default.blade.php`, `layouts/base.blade.php:18`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:143`
 - Constat :
@@ -636,6 +750,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : décider par ADR (français juridique, ou acte bilingue), puis passer par `lang/*`.
 
 ### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
+- Réf : P06.04
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:45-48`, `RejectPropertyRequest.php:24-26`, `InventorySignRequest.php:94-126`, `Agency/AssignAgencyRoleRequest.php:53`, `Agency/SyncCapabilitiesRequest.php:55`, `Permissions/StoreRoleDelegationRequest.php:80-86`
 - Constat :
@@ -645,6 +761,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : des clés `lang/*/validation.php` ou des codes, et une garde qui refuse tout littéral dans `messages()`.
 
 ### Dates du site public figées en `fr-FR`
+- Réf : P06.05
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -655,6 +773,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
+- Réf : P06.06
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
 - Constat :
@@ -664,6 +784,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : relecture des 46 valeurs par un locuteur, et un cliquet décroissant « wo == fr hors emprunts » dans `check-i18n`.
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
+- Réf : P06.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
@@ -672,6 +794,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
+- Réf : P06.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
@@ -680,12 +804,16 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
+- Réf : P06.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/AuditTrail.tsx:536`, `admin/super/ConsoleRecentActivity.tsx:77`, `user-detail.tsx:479`
 - Constat : 147 `->log('…')` littéraux, dont 31 en français. Les autres sont en anglais (« Exported audit trail ») ou sont des codes (mesuré).
 - Piste : afficher `event` traduit (`admin.audit.events.*`), et réserver `description` à l'export.
 
 ### Pluriels absents
+- Réf : P06.10
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
 - Constat :
@@ -695,18 +823,24 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
 
 ### Titre d'annonce suggéré en langue mêlée
+- Réf : P06.11
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-form/wizard/suggest-title.ts:47,59`
 - Constat : « chambres » et « à » sont en dur. Résultat en `en` : « Apartment 3 chambres à Almadies » (lu).
 - Piste : une clé ICU avec `plural`.
 
 ### Libellés du catalogue super-admin écrits en français par l'API
+- Réf : P06.12
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Settings/EditableBusinessEnums.php:20-40`, `Domain/Notifications/EditableNotificationEvents.php:13-29`, `Domain/Integrations/Providers/MailProvider.php:26`
 - Constat : `name` et `description` sont affichés tels quels par `business-enums.tsx:117-118` et `notification-templates.tsx:101` (lu). Les paramètres plateforme, eux, sont traduits par clé depuis TCK-600.
 - Piste : émettre une clé, et rendre le libellé côté front.
 
 ### Des documents qui affirment l'inverse de la mesure
+- Réf : P06.13
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
 - Constat :
@@ -716,6 +850,8 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : remplacer ces chiffres par la commande qui les donne.
 
 ### Pages légales vides en wolof
+- Réf : P06.14
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/content/legal/terms.ts:445`, `privacy.ts:351`, `notice.ts:125`
 - Constat : ``export const wo = ``;``. La page affiche le français avec une mention, et c'est documenté (lu).
@@ -735,6 +871,8 @@ Sain (vérifié par l'agent) :
 - connexion et assistant de publication.
 
 ### Pastille de prix de la carte et surlignage des suggestions sous 4,5:1
+- Réf : P07.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/globals.css:758-760,773-777`, `takussan-web/src/components/search/SearchAutocomplete.tsx:65`
 - Constat :
@@ -743,6 +881,8 @@ Sain (vérifié par l'agent) :
 - Piste : la pastille lit `--primary` (5,06:1) au lieu d'une valeur recopiée en dur ; `--primary-deep` pour le surlignage.
 
 ### Encre atténuée sous le seuil sur quatre parcours
+- Réf : P07.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/agency/BrandingBanner.tsx:42`, `takussan-web/src/components/leases/EarlyTerminationBanner.tsx:93`, `takussan-web/src/components/property-dashboard/ProprietaireEtResponsable.tsx:45,52`, `PropertyVisitDialog.tsx:288,352`
 - Constat :
@@ -752,12 +892,16 @@ Sain (vérifié par l'agent) :
 - Piste : retirer l'opacité (`text-warning` est à 5,17:1, `text-muted-foreground` à 5,44:1), et une garde « pas d'alpha sur une encre de texte », comme TCK-359 pour les onglets.
 
 ### L'erreur de la barre d'actions groupées est illisible
+- Réf : P07.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/property-dashboard/PropertyList.tsx:688,757`
 - Constat : `role="alert"` en `text-destructive` sur `bg-foreground/95`, à **2,22:1**. Les gardes `check-destructive-contrast` ne mesurent pas ce fond (mesuré).
 - Piste : une pastille claire (`bg-background text-destructive`), ou l'encre claire de la barre avec une icône.
 
 ### La note des avis est invisible au lecteur d'écran
+- Réf : P07.04
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:73-81`
 - Constat :
@@ -766,12 +910,16 @@ Sain (vérifié par l'agent) :
 - Piste : `role="img" aria-label={t('rating', {n})}`, ou un `sr-only` « 4 sur 5 », et les étoiles vides en `text-muted-foreground` plein.
 
 ### Une ligne de versement cliquable seulement à la souris
+- Réf : P07.05
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (console super-admin)
 - Où : `takussan-web/src/components/billing/PayoutTable.tsx:120-123`, appelée avec `onSelect` par `AdminPayoutsClient.tsx:96`
 - Constat : `<tr onClick>` sans rôle, sans `tabIndex` ni clavier, et aucun bouton dans la ligne : le détail est inatteignable au clavier (lu).
 - Piste : un `<button>` dans la cellule de période, comme `InvoicesTable.tsx:100`.
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
+- Réf : P07.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `takussan-web/src/components/home/Navbar.tsx:419,677`
 - Constat :
@@ -781,12 +929,16 @@ Sain (vérifié par l'agent) :
 - Piste : un `aria-label` traduit, le motif ARIA 1.2, et `focus-within:ring-2` sur la pilule.
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
+- Réf : P07.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `PropertyVisitDialog.tsx:263,270,276,283`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440`, `PropertyReviews.tsx:281`, `leases/CreateLeaseForm.tsx:347,359`, `leases/DepositRefundModal.tsx:182,215`
 - Constat : 13 contrôles sur 49 qui portent `aria-invalid` n'ont pas de `aria-describedby`, et 48 `<p class="text-destructive">` n'ont pas de `role`. Les `Form*` sont bien câblés (mesuré).
 - Piste : migrer ces champs vers `FormInput`/`FormError`.
 
 ### Des champs nommés par le seul placeholder
+- Réf : P07.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `search/FilterSidebar.tsx:161,172,183`, `PropertyContactMessageDialog.tsx:89`, `PropertyReviewForm.tsx:94,102`, `PropertyPagination.tsx:113`
 - Constat :
@@ -795,6 +947,8 @@ Sain (vérifié par l'agent) :
 - Piste : `aria-labelledby` vers le titre de section, et un `aria-label` sur le sélecteur de taille de page.
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
+- Réf : P07.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
 - Constat :
@@ -803,6 +957,8 @@ Sain (vérifié par l'agent) :
 - Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
+- Réf : P07.10
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
 - Constat :
@@ -812,18 +968,24 @@ Sain (vérifié par l'agent) :
 - Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
 
 ### Le mouvement réduit est ignoré par les primitives
+- Réf : P07.11
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (AAA, mais la charte en fait une règle)
 - Où : `ui/sheet.tsx:104-110`, `ui/dialog.tsx:58`, `ui/popover.tsx`, `ui/select.tsx`, `property/cards/PropertyRow.tsx:184`
 - Constat : `slide-in` et `zoom-in` de tw-animate-css ignorent `prefers-reduced-motion`, aucun `motion-reduce:` n'apparaît, et `scrollBy({behavior:'smooth'})` n'est pas conditionné (mesuré).
 - Piste : `motion-reduce:animate-none` dans les primitives.
 
 ### Le lint d'accessibilité est presque éteint
+- Réf : P07.12
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/eslint.config.mjs:37-39`
 - Constat : 6 règles `jsx-a11y` seulement, en `warn`. Ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` : aucune garde n'aurait attrapé les constats ci-dessus (lu).
 - Piste : ces règles en `error`, sous un cliquet par fichier comme `check-i18n`.
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
+- Réf : P07.13
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
@@ -842,6 +1004,8 @@ Sain (vérifié par l'agent) :
 - l'authentification pose ses `autoComplete`.
 
 ### Les photos d'un bien partent par une server action plafonnée à 1 Mo
+- Réf : P08.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (un envoi réel reste à rejouer)
 - Où : `takussan-web/next.config.ts` (pas de clé `serverActions`), `takussan-web/src/app/actions/dashboard-properties.ts:243`, `takussan-web/src/components/property-form/PropertyWizard.tsx:325-329`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:71`
 - Constat :
@@ -852,6 +1016,8 @@ Sain (vérifié par l'agent) :
 - Piste : une photo par requête, par route handler BFF ou directement vers l'API, avec une vraie progression (XHR) et une reprise par fichier. Relever `bodySizeLimit` seul ne règle pas le réseau lent.
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
+- Réf : P08.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (rendu à vérifier)
 - Où : `takussan-web/src/components/ui/dialog.tsx:58`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:172`
 - Constat :
@@ -861,18 +1027,24 @@ Sain (vérifié par l'agent) :
 - Piste : `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive, ou un pied collant ; une feuille du bas sous `sm`.
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
+- Réf : P08.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré — même famille que « Restitution de caution » à l'angle 4
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:233,243,253`, `LeasePaymentDialog.tsx:92`, `DepositRefundModal.tsx:172`, `bookings/BookingPaymentDialog.tsx:91`, `payments/CreateInvoiceDialog.tsx:227`
 - Constat : `FormInput` transmet `step` (`components/forms/FormInput.tsx:90`), et aucun de ces 5 formulaires n'a `noValidate`. Un loyer de 75 500 ou un paiement de 12 350 sont refusés avant `onSubmit` (lu).
 - Piste : retirer `step` (zod valide déjà), ou poser `noValidate`. À traiter avec l'angle 4, en un seul ticket.
 
 ### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
+- Réf : P08.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx` (pas d'export `viewport`) ; 9 usages d'`env(safe-area-inset-bottom)`, dont `home/Navbar.tsx:676,811,855`, `search/FilterSidebar.tsx:1099`, `wizard/WizardShell.tsx:99`
 - Constat : `viewport-fit` est absent de `src/`, donc iOS rend `env(safe-area-*)` à 0. TCK-477 garde le consommateur, pas le viewport (mesuré ; iPhone réel à vérifier).
 - Piste : `export const viewport = { viewportFit: 'cover' }`, puis relire les en-têtes fixes en paysage.
 
 ### Brouillons : les photos ne sont jamais sauvées, rien n'est gardé hors ligne
+- Réf : P08.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-form/PropertyWizard.tsx:240,465-470`, `takussan-web/src/hooks/useWizardDraft.ts:166-188`
 - Constat :
@@ -881,30 +1053,40 @@ Sain (vérifié par l'agent) :
 - Piste : une copie IndexedDB (valeurs et `File`) et une relance sur `online`.
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
+- Réf : P08.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
+- Réf : P08.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/console/DataTable.tsx:140`, `owners/OwnersList.tsx:209-230`, `service-providers/ServiceProvidersList.tsx:163,223`, `commissions/CommissionsLedger.tsx:126,212`, `payments/InvoicesTable.tsx:74,99-106`
 - Constat : sur 32 consommateurs de `DataTable`, seuls `CustomerList` et `PropertyList` ont une liste mobile. Ailleurs, l'action ne s'atteint qu'après un défilement horizontal (mesuré).
 - Piste : une option `carteMobile` dans `DataTable`, ou la ligne cliquable avec l'action en tête.
 
 ### Barres d'onglets sans défilement
+- Réf : P08.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
+- Réf : P08.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
 
 ### Petites améliorations
+- Réf : P08.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Où et constat (lu ou mesuré) :
   - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
@@ -932,6 +1114,8 @@ Correct (mesuré ou lu) :
 - canonique propre malgré les `utm_*`.
 
 ### La production sert un build du 15 août : aucun des travaux SEO n'est en ligne
+- Réf : P09.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `origin/master` à `fefe2c87` (2026-08-15), servi par Vercel (`docs/infra/frontend-deploiement.md:13`) ; `takussan-web/src/app/robots.ts` date du 2026-08-27 (TCK-431)
 - Constat :
@@ -942,6 +1126,8 @@ Correct (mesuré ou lu) :
 - Piste : l'écrire dans l'ardoise et le rattacher à la phase F (TCK-517) ; à la bascule, soumettre le sitemap à la Search Console.
 
 ### Les combinaisons de facettes sans résultat sont indexables (soft-404)
+- Réf : P09.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:47-55`, `takussan-web/src/lib/canonique.ts:284`
 - Constat :
@@ -951,6 +1137,8 @@ Correct (mesuré ou lu) :
 - Piste : `robots: { index: false, follow: true }` quand `total === 0`, en partageant le résultat de la recherche avec `generateMetadata` par `cache()`.
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
+- Réf : P09.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
 - Constat :
@@ -960,6 +1148,8 @@ Correct (mesuré ou lu) :
 - Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
+- Réf : P09.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -969,6 +1159,8 @@ Correct (mesuré ou lu) :
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
 
 ### Chaque fiche a trois URL au contenu principal identique
+- Réf : P09.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/alternates.ts:172`, `takussan-web/src/i18n/routing.ts:252`
 - Constat :
@@ -977,18 +1169,24 @@ Correct (mesuré ou lu) :
 - Piste : un ADR qui tranche entre fiches `en`/`wo` indexables, ou canonique vers `fr` et retrait du sitemap.
 
 ### Tout le site public est rendu de façon dynamique
+- Réf : P09.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx:67`
 - Constat : le layout racine lit `cookies()`, ce qui rend toute page publique dynamique, sans cache HTML. Chaque passage de robot refait le rendu complet (lu ; build courant à vérifier).
 - Piste : sortir la session du rendu serveur de la coque publique, puis de l'ISR avec `revalidate` et des tags sur les fiches et les facettes.
 
 ### La bascule fera répondre 307 aux URL non préfixées déjà indexées
+- Réf : P09.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/proxy.ts:161`
 - Constat : le 307 avec `Vary: Cookie, Accept-Language` est délibéré (ADR-0026). Mais la production sert aujourd'hui `/properties` sans préfixe : tout l'index actuel passera par une redirection temporaire, et Googlebot finira sur `/fr` (mesuré, lu).
 - Piste : le décider dans le plan de bascule, par exemple une 308 pour les robots, ou accepter le délai explicitement.
 
 ### Petites améliorations
+- Réf : P09.08
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1008,6 +1206,8 @@ Correct (mesuré ou lu) :
 Les deux 🔴 ont été relus par la session dans le code : le `catch` de `PropertyMediaController::store`, `FileAdder::processMediaItem` (la ligne est enregistrée avant la copie et la conversion), et l'absence de toute règle `dimensions:` dans `app/Http`.
 
 ### Un lot de photos qui échoue laisse le média raté attaché au bien
+- Réf : P10.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:39-49`
 - Constat :
@@ -1021,6 +1221,8 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : retrouver et supprimer le média raté par `$property->media()->latest('id')`, ou convertir après une transaction. Rendre le lot tout-ou-rien, ou renvoyer un résultat photo par photo. Ajouter un test avec un PNG corrompu.
 
 ### Aucune borne de dimensions : une bombe de décompression tue la requête
+- Réf : P10.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (OOM calculé, non mesuré)
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:37`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Models/Property.php:778`, `takussan-api/app/Models/Concerns/HasMediaConversions.php:26-28`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -1033,6 +1235,8 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : refuser au-delà d'un nombre de pixels donné (`dimensions:max_width=…,max_height=…`, ou `getimagesize` sans décoder) avant `addMedia`.
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
+- Réf : P10.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/media/MediaManager.tsx:78-79`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:70`, `takussan-api/docker/Caddyfile:22-31`, `takussan-api/docker/php.ini:5-6`, `takussan-api/config/media-library.php:55`
 - Constat : l'interface annonce 20 fichiers de 10 Mo et les envoie en une seule requête. Côté API, les couches se succèdent ainsi :
@@ -1046,6 +1250,8 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : une requête par photo, ou des paquets bornés à moins de 25 MiB. Fixer `max_file_uploads` explicitement et ajouter `photos` `max:20`.
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
+- Réf : P10.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1058,6 +1264,8 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
+- Réf : P10.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
 - Constat :
@@ -1068,6 +1276,8 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
+- Réf : P10.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1080,12 +1290,16 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
+- Réf : P10.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
 - Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
 - Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
+- Réf : P10.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
 - Constat :
@@ -1096,12 +1310,16 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 - Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
 
 ### Réordonner les photos change leurs URL
+- Réf : P10.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:122`, `takussan-api/config/media-library.php:160`
 - Constat : `update(['order_column'])` touche `updated_at`, or `version_urls` construit `?v=<updated_at>`. Chaque déplacement crée donc un défaut de cache, et de nouvelles transformations Cloudflare pour ce qui passe encore par elles (lu).
 - Piste : mettre à jour `order_column` sans toucher aux horodatages, ou versionner sur un champ dédié.
 
 ### Petites améliorations
+- Réf : P10.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
@@ -1119,6 +1337,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - `SmsRouterDriver::deferAll()` (l. 214) remet le texte rendu à `SendDeferredSmsJob`, qui n'implémente que `ShouldQueue`.
 
 ### Les comptes inscrits par e-mail reçoivent tout en français, quelle que soit leur langue
+- Réf : P11.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:35`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`, `takussan-api/app/Services/Model/NotificationService.php:89`
 - Constat : c'est la conséquence visible du 🔴 de l'angle 6.
@@ -1134,6 +1354,8 @@ Les trois 🔴 ont été relus par la session dans le code :
   - un test bout en bout : changer de langue, puis vérifier la langue d'un `CodedNotification`.
 
 ### Le courriel d'invitation part à l'intérieur de la transaction de l'appelant
+- Réf : P11.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:84,99`, `OwnerInvitationService.php:96`, `ServiceProviderInvitationService.php:151`, `InvitationService.php:232-238`
 - Constat :
@@ -1145,6 +1367,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `DB::afterCommit(fn () => $this->deliver(...))`, ou un mailable mis en file avec `afterCommit()`.
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
+- Réf : P11.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:56-57,214`, `takussan-api/app/Jobs/SendDeferredSmsJob.php:16`, `takussan-api/config/sms.php:125-129`
 - Constat :
@@ -1156,6 +1380,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `ShouldBeEncrypted` sur `SendDeferredSmsJob`, plus une garde qui l'exige de tout job portant un texte de SMS.
 
 ### L'e-mail de vérification à l'inscription est synchrone
+- Réf : P11.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33-46`, `takussan-api/app/Notifications/RegistrationConfirmationNotification.php`
 - Constat :
@@ -1166,6 +1392,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `ShouldQueue`, avec les codes à usage unique sur `notifications-urgent`.
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
+- Réf : P11.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -1178,6 +1406,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
+- Réf : P11.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
 - Constat :
@@ -1188,6 +1418,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
 
 ### Diffusion en double, avant le commit, avec le contenu écrit au journal
+- Réf : P11.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (valeur de préproduction à vérifier)
 - Où : `takussan-api/app/Services/Model/NotificationService.php:108-114`, `takussan-api/app/Events/NewNotification.php:13`, `takussan-api/app/Notifications/CodedNotification.php:85`, `.env.example:121`
 - Constat :
@@ -1198,6 +1430,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : supprimer `NewNotification`, ou la passer en `ShouldDispatchAfterCommit` et la faire taire tant que D-65 est ouvert.
 
 ### Le résumé par e-mail est injoignable, et doublerait chaque e-mail le jour où il le deviendrait
+- Réf : P11.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Notifications/BuildUserDigestJob.php:36-40`, `takussan-api/app/Services/Notifications/DigestBuilderService.php:28-36`, `takussan-api/app/Notifications/CodedNotification.php:77`, `takussan-api/routes/web.php:12`
 - Constat :
@@ -1209,6 +1443,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : retirer ce sous-système, ou faire lire `email_frequency` par `via()` et passer le désabonnement en `POST`.
 
 ### Aucun `afterCommit` : pas de dégât aujourd'hui, grâce à la seule file `database`
+- Réf : P11.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,73`, `takussan-api/app/Notifications/CodedNotification.php:40`
 - Constat :
@@ -1219,6 +1455,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `ShouldQueueAfterCommit` sur `CodedNotification` et les autres notifications en file.
 
 ### Petites améliorations
+- Réf : P11.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1242,6 +1480,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 **Ce sont des tests qui manquent, pas des défauts de production** : le code gardé est juste aujourd'hui. Le 🔴 dit qu'une régression passerait la CI au vert. Aucune ablation n'a été faite : c'est l'angle 40.
 
 ### Le test d'isolation à l'initiation du paiement ne peut pas voir le défaut
+- Réf : P12.01
+- Statut : à mesurer
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Api/PaymentGatewayInitiateTest.php:187-204`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:76-77`
 - Constat :
@@ -1253,6 +1493,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : asserter `metadata.gateway.integration_id`, ou `Http::assertSent` sur l'en-tête `Authorization: Bearer wave_test_key`.
 
 ### Les obligations qui bloquent la suppression d'un compte ne sont gardées que pour le bail actif
+- Réf : P12.02
+- Statut : à mesurer
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Auth/AccountDeletionRequestTest.php:151-168`, `takussan-api/app/Services/Account/AccountDeletionService.php:326-375`
 - Constat :
@@ -1263,6 +1505,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : un test par type d'obligation (bail résilié et échéance `Late`, facture due, réservation ouverte), plus le cas d'une restitution de caution en attente, qui ne doit pas bloquer (TCK-595 H-2).
 
 ### La signature Orange Money n'est jamais testée en refus
+- Réf : P12.03
+- Statut : à mesurer
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:130-133`, `takussan-api/tests/Feature/Api/PaymentDriverTest.php:131-150`
 - Constat :
@@ -1273,6 +1517,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : trois cas de bout en bout sur `/api/webhooks/payments/orange_money/{token}` (signature fausse, absente, secret d'une autre agence), en vérifiant que le paiement n'a pas bougé.
 
 ### L'horodatage de la signature Wave n'est jamais comparé à l'heure
+- Réf : P12.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:146-151`
 - Constat :
@@ -1282,6 +1528,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : refuser un `t` hors d'une tolérance de 5 min ; tester une signature valide avec un `t` vieux d'une heure.
 
 ### Le cliquet de couverture laisse sept points de marge
+- Réf : P12.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `.github/workflows/api-ci.yml:464`
 - Constat :
@@ -1291,6 +1539,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : selon CLAUDE.md, le seuil se resserre sur un chiffre de CI. Relever un second run sur `dev`, puis passer à 92 %.
 
 ### Le clover local est périmé et trompe qui le lit
+- Réf : P12.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/storage/coverage/clover.xml`
 - Constat :
@@ -1301,6 +1551,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : lire l'artefact de la CI (`gh run download -n couverture-api-clover`) ; supprimer ou dater le fichier local.
 
 ### La policy du registre RGPD n'est jamais exécutée
+- Réf : P12.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PrivacyRequestPolicy.php:18,23,28,33`
 - Constat :
@@ -1311,12 +1563,16 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : un test unitaire de la policy par méthode.
 
 ### Le code de signature de bail envoyé par e-mail n'est jamais rendu
+- Réf : P12.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:41-48`
 - Constat : `toMail` est à 0 dans le clover CI, alors que le code OTP n'existe que là. Les tests figent la notification sans la rendre (mesuré).
 - Piste : rendre le mail et asserter qu'il contient le code.
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
+- Réf : P12.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
 - Constat :
@@ -1332,6 +1588,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
 
 ### Petites améliorations
+- Réf : P12.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (mesuré) :
   - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
@@ -1351,6 +1609,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - `HealthcheckService.php:139-143` : la sonde `scheduler` n'a pas de `status`, et le statut global ne prend en compte que les autres sondes. Dans `compose.api.yml`, seul `api` déclare un healthcheck (l. 44).
 
 ### L'alerte « file à l'arrêt » part sur la file arrêtée
+- Réf : P14.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:76`, `takussan-api/app/Jobs/SendAdminAlert.php:14`, `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:41`
 - Constat :
@@ -1362,6 +1622,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : envoyer les alertes `ops_*` de façon synchrone (`dispatchSync`) ou depuis un autre conteneur. Mieux, par un canal extérieur à l'application, comme le Telegram de `seuils.sh`.
 
 ### Si le planificateur meurt, personne ne le voit
+- Réf : P14.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/console.php:110-115`, `takussan-api/app/Services/Admin/HealthcheckService.php:139-143`, `takussan-api/app/Http/Controllers/Api/HealthController.php:17`, `deploy/takussan/compose.api.yml:44,67`, `docs/infra/hebergement.md:92`
 - Constat :
@@ -1377,12 +1639,16 @@ Les deux 🔴 ont été relus par la session dans le code :
   - un healthcheck de battement sur `scheduler` et sur les workers.
 
 ### Aucune règle d'alerte n'existe par défaut
+- Réf : P14.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
 - Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
 - Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
+- Réf : P14.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
 - Constat :
@@ -1394,6 +1660,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
+- Réf : P14.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
 - Constat :
@@ -1404,6 +1672,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
 
 ### Le courriel de notification n'est jamais retenté
+- Réf : P14.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
 - Constat :
@@ -1414,6 +1684,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
+- Réf : P14.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/composer.json`, `takussan-web/package.json`, `takussan-web/src/app/error.tsx:35-37`
 - Constat :
@@ -1423,6 +1695,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : un ADR « rapport d'erreurs » (GlitchTip auto-hébergé ou Sentry), avec la forme `SafeExceptionContext` de TCK-613.
 
 ### Les journaux de l'API disparaissent à chaque déploiement
+- Réf : P14.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/bootstrap.sh:99-102`, `deploy/takussan/compose.api.yml:14-16`, `docs/infra/prod-drivers.json`
 - Constat :
@@ -1433,12 +1707,16 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : ajouter les clés `LOG_*` au catalogue des drivers ; exporter les journaux (Loki, Vector, ou le rapporteur du constat précédent).
 
 ### Des notifications de prospects et de visites avalées sans trace
+- Réf : P14.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
 - Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
 - Piste : `report($e)`, sans changer le caractère non bloquant.
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
+- Réf : P14.10
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
 - Constat :
@@ -1449,6 +1727,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
 
 ### Server actions : un bug devient « erreur réseau », sans journal
+- Réf : P14.11
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
 - Constat :
@@ -1458,6 +1738,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
 
 ### Petites améliorations
+- Réf : P14.12
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1478,6 +1760,8 @@ Les cinq 🔴 ont été relus par la session dans le code, et les routes relevé
 L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du code mort au sens strict. C'est l'objet de l'angle 45.
 
 ### « Enregistrer un paiement » crée une échéance en attente, et aucun écran n'atteint `mark-paid`
+- Réf : P13.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:55-56,122-127`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:38-47`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/routes/api/leases.php:60`
 - Constat :
@@ -1488,6 +1772,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : faire appeler `mark-paid` par l'écran sur l'échéance choisie ; refuser `paid_at` à la création, ou le prendre en compte.
 
 ### « Générer l'échéancier » appelle une route qui n'existe pas
+- Réf : P13.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/leases.ts:436`, `takussan-api/routes/api/leases.php:33`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:154`
 - Constat :
@@ -1498,6 +1784,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : aligner le chemin et la clé de réponse.
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
+- Réf : P13.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ChatView.tsx:226,442`, `takussan-web/src/lib/queries/conversations.ts:423`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-299`
 - Constat :
@@ -1507,6 +1795,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : accepter le fichier dans `sendMessage`, comme l'audio, ou retirer le trombone.
 
 ### Documents de la fiche client : envoi vers une route absente
+- Réf : P13.04
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:187`, `takussan-web/src/components/customer-dashboard/CustomerDocumentsPanel.tsx:46`
 - Constat :
@@ -1516,6 +1806,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : faire passer le panneau par `AddDocumentButton`.
 
 ### `POST /api/payments`, sans appelant, laisse le locataire se déclarer payé
+- Réf : P13.05
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (effets en aval à vérifier)
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:37-92,372-382`, `takussan-api/app/Http/Requests/PaymentStoreRequest.php:13-15,30-32`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/app/Services/Model/BookingPaymentService.php:22-24`
 - Constat :
@@ -1527,6 +1819,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : retirer la route, qui n'a aucun appelant. À défaut, forcer `pending` et refuser `paid_at` à tout autre que le personnel.
 
 ### La colonne « Push » des préférences ne pilote rien
+- Réf : P13.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:46`, `takussan-api/app/Notifications/NewBookingNotification.php:75-76`, `takussan-api/app/Events/NewMessage.php`
 - Constat :
@@ -1538,6 +1832,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : retirer `push` de `CHANNELS` et le canal `broadcast`, ou décider d'un temps réel par un ADR.
 
 ### Réglages d'agence : trois magasins, dont deux sans écrivain
+- Réf : P13.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette — **concerne cette branche**
 - Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
 - Constat :
@@ -1550,6 +1846,8 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
 
 ### Routes en double et routes sans appelant
+- Réf : P13.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
 - Constat :
@@ -1567,12 +1865,16 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 - Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
 
 ### Page orpheline `/onboarding/agency-admin`
+- Réf : P13.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-12`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:43`
 - Constat : le docblock la dit atteinte par la redirection de l'e-mail d'activation. Mais la réinitialisation renvoie vers `/auth/login`, et aucun lien ne mène à cette page ni à `AgencyAdminOnboardingWizard` (mesuré, et lu).
 - Piste : relier la page depuis l'invitation, ou la retirer.
 
 ### Petites améliorations
+- Réf : P13.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
   - **Fichiers front morts** : 8, dont :
@@ -1606,6 +1908,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - `/app/agency/moderation/properties` exige `agence: 'standard'` (`pages-admin.ts:93-94`), et `PropertyObserver` (l. 120-140) n'exempte personne.
 
 ### Un locataire ne peut pas être à la fois lié à un compte et visible de l'agence : la signature n'est jamais atteinte
+- Réf : P15.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:28-48`, `takussan-api/app/Models/Customer.php:178-196`, `takussan-api/app/Services/Model/LeaseService.php:49-50`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:55`, `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:140-143`
 - Constat :
@@ -1618,6 +1922,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : rattacher un compte à une fiche, par une invitation du locataire ou par appariement sur un téléphone ou un e-mail vérifié. Créer la fiche de candidature dans l'agence du bien.
 
 ### KYC de l'agent et du bailleur : « en revue » pour toujours
+- Réf : P15.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:130-141`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:126-131`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:92-98`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:50-58`, `takussan-web/src/messages/fr.json:4825,4957`
 - Constat :
@@ -1629,6 +1935,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : une file de relecture (agence ou console) avec notification, ou retirer la promesse et le statut.
 
 ### Une agence individuelle qui active la modération ne peut plus publier
+- Réf : P15.03
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:401-423,497`, `takussan-web/src/lib/access/pages-admin.ts:92-96`, `takussan-api/app/Observers/PropertyObserver.php:120-140`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:55`
 - Constat :
@@ -1639,6 +1947,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : cacher et refuser le réglage en `individual`, ou exempter l'admin unique.
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
+- Réf : P15.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
 - Constat :
@@ -1650,6 +1960,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
 
 ### SMS muet : première publication et signature bloquées, sans repli
+- Réf : P15.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:299-325,381-401`, `takussan-api/app/Services/Property/PublishReadiness.php:73`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:120-135`
 - Constat :
@@ -1660,6 +1972,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : rendre l'échec de livraison au client ; offrir un repli par e-mail pour la vérification et la signature.
 
 ### Un bien créé par le personnel fait de l'agent le bailleur du contrat
+- Réf : P15.06
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:131-133`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:188-192`
 - Constat :
@@ -1670,6 +1984,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : un champ « bailleur » à la création du bien ou du bail, borné aux bailleurs de l'agence.
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
+- Réf : P15.07
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:28-32,108-114`, `takussan-api/lang/fr/notifications.php:42-49`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -1679,6 +1995,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : un gabarit d'activation dédié, valable plus longtemps, et le rattachement d'un compte existant.
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
+- Réf : P15.08
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
 - Constat :
@@ -1688,6 +2006,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
 
 ### Premier bail : sélecteur de biens vide, sans explication
+- Réf : P15.09
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
 - Constat :
@@ -1698,6 +2018,8 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
 
 ### Petites améliorations
+- Réf : P15.10
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
@@ -1712,6 +2034,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 ⚠ Les comptes d'index ont été pris sur le Meilisearch brew (port 7700) que vise `takussan-api/.env`, alors que la base est celle de docker (5433). C'est le piège D-48 : les nombres décrivent ce poste, pas un environnement déployé.
 
 ### Après un seed, les recherches de clients, d'interventions et d'utilisateurs ne trouvent presque rien
+- Réf : P16.01
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré (sur les environnements seedés)
 - Où : `takussan-api/database/seeders/YearOfActivitySeeder.php:123-127,266-269`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-235`
 - Constat :
@@ -1724,6 +2048,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : dériver `SEARCHABLE_MODELS` de la même source que les modèles indexés de `release.sh`, plutôt que d'une liste écrite à la main. Ajouter une garde qui compare le nombre de documents indexés au nombre de lignes non supprimées.
 
 ### La pertinence de TCK-281 n'agit nulle part : le front impose toujours `sort=-created_at`
+- Réf : P16.02
+- Statut : à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:91`, `maintenance.ts:111`, `documents.ts:75`, `super-admin.ts:102`, `admin-users.ts:60` ; `takussan-api/app/Http/Controllers/Api/CustomerController.php:40`, `MaintenanceRequestController.php:55,81`, `AgencyController.php:41,177`
 - Constat :
@@ -1734,6 +2060,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : ne pas envoyer `sort` quand `search` n'est pas vide (ou envoyer un `sort=relevance` explicite), avec un test front par liste.
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
+- Réf : P16.03
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
 - Constat :
@@ -1743,6 +2071,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
+- Réf : P16.04
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
 - Constat :
@@ -1753,6 +2083,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
+- Réf : P16.05
+- Statut : à mesurer
 - Gravité : 🟠 risque ou dette (routes sans appelant)
 - Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
 - Constat :
@@ -1763,6 +2095,8 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
 
 ### Petites améliorations
+- Réf : P16.06
+- Statut : à mesurer
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
