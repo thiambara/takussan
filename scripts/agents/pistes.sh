@@ -6,7 +6,7 @@
 # Rien de ce que l'agent écrit ne quitte le poste sans être passé par `verifier`.
 #
 # Usage, depuis le dépôt :
-#   scripts/agents/pistes.sh installer            # outils figés, réglages, étiquettes GitHub
+#   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
 #   scripts/agents/pistes.sh planifier X Y Z      # launchd : explorateur toutes les X min, mesureur Y, implémenteur Z
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
@@ -115,13 +115,13 @@ MODELE=
 CONFIG
   fi
 
-  (
+  if [ "${1:-}" != --sans-etiquettes ]; then (
     cd "$depot"
     gh label create agent:explorateur --color 1d76db --description "PR de l'agent explorateur (ADR-0066)" --force > /dev/null
     gh label create agent:mesureur --color 5319e7 --description "PR de l'agent mesureur (ADR-0066)" --force > /dev/null
     gh label create agent:implementeur --color b60205 --description "PR de l'agent implémenteur (ADR-0066)" --force > /dev/null
     gh label create agents:synchro --color c5def5 --description "Synchronisation dev → pre-dev (ADR-0066)" --force > /dev/null
-  )
+  ); fi
 
   info "installé dans $BASE (outils $sha, dépôt $depot_gh)"
   if ! git -C "$depot" ls-remote --exit-code --heads origin pre-dev > /dev/null 2>&1; then
@@ -530,7 +530,7 @@ Suis tes instructions d'agent, en commençant par .agent/agents/pistes/commun.md
 }
 
 case "${1:-}" in
-  installer) installer ;;
+  installer) installer "${2:-}" ;;
   planifier) shift; planifier "$@" ;;
   deplanifier) deplanifier ;;
   lancer)

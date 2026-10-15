@@ -47,7 +47,8 @@ const COMMANDES = [
   [/\bdocker\b[^|;&]*\b(stop|down|rm|rmi|kill|restart|up|start|run|build|pull|push|prune|volume|network|system|compose\s+(stop|down|rm|kill|restart|up|start|pull|build|run))\b/, 'les conteneurs ne se touchent pas (lecture seule : ps, logs, exec)'],
   [/\bartisan\s+(migrate|db:|scout:|queue:(work|listen|flush|clear|restart)|schedule:run|key:generate|storage:link|optimize|config:cache|down|up)\b/, 'commande artisan qui écrit dans un état partagé'],
   [/\b(psql|docker\s+exec)\b[^|;&]*\b(insert\s+into|update\s+\w+\s+set|delete\s+from|drop|truncate|alter|create\s+(table|index|database|extension)|grant|vacuum)\b/i, 'la base de développement se lit seulement'],
-  [/\b(tinker|php\s+-r)\b[\s\S]*(->|::)(save|update|delete|forceDelete|create|insert|insertOrIgnore|upsert|truncate|increment|decrement|statement|unprepared|flush)\s*\(/, 'tinker et php -r : lecture seule'],
+  // `Request::create(…)` fabrique une requête en mémoire : c'est une mesure, pas une écriture (faux positif du 2026-10-15).
+  [/\b(tinker|php\s+-r)\b[\s\S]*(->(save|update|delete|forceDelete|insert|insertOrIgnore|upsert|truncate|increment|decrement|flush)|(?<!Request)::(create|insert|update|delete|truncate|statement|unprepared|updateOrCreate|firstOrCreate))\s*\(/, 'tinker et php -r : lecture seule'],
   // En position de commande seulement : `grep -rn ssh deploy/` reste une lecture.
   [/(^|[;&|(`]\s*|\b(xargs|exec|nohup|time)\s+)(ssh|scp|sftp|rsync|vercel|dokploy|flyctl|kubectl|terraform|sudo|launchctl|crontab|osascript|shutdown|reboot|killall|pkill)\b/, 'commande hors du périmètre des agents'],
   [/\b(curl|wget|http|https|nc|ping|dig|nslookup|openssl)\b[^|;&]*takussan\.com/i, 'aucun accès à un environnement déployé'],
@@ -60,6 +61,28 @@ const COMMANDES = [
   [/(^|[\s/'"=<])\.env(\.local|\.testing|\.production|\.preview)?(['"\s;|&)]|$)/, 'un .env ne se lit pas (secrets) ; .env.example et .env.docker restent lisibles'],
   [/\bcurl\b[^|;&]*(-X\s*|--request[\s=]+)(POST|PUT|PATCH|DELETE)\b/i, "pas d'écriture HTTP"],
 ];
+
+// Une recherche Meilisearch locale se fait en POST et ne fait que lire (faux positif du 2026-10-15).
+const RECHERCHE_LOCALE = /^https?:\/\/(127\.0\.0\.1|localhost):\d+\/(indexes\/[\w-]+\/search|multi-search)\b/;
+const recherche_locale_seule = (cmd) => {
+  const urls = cmd.match(/https?:\/\/[^\s'"]+/g) ?? [];
+  return urls.length > 0 && urls.every((u) => RECHERCHE_LOCALE.test(u));
+};
+
+// Une écriture shell vise-t-elle un chemin qui borne les agents ? On ne regarde que les CIBLES :
+// la mention d'un tel chemin dans un message de commit, un heredoc ou un argument de `node` n'est
+// pas une écriture (trois faux positifs du 2026-10-15, au premier passage à blanc).
+function ecritUneBorne(cmd) {
+  const s = cmd
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\2(?=\n|$)/g, ' ')
+    .replace(/(["'])(?:(?!\1)[^\\]|\\.)*?\s(?:(?!\1)[^\\]|\\.)*?\1/g, '""');
+  for (const m of s.matchAll(/(?:^|[^0-9&<>])>>?\s*("[^"]*"|'[^']*'|[^\s;|&]+)/g)) {
+    if (BORNES.some((b) => m[1].includes(b))) return true;
+  }
+  return s
+    .split(/;|&&|\|\||\|/)
+    .some((seg) => /\b(tee|cp|mv|rm|ln|touch|chmod|install)\b|\bsed\s+-i|\bperl\s+-[a-z]*i/.test(seg) && BORNES.some((b) => seg.includes(b)));
+}
 
 function refuser(raison, detail) {
   const ligne = `${new Date().toISOString()}\t${process.env.PISTES_ROLE ?? '?'}\tREFUS\t${raison}\t${String(detail).replace(/\s+/g, ' ').slice(0, 300)}\n`;
@@ -90,10 +113,11 @@ function verifierChemin(brut, cwd) {
 function verifierCommande(cmd, cwd) {
   if (DEPOT && cwd && dans(normalize(cwd), DEPOT)) refuser("l'arbre principal du porteur est interdit (répertoire courant)", cwd);
   if (DEPOT && cmd.includes(DEPOT)) refuser("l'arbre principal du porteur est interdit", cmd);
-  for (const [motif, raison] of COMMANDES) if (motif.test(cmd)) refuser(raison, cmd);
-  // Une écriture shell vers un chemin qui borne les agents : redirection, tee, sed -i, cp, mv, rm, ln.
-  const ecrit = /(>>?|\btee\b|\bsed\s+-i|\bperl\s+-[a-z]*i|\bcp\b|\bmv\b|\brm\b|\bln\b|\btouch\b|\bchmod\b)/.test(cmd);
-  if (ecrit && BORNES.some((b) => cmd.includes(b))) refuser('ce chemin borne les agents et appartient au porteur', cmd);
+  for (const [motif, raison] of COMMANDES) {
+    if (raison === "pas d'écriture HTTP" && recherche_locale_seule(cmd)) continue;
+    if (motif.test(cmd)) refuser(raison, cmd);
+  }
+  if (ecritUneBorne(cmd)) refuser('ce chemin borne les agents et appartient au porteur', cmd);
   // rm récursif ou forcé hors de l'arbre, de la sortie et des dossiers temporaires.
   const rm = cmd.match(/\brm\s+((?:-[a-zA-Z]+\s+)+)([^|;&]+)/);
   if (rm && /[rf]/i.test(rm[1])) {

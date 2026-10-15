@@ -223,4 +223,20 @@ borne, même par une PR fusionnée.
   `bypassPermissions` : un hook `PreToolUse` qui sort en 2 empêche bien la commande. Un agent
   défini par lien symbolique sous `.claude/agents/` est bien chargé par `--agent`.
 - **Orchestration et planification** : `scripts/agents/pistes.sh` (`installer`, `planifier`,
-  `lancer`, `etat`, `pause`, `reprendre`, `deplanifier`).
+  `lancer`, `etat`, `pause`, `reprendre`, `deplanifier`). `lancer <rôle> --a-blanc` déroule un
+  passage complet sans rien publier.
+- **Passage à blanc du mesureur, le 2026-10-15** (base `a429039b`, charge entre 1,1 et 2,6 sur
+  8 cœurs) :
+  - 6 min 48 s, 3,18 USD, 68 tours ;
+  - les huit premières entrées 🔴 ont été re-mesurées par des tests temporaires, retirés avant le
+    commit ;
+  - toutes tiennent : une est classée `retenu · autonome` (A1 + A5), sept `retenu · à valider`
+    avec leur critère V ;
+  - le périmètre du rôle est tenu.
+
+  La garde a refusé quatre commandes légitimes :
+  - `Request::create` dans `tinker` ;
+  - une recherche Meilisearch locale en `POST` ;
+  - deux écritures dont le texte citait un chemin protégé.
+
+  Les quatre ont été corrigées et ajoutées aux cas d'ablation, qui sont 67 depuis.
