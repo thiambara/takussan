@@ -21,3 +21,21 @@ function negatifs($request, $user, $amount): void
     $csv = number_format($amount, 2, '.', '');
     $config = ['title' => 'Titre de configuration'];
 }
+
+class NegatifsRequete
+{
+    public function messages(): array
+    {
+        return [
+            'photos.required' => __('exemple.validation.photos_required'),
+            'ends_at.before_or_equal' => __('exemple.validation.max_duration', ['max' => 366]),
+        ];
+    }
+
+    public function regle($value, Closure $fail): void
+    {
+        $fail(__('exemple.signature.invalid'));
+        // une clé seule, traduite par la règle
+        $fail('validation.rules.phone_e164')->translate();
+    }
+}

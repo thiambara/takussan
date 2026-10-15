@@ -8,7 +8,8 @@ use Tests\Support\ProseLitteraleScanner;
 /**
  * TCK-588 (ADR-0032) — l'API n'écrit plus de prose : une erreur est un code (`abort_code()`), une
  * notification un code rendu dans la langue du destinataire. Cette garde refuse une phrase écrite
- * en dur aux sept positions de {@see ProseLitteraleScanner}.
+ * en dur aux neuf positions de {@see ProseLitteraleScanner} — (h) et (i), les messages de validation,
+ * depuis TCK-656.
  *
  * Elle se garde elle-même : un scan qui ne lit rien, ou une exemption qui n'exempte plus rien,
  * la font rougir — une garde muette est verte pour de mauvaises raisons.
@@ -21,7 +22,12 @@ class ProseLitteraleInterditeTest extends TestCase
      *
      * @var array<string, array{forms: list<string>, ticket: string}>
      */
-    private const EXEMPTIONS = [];
+    private const EXEMPTIONS = [
+        // `['attribute' => 'tag_ids']` nomme le champ tel que l'API le reçoit : un code, pas une
+        // phrase française — mais (h) ne distingue pas `tag_ids` de `utilisateur`. À passer par
+        // `validation.attributes` quand l'anglais en aura (TCK-656, « Hors périmètre »).
+        'Http/Requests/Api/SyncPropertyTagRequest.php' => ['forms' => [ProseLitteraleScanner::VALIDATION_MESSAGE], 'ticket' => 'TCK-656'],
+    ];
 
     /**
      * Positifs attendus sur les fixtures, par fichier et par forme — comptés EXACTEMENT.
@@ -38,6 +44,9 @@ class ProseLitteraleInterditeTest extends TestCase
             // (e) HttpException, et le sprintf imbriqué dans withMessages
             ProseLitteraleScanner::HTTP_EXCEPTION => 2,
             ProseLitteraleScanner::HTTP_RESPONSE_EXCEPTION => 1,
+            // (h) la phrase de messages(), le remplacement de __() et la valeur d'attributes() ; (i) $fail
+            ProseLitteraleScanner::VALIDATION_MESSAGE => 3,
+            ProseLitteraleScanner::VALIDATION_FAIL => 1,
         ],
         'Notifications/PositifsNotification.php' => [
             ProseLitteraleScanner::NOTIFICATION_CLASS => 3,
@@ -136,14 +145,14 @@ class ProseLitteraleInterditeTest extends TestCase
         $this->assertSame(4, $scanner->fichiersLus);
     }
 
-    public function test_chaque_forme_a_g_a_au_moins_un_positif_dans_les_fixtures(): void
+    public function test_chaque_forme_a_i_a_au_moins_un_positif_dans_les_fixtures(): void
     {
         $forms = [];
         foreach (self::FIXTURES as $byForm) {
             $forms = [...$forms, ...array_keys($byForm)];
         }
 
-        $this->assertEqualsCanonicalizing(['a', 'b', 'c', 'd', 'e', 'f', 'g'], array_values(array_unique($forms)));
+        $this->assertEqualsCanonicalizing(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], array_values(array_unique($forms)));
     }
 
     public function test_un_scan_vide_rougit(): void
