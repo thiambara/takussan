@@ -19,6 +19,9 @@
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
+# launchd passe LANG=fr_FR.UTF-8 : sysctl écrirait alors la charge « 2,87 », qu'awk compare comme
+# du TEXTE (« 2,87 » > « 12 »). Mesuré le 2026-10-15 : tous les passages s'arrêtaient pour « charge ».
+export LC_NUMERIC=C
 
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
 ROLES="explorateur mesureur implementeur"
@@ -423,7 +426,7 @@ lancer() {
   trap 'rm -rf "$verrou"; journaliser' EXIT
 
   local charge max
-  charge="$(sysctl -n vm.loadavg | awk '{print $3}')"
+  charge="$(sysctl -n vm.loadavg | awk '{print $3}' | tr ',' '.')"
   max="${CHARGE_MAX:-$(($(sysctl -n hw.ncpu) * 3 / 2))}"
   if awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
 
