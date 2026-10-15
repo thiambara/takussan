@@ -1655,7 +1655,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le clover local est périmé et trompe qui le lit
 - Réf : P12.06
-- Statut : à mesurer
+- Statut : caduc — fichier ignoré par git (`takussan-api/.gitignore:38`), absent de tout arbre propre ; aucun outil du dépôt ne le lit sans l'avoir régénéré, et l'artefact de CI est déjà publié
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/storage/coverage/clover.xml`
 - Constat :
@@ -1664,6 +1664,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Il mesure aussi 9 fichiers qui n'existent plus.
   - Établi comment : mesuré.
 - Piste : lire l'artefact de la CI (`gh run download -n couverture-api-clover`) ; supprimer ou dater le fichier local.
+- Mesure (2026-10-15, 28167fee, mesureur) : `ls takussan-api/storage/coverage/` sur l'arbre du mesureur → absent ; `git check-ignore -v` → `.gitignore:38:/storage/coverage/` ; `git grep clover` → seuls lecteurs `bin/coverage-gate.php`, appelé par `api-ci.yml:464` juste après l'avoir écrit (`:432`), et la carte d'impact qui ne le lit pas (`takussan-api/CLAUDE.md:732-735`) ; l'artefact `couverture-api-clover` est déjà publié (`api-ci.yml:485-490`). Le fichier périmé du constat vit dans l'arbre du porteur, que le mesureur ne peut pas lire : son âge et ses 467 absents n'ont pas été re-mesurés. Classement : aucun, le défaut est un état local du poste, pas du dépôt, et aucun commit ne le corrige.
 
 ### La policy du registre RGPD n'est jamais exécutée
 - Réf : P12.07
@@ -1769,7 +1770,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste propose deux mécanismes (seuil par classe, ou `failed()` alertable), un choix d'alerte à trancher
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
 - Constat :
@@ -1779,10 +1780,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Un échec par jour ne déclenche jamais rien. Précédent : 35 échecs `Class "Resend" not found` accumulés sans bruit en préproduction.
   - Établi comment : lu.
 - Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:27` (`FAILED_JOBS_SPIKE_THRESHOLD = 20`) et `:33-37` (fenêtre d'une heure) ; `routes/console.php:37,43,59` → les trois jobs passent par `Schedule::job` ; les trois classes `implements ShouldQueue` (`Jobs/Lease/ApplyLateFeesJob.php:22`, `Jobs/SendLeasePaymentReminders.php:43`, `Jobs/Invoice/SendOverdueRemindersJob.php:21`), aucune n'a de `failed()` (grep) ; `vendor/…/Scheduling/Schedule.php:221-222` → un `ShouldQueue` est seulement mis en file, donc `ScheduledTaskFinished` et la ligne `scheduled_task_runs` ne voient que la mise en file. Le constat tient en entier ; le précédent de préproduction n'est pas re-mesurable d'ici. Classement : V7, la piste laisse ouverts le mécanisme et la liste des jobs « d'argent et de bail », et un événement alertable neuf est un comportement visible neuf.
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : quand ré-alerter et ce que dit le message sont des choix d'alerte
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
 - Constat :
@@ -1791,10 +1793,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le message d'alerte perd les `properties` : on ne sait pas quelle sonde a échoué.
   - Établi comment : lu.
 - Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:47-53` → `ops_health_degraded` vaut `status !== 'ok'`, un booléen ; `:66-74` n'écrit qu'au passage de faux à vrai, donc `degraded` → `failed` se tait ; `HealthcheckService.php:209-210` → transport `log` ⇒ sonde `mail` `degraded`, et `docs/infra/prod-drivers.json:50-52` relève `MAIL_MAILER=log` en préproduction ; `AlertRuleService.php:76-87` (le constat citait 78-82) → le message ne porte qu'`event`, `actor`, `subject`, les `properties` (dont `failing`) restent dans l'activité. Le constat tient en entier. Classement : V7, la règle de ré-alerte et un message enrichi changent ce que reçoit le destinataire, sans spec qui les fixe.
 
 ### Le courriel de notification n'est jamais retenté
 - Réf : P14.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
 - Constat :
@@ -1803,10 +1806,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Un seul essai, aucune ligne dans `failed_jobs`.
   - Établi comment : lu.
 - Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `Jobs/SendRawNotificationEmailJob.php:23-48` → `$tries = 3`, `backoff [10, 60, 180]`, et un `catch (\Throwable)` sans condition ; test temporaire (Mail::raw qui lève, `handle()` appelé, retiré ensuite) → vert, aucune exception à la première tentative (`attempts() = 1`) : le job est réussi, jamais retenté (charge 2,49 sur 8 cœurs). Classement : A1, le commentaire `:38-41` du job écrit le comportement attendu (retenter par `$tries`, n'avaler qu'à la dernière tentative), et le corriger ne demande aucun choix de produit.
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
 - Réf : P14.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : dépendance neuve et ADR « rapport d'erreurs »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/composer.json`, `takussan-web/package.json`, `takussan-web/src/app/error.tsx:35-37`
 - Constat :
@@ -1814,10 +1818,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Côté front, ni `instrumentation.ts` (`onRequestError`) ni `global-error.tsx`. Les frontières d'erreur font un `console.error` dans le navigateur, et le `digest` montré à l'utilisateur ne renvoie à rien de consultable.
   - Établi comment : mesuré, grep et find.
 - Piste : un ADR « rapport d'erreurs » (GlitchTip auto-hébergé ou Sentry), avec la forme `SafeExceptionContext` de TCK-613.
+- Mesure (2026-10-15, 28167fee, mesureur) : grep `sentry|flare|nightwatch|bugsnag|glitchtip` dans `takussan-api/composer.json` et `takussan-web/package.json` → rien ; `find takussan-web -maxdepth 3 -name 'instrumentation*' -o -name 'global-error*'` → rien ; lu `takussan-web/src/app/error.tsx:35-37` → `console.error` seul ; aucun ADR ni ticket ne traite d'un rapporteur (grep `docs/adr`, `docs/backlog/tickets`). Le constat tient en entier. Classement : V6, la piste demande un ADR et une dépendance.
 
 ### Les journaux de l'API disparaissent à chaque déploiement
 - Réf : P14.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : configuration de déploiement et catalogue des drivers
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/bootstrap.sh:99-102`, `deploy/takussan/compose.api.yml:14-16`, `docs/infra/prod-drivers.json`
 - Constat :
@@ -1826,18 +1831,20 @@ Les deux 🔴 ont été relus par la session dans le code :
   - `LOG_CHANNEL` et `LOG_LEVEL` ne figurent pas dans `prod-drivers.json` : aucune garde ne les voit.
   - Établi comment : lu. La valeur réelle en préproduction est à vérifier.
 - Piste : ajouter les clés `LOG_*` au catalogue des drivers ; exporter les journaux (Loki, Vector, ou le rapporteur du constat précédent).
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `deploy/server/bootstrap.sh:101-102` → `json-file`, `10m` × 3 ; `deploy/takussan/compose.api.yml:16-17` → seul `storage/app` est un volume, `storage/logs` part avec le conteneur ; `grep -c LOG_ docs/infra/prod-drivers.json` → 0 ; `LOG_CHANNEL=stderr` est écrit dans `deploy/takussan/.env.smoke.example:12` et `LOG_CHANNEL` est listée parmi les clés fixées par le plan (`docs/infra/hebergement.md:128`), sans valeur. La valeur réelle en préproduction n'est pas mesurable d'ici (Dokploy hors du poste). Classement : V5, le correctif touche `deploy/`, Dokploy et le catalogue des environnements.
 
 ### Des notifications de prospects et de visites avalées sans trace
 - Réf : P14.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : écrire ces échecs au journal décide de ce qui y est conservé, et la forme `report($e)` de la piste contredit ADR-0044
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
 - Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
 - Piste : `report($e)`, sans changer le caractère non bloquant.
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `Services/Lead/ContactLeadService.php:232,332,346`, `Services/Visit/VisitNotifier.php:181,214`, `Services/Messaging/GroupConversationService.php:152` → six `catch (\Throwable)` vides, sans journal (`git grep 'report($e' app/Services` → 0). Le constat tient en entier. Mais `report($e)` écrit `getMessage()`, qu'`app/Support/Logging/SafeExceptionContext.php` (ADR-0044 §2) interdit : un refus SMTP y recopie l'adresse du destinataire. Classement : V3, il faut décider quoi journaliser depuis ces chemins de données de prospects, et aucun critère A ne couvre l'ajout d'un journal.
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce qui est conservé au journal sur les paiements et les SMS
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
 - Constat :
@@ -1846,6 +1853,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - TCK-613 ne couvre aucun de ces emplacements.
   - Établi comment : lu. Le contenu réel des corps Wave et OM est à vérifier.
 - Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
+- Mesure (2026-10-15, 28167fee, mesureur) : lu `Payments/Drivers/WaveDriver.php:66,95` et `OrangeMoneyDriver.php:83,114,176` → `'body' => $response->body()` à chaque échec ; `Notifications/Sms/Dlr/DlrReportApplier.php:108-112` → `msisdn` en clair, et `:71-75` journalise aussi `$record->raw` entier ; `grep Wave|Orange|Dlr|msisdn` dans `TCK-613` (`todo`) → aucun de ces emplacements. Le contenu réel des corps Wave et OM reste à vérifier : il faudrait une réponse du fournisseur. Classement : V3, la piste décide de ce qu'un journal garde des données personnelles, sur des pilotes de paiement qui relèvent aussi de V1.
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
