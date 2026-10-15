@@ -1987,13 +1987,31 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
   DISTINCT`** : une clé `global` (`scope_id` nul) est unique en base, pas seulement par les
   `updateOrCreate` des écrivains (TCK-640, `2026_10_14_120000`).
 
-**Clés de plateforme.** Les clés que la console édite (portée `global`) forment un catalogue **en
-code** : `App\Domain\Settings\EditablePlatformSettings`, réduit aux clés qu'un code lit (TCK-600,
-garde `scripts/check-platform-catalogue-readers.mjs`) — la liste se lit là. **Clés de crédits et de
-boost** (TCK-633, catégorie `boost`, [ADR-0061 §6](adr/0061-credits-d-espace-et-boost-des-annonces.md),
-lues par `App\Services\Boost\BoostSettings`) : `credits.welcome_amount`,
-`credits.welcome_validity_days`, `credits.expiry_notice_days`, `boost.bump_cooldown_hours`,
-`boost.sponsored_slots_per_page`, `boost.reserved_top_results` — défauts dans le catalogue.
+**Clés de plateforme.** Une clé de portée `global` que le code lit s'écrit par un catalogue **en
+code**, et seulement par lui ([ADR-0065](adr/0065-les-reglages-metier-a-repli-global-entrent-au-catalogue.md)).
+Il y en a deux :
+
+- **Paramètres plateforme** — `App\Domain\Settings\EditablePlatformSettings`, écrit par
+  `PlatformSettingService` (`PATCH /api/admin/settings`, typé, validé, journalisé
+  `super_admin_setting_updated`), réduit aux clés qu'un code lit (TCK-600, garde
+  `scripts/check-platform-catalogue-readers.mjs`) — la liste se lit là. **Clés de crédits et de
+  boost** (TCK-633, catégorie `boost`, [ADR-0061 §6](adr/0061-credits-d-espace-et-boost-des-annonces.md),
+  lues par `App\Services\Boost\BoostSettings`) : `credits.welcome_amount`,
+  `credits.welcome_validity_days`, `credits.expiry_notice_days`, `boost.bump_cooldown_hours`,
+  `boost.sponsored_slots_per_page`, `boost.reserved_top_results`. **Réglages métier à repli par
+  agence** (TCK-651, catégorie `rentals`) : `invoice.reminder_offsets_days`,
+  `lease.rent_review_max_pct`, `lease.early_termination_penalty_months`, `lease.require_signature`,
+  `late_fees.cap_percent` (vide = aucun plafond) — lus par `App\Support\ScopedSetting` : la ligne
+  `agency` de l'agence, sinon la valeur du catalogue, dont le défaut est la constante du service.
+  Défauts dans le catalogue.
+- **Énumérations métier** — clés `enum.{key}.values`, catalogue `App\Domain\Settings\EditableBusinessEnums`,
+  écrites par `BusinessEnumService`.
+
+**Route brute** (`/api/settings`, `SettingController`). Elle lit la table (`index`) et n'écrit que la
+portée `agency` — admin de l'agence, ou super-admin sous second facteur ; `value` y est un objet
+JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. Une écriture en portée
+`global` (`store`, `update`, `destroy`) rend **422 `setting.global_not_writable`**, super-admin compris
+(TCK-651) ; un appelant qui n'est pas super-admin reçoit d'abord 403.
 
 **Relations :**
 - `updatedBy()` → belongsTo User (via updated_by_id)
