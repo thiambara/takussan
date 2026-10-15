@@ -974,7 +974,7 @@ Sain (vérifié par l'agent) :
 
 ### La note des avis est invisible au lecteur d'écran
 - Réf : P07.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-660
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:73-81`
 - Constat :
@@ -982,6 +982,7 @@ Sain (vérifié par l'agent) :
   - Les étoiles vides (`/40`) sont à 1,78:1, sous les 3:1 d'un objet graphique (lu, mesuré).
 - Piste : `role="img" aria-label={t('rating', {n})}`, ou un `sr-only` « 4 sur 5 », et les étoiles vides en `text-muted-foreground` plein.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:73-81` (cinq `<Star>` sans nom, étoiles vides en `text-muted-foreground/40`) et `node_modules/lucide-react/dist/esm/Icon.mjs:36` (`aria-hidden="true"` posé dès qu'aucun attribut `aria-*` n'est passé) → aucun texte ne porte la note ; étoiles vides à 1,78:1 sur blanc (calculé) ; `ReviewsSection.tsx:77` fait déjà ce qu'il faut avec `publicProfile.reviews.ratingAria` (« {rating} étoiles sur 5 », présent en `en` et `wo`) → le constat tient. Classement : A4, un nom accessible qui reprend un libellé déjà traduit, et les étoiles vides en `text-muted-foreground` plein, sans texte de produit neuf.
+- Mesure (2026-10-15, f30bd1cb, implementeur) : avant correctif, `PropertyReviews.note.test.tsx` (rend la fiche avec un avis noté 4, cherche un `img` nommé, compose l'encre de l'étoile vide sur `--card` et `--background`, deux thèmes) → 4 rouges : aucun `img` « 4 étoiles sur 5 » (fr) ni « 4 stars out of 5 » (en), étoile vide à 1,78:1 (clair) et 2,28:1 (sombre) sur `--card`. Correctif : `role="img"` et `aria-label` = `publicProfile.reviews.ratingAria` sur le groupe d'étoiles, étoiles vides en `text-muted-foreground` plein ; `PropertyReviews.tsx` sort du cliquet `RESTANTS` d'`encre-sans-alpha`. Ablation (`PropertyReviews.tsx` remis, tests gardés) → les 4 mêmes rouges, plus le cliquet ; correctif remis → vert.
 
 ### Une ligne de versement cliquable seulement à la souris
 - Réf : P07.05
