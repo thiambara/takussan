@@ -1042,7 +1042,7 @@ Sain (vérifié par l'agent) :
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
 - Réf : P08.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la hauteur et le défilement de la primitive partagée sont un choix de mise en page
 - Gravité : 🔴 défaut avéré (rendu à vérifier)
 - Où : `takussan-web/src/components/ui/dialog.tsx:58`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:172`
 - Constat :
@@ -1050,14 +1050,16 @@ Sain (vérifié par l'agent) :
   - Le dialogue de visite empile la date, 20 créneaux en 5 rangées, quatre champs et le bouton : environ 640 px estimés. Sur un 360×640, le titre et « Envoyer » sortent de l'écran, et le verrou de défilement interdit d'y aller.
   - Même risque pour `CreateInvoiceDialog`, `InviteAgentDialog` et `GuarantorSection` (comptage).
 - Piste : `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive, ou un pied collant ; une feuille du bas sous `sm`.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `dialog.tsx:58-60` (`fixed top-1/2 … -translate-y-1/2`, ni `max-h` ni `overflow-y-auto` ; dernier changement `f21ccd17`, TCK-529) et `PropertyVisitDialog.tsx:171` (`DialogContent className="sm:max-w-lg"`, sans hauteur bornée) ; `grep` → 71 fichiers utilisent `DialogContent` (le constat disait 75), 3 seulement posent `max-h-[90dvh] overflow-y-auto` (`GardeDoubleFacteur.tsx:70`, `PrivacyRequestsConsole.tsx:463,611`). La primitive ne borne donc pas la hauteur (lu) ; le débordement du dialogue de visite sur un 360×640 n'a **pas** été rendu, et reste une estimation. Classement : V7, borner la hauteur ou passer en feuille du bas sous `sm` change la mise en page des 71 dialogues, et la piste laisse le choix entre deux dessins.
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
 - Réf : P08.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : change les montants que les écrans de bail, de paiement et de restitution peuvent envoyer
 - Gravité : 🔴 défaut avéré — même famille que « Restitution de caution » à l'angle 4
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:233,243,253`, `LeasePaymentDialog.tsx:92`, `DepositRefundModal.tsx:172`, `bookings/BookingPaymentDialog.tsx:91`, `payments/CreateInvoiceDialog.tsx:227`
 - Constat : `FormInput` transmet `step` (`components/forms/FormInput.tsx:90`), et aucun de ces 5 formulaires n'a `noValidate`. Un loyer de 75 500 ou un paiement de 12 350 sont refusés avant `onSubmit` (lu).
 - Piste : retirer `step` (zod valide déjà), ou poser `noValidate`. À traiter avec l'angle 4, en un seul ticket.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `FormInput.tsx` (`...inputProps` transmet `step` et `min` à l'`<input>`) et les cinq `<form>` cités, aucun avec `noValidate` ; `step` toujours présent à `CreateLeaseForm.tsx:233,243,253` (1000), `LeasePaymentDialog.tsx:92` et `BookingPaymentDialog.tsx:91` (100), `DepositRefundModal.tsx:172` (1000, avec `min={0.01}`), `CreateInvoiceDialog.tsx:227` (100) ; test vitest temporaire (retiré) qui soumet un `FormInput type=number` dans un `<form>` par un clic → `min=0 step=100` : 12350 → `stepMismatch`, 0 envoi ; `min=0 step=1000` : 75500 → 0 envoi ; `min=0.01 step=1000` : 50000 → 0 envoi ; témoin 12300 → 1 envoi. Le constat tient, et `DepositRefundModal` refuse même les montants ronds. Classement : V1, le correctif élargit les montants qu'un écran d'argent peut envoyer, et la piste le lie à P04.10 (déjà classé V1) en un seul ticket.
 
 ### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
 - Réf : P08.04
@@ -1140,7 +1142,7 @@ Correct (mesuré ou lu) :
 
 ### La production sert un build du 15 août : aucun des travaux SEO n'est en ligne
 - Réf : P09.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la mise en ligne passe par la phase F (TCK-517), décidée par le porteur
 - Gravité : 🔴 défaut avéré
 - Où : `origin/master` à `fefe2c87` (2026-08-15), servi par Vercel (`docs/infra/frontend-deploiement.md:13`) ; `takussan-web/src/app/robots.ts` date du 2026-08-27 (TCK-431)
 - Constat :
@@ -1149,10 +1151,11 @@ Correct (mesuré ou lu) :
   - `master` a **1 845 commits** de retard sur `dev`.
   - TCK-431 à 436 et 598 n'existent qu'en préproduction et en local. `docs/ardoise.md` ne dit pas que le SEO n'est pas en ligne.
 - Piste : l'écrire dans l'ardoise et le rattacher à la phase F (TCK-517) ; à la bascule, soumettre le sitemap à la Search Console.
+- Mesure (2026-10-15, 25820d04, mesureur) : `git log -1 origin/master` → `fefe2c87`, 2026-08-15 ; `git rev-list --count origin/master..origin/dev` → **1 885** (le constat disait 1 845) ; `git ls-tree origin/master` → ni `takussan-web/src/app/robots.ts` ni `sitemap.ts`, présents sur `origin/dev` ; `grep -i` de `seo`, `robots`, `sitemap`, `référencement` dans `docs/ardoise.md` et TCK-517 → rien. Les réponses HTTP de www.takussan.com n'ont **pas** été re-mesurées : la production est hors du poste. Retenu pour la partie établie par git. Classement : V5, la seule correction réelle est le déploiement de `master`, qui est la phase F ; l'ajout à l'ardoise en dépend.
 
 ### Les combinaisons de facettes sans résultat sont indexables (soft-404)
 - Réf : P09.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : désindexer une page de liste servie est un choix de référencement qu'aucune spec n'écrit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:47-55`, `takussan-web/src/lib/canonique.ts:284`
 - Constat :
@@ -1160,6 +1163,7 @@ Correct (mesuré ou lu) :
   - Chaque valeur de facette est validée seule, jamais leur combinaison : types × contrats × villes × quartiers × 3 langues donne autant de pages vides indexables.
   - `generateMetadata` ne pose aucun `robots` (relu). Les annuaires, eux, ont `facette.indexable` (`agencies/page.tsx:53`).
 - Piste : `robots: { index: false, follow: true }` quand `total === 0`, en partageant le résultat de la recherche avec `generateMetadata` par `cache()`.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `properties/(liste)/page.tsx:35-55` (`generateMetadata` ne rend que `title`, `description` et `alternates`, aucun `robots`), `(public)/layout.tsx:56` (`robots: { index: true, follow: true }` hérité) et `canonique.ts:284-316` (`filtresCanoniques` juge chaque clé seule contre son domaine, jamais la combinaison) ; `agencies/page.tsx:54` pose bien `noindex` si `!facette.indexable` ; lecture par tinker de la base de dev → 4 biens `factory`, tous en `rent`, à Saint-Louis, Touba et Kaolack : `type=factory&contract_type=rent&city=Dakar` rend donc 0 bien sous une canonique qui garde les trois facettes. Le rendu HTTP n'a pas été rejoué (front et API locaux arrêtés). Classement : V7, aucun ticket ni ADR n'écrit la règle « liste vide ⇒ `noindex` » pour les biens (TCK-433 et TCK-436 ne la posent que pour les valeurs hors domaine et les annuaires).
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
@@ -1232,7 +1236,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Un lot de photos qui échoue laisse le média raté attaché au bien
 - Réf : P10.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : lot tout-ou-rien ou résultat photo par photo est un choix de comportement
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:39-49`
 - Constat :
@@ -1244,10 +1248,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Aucun test ne couvre `photo_unprocessable`.
   - Établi comment : lu, chemin vendor suivi.
 - Piste : retrouver et supprimer le média raté par `$property->media()->latest('id')`, ou convertir après une transaction. Rendre le lot tout-ou-rien, ou renvoyer un résultat photo par photo. Ajouter un test avec un PNG corrompu.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `PropertyMediaController.php:34-58` (inchangé : `$media = null`, puis `$media?->delete()` dans le `catch`) et `FileAdder.php:605` (`$model->media()->save($media)` avant la copie et les conversions) ; test Feature temporaire (retiré) : un lot `good.jpg` + un PNG tronqué (en-tête valide, corps à zéro) → **422** `photo_unprocessable`, et `getMedia('photos')` en compte **2**, `broken.png` compris. Le test existant `test_corrupted_image_is_rejected_without_persisting_media` ne voit pas le défaut : son faux PNG échoue à la règle `image` et n'atteint jamais le `catch`. Le répertoire temporaire de conversion n'a pas été mesuré. Classement : V7 ; supprimer le média raté relèverait d'A1 (le nom du test existant l'écrit), mais la piste demande aussi de choisir entre un lot atomique et un résultat par photo, ce qui change la réponse vue par l'écran.
 
 ### Aucune borne de dimensions : une bombe de décompression tue la requête
 - Réf : P10.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le plafond de pixels à refuser est un choix de produit
 - Gravité : 🔴 défaut avéré (OOM calculé, non mesuré)
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:37`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Models/Property.php:778`, `takussan-api/app/Models/Concerns/HasMediaConversions.php:26-28`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -1258,6 +1263,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Une photo de téléphone de 48 Mpx (≈ 192 Mo décodés) frôle déjà le plafond.
   - Établi comment : lu, mémoire estimée par calcul.
 - Piste : refuser au-delà d'un nombre de pixels donné (`dimensions:max_width=…,max_height=…`, ou `getimagesize` sans décoder) avant `addMedia`.
+- Mesure (2026-10-15, 25820d04, mesureur) : `grep -rn 'dimensions:' app/Http` → vide ; relu `StorePropertyMediaRequest.php:37` (`max:10240`), `UpdateProfileRequest.php:50` (`avatar` : `image`, `max:2048`), `Property.php:778` et `HasMediaConversions.php:26-28` (`thumbnail` en `nonQueued`), `config/media-library.php:229` (pilote `gd`) ; mesuré en CLI : un PNG uni de 9 000 × 9 000 pèse **237 Ko**, et `imagecreatefrompng` + `imagescale` sous `memory_limit=256M` **réussit** avec un pic PHP de 2 Mo et un RSS de **715 Mo** (`/usr/bin/time -l`). Le constat est inexact sur le mécanisme : GD alloue hors du gestionnaire de mémoire de PHP, `memory_limit` ne l'arrête pas, et il n'y a pas d'erreur fatale ; le risque réel est la mémoire du conteneur (≈ 8,8 o/pixel mesurés, soit plusieurs Go pour 20 000 × 20 000), non mesurée ici. Classement : V7, choisir le plafond (une photo de téléphone de 48 Mpx doit passer) décide quelles images sont refusées.
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
 - Réf : P10.03
@@ -1363,7 +1369,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les comptes inscrits par e-mail reçoivent tout en français, quelle que soit leur langue
 - Réf : P11.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:35`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`, `takussan-api/app/Services/Model/NotificationService.php:89`
 - Constat : c'est la conséquence visible du 🔴 de l'angle 6.
@@ -1377,10 +1383,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - accepter `preferred_language` dans `UpdateMeRequest` et corriger le chemin côté front ;
   - écrire la langue négociée à l'inscription ;
   - un test bout en bout : changer de langue, puis vérifier la langue d'un `CodedNotification`.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `actions/locale.ts:41` (`PATCH /api/users/me`, erreur avalée), `UpdateMeRequest.php:35` (`PREFERENCE_FIELDS = ['city', 'search_intent', 'entry_intent']`), `AuthController.php:32-37` (inscription sans `preferred_language`) et `NotificationService.php:89` (`preferredLocale() ?? config('app.locale')`) ; `route:list --path=api/users/me` → aucune route ; test Feature temporaire (retiré) : inscription avec `Accept-Language: en` → 201 et `preferred_language = fr` ; `PATCH /api/users/me` → **404** ; `PATCH /api/me {preferred_language: en}` → 200 et la colonne reste `fr`. TCK-550 avait relevé le même écart et l'avait laissé « à ouvrir en ticket ». Classement : A1, TCK-017 écrit que le sélecteur persiste la langue dans `preferred_language` par l'appel que le front fait déjà ; corriger, c'est ajouter `preferred_language` (`fr`, `en`, `wo`) aux préférences de `PATCH /api/me`, faire viser `/api/me` à `setLocaleAction`, et écrire à l'inscription la langue résolue par `SetLocaleMiddleware`, comme `PhoneLoginService.php:171` le fait déjà.
 
 ### Le courriel d'invitation part à l'intérieur de la transaction de l'appelant
 - Réf : P11.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:84,99`, `OwnerInvitationService.php:96`, `ServiceProviderInvitationService.php:151`, `InvitationService.php:232-238`
 - Constat :
@@ -1390,6 +1397,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - À l'inverse, un échec survenu après l'envoi laisse un e-mail dont le jeton ne pointe plus vers rien.
   - Établi comment : lu, et mesuré par l'agent avec une sonde tokenizer.
 - Piste : `DB::afterCommit(fn () => $this->deliver(...))`, ou un mailable mis en file avec `afterCommit()`.
+- Mesure (2026-10-15, 25820d04, mesureur) : relu `InvitationService.php:228-235` (commentaire : l'envoi est « intentionally *outside* the DB transaction » pour qu'une panne SMTP n'annule pas l'invitation) et `deliver()` (`:940-947`, `Mail::…->send()` synchrone, `InvitationMailable` sans `ShouldQueue`), et les appels depuis `DB::transaction` à `AgentInvitationService.php:84,99`, `OwnerInvitationService.php:78,96`, `ServiceProviderInvitationService.php:98,151` ; test Feature temporaire (retiré) sur `POST /api/agencies/{id}/agents/invite` en `agency_admin` : transport qui lève `TransportException` → **500**, 0 invitation et 0 profil `Draft` ; témoin avec `Mail::fake()` → 201, 1 et 1. Les 35 échecs Resend de préproduction et le cas « échec après l'envoi » n'ont pas été re-mesurés. Classement : A1, le comportement attendu est écrit dans le commentaire de `send()` ; le correctif enveloppe `$this->deliver(...)` dans `DB::afterCommit(...)`, avec un test qui fait échouer le transport sous `AgentInvitationService::invite` et retrouve l'invitation et le profil.
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
 - Réf : P11.03
