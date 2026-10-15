@@ -90,7 +90,7 @@ voie d'écriture (angle 13, puis 47).
 | 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | fait |
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | fait |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | fait |
-| 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
+| 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | fait |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
@@ -127,6 +127,7 @@ voie d'écriture (angle 13, puis 47).
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
+| 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
 
 ---
 
@@ -2221,3 +2222,82 @@ Les deux 🔴 ont été relus par la session dans le code :
     - le chargeur ne recrée pas un quartier refusé ou fusionné ;
     - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
 - Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
+
+## Angle 18 — Statistiques Boost face aux robots, aux rendus serveur et aux revalidations
+
+*Exploré le 2026-10-15 sur `pre-dev` 6c8a08b0, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `BoostStatsRecorder`, ses trois appelants, `boosts:tick`,
+la console super-admin, et côté front l'accueil, la recherche et le compteur de vue. Une mesure par
+un test temporaire, retiré depuis, sur la base de test et le Meilisearch du conteneur (charge
+2,85 / 2,43 / 2,13 sur 8 cœurs). La production et la préproduction n'ont pas été lues : aucun
+volume réel de robots n'est connu. Le double appel de la recherche après un changement de filtre et
+les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
+
+### La rangée « À vendre » de l'accueil compte des impressions sponsorisées qu'elle n'affiche jamais, et montre des places payées sans le badge
+- Réf : P18.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/lib/queries/raccourcis-de-l-accueil.ts:24-31`, `takussan-web/src/components/property/HomepageDiscovery.tsx:221-231`, `takussan-api/app/Services/Search/PropertySearchService.php:143-146,634-673`, `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-34`
+- Constat :
+  - Chaque rendu serveur de l'accueil appelle `GET /public/properties/search?contract_type=sale&per_page=12`, et n'en lit que `data` (lu, `raccourcis-de-l-accueil.ts:26-30`).
+  - Ce endpoint tire toujours les emplacements en régime strict et compte une impression par bien sponsorisé servi (lu, `PropertySearchService.php:145-146,657-659`). Aucun paramètre ne l'en dispense.
+  - Mesuré par un test temporaire : cinq vedettes actives en vente, sept biens, réglages par défaut (3 emplacements, 2 places réservées). La requête de l'accueil, envoyée avec l'agent `Googlebot/2.1`, rend `sponsored = [4,2,5]` et **3 impressions** comptées. L'accueil ne rend pas ce champ.
+  - La même réponse place deux vedettes en tête de `data` avec `placement: "reserved"` (mesuré). La rangée « À vendre » les montre sans robe : `robeVedette` n'est pas passé (lu, `HomepageDiscovery.tsx:221-231`). L'ADR-0061 § 7 dit pourtant qu'« un résultat payé ne se présente jamais comme un résultat organique ».
+  - Les places réservées ne comptent pas d'impression, ni sur l'accueil ni sur `/properties` : seules les entrées de `sponsored` sont comptées (lu, `PropertySearchService.php:657-659`). L'ADR-0061 § 10 ne parle que des « emplacements » : est-ce voulu ? À vérifier.
+- Piste : un paramètre qui coupe les emplacements, ou un endpoint dédié pour la rangée. Côté front, la robe pour `placement === 'reserved'`, ou pas de place réservée hors de `/properties`. Un test API : la requête de l'accueil ne compte aucune impression. Un test front : une place réservée porte toujours la robe.
+
+### Les impressions de la rangée vedette de l'accueil ne peuvent jamais devenir des clics
+- Réf : P18.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`, `takussan-web/src/components/property/HomepageDiscovery.tsx:207-217`, `takussan-web/src/components/boost/EmplacementSponsorise.tsx:37`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:9-25`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostStatsController.php:15-37`
+- Constat :
+  - La rangée vedette de l'accueil est un emplacement : ses biens servis comptent une impression (lu, `HomepageDiscoveryService.php:112-113`, et ADR-0061 § 7 « la rangée vedette de l'accueil applique la même rotation »).
+  - Un clic n'est compté que si la fiche est ouverte depuis un lien marqué par `marquerArriveeSponsorisee` (lu, `CompteurDeVue.tsx:34`). Seul `EmplacementSponsorise` marque, et il n'est monté que par `PropertiesDiscoveryPage`, la page `/properties` (mesuré : `grep -rln EmplacementSponsorise takussan-web/src`). La rangée de l'accueil passe par `PropertyRow`, qui ne marque rien (lu).
+  - La console super-admin somme toutes les impressions et tous les clics par jour, sans distinguer la surface (lu, `AdminBoostStatsController.php:15-19`). Le taux de clic affiché mêle donc des impressions de l'accueil, dont aucune ne peut produire un clic, à celles de la recherche. Il est biaisé vers le bas d'une part inconnue.
+- Piste : marquer l'arrivée depuis la rangée vedette, comme le fait l'emplacement de recherche. Ou ne pas compter cette rangée, et le dire dans l'ADR. Un test front : un clic sur une carte de la rangée vedette pose le marqueur.
+
+### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
+- Réf : P18.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/public-discovery.ts:54-71`, `takussan-web/src/hooks/useHomepageDiscovery.ts:99-123`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`
+- Constat :
+  - Le rendu serveur appelle `discovery` sans ville, puis le client le rappelle avec `near_city` dès qu'une ville est devinée (lu, `useHomepageDiscovery.ts:104-122`).
+  - Chacun des deux appels compte les impressions de la rangée vedette (lu, `HomepageDiscoveryService.php:113`). La graine de cette rangée ne dépend que de la surface et de l'heure (`seed(['surface' => 'homepage.featured'])`) : les deux appels servent les mêmes biens, affichés une seule fois.
+  - La part des visiteurs dont la ville est devinée (ipapi.co, échéance de 1 200 ms) n'est pas connue. À vérifier.
+- Piste : ne compter la rangée vedette que sur l'appel sans ville, ou passer un paramètre `count=0` au rappel du client. Un test API : deux appels, l'un avec `near_city`, comptent une seule fois.
+
+### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
+- Réf : P18.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-44`, `takussan-web/src/lib/queries/public-search.ts:48-60`, `takussan-web/src/lib/queries/public-discovery.ts:54-71`
+- Constat :
+  - Aucun filtre d'agent n'existe, ni dans l'API ni dans le front (mesuré : `grep -rn -i "userAgent\|isbot\|crawler\|googlebot"` → seulement des journaux de baux et de leads). Le test temporaire de P18.01 compte 3 impressions sous l'agent `Googlebot/2.1`.
+  - Les rendus serveur de `/` et de `/properties` appellent l'API sans `partage` (lu, `public-search.ts:51`, `public-discovery.ts:60`). Ils ne passent donc pas par le cache de données de Next : chaque passage d'un robot, sur chaque URL de facette, compte ses impressions. L'accueil et la recherche ne sont pas mis en cache côté API non plus (mesuré : aucun `Cache::` dans `HomepageDiscoveryService` ni dans `discovery()`).
+  - Les clics, eux, exigent un clic réel suivi d'un `POST` depuis le navigateur (lu, `CompteurDeVue.tsx:29-41`). Un robot gonfle donc les impressions sans clic, et le taux de clic baisse d'autant. Le volume réel est à vérifier dans les journaux de préproduction.
+- Piste : ne pas compter quand l'agent est reconnu comme robot (liste courte, sans dépendance), ou compter l'impression depuis le navigateur après affichage, comme la vue de fiche (TCK-598). Un test : une recherche sous `Googlebot` ne compte rien.
+
+### Un vidage qui échoue perd les compteurs de l'heure
+- Réf : P18.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:69-90`, `takussan-api/app/Console/Commands/BoostsTick.php:23-30`
+- Constat :
+  - `flush()` retire les compteurs du cache (`Cache::pull`) avant d'écrire la ligne (`upsert`) (lu, lignes 70-87). Si l'écriture lève, les valeurs retirées sont perdues : `LAST_FLUSHED_KEY` n'avance pas, mais le tick suivant relit des clés vides.
+  - `pull` lit puis efface en deux commandes, sans atomicité (lu). Deux vidages simultanés peuvent lire la même valeur et la verser deux fois. `withoutOverlapping()` les en empêche sur un seul serveur, et l'en-tête de `BoostsTick` affirme pourtant que deux ticks qui se chevauchent « ne produisent rien de plus ». À vérifier si l'API tourne un jour sur plusieurs conteneurs planificateurs.
+  - `flush()` vient en dernier dans le tick (lu, ligne 28). Une exception d'une étape précédente le saute tant qu'elle se répète. Les compteurs vivent 48 h (`TTL_HOURS`) : au-delà, ils sont perdus sans trace.
+- Piste : lire avec `get`, écrire, puis `forget` dans le même passage, ou `GETDEL` Redis par heure complète. Isoler `flush()` des autres étapes du tick. Un test : un `upsert` qui lève laisse les compteurs en cache pour le tick suivant.
+
+### Petites améliorations
+- Réf : P18.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
+- Constat :
+  - **Un clic par bien, par IP et par heure** (lu, `RateLimiter::hit('boost-click:…', 3600) > 1`), quand la vue de fiche en accepte trois (`PropertyViewCounter::MAX_PAR_HEURE`). Derrière un NAT d'opérateur mobile, beaucoup de visiteurs partagent une IP : les clics sont sous-comptés. La justesse de l'IP elle-même relève de l'angle 37.
+  - **Le marqueur d'arrivée est un seul emplacement en `sessionStorage`** (lu). Un clic du milieu ou « ouvrir dans un nouvel onglet » ouvre une session de navigation distincte, qui ne le lit pas, et le marqueur reste dans l'onglet d'origine. Le comportement réel selon les navigateurs est à vérifier.
+  - **`/playground` est servi sur le site public** (noindex, mais non interdit par `robots.txt`) et appelle la recherche par `useProperties` pour ses rangées « près de toi » et « location » (lu). Chaque affichage compte des impressions sponsorisées qu'il ne montre pas.
+  - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
+- Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
