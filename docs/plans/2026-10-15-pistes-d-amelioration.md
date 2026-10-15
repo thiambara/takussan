@@ -17,7 +17,7 @@ amélioration.
 |---|-------|------|
 | 1 | Recherche d'un bien (public et `/app`) : pertinence, filtres, performances, UX | fait |
 | 2 | Performances des requêtes : N+1, index manquants (FK non indexées sous PostgreSQL), pagination | fait |
-| 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | en cours |
+| 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | fait |
 | 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | à faire |
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | à faire |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | à faire |
@@ -35,6 +35,9 @@ amélioration.
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | à faire |
+| 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
+| 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
+| 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
 
 ---
 
@@ -236,3 +239,90 @@ Déjà sain (mesuré ou lu) :
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
 - Piste : lire le plafond une fois par agence dans `applyForAgency`.
+
+## Angle 3 — Isolation entre agences et autorisation
+
+*Exploré le 2026-10-15 vers 0 h 50, en lecture du code (aucune requête envoyée). Les trois 🔴 ont
+été relus contre le code par la session.*
+
+Ce qui tient (lu) :
+- les listes de biens, baux, factures, reversements, contacts et documents ;
+- `ResolveActiveProfile` refuse un profil non actif ;
+- `PayoutMethodPolicy` et `MediaPolicy` ;
+- la route privée signée `media.private.show` ;
+- les proxys BFF à segments filtrés (`cheminAmont`).
+
+### `PUT /api/users/{user}/role` contourne les garde-fous de l'équipe
+- Gravité : 🔴 défaut avéré, au sein d'une même agence
+- Où : `takussan-api/app/Http/Controllers/Api/UserRoleController.php:38-74,104-135`, `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:10-16`
+- Constat :
+  - Un admin d'agence change le rôle de tout membre qui a un profil dans l'agence, quel que soit son statut (« appartenance, sans filtre de statut », TCK-587).
+  - `setAgent()` et `setOwner()` suppriment les profils `agency_admin` de l'agence. Il n'y a aucune garde sur l'admin principal, le dernier admin, soi-même ni la suspension. Un agent suspendu promu admin repart avec un profil actif neuf.
+  - Les voies sœurs ont ces gardes : `AgencyMemberRemovalService.php:52` (`cannot_remove_primary_admin`, dernier admin sous verrou) et `TeamMemberSuspensionService.php:58-59`.
+  - Le front appelle cette route (`takussan-web/src/lib/queries/admin-users.ts:81`).
+  - Aucun test de `UserRoleControllerTest` ne vise ces cas (lu).
+- Piste : une policy `changeMemberRole` qui réutilise les gardes d'`AgencyMemberRemovalService`, un refus des cibles non actives, et un test par garde.
+
+### `/api/users?include=…Profiles` fait sortir les profils des autres agences
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:35-49`, `takussan-api/app/Models/User.php:156`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:277-280`
+- Constat :
+  - La base de la liste est bien limitée aux personnes qui ont un profil dans l'agence active. Mais `$requestLoadable` (`agentProfiles`, `ownerProfiles`, `agencyAdminProfiles`, `platformProfile`) charge **tous** les profils de la personne, y compris ceux d'autres agences.
+  - Sans `fields[…]`, cela livre `commission_rate`, `license_number`, `metadata`, `monthly_income`, `employer` et `guarantor_user_id` d'une agence tierce. Les colonnes `SENSITIVE` restent cachées.
+  - Le front refiltre côté client (`takussan-web/src/components/admin/users/team-suspension.ts:27-31`), ce qui confirme que la donnée arrive.
+  - `filter[role]=agent` fait un `whereHas` sans agence : il révèle qu'un bailleur de A est agent ailleurs.
+  - À vérifier : `include=platformProfile` dit si une personne est opératrice de la plateforme.
+  - `UserAdminAgencyScopeTest` n'a aucun cas avec `include` (lu).
+- Piste : des `AllowedInclude::custom` contraints à l'agence active, idem pour `filter[role]`, et un test avec une personne présente dans deux agences.
+
+### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
+- Gravité : 🔴 défaut avéré, impact modéré (des libellés, pas des fiches)
+- Où : `takussan-api/app/Http/Controllers/Api/TagController.php:18-45,67-77`, `takussan-api/app/Http/Controllers/Api/CustomerTagController.php:60-66`, `takussan-api/app/Models/Tag.php:21-23`
+- Constat :
+  - Une étiquette tapée sur un client est créée en type `crm`, statut `approved`.
+  - `GET /api/tags` (`auth:sanctum` seul, donc ouvert à un compte auto-inscrit) ne restreint à l'agence que si `filter[type]=crm` est envoyé **et** si `agency_id` est non nul. `show` ne regarde que le statut.
+  - `$user->agency_id` donne aussi ce périmètre à un bailleur.
+  - La comparaison passe par une variable intermédiaire, que `scripts/check-agency-scope-clause.mjs` ne voit pas.
+  - Aucun test entre deux agences (lu).
+- Piste : exclure le type `crm` hors de l'agence du personnel, dans `index` comme dans `show`, et un test entre deux agences.
+
+### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
+- Gravité : 🟠 risque
+- Où : `takussan-api/app/Http/Controllers/Api/Me/PayoutMethodController.php:21-31`, `takussan-api/app/Http/Resources/PayoutMethodResource.php:19-33`, `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`
+- Constat :
+  - `account_identifier` et `account_holder_name` sont rendus au « titulaire », c'est-à-dire à la cible pendant une impersonation.
+  - La route n'est ni dans `REFUSED_READS` ni sous step-up, alors que la donnée est chiffrée et cachée ailleurs (TCK-601). Le RIB du bailleur, lui, exige un step-up.
+- Piste : masquer la forme claire sous `ImpersonationContext`, ou ajouter `api/me/payout-methods*` à `REFUSED_READS`.
+
+### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
+- Gravité : 🟠 dette
+- Où :
+  - `Api/PropertyController.php:183-185` ;
+  - `Api/InventoryController.php:114-116,167` ;
+  - `Api/CustomerTagController.php:17-19` ;
+  - `Api/DocumentVersionController.php:45-47` ;
+  - `Api/Agency/KycController.php:27-30` ;
+  - `Api/Accounting/BankStatementController.php:29-31` ;
+  - `Api/Accounting/BankStatementLineController.php:37-39` ;
+  - `Api/Permissions/RoleDelegationController.php:45-47` ;
+  - `Api/LeaseController.php:52-57` (règle dans `LeaseService.php:36-54`).
+- Constat :
+  - 28 FormRequests (hors `Admin/` et `Auth/`) étendent `FormRequest` directement. Elles échappent au refus par défaut de `BaseFormRequest`, et rendent `true` ou `user() !== null`.
+  - `AuthorizationPrecedesValidationTest` n'en couvre aucune.
+  - `PUT /api/properties/{id}` est l'endpoint le plus utilisé du lot (lu ; compte par grep).
+- Piste : déléguer dans `authorize()` (`can('update', $this->route('property'))`), et une garde qui refuse `extends FormRequest` hors de `BaseFormRequest`.
+
+### Oracles d'existence entre agences
+- Gravité : 🟠 risque faible
+- Où : `Api/DocumentController.php:57-63`, `Api/Accounting/BankStatementLineController.php:42` (avec `ReconciliationManager.php:51-53`), `Requests/Api/StoreConversationRequest.php:103-108`
+- Constat :
+  - `POST /api/documents` rend 404 `document.owner_not_found` avant l'autorisation : il dit si un bail, un client ou un bien d'une autre agence existe.
+  - Le rapprochement bancaire distingue 404 et 403.
+  - La conversation distingue « introuvable » et « non joignable » (lu).
+- Piste : autoriser avant de résoudre, ou rendre le même code dans les deux cas.
+
+### Le proxy `admin-users` ne relaie pas le profil actif
+- Gravité : 🟢 à vérifier
+- Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
+- Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
+- Piste : relayer l'indice de profil comme les fetchers serveur (`RequestOptions` de `src/lib/api.ts`).
