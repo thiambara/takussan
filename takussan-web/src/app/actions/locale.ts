@@ -16,7 +16,9 @@ import {
  * the current page so the next render uses the new messages.
  *
  * TCK-017: when the visitor is authenticated, also best-effort PATCH
- * `/api/users/me` so the preference follows the user across devices.
+ * `/api/me` so the preference follows the user across devices — and reaches
+ * the e-mails, SMS and notifications, which follow `preferred_language`.
+ * TCK-655: the path was `/api/users/me`, a route that never existed.
  * Anonymous visitors rely on the cookie only; any network/endpoint failure
  * is swallowed — the cookie already satisfies the UX.
  */
@@ -38,13 +40,13 @@ export async function setLocaleAction(locale: Locale): Promise<void> {
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (token) {
     try {
-      await apiRequest('/api/users/me', {
+      await apiRequest('/api/me', {
         method: 'PATCH',
         token,
         body: { preferred_language: locale },
       });
     } catch {
-      // Endpoint may not be live yet, or user lost auth — cookie still wins.
+      // User lost auth, or API unreachable — cookie still wins.
     }
   }
 
