@@ -14,7 +14,7 @@ import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
  * Super-admin layout (TCK-145). Server-side guard, before children render — no client flash of
  * admin-only UI: operator token, two-factor detour, then `platform.console.access` (TCK-600,
  * ADR-0047 — `viewer` and `support` operators get in, not only `super_admin`); anyone else is
- * redirected to `/app`. A page reserved to `super_admin` guards itself (e.g. `settings/global`).
+ * redirected to `/app`. A page reserved to `super_admin` guards itself (e.g. `super-admins`).
  *
  * URL note: the super-admin area lives under `/super-admin/*` (TCK-131 had
  * given the shorter prefix to the agency console, which lives under

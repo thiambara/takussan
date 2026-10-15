@@ -80,7 +80,7 @@ describe('PAGES_ADMIN', () => {
   });
 
   // TCK-648 (ADR-0064 §1) — les deux pages du super-admin ont quitté la table : l'éditeur de la
-  // table `settings` vit à `/super-admin/settings/global`, la liste transverse des biens à
+  // table `settings` (supprimé depuis, TCK-651), la liste transverse des biens à
   // `/super-admin/properties`. Plus aucune ligne de la table n'exige `super_admin`.
   it("ne porte plus aucune page du super-admin (TCK-648)", () => {
     expect(PAGES_ADMIN.filter((p) => p.exige.role === 'super_admin')).toEqual([]);

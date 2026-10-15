@@ -104,7 +104,7 @@ const TABLE = [
   // laisse entrer un `agency_admin` sur SON agence.
   { chemin: '/app/agency/integrations', exige: { role: 'admin' }, menu: { cle: 'integrations', icone: Plug } },
   // TCK-648 (ADR-0064 §1) — les deux pages du super-admin ont quitté cette table :
-  // `/super-admin/properties` et `/super-admin/settings/global`.
+  // `/super-admin/properties` et l'éditeur brut des paramètres (supprimé depuis, TCK-651).
 ] as const satisfies readonly PageAdmin[];
 
 export type CheminAdmin = (typeof TABLE)[number]['chemin'];

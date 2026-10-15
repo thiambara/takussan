@@ -94,12 +94,12 @@ describe('traduireChampsErreurs', () => {
   it('traduit TOUS les messages de TOUS les champs, pas seulement le premier', () => {
     expect(traduireChampsErreurs(
       {
-        key: [msgValidation('setting.keyTooLong'), msgValidation('setting.keyPattern')],
+        key: [msgValidation('setting.providerTooLong'), msgValidation('setting.webhookUrlInvalid')],
         provider: [msgValidation('setting.providerRequired')],
       },
       tFactice,
     )).toEqual({
-      key: ['«validation.setting.keyTooLong»', '«validation.setting.keyPattern»'],
+      key: ['«validation.setting.providerTooLong»', '«validation.setting.webhookUrlInvalid»'],
       provider: ['«validation.setting.providerRequired»'],
     });
   });

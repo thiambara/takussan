@@ -10,10 +10,7 @@ import { normaliseTagForm, tagFormSchema } from '../schemas/tag';
 import {
   integrationFormSchema,
   normaliseIntegrationForm,
-  parseSettingRawValue,
-  stringifySettingValue,
 } from '../schemas/setting';
-import { renderSettingValue } from '../queries/settings';
 
 /**
  * Admin admin-config schema tests — TCK-064 / TCK-066 / TCK-068.
@@ -302,28 +299,5 @@ describe('integrationFormSchema & normaliseIntegrationForm', () => {
   it('omits metadata on create when no metadata fields are populated', () => {
     const p = normaliseIntegrationForm({ ...base, notes: '' }, 'create');
     expect(p.metadata).toBeUndefined();
-  });
-});
-
-describe('setting value helpers', () => {
-  it('parses booleans, numbers and strings', () => {
-    expect(parseSettingRawValue('true')).toEqual({ value: true });
-    expect(parseSettingRawValue('42')).toEqual({ value: 42 });
-    expect(parseSettingRawValue('bonjour')).toEqual({ value: 'bonjour' });
-  });
-
-  it('parses JSON objects directly', () => {
-    expect(parseSettingRawValue('{"enabled": true}')).toEqual({ enabled: true });
-  });
-
-  it('stringifies scalars wrapped under `value`', () => {
-    expect(stringifySettingValue({ value: true })).toBe('true');
-    expect(stringifySettingValue({ value: 'hello' })).toBe('hello');
-    expect(stringifySettingValue({ value: null })).toBe('');
-  });
-
-  it('renders nested objects for display', () => {
-    expect(renderSettingValue({ enabled: true })).toBe('{"enabled":true}');
-    expect(renderSettingValue({ value: 7 })).toBe('7');
   });
 });

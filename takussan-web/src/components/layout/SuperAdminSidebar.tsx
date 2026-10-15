@@ -14,7 +14,6 @@ import {
   CalendarClock,
   ClipboardCheck,
   CreditCard,
-  Database,
   FlaskConical,
   Home,
   LayoutDashboard,
@@ -169,10 +168,8 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: 'settings',
         icon: SlidersHorizontal,
         ability: 'platform.settings.manage',
-        // TCK-648 (ADR-0064 §1) — l'éditeur brut de la table `settings`, venu de l'ancienne console :
-        // un ENFANT des paramètres plateforme, qui en sont la vue catalogue. Sans geste : la route
-        // qu'il lit (`/api/settings`) ne sert la table entière qu'au `super_admin`.
-        children: [{ href: '/super-admin/settings/global', labelKey: 'globalSettings', icon: Database }],
+        // TCK-651 (ADR-0065) — l'éditeur brut de la table (`/super-admin/settings/global`, TCK-648)
+        // a disparu : la portée `global` s'écrit ici, au catalogue, et seulement ici.
       },
       { href: '/super-admin/integrations', labelKey: 'integrations', icon: PlugZap },
       { href: '/super-admin/feature-flags', labelKey: 'featureFlags', icon: FlaskConical },

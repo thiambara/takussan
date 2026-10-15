@@ -216,8 +216,7 @@
         "privacyRequests": "Laaj ci sañ-sañ",
         "payments": "Fey yi",
         "credits": "Kredi",
-        "boosts": "Yokk gis-gis",
-        "globalSettings": "Tegtal yu mag yi"
+        "boosts": "Yokk gis-gis"
       }
     },
     "notifications": {
@@ -7572,13 +7571,6 @@
       "payments": {
         "title": "Fey yi",
         "subtitle": "Xaalis bi agsiwul : fey yu ñàkk walla yu yéex, ak webhook yu jottalikat yi."
-      },
-      "globalSettings": {
-        "eyebrow": "Platform bi",
-        "title": "Tegtal yu mag yi",
-        "subtitle": "Tablo caabi/njëg bi ni mu mel : tegtal yu mag yi ak tegtal yu ajans bu nekk. Caabi yi ci katalog bi, ci tegtal yu platform bi lañu leen di tànnee.",
-        "platformLink": "Tegtal yu platform bi",
-        "loadError": "Mënuñu yeb tegtal yi : {message}"
       }
     },
     "featureFlags": {
@@ -7732,12 +7724,14 @@
       "updatedByOn": "{name} moo ko soppi ci {date}",
       "defaultValue": "Njëg bu ndoorte",
       "errors": {
-        "xofRequired": "XOF war na des ci xaalis yi ñu nangu."
+        "xofRequired": "XOF war na des ci xaalis yi ñu nangu.",
+        "integerList": "Bindal benn limu fan bu mat lu mu néew néew, ñu xàjjale leen ak ay koma."
       },
       "categories": {
         "currency": "Xaalis yi",
         "limits": "Dig yu teknik",
-        "boost": "Kredi ak yokk gis-gis"
+        "boost": "Kredi ak yokk gis-gis",
+        "rentals": "Luwaas"
       },
       "keys": {
         "currency": {
@@ -7783,8 +7777,38 @@
             "label": "Bérab yu ñu denc ci kaw xët wu njëkk",
             "description": "Ci 0 ba 10. 0 dafay dindi bérab yu ñu denc."
           }
+        },
+        "invoice": {
+          "reminder_offsets_days": {
+            "label": "Fàttali fakteer yu ñu feyul",
+            "description": "Ci fan yu topp bisu fey bi, 1 ba 365, fukki fàttali lu ëpp. Ajaans bu am tànneefam dina ko denc."
+          }
+        },
+        "lease": {
+          "rent_review_max_pct": {
+            "label": "Dig bu yokkuwaayu njëgu luwaas",
+            "description": "Ci téeméer, ci kaw 0 ba 100. Ajaans bu am tànneefam dina ko denc."
+          },
+          "early_termination_penalty_months": {
+            "label": "Alamaanu dog luwaas bala jamono ji",
+            "description": "Ci weeru luwaas, 1 ba 24. Ajaans bu am tànneefam dina ko denc."
+          },
+          "require_signature": {
+            "label": "Xaatim war na ci yeesal luwaas",
+            "description": "Luwaas bu ñu yeesal day xaar xaatimu ñi ci bokk bala muy dox. Ajaans bu am tànneefam dina ko denc."
+          }
+        },
+        "late_fees": {
+          "cap_percent": {
+            "label": "Dig bu alamaanu yéex",
+            "description": "Ci téeméeru xaalisu fey bi, 0 ba 100. Bu deñ: amul dig. Ajaans bu am tànneefam dina ko denc."
+          }
         }
-      }
+      },
+      "noLimit": "Amul dig",
+      "enabled": "Dox na",
+      "disabled": "Doxul",
+      "integerListPlaceholder": "3, 7, 15"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Ajaans bi sos na",
@@ -8250,40 +8274,6 @@
         "signing_secret": "Secret xaatim",
         "secret_key": "Caabi bu kumpaywul"
       }
-    },
-    "settings": {
-      "empty_title": "Amul benn tëral ci tànneef bii",
-      "empty_description": "Soppil wàll bi walla far seet gi ngir gis yeneen caabi yi.",
-      "filterByScope": "Filtrer ci portée bi",
-      "scopes": {
-        "all": "Yépp",
-        "global": "Yu mbooloo",
-        "agency": "Ajance"
-      },
-      "new": "Paramètre bu bees",
-      "tableCaption": "Tëraliin yi ci platform bi",
-      "columns": {
-        "key": "Kaley",
-        "scope": "Portée",
-        "value": "Valeur",
-        "actions": "Jëf"
-      },
-      "actions": {
-        "edit": "Soppi {key}",
-        "delete": "Far {key}"
-      },
-      "confirmSensitive": "Paramètre « {key} » dina jariñ ci lépp. Ndax dëgg la nga bëgg koy soppi ?",
-      "confirmDelete": "Far paramètre « {key} » ?",
-      "updated": "Paramètre « {key} » yeesal nañu ko.",
-      "deleted": "Paramètre « {key} » far nañu ko.",
-      "saved": "Paramètre « {key} » denc nañu ko.",
-      "keyRequired": "Kaley bi laaj nañu ko.",
-      "create": {
-        "description": "Paramètre yi nangu nañu valeur JSON bu mu mën a doon. Scalaire yu yomb yi (baat, limeer, boolen) dañu leen di lëkkale ci seen bopp.",
-        "keyPlaceholder": "misaal : maintenance_mode",
-        "saving": "Mu ngi denc…"
-      },
-      "valuePlaceholder": "true  •  42  •  \"salaam\"  •  '{'\"enabled\": true'}'"
     }
   },
   "adminTags": {
@@ -9843,9 +9833,6 @@
       "savedSearchNameRequired": "Joxal seet bii benn tur."
     },
     "setting": {
-      "keyRequired": "Caabi bi fàww la.",
-      "keyTooLong": "Caabi bi dafa gudd lool.",
-      "keyPattern": "Araf yu baaxul (araf ak lim, \".\", \"_\" ak \"-\").",
       "providerRequired": "Joxekat bi fàww la.",
       "providerTooLong": "Turu joxekat bi dafa gudd lool.",
       "webhookUrlInvalid": "URL bu baaxul. Misaal : https://exemple.sn/webhook",
