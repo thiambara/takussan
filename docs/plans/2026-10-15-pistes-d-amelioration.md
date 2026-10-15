@@ -993,35 +993,38 @@ Sain (vérifié par l'agent) :
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `PropertyVisitDialog.tsx:263,270,276,283`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440`, `PropertyReviews.tsx:281`, `leases/CreateLeaseForm.tsx:347,359`, `leases/DepositRefundModal.tsx:182,215`
 - Constat : 13 contrôles sur 49 qui portent `aria-invalid` n'ont pas de `aria-describedby`, et 48 `<p class="text-destructive">` n'ont pas de `role`. Les `Form*` sont bien câblés (mesuré).
 - Piste : migrer ces champs vers `FormInput`/`FormError`.
+- Mesure (2026-10-15, ccabd662, mesureur) : `grep -c aria-invalid` / `aria-describedby` par fichier de `src/` : `PropertyVisitDialog.tsx` 2/0 (le `aria-invalid` est aujourd'hui l.268,281, ses erreurs `<p className="text-xs text-destructive">` l.270,283, sans `id` ni `role`), `CreateLeaseForm.tsx` 1/0 (`SelectTrigger` l.347, erreur l.359), `InviteAgentDialog.tsx` 8/0, `InviteOwnerSheet.tsx` 5/0, `InviteServiceProviderSheet.tsx` 4/0, `KpiConfigList.tsx` 1/0 ; `DepositRefundModal.tsx:182,215`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440` et `PropertyReviews.tsx:281` portent toujours un `<p className="… text-destructive">` sans `role` ; sur une ligne, 56 `<p … text-destructive>` sans `role=` contre 144 avec (comptage grossier) ; les `Form*` relient bien leur erreur (1/1 partout) → tient. Classement : A4, attributs ARIA sans texte neuf : donner un `id` à chaque `<p>` d'erreur de champ, le citer par `aria-describedby` sur le contrôle `aria-invalid`, et poser `role="alert"` sur ces erreurs et sur les erreurs de formulaire citées, ou passer les champs par `FormInput`/`FormError`, sans changer le rendu.
 
 ### Des champs nommés par le seul placeholder
 - Réf : P07.08
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `search/FilterSidebar.tsx:161,172,183`, `PropertyContactMessageDialog.tsx:89`, `PropertyReviewForm.tsx:94,102`, `PropertyPagination.tsx:113`
 - Constat :
   - 21 champs ne sont nommés que par leur placeholder, et 2 n'ont aucun nom.
   - Le sélecteur de taille de page (un `SelectTrigger`, donc un `<button role="combobox">`) est sans nom, dans 8 listes (mesuré).
 - Piste : `aria-labelledby` vers le titre de section, et un `aria-label` sur le sélecteur de taille de page.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `FilterSidebar.tsx:126-185` : `RangeInputs` rend deux `<Input type="number">` (l.161-180) nommés par leur seul `placeholder` (`t('min')`/`t('max')`, `t('minArea')`…), réutilisé pour le budget (l.683) et la surface (l.744) sous un `<Section title>` ; `PropertyContactMessageDialog.tsx:89-95` (`Textarea` sans `aria-label` ni `<label>`) ; `PropertyReviewForm.tsx:94-109` (`Input` et `Textarea` nommés par `placeholder`) ; `property-dashboard/PropertyPagination.tsx:113` : `SelectTrigger` sans `aria-label` ; 9 fichiers combinent `pageSize`/`perPage` et `SelectTrigger` (non recomptés un à un) ; le compte de 21 champs n'a pas été refait → tient pour les exemples relus. Classement : A4, attributs ARIA par des textes existants : `aria-labelledby` vers le titre de `Section` (et la borne), `aria-label` des clés déjà traduites (`messagePlaceholder`, `titlePlaceholder`, `perPagePlaceholder` présent en fr/en/wo) sur les champs et le sélecteur de taille de page, sans texte neuf.
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : changer l'anneau de focus et le jeton `--input` touche le dessin de toutes les primitives
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
 - Constat :
   - `ring-ring/50` est à 2,08:1 sur `--background` ; sur un bouton plein, c'est le seul signal de focus. TCK-371 l'avait relevé, et aucun ticket n'a été ouvert.
   - `--input: #ebe5d5`, seul contour d'un champ, est à 1,26:1 (WCAG 1.4.11, mesuré).
 - Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `button.tsx:31` et `input.tsx:20` (`focus-visible:ring-3 focus-visible:ring-ring/50`), `globals.css:29` (`--background: #fcf9f3`), `:163-164` (`--input: #ebe5d5`, `--ring: #a85332`) ; calcul WCAG en `node` : `ring` à 50 % mêlé au fond → 2,08:1 contre `--background` ; `--input` → 1,20:1 contre `--background` et 1,26:1 contre le blanc → tient. Classement : V7, ni l'anneau plein ni un nouveau `--input` ne se ramènent sur un jeton existant : c'est une modification de la palette et du focus de toutes les primitives, un choix de dessin.
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
 - Réf : P07.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le dessin du focus du marqueur et le verrou rendu focusable sont des choix de dessin et de comportement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
 - Constat :
@@ -1029,22 +1032,25 @@ Sain (vérifié par l'agent) :
   - Le `Popup` de la visionneuse n'a pas de nom.
   - `<span role="link" aria-disabled title>` n'est pas focusable, et la raison du verrou n'est que dans `title` (signalé par TCK-371, toujours présent).
 - Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `globals.css:772-778` (`.takussan-price-marker__pill:focus-visible` = même règle que `:hover`, `background: #b66c43` contre `#c87a52` au repos, `outline: none`) ; calcul WCAG en `node` → 1,22:1 entre les deux fonds ; `PropertyLightbox.tsx:55` : `DialogPrimitive.Popup` sans `aria-label` ni `Title` (les seuls `aria-label` sont les boutons l.63,93,101) ; `AppSidebar.tsx:557-568` : `<span role="link" aria-disabled="true" title={t('proLocked')}>` sans `tabIndex` → les trois constats tiennent. Classement : V7, le nom de la visionneuse serait A4, mais le contour du marqueur est un dessin neuf et rendre focusable une entrée verrouillée change le parcours clavier de la barre latérale.
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette (AAA, mais la charte en fait une règle)
 - Où : `ui/sheet.tsx:104-110`, `ui/dialog.tsx:58`, `ui/popover.tsx`, `ui/select.tsx`, `property/cards/PropertyRow.tsx:184`
 - Constat : `slide-in` et `zoom-in` de tw-animate-css ignorent `prefers-reduced-motion`, aucun `motion-reduce:` n'apparaît, et `scrollBy({behavior:'smooth'})` n'est pas conditionné (mesuré).
 - Piste : `motion-reduce:animate-none` dans les primitives.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `ui/sheet.tsx:100-110` (`slide-in-from-*`), `ui/dialog.tsx:35,58`, `ui/popover.tsx:62-63` (`zoom-in-95`, `slide-in-from-*`), `ui/select.tsx:97` ; `grep motion-reduce` → aucun dans ces quatre primitives (le constat « aucun `motion-reduce:` » est inexact : `button.tsx:31`, `ChatWidget.tsx`, `SelecteurDeTransaction.tsx`, `WizardReprenable.tsx` en portent) ; `grep reduced-motion node_modules/tw-animate-css/dist/tw-animate.css` → 0 ; les deux blocs `@media (prefers-reduced-motion)` de `globals.css:533,606` ne nomment que des `.animate-*` et `.wizard-*` maison ; `PropertyRow.tsx:184` : `scrollBy({ …, behavior: 'smooth' })` non conditionné → tient. Classement : A4 et A1, `docs/design-guidelines.md:365-369` écrit déjà que toute animation se neutralise sous mouvement réduit : poser `motion-reduce:animate-none` sur les contenus et fonds de `sheet`, `dialog`, `popover` et `select`, et `behavior: 'auto'` quand `matchMedia('(prefers-reduced-motion: reduce)')` répond.
 
 ### Le lint d'accessibilité est presque éteint
 - Réf : P07.12
-- Statut : à mesurer
+- Statut : retenu · à valider — V9 : faire passer des règles de lint en erreur, sous un cliquet neuf, touche le seuil d'une garde
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/eslint.config.mjs:37-39`
 - Constat : 6 règles `jsx-a11y` seulement, en `warn`. Ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` : aucune garde n'aurait attrapé les constats ci-dessus (lu).
 - Piste : ces règles en `error`, sous un cliquet par fichier comme `check-i18n`.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `takussan-web/eslint.config.mjs` (aucune règle `jsx-a11y` propre au dépôt ; l.37-39 étalent `nextVitals` et `nextTs`) et `node_modules/eslint-config-next/dist/index.js:173-188` : `alt-text`, `aria-props`, `aria-proptypes`, `aria-unsupported-elements`, `role-has-required-aria-props`, `role-supports-aria-props`, toutes en `warn` ; ni `label-has-associated-control`, ni `click-events-have-key-events`, ni `no-static-element-interactions` → tient. Classement : V9, la piste resserre une garde (des règles en `error`) et invente un cliquet par fichier, dont la forme est à décider.
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
@@ -1102,21 +1108,23 @@ Sain (vérifié par l'agent) :
 
 ### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
 - Réf : P08.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : `viewport-fit=cover` étend le rendu sous l'encoche et change la mise en page iOS
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/layout.tsx` (pas d'export `viewport`) ; 9 usages d'`env(safe-area-inset-bottom)`, dont `home/Navbar.tsx:676,811,855`, `search/FilterSidebar.tsx:1099`, `wizard/WizardShell.tsx:99`
 - Constat : `viewport-fit` est absent de `src/`, donc iOS rend `env(safe-area-*)` à 0. TCK-477 garde le consommateur, pas le viewport (mesuré ; iPhone réel à vérifier).
 - Piste : `export const viewport = { viewportFit: 'cover' }`, puis relire les en-têtes fixes en paysage.
+- Mesure (2026-10-15, ccabd662, mesureur) : `grep -rn 'viewport-fit\|viewportFit\|export const viewport\|generateViewport' takussan-web/src` → rien ; `grep -rn safe-area-inset takussan-web/src` → 18 occurrences dans 10 fichiers (le constat disait 9 usages) ; `git log -S viewportFit` → seul le commit qui a écrit cette piste ; aucun rendu sur un iPhone réel → tient à la lecture. Classement : V7, déclarer `viewportFit: 'cover'` fait passer tout le site sous l'encoche et les barres, et la piste demande elle-même de relire les en-têtes fixes en paysage : un changement de mise en page visible, à rendre sur un appareil.
 
 ### Brouillons : les photos ne sont jamais sauvées, rien n'est gardé hors ligne
 - Réf : P08.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V8 : une copie hors ligne des brouillons et de leurs photos est une fonction neuve
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-form/PropertyWizard.tsx:240,465-470`, `takussan-web/src/hooks/useWizardDraft.ts:166-188`
 - Constat :
   - Les photos ne vivent qu'en mémoire : un onglet tué par Android pendant l'appareil photo les perd.
   - L'autosave fait un `PUT` serveur sans copie locale, et sans relance au retour du réseau (aucun `online` ni `offline` dans `src/`, mesuré).
 - Piste : une copie IndexedDB (valeurs et `File`) et une relance sur `online`.
+- Mesure (2026-10-15, ccabd662, mesureur) : lu `PropertyWizard.tsx:240` (`useState<File[]>([])`, photos en mémoire seule) et `useWizardDraft.ts:167-193` (`performSave` : un `PUT /api/me/wizard-drafts/{key}` seul, aucune copie locale) ; `grep "'online'\|'offline'\|indexedDB" takussan-web/src` hors tests → rien → tient. Classement : V7 et V8, garder les `File` en IndexedDB et relancer au retour du réseau est un comportement visible neuf (reprise hors ligne, quota, purge), au-delà d'un ticket M.
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
