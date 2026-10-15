@@ -1858,7 +1858,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : décider ce qu'un journal serveur garde d'une erreur d'action
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
 - Constat :
@@ -1866,6 +1866,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - On compte 12 `console.*` dans `actions/` et `api/`, pour 27 modules qui attrapent des erreurs.
   - Établi comment : mesuré.
 - Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/actions/notifications.ts:23-35` (`failure()` : hors `ApiError`, rend le repli sans rien écrire) et `admin-settings.ts:63-87` (`mapError()`, même chose) ; `grep -rln catch src/app/actions/*.ts` → 27 modules ; `grep -rn 'console\.' src/app/actions src/app/api` → 2 appels réels dans `actions/` (`dashboard-properties.ts:64,68`) et 9 dans `api/`, les autres occurrences étant des mots de commentaire (« console.ts ») ; `takussan-web/CLAUDE.md` ne fixe aucune convention de journalisation → le constat tient. Classement : V3, aucun critère A ne s'applique (rien n'écrit le comportement attendu) et journaliser côté serveur une erreur qui peut porter des données saisies décide de ce qui est conservé.
 
 ### Petites améliorations
 - Réf : P14.12
@@ -1955,7 +1956,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### La colonne « Push » des préférences ne pilote rien
 - Réf : P13.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer la colonne Push ou décider d'un temps réel
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/PreferenceResolver.php:46`, `takussan-api/app/Notifications/NewBookingNotification.php:75-76`, `takussan-api/app/Events/NewMessage.php`
 - Constat :
@@ -1965,10 +1966,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Le constat est plus large que celui de l'angle 11, qui ne relevait que `NewNotification`.
   - Établi comment : mesuré, et lu.
 - Piste : retirer `push` de `CHANNELS` et le canal `broadcast`, ou décider d'un temps réel par un ADR.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `PreferenceResolver.php:39,47` (`CHANNEL_PUSH` dans `CHANNELS`) et `NotificationPreferencesMatrix.tsx:92` (`push` dans les canaux par défaut) ; `grep -rln "'broadcast'" app/Notifications` → 14 fichiers ; `config/broadcasting.php:18` (défaut `null`) et `.env.example:121` (`log`), aucune clé `BROADCAST` dans `docs/infra/prod-drivers.json` ; `grep laravel-echo|pusher|reverb takussan-web/package.json` → rien ; `grep -rn NewMessage app routes` hors sa classe → aucun déclenchement. Le constat tient. Classement : V7, retirer une colonne visible de l'écran ou choisir un temps réel (V6, ADR) est un choix de produit.
 
 ### Réglages d'agence : trois magasins, dont deux sans écrivain
 - Réf : P13.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : retirer des clés du seeder et une lecture de devise, plus d'un correctif
 - Gravité : 🟠 risque ou dette — **concerne cette branche**
 - Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
 - Constat :
@@ -1979,10 +1981,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - **Déballage** : cinq copies de `$value['value'] ?? array_values($value)[0]` coexistent avec `PlatformSettingService::unwrap()`, qui exige exactement `['value']`. Les deux formes divergent sur `{"months":3}`.
   - Établi comment : lu, et mesuré.
 - Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `ScopedSetting.php:30-40` (`agencyRow()`, lecture seule) ; `routes/api/settings.php:11` (`POST settings`) et `grep -rn "/settings"` dans `takussan-web/src` → aucun appelant de `/api/settings` ; `BookingExpirationService.php:43` et `PaymentGatewayService.php:1328-1329` lisent `agencies.settings` (`booking_pending_expiry_hours`, `currency`) que `AgencyUpdateRequest.php:59-66` ne valide pas ; `SettingsSeeder.php:15-21` : six des sept clés n'ont aucun lecteur dans `app/` ni le front (`default_timezone` n'apparaît que comme mot dans `SetLocaleMiddleware.php:52`, qui lit `user->timezone`) ; le déballage `$value['value'] ?? array_values($value)[0]` est en **quatre** copies, non cinq (`LeaseRenewalService.php:475`, `RentReviewService.php:163`, `EarlyTerminationService.php:299`, `LateFeeCalculator.php:202`), à côté de `PlatformSettingService::unwrap()` (l. 180). Le constat tient, au compte des copies près. Classement : V4, la piste retire des données semées et touche la devise lue au paiement (V1), en plusieurs correctifs (V8).
 
 ### Routes en double et routes sans appelant
 - Réf : P13.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : plusieurs familles de routes, dont l'authentification (V2)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
 - Constat :
@@ -1998,14 +2001,16 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Les routes appelées par des tiers ou par des liens émis par l'API sont classées à part : `health`, `media/{m}/file|sign`, `pay/{t}/receipt`, `share/{t}/download`, `saved-searches/unsubscribe`.
   - Établi comment : mesuré. Sur 686 routes `api/*`, une vingtaine est confirmée à la main ; le reste est à vérifier.
 - Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `routes/api/auth.php:70-71,75-76` (`verify-phone` et `phone/verify-otp`, `phone/send-otp` et `phone/resend` sur les mêmes actions), `notifications.php:15-20` (`notifications/preferences` et `me/notification-preferences`), `guarantors.php:7-12`, `leases.php:28,55`, `agencies.php:57`, `bookings.php:19`, `conversations.php:36-37` ; `grep -rln` de chaque chemin dans `takussan-web/src` hors tests, puis des formes `cheminApi` `}/terminate|stats|rent-history|expire-now|archive|unarchive` → aucun appelant pour `verify-phone`, `phone/resend`, `notifications/preferences`, `/api/guarantors` (le front passe par `/api/leases/{id}/guarantors`, `lib/queries/leases.ts:462`), `search/messages`, `search/documents`, `terminate`, `rent-history`, `expire-now`, `agencies/{a}/stats`, `settings/public`, `two-factor/qr`, l'archivage des conversations ; `recovery-codes` n'apparaît que sous `/regenerate` (`lib/security.ts:62`). Le constat tient sur ces routes ; un appelant hors du front (application tierce) n'a pas été cherché. Classement : V8, la piste couvre une quinzaine de routes de familles différentes, dont des routes d'authentification et de 2FA (V2) et une résiliation de bail.
 
 ### Page orpheline `/onboarding/agency-admin`
 - Réf : P13.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : relier la page ou la retirer, deux options
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-12`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:43`
 - Constat : le docblock la dit atteinte par la redirection de l'e-mail d'activation. Mais la réinitialisation renvoie vers `/auth/login`, et aucun lien ne mène à cette page ni à `AgencyAdminOnboardingWizard` (mesuré, et lu).
 - Piste : relier la page depuis l'invitation, ou la retirer.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-14` (docblock « Reachable from the activation email's reset-password redirect ») et `(auth)/auth/reset-password/page.tsx:43` (`router.push('/auth/login?reset=1')`) ; `grep -rn "onboarding/agency-admin|AgencyAdminOnboardingWizard"` dans `takussan-web/src` et `takussan-api/app` → aucune référence hors de la page et du composant ; les redirections d'onboarding mènent toutes à `/onboarding/intention`, qui ne cite pas d'agence. Le constat tient. Classement : V7, la piste propose deux options (relier depuis l'invitation ou retirer une page) qui changent un parcours visible.
 
 ### Petites améliorations
 - Réf : P13.10
@@ -2086,7 +2091,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : chemin de la 2FA exigée sur des gestes d'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
 - Constat :
@@ -2096,10 +2101,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - La carte « Mise en service » met la 2FA en dernier, alors qu'elle conditionne trois étapes.
   - Établi comment : lu ; chemin du service 2FA à vérifier.
 - Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `ProtectedActions.php:124-175` (`AGENCY_TWO_FACTOR` contient `IntegrationController@store|update|test`, `AgencyController@update`, `AgentInvitationController@__invoke`) ; `RequireTwoFactor.php:80-82` → `TwoFactorRequirement::requiredAtAgency()`, qui rend `true` pour tout titulaire d'un profil d'admin d'agence, hôte solo compris (vérifie le « chemin du service 2FA à vérifier » du constat) ; `grep DoubleFacteur` dans `InviteAgentDialog.tsx` (passe par `useApiForm`, qui ne la gère pas), `IntegrationsManager.tsx` (server actions, refus versé en erreur de champ l. 191-196) et `AgencyConfigForm.tsx` → aucun ; `MiseEnService.tsx:37-45` met `admin_two_factor` en dernier. Le constat tient. Classement : V2, la piste branche la garde de second facteur sur trois formulaires et réordonne la carte (V7).
 
 ### SMS muet : première publication et signature bloquées, sans repli
 - Réf : P15.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : canal de vérification du téléphone et de signature
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:299-325,381-401`, `takussan-api/app/Services/Property/PublishReadiness.php:73`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:120-135`
 - Constat :
@@ -2108,10 +2114,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Pour signer un bail, un numéro vérifié impose le SMS, sans repli par e-mail. En préproduction (`MAIL_MAILER=log`), un signataire sans numéro vérifié ne reçoit rien non plus.
   - Établi comment : lu.
 - Piste : rendre l'échec de livraison au client ; offrir un repli par e-mail pour la vérification et la signature.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `PhoneVerificationService.php:299-323` (`issue()` rend `true` après `deliver()`, quelle qu'en soit l'issue) et `:381-401` (`deliver()` ne fait que journaliser quand aucun fournisseur n'accepte) ; `PublishReadiness.php:73` (contact principal au téléphone vérifié exigé) ; `LeaseSignatureService.php:120-121` (un numéro vérifié impose le canal SMS, sans repli par e-mail). Le constat tient ; la préproduction (`MAIL_MAILER=log`) n'a pas été re-mesurée, hors du poste. Classement : V2, la piste change ce que rend une vérification et ouvre un canal de vérification et de signature.
 
 ### Un bien créé par le personnel fait de l'agent le bailleur du contrat
 - Réf : P15.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : désigner un bailleur tiers est une fonction neuve
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:131-133`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:188-192`
 - Constat :
@@ -2120,6 +2127,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Le formulaire affiche « bailleur : {utilisateur courant} », ce qui est faux dès qu'un autre agent a créé le bien.
   - Établi comment : lu.
 - Piste : un champ « bailleur » à la création du bien ou du bail, borné aux bailleurs de l'agence.
+- Mesure (2026-10-15, 96d4feb, mesureur) : lu `PropertyController.php:132` (`'user_id' => $request->user()->id` à la création), `LeaseService.php:78` (`'landlord_id' => $property->user_id`, la valeur envoyée par le formulaire étant écrasée) et `CreateLeaseForm.tsx:118-119,190` (`landlord_id` forcé à l'utilisateur courant, libellé `activeLandlord`) ; `bulk-assign` (`PropertyController.php:446-455`) change l'agent responsable, pas `properties.user_id`. Le constat tient. `TCK-616` (`todo`) touche le `landlord_id` d'un agent parti, pas la désignation d'un bailleur. Classement : V7, un champ « bailleur » est un comportement visible neuf, qui touche aussi qui reçoit les reversements (V1).
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
 - Réf : P15.07
