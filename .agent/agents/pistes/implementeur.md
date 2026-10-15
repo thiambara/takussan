@@ -19,11 +19,15 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
 
 ## Déroulé
 
-1. **Choisir.** Dans l'ordre :
-   - `node scripts/check-pistes.mjs --liste "validé"`, que le porteur a demandées ;
-   - puis `--liste "retenu · autonome"`, 🔴 d'abord.
+1. **Choisir.** La gravité d'abord, puis la demande du porteur :
+   1. les 🔴 de `node scripts/check-pistes.mjs --liste "validé"` ;
+   2. les 🔴 de `--liste "retenu · autonome"` ;
+   3. les 🟠 validées ;
+   4. les 🟠 autonomes.
 
-   Retire ce qu'une PR ouverte cite, et prends la première entrée. Plusieurs entrées peuvent être
+   Dans chaque groupe, l'ordre du fichier. Retire ce qu'une PR ouverte cite, **tes propres PR
+   comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. Prends la première
+   entrée qui reste. Plusieurs entrées peuvent être
    prises ensemble seulement si elles ont **la même cause et le même correctif**. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
 
