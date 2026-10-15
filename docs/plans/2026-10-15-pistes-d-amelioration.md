@@ -29,8 +29,8 @@ amélioration.
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | fait |
 | 13 | Code mort et doublons : services, composants, routes, clés i18n | fait |
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | fait |
-| 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | en cours |
-| 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | à faire |
+| 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | fait |
+| 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | en cours |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | à faire |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | à faire |
@@ -62,6 +62,9 @@ amélioration.
 | 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | à faire |
 | 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | à faire |
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | à faire |
+| 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | à faire |
+| 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | à faire |
+| 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | à faire |
 
 ---
 
@@ -1539,3 +1542,109 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - **Colonnes jamais lues ni écrites** : `Property.lot_position` et `admin_monitored`, `ServiceProviderProfile.insurance_policy_id` et `hourly_rate_max`, `OwnerProfile.guarantor_user_id`, `NotificationTemplate.meta_category` et `meta_variables`.
   - **Clés i18n** : environ 202 feuilles sur 8 032 ont un nom absent du code, une partie dynamique. Aucune garde ne les voit.
 - Piste : supprimer après relecture des cinq ou six éléments qui touchent un parcours ; un seul `formatCurrency` ; documenter ou retirer les colonnes ; un rapport des clés i18n inutilisées (pas encore un cliquet).
+
+## Angle 15 — Parcours d'une agence neuve
+
+Les trois 🔴 ont été relus par la session dans le code :
+- `CustomerService::findOrCreateFromUser` (l. 33-48) crée la fiche avec `agency_id = $user->agency_id` et `added_by_id` = le candidat, et `linkUser()` n'a aucun appelant ;
+- `LeaseSignatureService.php:55` refuse un locataire sans `user_id` ;
+- seuls `AgentProfileController` et `OwnerProfileController` mentionnent `metadata.kyc` ;
+- dans `AgencyConfigForm.tsx`, la case `moderation_required` (l. 401-423) est rendue avant le bloc `individual ? null` (l. 497) ;
+- `/app/agency/moderation/properties` exige `agence: 'standard'` (`pages-admin.ts:93-94`), et `PropertyObserver` (l. 120-140) n'exempte personne.
+
+### Un locataire ne peut pas être à la fois lié à un compte et visible de l'agence : la signature n'est jamais atteinte
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/CustomerService.php:28-48`, `takussan-api/app/Models/Customer.php:178-196`, `takussan-api/app/Services/Model/LeaseService.php:49-50`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:55`, `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:140-143`
+- Constat :
+  - Une fiche client créée par l'agence (`/app/customers/new`, conversion d'un prospect) n'a jamais de `user_id`. `StoreCustomerRequest` ne l'accepte pas, et `linkUser()` n'a aucun appelant.
+  - La seule voie qui pose `user_id` est `findOrCreateFromUser()`, sur une candidature ou une réservation publique. Elle crée la fiche avec `agency_id` = celui du visiteur (souvent `null`) et `added_by_id` = le candidat.
+  - `visibleTo()` et `CustomerPolicy::view` la cachent donc au personnel de l'agence du bien : le sélecteur de locataire ne la propose pas, et `LeaseService` rend 403.
+  - Sur tout bail créé depuis l'écran, « Demander la signature » s'affiche, puis l'API répond 422 `tenant_without_account`. La signature par code (ADR-0042), l'espace résident et la check-list d'entrée ne sont jamais atteints.
+  - La fiche réutilisée n'est pas bornée à une agence : `->first()` sur `user_id` seul.
+  - Établi comment : lu de bout en bout ; grep des écrivains de `user_id`, sans autre résultat.
+- Piste : rattacher un compte à une fiche, par une invitation du locataire ou par appariement sur un téléphone ou un e-mail vérifié. Créer la fiche de candidature dans l'agence du bien.
+
+### KYC de l'agent et du bailleur : « en revue » pour toujours
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:130-141`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:126-131`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:92-98`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:50-58`, `takussan-web/src/messages/fr.json:4825,4957`
+- Constat :
+  - L'assistant écrit `metadata.kyc.status = pending_review`. Aucun autre code ne relit ni ne bascule ce statut.
+  - Aucune notification ne part, et aucun écran d'agence ne montre ces pièces.
+  - La file KYC de la console ne connaît que les dossiers d'agence (`dossierForAgency`), et vérifier un `Document` est réservé au super-admin.
+  - L'écran promet pourtant « Votre agence va le vérifier ».
+  - Établi comment : lu et grep.
+- Piste : une file de relecture (agence ou console) avec notification, ou retirer la promesse et le statut.
+
+### Une agence individuelle qui active la modération ne peut plus publier
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:401-423,497`, `takussan-web/src/lib/access/pages-admin.ts:92-96`, `takussan-api/app/Observers/PropertyObserver.php:120-140`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:55`
+- Constat :
+  - La case « Modération obligatoire » s'affiche sur `/app/agency`, ouverte à l'agence `individual`, hors du bloc `individual ? null`. L'API l'accepte sans condition.
+  - Une fois cochée, toute publication passe `pending_review`, celle de l'admin comprise : l'observer n'exempte aucun rôle.
+  - La file `/app/agency/moderation/properties` exige une agence `standard`. L'hôte solo n'a aucun écran pour s'approuver, et ses biens restent en attente.
+  - Établi comment : lu, front et API.
+- Piste : cacher et refuser le réglage en `individual`, ou exempter l'admin unique.
+
+### Le second facteur bloque la mise en service, sans la boîte qui le résout
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
+- Constat :
+  - Trois gestes de la mise en service exigent la 2FA de l'admin, hôte solo compris : le taux de commission, les intégrations Wave et Orange Money, l'invitation d'un agent.
+  - Leurs formulaires ne passent pas par `useApiMutation` : `GardeDoubleFacteur` ne s'ouvre pas, et le refus s'affiche en erreur de champ.
+  - L'étape qui imposait la 2FA (`/onboarding/agency-admin`) est orpheline (angle 13).
+  - La carte « Mise en service » met la 2FA en dernier, alors qu'elle conditionne trois étapes.
+  - Établi comment : lu ; chemin du service 2FA à vérifier.
+- Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
+
+### SMS muet : première publication et signature bloquées, sans repli
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:299-325,381-401`, `takussan-api/app/Services/Property/PublishReadiness.php:73`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:120-135`
+- Constat :
+  - `issue()` rend `true` même quand aucun fournisseur n'a accepté le SMS, et l'écran affiche « code envoyé ».
+  - Publier exige le téléphone vérifié du contact principal, et cette vérification n'a pas d'autre canal que le SMS. Sans SMS, aucun premier bien ne devient public.
+  - Pour signer un bail, un numéro vérifié impose le SMS, sans repli par e-mail. En préproduction (`MAIL_MAILER=log`), un signataire sans numéro vérifié ne reçoit rien non plus.
+  - Établi comment : lu.
+- Piste : rendre l'échec de livraison au client ; offrir un repli par e-mail pour la vérification et la signature.
+
+### Un bien créé par le personnel fait de l'agent le bailleur du contrat
+- Gravité : 🟠 risque ou dette (intention à vérifier)
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:131-133`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:188-192`
+- Constat :
+  - `properties.user_id` vaut toujours le créateur, et aucune route ne désigne de bailleur tiers.
+  - `landlord_id` du bail vaut `property.user_id` : le PDF, les alertes d'impayé et les relevés visent l'agent.
+  - Le formulaire affiche « bailleur : {utilisateur courant} », ce qui est faux dès qu'un autre agent a créé le bien.
+  - Établi comment : lu.
+- Piste : un champ « bailleur » à la création du bien ou du bail, borné aux bailleurs de l'agence.
+
+### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:28-32,108-114`, `takussan-api/lang/fr/notifications.php:42-49`, `takussan-api/config/auth.php:99`
+- Constat :
+  - Le compte reçoit le gabarit « vous avez demandé une réinitialisation… sinon ignorez », valable 60 min.
+  - Un gérant déjà inscrit fait échouer le provisionnement : 409 `agency.admin_email_taken`.
+  - Établi comment : lu.
+- Piste : un gabarit d'activation dédié, valable plus longtemps, et le rattachement d'un compte existant.
+
+### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
+- Constat :
+  - La carte n'est montée que sur `/app/overview/agency`, réservé aux agences `standard`.
+  - L'hôte solo ne la voit jamais, et le gérant neuf n'a sur `/app` qu'une bannière de logo et un état vide générique.
+  - Établi comment : lu.
+- Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
+
+### Premier bail : sélecteur de biens vide, sans explication
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
+- Constat :
+  - Seuls les biens `available` sont proposés. Un bien neuf est `draft`, un bien modéré `pending_review`, et l'API, elle, n'exige aucun statut.
+  - Aucun message ni lien vers « créer le bien » ou « créer le locataire ».
+  - Après ce formulaire, l'enregistrement du paiement et la génération de l'échéancier sont cassés (angle 13).
+  - Établi comment : lu.
+- Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
+- Piste : notifier les admins actifs au passage en `pending_review`.
