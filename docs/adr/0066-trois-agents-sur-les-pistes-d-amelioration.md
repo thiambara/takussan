@@ -198,8 +198,12 @@ borne, même par une PR fusionnée.
   suivant de son propre agent (jusqu'à 3 h pour l'explorateur). L'agent restait bloqué pendant ce
   temps, puisqu'il n'a qu'une PR ouverte à la fois, et l'agent suivant ne voyait pas son travail.
 - **Q2 — Planification : `launchd` sur ce poste.**
-  - L'explorateur passe toutes les 180 min, le mesureur toutes les 90 min, l'implémenteur toutes
-    les 120 min.
+  - Les cadences se règlent par `pistes.sh planifier <x> <y> <z>`, et se lisent par
+    `pistes.sh etat`, jamais ici.
+  - Posées à 180, 90 et 120 min le 2026-10-15, elles ont été ramenées le jour même à 60 min pour
+    l'explorateur, 15 pour le mesureur et 15 pour l'implémenteur. Attendre ne coûte rien : un
+    passage dont la PR est ouverte, ou qui n'a rien à faire, s'arrête avant de lancer le modèle.
+    Le rythme réel est borné par le cycle passage → CI → fusionneur, pas par l'intervalle.
   - L'implémenteur a besoin de PostgreSQL et de Meilisearch locaux.
   - ⚠ **Les agents dorment avec le Mac.** Selon `man launchd.plist` (`StartInterval`), un
     lancement qui tombe pendant la veille est sauté. Capot fermé, rien ne tourne, et la reprise se
