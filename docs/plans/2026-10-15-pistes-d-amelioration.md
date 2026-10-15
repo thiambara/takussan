@@ -18,7 +18,7 @@ amélioration.
 | 1 | Recherche d'un bien (public et `/app`) : pertinence, filtres, performances, UX | fait |
 | 2 | Performances des requêtes : N+1, index manquants (FK non indexées sous PostgreSQL), pagination | fait |
 | 3 | Isolation d'agence et autorisation : routes, policies, fuites entre agences | fait |
-| 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | à faire |
+| 4 | Argent : montants, devises, arrondis, pénalités, factures, idempotence des paiements | fait |
 | 5 | Jobs planifiés et files : idempotence, reprise, `withoutOverlapping`, échecs muets | à faire |
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | à faire |
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | à faire |
@@ -38,6 +38,9 @@ amélioration.
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
+| 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
+| 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
+| 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
 
 ---
 
@@ -326,3 +329,109 @@ Ce qui tient (lu) :
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
 - Piste : relayer l'indice de profil comme les fetchers serveur (`RequestOptions` de `src/lib/api.ts`).
+
+## Angle 4 — Argent : montants, devises, arrondis, factures, paiements
+
+*Exploré le 2026-10-15 vers 0 h 55, en lecture (et une mesure jsdom). Les quatre 🔴 ont été relus
+contre le code par la session.*
+
+### Échéancier trimestriel ou annuel : un seul mois de loyer facturé par période
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/LeaseService.php:203,220,245`
+- Constat :
+  - Chaque échéance vaut `monthly_rent`, et `period_end` est la fin du mois de l'échéance. `advancePeriod()`, lui, saute 3 ou 12 mois.
+  - Un bail trimestriel de 12 mois produit donc 4 échéances d'un mois chacune : 4 mois de loyer facturés au lieu de 12.
+  - Le formulaire propose « Trimestriel » avec un champ « Loyer mensuel » (`CreateLeaseForm.tsx:238`).
+  - `GenerateLeasePaymentScheduleTest` ne teste aucune fréquence (lu).
+- Piste : multiplier par le nombre de mois de la période, couvrir toute la période, et un test par fréquence.
+
+### La révision de loyer n'atteint jamais les échéances déjà générées
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Lease/RentReviewService.php:109`, `takussan-api/app/Services/Model/LeaseService.php:152,198`
+- Constat :
+  - `review()` ne modifie que `leases.monthly_rent`. L'échéancier entier est généré à l'activation, et refuse de se régénérer (`lease.schedule_exists`).
+  - Aucun observateur ni écouteur ne réagit au loyer : la session n'en trouve aucun.
+  - Le locataire est notifié du nouveau loyer, puis facturé à l'ancien jusqu'à la fin du bail. Le docblock (`:19-22`) dit le contraire.
+  - Aucun test ne lit les `LeasePayment` après une révision (lu).
+- Piste : à `effective_date`, réécrire le montant des échéances `pending` à venir, sous verrou du bail, et un test.
+
+### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Lease/EarlyTerminationService.php:162-163` (création en `:337`)
+- Constat :
+  - La facture de pénalité naît émise (`Sent`) et numérotée.
+  - `cancel()` la passe en `Cancelled` par `forceFill`, sans `InvoiceService::cancel()`, donc sans avoir. ADR-0039 §7 exige un avoir pour annuler une facture émise.
+  - Un numéro `FA-…` disparaît ainsi sans contrepassation. `EarlyTerminationServiceTest.php:151` ne vérifie pas l'avoir (lu).
+- Piste : passer par `InvoiceService::cancel()`, et asserter `credited_invoice_id`.
+
+### Restitution de caution : le champ refuse tout montant rond
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:171-172`
+- Constat :
+  - `<input type="number" min={0.01} step={1000}>` dans un `<form>` sans `noValidate`. La base du pas est le `min`, si bien que seuls 0,01 + k×1000 sont valides.
+  - Mesuré (jsdom) : `150000` lève un `stepMismatch`. Le navigateur bloque donc le montant pré-rempli, et un montant en `,01` dépasse le restant, que le serveur refuse (`DepositRefundService.php:77`).
+  - Une restitution intégrale d'une caution ronde est impossible depuis l'écran.
+  - Même défaut, en moins grave, dans `CreateLeaseForm.tsx:233,243,253` et `LeaseRenewalDialog.tsx:230,251` (`step={1000}`) : un loyer de 152 500 est refusé (mesuré).
+  - La modale est simulée dans son seul test.
+- Piste : `step="any"` ou `step={1}` avec `min={1}`, ou passer par `FormAmountInput`.
+
+### Clôture plateforme : périmètre et devise du reversement
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:234-276`
+- Constat :
+  - Tous les paiements `paid` de l'agence entrent dans le calcul, y compris les espèces et ceux encaissés par une intégration propre à l'agence. Or TCK-223 décrit un reversement de ce que la plateforme a encaissé.
+  - La devise retenue est celle de la première ligne, sans contrôle de mélange.
+  - La pénalité encaissée avec le loyer est absente du brut (lu ; intention à vérifier).
+- Piste : borner aux paiements soldés par une intégration globale, inclure la pénalité, et refuser les devises mélangées comme le fait `PayoutCalculator`.
+
+### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
+- Gravité : 🟠 risque ou dette
+- Où : `PaymentGatewayService.php:606-609`, `LemonSqueezyDriver.php:159-172`, `OrangeMoneyDriver.php:65,148-149` (sous `takussan-api/app/Services/Payments/`)
+- Constat :
+  - La garde sort quand `metadata.amount` est absent, et `extractFees()` de Lemon Squeezy n'en fournit jamais.
+  - Orange Money envoie `OUV`, la devise du bac à sable, pour du XOF. Le format des notifications est à vérifier.
+- Piste : chaque pilote fournit le montant (en unité majeure) et la devise ; la devise Orange Money passe en configuration par environnement.
+
+### Lemon Squeezy ignore la devise du payable
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:47-55,164`
+- Constat : `$currency` n'est pas lu, et `custom_price` est exprimé dans la devise de la boutique. `extractFees()` mélange `total_usd` et des taxes en devise de boutique (lu ; comportement de l'API à vérifier).
+- Piste : refuser quand la devise du payable diffère de celle de la boutique.
+
+### Arrondis au centime sur du XOF
+- Gravité : 🟠 risque ou dette
+- Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
+- Constat :
+  - Ces calculs arrondissent à 2 décimales, alors que `PayoutCalculator` et `amountDue()` arrondissent à l'unité de la devise. Une TVA de 18 % sur 100 001 donne 118 001,18 XOF facturés pour 118 001 encaissés.
+  - La clôture (arrondi par ligne, en PHP) et le détail (`SUM` en SQL) peuvent différer (lu).
+- Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
+
+### Devise forcée, et affichage sans décimales hors XOF
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invoice/InvoiceService.php:75`, `takussan-web/src/lib/format/useFormatteurs.ts:131-133`, `RevenueChart.tsx:171`
+- Constat :
+  - Une facture sans devise explicite part en XOF, même pour une agence en EUR.
+  - `fmt.montant` impose 0 décimale à toute devise : 12,50 € s'affiche « 13 € ».
+  - `RevenueChart` formate toujours en XOF (lu).
+- Piste : par défaut, la devise de l'agence, et les décimales de `CURRENCY_METADATA`.
+
+### Restitution d'une caution jamais encaissée
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lease/DepositRefundService.php:55,74`
+- Constat : le restituable part de `leases.deposit_amount`, jamais rapproché d'une `LeasePayment` de type `deposit` payée (lu).
+- Piste : borner la restitution à ce qui a été encaissé.
+
+### Référence fournisseur sans index ; paiement partiel inachevé
+- Gravité : 🟢 amélioration
+- Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
+- Constat :
+  - Chaque webhook cherche `transaction_id` sans index, et parcourt le JSON de l'historique.
+  - L'idempotence tient malgré tout, grâce au verrou de ligne et à `gateway_events`.
+  - Rien n'écrit `metadata.paid_amount` : le statut `partially_paid` n'a pas de montant (lu).
+- Piste : un index sur `transaction_id`, et terminer ou retirer le paiement partiel.
+
+**Ce qui tient** (lu) :
+- la conversion ×100 est faite une seule fois, puis re-divisée par Wave et Orange Money (`PaymentGatewayService.php:215`, `WaveDriver.php:48`, `OrangeMoneyDriver.php:55`) ;
+- la numérotation des factures est sérialisée sur la ligne de l'agence, avec un index unique en dernier recours (`InvoiceNumberAllocator.php:36-58`) ;
+- les reversements verrouillent leurs pièces (`PayoutService.php:414-473`) ;
+- un webhook rejoué n'est pas recompté.
