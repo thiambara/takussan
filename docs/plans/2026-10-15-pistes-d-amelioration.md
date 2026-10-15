@@ -937,7 +937,7 @@ Sain (vérifié par l'agent) :
 
 ### Pastille de prix de la carte et surlignage des suggestions sous 4,5:1
 - Réf : P07.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-657
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/globals.css:758-760,773-777`, `takussan-web/src/components/search/SearchAutocomplete.tsx:65`
 - Constat :
@@ -945,6 +945,7 @@ Sain (vérifié par l'agent) :
   - Surlignage des suggestions : `<mark>` en `text-primary` sur `bg-primary/15`, à 4,33:1 (mesuré).
 - Piste : la pastille lit `--primary` (5,06:1) au lieu d'une valeur recopiée en dur ; `--primary-deep` pour le surlignage.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `globals.css:758,775` (`#c87a52` et `#b66c43` en dur, encre `#fcf9f3`, 12 px en 600) et `SearchAutocomplete.tsx:65` (`<mark>` en `bg-primary/15 text-primary`) ; contraste calculé par la formule WCAG (`node`) → pastille 3,14:1, survol 3,83:1, `--primary` (`#a85332`) 5,06:1 ; surlignage 4,33:1 sur `--popover` blanc, 4,14:1 sur `--background`, et `--primary-deep` (`#823c20`) sur le même aplat 6,53:1 → le constat tient. En thème sombre, `--primary` vaut `#c87a52` : la pastille n'y gagne rien, sans y perdre. Classement : A4, la pastille passe sur `var(--primary)` (et un survol sur `var(--primary-deep)`), le surlignage sur `text-primary-deep`, jetons existants, sans texte ni choix de produit.
+- Mesure (2026-10-15, 96d4feb2, implementeur) : avant correctif, `pastille-et-surlignage.contraste.test.ts` (lit `globals.css` et le `<mark>` de `SearchAutocomplete.tsx`, résout les jetons des deux thèmes) → 10 rouges sur 11 : pastille 3,14:1 au repos et 3,83:1 au survol, `<mark>` de 3,49 à 4,33:1 selon la ligne (repos, active, survolée) et le thème. Correctif : pastille sur `var(--primary)`/`var(--primary-foreground)`, survol sur `var(--primary-deep)` (5,06 et 7,64:1 en clair, 5,31 et 6,78:1 en sombre) ; `<mark>` en `text-[var(--primary-deep)]` sur `bg-primary/10`, pire cas 4,81:1 (sombre, ligne active) — à 15 % d'aplat il restait 4,46:1. Ablation (deux fichiers remis, test gardé) → 10 rouges ; correctif remis → 11 verts.
 
 ### Encre atténuée sous le seuil sur quatre parcours
 - Réf : P07.02

@@ -755,8 +755,10 @@
   min-width: 56px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #c87a52;
-  color: #fcf9f3;
+  /* TCK-657 — les jetons du thème, plus des valeurs recopiées : `#c87a52` sous `#fcf9f3` rendait
+     3,14:1 pour un texte de 12 px (garde : pastille-et-surlignage.contraste.test.ts). */
+  background: var(--primary);
+  color: var(--primary-foreground);
   font: 600 12px/1.1 var(--font-sans, system-ui, sans-serif);
   letter-spacing: 0.01em;
   border: 1.5px solid #fcf9f3;
@@ -772,7 +774,7 @@
 .takussan-price-marker__pill:hover,
 .takussan-price-marker__pill:focus-visible {
   transform: translateY(-1px) scale(1.06);
-  background: #b66c43;
+  background: var(--primary-deep);
   box-shadow: 0 4px 12px rgba(31, 24, 18, 0.28);
   outline: none;
 }
