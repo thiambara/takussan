@@ -51,6 +51,10 @@ class UpdateMeRequest extends FormRequest
             // réponse à part entière — c'est elle qui empêche de reposer la
             // question à quelqu'un qui a choisi de passer.
             'entry_intent' => ['sometimes', 'nullable', 'string', 'in:search,publish,skipped'],
+            // TCK-655 (P06.01) — le sélecteur de langue du front persiste ici le choix : la langue
+            // des e-mails, SMS et notifications suit `User::preferredLocale()`. Une colonne, pas
+            // une clé de `preferences` : elle n'entre donc pas dans PREFERENCE_FIELDS.
+            'preferred_language' => ['sometimes', 'string', 'in:fr,en,wo'],
             // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
             ...PhoneChangeGuard::PROOF_RULES,
         ];

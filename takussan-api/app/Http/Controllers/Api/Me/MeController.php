@@ -65,6 +65,10 @@ class MeController extends Controller
             $user->preferences = $current === [] ? null : $current;
         }
 
+        if ($request->has('preferred_language')) {
+            $user->preferred_language = $request->validated('preferred_language');
+        }
+
         $user->save();
         if ($remplace !== null) {
             $phoneChange->notifyReplaced($user, $remplace);
