@@ -94,7 +94,7 @@ voie d'écriture (angle 13, puis 47).
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | fait |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | fait |
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | fait |
-| 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
+| 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | fait |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
@@ -134,6 +134,7 @@ voie d'écriture (angle 13, puis 47).
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
+| 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
 
 ---
 
@@ -2685,3 +2686,68 @@ n'est pas repris ici.*
   - Sur `GET /api/leases/{id}`, `renewed_from`, `renewals` et `renewals_count` sortent à `[]` alors que rien ne les charge. Mesuré : `whenLoaded`/`whenCounted` sous `toArray()` direct, le même piège que décrit `UserResource`. Aucun lecteur au front (lu : `grep renewals_count|renewed_from` → vide).
   - Établi comment : mesuré par test temporaire, et lu.
 - Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
+
+## Angle 22 — FormRequests sans autorisation propre, et règles d'autorisation dans les services
+
+*Exploré le 2026-10-15 sur `pre-dev` 0b57251a, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Le balayage des FormRequests et des méthodes de contrôleur qui les reçoivent est un script jetable (Node, hors du dépôt) : il apparie par nom court de classe, et `UpdateIntegrationRequest` existe deux fois (`Api/` et `Api/Admin/`), donc un faux « aucune » au moins ; ses comptes sont un relevé, pas un inventaire. Les codes de réponse viennent de deux tests temporaires (`tests/Feature/TmpExplo/`, retirés), charge `2.31 1.95 1.76` puis `2.68 2.17 1.87` sur 8 cœurs, base de test propre au processus. P03.05 couvre déjà l'inversion 422/403 sur dix endpoints ; cet angle en mesure l'étendue réelle et ce qui échappe à la garde qu'il propose.*
+
+Ce qui tient (lu ou mesuré) :
+- les neuf FormRequests de `Api/Admin/` rendent `true`, mais `php artisan route:list --path=api/admin -vv` montre `EnsureSuperAdmin` sur chacune des routes `api/admin/*` : le refus précède la validation ;
+- les capacités jugées sans contexte dans `LeasePolicy` (`can('leases.terminate')`, `can('leases.rent_review')`…) le sont sur l'agence du profil actif (`AppServiceProvider.php:782-800`), et `isStaffOf()` exige déjà que cette agence soit celle du bail (`BasePolicy.php:108-117`, `MembershipCapabilityResolver.php:450-458`) : pas d'écart entre agences ;
+- `StoreAgentAbsenceRequest`, `StoreAgentHandoverRequest`, `RejectQuoteRequest`, `SubmitQuoteRequest` étendent `FormRequest` mais délèguent à une policy dans `authorize()`.
+
+### Le refus par défaut de `BaseFormRequest` est levé par 106 de ses 232 sous-classes, et une garde sur `extends FormRequest` n'en verrait aucune
+- Réf : P22.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/BaseFormRequest.php:9-12`, `takussan-api/app/Http/Requests/ReviewRentRequest.php:16`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:19`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:15`, `takussan-api/app/Http/Requests/RequestEarlyTerminationRequest.php:15`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:21`, `takussan-api/app/Http/Controllers/Api/LeaseRentController.php:27-30`
+- Constat :
+  - 232 classes étendent `BaseFormRequest` ; 106 surchargent `authorize()` par `return true;`, `return $this->user() !== null;` ou équivalent. 41 autres étendent `FormRequest` directement, dont les 28 de P03.05 (mesuré : `grep -rlE 'extends (Base)?FormRequest'` puis lecture du corps d'`authorize()` par script).
+  - Hors `Admin/`, `Auth/` et `Public/`, ces FormRequests permissives sont reçues par 44 méthodes de contrôleur qui autorisent **dans leur corps**, donc après la validation (`$this->authorize(`, `->can(`, `abort_unless(…403)`), et par 26 méthodes qui n'autorisent rien elles-mêmes (relevé par script, à confirmer une à une).
+  - Mesuré, compte sans aucun lien avec l'agence ni le bail (`User::factory()`), corps invalide : `PATCH /api/leases/{id}/rent` → 422 (`new_rent`, `reason`, `effective_date`) ; `POST …/renew` → 422 (`start_date`, `end_date`) ; `POST …/deposit-refund` → 422 (`amount`, `reason`) ; `POST …/early-termination` → 422 (`effective_date`, `reason`) ; `PUT /api/agencies/{id}` → 422 (`email`). Corps vide : `renew` et `agencies` rendent 403, `rent`, `deposit-refund` et `early-termination` rendent encore 422 (champs requis).
+  - Aucune de ces cinq routes n'est dans P03.05 ni dans `AuthorizationPrecedesValidationTest`, qui vise `/terminate` mais pas ses quatre voisines sur le même bail (lu : `tests/Feature/Validation/AuthorizationPrecedesValidationTest.php:108-115`).
+  - La garde proposée par P03.05 (« refuser `extends FormRequest` hors de `BaseFormRequest` ») laisserait passer ces 106 classes : elles étendent déjà la bonne base (déduit de la forme de la garde proposée).
+  - Établi comment : script de balayage, lecture des cinq FormRequests et contrôleurs, test temporaire.
+- Piste : voir P03.05. Déléguer à la policy dans `authorize()` pour les 44 méthodes qui autorisent déjà dans leur corps (le geste de TCK-305). La garde serait plutôt : « une sous-classe dont `authorize()` rend `true` sec doit être reçue par une route sous un middleware d'autorisation, ou figurer dans une liste d'exemptions justifiées », et `AuthorizationPrecedesValidationTest` prendrait un cas par route de bail.
+
+### Les trois routes de traitement en lot sont ouvertes à tout compte connecté et disent quels identifiants de biens et de comptes existent
+- Réf : P22.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:407-458`, `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/PropertyBulkAssignRequest.php`, `takussan-api/app/Http/Requests/PropertyBulkArchiveRequest.php`, `takussan-api/app/Services/Property/PropertyBulkAssignService.php:40-47`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:47-63`
+- Constat :
+  - `bulkVisibility` et `bulkAssign` n'autorisent rien au niveau de la route ; `bulkArchive` appelle `can('bulkArchive', Property::class)`, que `PropertyPolicy::bulkArchive(User $user)` accorde par `return $user !== null;`, toujours vrai pour un `User` typé (lu).
+  - Le refus se juge bien par bien dans le service, et le bilan sépare `forbidden` (le bien existe) de `not_found` (il n'existe pas).
+  - Mesuré, compte sans agence (`User::factory()`), bien d'une agence tierce et identifiant absent `987654321` :
+    - `POST /api/properties/bulk-assign` → 200, `failed: [{id: <bien>, reason: forbidden}, {id: 987654321, reason: not_found}]` ;
+    - avec `user_id` absent → 422 « The selected user id is invalid » (`exists:users,id`), donc un oracle d'existence des comptes ;
+    - `POST /api/properties/bulk-visibility` → 200, même bilan `forbidden` / `not_found` ;
+    - `POST /api/properties/bulk-archive` avec l'identifiant absent → 422 sur `property_ids.0` (`exists:properties,id`), avec le bien tiers → 200 `forbidden`.
+  - Un compte auto-inscrit énumère donc les identifiants de biens, brouillons et archivés compris, et ceux des comptes, par lots de 100 à 200. P03.06 relève la même famille d'oracles sur d'autres routes ; celles-ci n'y sont pas.
+  - Établi comment : lu, et test temporaire.
+- Piste : refuser en tête de route ce qu'aucun profil de personnel ne peut faire (une capacité `properties.update` à l'agence active, dans `authorize()`), confondre `not_found` et `forbidden` dans le bilan d'un appelant qui n'est pas du personnel, et juger `user_id` dans le service plutôt que par `exists:`. Un test par route avec un compte sans agence.
+
+### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
+- Réf : P22.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:222-242`, `takussan-api/app/Policies/AgentProfilePolicy.php:71-95`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:153-169`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:213-228`, `takussan-api/app/Services/Model/InvoiceService.php:34-42`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Services/Model/BookingService.php:60-102`, `scripts/check-controller-authorization.mjs:1-60`
+- Constat :
+  - Un grep des formes `->can(`, `canActAt(`, `abort…403`, `HttpException(403` et `AuthorizationException` sous `app/Services` rend 48 lignes dans 35 fichiers, commentaires exclus (mesuré ; les `abort` écrits sur plusieurs lignes n’y sont pas). La garde TCK-306 ne balaie que `app/Http/Controllers/` (lu, en-tête du script) : une règle déplacée d'un contrôleur vers un service lui échappe.
+  - `AgentInvitationService::assertInviterCanManageTeam()` recopie la règle d'`AgentProfilePolicy::canManageTeamIn()` (`isAgencyAdminAt() || canActAt(TeamInvite)`), commentaire TCK-395 compris, mot pour mot ; le contrôleur appelle la policy avant le service (`AgentInvitationController.php:30-34`), la règle est donc jugée deux fois, par deux copies (lu). Les services d'invitation de bailleur et de prestataire portent la même forme (lu, non comparés ligne à ligne).
+  - La création de facture est jugée par deux règles différentes : la capacité `InvoicesCreate` à l'agence active dans `StoreInvoiceRequest::authorize()`, puis « personnel de l'agence du client, ou client sans agence ajouté par soi » dans `InvoiceService::create()` (lu). Les deux s'additionnent aujourd'hui ; rien ne dit laquelle fait foi si l'une bouge.
+  - Établi comment : lu, et grep.
+- Piste : ramener chaque règle de service dans la policy de l'action et faire appeler la policy par le service quand il est aussi appelé hors HTTP ; étendre la garde à `app/Services/` avec une liste d'exemptions justifiées (règles métier qui ne sont pas des autorisations : verrou de suspension, seuil d'approbation des reversements).
+
+### Petites améliorations
+- Réf : P22.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
+- Constat :
+  - `PropertyPolicy::bulkArchive()` est une tautologie (`$user !== null` sur un `User` non nullable) dont le docblock dit qu'elle délègue au service : une ability qui ne refuse jamais rien (lu).
+  - Quatre FormRequests portent `return true; // Policy handles authorization` : le commentaire décrit l'inversion au lieu de la fermer. Mesuré pour l'une : `PUT /api/agencies/{id}/bank-statements/csv-mapping`, compte sans lien, corps vide → 422 et sept champs nommés ; corps valide → 403.
+  - Deux classes s'appellent `UpdateIntegrationRequest` (`Api/` et `Api/Admin/`), l'une permissive derrière `EnsureSuperAdmin`, l'autre qui délègue (`mayManage`) : tout inventaire par nom court les confond, comme le balayage de cet angle l'a fait (mesuré : `find app/Http/Requests -name '*.php' -exec basename {} \; | sort | uniq -d`).
+  - `POST /api/properties/{id}/duplicate`, compte sans lien : `title_suffix` de 60 caractères → 422, corps vide → 403 (mesuré) ; la policy `duplicate` existe déjà et n'est pas appelée dans `authorize()`.
+  - Établi comment : lu, et test temporaire.
+- Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
