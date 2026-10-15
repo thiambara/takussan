@@ -24,7 +24,7 @@ amélioration.
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | fait |
 | 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | fait |
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | fait |
-| 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | à faire |
+| 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | fait |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | à faire |
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | à faire |
 | 13 | Code mort et doublons : services, composants, routes, clés i18n | à faire |
@@ -934,3 +934,111 @@ Correct (mesuré ou lu) :
   - `generateSitemaps()` ;
   - des métadonnées propres aux `not-found` ;
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
+
+## Angle 10 — Médias : tailles, conversions, disques, nettoyage
+
+Les deux 🔴 ont été relus par la session dans le code : le `catch` de `PropertyMediaController::store`, `FileAdder::processMediaItem` (la ligne est enregistrée avant la copie et la conversion), et l'absence de toute règle `dimensions:` dans `app/Http`.
+
+### Un lot de photos qui échoue laisse le média raté attaché au bien
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:39-49`
+- Constat :
+  - `$media` n'est affecté que si `toMediaCollection()` réussit. Dans le `catch`, il vaut donc toujours `null`, et `$media?->delete()` ne fait rien.
+  - Or Spatie a déjà enregistré la ligne (`FileAdder.php:605`, `$model->media()->save($media)`) et copié l'original avant de lancer la miniature synchrone.
+  - Une image que GD ne décode pas laisse donc une ligne `photos` sans miniature : une case vide dans la galerie, et l'original sur le seau privé.
+  - Le lot n'est pas atomique : les photos 1 à k restent alors que la réponse est un 422. Renvoyer le lot crée des doublons.
+  - Le répertoire temporaire de conversion, qui contient une copie de l'original privé, n'est supprimé qu'en cas de succès. Il s'accumule dans `storage/media-library/temp`.
+  - Aucun test ne couvre `photo_unprocessable`.
+  - Établi comment : lu, chemin vendor suivi.
+- Piste : retrouver et supprimer le média raté par `$property->media()->latest('id')`, ou convertir après une transaction. Rendre le lot tout-ou-rien, ou renvoyer un résultat photo par photo. Ajouter un test avec un PNG corrompu.
+
+### Aucune borne de dimensions : une bombe de décompression tue la requête
+- Gravité : 🔴 défaut avéré (OOM calculé, non mesuré)
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:37`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Models/Property.php:778`, `takussan-api/app/Models/Concerns/HasMediaConversions.php:26-28`, `takussan-api/docker/php.ini:3`
+- Constat :
+  - Aucune règle `dimensions:` dans `app/Http` (grep vide).
+  - La miniature est synchrone (`nonQueued`) pour les photos de bien comme pour les avatars. GD décode l'image entière, à environ 4 octets par pixel.
+  - Un PNG uni de 20 000 × 20 000 pèse quelques Ko : il passe `max:10240`, puis demande environ 1,6 Go contre `memory_limit = 256M`.
+  - Le résultat est une erreur fatale que le `catch` ne rattrape pas : 500, ligne orpheline, copie temporaire laissée. Pour un avatar, il suffit d'un compte inscrit.
+  - Une photo de téléphone de 48 Mpx (≈ 192 Mo décodés) frôle déjà le plafond.
+  - Établi comment : lu, mémoire estimée par calcul.
+- Piste : refuser au-delà d'un nombre de pixels donné (`dimensions:max_width=…,max_height=…`, ou `getimagesize` sans décoder) avant `addMedia`.
+
+### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/media/MediaManager.tsx:78-79`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:70`, `takussan-api/docker/Caddyfile:22-31`, `takussan-api/docker/php.ini:5-6`, `takussan-api/config/media-library.php:55`
+- Constat : l'interface annonce 20 fichiers de 10 Mo et les envoie en une seule requête. Côté API, les couches se succèdent ainsi :
+  - Caddy : 413 au-delà de 25 MiB ;
+  - PHP : `post_max_size` 26M ;
+  - `max_file_uploads` : non fixé, donc 20 par défaut. Un 21e fichier est ignoré en silence ;
+  - FormRequest : aucune borne sur le nombre de fichiers.
+
+  Même réduites à 2560 px (environ 1 à 2 Mo chacune, estimé), 20 photos dépassent 25 MiB et reçoivent un 413 sans corps JSON. Le proxy Traefik n'a pas été mesuré.
+  Établi comment : lu ; la valeur par défaut de `max_file_uploads` est mesurée en local.
+- Piste : une requête par photo, ou des paquets bornés à moins de 25 MiB. Fixer `max_file_uploads` explicitement et ajouter `photos` `max:20`.
+
+### `media:cleanup` détruit les médias des modèles supprimés en douceur
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
+- Constat :
+  - « Orphelin » est jugé par `exists()` à travers la portée qui exclut les modèles supprimés en douceur.
+  - Le délai de 24 h porte sur l'âge du média, pas sur la date de suppression : les photos d'un bien supprimé la veille sont détruites définitivement à 03:00, conversions R2 comprises.
+  - Une annonce retirée sur signalement perd ses preuves sous 24 h.
+  - Le même chemin contournerait `isLockedEvidence` le jour où un bail serait supprimé en douceur.
+  - La commande fait une requête par média, sur tout le parc, chaque nuit.
+  - Établi comment : lu.
+- Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
+
+### Avatars : l'original public garde l'EXIF, GPS compris
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
+- Constat :
+  - L'avatar vit sur le disque public et il est servi en original, pages publiques d'agent comprises.
+  - Ni le serveur ni le front ne retirent les métadonnées sous 2560 px : un selfie, ou un appel direct à l'API, publie sa position GPS.
+  - Les photos de bien ne fuient pas : l'original est privé, et les conversions GD ne recopient pas l'EXIF.
+  - Établi comment : lu.
+- Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
+
+### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
+- Constat :
+  - Laravel 13 accepte `heic` et `heif` sous `image`, mais GD ne les décode pas.
+  - Une photo d'état des lieux en HEIC est acceptée, figée dans l'empreinte, et manque en silence au PDF contractuel.
+  - Un avatar HEIC est servi brut, sans miniature.
+  - Le front se limite à jpeg/png/webp : l'exposition passe par l'API directe ou par un poste Mac.
+  - Le SVG est refusé partout.
+  - Établi comment : lu.
+- Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
+
+### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
+- Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
+- Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
+
+### `POST /api/media/upload` : un point d'écriture mort et ouvert
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
+- Constat :
+  - Aucun appelant dans le front (grep).
+  - Tout compte peut y déposer 30 fichiers par minute dans `User.photos` ou `User.documents`, et rien ne les lit ni ne les nettoie.
+  - `HasMediaConversions` produit trois conversions pour chaque image de `User`, avatar compris, sans que rien ne les serve : des écritures R2 de classe A pour rien.
+  - Établi comment : lu.
+- Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
+
+### Réordonner les photos change leurs URL
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:122`, `takussan-api/config/media-library.php:160`
+- Constat : `update(['order_column'])` touche `updated_at`, or `version_urls` construit `?v=<updated_at>`. Chaque déplacement crée donc un défaut de cache, et de nouvelles transformations Cloudflare pour ce qui passe encore par elles (lu).
+- Piste : mettre à jour `order_column` sans toucher aux horodatages, ou versionner sur un champ dédié.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (lu) :
+  - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
+  - **`next/image`** (`takussan-web/next.config.ts:113-166`) : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` sont actifs en production, sans `contentSecurityPolicy`. Le commentaire de `deviceSizes` cite `preview` 800 px comme plus grande image, alors que c'est `full` 1600 px. Des avatars jusqu'à 2560 px sont affichés en 32 à 64 px.
+  - **Fichiers privés** : rien n'est rangé au mauvais endroit (KYC, baux, documents, états des lieux : disque privé). L'URL présignée dure 5 min, l'URL d'API signée 30 min. Reste à vérifier : la signature apparaît-elle dans le journal Traefik ?
+- Piste : installer les binaires ou retirer le bloc ; couper les deux options `dangerously*` hors développement ; servir l'avatar en conversion.
+
+Angles voisins : mémoire et `--timeout` de `worker-media` face aux originaux de 48 Mpx ; contenu réel de `storage/media-library/temp` en préproduction ; facture Transformations et R2 au tableau de bord Cloudflare.
