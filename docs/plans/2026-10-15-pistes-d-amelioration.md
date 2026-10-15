@@ -23,7 +23,7 @@ amélioration.
 | 6 | Texte affiché par l'API (principe n° 5) et trous d'i18n fr/en/wo | fait |
 | 7 | Accessibilité du front : formulaires, focus, contrastes, lecteurs d'écran | fait |
 | 8 | Parcours mobile : formulaires longs, tableaux, défilement, cibles tactiles | fait |
-| 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | à faire |
+| 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | fait |
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | à faire |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | à faire |
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | à faire |
@@ -48,6 +48,8 @@ amélioration.
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | à faire |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
+| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
+| 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
 
 ---
 
@@ -843,3 +845,92 @@ Sain (vérifié par l'agent) :
   - fiches publiques de bien, d'agence et d'agent sans `loading.tsx` : ce sont les pages ouvertes depuis WhatsApp ;
   - `capture` absent de l'état des lieux et des photos du bien (`InventoryDetail.tsx:263`, `StepPhotos.tsx:31`).
 - Piste : `PhoneInput`, `FormAmountInput`, `90dvh` dans la primitive, des squelettes de chargement, et un second bouton « Prendre une photo » avec `capture="environment"`.
+
+## Angle 9 — Pages publiques : SEO et partage
+
+*Exploré le 2026-10-15 vers 1 h 45. Par lecture, et par `curl` en local et sur www.takussan.com
+(15 requêtes au plus). La session a relu les deux 🔴 : `git rev-list` et `curl` refaits sur la
+production.*
+
+Correct (mesuré ou lu) :
+- canoniques et `hreflang` absolus, avec `x-default` ;
+- `noindex` sur les pages privées ;
+- `robots.ts` ;
+- 404 réel pour un slug inconnu ;
+- bien retiré en 200 `noindex, follow`, par choix (TCK-598) ;
+- `next/image` avec `sizes` et `priority` ;
+- `alt` traduits ;
+- `remotePatterns` R2 ;
+- canonique propre malgré les `utm_*`.
+
+### La production sert un build du 15 août : aucun des travaux SEO n'est en ligne
+- Gravité : 🔴 défaut avéré
+- Où : `origin/master` à `fefe2c87` (2026-08-15), servi par Vercel (`docs/infra/frontend-deploiement.md:13`) ; `takussan-web/src/app/robots.ts` date du 2026-08-27 (TCK-431)
+- Constat :
+  - Sur www.takussan.com, `/robots.txt` et `/sitemap.xml` rendent **404** (mesuré à nouveau par la session).
+  - `/fr` rend 404, et `/` rend 200 sans canonique, `hreflang` ni `og:*`.
+  - `master` a **1 845 commits** de retard sur `dev`.
+  - TCK-431 à 436 et 598 n'existent qu'en préproduction et en local. `docs/ardoise.md` ne dit pas que le SEO n'est pas en ligne.
+- Piste : l'écrire dans l'ardoise et le rattacher à la phase F (TCK-517) ; à la bascule, soumettre le sitemap à la Search Console.
+
+### Les combinaisons de facettes sans résultat sont indexables (soft-404)
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:47-55`, `takussan-web/src/lib/canonique.ts:284`
+- Constat :
+  - `/fr/properties?type=factory&contract_type=rent&city=Dakar` rend 200 avec `total: 0`, le titre « Usine à louer à Dakar », `index, follow` et une canonique vers elle-même (mesuré en local).
+  - Chaque valeur de facette est validée seule, jamais leur combinaison : types × contrats × villes × quartiers × 3 langues donne autant de pages vides indexables.
+  - `generateMetadata` ne pose aucun `robots` (relu). Les annuaires, eux, ont `facette.indexable` (`agencies/page.tsx:53`).
+- Piste : `robots: { index: false, follow: true }` quand `total === 0`, en partageant le résultat de la recherche avec `generateMetadata` par `cache()`.
+
+### Pas d'aperçu WhatsApp ou Facebook hors des fiches
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
+- Constat :
+  - `/fr` n'émet aucun `og:*` ni `twitter:*` : l'accueil, une ville ou un quartier partagés sur WhatsApp n'ont ni image ni description.
+  - Aucun `opengraph-image`.
+  - Sur la fiche manquent `og:url`, `og:locale`, `og:site_name` et les dimensions, et l'image vient de la conversion `preview` en 800×600 (mesuré pour `/fr` ; `og:image` d'une fiche avec photo à vérifier).
+- Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
+
+### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
+- Constat :
+  - `priceSpecification` est posé sur `Apartment`, `House` ou `Place`, alors qu'il appartient à `Offer`.
+  - `contract_type` et `rent_period` ne sont pas émis : un loyer ressemble à un prix de vente.
+  - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
+- Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
+
+### Chaque fiche a trois URL au contenu principal identique
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/alternates.ts:172`, `takussan-web/src/i18n/routing.ts:252`
+- Constat :
+  - `/fr`, `/en` et `/wo` sont indexables, chacune canonique à elle-même, alors que le titre et la description ne sont saisis qu'en français : l'API ne traduit pas le contenu.
+  - Le sitemap triple le volume (lu ; effet sur l'index à vérifier).
+- Piste : un ADR qui tranche entre fiches `en`/`wo` indexables, ou canonique vers `fr` et retrait du sitemap.
+
+### Tout le site public est rendu de façon dynamique
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/layout.tsx:67`
+- Constat : le layout racine lit `cookies()`, ce qui rend toute page publique dynamique, sans cache HTML. Chaque passage de robot refait le rendu complet (lu ; build courant à vérifier).
+- Piste : sortir la session du rendu serveur de la coque publique, puis de l'ISR avec `revalidate` et des tags sur les fiches et les facettes.
+
+### La bascule fera répondre 307 aux URL non préfixées déjà indexées
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/proxy.ts:161`
+- Constat : le 307 avec `Vary: Cookie, Accept-Language` est délibéré (ADR-0026). Mais la production sert aujourd'hui `/properties` sans préfixe : tout l'index actuel passera par une redirection temporaire, et Googlebot finira sur `/fr` (mesuré, lu).
+- Piste : le décider dans le plan de bascule, par exemple une 308 pour les robots, ou accepter le délai explicitement.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (lu ou mesuré en local) :
+  - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
+  - **Méta-descriptions** (`(public)/properties/[slug]/page.tsx:98-99`) : coupées au milieu d'un mot ; une description `""` échappe au `??`. La bio d'agent et la description d'agence passent entières. Les titres de fiche n'ont ni contrat ni prix.
+  - **Sitemap** (`takussan-web/src/lib/queries/sitemap-catalogue.ts:43,54`, `takussan-web/src/lib/sitemap.ts:23`) : avec trois URL par fiche, le plafond de 50 000 tombe vers 16 600 biens, et `/sitemap.xml` tombe en entier. Mesuré en local : 1 011 `<loc>`.
+  - **Page 404 d'une fiche** : elle porte `noindex` **et** `index, follow`, avec le titre de l'accueil.
+  - **Doc périmée** : `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` », ce que contredit ADR-0026.
+- Piste :
+  - canonique propre à chaque page, et `notFound()` au-delà de `last_page` ;
+  - un utilitaire `resumePourMeta()` ;
+  - `generateSitemaps()` ;
+  - des métadonnées propres aux `not-found` ;
+  - corriger le paragraphe de `takussan-web/CLAUDE.md`.
