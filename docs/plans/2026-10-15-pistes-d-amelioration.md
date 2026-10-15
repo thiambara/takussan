@@ -723,13 +723,14 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `scheduled_task_runs` ne mesure que la mise en file des `Schedule::job`
 - Réf : P05.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le verrou d'exécution toucherait ApplyLateFeesJob, et le choix des jobs à borner
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/ScheduledRunRecorder.php`, et `Schedule.php:217-226` du framework
 - Constat :
   - Pour les 19 jobs planifiés, la ligne mesure le dispatch : de 0 à 80 ms, toujours `finished` (mesuré). Un échec dans le worker n'apparaît que dans `failed_jobs`.
   - Le verrou du scheduler ne protège pas l'exécution, et aucun job planifié n'est `ShouldBeUnique` (lu).
 - Piste : l'écrire dans `takussan-api/CLAUDE.md` § Tâches planifiées, et le middleware `WithoutOverlapping` sur les balayages.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `routes/console.php` compte 19 `Schedule::job`, tous `ShouldQueue` (lu) ; `Schedule.php:218-226` du framework ne fait que `dispatchToQueue` dans la fermeture (lu) ; `SELECT task, status, count(*), max(duration_ms) FROM scheduled_task_runs` par tinker → toutes les lignes `App\Jobs\…` sont `finished`, de 0 à 600 ms, une seule à 17 650 ms (`SendPropertyVisitReminders`, dispatch sous charge) ; `grep ShouldBeUnique app` → rien, mais `WithoutOverlapping` existe désormais sur 2 jobs sur 19 (`SendSavedSearchAlerts:90`, `SendFavoriteChangeAlerts:68`, TCK-599) : le constat « aucun » est inexact pour ces deux-là ; `takussan-api/CLAUDE.md` § Tâches planifiées dit encore « presque tous `->withoutOverlapping()` » sans dire que ce verrou ne couvre que le dispatch → tient. Classement : V1, la partie documentaire relève d'A6 mais le middleware sur les balayages touche `ApplyLateFeesJob` (pénalités) et demande de choisir quels jobs borner.
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
@@ -835,35 +836,38 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le repli et ce que l'éditeur persiste sont des choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
   - `fallbackBody()` ignore `$locale` et renvoie le corps français pour les trois langues.
   - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `NotificationTemplateService.php:157-165` : `fallbackBody()` ignore `$locale` et rend le corps français, `fallbackSubject()` (l.152-155) rend le `name` français (lu) ; `update()` l.58-70 écrit les trois langues et replie sur `templates['fr']` pour toute langue absente (lu) ; `notification-templates.tsx:80` envoie tout `templates` (lu) ; `renderActive()` l.96-113 préfère la ligne active en base, et sert deux appelants (`NewBookingNotification.php:151`, `NotificationRenderer.php:214`) ; `SELECT` sur `notification_templates` par tinker → 9 lignes, toutes `whatsapp` et traduites, aucune ligne d'un événement éditable : le défaut n'a pas encore écrit en base de dev → tient. Classement : V7, pré-remplir depuis `lang/*` et ne persister que les langues touchées change ce que l'éditeur montre et enregistre.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies opposées (traduire les attributs ou ne plus montrer la prose 422)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
   - 55 attributs sont traduits en `fr` et `wo`, aucun en `en`, sur 406 noms de champ validés (mesuré).
   - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 (mesuré) ; `is_active` absent du bloc `fr` ; tinker `Validator::make([], ['is_active'=>'required'])` en `fr` → « Le champ is active est obligatoire. », en `en` → « The is active field is required. » ; TCK-651:138 le relève aussi (« le champ value ») → tient. Classement : V7, la piste ouvre un choix entre traduire des centaines de noms de champ en trois langues et remplacer la prose 422 par des libellés du front.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellés neufs par événement, et choix de ce que l'écran montre
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/admin/AuditTrail.tsx:536`, `admin/super/ConsoleRecentActivity.tsx:77`, `user-detail.tsx:479`
 - Constat : 147 `->log('…')` littéraux, dont 31 en français. Les autres sont en anglais (« Exported audit trail ») ou sont des codes (mesuré).
 - Piste : afficher `event` traduit (`admin.audit.events.*`), et réserver `description` à l'export.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `grep -rhoE "->log\('[^']*'\)" app | wc -l` → 141 littéraux entre apostrophes (plus 22 appels non littéraux), dont 31 à motif français (mesuré, compte voisin des 147/31 du constat) ; `AuditTrail.tsx:535` affiche `log.description` brut, `ConsoleRecentActivity.tsx:77` `description ?? event`, `user-detail.tsx:476-479` `event` puis `description` bruts (lu) ; `admin.audit.events` porte 13 clés dans `fr.json` (mesuré) → tient. Classement : V7, afficher l'événement traduit demande d'écrire un libellé pour chaque événement et de décider ce que la colonne montre.
 
 ### Pluriels absents
 - Réf : P06.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : formes singulières à écrire en wolof, sur une quarantaine de messages
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
 - Constat :
@@ -871,22 +875,25 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - 7 formes « (s) ».
   - `AgencyKpis` passe un nombre déjà formaté dans `count` (mesuré).
 - Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
+- Mesure (2026-10-15, e9f9289c, mesureur) : parcours de `fr.json` et `en.json` par node, motif `{count} <mot>` sans `plural` → 40 messages dans chaque langue (dont des cas neutres comme « {count} en attente »), et 9 formes « (s) » en `fr`, 5 en `en` (mesuré ; comptes plus bas que les 49/50/7 du constat) ; `fr.json:95` `nav.propertiesCount` = « {count} biens », lu par `Navbar.tsx:518` ; `AgencyKpis.tsx:42,52` passe `formatNumber(…)` dans `count` (lu) → tient. Classement : V7, les formes ICU demandent un texte wolof neuf, et la règle `check-i18n` proposée est une garde de plus à cadrer.
 
 ### Titre d'annonce suggéré en langue mêlée
 - Réf : P06.11
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le code assume l'entorse jusqu'à ce que `en`/`wo` servent la publication
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property-form/wizard/suggest-title.ts:47,59`
 - Constat : « chambres » et « à » sont en dur. Résultat en `en` : « Apartment 3 chambres à Almadies » (lu).
 - Piste : une clé ICU avec `plural`.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `suggest-title.ts:46` « chambre(s) », `:49` « de … m² », `:59` « à » en dur (lu) ; les commentaires l.41-44 et l.52-58 déclarent une « entorse assumée » au principe n°5 tant que la publication n'est servie qu'en français → tient. Classement : V7, lever l'entorse revient sur un choix écrit dans le code et demande des textes ICU en trois langues.
 
 ### Libellés du catalogue super-admin écrits en français par l'API
 - Réf : P06.12
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : contrat d'API à changer et libellés neufs en `en` et `wo`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Domain/Settings/EditableBusinessEnums.php:20-40`, `Domain/Notifications/EditableNotificationEvents.php:13-29`, `Domain/Integrations/Providers/MailProvider.php:26`
 - Constat : `name` et `description` sont affichés tels quels par `business-enums.tsx:117-118` et `notification-templates.tsx:101` (lu). Les paramètres plateforme, eux, sont traduits par clé depuis TCK-600.
 - Piste : émettre une clé, et rendre le libellé côté front.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `EditableBusinessEnums.php:19-41` et `EditableNotificationEvents.php:12-30` portent `name`/`description`/`domain` en français, `MailProvider.php:26-27` des `label` mêlés (« API key », « Adresse expéditeur ») (lu) ; `business-enums.tsx:117-118` et `notification-templates.tsx:100` les affichent tels quels (lu) ; ce `name` sert aussi d'objet de courriel de repli (`NotificationTemplateService.php:154`) → tient. Classement : V7, émettre une clé change le contrat de l'API et demande d'écrire les libellés `en` et `wo`.
 
 ### Des documents qui affirment l'inverse de la mesure
 - Réf : P06.13
@@ -974,7 +981,7 @@ Sain (vérifié par l'agent) :
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
 - Réf : P07.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `takussan-web/src/components/home/Navbar.tsx:419,677`
 - Constat :
@@ -982,6 +989,7 @@ Sain (vérifié par l'agent) :
   - Il porte `outline-none`, sans `focus-within:` sur la pilule.
   - `role="combobox"` est sur le `div`, selon le motif ARIA 1.1 (lu ; rendu du focus à vérifier).
 - Piste : un `aria-label` traduit, le motif ARIA 1.2, et `focus-within:ring-2` sur la pilule.
+- Mesure (2026-10-15, e9f9289c, mesureur) : `SearchAutocomplete.tsx:226-262` : `role="combobox"` sur le `div` (l.227), `role="searchbox"` sur l'`input` (l.242), ni `aria-label` ni `<label>` sur l'`input`, `outline-none` l.259, aucun `focus`/`focus-within` sur le `div` (lu) ; `grep focus-within Navbar.tsx` → rien, et `globals.css` n'a de règle `:focus-visible` que pour les marqueurs de carte (l.773, l.809) ; la clé `t('placeholder')` existe déjà et nomme le listbox l.270 ; aucun test ne vise ce composant → tient. Classement : A4, attribut ARIA et anneau de focus sur un jeton existant, sans texte neuf : nommer l'`input` par la clé existante, porter `role="combobox"`/`aria-expanded`/`aria-haspopup` sur l'`input` (motif ARIA 1.2) et poser `focus-within:ring-2 focus-within:ring-ring` sur la pilule.
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
