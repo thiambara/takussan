@@ -501,7 +501,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Only platform administrators manage global settings.',
-        'managed_by_catalogue' => 'This setting is managed by its catalogue: change it from the platform console.',
+        'global_not_writable' => 'The generic route no longer writes global settings: change them from the platform settings.',
         'other_agency_forbidden' => 'You can only manage your own agency\'s settings.',
     ],
     'share_link' => [

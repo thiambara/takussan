@@ -501,7 +501,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Administrateur plateforme yi rekk ñoo yor paramètre global yi.',
-        'managed_by_catalogue' => 'Paramètre bii, katalog bi moo koy saytu : soppil ko ci console platform bi.',
+        'global_not_writable' => 'Yoon wu yépp wi du bindati paramètre global yi : soppil leen ci paramètre platform bi.',
         'other_agency_forbidden' => 'Paramètre yu sa agence rekk nga mën a toppatoo.',
     ],
     'share_link' => [

@@ -501,7 +501,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Seuls les administrateurs de la plateforme gèrent les paramètres globaux.',
-        'managed_by_catalogue' => 'Ce paramètre est géré par son catalogue : modifiez-le depuis la console de la plateforme.',
+        'global_not_writable' => 'La route générique n\'écrit plus les paramètres globaux : réglez-les depuis les paramètres de la plateforme.',
         'other_agency_forbidden' => 'Vous ne pouvez gérer que les paramètres de votre agence.',
     ],
     'share_link' => [

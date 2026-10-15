@@ -2,6 +2,9 @@
 
 namespace App\Domain\Settings;
 
+use App\Services\Invoice\OverdueReminderService;
+use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\RentReviewService;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,6 +19,13 @@ use Illuminate\Validation\Rule;
  * Lecteurs : `currency.default` → `PaymentGatewayService` ; `currency.supported` →
  * `StoreAgencyRequest`, `AgencyUpdateRequest` ; `platform.session_max_minutes` →
  * `SessionTokenIssuer` ; `credits.*` et `boost.*` (TCK-633) → `App\Services\Boost\BoostSettings`.
+ *
+ * TCK-651 (ADR-0065) — catégorie `rentals` : les cinq réglages métier à repli par agence
+ * (`App\Support\ScopedSetting`). Leur valeur GLOBALE ne s'écrivait que par la route brute
+ * `/api/settings`, sans règle ni journal ; elle s'écrit ici, et seulement ici. La ligne d'une agence
+ * l'emporte toujours. **Le défaut est la constante du service**, référencée : deux défauts qui
+ * divergent feraient lire deux valeurs selon le chemin. Lecteurs : `OverdueReminderService`,
+ * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`.
  */
 class EditablePlatformSettings
 {
@@ -77,6 +87,33 @@ class EditablePlatformSettings
                 'category' => 'boost', 'type' => 'integer', 'default' => 2, 'public' => false,
                 'rules' => ['required', 'integer', 'min:0', 'max:10'],
             ],
+            // TCK-651 (ADR-0065) — réglages métier à repli par agence, lus par `ScopedSetting` + `getValue`.
+            'invoice.reminder_offsets_days' => [
+                'category' => 'rentals', 'type' => 'integer_list',
+                'default' => OverdueReminderService::DEFAULT_OFFSETS, 'public' => false,
+                'rules' => ['required', 'array', 'min:1', 'max:10'],
+                'item_rules' => ['integer', 'min:1', 'max:365'],
+            ],
+            'lease.rent_review_max_pct' => [
+                'category' => 'rentals', 'type' => 'decimal',
+                'default' => RentReviewService::DEFAULT_MAX_PCT, 'public' => false,
+                'rules' => ['required', 'numeric', 'gt:0', 'max:100'],
+            ],
+            'lease.early_termination_penalty_months' => [
+                'category' => 'rentals', 'type' => 'integer',
+                'default' => EarlyTerminationService::SETTING_DEFAULT_MONTHS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:24'],
+            ],
+            'lease.require_signature' => [
+                'category' => 'rentals', 'type' => 'boolean', 'default' => false, 'public' => false,
+                'rules' => ['present', 'boolean'],
+            ],
+            // `null` : aucun plafond (`LateFeeCalculator::capPercent`). Vide se lit « aucun plafond », pas 0.
+            'late_fees.cap_percent' => [
+                'category' => 'rentals', 'type' => 'decimal', 'nullable' => true,
+                'default' => null, 'public' => false,
+                'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
+            ],
         ];
     }
 
@@ -91,15 +128,5 @@ class EditablePlatformSettings
     public static function get(string $key): array
     {
         return self::all()[$key];
-    }
-
-    /**
-     * TCK-600 — une clé de portée `global` que seul un catalogue écrit : celui-ci, ou celui des
-     * énumérations métier (`enum.<clé>.values`, `BusinessEnumService`). La route générique des
-     * paramètres les écrivait sans leurs règles (une devise par défaut en TABLEAU passait).
-     */
-    public static function managedByCatalogue(string $key): bool
-    {
-        return self::has($key) || str_starts_with($key, 'enum.');
     }
 }

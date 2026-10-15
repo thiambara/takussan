@@ -93,7 +93,7 @@ class PlatformSettingService
                 ->get()
                 ->mapWithKeys(fn (Setting $setting) => [
                     $setting->key => [
-                        'value' => $setting->value,
+                        'value' => self::unwrap($setting->value),
                         'updated_at' => $setting->updated_at?->toISOString(),
                         'updated_by' => $setting->updatedBy ? [
                             'id' => $setting->updatedBy->id,
@@ -119,6 +119,7 @@ class PlatformSettingService
             'value' => $stored['value'] ?? $definition['default'],
             'default_value' => $definition['default'],
             'options' => $definition['options'] ?? null,
+            'nullable' => (bool) ($definition['nullable'] ?? false),
             'public' => (bool) $definition['public'],
             'requires_restart' => (bool) ($definition['requires_restart'] ?? false),
             'updated_at' => $stored['updated_at'] ?? null,
@@ -160,9 +161,25 @@ class PlatformSettingService
                 ->unique()
                 ->values()
                 ->all(),
-            'platform.session_max_minutes' => (int) $value,
-            default => $value,
+            // TCK-651 — les types des réglages métier ; la validation a déjà tranché la forme.
+            default => match (EditablePlatformSettings::get($key)['type']) {
+                'integer' => (int) $value,
+                'decimal' => $value === null || $value === '' ? null : (float) $value,
+                'boolean' => filter_var($value, FILTER_VALIDATE_BOOL),
+                'integer_list' => collect($value)->map(fn ($v) => (int) $v)->unique()->sort()->values()->all(),
+                default => $value,
+            },
         };
+    }
+
+    /**
+     * TCK-651 — la route brute écrit `{"value": …}` (sa règle `value` exige un objet) ; le catalogue
+     * écrit la valeur nue. Une ligne globale écrite autrefois par la route brute se lit donc ici
+     * déballée — les lecteurs de `ScopedSetting` acceptent déjà les deux formes.
+     */
+    private static function unwrap(mixed $value): mixed
+    {
+        return is_array($value) && array_keys($value) === ['value'] ? $value['value'] : $value;
     }
 
     private function persist(string $key, mixed $value, User $actor): void
@@ -172,11 +189,13 @@ class PlatformSettingService
             ->where('scope', SettingScope::Global)
             ->whereNull('scope_id')
             ->first();
-        $oldValue = $current?->value ?? EditablePlatformSettings::get($key)['default'];
+        $oldValue = $current !== null ? self::unwrap($current->value) : EditablePlatformSettings::get($key)['default'];
 
+        // `settings.value` est NOT NULL : une valeur vide (le plafond des pénalités « aucun
+        // plafond ») s'écrit sous la forme enveloppée que `unwrap()` relit.
         $setting = Setting::updateOrCreate(
             ['key' => $key, 'scope' => SettingScope::Global, 'scope_id' => null],
-            ['value' => $value, 'updated_by_id' => $actor->id],
+            ['value' => $value ?? ['value' => null], 'updated_by_id' => $actor->id],
         );
 
         activity('Admin')
@@ -188,6 +207,16 @@ class PlatformSettingService
     }
 
     private function flushCache(): void
+    {
+        self::forgetCache();
+    }
+
+    /**
+     * TCK-651 — appelée aussi par `Setting` à chaque écriture d'une ligne globale : un seeder, une
+     * console ou un test qui écrit la table sans passer par `bulkUpdate` ne laisse plus dix minutes
+     * de valeur périmée aux lecteurs des réglages métier.
+     */
+    public static function forgetCache(): void
     {
         Cache::forget(self::CACHE_KEY);
     }

@@ -7,6 +7,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
 use App\Support\ScopedSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -155,12 +156,9 @@ class RentReviewService
     public function resolveMaxPct(?int $agencyId = null): float
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
-        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
-        if ($row === null) {
-            return (float) self::DEFAULT_MAX_PCT;
-        }
-
-        $value = $row->value;
+        // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
+        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
+            ?? app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct');
         if (is_array($value)) {
             $value = $value['value'] ?? array_values($value)[0] ?? null;
         }

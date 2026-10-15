@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\SettingScope;
+use App\Services\Admin\PlatformSettingService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -25,6 +26,21 @@ class Setting extends AbstractModel
     // `value` is intentionally exposed via sparse fieldsets so the admin UI can
     // fetch the current payload (TCK-068); secrets live in Integration, not here.
     protected static array $queryFields = ['id', 'key', 'value', 'scope', 'scope_id', 'updated_by_id', 'created_at', 'updated_at'];
+
+    /**
+     * TCK-651 (ADR-0065) — le catalogue met ses valeurs globales en cache ; toute écriture d'une
+     * ligne globale, par quelque chemin que ce soit, l'invalide.
+     */
+    protected static function booted(): void
+    {
+        $oublier = function (Setting $setting): void {
+            if ($setting->scope === SettingScope::Global) {
+                PlatformSettingService::forgetCache();
+            }
+        };
+        static::saved($oublier);
+        static::deleted($oublier);
+    }
 
     public function updatedBy(): BelongsTo
     {

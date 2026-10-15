@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\SettingScope;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -13,12 +14,16 @@ class SettingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_super_admin_can_manage_global_settings(): void
+    /**
+     * TCK-651 (ADR-0065) — la route brute ne fait plus la portée globale : le super-admin y règle la
+     * portée d'une agence, et le global se règle au catalogue (`GenericSettingsCatalogueBypassTest`).
+     */
+    public function test_super_admin_can_manage_an_agency_setting(): void
     {
         $agency = Agency::factory()->create();
-        // TCK-600 (raccord R1) : un réglage global s'écrit sous le second facteur de la plateforme —
-        // 2FA enrôlée et confirmée sur la session. Le refus est gardé par PlatformSettingsTwoFactorTest.
-        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agency->id]);
+        // TCK-600 (raccord R1) : un profil plateforme écrit sous son second facteur — 2FA enrôlée et
+        // confirmée sur la session. Le refus est gardé par PlatformSettingsTwoFactorTest.
+        $admin = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($admin, 'super_admin');
 
         $this->actingAsWithStepUp($admin);
@@ -26,10 +31,11 @@ class SettingTest extends TestCase
         $response = $this->postJson('/api/settings', [
             'key' => 'site_name',
             'value' => ['name' => 'Takussan'],
-            'scope' => SettingScope::Global->value,
-            'scope_id' => null,
+            'scope' => SettingScope::Agency->value,
+            'scope_id' => $agency->id,
         ])->assertCreated()
-            ->assertJsonPath('data.key', 'site_name');
+            ->assertJsonPath('data.key', 'site_name')
+            ->assertJsonPath('data.scope_id', $agency->id);
 
         $settingId = $response->json('data.id');
 
@@ -75,12 +81,8 @@ class SettingTest extends TestCase
 
         $this->actingAsWithStepUp($admin);
 
-        $this->postJson('/api/settings', [
-            'key' => 'site_name',
-            'value' => ['name' => 'Takussan'],
-            'scope' => SettingScope::Global->value,
-            'scope_id' => null,
-        ])->assertCreated();
+        // TCK-651 — la ligne est posée en base : la route brute n'écrit plus la portée globale.
+        Setting::query()->create(['key' => 'site_name', 'value' => ['name' => 'Takussan'], 'scope' => SettingScope::Global]);
 
         $this->getJson('/api/settings?fields[settings]=id,key,value,scope,scope_id,updated_by_id,updated_at')
             ->assertOk()
