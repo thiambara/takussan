@@ -27,8 +27,8 @@ amélioration.
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | fait |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | fait |
 | 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | fait |
-| 13 | Code mort et doublons : services, composants, routes, clés i18n | à faire |
-| 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | à faire |
+| 13 | Code mort et doublons : services, composants, routes, clés i18n | en cours |
+| 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | fait |
 | 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | à faire |
 | 16 | Listes internes sur un modèle `Searchable` avec `defaultSort` en dur (documents, propriétaires, biens enfants) | à faire |
 | 17 | Qualité des adresses : référentiel ou texte libre, dans le formulaire de création de bien | à faire |
@@ -56,6 +56,9 @@ amélioration.
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | à faire |
 | 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | à faire |
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
+| 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
+| 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
+| 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
 
 ---
 
@@ -1281,3 +1284,125 @@ Les trois 🔴 ont été relus par la session dans le code :
     - aucun test back ne moque sa propre classe ;
     - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
 - Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
+
+## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
+
+Les deux 🔴 ont été relus par la session dans le code :
+- `AlertRuleService.php:76` appelle `SendAdminAlert::dispatch()` sans `onQueue`. `SendAdminAlert` n'implémente que `ShouldQueue` et ne déclare aucune file, donc `default`. Dans `compose.api.yml:55`, seul le `worker` consomme `default`.
+- `HealthcheckService.php:139-143` : la sonde `scheduler` n'a pas de `status`, et le statut global ne prend en compte que les autres sondes. Dans `compose.api.yml`, seul `api` déclare un healthcheck (l. 44).
+
+### L'alerte « file à l'arrêt » part sur la file arrêtée
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Admin/AlertRuleService.php:76`, `takussan-api/app/Jobs/SendAdminAlert.php:14`, `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:41`
+- Constat :
+  - `ops_queue_stalled` produit une activité, que `DispatchAlerts` reçoit de façon synchrone (`AppServiceProvider.php:640`).
+  - L'alerte est alors mise sur `default`, que seul le conteneur `worker` consomme.
+  - Si ce worker meurt ou se fige, `alerts:evaluate` détecte bien la transition, mais l'alerte attend dans `jobs`, sur la file que personne ne lit.
+  - Elle n'arrive que si c'est `worker-media` qui tombe.
+  - Établi comment : lu, chemin suivi de bout en bout.
+- Piste : envoyer les alertes `ops_*` de façon synchrone (`dispatchSync`) ou depuis un autre conteneur. Mieux, par un canal extérieur à l'application, comme le Telegram de `seuils.sh`.
+
+### Si le planificateur meurt, personne ne le voit
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/routes/console.php:110-115`, `takussan-api/app/Services/Admin/HealthcheckService.php:139-143`, `takussan-api/app/Http/Controllers/Api/HealthController.php:17`, `deploy/takussan/compose.api.yml:44,67`, `docs/infra/hebergement.md:92`
+- Constat :
+  - Les battements des files, `health:probe` et `alerts:evaluate` tournent **dans** le conteneur `scheduler`. S'il s'arrête, plus rien n'évalue ni n'alerte.
+  - La sonde `scheduler` relève `last_run_at` sans `status` : elle ne compte pas dans le statut global.
+  - `/api/health` rend son statut, `unknown` compris, avec un HTTP 200, et UptimeRobot ne sonde que `/up`.
+  - `/up` ne vérifie que le démarrage : aucun écouteur `DiagnosingHealth` dans `app/`.
+  - `worker`, `worker-media` et `scheduler` n'ont aucun healthcheck, et `restart: unless-stopped` ne relance pas un conteneur figé.
+  - Établi comment : lu. Qu'aucune autre sonde n'existe dans UptimeRobot reste à vérifier.
+- Piste :
+  - `/api/health` en 503 quand le statut est `unknown` ou `failed`, et une sonde UptimeRobot par mot-clé dessus ;
+  - un `status` pour la sonde `scheduler` (dernière exécution plus vieille que quelques minutes = échec) ;
+  - un healthcheck de battement sur `scheduler` et sur les workers.
+
+### Aucune règle d'alerte n'existe par défaut
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
+- Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
+- Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
+
+### Un job d'argent qui échoue chaque nuit reste sous le seuil
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
+- Constat :
+  - L'alerte ne se déclenche qu'à partir de 20 échecs par heure glissante.
+  - `ApplyLateFeesJob`, `SendLeasePaymentReminders` et `SendOverdueRemindersJob` passent par `Schedule::job`, qui ne fait que les mettre en file.
+  - `scheduled_task_runs` écrit donc `finished` même quand le job échoue ensuite chez le worker.
+  - Un échec par jour ne déclenche jamais rien. Précédent : 35 échecs `Class "Resend" not found` accumulés sans bruit en préproduction.
+  - Établi comment : lu.
+- Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
+
+### L'alerte de santé reste verrouillée après le premier « dégradé »
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
+- Constat :
+  - La transition repose sur un booléen, `status !== 'ok'` : un passage de `degraded` à `failed` ne déclenche rien de nouveau.
+  - En préproduction, `MAIL_MAILER=log` tient la sonde `mail` à `degraded` en permanence.
+  - Le message d'alerte perd les `properties` : on ne sait pas quelle sonde a échoué.
+  - Établi comment : lu.
+- Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
+
+### Le courriel de notification n'est jamais retenté
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
+- Constat :
+  - Le commentaire promet que « transient failures are still retried via $tries ».
+  - Mais le `catch (\Throwable)` attrape chaque tentative, appelle `report()` et rend le job réussi : `$tries = 3` et `backoff` ne servent à rien.
+  - Un seul essai, aucune ligne dans `failed_jobs`.
+  - Établi comment : lu.
+- Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
+
+### Aucun rapporteur d'erreurs, ni côté API ni côté front
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/composer.json`, `takussan-web/package.json`, `takussan-web/src/app/error.tsx:35-37`
+- Constat :
+  - Ni Sentry, ni Flare, ni Nightwatch.
+  - Côté front, ni `instrumentation.ts` (`onRequestError`) ni `global-error.tsx`. Les frontières d'erreur font un `console.error` dans le navigateur, et le `digest` montré à l'utilisateur ne renvoie à rien de consultable.
+  - Établi comment : mesuré, grep et find.
+- Piste : un ADR « rapport d'erreurs » (GlitchTip auto-hébergé ou Sentry), avec la forme `SafeExceptionContext` de TCK-613.
+
+### Les journaux de l'API disparaissent à chaque déploiement
+- Gravité : 🟠 risque ou dette
+- Où : `deploy/server/bootstrap.sh:99-102`, `deploy/takussan/compose.api.yml:14-16`, `docs/infra/prod-drivers.json`
+- Constat :
+  - Le plan prescrit `LOG_CHANNEL=stderr`, donc des journaux Docker `json-file` de 10 Mo × 3.
+  - `up -d` recrée les conteneurs à chaque `IMAGE_TAG`, et les journaux de l'ancien partent avec lui. Rien ne les exporte.
+  - `LOG_CHANNEL` et `LOG_LEVEL` ne figurent pas dans `prod-drivers.json` : aucune garde ne les voit.
+  - Établi comment : lu. La valeur réelle en préproduction est à vérifier.
+- Piste : ajouter les clés `LOG_*` au catalogue des drivers ; exporter les journaux (Loki, Vector, ou le rapporteur du constat précédent).
+
+### Des notifications de prospects et de visites avalées sans trace
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
+- Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
+- Piste : `report($e)`, sans changer le caractère non bloquant.
+
+### Données personnelles écrites au journal, hors du périmètre de TCK-613
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
+- Constat :
+  - En cas d'échec, les pilotes de paiement journalisent le corps entier de la réponse.
+  - Les canaux SMS et WhatsApp journalisent le numéro complet, déjà noté à l'angle 11, et le DLR le `msisdn`.
+  - TCK-613 ne couvre aucun de ces emplacements.
+  - Établi comment : lu. Le contenu réel des corps Wave et OM est à vérifier.
+- Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
+
+### Server actions : un bug devient « erreur réseau », sans journal
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
+- Constat :
+  - Une erreur qui n'est pas une `ApiError` (`TypeError`, parsing) rend le message de repli et n'écrit rien côté serveur Next.
+  - On compte 12 `console.*` dans `actions/` et `api/`, pour 27 modules qui attrapent des erreurs.
+  - Établi comment : mesuré.
+- Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat :
+  - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
+  - **Journaux** : ni identifiant de requête ni agence, aucun `Log::withContext` ni `Context::add` (`bootstrap/app.php:151-153`). Une erreur ne se relie ni à l'accessLog Traefik ni à une agence (mesuré).
+- Piste :
+  - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
+  - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
