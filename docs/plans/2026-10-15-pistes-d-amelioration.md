@@ -11,6 +11,56 @@ déduite d'un nom ou d'un docblock n'est pas un constat* : elle est marquée **�
 Gravité : 🔴 défaut avéré (comportement faux aujourd'hui) · 🟠 risque ou dette qui coûte · 🟢
 amélioration.
 
+## Résumé de la clôture (2026-10-15, 03 h 04)
+
+**16 angles explorés** sur les 53 listés, de 00 h à 3 h, chacun par un agent en lecture seule. Chaque 🔴 a été relu
+par la session dans le code avant d'être écrit. Aucun angle n'était en cours à la clôture : les angles 17 à 53
+restent « à faire ».
+
+| Gravité | Entrées |
+|---|---|
+| 🔴 défaut avéré | 48 |
+| 🟠 risque ou dette | 92 |
+| 🟢 amélioration | 23 |
+
+Les entrées sont des sections `###`. Une section « Petites améliorations » regroupe plusieurs constats. Les trois 🔴
+de l'angle 12 sont des **gardes absentes** (une régression passerait la CI au vert), pas des défauts de production.
+
+### Les cinq à traiter d'abord
+
+1. **L'argent des baux est faux à plusieurs endroits** (angles 4 et 13) :
+   - « Enregistrer un paiement » crée une nouvelle échéance en attente au lieu de régler celle qui est due, et la voie
+     gardée `mark-paid` n'a aucun appelant ;
+   - « Générer l'échéancier » appelle une route absente (404) ;
+   - un échéancier trimestriel ou annuel facture un seul mois de loyer ;
+   - la révision de loyer n'atteint pas les échéances.
+
+   Ce sont les montants que voient le bailleur et le locataire.
+2. **Des écritures autorisées à qui ne devrait pas** (angles 3 et 13) :
+   - `POST /api/payments`, sans appelant, laisse un locataire ou un client enregistrer son propre paiement comme réglé ;
+   - `PUT /users/{user}/role` n'a aucune des gardes du parcours normal ;
+   - `include=…Profiles` laisse sortir les profils d'autres agences.
+
+   Retirer la route morte suffit pour le premier.
+3. **Le locataire n'est jamais rattaché à un compte** (angle 15). Sur un bail créé depuis l'écran, la signature
+   électronique (ADR-0042), l'espace résident et la check-list d'entrée sont donc inatteignables. La fiche reliée à un
+   compte, celle d'une candidature, reste invisible à l'agence du bien.
+4. **Le contrat front ↔ API est rompu en cinq endroits, sans aucune garde** (angles 6, 11 et 13). Les appels suivants
+   visent des routes qui n'existent pas :
+   - `PATCH /api/users/me` : la langue n'est jamais enregistrée, et toutes les notifications partent en français ;
+   - `generate-schedule` ;
+   - les pièces jointes de la messagerie ;
+   - les documents de la fiche client.
+
+   Une seule garde qui confronte les chemins littéraux du front à `route:list` (angle 45) attrape toute la famille.
+5. **Ce qu'on ne verrait pas en production, à régler avant la phase F** (angles 11 et 14) :
+   - l'alerte « file à l'arrêt » part sur la file arrêtée ;
+   - un planificateur mort ne fait rien rougir, et `/api/health` répond 200 sur un statut inconnu ;
+   - les SMS reportés la nuit gardent en clair, dans `jobs`, des liens porteurs de paiement et d'invitation.
+
+**Concerne directement la branche de TCK-651** : les réglages d'agence vivent dans trois magasins, dont deux sans
+voie d'écriture (angle 13, puis 47).
+
 ## Angles
 
 | # | Angle | État |
