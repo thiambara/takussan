@@ -14,6 +14,7 @@
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle> --a-blanc
 #       # un passage complet SANS RIEN PUBLIER (ni push, ni PR, ni fusion) ; avec
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
+#   ~/.takussan-agents/outils/pistes.sh fusionner   # fusionne les PR vertes (launchd, toutes les 10 min)
 #   ~/.takussan-agents/outils/pistes.sh etat
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
 #
@@ -151,26 +152,21 @@ CONFIG
 
 # ─── planification launchd ────────────────────────────────────────────────────────────────────
 
-planifier() {
-  charger_config
-  [ $# -eq 3 ] || die "usage : planifier <x> <y> <z>  (minutes : explorateur, mesureur, implementeur)"
-  local minutes role plist secondes uid
+# Pose (ou remplace) un job launchd : poser_job <nom> <secondes> <argument de pistes.sh>…
+poser_job() {
+  local nom="$1" secondes="$2" uid plist args="" a
+  shift 2
   uid="$(id -u)"
-  for role in $ROLES; do
-    minutes="$1"
-    shift
-    case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
-    [ "$minutes" -ge 10 ] || die "$role : 10 minutes au moins entre deux passages"
-    secondes=$((minutes * 60))
-    plist="$HOME/Library/LaunchAgents/$LAUNCHD.$role.plist"
-    cat > "$plist" << PLIST
+  for a in "$@"; do args="$args<string>$a</string>"; done
+  plist="$HOME/Library/LaunchAgents/$LAUNCHD.$nom.plist"
+  cat > "$plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>${LAUNCHD}.${role}</string>
+  <key>Label</key><string>${LAUNCHD}.${nom}</string>
   <key>ProgramArguments</key>
-  <array><string>/bin/bash</string><string>${BASE}/outils/pistes.sh</string><string>lancer</string><string>${role}</string></array>
+  <array><string>/bin/bash</string><string>${BASE}/outils/pistes.sh</string>${args}</array>
   <key>StartInterval</key><integer>${secondes}</integer>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
@@ -180,25 +176,84 @@ planifier() {
     <key>HOME</key><string>${HOME}</string>
     <key>LANG</key><string>fr_FR.UTF-8</string>
   </dict>
-  <key>StandardOutPath</key><string>${BASE}/journaux/launchd-${role}.log</string>
-  <key>StandardErrorPath</key><string>${BASE}/journaux/launchd-${role}.log</string>
+  <key>StandardOutPath</key><string>${BASE}/journaux/launchd-${nom}.log</string>
+  <key>StandardErrorPath</key><string>${BASE}/journaux/launchd-${nom}.log</string>
 </dict>
 </plist>
 PLIST
-    launchctl bootout "gui/$uid/$LAUNCHD.$role" 2> /dev/null || true
-    launchctl bootstrap "gui/$uid" "$plist"
+  launchctl bootout "gui/$uid/$LAUNCHD.$nom" 2> /dev/null || true
+  launchctl bootstrap "gui/$uid" "$plist"
+}
+
+planifier() {
+  charger_config
+  [ $# -eq 3 ] || die "usage : planifier <x> <y> <z>  (minutes : explorateur, mesureur, implementeur)"
+  local minutes role
+  for role in $ROLES; do
+    minutes="$1"
+    shift
+    case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
+    [ "$minutes" -ge 10 ] || die "$role : 10 minutes au moins entre deux passages"
+    poser_job "$role" $((minutes * 60)) lancer "$role"
     info "$role : toutes les $minutes min"
   done
+  poser_job fusionneur 600 fusionner
+  info "fusionneur : toutes les 10 min (sans modèle)"
 }
 
 deplanifier() {
-  local role uid
+  local job uid
   uid="$(id -u)"
-  for role in $ROLES; do
-    launchctl bootout "gui/$uid/$LAUNCHD.$role" 2> /dev/null || true
-    rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$role.plist"
+  for job in $ROLES fusionneur; do
+    launchctl bootout "gui/$uid/$LAUNCHD.$job" 2> /dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/$LAUNCHD.$job.plist"
   done
   info "déplanifié (les passages en cours finissent)"
+}
+
+# ─── fusionneur ───────────────────────────────────────────────────────────────────────────────
+
+# Fusionne dans pre-dev, DÈS que leur CI est verte et sans conflit, les PR des agents et la PR de
+# synchronisation dev → pre-dev. Aucun modèle : rien n'y décide, tout y est vérifié, et un passage
+# ne coûte rien. Sans lui, une PR verte attendait le passage suivant de SON agent (jusqu'à 3 h pour
+# l'explorateur), qui restait bloqué entre-temps (une PR ouverte par rôle). ADR-0066 § 4.
+fusionner() {
+  charger_config
+  if [ -e "$BASE/PAUSE" ] || [ "$FUSION" != auto ]; then return 0; fi
+  local verrou="$BASE/verrous/fusionneur" pid
+  if ! mkdir "$verrou" 2> /dev/null; then
+    pid="$(cat "$verrou/pid" 2> /dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null; then return 0; fi
+    rm -rf "$verrou"
+    mkdir "$verrou"
+  fi
+  printf '%s' "$$" > "$verrou/pid"
+  # Chemin littéral : le trap court à la sortie du SCRIPT, quand la locale `verrou` n'existe plus.
+  trap 'rm -rf "$BASE/verrous/fusionneur"' EXIT
+
+  local lignes num tete mergeable etiquettes
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,headRefName,mergeable,labels \
+    --jq '.[] | "\(.number)\t\(.headRefName)\t\(.mergeable)\t\([.labels[].name] | join(","))"')"
+  [ -n "$lignes" ] || return 0
+  printf '%s\n' "$lignes" | while IFS=$'\t' read -r num tete mergeable etiquettes; do
+    # Seules les PR que le script a ouvertes : une PR du porteur vers pre-dev n'est jamais touchée.
+    case "$tete" in
+      agents/*) case ",$etiquettes," in *,agent:*) ;; *) continue ;; esac ;;
+      dev) case ",$etiquettes," in *,agents:synchro,*) ;; *) continue ;; esac ;;
+      *) continue ;;
+    esac
+    # UNKNOWN juste après une autre fusion : GitHub recalcule, le tour suivant tranchera.
+    [ "$mergeable" = MERGEABLE ] || continue
+    [ "$(etat_ci "$num")" = vert ] || continue
+    if [ "$tete" = dev ]; then
+      # Jamais --delete-branch ici : la tête de cette PR est dev.
+      GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null || continue
+    else
+      GH_REPO="$GH_REPO" gh pr merge "$num" --merge --delete-branch > /dev/null || continue
+    fi
+    info "#$num fusionnée dans pre-dev ($tete)"
+    printf '%s\tfusionneur\t-\tfusionne\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$tete" >> "$BASE/journal.tsv"
+  done
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -217,6 +272,9 @@ etat() {
       awk -F '\t' -v r="$role" '$2 == r' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'
     fi
   done
+  printf '\n%s\n' "── fusionneur"
+  if launchctl print "gui/$uid/$LAUNCHD.fusionneur" > /dev/null 2>&1; then echo "  planifié (launchd, 10 min)"; else echo "  non planifié"; fi
+  if [ -f "$BASE/journal.tsv" ]; then awk -F '\t' '$2 == "fusionneur"' "$BASE/journal.tsv" | tail -3 | sed 's/^/  /'; fi
   printf '\n%s\n' "── PR ouvertes vers pre-dev"
   GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json number,title,labels \
     --jq '.[] | "  #\(.number)  \(.title)"'
@@ -448,7 +506,10 @@ lancer() {
     if [ "$ci" = vert ] && [ "$conflit" = non ]; then
       if [ "$FUSION" != auto ]; then fin attente "PR #$PR verte, en attente de fusion par le porteur"; fi
       if [ "$A_BLANC" -eq 1 ]; then fin a-blanc "aurait fusionné la PR #$PR"; fi
-      GH_REPO="$GH_REPO" gh pr merge "$PR" --merge --delete-branch > /dev/null
+      if ! GH_REPO="$GH_REPO" gh pr merge "$PR" --merge --delete-branch > /dev/null 2>&1; then
+        # Le fusionneur a pu passer entre-temps.
+        [ "$(GH_REPO="$GH_REPO" gh pr view "$PR" --json state --jq .state)" = MERGED ] || die "fusion de la PR #$PR refusée"
+      fi
       info "PR #$PR fusionnée dans pre-dev"
       PR=""
       avec_verrou_git recuperer
@@ -556,7 +617,8 @@ case "${1:-}" in
     lancer "${2:-}"
     ;;
   etat) etat ;;
+  fusionner) fusionner ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
