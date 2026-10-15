@@ -2579,7 +2579,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:119-136`, `takussan-api/app/Models/Customer.php:146-149`, `takussan-api/app/Http/Resources/CustomerResource.php:83-96`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `takussan-api/app/Http/Controllers/Api/BookingController.php:25`
 - Constat :
@@ -2588,10 +2588,11 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Voir P02.03, qui porte la cause (pas de mémoïsation du profil plateforme) et la classe « à valider » (V2). Ce constat ajoute la pente mesurée sur trois listes ; la correction locale, mettre le résultat en cache dans `$request->attributes` comme l'agence, ne touche pas au contournement de `Gate::before`.
 - Établi comment : test temporaire avec pile d'appel.
 - Piste : lire `isSuperAdmin()` une fois par requête dans les deux ressources, à côté du cache existant ; ou traiter P02.03.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `LeaseResource.php:118-136` (`isSuperAdmin()` l. 125, appelé avant le cache de `staffAgencyId()`), `CustomerResource.php:84-96` (cache des seules agences) et `Customer.php:146-149` (`criteriaBelongTo()` relit `isSuperAdmin()`, qui passe par `HasProfiles::activePlatformLevel()`) ; test temporaire, retiré depuis, admin d'agence, lignes dotées d'un bien avec photo, `select … from "platform_profiles"` comptées : `GET /api/leases?include=property,tenant` 7 pour 2 lignes → 27 pour 12 (2 par ligne), `GET /api/bookings?include=property,customer` 5 → 15 (1 par ligne), `GET /api/customers` 9 pour 4 fiches → 25 pour 20 (1 par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé, lignes citées inchangées. Classement : A2, la réponse ne change pas ; le correctif lit `isSuperAdmin()` une fois par requête dans `$request->attributes`, à côté des caches existants de `LeaseResource::viewerIsAgencyStaff()` et `CustomerResource::readsCriteria()` (qui court-circuite alors `criteriaBelongTo()` pour le super-admin), sans toucher au modèle `User` ni à `Gate::before` (P02.03, V2), avec un test de budget « 2 lignes = 12 lignes » sur les trois listes.
 
 ### Le bien imbriqué par `include=property` charge sa photo ligne par ligne
 - Réf : P20.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/PropertyResource.php:137`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `BookingController.php:25`, `ConversationController.php:37`
 - Constat :
@@ -2600,10 +2601,11 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Le front affiche `main_photo_url` dans la liste des conversations (lu, `components/messages/ConversationList.tsx`) ; dans les baux et les réservations, à vérifier.
 - Établi comment : test temporaire avec pile d'appel, relecture des `with()` des trois contrôleurs.
 - Piste : précharger `property.media` (filtré sur la collection `photos`) dans les trois `index()`, ou un helper commun aux contrôleurs qui imbriquent `PropertyResource` ; test de budget.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyResource.php:137` (`getFirstMedia('photos')`), les `with()` de `LeaseController.php:31` (`property.address`, `tenant`), `BookingController.php:25` (`property.address`, `customer`, `agency`) et `ConversationController.php:37` (`property`, `participants.media`) : aucun ne charge `property.media` ; test temporaire, retiré depuis, chaque bien avec une photo, `select … from "media"` comptées : baux 2 pour 2 lignes → 12 pour 12, réservations 2 → 12, conversations 3 pour 2 → 15 pour 14 (une par ligne, l'écart constant venant de `participants.media`). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2, préchargement sans changement de réponse ; le correctif ajoute `property.media` aux `with()` des trois `index()` (comme TCK-595 pour la liste des biens), avec un test de budget sur chacune.
 
 ### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
 - Réf : P20.05
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/DocumentResource.php:16-18`, `takussan-api/app/Models/Document.php:84-91`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`
 - Constat :
@@ -2611,6 +2613,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Le commentaire de `DocumentResource.php:18` dit « Active version from the `versions` collection (if the collection is loaded) ». `activeVersion()` interroge la table à chaque appel, sans regarder la relation chargée (lu).
 - Établi comment : test temporaire avec pile d'appel, relecture.
 - Piste : précharger `media` dans `index()`, et faire lire à `activeVersion()` la relation chargée quand elle l'est ; corriger le commentaire ; test de budget.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `DocumentResource.php:16-19` (le commentaire « if the collection is loaded » est toujours là), `Document.php:84-91` (`activeVersion()` interroge `media` à chaque appel, son docblock dit le faire exprès « to avoid Spatie's in-memory collection cache ») et `DocumentController::index` l. 35-49 (`buildQuery` sans `with('media')`) ; test temporaire, retiré depuis, documents avec un fichier : `GET /api/documents` 14 requêtes pour 2 → 34 pour 12, dont `media` 4 → 24 (deux par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2 et A6, réponse inchangée ; le correctif précharge `media` dans `index()`, fait choisir la version active dans la ressource sur la relation chargée quand elle l'est, en laissant `activeVersion()` interroger la table pour les chemins d'écriture qui l'appellent, corrige le commentaire, et garde par un test de budget.
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
@@ -2658,7 +2661,7 @@ n'est pas repris ici.*
 
 ### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
 - Réf : P21.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : projection des données personnelles d'un `User` rendu par `/api/users`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:49-63`, `takussan-web/src/lib/queries/admin-users.ts:55`
 - Constat :
@@ -2666,6 +2669,7 @@ n'est pas repris ici.*
   - Le front passe `fields[users]` (`admin-users.ts:55`, lu) : l'écran de l'équipe ne reçoit donc que ses colonnes. L'exposition tient au contrat de l'API, pas à l'écran (à vérifier : autres appelants de `/api/users`).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : la même projection que P21.01, appliquée par `UserAdminController::index` ; test sans `fields[users]`.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `UserAdminController::index` l. 49-63 (`$this->paginated($paginator, $items)`, `$items` = modèles `User` bruts, seul `two_factor_enabled` y est ajouté) ; seul appelant du front, le proxy `app/api/admin-users/[[...path]]/route.ts:24`, que `admin-users.ts` appelle avec `fields[users]` (lu) ; test temporaire, retiré depuis, admin d'agence, membre portant `google_id`, `secondary_phone` et `metadata` : `GET /api/users` sans paramètre → 200, 38 clés dont ces trois. Constat confirmé. Classement : V3, le correctif décide quelles données personnelles d'un `User` sortent par défaut, le même choix que P21.01.
 
 ### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
 - Réf : P21.03
@@ -2701,7 +2705,7 @@ n'est pas repris ici.*
 
 ### Des `include=` acceptés, chargés en base, puis jamais émis
 - Réf : P21.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer un `include` accepté ou émettre la relation est un choix de contrat
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Lease.php:91`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Payout.php:65`, `takussan-api/app/Http/Resources/PayoutResource.php:12-55`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:66`, `takussan-api/app/Models/Booking.php:48`
 - Constat :
@@ -2711,6 +2715,7 @@ n'est pas repris ici.*
   - `PayoutController::show` charge `landlord` (l. 66) sans l'émettre (lu).
   - Établi comment : lu. Le coût en requêtes n'est pas mesuré.
 - Piste : retirer de `$requestLoadable` ce qu'aucune ressource n'émet, ou l'émettre par une projection. Une garde qui confronte `$requestLoadable` aux clés `whenLoaded()` de la ressource du modèle.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `Lease::$requestLoadable` (l. 91 : `landlord`, `agency`, `agent`, `guarantor`, `onboardingChecklist` sans clé dans `LeaseResource`, qui n'émet que `property`, `tenant`, `renewed_from`, `renewals`, `signatures`), `Payout::$requestLoadable` (l. 65, seul `issuer` est projeté par `PayoutResource.php:26`), `Booking::$requestLoadable` (l. 48, `agency` non émis par `BookingResource`), `PayoutController::show` l. 66 (`load(['landlord', …])`, non émis) ; le front demande `include: ['property', 'guarantor', 'payments']` (`leases.ts:184`, lu). Constat confirmé par lecture ; le coût en requêtes n'a pas été mesuré. Classement : V7, retirer `guarantor` de `$requestLoadable` ferait refuser l'appel actuel du front, et émettre `landlord` ou `agency` décide d'une donnée exposée (V3) : c'est un choix, que P21.04 attend aussi.
 
 ### Petites améliorations
 - Réf : P21.06
@@ -2735,7 +2740,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Le refus par défaut de `BaseFormRequest` est levé par 106 de ses 232 sous-classes, et une garde sur `extends FormRequest` n'en verrait aucune
 - Réf : P22.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : ordre autorisation / validation sur des routes qu'utilisent les appelants légitimes, et plus d'un ticket
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/BaseFormRequest.php:9-12`, `takussan-api/app/Http/Requests/ReviewRentRequest.php:16`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:19`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:15`, `takussan-api/app/Http/Requests/RequestEarlyTerminationRequest.php:15`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:21`, `takussan-api/app/Http/Controllers/Api/LeaseRentController.php:27-30`
 - Constat :
@@ -2746,10 +2751,11 @@ Ce qui tient (lu ou mesuré) :
   - La garde proposée par P03.05 (« refuser `extends FormRequest` hors de `BaseFormRequest` ») laisserait passer ces 106 classes : elles étendent déjà la bonne base (déduit de la forme de la garde proposée).
   - Établi comment : script de balayage, lecture des cinq FormRequests et contrôleurs, test temporaire.
 - Piste : voir P03.05. Déléguer à la policy dans `authorize()` pour les 44 méthodes qui autorisent déjà dans leur corps (le geste de TCK-305). La garde serait plutôt : « une sous-classe dont `authorize()` rend `true` sec doit être reçue par une route sous un middleware d'autorisation, ou figurer dans une liste d'exemptions justifiées », et `AuthorizationPrecedesValidationTest` prendrait un cas par route de bail.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `BaseFormRequest.php:9-12` (`return false;`), `authorize()` de `ReviewRentRequest`, `RenewLeaseRequest`, `RefundDepositRequest`, `RequestEarlyTerminationRequest` et `AgencyUpdateRequest` (`return true;`) ; `grep -rlE 'extends BaseFormRequest' app/Http/Requests | wc -l` → 232, et un relevé par `awk` des seules formes `return true;` / `return $this->user() !== null;` → 101 (l'explorateur en comptait 106 avec les équivalents) ; test temporaire, retiré depuis, compte `User::factory()` sans lien, corps invalide : `PATCH …/rent` → 422 (`new_rent`, `reason`), `POST …/renew` → 422, `POST …/deposit-refund` → 422, `POST …/early-termination` → 422, `PUT /api/agencies/{id}` → 422 (`email`). Constat confirmé. Classement : V2 et V8, faire passer l'autorisation avant la validation sur des dizaines de routes touche l'autorisation de chaque appelant et demande plus d'un ticket.
 
 ### Les trois routes de traitement en lot sont ouvertes à tout compte connecté et disent quels identifiants de biens et de comptes existent
 - Réf : P22.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : autorisation de trois routes utilisées par le personnel
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:407-458`, `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/PropertyBulkAssignRequest.php`, `takussan-api/app/Http/Requests/PropertyBulkArchiveRequest.php`, `takussan-api/app/Services/Property/PropertyBulkAssignService.php:40-47`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:47-63`
 - Constat :
@@ -2763,10 +2769,11 @@ Ce qui tient (lu ou mesuré) :
   - Un compte auto-inscrit énumère donc les identifiants de biens, brouillons et archivés compris, et ceux des comptes, par lots de 100 à 200. P03.06 relève la même famille d'oracles sur d'autres routes ; celles-ci n'y sont pas.
   - Établi comment : lu, et test temporaire.
 - Piste : refuser en tête de route ce qu'aucun profil de personnel ne peut faire (une capacité `properties.update` à l'agence active, dans `authorize()`), confondre `not_found` et `forbidden` dans le bilan d'un appelant qui n'est pas du personnel, et juger `user_id` dans le service plutôt que par `exists:`. Un test par route avec un compte sans agence.
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyBulkAssignRequest` et `PropertyBulkArchiveRequest` (`return $this->user() !== null;`), `PropertyPolicy::bulkArchive()` l. 229-232 (`return $user !== null;`) ; test temporaire, retiré depuis, compte `User::factory()` sans agence, bien d'agence tiers et identifiant absent `987654321` : `bulk-assign` → 200, `failed` = `forbidden` pour le bien, `not_found` pour l'absent ; `user_id` absent → 422 « The selected user id is invalid » ; `bulk-visibility` → 200, même bilan ; `bulk-archive` → 200 `forbidden` pour le bien, 422 sur `property_ids.0` pour l'absent. Constat confirmé tel qu'écrit. Classement : V2, le correctif change qui peut appeler ces routes et ce que le bilan dit à l'appelant.
 
 ### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
 - Réf : P22.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : déplacer des règles d'autorisation entre services et policies, sur plusieurs domaines
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:222-242`, `takussan-api/app/Policies/AgentProfilePolicy.php:71-95`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:153-169`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:213-228`, `takussan-api/app/Services/Model/InvoiceService.php:34-42`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Services/Model/BookingService.php:60-102`, `scripts/check-controller-authorization.mjs:1-60`
 - Constat :
@@ -2775,6 +2782,7 @@ Ce qui tient (lu ou mesuré) :
   - La création de facture est jugée par deux règles différentes : la capacité `InvoicesCreate` à l'agence active dans `StoreInvoiceRequest::authorize()`, puis « personnel de l'agence du client, ou client sans agence ajouté par soi » dans `InvoiceService::create()` (lu). Les deux s'additionnent aujourd'hui ; rien ne dit laquelle fait foi si l'une bouge.
   - Établi comment : lu, et grep.
 - Piste : ramener chaque règle de service dans la policy de l'action et faire appeler la policy par le service quand il est aussi appelé hors HTTP ; étendre la garde à `app/Services/` avec une liste d'exemptions justifiées (règles métier qui ne sont pas des autorisations : verrou de suspension, seuil d'approbation des reversements).
+- Mesure (2026-10-15, f30bd1cb, mesureur) : relu `AgentInvitationService::assertInviterCanManageTeam()` l. 222-243 et `AgentProfilePolicy::canManageTeamIn()` l. 71-92 : la copie n'est plus mot pour mot, la policy refuse d'abord par `AgencyKindGuard::canFormTeam()`, que le service ne regarde pas (les deux copies ont déjà divergé) ; `InvoiceService::create()` l. 34-42 juge « personnel de l'agence du client, ou client sans agence ajouté par soi » quand `StoreInvoiceRequest::authorize()` l. 28-31 passe par `can('create', Invoice::class)`, soit `Capability::InvoicesCreate` (`InvoicePolicy.php:26-29`) ; `scripts/check-controller-authorization.mjs:59` ne balaie que `app/Http/Controllers`. Constat confirmé, précisé sur la copie. Classement : V2 et V8, réunir chaque règle dans sa policy change l'autorisation d'appelants légitimes sur plusieurs domaines ; seule l'extension de la garde serait A5.
 
 ### Petites améliorations
 - Réf : P22.04
