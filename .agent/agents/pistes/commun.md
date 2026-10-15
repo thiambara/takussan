@@ -78,7 +78,8 @@ Avant de choisir ton travail :
 gh pr list --base pre-dev --state open --json number,title,labels,body
 ```
 
-Une Réf ou un angle cité dans une PR ouverte d'un **autre** agent est pris : tu ne le traites pas.
+Une Réf ou un angle cité dans une PR ouverte d'un **autre** agent, ou dans une autre de **tes**
+PR ouvertes, est pris : tu ne le traites pas. Seule la PR que tu répares fait exception.
 Pour que les autres te lisent de même, ton titre et ton corps de PR citent ce que tu traites (voir
 « Fin de passage »).
 
