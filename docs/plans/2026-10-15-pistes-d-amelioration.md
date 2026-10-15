@@ -26,7 +26,7 @@ amélioration.
 | 9 | Pages publiques : SEO, métadonnées, temps de chargement, images | fait |
 | 10 | Médias : tailles, conversions, disques privés/publics, nettoyage | fait |
 | 11 | Notifications (e-mail, SMS, WhatsApp, in-app) : doublons, préférences, échecs | fait |
-| 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | à faire |
+| 12 | Tests : zones non couvertes, tests qui seraient verts sans le code qu'ils gardent | fait |
 | 13 | Code mort et doublons : services, composants, routes, clés i18n | à faire |
 | 14 | Observabilité : erreurs avalées, journaux, alertes, ce qu'on ne verrait pas en production | à faire |
 | 15 | Parcours d'une agence neuve : inscription, mise en service, premier bien, premier bail | à faire |
@@ -53,6 +53,9 @@ amélioration.
 | 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
 | 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | à faire |
 | 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | à faire |
+| 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | à faire |
+| 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | à faire |
+| 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
 
 ---
 
@@ -1166,3 +1169,115 @@ Les trois 🔴 ont été relus par la session dans le code :
 
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
+
+## Angle 12 — Tests : zones non gardées, tests verts sans leur code
+
+Les trois 🔴 ont été relus par la session dans le code :
+- `PaymentGatewayInitiateTest.php:187-204` n'asserte qu'un `assertOk()`, sous un `Http::fake` Wave qui répond 200 à toute clé ;
+- `AccountDeletionRequestTest.php:151-168` ne crée qu'un bail actif ;
+- le seul test qui envoie `X-OM-Signature` (`PaymentDriverTest.php:131-150`) envoie une signature valide, et aucun test PHP ne contient « om-signature ».
+
+**Ce sont des tests qui manquent, pas des défauts de production** : le code gardé est juste aujourd'hui. Le 🔴 dit qu'une régression passerait la CI au vert. Aucune ablation n'a été faite : c'est l'angle 40.
+
+### Le test d'isolation à l'initiation du paiement ne peut pas voir le défaut
+- Gravité : 🔴 garde absente
+- Où : `takussan-api/tests/Feature/Api/PaymentGatewayInitiateTest.php:187-204`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:76-77`
+- Constat :
+  - Le test crée une intégration Wave dans une autre agence, avec le commentaire « must not be picked ».
+  - Sa seule assertion est `assertOk()`. Or `setUp` fait répondre 200 à `api.wave.com/*` quelle que soit la clé.
+  - Si on retire `where('agency_id', $agencyId)` (l. 77), la clé d'une autre agence peut être utilisée, et le test reste vert.
+  - Le seul test qui regarde `integration_id` (`PaymentWebhookEndpointTest.php:325`) ne crée qu'une intégration.
+  - Établi comment : lu.
+- Piste : asserter `metadata.gateway.integration_id`, ou `Http::assertSent` sur l'en-tête `Authorization: Bearer wave_test_key`.
+
+### Les obligations qui bloquent la suppression d'un compte ne sont gardées que pour le bail actif
+- Gravité : 🔴 garde absente
+- Où : `takussan-api/tests/Feature/Auth/AccountDeletionRequestTest.php:151-168`, `takussan-api/app/Services/Account/AccountDeletionService.php:326-375`
+- Constat :
+  - `test_blocked_when_user_has_pending_lease_payment_via_customer` ne crée aucun loyer impayé, seulement un bail actif. Son commentaire le dit : « The active lease alone is enough ».
+  - Dans le clover de la CI du 2026-10-15, les trois autres obligations sont à 0 : loyers en attente (`:335-342`), factures dues (`:351-358`) et réservations ouvertes (`:368-375`).
+  - Les supprimer laisserait un ancien locataire débiteur effacer son compte, sans un rouge.
+  - Établi comment : mesuré sur le clover CI, et lu.
+- Piste : un test par type d'obligation (bail résilié et échéance `Late`, facture due, réservation ouverte), plus le cas d'une restitution de caution en attente, qui ne doit pas bloquer (TCK-595 H-2).
+
+### La signature Orange Money n'est jamais testée en refus
+- Gravité : 🔴 garde absente
+- Où : `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:130-133`, `takussan-api/tests/Feature/Api/PaymentDriverTest.php:131-150`
+- Constat :
+  - Le seul test envoie une signature valide. La ligne 133 compte comme couverte, mais aucun cas de signature fausse ou absente n'existe.
+  - Si on retire `abort_code_unless`, le webhook OM accepte n'importe quel corps, et tout reste vert.
+  - Wave a son test de refus (`PaymentWebhookTest.php:84`).
+  - Établi comment : lu et grep.
+- Piste : trois cas de bout en bout sur `/api/webhooks/payments/orange_money/{token}` (signature fausse, absente, secret d'une autre agence), en vérifiant que le paiement n'a pas bougé.
+
+### L'horodatage de la signature Wave n'est jamais comparé à l'heure
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:146-151`
+- Constat :
+  - `t` entre dans le HMAC, mais rien ne le compare à `now()` : un webhook signé et capturé reste rejouable indéfiniment.
+  - Le test de refus (`t=1,v1=deadbeef`) échoue sur le HMAC, et il resterait vert qu'il y ait une fenêtre de temps ou non.
+  - Établi comment : lu. L'effet d'un `refund` ou d'un `failed` rejoué est à vérifier (angle 39).
+- Piste : refuser un `t` hors d'une tolérance de 5 min ; tester une signature valide avec un `t` vieux d'une heure.
+
+### Le cliquet de couverture laisse sept points de marge
+- Gravité : 🟠 risque ou dette
+- Où : `.github/workflows/api-ci.yml:464`
+- Constat :
+  - L'artefact `couverture-api-clover` du run 38662423267 (PR de cette branche, PCOV) donne 38 400 instructions couvertes sur 41 226, soit **93,15 %**.
+  - Le seuil est à 86 % : environ 2 950 instructions peuvent perdre leur couverture sans rouge.
+  - Établi comment : mesuré, sur une seule exécution de PR.
+- Piste : selon CLAUDE.md, le seuil se resserre sur un chiffre de CI. Relever un second run sur `dev`, puis passer à 92 %.
+
+### Le clover local est périmé et trompe qui le lit
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/storage/coverage/clover.xml`
+- Constat :
+  - Le fichier date du 2026-08-30.
+  - 467 fichiers sur 1 403 dans `app/` en sont absents (33 %), dont `LeaseSignatureService`, `PayoutCalculator`, `WebhookJournal` et `PaymentSupervisionService`.
+  - Il mesure aussi 9 fichiers qui n'existent plus.
+  - Établi comment : mesuré.
+- Piste : lire l'artefact de la CI (`gh run download -n couverture-api-clover`) ; supprimer ou dater le fichier local.
+
+### La policy du registre RGPD n'est jamais exécutée
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/PrivacyRequestPolicy.php:18,23,28,33`
+- Constat :
+  - Ses quatre lignes sont à 0 dans le clover CI, et la carte d'impact ne lui rattache aucun test.
+  - Le 403 testé (`PrivacyRequestRegistryTest.php:145`) vient du middleware `super-admin`, avant que la policy soit consultée.
+  - Un `return false` changé en `true` resterait vert.
+  - Établi comment : mesuré.
+- Piste : un test unitaire de la policy par méthode.
+
+### Le code de signature de bail envoyé par e-mail n'est jamais rendu
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:41-48`
+- Constat : `toMail` est à 0 dans le clover CI, alors que le code OTP n'existe que là. Les tests figent la notification sans la rendre (mesuré).
+- Piste : rendre le mail et asserter qu'il contient le code.
+
+### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
+- Constat :
+  - 15 actions sur 27 ne sont importées par aucun test, dont `account-deletion`, `invitations`, `locale` et `notification-preferences`.
+  - 24 handlers sur 36 non plus. Les plus exposés :
+    - `data-exports/[id]/download` (export RGPD) ;
+    - `me/owner-profiles/[id]/kyc/{submit,upload}` ;
+    - `admin-users/[[...path]]` ;
+    - `super-admin-properties/[[...path]]` ;
+    - `me/wizard-drafts/[key]`.
+  - Les deux gardes génériques (`codes-erreur-bff.test.ts`, `segments-amont.garde.test.ts`) n'éprouvent pas le chemin nominal.
+  - Établi comment : mesuré, par un script qui résout les imports.
+- Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
+
+### Petites améliorations
+- Gravité : 🟢 amélioration
+- Constat (mesuré) :
+  - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
+  - **Assertions vides** : trois `assertTrue(true)` (`DigestBuilderServiceTest.php:131`, `SeedingMediaFailuresTest.php:154`…).
+  - **Dates du jour** : des assertions sur la date du jour sans `freezeTime` (`SponsoredImpressionsTest.php:38`, `MaintenanceStructuredQuoteTest.php:93`), donc un risque de rouge à minuit.
+  - **Mocks** : six tests front ne vérifient qu'un `toHaveBeenCalled()` sans arguments (`MaintenanceScheduler.test.tsx:70`…).
+  - **Ce qui tient** :
+    - tous les tests de policy essaient le refus ;
+    - aucun test back ne moque sa propre classe ;
+    - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
+- Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
