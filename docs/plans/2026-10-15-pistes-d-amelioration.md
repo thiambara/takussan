@@ -1409,11 +1409,12 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:122`, `takussan-api/config/media-library.php:160`
 - Constat : `update(['order_column'])` touche `updated_at`, or `version_urls` construit `?v=<updated_at>`. Chaque déplacement crée donc un défaut de cache, et de nouvelles transformations Cloudflare pour ce qui passe encore par elles (lu).
 - Piste : mettre à jour `order_column` sans toucher aux horodatages, ou versionner sur un champ dédié.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `PropertyMediaController.php:122` (`->update(['order_column' => …])`) et `config/media-library.php:160` (`version_urls`) relus ; `BaseUrlGenerator` de spatie suffixe `?v=<updated_at>` ; test temporaire retiré : deux photos téléversées, horloge avancée de 5 min, `PUT /api/properties/{id}/media/reorder` → l'URL de la première passe de `/storage/1/a.jpg?v=1792087464` à `?v=1792087765`, fichier inchangé. Le constat tient. Classement : A2, poser `order_column` sans toucher `updated_at` ne change ni le contenu ni l'ordre rendus, seulement la stabilité du cache ; aucun choix de produit.
 
 ### Petites améliorations
 - Réf : P10.10
@@ -1482,7 +1483,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : inscription et réinitialisation du mot de passe
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33-46`, `takussan-api/app/Notifications/RegistrationConfirmationNotification.php`
 - Constat :
@@ -1491,10 +1492,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Même chose pour `ResetPasswordNotification` et `AccountDeletion*`.
   - Établi comment : lu.
 - Piste : `ShouldQueue`, avec les codes à usage unique sur `notifications-urgent`.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `AuthController::register` (l. 31-46 : `User::create` hors transaction, `event(new Registered)`) relu, `RegistrationConfirmationNotification` étend `VerifyEmail` sans `ShouldQueue`, ni `ResetPasswordNotification` ; les trois `AccountDeletion*` n'ont que le trait `Queueable`, sans `ShouldQueue` ; test temporaire retiré : SMTP sur `127.0.0.1:1`, `POST /api/auth/register` → 500, aucun jeton, compte créé en base ; même corps rejoué → 422 `email: The email has already been taken.` Le constat tient. Classement : V2, le correctif touche le parcours d'inscription et de réinitialisation, et le choix de file (`notifications-urgent`) en fait partie.
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
 - Réf : P11.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : seau des codes critiques, ou 503
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -1505,10 +1507,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Les clés `SMS_*` sont absentes en préproduction (`docs/infra/hebergement.md:148`).
   - Établi comment : lu.
 - Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `SmsRouterDriver.php:195-201` et `appendAttempt` (l. 239-243, sort sans rien écrire si `notification_id` est nul), `SmsChannel::withinRateLimit` (l. 143-160, seau unique de `sms.rate_limit.per_user_per_hour` = 5, codes critiques compris) et `LeaseSignatureService::sendCode` (l. 112-136, rend `channel: sms` sans lire le résultat) relus ; test temporaire retiré : chaînes vides, `SmsRouterDriver::send` d'un SMS critique sans `notification_id` → `failed`/`no_provider_available`, et `Log::spy` n'a reçu ni `info`, ni `warning`, ni `error`. Tient pour le chemin « aucun fournisseur » ; inexact sur un point : le seau plein, lui, laisse un `Log::info` (`SmsChannel.php:152`). Classement : V7, la piste choisit entre un seau séparé pour les codes et un 503 visible, et la signature de bail en dépend (V2).
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : qui porte le SMS d'un professionnel mono-agence
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
 - Constat :
@@ -1517,10 +1520,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - `IntegrationLocator` est un singleton qui met en cache aussi les résultats nuls. Dans le worker (`--max-time=3600`), une intégration activée ou tournée met jusqu'à une heure à prendre effet.
   - Établi comment : lu.
 - Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `IntegrationLocator::find` (l. 18-33 : avec `agency_id`, seule l'intégration de l'agence ; cache par clé, nul compris), `SmsChannel::resolveAgencyId` (l. 102-107, lit `User::agency_id`, que `getAgencyIdAttribute` rend nul pour un multi-agences, `User.php:263-288`) et `AppServiceProvider::registerSmsServices` (`singleton(IntegrationLocator::class)`) relus ; `grep -rn 'flush()' app` → aucun appelant de `IntegrationLocator::flush()`. Le constat tient à la lecture ; l'intention (un compte SMS d'agence voulu ou non) n'est écrite nulle part, ADR-0032 l. 74 et 125 met le coût à la plateforme. Classement : V7, le repli sur la plateforme est une décision de facturation et de produit ; seul le passage à `scoped()` serait A1.
 
 ### Diffusion en double, avant le commit, avec le contenu écrit au journal
 - Réf : P11.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : contenu des notifications écrit au journal
 - Gravité : 🟠 risque ou dette (valeur de préproduction à vérifier)
 - Où : `takussan-api/app/Services/Model/NotificationService.php:108-114`, `takussan-api/app/Events/NewNotification.php:13`, `takussan-api/app/Notifications/CodedNotification.php:85`, `.env.example:121`
 - Constat :
@@ -1529,6 +1533,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Avec `BROADCAST_CONNECTION=log`, titre et corps (noms, montants) sont écrits au niveau info.
   - Établi comment : lu, et mesuré pour le front.
 - Piste : supprimer `NewNotification`, ou la passer en `ShouldDispatchAfterCommit` et la faire taire tant que D-65 est ouvert.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `NotificationService.php:108-114` (`event(new NewNotification)` après `notify()`), `NewNotification` (`ShouldBroadcastNow`, `broadcastWith` porte `title` et `body`), `CodedNotification::via` l. 80-86 et `PreferenceResolver::channelsFor` l. 217-223 relus ; `grep -rniE 'laravel-echo|pusher|notification\.new|new Echo' takussan-web/src takussan-web/package.json` → rien ; test temporaire retiré : `broadcasting.default=log`, `NotificationService::send` pour les 98 codes → exactement une ligne `info Broadcasting [notification.new] …` par code, titre en clair (« Loyer à payer le … »). Tient en partie : le contenu va au journal et personne n'écoute ; la diffusion **en double** n'existe pas sous `log`/`null`, puisque `channelsFor()` retire `push` sans transport (D-65), et ne naîtrait qu'avec un vrai transport ; « avant le commit » et la valeur de préproduction ne sont pas mesurés. Classement : V3, la piste décide de ce qui s'écrit d'une notification au journal, ou retire un mécanisme de diffusion (V6).
 
 ### Le résumé par e-mail est injoignable, et doublerait chaque e-mail le jour où il le deviendrait
 - Réf : P11.08
@@ -2588,7 +2593,7 @@ n'est pas repris ici.*
 
 ### `include=user` rend la ligne `users` entière (38 colonnes, dont `google_id`, `metadata` et le second numéro) sur quatre listes, à un simple agent pour deux d'entre elles
 - Réf : P21.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : projection des données personnelles d'un `User` exposé
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/OwnerProfileResource.php:36`, `takussan-api/app/Http/Controllers/Api/Agency/TeamController.php:61`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Models/User.php:77-79`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:75`, `takussan-web/src/lib/queries/service-providers.ts:115`
 - Constat :
@@ -2602,6 +2607,7 @@ n'est pas repris ici.*
   - Le code dit l'intention contraire. `UserResource.php` réserve le second numéro et les préférences de contact à soi (« le second numéro d'un collègue n'a rien à faire dans cette liste », TCK-633). `TeamController.php:52-54` refuse de mettre `two_factor_enabled` dans `User::$queryFields` « qui l'exposerait à toute liste d'utilisateurs » (lu).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : faire passer le `User` inclus par une projection fixe (un `UserResource` « public » : id, noms, e-mail, téléphone, avatar) dans ces quatre réponses, au lieu de `relationsToArray()` et du modèle brut ; ou, au minimum, poser une projection par défaut quand `fields[users]` est absent. Test : pour chaque route, `include=user` sans `fields[users]` ne rend ni `google_id`, ni `metadata`, ni `secondary_phone` ; ablation sur la projection.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : code relu (`OwnerProfileResource.php:36` `relationsToArray()`, `TeamController.php:61` `$paginator->items()`, `ServiceProviderProfileController.php:46-49`, `TenantOnboardingPendingController.php:70` paginateur brut, `User::$hidden` l. 77-79 à quatre colonnes), puis test temporaire retiré : `User` bailleur portant `google_id`, `secondary_phone` et `metadata`, `GET /api/owners?include=user` par un agent → 200 et 38 clés dont ces trois, `GET /api/agencies/{a}/team?include=user` par un admin → 200, 38 clés, `google_id` présent. Le constat tient tel qu'écrit. Classement : V3, le correctif décide quelles données personnelles sortent d'un `User` inclus (choix de la projection « publique »).
 
 ### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
 - Réf : P21.02
@@ -2616,7 +2622,7 @@ n'est pas repris ici.*
 
 ### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
 - Réf : P21.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : contact du visiteur exposé au bailleur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/PropertyVisitResource.php:13-17,44-50`, `takussan-web/src/lib/queries/visits.ts:138,159`
 - Constat :
@@ -2625,10 +2631,11 @@ n'est pas repris ici.*
   - Le front demande `include: ['property', 'agent', 'visitor']` sur la liste et le détail (`visits.ts:138,159`, lu).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : soumettre le bloc `visitor` au même `$visiteurLisible`, au moins pour `email` et `phone`. Test : le bailleur non-personnel ne lit ni l'e-mail ni le téléphone du visiteur par `include=visitor` ; ablation sur la condition.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `PropertyVisitResource.php:13-17` (`$visiteurLisible`) et l. 44-50 (bloc `visitor` sans condition) relus, inchangés ; test temporaire retiré : bailleur non-personnel, visite planifiée par le personnel pour une fiche liée au compte `visiteur@exemple.sn`, `GET /api/property-visits/{id}?include=visitor,customer` et la liste → 200, `visitor_phone` et `customer` à `null`, `visitor` = `{email: "visiteur@exemple.sn", phone: "+221771112233"}` dans les deux. Le constat tient. Classement : V3, la règle M7″ (TCK-590) est écrite mais le correctif change ce qui est exposé d'une personne, et le nom du visiteur (`first_name`/`last_name`) sort aussi : quelles clés masquer reste à trancher.
 
 ### Le garant ajouté à un bail n'apparaît jamais sur la fiche : le front lit `lease.guarantor`, que l'API n'émet pas
 - Réf : P21.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : affichage de plusieurs garants, et sort de `guarantor_id`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73,161-191`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Lease.php:167-181`, `takussan-web/src/lib/queries/leases.ts:184,460-465`, `takussan-web/src/components/leases/LeaseDetail.tsx:306-311`, `takussan-web/src/components/leases/GuarantorSection.tsx:48,75,100-103`
 - Constat :
@@ -2643,6 +2650,7 @@ n'est pas repris ici.*
   - La section affiche donc toujours l'état vide (`t('empty')`, l. 100-103). `guarantorsCount` vaut toujours 0 : le bouton n'est jamais désactivé à 3 (l. 48), et seul le serveur tient le plafond (lu).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : lire les garants par `GET /api/leases/{id}/guarantors`, qui existe, ou les émettre dans `LeaseResource` (`guarantors`, par une projection). Trancher le sort de `Lease.guarantor` / `guarantor_id` (relation à une colonne que l'ajout n'écrit pas). Test front : après ajout, la section affiche le garant ; test API sur la clé émise.
+- Mesure (2026-10-15, 4e9acdd7, mesureur) : `LeaseController::show` (l. 63-72, `load()` fixe, `include` ignoré) et `LeaseResource` (aucune clé `guarant*`) relus, `LeaseDetail.tsx:308-309` passe `lease.guarantor` et `guarantorsCount={lease.guarantor ? 1 : 0}` ; test temporaire retiré : bailleur, `POST /api/leases/{id}/guarantors` → 201, puis `GET /api/leases/{id}?include=property,guarantor,payments` → 200 sans aucune clé `guarant*`, pivot à 1 garant, `leases.guarantor_id` à `NULL`. Le constat tient. Classement : V7, la fiche ne sait montrer qu'un garant pour un pivot qui en porte jusqu'à 3, et la piste demande de trancher le sort de `Lease.guarantor`/`guarantor_id` (V4 possible).
 
 ### Des `include=` acceptés, chargés en base, puis jamais émis
 - Réf : P21.05
