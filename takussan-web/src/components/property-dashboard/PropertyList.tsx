@@ -754,7 +754,7 @@ function BulkActionBar({
         </div>
       ) : null}
       {bulkError ? (
-        <span role="alert" className="text-destructive">
+        <span role="alert" className="rounded-md bg-background px-2 py-0.5 text-destructive">
           {bulkError}
         </span>
       ) : null}
