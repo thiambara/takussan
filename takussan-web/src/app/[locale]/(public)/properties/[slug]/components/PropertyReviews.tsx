@@ -44,6 +44,8 @@ interface ReviewItemProps {
 
 function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
   const t = useTranslations('property.reviews');
+  // Libellé partagé avec la fiche publique d'agence et d'agent (`ReviewsSection`).
+  const tNote = useTranslations('publicProfile.reviews');
   const [editing, setEditing] = useState(false);
   const hasReply = Boolean(review.reply_content);
 
@@ -70,12 +72,16 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
             <p className="font-medium text-foreground">{review.author.name}</p>
             <time className="text-xs text-muted-foreground">{formatDate(review.created_at)}</time>
           </div>
-          <div className="flex items-center gap-0.5 mt-0.5">
+          <div
+            role="img"
+            aria-label={tNote('ratingAria', { rating: String(review.rating) })}
+            className="flex items-center gap-0.5 mt-0.5"
+          >
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}
                 className={`size-3.5 ${
-                  n <= review.rating ? 'fill-primary text-primary' : 'text-muted-foreground/40'
+                  n <= review.rating ? 'fill-primary text-primary' : 'text-muted-foreground'
                 }`}
               />
             ))}

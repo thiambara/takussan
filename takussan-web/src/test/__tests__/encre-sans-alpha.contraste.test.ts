@@ -196,7 +196,6 @@ describe('les sites de P07.02 tiennent 4,5:1', () => {
  */
 const RESTANTS: Readonly<Record<string, number>> = {
   'app/[locale]/(public)/properties/[slug]/components/PropertyReviewForm.tsx': 1,
-  'app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx': 1,
   'components/admin/super/GlobalSearch.tsx': 1,
   'components/admin/super/agency-detail.tsx': 1,
   'components/favorites/FavoritesPopover.tsx': 1,
