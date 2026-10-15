@@ -95,7 +95,7 @@ voie d'écriture (angle 13, puis 47).
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | fait |
 | 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | fait |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | fait |
-| 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
+| 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | fait |
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | à faire |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
@@ -135,6 +135,8 @@ voie d'écriture (angle 13, puis 47).
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
+| 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
+| 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 
 ---
 
@@ -2768,3 +2770,100 @@ Ce qui tient (lu ou mesuré) :
   - `POST /api/properties/{id}/duplicate`, compte sans lien : `title_suffix` de 60 caractères → 422, corps vide → 403 (mesuré) ; la policy `duplicate` existe déjà et n'est pas appelée dans `authorize()`.
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
+
+## Angle 23 — Lectures de données personnelles sans step-up, face à `REFUSED_READS`
+
+*Exploré le 2026-10-15 sur `pre-dev` 69360e19, par l'explorateur. Tout a été relu par
+l'explorateur, sans sous-agent. Mesures par un test temporaire (`tests/Feature/TmpExplo/`), retiré
+depuis : base de test `RefreshDatabase`, session d'impersonation ouverte par le trait
+`SessionsDImpersonation`, comme le BFF. Charge relevée avant le passage : `vm.loadavg` 1,65 sur
+8 cœurs. Inventaire des `GET` par `php artisan route:list --method=GET --json` (294 routes),
+filtré sur documents, médias, KYC, versements, jetons, liens et exports. Comptes de la base de
+développement lus par `tinker` en `SELECT` : aucune fiche client ni caution n'y porte de
+`id_number`, aucun `Document` de profil n'y existe. Les ordres de grandeur réels ne sont donc pas
+mesurés. Relu et trouvé conforme : flux iCal importés (hôte seul), moyens de versement côté agence
+(masqués), export CSV des clients (sans `id_number`), demandes de passage en agence (masquées),
+pièces des dossiers KYC d'agence (refusées sous impersonation, journalisées). La lecture en clair
+des comptes de versement sous impersonation est déjà en P03 (« Sous impersonation, l'opérateur lit
+en clair les comptes de reversement de la cible ») et n'est pas reprise.*
+
+### Sous impersonation, l'opérateur ouvre la pièce d'identité du bailleur, de l'agent ou du prestataire par `/api/documents`, alors que `api/kyc/documents/*` est refusé
+- Réf : P23.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Http/Resources/DocumentResource.php:38`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:59-78`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:68-87`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:59-80`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:18-23`
+- Constat :
+  - ADR-0055 §3 : « toute route `GET` qui rend […] une pièce d'identité entre dans `REFUSED_READS` ». La constante n'y range que `api/kyc/documents/*` (lu, `EnforceImpersonationReadOnly.php:57`). Cette route ne sert que les médias d'un `KycDossier` d'agence (lu, `KycDocumentController.php:18`).
+  - Les pièces des assistants d'accueil (`kind=cni|rib|ninea`) sont des `Document` rattachés à `OwnerProfile`, `AgentProfile` ou `ServiceProviderProfile`, avec `uploaded_by` = le titulaire (lu, les trois contrôleurs `Me/`). `GET /api/documents` liste les documents dont on est le téléverseur (lu, `DocumentController.php:41-42`), et `DocumentResource` émet une `file_url` signée de 30 minutes (lu, `:38`).
+  - mesuré, test temporaire : pour chacun des trois profils, téléversement d'une `cni` par la cible, puis session d'impersonation. `GET /api/documents` sous le jeton d'impersonation → 200, un document `type=id_card`. `GET /api/documents/{id}` → 200. `GET <file_url>` sans jeton → 302 vers le fichier. Les trois profils rendent la même chose.
+  - mesuré, même test : zéro ligne `PersonalDataAccess` dans `activity_log` après ces lectures. La voie de la pièce d'agence, elle, journalise chaque consultation (lu, `KycDocumentController.php:23`).
+  - La justification de l'ADR pour la pièce d'agence (« tout opérateur la lit déjà par `/api/admin/kyc`, sous son nom ») ne vaut pas ici : aucune voie de la console ne sert ces pièces, et leur lecture n'est pas journalisée (voir P23.04).
+  - Établi comment : lu, et test temporaire.
+- Piste : refuser sous impersonation les `Document` de type pièce (`id_card`, `rib`, `ninea`) rattachés à un profil, au niveau de `DocumentPolicy::view` ou de la ressource (masquer `file_url` quand `ImpersonationContext` est lié). Un préfixe de route ne suffit pas : `api/documents*` sert aussi les baux. Garde : un test qui rejoue le scénario mesuré pour les trois profils.
+
+### Le bailleur lit la pièce d'identité et le contact d'urgence de son locataire par le bail et la réservation, alors que la fiche client lui est refusée
+- Réf : P23.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/CustomerResource.php:19-27`, `takussan-api/app/Http/Resources/LeaseResource.php:77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:69`, `takussan-api/app/Http/Resources/BookingResource.php:44`, `takussan-api/app/Http/Controllers/Api/BookingController.php:63`, `takussan-api/app/Policies/CustomerPolicy.php:8-14`
+- Constat :
+  - mesuré, test temporaire : bailleur d'un bien d'agence, locataire `id_number = SN-998877`. `GET /api/customers/{id}` → 403. `GET /api/leases/{id}` → 200 avec `tenant.id_number` et `tenant.emergency_contact_phone`. `GET /api/bookings/{id}` → 200 avec `customer.id_number`. `GET /api/leases?include=tenant` → 200 avec `tenant.id_number`.
+  - `CustomerPolicy` dit pourquoi le bailleur a perdu la fiche : il lisait « tout le CRM, téléphones et pièces d'identité compris » (lu, docblock l. 8-14, TCK-587). `show` des deux contrôleurs charge la fiche sans `include=` (lu).
+  - verif-591 m2 a déjà fermé cette voie pour les seuls critères de recherche (`budget_*`, `seeking_*`), « y compris par `include=tenant` / `include=customer` » (lu, `TCK-591` AC38 ; `CustomerResource.php:83-96`). La pièce, le contact d'urgence, `notes` et `metadata` restent rendus au bailleur (lu, `CustomerResource.php:19-27`).
+  - Ce que le bailleur doit voir de son locataire (nom, téléphone, pièce pour le contrat ?) n'est écrit nulle part : à vérifier dans `docs/features.md`. Le rendu PDF du contrat ne cite pas `id_number` (grep sur `resources/views` → aucune occurrence).
+  - Voir P21.05, qui relève `Booking.customer` rendu par `CustomerResource` sans relever les champs sensibles.
+  - Établi comment : lu, et test temporaire.
+- Piste : réserver `id_type`, `id_number`, `emergency_contact_*`, `notes` et `metadata` au lecteur que `CustomerPolicy::view` admet, par la même forme que `readsCriteria()`. Étendre `CustomerScopeTest::test_search_criteria_are_rendered_to_agency_staff_only` à ces champs.
+
+### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
+- Réf : P23.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
+- Constat :
+  - `owner_profiles.id_document_number`, `rib` et `tax_id` : cast `encrypted`, `$hidden`, forme masquée dans les listes, valeur claire par `GET /api/owners/{id}/sensitive` seulement, sous step-up et journalisée (lu, `OwnerProfile.php:47-53`, `ProtectedActions.php:263-266`, `OwnerProfileController.php:81-95`). ADR-0044 §1 pose la règle (« une donnée personnelle sensible est chiffrée […] ne sort jamais en clair […] dans une réponse par défaut ») et ne retient que ces colonnes et celles des demandes de passage en agence.
+  - `customers.id_number` et `guarantors.id_number` sont des `varchar` en clair (lu, migrations). `guarantors.monthly_income` aussi.
+  - Rendus en clair à tout lecteur de la fiche : `CustomerResource` (l. 20), `GuarantorController::format` (l. 92-96, avec le revenu). `id_number` est demandable par `fields[customers]` (lu, `Customer.php:106`).
+  - mesuré, test temporaire : sous impersonation d'un admin d'agence, `GET /api/customers/{id}` et `GET /api/customers?fields[customers]=id,id_number` → 200 avec `id_number` en clair. Aucun step-up, aucune ligne `PersonalDataAccess`.
+  - Le dépôt traite déjà `id_number` comme sensible ailleurs : exclu du journal d'activité (lu, `Customer.php:35-50`), de l'index Meilisearch (lu, `Customer.php:205-219`) et de l'export CSV (lu, `ExportDataService.php:103-127`).
+  - Établi comment : lu, et test temporaire.
+- Piste : étendre ADR-0044 §1 aux deux colonnes : chiffrement par migration réversible, forme masquée par défaut, valeur claire par une lecture dédiée sous step-up et journalisée, comme `owners/{id}/sensitive`. C'est un choix de produit et de schéma, à poser par ADR. À défaut, au moins la masquer dans les listes et sous impersonation.
+
+### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
+- Réf : P23.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Models/Document.php:36`, `takussan-api/app/Policies/DocumentPolicy.php:38`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:37,46`
+- Constat :
+  - `index` ne filtre par téléverseur que hors super-admin (lu, `DocumentController.php:41-42`). `type` est filtrable (lu, `Document.php:36`). `GET /api/documents?filter[type]=id_card` rend donc au super-admin les pièces de tous les comptes, avec leur `file_url` signée (déduit de la lecture : à vérifier par un appel).
+  - `DocumentPolicy::view` ouvre tout document au super-admin (lu, l. 38).
+  - Aucun appel à `PersonalDataAccessLogger` sur cette voie (grep `->record(` dans `app/Http/Controllers` → seuls `KycDocumentController`, `OwnerProfileController@sensitive`, `Admin/KycController`, `Admin/AgencyUpgradeRequestController` et `Admin/UserDetailController`). Les dossiers KYC de la console sont journalisés à chaque lecture (lu, `Admin/KycController.php:37,46`).
+  - La route est sous `auth:sanctum` et non sous `/api/admin/*` : ni le middleware `super-admin`, ni le refus d'impersonation de `/api/admin/*` ne s'y appliquent.
+  - Établi comment : lu et grep.
+- Piste : journaliser par `PersonalDataAccessLogger` toute lecture par un profil plateforme d'un `Document` de type pièce dont il n'est pas le téléverseur, ou retirer le pouvoir global de `index` au profit d'une voie de console. Garde : un test qui vérifie la ligne de journal.
+
+### Des URL signées de 7 jours vers des pièces privées sont rangées dans `app_notifications.data`, et relues par `GET /api/notifications`
+- Réf : P23.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:35,94-104,123-136`, `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:155-189`, `takussan-api/app/Http/Resources/AppNotificationResource.php:46`
+- Constat :
+  - `toArray()` porte `attachments`, chacune avec une URL signée vers `media.private.show` valable `ATTACHMENT_LINK_TTL_DAYS = 7` jours (lu, l. 35, 103, 129-132). Ce sont les pièces justificatives d'une retenue sur caution (photos, factures).
+  - Le canal `database` du dépôt écrit ce `toArray()` dans `app_notifications.data` (lu, `AppDatabaseChannel.php:174-189`). `AppNotificationResource` le rend tel quel (lu, l. 46).
+  - L'URL ouvre le fichier sans session (route `media.private.show` sans `auth:sanctum`, lu, `PrivateMediaController.php` docblock). C'est un « lien qui ouvre sans session » au sens d'ADR-0055 §3. `api/notifications` n'est pas dans `REFUSED_READS` : sous impersonation, l'opérateur la lit et la garde 7 jours (déduit de la lecture : à vérifier par un appel).
+  - Au huitième jour, le lien de la cloche ne s'ouvre plus : la notification reste en base avec une URL morte (déduit de la lecture : à vérifier).
+  - Aucune donnée réelle en base de dev (`app_notifications` dont `data` contient `attachments` → 0).
+  - Établi comment : lu.
+- Piste : ne ranger en base que les identifiants des médias, et signer à la lecture, dans `AppNotificationResource` ou un point de lecture dédié, après autorisation. Garder l'URL longue pour le seul courriel. Garde : un test qui vérifie qu'aucune `data` de notification écrite ne contient `signature=`.
+
+### Petites améliorations
+- Réf : P23.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:15-25,37-43`, `docs/adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md`
+- Constat :
+  - La consigne d'ADR-0055 §3 n'est tenue que par un commentaire : « Rien d'autre ne l'attrape » (lu, l. 37-43). P23.01 et P23.05 sont deux lectures qu'elle aurait dû couvrir. Le premier cas ne se voit pas à la route, il se voit au type du document rendu.
+  - Le docblock de la classe annonce le code `impersonation.read_only` (l. 19), l'ADR écrit `impersonation_read_only` (§3). Le code émet `impersonation.read_only` (lu, l. 84) : c'est l'ADR qui diffère.
+  - Le relevé des « autres lectures GET » du docblock (l. 21-24 : `auth/sessions`, `me/calendar-feed`, `integrations`, `invitations`) ne cite ni `documents`, ni `customers`, ni `notifications`.
+  - Établi comment : lu.
+- Piste : une garde qui ouvre une session d'impersonation sur une cible garnie (pièce de profil, fiche client avec pièce, notification à pièces jointes) et balaie les `GET` de `route:list`. Elle échoue sur toute réponse 200 qui porte un champ `signature=`, `token`, `file_url` vers une pièce, ou `id_number`. Corriger l'ADR pour qu'il écrive le code réellement émis.
