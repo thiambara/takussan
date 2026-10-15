@@ -156,4 +156,46 @@ class MeUpdateTest extends TestCase
             ->assertJsonPath('data.preferences.city', 'Thiès')
             ->assertJsonPath('data.preferences.entry_intent', 'search');
     }
+
+    /**
+     * TCK-655 (P06.01) — le sélecteur de langue persiste le choix sur le compte. La langue des
+     * e-mails, SMS et notifications stockées suit `preferred_language` : sans cette écriture, elle
+     * restait `fr` pour tout le monde.
+     */
+    public function test_la_langue_choisie_est_enregistree_sur_le_compte(): void
+    {
+        $user = User::factory()->create(['preferred_language' => 'fr', 'preferences' => ['city' => 'Thiès']]);
+
+        $this->actingAs($user)
+            ->patchJson('/api/me', ['preferred_language' => 'wo'])
+            ->assertOk();
+
+        $user->refresh();
+        $this->assertSame('wo', $user->preferred_language);
+        $this->assertSame('wo', $user->preferredLocale());
+        $this->assertSame(['city' => 'Thiès'], $user->preferences);
+    }
+
+    public function test_une_langue_non_prise_en_charge_est_refusee(): void
+    {
+        $user = User::factory()->create(['preferred_language' => 'en']);
+
+        foreach (['de', '', null, 'fr-FR'] as $langue) {
+            $this->actingAs($user)
+                ->patchJson('/api/me', ['preferred_language' => $langue])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('preferred_language');
+        }
+
+        $this->assertSame('en', $user->fresh()->preferred_language);
+    }
+
+    public function test_sans_la_cle_la_langue_ne_change_pas(): void
+    {
+        $user = User::factory()->create(['preferred_language' => 'en']);
+
+        $this->actingAs($user)->patchJson('/api/me', ['city' => 'Dakar'])->assertOk();
+
+        $this->assertSame('en', $user->fresh()->preferred_language);
+    }
 }
