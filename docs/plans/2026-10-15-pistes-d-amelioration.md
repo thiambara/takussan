@@ -257,7 +257,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Liste des membres d'agence : une dizaine de requêtes par ligne
 - Réf : P02.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-653
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/AgencyController.php:191`, `takussan-api/app/Http/Resources/UserResource.php:37,86-87`, `takussan-api/app/Models/Concerns/HasProfiles.php:82-95,229-262`, `takussan-api/app/Models/User.php:263-289`
 - Constat :
@@ -266,6 +266,7 @@ Déjà sain (mesuré ou lu) :
   - Le sparse fieldset ne coupe aucun de ces calculs. Cela fait environ 1 100 requêtes par appel (lu ; le compte exact reste à mesurer).
 - Piste : précharger les profils et `media`, ou ne sortir `roles` et `agency_id` que pour soi.
 - Mesure (2026-10-15, c8f7f127, mesureur) : test temporaire, retiré depuis, `GET /api/agencies/{id}/members?per_page=1000&fields[users]=id,first_name,last_name` sous `DB::enableQueryLog()` → 129 requêtes pour 11 lignes, 459 pour 41, 1 669 pour 151, soit environ 11 par ligne, sparse fieldset compris. Lu `UserResource.php:37,86-87` (`getFirstMediaUrl`, `agency_id`, `profileTypes()`), `HasProfiles::profileTypes()` (cinq `exists()` sans regard pour les relations chargées, alors que `profiles()` les réutilise déjà). Classement : A2, précharger les profils et `media` et faire relire à `profileTypes()` les relations chargées rend la même sortie ; la variante de la piste qui retire `roles`/`agency_id` de la sortie relèverait de V7 et n'est pas couverte par ce classement.
+- Mesure (2026-10-15, 6c8a08b0, implementeur) : `AgencyMembersQueryCountTest` écrit d'abord, rouge avant correctif : 85 requêtes pour 7 lignes, 217 pour 19 (`per_page=100`, sparse fieldset). Préchargement des cinq relations de profil, de `tenantLeases` et de `media` après pagination, et relecture des relations chargées dans `profileTypes()` et `hasActiveTenantLease()` → 19 requêtes pour 7 comme pour 19 lignes ; `roles`, `agency_id` et `avatar_url` inchangés sur six sortes de membres. Ablation : sans le préchargement, rouge (85/217) ; sans la relecture dans le trait, rouge (54/114).
 
 ### `per_page` sans plafond sur une vingtaine de routes
 - Réf : P02.02
