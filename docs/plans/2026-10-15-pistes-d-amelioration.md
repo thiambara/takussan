@@ -1828,7 +1828,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
 - Réf : P13.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : accepter un fichier dans la messagerie ou retirer le trombone est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ChatView.tsx:226,442`, `takussan-web/src/lib/queries/conversations.ts:423`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-299`
 - Constat :
@@ -1836,10 +1836,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - L'API n'accepte que la note vocale, dans `sendMessage` : le texte part, le fichier échoue sur « uploadFailed ».
   - Établi comment : mesuré, et lu.
 - Piste : accepter le fichier dans `sendMessage`, comme l'audio, ou retirer le trombone.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `ChatView.tsx:221-233` (`uploadAttachment` poste `file` sur `/api/conversations/{c}/messages/{m}/attachments`, appelé l. 255 après l'envoi du texte, erreur `chat.uploadFailed` l. 257) et `conversations.ts:423` (même chemin) ; `php artisan route:list --path=conversations` → 17 routes, aucune ne contient `attach` (`route:list | grep -i attach` vide) ; `ConversationController::sendMessage` (l. 285-299) ne lit que `audio`. Les lignes citées tiennent, à `ChatView.tsx:226` près (l'appel, la fonction commence l. 221). Classement : V7, la piste laisse le choix entre une voie d'envoi neuve côté API (fichier joint à un message, comportement visible neuf) et le retrait du trombone (fonction visible retirée).
 
 ### Documents de la fiche client : envoi vers une route absente
 - Réf : P13.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:187`, `takussan-web/src/components/customer-dashboard/CustomerDocumentsPanel.tsx:46`
 - Constat :
@@ -1847,10 +1848,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - La même page offre `AddDocumentButton`, qui passe par `/api/documents` : deux voies d'ajout, dont une cassée.
   - Établi comment : mesuré, et lu.
 - Piste : faire passer le panneau par `AddDocumentButton`.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `customers.ts:179-195` (`uploadCustomerDocument` poste sur `/api/customers/{id}/documents`), appelé par `uploadCustomerDocumentAction` (`dashboard-customers.ts:173-190`) depuis `CustomerDocumentsPanel.tsx:46` ; `php artisan route:list --path=customers | grep -i doc` → vide ; `/api/documents` accepte `documentable_type=customer` (`DocumentController.php:29`) et écrit la même relation `Customer::documents()` (morph `documentable`) que le panneau liste par `include=documents` (`customers.ts:114`) ; `AddDocumentButton` est monté sur la fiche (`customers/[id]/page.tsx:139`). `StoreDocumentRequest` exige `name` et `type`, que le panneau n'envoie pas. Classement : A1, le geste attendu (déposer une pièce sur la fiche) est déjà tenu par `POST /api/documents` et par `AddDocumentButton` ; le correctif branche le panneau sur ce composant, sans choix de produit.
 
 ### `POST /api/payments`, sans appelant, laisse le locataire se déclarer payé
 - Réf : P13.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : écriture d'un paiement de loyer ou de réservation par le payeur
 - Gravité : 🔴 défaut avéré (effets en aval à vérifier)
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:37-92,372-382`, `takussan-api/app/Http/Requests/PaymentStoreRequest.php:13-15,30-32`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/app/Services/Model/BookingPaymentService.php:22-24`
 - Constat :
@@ -1860,6 +1862,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - La route contourne `recordPayment` (TCK-587) et toutes les gardes de `markPaid`, et aucun test n'essaie le locataire ni le client.
   - Établi comment : écriture lue ; soldes, reçus et relevés en aval à vérifier.
 - Piste : retirer la route, qui n'a aucun appelant. À défaut, forcer `pending` et refuser `paid_at` à tout autre que le personnel.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `PaymentController.php:37-92` (statut et `paid_at` transmis tels quels) et `:372-382` (`authorizeLeaseManage` admet le locataire), `PaymentStoreRequest.php:13-15,30-32`, `LeasePaymentService.php:23-35` (statut fourni gardé) ; test temporaire, retiré depuis : un compte lié par `Customer.user_id` au locataire d'un bail poste `status=paid`, `paid_at` sur `/api/payments` → **201**, `data.status = paid`. Aucun appelant front (`grep` de `/api/payments` hors `history` dans `takussan-web/src` vide) ; seul `PaymentRegistrationTest` appelle la route, sans cas locataire ni client. Effets en aval (soldes, reçus, relevés) non re-mesurés. Classement : V1, retirer la route ou restreindre qui écrit un paiement `paid` touche l'écriture d'un paiement.
 
 ### La colonne « Push » des préférences ne pilote rien
 - Réf : P13.06
@@ -1952,7 +1955,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Un locataire ne peut pas être à la fois lié à un compte et visible de l'agence : la signature n'est jamais atteinte
 - Réf : P15.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : rattacher un compte à une fiche (invitation ou appariement) est un parcours neuf
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/CustomerService.php:28-48`, `takussan-api/app/Models/Customer.php:178-196`, `takussan-api/app/Services/Model/LeaseService.php:49-50`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:55`, `takussan-web/src/components/leases/LeaseSignaturePanel.tsx:140-143`
 - Constat :
@@ -1963,10 +1966,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - La fiche réutilisée n'est pas bornée à une agence : `->first()` sur `user_id` seul.
   - Établi comment : lu de bout en bout ; grep des écrivains de `user_id`, sans autre résultat.
 - Piste : rattacher un compte à une fiche, par une invitation du locataire ou par appariement sur un téléphone ou un e-mail vérifié. Créer la fiche de candidature dans l'agence du bien.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `CustomerService.php:28` (`linkUser`, aucun appelant : `grep -rn linkUser app` ne rend que sa définition et un docblock de `DashboardTenantService.php:22`) et `:33-49` (`findOrCreateFromUser` : `->first()` sur `user_id` seul, `agency_id` = celui du visiteur, `added_by_id` = le visiteur), appelé par `PublicPropertyController.php:956` et `BookingService.php:98` ; `StoreCustomerRequest`/`UpdateCustomerRequest` sans `user_id` ; les deux autres créateurs (`CustomerController.php:61`, `ContactLeadService.php:263`) n'en posent pas ; `Customer::scopeVisibleTo` (l. 178-196) ; `LeaseService.php:49-50` (`can('view', $tenant)` sinon 403) ; `LeaseSignatureService.php:55` (422 `lease_signature.tenant_without_account`). Lu, non exécuté. Classement : V7, la piste ouvre un parcours visible neuf (invitation ou appariement du locataire) et V3, elle décide quel compte se lie à quelle fiche de données personnelles.
 
 ### KYC de l'agent et du bailleur : « en revue » pour toujours
 - Réf : P15.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : une file de relecture ou le retrait de la promesse est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:130-141`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:126-131`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:92-98`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:50-58`, `takussan-web/src/messages/fr.json:4825,4957`
 - Constat :
@@ -1976,10 +1980,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - L'écran promet pourtant « Votre agence va le vérifier ».
   - Établi comment : lu et grep.
 - Piste : une file de relecture (agence ou console) avec notification, ou retirer la promesse et le statut.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `AgentProfileController.php:127-141` et `OwnerProfileController.php:118-131` (seuls écrivains de `metadata.kyc.status = pending_review`) ; `grep` de `kyc.status`, `metadata->kyc` et `metadata['kyc']` dans `takussan-api/app` et `takussan-web/src` → aucun autre lecteur (les clés `kyc.status` du front sont les libellés de la file d'agence) ; `KycWorkflowService.php:50` ne connaît que `dossierForAgency` ; `fr.json:4825,4957` promettent « Votre agence va le vérifier. Vous pouvez continuer. ». Notification et écran d'agence absents : lu par `grep`, non exécuté. Classement : V7, la piste choisit entre une file de relecture neuve (agence ou console) et le retrait d'un statut et d'un texte visibles.
 
 ### Une agence individuelle qui active la modération ne peut plus publier
 - Réf : P15.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : cacher le réglage ou exempter l'admin unique est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:401-423,497`, `takussan-web/src/lib/access/pages-admin.ts:92-96`, `takussan-api/app/Observers/PropertyObserver.php:120-140`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:55`
 - Constat :
@@ -1988,6 +1993,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - La file `/app/agency/moderation/properties` exige une agence `standard`. L'hôte solo n'a aucun écran pour s'approuver, et ses biens restent en attente.
   - Établi comment : lu, front et API.
 - Piste : cacher et refuser le réglage en `individual`, ou exempter l'admin unique.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `AgencyConfigForm.tsx:401-423` (case `moderation_required` hors du bloc `individual ? null` de la l. 497), `AgencyUpdateRequest.php:55` (`sometimes|boolean`, sans condition sur le type d'agence), `PropertyObserver.php:43-53` et `:129-131` (`moderation_required` → `pending_review`, « Pas d'exemption par rôle »), `pages-admin.ts:92-96` (`/app/agency/moderation/properties` exige `agence: 'standard'`). L'API d'approbation (`POST /api/properties/{p}/approve`, gate `approve-property`) n'a pas été éprouvée pour un admin `individual` : seul l'écran manquant est établi. Classement : V7, les deux pistes (cacher et refuser le réglage, ou exempter l'admin unique) changent un comportement visible et en choisissent un.
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04
@@ -2078,7 +2084,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Après un seed, les recherches de clients, d'interventions et d'utilisateurs ne trouvent presque rien
 - Réf : P16.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré (sur les environnements seedés)
 - Où : `takussan-api/database/seeders/YearOfActivitySeeder.php:123-127,266-269`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-235`
 - Constat :
@@ -2089,10 +2095,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Chemin lu : `lib/queries/customers.ts:83`, puis `CustomerController.php:37`, puis `buildQuery`, puis Scout.
   - `release.sh` (l. 39-46) importe tous les modèles. Un déploiement n'est donc touché que si son marqueur de forme n'a pas bougé depuis TCK-281 (à vérifier sur Dokploy).
 - Piste : dériver `SEARCHABLE_MODELS` de la même source que les modèles indexés de `release.sh`, plutôt que d'une liste écrite à la main. Ajouter une garde qui compare le nombre de documents indexés au nombre de lignes non supprimées.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`reindexSearchableModels` ne pousse que cette liste) ; `grep -rl 'use Searchable' app/Models` → sept modèles (s'y ajoutent `Customer`, `MaintenanceRequest`, `User`, `Agency`) ; tinker en lecture sur la base et l'index de dev → clients 564 en base pour 2 indexés, interventions 212 pour 82 (le constat disait 0), utilisateurs 304 pour 52, agences 5 pour 8, biens 842 pour 802. `docker/release.sh:39-46` importe tous les modèles indexés : lu, Dokploy non vérifié. Classement : A1, le docblock de la constante (« Searchable models that must be (re)pushed ») et `takussan-api/CLAUDE.md` (« ne pas recopier cette liste ailleurs : elle se dérive du code ») écrivent déjà le comportement attendu.
 
 ### La pertinence de TCK-281 n'agit nulle part : le front impose toujours `sort=-created_at`
 - Réf : P16.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:91`, `maintenance.ts:111`, `documents.ts:75`, `super-admin.ts:102`, `admin-users.ts:60` ; `takussan-api/app/Http/Controllers/Api/CustomerController.php:40`, `MaintenanceRequestController.php:55,81`, `AgencyController.php:41,177`
 - Constat :
@@ -2101,6 +2108,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Résultat : une recherche tolérante aux fautes, mais classée par date. C'est le défaut de l'angle 1, reproduit sur toutes les listes internes.
   - Établi comment : lu, des deux côtés.
 - Piste : ne pas envoyer `sort` quand `search` n'est pas vide (ou envoyer un `sort=relevance` explicite), avec un test front par liste.
+- Mesure (2026-10-15, 5062193b, mesureur) : lu `customers.ts:79-94` (`sort: sort ?? '-created_at'`, et la page `customers/(liste)/page.tsx:72` ne passe jamais `sort`) et `maintenance.ts:100-112` (`params?.sort ?? '-created_at'`), contre `CustomerController.php:40` et `MaintenanceRequestController.php:55,81` (`defaultSorts(...defaultSortsWithRelevance(...))`, qu'un `sort=` explicite remplace) : sur ces deux listes, la pertinence ne s'applique jamais. Le reste du constat ne tient pas tel qu'écrit : `documents.ts:75` vise `DocumentController.php:46`, qui a un `defaultSort('-created_at')` en dur (c'est P16.03) ; `super-admin.ts` passe par le BFF vers `/api/admin/agencies`, recherche SQL hors Scout par choix (TCK-281, « Hors périmètre ») ; `admin-users.ts` vise `/api/users`, sans `defaultSortsWithRelevance`. `AgencyController.php:177` (membres) n'a pas été rapporté à son appelant (`agent-crm.ts:110` envoie `sort ?? '-created_at'`). Lu, non exécuté. Classement : A1, TCK-281 écrit que la recherche des clients et des interventions est « classée par pertinence », et le correctif ne retire que le tri par défaut quand une recherche est posée.
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
