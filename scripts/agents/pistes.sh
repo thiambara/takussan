@@ -19,6 +19,9 @@
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
 set -euo pipefail
+# launchd passe LANG=fr_FR.UTF-8 : sysctl écrirait alors la charge « 2,87 », qu'awk compare comme
+# du TEXTE (« 2,87 » > « 12 »). Mesuré le 2026-10-15 : tous les passages s'arrêtaient pour « charge ».
+export LC_NUMERIC=C
 
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
 ROLES="explorateur mesureur implementeur"
@@ -72,7 +75,24 @@ installer() {
   sha="$(git -C "$ici" rev-parse --short HEAD)"
   if [ -n "$(git -C "$ici" status --porcelain -- .)" ]; then sha="$sha+modifs"; fi
 
-  mkdir -p "$BASE/outils" "$BASE/arbres" "$BASE/sorties" "$BASE/verrous" "$BASE/etat" "$BASE/journaux"
+  mkdir -p "$BASE/outils" "$BASE/arbres" "$BASE/sorties" "$BASE/verrous" "$BASE/etat" "$BASE/journaux" "$BASE/env"
+
+  # Les agents travaillent dans LEUR clone, hors de ~/Documents, jamais dans des worktrees de l'arbre
+  # principal. Mesuré le 2026-10-15 au premier passage lancé par launchd : macOS refuse à un job
+  # launchd la lecture de ~/Documents (« Operation not permitted » sur takussan-api/.env), alors
+  # que le même script lancé d'un terminal passe. Un clone propre isole aussi les références des
+  # agents de celles du porteur.
+  if [ ! -d "$BASE/depot/.git" ]; then
+    git clone --quiet --no-checkout "https://github.com/$depot_gh.git" "$BASE/depot"
+  fi
+  git -C "$BASE/depot" config user.name "$(git -C "$depot" config user.name)"
+  git -C "$BASE/depot" config user.email "$(git -C "$depot" config user.email)"
+  git -C "$BASE/depot" fetch --quiet origin --prune
+  # Les .env se copient ICI, depuis le terminal qui y a accès : launchd ne les lirait pas.
+  # Un .env modifié dans l'arbre principal n'atteint les agents qu'à la réinstallation.
+  if [ -f "$depot/takussan-api/.env" ]; then cp "$depot/takussan-api/.env" "$BASE/env/takussan-api.env"; fi
+  if [ -f "$depot/takussan-web/.env.local" ]; then cp "$depot/takussan-web/.env.local" "$BASE/env/takussan-web.env.local"; fi
+  chmod 600 "$BASE"/env/* 2> /dev/null || true
   # Copies FIGÉES : un agent ne desserre pas, par son arbre ou par une PR fusionnée, la garde
   # qui le borne. Seule une réinstallation par le porteur les change.
   cp "$ici/garde.mjs" "$BASE/outils/garde.mjs"
@@ -88,8 +108,8 @@ installer() {
 
   {
     printf '# Écrit par « pistes.sh installer » le %s — ne pas éditer, réinstaller.\n' "$(date '+%Y-%m-%d %H:%M')"
-    printf 'DEPOT=%q\nCLAUDE_BIN=%q\nGH_REPO=%q\nPATH_LANCEMENT=%q\nOUTILS_SHA=%q\n' \
-      "$depot" "$claude_bin" "$depot_gh" "$PATH" "$sha"
+    printf 'DEPOT=%q\nCLONE=%q\nCLAUDE_BIN=%q\nGH_REPO=%q\nPATH_LANCEMENT=%q\nOUTILS_SHA=%q\n' \
+      "$depot" "$BASE/depot" "$claude_bin" "$depot_gh" "$PATH" "$sha"
   } > "$BASE/machine.env"
 
   if [ ! -f "$BASE/config.env" ]; then
@@ -258,7 +278,7 @@ etat_ci() {
 # La PR dev → pre-dev, quand dev a des commits que pre-dev n'a pas. Une seule à la fois.
 synchroniser_pre_dev() {
   local retard num
-  retard="$(git -C "$DEPOT" rev-list --count "$BASE_REF"..origin/dev)"
+  retard="$(git -C "$CLONE" rev-list --count "$BASE_REF"..origin/dev)"
   [ "$retard" -gt 0 ] || return 0
   num="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --head dev --state open --json number --jq '.[0].number // empty')"
   if [ -z "$num" ]; then
@@ -271,21 +291,21 @@ synchroniser_pre_dev() {
   elif [ "$FUSION" = auto ] && [ "$(etat_ci "$num")" = vert ]; then
     if GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null 2>&1; then
       info "synchronisation #$num fusionnée"
-      git -C "$DEPOT" fetch origin --prune --quiet
+      git -C "$CLONE" fetch origin --prune --quiet
     fi
   fi
 }
 
 recuperer() {
-  git -C "$DEPOT" fetch origin --prune --quiet
-  git -C "$DEPOT" rev-parse --verify --quiet "$BASE_REF" > /dev/null || die "$BASE_REF n'existe pas"
+  git -C "$CLONE" fetch origin --prune --quiet
+  git -C "$CLONE" rev-parse --verify --quiet "$BASE_REF" > /dev/null || die "$BASE_REF n'existe pas"
   if [ "$A_BLANC" -eq 0 ]; then synchroniser_pre_dev; fi
 }
 
 preparer_arbre() {
   local arbre="$1" branche="$2" depart="$3" sortie="$4"
   if [ ! -d "$arbre" ]; then
-    git -C "$DEPOT" worktree add --quiet --detach "$arbre" "$depart"
+    git -C "$CLONE" worktree add --quiet --detach "$arbre" "$depart"
   fi
   # Ce qu'un passage interrompu a laissé se sauve avant la remise à zéro, jamais ne se perd.
   if [ -n "$(git -C "$arbre" status --porcelain)" ]; then
@@ -297,8 +317,8 @@ preparer_arbre() {
   git -C "$arbre" clean -fdq
   git -C "$arbre" switch --quiet --force-create "$branche" "$depart"
   # Les branches locales d'agent restées d'un passage refusé : leur correctif est dans leur sortie.
-  git -C "$DEPOT" for-each-ref --format='%(refname:short)' "refs/heads/agents/$ROLE/" | while read -r b; do
-    [ "$b" = "$branche" ] || git -C "$DEPOT" branch -D --quiet "$b" 2> /dev/null || true
+  git -C "$CLONE" for-each-ref --format='%(refname:short)' "refs/heads/agents/$ROLE/" | while read -r b; do
+    [ "$b" = "$branche" ] || git -C "$CLONE" branch -D --quiet "$b" 2> /dev/null || true
   done
 }
 
@@ -314,11 +334,9 @@ installer_dependances() {
     (cd "$arbre/takussan-web" && npm ci --silent --no-audit --no-fund)
     printf '%s' "$h" > "$BASE/etat/npm-$ROLE"
   fi
-  # Copies, jamais de lien : un lien ferait lire à l'arbre de l'agent l'état de l'arbre principal.
-  local f
-  for f in takussan-api/.env takussan-web/.env.local; do
-    if [ -f "$DEPOT/$f" ]; then cp -p "$DEPOT/$f" "$arbre/$f"; fi
-  done
+  # Copies posées par « installer », jamais de lien vers l'arbre principal (illisible sous launchd).
+  if [ -f "$BASE/env/takussan-api.env" ]; then cp "$BASE/env/takussan-api.env" "$arbre/takussan-api/.env"; fi
+  if [ -f "$BASE/env/takussan-web.env.local" ]; then cp "$BASE/env/takussan-web.env.local" "$arbre/takussan-web/.env.local"; fi
 }
 
 # Lance claude sous une durée bornée ; à l'échéance, TOUT le groupe de processus est tué (les
@@ -351,7 +369,7 @@ verifier() {
     return 1
   fi
   # La garde de périmètre jouée est celle d'origin/pre-dev, pas celle de la branche de l'agent.
-  git -C "$DEPOT" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
+  git -C "$CLONE" show "$BASE_REF:scripts/check-pistes.mjs" > "$fige"
   if ! (cd "$arbre" && CHECK_PISTES_RACINE="$arbre" node "$fige" --role "$ROLE" --base "$BASE_REF") > "$sortie/verif-pistes.txt" 2>&1; then
     info "✗ check-pistes --role $ROLE (verif-pistes.txt)"
     echecs=$((echecs + 1))
@@ -408,7 +426,7 @@ lancer() {
   trap 'rm -rf "$verrou"; journaliser' EXIT
 
   local charge max
-  charge="$(sysctl -n vm.loadavg | awk '{print $3}')"
+  charge="$(sysctl -n vm.loadavg | awk '{print $3}' | tr ',' '.')"
   max="${CHARGE_MAX:-$(($(sysctl -n hw.ncpu) * 3 / 2))}"
   if awk -v c="$charge" -v m="$max" 'BEGIN { exit !(c > m) }'; then fin charge "charge $charge > $max"; fi
 
@@ -453,7 +471,7 @@ lancer() {
   avec_verrou_git preparer_arbre "$arbre" "$branche" "$depart" "$sortie"
   installer_dependances "$arbre"
   local sha_pre_dev
-  sha_pre_dev="$(git -C "$DEPOT" rev-parse --short "$BASE_REF")"
+  sha_pre_dev="$(git -C "$CLONE" rev-parse --short "$BASE_REF")"
 
   # 4. L'agent.
   local message autres

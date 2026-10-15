@@ -130,8 +130,12 @@ d'implémenter.
      ouvertes »).
    - Si elle est rouge ou en conflit, le passage la répare. Après trois réparations, il abandonne
      et le dit.
-3. **Un arbre de travail dédié par rôle**, hors de l'arbre principal, remis à `origin/pre-dev` ou
-   à la branche à réparer. Ce qu'un passage interrompu y a laissé est sauvé dans le journal avant
+3. **Un arbre de travail dédié par rôle**, remis à `origin/pre-dev` ou à la branche à réparer.
+   Ces arbres sont des worktrees d'un **clone propre aux agents** (`~/.takussan-agents/depot`),
+   pas de l'arbre principal. Mesuré le 2026-10-15, au premier passage lancé par `launchd` : macOS
+   refuse à un job `launchd` la lecture de `~/Documents`, et la copie de `takussan-api/.env` a
+   échoué en « Operation not permitted ». Le même script, lancé d'un terminal, passait. Les `.env`
+   sont donc copiés par `installer`, depuis le terminal. Ce qu'un passage interrompu y a laissé est sauvé dans le journal avant
    la remise à zéro.
 4. **L'agent tourne en `claude -p`** :
    - les réglages de l'utilisateur ne sont pas chargés, ni greffon ni MCP ;
