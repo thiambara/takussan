@@ -93,7 +93,7 @@ voie d'écriture (angle 13, puis 47).
 | 18 | Statistiques Boost (clics, impressions) face aux robots, aux rendus serveur et aux revalidations | fait |
 | 19 | Rétention des tables qui grossissent : `activity_log`, `app_notifications`, `scheduled_task_runs` | fait |
 | 20 | Nombre réel de requêtes SQL par écran (`DB::listen`), machine au repos | fait |
-| 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | à faire |
+| 21 | Données personnelles d'un `User` sorties par `include=` (`Lease.landlord`, `Booking.customer`, `Payout.landlord`) : qui voit quel téléphone et quel e-mail | fait |
 | 22 | Les 28 FormRequests hors `BaseFormRequest`, et les règles d'autorisation restées dans des services | à faire |
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | à faire |
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | à faire |
@@ -132,6 +132,8 @@ voie d'écriture (angle 13, puis 47).
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
+| 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
+| 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
 
 ---
 
@@ -2567,3 +2569,101 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Quatre listes ont un test de budget ; les cinq défauts ci-dessus sont sur des listes qui n'en ont pas (lu).
   - Une interdiction du chargement paresseux en test attraperait P20.01 et P20.04, et le média de P20.05 ; elle ne verrait pas les requêtes directes (`isSuperAdmin()`, `activeVersion()`, `staffAgencyId()`) (déduit, à vérifier).
 - Piste : un test paramétré « 2 lignes = 12 lignes » sur les listes pro appelées par le front (baux, clients, réservations, demandes d'intervention, documents, conversations), sur le modèle de `PropertyIndexQueryBudgetTest::test_ac15…` ; et, à mesurer d'abord, `Model::preventLazyLoading()` dans `Tests\TestCase`.
+
+## Angle 21 — Données personnelles d'un `User` sorties par `include=`
+
+*Exploré le 2026-10-15 sur `pre-dev` 6e43fe24, par l'explorateur. Tout a été relu par
+l'explorateur, sans sous-agent. Mesures par trois tests temporaires (`tests/Feature/Tmp/`), retirés
+depuis : base de test `RefreshDatabase`, appels HTTP sous `Sanctum::actingAs`. Charge relevée avant
+chaque passage : `vm.loadavg` 1,54 à 1,71 sur 8 cœurs. Le schéma de `users` a été lu en `SELECT`
+sur `information_schema.columns` de la base de développement. Constat de cadrage : les trois
+relations de l'intitulé ne sortent pas de `User` brut. `Booking.customer` est une fiche `Customer`
+rendue par `CustomerResource`, et `Lease.landlord` et `Payout.landlord` ne sont jamais émis
+(P21.05). Les ressources qui projettent un `User` champ par champ (`PayoutResource`,
+`MaintenanceRequestResource`, `CommissionEntryResource`, `PropertyContactLeadResource`,
+`KycDossierResource`) ont été relues. Les fuites mesurées passent par les contrôleurs qui rendent
+le modèle brut. Le périmètre d'agence de `/api/users` relève de P03 (« `include=…Profiles` ») et
+n'est pas repris ici.*
+
+### `include=user` rend la ligne `users` entière (38 colonnes, dont `google_id`, `metadata` et le second numéro) sur quatre listes, à un simple agent pour deux d'entre elles
+- Réf : P21.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/OwnerProfileResource.php:36`, `takussan-api/app/Http/Controllers/Api/Agency/TeamController.php:61`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Models/User.php:77-79`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:75`, `takussan-web/src/lib/queries/service-providers.ts:115`
+- Constat :
+  - Ces quatre réponses sérialisent le modèle chargé tel quel : `relationsToArray()` dans `OwnerProfileResource`, `$paginator->items()` ou le paginateur brut dans les trois contrôleurs (lu). Le `User` inclus ne passe donc pas par `UserResource`. Seul `$hidden` le filtre, et `$hidden` ne retire que `password`, `remember_token`, `two_factor_secret` et `two_factor_recovery_codes` (lu, `User.php:77-79`).
+  - Sans `fields[users]`, spatie fait un `select *` sur la relation (lu, `HasQueryBuilder::buildQuery` : `$queryFields` est une liste blanche des champs *demandés*, pas une projection par défaut).
+  - Mesuré, un `User` portant `secondary_phone`, `google_id`, `metadata` et `last_login_at`. Clés de `data.0.user` rendues :
+    - pour un admin d'agence : `GET /api/owners?include=user`, `GET /api/agencies/{a}/team?include=user` et `GET /api/agencies/{a}/service-providers?include=user` ;
+    - pour un **agent** : `GET /api/owners?include=user`, `GET /api/agencies/{a}/service-providers?include=user` et `GET /api/agencies/{a}/tenant-onboarding-pending?include=user` (200 pour les trois ; l'agent a 403 sur `/team`) ;
+    - dans les six cas, 38 clés : les 42 colonnes de `users` moins les quatre de `$hidden`. Entre autres : `google_id`, `facebook_id`, `apple_id`, `metadata`, `preferences`, `secondary_phone`, `secondary_phone_verified_at`, `last_login_at`, `deletion_requested_at`, `password_set_at`, `terms_accepted_at`, `notifications_*`, `digest_*`.
+  - Le front fait lui-même cet appel sans `fields[users]` : `CreatePayoutDialog.tsx:69-80` (`/api/owners`, `include: ['user']`, champs de `owner_profiles` seulement) et `service-providers.ts:113-116` (carnet des prestataires) (lu).
+  - Le code dit l'intention contraire. `UserResource.php` réserve le second numéro et les préférences de contact à soi (« le second numéro d'un collègue n'a rien à faire dans cette liste », TCK-633). `TeamController.php:52-54` refuse de mettre `two_factor_enabled` dans `User::$queryFields` « qui l'exposerait à toute liste d'utilisateurs » (lu).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : faire passer le `User` inclus par une projection fixe (un `UserResource` « public » : id, noms, e-mail, téléphone, avatar) dans ces quatre réponses, au lieu de `relationsToArray()` et du modèle brut ; ou, au minimum, poser une projection par défaut quand `fields[users]` est absent. Test : pour chaque route, `include=user` sans `fields[users]` ne rend ni `google_id`, ni `metadata`, ni `secondary_phone` ; ablation sur la projection.
+
+### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
+- Réf : P21.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:49-63`, `takussan-web/src/lib/queries/admin-users.ts:55`
+- Constat :
+  - `index()` rend `$paginator->items()` sans ressource (lu). Mesuré, pour un admin d'agence : `GET /api/users` sans paramètre → `data.0` porte les mêmes 38 clés que P21.01, `google_id`, `metadata` et `secondary_phone` compris.
+  - Le front passe `fields[users]` (`admin-users.ts:55`, lu) : l'écran de l'équipe ne reçoit donc que ses colonnes. L'exposition tient au contrat de l'API, pas à l'écran (à vérifier : autres appelants de `/api/users`).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : la même projection que P21.01, appliquée par `UserAdminController::index` ; test sans `fields[users]`.
+
+### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
+- Réf : P21.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Resources/PropertyVisitResource.php:13-17,44-50`, `takussan-web/src/lib/queries/visits.ts:138,159`
+- Constat :
+  - La ressource masque la fiche client au bailleur qui n'est pas du personnel (TCK-590, M7′). Elle masque aussi `visitor_name`, `visitor_phone` et `visitor_email`, que la planification pour une fiche recopie (passe 4, M7″ : « sans la fiche, ils ne se lisent pas davantage par là ») (lu, l. 13-17). Le bloc `visitor` (l. 44-50) émet pourtant `email` et `phone` du compte visiteur sans condition (lu).
+  - Mesuré : bien d'agence dont le bailleur actif est le créateur, et visite planifiée pour une fiche liée à un compte (`visitor_id` = `customer.user_id`, ce que pose `PropertyVisitController::planForCustomer`, l. 173-177). Le bailleur appelle `GET /api/property-visits?include=visitor,customer`, puis `GET /api/property-visits/{id}?include=visitor,customer`. Les deux rendent 200, `visitor_phone` à `null`, `customer` à `null`, et `visitor` = `{email: "visiteur@exemple.sn", phone: "+221771112233"}`.
+  - Le front demande `include: ['property', 'agent', 'visitor']` sur la liste et le détail (`visits.ts:138,159`, lu).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : soumettre le bloc `visitor` au même `$visiteurLisible`, au moins pour `email` et `phone`. Test : le bailleur non-personnel ne lit ni l'e-mail ni le téléphone du visiteur par `include=visitor` ; ablation sur la condition.
+
+### Le garant ajouté à un bail n'apparaît jamais sur la fiche : le front lit `lease.guarantor`, que l'API n'émet pas
+- Réf : P21.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73,161-191`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Lease.php:167-181`, `takussan-web/src/lib/queries/leases.ts:184,460-465`, `takussan-web/src/components/leases/LeaseDetail.tsx:306-311`, `takussan-web/src/components/leases/GuarantorSection.tsx:48,75,100-103`
+- Constat :
+  - Le front ajoute un garant par `POST /api/leases/{id}/guarantors`, qui l'attache par le pivot `lease_guarantor` (`guarantors()`, plusieurs à plusieurs) sans écrire `leases.guarantor_id` (lu, l. 161-191).
+  - Il relit la fiche par `GET /api/leases/{id}?include=property,guarantor,payments` et passe `lease.guarantor` à `GuarantorSection` (lu).
+  - `show()` ignore `include` et `fields` : il ne passe pas par `buildQuery`, il fait un `load()` fixe (lu). `LeaseResource` n'émet aucune clé `guarantor`, ni `guarantors` (lu).
+  - Mesuré, pour un agent de l'agence du bail :
+    - `POST …/guarantors` → 201, `guarantors_count: 1` ;
+    - `GET /api/leases/{id}?include=property,guarantor,payments` → 200, **sans clé `guarantor`** ;
+    - `GET /api/leases/{id}/guarantors` → 1 garant ;
+    - `leases.guarantor_id` → `NULL`.
+  - La section affiche donc toujours l'état vide (`t('empty')`, l. 100-103). `guarantorsCount` vaut toujours 0 : le bouton n'est jamais désactivé à 3 (l. 48), et seul le serveur tient le plafond (lu).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : lire les garants par `GET /api/leases/{id}/guarantors`, qui existe, ou les émettre dans `LeaseResource` (`guarantors`, par une projection). Trancher le sort de `Lease.guarantor` / `guarantor_id` (relation à une colonne que l'ajout n'écrit pas). Test front : après ajout, la section affiche le garant ; test API sur la clé émise.
+
+### Des `include=` acceptés, chargés en base, puis jamais émis
+- Réf : P21.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Lease.php:91`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Payout.php:65`, `takussan-api/app/Http/Resources/PayoutResource.php:12-55`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:66`, `takussan-api/app/Models/Booking.php:48`
+- Constat :
+  - `Lease::$requestLoadable` déclare `landlord`, `agent`, `guarantor`, `agency` et `onboardingChecklist`, que `LeaseResource` n'émet pas (lu : aucune de ces clés dans la ressource).
+  - `Payout::$requestLoadable` déclare `lease`, `booking`, `agency`, `landlord`, `approver` et `processor`, que `PayoutResource` n'émet pas : seul `issuer` est projeté (lu). `Booking.agency` est dans le même cas (lu).
+  - Une requête `include=` sur ces relations rend 200 et paie le chargement, sans rien rendre. L'appelant en conclut que la relation est vide (cas réel en P21.04).
+  - `PayoutController::show` charge `landlord` (l. 66) sans l'émettre (lu).
+  - Établi comment : lu. Le coût en requêtes n'est pas mesuré.
+- Piste : retirer de `$requestLoadable` ce qu'aucune ressource n'émet, ou l'émettre par une projection. Une garde qui confronte `$requestLoadable` aux clés `whenLoaded()` de la ressource du modèle.
+
+### Petites améliorations
+- Réf : P21.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
+- Constat :
+  - `tenant-onboarding-pending` rend le paginateur Laravel brut. Mesuré : racines `current_page`, `data`, `first_page_url`, `links`, `next_page_url`, `path`…, sans `meta`. C'est la forme que TCK-304 a retirée, et le type du front (`PaginatedResponse`, `meta` obligatoire) ne la décrit pas. `check-pagination-envelope.mjs` ne voit pas `$this->json($page)` (lu ; le front ne lit que `data`).
+  - Le carnet des prestataires rend la ligne `service_provider_profiles` brute. Mesuré : `metadata` et `insurance_policy_id` y figurent, même sans les demander.
+  - Sur `GET /api/leases/{id}`, `renewed_from`, `renewals` et `renewals_count` sortent à `[]` alors que rien ne les charge. Mesuré : `whenLoaded`/`whenCounted` sous `toArray()` direct, le même piège que décrit `UserResource`. Aucun lecteur au front (lu : `grep renewals_count|renewed_from` → vide).
+  - Établi comment : mesuré par test temporaire, et lu.
+- Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
