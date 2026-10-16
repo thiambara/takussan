@@ -63,11 +63,16 @@ class DocumentController extends Controller
         $fqcn = $this->resolveDocumentableType($data['documentable_type']);
         abort_code_if($fqcn === null, 422, 'document.unsupported_type');
 
-        $model = $fqcn::query()->find($data['documentable_id']);
-        abort_code_if($model === null, 404, 'document.owner_not_found');
-
         $user = $request->user();
-        $this->authorize('attachTo', [Document::class, $model]);
+
+        // TCK-732 (P03.06) — un porteur interdit rend la même réponse qu'un porteur introuvable :
+        // un 403 ici dirait qu'un bien, un bail ou un client d'une autre agence existe.
+        $model = $fqcn::query()->find($data['documentable_id']);
+        abort_code_if(
+            $model === null || ! $user->can('attachTo', [Document::class, $model]),
+            404,
+            'document.owner_not_found'
+        );
 
         $document = Document::create([
             'documentable_id' => $model->getKey(),

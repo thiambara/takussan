@@ -517,7 +517,7 @@ Ce qui tient (lu) :
 
 ### Oracles d'existence entre agences
 - Réf : P03.06
-- Statut : validé — POST /api/documents : même 404 pour « introuvable » et « interdit » ; le reste tel quel
+- Statut : fait · TCK-732
 - Gravité : 🟠 risque faible
 - Où : `Api/DocumentController.php:57-63`, `Api/Accounting/BankStatementLineController.php:42` (avec `ReconciliationManager.php:51-53`), `Requests/Api/StoreConversationRequest.php:103-108`
 - Constat :
@@ -526,6 +526,7 @@ Ce qui tient (lu) :
   - La conversation distingue « introuvable » et « non joignable » (lu).
 - Piste : autoriser avant de résoudre, ou rendre le même code dans les deux cas.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `DocumentController::store()` (`find()` puis `abort_code_if(null, 404, 'document.owner_not_found')` avant `authorize('attachTo')`, lignes 51-62), `BankStatementLineController::match()` (`findOrFail` du paiement → 404, puis `ReconciliationManager::confirmMatch()` → 403 `reconciliation.cross_agency`, `:51-53`) et `StoreConversationRequest` (`participants_unavailable` quand l'identifiant n'existe pas, puis `guardReach()` pour un utilisateur existant non joignable, lignes 108-130). Les trois distinctions tiennent ; lignes du rapprochement à `:42` comme écrit. Classement : V2, la piste change le code rendu à des appelants légitimes et le choix entre « autoriser d'abord » et « même code partout » n'est écrit nulle part.
+- Mesure (2026-10-16, 60b4751b, implementeur) : `DocumentTest`, compte sans lien avec un bien existant → 403 avant correctif, et 404 `document.owner_not_found` pour un identifiant inexistant → `store()` rend 404 `document.owner_not_found` quand `attachTo` refuse ; `test_forbidden_owner_and_missing_owner_get_the_same_response` exige statut et corps identiques ; ablation : 2 rouges, 11 verts une fois remis. Rapprochement et conversation laissés tels quels, selon la décision.
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
