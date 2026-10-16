@@ -217,6 +217,61 @@ deplanifier() {
 
 # ─── fusionneur ───────────────────────────────────────────────────────────────────────────────
 
+# Essai de fusion : la PR est fusionnée avec la base COURANTE dans un arbre à part, et les gardes du
+# dépôt tournent sur le résultat. Une PR verte l'est sur SA base ; deux PR vertes fusionnées coup sur
+# coup peuvent se combiner en un arbre rouge sans le moindre conflit textuel. Mesuré le 2026-10-16 :
+# #473 puis #467, chacune verte, ont laissé `pre-dev` avec un INDEX.md périmé, et toutes les PR
+# suivantes ont hérité du rouge (ADR-0067). Rend 0 si la fusion est sûre.
+# Un refus d'une PR d'agent la met à jour avec la base (`gh pr update-branch`) : sa CI rejoue alors
+# l'arbre fusionné, rougit, et l'agent la répare comme toute PR rouge. La PR de synchronisation,
+# dont la tête est `dev`, n'est jamais mise à jour : le refus est journalisé, le porteur tranche.
+essai_de_fusion() {
+  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g echecs=0
+  rapport="$BASE/sorties/essais/$num.txt"
+  mkdir -p "$BASE/sorties/essais"
+  avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
+  cle="$(git -C "$CLONE" rev-parse "$BASE_REF") $(git -C "$CLONE" rev-parse "origin/$tete")"
+  # Même base, même tête qu'un refus déjà journalisé : rien n'a changé, on ne le redit pas.
+  [ "$cle" != "$(cat "$BASE/etat/essai-$num" 2> /dev/null || true)" ] || return 1
+  if [ ! -d "$arbre" ]; then
+    avec_verrou_git git -C "$CLONE" worktree add --quiet --detach "$arbre" "$BASE_REF" || return 1
+  fi
+  # Appelée derrière `||` ou `&&`, cette fonction tourne SANS `set -e` : chaque étape se vérifie.
+  git -C "$arbre" merge --abort > /dev/null 2>&1 || true
+  git -C "$arbre" reset --quiet --hard || return 1
+  git -C "$arbre" clean -fdq || return 1
+  git -C "$arbre" checkout --quiet --detach "$BASE_REF" || return 1
+  {
+    echo "essai de #$num ($tete) sur $BASE_REF — $(date '+%Y-%m-%d %H:%M:%S')"
+    if ! git -C "$arbre" merge --no-edit --quiet "origin/$tete" 2>&1; then
+      echo "✗ conflit de fusion"
+      echecs=1
+    else
+      for g in "$arbre"/scripts/check-*.mjs; do
+        (cd "$arbre" && node "$g") > /dev/null 2>&1 || {
+          echo "✗ $(basename "$g")"
+          echecs=$((echecs + 1))
+        }
+      done
+      (cd "$arbre" && node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs) > /dev/null 2>&1 || {
+        echo "✗ gen-index --check ou check-backlog"
+        echecs=$((echecs + 1))
+      }
+    fi
+  } > "$rapport" 2>&1
+  git -C "$arbre" merge --abort > /dev/null 2>&1 || true
+  [ "$echecs" -gt 0 ] || return 0
+
+  printf '%s' "$cle" > "$BASE/etat/essai-$num"
+  info "#$num : fusion refusée, l'arbre fusionné avec $BASE_REF est rouge ($rapport)"
+  if [ "$tete" != dev ]; then
+    GH_REPO="$GH_REPO" gh pr update-branch "$num" > /dev/null 2>&1 || true
+  fi
+  printf '%s\t%s\t-\trefuse\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "${ROLE:-fusionneur}" "$num" \
+    "essai de fusion rouge : $(grep '^✗' "$rapport" | tr '\n' ' ')" >> "$BASE/journal.tsv"
+  return 1
+}
+
 # Fusionne dans pre-dev, DÈS que leur CI est verte et sans conflit, les PR des agents et la PR de
 # synchronisation dev → pre-dev. Aucun modèle : rien n'y décide, tout y est vérifié, et un passage
 # ne coûte rien. Sans lui, une PR verte attendait le passage suivant de SON agent (jusqu'à 3 h pour
@@ -249,6 +304,7 @@ fusionner() {
     # UNKNOWN juste après une autre fusion : GitHub recalcule, le tour suivant tranchera.
     [ "$mergeable" = MERGEABLE ] || continue
     [ "$(etat_ci "$num")" = vert ] || continue
+    essai_de_fusion "$num" "$tete" || continue
     if [ "$tete" = dev ]; then
       # Jamais --delete-branch ici : la tête de cette PR est dev.
       GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null || continue
@@ -312,7 +368,14 @@ fin() {
 
 # Verrou global court autour des opérations sur le dépôt partagé (fetch, worktree, branches) :
 # trois passages simultanés se disputeraient les verrous de références de git.
+# Réentrant : `recuperer`, appelé sous le verrou, fusionne la synchronisation après un essai de
+# fusion qui le reprend ; sans cela il s'attendrait lui-même dix minutes, puis mourrait.
+VERROU_GIT_TENU=0
 avec_verrou_git() {
+  if [ "$VERROU_GIT_TENU" -eq 1 ]; then
+    "$@" || return $?
+    return 0
+  fi
   local essais=0
   until mkdir "$BASE/verrous/git" 2> /dev/null; do
     essais=$((essais + 1))
@@ -320,7 +383,9 @@ avec_verrou_git() {
     sleep 5
   done
   local statut=0
+  VERROU_GIT_TENU=1
   "$@" || statut=$?
+  VERROU_GIT_TENU=0
   rmdir "$BASE/verrous/git"
   return "$statut"
 }
@@ -350,7 +415,7 @@ synchroniser_pre_dev() {
         "Les agents partent de \`origin/pre-dev\` : tant qu'elle n'est pas fusionnée, ils travaillent sur un arbre en retard sur \`dev\`." \
         '🤖 Generated with [Claude Code](https://claude.com/claude-code)')" > /dev/null
     info "PR de synchronisation dev → pre-dev ouverte ($retard commits)"
-  elif [ "$FUSION" = auto ] && [ "$(etat_ci "$num")" = vert ]; then
+  elif [ "$FUSION" = auto ] && [ "$(etat_ci "$num")" = vert ] && essai_de_fusion "$num" dev; then
     if GH_REPO="$GH_REPO" gh pr merge "$num" --merge > /dev/null 2>&1; then
       info "synchronisation #$num fusionnée"
       git -C "$CLONE" fetch origin --prune --quiet
@@ -444,7 +509,8 @@ verifier() {
         echecs=$((echecs + 1))
       fi
     done
-    # `--check` : gen-index sans option RÉÉCRIT l'index, et l'arbre vérifié changerait sous nos pieds.
+    # `--check` : la source du backlog se rend sans erreur (id dupliqué, statut inconnu), et rien
+    # n'est écrit dans l'arbre vérifié.
     if ! (cd "$arbre" && node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs) >> "$sortie/verif-gardes.txt" 2>&1; then
       info "✗ index ou backlog (verif-gardes.txt)"
       echecs=$((echecs + 1))
@@ -482,7 +548,7 @@ etat_des_pr() {
     conflit_pr=non
     if [ "$etat_fusion" = CONFLICTING ]; then conflit_pr=oui; fi
     if [ "$conflit_pr" = non ] && [ "$ci_pr" != rouge ]; then
-      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ]; then
+      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ] && essai_de_fusion "$num" "$tete"; then
         GH_REPO="$GH_REPO" gh pr merge "$num" --merge --delete-branch > /dev/null 2>&1 || true
         # Le fusionneur a pu passer entre-temps ; un refus (mergeable pas encore recalculé) attend.
         if [ "$(GH_REPO="$GH_REPO" gh pr view "$num" --json state --jq .state)" = MERGED ]; then
@@ -523,9 +589,11 @@ etat_des_pr() {
 }
 
 # Une PR en conflit sur le seul index du backlog se réconcilie sans modèle : l'index est GÉNÉRÉ.
-# Deux PR de l'implémenteur ouvertes ensemble ajoutent chacune un ticket, et le compte « Done — N »
-# d'INDEX.md change dans les deux : la seconde à fusionner entre toujours en conflit, sans que rien
-# n'y soit à décider. Tout autre conflit revient au modèle (réparation).
+# Deux PR de l'implémenteur ouvertes ensemble ajoutaient chacune un ticket, et le compte « Done — N »
+# d'INDEX.md changeait dans les deux : la seconde à fusionner entrait toujours en conflit, sans que
+# rien n'y soit à décider. Tout autre conflit revient au modèle (réparation).
+# Depuis ADR-0067, INDEX.md n'est plus versionné : une PR ouverte avant que la base le retire entre
+# en conflit « modifié / supprimé », et se réconcilie en le retirant à son tour.
 reconcilier_index() {
   local num="$1" b="$2" arbre="$3" sortie="$4" conflits
   mkdir -p "$sortie"
@@ -536,11 +604,15 @@ reconcilier_index() {
       git -C "$arbre" merge --abort 2> /dev/null || true
       return 1
     fi
-    if ! (cd "$arbre" && node docs/backlog/gen-index.mjs > /dev/null); then
-      git -C "$arbre" merge --abort 2> /dev/null || true
-      return 1
+    if git -C "$arbre" cat-file -e "$BASE_REF:docs/backlog/INDEX.md" 2> /dev/null; then
+      if ! (cd "$arbre" && node docs/backlog/gen-index.mjs > /dev/null); then
+        git -C "$arbre" merge --abort 2> /dev/null || true
+        return 1
+      fi
+      git -C "$arbre" add docs/backlog/INDEX.md
+    else
+      git -C "$arbre" rm --quiet --cached docs/backlog/INDEX.md
     fi
-    git -C "$arbre" add docs/backlog/INDEX.md
     git -C "$arbre" commit --no-edit --quiet || return 1
   fi
   [ "$(git -C "$arbre" rev-list --count "origin/$b..HEAD")" -gt 0 ] || return 1
