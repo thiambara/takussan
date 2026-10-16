@@ -3445,7 +3445,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une invitation sans compte part dans la langue de l'invitant, et sa relance J+2 dans celle du processus : deux langues pour la même invitation
 - Réf : P29.01
-- Statut : validé — la langue est écrite à la création de l'invitation : `fr` explicite (`DEFAULT_LOCALE`), comme `ContactSansCompte` ; la fiche client de P29.03 l'affinera
+- Statut : fait · TCK-728
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:946-966`, `:517-538`, `:1000-1012`, `takussan-api/app/Mail/InvitationMailable.php:19-22`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:17-18`, `:75-78`
 - Constat :
@@ -3459,6 +3459,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : écrire la langue résolue dans l'invitation à sa création (`metadata.locale` ou colonne), et la relire à l'envoi comme à la relance, pour qu'une invitation ait une seule langue. Le choix de cette langue (celle de l'invitant, `fr` explicite comme `ContactSansCompte::DEFAULT_LOCALE`, ou un champ du formulaire) reste à trancher. Garder par un test : invitation créée sous `en`, relance jouée sous `fr` → même langue des deux côtés.
 - Mesure (2026-10-16, b14cd410, mesureur) : relu `InvitationService.php:946-966` (`deliver` résout la langue par `preferredLocale()`), `:1008-1012` (`preferred_language`, sinon `metadata.locale`, sinon `config('app.locale')`), `:517-538` (`remindPending` rappelle `deliver`) ; `grep -rn "'locale'" app/Services app/Http/Requests | grep -i invit` → la seule lecture de `InvitationService.php:1011`, aucune écriture ; `CreateInvitationRequest.php:75` accepte toujours `metadata` comme tableau libre ; test temporaire retiré (charge 1,27 sur 8 cœurs), deux `POST /api/agencies/{id}/owners/invite` sous `Accept-Language: en` puis `wo`, puis `remindPending()` sous `fr` trois jours plus tard → `InvitationMailable` en `en` et `wo` à l'envoi, `fr` et `fr` à la relance, `metadata` = `{first_name, last_name, owner_type}` ; la voie SMS n'a pas été rejouée, elle passe par le même `deliver()` (lu) ; le constat tient. Classement : V7, la piste laisse ouvert le choix de la langue à écrire (celle de l'invitant, `fr` explicite ou un champ de formulaire), et le stockage en colonne toucherait V4.
+- Mesure (2026-10-16, 19732e24, implementeur) : avant correctif, `InvitationLocaleTest` (neuf) rouge sur ses trois cas : `metadata.locale` nul après deux `POST /api/agencies/{id}/owners/invite` sous `en` et `wo` et après une invitation par numéro sous `en`, et relance d'une ligne sans `metadata.locale` partie en `en` sous `app.locale = en` → `send()` écrit `metadata.locale = fr` (`ContactSansCompte::DEFAULT_LOCALE`) et `preferredLocale()` replie sur `fr` au lieu de `config('app.locale')` ; envois et relances jouées sous `en` partent tous en `fr`, 3 verts ; ablation de l'écriture → 2 rouges, du repli → 1 rouge ; `php bin/impacted-tests.php --run` → 658 verts.
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
