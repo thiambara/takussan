@@ -13,6 +13,7 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Support\ImpersonationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,12 @@ class DocumentController extends Controller
 
         if (! $user->isSuperAdmin()) {
             $base->where('uploaded_by', $user->id);
+        }
+
+        // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
+        // rattachées à un profil ne se listent pas.
+        if (app(ImpersonationContext::class)->active()) {
+            $base->excludingProfilePieces();
         }
 
         $paginator = Document::buildQuery($base, $request)
