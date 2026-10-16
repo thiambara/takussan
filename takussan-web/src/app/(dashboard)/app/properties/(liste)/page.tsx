@@ -87,10 +87,13 @@ export default async function Page({
   };
   const sort = asString(params.sort);
 
+  // TCK-662 (P01.01) — un tri absent ou inconnu reste absent : `fetchDashboardProperties` pose
+  // `-created_at` hors recherche, et n'en pose aucun pendant une recherche, que l'API classe alors
+  // par pertinence.
   const safeSort =
     sort && ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'].includes(sort)
       ? sort
-      : '-created_at';
+      : undefined;
 
   // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
   // only pull `meta.total` — keeps the dashboard snappy.

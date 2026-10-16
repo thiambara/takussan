@@ -51,6 +51,18 @@ describe('fetchDashboardProperties — spatie conventions', () => {
     expect(url).toContain('per_page=20');
   });
 
+  it('TCK-662 — sends no sort while a search is active, so the API ranks by relevance', async () => {
+    const fetchSpy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+    await fetchDashboardProperties('tok', { filters: { search: 'villa' } });
+    expect(String(fetchSpy.mock.calls[0][0])).not.toContain('sort=');
+  });
+
+  it('TCK-662 — keeps an explicit sort during a search', async () => {
+    const fetchSpy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+    await fetchDashboardProperties('tok', { sort: 'price', filters: { search: 'villa' } });
+    expect(String(fetchSpy.mock.calls[0][0])).toContain('sort=price');
+  });
+
   it('forwards filters as spatie filter[...] params', async () => {
     const fetchSpy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
     await fetchDashboardProperties('tok', {
