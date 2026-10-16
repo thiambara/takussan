@@ -3381,7 +3381,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/search/suggest` est servie `public, max-age=60` sans `Vary: Accept-Language`, alors que son corps change avec la langue
 - Réf : P28.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-707 — reste : la garde générale qui rejouerait chaque route à `Cache-Control: public` sous deux langues et exigerait des corps identiques ou un `Vary: Accept-Language`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Search/SuggestController.php:16-23`, `takussan-api/app/Services/Search/SuggestService.php:200-225`, `takussan-api/tests/Feature/Api/Search/SearchSuggestTest.php:226-233`, `takussan-web/src/hooks/useSuggest.ts:20-28`
 - Constat :
@@ -3393,6 +3393,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : ajouter `Vary: Accept-Language` à la réponse, sans écraser le `Origin` de CORS (même forme que `discovery`). Garder par un test sur le modèle de `CataloguePublicCacheTest` : deux langues, deux corps distincts, et `Accept-Language` présent dans `Vary`. Une garde plus large rejouerait chaque route à `Cache-Control: public` sous deux langues et exigerait des corps identiques ou un `Vary: Accept-Language`.
 - Mesure (2026-10-16, af610be5, mesureur) : relu `SuggestController.php:23` (`Cache-Control: public, max-age=60`, aucun `Vary`) et `SuggestService.php:222` (`trans()` dans la langue de la requête) ; `git log -S` et `grep -rn` dans `docs/backlog/tickets` sans correctif (seul `PublicPropertyController.php:362` pose `Vary: Accept-Language, Authorization`) ; test temporaire retiré, un bien `apartment` publié, `GET /api/search/suggest?q=ap&limit=10` sous `fr`, `en`, `wo` (charge 2,41 sur 8 cœurs) → trois corps distincts (`Appartement`, `Apartment`, `Appart` ; md5 `31a267a9…`, `f8ce5fd3…`, `5a133324…`), tous `max-age=60, public` avec `Vary: Origin` seul ; le constat tient en entier, lignes inchangées. Classement : A1, le comportement attendu est écrit par TCK-341 et le commentaire de `PublicPropertyController.php:336-362` (un corps qui change avec la langue sous `public` porte `Vary: Accept-Language`), et le correctif (ajouter `Accept-Language` au `Vary` sans écraser `Origin`, plus un test à deux langues) ne demande aucun choix de produit.
+- Mesure (2026-10-16, 8350d37f, implementeur) : test neuf `SearchSuggestTest::test_suggest_varie_avec_la_langue_et_le_declare_sans_chasser_origin`, avant correctif, un bien `apartment` publié, `q=ap&limit=10` sous `fr` et `en` avec `Origin` → corps distincts, `public`, `Vary: Origin` seul (rouge) ; correctif `->header('Vary', 'Accept-Language')` dans `SuggestController` → `Vary` porte `Accept-Language` et `Origin` (vert) ; ablation (en-tête retiré) → rouge sur la même assertion, remis → vert, `SearchSuggestTest` 13 verts. La garde générale sur toutes les routes `public` n'est pas faite.
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
