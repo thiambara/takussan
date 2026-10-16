@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**613 tickets** — 45 ouverts, 566 livrés.
+**616 tickets** — 45 ouverts, 569 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 566 |
+| ✅ Done | 569 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 566
+## ✅ Done — 569
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 53 tickets</summary>
+<summary><strong>Sans vague</strong> — 56 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1072,6 +1072,7 @@ _(aucun)_
 - [TCK-670](tickets/TCK-670-montants-jamais-refuses-par-le-pas-natif.md) — Un montant n'est jamais refusé par le pas natif du champ : restitution de caution, bail, paiements, facture `S · P0 · bug`
 - [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
 - [TCK-672](tickets/TCK-672-actes-pdf-dates-en-francais.md) — Les actes PDF (bail, état des lieux, quittances, facture) se rendent en français, dates comprises `S · P1 · bug`
+- [TCK-674](tickets/TCK-674-dialogues-hauteur-bornee.md) — Un dialogue plus haut que l'écran défile en lui-même : hauteur bornée dans la primitive `S · P0 · bug`
 
 </details>
 
