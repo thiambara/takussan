@@ -61,8 +61,11 @@ l'opérateur coupe le jeton à la requête suivante, avant même que la session 
 `ImpersonationContext` (session, opérateur) quand le jeton courant appartient à une session ouverte,
 puis :
 
-- toute méthode autre que `GET` / `HEAD` / `OPTIONS` → **403 `impersonation_read_only`**. **Aucune
-  écriture permise** ;
+- toute méthode autre que `GET` / `HEAD` / `OPTIONS` → **403 `impersonation.read_only`**. **Aucune
+  écriture permise** (code corrigé le 2026-10-16, [TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md),
+  P23.06 : une version antérieure de ce paragraphe écrivait `impersonation_read_only`, que le code
+  n'a jamais émis — `EnforceImpersonationReadOnly` rend `abort_code(403, 'impersonation.read_only')`,
+  clé `errors.impersonation.read_only`) ;
 - **lectures refusées malgré tout**, même code : les téléchargements d'export (`me/data-exports/*`,
   `export/*`, exports de rapports), **toute la famille 2FA** (`auth/two-factor*` : codes de secours,
   et QR de la graine TOTP en cours d'enrôlement — verif-600 M1), les liens de partage d'un document
