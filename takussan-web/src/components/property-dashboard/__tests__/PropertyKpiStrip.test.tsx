@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import { PropertyKpiStrip } from '../PropertyKpiStrip';
 
 /**
@@ -10,7 +12,7 @@ import { PropertyKpiStrip } from '../PropertyKpiStrip';
  */
 describe('<PropertyKpiStrip> — quatre colonnes dès lg, pas dès md (TCK-505 #9)', () => {
   it('la bande passe à quatre colonnes à lg seulement', () => {
-    render(<PropertyKpiStrip tiles={[{ label: 'Biens publiés', value: 3, href: '/app/properties' }]} />);
+    render(withIntl(<PropertyKpiStrip tiles={[{ label: 'Biens publiés', value: 3, href: '/app/properties' }]} />));
     const grille = screen.getByText('Biens publiés').closest('[class*="grid-cols-"]') as HTMLElement;
     const classes = grille.className.split(/\s+/);
     expect(classes).toContain('lg:grid-cols-4');

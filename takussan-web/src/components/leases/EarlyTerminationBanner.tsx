@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Button } from '@/components/ui/button';
 
 import { useToast } from '@/components/ui/toast';
@@ -41,6 +42,7 @@ function daysFromTodayTo(iso: string): number {
  */
 export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTerminationBannerProps) {
   const t = useTranslations('lease.early_termination');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const cancel = useCancelEarlyTermination(lease.id);
   const toast = useToast();
@@ -141,7 +143,7 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
               {t('banner_penalty_label')}
             </dt>
             <dd className="mt-0.5 font-semibold">
-              {lease.early_termination_penalty_amount.toLocaleString()} {lease.currency}
+              {fmt.nombre(lease.early_termination_penalty_amount)} {lease.currency}
             </dd>
           </div>
         )}

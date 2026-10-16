@@ -608,7 +608,7 @@ const PLAFOND_CONSOLE = 1; // mesuré le 2026-08-27
  *
  * Même plancher/plafond que ci-dessus.
  */
-const PLAFOND_RESTE = 20; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
+const PLAFOND_RESTE = 1; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
 //                          (TCK-374 a porté deux graphiques de `/app` sur la locale active).
 //                          48 → 28 le 2026-09-16, re-mesuré sur l'arbre fusionné de la revue
 //                          design (dates et montants portés sur la locale active par les groupes).
@@ -622,6 +622,12 @@ const PLAFOND_RESTE = 20; // mesuré le 2026-08-27, resserré de 50 à 48 à la 
 //                          22 → 20 le 2026-10-08 : les deux heures de la vue agent
 //                          (`app/overview/agent/page.tsx`, `Intl.DateTimeFormat` figé) passent par
 //                          `formatDate` et la langue de la requête (TCK-595).
+//                          20 → 1 le 2026-10-16 : les dates du site public (avis, historique de
+//                          prix, fiches d'agence et d'agent), des baux, de la liste « Mes biens »,
+//                          du tiroir de recherche et des sessions actives suivent la locale active
+//                          (P06.05, TCK-721). L'unique reste est `lib/visites/heure-de-dakar.ts` :
+//                          son `'en-US'` ne s'AFFICHE pas, il sert à LIRE en chiffres l'heure
+//                          murale de Dakar par `formatToParts` — figé à dessein, compté quand même.
 
 const consoleCompte = compter(consoleHorsPerimetre);
 const resteCompte = compter(reste);

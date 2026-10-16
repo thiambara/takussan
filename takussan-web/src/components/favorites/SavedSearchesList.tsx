@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { BookmarkCheck, Trash2, Loader2, Search as SearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   SAVED_SEARCH_FREQUENCIES,
   useSavedSearchesQuery,
@@ -152,6 +153,7 @@ function SavedSearchRow({
     // TCK-633 — mêmes libellés que les puces de la recherche : le catalogue traduit, un
     // équipement d'annonceur tel quel. Le critère sauvegardé garde le NOM, seul l'affichage change.
     equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
+    locale: useFormatteurs().locale,
   };
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;

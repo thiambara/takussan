@@ -2,6 +2,7 @@
 
 import React, { type ReactNode, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import {
   Select,
@@ -320,6 +321,7 @@ export function PucesDeFiltres({
     conditions: useTranslations('property.conditions'),
     // TCK-633 — un équipement du catalogue dans la langue de l'écran, celui d'un annonceur tel quel.
     equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
+    locale: useFormatteurs().locale,
   };
   /**
    * TCK-580 — la rangée est rendue depuis les DEUX jeux de filtres, et l'écart se voit.

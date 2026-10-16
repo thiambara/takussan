@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,7 @@ export function LeaseRenewalDialog({
   onRenewed,
 }: LeaseRenewalDialogProps) {
   const t = useTranslations('lease.renewal');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const renew = useRenewLease(parent.id);
   const [step, setStep] = useState<Step>(1);
@@ -236,8 +238,8 @@ export function LeaseRenewalDialog({
                     {t('rent_evolution', {
                       sign,
                       percent: deltaPercent.toFixed(1),
-                      from: parentRent.toLocaleString(),
-                      to: newRent.toLocaleString(),
+                      from: fmt.nombre(parentRent),
+                      to: fmt.nombre(newRent),
                     })}
                   </p>
                 )}

@@ -28,7 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { Locale } from '@/i18n/config';
 import { formatCurrency } from '@/lib/format';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
@@ -498,16 +500,13 @@ function RelativeDate({ value }: { readonly value: string }) {
   // Two-stage render avoids hydration mismatch: SSR + first client render show
   // the absolute date, then the relative form is computed after mount where
   // reading the current clock is safe.
+  //
+  // P06.05 / TCK-721 — l'absolu et le relatif suivent la langue de l'app ; ils étaient figés en
+  // `'fr-SN'` et `'fr'`. L'absolu se lit désormais à Dakar (le défaut de `@/lib/format`), et non
+  // plus dans le fuseau de la machine : serveur et client rendent la même chaîne.
+  const fmt = useFormatteurs();
   const date = useMemo(() => new Date(value), [value]);
-  const absolute = useMemo(
-    () =>
-      new Intl.DateTimeFormat('fr-SN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).format(date),
-    [date],
-  );
+  const absolute = fmt.date(date, { day: '2-digit', month: 'short', year: 'numeric' });
   // TCK-316 — `useSyncExternalStore` est la primitive prévue par React pour
   // « cette valeur diffère entre le serveur et le client » : instantané serveur
   // `null` (on peint l'absolu), instantané client calculé après hydratation.
@@ -521,8 +520,8 @@ function RelativeDate({ value }: { readonly value: string }) {
   // comportement — recalculé quand `date` change, et seulement alors.
   const getRelative = useMemo(() => {
     let cached: string | null = null;
-    return (): string => (cached ??= formatRelative(date));
-  }, [date]);
+    return (): string => (cached ??= formatRelative(date, fmt.locale));
+  }, [date, fmt.locale]);
   const relative = useSyncExternalStore(subscribeToNothing, getRelative, () => null);
 
   return (
@@ -542,10 +541,14 @@ function subscribeToNothing(): () => void {
   return () => {};
 }
 
-function formatRelative(date: Date): string {
+/**
+ * ⚠ `wo` retombe sur `fr`, délibérément, comme `useDateRelative` (cartes de bien) : Chrome ne
+ * sert pas `Intl.RelativeTimeFormat` en wolof (`supportedLocalesOf(['wo'])` → `[]`), Node si.
+ */
+function formatRelative(date: Date, locale: Locale): string {
   const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
   const absSec = Math.abs(diffSec);
-  const rtf = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat(locale === 'en' ? 'en' : 'fr', { numeric: 'auto' });
   if (absSec < 60) return rtf.format(diffSec, 'second');
   if (absSec < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
   if (absSec < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');

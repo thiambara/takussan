@@ -1,3 +1,5 @@
+import type { Locale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
 import { formatPrice } from '@/lib/utils';
 
 export type SuggestCity = {
@@ -74,6 +76,13 @@ export type TraducteursDeFiltre = {
    * quel — c'est le cas d'un consommateur qui ne l'a pas encore branché.
    */
   readonly equipement?: (nom: string) => string;
+  /**
+   * P06.05 / TCK-721 — la langue de l'écran, pour les puces qui FORMATENT une valeur (la date de
+   * `available_from`). La table est un module : sans ce champ, elle n'a pas de locale sous la main
+   * et son auteur écrit un littéral — c'est ce qui figeait `'fr-SN'` ici. Obligatoire, pour que
+   * le prochain consommateur ne puisse pas l'oublier sans que `tsc` le dise.
+   */
+  readonly locale: Locale;
 };
 
 type CleCommune<V> = {
@@ -385,8 +394,8 @@ export const SEARCH_FILTER_KEYS = {
     ecrire: (v: string) => v,
     libelle: (v: string, t: TraducteursDeFiltre) =>
       t.tags('tags.availableFrom', {
-        date: new Date(String(v)).toLocaleDateString('fr-SN', {
-          day: '2-digit', month: 'short', year: 'numeric',
+        date: formatDate(String(v), t.locale, {
+          dateStyle: undefined, day: '2-digit', month: 'short', year: 'numeric',
         }),
       }),
   },
