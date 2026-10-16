@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -559,7 +559,7 @@ describe('PropertyWizard — le brouillon', () => {
 /** Le chemin complet jusqu'au bouton de publication, photos comprises si on en passe une. */
 async function allerJusquAuBout(
   user: ReturnType<typeof userEvent.setup>,
-  options: { readonly photo?: boolean; readonly equipement?: boolean } = {},
+  options: { readonly photo?: boolean; readonly photos?: readonly string[]; readonly equipement?: boolean } = {},
 ) {
   await allerAuxCaracteristiques(user, /^villa$/i);
   if (options.equipement) {
@@ -571,10 +571,11 @@ async function allerJusquAuBout(
   await user.click(suivant()); //                                → prix
   await user.type(screen.getByLabelText(/^prix/i), '25000000');
   await user.click(suivant()); //                                → photos
-  if (options.photo) {
+  const noms = options.photos ?? (options.photo ? ['salon.jpg'] : []);
+  if (noms.length > 0) {
     await user.upload(
       screen.getByTestId('media-dropzone-input'),
-      new File(['x'], 'salon.jpg', { type: 'image/jpeg' }),
+      noms.map((nom) => new File(['x'], nom, { type: 'image/jpeg' })),
     );
   }
   await user.click(suivant()); //                                → finition
@@ -715,6 +716,62 @@ describe('PropertyWizard — la soumission', () => {
     await waitFor(() => expect(uploadPropertyPhotosAction).toHaveBeenCalledTimes(1));
     const envoi = vi.mocked(uploadPropertyPhotosAction).mock.calls[0][1] as FormData;
     expect((envoi.getAll('photos') as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
+  });
+
+  it('TCK-673 — une server action PAR PHOTO, jamais le lot entier dans un seul corps', async () => {
+    // Le lot partait dans UN FormData, vers une action plafonnée à 1 Mo par Next : une seule
+    // photo réduite pèse déjà 1,4 Mo (TCK-542).
+    const user = userEvent.setup();
+    monter();
+    await allerJusquAuBout(user, { photos: ['salon.jpg', 'cuisine.jpg', 'jardin.jpg'] });
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    const envois = vi.mocked(uploadPropertyPhotosAction).mock.calls.map(([, fd]) =>
+      ((fd as FormData).getAll('photos') as File[]).map((f) => f.name),
+    );
+    expect(envois).toEqual([['salon.jpg'], ['cuisine.jpg'], ['jardin.jpg']]);
+  });
+
+  it('TCK-673 — la progression se dit photo par photo', async () => {
+    let terminer: (r: unknown) => void = () => {};
+    vi.mocked(uploadPropertyPhotosAction).mockImplementationOnce(
+      () => new Promise((r) => (terminer = r)) as never,
+    );
+    const user = userEvent.setup();
+    monter();
+    await allerJusquAuBout(user, { photos: ['salon.jpg', 'cuisine.jpg'] });
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    expect(await screen.findByText('Envoi des photos : 1 sur 2')).toBeInTheDocument();
+    await act(async () => terminer({ ok: true }));
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    expect(uploadPropertyPhotosAction).toHaveBeenCalledTimes(2);
+  });
+
+  it('TCK-673 — réessayer ne renvoie QUE les photos qui ont échoué', async () => {
+    // Rejouer une photo passée DUPLIQUE le média ; ne pas rejouer celle qui a échoué la perd.
+    vi.mocked(uploadPropertyPhotosAction)
+      .mockResolvedValueOnce({ ok: true } as never)
+      .mockResolvedValueOnce({ ok: false, message: 'Fichier trop lourd' } as never)
+      .mockResolvedValueOnce({ ok: true } as never);
+    const user = userEvent.setup();
+    monter();
+    await allerJusquAuBout(user, { photos: ['salon.jpg', 'cuisine.jpg', 'jardin.jpg'] });
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/photos/i);
+    expect(uploadPropertyPhotosAction).toHaveBeenCalledTimes(3);
+
+    vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true } as never);
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    const envois = vi.mocked(uploadPropertyPhotosAction).mock.calls.map(([, fd]) =>
+      ((fd as FormData).getAll('photos') as File[]).map((f) => f.name),
+    );
+    expect(envois).toEqual([['salon.jpg'], ['cuisine.jpg'], ['jardin.jpg'], ['cuisine.jpg']]);
+    expect(createPropertyAction).toHaveBeenCalledTimes(1);
   });
 
   it('envoie l’adresse IMBRIQUÉE dans un brouillon (publié ensuite, TCK-627), puis ouvre le bien', async () => {

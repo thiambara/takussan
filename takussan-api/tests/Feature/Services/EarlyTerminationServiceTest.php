@@ -167,6 +167,28 @@ class EarlyTerminationServiceTest extends TestCase
         Event::assertDispatched(LeaseEarlyTerminationCancelled::class);
     }
 
+    /**
+     * TCK-669 (P04.03) — une pénalité déjà annulée à part (par l'écran des factures) n'empêche pas
+     * d'annuler la résiliation, et ne reçoit pas de second avoir.
+     */
+    public function test_cancel_tolerates_a_penalty_already_cancelled(): void
+    {
+        [$service, $lease, $actor] = $this->scaffold();
+
+        $service->request($lease, $actor, [
+            'effective_date' => now()->addDays(45)->toDateString(),
+        ]);
+        $lease = $lease->fresh();
+        $penaltyId = $lease->early_termination_invoice_id;
+        Invoice::find($penaltyId)->forceFill(['status' => InvoiceStatus::Cancelled])->save();
+
+        $cancelled = $service->cancel($lease, $actor);
+
+        $this->assertSame(LeaseStatus::Active, $cancelled->status);
+        $this->assertSame(InvoiceStatus::Cancelled, Invoice::find($penaltyId)->status);
+        $this->assertSame(0, Invoice::query()->where('credited_invoice_id', $penaltyId)->count());
+    }
+
     public function test_cancel_rejects_when_penalty_paid(): void
     {
         [$service, $lease, $actor] = $this->scaffold();

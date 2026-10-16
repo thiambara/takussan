@@ -260,7 +260,13 @@ export function PropertyWizard({
   // recréer le bien produirait un doublon, rejouer les photos dupliquerait les médias.
   const [idCree, setIdCree] = useState<number | null>(null);
   const [tagsEnvoyes, setTagsEnvoyes] = useState(false);
-  const [photosEnvoyees, setPhotosEnvoyees] = useState(false);
+  /**
+   * TCK-673 — les photos déjà PASSÉES, une à une : chacune part dans sa propre server action, et
+   * une reprise ne renvoie que celles qui manquent (rejouer une photo passée duplique le média).
+   */
+  const [photosEnvoyees, setPhotosEnvoyees] = useState<ReadonlySet<File>>(() => new Set());
+  /** TCK-673 — la photo en cours d'envoi (« 3 sur 12 »), `null` hors envoi. */
+  const [envoiPhotos, setEnvoiPhotos] = useState<{ readonly rang: number; readonly total: number } | null>(null);
   /**
    * TCK-627 — la quatrième écriture : publier. Le bien naît brouillon ; `PUT …/visibility`
    * le publie et rend le statut que l'agence décide (`available`, ou `pending_review` quand elle
@@ -322,13 +328,26 @@ export function PropertyWizard({
         else echecs.push(t('partial.tags'));
       }
 
-      if (photos.length > 0 && !photosEnvoyees) {
-        const formData = new FormData();
+      // TCK-673 (P08.01) — UNE server action par photo. Le lot partait dans un seul `FormData`,
+      // et Next plafonne le corps d'une action (`serverActions.bodySizeLimit`) : une seule photo
+      // réduite pèse déjà 1,4 Mo (TCK-542). Un échec n'emporte plus les photos suivantes.
+      const aEnvoyer = photos.filter((p) => !photosEnvoyees.has(p));
+      if (aEnvoyer.length > 0) {
         // Réduites dans le navigateur avant l'envoi : grand côté plafonné, format gardé (TCK-542).
-        for (const fichier of await reduirePhotos(photos)) formData.append('photos', fichier);
-        const r = await uploadPropertyPhotosAction(bien.id, formData);
-        if (r.ok) {
-          setPhotosEnvoyees(true);
+        const reduites = await reduirePhotos(aEnvoyer);
+        const passees = new Set(photosEnvoyees);
+        let premierEchec: string | null = null;
+        for (let i = 0; i < reduites.length; i++) {
+          setEnvoiPhotos({ rang: i + 1, total: reduites.length });
+          const formData = new FormData();
+          formData.append('photos', reduites[i]);
+          const r = await uploadPropertyPhotosAction(bien.id, formData);
+          if (r.ok) passees.add(aEnvoyer[i]);
+          else premierEchec ??= r.message;
+        }
+        setEnvoiPhotos(null);
+        setPhotosEnvoyees(passees);
+        if (premierEchec === null) {
           setErreurPhotos(null);
         } else {
           echecs.push(t('partial.photos'));
@@ -336,7 +355,7 @@ export function PropertyWizard({
           // retirer le fichier fautif, et un avertissement resté sur la dernière étape ne l'y
           // suivrait pas. Sans cette ligne, la prop `error` de `StepPhotos` ne vaudrait jamais
           // autre chose que `null`.
-          setErreurPhotos(r.message);
+          setErreurPhotos(premierEchec);
         }
       }
 
@@ -628,7 +647,7 @@ export function PropertyWizard({
       : 'aucun';
 
   const aDesAlertes = Boolean(
-    globalError || avertissement || echecReprise || brouillon.error || proposition || repriseAnnoncee,
+    envoiPhotos || globalError || avertissement || echecReprise || brouillon.error || proposition || repriseAnnoncee,
   );
 
   return (
@@ -701,6 +720,11 @@ export function PropertyWizard({
         }
         bandeau={aDesAlertes ? (
           <>
+            {envoiPhotos ? (
+              <p role="status" className="mb-4 text-sm text-muted-foreground">
+                {t('photosProgress', { sent: envoiPhotos.rang, total: envoiPhotos.total })}
+              </p>
+            ) : null}
             <FormGlobalError>
               {globalError ? (
                 <span className="flex items-center justify-between gap-4">

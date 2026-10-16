@@ -1639,7 +1639,8 @@
         "current": "en cours",
         "optional": "facultatif",
         "reopen": "Revenir à : {step}"
-      }
+      },
+      "photosProgress": "Envoi des photos : {sent} sur {total}"
     },
     "titleTypes": {
       "bail": "Bail",
