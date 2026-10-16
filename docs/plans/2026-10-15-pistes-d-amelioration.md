@@ -3606,7 +3606,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Le champ de recherche de la barre ne montre aucun focus au clavier, et pointe vers une liste absente
 - Réf : P31.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `:266-268`
 - Constat :
@@ -3615,10 +3615,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - axe rend `aria-valid-attr-value` (impact « critical ») sur cet `input` sur chaque page publique à 1280 px : accueil, recherche, fiche, agences, agents, comparateur, favoris, mentions légales (mesuré : `aria-controls="…H1_"` invalide). À 390 px la barre n'affiche pas le champ, et la règle ne sort pas (mesuré).
   - Établi comment : axe et instantané CDP sur `next dev`, code relu.
 - Piste : voir P07.06, qui porte le libellé, le motif ARIA 1.2 et le `focus-within:` de la pilule. Ce constat y ajoute : n'émettre `aria-controls` que lorsque la liste est montée (ou la monter vide et masquée), et garder par un test de rendu qui vérifie que tout `aria-controls` et `aria-activedescendant` du composant vise un `id` présent, fermé comme ouvert.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `SearchAutocomplete.tsx` : `aria-controls={listboxId}` sur le `div` `combobox` (l. 230) et sur l'`input` (l. 244) sans condition, `id={listboxId}` rendu seulement sous `{open && …}` (l. 266-268), `outline-none` sur l'`input` (l. 259) et aucune classe `focus`/`focus-within` sur la pilule (l. 231-235) ; `git log --oneline 7abe36d..979edb0f -- takussan-web` → aucun commit, le code mesuré par l'explorateur est inchangé ; axe et l'instantané CDP non rejoués (pas de navigateur dans ce passage), la référence vide se lit dans le code → tient. Classement : A4 et A5, attribut ARIA conditionné au montage de la liste et test de rendu des `id` visés, sans texte ni design neuf ; l'anneau de focus reste porté par P07.06 (déjà `retenu · autonome`), à traiter dans le même ticket.
 
 ### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
 - Réf : P31.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/page.tsx:170-211`, `[slug]/not-found.tsx:16-38`, `[slug]/bien-retire.tsx:52`, `[slug]/PropertyDetailContent.tsx:134`
 - Constat :
@@ -3627,10 +3628,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - La fiche est aussi la page où le clavier traverse le plus de barre : 18 Tab (logo, recherche, Louer, Acheter, neuf types, favoris, langue, connexion, publier) avant le fil d'Ariane (mesuré). Sans `<main>` ni lien d'évitement (P31.04), un lecteur d'écran n'a pas de saut vers le contenu, hors des titres.
   - Établi comment : axe et parcours au Tab par CDP, code relu.
 - Piste : envelopper le corps des quatre états dans `<main>` (dans `page.tsx` et `not-found.tsx`, pas dans `PropertyDetailContent`, pour ne pas en rendre deux). Garde : un test qui rend chaque `page.tsx` publique et `not-found.tsx` et compte exactement un `main`, ou une garde statique sur les pages qui montent `Navbar`.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `[slug]/page.tsx` : branche retirée (l. 172-178) et rendu final (l. 205-211) en `<>` `Navbar`/`NavbarSpacer`/corps/`Footer` sans `<main>`, `bienIndisponible()` rend un `div` (l. 152) ; `not-found.tsx:20` un `div` ; `bien-retire.tsx:53` un `div` ; `PropertyDetailContent.tsx:134` un `div` ; `grep -n "<main"` sur le dossier `[slug]` et sur `(public)/layout.tsx` et `app/layout.tsx` → 0 ligne ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, repère `<main>` ajouté autour du corps des quatre états, sans rendu visuel ni texte neuf, avec un test qui compte un seul `main`.
 
 ### Les pages d'authentification n'ont pas de repère `<main>`
 - Réf : P31.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/layout.tsx:58-138`
 - Constat :
@@ -3638,10 +3640,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - axe : `landmark-one-main` et `region` (6 à 15 nœuds) sur `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password` et `/auth/verify-email`, à 1280 px, et sur `/auth/login` à 390 px (mesuré).
   - Établi comment : axe, code relu.
 - Piste : `<main>` sur le panneau du formulaire (l. 97), le panneau visuel restant hors du repère. Même garde que P31.02.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx` : le panneau du formulaire est un `div` (l. 97) et le formulaire est dans `div.w-full.max-w-md` (l. 125) ; `grep -rn "<main" "src/app/(auth)"` → 0 ligne, tests compris ; les cinq `page.tsx` de `(auth)/auth/` n'en rendent pas ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, le `div` du panneau devient `<main>` sans changement visuel ni texte neuf.
 
 ### Aucun lien d'évitement hors de la console super-admin
 - Réf : P31.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/SuperAdminShell.tsx:83-91,102-107`, `takussan-web/src/components/layout/AppShell.tsx:120`, `takussan-web/src/components/home/Navbar.tsx`
 - Constat :
@@ -3650,10 +3653,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Le libellé existe déjà en trois langues sous `nav.superAdmin.skipToContent` (lu, `fr.json:190`) ; il est rangé dans l'espace de la console.
   - Établi comment : parcours au Tab par CDP, code relu.
 - Piste : le même lien en tête de `Navbar` (ou du layout public) et d'`AppShell`, vers un `<main id tabIndex={-1}>`, avec le libellé déplacé vers un espace commun (`common`), sans texte neuf. Le test d'AC3 de `SuperAdminShell` sert de modèle.
+- Mesure (2026-10-16, 979edb0f, mesureur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → seuls `SuperAdminShell.tsx:88-90`, son test `SuperAdminShell.a11y.test.tsx:111` et la clé `nav.superAdmin.skipToContent` des dictionnaires (`fr.json:190`, `en.json:190`) ; `AppShell.tsx:120` rend `<main className=…>` sans `id` ni `tabIndex` ; `Navbar.tsx` n'a pas de lien d'évitement ; le parcours au Tab n'a pas été rejoué → tient. Classement : A4, le motif (lien `sr-only` révélé au focus vers un `<main id tabIndex={-1}>`) et son libellé existent déjà en trois langues, il se recopie dans la barre publique et `AppShell` avec la clé déplacée vers un espace commun, sans texte neuf.
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste offre deux voies (un `h2` de section, texte neuf, ou le niveau des cartes partagées), choix de structure à trancher
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3661,10 +3665,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Sur la recherche (1280 et 390 px), le titre de la première carte est un `h3` qui suit directement le `h1` de la liste ; même règle sur la première carte de `/fr/agencies`, dont le titre est le `h3` de `ProfileCard.tsx:93` sous le `h1` d'`IndexDeProfils.tsx:109` (mesuré, puis lu).
   - Établi comment : axe, code relu.
 - Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `Footer.tsx:183` et `:216` (`h4`), `h3` dans `PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65` et `ProfileCard.tsx:93`, `h1` dans `IndexDeProfils.tsx:109` ; les cartes sont montées aussi par `ApercuAnnonce.tsx`, `PropertyRow.tsx` et `PortfolioTabs.tsx`, où leur niveau dépend d'autres titres ; axe non rejoué → tient. Classement : V7, le pied de page en `h2` est mécanique, mais l'ordre des titres des cartes demande soit un titre de section neuf (texte), soit un niveau de carte qui vaut pour tous ses conteneurs.
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choix du libellé d'onglet de chaque page, les titres affichés (« Content de vous revoir ») ne nomment pas la page
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
 - Constat :
@@ -3672,10 +3677,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Les cinq pages passées au navigateur ont toutes le titre « Authentification — Takussan » (mesuré). Le modèle n'est jamais rempli, et un lecteur d'écran ou un historique ne distingue pas « Connexion » de « Mot de passe oublié ».
   - Établi comment : `document.title` relevé par CDP, code relu.
 - Piste : un `layout.tsx` serveur par page d'auth (ou un `generateMetadata` dans un `page.tsx` serveur qui monte le composant client) qui remplit le modèle par le titre déjà affiché dans le formulaire, sans texte neuf. Garde : un test qui vérifie que chaque page de `(auth)/auth/` fournit un titre.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx:27-35` (`generateMetadata` qui ne pose que `template` « %s — Takussan » et `default` « Authentification — Takussan », `fr.json:500-503`) ; `grep -c "Metadata"` → 0 dans les cinq `page.tsx` de `auth/*`, dans `verify-email/[id]/[hash]/page.tsx` et dans `oauth/[provider]/callback/page.tsx`, toutes `'use client'` pour les cinq premières ; les titres de formulaire existants sont `auth.login.title` « Content de vous revoir », `auth.register.title` « Créez votre compte », `auth.forgotPassword.title`, `auth.resetPassword.title`, `auth.verifyEmail.title` ; `document.title` non relevé → tient (le titre « six pages » compte sept pages sans titre propre). Classement : V7, reprendre le titre du formulaire donnerait « Content de vous revoir — Takussan » à la connexion, et nommer la page autrement est un texte neuf.
 
 ### Petites améliorations
 - Réf : P31.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : taille et soulignement permanent des liens de la carte agent sont un choix de design
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
 - Constat :
@@ -3683,3 +3689,4 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - `/invitations/accept` a pour titre « Accepter une invitation », sans le suffixe « — Takussan » des autres pages (mesuré) : `generateMetadata` y rend `t('metaTitle')` seul (lu, l. 19).
   - Établi comment : axe et `document.title` par CDP.
 - Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `PropertyAgentCard.tsx:94-112` : liens `LienLocalise` vers l'agent (`hover:underline`, sans hauteur minimale) et l'agence (`min-w-0 truncate hover:underline`) ; `invitations/accept/page.tsx:17-19` : `generateMetadata` rend `t('metaTitle')` seul (« Accepter une invitation ») et `invitations/layout.tsx` ne pose aucun `template` (`grep -rn template src/app/invitations` → 0), alors que `(public)/layout.tsx:52` pose « %s — Takussan » ; la taille des cibles n'a pas été remesurée → les deux points tiennent. Classement : V7, le titre de l'invitation est mécanique (A4), mais agrandir et souligner en permanence les liens de la carte change son dessin.
