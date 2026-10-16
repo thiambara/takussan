@@ -61,6 +61,27 @@ class Tag extends AbstractModel
     }
 
     /**
+     * TCK-666 (P03.03) — une étiquette CRM ne se lit que depuis l'agence du PERSONNEL dont un
+     * client la porte ; les autres types ne sont pas touchés. Le prédicat est `staffAgencyId()` et
+     * non `agency_id`, qui est aussi celui d'un bailleur (TCK-587). La console voit tout.
+     */
+    public function scopeSansCrmHorsDeSonAgence(Builder $query, ?User $appelant): void
+    {
+        if ($appelant?->isSuperAdmin()) {
+            return;
+        }
+
+        $agenceDuPersonnel = $appelant?->staffAgencyId();
+
+        $query->where(function (Builder $q) use ($agenceDuPersonnel) {
+            $q->whereNull('tags.type')->orWhere('tags.type', '!=', TagType::Crm->value);
+            if ($agenceDuPersonnel !== null) {
+                $q->orWhereHas('customers', fn (Builder $c) => $c->where('customers.agency_id', $agenceDuPersonnel));
+            }
+        });
+    }
+
+    /**
      * TCK-633 (ADR-0062 §7, D9) — les étiquettes d'un bien qu'une fiche PUBLIQUE montre : les
      * approuvées, et une proposition en attente là seulement où son AUTEUR l'a rattachée. Le nom
      * étant unique, un tiers qui tape le nom d'une proposition retombe sur la même ligne : elle est
