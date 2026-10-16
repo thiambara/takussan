@@ -1,7 +1,7 @@
 ---
 id: TCK-714
 title: "Sous impersonation, l'identifiant de versement sort masqué (4 derniers caractères)"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -40,16 +40,16 @@ Sous une session d'impersonation, `account_identifier` sort sous sa forme masqu�
 
 ## Delta à produire
 
-- [ ] `PayoutMethodResource` : quand `ImpersonationContext` est actif, `account_identifier` vaut
+- [x] `PayoutMethodResource` : quand `ImpersonationContext` est actif, `account_identifier` vaut
       `PayoutMethod::mask(account_identifier)`.
-- [ ] Test `tests/Feature/Admin/Platform/ImpersonationPayoutMethodsTest.php`.
+- [x] Test `tests/Feature/Admin/Platform/ImpersonationPayoutMethodsTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sous le jeton d'impersonation, `GET /api/me/payout-methods` rend
+- [x] AC1 — Sous le jeton d'impersonation, `GET /api/me/payout-methods` rend
       `account_identifier` = `•••• 4567` pour le numéro `+221 77 123 45 67`, et la réponse ne
       contient le numéro sous aucune forme claire.
-- [ ] AC2 — La cible, sous son propre jeton, lit toujours la forme claire.
+- [x] AC2 — La cible, sous son propre jeton, lit toujours la forme claire.
 
 ## Hypothèses (mode sans humain)
 
@@ -62,6 +62,11 @@ Sous une session d'impersonation, `account_identifier` sort sous sa forme masqu�
 ## Hors périmètre
 
 - Ajouter `api/me/payout-methods*` à `REFUSED_READS` (l'autre option de la piste, non retenue).
-- `account_holder_name` sous impersonation.
+- `account_holder_name` sous impersonation : reporté en « reste » de P03.04.
 
 ## Notes d'implémentation
+
+- Ablation : ressource d'origine → le test rouge (`account_identifier` rendu `+221 77 123 45 67`
+  sous le jeton d'impersonation) ; correctif remis → vert.
+- Le masquage tient dans la ressource et non dans le contrôleur : `store` et `update` la rendent
+  aussi, et toute autre lecture future passera par elle.
