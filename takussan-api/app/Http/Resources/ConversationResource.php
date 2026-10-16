@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\MessageType;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,14 @@ class ConversationResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
             // Calculé par la seule liste (`ConversationController::index`) : absent ailleurs.
             'unread_count' => $this->whenHas('unread_count', fn () => (int) $this->unread_count),
+            // TCK-671 (P06.02) — chargé par la liste. `last_message_preview` est écrit en français par
+            // `SystemMessageFactory::humanise()` : le front rend l'aperçu d'un avis système depuis son
+            // `metadata.event`, dans la langue du lecteur. Seule la metadata d'un avis système sort.
+            'last_message' => $this->whenLoaded('lastMessage', fn () => $this->lastMessage ? [
+                'id' => $this->lastMessage->id,
+                'type' => $this->enumValue($this->lastMessage->type),
+                'metadata' => $this->lastMessage->type === MessageType::System ? $this->lastMessage->metadata : null,
+            ] : null),
             // Relation is `BelongsTo` so `whenLoaded` can yield null when the
             // FK is null and the relation has been eager-loaded — guard
             // against feeding `null` to `PropertyResource::make`.
