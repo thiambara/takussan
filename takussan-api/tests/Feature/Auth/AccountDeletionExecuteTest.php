@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\AccountDeletionRequest;
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
@@ -10,6 +11,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
@@ -190,6 +192,46 @@ class AccountDeletionExecuteTest extends TestCase
             ->count());
 
         $this->assertNotNull(Activity::query()->where('event', 'account.deletion.executed')->first());
+    }
+
+    /**
+     * TCK-691 (P19.02) — chaque envoi SMS ou WhatsApp garde le numéro du destinataire dans
+     * `notification_delivery_attempts.to`. Le compte n'étant que soft-deleted, rien ne cascade :
+     * l'anonymisation met `to` à `null` sur les tentatives de ses notifications. Celles d'un autre
+     * compte ne bougent pas.
+     */
+    public function test_execute_efface_le_numero_des_tentatives_d_envoi_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['phone' => '+221771234567']);
+        $autre = User::factory()->create(['phone' => '+221779876543']);
+        $tentative = $this->tentativeEnvoyee(AppNotification::factory()->for($user)->create(), '+221771234567');
+        $tentativeAutre = $this->tentativeEnvoyee(AppNotification::factory()->for($autre)->create(), '+221779876543');
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            0,
+            NotificationDeliveryAttempt::query()->where('to', '+221771234567')->count(),
+            'une tentative d\'envoi porte encore le numéro du compte anonymisé',
+        );
+        $this->assertModelExists($tentative);
+        $this->assertNull($tentative->fresh()->to);
+        $this->assertSame('+221779876543', $tentativeAutre->fresh()->to);
+    }
+
+    private function tentativeEnvoyee(AppNotification $notification, string $to): NotificationDeliveryAttempt
+    {
+        return NotificationDeliveryAttempt::query()->create([
+            'app_notification_id' => $notification->id,
+            'attempt' => 1,
+            'provider' => 'log',
+            'provider_message_id' => 'p19-'.$notification->id,
+            'to' => $to,
+            'status' => 'sent',
+        ]);
     }
 
     public function test_execute_is_idempotent(): void
