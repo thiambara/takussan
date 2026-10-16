@@ -840,7 +840,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
-- Statut : validé — site public seulement, par useFormatteurs ; reste : l'espace /app, et le cliquet de la garde descendu par le porteur
+- Statut : retenu · à valider — chemin fermé : scripts/check-locale-figee.mjs (V9, distinct du V8 accordé) : la garde échoue quand le compte descend sous PLAFOND_RESTE = 20, donc le site public ne se corrige pas sans descendre le cliquet dans le même diff, que la précision réserve au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -850,6 +850,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `check-locale-figee.mjs` les tolère dans son cliquet (mesuré).
 - Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16` et `ReviewsSection.tsx:23` (`toLocaleDateString('fr-FR', …)` quelle que soit la locale) et les sites cités, lignes inchangées, sauf `PropertyList.tsx:504`, qui fige `'fr-SN'` par `Intl.DateTimeFormat` et non `'fr-FR'` ; `grep -rn "toLocaleString()" components/leases` → 7 hors tests ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20) et console hors périmètre 1 (`lib/utils.ts`) ; `lib/format.ts:75-79` a déjà tranché `fr → 'fr-SN'` et `useFormatteurs()` existe → le constat tient. Classement : V8, TCK-347 (`todo`, estimé L) décrit déjà ce delta avec des comptes périmés (86 sites) ; le reprendre ou le découper, et faire descendre les cliquets de la garde (V9), revient au porteur.
+- Mesure (2026-10-16, 964d9f59, implementeur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `ReviewsSection.tsx:23` → `toLocaleDateString('fr-FR', …)` inconditionnel, le défaut tient ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20), dont ces trois fichiers à 1 chacun ; essai sur l'arbre (une seule ligne de `PropertyReviews.tsx` passée à la locale, puis remise) → `✗ RESTE DU DÉPÔT : 19 occurrence(s) hors consoles, alors que le cliquet dit 20`, sortie 1. Le correctif validé fait donc descendre le compte à 17 et exige `PLAFOND_RESTE = 17` dans le même diff ; `scripts/check-pistes.mjs` refuse toute modification d'une garde existante (V9), et la précision garde ce cliquet au porteur. Classement : chemin fermé (V9) ; aucune ligne de code écrite. Deux voies pour le porteur : descendre lui-même le cliquet avec le correctif, ou rendre la précision compatible (par exemple, cliquet descendu dans la même PR).
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
