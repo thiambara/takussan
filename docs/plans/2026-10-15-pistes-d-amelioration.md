@@ -2741,7 +2741,7 @@ n'est pas repris ici.*
 
 ### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
 - Réf : P21.03
-- Statut : validé — bloc visitor soumis à $visiteurLisible, nom compris
+- Statut : fait · TCK-696
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/PropertyVisitResource.php:13-17,44-50`, `takussan-web/src/lib/queries/visits.ts:138,159`
 - Constat :
@@ -2751,6 +2751,7 @@ n'est pas repris ici.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : soumettre le bloc `visitor` au même `$visiteurLisible`, au moins pour `email` et `phone`. Test : le bailleur non-personnel ne lit ni l'e-mail ni le téléphone du visiteur par `include=visitor` ; ablation sur la condition.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `PropertyVisitResource.php:13-17` (`$visiteurLisible`) et l. 44-50 (bloc `visitor` sans condition) relus, inchangés ; test temporaire retiré : bailleur non-personnel, visite planifiée par le personnel pour une fiche liée au compte `visiteur@exemple.sn`, `GET /api/property-visits/{id}?include=visitor,customer` et la liste → 200, `visitor_phone` et `customer` à `null`, `visitor` = `{email: "visiteur@exemple.sn", phone: "+221771112233"}` dans les deux. Le constat tient. Classement : V3, la règle M7″ (TCK-590) est écrite mais le correctif change ce qui est exposé d'une personne, et le nom du visiteur (`first_name`/`last_name`) sort aussi : quelles clés masquer reste à trancher.
+- Mesure (2026-10-16, a5e19e2e, implementeur) : reproduit par `ProprietaireDuBienTest::test_p21_03_…` avant correctif (visite planifiée par `POST /api/property-visits` pour une fiche liée à un compte, `visitor_id` = ce compte ; le bailleur reçoit `visitor = {first_name, last_name, email, phone}`) → bloc `visitor` soumis à `$visiteurLisible` : le bailleur reçoit `visitor: null`, au détail et à la liste, sans e-mail, téléphone ni nom dans le corps ; le personnel et le visiteur gardent le bloc. Ablation de la condition : rouge ; remise : classe entière 13 verts.
 
 ### Le garant ajouté à un bail n'apparaît jamais sur la fiche : le front lit `lease.guarantor`, que l'API n'émet pas
 - Réf : P21.04
