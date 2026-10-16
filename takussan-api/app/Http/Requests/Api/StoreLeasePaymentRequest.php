@@ -45,6 +45,10 @@ class StoreLeasePaymentRequest extends BaseFormRequest
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
+            // TCK-681 (P13.01) — la création n'écrit qu'une échéance en attente : un loyer reçu se
+            // règle par `mark-paid`. Retiré en silence, `paid_at` laissait croire à l'écran qu'il
+            // avait enregistré un paiement.
+            'paid_at' => ['prohibited'],
         ];
     }
 }
