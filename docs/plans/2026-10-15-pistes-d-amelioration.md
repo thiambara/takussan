@@ -1669,7 +1669,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La signature Orange Money n'est jamais testée en refus
 - Réf : P12.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-699
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/app/Services/Payments/Drivers/OrangeMoneyDriver.php:130-133`, `takussan-api/tests/Feature/Api/PaymentDriverTest.php:131-150`
 - Constat :
@@ -1679,6 +1679,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu et grep.
 - Piste : trois cas de bout en bout sur `/api/webhooks/payments/orange_money/{token}` (signature fausse, absente, secret d'une autre agence), en vérifiant que le paiement n'a pas bougé.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `OrangeMoneyDriver.php:130-133` ; ablation (charge ≈ 3 / 8 cœurs) en remplaçant la condition de `abort_code_unless` par `true || …`, puis les 12 fichiers de `tests/` qui citent `orange_money` ou `OrangeMoney`, plus `PaymentWebhookTest` et `PaymentWebhookMultiTenantTest` → **117 verts, 798 assertions**. Code restauré ; `grep X-OM-Signature docs/backlog/tickets` → rien. Classement : A5, trois tests de refus de signature (fausse, absente, secret d'une autre agence) sur une garde existante, sans toucher au code.
+- Mesure (2026-10-16, 7010f9e7, implementeur) : vérification de `handleWebhook()` neutralisée (`true || …`) → `PaymentDriverTest`, `PaymentWebhookTest`, `PaymentWebhookEndpointTest`, `PaymentWebhookMultiTenantTest`, `PaymentDriverErrorLeakTest` verts (49 tests, 279 assertions) → `OrangeMoneyWebhookSignatureTest` de bout en bout sur `/api/webhooks/payments/orange_money/{token}` (signature fausse, absente, secret d'une autre agence : 401 et paiement resté `pending` ; témoin signé par le bon secret : soldé) ; ablation (même neutralisation) → les trois refus rouges (200 au lieu de 401) ; code remis → 4 verts (17 assertions).
 
 ### L'horodatage de la signature Wave n'est jamais comparé à l'heure
 - Réf : P12.04
