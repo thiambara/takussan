@@ -90,6 +90,7 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
+use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -187,6 +188,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
         $this->app->scoped(WebhookJournal::class);
+
+        // TCK-708 (P01.04) — SCOPED : les impressions que la requête a servies, que le middleware
+        // `boost.impressions` diffère puis valide, une fois la réponse connue (aucune sur un 304).
+        $this->app->scoped(BoostStatsRecorder::class);
 
         // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
         // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.

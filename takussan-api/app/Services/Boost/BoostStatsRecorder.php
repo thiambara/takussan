@@ -24,13 +24,60 @@ final class BoostStatsRecorder
 
     public const LAST_FLUSHED_KEY = 'boost-stats:last-flushed-hour';
 
+    /** TCK-708 — fenêtre où un même visiteur ne compte qu'une impression par bien. */
+    public const IMPRESSION_WINDOW_MINUTES = 30;
+
+    /**
+     * TCK-708 — les biens servis par la requête en cours, tant que `boost.impressions` diffère le
+     * comptage ; `null` hors de ce middleware (appel direct, console) : le comptage est immédiat.
+     *
+     * @var list<int>|null
+     */
+    private ?array $pending = null;
+
     /** @param  list<int>  $propertyIds  biens servis dans un emplacement « Sponsorisé » */
     public function impressions(array $propertyIds): void
     {
+        if ($this->pending !== null) {
+            array_push($this->pending, ...array_map('intval', $propertyIds));
+
+            return;
+        }
         $counts = array_count_values(array_map('intval', $propertyIds));
         foreach ($this->liveFeaturedBoosts(array_keys($counts)) as $propertyId => $boostId) {
             $this->add($boostId, 'impressions', $counts[$propertyId]);
         }
+    }
+
+    /** TCK-708 — les impressions suivantes attendent `commitImpressions()` ou `discardImpressions()`. */
+    public function deferImpressions(): void
+    {
+        $this->pending = [];
+    }
+
+    /**
+     * TCK-708 (P01.04, décision du porteur) — une impression par visiteur et par bien sur 30 min.
+     * Sans visiteur connu (aucune IP), chaque bien servi compte une fois, sans dédoublonnage.
+     */
+    public function commitImpressions(?string $visitor): void
+    {
+        $propertyIds = array_values(array_unique($this->pending ?? []));
+        $this->pending = null;
+
+        if ($visitor !== null) {
+            $propertyIds = array_values(array_filter(
+                $propertyIds,
+                fn (int $id) => Cache::add('boost-impression:'.$visitor.':'.$id, true, now()->addMinutes(self::IMPRESSION_WINDOW_MINUTES)),
+            ));
+        }
+
+        $this->impressions($propertyIds);
+    }
+
+    /** TCK-708 — la réponse n'a rien servi (304, exception) : rien ne se compte. */
+    public function discardImpressions(): void
+    {
+        $this->pending = null;
     }
 
     public function click(Property $property, string $ip): void
