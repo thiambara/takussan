@@ -567,7 +567,7 @@ contre le code par la session.*
 
 ### Restitution de caution : le champ refuse tout montant rond
 - Réf : P04.04
-- Statut : validé — step="any" et min={1}, zod reste la seule borne
+- Statut : fait · TCK-670
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:171-172`
 - Constat :
@@ -578,6 +578,7 @@ contre le code par la session.*
   - La modale est simulée dans son seul test.
 - Piste : `step="any"` ou `step={1}` avec `min={1}`, ou passer par `FormAmountInput`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `DepositRefundModal.tsx:158-172` (`<form>` sans `noValidate`, `min={0.01} step={1000}`), `CreateLeaseForm.tsx:233,243,253` et `LeaseRenewalDialog.tsx:230,251` (`step={1000}`) ; mesuré sous jsdom (`node -e`, `validity.stepMismatch`) → `min=0.01 step=1000` : 150000 → `true`, 150000.01 → `false` ; `min=0 step=1000` : 152500 → `true`, 150000 → `false`. Le constat tient tel qu'écrit. Classement : V1, le correctif change les montants qu'un écran de restitution, de bail et de renouvellement peut envoyer, et le choix du pas (`any`, `1`, `FormAmountInput`) en est un ; dans le doute, à valider.
+- Mesure (2026-10-16, 8ff39d7a, implementeur) : reproduit avant correctif par `leases/__tests__/montants-hors-pas.test.tsx` → le montant pré-rempli 150 000 de `DepositRefundModal` est en `stepMismatch` (`min=0.01 step=1000`) et le clic sur « Confirmer le remboursement » n'appelle pas l'API ; un loyer de 152 500 en `stepMismatch` dans `CreateLeaseForm` et `LeaseRenewalDialog` (cas ajouté à `LeaseRenewalDialog.test.tsx`) → `min={1} step="any"` sur les montants que zod veut positifs, `step="any"` avec `min={0}` gardé sur les cautions (zod `nonnegative`) ; 6 rouges avant, 9 verts après ; ablation (six composants remis) → les mêmes 6 rouges, correctif remis → verts. Traité avec P08.03.
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
@@ -1131,12 +1132,13 @@ Sain (vérifié par l'agent) :
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
 - Réf : P08.03
-- Statut : validé — step="any" et min={1}, zod reste la seule borne
+- Statut : fait · TCK-670
 - Gravité : 🔴 défaut avéré — même famille que « Restitution de caution » à l'angle 4
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:233,243,253`, `LeasePaymentDialog.tsx:92`, `DepositRefundModal.tsx:172`, `bookings/BookingPaymentDialog.tsx:91`, `payments/CreateInvoiceDialog.tsx:227`
 - Constat : `FormInput` transmet `step` (`components/forms/FormInput.tsx:90`), et aucun de ces 5 formulaires n'a `noValidate`. Un loyer de 75 500 ou un paiement de 12 350 sont refusés avant `onSubmit` (lu).
 - Piste : retirer `step` (zod valide déjà), ou poser `noValidate`. À traiter avec l'angle 4, en un seul ticket.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `FormInput.tsx` (`...inputProps` transmet `step` et `min` à l'`<input>`) et les cinq `<form>` cités, aucun avec `noValidate` ; `step` toujours présent à `CreateLeaseForm.tsx:233,243,253` (1000), `LeasePaymentDialog.tsx:92` et `BookingPaymentDialog.tsx:91` (100), `DepositRefundModal.tsx:172` (1000, avec `min={0.01}`), `CreateInvoiceDialog.tsx:227` (100) ; test vitest temporaire (retiré) qui soumet un `FormInput type=number` dans un `<form>` par un clic → `min=0 step=100` : 12350 → `stepMismatch`, 0 envoi ; `min=0 step=1000` : 75500 → 0 envoi ; `min=0.01 step=1000` : 50000 → 0 envoi ; témoin 12300 → 1 envoi. Le constat tient, et `DepositRefundModal` refuse même les montants ronds. Classement : V1, le correctif élargit les montants qu'un écran d'argent peut envoyer, et la piste le lie à P04.10 (déjà classé V1) en un seul ticket.
+- Mesure (2026-10-16, 8ff39d7a, implementeur) : reproduit avant correctif par `leases/__tests__/montants-hors-pas.test.tsx` → 12 350 en `stepMismatch` dans `LeasePaymentDialog` et `BookingPaymentDialog` (`step=100`), 152 500 et 75 500 dans `CreateLeaseForm` (`step=1000`), un prix unitaire de 12 350 dans `CreateInvoiceDialog` (`step=100`) → `step="any"` partout, `min={1}` sur les paiements, `min={0}` gardé sur `unit_price` (zod `nonnegative`) ; ablation → rouges, correctif remis → verts. Traité avec P04.04 dans TCK-670.
 
 ### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
 - Réf : P08.04
