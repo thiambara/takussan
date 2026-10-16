@@ -612,7 +612,7 @@ contre le code par la session.*
 
 ### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
 - Réf : P04.06
-- Statut : validé — Lemon Squeezy, Wave et Flutterwave : chaque pilote fournit amount et currency, et un test l'exige de tout pilote (Flutterwave n'a pas encore de pilote : la règle s'appliquera à sa création) ; Orange Money attend un exemple réel de notification ; reste : Orange Money, sur un exemple réel de notification
+- Statut : fait · TCK-734 — reste : Orange Money, sur un exemple réel de notification
 - Gravité : 🟠 risque ou dette
 - Où : `PaymentGatewayService.php:606-609`, `LemonSqueezyDriver.php:159-172`, `OrangeMoneyDriver.php:65,148-149` (sous `takussan-api/app/Services/Payments/`)
 - Constat :
@@ -620,6 +620,7 @@ contre le code par la session.*
   - Orange Money envoie `OUV`, la devise du bac à sable, pour du XOF. Le format des notifications est à vérifier.
 - Piste : chaque pilote fournit le montant (en unité majeure) et la devise ; la devise Orange Money passe en configuration par environnement.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `assertReportedAmountCoversPayment()` (`PaymentGatewayService.php:605-615`, sort quand `metadata.amount` ou `currency` manque), `LemonSqueezyDriver::extractFees()` (rend `gross_amount`, `fees_amount`, `net_amount`, `currency`, jamais `amount`) et `OrangeMoneyDriver.php:65` (`XOF` → `OUV`), `:148-149` (`amount`/`currency` repris du payload). La partie Lemon Squeezy tient ; la forme réelle des notifications Orange Money (devise renvoyée `OUV` ou `XOF`) n'est pas re-mesurée, faute d'exemple dans le dépôt. Classement : V1, garde d'un paiement.
+- Mesure (2026-10-16, acc699ce, implementeur) : reproduit avant correctif par `PaymentDriverReportsAmountTest` (neuf) → l'événement « payé » de Lemon Squeezy ne porte aucun `amount` (Wave le porte), et par `LemonSqueezyEventListenerTest` → un ordre de 1 000 centimes solde une échéance de 19,99 USD → `extractFees()` rend `amount = total / 100` dans `currency` ; le test exige `amount` et `currency` de tout pilote de `DRIVERS`, Orange Money excepté et nommé ; deux fixtures à `19_99` (1 999 USD) ramenées à `19.99` ; ablation (ligne retirée) → 2 rouges, remise → 6 verts.
 
 ### Lemon Squeezy ignore la devise du payable
 - Réf : P04.07
