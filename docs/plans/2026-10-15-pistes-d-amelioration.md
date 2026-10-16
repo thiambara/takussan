@@ -1951,7 +1951,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### « Générer l'échéancier » appelle une route qui n'existe pas
 - Réf : P13.02
-- Statut : validé
+- Statut : fait · TCK-682
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/leases.ts:436`, `takussan-api/routes/api/leases.php:33`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:154`
 - Constat :
@@ -1961,6 +1961,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré par `route:list`, et lu.
 - Piste : aligner le chemin et la clé de réponse.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : `php artisan route:list --path=generate-schedule` → une seule route, `POST api/leases/{lease}/payments/generate-schedule` ; lu `leases.ts:434-444` (`/api/leases/${leaseId}/generate-schedule`, réponse typée `{ generated: number }`), `LeaseController.php:149-154` (rend `payments_created`) et `LeaseDetail.tsx:65,181-184` (bouton monté) → le chemin du front n'existe pas. Aucun ticket ouvert ne le traite (TCK-044, TCK-596 `done`). Classement : V1, le correctif est un alignement de chemin et de clé (A1 par le contrat de la route), mais il rend atteignable depuis l'écran l'écriture d'échéances de loyer, et le doute classe à valider.
+- Mesure (2026-10-16, d0957db9, implementeur) : `useGenerateSchedule(42).mutateAsync({})` émettait `POST /api/leases/42/generate-schedule` (route absente) et `tsc` refusait `payments_created` sur `{ generated: number }` → chemin aligné sur `/api/leases/{id}/payments/generate-schedule` et réponse typée `payments_created` ; test `generer-echeancier.tck-682.test.tsx` vert, ablation : correctif retiré, chemin rouge et 1 erreur `tsc`, remis, vert.
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
 - Réf : P13.03
