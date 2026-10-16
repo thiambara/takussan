@@ -81,7 +81,12 @@ class PaymentSearchService
             ->whereHas('lease', fn ($q) => $q->where('agency_id', $agency->id))
             ->exceptDepositRefunds();
 
-        $this->applySearch($base, $query, $amountHint);
+        // TCK-715 (P25.01) — le montant attendu sur le compte, celui que compare le matcher : une
+        // échéance payée en ligne pénalité comprise arrive pour 157 500, pas pour `amount`.
+        $this->applySearch($base, $query, null);
+        if ($amountHint !== null) {
+            $base->whereExpectedAmountNear($amountHint, 1);
+        }
 
         return $base->with('payer')->limit(10)->get()->map(fn (LeasePayment $p) => new MatchCandidate(
             id: $p->id,
