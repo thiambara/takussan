@@ -355,6 +355,15 @@ trait HasProfiles
         return $this->activePlatformLevel() !== null;
     }
 
+    /**
+     * TCK-711 — un profil plateforme, ACTIF OU NON (ce que lisaient les `platformProfile()->exists()`
+     * de la 2FA). Relit la relation quand `ResolveActiveProfile` l'a chargée pour la requête.
+     */
+    public function holdsPlatformProfile(): bool
+    {
+        return $this->profileRelationExists('platformProfile');
+    }
+
     /** TCK-600 — le niveau du profil plateforme ACTIF, ou `null`. */
     public function activePlatformLevel(): ?PlatformProfileLevel
     {
