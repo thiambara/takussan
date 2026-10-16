@@ -4,7 +4,7 @@ title: "POST /api/documents : même 404 pour un porteur introuvable et un porteu
 status: done
 phase: P1
 family: bug
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-16
 updated: 2026-10-16
