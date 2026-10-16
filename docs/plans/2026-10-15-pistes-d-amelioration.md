@@ -752,7 +752,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : planifier ou retirer le résumé quotidien jamais planifié
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -760,16 +760,18 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `boosts:tick` annonce que « chaque transition » est réclamée, mais `pause()` et `resume()` écrivent le modèle chargé.
   - `SendProspectMatchDigest` envoie avant de poser sa clé d'idempotence, et journalise `$e->getMessage()`, ce que TCK-601 interdit (lu).
 - Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `SendRawNotificationEmailJob.php:42-48` (`catch (\Throwable)` → `report()`, sans relance : `$tries` et `backoff()` sont inopérants) ; `grep -rn` dans `app/` : le job n'est dispatché que par `NotificationService::sendEmail()` (l. 207), appelé par `notify()` (l. 173), elle-même appelée seulement par `notifyMany()` (l. 199) — aucun appelant de `notify`/`notifyMany` dans `app/`, seuls `tests/Support/ProseLitteraleScanner.php` et sa fixture les nomment, ce qui lève le « à vérifier » ; `SendDailyNotificationDigest` absent de `routes/console.php` et de tout dispatch (seul `NotificationDigestTest` l'instancie) ; `BoostLifecycle.php:204-218` : `pause()`/`resume()` font `forceFill()->save()` sur le modèle chargé, quand `end()` (l. 221) réclame par `UPDATE … WHERE status IN`, donc le docblock de `BoostsTick.php:11-16` reste inexact pour elles ; `SendProspectMatchDigest.php:93-99` appelle `send()` puis seulement `?->update(['data' => … 'digest_date' …])`, et l. 76-80 journalise `'message' => $e->getMessage()` alors que `App\Support\Logging\SafeExceptionContext` existe → les trois points tiennent. Classement : V7, retirer ou planifier le résumé quotidien est un choix de produit, et réclamer `pause()`/`resume()` touche la durée de boosts payés (V1).
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
 - Constat :
   - Il n'y a qu'un scheduler, et Dakar est en UTC+0 sans heure d'été.
   - La préproduction et la future production partageront `redis-takussan`. Avec le même `APP_NAME` et le même `REDIS_CACHE_DB`, leurs verrous de scheduler entreraient en collision : chaque environnement sauterait les tâches de l'autre (à vérifier quand la production existera).
 - Piste : un `CACHE_PREFIX` par environnement.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `grep -rn onOneServer` dans `takussan-api/routes`, `app`, `bootstrap` → aucun usage (le titre nomme un appel absent du code ; les 46 occurrences sont des `withoutOverlapping`, dont le mutex passe aussi par le cache) ; lu `config/cache.php:115` (`CACHE_PREFIX` dérivé d'`APP_NAME`), `config/database.php:171,194` (`REDIS_PREFIX` dérivé d'`APP_NAME`, `REDIS_CACHE_DB` à `1` par défaut), `config/app.php:70` (`'timezone' => 'UTC'`), `deploy/takussan/compose.api.yml:65-68` (un seul service `scheduler`), `deploy/server/compose.data.yml:27-31` (un `redis-takussan` unique), `.env.example:118` (`# CACHE_PREFIX=` commenté) → le piège tient, sans défaut aujourd'hui puisque aucune production n'existe (CLAUDE.md). Classement : V5, le correctif est une variable d'environnement posée par déploiement.
 
 ## Angle 6 — Texte affiché par l'API et i18n fr/en/wo
 
@@ -917,7 +919,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Des documents qui affirment l'inverse de la mesure
 - Réf : P06.13
-- Statut : à mesurer
+- Statut : retenu · à valider — V9 : chemin fermé, deux corrections sur trois sont dans `CLAUDE.md` et `takussan-web/CLAUDE.md`
 - Gravité : 🟢 amélioration
 - Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
 - Constat :
@@ -925,14 +927,16 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - « wo traîne 88 clés manquantes » est faux : il en manque 0.
   - « `lang/fr/validation.php` ne porte pas `boolean` » est faux aussi (mesuré).
 - Piste : remplacer ces chiffres par la commande qui les donne.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `node scripts/check-i18n.mjs --report` (dans `takussan-web/`) → « en 0/0, wo 0/0 clé(s) manquante(s) sur 8022 clés fr » et « 0 TOLÉRÉE(S) … sur 0 fichier(s) » ; `CLAUDE.md:401` dit toujours « Tenu à 82 fichiers sur 875 », `takussan-web/CLAUDE.md:245-246` « `wo` traîne 88 clés manquantes » ; `lang/fr/validation.php:38` porte `boolean`, et `tinker` `__('validation.boolean', ['attribute' => 'furnished'], 'fr')` → « Le champ furnished doit être vrai ou faux. » (le `wo` est traduit aussi), contre le commentaire de `PropertiesDiscoveryPage.tsx:332-335` → les trois écarts tiennent. Classement : V9, la correction relève de A6, mais deux des trois fichiers sont des `CLAUDE.md` que l'implémenteur ne touche pas.
 
 ### Pages légales vides en wolof
 - Réf : P06.14
-- Statut : à mesurer
+- Statut : caduc — comportement voulu et écrit dans `docs/features.md:702-706` et `content/legal/README.md:44-46`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/content/legal/terms.ts:445`, `privacy.ts:351`, `notice.ts:125`
 - Constat : ``export const wo = ``;``. La page affiche le français avec une mention, et c'est documenté (lu).
 - Piste : traduction à planifier, ou mention dans la spec.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `terms.ts:445`, `privacy.ts:351`, `notice.ts:125` (`export const wo = ``;`, inchangés) ; `docs/features.md:702-706` stipule que le wolof n'est pas fourni « à dessein » (« une traduction juridique demande un traducteur qui en réponde ») et que la page affiche alors le français avec la mention, et `takussan-web/src/content/legal/README.md:44-46` le redit → la branche « mention dans la spec » de la piste est déjà faite, et la branche « traduction » est un travail de traducteur juridique, pas un défaut du code. Classement : aucun critère, le comportement constaté est celui que la spec écrit.
 
 ## Angle 7 — Accessibilité du front (WCAG 2.2 AA)
 
@@ -1079,11 +1083,12 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : captions et libellés contextuels neufs, en fr/en/wo
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
 - Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `grep -c caption` → 0 dans `payments/InvoicesTable.tsx`, `payments/PayoutsTable.tsx`, `payments/PaymentsHistoryTable.tsx` et `billing/PayoutTable.tsx`, qui rendent un `<table>` nu (`PayoutsTable.tsx:67`, `PaymentsHistoryTable.tsx:84`, `PayoutTable.tsx:106`) ; `InvoicesTable.tsx:99-106` et `PayoutsTable.tsx:116` rendent `tTable('open')` (« Ouvrir », `messages/fr.json:1779`) sans libellé propre à la ligne ; `PropertyReviewForm.tsx:69,80` pose `role="radiogroup"`/`role="radio"` sans aucun `onKeyDown` ni gestion des flèches ; `console/DataTable.tsx:61-65` impose bien `caption` → tout tient. Classement : V7, chaque caption et chaque libellé contextuel est un texte neuf à écrire dans les trois langues, et passer par `DataTable` refond quatre tableaux.
 
 ## Angle 8 — Parcours sur téléphone
 
@@ -1189,7 +1194,7 @@ Sain (vérifié par l'agent) :
 
 ### Petites améliorations
 - Réf : P08.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : second bouton « Prendre une photo » et squelettes de chargement neufs
 - Gravité : 🟢 amélioration
 - Où et constat (lu ou mesuré) :
   - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
@@ -1198,6 +1203,7 @@ Sain (vérifié par l'agent) :
   - fiches publiques de bien, d'agence et d'agent sans `loading.tsx` : ce sont les pages ouvertes depuis WhatsApp ;
   - `capture` absent de l'état des lieux et des photos du bien (`InventoryDetail.tsx:263`, `StepPhotos.tsx:31`).
 - Piste : `PhoneInput`, `FormAmountInput`, `90dvh` dans la primitive, des squelettes de chargement, et un second bouton « Prendre une photo » avec `capture="environment"`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `GuarantorSection.tsx:81-84` (téléphone affiché en texte, sans lien `tel:`) et l. 188-192 (`FormInput` `name="phone"` sans `type`) ; `CreateLeaseForm.tsx:229,239,249,273` : `type="number"` sans `inputMode` ; `ui/sheet.tsx:102` `max-h-[90vh]` contre `PropertyListFilters.tsx:395` `max-h-[88dvh]` ; `ls` de `(public)/properties/[slug]`, `(public)/agencies/[slug]`, `(public)/agents/[slug]` → aucun `loading.tsx` (seul `properties/(liste)/loading.tsx` existe) ; `InventoryDetail.tsx:263` et `StepPhotos.tsx:31` passent par `MediaDropzone` sans `capture`, que seuls trois composants de `maintenance/` posent → les cinq points tiennent. Classement : V7, le second bouton photo et les squelettes sont du comportement visible et du design neufs ; `type="tel"`, `inputMode` et `dvh`, pris seuls, relèveraient de A4.
 
 ## Angle 9 — Pages publiques : SEO et partage
 
@@ -1296,7 +1302,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : forme des canoniques paginées, des titres et descriptions de fiche ; `takussan-web/CLAUDE.md` est un chemin fermé
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1310,6 +1316,7 @@ Correct (mesuré ou lu) :
   - `generateSitemaps()` ;
   - des métadonnées propres aux `not-found` ;
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `canonique.ts:358-378` (`cheminCanoniqueDeLaListe` retire `page` ; son docblock : `page=3` → `/properties?type=villa`) ; `(public)/properties/(liste)/page.tsx` n'appelle jamais `notFound()` et ne lit pas `last_page` ; `properties/[slug]/page.tsx:98-99` : `property.description?.slice(0, 160) ?? …`, donc une chaîne vide passe le `??` et la coupe tombe au caractère ; `sitemap.ts:23-31,313` lève au-delà de 50 000 `<url>` et `generateSitemaps` n'est cité qu'en commentaire ; `properties/[slug]/not-found.tsx` n'exporte aucune métadonnée, sous `(public)/layout.tsx:56` en `index: true, follow: true` ; `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` dans l'URL » alors que les pages vivent sous `src/app/[locale]/` → tout tient en lecture ; le double `noindex`/`index, follow` rendu et les 1 011 `<loc>` n'ont pas été remesurés (application non lancée). Classement : V7, canonique par page, `notFound()` au-delà de la dernière page et contenu des titres changent ce que voient les moteurs, et la correction du document est dans un `CLAUDE.md`.
 
 ## Angle 10 — Médias : tailles, conversions, disques, nettoyage
 
@@ -1438,13 +1445,14 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Petites améliorations
 - Réf : P10.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
   - **`next/image`** (`takussan-web/next.config.ts:113-166`) : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` sont actifs en production, sans `contentSecurityPolicy`. Le commentaire de `deviceSizes` cite `preview` 800 px comme plus grande image, alors que c'est `full` 1600 px. Des avatars jusqu'à 2560 px sont affichés en 32 à 64 px.
   - **Fichiers privés** : rien n'est rangé au mauvais endroit (KYC, baux, documents, états des lieux : disque privé). L'URL présignée dure 5 min, l'URL d'API signée 30 min. Reste à vérifier : la signature apparaît-elle dans le journal Traefik ?
 - Piste : installer les binaires ou retirer le bloc ; couper les deux options `dangerously*` hors développement ; servir l'avatar en conversion.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `config/media-library.php:167-205` (Jpegoptim avec `--strip-all`, Pngquant, Optipng, Svgo, Gifsicle, Cwebp, Avifenc) ; `grep -rn 'jpegoptim|cwebp|avifenc|optipng|pngquant'` dans `takussan-api/Dockerfile` et `deploy/` → rien, et `Dockerfile:20` n'installe que des extensions PHP ; `next.config.ts:161-162` : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` à `true` sans condition d'environnement ni `contentSecurityPolicy` ; les commentaires de `next.config.ts:110-145` tiennent `preview` 800 px pour le plafond, quand `Property.php:762-786` déclare une conversion `full` à 1600 px → les deux premiers points tiennent ; la signature dans le journal Traefik n'est pas mesurable depuis le poste (préproduction hors d'atteinte), et la taille des avatars n'a pas été remesurée. Classement : V5, installer des binaires dans l'image ou changer la configuration d'images servie en production relève du déploiement, et retirer le bloc d'optimiseurs est un choix (V6).
 
 Angles voisins : mémoire et `--timeout` de `worker-media` face aux originaux de 48 Mpx ; contenu réel de `storage/media-library/temp` en préproduction ; facture Transformations et R2 au tableau de bord Cloudflare.
 
