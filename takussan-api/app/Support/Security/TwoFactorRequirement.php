@@ -21,7 +21,7 @@ final class TwoFactorRequirement
     /** La 2FA est-elle exigée de ce compte, quelque part ? */
     public static function isMandatory(User $user): bool
     {
-        return $user->platformProfile()->exists()
+        return $user->holdsPlatformProfile()
             || self::requiredAtAgency($user, null);
     }
 

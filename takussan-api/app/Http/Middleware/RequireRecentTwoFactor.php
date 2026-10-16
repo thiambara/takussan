@@ -42,7 +42,7 @@ class RequireRecentTwoFactor
         }
 
         // Vérification adverse B1 — tout profil plateforme, pas seulement le super-admin.
-        if (! ProtectedActions::requiresStepUp($action) && ! $user->platformProfile()->exists()) {
+        if (! ProtectedActions::requiresStepUp($action) && ! $user->holdsPlatformProfile()) {
             return $next($request);
         }
 
