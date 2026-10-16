@@ -30,7 +30,6 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 }));
 vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
-  useCreateLeasePayment: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
 }));
@@ -39,7 +38,6 @@ vi.mock('@/lib/queries/payments', () => ({ useCreateInvoice: () => MUTATION }));
 
 import { CreateLeaseForm } from '../CreateLeaseForm';
 import { DepositRefundModal } from '../DepositRefundModal';
-import { LeasePaymentDialog } from '../LeasePaymentDialog';
 import { BookingPaymentDialog } from '../../bookings/BookingPaymentDialog';
 import { CreateInvoiceDialog } from '../../payments/CreateInvoiceDialog';
 
@@ -89,10 +87,8 @@ describe('montants hors de l’ancien pas : jamais refusés par le navigateur (T
     expect(saisir('deposit_amount', '0').validity.valid).toBe(true);
   });
 
-  it('paiement de bail : 12 350 est valide', () => {
-    render(withIntl(<LeasePaymentDialog leaseId={7} open onOpenChange={() => {}} />));
-    expect(saisir('amount', '12350').validity.valid).toBe(true);
-  });
+  // TCK-681 (P13.01) — le paiement de bail ne saisit plus de montant : il règle une échéance
+  // existante (`LeasePaymentDialog.test.tsx`).
 
   it('paiement de réservation : 12 350 est valide', () => {
     render(withIntl(<BookingPaymentDialog bookingId={7} open onOpenChange={() => {}} />));

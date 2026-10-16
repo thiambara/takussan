@@ -353,20 +353,25 @@ export function useReviewLeaseRent(id: number) {
   );
 }
 
-export type CreateLeasePaymentPayload = {
-  amount: number;
-  payment_method: 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
-  payment_type?: 'rent' | 'charges' | 'deposit' | 'deposit_refund' | 'regularization' | 'penalty';
-  period_start: string;
-  period_end: string;
+/**
+ * TCK-681 (P13.01) — un loyer reçu RÈGLE l'échéance existante, par la voie gardée de l'API (verrou,
+ * checkout ouvert, caution). La création d'échéance (`POST /api/leases/{id}/payments`) n'écrit
+ * qu'une ligne en attente et refuse `paid_at` : l'écran ne s'en sert plus pour encaisser.
+ */
+export type MarkLeasePaymentPaidPayload = {
+  paymentId: number;
   paid_at?: string;
-  reference_number?: string;
-  notes?: string;
+  payment_method?: 'cash' | 'bank_transfer' | 'mobile_money' | 'check' | 'card';
+  transaction_id?: string;
 };
 
-export function useCreateLeasePayment(leaseId: number) {
-  return useApiMutation<ApiResponse<LeasePayment>, CreateLeasePaymentPayload>(
-    { path: cheminApi`/api/leases/${leaseId}/payments`, method: 'POST' },
+export function useMarkLeasePaymentPaid(leaseId: number) {
+  return useApiMutation<ApiResponse<LeasePayment>, MarkLeasePaymentPaidPayload>(
+    {
+      path: ({ paymentId }) => cheminApi`/api/lease-payments/${paymentId}/mark-paid`,
+      method: 'POST',
+      body: ({ paymentId: _paymentId, ...rest }) => rest,
+    },
     {
       invalidate: [
         ['leases', 'detail', leaseId],

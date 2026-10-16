@@ -1942,7 +1942,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### « Enregistrer un paiement » crée une échéance en attente, et aucun écran n'atteint `mark-paid`
 - Réf : P13.01
-- Statut : validé — l'écran règle l'échéance choisie par mark-paid ; paid_at refusé à la création
+- Statut : fait · TCK-681
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/LeasePaymentDialog.tsx:55-56,122-127`, `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:38-47`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/routes/api/leases.php:60`
 - Constat :
@@ -1952,6 +1952,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : lu de bout en bout, et grep.
 - Piste : faire appeler `mark-paid` par l'écran sur l'échéance choisie ; refuser `paid_at` à la création, ou le prendre en compte.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `LeasePaymentDialog.tsx:55-56,122-131` (envoie `paid_at` et `reference_number`), `StoreLeasePaymentRequest::rules()` (ni `paid_at`, ni `reference_number`, ni `status`), `LeasePaymentController` (`validated()` puis `create`) et `LeasePaymentService::create` (`status` par défaut `pending`) ; `grep -rn 'mark-paid' takussan-web/src` hors tests → seuls `/api/lease-payments/{id}/late-fee/mark-paid`, les commissions et les factures ; la route `lease-payments/{payment}/mark-paid` (`routes/api/leases.php:60`) n'a aucun appelant. TCK-619 (`todo`) ne garde que le verrou serveur de `mark-paid`. Classement : V1, la piste change la façon dont un loyer reçu est écrit et réglé.
+- Mesure (2026-10-16, d0957db9, implementeur) : avant correctif, `POST /api/leases/{id}/payments` avec `paid_at` rendait 201 et une échéance `pending` (`LeaseTest::test_create_lease_payment_refuses_paid_at` rouge), et `LeasePaymentDialog` appelait la création ; `paid_at` est désormais `prohibited` (422, aucune ligne), et le dialogue règle l'échéance `pending` ou `late` choisie par `mark-paid` (`LeasePaymentDialog.test.tsx`, `regler-une-echeance.test.tsx`). Ablation : règle retirée → `LeaseTest` 1 rouge sur 9 ; ancien dialogue remis → 3 rouges sur 3 ; remis, verts.
 
 ### « Générer l'échéancier » appelle une route qui n'existe pas
 - Réf : P13.02

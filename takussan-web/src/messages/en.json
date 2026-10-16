@@ -3928,15 +3928,10 @@
     },
     "payment": {
       "title": "Record a payment",
-      "description": "Rent, charges or adjustment for this lease.",
-      "amount": "Amount",
-      "type": "Type",
+      "description": "Choose the instalment the tenant has paid.",
       "method": "Method",
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
       "effectiveDate": "Effective date",
       "reference": "Reference / Receipt",
-      "notes": "Notes",
       "saving": "Saving…",
       "methods": {
         "cash": "Cash",
@@ -3945,14 +3940,8 @@
         "check": "Cheque",
         "card": "Bank card"
       },
-      "types": {
-        "rent": "Rent",
-        "charges": "Charges",
-        "deposit": "Deposit",
-        "deposit_refund": "Deposit refund",
-        "regularization": "Adjustment",
-        "penalty": "Penalty"
-      }
+      "installment": "Instalment",
+      "noInstallment": "No pending instalment on this lease."
     },
     "guarantor": {
       "title": "Guarantors",
@@ -9771,7 +9760,8 @@
       "monthlyRentRequired": "The monthly rent is required for a rental.",
       "emailInvalid": "Invalid email.",
       "refundExceedsDeposit": "The amount exceeds the remaining deposit.",
-      "refundReasonRequired": "A reason is required for a partial refund."
+      "refundReasonRequired": "A reason is required for a partial refund.",
+      "installmentRequired": "Select an instalment."
     },
     "maintenance": {
       "propertyRequired": "Select a property.",
