@@ -73,6 +73,18 @@ describe('<SystemMessageBubble>', () => {
     expect(screen.getByText('unknown event')).toBeInTheDocument();
   });
 
+  // TCK-671 (P06.02) — l'API émet `metadata.role` ; le front lisait `new_role`, absent, et rendait
+  // « member » en jeton anglais brut pour tout changement de rôle.
+  it('renders role_changed from metadata.role, translated', () => {
+    render(wrap(<SystemMessageBubble message={mkSys('role_changed', { actor_name: 'Alice', target_name: 'Bob', role: 'admin' })} />));
+    expect(screen.getByText('Alice a changé le rôle de Bob en Admin.')).toBeInTheDocument();
+  });
+
+  it('translates the member role', () => {
+    render(wrap(<SystemMessageBubble message={mkSys('role_changed', { actor_name: 'Alice', target_name: 'Bob', role: 'member' })} />));
+    expect(screen.getByText('Alice a changé le rôle de Bob en Membre.')).toBeInTheDocument();
+  });
+
   // TCK-592 — l'avis d'étape du fil d'une intervention : des CODES, rendus dans la langue du lecteur.
   it('renders a maintenance assignment from its cause', () => {
     render(wrap(<SystemMessageBubble message={mkSys('maintenance', { cause: 'assigned', status: 'open', provider_name: 'Awa' })} />));

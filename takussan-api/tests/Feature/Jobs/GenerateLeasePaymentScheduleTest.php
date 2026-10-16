@@ -4,6 +4,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentFrequency;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Model\LeaseService;
@@ -130,5 +131,68 @@ class GenerateLeasePaymentScheduleTest extends TestCase
         $this->assertGreaterThan(0, $created);
         $this->assertSame($created, LeasePayment::query()->where('lease_id', $lease->id)->count());
         $this->assertSame($created, LeasePayment::query()->where('lease_id', $lease->id)->distinct()->count('due_date'));
+    }
+
+    /**
+     * P04.01 (TCK-667) — une échéance couvre toute sa période et en facture chaque mois : loyer
+     * mensuel × mois de la période. Un échéancier trimestriel facturait un seul mois par trimestre,
+     * daté du seul mois de l'échéance.
+     *
+     * @return list<array{0: string, 1: string, 2: float}>
+     */
+    private function scheduleOf(PaymentFrequency $frequency, string $end): array
+    {
+        $lease = Lease::factory()->create([
+            'start_date' => '2026-01-01',
+            'end_date' => $end,
+            'monthly_rent' => 100000,
+            'payment_day' => 1,
+            'payment_frequency' => $frequency->value,
+            'status' => LeaseStatus::Active->value,
+        ]);
+
+        app(LeaseService::class)->generateSchedule($lease);
+
+        return LeasePayment::query()->where('lease_id', $lease->id)->orderBy('due_date')->get()
+            ->map(fn (LeasePayment $p): array => [$p->period_start->toDateString(), $p->period_end->toDateString(), (float) $p->amount])
+            ->all();
+    }
+
+    public function test_a_monthly_schedule_bills_one_month_per_period(): void
+    {
+        $schedule = $this->scheduleOf(PaymentFrequency::Monthly, '2026-12-31');
+
+        $this->assertCount(12, $schedule);
+        $this->assertSame(['2026-01-01', '2026-01-31', 100000.0], $schedule[0]);
+        $this->assertSame(['2026-12-01', '2026-12-31', 100000.0], $schedule[11]);
+        $this->assertSame(1200000.0, array_sum(array_column($schedule, 2)));
+    }
+
+    public function test_a_quarterly_schedule_bills_three_months_per_period(): void
+    {
+        $this->assertSame([
+            ['2026-01-01', '2026-03-31', 300000.0],
+            ['2026-04-01', '2026-06-30', 300000.0],
+            ['2026-07-01', '2026-09-30', 300000.0],
+            ['2026-10-01', '2026-12-31', 300000.0],
+        ], $this->scheduleOf(PaymentFrequency::Quarterly, '2026-12-31'));
+    }
+
+    public function test_a_yearly_schedule_bills_twelve_months_per_period(): void
+    {
+        $this->assertSame([
+            ['2026-01-01', '2026-12-31', 1200000.0],
+        ], $this->scheduleOf(PaymentFrequency::Yearly, '2026-12-31'));
+    }
+
+    /** La dernière période s'arrête au mois de fin du bail : aucun mois après le bail n'est facturé. */
+    public function test_the_last_period_stops_at_the_lease_end_month(): void
+    {
+        $this->assertSame([
+            ['2026-01-01', '2026-03-31', 300000.0],
+            ['2026-04-01', '2026-06-30', 300000.0],
+            ['2026-07-01', '2026-09-30', 300000.0],
+            ['2026-10-01', '2026-10-31', 100000.0],
+        ], $this->scheduleOf(PaymentFrequency::Quarterly, '2026-10-31'));
     }
 }

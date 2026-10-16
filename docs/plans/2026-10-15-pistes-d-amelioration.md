@@ -531,7 +531,7 @@ contre le code par la session.*
 
 ### Échéancier trimestriel ou annuel : un seul mois de loyer facturé par période
 - Réf : P04.01
-- Statut : validé — montant = loyer mensuel × mois de la période, la période couvrant tous ses mois
+- Statut : fait · TCK-667
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:203,220,245`
 - Constat :
@@ -541,6 +541,7 @@ contre le code par la session.*
   - `GenerateLeasePaymentScheduleTest` ne teste aucune fréquence (lu).
 - Piste : multiplier par le nombre de mois de la période, couvrir toute la période, et un test par fréquence.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `LeaseService.php` `scheduleUnderLock()` (`$amount = monthly_rent`, l. 203 ; `period_start`/`period_end` = début et fin du mois de l'échéance, l. 224-225) et `advancePeriod()` (l. 241-247 : +1, +3 ou +12 mois), `CreateLeaseForm.tsx:43` (`quarterly`, `yearly` proposés) ; `git log -S` et `grep` des tickets → aucun correctif ni ticket ouvert ; seul `LeaseContractTermsTest.php` cite `quarterly`, aucun test d'échéancier par fréquence → le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif réécrit le montant et la période de chaque échéance de loyer.
+- Mesure (2026-10-16, 53425e4e, implementeur) : avant correctif, `GenerateLeasePaymentScheduleTest` sur un bail du 2026-01-01 au 2026-12-31 à 100 000 → trimestriel : 4 échéances de 100 000 couvrant janvier, avril, juillet, octobre seuls ; annuel : 1 échéance de 100 000 sur janvier → `LeaseService::scheduleUnderLock()` facture loyer × mois de la période (1, 3, 12), la période couvrant tous ses mois et la dernière s'arrêtant au mois de fin du bail ; 4 tests (un par fréquence, plus la dernière période d'un bail de 10 mois), ablation : correctif retiré → 3 rouges (le mensuel reste vert), borne de fin seule retirée → 1 rouge, remis → 9 verts.
 
 ### La révision de loyer n'atteint jamais les échéances déjà générées
 - Réf : P04.02
@@ -800,7 +801,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Messages système des groupes : rôle toujours « member », aperçu figé en français
 - Réf : P06.02
-- Statut : validé — clé alignée, rôle traduit, aperçu dérivé de metadata.event côté front
+- Statut : fait · TCK-671
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/SystemMessageFactory.php:75,129-143`, `takussan-web/src/components/messages/SystemMessageBubble.tsx:36`, `takussan-api/app/Observers/MessageObserver.php:13`
 - Constat :
@@ -808,6 +809,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `humanise()` écrit des `sprintf` en français dont l'observer tire `last_message_preview`, affiché tel quel par `ConversationList.tsx:194` (lu).
 - Piste : aligner la clé, traduire le rôle, et dériver l'aperçu côté front depuis `metadata.event`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `SystemMessageFactory.php:68-75` (`metadata.role`), `:113` (`content` = `humanise()`), `:125-143` (`sprintf` français), `SystemMessageBubble.tsx:36` (`meta.new_role ?? 'member'`), `MessageObserver.php:13-17` (aperçu tiré de `content`) et `ConversationList.tsx:194` (affiché tel quel) → les deux défauts tiennent, lignes inchangées. Classement : V7, l'alignement de la clé `role` relèverait seul d'A1, mais dériver l'aperçu de `metadata.event` change le contrat de la liste des conversations et son rendu, un choix de produit.
+- Mesure (2026-10-16, a29376a5, implementeur) : reproduit avant correctif → `SystemMessageBubble.test.tsx` rendait « Alice a changé le rôle de Bob en member » pour `role: admin` (2 rouges), `GET /api/conversations` ne rendait aucun `last_message` (`ConversationListSystemPreviewTest`, 2 rouges), et la liste sous `en` affichait l'aperçu français du serveur (`ConversationList.test.tsx`, 1 rouge). Correctif : `last_message` `{id, type, metadata}` (metadata d'un avis système seulement) dans la liste, hook `useTexteMessageSysteme` partagé par la bulle et la liste, lecture de `role` traduite par `messaging.group.info.roleAdmin`/`roleMember` → 2/2 API et 12/12 front verts. Ablation : `lastMessage` retiré → 2 rouges ; filtre système retiré → 1 rouge ; aperçu remis sur `last_message_preview` → 1 rouge ; `new_role` relu → 2 rouges ; rôle non traduit → 2 rouges.
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
 - Réf : P06.03
