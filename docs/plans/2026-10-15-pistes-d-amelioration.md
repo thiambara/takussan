@@ -3422,7 +3422,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une invitation sans compte part dans la langue de l'invitant, et sa relance J+2 dans celle du processus : deux langues pour la même invitation
 - Réf : P29.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la langue d'une invitation sans compte reste à choisir
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:946-966`, `:517-538`, `:1000-1012`, `takussan-api/app/Mail/InvitationMailable.php:19-22`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:17-18`, `:75-78`
 - Constat :
@@ -3435,10 +3435,11 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Accessoire : `CreateInvitationRequest.php:75` accepte `metadata` libre, donc un `metadata.locale` non validé passerait tel quel à `Mail::locale()` (lu, à vérifier).
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : écrire la langue résolue dans l'invitation à sa création (`metadata.locale` ou colonne), et la relire à l'envoi comme à la relance, pour qu'une invitation ait une seule langue. Le choix de cette langue (celle de l'invitant, `fr` explicite comme `ContactSansCompte::DEFAULT_LOCALE`, ou un champ du formulaire) reste à trancher. Garder par un test : invitation créée sous `en`, relance jouée sous `fr` → même langue des deux côtés.
+- Mesure (2026-10-16, b14cd410, mesureur) : relu `InvitationService.php:946-966` (`deliver` résout la langue par `preferredLocale()`), `:1008-1012` (`preferred_language`, sinon `metadata.locale`, sinon `config('app.locale')`), `:517-538` (`remindPending` rappelle `deliver`) ; `grep -rn "'locale'" app/Services app/Http/Requests | grep -i invit` → la seule lecture de `InvitationService.php:1011`, aucune écriture ; `CreateInvitationRequest.php:75` accepte toujours `metadata` comme tableau libre ; test temporaire retiré (charge 1,27 sur 8 cœurs), deux `POST /api/agencies/{id}/owners/invite` sous `Accept-Language: en` puis `wo`, puis `remindPending()` sous `fr` trois jours plus tard → `InvitationMailable` en `en` et `wo` à l'envoi, `fr` et `fr` à la relance, `metadata` = `{first_name, last_name, owner_type}` ; la voie SMS n'a pas été rejouée, elle passe par le même `deliver()` (lu) ; le constat tient. Classement : V7, la piste laisse ouvert le choix de la langue à écrire (celle de l'invitant, `fr` explicite ou un champ de formulaire), et le stockage en colonne toucherait V4.
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : langue `fr` ou celle d'une fiche client à créer (P29.03)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
 - Constat :
@@ -3448,10 +3449,11 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - TCK-590 (l. 226-227) écrit « celle enregistrée sur la visite / le lead pour un anonyme » : pour une demande publique, c'est la langue de la page du visiteur ; pour une visite saisie par l'agent, ce n'est celle du visiteur que par hasard (lu).
   - Établi comment : lu. L'envoi effectif dans la langue de l'agent n'a pas été rejoué (à vérifier).
 - Piste : sur la route de l'agent, enregistrer `ContactSansCompte::DEFAULT_LOCALE` à défaut de compte, comme `fromCustomer()`, ou la langue de la fiche client si P29.03 en crée une. Garder par un test : visite créée sous `Accept-Language: en` pour un client sans compte → `locale` = `fr`.
+- Mesure (2026-10-16, b14cd410, mesureur) : relu `PropertyVisitController.php:190` (`'locale' => $visitor?->preferredLocale() ?? app()->getLocale()` dans `planForCustomer`) et `ContactSansCompte.php:38-47`, `:57-67` ; test temporaire retiré, agent de l'agence, `POST /api/property-visits` avec une fiche client sans compte sous `Accept-Language: en` → 201, `property_visits.locale = en`, `ContactSansCompte::fromVisit()` → `en`, `fromCustomer()` de la même fiche → `fr` ; l'envoi SMS lui-même n'a pas été rejoué, mais il prend la langue de `fromVisit()` (lu) ; le constat tient. Classement : V7, la piste propose deux langues cibles (`fr` explicite, ou celle d'une fiche client que P29.03 créerait), et une langue négociée par l'agent peut être un choix voulu.
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : colonne neuve sur `customers` et champ de formulaire neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Customer.php:55-64`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `docs/adr/0032-l-api-n-ecrit-plus-de-prose.md:109-111`
 - Constat :
@@ -3460,3 +3462,4 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Effet : un locataire anglophone ou wolophone saisi par l'agence reçoit avis de retard, quittances par SMS et rappels en français, sans que l'agence puisse rien y changer (déduit des appelants `SendLeasePaymentReminders.php:174` et `SendRentReceiptAfterOnlinePayment.php:44`).
   - Établi comment : lu.
 - Piste : une langue facultative sur la fiche client (`in:fr,en,wo`), saisie par l'agence et relue par `fromCustomer()` avant le repli `fr`. Elle servirait aussi P29.02. Migration et champ de formulaire neufs : choix de produit.
+- Mesure (2026-10-16, b14cd410, mesureur) : `grep -ln "'customers'" database/migrations/* | xargs grep -n "locale\|lang"` → aucune colonne de langue sur `customers` (seule touche : `property_contact_leads`) ; `Customer.php:55-64` `$fillable` sans langue ; `ContactSansCompte.php:44` rend `user?->preferredLocale() ?? 'fr'` ; le constat tient, comme amélioration et non comme défaut (ADR-0032 § 3). Classement : V4 et V7, la piste demande une migration autre qu'un index et un champ de formulaire neuf.
