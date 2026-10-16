@@ -46,7 +46,7 @@ final class FiltresDeLaCarte
     public function appliquer(Builder $query, array $p): void
     {
         if (! empty($p['location'])) {
-            $this->adresseEgale($query, 'neighborhood', (string) $p['location']);
+            $this->quartier($query, (string) $p['location']);
         }
         if (! empty($p['city'])) {
             $this->adresseEgale($query, 'city', (string) $p['city']);
@@ -103,6 +103,25 @@ final class FiltresDeLaCarte
             CaseInsensitive::sql($colonne).' = ?',
             [CaseInsensitive::fold($valeur)],
         ));
+    }
+
+    /**
+     * TCK-663 (P01.02) — la règle de `buildFilter()` : l'identifiant du référentiel pour une adresse
+     * rattachée, la clé repliée de son texte (`CleDeQuartier`) sinon. La base ne replie pas les
+     * accents : les textes qui ont la clé cherchée sont résolus en PHP (`QuartierDuFiltre`).
+     *
+     * @param  Builder<Property>  $query
+     */
+    private function quartier(Builder $query, string $saisie): void
+    {
+        $filtre = app(QuartierDuFiltre::class);
+        $ids = $filtre->idsDuReferentiel($saisie);
+        $textes = $filtre->textesLibres($saisie);
+
+        $query->whereHas('address', fn (Builder $q) => $q->where(function (Builder $q) use ($ids, $textes) {
+            $q->whereIn('geo_neighborhood_id', $ids)
+                ->orWhere(fn (Builder $q) => $q->whereNull('geo_neighborhood_id')->whereIn('neighborhood', $textes));
+        }));
     }
 
     /** @param  Builder<Property>  $query */

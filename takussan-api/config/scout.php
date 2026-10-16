@@ -188,6 +188,9 @@ return [
                     'available_from', 'published_at', 'city', 'neighborhood',
                     // TCK-635 (ADR-0062 §8) — `region` départage deux villes du même nom.
                     'region',
+                    // TCK-663 (P01.02) — le filtre `location` : l'identifiant du quartier quand
+                    // l'adresse est rattachée, sinon la clé repliée de son texte (`CleDeQuartier`).
+                    'geo_neighborhood_id', 'neighborhood_key',
                     'tags', '_geo',
                     // TCK-633 lot F (ADR-0061 §7) — `id` : les places réservées s'excluent des
                     // résultats organiques par `NOT id IN [...]`.

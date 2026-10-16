@@ -18,6 +18,7 @@ use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
+use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -467,6 +468,11 @@ class Property extends AbstractModel implements HasMedia
             // TCK-635 (ADR-0062 §8) — départage les villes homonymes (Dinguiraye de Kolda ou de Diourbel).
             'region' => $address?->region,
             'neighborhood' => $address?->neighborhood,
+            // TCK-663 (P01.02) — ce que compare le filtre `location` : l'identifiant du référentiel
+            // quand l'adresse en porte un, sinon le texte replié (`CleDeQuartier`). Le texte des
+            // adresses n'est pas réécrit, et `neighborhood` reste ce que l'on affiche et cherche.
+            'geo_neighborhood_id' => $address?->geo_neighborhood_id,
+            'neighborhood_key' => CleDeQuartier::de($address?->neighborhood),
             // TCK-633 (D9, reverif-2 du lot D) — les seuls équipements que la fiche PUBLIQUE montre :
             // un bien ne se trouve pas par une proposition qu'il porte sans la montrer (celle d'un
             // autre auteur, en attente). Même règle que la fiche, et le filtre SQL de la carte.
