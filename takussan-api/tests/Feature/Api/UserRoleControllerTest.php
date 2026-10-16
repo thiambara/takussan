@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Agency;
+use App\Models\Enums\AgentProfileStatus;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -185,5 +187,84 @@ class UserRoleControllerTest extends ApiTestCase
 
         $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
             ->assertStatus(422);
+    }
+
+    /*
+     * TCK-664 (P03.01) — les gardes d'AgencyMemberRemovalService et de TeamMemberSuspensionService
+     * s'appliquent au changement de rôle : l'admin principal, le dernier admin, soi-même et un
+     * membre non actif sont refusés, et rien n'est écrit.
+     */
+
+    public function test_actor_cannot_change_own_role(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        AgencyAdminProfile::factory()->create(['agency_id' => $agency->id]);
+
+        $this->apiPut("/api/users/{$admin->id}/role", ['role' => 'agent'])
+            ->assertStatus(422)->assertJsonPath('code', 'user.role_change_self');
+
+        $this->assertTrue($admin->fresh()->isAgencyAdminAt($agency->id));
+        $this->assertFalse($admin->fresh()->isAgentAt($agency->id));
+    }
+
+    public function test_primary_admin_cannot_be_demoted(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $primary = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $primary->id, 'agency_id' => $agency->id]);
+        $agency->update(['primary_admin_id' => $primary->id]);
+
+        $this->apiPut("/api/users/{$primary->id}/role", ['role' => 'agent'])
+            ->assertStatus(422)->assertJsonPath('code', 'user.role_primary_admin');
+
+        $this->assertTrue($primary->fresh()->isAgencyAdminAt($agency->id));
+    }
+
+    public function test_last_admin_cannot_be_demoted(): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+        $soleAdmin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $soleAdmin->id, 'agency_id' => $agency->id]);
+
+        $this->apiPut("/api/users/{$soleAdmin->id}/role", ['role' => 'owner'])
+            ->assertStatus(422)->assertJsonPath('code', 'user.role_last_admin');
+
+        $this->assertTrue($soleAdmin->fresh()->isAgencyAdminAt($agency->id));
+        $this->assertFalse($soleAdmin->fresh()->isOwnerAt($agency->id));
+    }
+
+    public function test_non_active_member_cannot_change_role(): void
+    {
+        $agency = Agency::factory()->create();
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $suspended = User::factory()->create();
+        AgentProfile::factory()->suspended()->create(['user_id' => $suspended->id, 'agency_id' => $agency->id]);
+
+        $this->apiPut("/api/users/{$suspended->id}/role", ['role' => 'agency_admin'])
+            ->assertStatus(422)->assertJsonPath('code', 'user.role_member_not_active');
+
+        $this->assertFalse($suspended->fresh()->isAgencyAdminAt($agency->id));
+        $this->assertSame(
+            AgentProfileStatus::Suspended,
+            AgentProfile::query()->where('user_id', $suspended->id)->where('agency_id', $agency->id)->sole()->status,
+        );
+    }
+
+    /** Versant autorisé : un co-admin qui n'est ni principal, ni le dernier, ni soi se rétrograde. */
+    public function test_co_admin_can_be_demoted_when_another_admin_remains(): void
+    {
+        $agency = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+        $coAdmin = User::factory()->create();
+        AgencyAdminProfile::factory()->create(['user_id' => $coAdmin->id, 'agency_id' => $agency->id]);
+
+        $this->apiPut("/api/users/{$coAdmin->id}/role", ['role' => 'agent'])->assertOk();
+
+        $this->assertTrue($coAdmin->fresh()->isAgentAt($agency->id));
+        $this->assertFalse($coAdmin->fresh()->isAgencyAdminAt($agency->id));
     }
 }
