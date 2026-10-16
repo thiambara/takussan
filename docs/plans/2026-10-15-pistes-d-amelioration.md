@@ -103,7 +103,7 @@ voie d'écriture (angle 13, puis 47).
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | fait |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | fait |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | fait |
-| 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
+| 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | fait |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
 | 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
@@ -140,6 +140,7 @@ voie d'écriture (angle 13, puis 47).
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
+| 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
 
 ---
 
@@ -3582,3 +3583,103 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Un anglophone qui tape « Pool » ou « Generator » se voit proposer « Ajouter » à côté de l'équipement traduit (`combobox.tsx:56-58` compare au libellé affiché, lu). Le serveur ne replie que sur les noms français (`TagProposals::parNom`, lu) : le nom anglais devient une proposition en attente, doublon d'un équipement existant que la modération doit fusionner (déduit, à vérifier).
 - Piste : traduire les étiquettes CRM du catalogue par slug comme les équipements (même fonction, autre espace de clés) ; retrier les options sur le libellé affiché ; passer `otherTagNames` par le même traducteur. Pour la saisie libre, que le front résolve un nom tapé égal (au repli près) à un libellé traduit vers l'identifiant de l'équipement avant de l'envoyer en `tag_names`.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `CustomerTagPicker.tsx:152`, `:155` et `CustomerListFilters.tsx:214` (rendent `tag.name`), `TagController.php:33` (`defaultSort('name')`), `GeoReferentialController.php:27` (tri `und-x-icu`), `ChampEquipements.tsx:51` (traduit sans retrier), `compare-rows.ts:63-68` (`otherTagNames` rend `tag.name`), `combobox.tsx:56-58` (compare au libellé affiché) ; `grep -i prospect src/messages/en.json` rend 14 lignes, contrairement au constat, mais aucune ne traduit l'étiquette « Prospect chaud » ; la proposition d'un nom anglais en doublon n'a pas été rejouée et reste à vérifier ; les trois premiers points tiennent. Classement : V7 et V8, traduire les étiquettes CRM est un texte métier neuf, et l'entrée réunit quatre correctifs indépendants.
+
+## Angle 31 — Passage axe au navigateur sur les parcours publics
+
+*Exploré le 2026-10-16 sur `pre-dev` 7abe36d, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Montage : `next dev` de l'arbre de l'explorateur (port
+3199) devant un **faux API** local qui rend des réponses réelles, prises une fois en lecture dans
+le processus (`tinker`, `CACHE_STORE=array`, `Request::create` en `GET` sur la base de dev) ; Chrome
+sans tête piloté par CDP, `axe-core` 4.13.0 du `node_modules` du front injecté, règles `wcag2a`,
+`wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` et `best-practice`, à 1280 et 390 px. Pages passées :
+accueil, recherche, fiche bien, index et fiche d'agence, index des agents, comparateur, favoris,
+mentions légales, les cinq pages `/auth/*`, `/invitations/accept`, `/maintenance`. **Limites** :
+l'API réelle n'a pas tourné (elle aurait écrit dans la base de dev : compteur de vues, jetons de
+connexion), les photos de la base de dev sont absentes, et **l'espace connecté (`/app`) n'a pas été
+passé** : il demandait de relancer le faux API, et la garde refuse l'arrêt d'un processus. Le
+contraste n'est pas tranché par axe : il rend `color-contrast` « incomplete » sur 631 nœuds de
+l'accueil et 104 de la recherche, tous « overlapped by another element » — le lien étiré
+`a.absolute.inset-0` de `LienDeCarte` couvre chaque carte (mesuré par `elementsFromPoint`). Un
+calcul maison sur les styles calculés s'est trompé sur le texte posé sur photo : aucun constat de
+contraste n'en est tiré. Sous `prefers-reduced-motion: reduce` émulé, l'accueil ne garde aucune
+animation (mesuré), rien n'est donc ajouté à P07.11.*
+
+### Le champ de recherche de la barre ne montre aucun focus au clavier, et pointe vers une liste absente
+- Réf : P31.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `:266-268`
+- Constat :
+  - Atteint au clavier (deux Tab sur `/fr/legal/privacy`, `:focus-visible` vrai), l'`input` et ses trois parents gardent exactement le même `box-shadow`, `outline`, fond et bordure qu'avant le focus (mesuré : instantané des styles calculés avant et après, sur Chrome sans tête). Le focus est donc invisible : c'est le « rendu du focus à vérifier » de P07.06, tranché.
+  - `aria-controls={listboxId}` est posé sur le `div` `combobox` (l. 230) et sur l'`input` (l. 244) en permanence, alors que l'élément `id={listboxId}` n'est rendu que si `open` (l. 266-268) (lu).
+  - axe rend `aria-valid-attr-value` (impact « critical ») sur cet `input` sur chaque page publique à 1280 px : accueil, recherche, fiche, agences, agents, comparateur, favoris, mentions légales (mesuré : `aria-controls="…H1_"` invalide). À 390 px la barre n'affiche pas le champ, et la règle ne sort pas (mesuré).
+  - Établi comment : axe et instantané CDP sur `next dev`, code relu.
+- Piste : voir P07.06, qui porte le libellé, le motif ARIA 1.2 et le `focus-within:` de la pilule. Ce constat y ajoute : n'émettre `aria-controls` que lorsque la liste est montée (ou la monter vide et masquée), et garder par un test de rendu qui vérifie que tout `aria-controls` et `aria-activedescendant` du composant vise un `id` présent, fermé comme ouvert.
+
+### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
+- Réf : P31.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/page.tsx:170-211`, `[slug]/not-found.tsx:16-38`, `[slug]/bien-retire.tsx:52`, `[slug]/PropertyDetailContent.tsx:134`
+- Constat :
+  - La page rend `<Navbar />`, `<NavbarSpacer />`, le corps puis `<Footer />`, sans `<main>` autour du corps (l. 205-211) ; même forme pour le bien retiré (l. 172-178), le bien indisponible (corps = un `div`, l. 150-155) et `not-found.tsx` (un `div`, l. 20) (lu). `PropertyDetailContent` commence par un `div` (l. 134) (lu).
+  - axe sur la fiche : `landmark-one-main` et `region` sur 89 nœuds à 1280 px, 90 à 390 px (mesuré). Les autres pages publiques passées (accueil, recherche, agences, agents, légales, comparateur, favoris) ont leur `<main>` et ne sortent pas la règle (mesuré).
+  - La fiche est aussi la page où le clavier traverse le plus de barre : 18 Tab (logo, recherche, Louer, Acheter, neuf types, favoris, langue, connexion, publier) avant le fil d'Ariane (mesuré). Sans `<main>` ni lien d'évitement (P31.04), un lecteur d'écran n'a pas de saut vers le contenu, hors des titres.
+  - Établi comment : axe et parcours au Tab par CDP, code relu.
+- Piste : envelopper le corps des quatre états dans `<main>` (dans `page.tsx` et `not-found.tsx`, pas dans `PropertyDetailContent`, pour ne pas en rendre deux). Garde : un test qui rend chaque `page.tsx` publique et `not-found.tsx` et compte exactement un `main`, ou une garde statique sur les pages qui montent `Navbar`.
+
+### Les pages d'authentification n'ont pas de repère `<main>`
+- Réf : P31.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(auth)/layout.tsx:58-138`
+- Constat :
+  - `AuthPanneau` rend une grille de `div` ; le formulaire est dans `div.w-full.max-w-md` (l. 125), sans `<main>`, et aucun `page.tsx` de `(auth)/auth/` n'en ajoute (lu ; `grep -rn "<main" "src/app/(auth)"` hors tests → 0 ligne, mesuré).
+  - axe : `landmark-one-main` et `region` (6 à 15 nœuds) sur `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password` et `/auth/verify-email`, à 1280 px, et sur `/auth/login` à 390 px (mesuré).
+  - Établi comment : axe, code relu.
+- Piste : `<main>` sur le panneau du formulaire (l. 97), le panneau visuel restant hors du repère. Même garde que P31.02.
+
+### Aucun lien d'évitement hors de la console super-admin
+- Réf : P31.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/layout/SuperAdminShell.tsx:83-91,102-107`, `takussan-web/src/components/layout/AppShell.tsx:120`, `takussan-web/src/components/home/Navbar.tsx`
+- Constat :
+  - Le seul lien « Aller au contenu principal » du front est celui de `SuperAdminShell` (l. 83-91), qui vise un `<main tabIndex={-1}>` (l. 102-107) ; `grep -rn "skipToContent\|focus:not-sr-only" src` ne rend que ce fichier et les trois dictionnaires (lu).
+  - Sur le site public, le premier Tab va au logo, puis 17 autres traversent la barre avant le contenu (mesuré sur l'accueil et la fiche). `AppShell` rend un `<main>` sans `id` ni `tabIndex` (l. 120), sans lien d'évitement devant la barre latérale (lu ; non passé au navigateur, cf. en-tête).
+  - Le libellé existe déjà en trois langues sous `nav.superAdmin.skipToContent` (lu, `fr.json:190`) ; il est rangé dans l'espace de la console.
+  - Établi comment : parcours au Tab par CDP, code relu.
+- Piste : le même lien en tête de `Navbar` (ou du layout public) et d'`AppShell`, vers un `<main id tabIndex={-1}>`, avec le libellé déplacé vers un espace commun (`common`), sans texte neuf. Le test d'AC3 de `SuperAdminShell` sert de modèle.
+
+### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
+- Réf : P31.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
+- Constat :
+  - Les colonnes du pied de page sont des `h4` (l. 183, et `pied-legal` en `sr-only` l. 216) (lu). Sur les pages dont le contenu n'a qu'un `h1` (mentions légales, CGU, agents, comparateur et favoris vides), axe rend `heading-order` sur `#pied-discover` (mesuré).
+  - Sur la recherche (1280 et 390 px), le titre de la première carte est un `h3` qui suit directement le `h1` de la liste ; même règle sur la première carte de `/fr/agencies`, dont le titre est le `h3` de `ProfileCard.tsx:93` sous le `h1` d'`IndexDeProfils.tsx:109` (mesuré, puis lu).
+  - Établi comment : axe, code relu.
+- Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
+
+### Les six pages d'authentification portent le même titre d'onglet
+- Réf : P31.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
+- Constat :
+  - Le layout déclare un modèle `title.template = "%s — Takussan"` et un défaut « Authentification — Takussan » (lu). Aucune des pages `login`, `register`, `forgot-password`, `reset-password`, `verify-email` n'exporte `metadata` ni `generateMetadata` (lu : `grep -c` → 0 pour chacune ; `login/page.tsx` est `'use client'`).
+  - Les cinq pages passées au navigateur ont toutes le titre « Authentification — Takussan » (mesuré). Le modèle n'est jamais rempli, et un lecteur d'écran ou un historique ne distingue pas « Connexion » de « Mot de passe oublié ».
+  - Établi comment : `document.title` relevé par CDP, code relu.
+- Piste : un `layout.tsx` serveur par page d'auth (ou un `generateMetadata` dans un `page.tsx` serveur qui monte le composant client) qui remplit le modèle par le titre déjà affiché dans le formulaire, sans texte neuf. Garde : un test qui vérifie que chaque page de `(auth)/auth/` fournit un titre.
+
+### Petites améliorations
+- Réf : P31.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
+- Constat :
+  - Fiche bien : les liens vers l'agent et l'agence mesurent 82 × 17 et 108 × 18 px, l'un au-dessus de l'autre ; axe rend `target-size` (WCAG 2.5.8) sur les deux (mesuré à 1280 px). Ils ne se distinguent du texte voisin que par la graisse et au survol (`hover:underline`, lu).
+  - `/invitations/accept` a pour titre « Accepter une invitation », sans le suffixe « — Takussan » des autres pages (mesuré) : `generateMetadata` y rend `t('metaTitle')` seul (lu, l. 19).
+  - Établi comment : axe et `document.title` par CDP.
+- Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
