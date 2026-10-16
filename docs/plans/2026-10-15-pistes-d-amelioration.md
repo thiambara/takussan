@@ -1592,7 +1592,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : numéros complets dans les journaux
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1605,6 +1605,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -1734,7 +1735,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P12.10
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Constat (mesuré) :
   - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
@@ -1746,6 +1747,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     - aucun test back ne moque sa propre classe ;
     - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
 - Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
+- Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rn 'assertTrue(true)' tests` → 3 (`ExampleTest.php:14`, `SeedingMediaFailuresTest.php:154`, `DigestBuilderServiceTest.php:131`) ; lu `SponsoredImpressionsTest.php:38` (lit la clé de l'heure `now()` après deux recherches) et `MaintenanceStructuredQuoteTest.php:93` (compare à `now()->addDays(10)->toDateString()`), `grep -c 'freezeTime\|travelTo'` → 0 dans les deux fichiers ; la carte d'impact a été régénérée le 2026-10-15 (`3a2c9108`, sur `53b3d2ee`) et il lui manque encore 15 classes dont `RentalSettingsCatalogueTest`, surtout des gardes qui ne couvrent pas `app/` : partie non retenue ; l'exemple front `MaintenanceScheduler.test.tsx:70` est inexact (l. 67-68 vérifient déjà l'argument `mode`) et les six tests ne sont pas nommés : partie non re-mesurée. Retenu : le temps figé dans les deux tests et les trois `assertTrue(true)`. Classement : A5, rendre déterministes et effectifs des tests existants, sans seuil ni choix de produit.
 
 ## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
 
@@ -1895,7 +1897,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : deux chantiers, et un seuil d'alerte à choisir
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1903,6 +1905,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `SystemMetricsController.php` (l. 35-46 sont aujourd'hui `TREND_KEYS` ; aucun taux d'échec de paiement ni de webhook) et `HealthcheckService::probe` (aucune sonde `payments`) ; `grep -rn 'Context::add\|withContext\|shareContext' app bootstrap` → rien ; `bootstrap/app.php:151-153` journalise `query_exception` avec le seul `user_id` → les deux constats tiennent. Classement : V8, la sonde et le contexte de journal font deux tickets, la sonde demande un seuil, et mettre l'agence dans chaque journal touche V3.
 
 ## Angle 13 — Code mort et doublons
 
@@ -2039,7 +2042,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Petites améliorations
 - Réf : P13.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : retrait de colonnes, et V8 : plusieurs tickets
 - Gravité : 🟢 amélioration
 - Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
   - **Fichiers front morts** : 8, dont :
@@ -2062,6 +2065,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - **Colonnes jamais lues ni écrites** : `Property.lot_position` et `admin_monitored`, `ServiceProviderProfile.insurance_policy_id` et `hourly_rate_max`, `OwnerProfile.guarantor_user_id`, `NotificationTemplate.meta_category` et `meta_variables`.
   - **Clés i18n** : environ 202 feuilles sur 8 032 ont un nom absent du code, une partie dynamique. Aucune garde ne les voit.
 - Piste : supprimer après relecture des cinq ou six éléments qui touchent un parcours ; un seul `formatCurrency` ; documenter ou retirer les colonnes ; un rapport des clés i18n inutilisées (pas encore un cliquet).
+- Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rlw` hors tests dans `takussan-web/src` → `Money.tsx` sans importeur ; `ShareButton`, `deleteWizardDraft`, `useUpdateLease`, `useRefundDeposit`, `useConfirmEarlyTermination`, `switchActiveProfileAction` présents dans leur seul fichier de définition, `useRequireAuth` en plus dans un commentaire d'`AuthContext.tsx:63` ; `formatCurrency` défini deux fois (`lib/format.ts:158`, `lib/format/currency.ts:73`) ; `PhoneRule` citée par le seul commentaire de `ResendPhoneVerificationRequest.php:42`, qui l'écarte délibérément ; `acceptForAuthenticatedUser`, `filterChannels`, `effectiveLimitsForAgency` et l'enum `UserRole` (`app/Models/Enums/UserRole.php`) présents dans un seul fichier d'`app` ; les sept colonnes ne figurent que dans leur modèle → tient sur ce qui a été re-mesuré ; les normalisations de téléphone, `formatRelativeDate` et les clés i18n n'ont pas été re-mesurées. Classement : V4 et V8, retirer des colonnes change le schéma, et l'ensemble fait plusieurs tickets.
 
 ## Angle 15 — Parcours d'une agence neuve
 
@@ -2193,10 +2197,11 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P15.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : notification neuve
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `NotificationCode.php:131-132` (`property.approved`, `property.rejected`, aucun code de soumission) et `:161` (`review.to_moderate`) ; `grep -rn PendingReview app/Services app/Http/Controllers` → `PropertyModerationService.php:131` repasse un bien en `pending_review` sans notifier, aucun autre émetteur → le constat tient. Classement : V7, une notification aux admins est un comportement visible et un texte neufs.
 
 ## Angle 16 — Listes internes sur un modèle `Searchable`
 
@@ -2275,7 +2280,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P16.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
@@ -2283,6 +2288,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - les mises à jour en masse sur des modèles `Searchable` ne touchent que des colonnes non indexées (`AgentHandoverService.php:196,200`, `AccountDeletionService.php:229`) ;
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`removeAllFromSearch` sur cette seule liste) ; `grep -rln 'Searchable;' app/Models` → s'y ajoutent `Agency`, `User`, `Customer`, `MaintenanceRequest`, dont l'index n'est jamais vidé ; décompte « 8 pour 5 » non re-mesuré (il demande la clé Meilisearch), repris de la mesure de P16.01 du 2026-10-15 → tient, et c'est le même défaut que P16.01, toujours `retenu · autonome` et non traité. Classement : A1, le docblock de `reindexSearchableModels` (« every searchable model ») écrit déjà le comportement attendu, et le correctif de P16.01 vide aussi ces index.
 
 ## Angle 17 — Qualité des adresses : référentiel ou texte libre
 
@@ -2350,7 +2356,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retrait ou alignement à choisir, signal de distance neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -2362,6 +2368,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - le chargeur ne recrée pas un quartier refusé ou fusionné ;
     - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
 - Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `routes/api/properties.php:53-54` (`PUT` et `DELETE …/address`) et `UpsertPropertyAddressRequest.php:34-46` (`max:255`, ni `geo_city_id` ni `geo_neighborhood_id`) ; `grep -rn "/address" takussan-web/src` → aucun appel, seul le récit de `property-form/payload.ts:17` ; `grep -rn 'Senegal::contient' app` → un seul usage (`GeoLinkController.php:22`), aucune comparaison à la ville → les deux constats tiennent ; le recentrage de la carte côté front n'a pas été vérifié. Classement : V7, la `Piste` laisse le choix entre retirer et aligner les routes, et le signal de distance est un comportement visible neuf.
 
 ## Angle 18 — Statistiques Boost face aux robots, aux rendus serveur et aux revalidations
 
@@ -2437,7 +2444,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : plafond, marqueur et `/playground` à décider
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2446,6 +2453,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **`/playground` est servi sur le site public** (noindex, mais non interdit par `robots.txt`) et appelle la recherche par `useProperties` pour ses rangées « près de toi » et « location » (lu). Chaque affichage compte des impressions sponsorisées qu'il ne montre pas.
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `BoostStatsRecorder.php:36-44` (`RateLimiter::hit(…, 3600) > 1`) contre `PropertyViewCounter.php:31` (`MAX_PAR_HEURE = 3`) ; `arrivee-sponsorisee.ts:7-25` (une seule clé `sessionStorage`) ; `PlaygroundClient.tsx:30-31` (`city` et `transaction`), qui passent par `/public/properties/search` (`useProperties.ts:66`), où `PropertySearchService.php:659` compte les impressions → les trois constats tiennent ; le comportement des onglets selon les navigateurs n'a pas été vérifié. Classement : V7, chaque correctif est un choix (plafond, forme du lien, sort de `/playground`), et ces compteurs mesurent un produit payé (V1).
 
 ## Angle 19 — Rétention des tables qui grossissent
 
