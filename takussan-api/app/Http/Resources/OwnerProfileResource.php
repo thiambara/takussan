@@ -33,7 +33,8 @@ class OwnerProfileResource extends BaseResource
             }
         }
 
-        return array_merge($attributes, $profile->relationsToArray(), [
+        // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
+        return array_merge($attributes, IncludedUserResource::inParent($profile, $profile->relationsToArray()), [
             'rib_masked' => $this->masked($profile, 'rib', Masking::iban(...)),
             'tax_id_masked' => $this->masked($profile, 'tax_id', Masking::tail(...)),
             'id_document_number_masked' => $this->masked($profile, 'id_document_number', Masking::tail(...)),
