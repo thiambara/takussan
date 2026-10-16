@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 
 /**
@@ -91,13 +90,13 @@ class SignatureDataUrlRule implements ValidationRule
     public function validate(string $attribute, mixed $value, \Closure $fail): void
     {
         if (! is_string($value) || $value === '') {
-            $this->bail($fail, 'La signature est invalide.');
+            $fail(__('inventories.signature.invalid'));
 
             return;
         }
 
         if (! str_starts_with($value, InventorySignRequest::SIGNATURE_PREFIX)) {
-            $this->bail($fail, 'La signature doit être un PNG base64 (data:image/png;base64,...).');
+            $fail(__('inventories.signature.prefix'));
 
             return;
         }
@@ -107,14 +106,14 @@ class SignatureDataUrlRule implements ValidationRule
         // strict base64 — rejects `file://`, `http://`, control characters,
         // and anything that isn't a legitimate canvas.toDataURL() payload.
         if ($base64 === '' || preg_match('/^[A-Za-z0-9+\/]+={0,2}$/', $base64) !== 1) {
-            $this->bail($fail, 'La signature contient des caractères base64 invalides.');
+            $fail(__('inventories.signature.base64'));
 
             return;
         }
 
         $decoded = base64_decode($base64, true);
         if ($decoded === false || strlen($decoded) < InventorySignRequest::MIN_DECODED_BYTES) {
-            $this->bail($fail, 'La signature est vide ou trop petite.');
+            $fail(__('inventories.signature.too_small'));
 
             return;
         }
@@ -123,15 +122,7 @@ class SignatureDataUrlRule implements ValidationRule
         // binary format (SVG with <script>, HTML, JS) behind the PNG label.
         $magic = substr($decoded, 0, 8);
         if ($magic !== "\x89PNG\r\n\x1a\n") {
-            $this->bail($fail, 'La signature n\'est pas un PNG valide.');
+            $fail(__('inventories.signature.not_png'));
         }
-    }
-
-    /**
-     * @param  \Closure(string): PotentiallyTranslatedString  $fail
-     */
-    private function bail(\Closure $fail, string $message): void
-    {
-        $fail($message);
     }
 }

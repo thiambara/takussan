@@ -15,4 +15,10 @@ return [
         'off_topic' => 'Bokkul ci',
         'other' => 'Leneen',
     ],
+    // TCK-656 — messages de validation, rendus dans la langue de la requête.
+    'rejection_reason' => [
+        'required' => 'Sabab bu ñu ko bañe dafa war.',
+        'min' => 'Sabab bi war na am lu mu néew 20 araf.',
+        'max' => 'Sabab bi du mën a ëpp 1000 araf.',
+    ],
 ];

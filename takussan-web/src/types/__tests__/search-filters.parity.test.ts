@@ -61,12 +61,13 @@ const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
 /**
  * Clés que le back accepte mais que l'interface n'expose pas — et pourquoi.
  * `search` est l'alias historique de `q` ; les quatre bornes géographiques servent la
- * vue carte, qui ne passe pas par `SearchFilters`.
+ * vue carte, qui ne passe pas par `SearchFilters` ; `placements` coupe les emplacements pour la
+ * rangée « À vendre » de l'accueil (TCK-687), ce n'est pas un filtre du panneau.
  */
-const HORS_INTERFACE = ['search', 'lat_min', 'lat_max', 'lng_min', 'lng_max'];
+const HORS_INTERFACE = ['search', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements'];
 
 /** Clés de contrôle de la requête : elles ne produisent pas de clause de filtre moteur. */
-const NON_FILTRANTES = ['q', 'search', 'sort', 'page', 'per_page'];
+const NON_FILTRANTES = ['q', 'search', 'sort', 'page', 'per_page', 'placements'];
 
 function clesDuFront(): string[] {
   // Une garde qui ne trouve pas sa source doit le DIRE, pas passer au vert sur un

@@ -123,7 +123,23 @@ export function PayoutTable({
                   className={`border-b border-border/40 last:border-b-0 ${onSelect ? 'cursor-pointer hover:bg-muted/30' : ''}`}
                 >
                   <td className="px-4 py-2">
-                    <span className="whitespace-nowrap font-medium tabular-nums text-foreground">{formatPeriod(payout, fmt)}</span>
+                    {onSelect ? (
+                      // TCK-661 : la ligne seule n'est pas atteignable au clavier. Le bouton porte
+                      // la sélection pour Tab/Entrée/Espace ; `stopPropagation` évite que la ligne
+                      // la rejoue au clic.
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(payout);
+                        }}
+                        className="rounded-md whitespace-nowrap font-medium tabular-nums text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {formatPeriod(payout, fmt)}
+                      </button>
+                    ) : (
+                      <span className="whitespace-nowrap font-medium tabular-nums text-foreground">{formatPeriod(payout, fmt)}</span>
+                    )}
                   </td>
                   {hideAgency ? null : <td className="px-4 py-2 text-muted-foreground">#{payout.agency_id}</td>}
                   <td className="px-4 py-2 whitespace-nowrap text-right tabular-nums">{xof(payout.gross_amount, payout.currency)}</td>

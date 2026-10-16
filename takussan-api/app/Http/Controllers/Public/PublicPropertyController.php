@@ -187,8 +187,7 @@ class PublicPropertyController extends Controller
      */
     public function sitemap(Request $request): JsonResponse
     {
-        $perPage = (int) $request->input('per_page', self::SITEMAP_MAX_PER_PAGE);
-        $perPage = max(1, min($perPage, self::SITEMAP_MAX_PER_PAGE));
+        $perPage = max(1, min((int) $request->input('per_page', self::SITEMAP_MAX_PER_PAGE), self::SITEMAP_MAX_PER_PAGE));
 
         $properties = Property::query()
             ->public()

@@ -119,6 +119,7 @@ export interface AgencyFormPayload {
  *
  * - `individual` : l'API refuse les mentions légales d'une agence `individual` (`prohibited`) ; les
  *   envoyer, même vides, rendrait chaque enregistrement 422.
+ *   Même chose pour `moderation_required`, refusée à `true` (`declined`, TCK-686).
  * - `initialThreshold` : le seuil a sa propre capacité (`payouts.approve`) et sa règle des deux
  *   approbateurs. Le renvoyer INCHANGÉ ferait refuser l'enregistrement du nom à un admin qui ne la
  *   détient pas : il ne part donc que s'il a été modifié.
@@ -172,7 +173,8 @@ export function normaliseAgencyForm(
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
     settings,
-    moderation_required: values.moderation_required,
+    // TCK-686 — l'API refuse la modération à une agence `individual` (422) : la clé ne part pas.
+    ...(context.individual ? {} : { moderation_required: values.moderation_required }),
     default_tax_rate: values.default_tax_rate.trim() === '' ? null : Number(values.default_tax_rate),
     ...(context.individual
       ? {}

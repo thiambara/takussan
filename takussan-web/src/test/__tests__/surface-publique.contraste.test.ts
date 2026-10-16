@@ -128,7 +128,10 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --background', 1.26, 'idem'],
   // ── 4. Aplats de --primary sous encre --primary ───────────────────────────────────────────────
   ['components/search/SearchToolbar.tsx · text-primary sur bg-primary/8 sur un sous-jacent inconnu (pire pixel 108)', 1.00, 'texte sur un aplat de sa propre couleur — motif de TCK-444'],
-  ['components/search/SearchAutocomplete.tsx · text-primary sur bg-primary/15 sur un sous-jacent inconnu (pire pixel 108)', 1.01, 'idem, le `<mark>` de la surbrillance'],
+  // `SearchAutocomplete.tsx · text-primary sur bg-primary/15` est sortie le 2026-10-15 (TCK-657) :
+  // le `<mark>` porte `text-[var(--primary-deep)]` sur `bg-primary/10`. La valeur arbitraire échappe
+  // à ce lecteur ; `search/__tests__/pastille-et-surlignage.contraste.test.ts` la mesure sur le
+  // menu `bg-card`, ses lignes active et survolée comprises, dans les deux thèmes.
   // `FilterSidebar.tsx · text-primary sur bg-primary/5` est sortie le 2026-10-12 (TCK-633, lot E) :
   // c'était la bascule « Meublé uniquement », remplacée par trois puces (indifférent, oui, non).
   ['components/forms/FormSuccess.tsx · text-success sur bg-success/5 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'idem, avec `--success` : le motif n’est pas propre à `--primary`'],

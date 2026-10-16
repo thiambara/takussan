@@ -42,14 +42,14 @@ export function ProprietaireEtResponsable({
     <Balise className={cn('mt-1 truncate text-xs text-muted-foreground', className)}>
       {showOwner ? (
         <>
-          <span className="text-muted-foreground/70">{t('ownerPrefix')}</span>{' '}
+          <span className="text-muted-foreground">{t('ownerPrefix')}</span>{' '}
           <span className="font-medium text-foreground">{owner.name}</span>
         </>
       ) : null}
       {showOwner && connu ? ' · ' : null}
       {connu ? (
         <>
-          <span className="text-muted-foreground/70">{t('responsiblePrefix')}</span>{' '}
+          <span className="text-muted-foreground">{t('responsiblePrefix')}</span>{' '}
           <span className="font-medium text-foreground">
             {responsable ? responsable.name : t('responsibleNone')}
           </span>

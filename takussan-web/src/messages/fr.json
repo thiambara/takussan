@@ -1639,7 +1639,8 @@
         "current": "en cours",
         "optional": "facultatif",
         "reopen": "Revenir à : {step}"
-      }
+      },
+      "photosProgress": "Envoi des photos : {sent} sur {total}"
     },
     "titleTypes": {
       "bail": "Bail",
@@ -3898,15 +3899,10 @@
     },
     "payment": {
       "title": "Enregistrer un paiement",
-      "description": "Loyer, charges ou régularisation pour ce bail.",
-      "amount": "Montant",
-      "type": "Type",
+      "description": "Choisissez l’échéance que le locataire a réglée.",
       "method": "Moyen",
-      "periodStart": "Période début",
-      "periodEnd": "Période fin",
       "effectiveDate": "Date effective",
       "reference": "Référence / Reçu",
-      "notes": "Notes",
       "saving": "Enregistrement…",
       "methods": {
         "cash": "Espèces",
@@ -3915,14 +3911,8 @@
         "check": "Chèque",
         "card": "Carte bancaire"
       },
-      "types": {
-        "rent": "Loyer",
-        "charges": "Charges",
-        "deposit": "Caution",
-        "deposit_refund": "Remboursement caution",
-        "regularization": "Régularisation",
-        "penalty": "Pénalité"
-      }
+      "installment": "Échéance",
+      "noInstallment": "Aucune échéance en attente sur ce bail."
     },
     "guarantor": {
       "title": "Garants",
@@ -4818,11 +4808,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer."
+          "submittedBody": "Vous pouvez continuer."
         },
         "tour": {
           "title": "Découvrez votre espace",
@@ -4950,11 +4940,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer.",
+          "submittedBody": "Vous pouvez continuer.",
           "licenseNumberLabel": "Numéro de carte professionnelle",
           "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
         },
@@ -9770,7 +9760,8 @@
       "monthlyRentRequired": "Le loyer mensuel est requis pour une location.",
       "emailInvalid": "Email invalide.",
       "refundExceedsDeposit": "Le montant dépasse la caution restante.",
-      "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel."
+      "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel.",
+      "installmentRequired": "Sélectionnez une échéance."
     },
     "maintenance": {
       "propertyRequired": "Sélectionnez un bien.",

@@ -10,12 +10,9 @@ import {
   createCustomerNote,
   detachCustomerTag,
   updateCustomer,
-  uploadCustomerDocument,
-  validateCustomerDocumentFile,
-  CUSTOMER_DOCUMENT_REJECTION_NAMESPACE,
 } from '@/lib/queries/customers';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
-import type { CustomerDetail, CustomerNote, CustomerDocument } from '@/types/customer';
+import type { CustomerDetail, CustomerNote } from '@/types/customer';
 import type { Tag } from '@/types/tag';
 
 /**
@@ -165,31 +162,6 @@ export async function detachCustomerTagAction(
     revalidatePath(`/app/customers/${customerId}`);
     revalidatePath('/app/customers');
     return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-export async function uploadCustomerDocumentAction(
-  customerId: number,
-  formData: FormData,
-): Promise<ActionResult<CustomerDocument>> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0) {
-    const t = await getTranslations('serverActions.shared');
-    return { ok: false, message: t('noFileSelected') };
-  }
-  const rejection = validateCustomerDocumentFile(file);
-  if (rejection) {
-    const tRejection = await getTranslations(CUSTOMER_DOCUMENT_REJECTION_NAMESPACE);
-    return { ok: false, message: tRejection(rejection) };
-  }
-  try {
-    const data = await uploadCustomerDocument(auth.token, customerId, file);
-    revalidatePath(`/app/customers/${customerId}`);
-    return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
   }

@@ -12,10 +12,11 @@ use Illuminate\Support\Str;
  * les deux exports rendaient `properties` tel quel. C'est une défense en PROFONDEUR — le mécanisme
  * principal est qu'aucun écrivain n'y met de valeur sensible (liste blanche des modèles `Auditable`).
  *
- * Deux familles de motifs :
+ * Trois familles de motifs :
  *   · les secrets, reconnus par SOUS-CHAÎNE (`password`, `token`…), comme depuis TCK-144 ;
  *   · les identifiants personnels, reconnus par SEGMENT (`rib`, `rib_pro`, `owner_rib`, mais pas
- *     `attributes` ni `distribution`, qui contiennent `rib`).
+ *     `attributes` ni `distribution`, qui contiennent `rib`) ;
+ *   · l'adresse et le numéro, reconnus par DERNIER segment (TCK-692).
  * La clé est jugée telle quelle ET en snake_case (verif-601 n1) : `ownerRib`, `taxId`, `bankIban`
  * perdaient leur frontière de segment une fois en minuscules. Une chaîne qui porte un objet ou une
  * liste JSON est décodée, expurgée et réencodée.
@@ -33,6 +34,15 @@ final class PropertyRedactor
 
     /** @var list<string> */
     private const IDENTIFIER_SEGMENTS = ['rib', 'iban', 'tax_id', 'ninea', 'id_document'];
+
+    /**
+     * TCK-692 — l'adresse et le numéro, reconnus par DERNIER segment : `email`, `target_email`,
+     * `secondary_phone`, mais pas `email_verified_at` ni `notifications_email_enabled`, qui
+     * qualifient le contact sans le porter.
+     *
+     * @var list<string>
+     */
+    private const CONTACT_LAST_SEGMENTS = ['email', 'phone'];
 
     public static function redact(mixed $properties): mixed
     {
@@ -105,6 +115,12 @@ final class PropertyRedactor
         $wrapped = '_'.preg_replace('/[^a-z0-9]+/', '_', $lower).'_';
         foreach (self::IDENTIFIER_SEGMENTS as $segment) {
             if (str_contains($wrapped, '_'.$segment.'_')) {
+                return true;
+            }
+        }
+
+        foreach (self::CONTACT_LAST_SEGMENTS as $segment) {
+            if (str_ends_with($wrapped, '_'.$segment.'_')) {
                 return true;
             }
         }

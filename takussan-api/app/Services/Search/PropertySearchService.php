@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Services\Boost\BoostSettings;
 use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
+use App\Support\Search\CleDeQuartier;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -142,7 +143,12 @@ class PropertySearchService
 
         // TCK-633 lot F (ADR-0061 §7) — emplacements « Sponsorisé » et places réservées. Rien en
         // recherche ÉLARGIE : le vivier suit le régime strict, qui vient d'y rendre zéro.
-        [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT
+        // TCK-687 (P18.01) — rien non plus quand l'appelant les coupe (`placements=false`) : il ne
+        // les affiche pas, et une impression ne se compte que pour un emplacement montré.
+        $avecEmplacements = filter_var($params['placements'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+        // Hors de la graine de rotation : `placements=true` doit servir la même rotation que l'absence.
+        unset($params['placements']);
+        [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT && $avecEmplacements
             ? $this->placements($term, $filter, $sort, $page, $perPage, $params, $result)
             : [$this->withPlacement($this->hydrate($result['hits'] ?? []), 'organic'), []];
 
@@ -443,8 +449,15 @@ class PropertySearchService
     {
         $filter = self::publicFilter();
 
+        // TCK-663 (P01.02) — le panneau propose les noms du référentiel (« Grand Yoff »), une adresse
+        // non rattachée porte un texte libre (« Grand-Yoff ») : l'égalité stricte rendait 0 bien.
+        // Rattachée, l'adresse se juge par son identifiant ; sinon par sa clé repliée.
         if (! empty($p['location'])) {
-            $filter[] = 'neighborhood = '.self::quote((string) $p['location']);
+            $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de((string) $p['location']));
+            $ids = app(QuartierDuFiltre::class)->idsDuReferentiel((string) $p['location']);
+            $filter[] = $ids === []
+                ? $libre
+                : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
         }
         if (! empty($p['city'])) {
             $filter[] = 'city = '.self::quote((string) $p['city']);

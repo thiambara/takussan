@@ -15,4 +15,10 @@ return [
         'off_topic' => 'Hors sujet',
         'other' => 'Autre motif',
     ],
+    // TCK-656 — messages de validation, rendus dans la langue de la requête.
+    'rejection_reason' => [
+        'required' => 'Une raison de rejet est obligatoire.',
+        'min' => 'La raison doit contenir au moins 20 caractères.',
+        'max' => 'La raison ne peut pas dépasser 1000 caractères.',
+    ],
 ];

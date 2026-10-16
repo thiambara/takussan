@@ -329,10 +329,12 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   // UN SEUL et qu'il appartient bien à `SearchFilters`, on propose de retirer celui-là
   // plutôt que d'effacer toute la recherche : l'utilisateur garde son travail.
   //
-  // ⚠ On n'affiche JAMAIS la prose de validation du serveur ici. Mesuré : le 422 de
-  // `furnished` rend « The furnished field must be true or false. » sous `Accept-Language`
-  // fr, en ET wo — `lang/fr/validation.php` ne porte pas la clé `boolean`. Le libellé
-  // vient donc du dictionnaire du front, comme le veut le principe non négociable n°5.
+  // ⚠ On n'affiche JAMAIS la prose de validation du serveur ici : le libellé vient du
+  // dictionnaire du front, comme le veut le principe non négociable n°5. La raison n'est
+  // plus une traduction absente — mesuré à TCK-335, le 422 de `furnished` rendait de
+  // l'anglais sous fr et wo, mais `lang/{fr,wo}/validation.php` portent la clé `boolean`
+  // depuis TCK-536 (TCK-722). Elle est que la prose du serveur nomme le champ par sa clé
+  // technique : « Le champ furnished doit être vrai ou faux. »
   const cleFautive = (() => {
     if (!(error instanceof ApiError) || error.status !== 422) return null;
     const champs = Object.keys(error.validationErrors ?? {});

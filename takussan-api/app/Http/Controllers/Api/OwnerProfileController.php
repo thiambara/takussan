@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -68,7 +69,9 @@ class OwnerProfileController extends Controller
             ));
         }
 
-        $paginator = $query->paginate((int) $request->input('per_page', 20));
+        $paginator = $query->paginate($this->tailleDePage($request, 20));
+
+        IncludedUserResource::preload($paginator->items());
 
         return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request));
     }

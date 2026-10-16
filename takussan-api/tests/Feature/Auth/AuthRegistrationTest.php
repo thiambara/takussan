@@ -2,10 +2,15 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\User;
+use App\Notifications\CodedNotification;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -130,5 +135,61 @@ class AuthRegistrationTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['password']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function languesNegociees(): array
+    {
+        return ['fr' => ['fr'], 'en' => ['en'], 'wo' => ['wo']];
+    }
+
+    /**
+     * TCK-689 (P11.01) — l'inscription écrit la langue négociée de la requête, comme la connexion
+     * par téléphone (`PhoneLoginService::createAccount()`). Sans elle, la colonne gardait son
+     * défaut `fr`, et e-mails, SMS et WhatsApp partaient en français pour tout compte inscrit par
+     * e-mail, quelle que soit la langue dans laquelle il s'était inscrit.
+     */
+    #[DataProvider('languesNegociees')]
+    public function test_l_inscription_ecrit_la_langue_negociee(string $locale): void
+    {
+        $this->postJson('/api/auth/register', [
+            'first_name' => 'Awa',
+            'last_name' => 'Ndiaye',
+            'email' => 'awa@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ], ['Accept-Language' => $locale])->assertCreated();
+
+        $this->assertSame($locale, User::query()->where('email', 'awa@example.com')->value('preferred_language'));
+    }
+
+    public function test_un_compte_inscrit_en_anglais_recoit_ses_notifications_en_anglais(): void
+    {
+        Notification::fake();
+        app()->setLocale('fr');
+
+        $this->postJson('/api/auth/register', [
+            'first_name' => 'Awa',
+            'last_name' => 'Ndiaye',
+            'email' => 'awa@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ], ['Accept-Language' => 'en-GB,en;q=0.9,fr;q=0.5'])->assertCreated();
+
+        // Le worker qui envoie n'a pas la langue de la requête d'inscription.
+        app()->setLocale('fr');
+        $user = User::query()->where('email', 'awa@example.com')->sole();
+        app(NotificationService::class)->send($user, NotificationCode::LeasePaymentOverdue, [
+            'amount' => NotificationRenderer::money(150000, 'XOF'),
+            'days' => 7,
+            'due_date' => '2026-09-29',
+            'property' => 'Villa Almadies',
+        ]);
+
+        Notification::assertSentTo(
+            $user,
+            CodedNotification::class,
+            fn (CodedNotification $n, array $channels, User $to, ?string $sentLocale) => $sentLocale === 'en',
+        );
     }
 }

@@ -119,8 +119,7 @@ class AgencyModerationController extends Controller
             $query->orderByDesc('agencies.created_at');
         }
 
-        $perPage = (int) ($request->query('per_page') ?? 15);
-        $agencies = $query->paginate($perPage > 0 ? min($perPage, 100) : 15);
+        $agencies = $query->paginate($this->tailleDePage($request, 15));
 
         return $this->paginated($agencies, AgencyResource::collection($agencies)->resolve($request));
     }

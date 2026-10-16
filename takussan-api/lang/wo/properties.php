@@ -56,4 +56,11 @@ return [
         'good' => 'Bon état',
         'to_renovate' => 'À rénover',
     ],
+    // TCK-656 — messages de validation, rendus dans la langue de la requête.
+    'validation' => [
+        'photos_required' => 'Tànnal benn nataal lu mu néew.',
+        'photo_image' => 'Fisiye bi war na doon nataal bu ñu mën a jàng.',
+        'photo_mimes' => 'Formaa yi ñu nangu : JPG, PNG walla WebP.',
+        'photo_max' => 'Benn nataal du wara ëpp 10 Mo.',
+    ],
 ];

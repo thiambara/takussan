@@ -45,13 +45,16 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // variante authentifiée au visiteur suivant, et défairait en silence
     // exactement ce que TCK-335 venait de retirer. `cache.headers` ne sait pas
     // émettre de `Vary` ; sans `public`, il n'y a rien à faire varier.
+    //
+    // TCK-708 — `boost.impressions` AVANT `cache.headers` : il l'enveloppe, et voit donc le 304.
     Route::get('properties/search', [PublicPropertyController::class, 'search'])
-        ->middleware('cache.headers:etag')
+        ->middleware(['boost.impressions', 'cache.headers:etag'])
         ->name('properties.search');
 
     // TCK-247 — the whole homepage in one call. Literal segment: it MUST stay
     // above `properties/{slug}` or it is swallowed as a slug.
     Route::get('properties/discovery', [PublicPropertyController::class, 'discovery'])
+        ->middleware('boost.impressions')
         ->name('properties.discovery');
 
     // TCK-431 — l'énumération du catalogue indexable pour `/sitemap.xml` du site public.

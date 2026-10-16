@@ -27,6 +27,10 @@ class PhoneLoginEnumerationTest extends TestCase
 
     public function test_la_reponse_est_identique_avec_et_sans_compte(): void
     {
+        // Le délai de renvoi se compte en secondes d'horloge : sans horloge figée, une seconde
+        // franchie entre deux requêtes rend 59 au lieu de 60 (rouge intermittent de CI).
+        $this->freezeTime();
+
         User::factory()->create(['phone' => '+221770000301', 'phone_verified_at' => now()]);
         $verrouille = User::factory()->create(['phone' => '+221770000303', 'phone_verified_at' => now()]);
         for ($i = 0; $i < LoginLock::MAX_FAILURES; $i++) {

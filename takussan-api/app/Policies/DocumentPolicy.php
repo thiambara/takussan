@@ -10,6 +10,7 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -28,10 +29,18 @@ class DocumentPolicy extends BasePolicy
     /**
      * Lire un document : super-admin, celui qui l'a téléversé, ou quiconque a accès au modèle
      * auquel il est rattaché. Un document orphelin (`documentable` nul) est refusé.
+     *
+     * TCK-697 (P23.01, ADR-0055 §3) — sous impersonation, une pièce rattachée à un profil
+     * (`Document::isProfilePiece()`) est refusée à tous : `api/kyc/documents/*` l'est déjà pour la
+     * pièce d'agence, et aucune voie de la console ne sert celles-ci sous le nom de l'opérateur.
      */
     public function view(User $user, Model $model): bool
     {
         if (! $model instanceof Document) {
+            return false;
+        }
+
+        if ($model->isProfilePiece() && app(ImpersonationContext::class)->active()) {
             return false;
         }
 

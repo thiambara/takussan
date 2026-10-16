@@ -15,7 +15,6 @@ import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/
 import type {
   Conversation,
   Message,
-  MessageAttachment,
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
@@ -409,31 +408,9 @@ function extensionAudio(mime: string): string {
 // contact passe par la fiche publique d'un bien (`PublicPropertyController::contactMessage()`
 // choisit lui-même le destinataire), un groupe par `useCreateGroupConversation`.
 
-/**
- * Upload an attachment — multipart/form-data. React Query's mutation typing
- * plays nicely with `FormData` if we tag the shape with `formData: true`.
- */
-export type UploadAttachmentPayload = {
-  file: File;
-};
-
-export function useUploadAttachment(conversationId: number, messageId: number) {
-  return useApiMutation<ApiResponse<MessageAttachment>, UploadAttachmentPayload>(
-    {
-      path: cheminApi`/api/conversations/${conversationId}/messages/${messageId}/attachments`,
-      method: 'POST',
-      formData: true,
-      body: (vars) => {
-        const fd = new FormData();
-        fd.append('file', vars.file);
-        return fd;
-      },
-    },
-    {
-      invalidate: [['conversations', conversationId, 'messages']],
-    },
-  );
-}
+// TCK-683 (P13.03) — `useUploadAttachment` est retiré : il postait sur
+// `/api/conversations/{c}/messages/{m}/attachments`, qu'aucune route de l'API ne sert, et n'avait
+// aucun appelant. Le trombone de `ChatView`, qui visait la même route, est retiré avec lui.
 
 // =============================================================================
 // TCK-085 — Group conversations

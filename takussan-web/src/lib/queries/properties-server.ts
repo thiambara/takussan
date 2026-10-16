@@ -123,7 +123,9 @@ function buildListParams({
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
     filter,
     include: ['address', 'owner', 'collaborators'],
-    sort: sort ?? '-created_at',
+    // TCK-662 (P01.01) — pendant une recherche, aucun tri par défaut : un `sort=` explicite
+    // effacerait la pertinence que l'API restitue (`defaultSortsWithRelevance`).
+    sort: sort ?? (filters?.search ? undefined : '-created_at'),
     page: page ?? 1,
     per_page: perPage ?? 20,
     extra: filters?.include_archived === '1' ? { include_archived: '1' } : undefined,

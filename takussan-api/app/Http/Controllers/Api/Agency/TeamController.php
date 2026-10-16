@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Agency;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\IncludedUserResource;
 use App\Models\Agency;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
@@ -45,7 +46,7 @@ class TeamController extends Controller
 
         $paginator = AgentProfile::buildQuery($base, $request)
             ->defaultSort('-created_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         // TCK-589 — la colonne 2FA de l'équipe : un champ CALCULÉ, une requête pour
         // la page, et non une entrée de `User::$queryFields`, qui l'exposerait à
@@ -58,6 +59,9 @@ class TeamController extends Controller
             $profile->setAttribute('two_factor_enabled', (bool) ($enabled[$profile->user_id] ?? false));
         }
 
-        return $this->paginated($paginator, $items);
+        // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
+        IncludedUserResource::preload($items);
+
+        return $this->paginated($paginator, array_map(IncludedUserResource::inParent(...), $items));
     }
 }

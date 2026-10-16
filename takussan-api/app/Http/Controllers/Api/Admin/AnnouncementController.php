@@ -16,7 +16,7 @@ class AnnouncementController extends Controller
     {
         $paginator = Announcement::buildQuery(request: $request)
             ->defaultSort('-starts_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, AnnouncementResource::collection($paginator->items())->resolve());
     }

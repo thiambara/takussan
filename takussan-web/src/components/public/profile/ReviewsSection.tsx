@@ -1,5 +1,7 @@
 import { Star } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
 import { ReviewReportButton } from '@/components/reports/ReviewReportButton';
 
 export interface PublicReview {
@@ -17,16 +19,19 @@ interface ReviewsSectionProps {
   readonly reviews: ReadonlyArray<PublicReview>;
 }
 
-function relativeDate(iso: string | null): string {
+/**
+ * Le mois d'un avis (« octobre 2026 », « October 2026 ») dans la langue de la page.
+ *
+ * P06.05 / TCK-721 — il était figé en `'fr-FR'` : la fiche publique d'agence et d'agent, sous
+ * `/en`, datait ses avis en français. La locale vient de l'appelant (`useLocale`) : ce composant
+ * est rendu par des pages SERVEUR, où `useFormatteurs()` (module `'use client'`) n'est pas appelable.
+ * `formatDate` rend `''` sur une date illisible, ce que faisait le `try/catch` d'avant.
+ *
+ * ⚠ `dateStyle: undefined` est obligatoire à côté de `year`/`month` (cf. `useFormatteurs.ts`).
+ */
+function moisDeLAvis(iso: string | null, locale: Locale): string {
   if (!iso) return '';
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-    });
-  } catch {
-    return '';
-  }
+  return formatDate(iso, locale, { dateStyle: undefined, year: 'numeric', month: 'long' });
 }
 
 /** Le repli n'est plus un littéral : l'appelant — un composant — résout la clé et le transmet. */
@@ -42,6 +47,8 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
   // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
   // conditionnel, que le React Compiler refuse (ADR-0015).
   const t = useTranslations('publicProfile.reviews');
+  const localeBrute = useLocale();
+  const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
 
   if (count === 0 || reviews.length === 0) return null;
 
@@ -93,7 +100,7 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
             )}
             <p className="mt-4 text-xs text-muted-foreground">
               {r.author ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
-              {r.created_at && ` · ${relativeDate(r.created_at)}`}
+              {r.created_at && ` · ${moisDeLAvis(r.created_at, locale)}`}
             </p>
             <div className="mt-2">
               <ReviewReportButton reviewId={r.id} />

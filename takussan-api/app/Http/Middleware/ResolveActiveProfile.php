@@ -60,6 +60,14 @@ class ResolveActiveProfile
             return $next($request);
         }
 
+        // TCK-711 (piste P02.03) — le profil plateforme se lit ICI, une fois par requête : sans cela,
+        // `Gate::before` (`isSuperAdmin()`), chaque ligne de `LeaseResource` et les middlewares 2FA
+        // le relisaient chacun. `load()` et non `loadMissing()` : l'instance peut survivre d'une
+        // requête à l'autre (en test, le garde d'authentification la conserve), et une révocation
+        // doit prendre effet à la requête suivante. Sans contrainte `active()` : `user_id` est
+        // unique, et `isActive()` tranche.
+        $user->load('platformProfile');
+
         // TCK-278 — Probe super_admin via `User::isSuperAdmin()` (PlatformProfile).
         if ($user->isSuperAdmin()) {
             // Stay at team_id = null. Explicit profile signals still apply

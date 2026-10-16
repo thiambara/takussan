@@ -17,7 +17,10 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
  */
 export function useDatesCalendrier() {
   const f = useFormatteurs();
-  const fuseau = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Seul le FUSEAU est lu ici, et il ne dépend pas de la locale : celle de l'app est passée pour
+  // qu'aucun formateur de ce module ne suive la langue du navigateur (P06.05 / TCK-721). Le
+  // résultat est identique à `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+  const fuseau = new Intl.DateTimeFormat(f.locale).resolvedOptions().timeZone;
   return {
     date: (d: Date, options: Intl.DateTimeFormatOptions) =>
       f.date(d, { ...options, timeZone: fuseau }),

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\IncludedUserResource;
 use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -41,10 +42,13 @@ class ServiceProviderProfileController extends Controller
             // TCK-597 (ADR-0043 §2) — la note moyenne des seuls avis approuvés, lue à la demande.
             ->withAvg(['reviews as average_rating' => fn (Builder $q) => $q->where('is_approved', true)], 'rating')
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
+
+        // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
+        IncludedUserResource::preload($paginator->items());
 
         return $this->json([
-            'data' => $paginator->items(),
+            'data' => array_map(IncludedUserResource::inParent(...), $paginator->items()),
             'meta' => $this->paginationMeta($paginator),
         ]);
     }

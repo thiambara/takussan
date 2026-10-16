@@ -98,7 +98,7 @@ describe('<OwnerOnboardingWizard>', () => {
       ok: true,
       data: {
         id: 7,
-        kyc: { status: 'pending_review', submitted_at: null, docs: [] },
+        kyc: { submitted_at: null, docs: [] },
       },
     });
     ownerOnboardCompleteAction.mockResolvedValue({

@@ -105,7 +105,7 @@ describe('<AgentOnboardingWizard>', () => {
       ok: true,
       data: {
         id: 11,
-        kyc: { status: 'pending_review', submitted_at: null, docs: [] },
+        kyc: { submitted_at: null, docs: [] },
       },
     });
     agentUpdateSpecializationAction.mockResolvedValue({

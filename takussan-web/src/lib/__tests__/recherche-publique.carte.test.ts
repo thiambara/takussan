@@ -69,7 +69,7 @@ describe('TCK-633 — parametresDeLaCarte', () => {
 
   it('les clés propres à la liste sont celles du contrat', () => {
     expect([...CLES_PROPRES_A_LA_LISTE]).toEqual([
-      'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max',
+      'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements',
     ]);
   });
 });

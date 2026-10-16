@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import { PropertyKpiStrip } from '../PropertyKpiStrip';
 
 /**
@@ -20,7 +22,7 @@ const classes = (el: Element) => el.className.split(/\s+/);
 
 describe('<PropertyKpiStrip> sous lg — une rangée de pastilles (TCK-644)', () => {
   it('pose une rangée qui défile dans son conteneur, et la grille dès lg', () => {
-    render(<PropertyKpiStrip tiles={TUILES} />);
+    render(withIntl(<PropertyKpiStrip tiles={TUILES} />));
     const rangee = screen.getByRole('navigation');
     expect(classes(rangee)).toEqual(
       expect.arrayContaining(['flex', 'overflow-x-auto', 'lg:grid', 'lg:grid-cols-4']),
@@ -29,7 +31,7 @@ describe('<PropertyKpiStrip> sous lg — une rangée de pastilles (TCK-644)', ()
   });
 
   it('chaque compteur reste un lien qui filtre, compact sous lg et en tuile dès lg', () => {
-    render(<PropertyKpiStrip tiles={TUILES} />);
+    render(withIntl(<PropertyKpiStrip tiles={TUILES} />));
     const lien = screen.getByRole('link', { name: /Vendus \/ Loués/ });
     expect(lien).toHaveAttribute('href', '/app/properties?status=sold');
     expect(classes(lien)).toEqual(expect.arrayContaining(['shrink-0', 'rounded-full', 'lg:rounded-xl']));
@@ -39,7 +41,7 @@ describe('<PropertyKpiStrip> sous lg — une rangée de pastilles (TCK-644)', ()
   });
 
   it('le compteur actif se lit sans couleur seule : aria-current et pastille pleine', () => {
-    render(<PropertyKpiStrip tiles={TUILES} />);
+    render(withIntl(<PropertyKpiStrip tiles={TUILES} />));
     const actif = screen.getByRole('link', { name: /Total/ });
     expect(actif).toHaveAttribute('aria-current', 'true');
     expect(classes(actif)).toContain('bg-foreground');

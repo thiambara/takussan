@@ -17,15 +17,11 @@ import {
   FormGlobalError,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
-import { useCreateGuarantor } from '@/lib/queries/leases';
+import { useCreateGuarantor, useLeaseGuarantors } from '@/lib/queries/leases';
 import { guarantorSchema, type GuarantorFormValues } from '@/lib/schemas/lease';
-import type { Guarantor } from '@/types/lease';
 
 interface GuarantorSectionProps {
   readonly leaseId: number;
-  readonly guarantor?: Guarantor | null;
-  /** Count of guarantors already attached. Max 3 per lease (TCK-044). */
-  readonly guarantorsCount?: number;
   /** TCK-173 — false hides the add button for tenants. */
   readonly canManage?: boolean;
 }
@@ -37,18 +33,21 @@ const MAX_GUARANTORS = 3;
 
 export function GuarantorSection({
   leaseId,
-  guarantor,
-  guarantorsCount = 0,
   canManage = true,
 }: GuarantorSectionProps) {
   // ⚠ Les hooks précèdent la sortie anticipée ci-dessous : posés après, ce seraient des hooks
   // conditionnels, refusés par le React Compiler (ADR-0015).
   const t = useTranslations('lease.guarantor');
   const [open, setOpen] = useState(false);
-  const disabled = guarantorsCount >= MAX_GUARANTORS;
+  // TCK-695 — les garants du bail sont ceux du pivot `lease_guarantor`, lus par leur route :
+  // `GET /api/leases/{id}` n'en émet aucun, et l'ajout n'écrit pas `leases.guarantor_id`.
+  const guarantorsQuery = useLeaseGuarantors(leaseId);
+  const guarantors = guarantorsQuery.data?.data ?? [];
+  // Trois garants au plus par bail (TCK-044) : le serveur tient la borne, le bouton la reflète.
+  const disabled = guarantors.length >= MAX_GUARANTORS;
 
   // TCK-173 — tenants without an existing guarantor have nothing to display.
-  if (!canManage && !guarantor) return null;
+  if (!canManage && guarantors.length === 0) return null;
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
@@ -72,32 +71,32 @@ export function GuarantorSection({
         )}
       </div>
 
-      {guarantor ? (
-        <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</dt>
-            <dd className="text-foreground">{guarantor.full_name}</dd>
-          </div>
-          {guarantor.phone && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('phone')}</dt>
-              <dd className="text-foreground">{guarantor.phone}</dd>
-            </div>
-          )}
-          {guarantor.email && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('email')}</dt>
-              <dd className="text-foreground">{guarantor.email}</dd>
-            </div>
-          )}
-          {guarantor.relationship_to_tenant && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('relationship')}</dt>
-              <dd className="text-foreground">{guarantor.relationship_to_tenant}</dd>
-            </div>
-          )}
-        </dl>
-      ) : (
+      {guarantors.length > 0 ? (
+        <ul className="mt-4 divide-y divide-border">
+          {guarantors.map((guarantor) => (
+            <li key={guarantor.id} className="py-3 first:pt-0 last:pb-0">
+              <dl className="grid gap-2 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</dt>
+                  <dd className="text-foreground">{`${guarantor.first_name} ${guarantor.last_name}`}</dd>
+                </div>
+                {guarantor.phone && (
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('phone')}</dt>
+                    <dd className="text-foreground">{guarantor.phone}</dd>
+                  </div>
+                )}
+                {guarantor.email && (
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('email')}</dt>
+                    <dd className="text-foreground">{guarantor.email}</dd>
+                  </div>
+                )}
+              </dl>
+            </li>
+          ))}
+        </ul>
+      ) : guarantorsQuery.isLoading ? null : (
         <p className="mt-4 text-sm text-muted-foreground">
           {t('empty')}
         </p>

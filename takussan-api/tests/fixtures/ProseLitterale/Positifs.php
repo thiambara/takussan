@@ -38,3 +38,29 @@ function positifs($request, $notifications, $user, $id, $max): void
         'to' => [sprintf('La plage ne peut dépasser %d jours.', $max)],
     ]);
 }
+
+// (h) et (i) — TCK-656 : les messages d'une requête et d'une règle de validation.
+class PositifsRequete
+{
+    public function messages(): array
+    {
+        return [
+            // (h) une phrase écrite en dur
+            'photos.required' => 'Sélectionnez au moins une photo.',
+            // (h) un nom de champ français injecté dans le gabarit de la langue active
+            'user_id.required' => __('validation.required', ['attribute' => 'utilisateur']),
+        ];
+    }
+
+    public function attributes(): array
+    {
+        // (h) un nom de champ écrit en dur
+        return ['ends_at' => 'date de fin'];
+    }
+
+    public function regle($value, Closure $fail): void
+    {
+        // (i) le message d'un $fail
+        $fail('La signature est invalide.');
+    }
+}

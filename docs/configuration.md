@@ -258,7 +258,9 @@ php artisan scout:import "App\Models\User"
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par le service `release` (`takussan-api/docker/release.sh`, ADR-0028) quand
-  `SCOUT_DRIVER=meilisearch`.
+  `SCOUT_DRIVER=meilisearch`. **Son échec arrête le déploiement** : `release` sort en erreur et
+  les services ne démarrent pas (TCK-710), car des réglages périmés font échouer la recherche
+  publique au lieu de la dégrader.
 - `scout:import` est lancé **par le même service**, pour tous les modèles indexés, quand
   l'empreinte `.search-shape` de l'image — la forme des documents : `config/scout.php`, les
   modèles qui déclarent `toSearchableArray()`, `app/Support/Search/`, `lang/fr/properties.php` —

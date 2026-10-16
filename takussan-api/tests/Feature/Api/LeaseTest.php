@@ -85,6 +85,30 @@ class LeaseTest extends TestCase
             ->assertJsonPath('data.status', 'paid');
     }
 
+    /**
+     * TCK-681 (P13.01) — un loyer reçu se règle par `mark-paid` sur l'échéance existante. La
+     * création n'écrit qu'une échéance en attente : un `paid_at` qu'elle retirait en silence
+     * laissait croire à l'écran qu'il venait d'enregistrer un paiement.
+     */
+    public function test_create_lease_payment_refuses_paid_at(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->active()->create(['landlord_id' => $landlord->id]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/payments", [
+            'amount' => 400000,
+            'payment_type' => 'rent',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-01-31',
+            'paid_at' => '2026-01-03',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('paid_at');
+
+        $this->assertSame(0, $lease->payments()->count());
+    }
+
     public function test_can_renew_active_lease(): void
     {
         // TCK-089 — renewal route now lives on `LeaseRenewalController`,

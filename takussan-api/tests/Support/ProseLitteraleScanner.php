@@ -9,7 +9,7 @@ use RecursiveIteratorIterator;
 /**
  * TCK-588 (ADR-0032) — trouve la prose écrite en dur aux endroits où l'API la renvoie à un écran.
  *
- * Sept positions, lettres du ticket :
+ * Neuf positions — (a)-(g) de TCK-588, (h)-(i) de TCK-656 :
  *
  *   (a) le message d'un `abort()`, `abort_if()`, `abort_unless()` ;
  *   (b) le titre ou le corps d'un `->notify(`/`->notifyMany(` à quatre arguments ou plus
@@ -20,7 +20,13 @@ use RecursiveIteratorIterator;
  *   (e) le message de `new *HttpException(` et les valeurs de `ValidationException::withMessages(` ;
  *   (f) `new HttpResponseException(`, sans condition : elle contourne le rendu de `bootstrap/app.php` ;
  *   (g) `number_format(` dans `Notifications/**`, sans condition : un montant passe par
- *       `CurrencyFormatter`, dans la langue du destinataire.
+ *       `CurrencyFormatter`, dans la langue du destinataire ;
+ *   (h) une valeur du corps de `messages()` ou `attributes()` d'une requête, **y compris** les
+ *       remplacements passés à `__()` — `__('validation.required', ['attribute' => 'utilisateur'])`
+ *       injecte un nom français dans le gabarit de la langue active. Aucun code n'y est toléré :
+ *       `'utilisateur'` a la forme d'un code ;
+ *   (i) le message d'un `$fail(…)` de règle de validation. Une clé seule reste tolérée :
+ *       `$fail('validation.rules.phone_e164')->translate()`.
  *
  * Aux positions (a)-(e), **tout** littéral qui contient une lettre compte, même imbriqué dans un
  * `sprintf(`, une concaténation, un tableau ou une chaîne interpolée — le cas
@@ -48,6 +54,13 @@ final class ProseLitteraleScanner
 
     public const NUMBER_FORMAT = 'g';
 
+    public const VALIDATION_MESSAGE = 'h';
+
+    public const VALIDATION_FAIL = 'i';
+
+    /** Méthodes d'une requête dont les valeurs sont des messages ou des noms de champ affichés. */
+    private const VALIDATION_METHODS = ['messages', 'attributes'];
+
     /** Position du message dans chaque forme d'abort. */
     private const ABORTS = ['abort' => 1, 'abort_if' => 2, 'abort_unless' => 2];
 
@@ -66,9 +79,10 @@ final class ProseLitteraleScanner
 
     /**
      * Un code, pas une phrase : `ok`, `deleted`, `enum_value_exists`, `unknown_placeholder:`. Toléré
-     * aux deux seules positions où l'API a toujours rendu des codes à côté de la prose — la valeur de
-     * `'message' =>` (accusés `ok`/`deleted`) et celle de `ValidationException::withMessages` (codes
-     * que le front traduit). **Jamais pour un `abort`** : un code d'abort passe par `abort_code()`,
+     * aux positions où l'API a toujours rendu des codes à côté de la prose — la valeur de
+     * `'message' =>` (accusés `ok`/`deleted`), celle de `ValidationException::withMessages` (codes
+     * que le front traduit), et le message d'un `$fail` (i), qui peut être une clé traduite par
+     * `->translate()`. **Jamais pour un `abort`** : un code d'abort passe par `abort_code()`,
      * dont la clé est vérifiée en trois langues.
      */
     private const CODE_SHAPE = '/^[a-z0-9_]+([.:][a-z0-9_]+)*:?$/';
@@ -227,6 +241,31 @@ final class ProseLitteraleScanner
                 continue;
             }
 
+            // (h) le corps de messages() / attributes()
+            if ($tok->is(T_FUNCTION) && $next !== null && in_array($next->text, self::VALIDATION_METHODS, true)) {
+                $open = $i;
+                while ($open < $n && $t[$open]->text !== '{' && $t[$open]->text !== ';') {
+                    $open++;
+                }
+                if (($t[$open]->text ?? null) === '{') {
+                    $this->appelsReconnus++;
+                    $findings = [...$findings, ...$this->prose($t, [$open + 1, $this->closing($t, $open) - 1], self::VALIDATION_MESSAGE, false, true)];
+                }
+
+                continue;
+            }
+
+            // (i) $fail( d'une règle de validation
+            if ($tok->is(T_VARIABLE) && $tok->text === '$fail' && $isCall) {
+                $this->appelsReconnus++;
+                $args = $this->arguments($t, $i + 1);
+                if (isset($args[0])) {
+                    $findings = [...$findings, ...$this->prose($t, $args[0], self::VALIDATION_FAIL, true)];
+                }
+
+                continue;
+            }
+
             // (g) number_format( dans Notifications/**
             if ($isNotificationClass && $isFunction && $name === 'number_format') {
                 $this->appelsReconnus++;
@@ -249,13 +288,19 @@ final class ProseLitteraleScanner
      * @param  array{0: int, 1: int}  $range  bornes incluses
      * @return list<array{line: int, form: string, literal: string}>
      */
-    private function prose(array $t, array $range, string $form, bool $codesTolerated = false): array
+    private function prose(array $t, array $range, string $form, bool $codesTolerated = false, bool $readReplacements = false): array
     {
         $found = [];
         [$from, $to] = $range;
         for ($i = $from; $i <= $to; $i++) {
             $tok = $t[$i];
             if ($tok->is(T_STRING) && in_array($tok->text, [...self::TRANSLATORS, 'config'], true) && ($t[$i + 1]->text ?? null) === '(') {
+                // (h) : la clé n'est pas de la prose, ses remplacements le sont.
+                if ($readReplacements && $tok->text !== 'config') {
+                    foreach (array_slice($this->arguments($t, $i + 1), 1) as $replacement) {
+                        $found = [...$found, ...$this->prose($t, $replacement, $form, $codesTolerated, true)];
+                    }
+                }
                 $i = $this->closing($t, $i + 1);
 
                 continue;

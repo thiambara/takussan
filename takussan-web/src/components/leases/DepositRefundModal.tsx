@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useForm, useWatch } from 'react-hook-form';
 import {
   Dialog,
@@ -49,6 +50,7 @@ export function DepositRefundModal({
   currency,
 }: DepositRefundModalProps) {
   const t = useTranslations('lease.deposit');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -168,13 +170,13 @@ export function DepositRefundModal({
             <Input
               id="deposit-refund-amount"
               type="number"
-              min={0.01}
-              step={1000}
+              min={1}
+              step="any"
               {...register('amount', { valueAsNumber: true })}
             />
             <p className="text-xs text-muted-foreground">
               {t('modal.remaining', {
-                amount: depositRemaining.toLocaleString(),
+                amount: fmt.nombre(depositRemaining),
                 currency,
               })}
             </p>
@@ -186,14 +188,14 @@ export function DepositRefundModal({
           <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
             <p>
               {t('modal.breakdown_refund', {
-                amount: amount.toLocaleString(),
+                amount: fmt.nombre(amount),
                 currency,
               })}
             </p>
             {retained > 0 && (
               <p className="mt-1 font-medium text-warning">
                 {t('modal.breakdown_retained', {
-                  amount: retained.toLocaleString(),
+                  amount: fmt.nombre(retained),
                   currency,
                 })}
               </p>

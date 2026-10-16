@@ -22,7 +22,7 @@ class PlatformPayoutController extends Controller
     {
         $payouts = PlatformPayout::buildQuery(request: $request)
             ->defaultSort('-period_end')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->json([
             'data' => PlatformPayoutResource::collection($payouts->items())->resolve($request),

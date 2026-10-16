@@ -16,16 +16,13 @@ import {
   useSendMessage,
 } from '@/lib/queries/conversations';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback';
 import { formatDateTime } from '@/lib/format';
-import { isAllowedAttachment, sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
-import { traduireMessageValidation } from '@/lib/schemas/messages';
-import { useTraducteurValidation } from '@/hooks/useApiForm';
+import { sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
@@ -35,8 +32,6 @@ import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { reduirePhoto } from '@/lib/reduire-photo';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -67,19 +62,14 @@ interface ChatViewProps {
 export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
   const isWidget = variant === 'widget';
   const t = useTranslations('messaging');
-  const tValidation = useTraducteurValidation();
   const tWidget = useTranslations('messaging.widget');
-  const messageErreur = useMessageErreurApi();
   const locale = useLocale() as Locale;
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(
     typeof document === 'undefined' ? true : !document.hidden,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLLIElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
@@ -218,64 +208,12 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   const renderItems = groupMessagesByDay(messages);
 
-  async function uploadAttachment(messageId: number, file: File) {
-    const fd = new FormData();
-    // Une image jointe est réduite avant l'envoi ; un PDF ou un .docx passe tel quel (TCK-542).
-    fd.append('file', await reduirePhoto(file));
-    await apiRequest(
-      `/api/conversations/${conversationId}/messages/${messageId}/attachments`,
-      {
-        method: 'POST',
-        body: fd,
-        formData: true,
-        token: token ?? undefined,
-      },
-    );
-  }
-
   async function onSubmit(values: SendMessageFormValues) {
     try {
-      const result = await sendMessage.mutateAsync({ content: values.content });
+      await sendMessage.mutateAsync({ content: values.content });
       form.reset({ content: '' });
-
-      const pendingFile = fileInputRef.current?.files?.[0];
-      if (pendingFile) {
-        const validation = isAllowedAttachment(pendingFile);
-        if (!validation.ok) {
-          // `reason` porte une CLÉ (`validation.message.…`), pas un libellé — cf. l'en-tête
-          // d'`isAllowedAttachment`. Le `??` reste pour la forme : `reason` est toujours posé
-          // quand `ok` vaut `false`, donc le repli n'est atteint par aucun chemin connu.
-          setAttachmentError(
-            traduireMessageValidation(validation.reason, tValidation)
-            ?? t('chat.attachmentRejected'),
-          );
-        } else {
-          setUploading(true);
-          try {
-            await uploadAttachment(result.data.id, pendingFile);
-          } catch (err) {
-            setAttachmentError(messageErreur(err, t('chat.uploadFailed')));
-          } finally {
-            setUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-          }
-        }
-      }
     } catch {
       // Global error is surfaced via the mutation state
-    }
-  }
-
-  function handleFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
-    setAttachmentError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const v = isAllowedAttachment(file);
-    if (!v.ok) {
-      setAttachmentError(
-        traduireMessageValidation(v.reason, tValidation) ?? t('chat.attachmentRejected'),
-      );
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
 
@@ -424,34 +362,15 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
       <ChatComposerShell
         // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
-        // produire le gestionnaire, et `onSubmit` lit `fileInputRef.current` :
-        // le compilateur ne peut pas prouver que la ref n'est pas lue au rendu.
-        // On diffère l'appel dans l'événement, ce que fait déjà le bouton plus bas.
+        // produire le gestionnaire ; on diffère l'appel dans l'événement, ce que fait
+        // déjà le bouton plus bas.
         onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-        error={attachmentError}
-        sendDisabled={sendMessage.isPending || uploading}
+        sendDisabled={sendMessage.isPending}
         sendAriaLabel={t('chat.sendAria')}
-        leading={
-          <>
-          <label
-            htmlFor="chat-file"
-            className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring sm:size-9"
-            aria-label={t('chat.attachAria')}
-          >
-            <Paperclip className="size-4" aria-hidden />
-            <input
-              id="chat-file"
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf,.doc,.docx"
-              className="sr-only"
-              onChange={handleFilePicked}
-            />
-          </label>
-          {/* TCK-592 (ADR-0038) — la note vocale, à côté de la pièce jointe. */}
-          <VoiceNoteRecorder conversationId={conversationId} />
-          </>
-        }
+        // TCK-683 (P13.03) — plus de trombone : il postait sur
+        // `/messages/{m}/attachments`, qu'aucune route de l'API ne sert. Le porteur l'a
+        // retiré « pour l'instant » ; la note vocale reste (TCK-592, ADR-0038).
+        leading={<VoiceNoteRecorder conversationId={conversationId} />}
       >
         <Textarea
           {...form.register('content')}

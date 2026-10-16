@@ -2,6 +2,7 @@
 
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
+use App\Http\Middleware\CountBoostImpressions;
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsurePlatformAbility;
@@ -98,6 +99,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook.journal' => JournalizeIncomingWebhook::class,
             // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
             'platform-can' => EnsurePlatformAbility::class,
+            // TCK-708 (P01.04) — les impressions sponsorisées, comptées une fois la réponse connue.
+            'boost.impressions' => CountBoostImpressions::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

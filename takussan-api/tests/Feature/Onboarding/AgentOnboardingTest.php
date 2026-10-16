@@ -128,7 +128,7 @@ class AgentOnboardingTest extends TestCase
             ->exists());
     }
 
-    public function test_kyc_submit_marks_dossier_as_pending_review(): void
+    public function test_kyc_submit_marks_dossier_as_submitted_without_a_review_status(): void
     {
         $user = User::factory()->create();
         $agent = AgentProfile::factory()->create(['user_id' => $user->id]);
@@ -137,11 +137,12 @@ class AgentOnboardingTest extends TestCase
         $response = $this->postJson("/api/me/agent-profiles/{$agent->id}/kyc/submit");
 
         $response->assertOk()
-            ->assertJsonPath('data.kyc.status', 'pending_review')
+            ->assertJsonMissingPath('data.kyc.status')
             ->assertJsonPath('data.id', $agent->id);
 
         $agent->refresh();
-        $this->assertSame('pending_review', data_get($agent->metadata, 'kyc.status'));
+        // TCK-685 (P15.02) : aucune file ne relit ce dossier ; aucun statut « en revue » n'est posé.
+        $this->assertNull(data_get($agent->metadata, 'kyc.status'));
         $this->assertNotEmpty(data_get($agent->metadata, 'kyc.submitted_at'));
     }
 

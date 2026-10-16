@@ -21,9 +21,9 @@ class RejectPropertyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'rejection_reason.required' => 'Une raison de rejet est obligatoire.',
-            'rejection_reason.min' => 'La raison doit contenir au moins 20 caractères.',
-            'rejection_reason.max' => 'La raison ne peut pas dépasser 1000 caractères.',
+            'rejection_reason.required' => __('moderation.rejection_reason.required'),
+            'rejection_reason.min' => __('moderation.rejection_reason.min'),
+            'rejection_reason.max' => __('moderation.rejection_reason.max'),
         ];
     }
 }

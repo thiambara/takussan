@@ -7,7 +7,7 @@ import { cheminApi } from '@/lib/chemin-api';
  *
  * The wizard talks to five backend endpoints:
  *  1. POST  /api/me/agent-profiles/{id}/kyc/upload         — multipart license/cni/photo
- *  2. POST  /api/me/agent-profiles/{id}/kyc/submit         — flips KYC to pending_review
+ *  2. POST  /api/me/agent-profiles/{id}/kyc/submit         — stamps kyc.submitted_at
  *  3. PATCH /api/me/agent-profiles/{id}/specialization     — specialty + zones + license_number
  *  4. GET   /api/me/agent-profiles/{id}/first-lead         — first pre-assigned customer
  *  5. POST  /api/agent/onboard/complete                    — OTP + flip status + cookie
@@ -17,7 +17,6 @@ export type AgentKycSubmitResponse = {
   data: {
     id: number;
     kyc: {
-      status: string;
       submitted_at: string | null;
       docs: string[];
     };

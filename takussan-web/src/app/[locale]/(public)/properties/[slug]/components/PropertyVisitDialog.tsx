@@ -285,7 +285,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
               <div className="space-y-1.5 sm:col-span-2">
                 <label htmlFor="visit-email" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {tVisit('emailLabel')}{' '}
-                  <span className="font-normal normal-case text-muted-foreground/70">{tVisit('optional')}</span>
+                  <span className="font-normal normal-case text-muted-foreground">{tVisit('optional')}</span>
                 </label>
                 <Input
                   id="visit-email"
@@ -349,7 +349,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
           <div className="space-y-1.5">
             <label htmlFor="visit-notes" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t('notesLabel')}{' '}
-              <span className="font-normal normal-case text-muted-foreground/70">
+              <span className="font-normal normal-case text-muted-foreground">
                 {t('notesOptional')}
               </span>
             </label>

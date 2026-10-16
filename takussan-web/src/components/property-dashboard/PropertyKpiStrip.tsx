@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 interface KpiTile {
@@ -35,6 +38,10 @@ export function PropertyKpiStrip({
   /** Nom du repère de navigation (les pastilles filtrent la liste). */
   readonly label?: string;
 }) {
+  // P06.05 / TCK-721 — le compteur suit la langue de l'app (il était figé en `'fr-FR'`).
+  // `useLocale` + `@/lib/format` : la page qui rend cette bande est un composant SERVEUR.
+  const localeBrute = useLocale();
+  const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
   return (
     <nav
       aria-label={label}
@@ -68,7 +75,7 @@ export function PropertyKpiStrip({
               {tile.label}
             </span>
             <span className="text-sm font-semibold tabular-nums lg:text-2xl lg:font-bold lg:text-foreground">
-              {tile.value.toLocaleString('fr-FR')}
+              {formatNumber(tile.value, locale)}
             </span>
           </Link>
         );

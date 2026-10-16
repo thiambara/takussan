@@ -10,7 +10,10 @@ use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -35,17 +38,15 @@ class PropertyMediaController extends Controller
     {
 
         $added = [];
+        $failed = [];
         $raw = null;
-        foreach ($request->file('photos', []) as $photo) {
-            $media = null;
-            try {
-                $media = $property->addMedia($photo)->toMediaCollection('photos');
-            } catch (\Throwable $e) {
-                $media?->delete();
+        foreach (array_values($request->file('photos', [])) as $index => $photo) {
+            $media = $this->addPhoto($property, $photo);
 
-                throw ValidationException::withMessages([
-                    'photos' => [__('errors.media.photo_unprocessable')],
-                ]);
+            if ($media === null) {
+                $failed["photos.{$index}"] = [__('errors.media.photo_unprocessable')];
+
+                continue;
             }
 
             // `refresh()` : l'instance rendue par `addMedia()` ne voit pas ce que les
@@ -55,7 +56,46 @@ class PropertyMediaController extends Controller
             $added[] = $this->urls($media, $property->requiresWatermark(), $raw);
         }
 
+        // TCK-676 (P10.01) — le lot n'est pas atomique : les photos lisibles restent, et le 422
+        // nomme chaque photo en échec par son rang (`photos.N`), pour qu'on ne renvoie qu'elle.
+        if ($failed !== []) {
+            throw ValidationException::withMessages($failed);
+        }
+
         return $this->json(['data' => $added], 201);
+    }
+
+    /**
+     * TCK-676 (P10.01) — ajoute une photo, ou ne laisse RIEN d'elle si elle échoue.
+     *
+     * Spatie enregistre la ligne et copie l'original AVANT la miniature synchrone
+     * (`FileAdder::processMediaItem`) : quand GD ne décode pas l'image, l'exception sort d'un
+     * `addMedia()` qui n'a rien rendu. Le média se retrouve donc par l'`uuid` qu'on lui impose,
+     * jamais par « le dernier média du bien », qu'un envoi concurrent peut être.
+     *
+     * Le répertoire temporaire de conversion (une copie de l'original privé) n'est supprimé par
+     * Spatie qu'en cas de succès (`FileManipulator::performConversions`), sous un nom aléatoire :
+     * on le loge dans un parent propre à cette photo, qu'on supprime quoi qu'il arrive.
+     */
+    private function addPhoto(Property $property, UploadedFile $photo): ?Media
+    {
+        $uuid = (string) Str::uuid();
+        $previousTemp = config('media-library.temporary_directory_path');
+        $temp = ($previousTemp ?? storage_path('media-library/temp')).DIRECTORY_SEPARATOR.'upload-'.$uuid;
+        config(['media-library.temporary_directory_path' => $temp]);
+
+        try {
+            return $property->addMedia($photo)
+                ->withProperties(['uuid' => $uuid])
+                ->toMediaCollection('photos');
+        } catch (\Throwable) {
+            Media::query()->where('uuid', $uuid)->first()?->delete();
+
+            return null;
+        } finally {
+            config(['media-library.temporary_directory_path' => $previousTemp]);
+            File::deleteDirectory($temp);
+        }
     }
 
     /**

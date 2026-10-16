@@ -26,11 +26,23 @@ use Illuminate\Support\Carbon;
 class ExportDataService
 {
     /**
+     * TCK-713 (piste P02.07) — l'export est synchrone : il se borne. 10 000 lignes au plus, 2 000 en
+     * PDF, dont le rendu coûte bien plus par ligne. `ShowExportRequest` refuse une `limit` au-delà ;
+     * le défaut (5 000) est ramené au plafond du format.
+     */
+    public const MAX_ROWS = 10_000;
+
+    public const MAX_ROWS_PDF = 2_000;
+
+    public const DEFAULT_ROWS = 5_000;
+
+    /**
      * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
      */
     public function payments(User $actor, array $filters = []): array
     {
         $query = LeasePayment::query()
+            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount'])
             ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
@@ -67,6 +79,7 @@ class ExportDataService
     public function leases(User $actor, array $filters = []): array
     {
         $query = Lease::query()
+            ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'monthly_rent', 'currency', 'type', 'status', 'start_date', 'end_date', 'signed_at'])
             ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease');
@@ -102,7 +115,8 @@ class ExportDataService
      */
     public function customers(User $actor, array $filters = []): array
     {
-        $query = Customer::query();
+        $query = Customer::query()
+            ->select(['id', 'first_name', 'last_name', 'email', 'phone', 'status', 'pipeline_stage', 'occupation', 'created_at']);
         $this->scopeToActor($query, $actor, 'customer');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
@@ -132,7 +146,8 @@ class ExportDataService
      */
     public function properties(User $actor, array $filters = []): array
     {
-        $query = Property::query();
+        $query = Property::query()
+            ->select(['id', 'reference_number', 'title', 'type', 'contract_type', 'status', 'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'created_at']);
         $this->scopeToActor($query, $actor, 'property');
         $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
@@ -168,6 +183,7 @@ class ExportDataService
     public function payouts(User $actor, array $filters = []): array
     {
         $query = Payout::query()
+            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at'])
             ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'payout');
@@ -205,7 +221,9 @@ class ExportDataService
      */
     public function invoices(User $actor, array $filters = []): array
     {
-        $query = Invoice::query()->with('customer:id,first_name,last_name');
+        $query = Invoice::query()
+            ->select(['id', 'reference_number', 'kind', 'customer_id', 'issue_date', 'due_date', 'subtotal', 'tax_amount', 'total_amount', 'currency', 'status'])
+            ->with('customer:id,first_name,last_name');
 
         $this->scopeToActor($query, $actor, 'invoice');
         $this->applyRangeFilter($query, 'issue_date', $filters['from'] ?? null, $filters['to'] ?? null);
@@ -239,6 +257,7 @@ class ExportDataService
     public function commissions(User $actor, array $filters = []): array
     {
         $query = CommissionEntry::query()
+            ->select(['id', 'lease_id', 'beneficiary_id', 'origin', 'base_amount', 'share_percent', 'amount', 'currency', 'status', 'earned_at', 'paid_at'])
             ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name']);
 
         // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
@@ -279,6 +298,8 @@ class ExportDataService
         $today = Carbon::today();
         $query = CollectedPayments::leaseOwed()
             ->whereDate('due_date', '<', $today->toDateString())
+            // `metadata` porte le reçu d'un paiement partiel, que lit `remaining_amount`.
+            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'due_date', 'amount', 'currency', 'status', 'metadata'])
             ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name', 'payer:id,first_name,last_name']);
 
         $this->scopeToActor($query, $actor, 'lease_payment');
@@ -334,6 +355,7 @@ class ExportDataService
             ->keyBy('lease_id');
 
         $leases = Lease::query()
+            ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'currency'])
             ->whereIn('id', $sums->keys()->all())
             ->with(['property:id,title', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name'])
             ->orderBy('id')
@@ -462,8 +484,15 @@ class ExportDataService
 
     protected function limit(array $filters): int
     {
-        $limit = (int) ($filters['limit'] ?? 5000);
+        $cap = self::maxRows($filters['format'] ?? null);
+        $limit = (int) ($filters['limit'] ?? self::DEFAULT_ROWS);
 
-        return max(1, min($limit, 50_000));
+        return max(1, min($limit, $cap));
+    }
+
+    /** Le plafond de lignes d'un format d'export (TCK-713). */
+    public static function maxRows(mixed $format): int
+    {
+        return $format === 'pdf' ? self::MAX_ROWS_PDF : self::MAX_ROWS;
     }
 }
