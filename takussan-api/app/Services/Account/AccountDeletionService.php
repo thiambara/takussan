@@ -3,6 +3,7 @@
 namespace App\Services\Account;
 
 use App\Models\AccountDeletionRequest;
+use App\Models\Activity;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -232,6 +233,12 @@ class AccountDeletionService
         // signed back in to cancel and let the request lapse, revoke now.
         $user->tokens()->delete();
 
+        // TCK-688 (P19.01) — anonymiser sans journaliser : `User` journalise `email`, `phone`, les
+        // noms et `username` en `logOnlyDirty()`, et la ligne `updated` recopierait l'identité
+        // d'origine sous `attribute_changes.old`. La trace de l'effacement est la ligne
+        // `account.deletion.executed`, sans diff, écrite par `executeDeletion()`.
+        $user->disableLogging();
+
         $user->forceFill([
             // first_name/last_name are NOT NULL on the schema — write empty
             // strings rather than nulls to preserve the constraint while
@@ -269,6 +276,16 @@ class AccountDeletionService
         // Soft-delete the row. Auth queries use the default scope so the
         // user can no longer log in.
         $user->delete();
+
+        $user->enableLogging();
+
+        // TCK-688 (P19.01) — les lignes déjà écrites sur ce compte (création, modifications)
+        // portent ses valeurs d'origine dans leur diff : il est effacé, la ligne reste.
+        Activity::query()
+            ->where('subject_type', $user->getMorphClass())
+            ->where('subject_id', $user->getKey())
+            ->whereNotNull('attribute_changes')
+            ->update(['attribute_changes' => null]);
 
         unset($originalEmail);
 

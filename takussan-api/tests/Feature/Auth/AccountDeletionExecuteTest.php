@@ -145,6 +145,53 @@ class AccountDeletionExecuteTest extends TestCase
         Notification::assertSentTo($user, AccountDeletionExecutedNotification::class);
     }
 
+    /**
+     * TCK-688 (P19.01) — l'anonymisation ne recopie pas l'identité d'origine dans `activity_log`,
+     * et efface le diff des lignes déjà écrites sur ce compte. La ligne `account.deletion.executed`
+     * reste : c'est la trace, sans diff.
+     */
+    public function test_execute_ne_laisse_pas_l_identite_d_origine_dans_activity_log(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'first_name' => 'Aminata',
+            'last_name' => 'Diallo-P19',
+            'email' => 'aminata.p19@example.test',
+            'phone' => '+221771230019',
+            'username' => 'aminata-p19',
+        ]);
+        $user->forceFill(['first_name' => 'Aminata-Bis'])->save();
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        $avant = Activity::query()
+            ->where('subject_type', $user->getMorphClass())
+            ->where('subject_id', $user->id)
+            ->count();
+        $this->assertGreaterThan(0, $avant, 'le test doit partir de lignes journalisées sur ce compte');
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        foreach (['aminata.p19@example.test', '+221771230019', 'Diallo-P19', 'aminata-p19', 'Aminata-Bis'] as $valeur) {
+            $this->assertSame(
+                0,
+                Activity::query()
+                    ->whereRaw('coalesce(attribute_changes::text, \'\') like ?', ['%'.$valeur.'%'])
+                    ->orWhereRaw('coalesce(properties::text, \'\') like ?', ['%'.$valeur.'%'])
+                    ->count(),
+                "activity_log porte encore « {$valeur} » après l'anonymisation",
+            );
+        }
+
+        // Anonymiser n'écrit aucune ligne de diff sur le compte (ni `updated`, ni `deleted`).
+        $this->assertSame($avant, Activity::query()
+            ->where('subject_type', $user->getMorphClass())
+            ->where('subject_id', $user->id)
+            ->count());
+
+        $this->assertNotNull(Activity::query()->where('event', 'account.deletion.executed')->first());
+    }
+
     public function test_execute_is_idempotent(): void
     {
         Notification::fake();
