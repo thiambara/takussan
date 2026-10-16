@@ -3121,7 +3121,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### La règle « contrepartie ≥ 85 % » du matcher ne peut jamais s'appliquer aux encaissements
 - Réf : P25.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-706
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:98`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:184-200`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:218-232`
 - Constat :
@@ -3132,6 +3132,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : charger la clé étrangère du payeur (et la relation par `with()` pour éviter un N+1). Garde : un test de la règle 80 sur un crédit, rouge aujourd'hui.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:98` (`get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn])`, sans `payer_id` ni `customer_id`) et `:218-232` (`resolvePayerName` lit `$model->payer` / `$model->customer`), branche débit à `:130` qui charge `landlord_id` ; aucune confirmation automatique sur la confiance (`BankStatementLine::scopeReadyToConfirm` n'a aucun appelant dans `app/`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, échéance payée de 150 000, crédit de 150 000 à J+5 dont `counterparty` est exactement le `full_name` du payeur → `LeasePayment conf=60` au lieu de 80. Classement : A1, la règle 80 est déjà écrite dans `scoreCandidate()` et ne s'applique pas faute de clé chargée ; correctif : charger `payer_id` (`BookingPayment`, `LeasePayment`) et `customer_id` (`Invoice`) avec `with()` de la relation, et un test de la règle 80 sur un crédit, rouge aujourd'hui.
+- Mesure (2026-10-16, 8350d37f, implementeur) : reproduit avant correctif par `BankReconciliationTest::test_la_regle_contrepartie_s_applique_aux_encaissements` (load 1,33 sur 8 cœurs) : `LeasePayment` payé de 150 000, crédit de 150 000 à J+5 dont `counterparty` est le nom complet du payeur → `conf=60` au lieu de 80 → `fetchCandidates()` charge `payer_id` / `customer_id` et la relation par `with()` ; le test couvre `LeasePayment`, `BookingPayment` et `Invoice`, vert ; ablation (matcher remis à `pre-dev`) → rouge `60 is identical to 80`, remis → vert, 16 tests verts sur la classe.
 
 ### Le matcher propose des factures brouillon, annulées et nulles
 - Réf : P25.04

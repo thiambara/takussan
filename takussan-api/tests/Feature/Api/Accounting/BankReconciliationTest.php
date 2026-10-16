@@ -6,13 +6,18 @@ use App\Jobs\Accounting\MatchBankStatementJob;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Customer;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -357,6 +362,50 @@ class BankReconciliationTest extends TestCase
         $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
         $this->assertSame(LeasePayment::class, $line->matched_payment_type);
         $this->assertSame($payment->id, $line->matched_payment_id);
+    }
+
+    public function test_la_regle_contrepartie_s_applique_aux_encaissements(): void
+    {
+        // TCK-706 (P25.03) — un crédit à J+5, hors de la règle « ±2 jours » : seule la règle
+        // « contrepartie ≥ 85 % » peut le porter au-dessus de 60. Le matcher ne chargeait pas la
+        // clé du payeur, et la relation rendait `null` sans erreur.
+        $payer = Customer::factory()->create(['first_name' => 'Aïssatou', 'last_name' => 'Ndiaye']);
+        $paidAt = '2026-04-10 10:00:00';
+
+        $leasePayment = LeasePayment::factory()->paid()->create([
+            'payer_id' => $payer->id, 'amount' => 150_000, 'currency' => 'XOF', 'paid_at' => $paidAt,
+        ]);
+        $leasePayment->lease->update(['agency_id' => $this->agency->id]);
+
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $bookingPayment = BookingPayment::factory()->paid()->create([
+            'booking_id' => Booking::factory()->create(['property_id' => $property->id])->id,
+            'payer_id' => $payer->id, 'amount' => 160_000, 'currency' => 'XOF', 'paid_at' => $paidAt,
+        ]);
+
+        $invoice = Invoice::factory()->sent()->create([
+            'agency_id' => $this->agency->id, 'customer_id' => $payer->id,
+            'subtotal' => 170_000, 'tax_amount' => 0, 'total_amount' => 170_000, 'currency' => 'XOF',
+            'issue_date' => '2026-04-10',
+        ]);
+
+        $cases = [
+            [LeasePayment::class, $leasePayment->id, 150_000],
+            [BookingPayment::class, $bookingPayment->id, 160_000],
+            [Invoice::class, $invoice->id, 170_000],
+        ];
+
+        foreach ($cases as [$type, $id, $amount]) {
+            $line = $this->statementLine(BankStatementLineDirection::Credit, $amount, '2026-04-15');
+            $line->update(['counterparty' => 'Aïssatou Ndiaye']);
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+
+            $line->refresh();
+            $this->assertSame($type, $line->matched_payment_type);
+            $this->assertSame($id, $line->matched_payment_id);
+            $this->assertSame(80, $line->match_confidence, "{$type} : la règle contrepartie ne s'applique pas.");
+        }
     }
 
     // ─── Finalize ────────────────────────────────────────────────
