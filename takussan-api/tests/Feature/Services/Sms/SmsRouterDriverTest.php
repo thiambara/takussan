@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -175,6 +176,61 @@ class SmsRouterDriverTest extends TestCase
         $this->assertSame('orange', $attempts[0]->provider);
         $this->assertSame('lafricamobile', $attempts[1]->provider);
         $this->assertSame('mtarget', $attempts[2]->provider);
+    }
+
+    /**
+     * TCK-727 (P27.01) — sans `SMS_WEBHOOK_URL_TOKEN`, le `ret_url` de LAM
+     * ne se construit pas (la route exige le segment `{token}`). Le SMS part
+     * quand même, sans accusé de réception, et un avertissement le dit.
+     */
+    public function test_lam_sends_without_return_url_when_webhook_token_is_missing(): void
+    {
+        config()->set('sms.webhook_url_token', '');
+        $this->makeIntegration('sms_lafricamobile');
+        Log::spy();
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'lampush*' => Http::response(['push_id' => 'lam-sans-jeton'], 200),
+        ]);
+
+        $notification = AppNotification::factory()->create();
+        $router = $this->app->make(SmsRouterDriver::class);
+        $results = $router->send('+221761234567', 'hello', [
+            'agency_id' => $this->agency->id,
+            'is_critical' => true,
+            'notification_id' => $notification->id,
+        ]);
+
+        $this->assertSame('lafricamobile', $results['+221761234567']->provider);
+        $this->assertSame(SmsResult::STATUS_SENT, $results['+221761234567']->status);
+        Http::assertSent(fn ($request) => str_contains((string) $request->url(), 'lampush')
+            && ! array_key_exists('ret_url', $request->data()));
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message) => str_contains($message, 'SMS_WEBHOOK_URL_TOKEN'))
+            ->once();
+    }
+
+    public function test_lam_sends_return_url_when_webhook_token_is_set(): void
+    {
+        $this->makeIntegration('sms_lafricamobile');
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'lampush*' => Http::response(['push_id' => 'lam-avec-jeton'], 200),
+        ]);
+
+        $notification = AppNotification::factory()->create();
+        $router = $this->app->make(SmsRouterDriver::class);
+        $results = $router->send('+221761234567', 'hello', [
+            'agency_id' => $this->agency->id,
+            'is_critical' => true,
+            'notification_id' => $notification->id,
+        ]);
+
+        $this->assertSame(SmsResult::STATUS_SENT, $results['+221761234567']->status);
+        Http::assertSent(fn ($request) => str_contains((string) $request->url(), 'lampush')
+            && str_contains((string) ($request->data()['ret_url'] ?? ''), 'tck-102-test-token'));
     }
 
     public function test_orange_daily_cap_defers_to_lam_without_calling_orange(): void
