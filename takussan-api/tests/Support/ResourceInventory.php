@@ -11,6 +11,7 @@ use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
 use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
+use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
 use App\Http\Resources\Messaging\GroupContextPropertyResource;
@@ -82,6 +83,10 @@ final class ResourceInventory
         UserDetailResource::class => [
             'modeles' => [User::class],
             'raison' => "Vue « détail » d'un utilisateur pour l'admin — le suffixe `Detail` casse la convention.",
+        ],
+        IncludedUserResource::class => [
+            'modeles' => [User::class],
+            'raison' => 'Le compte chargé par `include=user` sous une liste (TCK-693, P21.01), en projection fixe — le préfixe `Included` dit la vue, pas le modèle.',
         ],
         UserListResource::class => [
             'modeles' => [User::class],
