@@ -143,7 +143,8 @@ class InvitationService
      *  - If `email` already maps to a `User` row, links it via
      *    `invited_user_id` so the accept flow can short-circuit to "login
      *    + accept".
-     *  - Sends the localized email transactionally via the Mailable.
+     *  - Sends the localized email via the Mailable, after the outermost
+     *    commit (TCK-690).
      *  - Logs an `invitation_sent` activity row.
      *
      * @param  array<string,mixed>  $payload
@@ -234,7 +235,12 @@ class InvitationService
         // invitation row (the inviter can `resend` later without losing
         // state). Queueing the mailable would push the failure surface
         // even further away from the request.
-        $this->deliver($invitation, $existingUser);
+        //
+        // TCK-690 — « outside » vaut aussi pour la transaction de l'APPELANT :
+        // les trois services par rôle appellent `send()` depuis la leur.
+        // `afterCommit` attend le commit le plus externe (exécution immédiate
+        // s'il n'y en a pas), et n'envoie rien si l'appelant échoue ensuite.
+        DB::afterCommit(fn () => $this->deliver($invitation, $existingUser));
 
         return $invitation;
     }
