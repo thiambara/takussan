@@ -1074,6 +1074,7 @@ _(aucun)_
 - [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
 - [TCK-672](tickets/TCK-672-actes-pdf-dates-en-francais.md) — Les actes PDF (bail, état des lieux, quittances, facture) se rendent en français, dates comprises `S · P1 · bug`
 - [TCK-673](tickets/TCK-673-photos-une-server-action-par-photo.md) — Les photos d'un bien partent une par une, et la limite de 1 Mo des server actions est relevée `M · P0 · bug`
+- [TCK-674](tickets/TCK-674-dialogues-hauteur-bornee.md) — Un dialogue plus haut que l'écran défile en lui-même : hauteur bornée dans la primitive `S · P0 · bug`
 - [TCK-675](tickets/TCK-675-liste-de-biens-vide-noindex.md) — Une liste publique de biens sans résultat est servie en noindex, follow (soft-404 des facettes) `S · P1 · bug`
 - [TCK-676](tickets/TCK-676-photo-en-echec-ne-laisse-rien.md) — Une photo de bien qui échoue à la conversion ne laisse ni ligne ni copie temporaire, et le 422 la nomme `S · P0 · bug`
 
