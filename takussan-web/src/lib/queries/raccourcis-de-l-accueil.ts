@@ -23,8 +23,11 @@ export const AUCUN_RACCOURCI: RaccourcisDeLAccueil = { vente: null };
 
 async function biensAVendre(locale: string): Promise<readonly PropertyListItem[] | null> {
   // `rechercherBiensPublics` rend déjà `null` en cas de panne, et journalise.
+  // TCK-687 (P18.01) — `placements=false` : la rangée n'affiche ni emplacement ni robe « Sponsorisé ».
+  // Sans lui, l'API comptait des impressions pour des emplacements jamais montrés, et plaçait en
+  // tête des places réservées que la rangée présentait comme organiques.
   const resultat = await rechercherBiensPublics(
-    `contract_type=sale&per_page=${HOMEPAGE_DISCOVERY_PER_ROW}`,
+    `contract_type=sale&per_page=${HOMEPAGE_DISCOVERY_PER_ROW}&placements=false`,
     locale,
   );
   const biens = resultat?.data;
