@@ -216,7 +216,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### `SEARCH_ID_CAP` vaut en fait 1000, et la pagination publique aussi
 - Réf : P01.06
-- Statut : validé — maxTotalHits = 5000, aligné sur SEARCH_ID_CAP
+- Statut : fait · TCK-709
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:28`, `takussan-api/config/scout.php:150-254`
 - Constat :
@@ -225,6 +225,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - `takussan-api/CLAUDE.md` annonce 5000.
 - Piste : déclarer `maxTotalHits` dans `index-settings`, et corriger la doc.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `HasQueryBuilder.php:28` (`SEARCH_ID_CAP = 5000`), `config/scout.php` (aucune clé `pagination` dans `index-settings`), `takussan-api/CLAUDE.md:434` (annonce 5000) ; `GET …/indexes/takussan_localproperties/settings/pagination` → `{"maxTotalHits":1000}` ; test temporaire, retiré depuis, sur l'index de test ramené à `maxTotalHits: 3` avec six biens → `Property::search('')->take(5000)->keys()` rend 3 identifiants, et `PropertySearchService::search(per_page 2)` rend `total: 3`, `last_page: 2`, et une page 3 vide : le plafond borne bien la liste d'identifiants et la pagination publique (l'index local, à 795 biens, ne permet pas de le voir à 1000). Classement : V7, la correction de `CLAUDE.md` relèverait d'A6, mais le correctif du code choisit la valeur qui fixe le total affiché et les pages atteignables du catalogue public.
+- Mesure (2026-10-16, 201a6842, implementeur) : `SearchIdCapIndexSettingsTest`, avant correctif, lit `maxTotalHits` = 1000 sur l'index de test `agencies` après `scout:sync-index-settings` (rouge « 1000 is identical to 5000 ») → `pagination.maxTotalHits = 5000` déclaré dans les `index-settings` des sept modèles indexés ; le test vérifie les sept index contre `SEARCH_ID_CAP` et le plafond de `MessagingContactController`, 2 verts ; ablation (`config/scout.php` de `pre-dev`) → rouge, remis → vert.
 
 ### Des réglages d'index périmés font échouer la liste par défaut
 - Réf : P01.07
