@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
@@ -482,6 +483,47 @@ class BankReconciliationTest extends TestCase
         }
     }
 
+    public function test_une_facture_non_encaissable_n_est_ni_suggeree_ni_confirmable(): void
+    {
+        // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement :
+        // le matcher la proposait à 70, et `confirmMatch()` lui posait `bank_reconciled_at`.
+        $line = $this->statementLine(BankStatementLineDirection::Credit, 33_333, '2026-04-11');
+
+        foreach ([InvoiceStatus::Draft, InvoiceStatus::Cancelled, InvoiceStatus::Void] as $status) {
+            $invoice = $this->invoiceOf(33_333, $status);
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+            $this->assertNull($line->refresh()->matched_payment_id, "Une facture {$status->value} a été suggérée.");
+
+            $this->actingAs($this->admin)
+                ->postJson("/api/bank-statement-lines/{$line->id}/match", ['payment_type' => 'invoice', 'payment_id' => $invoice->id])
+                ->assertStatus(422)
+                ->assertJsonPath('errors.payment_id.0', __('reconciliation.validation.invoice_not_reconcilable'));
+            $this->assertNull($invoice->refresh()->bank_reconciled_at);
+
+            $invoice->delete();
+        }
+    }
+
+    public function test_une_facture_envoyee_en_retard_ou_payee_reste_rapprochable(): void
+    {
+        // TCK-724 (P25.04) — le versant autorisé : `sent`, `overdue` et `paid` restent suggérés et
+        // confirmables, pour qu'un filtre qui refuserait tout ne puisse pas rendre le test précédent vert.
+        foreach ([InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Paid] as $status) {
+            $invoice = $this->invoiceOf(44_444, $status);
+            $line = $this->statementLine(BankStatementLineDirection::Credit, 44_444, '2026-04-11');
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+            $line->refresh();
+            $this->assertSame([Invoice::class, $invoice->id], [$line->matched_payment_type, $line->matched_payment_id], "Une facture {$status->value} n'a pas été suggérée.");
+
+            $this->actingAs($this->admin)
+                ->postJson("/api/bank-statement-lines/{$line->id}/match", ['payment_type' => 'invoice', 'payment_id' => $invoice->id])
+                ->assertOk();
+            $this->assertNotNull($invoice->refresh()->bank_reconciled_at);
+        }
+    }
+
     // ─── Finalize ────────────────────────────────────────────────
 
     public function test_finalize_statement(): void
@@ -527,6 +569,15 @@ class BankReconciliationTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('data.status', 'partially_reconciled');
+    }
+
+    private function invoiceOf(int $total, InvoiceStatus $status): Invoice
+    {
+        return Invoice::factory()->create([
+            'agency_id' => $this->agency->id, 'status' => $status,
+            'subtotal' => $total, 'tax_amount' => 0, 'total_amount' => $total, 'currency' => 'XOF',
+            'issue_date' => '2026-04-11',
+        ]);
     }
 
     private function completedPayout(Agency $agency, int $net, string $processedAt): Payout

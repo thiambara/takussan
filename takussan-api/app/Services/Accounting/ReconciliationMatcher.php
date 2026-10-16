@@ -76,7 +76,8 @@ class ReconciliationMatcher
                 BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
                 // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
                 LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
-                Invoice::class => $query->where('agency_id', $agencyId),
+                // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement.
+                Invoice::class => $query->where('agency_id', $agencyId)->reconcilable(),
             };
 
             // Amount filter with small tolerance for rounding. Invoices store the

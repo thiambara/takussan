@@ -103,9 +103,11 @@ class PaymentSearchService
     /** @return Collection<int, MatchCandidate> */
     private function searchInvoices(Agency $agency, string $query, ?float $amountHint): Collection
     {
+        // TCK-724 (P25.04) — les seules factures encaissables, comme le matcher.
         $base = Invoice::query()
             ->whereNull('bank_reconciled_at')
-            ->where('agency_id', $agency->id);
+            ->where('agency_id', $agency->id)
+            ->reconcilable();
 
         if ($query !== '') {
             $base->where(function ($q) use ($query) {
