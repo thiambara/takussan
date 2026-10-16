@@ -2623,7 +2623,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des clients charge et rend toutes les notes internes de chaque fiche
 - Réf : P20.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-705 — reste : le test de budget « 2 lignes = 12 lignes » sur `GET /api/customers`, une fois la lecture `platform_profiles` par ligne retirée (P20.03)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-api/app/Models/Customer.php:60,273`, `takussan-web/src/lib/queries/customers.ts:88-90`
 - Constat :
@@ -2634,6 +2634,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire, puis relecture de la ressource et du modèle.
 - Piste : rendre la colonne seulement si elle est sélectionnée (`array_key_exists('notes', $this->resource->getAttributes())`), et la relation sous une autre clé par `whenLoaded`, ou ne plus la rendre du tout ; garder par un test de budget « 2 lignes = 12 lignes » sur `GET /api/customers`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `CustomerResource.php:30` (`'notes' => $this->notes`), `Customer.php:60` (colonne `notes` fillable) et `:273` (relation `notes(): HasMany`), `customers.ts:24-34` (`DASHBOARD_CUSTOMER_FIELDS` sans `notes`) ; test temporaire, retiré, `GET /api/customers` avec ces champs et `include=tags`, une note par client → **28 requêtes pour 2 clients, 47 pour 12**, dont une `customer_notes` par ligne (2, puis 12), et `data.0.notes` rend la note brute (`author_id`, `body`, `deleted_at`, `created_at` en `…000000Z`) ; aucun appelant du front ne lit `customer.notes` : la fiche et le tiroir lisent `/api/customers/<built-in function id>/notes` (`customers/[id]/page.tsx:87`, `CustomerDetailSheet.tsx:45`), et les notes rendues sont celles que `view` sur le client ouvre déjà, sans fuite hors agence. Charge 2,37 sur 8 cœurs. Classement : A2, la requête par ligne disparaît sans retirer rien de ce qu'un appelant demande (colonne si sélectionnée, relation seulement si chargée par `include=notes`).
+- Mesure (2026-10-16, 8090ffd7, implementeur) : avant correctif, `CustomerIndexQueryBudgetTest` (liste avec les champs et l'`include=tags` du front, une note par client) → 28 requêtes pour 2 clients, 48 pour 12, une `customer_notes` par ligne, et `data.0.notes` présent ; correctif : `notes` sous `when()`, la colonne si elle est lue, la relation si `include=notes` l'a chargée → 0 lecture de `customer_notes` pour 2 comme pour 12, clé `notes` absente, colonne rendue sans `fields`, `include=notes` toujours rendu (4 verts) ; ablation → 2 rouges, correctif remis → 4 verts. Le budget complet reste à 26 contre 36 : une lecture `platform_profiles` par ligne (`isSuperAdmin()`), qui est P20.03.
 
 ### La liste des demandes d'intervention fait six requêtes par ligne
 - Réf : P20.02
