@@ -3508,7 +3508,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Renommer un équipement du catalogue ne change rien à l'écran, et le déploiement suivant recrée l'ancien nom sous un slug sans traduction
 - Réf : P30.01
-- Statut : validé — refuser en 409 le renommage d'un équipement du catalogue ; seules les propositions se renomment ; un test : renommage refusé puis synchroniser() → une seule ligne pour ce slug
+- Statut : fait · TCK-729
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:59-78`, `takussan-api/app/Http/Controllers/Api/TagController.php:77-86`, `takussan-api/app/Services/Tags/TagCatalog.php:68-81`, `takussan-web/src/lib/libelle-equipement.ts:31-34`
 - Constat :
@@ -3519,6 +3519,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - À vérifier : une recherche sauvegardée `tags=Piscine` (le filtre porte des noms, `PropertySearchService.php:552-559`) ne trouverait plus les biens du tag renommé, réindexés sous « Piscine privée » : l'alerte se tairait.
 - Piste : décider ce qu'est un renommage d'équipement du catalogue. Soit le refuser (409, comme un nom pris) et ne renommer que les propositions ; soit faire suivre le catalogue (le nom versionné se compare aussi au slug, pour ne pas recréer). Garder par un test : renommer puis rejouer `synchroniser()` → une seule ligne pour ce slug.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : aucun commit depuis 11df6a87 sur `app/Services/Tags`, `TagController.php` ni `libelle-equipement.ts` (`git log`), aucun ticket (`grep -rln` dans `docs/backlog/tickets`) ; relu `TagModeration::renommer()` (n'écrit que `name`), `TagCatalog::assurer()` (cherche par nom, `slugLibre()` à la création), `libelleEquipement()` (traduit par slug) ; test temporaire retiré (charge 1,58 sur 8 cœurs) : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` → 200 slug `piscine`, `PUT /api/tags/{id}` → 200 slug `piscine`, `synchroniser()` rejoué → `Piscine chauffée|piscine|approved ; Piscine|piscine-2|approved` ; le constat tient, l'alerte de recherche sauvegardée n'a pas été rejouée. Classement : V7, la piste laisse le choix entre refuser le renommage d'un équipement du catalogue et faire suivre le catalogue.
+- Mesure (2026-10-16, 71b58ea4, implementeur) : avant correctif, test temporaire retiré : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` `{name: "Piscine privée"}` → 200, puis `synchroniser()` → `Piscine privée|piscine|approved ; Piscine|piscine-2|approved` ; le constat tient → `TagCatalogRenommageTest` (4 cas : file de modération et page catalogue → 409 `tags.catalog_rename_forbidden`, une seule ligne `Piscine|piscine` après `synchroniser()` ; nom du catalogue à la casse près refusé ; proposition toujours renommable), 3 rouges sans la garde de `renommer()` (ablation), 4 verts avec.
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
