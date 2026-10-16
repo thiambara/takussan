@@ -78,7 +78,7 @@ describe('Pastille mobile — un appui, clavier prêt (TCK-563, M3)', () => {
     expect(focusDansLeGeste).toBeInstanceOf(HTMLInputElement);
     expect((focusDansLeGeste as HTMLInputElement).type).toBe('text');
 
-    const champ = within(await screen.findByRole('dialog')).getByRole('searchbox');
+    const champ = within(await screen.findByRole('dialog')).getByRole('combobox');
     await waitFor(() => expect(champ).toHaveFocus());
     expect(document.querySelector('[data-slot="relais-clavier"]')).toBeNull();
     // Ouvrir ne navigue toujours pas (TCK-549).
@@ -92,8 +92,8 @@ describe('Pastille mobile — un appui, clavier prêt (TCK-563, M3)', () => {
 
     fireEvent.click(bouton);
     const dialogue = await screen.findByRole('dialog');
-    await waitFor(() => expect(within(dialogue).getByRole('searchbox')).toHaveFocus());
-    fireEvent.keyDown(within(dialogue).getByRole('searchbox'), { key: 'Escape' });
+    await waitFor(() => expect(within(dialogue).getByRole('combobox')).toHaveFocus());
+    fireEvent.keyDown(within(dialogue).getByRole('combobox'), { key: 'Escape' });
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(bouton).toHaveFocus());
