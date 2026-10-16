@@ -1989,7 +1989,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Documents de la fiche client : envoi vers une route absente
 - Réf : P13.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-700
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:187`, `takussan-web/src/components/customer-dashboard/CustomerDocumentsPanel.tsx:46`
 - Constat :
@@ -1998,6 +1998,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré, et lu.
 - Piste : faire passer le panneau par `AddDocumentButton`.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `customers.ts:179-195` (`uploadCustomerDocument` poste sur `/api/customers/{id}/documents`), appelé par `uploadCustomerDocumentAction` (`dashboard-customers.ts:173-190`) depuis `CustomerDocumentsPanel.tsx:46` ; `php artisan route:list --path=customers | grep -i doc` → vide ; `/api/documents` accepte `documentable_type=customer` (`DocumentController.php:29`) et écrit la même relation `Customer::documents()` (morph `documentable`) que le panneau liste par `include=documents` (`customers.ts:114`) ; `AddDocumentButton` est monté sur la fiche (`customers/[id]/page.tsx:139`). `StoreDocumentRequest` exige `name` et `type`, que le panneau n'envoie pas. Classement : A1, le geste attendu (déposer une pièce sur la fiche) est déjà tenu par `POST /api/documents` et par `AddDocumentButton` ; le correctif branche le panneau sur ce composant, sans choix de produit.
+- Mesure (2026-10-16, 7010f9e7, implementeur) : reproduit avant correctif — `route:list --path=customers | grep -i doc` vide ; `CustomerDocumentsPanel` postait par `uploadCustomerDocumentAction` sur `/api/customers/${…}/documents` (`customers.ts:179-195`) → panneau branché sur `AddDocumentButton` (`customer`, id de la fiche), `onUploaded` ajouté au bouton et au dialogue pour `router.refresh()`, action et requête cassées retirées ; `CustomerDocumentsPanel.test.tsx` (bouton monté pour la fiche, refresh après dépôt ; aucun fichier de `src/` ne vise `customers/${…}/documents`) : 2 rouges avant, 1 rouge à l'ablation du panneau, 2 verts ; `DocumentUploadDialog.onUploaded.test.tsx` (vrai formulaire, `documentable_type: 'customer'`, `onUploaded` appelé) : rouge à l'ablation, vert.
 
 ### `POST /api/payments`, sans appelant, laisse le locataire se déclarer payé
 - Réf : P13.05

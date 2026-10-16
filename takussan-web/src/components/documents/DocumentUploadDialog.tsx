@@ -48,12 +48,15 @@ interface DocumentUploadDialogProps {
     id: number;
     label?: string;
   };
+  /** Appelé après un dépôt réussi (TCK-700). */
+  readonly onUploaded?: () => void;
 }
 
 export function DocumentUploadDialog({
   open,
   onOpenChange,
   defaultDocumentable,
+  onUploaded,
 }: DocumentUploadDialogProps) {
   const t = useTranslations('documents.upload');
   const tTypes = useTranslations('documents.types');
@@ -96,6 +99,7 @@ export function DocumentUploadDialog({
       form.reset();
       setFile(null);
       onOpenChange(false);
+      onUploaded?.();
     },
   });
 

@@ -19,9 +19,6 @@ vi.mock('@/lib/queries/customers', () => ({
   createCustomerNote: vi.fn(),
   detachCustomerTag: vi.fn(),
   updateCustomer: vi.fn(),
-  uploadCustomerDocument: vi.fn(),
-  validateCustomerDocumentFile: vi.fn(),
-  CUSTOMER_DOCUMENT_REJECTION_NAMESPACE: 'customers',
 }));
 
 const EXISTING = [{ id: 5, name: 'Awa Diop', matched_on: 'phone' }];
