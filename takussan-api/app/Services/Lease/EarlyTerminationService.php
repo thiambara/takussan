@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Invoice\InvoiceNumberAllocator;
+use App\Services\Model\InvoiceService;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
@@ -156,11 +157,11 @@ class EarlyTerminationService
                 ])->status(422);
             }
 
-            // Void the pending penalty invoice if it exists; we keep the row
-            // for audit (rather than delete it) and the cancelled state is
-            // documented in `Invoice::booted` transitions.
-            if ($invoice) {
-                $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
+            // TCK-669 (P04.03, ADR-0039 §7) — la pénalité naît émise et numérotée : elle ne
+            // s'annule que par un avoir, comme toute facture émise. Déjà annulée à part, elle
+            // n'en reçoit pas un second.
+            if ($invoice && ! in_array($invoice->status, [InvoiceStatus::Cancelled, InvoiceStatus::Void], true)) {
+                app(InvoiceService::class)->cancel($invoice, $actor);
             }
 
             $lease->forceFill([
