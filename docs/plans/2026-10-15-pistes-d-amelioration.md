@@ -480,7 +480,7 @@ Ce qui tient (lu) :
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
 - Réf : P03.04
-- Statut : validé — account_identifier masqué (4 derniers caractères) sous impersonation
+- Statut : fait · TCK-714 — reste : account_holder_name, toujours rendu en clair sous impersonation, hors de la décision du porteur
 - Gravité : 🟠 risque
 - Où : `takussan-api/app/Http/Controllers/Api/Me/PayoutMethodController.php:21-31`, `takussan-api/app/Http/Resources/PayoutMethodResource.php:19-33`, `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:44-58`
 - Constat :
@@ -488,6 +488,7 @@ Ce qui tient (lu) :
   - La route n'est ni dans `REFUSED_READS` ni sous step-up, alors que la donnée est chiffrée et cachée ailleurs (TCK-601). Le RIB du bailleur, lui, exige un step-up.
 - Piste : masquer la forme claire sous `ImpersonationContext`, ou ajouter `api/me/payout-methods*` à `REFUSED_READS`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `PayoutMethodResource.php:19-33` (`$holder` = l'utilisateur de la requête), `EnforceImpersonationReadOnly.php:44-58,81-84` (`api/me/payout-methods` absent de `REFUSED_READS`), `ProtectedActions.php:240-242` (step-up sur `store`, `update`, `destroy`, pas sur `index`) ; test temporaire, retiré depuis, par `SessionsDImpersonation` → `GET /api/me/payout-methods` sous le jeton d'impersonation rend 200 avec `account_identifier` en clair et `account_holder_name`. Classement : V2 et V3, refuser ou masquer cette lecture change ce qu'un opérateur peut voir sous impersonation, et touche des coordonnées bancaires.
+- Mesure (2026-10-16, 4c7d8810, implementeur) : `ImpersonationPayoutMethodsTest` avant correctif → rouge, `GET /api/me/payout-methods` sous le jeton d'impersonation rend `account_identifier` = `+221 77 123 45 67` ; la cible sous son propre jeton lit la forme claire. Correctif : `PayoutMethodResource` rend `PayoutMethod::mask()` quand `ImpersonationContext` est actif → `•••• 4567`, aucune forme claire dans la réponse. Ablation : ressource d'origine → rouge ; remise → vert.
 
 ### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
 - Réf : P03.05
