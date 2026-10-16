@@ -19,11 +19,15 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
 
 ## Déroulé
 
-1. **Choisir.** Dans l'ordre :
-   - `node scripts/check-pistes.mjs --liste "validé"`, que le porteur a demandées ;
-   - puis `--liste "retenu · autonome"`, 🔴 d'abord.
+1. **Choisir.** La gravité d'abord, puis la demande du porteur :
+   1. les 🔴 de `node scripts/check-pistes.mjs --liste "validé"` ;
+   2. les 🔴 de `--liste "retenu · autonome"` ;
+   3. les 🟠 validées ;
+   4. les 🟠 autonomes.
 
-   Retire ce qu'une PR ouverte cite, et prends la première entrée. Plusieurs entrées peuvent être
+   Dans chaque groupe, l'ordre du fichier. Retire ce qu'une PR ouverte cite, **tes propres PR
+   comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. Prends la première
+   entrée qui reste. Plusieurs entrées peuvent être
    prises ensemble seulement si elles ont **la même cause et le même correctif**. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
 
@@ -33,6 +37,8 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    - **La précision après `validé — …` fait foi.** Elle tranche le choix que le critère réservait
      au porteur, un comportement visible ou un texte par exemple. Recopie-la mot pour mot dans le
      ticket, sous « Décision du porteur », et implémente ce qu'elle dit, pas une autre option.
+   - **Ce qui suit `; reste :` dans la précision n'est pas à faire.** Le porteur le garde pour
+     plus tard. Recopie-le dans le ticket sous « Reste à faire », et ne l'implémente pas.
    - **Une entrée `validé` sans précision** alors que son critère demande un choix (V7 notamment) :
      prends l'option que décrit la `Piste`. Si la `Piste` en propose plusieurs, reclasse
      (étape 2), avec pour raison `choix non tranché : <les options>`.
@@ -90,7 +96,12 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    - le ticket passe à `done`, son index est régénéré, et ses notes d'implémentation ne gardent
      que le non-évident (ablation, piège rencontré) ;
    - l'entrée du fichier de pistes passe à `fait · TCK-NNN`, et ta ligne `Mesure` dit ce que le
-     test a établi :
+     test a établi. **S'il reste quelque chose**, elle passe à `fait · TCK-NNN — reste : <…>` :
+     - le reste de la précision du porteur (`; reste : …`), recopié mot pour mot, la garde le
+       compare ;
+     - ou la partie de la `Piste` que tu as laissée de côté, en une phrase qu'on peut reprendre.
+
+     La ligne `Mesure` :
 
      ```
      - Mesure (AAAA-MM-JJ, <sha court de pre-dev>, implementeur) : <reproduction avant correctif> → <test, ablation, résultat>.

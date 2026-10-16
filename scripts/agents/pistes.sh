@@ -54,7 +54,7 @@ charger_config() {
 par_role() {
   local nom
   nom="$1_$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"
-  printf '%s' "${!nom}"
+  printf '%s' "${!nom:-}"
 }
 
 # ─── installer ────────────────────────────────────────────────────────────────────────────────
@@ -131,6 +131,10 @@ DUREE_IMPLEMENTEUR=5400
 CHARGE_MAX=
 # Réparations successives d'une même PR avant abandon (le porteur prend la main).
 REPARATIONS_MAX=3
+# PR ouvertes à la fois par rôle ; vide = 3 pour l'implémenteur, 1 pour les autres.
+PR_MAX_EXPLORATEUR=
+PR_MAX_MESUREUR=
+PR_MAX_IMPLEMENTEUR=
 # Modèle ; vide = celui du compte.
 MODELE=
 CONFIG
@@ -193,7 +197,7 @@ planifier() {
     minutes="$1"
     shift
     case "$minutes" in '' | *[!0-9]*) die "« $minutes » n'est pas un nombre de minutes" ;; esac
-    [ "$minutes" -ge 10 ] || die "$role : 10 minutes au moins entre deux passages"
+    [ "$minutes" -ge 5 ] || die "$role : 5 minutes au moins entre deux passages"
     poser_job "$role" $((minutes * 60)) lancer "$role"
     info "$role : toutes les $minutes min"
   done
@@ -457,6 +461,95 @@ verifier() {
   [ "$echecs" -eq 0 ]
 }
 
+# 2. Les PR du rôle, de la plus ancienne à la plus récente. Une verte se fusionne ; une rouge ou
+# en conflit se répare, la plus ancienne d'abord ; une en attente de CI occupe une place. Un
+# passage neuf part seulement s'il reste une place : l'implémenteur n'attend plus la CI de sa PR
+# précédente pour prendre la piste suivante (ADR-0066 § 4).
+# Lit et écrit les variables du passage (MODE, PR, branche, depart, ci, conflit, reparations),
+# déclarées par lancer() : bash les voit par portée dynamique.
+etat_des_pr() {
+  local pr_max lignes num tete etat_fusion ci_pr conflit_pr ouvertes=0 fusionnees=0 abandons=""
+  pr_max="$(par_role PR_MAX "$ROLE")"
+  if [ -z "$pr_max" ]; then
+    if [ "$ROLE" = implementeur ]; then pr_max=3; else pr_max=1; fi
+  fi
+  lignes="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --label "agent:$ROLE" \
+    --json number,headRefName,mergeable --jq 'sort_by(.number) | .[] | "\(.number)\t\(.headRefName)\t\(.mergeable)"')"
+  MODE=nouveau
+  while IFS=$'\t' read -r num tete etat_fusion; do
+    [ -n "$num" ] || continue
+    ci_pr="$(etat_ci "$num")"
+    conflit_pr=non
+    if [ "$etat_fusion" = CONFLICTING ]; then conflit_pr=oui; fi
+    if [ "$conflit_pr" = non ] && [ "$ci_pr" != rouge ]; then
+      if [ "$ci_pr" = vert ] && [ "$FUSION" = auto ] && [ "$A_BLANC" -eq 0 ]; then
+        GH_REPO="$GH_REPO" gh pr merge "$num" --merge --delete-branch > /dev/null 2>&1 || true
+        # Le fusionneur a pu passer entre-temps ; un refus (mergeable pas encore recalculé) attend.
+        if [ "$(GH_REPO="$GH_REPO" gh pr view "$num" --json state --jq .state)" = MERGED ]; then
+          info "PR #$num fusionnée dans pre-dev"
+          fusionnees=1
+          continue
+        fi
+      fi
+      ouvertes=$((ouvertes + 1))
+      continue
+    fi
+    ouvertes=$((ouvertes + 1))
+    if [ "$conflit_pr" = oui ] && [ "$ci_pr" != rouge ] && [ "$A_BLANC" -eq 0 ] \
+      && reconcilier_index "$num" "$tete" "$arbre" "$sortie/reconciliation-$num"; then
+      continue
+    fi
+    [ "$MODE" = nouveau ] || continue
+    reparations="$(cat "$BASE/etat/reparations-$ROLE-$num" 2> /dev/null || echo 0)"
+    if [ "$reparations" -ge "$REPARATIONS_MAX" ]; then
+      abandons="$abandons #$num"
+      continue
+    fi
+    MODE=reparation
+    PR="$num"
+    branche="$tete"
+    ci="$ci_pr"
+    conflit="$conflit_pr"
+  done <<< "$lignes"
+  if [ -n "$abandons" ]; then info "PR abandonnées après $REPARATIONS_MAX réparations, le porteur prend la main :$abandons"; fi
+  if [ "$fusionnees" -eq 1 ]; then avec_verrou_git recuperer; fi
+  if [ "$MODE" = reparation ]; then
+    printf '%s' "$((reparations + 1))" > "$BASE/etat/reparations-$ROLE-$PR"
+    depart="origin/$branche"
+  elif [ "$ouvertes" -ge "$pr_max" ]; then
+    if [ -n "$abandons" ]; then fin abandon "$ouvertes PR ouvertes sur $pr_max, dont abandonnées :$abandons"; fi
+    fin attente "$ouvertes PR ouvertes sur $pr_max : CI en cours"
+  fi
+}
+
+# Une PR en conflit sur le seul index du backlog se réconcilie sans modèle : l'index est GÉNÉRÉ.
+# Deux PR de l'implémenteur ouvertes ensemble ajoutent chacune un ticket, et le compte « Done — N »
+# d'INDEX.md change dans les deux : la seconde à fusionner entre toujours en conflit, sans que rien
+# n'y soit à décider. Tout autre conflit revient au modèle (réparation).
+reconcilier_index() {
+  local num="$1" b="$2" arbre="$3" sortie="$4" conflits
+  mkdir -p "$sortie"
+  avec_verrou_git preparer_arbre "$arbre" "$b" "origin/$b" "$sortie" || return 1
+  if ! git -C "$arbre" merge --no-edit --quiet "$BASE_REF" > /dev/null 2>&1; then
+    conflits="$(git -C "$arbre" diff --name-only --diff-filter=U)"
+    if [ "$conflits" != docs/backlog/INDEX.md ]; then
+      git -C "$arbre" merge --abort 2> /dev/null || true
+      return 1
+    fi
+    if ! (cd "$arbre" && node docs/backlog/gen-index.mjs > /dev/null); then
+      git -C "$arbre" merge --abort 2> /dev/null || true
+      return 1
+    fi
+    git -C "$arbre" add docs/backlog/INDEX.md
+    git -C "$arbre" commit --no-edit --quiet || return 1
+  fi
+  [ "$(git -C "$arbre" rev-list --count "origin/$b..HEAD")" -gt 0 ] || return 1
+  installer_dependances "$arbre"
+  if ! verifier "$arbre" "$sortie" "$(git -C "$arbre" merge-base HEAD "$BASE_REF")"; then return 1; fi
+  git -C "$arbre" push --quiet origin "HEAD:refs/heads/$b" || return 1
+  info "PR #$num : index du backlog réconcilié avec $BASE_REF, sans modèle"
+}
+
 lancer() {
   ROLE="$1"
   valider_role "$ROLE"
@@ -490,39 +583,9 @@ lancer() {
 
   avec_verrou_git recuperer
 
-  # 2. L'état de la PR du rôle : au plus une ouverte.
-  local pr_json branche depart ci conflit mergeable reparations
-  pr_json="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --label "agent:$ROLE" \
-    --json number,headRefName,mergeable,url --jq '.[0] // empty')"
-  MODE=nouveau
-  if [ -n "$pr_json" ]; then
-    PR="$(printf '%s' "$pr_json" | node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0)).number))')"
-    branche="$(printf '%s' "$pr_json" | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0)).headRefName)')"
-    mergeable="$(printf '%s' "$pr_json" | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0)).mergeable)')"
-    ci="$(etat_ci "$PR")"
-    conflit=non
-    if [ "$mergeable" = CONFLICTING ]; then conflit=oui; fi
-    if [ "$ci" = attente ] && [ "$conflit" = non ]; then fin attente "PR #$PR : CI en cours"; fi
-    if [ "$ci" = vert ] && [ "$conflit" = non ]; then
-      if [ "$FUSION" != auto ]; then fin attente "PR #$PR verte, en attente de fusion par le porteur"; fi
-      if [ "$A_BLANC" -eq 1 ]; then fin a-blanc "aurait fusionné la PR #$PR"; fi
-      if ! GH_REPO="$GH_REPO" gh pr merge "$PR" --merge --delete-branch > /dev/null 2>&1; then
-        # Le fusionneur a pu passer entre-temps.
-        [ "$(GH_REPO="$GH_REPO" gh pr view "$PR" --json state --jq .state)" = MERGED ] || die "fusion de la PR #$PR refusée"
-      fi
-      info "PR #$PR fusionnée dans pre-dev"
-      PR=""
-      avec_verrou_git recuperer
-    else
-      MODE=reparation
-      reparations="$(cat "$BASE/etat/reparations-$ROLE-$PR" 2> /dev/null || echo 0)"
-      if [ "$reparations" -ge "$REPARATIONS_MAX" ]; then
-        fin abandon "PR #$PR : $reparations réparations sans vert — le porteur prend la main"
-      fi
-      printf '%s' "$((reparations + 1))" > "$BASE/etat/reparations-$ROLE-$PR"
-      depart="origin/$branche"
-    fi
-  fi
+  # 2. Les PR du rôle (etat_des_pr).
+  local branche depart ci="" conflit="" reparations=0
+  etat_des_pr
   if [ "$MODE" = nouveau ]; then
     branche="agents/$ROLE/$horo"
     depart="$BASE_REF"

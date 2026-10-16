@@ -72,7 +72,7 @@ chacune est datée, rattachée au sha de `pre-dev` mesuré et signée de son rô
 | `retenu · à valider` (`— raison`) | mesureur, implémenteur | tient, et touche un critère V du § 3 |
 | `validé` | **le porteur seul** | le porteur accorde l'implémentation |
 | `refusé` | **le porteur seul** | le porteur l'écarte |
-| `fait · TCK-NNN` | implémenteur | implémenté par ce ticket |
+| `fait · TCK-NNN` (`— reste : …`) | implémenteur | implémenté par ce ticket ; le reste, s'il y en a, n'est pas fait |
 
 Les transitions permises par rôle, les chemins qu'un rôle peut toucher et la forme sont tenus par
 [`scripts/check-pistes.mjs`](../../scripts/check-pistes.mjs), qui fait foi. Pour valider une
@@ -89,6 +89,16 @@ piste, le porteur passe sa ligne `Statut` à `validé` sur `pre-dev`, par un com
   lui-même.
 
 Une piste `validé` ne revient jamais au porteur sans raison écrite : la garde le refuse.
+
+**Ce qui reste d'une validation partielle** (ajouté le 2026-10-15). Le porteur peut ne valider
+qu'une partie d'une `Piste`. Il écrit alors ce qu'il garde pour plus tard à la fin de la
+précision, après `; reste :` : `validé — <décision> ; reste : <ce qui n'est pas confié>`.
+L'implémenteur n'implémente pas le reste. Il le recopie dans le ticket, et l'entrée passe à
+`fait · TCK-NNN — reste : <le même texte>`, que la garde compare à la précision. L'implémenteur
+écrit aussi un reste quand il laisse lui-même de côté une partie de la `Piste`. Sans cela, une
+fois l'entrée `fait`, ce qui n'a pas été fait ne serait plus suivi nulle part : seul
+l'explorateur crée une entrée. `node scripts/check-pistes.mjs --restes` les liste, pour qu'on y
+revienne.
 
 ### 3. Ce que le mesureur peut classer « autonome »
 
@@ -137,12 +147,25 @@ d'implémenter.
 1. **Arrêts préalables**, sans dépense : le fichier `PAUSE`, un verrou par rôle (un passage à la
    fois), et la charge de la machine (au-delà de 1,5 × le nombre de cœurs, l'implémenteur et le
    mesureur ne démarrent pas).
-2. **État de sa PR** : un agent a au plus une PR ouverte vers `pre-dev`.
-   - Si elle est en attente, le passage s'arrête.
-   - Si elle est verte, elle est fusionnée seulement si le porteur l'a permis (§ « Décisions du
-     porteur », Q1). C'est d'ordinaire le fusionneur qui l'a déjà fusionnée (Q1 ci-dessous).
-   - Si elle est rouge ou en conflit, le passage la répare. Après trois réparations, il abandonne
-     et le dit.
+2. **État de ses PR** : un agent a au plus `PR_MAX` PR ouvertes vers `pre-dev`, 1 pour
+   l'explorateur et le mesureur, 3 pour l'implémenteur (`config.env`). Elles se lisent de la plus
+   ancienne à la plus récente :
+   - une PR verte est fusionnée seulement si le porteur l'a permis (§ « Décisions du porteur »,
+     Q1). C'est d'ordinaire le fusionneur qui l'a déjà fusionnée (Q1 ci-dessous) ;
+   - une PR en conflit sur le seul `docs/backlog/INDEX.md` est réconciliée **sans modèle** :
+     `pre-dev` y est fusionnée, l'index régénéré, l'arbre vérifié comme avant toute publication,
+     puis poussé. Deux PR de l'implémenteur ouvertes ensemble ajoutent chacune un ticket, et le
+     compte « Done — N » de l'index change dans les deux : la seconde à fusionner entre toujours en
+     conflit, sans rien à décider ;
+   - la plus ancienne PR rouge, ou en conflit ailleurs, est réparée par le passage. Après trois
+     réparations, elle est abandonnée, le passage le dit, et elle garde sa place ;
+   - sinon, s'il reste une place, le passage prend du travail neuf ; s'il n'en reste pas, il
+     s'arrête avant de lancer le modèle.
+
+   Jusqu'au 2026-10-15, chaque agent n'avait qu'une PR ouverte, et l'implémenteur s'arrêtait tant
+   que la CI de la sienne tournait (15 min environ pour le seul Web CI). Mesuré ce jour-là : 10
+   pistes en 9 h 30, pour 237 min de travail du modèle, et 10 passages arrêtés en 5 s sur « CI en
+   cours », alors que 138 pistes attendaient (107 validées, 31 autonomes).
 3. **Un arbre de travail dédié par rôle**, remis à `origin/pre-dev` ou à la branche à réparer.
    Ces arbres sont des worktrees d'un **clone propre aux agents** (`~/.takussan-agents/depot`),
    pas de l'arbre principal. Mesuré le 2026-10-15, au premier passage lancé par `launchd` : macOS
@@ -220,6 +243,14 @@ borne, même par une PR fusionnée.
   - Le mesureur est passé à 30 min le même jour : ses tests, joués en même temps que ceux de
     l'implémenteur, portaient la charge à 18 sur 8 cœurs. Un passage de l'implémenteur a pris
     4 628 s sur un plafond de 5 400 s, alors que le mesureur avait déjà 28 pistes d'avance.
+  - Le soir du 2026-10-15, l'implémenteur est passé à **5 min** et l'explorateur à **180 min**.
+    L'implémenteur ne s'arrête plus sur la CI de sa PR (§ 4, étape 2) : à 5 min, il enchaîne
+    les passages, et `launchd` ne relance pas un passage en cours. L'explorateur produit environ
+    8,6 pistes par angle, bien plus que l'implémenteur n'en livre : l'espacer laisse le temps de
+    valider ce qu'il a déjà relevé. Le plancher de `planifier` est passé de 10 à 5 min.
+  - **L'implémenteur prend les 🔴 d'abord**, validées puis autonomes, puis les 🟠 validées, puis
+    les 🟠 autonomes. Avant, il prenait toutes les validées dans l'ordre du fichier, et les défauts
+    de sécurité validés passaient après des pistes d'ergonomie.
   - Une cadence seule se change sur le plist du job concerné, au repos. `planifier` retire et
     repose les trois jobs à la fois.
   - L'implémenteur a besoin de PostgreSQL et de Meilisearch locaux.
