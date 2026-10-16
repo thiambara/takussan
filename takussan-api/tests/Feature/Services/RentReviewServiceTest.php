@@ -4,12 +4,16 @@ namespace Tests\Feature\Services;
 
 use App\Events\Lease\LeaseRentReviewed;
 use App\Models\Customer;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Lease\RentReviewService;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -156,6 +160,107 @@ class RentReviewServiceTest extends TestCase
             'reason' => 'Trying to force',
             'force' => true,
         ]);
+    }
+
+    /**
+     * TCK-668 (P04.02) — à `effective_date`, les échéances de loyer `pending` dont la période
+     * commence à cette date ou après passent au nouveau loyer ; les antérieures gardent l'ancien.
+     */
+    public function test_review_rewrites_pending_rent_payments_from_effective_date(): void
+    {
+        [$service, $lease, $actor] = $this->scaffold();
+        $effective = now()->addMonths(2)->startOfMonth();
+
+        $before = $this->rentPayment($lease, $effective->copy()->subMonth());
+        $onDate = $this->rentPayment($lease, $effective->copy());
+        $after = $this->rentPayment($lease, $effective->copy()->addMonth());
+
+        $service->review($lease, $actor, [
+            'new_rent' => 220_000,
+            'reason' => 'Annual indexation',
+            'effective_date' => $effective->toDateString(),
+        ]);
+
+        $this->assertSame(200_000.0, (float) $before->refresh()->amount);
+        $this->assertSame(220_000.0, (float) $onDate->refresh()->amount);
+        $this->assertSame(220_000.0, (float) $after->refresh()->amount);
+    }
+
+    /**
+     * TCK-668 (P04.02) — jamais une échéance payée ou en cours de paiement : ni `paid`, ni
+     * `partially_paid`, ni une `pending` dont un checkout est ouvert ou qui porte un acompte, ni une
+     * échéance autre que de loyer.
+     */
+    public function test_review_never_rewrites_paid_or_in_progress_payments(): void
+    {
+        [$service, $lease, $actor] = $this->scaffold();
+        $start = now()->addMonth()->startOfMonth();
+
+        $paid = $this->rentPayment($lease, $start->copy(), ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
+        $partial = $this->rentPayment($lease, $start->copy()->addMonth(), [
+            'status' => PaymentStatus::PartiallyPaid,
+            'metadata' => ['paid_amount' => 50_000],
+        ]);
+        $checkout = $this->rentPayment($lease, $start->copy()->addMonths(2), [
+            'transaction_id' => 'txn-open',
+            'metadata' => ['gateway' => [
+                'provider' => 'wave',
+                'transaction_id' => 'txn-open',
+                'checkout_url' => 'https://pay.example/txn-open',
+                'initiated_at' => now()->subMinutes(5)->toIso8601String(),
+            ]],
+        ]);
+        $deposit = $this->rentPayment($lease, $start->copy()->addMonths(3), [
+            'payment_type' => LeasePaymentType::Deposit,
+        ]);
+
+        $service->review($lease, $actor, [
+            'new_rent' => 220_000,
+            'reason' => 'Annual indexation',
+        ]);
+
+        foreach ([$paid, $partial, $checkout, $deposit] as $payment) {
+            $this->assertSame(200_000.0, (float) $payment->refresh()->amount, (string) $payment->status->value);
+        }
+    }
+
+    /**
+     * TCK-668 (P04.02) — une échéance qui couvre plusieurs mois (trimestre, année : P04.01) passe à
+     * nouveau loyer × mois de sa période.
+     */
+    public function test_review_rewrites_a_multi_month_period_by_its_months(): void
+    {
+        [$service, $lease, $actor] = $this->scaffold();
+        $start = now()->addMonth()->startOfMonth();
+
+        $quarter = $this->rentPayment($lease, $start->copy(), [
+            'amount' => 600_000,
+            'period_end' => $start->copy()->addMonths(2)->endOfMonth()->toDateString(),
+        ]);
+
+        $service->review($lease, $actor, [
+            'new_rent' => 220_000,
+            'reason' => 'Annual indexation',
+        ]);
+
+        $this->assertSame(660_000.0, (float) $quarter->refresh()->amount);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function rentPayment(Lease $lease, CarbonInterface $periodStart, array $overrides = []): LeasePayment
+    {
+        return LeasePayment::factory()->create(array_merge([
+            'lease_id' => $lease->id,
+            'payer_id' => $lease->tenant_id,
+            'payment_type' => LeasePaymentType::Rent,
+            'amount' => 200_000,
+            'status' => PaymentStatus::Pending,
+            'due_date' => $periodStart->toDateString(),
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodStart->copy()->endOfMonth()->toDateString(),
+        ], $overrides));
     }
 
     /**
