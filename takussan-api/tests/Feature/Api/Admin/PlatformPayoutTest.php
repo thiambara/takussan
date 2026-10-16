@@ -17,10 +17,12 @@ use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\EncaissementsPlateforme;
 use Tests\TestCase;
 
 class PlatformPayoutTest extends TestCase
 {
+    use EncaissementsPlateforme;
     use RefreshDatabase;
 
     public function test_close_period_aggregates_paid_payments_and_freezes_fee(): void
@@ -240,23 +242,24 @@ class PlatformPayoutTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        return BookingPayment::factory()->create([
+        // TCK-733 — soldé par l'intégration de la plateforme : seul ce qu'elle encaisse se reverse.
+        return $this->soldeParLaPlateforme(BookingPayment::factory()->create([
             'booking_id' => $booking->id,
             'amount' => $amount,
             'status' => PaymentStatus::Paid,
             'paid_at' => $paidAt,
-        ]);
+        ]));
     }
 
     private function leasePayment(Agency $agency, int $amount, string $paidAt): LeasePayment
     {
         $lease = Lease::factory()->create(['agency_id' => $agency->id]);
 
-        return LeasePayment::factory()->create([
+        return $this->soldeParLaPlateforme(LeasePayment::factory()->create([
             'lease_id' => $lease->id,
             'amount' => $amount,
             'status' => PaymentStatus::Paid,
             'paid_at' => $paidAt,
-        ]);
+        ]));
     }
 }

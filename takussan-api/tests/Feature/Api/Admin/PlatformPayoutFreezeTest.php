@@ -11,6 +11,7 @@ use App\Models\Enums\PlatformPayoutStatus;
 use App\Models\PlatformPayout;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\EncaissementsPlateforme;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class PlatformPayoutFreezeTest extends TestCase
 {
+    use EncaissementsPlateforme;
     use RefreshDatabase;
 
     private function eligible(Agency $agency, string $paidAt = '2026-09-15 10:00:00', int $amount = 100_000): BookingPayment
@@ -29,10 +31,11 @@ class PlatformPayoutFreezeTest extends TestCase
             'agency_id' => $agency->id,
         ]);
 
-        return BookingPayment::factory()->create([
+        // TCK-733 — soldé par l'intégration de la plateforme : seul ce qu'elle encaisse se reverse.
+        return $this->soldeParLaPlateforme(BookingPayment::factory()->create([
             'booking_id' => $booking->id, 'amount' => $amount,
             'status' => PaymentStatus::Paid, 'paid_at' => $paidAt,
-        ]);
+        ]));
     }
 
     public function test_ac10_a_suspended_agency_gets_no_payout_and_is_listed_as_excluded(): void

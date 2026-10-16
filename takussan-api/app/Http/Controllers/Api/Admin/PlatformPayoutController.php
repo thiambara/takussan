@@ -51,7 +51,8 @@ class PlatformPayoutController extends Controller
         );
 
         // TCK-594 — les agences écartées de la clôture globale, avec leur motif
-        // (`agency_not_active`, `already_closed`) : un code, le libellé est au front.
+        // (`agency_not_active`, `already_closed`, `mixed_currencies` depuis TCK-733) : un code, le
+        // libellé est au front.
         return $this->json([
             'data' => array_map(
                 fn (PlatformPayout $payout) => (new PlatformPayoutResource($payout))->resolve($request),

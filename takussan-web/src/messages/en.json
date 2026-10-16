@@ -9546,7 +9546,8 @@
         "excludedRow": "Agency #{agency} — {reason}",
         "excludedReason": {
           "agency_not_active": "agency suspended or not active",
-          "already_closed": "period already closed"
+          "already_closed": "period already closed",
+          "mixed_currencies": "mixed currencies"
         }
       },
       "detail": {

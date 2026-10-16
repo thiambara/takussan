@@ -600,7 +600,7 @@ contre le code par la session.*
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
-- Statut : validé — paiements soldés par une intégration globale seulement, pénalité incluse, devises mélangées refusées
+- Statut : fait · TCK-733
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:234-276`
 - Constat :
@@ -609,6 +609,7 @@ contre le code par la session.*
   - La pénalité encaissée avec le loyer est absente du brut (lu ; intention à vérifier).
 - Piste : borner aux paiements soldés par une intégration globale, inclure la pénalité, et refuser les devises mélangées comme le fait `PayoutCalculator`.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `PlatformPayoutService::closeForAgency()` (lignes 220-290) : `BookingPayment` et `LeasePayment` `paid` de l'agence sans filtre de canal ni d'intégration (seul `deposit_refund` est exclu), `currency` prise sur `$eligible->first()` sans contrôle de mélange ; `amountDue()` (`PaymentGatewayService.php:1238-1258`) ajoute au loyer la pénalité restant due quand l'agence l'encaisse en ligne, alors que la clôture ne somme que `amount` : la pénalité encaissée avec le loyer n'entre pas au brut (lu ; intention de TCK-223 non tranchée). Classement : V1, montant et devise d'un reversement.
+- Mesure (2026-10-16, 1811897f, implementeur) : reproduit avant correctif par `PlatformPayoutScopeTest` → une réservation en espèces et un loyer soldé par l'intégration de l'agence entrent au brut, un loyer réglé en espèces pendant un checkout plateforme ouvert est reversé, la pénalité de 10 000 soldée avec un loyer de 200 000 manque au brut (200 000 au lieu de 210 000), et XOF et EUR mêlés donnent un reversement (201) : 6 tests sur 7 rouges sur le service de pre-dev. Correctif : seuls les paiements dont le checkout de `settled_by` a été initié par une intégration à `agency_id` nul, pénalité de ce checkout au brut et à la commission, 422 `payout.mixed_currencies` pour une agence et exclusion `mixed_currencies` en clôture globale ; 7 verts. Ablation (service remis à l'état de pre-dev) → les 6 mêmes rouges, et ablations partielles (détail, repli sur `transaction_id`) → un rouge chacune ; correctif remis → verts.
 
 ### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
 - Réf : P04.06

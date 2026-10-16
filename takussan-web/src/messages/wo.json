@@ -9546,7 +9546,8 @@
         "excludedRow": "Agence #{agency} — {reason}",
         "excludedReason": {
           "agency_not_active": "agence bi dañu ko taxawal walla doxul",
-          "already_closed": "diir bi tëju na ba noppi"
+          "already_closed": "diir bi tëju na ba noppi",
+          "mixed_currencies": "devises mélangées"
         }
       },
       "detail": {
