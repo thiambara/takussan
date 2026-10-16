@@ -98,7 +98,7 @@ voie d'écriture (angle 13, puis 47).
 | 23 | Lectures de données personnelles sans step-up, face à `REFUSED_READS` (ADR-0055 §3) | fait |
 | 24 | Crédits et Boost : idempotence et unité des achats Lemon Squeezy (`CreditLedger`, `BoostPurchaseService`) | fait |
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | fait |
-| 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | à faire |
+| 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | fait |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | à faire |
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | à faire |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
@@ -3141,3 +3141,90 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.
+
+## Angle 26 — PDF : quittances, contrats, factures
+
+*Exploré le 2026-10-16 sur `pre-dev` 5fa8aefe, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : les sept gabarits de `resources/views/pdf/`, `DocumentPdfService`,
+`DocumentPdfController`, `PaymentReceiptPdf`, `CurrencyDirective`, `CurrencyFormatter`, les
+créateurs de factures et le diff de la PR #453 (P04.01, ouverte). Les rendus sont mesurés en HTML
+par `view(…)->render()` dans `tinker`, sur la base de développement en lecture ou sur un modèle non
+enregistré : ni le moteur PDF ni la locale `fr` d'une requête n'ont joué (la CLI est en `en`,
+d'où « May 2026 », déjà porté par P06.03). Déjà couverts et non repris : la langue des PDF (P06.03),
+l'arrondi au centime à la création (P04.08), la devise par défaut d'une facture (P04, « Devise
+forcée »).*
+
+### Une caution, une pénalité ou des charges payées sortent en « Quittance de loyer — Loyer acquitté »
+- Réf : P26.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:30-41`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:22,60,100`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:43`, `takussan-web/src/components/payments/CustomerPayments.tsx:227`, `takussan-api/app/Services/Model/LeaseService.php:283-296`
+- Constat :
+  - Le contrôleur ne refuse que `deposit_refund` (lu, `:39`). Les types `deposit`, `charges`, `regularization` et `penalty` payés passent, et le gabarit est unique : titre « Quittance de loyer », ligne « Loyer acquitté », mention « atteste du règlement du loyer pour la période indiquée » (lu).
+  - `receipt_available` vaut vrai pour ces mêmes types, et le front affiche le bouton de quittance sur l'échéancier et sur la liste des paiements (lu).
+  - Mesuré : `tinker`, rendu HTML de `pdf.receipts.rent` pour `lease_payments.id = 1` (`payment_type = deposit`, `paid`, base de dev) → « Quittance de loyer … Période May 2026 · Loyer acquitté 611 895 F CFA · Méthode bank_transfer … atteste du règlement du loyer ». La base de dev porte 332 cautions `paid` (mesuré : `SELECT payment_type, status, count(*)` sur `lease_payments`).
+  - L'indemnité de résiliation anticipée naît en `LeasePayment` de type `penalty`, avec `period_start` = jour de la résiliation (lu, `LeaseService.php:283-296`) : réglée, elle s'imprime en loyer du mois de la résiliation (déduit du gabarit, non rendu).
+  - Établi comment : lu, et une mesure de rendu sur une caution.
+- Piste : un intitulé et une ligne de montant par type (« Reçu de dépôt de garantie », « Reçu d'indemnité »…), ou refuser la quittance hors `rent` comme pour `deposit_refund`. Un test par type, qui lise le texte rendu et non les octets `%PDF-`.
+
+### La facture PDF imprime une TVA et un total qui ne s'additionnent pas
+- Réf : P26.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Formatting/CurrencyFormatter.php:37-39`, `takussan-api/resources/views/pdf/invoices/default.blade.php:106-118`, `takussan-api/app/Services/Model/InvoiceService.php:58`
+- Constat :
+  - `InvoiceService` range une TVA au centime (`round(…, 2)`, voir P04.08). `CurrencyFormatter` l'affiche à 0 décimale en XOF par `NumberFormatter`, sans régler de mode d'arrondi : celui d'ICU par défaut est l'arrondi au pair (lu).
+  - Mesuré (`tinker`, rendu HTML de `pdf.invoices.default` sur une `Invoice` non enregistrée, sous-total 100 025, TVA 18 %) → « Sous-total 100 025 F CFA · TVA (18%) 18 004 F CFA · Total TTC 118 030 F CFA ». 100 025 + 18 004 = 118 029 : le document n'est pas arithmétiquement juste.
+  - Le même formateur affiche « 1 250 F CFA » pour 1 250,5 (mesuré : `CurrencyDirective::render("1250.5", "XOF")`), alors que `amountDue()` et `PayoutCalculator` arrondissent au demi supérieur (`PHP_ROUND_HALF_UP`, lu) et encaissent 1 251.
+  - Le relevé du bailleur additionne des lignes non arrondies par bien, puis imprime chaque ligne par ce formateur (`OwnerStatementService.php:115-135`) : même risque d'écart entre lignes et total (à vérifier).
+  - Aucun test PDF ne porte un montant XOF fractionnaire : `CurrencyPdfRegressionTest` n'en a qu'en EUR (lu).
+- Piste : P04.08 supprime la cause en base. Indépendamment, poser `ROUNDING_MODE = ROUND_HALFUP` dans `CurrencyFormatter`, pour que l'affichage arrondisse comme l'encaissement. Un test d'unité sur 0,5, et un test de gabarit qui vérifie sous-total + TVA = total à l'écrit.
+
+### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
+- Réf : P26.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
+- Constat :
+  - La « Période » de la quittance est `period_start->translatedFormat('F Y')`. `period_end` n'est lu par aucun gabarit de quittance (lu ; `grep period_end resources/views/pdf` → seul le relevé du bailleur).
+  - Aujourd'hui, chaque échéance couvre un mois (P04.01). La PR #453 (ouverte) fait couvrir à une échéance trimestrielle trois mois, pour trois loyers (`period_end` = fin du 3ᵉ mois, `amount × 3`, lu dans son diff). Elle ne touche pas le gabarit.
+  - Une fois fusionnée, une quittance de trimestre dira donc « Période : Janvier 2027 · Loyer acquitté : 3 × le loyer » (déduit, à vérifier après la fusion).
+  - La base de dev porte 4 baux trimestriels et 4 annuels (mesuré).
+- Piste : imprimer « du … au … » à partir de `period_start` et `period_end` dès que la période dépasse un mois. Le test de quittance porte une échéance trimestrielle.
+
+### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
+- Réf : P26.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
+- Constat :
+  - `GET /api/invoices/{invoice}/pdf` existe et rend un gabarit qui porte les mentions légales de TCK-594 (lu).
+  - Aucun appelant dans `takussan-web/src` : `grep invoices/` ne rend que le détail, l'envoi, le paiement et l'annulation (`lib/queries/payments.ts:167-212`). La modale de détail n'a ni bouton ni lien PDF (mesuré : `grep -i 'pdf\|telecharg\|download'` → rien).
+  - Aucun e-mail ne joint de PDF : `grep -rn 'attachData\|->attach(\|Attachment::' app` → seulement des `attach()` de relations (mesuré).
+  - `docs/features.md:367` et `:598` promettent la génération et l'export PDF des factures (lu).
+  - Établi comment : lu et mesuré par recherche.
+- Piste : un bouton de téléchargement dans `InvoiceDetailDialog`, par `BoutonTelechargement` comme la quittance. Un test du composant qui vérifie le chemin `/api/invoices/{id}/pdf`.
+
+### La facture PDF ne dit pas ce qu'elle facture
+- Réf : P26.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
+- Constat :
+  - Le contrôleur ne passe pas `$lines`. Le gabarit retombe donc toujours sur une ligne unique « Prestation × 1 = sous-total » (lu), mesuré dans le rendu de P26.02.
+  - Les factures nées du code ont pourtant un objet : l'indemnité de résiliation et la retenue sur caution portent leur libellé dans `notes` (`messages.lease_early_termination_invoice_line`, `messages.deposit_retention_invoice_line`, lu), qui ne s'imprime qu'en bas, sous « Notes ».
+  - La table `invoices` n'a ni lignes ni désignation (migration lue) : seule la note dit l'objet.
+- Piste : à défaut de lignes, prendre la désignation dans l'objet facturé (`invoiceable`) ou dans une clé de `metadata` posée par le créateur, au lieu de « Prestation ». Un test par créateur qui lise la désignation rendue.
+
+### Petites améliorations des gabarits PDF
+- Réf : P26.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
+- Constat :
+  - **Valeurs d'enum brutes** imprimées : « Méthode bank_transfer » sur la quittance (mesuré au rendu de P26.01), « Statut sent » sur la facture (mesuré au rendu de P26.02), donc « Statut void » sur un avoir (lu), « Type » du reçu de réservation (`$type`, lu). P06.03 traite la langue des gabarits, pas ces valeurs.
+  - **Taux de TVA** formaté à l'anglaise : `number_format(…, 2)` puis `rtrim` donne « TVA (18.5%) » pour 18,5 % (lu ; rendu à vérifier).
+  - **Période du relevé du bailleur** en dates ISO brutes : « 2026-10-01 — 2026-10-31 » (lu).
+  - **Contrat** : pour un bail trimestriel ou annuel, il n'imprime que « Loyer mensuel » et la fréquence, jamais le montant appelé à chaque échéance. Un bail de type `sale` imprime aussi « Loyer mensuel » et caution à côté du prix de vente (lu).
+  - **Nom de fichier** : un avoir se télécharge en `facture-….pdf` (lu).
+- Piste : des libellés pour les enums imprimés (par la décision de P06.03 sur la langue), `number_format` à la française, des dates formatées, et le montant par échéance au contrat. À trier ligne par ligne.
