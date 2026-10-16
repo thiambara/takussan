@@ -29,7 +29,7 @@ si bien qu'une sonde externe sur le code de réponse ne voyait rien.
 
 ## Décision du porteur
 
-sonde scheduler avec status (échec après 5 min sans exécution), /api/health en 503 sur failed
+sonde scheduler avec status (échec après 5 min sans exécution), /api/health en 503 sur failed ; reste : les healthchecks des workers et la sonde UptimeRobot, par le porteur
 
 ## Reste à faire
 
