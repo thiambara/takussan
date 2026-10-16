@@ -243,7 +243,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
-- Statut : retenu · à valider — V7 : retirer ou afficher les facettes
+- Statut : validé — retirer les facettes
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:76,97,152`
 - Constat : `neighborhood`, `bedrooms` et `type` sont demandées à Meilisearch à chaque requête. Le front ne lit `facets` nulle part : seule la déclaration de type `types/search.ts:608` le mentionne.
@@ -252,7 +252,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
 - Réf : P01.09
-- Statut : retenu · à valider — V7 : suggestions neuves dans l'état vide
+- Statut : validé — des suggestions dans l'état vide
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:125`, `takussan-api/app/Models/Property.php:321-338`
 - Constat :
@@ -386,7 +386,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
-- Statut : retenu · à valider — V7 : les compteurs des onglets lisent les cinq requêtes
+- Statut : validé — arrondir `nowIso` à la minute ; reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
 - Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
@@ -395,7 +395,7 @@ Déjà sain (mesuré ou lu) :
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
-- Statut : retenu · à valider — V4 : la purge supprime des lignes
+- Statut : validé — un index et une purge à 90 jours
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
@@ -413,7 +413,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
-- Statut : retenu · à valider — V1 : chemin de calcul des pénalités
+- Statut : validé — le plafond des pénalités lu une fois par agence, même résultat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
@@ -524,7 +524,7 @@ Ce qui tient (lu) :
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
-- Statut : retenu · à valider — V2 : portée d'agence de la console d'équipe
+- Statut : validé — le proxy admin-users transmet le profil actif
 - Gravité : 🟢 à vérifier
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
@@ -658,7 +658,7 @@ contre le code par la session.*
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
 - Réf : P04.11
-- Statut : retenu · à valider — V1 : paiement partiel
+- Statut : validé — l'index sur la référence fournisseur ; reste : terminer ou retirer le paiement partiel
 - Gravité : 🟢 amélioration
 - Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
 - Constat :
@@ -767,7 +767,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : retenu · à valider — V7 : planifier ou retirer le résumé quotidien jamais planifié
+- Statut : validé — retirer le résumé quotidien jamais planifié, et corriger les deux autres écarts
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -779,7 +779,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
-- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé
+- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé ; porteur (2026-10-16) : traité hors agents, réglage de déploiement
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
 - Constat :
@@ -850,7 +850,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
-- Statut : retenu · à valider — chemin fermé : scripts/check-locale-figee.mjs (V9, distinct du V8 accordé) : la garde échoue quand le compte descend sous PLAFOND_RESTE = 20, donc le site public ne se corrige pas sans descendre le cliquet dans le même diff, que la précision réserve au porteur
+- Statut : retenu · à valider — chemin fermé : scripts/check-locale-figee.mjs (V9, distinct du V8 accordé) : la garde échoue quand le compte descend sous PLAFOND_RESTE = 20, donc le site public ne se corrige pas sans descendre le cliquet dans le même diff, que la précision réserve au porteur ; porteur (2026-10-16) : traité hors agents, en session, plafond de la garde compris
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -937,7 +937,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Des documents qui affirment l'inverse de la mesure
 - Réf : P06.13
-- Statut : retenu · à valider — V9 : chemin fermé, deux corrections sur trois sont dans `CLAUDE.md` et `takussan-web/CLAUDE.md`
+- Statut : retenu · à valider — V9 : chemin fermé, deux corrections sur trois sont dans `CLAUDE.md` et `takussan-web/CLAUDE.md` ; porteur (2026-10-16) : traité hors agents, en session
 - Gravité : 🟢 amélioration
 - Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
 - Constat :
@@ -1101,7 +1101,7 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : retenu · à valider — V7 : captions et libellés contextuels neufs, en fr/en/wo
+- Statut : validé — libellés contextuels et captions en fr/en/wo ; le wolof n'est pas relu
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
@@ -1215,7 +1215,7 @@ Sain (vérifié par l'agent) :
 
 ### Petites améliorations
 - Réf : P08.10
-- Statut : retenu · à valider — V7 : second bouton « Prendre une photo » et squelettes de chargement neufs
+- Statut : validé — selon la piste
 - Gravité : 🟢 amélioration
 - Où et constat (lu ou mesuré) :
   - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
@@ -1324,7 +1324,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : retenu · à valider — V7 : forme des canoniques paginées, des titres et descriptions de fiche ; `takussan-web/CLAUDE.md` est un chemin fermé
+- Statut : validé — la partie code (canoniques, 404 au-delà de la dernière page, coupe des descriptions, `generateSitemaps()`, métadonnées des pages introuvables) ; reste : le paragraphe de `takussan-web/CLAUDE.md`, hors agents
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1470,7 +1470,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Petites améliorations
 - Réf : P10.10
-- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production
+- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production ; porteur (2026-10-16) : traité hors agents, avec le déploiement
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
@@ -1620,7 +1620,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : retenu · à valider — V3 : numéros complets dans les journaux
+- Statut : validé — ne journaliser que les 4 derniers chiffres des numéros, `backoff` et un `failed()` qui journalise
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1930,7 +1930,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : retenu · à valider — V8 : deux chantiers, et un seuil d'alerte à choisir
+- Statut : validé — `request_id`, agence et profil dans le contexte des journaux (`Log::withContext`) ; reste : la sonde payments et son seuil d'alerte
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -2080,7 +2080,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Petites améliorations
 - Réf : P13.10
-- Statut : retenu · à valider — V4 : retrait de colonnes, et V8 : plusieurs tickets
+- Statut : validé — fichiers et exports morts côté front, et un seul `formatCurrency` ; reste : le retrait des colonnes en base et le rapport des clés i18n inutilisées
 - Gravité : 🟢 amélioration
 - Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
   - **Fichiers front morts** : 8, dont :
@@ -2237,7 +2237,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P15.10
-- Statut : retenu · à valider — V7 : notification neuve
+- Statut : validé — prévenir les admins quand un dossier passe en pending_review
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
@@ -2399,7 +2399,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : retenu · à valider — V7 : retrait ou alignement à choisir, signal de distance neuf
+- Statut : validé — retirer les deux routes d'adresse sans appelant ; reste : le signal de distance
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -2489,7 +2489,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : retenu · à valider — V7 : plafond, marqueur et `/playground` à décider
+- Statut : validé — plafond des clics aligné sur celui des vues (3 par heure), marqueur `?src=sponsored` dans l'URL, `/playground` retiré des environnements déployés
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2584,7 +2584,7 @@ ajoutent que des faits neufs.*
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
-- Statut : retenu · à valider — V3 : durée de conservation des notifications, à écrire dans la politique
+- Statut : validé — 6 mois pour les notifications lues, ajouté à TCK-537 ; reste : l'index, posé sur une mesure de volume
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/NotificationController.php:20-31`, `takussan-api/database/migrations/2026_04_17_160032_create_app_notifications_table.php:13,26`, `takussan-web/src/content/legal/privacy.ts:121-134`
 - Constat :
@@ -2596,7 +2596,7 @@ ajoutent que des faits neufs.*
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : retenu · à valider — V3 : durée de conservation des jobs échoués, dont le payload est gardé tel quel
+- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at` ; reste : l'extension de l'ADR-0044, hors agents avec P23.03
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2696,7 +2696,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
-- Statut : retenu · à valider — V8 : recouvre les tests de budget de P20.01 à P20.05 et ne passe au vert qu'après eux
+- Statut : validé — la garde générale, après P20.02 à P20.05
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Providers/AppServiceProvider.php`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`
 - Constat :
@@ -2802,7 +2802,7 @@ n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : retenu · à valider — V3 : choisir les champs du carnet des prestataires, dont `metadata`
+- Statut : validé — pagination et ressources du carnet des prestataires, sans `metadata`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -2870,7 +2870,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Petites améliorations
 - Réf : P22.04
-- Statut : retenu · à valider — V2 : autorisation déplacée dans `authorize()` sur des routes qu'un appelant légitime emploie
+- Statut : validé — autorisations déplacées dans `authorize()`, et `bulkArchive` sort de la policy
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
 - Constat :
@@ -2975,7 +2975,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P23.06
-- Statut : retenu · à valider — V2 : garde d'impersonation qui ne passe au vert qu'après P23.01 et P23.05
+- Statut : validé — la garde d'impersonation sur les GET, après P23.05 ; reste : la correction de l'ADR, hors agents
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:15-25,37-43`, `docs/adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md`
 - Constat :
@@ -3059,7 +3059,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : retenu · à valider — V1 : remboursement de crédits d'une Vedette prolongée
+- Statut : validé — rembourser d'abord les jours les plus tardifs, au prix de la tranche qui les a achetés
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3073,7 +3073,7 @@ sont pas reprises.*
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : retenu · à valider — V1 : préavis d'expiration d'un lot de crédits remboursé
+- Statut : validé — selon la piste
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3096,7 +3096,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Un loyer payé en ligne pénalité comprise est introuvable par la recherche manuelle au montant de la ligne
 - Réf : P25.01
-- Statut : retenu · à valider — V1 : montant attendu d'une échéance, lié à P25.02
+- Statut : validé — une seule expression du montant attendu d'une échéance, partagée par le matcher et la recherche manuelle, et qui suit la règle de P25.02
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/PaymentSearchService.php:159-170`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:86-91`, `takussan-web/src/components/admin/reconciliation/PaymentSearchDialog.tsx:46-48`
 - Constat :
@@ -3111,7 +3111,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Après un checkout abandonné et un règlement manuel, le matcher cherche encore le montant du checkout
 - Réf : P25.02
-- Statut : retenu · à valider — V1 : quel montant attendre d'une échéance soldée hors ligne
+- Statut : validé — le montant figé ne se lit que si l'échéance a été soldée en ligne ; sinon `amount`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:671`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:919-926`, `takussan-api/app/Services/Model/LeasePaymentService.php:59-66`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:89-91`
 - Constat :
@@ -3141,7 +3141,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Le matcher propose des factures brouillon, annulées et nulles
 - Réf : P25.04
-- Statut : retenu · à valider — V1 : statuts de facture rapprochables, et refus dans `confirmMatch()`
+- Statut : validé — seuls les statuts sent, overdue et paid sont rapprochables, et `confirmMatch()` refuse les autres
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:69-96`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:99-114`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`
 - Constat :
@@ -3155,7 +3155,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : retenu · à valider — V7 : des lignes suggérées aujourd'hui ne le seraient plus
+- Statut : validé — à égalité entre deux encaissements, aucune suggestion
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3168,7 +3168,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : retenu · à valider — V1 : choix de modèle comptable de la pénalité
+- Statut : validé — le montant attendu inclut la pénalité réglée le même jour ; reste : rendre rapprochable une pénalité réglée seule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3182,7 +3182,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : retenu · à valider — V1 : rapprochement d'encaissements, et la piste dit « à trancher entrée par entrée »
+- Statut : validé — journaliser le statut et l'écart de montant à la confirmation ; reste : les autres points, un par un
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3208,7 +3208,7 @@ forcée »).*
 
 ### Une caution, une pénalité ou des charges payées sortent en « Quittance de loyer — Loyer acquitté »
 - Réf : P26.01
-- Statut : retenu · à valider — V7 : intitulé et texte par type, ou refus de la quittance hors loyer, à choisir
+- Statut : validé — un intitulé et une ligne de montant par type (caution, pénalité, charges, loyer) ; pas de refus de la quittance hors loyer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:30-41`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:22,60,100`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:43`, `takussan-web/src/components/payments/CustomerPayments.tsx:227`, `takussan-api/app/Services/Model/LeaseService.php:283-296`
 - Constat :
@@ -3222,7 +3222,7 @@ forcée »).*
 
 ### La facture PDF imprime une TVA et un total qui ne s'additionnent pas
 - Réf : P26.02
-- Statut : retenu · à valider — V1 : arrondi d'affichage des montants d'une facture
+- Statut : validé — arrondi ROUND_HALFUP dans `CurrencyFormatter`, pour que TVA et total s'additionnent
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Formatting/CurrencyFormatter.php:37-39`, `takussan-api/resources/views/pdf/invoices/default.blade.php:106-118`, `takussan-api/app/Services/Model/InvoiceService.php:58`
 - Constat :
@@ -3236,7 +3236,7 @@ forcée »).*
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
-- Statut : retenu · à valider — V7 : libellé de période d'une quittance, lié à P04.01 (PR #453 ouverte)
+- Statut : validé — « du … au … » dès que la période dépasse un mois, après la fusion de #453
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
 - Constat :
@@ -3249,7 +3249,7 @@ forcée »).*
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
-- Statut : retenu · à valider — V7 : bouton de téléchargement neuf sur la facture
+- Statut : validé — un bouton de téléchargement du PDF dans `InvoiceDetailDialog`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
 - Constat :
@@ -3263,7 +3263,7 @@ forcée »).*
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
-- Statut : retenu · à valider — V7 : désignation imprimée d'une facture, source à choisir
+- Statut : validé — désignation prise dans l'objet facturé (`invoiceable`), repli sur une clé `metadata`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
 - Constat :
@@ -3275,7 +3275,7 @@ forcée »).*
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
-- Statut : retenu · à valider — V7 : libellés et formats d'actes, à trier ligne par ligne et liés à P06.03
+- Statut : validé — nombres et dates au format français ; reste : libellés des enums (après P06.03) et montant par échéance au contrat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
 - Constat :
@@ -3298,7 +3298,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Sans `SMS_WEBHOOK_URL_TOKEN`, LAfricaMobile échoue sur tout SMS rattaché à une notification
 - Réf : P27.01
-- Statut : retenu · à valider — V5 : clé d'environnement absente, choix entre envoyer sans accusé et refuser au démarrage
+- Statut : validé — sans la clé, envoyer sans accusé de réception, avec un `Log::warning` ; pas de refus au démarrage ; reste : poser `SMS_WEBHOOK_URL_TOKEN` dans Dokploy (porteur)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:75-76,119-131`, `takussan-api/config/sms.php:174`, `takussan-api/routes/api/sms-webhooks.php:31-33`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-173`
 - Constat :
@@ -3315,7 +3315,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
-- Statut : retenu · à valider — V7 : contredit TCK-102:82, et le sort des codes OTP est à décider
+- Statut : validé — un échec ambigu (délai dépassé, 5xx) ne passe pas au fournisseur suivant ; les codes OTP gardent le repli
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-105,143-150`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:78-88`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:76-87`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:175-188`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:82-87`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:223`
 - Constat :
@@ -3344,7 +3344,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
-- Statut : retenu · à valider — V5 : délai du worker et budget de la chaîne relèvent du déploiement
+- Statut : validé — borner la durée totale de la chaîne dans le code et poser `$timeout` sur le job ; reste : le délai du worker, au déploiement (porteur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:66,98,111,120,215-225,245`, `takussan-api/config/sms.php` (`fallback_chains`), `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:383`
 - Constat :
@@ -3357,7 +3357,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
-- Statut : retenu · à valider — V7 : deux options pour Mtarget, dont le format de réponse à plusieurs numéros n'est pas vérifié
+- Statut : validé — un seul numéro par appel chez Mtarget
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:115,219`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:117-121`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:89-109`
 - Constat :
@@ -3402,7 +3402,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
-- Statut : retenu · à valider — V7 : deux correctifs possibles, retirer `usage_count` ou la route
+- Statut : validé — retirer `usage_count` de la lecture publique ; la route reste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
 - Constat :
@@ -3432,7 +3432,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une invitation sans compte part dans la langue de l'invitant, et sa relance J+2 dans celle du processus : deux langues pour la même invitation
 - Réf : P29.01
-- Statut : retenu · à valider — V7 : la langue d'une invitation sans compte reste à choisir
+- Statut : validé — la langue est écrite à la création de l'invitation : `fr` explicite (`DEFAULT_LOCALE`), comme `ContactSansCompte` ; la fiche client de P29.03 l'affinera
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:946-966`, `:517-538`, `:1000-1012`, `takussan-api/app/Mail/InvitationMailable.php:19-22`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:17-18`, `:75-78`
 - Constat :
@@ -3449,7 +3449,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
-- Statut : retenu · à valider — V7 : langue `fr` ou celle d'une fiche client à créer (P29.03)
+- Statut : validé — `fr` (`DEFAULT_LOCALE`), puis la langue de la fiche client une fois P29.03 faite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
 - Constat :
@@ -3463,7 +3463,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
-- Statut : retenu · à valider — V4 : colonne neuve sur `customers` et champ de formulaire neuf
+- Statut : validé — langue facultative sur la fiche client, migration et champ de formulaire
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Customer.php:55-64`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `docs/adr/0032-l-api-n-ecrit-plus-de-prose.md:109-111`
 - Constat :
