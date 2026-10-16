@@ -94,23 +94,18 @@ export const createLeaseSchema = z
 
 export type CreateLeaseFormValues = z.infer<typeof createLeaseSchema>;
 
+/**
+ * TCK-681 (P13.01) — le loyer reçu règle une échéance EXISTANTE (`mark-paid`) : on choisit
+ * l'échéance, pas un montant ni une période. La référence part en `transaction_id`.
+ */
 export const leasePaymentSchema = z.object({
-  amount: z.number().positive(msgValidation('common.amountPositive')),
+  payment_id: z.string().regex(/^\d+$/, msgValidation('lease.installmentRequired')),
   payment_method: z.enum(['cash', 'bank_transfer', 'mobile_money', 'check', 'card']),
-  payment_type: z.enum(['rent', 'charges', 'deposit', 'deposit_refund', 'regularization', 'penalty']).default('rent'),
-  period_start: isoDate,
-  period_end: isoDate,
   paid_at: isoDate.optional().or(z.literal('').transform(() => undefined)),
   reference_number: z
     .string()
     .trim()
     .max(100)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  notes: z
-    .string()
-    .trim()
-    .max(500)
     .optional()
     .or(z.literal('').transform(() => undefined)),
 });

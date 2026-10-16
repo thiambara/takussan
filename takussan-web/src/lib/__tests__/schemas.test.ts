@@ -129,23 +129,20 @@ describe('guarantorSchema', () => {
 });
 
 describe('leasePaymentSchema', () => {
-  it('accepts a well-formed rent payment', () => {
+  // TCK-681 (P13.01) — le loyer reçu règle une échéance existante : on la choisit.
+  it('accepts a settled instalment', () => {
     const r = leasePaymentSchema.safeParse({
-      amount: 250000,
+      payment_id: '13',
       payment_method: 'mobile_money',
-      payment_type: 'rent',
-      period_start: '2026-05-01',
-      period_end: '2026-05-31',
+      paid_at: '2026-05-03',
     });
     expect(r.success).toBe(true);
   });
 
-  it('rejects non-positive amount', () => {
+  it('rejects a missing instalment', () => {
     const r = leasePaymentSchema.safeParse({
-      amount: 0,
+      payment_id: '',
       payment_method: 'cash',
-      period_start: '2026-05-01',
-      period_end: '2026-05-31',
     });
     expect(r.success).toBe(false);
   });

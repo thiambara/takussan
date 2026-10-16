@@ -2175,15 +2175,10 @@
     },
     "payment": {
       "title": "Bind benn pey",
-      "description": "Loyer, charges walla régularisation ngir luwé bii.",
-      "amount": "Mbënd",
-      "type": "Xeet",
+      "description": "Tànnal bes bi luwékat bi fey.",
       "method": "Anam",
-      "periodStart": "Tàmbalig jamono",
-      "periodEnd": "Mujjug jamono",
       "effectiveDate": "Bis bi mu am",
       "reference": "Référence / Reçu",
-      "notes": "Njàng-mar",
       "saving": "Denc…",
       "methods": {
         "cash": "Xaalis ci loxo",
@@ -2192,14 +2187,8 @@
         "check": "Chèque",
         "card": "Kart bank"
       },
-      "types": {
-        "rent": "Loyer",
-        "charges": "Charges",
-        "deposit": "Kaution",
-        "deposit_refund": "Delloo kaution",
-        "regularization": "Régularisation",
-        "penalty": "Pénalité"
-      }
+      "installment": "Bisu fey",
+      "noInstallment": "Amul bes bu ñu feyul ci luwé bii."
     },
     "guarantor": {
       "title": "Garant yi",
@@ -9771,7 +9760,8 @@
       "monthlyRentRequired": "Luwaa bu weer bi fàww la ci luwaa.",
       "emailInvalid": "Email bu baaxul.",
       "refundExceedsDeposit": "Waññi wi ëpp na kosioŋ bi des.",
-      "refundReasonRequired": "Sabab bi fàww la ci delloo bu matul."
+      "refundReasonRequired": "Sabab bi fàww la ci delloo bu matul.",
+      "installmentRequired": "Tànnal benn bes."
     },
     "maintenance": {
       "propertyRequired": "Tànnal benn kër.",
