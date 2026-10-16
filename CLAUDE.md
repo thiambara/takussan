@@ -400,8 +400,11 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    propre commentaire.
 
 5. **Le front possède le texte affiché.** L'API émet des codes et des données ; les libellés passent
-   par next-intl (`fr`/`en`/`wo`). *Tenu à 82 fichiers sur 875 : la règle est une intention, pas un
-   état (dette D-24).*
+   par next-intl (`fr`/`en`/`wo`). *L'état de la règle ne s'écrit pas ici, il se prend :
+   `cd takussan-web && node scripts/check-i18n.mjs --report` (parité des clés, texte en dur toléré
+   ou excusé). Son vert est un plancher : il ne lit que `takussan-web/src`, donc ni les libellés que
+   l'API émet encore en français (P06.12), ni la justesse du wolof (dette D-24). Un compte écrit
+   ici a survécu deux mois à la mesure qui le démentait (TCK-722).*
 
 ### Migrations — les pièges PostgreSQL
 

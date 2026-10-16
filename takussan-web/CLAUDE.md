@@ -231,19 +231,35 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
 
 ## i18n
 
-**next-intl sans segment `[locale]` dans l'URL.** La locale est résolue côté serveur : cookie
-`NEXT_LOCALE` → `Accept-Language` (avec parsing des q-factors) → `fr`
-(`src/i18n/request.ts:44-99`). 3 locales — `fr`, `en`, `wo`. Fuseau figé à `Africa/Dakar`.
+**La langue est le premier segment de l'URL publique, toujours présent — `fr` compris**
+([ADR-0026](../docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md)). Les
+pages publiques vivent sous `src/app/[locale]/(public)/` (`/fr/properties`, `/wo/properties/<slug>`) ;
+la console et les passages (`/app`, `/admin`, `/super-admin`, `/auth`, `/onboarding`, `/publish`…,
+liste exacte : `SEGMENTS_NON_LOCALISES` de `src/i18n/routing.ts`) n'en portent **jamais**. Deux
+préséances, à ne pas confondre (ADR-0026 §5) :
 
-> ⚠️ **Le repli est un deep-merge de `fr` sous TOUTE locale ≠ `fr`** (`src/i18n/request.ts:95-101`)
+- **quelle langue rendre** — sur une URL préfixée, le segment, **seul** : ni cookie ni en-tête ne le
+  contredisent ; hors de `[locale]`, cookie `NEXT_LOCALE` → `Accept-Language` (q-factors) → `fr`
+  (`resolveLocale`, `src/i18n/request.ts`) ;
+- **où envoyer une URL publique sans préfixe** — `src/proxy.ts` répond **307, jamais 308**, vers
+  `/<locale>/…` choisie par cookie → `Accept-Language` → `fr` (`localeDeRepli`), avec
+  `Vary: Cookie, Accept-Language`. Servir une URL préfixée reporte sa langue dans le cookie.
+
+`fr` est la langue de repli, pas une URL sans préfixe : `localePrefix: 'as-needed'` est écarté par
+l'ADR. 3 locales — `fr`, `en`, `wo`, toutes indexables. Fuseau figé à `Africa/Dakar`.
+
+> ⚠️ **Le repli est un deep-merge de `fr` sous TOUTE locale ≠ `fr`** (`loadMessages`, `src/i18n/request.ts`)
 > — `en` compris. Une clé sans traduction anglaise s'affiche **en français** à l'utilisateur
 > anglophone : pas d'erreur, pas d'avertissement, pas de test rouge. C'est pourquoi **une clé
 > neuve part avec ses trois traductions**, jamais avec la seule française.
 
 **La garde : `npm run check:i18n`** (`scripts/check-i18n.mjs`, branché dans `web-ci.yml`).
 
-- **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT. `en` est tenu à **0 clé manquante** ; `wo`
-  traîne 88 clés manquantes préexistantes, sous cliquet décroissant.
+- **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT, plafond à **0 clé manquante dans les deux
+  langues** (`PLAFONDS_PARITE` de `scripts/check-i18n.mjs`) : toute clé `fr` ajoutée sans son `en`
+  ou son `wo` fait rougir. Le compte courant se lit dans `node scripts/check-i18n.mjs --report`,
+  jamais ici : un compte de clés `wo` manquantes recopié dans ce paragraphe a survécu des semaines
+  à la mesure qui le démentait (TCK-722).
 - **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par le scan
   de `scripts/i18n-scan.mjs`. Un compte qui monte échoue ; un fichier neuf portant du texte échoue ;
   un compte qui descend échoue tant qu'on n'a pas lancé `--update`.
