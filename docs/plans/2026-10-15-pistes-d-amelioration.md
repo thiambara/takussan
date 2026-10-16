@@ -3233,7 +3233,7 @@ forcée »).*
 
 ### La facture PDF imprime une TVA et un total qui ne s'additionnent pas
 - Réf : P26.02
-- Statut : validé — arrondi ROUND_HALFUP dans `CurrencyFormatter`, pour que TVA et total s'additionnent
+- Statut : fait · TCK-726
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Formatting/CurrencyFormatter.php:37-39`, `takussan-api/resources/views/pdf/invoices/default.blade.php:106-118`, `takussan-api/app/Services/Model/InvoiceService.php:58`
 - Constat :
@@ -3244,6 +3244,7 @@ forcée »).*
   - Aucun test PDF ne porte un montant XOF fractionnaire : `CurrencyPdfRegressionTest` n'en a qu'en EUR (lu).
 - Piste : P04.08 supprime la cause en base. Indépendamment, poser `ROUNDING_MODE = ROUND_HALFUP` dans `CurrencyFormatter`, pour que l'affichage arrondisse comme l'encaissement. Un test d'unité sur 0,5, et un test de gabarit qui vérifie sous-total + TVA = total à l'écrit.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `CurrencyFormatter.php:32-49` (`NumberFormatter` DECIMAL, aucun `ROUNDING_MODE`), `InvoiceService.php:58` (`round(…, 2)`), `default.blade.php:106-118` ; `tinker` en lecture, rendu de `pdf.invoices.default` sur une `Invoice` non enregistrée (sous-total 100 025, TVA 18 %) → « Sous-total 100 025 F CFA · TVA (18%) 18 004 F CFA · Total TTC 118 030 F CFA », et `format()` en XOF : 1 250,5 → « 1 250 », 1 251,5 → « 1 252 », 18 004,5 → « 18 004 » (arrondi au pair) ; `git log -S 'ROUND_HALFUP'` → aucun commit de code. Le relevé du bailleur reste à vérifier. Classement : V1, la piste change l'écrit d'un montant de facture, et P04.08 (validé) en traite la cause en base.
+- Mesure (2026-10-16, 53575541, implementeur) : avant correctif, `CurrencyFormatter::format()` en XOF rendait 1 250,5 → « 1 250 F CFA » et le gabarit `pdf.invoices.default` (sous-total 100 025, TVA 18 004,5, total 118 029,5) imprimait 100 025 · 18 004 · 118 030 (tests neufs rouges). `ROUNDING_MODE = ROUND_HALFUP` posé dans `CurrencyFormatter` → `test_a_half_rounds_up_like_the_amount_charged` (1 250,5 → 1 251, 18 004,5 → 18 005, 2,125 € → 2,13 €) et `test_invoice_subtotal_and_tax_add_up_to_the_printed_total` (100 025 + 18 005 = 118 030 à l'écrit) verts ; ablation de la ligne → les deux rouges. Le relevé du bailleur reste non mesuré.
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
