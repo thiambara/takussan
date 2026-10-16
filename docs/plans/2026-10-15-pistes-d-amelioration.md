@@ -813,7 +813,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
 - Réf : P06.03
-- Statut : validé — les actes restent en français : dates et titres forcés en fr ; reste : les trois lignes d'ADR qui posent que les actes restent en français, par le porteur
+- Statut : fait · TCK-672 — reste : les trois lignes d'ADR qui posent que les actes restent en français, par le porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/leases/contract.blade.php`, `inventories/report.blade.php`, `receipts/rent.blade.php:22`, `receipts/booking.blade.php`, `invoices/default.blade.php`, `layouts/base.blade.php:18`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:143`
 - Constat :
@@ -824,6 +824,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Aucun ADR ne dit que ces actes sont en français par choix (mesuré par script).
 - Piste : décider par ADR (français juridique, ou acte bilingue), puis passer par `lang/*`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : compté `__(`/`@lang`/`trans(` par gabarit → 0 dans `leases/contract`, `inventories/report`, `receipts/rent`, `receipts/booking` et `invoices/default`, 17 dans `statements/owner`, 1 dans `maintenance/quote` ; lu `layouts/base.blade.php:18` (`<html lang="fr">`), `receipts/rent.blade.php:12` (`translatedFormat('F Y')` ; le constat citait la l. 22), `InventoryController.php:209` et `PaymentReceiptPdf.php:58` (titres en dur ; ce dernier vit sous `app/Services/Payments/`) → le constat tient. Classement : V6, la piste elle-même demande un ADR (français juridique ou acte bilingue), et la langue d'un bail signé est un choix de produit.
+- Mesure (2026-10-16, a29376a5, implementeur) : `ActesPdfEnFrancaisTest` avant correctif, pilote PDF remplacé par un pilote qui garde le HTML → la quittance demandée en `Accept-Language: en` imprime « October 2026 », rendue sous `wo` « Oktoobar 2026 » (2 rouges) ; les titres passés par les appelants sont déjà des littéraux français → `DocumentPdfService::render()` rend les cinq gabarits d'actes sous `withLocale('fr')`, « Octobre 2026 » dans les deux cas et locale du lecteur rendue après ; ablation (forçage retiré) → 2 rouges, `fr` forcé partout → le relevé de gérance traduit rougit (« Management statement » perdu) ; remis → 3 verts.
 
 ### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
 - Réf : P06.04

@@ -1070,6 +1070,7 @@ _(aucun)_
 - [TCK-668](tickets/TCK-668-revision-de-loyer-reecrit-les-echeances.md) — La révision de loyer réécrit les échéances pending dont la période commence à sa date d'effet `S · P0 · bug`
 - [TCK-670](tickets/TCK-670-montants-jamais-refuses-par-le-pas-natif.md) — Un montant n'est jamais refusé par le pas natif du champ : restitution de caution, bail, paiements, facture `S · P0 · bug`
 - [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
+- [TCK-672](tickets/TCK-672-actes-pdf-dates-en-francais.md) — Les actes PDF (bail, état des lieux, quittances, facture) se rendent en français, dates comprises `S · P1 · bug`
 
 </details>
 

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Traits\Localizable;
 use Spatie\LaravelPdf\Facades\Pdf;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
@@ -30,6 +31,24 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  */
 class DocumentPdfService
 {
+    use Localizable;
+
+    /**
+     * TCK-672 (P06.03) — les actes restent en français, quelle que soit la langue du lecteur :
+     * leur texte est en français, et leurs dates (« octobre 2026 ») le sont aussi. Ils se rendent
+     * donc sous la locale `fr`, rendue ensuite à la requête. Les gabarits traduits par `lang/*`
+     * (`pdf.statements.owner`, `pdf.maintenance.quote`) n'y sont pas : ils suivent le lecteur.
+     *
+     * @var list<string>
+     */
+    public const ACTES_EN_FRANCAIS = [
+        'pdf.leases.contract',
+        'pdf.inventories.report',
+        'pdf.receipts.rent',
+        'pdf.receipts.booking',
+        'pdf.invoices.default',
+    ];
+
     /**
      * Render a template to raw PDF bytes.
      *
@@ -41,11 +60,11 @@ class DocumentPdfService
     {
         $this->assertTemplateExists($template);
 
-        $viewData = $this->prepareData($data);
+        $locale = in_array($template, self::ACTES_EN_FRANCAIS, true) ? 'fr' : null;
 
-        return Pdf::view($template, $viewData)
+        return $this->withLocale($locale, fn (): string => Pdf::view($template, $this->prepareData($data))
             ->format('a4')
-            ->generatePdfContent();
+            ->generatePdfContent());
     }
 
     /**
