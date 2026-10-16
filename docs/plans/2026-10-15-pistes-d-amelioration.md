@@ -2752,7 +2752,7 @@ n'est pas repris ici.*
 
 ### Le garant ajouté à un bail n'apparaît jamais sur la fiche : le front lit `lease.guarantor`, que l'API n'émet pas
 - Réf : P21.04
-- Statut : validé — lire et afficher tous les garants par GET …/guarantors ; guarantor_id laissé tel quel
+- Statut : fait · TCK-695
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73,161-191`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Lease.php:167-181`, `takussan-web/src/lib/queries/leases.ts:184,460-465`, `takussan-web/src/components/leases/LeaseDetail.tsx:306-311`, `takussan-web/src/components/leases/GuarantorSection.tsx:48,75,100-103`
 - Constat :
@@ -2768,6 +2768,7 @@ n'est pas repris ici.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : lire les garants par `GET /api/leases/{id}/guarantors`, qui existe, ou les émettre dans `LeaseResource` (`guarantors`, par une projection). Trancher le sort de `Lease.guarantor` / `guarantor_id` (relation à une colonne que l'ajout n'écrit pas). Test front : après ajout, la section affiche le garant ; test API sur la clé émise.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `LeaseController::show` (l. 63-72, `load()` fixe, `include` ignoré) et `LeaseResource` (aucune clé `guarant*`) relus, `LeaseDetail.tsx:308-309` passe `lease.guarantor` et `guarantorsCount={lease.guarantor ? 1 : 0}` ; test temporaire retiré : bailleur, `POST /api/leases/{id}/guarantors` → 201, puis `GET /api/leases/{id}?include=property,guarantor,payments` → 200 sans aucune clé `guarant*`, pivot à 1 garant, `leases.guarantor_id` à `NULL`. Le constat tient. Classement : V7, la fiche ne sait montrer qu'un garant pour un pivot qui en porte jusqu'à 3, et la piste demande de trancher le sort de `Lease.guarantor`/`guarantor_id` (V4 possible).
+- Mesure (2026-10-16, af610be5, implementeur) : avant correctif, `GuarantorSection.test.tsx` (deux garants rendus par `GET /api/leases/{id}/guarantors`, puis trois) → 3 rouges sur 4 : la section ne lit jamais la route, rend « Aucun garant attaché à ce bail. » et laisse le bouton actif au troisième → la section lit désormais la route (`useLeaseGuarantors`, invalidé par l'ajout), `include=guarantor` retiré de `useLease`, `guarantor_id` intact ; 4 verts, ablation (section d'origine remise) → 3 rouges, correctif remis → 4 verts. `LeaseGuarantorListTest` fige la forme lue (2 verts ; ablation de `phone` dans `listGuarantors` → 1 rouge).
 
 ### Des `include=` acceptés, chargés en base, puis jamais émis
 - Réf : P21.05
