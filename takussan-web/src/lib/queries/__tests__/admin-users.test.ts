@@ -44,7 +44,11 @@ describe('TCK-133 — admin (agency-scoped) user queries', () => {
     const url = String(spy.mock.calls[0][0]);
     expect(url.startsWith('/api/admin-users')).toBe(true);
     expect(url).toContain(`fields%5Busers%5D=${ADMIN_USERS_FIELDS.join('%2C')}`);
-    expect(url).toContain('include=agentProfiles%2CownerProfiles%2CagencyAdminProfiles%2CplatformProfile');
+    // TCK-665 (piste P03.02) — l'API refuse `include=platformProfile` à l'admin d'agence (400) :
+    // la console d'équipe ne le demande plus, sous peine de ne plus rien afficher.
+    expect(new URL(url, 'http://x').searchParams.get('include')).toBe(
+      'agentProfiles,ownerProfiles,agencyAdminProfiles',
+    );
     expect(url).toContain('filter%5Bsearch%5D=amadou');
     expect(url).toContain('filter%5Bstatus%5D=active');
     expect(url).toContain('filter%5Brole%5D=agent');
