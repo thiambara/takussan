@@ -18,8 +18,7 @@ class TagController extends Controller
     {
         // TCK-666 (P03.03) — une étiquette CRM ne sort que vers le personnel d'une agence dont un
         // client la porte. Le périmètre ne dépend plus de `filter[type]=crm`, ni de `agency_id`.
-        $base = Tag::query()->withCount(['properties', 'customers'])
-            ->sansCrmHorsDeSonAgence($request->user());
+        $base = Tag::query()->sansCrmHorsDeSonAgence($request->user());
 
         // TCK-633 — hors console : les approuvés, plus les propositions de l'appelant.
         $appelant = $request->user();
@@ -29,12 +28,15 @@ class TagController extends Controller
                 ->orWhere(fn ($q) => $q->where('tags.status', ReferentialStatus::Pending->value)->where('tags.created_by_id', $appelant?->id)));
         }
 
-        $paginator = Tag::buildQuery($base, $request)
+        $agencyId = $appelant?->agency_id;
+
+        // TCK-712 (P02.05) — les comptes se posent APRÈS `buildQuery()` : un `fields[tags]=…`
+        // y remplace la liste des colonnes, et un `withCount` posé avant disparaissait avec elle.
+        // `format()` recomptait alors les biens étiquette par étiquette.
+        $paginator = Tag::buildQuery($base, $request, $agencyId)
+            ->withCount(['properties', 'customers'])
             ->defaultSort('name')
             ->paginate();
-
-        $user = $request->user();
-        $agencyId = $user?->agency_id;
 
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values());
     }
@@ -139,7 +141,7 @@ class TagController extends Controller
         $usageCount = null;
         if ($agencyId !== null) {
             $usageCount = $tag->customers()->where('agency_id', $agencyId)->count()
-                + $tag->properties()->count();
+                + (int) ($tag->properties_count ?? $tag->properties()->count());
         }
 
         return [
