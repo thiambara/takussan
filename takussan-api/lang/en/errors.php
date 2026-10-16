@@ -525,6 +525,7 @@ return [
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',
     ],
     'tags' => [
+        'catalog_rename_forbidden' => 'A catalogue amenity cannot be renamed: only proposals can be renamed.',
         'merge_into_self' => 'An amenity cannot be merged into itself.',
         'merge_target_invalid' => 'The target must be an approved or pending amenity.',
         'merge_source_invalid' => 'Only an amenity can be merged into an amenity.',
