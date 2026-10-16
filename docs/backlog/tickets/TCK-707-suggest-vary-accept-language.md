@@ -1,7 +1,7 @@
 ---
 id: TCK-707
 title: "`/api/search/suggest` déclare `Vary: Accept-Language`"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -45,15 +45,15 @@ le middleware CORS, reste.
 
 ## Delta à produire
 
-- [ ] `SuggestController` : `Vary: Accept-Language` sur la réponse, sans écrire `Origin` en dur.
-- [ ] `SearchSuggestTest` : deux langues, deux corps distincts (prémisse), et `Accept-Language` et
+- [x] `SuggestController` : `Vary: Accept-Language` sur la réponse, sans écrire `Origin` en dur.
+- [x] `SearchSuggestTest` : deux langues, deux corps distincts (prémisse), et `Accept-Language` et
       `Origin` présents dans le `Vary` des deux réponses.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/search/suggest?q=ap&limit=10` sous `fr` et `en`, avec un bien `apartment`
+- [x] AC1 — `GET /api/search/suggest?q=ap&limit=10` sous `fr` et `en`, avec un bien `apartment`
       publié, rend deux corps distincts, chacun `public` et `Vary` contenant `Accept-Language`.
-- [ ] AC2 — sous une requête CORS, le `Vary` contient aussi `Origin`.
+- [x] AC2 — sous une requête CORS, le `Vary` contient aussi `Origin`.
 
 ## Hors périmètre
 
@@ -62,3 +62,11 @@ le middleware CORS, reste.
 - Le comportement d'un cache partagé devant `api.takussan.com`, non observé.
 
 ## Notes d'implémentation
+
+- **Reproduction** : le test neuf, avant correctif, rend `fr — Vary émis : Origin` (prémisse
+  tenue : corps `fr` et `en` distincts, tous deux `public`).
+- **Ablation** : retirer `->header('Vary', 'Accept-Language')` → le test rouge sur la même
+  assertion ; remis → vert, et `SearchSuggestTest` entier vert (13 tests).
+- **Piège** : ne pas écrire `Origin` dans le `Vary` du contrôleur. Le middleware CORS l'ajoute
+  au `Vary` existant ; le test l'exige sous une requête portant `Origin`, pour qu'un `Vary`
+  écrasé plus tard ne passe pas inaperçu.
