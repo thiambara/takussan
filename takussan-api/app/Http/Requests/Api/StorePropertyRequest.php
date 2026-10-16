@@ -80,7 +80,10 @@ class StorePropertyRequest extends BaseFormRequest
             // texte de 121 caractères devenait une proposition de quartier que la colonne refuse.
             'address.street' => ['nullable', 'string', 'max:255'],
             'address.neighborhood' => ['nullable', 'string', 'max:120'],
-            'address.city' => ['nullable', 'string', 'max:120'],
+            // TCK-703 (P17.01) — `addresses.city` est NOT NULL DEFAULT 'Dakar' : une ville OMISE
+            // prend le défaut, une ville `null` ne le prend pas et rendait 500. `filled` refuse le
+            // `null` (et `""`, converti en `null`) sans exiger la clé.
+            'address.city' => ['filled', 'string', 'max:120'],
             'address.region' => ['nullable', 'string', 'max:120'],
             'address.country' => ['nullable', 'string', 'size:2'],
             'address.postal_code' => ['nullable', 'string', 'max:20'],
