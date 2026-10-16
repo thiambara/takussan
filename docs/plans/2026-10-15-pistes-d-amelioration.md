@@ -780,7 +780,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
-- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé ; porteur (2026-10-16) : traité hors agents, réglage de déploiement
+- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé ; porteur (2026-10-16) : traité hors agents, réglage de déploiement ; consigné dans TCK-720
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
 - Constat :
@@ -851,7 +851,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
-- Statut : retenu · à valider — chemin fermé : scripts/check-locale-figee.mjs (V9, distinct du V8 accordé) : la garde échoue quand le compte descend sous PLAFOND_RESTE = 20, donc le site public ne se corrige pas sans descendre le cliquet dans le même diff, que la précision réserve au porteur ; porteur (2026-10-16) : traité hors agents, en session, plafond de la garde compris
+- Statut : fait · TCK-721
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -862,6 +862,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 - Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16` et `ReviewsSection.tsx:23` (`toLocaleDateString('fr-FR', …)` quelle que soit la locale) et les sites cités, lignes inchangées, sauf `PropertyList.tsx:504`, qui fige `'fr-SN'` par `Intl.DateTimeFormat` et non `'fr-FR'` ; `grep -rn "toLocaleString()" components/leases` → 7 hors tests ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20) et console hors périmètre 1 (`lib/utils.ts`) ; `lib/format.ts:75-79` a déjà tranché `fr → 'fr-SN'` et `useFormatteurs()` existe → le constat tient. Classement : V8, TCK-347 (`todo`, estimé L) décrit déjà ce delta avec des comptes périmés (86 sites) ; le reprendre ou le découper, et faire descendre les cliquets de la garde (V9), revient au porteur.
 - Mesure (2026-10-16, 964d9f59, implementeur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `ReviewsSection.tsx:23` → `toLocaleDateString('fr-FR', …)` inconditionnel, le défaut tient ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20), dont ces trois fichiers à 1 chacun ; essai sur l'arbre (une seule ligne de `PropertyReviews.tsx` passée à la locale, puis remise) → `✗ RESTE DU DÉPÔT : 19 occurrence(s) hors consoles, alors que le cliquet dit 20`, sortie 1. Le correctif validé fait donc descendre le compte à 17 et exige `PLAFOND_RESTE = 17` dans le même diff ; `scripts/check-pistes.mjs` refuse toute modification d'une garde existante (V9), et la précision garde ce cliquet au porteur. Classement : chemin fermé (V9) ; aucune ligne de code écrite. Deux voies pour le porteur : descendre lui-même le cliquet avec le correctif, ou rendre la précision compatible (par exemple, cliquet descendu dans la même PR).
+- Mesure (2026-10-16, 55a41109, humain) : fait en session (porteur, hors agents) : `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 → 1, `PLAFOND_RESTE` descendu à 1 dans le même diff ; le seul reste est `lib/visites/heure-de-dakar.ts`, dont `'en-US'` lit l'heure de Dakar sans l'afficher ; tests `tck-721` vérifiés par ablation (les trois cas `en` rougissent avec `'fr-FR'`). Ce qui reste de TCK-347 est dans les notes de TCK-721.
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
@@ -938,7 +939,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Des documents qui affirment l'inverse de la mesure
 - Réf : P06.13
-- Statut : retenu · à valider — V9 : chemin fermé, deux corrections sur trois sont dans `CLAUDE.md` et `takussan-web/CLAUDE.md` ; porteur (2026-10-16) : traité hors agents, en session
+- Statut : fait · TCK-722
 - Gravité : 🟢 amélioration
 - Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
 - Constat :
@@ -947,6 +948,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - « `lang/fr/validation.php` ne porte pas `boolean` » est faux aussi (mesuré).
 - Piste : remplacer ces chiffres par la commande qui les donne.
 - Mesure (2026-10-16, ddb5f050, mesureur) : `node scripts/check-i18n.mjs --report` (dans `takussan-web/`) → « en 0/0, wo 0/0 clé(s) manquante(s) sur 8022 clés fr » et « 0 TOLÉRÉE(S) … sur 0 fichier(s) » ; `CLAUDE.md:401` dit toujours « Tenu à 82 fichiers sur 875 », `takussan-web/CLAUDE.md:245-246` « `wo` traîne 88 clés manquantes » ; `lang/fr/validation.php:38` porte `boolean`, et `tinker` `__('validation.boolean', ['attribute' => 'furnished'], 'fr')` → « Le champ furnished doit être vrai ou faux. » (le `wo` est traduit aussi), contre le commentaire de `PropertiesDiscoveryPage.tsx:332-335` → les trois écarts tiennent. Classement : V9, la correction relève de A6, mais deux des trois fichiers sont des `CLAUDE.md` que l'implémenteur ne touche pas.
+- Mesure (2026-10-16, 55a41109, humain) : fait en session : `check-i18n --report` → en 0, wo 0 clé manquante sur 8015, 0 toléré ; les deux `CLAUDE.md` donnent la commande au lieu du chiffre ; `lang/{fr,wo}/validation.php:38` portent `boolean` depuis TCK-536, le commentaire de `PropertiesDiscoveryPage.tsx` dit la vraie raison (le serveur nomme le champ par sa clé technique).
 
 ### Pages légales vides en wolof
 - Réf : P06.14
@@ -1325,7 +1327,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : validé — la partie code (canoniques, 404 au-delà de la dernière page, coupe des descriptions, `generateSitemaps()`, métadonnées des pages introuvables) ; reste : le paragraphe de `takussan-web/CLAUDE.md`, hors agents
+- Statut : validé — la partie code (canoniques, 404 au-delà de la dernière page, coupe des descriptions, `generateSitemaps()`, métadonnées des pages introuvables)
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1340,6 +1342,7 @@ Correct (mesuré ou lu) :
   - des métadonnées propres aux `not-found` ;
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `canonique.ts:358-378` (`cheminCanoniqueDeLaListe` retire `page` ; son docblock : `page=3` → `/properties?type=villa`) ; `(public)/properties/(liste)/page.tsx` n'appelle jamais `notFound()` et ne lit pas `last_page` ; `properties/[slug]/page.tsx:98-99` : `property.description?.slice(0, 160) ?? …`, donc une chaîne vide passe le `??` et la coupe tombe au caractère ; `sitemap.ts:23-31,313` lève au-delà de 50 000 `<url>` et `generateSitemaps` n'est cité qu'en commentaire ; `properties/[slug]/not-found.tsx` n'exporte aucune métadonnée, sous `(public)/layout.tsx:56` en `index: true, follow: true` ; `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` dans l'URL » alors que les pages vivent sous `src/app/[locale]/` → tout tient en lecture ; le double `noindex`/`index, follow` rendu et les 1 011 `<loc>` n'ont pas été remesurés (application non lancée). Classement : V7, canonique par page, `notFound()` au-delà de la dernière page et contenu des titres changent ce que voient les moteurs, et la correction du document est dans un `CLAUDE.md`.
+- Mesure (2026-10-16, 55a41109, humain) : le reste documentaire est fait en session (TCK-722) : `takussan-web/CLAUDE.md` décrit le segment `[locale]` d'ADR-0026 ; reste la partie code, à l'implémenteur.
 
 ## Angle 10 — Médias : tailles, conversions, disques, nettoyage
 
@@ -1471,7 +1474,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Petites améliorations
 - Réf : P10.10
-- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production ; porteur (2026-10-16) : traité hors agents, avec le déploiement
+- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production ; porteur (2026-10-16) : traité hors agents, avec le déploiement ; consigné dans TCK-720
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
@@ -2597,7 +2600,7 @@ ajoutent que des faits neufs.*
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at` ; reste : l'extension de l'ADR-0044, hors agents avec P23.03
+- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2607,6 +2610,7 @@ ajoutent que des faits neufs.*
   - **Ce qui tient** : `integration_webhook_logs` (`webhooks:prune`), les jetons (`sanctum:prune-expired`, `sessions:prune-idle`), les brouillons, les archives d'export et les alertes non confirmées ont leur purge planifiée (lu, `console.php:49,79,101-104,118,169`). `platform_metrics_daily` écrit une ligne par jour (lu, ADR-0057 : « ne demande aucune purge ») ; `property_boost_daily_stats` une par bien et par jour (mesuré : 71 lignes en dev). Les sessions sont en Redis (lu, `prod-drivers.json`) : la table `sessions` ne grossit pas.
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `routes/console.php` (ni `queue:prune-failed` ni `queue:prune-batches`, aucun `model:prune`), `SanitizingFailedJobProvider.php:17` (le `payload` n'est pas touché, pour le rejeu), `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION` = `database`), `User.php:379-399` (`LogOptions::defaults()` sans `useLogName`, alors qu'`Auditable.php:31` nomme par classe), `config/activitylog.php:24` (`default_log_name` = `default`) et `ScheduledTaskInspector.php:43` (`'next_due_at' => null`, que le front type `string | null` dans `types/super-admin.ts:814`). Lignes citées inchangées, les trois défauts tiennent ; le journal de `User` est lu, pas re-mesuré par test. Classement : V3, la durée de purge des `failed_jobs` décide de ce qui est conservé et doit s'écrire dans l'ADR-0044 ; renommer le journal de `User` change le `log_name` des écritures neuves, que toute lecture par nom distinguerait des anciennes.
+- Mesure (2026-10-16, 55a41109, humain) : l'ADR-0044 est amendé en session (TCK-723) : 30 jours pour `failed_jobs`, `payload` compris, et `queue:prune-batches` planifié ; le docblock de `SanitizingFailedJobProvider.php` (« Écarté (ADR-0044) : une purge périodique ») est à mettre à jour avec la purge.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 
@@ -2944,6 +2948,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu, et test temporaire.
 - Piste : étendre ADR-0044 §1 aux deux colonnes : chiffrement par migration réversible, forme masquée par défaut, valeur claire par une lecture dédiée sous step-up et journalisée, comme `owners/{id}/sensitive`. C'est un choix de produit et de schéma, à poser par ADR. À défaut, au moins la masquer dans les listes et sous impersonation.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu les migrations `2026_04_17_160006` (l. 21) et `2026_04_17_160007` (l. 18, 21) : `id_number` et `monthly_income` en `string` et `decimal` clairs ; `grep -n encrypted` sur `Customer.php` et `Guarantor.php` → rien ; `CustomerResource.php:20` et `GuarantorController.php:93,96` les rendent en clair ; aucun ticket ne traite leur chiffrement (`grep` dans `docs/backlog/tickets`). Le scénario sous impersonation n'est pas rejoué : la lecture du code est inchangée, et le test de P23.02 rend `id_number` en clair à un autre lecteur. Classement : V4, la piste chiffre deux colonnes par migration, avec un ADR (V6) sur ce qui est exposé (V3).
+- Mesure (2026-10-16, 55a41109, humain) : ADR-0044 amendé en session (TCK-723) : `customers.id_number` et `guarantors.id_number` suivent le § 1 (cast `encrypted`, masqués par défaut, lecture claire dédiée sous step-up et journalisée) ; deux questions ouvertes dans l'ADR : `monthly_income` (garant et bailleur), et qui lit la valeur claire. L'application reste à faire.
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
@@ -2976,7 +2981,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P23.06
-- Statut : validé — la garde d'impersonation sur les GET, après P23.05 ; reste : la correction de l'ADR, hors agents
+- Statut : validé — la garde d'impersonation sur les GET, après P23.05
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:15-25,37-43`, `docs/adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md`
 - Constat :
@@ -2986,6 +2991,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu.
 - Piste : une garde qui ouvre une session d'impersonation sur une cible garnie (pièce de profil, fiche client avec pièce, notification à pièces jointes) et balaie les `GET` de `route:list`. Elle échoue sur toute réponse 200 qui porte un champ `signature=`, `token`, `file_url` vers une pièce, ou `id_number`. Corriger l'ADR pour qu'il écrive le code réellement émis.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `EnforceImpersonationReadOnly.php:14-45` (docblock l. 19 : `impersonation.read_only` ; relevé des lectures GET l. 21-24 sans `documents`, `customers` ni `notifications` ; consigne « Rien d'autre ne l'attrape » l. 37-43) et l. 84 (`abort_code(403, 'impersonation.read_only')`), contre `docs/adr/0055-…md:64` (`impersonation_read_only`). Lignes citées inchangées, constat confirmé. Classement : V2, la garde balaie les lectures sous impersonation et rougit sur P23.01 et P23.05, validées mais non faites ; seule la correction de l'ADR (A6) serait autonome.
+- Mesure (2026-10-16, 55a41109, humain) : la correction de l'ADR est faite en session (TCK-723) : ADR-0055 § 3 écrit `impersonation.read_only`, le code émis ; reste la garde, à l'implémenteur.
 
 ## Angle 24 — Crédits et Boost : idempotence des achats, remboursements, ce que voit l'espace
 
