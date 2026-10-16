@@ -8,6 +8,7 @@ import { resubmitProperty } from '@/lib/queries/property-moderation';
 import { Button } from '@/components/ui/button';
 import type { PropertyDetail } from '@/types/property';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 interface PropertyModerationBannerProps {
   readonly property: PropertyDetail;
@@ -15,6 +16,7 @@ interface PropertyModerationBannerProps {
 
 export function PropertyModerationBanner({ property }: PropertyModerationBannerProps) {
   const t = useTranslations('property.moderation');
+  const fmt = useFormatteurs();
   const { token } = useAuth();
   const queryClient = useQueryClient();
 
@@ -83,7 +85,7 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
           <p className="text-sm font-semibold text-success">{t('approvedTitle')}</p>
           <p className="mt-0.5 text-xs text-success">
             {t('approvedOn', {
-              date: new Date(property.approved_at).toLocaleDateString('fr-FR', {
+              date: fmt.date(property.approved_at, {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',

@@ -12,6 +12,12 @@ type Props = {
 /**
  * Bandeau KPI agence — 6 tuiles compactes (TCK-131).
  * `unpaid_rate_percent` est exprimé en points (0..100) côté API.
+ *
+ * TCK-647 — un chiffre n'apparaît qu'UNE fois sur le tableau de bord. L'indice de l'occupation
+ * répétait le total de la tuile « Biens » (« 29 loués / 41 ») : il ne porte plus que les biens
+ * loués. Celui des impayés répétait le NOMBRE d'échéances que la file « Échéances impayées »
+ * d'`AgencyQueues` affiche juste au-dessus, avec son lien : la tuile garde le montant. La
+ * commission du mois, que seule la vue `/app/overview/agency` montrait, passe en indice des revenus.
  */
 export function AgencyKpis({ summary }: Props) {
   const t = useTranslations('dashboard.agencyKpis');
@@ -42,21 +48,18 @@ export function AgencyKpis({ summary }: Props) {
       <AgencyKpiTile
         label={t('occupancyRate')}
         value={formatPercent(summary.occupancy.rate_percent / 100, locale)}
-        hint={t('occupancyHint', {
-          rented: formatNumber(summary.properties.rented, locale),
-          total: formatNumber(summary.properties.total, locale),
-        })}
+        hint={t('rentedHint', { count: formatNumber(summary.properties.rented, locale) })}
       />
       <AgencyKpiTile
         label={t('revenueMonth')}
         value={formatCurrency(summary.finance.revenue_month, locale)}
+        hint={t('commissionHint', { amount: formatCurrency(summary.finance.commission_month, locale) })}
         accent="success"
         className="col-span-2 lg:col-span-1"
       />
       <AgencyKpiTile
         label={t('overdue')}
         value={formatCurrency(summary.finance.overdue_amount, locale)}
-        hint={overdueCount > 0 ? t('overdueHint', { count: formatNumber(overdueCount, locale) }) : undefined}
         accent={overdueCount > 0 ? 'danger' : 'default'}
         className="col-span-2 lg:col-span-1"
       />

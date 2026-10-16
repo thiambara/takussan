@@ -6,7 +6,6 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreTagRequest;
 use App\Http\Requests\Api\UpdateTagRequest;
 use App\Models\Enums\ReferentialStatus;
-use App\Models\Enums\TagType;
 use App\Models\Tag;
 use App\Services\Geo\GeoReindexation;
 use App\Services\Tags\TagModeration;
@@ -17,17 +16,9 @@ class TagController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $base = Tag::query()->withCount(['properties', 'customers']);
-
-        // For CRM tags, scope to tags used by the requesting user's agency customers.
-        // This lets autocomplete show only tags relevant to the agent's agency.
-        if ($request->input('filter.type') === TagType::Crm->value) {
-            $user = $request->user();
-            if ($user && ! $user->isSuperAdmin() && $user->agency_id) {
-                $agencyId = $user->agency_id;
-                $base->whereHas('customers', fn ($q) => $q->where('agency_id', $agencyId));
-            }
-        }
+        // TCK-666 (P03.03) — une étiquette CRM ne sort que vers le personnel d'une agence dont un
+        // client la porte. Le périmètre ne dépend plus de `filter[type]=crm`, ni de `agency_id`.
+        $base = Tag::query()->sansCrmHorsDeSonAgence($request->user());
 
         // TCK-633 — hors console : les approuvés, plus les propositions de l'appelant.
         $appelant = $request->user();
@@ -37,12 +28,15 @@ class TagController extends Controller
                 ->orWhere(fn ($q) => $q->where('tags.status', ReferentialStatus::Pending->value)->where('tags.created_by_id', $appelant?->id)));
         }
 
-        $paginator = Tag::buildQuery($base, $request)
+        $agencyId = $appelant?->agency_id;
+
+        // TCK-712 (P02.05) — les comptes se posent APRÈS `buildQuery()` : un `fields[tags]=…`
+        // y remplace la liste des colonnes, et un `withCount` posé avant disparaissait avec elle.
+        // `format()` recomptait alors les biens étiquette par étiquette.
+        $paginator = Tag::buildQuery($base, $request, $agencyId)
+            ->withCount(['properties', 'customers'])
             ->defaultSort('name')
             ->paginate();
-
-        $user = $request->user();
-        $agencyId = $user?->agency_id;
 
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Tag $t) => $this->format($t, $agencyId))->values());
     }
@@ -76,6 +70,8 @@ class TagController extends Controller
                 || ($tag->status === ReferentialStatus::Pending && $appelant !== null && $tag->created_by_id === $appelant->id),
             404,
         );
+        // TCK-666 (P03.03) — même périmètre CRM que la liste, et même 404.
+        abort_unless(Tag::query()->whereKey($tag->getKey())->sansCrmHorsDeSonAgence($appelant)->exists(), 404);
 
         return $this->json(['data' => $this->format($tag)]);
     }
@@ -145,7 +141,7 @@ class TagController extends Controller
         $usageCount = null;
         if ($agencyId !== null) {
             $usageCount = $tag->customers()->where('agency_id', $agencyId)->count()
-                + $tag->properties()->count();
+                + (int) ($tag->properties_count ?? $tag->properties()->count());
         }
 
         return [

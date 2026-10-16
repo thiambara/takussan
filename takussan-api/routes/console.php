@@ -168,6 +168,10 @@ Schedule::job(new SnapshotPlatformMetricsJob)->dailyAt('00:30')->withoutOverlapp
 // console ne purge plus rien.
 Schedule::command('webhooks:prune')->dailyAt('03:45')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-691 (P19.02) — rétention des tentatives d'envoi SMS et WhatsApp : 90 jours, puis le numéro
+// du destinataire (`to`) disparaît avec la ligne. Idempotente : une suppression par date.
+Schedule::command('notifications:prune-delivery-attempts')->dailyAt('03:50')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-633 lot F (ADR-0061 §9) — fin des boosts échus, réconciliation (filet des écritures de masse),
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.

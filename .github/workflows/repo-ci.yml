@@ -319,6 +319,14 @@ jobs:
         # QUOTÉ, et la garde balaie tout le shell du dépôt.
         run: node scripts/check-heredocs.mjs --report
 
+      - name: Le fichier de pistes garde la forme que lisent les trois agents (ADR-0066)
+        # Trois agents planifiés s'y passent la main, sans relecture entre deux passages. Un statut
+        # mal écrit retire l'entrée de la liste du suivant sans rien faire échouer ; une Réf en
+        # double fait implémenter deux fois ; un classement sans mesure fait coder sur une
+        # prémisse que personne n'a revérifiée. Le périmètre de chaque rôle (`--role`) est joué
+        # par `scripts/agents/pistes.sh` avant tout push, pas ici.
+        run: node scripts/check-pistes.mjs --report
+
       - name: La décision de réindexation de `release.sh` fait ce qu'elle annonce
         # Successeur du test de la décision de `deploy.sh`, retiré avec lui (ADR-0028). Même
         # raison d'être : ni PHPUnit ni vitest ne lisent du shell, et se tromper est muet des deux
@@ -354,6 +362,13 @@ jobs:
         # elle ne comprend pas une page — « je ne sais pas » plutôt que « il n'y en a pas ».
         run: node scripts/check-pro-routes.mjs --report
 
+      - name: Toute cible de notification mène à une page du front
+        # Le lien de la cloche s'écrit côté API (`NotificationTarget::PATHS`) pour une page qui
+        # vit côté front. Sa première lecture (TCK-649) a trouvé DEUX chemins morts depuis
+        # TCK-597 — `/admin/reviews` et `/app/reviews` — et ADR-0064 en déplaçait six autres.
+        # Déclenchée par `takussan-api/app/**` ET `takussan-web/src/**` : les deux côtés.
+        run: node scripts/check-notification-target-paths.mjs --report
+
       - name: Aucun écran ne réinvente son état vide ni son bloc d'erreur
         # `docs/design-guidelines.md:13` demande « une seule façon d'afficher un état vide ».
         # Mesuré avant TCK-246 : le nom `EmptyState` était pris ONZE fois, chaque fois comme
@@ -379,8 +394,8 @@ jobs:
       - name: Il n'y a qu'un jeu de jetons de couleur — le dialecte app-* ne repousse pas
         # `globals.css` déclarait HUIT variables `--app-*` qui redisaient au hex près des jetons
         # déjà documentés (`--app-ink` ≡ `--foreground`, `--app-surface-1` ≡ `--card`…), et le
-        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin`, bâti dessus, serait
-        # resté en clair au premier commutateur de thème.
+        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin` (supprimé depuis par
+        # ADR-0064), bâti dessus, serait resté en clair au premier commutateur de thème.
         #
         # TCK-244 avait déjà fait cette migration et était `done`. Son AC1 rejouée verbatim le
         # 2026-08-26 rendait 7 là où elle exigeait 0 — elle échouait DANS SON PROPRE PÉRIMÈTRE,
@@ -927,10 +942,11 @@ jobs:
         # contient pas (TCK-300).
         run: node scripts/check-prod-drivers.mjs --report
 
-      - name: INDEX.md est à jour de ses frontmatters
-        # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
-        # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline
-        # — celle qu'on vient précisément de retirer.
+      - name: La source du backlog se rend en index sans erreur
+        # INDEX.md n'est plus versionné (ADR-0067) : il n'y a plus de copie à juger périmée. Reste
+        # la SOURCE — `--check` n'écrit rien et sort non nul sur un id dupliqué, un statut ou une
+        # vague inconnus. Deux PR ouvertes ensemble peuvent prendre le même numéro de ticket : c'est
+        # ici, sur l'arbre fusionné, que la seconde le découvre.
         run: node docs/backlog/gen-index.mjs --check
 
       - name: Les statuts des tickets ne sont pas contredits par git

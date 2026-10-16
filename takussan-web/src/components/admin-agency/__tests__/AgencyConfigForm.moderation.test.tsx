@@ -78,3 +78,23 @@ describe('AgencyConfigForm — modération obligatoire (TCK-597)', () => {
     expect(screen.getByRole('checkbox', { name: LIBELLE })).not.toBeChecked();
   });
 });
+
+/**
+ * TCK-686 (P15.03) — une agence `individual` n'a pas de file de modération (`/app/agency/moderation/
+ * properties` exige `standard`). La case y est cachée, et la clé ne part pas : l'API la refuse (422)
+ * à `true`, et la renvoyer telle qu'elle a été lue rendrait 422 à chaque enregistrement.
+ */
+describe('AgencyConfigForm — modération pour une agence individual (TCK-686)', () => {
+  it('cache la case et n’envoie pas moderation_required', async () => {
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: { ...AGENCE, kind: 'individual' } });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, kind: 'individual' }} />));
+
+    expect(screen.queryByRole('checkbox', { name: LIBELLE })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: fr.common.actions.save }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updateAgencyAction).mock.calls[0][1]).not.toHaveProperty('moderation_required');
+    expect(await screen.findByText(fr.admin.agencyConfig.successSaved)).toBeInTheDocument();
+  });
+});

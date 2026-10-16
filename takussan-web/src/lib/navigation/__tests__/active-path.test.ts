@@ -3,11 +3,10 @@
  *
  * Elle vit maintenant à un seul endroit pour trois shells ; c'est donc ici que se paie une
  * erreur, et ici qu'il faut la garder. Les cas ne sont pas inventés : ce sont les routes réelles
- * de `/app` et `/admin` qui se chevauchent.
+ * de `/app` qui se chevauchent — section d'agence comprise (TCK-649).
  */
 import { describe, expect, it } from 'vitest';
 import {
-  ADMIN_EXACT_ROOTS,
   APP_EXACT_ROOTS,
   SUPER_ADMIN_EXACT_ROOTS,
   isActiveHref,
@@ -65,13 +64,24 @@ describe('resolveActiveHref — le plus long préfixe, et lui seul', () => {
     expect(resolveActiveHref('/app/properties-archive', APP, APP_EXACT_ROOTS)).toBeNull();
   });
 
-  it('la console admin garde ses DEUX racines exactes', () => {
-    const admin = ['/admin', '/admin/agency', '/admin/agency/kyc', '/admin/settings'];
-    expect(resolveActiveHref('/admin', admin, ADMIN_EXACT_ROOTS)).toBe('/admin');
-    expect(resolveActiveHref('/admin/agency/kyc', admin, ADMIN_EXACT_ROOTS)).toBe('/admin/agency/kyc');
-    expect(resolveActiveHref('/admin/agency/autre', admin, ADMIN_EXACT_ROOTS)).toBeNull();
-    // Le commentaire d'origine d'`AdminSidebar` : « Paramètres » reste allumé sur /admin/settings/tags.
-    expect(resolveActiveHref('/admin/settings/tags', admin, ADMIN_EXACT_ROOTS)).toBe('/admin/settings');
+  // TCK-649 — la section d'agence vit dans `/app` : sa racine « Agence » est exacte, comme l'était
+  // celle de l'ancienne console, et ses pages ne rallument ni « Tableau de bord » ni « Agence ».
+  it('la section d’agence : « Agence » ne s’allume que sur /app/agency', () => {
+    const avecAgence = [
+      ...APP,
+      '/app/agency',
+      '/app/agency/kyc',
+      '/app/agency/finances',
+      '/app/agency/moderation',
+      '/app/agency/moderation/properties',
+    ];
+    expect(resolveActiveHref('/app/agency', avecAgence, APP_EXACT_ROOTS)).toBe('/app/agency');
+    expect(resolveActiveHref('/app/agency/kyc', avecAgence, APP_EXACT_ROOTS)).toBe('/app/agency/kyc');
+    expect(resolveActiveHref('/app/agency/billing', avecAgence, APP_EXACT_ROOTS)).toBeNull();
+    expect(resolveActiveHref('/app/agency/finances/reconciliation/3', avecAgence, APP_EXACT_ROOTS))
+      .toBe('/app/agency/finances');
+    expect(resolveActiveHref('/app/agency/moderation/properties', avecAgence, APP_EXACT_ROOTS))
+      .toBe('/app/agency/moderation/properties');
   });
 });
 

@@ -282,6 +282,56 @@ class ProprietaireDuBienTest extends ApiTestCase
     }
 
     /**
+     * TCK-696 (P21.03) — la planification pour une fiche liée à un compte pose `visitor_id` sur ce
+     * compte : le bloc `include=visitor` suit alors la même règle que les `visitor_*` (M7″). Le
+     * bailleur qui lit la visite sans la fiche n'y lit ni le nom, ni l'e-mail, ni le téléphone du
+     * visiteur ; le personnel de l'agence et le visiteur lui-même les gardent.
+     */
+    public function test_p21_03_le_bailleur_ne_lit_pas_le_compte_du_visiteur_par_include_visitor(): void
+    {
+        $b = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $b);
+        $compte = $this->client([
+            'first_name' => 'Compte', 'last_name' => 'Invisible',
+            'email' => 'visiteur@exemple.sn', 'phone' => '+221771112233',
+        ]);
+        $fiche = $this->ficheClient($this->x, $compte, [
+            'first_name' => 'Compte', 'last_name' => 'Invisible', 'phone' => '+221771112233', 'email' => 'visiteur@exemple.sn',
+        ]);
+
+        $personnel = $this->personnel($this->x);
+        Sanctum::actingAs($personnel);
+        $id = $this->postJson('/api/property-visits', [
+            'property_id' => $bien->id, 'customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(jours: 3),
+        ])->assertCreated()->json('data.id');
+        $this->assertSame($compte->id, PropertyVisit::query()->findOrFail($id)->visitor_id);
+
+        Sanctum::actingAs($b);
+        $detail = $this->getJson("/api/property-visits/{$id}?include=visitor,customer")->assertOk()
+            ->assertJsonPath('data.visitor', null)
+            ->assertJsonPath('data.customer', null);
+        $liste = $this->getJson('/api/property-visits?include=visitor,customer')->assertOk();
+        $this->assertSame([$id], collect($liste->json('data'))->pluck('id')->all());
+        $liste->assertJsonPath('data.0.visitor', null);
+
+        foreach ([$detail, $liste] as $reponse) {
+            $this->assertStringNotContainsString('visiteur@exemple.sn', $reponse->getContent());
+            $this->assertStringNotContainsString('771112233', $reponse->getContent());
+            $this->assertStringNotContainsString('Invisible', $reponse->getContent());
+        }
+
+        // Le versant « autorisé » : sans lui, un bloc toujours nul rendrait le test vert.
+        Sanctum::actingAs($personnel);
+        $this->getJson("/api/property-visits/{$id}?include=visitor")->assertOk()
+            ->assertJsonPath('data.visitor.email', 'visiteur@exemple.sn')
+            ->assertJsonPath('data.visitor.last_name', 'Invisible');
+
+        Sanctum::actingAs($compte);
+        $this->getJson("/api/property-visits/{$id}?include=visitor")->assertOk()
+            ->assertJsonPath('data.visitor.phone', '+221771112233');
+    }
+
+    /**
      * Passe 4 (X1) — une seule définition du personnel, pour la lecture aussi : un membre du
      * personnel dont le COMPTE est bloqué ne lit plus la visite ni ne la liste, et ne l'écrit pas.
      * Profil retiré ou suspendu, c'était déjà le cas ; compte bloqué, il lisait encore la fiche.

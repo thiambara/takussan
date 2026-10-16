@@ -22,7 +22,7 @@ export interface BrandingBannerProps {
   readonly href?: string;
 }
 
-export function BrandingBanner({ href = '/admin/agency' }: BrandingBannerProps) {
+export function BrandingBanner({ href = '/app/agency' }: BrandingBannerProps) {
   const t = useTranslations('agency.branding.banner');
 
   return (
@@ -39,7 +39,7 @@ export function BrandingBanner({ href = '/admin/agency' }: BrandingBannerProps) 
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-warning">{t('title')}</p>
-        <p className="mt-0.5 text-sm text-warning/80">{t('description')}</p>
+        <p className="mt-0.5 text-sm text-warning">{t('description')}</p>
       </div>
       <Link
         href={href}

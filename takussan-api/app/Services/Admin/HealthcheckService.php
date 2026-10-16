@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Services\Media\Cdn\CdnProviderContract;
 use GuzzleHttp\Client as HttpClient;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -43,6 +44,9 @@ class HealthcheckService
     public const HEARTBEAT_DEGRADED_AFTER_SECONDS = 180;
 
     public const HEARTBEAT_FAILED_AFTER_SECONDS = 300;
+
+    /** Aucune tâche planifiée terminée depuis cinq minutes : le planificateur est tenu pour arrêté (TCK-680). */
+    public const SCHEDULER_FAILED_AFTER_SECONDS = 300;
 
     /** Taux d'échec SMS sur l'heure qui rend la sonde `degraded`, au-delà d'un échantillon minimal. */
     public const SMS_DEGRADED_FAILURE_RATE = 0.2;
@@ -134,13 +138,11 @@ class HealthcheckService
             'queue' => $this->check(fn (): array => $this->queue()),
             'workers' => $this->check(fn (): array => $this->workers()),
             'cdn' => $this->check(fn (): array => $this->cdn()),
+            'scheduler' => $this->check(fn (): array => $this->scheduler()),
         ];
 
         $snapshot = [
             ...$probes,
-            'scheduler' => [
-                'last_run_at' => DB::table('scheduled_task_runs')->latest('last_run_at')->value('last_run_at'),
-            ],
             'status' => self::worst(array_column($probes, 'status')),
             'generated_at' => now()->toISOString(),
         ];
@@ -350,6 +352,24 @@ class HealthcheckService
         }
 
         return ['status' => self::worst(array_column($queues, 'status')), 'queues' => $queues];
+    }
+
+    /**
+     * La dernière exécution enregistrée dans `scheduled_task_runs`. Elle ne comptait pas dans le
+     * statut global : un planificateur arrêté laissait la plateforme `ok` (TCK-680, P14.02). Aucune
+     * exécution du tout vaut un planificateur qui n'a jamais tourné, donc `failed`.
+     *
+     * @return array<string,mixed>
+     */
+    private function scheduler(): array
+    {
+        $lastRunAt = DB::table('scheduled_task_runs')->latest('last_run_at')->value('last_run_at');
+        $age = $lastRunAt === null ? null : now()->getTimestamp() - Carbon::parse($lastRunAt)->getTimestamp();
+
+        return [
+            ...($age === null || $age >= self::SCHEDULER_FAILED_AFTER_SECONDS ? ['status' => 'failed'] : []),
+            'last_run_at' => $lastRunAt,
+        ];
     }
 
     /**

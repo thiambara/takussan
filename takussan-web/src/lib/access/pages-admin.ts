@@ -4,9 +4,7 @@ import {
   CreditCard,
   FileText,
   KeyRound,
-  LayoutDashboard,
   Plug,
-  Settings,
   Shield,
   ShieldCheck,
   Users,
@@ -18,7 +16,10 @@ import type { AgencyKind } from '@/types/agency';
 import type { UserRole } from '@/types/user';
 
 /**
- * TCK-633 (lot B, AC1) — LA table des pages `/admin/*`. Il n'y en a qu'une.
+ * TCK-633 (lot B, AC1) — LA table des pages d'administration d'agence. Il n'y en a qu'une.
+ *
+ * TCK-649 (ADR-0064 §1, §2) — ces pages vivent sous `/app/agency/*`, dans la coque de `/app`. Seuls
+ * les chemins ont changé : aucune exigence n'a bougé.
  *
  * Avant ce ticket, la même question — « cette page est-elle pour vous ? » — avait cinq réponses
  * écrites séparément : `buildAdminItems` (le menu), `PRO_ROUTES` (le cadenas), l'`isAdmin` du menu
@@ -27,11 +28,11 @@ import type { UserRole } from '@/types/user';
  * chaque clic le renvoyait sur `/app`. *Un lien qui mène à une redirection est une porte peinte sur
  * un mur.*
  *
- * Tout ce qui montre ou garde une page `/admin/*` dérive désormais de cette table : le menu
- * (`entreesDeMenu`), le lien « Administration » / « Mon espace » (`entreeAdmin`), la carte du profil
- * (`liensDuProfil`) et la garde serveur (`garderPageAdmin`, `./pages-admin-server`).
- * `scripts/check-pro-routes.mjs` vérifie que chaque `page.tsx` de `app/(dashboard)/admin` appelle la
- * garde de SON chemin.
+ * Tout ce qui montre ou garde une page d'administration dérive désormais de cette table : la section
+ * d'agence du menu de `/app` (`entreesDeMenu`, `entreeAdmin` pour son titre « Administration » /
+ * « Mon espace »), les raccourcis, la carte du profil (`liensDuProfil`) et la garde serveur
+ * (`garderPageAdmin`, `./pages-admin-server`). `scripts/check-pro-routes.mjs` vérifie que chaque
+ * `page.tsx` de `app/(dashboard)/app/agency` appelle la garde de SON chemin.
  *
  * ⚠ La table DÉCIDE de l'écran, jamais de la donnée : chaque API rejuge (`AgencyKindGuard`,
  * policies). Les exigences sont écrites pour suivre l'API, pas pour la remplacer.
@@ -49,7 +50,7 @@ export interface ExigenceAdmin {
 export interface PageAdmin {
   readonly chemin: string;
   readonly exige: ExigenceAdmin;
-  /** Place dans `AdminSidebar` — `cle` sous `nav.admin`. `null` : page atteinte par un lien de page. */
+  /** Place dans la section d'agence d'`AppSidebar` — `cle` sous `nav.admin`. `null` : page atteinte par un lien de page. */
   readonly menu: { readonly cle: string; readonly icone: LucideIcon } | null;
   /** Lien de la carte « Administration » du profil — clé sous `profile.admin`. */
   readonly profil?: 'manageAgency' | 'auditLog';
@@ -57,59 +58,53 @@ export interface PageAdmin {
 
 /** L'ORDRE est celui du menu (celui de `buildAdminItems` avant TCK-633, à l'identique). */
 const TABLE = [
-  // Le tableau de bord de l'agence (files, KPI, activité) : réservé au `standard` (§1.12).
-  {
-    chemin: '/admin',
-    exige: { role: 'admin', agence: 'standard' },
-    menu: { cle: 'dashboard', icone: LayoutDashboard },
-  },
-  // La liste transverse des biens : super-admin seul.
-  { chemin: '/admin/properties', exige: { role: 'super_admin' }, menu: { cle: 'properties', icone: Building2 } },
-  { chemin: '/admin/team', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'team', icone: Users } },
+  // TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence n'est pas dans cette table : c'est
+  // `/app/overview/agency`, gardé par son propre layout.
+  { chemin: '/app/agency/team', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'team', icone: Users } },
   // TCK-279 — juste sous « Équipe » : on attribue un rôle là, on le définit ici.
-  { chemin: '/admin/roles', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'roles', icone: KeyRound } },
+  { chemin: '/app/agency/roles', exige: { role: 'admin', agence: 'standard' }, menu: { cle: 'roles', icone: KeyRound } },
   {
-    chemin: '/admin/agency',
+    chemin: '/app/agency',
     exige: { role: 'admin' },
     menu: { cle: 'agency', icone: Briefcase },
     profil: 'manageAgency',
   },
-  { chemin: '/admin/agency/kyc', exige: { role: 'admin' }, menu: { cle: 'kyc', icone: ShieldCheck } },
+  { chemin: '/app/agency/kyc', exige: { role: 'admin' }, menu: { cle: 'kyc', icone: ShieldCheck } },
   // TCK-594 (AC18) — l'hôte individuel y lit ses reversements ; l'API les garde par
   // `agency.update_billing` (`AgencyPolicy::viewPlatformPayouts`). Le bloc d'abonnement, lui, reste
   // `standard` : c'est la page qui en décide.
   {
-    chemin: '/admin/agency/billing',
+    chemin: '/app/agency/billing',
     exige: { role: 'admin', capacite: 'agency.update_billing' },
     menu: { cle: 'billing', icone: CreditCard },
   },
-  { chemin: '/admin/finances', exige: { role: 'admin' }, menu: { cle: 'finances', icone: CreditCard } },
+  { chemin: '/app/agency/finances', exige: { role: 'admin' }, menu: { cle: 'finances', icone: CreditCard } },
   // TCK-593 — le rapprochement vit SOUS les finances : un lien de la page, pas une entrée de menu.
   // Le détail `[statementId]` est gardé par ce chemin-ci, son plus proche ancêtre statique.
-  { chemin: '/admin/finances/reconciliation', exige: { role: 'admin' }, menu: null },
+  { chemin: '/app/agency/finances/reconciliation', exige: { role: 'admin' }, menu: null },
   // TCK-597 (ADR-0043 §1) — l'admin d'agence `standard` modère les avis de SON agence.
   {
-    chemin: '/admin/moderation',
+    chemin: '/app/agency/moderation',
     exige: { role: 'admin', agence: 'standard' },
     menu: { cle: 'reviewModeration', icone: Shield },
   },
   // TCK-098 — la modération des biens.
   {
-    chemin: '/admin/moderation/properties',
+    chemin: '/app/agency/moderation/properties',
     exige: { role: 'admin', agence: 'standard' },
     menu: { cle: 'propertyModeration', icone: Building2 },
   },
   {
-    chemin: '/admin/audit',
+    chemin: '/app/agency/audit',
     exige: { role: 'admin', agence: 'standard' },
     menu: { cle: 'auditLog', icone: FileText },
     profil: 'auditLog',
   },
   // TCK-370 — `routes/api/integrations.php` ne pose qu'`auth:sanctum`, et `IntegrationController`
   // laisse entrer un `agency_admin` sur SON agence.
-  { chemin: '/admin/settings/integrations', exige: { role: 'admin' }, menu: { cle: 'integrations', icone: Plug } },
-  // `/api/admin/settings` est sous le middleware `super-admin` (`routes/api/admin.php`).
-  { chemin: '/admin/settings', exige: { role: 'super_admin' }, menu: { cle: 'settings', icone: Settings } },
+  { chemin: '/app/agency/integrations', exige: { role: 'admin' }, menu: { cle: 'integrations', icone: Plug } },
+  // TCK-648 (ADR-0064 §1) — les deux pages du super-admin ont quitté cette table :
+  // `/super-admin/properties` et l'éditeur brut des paramètres (supprimé depuis, TCK-651).
 ] as const satisfies readonly PageAdmin[];
 
 export type CheminAdmin = (typeof TABLE)[number]['chemin'];

@@ -64,7 +64,7 @@ export const agencyReportingKeys = {
     ['agencies', agencyId, 'team-performance', period] as const,
 };
 
-/** `GET /api/agencies/{agency}/finance/aging` — l'onglet « Impayés » de `/admin/finances`. */
+/** `GET /api/agencies/{agency}/finance/aging` — l'onglet « Impayés » de `/app/agency/finances`. */
 export function useAgingBalance(agencyId: number | undefined, groupBy: AgingGroupBy) {
   return useApiQuery<ApiResponse<AgingBalance>>(
     agencyReportingKeys.aging(agencyId, groupBy),

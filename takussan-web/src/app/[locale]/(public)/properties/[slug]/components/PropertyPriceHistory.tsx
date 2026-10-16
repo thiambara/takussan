@@ -1,5 +1,7 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
 import { formatCurrency } from '@/lib/format/currency';
 import type { PropertyPriceHistoryItem } from '@/types/property';
 
@@ -12,16 +14,25 @@ function formatPrice(price: number, currency: string): string {
   return formatCurrency(price, currency || 'XOF');
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+/**
+ * P06.05 / TCK-721 — la date d'un changement de prix suit la langue de la page (elle était figée
+ * en `'fr-FR'`). `useLocale` + `@/lib/format` plutôt que `useFormatteurs()` : ce fichier n'est pas
+ * marqué `'use client'`, et cette forme se rend des deux côtés (cf. `PropertyCharacteristics`).
+ *
+ * ⚠ `dateStyle: undefined` est OBLIGATOIRE à côté de `day`/`month`/`year` : `formatDate` pose
+ * `dateStyle: 'medium'` en défaut, et la combinaison lève `TypeError` (cf. `useFormatteurs.ts`).
+ */
+const DATE_DU_CHANGEMENT = {
+  dateStyle: undefined,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+} as const;
 
 export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
   const t = useTranslations('property.detail');
+  const localeBrute = useLocale();
+  const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
 
   if (history.length === 0) return null;
 
@@ -39,7 +50,7 @@ export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
             <li key={item.id} className="relative">
               <span className="absolute -left-[29px] top-1 size-3 rounded-full bg-card border-2 border-border" />
               <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <time className="text-sm text-muted-foreground">{formatDate(item.changed_at)}</time>
+                <time className="text-sm text-muted-foreground">{formatDate(item.changed_at, locale, DATE_DU_CHANGEMENT)}</time>
                 <div className={`flex items-center gap-1 text-sm font-medium ${trendClass}`}>
                   <Trend className="size-4" aria-hidden />
                   {formatPrice(Math.abs(diff), item.currency)}

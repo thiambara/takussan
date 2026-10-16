@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Customer;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -13,6 +14,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\View;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
@@ -202,6 +204,65 @@ class ReceiptPdfTest extends TestCase
         $this->assertStringNotContainsString('restant due', $html);
         $this->assertMatchesRegularExpression('/Total acquitté\s*<\/th>\s*<td[^>]*>\s*<strong>157 500/u', $html);
         $this->assertMatchesRegularExpression('/Loyer acquitté\s*<\/th>\s*<td[^>]*>\s*<strong>150 000/u', $html);
+    }
+
+    // ─── TCK-725 (P26.01) — un intitulé et une ligne de montant par type d'échéance ──────
+
+    /**
+     * @return array<string, array{0: LeasePaymentType, 1: string, 2: string, 3: string}>
+     */
+    public static function typesHorsLoyer(): array
+    {
+        return [
+            'caution' => [LeasePaymentType::Deposit, 'Reçu de dépôt de garantie', 'Dépôt de garantie versé', 'du dépôt de garantie'],
+            'pénalité' => [LeasePaymentType::Penalty, 'Reçu de pénalité', 'Pénalité acquittée', 'de la pénalité'],
+            'charges' => [LeasePaymentType::Charges, 'Reçu de charges', 'Charges acquittées', 'des charges'],
+            'régularisation' => [LeasePaymentType::Regularization, 'Reçu de régularisation de charges', 'Régularisation acquittée', 'de la régularisation de charges'],
+        ];
+    }
+
+    /**
+     * Une caution, une pénalité, des charges ou une régularisation payées : le reçu dit ce qui a été
+     * payé, et rien du loyer. Avant, toutes sortaient en « Quittance de loyer — Loyer acquitté ».
+     */
+    #[DataProvider('typesHorsLoyer')]
+    public function test_le_recu_hors_loyer_dit_ce_qui_a_ete_paye(LeasePaymentType $type, string $titre, string $ligne, string $objet): void
+    {
+        $ctx = $this->leaseDue(null, [
+            'payment_type' => $type,
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-09-08 10:00:00',
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+
+        $html = $this->renderedReceipt($ctx);
+
+        $this->assertMatchesRegularExpression('/<h1>\s*'.preg_quote($titre, '/').'\s*<\/h1>/u', $html);
+        $this->assertMatchesRegularExpression('/'.preg_quote($ligne, '/').'\s*<\/th>\s*<td[^>]*>\s*<strong>150 000/u', $html);
+        $this->assertStringContainsString('Ce reçu atteste du règlement '.$objet.' au titre du bail.', $html);
+        $this->assertStringNotContainsString('Quittance de loyer', $html);
+        $this->assertStringNotContainsString('Loyer acquitté', $html);
+        $this->assertStringNotContainsString('règlement du loyer', $html);
+    }
+
+    /** Le loyer garde sa quittance, mot pour mot. */
+    public function test_le_loyer_garde_sa_quittance(): void
+    {
+        $ctx = $this->leaseDue(null, [
+            'payment_type' => LeasePaymentType::Rent,
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-09-08 10:00:00',
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]);
+
+        $html = $this->renderedReceipt($ctx);
+
+        $this->assertMatchesRegularExpression('/<h1>\s*Quittance de loyer\s*<\/h1>/u', $html);
+        $this->assertMatchesRegularExpression('/Loyer acquitté\s*<\/th>\s*<td[^>]*>\s*<strong>150 000/u', $html);
+        $this->assertStringContainsString('Cette quittance atteste du règlement du loyer pour la période indiquée.', $html);
+        $this->assertStringNotContainsString('Reçu', $html);
     }
 
     /**

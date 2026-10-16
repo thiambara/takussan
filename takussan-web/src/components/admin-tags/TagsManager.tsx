@@ -28,10 +28,10 @@ import { cn } from '@/lib/utils';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import type { Tag, TagType } from '@/types/tag';
 import {
-  createTagAction,
-  deleteTagAction,
-  updateTagAction,
-} from '@/app/actions/admin-tags';
+  createConsoleTagAction,
+  deleteConsoleTagAction,
+  updateConsoleTagAction,
+} from '@/app/actions/console';
 import {
   normaliseTagForm,
   tagFormSchema,
@@ -109,7 +109,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
         return;
       }
       startTransition(async () => {
-        const result = await updateTagAction(tag.id, { name: trimmed });
+        const result = await updateConsoleTagAction(tag.id, { name: trimmed });
         if (!result.ok) {
           setRowError({ id: tag.id, message: result.message });
           return;
@@ -123,7 +123,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
 
   const handleDelete = useCallback((tag: Tag) => {
     startTransition(async () => {
-      const result = await deleteTagAction(tag.id);
+      const result = await deleteConsoleTagAction(tag.id);
       if (!result.ok) {
         if (result.status === 409) {
           setRowError({
@@ -154,7 +154,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
           ),
         };
       }
-      const result = await createTagAction(normaliseTagForm(parsed.data));
+      const result = await createConsoleTagAction(normaliseTagForm(parsed.data));
       if (!result.ok) {
         setGlobalError(result.message);
         return { ok: false as const, errors: result.errors ?? {} };

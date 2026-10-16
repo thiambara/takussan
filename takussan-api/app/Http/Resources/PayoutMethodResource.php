@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\PayoutMethod;
+use App\Support\ImpersonationContext;
 use Illuminate\Http\Request;
 
 /**
@@ -11,6 +13,9 @@ use Illuminate\Http\Request;
  * `verified` dit si la destination peut servir AU LECTEUR (VERIF-594 M-6) : pour le personnel d'une
  * agence, vérifiée par son agence ; pour le titulaire, vérifiée par au moins une agence. Le lecteur
  * ne voit jamais quelles autres agences ont vérifié.
+ *
+ * TCK-714 (P03.04) — sous impersonation, le « titulaire » est l'opérateur qui agit pour lui :
+ * `account_identifier` sort alors masqué (quatre derniers caractères), jamais en clair.
  */
 class PayoutMethodResource extends BaseResource
 {
@@ -29,7 +34,9 @@ class PayoutMethodResource extends BaseResource
             'user_id' => $this->user_id,
             'kind' => $this->kind?->value,
             'masked_identifier' => $this->masked_identifier,
-            'account_identifier' => $this->when($holder, fn () => $this->account_identifier),
+            'account_identifier' => $this->when($holder, fn () => app(ImpersonationContext::class)->active()
+                ? PayoutMethod::mask((string) $this->account_identifier)
+                : $this->account_identifier),
             'account_holder_name' => $this->when($holder, fn () => $this->account_holder_name),
             'is_default' => (bool) $this->is_default,
             'verified' => $verification !== null,

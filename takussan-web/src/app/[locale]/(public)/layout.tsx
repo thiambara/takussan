@@ -39,7 +39,7 @@ type LocaleParams = { readonly params: Promise<{ locale: string }> };
  *
  * i18n d'URL (TCK-434, ADR-0026) : ce groupe vit sous `src/app/[locale]/`. La langue est le premier
  * segment du chemin, TOUJOURS présent — `/fr/properties/<slug>`, `/en/…`, `/wo/…` — et elle ne
- * l'est QUE sur cette surface : la console (`/app`, `/admin`, `/super-admin`), `/auth`,
+ * l'est QUE sur cette surface : la console (`/app`, `/super-admin`), `/auth`,
  * `/onboarding`, `/publish` et le BFF `/api/**` gardent leurs URL et lisent le cookie.
  */
 export async function generateMetadata({ params }: LocaleParams): Promise<Metadata> {

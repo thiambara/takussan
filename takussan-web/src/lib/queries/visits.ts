@@ -79,11 +79,11 @@ export const visitsQueryKeys = {
  *     `scheduled`, `confirmed`, `completed`, `cancelled`, `no_show` — et « en attente » est
  *     `scheduled`, que le front affiche déjà « Demandée » (`visits.status.scheduled`) ;
  *  3. le compte se lit dans `meta.total`, pas dans `meta.pending_count`. Ce dernier n'existe que
- *     sur les deux files de modération qu'`AdminSidebar` sonde — c'est un champ que ces
+ *     sur les deux files de modération que la section d'agence d'`AppSidebar` sonde — c'est un champ que ces
  *     contrôleurs ajoutent, pas une propriété de l'enveloppe paginée.
  *
  * `per_page: 1` et `fields[property_visits]=id` : on ne veut que l'en-tête de pagination, jamais
- * la page. La cadence de 60 s est celle d'`AdminSidebar` — un menu n'est pas un cron.
+ * la page. La cadence de 60 s est celle de ces deux files — un menu n'est pas un cron.
  */
 export function usePendingVisitsCount(options: { enabled?: boolean } = {}) {
   const spatieParams: SpatieQueryParams = {

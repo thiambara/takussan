@@ -48,10 +48,12 @@ class DocumentPdfController extends Controller
     public static function streamRentReceipt(DocumentPdfService $pdf, Lease $lease, LeasePayment $payment): Response
     {
         $lease->loadMissing(['property.address', 'tenant', 'agency']);
+        $wording = self::receiptWording($payment->payment_type);
 
         return $pdf->stream('pdf.receipts.rent', [
-            'title' => 'Quittance de loyer',
-            'document_label' => 'Quittance',
+            'title' => $wording['title'],
+            'document_label' => $wording['label'],
+            'wording' => $wording,
             'lease' => $lease,
             'payment' => $payment,
             'tenant' => $lease->tenant,
@@ -59,6 +61,36 @@ class DocumentPdfController extends Controller
             'agency' => $lease->agency,
             'filename' => sprintf('quittance-%s.pdf', $payment->reference_number ?? $payment->id),
         ]);
+    }
+
+    /**
+     * TCK-725 (P26.01) — un intitulé et une ligne de montant par type d'échéance : une caution, une
+     * pénalité ou des charges payées sortaient en « Quittance de loyer — Loyer acquitté ». Seul le
+     * loyer a une quittance ; les autres types ont un reçu qui ne dit rien du loyer.
+     *
+     * @return array{title: string, label: string, amount_line: string, attestation: string}
+     */
+    private static function receiptWording(?LeasePaymentType $type): array
+    {
+        $receipt = static fn (string $title, string $line, string $object): array => [
+            'title' => $title,
+            'label' => 'Reçu',
+            'amount_line' => $line,
+            'attestation' => "Ce reçu atteste du règlement {$object} au titre du bail. Il ne vaut pas quittance de loyer.",
+        ];
+
+        return match ($type) {
+            LeasePaymentType::Deposit => $receipt('Reçu de dépôt de garantie', 'Dépôt de garantie versé', 'du dépôt de garantie'),
+            LeasePaymentType::Penalty => $receipt('Reçu de pénalité', 'Pénalité acquittée', 'de la pénalité'),
+            LeasePaymentType::Charges => $receipt('Reçu de charges', 'Charges acquittées', 'des charges'),
+            LeasePaymentType::Regularization => $receipt('Reçu de régularisation de charges', 'Régularisation acquittée', 'de la régularisation de charges'),
+            default => [
+                'title' => 'Quittance de loyer',
+                'label' => 'Quittance',
+                'amount_line' => 'Loyer acquitté',
+                'attestation' => 'Cette quittance atteste du règlement du loyer pour la période indiquée.',
+            ],
+        };
     }
 
     public function invoice(Request $request, Invoice $invoice): Response

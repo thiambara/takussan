@@ -5,10 +5,10 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { accesDepuis, contexteDeRepli, type AccesAdmin, type RepliAdmin } from './pages-admin';
 
 /**
- * TCK-633 (lot B) — les pages `/admin/*` accessibles au profil actif, calculées UNE fois par le
- * layout serveur (`accesAdmin()`) et lues par les composants client qui montrent un lien vers
- * l'administration : `AdminSidebar`, `AdminShell`, `AppSidebar`, `UserMenu`, les raccourcis et les
- * états vides de l'accueil.
+ * TCK-633 (lot B) — les pages d'administration accessibles au profil actif, calculées UNE fois par
+ * le layout serveur de `/app` (`accesAdmin()`) et lues par les composants client qui montrent un
+ * lien vers l'administration : la section d'agence d'`AppSidebar` (TCK-649), `UserMenu`, les
+ * raccourcis et les états vides de l'accueil.
  *
  * La valeur est une liste de chemins et un booléen : sérialisable, elle traverse la frontière
  * serveur → client sans fonction ni icône.

@@ -24,8 +24,11 @@ php artisan tags:sync-catalog \
   || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
 
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
+  # TCK-710 (P01.07) : un échec ARRÊTE le déploiement, et les services ne démarrent pas. Des
+  # réglages périmés ne dégradent pas la recherche, ils la cassent : un attribut triable absent
+  # (`ranked_at`) fait échouer la liste publique sans mot en `invalid_search_sort`.
   php artisan scout:sync-index-settings \
-    || echo "AVERTISSEMENT : scout:sync-index-settings a échoué — filtres et tris de recherche périmés jusqu'au prochain déploiement." >&2
+    || { echo "ERREUR : scout:sync-index-settings a échoué — déploiement arrêté : des filtres et tris de recherche périmés feraient échouer la recherche publique." >&2; exit 1; }
 
   # deploy.sh comparait fichier par fichier avec la release précédente, présente sur le disque.
   # Un conteneur n'en a pas : on compare l'empreinte de la « forme » des index, calculée au build,

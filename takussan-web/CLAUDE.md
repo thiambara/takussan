@@ -100,15 +100,22 @@ initialisé **une fois** par le layout racine, que la navigation douce ne remont
 `set-token`/`logout`, et sur tout effacement du cookie hors de `src/app/api/auth/`.
 
 **Le garde de route serveur est `src/proxy.ts`** — Next 16 a renommé `middleware.ts` → `proxy.ts`.
-Il redirige `/app/*` et `/admin/*` vers `/auth/login?redirect=…` sans cookie, et `/auth/*` vers `/app`
-avec cookie.
+Il redirige `/app/*` vers `/auth/login?redirect=…` sans cookie, et `/auth/*` vers `/app` avec cookie.
+`/admin/*` n'existe plus (ADR-0064, sans redirection) : aucune page ne le sert et le proxy ne le
+nomme plus — `scripts/check-pro-routes.mjs` casse si un fichier de route le sert à nouveau.
 
 > ⚠️ Son matcher **ne couvre pas `/super-admin/*`** : cette surface ne tient que par la défense en
 > profondeur des layouts.
 
 **Défense en profondeur dans les layouts serveur** : `(dashboard)/layout.tsx` appelle `getMeAction()` ;
-`(dashboard)/admin/layout.tsx` ajoute `if (!isAdmin(user.roles)) redirect('/app/profile')` ;
-`(super-admin)/super-admin/layout.tsx` vérifie token puis `isSuperAdmin`. `getMeAction` est mémoïsé
+`(dashboard)/app/agency/layout.tsx` (la section d'administration d'agence, ADR-0064) ajoute
+`if (!isAdmin(user.roles)) redirect('/app')`, et chaque page de la section se garde par son chemin
+(`garderPageAdmin`, table `PAGES_ADMIN`, `scripts/check-pro-routes.mjs`) ;
+`(super-admin)/super-admin/layout.tsx` exige le jeton de l'**opérateur** (`getOperatorToken`, même
+pendant une impersonation), renvoie vers la configuration du second facteur s'il en manque un, puis
+ouvre la console à tout opérateur portant le geste `platform.console.access` (lu à l'API,
+`fetchPlatformAbilities`) — **pas** au seul rôle `super_admin` depuis TCK-600 (ADR-0047) ; sinon
+`redirect('/app')`. `getMeAction` est mémoïsé
 par requête via `cache()` de React et redirige vers `/api/auth/session-expired` sur 401 — **les
 cookies sont read-only en RSC**, c'est pourquoi l'effacement passe par un route handler.
 
@@ -126,7 +133,7 @@ Prédicats de rôle : `src/lib/roles.ts:14-64`. Verrouillage des routes pro :
 ## Structure
 
 ```
-src/app/         217 fichiers — 4 route groups : (auth) (dashboard)→/app+/admin (public) (super-admin)
+src/app/         217 fichiers — 4 route groups : (auth) (dashboard)→/app (public) (super-admin)
                  + segments /onboarding /maintenance /publish · 111 page.tsx · 31 route.ts
 src/app/actions/ 20 modules de server actions
 src/components/  451 fichiers
@@ -168,7 +175,7 @@ dans ce projet (`components.json`, et `grep radix package.json` → 0). 20 compo
 documenté (`src/components/charts/README.md`).
 
 **Responsive — `md` n'est pas « bureau » dans une coque à barre latérale.** `md:` (768 px) est le
-seuil où `/app`, `/admin` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
+seuil où `/app` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
 passe « en colonnes dès `md` » dispose de 768 − 256 − 48 = **464 px**, pas de 768. Mesuré le
 2026-09-02 sur 135 écrans : 55 pages faisaient défiler le document à 768, **aucune** à 360, 390 ou
 1366 (TCK-505, `docs/qa/responsive-2026-09-02.md`). La règle : dans ces coques, ce qui se pose en
@@ -224,19 +231,40 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
 
 ## i18n
 
-**next-intl sans segment `[locale]` dans l'URL.** La locale est résolue côté serveur : cookie
-`NEXT_LOCALE` → `Accept-Language` (avec parsing des q-factors) → `fr`
-(`src/i18n/request.ts:44-99`). 3 locales — `fr`, `en`, `wo`. Fuseau figé à `Africa/Dakar`.
+**La langue est le premier segment de l'URL publique, toujours présent — `fr` compris**
+([ADR-0026](../docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md)). Les
+pages publiques vivent sous `src/app/[locale]/(public)/` (`/fr/properties`, `/wo/properties/<slug>`) ;
+la console et les passages (`/app`, `/admin`, `/super-admin`, `/auth`, `/onboarding`, `/publish`…,
+liste exacte : `SEGMENTS_NON_LOCALISES` de `src/i18n/routing.ts`) n'en portent **jamais**. Deux
+préséances, à ne pas confondre (ADR-0026 §5) :
 
-> ⚠️ **Le repli est un deep-merge de `fr` sous TOUTE locale ≠ `fr`** (`src/i18n/request.ts:95-101`)
+- **quelle langue rendre** — sur une URL préfixée, le segment, **seul** : ni cookie ni en-tête ne le
+  contredisent ; hors de `[locale]`, cookie `NEXT_LOCALE` → `Accept-Language` (q-factors) → `fr`
+  (`resolveLocale`, `src/i18n/request.ts`) ;
+- **où envoyer une URL publique sans préfixe** — `src/proxy.ts` répond **307, jamais 308**, vers
+  `/<locale>/…` choisie par cookie → `Accept-Language` → `fr` (`localeDeRepli`), avec
+  `Vary: Cookie, Accept-Language`. Servir une URL préfixée reporte sa langue dans le cookie.
+
+`fr` est la langue de repli, pas une URL sans préfixe : `localePrefix: 'as-needed'` est écarté par
+l'ADR. 3 locales — `fr`, `en`, `wo`, toutes indexables. Fuseau figé à `Africa/Dakar`.
+
+> ⚠️ **Le repli est un deep-merge de `fr` sous TOUTE locale ≠ `fr`** (`loadMessages`, `src/i18n/request.ts`)
 > — `en` compris. Une clé sans traduction anglaise s'affiche **en français** à l'utilisateur
 > anglophone : pas d'erreur, pas d'avertissement, pas de test rouge. C'est pourquoi **une clé
 > neuve part avec ses trois traductions**, jamais avec la seule française.
 
 **La garde : `npm run check:i18n`** (`scripts/check-i18n.mjs`, branché dans `web-ci.yml`).
 
-- **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT. `en` est tenu à **0 clé manquante** ; `wo`
-  traîne 88 clés manquantes préexistantes, sous cliquet décroissant.
+- **Parité des clés `fr`/`en`/`wo`** — contrôle EXACT, plafond à **0 clé manquante dans les deux
+  langues** (`PLAFONDS_PARITE` de `scripts/check-i18n.mjs`) : toute clé `fr` ajoutée sans son `en`
+  ou son `wo` fait rougir. Le compte courant se lit dans `node scripts/check-i18n.mjs --report`,
+  jamais ici : un compte de clés `wo` manquantes recopié dans ce paragraphe a survécu des semaines
+  à la mesure qui le démentait (TCK-722).
+
+> ⏸ **Le wolof est en pause depuis le 2026-10-16, jusqu'à nouvel ordre du porteur.** Aucun texte
+> wolof neuf ne s'écrit, et aucun texte wolof existant ne se réécrit. Une clé ajoutée porte en `wo`
+> **le texte français tel quel** : la parité tient, et la page wolof affiche le français, comme le
+> repli le ferait. Une piste ou un ticket qui ne porte que sur le wolof attend.
 - **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par le scan
   de `scripts/i18n-scan.mjs`. Un compte qui monte échoue ; un fichier neuf portant du texte échoue ;
   un compte qui descend échoue tant qu'on n'a pas lancé `--update`.

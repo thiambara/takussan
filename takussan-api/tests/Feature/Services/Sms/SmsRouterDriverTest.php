@@ -13,7 +13,10 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -175,6 +178,61 @@ class SmsRouterDriverTest extends TestCase
         $this->assertSame('mtarget', $attempts[2]->provider);
     }
 
+    /**
+     * TCK-727 (P27.01) — sans `SMS_WEBHOOK_URL_TOKEN`, le `ret_url` de LAM
+     * ne se construit pas (la route exige le segment `{token}`). Le SMS part
+     * quand même, sans accusé de réception, et un avertissement le dit.
+     */
+    public function test_lam_sends_without_return_url_when_webhook_token_is_missing(): void
+    {
+        config()->set('sms.webhook_url_token', '');
+        $this->makeIntegration('sms_lafricamobile');
+        Log::spy();
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'lampush*' => Http::response(['push_id' => 'lam-sans-jeton'], 200),
+        ]);
+
+        $notification = AppNotification::factory()->create();
+        $router = $this->app->make(SmsRouterDriver::class);
+        $results = $router->send('+221761234567', 'hello', [
+            'agency_id' => $this->agency->id,
+            'is_critical' => true,
+            'notification_id' => $notification->id,
+        ]);
+
+        $this->assertSame('lafricamobile', $results['+221761234567']->provider);
+        $this->assertSame(SmsResult::STATUS_SENT, $results['+221761234567']->status);
+        Http::assertSent(fn ($request) => str_contains((string) $request->url(), 'lampush')
+            && ! array_key_exists('ret_url', $request->data()));
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message) => str_contains($message, 'SMS_WEBHOOK_URL_TOKEN'))
+            ->once();
+    }
+
+    public function test_lam_sends_return_url_when_webhook_token_is_set(): void
+    {
+        $this->makeIntegration('sms_lafricamobile');
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'lampush*' => Http::response(['push_id' => 'lam-avec-jeton'], 200),
+        ]);
+
+        $notification = AppNotification::factory()->create();
+        $router = $this->app->make(SmsRouterDriver::class);
+        $results = $router->send('+221761234567', 'hello', [
+            'agency_id' => $this->agency->id,
+            'is_critical' => true,
+            'notification_id' => $notification->id,
+        ]);
+
+        $this->assertSame(SmsResult::STATUS_SENT, $results['+221761234567']->status);
+        Http::assertSent(fn ($request) => str_contains((string) $request->url(), 'lampush')
+            && str_contains((string) ($request->data()['ret_url'] ?? ''), 'tck-102-test-token'));
+    }
+
     public function test_orange_daily_cap_defers_to_lam_without_calling_orange(): void
     {
         $this->makeIntegration('sms_orange');
@@ -235,6 +293,40 @@ class SmsRouterDriverTest extends TestCase
         Queue::assertPushed(SendDeferredSmsJob::class);
 
         CarbonImmutable::setTestNow(); // reset
+    }
+
+    /**
+     * TCK-678 (piste P11.03) — le SMS reporté la nuit attend dans la table `jobs`, avec son texte
+     * déjà rendu (lien de paiement, de quittance, d'invitation) : sa charge y est chiffrée, comme
+     * celle de `CodedNotification` (TCK-602).
+     */
+    public function test_deferred_sms_is_stored_encrypted_in_the_jobs_table(): void
+    {
+        $this->makeIntegration('sms_orange');
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-26 23:30:00', 'Africa/Dakar'));
+        config()->set('sms.quiet_hours.enabled', true);
+        config()->set('queue.default', 'database');
+        Http::fake();
+
+        $lien = 'https://takussan.test/payments/pay?token=jeton-porteur-secret';
+        $this->app->make(SmsRouterDriver::class)->send('+221771234567', 'Payez ici : '.$lien, [
+            'agency_id' => $this->agency->id,
+            'is_critical' => false,
+        ]);
+
+        Http::assertNothingSent();
+        $charges = DB::table('jobs')->pluck('payload');
+        $this->assertCount(1, $charges, 'le SMS est reporté dans la file database');
+        $charge = (string) $charges->first();
+        $this->assertSame(SendDeferredSmsJob::class, json_decode($charge, true)['displayName']);
+        $this->assertStringNotContainsString('jeton-porteur-secret', $charge, 'le lien porteur ne reste pas en clair');
+        $this->assertStringNotContainsString('221771234567', $charge, 'le numéro ne reste pas en clair');
+
+        $commande = Crypt::decryptString(json_decode($charge, true)['data']['command']);
+        $this->assertStringContainsString('jeton-porteur-secret', $commande, 'la charge déchiffrée porte bien le texte');
+
+        CarbonImmutable::setTestNow();
     }
 
     public function test_quiet_hours_does_not_defer_critical(): void

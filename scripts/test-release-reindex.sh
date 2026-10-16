@@ -82,6 +82,15 @@ verifier "migration en échec : release échoue, les services ne démarrent pas"
 fabrique; jouer ECHEC_SUR=membership:reconcile
 verifier "réconciliation en échec : release continue (comme deploy.sh)" 0 "$?"
 
+# TCK-710 (P01.07) : des réglages d'index périmés font échouer la liste publique sans mot
+# (`sort=ranked_at:desc` → invalid_search_sort). Le déploiement s'arrête au lieu de servir cela.
+fabrique; jouer ECHEC_SUR=scout:sync-index-settings
+verifier "réglages d'index en échec : release échoue, les services ne démarrent pas" 1 "$?"
+verifier "réglages d'index en échec : aucune importation tentée" 0 "$(imports)"
+
+fabrique; jouer SCOUT_DRIVER=collection ECHEC_SUR=scout:sync-index-settings
+verifier "SCOUT_DRIVER=collection : un échec de réglages ne peut pas arrêter release" 0 "$?"
+
 # ── ABLATION : sans l'écriture du marqueur, le second passage DOIT réimporter ──
 # shellcheck disable=SC2016 # `$marqueur` est le TEXTE cherché dans release.sh, pas une variable d'ici.
 sed '/> "\$marqueur"/d' "$RELEASE" > "$racine/release-ablation.sh"
@@ -95,4 +104,4 @@ else
 fi
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s)"; exit 1; }
-echo "✓ décision de réindexation de release.sh : 10 vérifications et une ablation"
+echo "✓ décision de réindexation de release.sh : 13 vérifications et une ablation"

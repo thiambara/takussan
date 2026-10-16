@@ -13,7 +13,9 @@ class PropertyVisitResource extends BaseResource
         $fiche = $this->ficheClientLisible($request);
         // Passe 4 (M7″) — planifier pour une fiche recopie son nom, son téléphone et son e-mail
         // dans `visitor_*` : sans la fiche, ils ne se lisent pas davantage par là. Une visite sans
-        // fiche (demande publique) garde les siens.
+        // fiche (demande publique) garde les siens. TCK-696 (P21.03) — même règle pour le bloc
+        // `visitor` : une fiche liée à un compte pose `visitor_id` sur ce compte, et son nom, son
+        // e-mail et son téléphone sortiraient sinon par `include=visitor`.
         $visiteurLisible = $fiche || $this->customer_id === null;
 
         return [
@@ -41,7 +43,7 @@ class PropertyVisitResource extends BaseResource
                 'title' => $this->property->title,
                 'slug' => $this->property->slug,
             ]),
-            'visitor' => $this->whenLoaded('visitor', fn () => $this->visitor ? [
+            'visitor' => $this->whenLoaded('visitor', fn () => $visiteurLisible && $this->visitor ? [
                 'id' => $this->visitor->id,
                 'first_name' => $this->visitor->first_name,
                 'last_name' => $this->visitor->last_name,

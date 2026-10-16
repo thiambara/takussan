@@ -124,8 +124,8 @@ class AgentProfileController extends Controller
     /**
      * POST /api/me/agent-profiles/{agent_profile}/kyc/submit
      *
-     * Marks the KYC as submitted (status=pending_review). Non-blocking —
-     * the agency-side workflow validates separately. Idempotent.
+     * Marks the KYC as submitted (`submitted_at`). Non-blocking and idempotent.
+     * No review status is set: no queue reads this dossier (TCK-685, P15.02).
      */
     public function submitKyc(Request $request, AgentProfile $agent_profile): JsonResponse
     {
@@ -135,7 +135,7 @@ class AgentProfileController extends Controller
         $kyc = $metadata['kyc'] ?? [];
         $alreadySubmitted = ! empty($kyc['submitted_at']);
 
-        $kyc['status'] = 'pending_review';
+        unset($kyc['status']);
         $kyc['submitted_at'] = $kyc['submitted_at'] ?? now()->toIso8601String();
         $metadata['kyc'] = $kyc;
         $agent_profile->forceFill(['metadata' => $metadata])->save();
@@ -155,7 +155,6 @@ class AgentProfileController extends Controller
             'data' => [
                 'id' => $agent_profile->id,
                 'kyc' => [
-                    'status' => $kyc['status'],
                     'submitted_at' => $kyc['submitted_at'],
                     'docs' => (array) ($kyc['docs'] ?? []),
                 ],

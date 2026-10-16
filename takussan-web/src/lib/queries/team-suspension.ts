@@ -8,7 +8,7 @@ import { cheminApi } from '@/lib/chemin-api';
  * `POST /api/agencies/{agency}/team/{user}/suspend|reactivate` : tous les profils de la cible
  * dans l'agence passent `suspended` (agent, admin) ou `blocked` (bailleur) ; `users.status` ne
  * bouge pas, et ses autres agences non plus. Le blocage de COMPTE est réservé à la plateforme
- * depuis ce ticket, et passe par la console depuis TCK-600 (`/admin/users/{id}/block`).
+ * depuis ce ticket, et passe par la console depuis TCK-600 (`POST /api/admin/users/{id}/block`).
  */
 export type TeamSuspensionAction = 'suspend' | 'reactivate';
 

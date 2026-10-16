@@ -15,4 +15,10 @@ return [
         'off_topic' => 'Off topic',
         'other' => 'Other reason',
     ],
+    // TCK-656 — messages de validation, rendus dans la langue de la requête.
+    'rejection_reason' => [
+        'required' => 'A rejection reason is required.',
+        'min' => 'The reason must be at least 20 characters long.',
+        'max' => 'The reason may not exceed 1000 characters.',
+    ],
 ];

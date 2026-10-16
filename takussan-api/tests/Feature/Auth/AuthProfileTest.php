@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ImageEnTete;
 use Tests\TestCase;
 
 class AuthProfileTest extends TestCase
@@ -151,6 +152,28 @@ class AuthProfileTest extends TestCase
             ->assertJsonPath('avatar_url', fn (?string $url) => filled($url));
 
         $this->assertCount(1, $user->fresh()->getMedia('avatar'));
+    }
+
+    /**
+     * TCK-677 (P10.02) — l'avatar a lui aussi une miniature synchrone, et il suffit d'un compte
+     * pour l'envoyer : au-delà de 20 Mpx, il est refusé sur son en-tête, sans être décodé.
+     */
+    public function test_profile_update_rejects_avatar_above_twenty_megapixels(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'avatar' => ImageEnTete::png(9000, 9000, 'avatar.png'),
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['avatar']);
+
+        $this->assertCount(0, $user->fresh()->getMedia('avatar'));
     }
 
     public function test_profile_update_can_remove_avatar(): void

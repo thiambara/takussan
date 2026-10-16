@@ -76,7 +76,8 @@ class ReconciliationMatcher
                 BookingPayment::class => $query->whereHas('booking', fn ($q) => $q->whereHas('property', fn ($q2) => $q2->where('agency_id', $agencyId))),
                 // TCK-594 (P4-5) — une caution rendue sort du compte : un crédit ne s'y apparie pas.
                 LeasePayment::class => $query->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))->exceptDepositRefunds(),
-                Invoice::class => $query->where('agency_id', $agencyId),
+                // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement.
+                Invoice::class => $query->where('agency_id', $agencyId)->reconcilable(),
             };
 
             // Amount filter with small tolerance for rounding. Invoices store the
@@ -84,18 +85,28 @@ class ReconciliationMatcher
             $amountColumn = $modelClass === Invoice::class ? 'total_amount' : 'amount';
 
             // TCK-593 — une échéance payée en ligne arrive sur le compte pour le montant FIGÉ à
-            // l'initiation (`metadata.gateway_expected_amount`), pénalité comprise quand l'agence
-            // l'encaisse en ligne : 157 500, pas 150 000. Le montant de l'échéance en repli.
-            $amountExpression = $modelClass === LeasePayment::class
-                ? "COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)"
-                : $amountColumn;
-            $query->whereRaw("ABS({$amountExpression} - ?) < 0.01", [$amount]);
+            // l'initiation, pénalité comprise quand l'agence l'encaisse en ligne : 157 500, pas
+            // 150 000. TCK-715 — l'expression vit sur le modèle, partagée avec la recherche
+            // manuelle, et ne lit le montant figé que d'une échéance soldée en ligne.
+            if ($modelClass === LeasePayment::class) {
+                $query->whereExpectedAmountNear($amount, 0.01);
+            } else {
+                $query->whereRaw("ABS({$amountColumn} - ?) < 0.01", [$amount]);
+            }
 
             // Date window
             $dateColumn = $modelClass === Invoice::class ? 'issue_date' : 'paid_at';
             $query->whereBetween($dateColumn, [$windowStart, $windowEnd]);
 
-            $results = $query->get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn]);
+            // TCK-706 (P25.03) — la clé du payeur, et sa relation chargée d'avance : sans elle,
+            // `resolvePayerName()` lisait une relation `null` et la règle 80 ne s'appliquait jamais.
+            [$payerKey, $payerRelation] = $modelClass === Invoice::class
+                ? ['customer_id', 'customer']
+                : ['payer_id', 'payer'];
+
+            $results = $query
+                ->with("{$payerRelation}:id,first_name,last_name")
+                ->get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn, $payerKey]);
 
             foreach ($results as $row) {
                 $candidates->push((object) [

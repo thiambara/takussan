@@ -20,10 +20,7 @@ class CreditController extends Controller
 {
     public function show(Request $request, CreditLedger $ledger): JsonResponse
     {
-        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
-        abort_code_if($agencyId === null, 422, 'credits.no_space');
-        $agency = Agency::query()->findOrFail($agencyId);
-        $this->authorize('viewAny', [CreditLot::class, $agency]);
+        $agency = $this->walletAgency($request);
 
         $lots = CreditLot::query()->where('agency_id', $agency->getKey())->spendable()->inConsumptionOrder()->get();
         $movements = CreditMovement::query()
@@ -40,5 +37,27 @@ class CreditController extends Controller
             'movements' => CreditMovementResource::collection($movements->items())->resolve(),
             'meta' => $this->paginationMeta($movements),
         ]);
+    }
+
+    /**
+     * TCK-642 — le SEUL solde, pour la pastille des barres de navigation : elle est lue à chaque
+     * page, et ne doit payer ni les lots ni le journal de `show()`. Même espace, même autorisation.
+     */
+    public function balance(Request $request, CreditLedger $ledger): JsonResponse
+    {
+        $agency = $this->walletAgency($request);
+
+        return $this->json(['data' => ['balance' => $ledger->balance($agency)]]);
+    }
+
+    /** L'espace ACTIF dont on lit le portefeuille, autorisé — 422 nommé quand il n'y en a pas. */
+    private function walletAgency(Request $request): Agency
+    {
+        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
+        abort_code_if($agencyId === null, 422, 'credits.no_space');
+        $agency = Agency::query()->findOrFail($agencyId);
+        $this->authorize('viewAny', [CreditLot::class, $agency]);
+
+        return $agency;
     }
 }

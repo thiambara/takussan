@@ -28,11 +28,12 @@ interface NoAgencyStateProps {
  */
 export function NoAgencyState({ title }: NoAgencyStateProps) {
   const t = useTranslations('errors.noAgency');
-  // TCK-633 (lot B) — avec un fournisseur, le CTA mène à la première page `/admin/*` accessible, et
-  // disparaît s'il n'y en a aucune. Sans fournisseur (le layout `/app` n'en monte pas encore, E5),
-  // le lien d'avant : ce composant ne connaît pas les rôles et ne peut pas dériver de repli.
+  // TCK-633 (lot B) — avec un fournisseur, le CTA mène à la première page d'administration
+  // accessible, et disparaît s'il n'y en a aucune. Sans fournisseur, pas de CTA : ce composant ne
+  // connaît pas les rôles et ne peut pas dériver de repli — un lien deviné mènerait à un 404.
+  // (Le layout de `/app`, qui le monte — section d'agence comprise, TCK-649 —, fournit l'accès.)
   const acces = useAccesAdmin();
-  const href = acces === null ? '/admin' : (entreeAdmin(acces)?.href ?? null);
+  const href = acces === null ? null : (entreeAdmin(acces)?.href ?? null);
 
   return (
     <div className="space-y-6">

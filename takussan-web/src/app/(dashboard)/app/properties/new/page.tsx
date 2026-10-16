@@ -110,7 +110,7 @@ export default async function Page() {
             </p>
             <div className="flex flex-wrap gap-2">
               {isAdmin(roles) ? (
-                <Link href="/admin/agency/billing" className={buttonVariants({ size: 'sm' })}>
+                <Link href="/app/agency/billing" className={buttonVariants({ size: 'sm' })}>
                   {t('quotaReachedUpgrade')}
                 </Link>
               ) : null}

@@ -115,7 +115,7 @@ class UserAdminAgencyScopeTest extends ApiTestCase
      * the host wizard or super-admin onboarding) must appear in the
      * agency-scoped listing. Previously the scope only matched
      * `agentProfiles`/`ownerProfiles`, hiding the founding admin from
-     * `/admin/team`'s Administrators tab.
+     * `/app/agency/team`'s Administrators tab.
      */
     public function test_agency_admin_listing_includes_users_with_only_agency_admin_profile(): void
     {

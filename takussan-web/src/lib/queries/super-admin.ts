@@ -22,6 +22,7 @@ import type {
   NotificationTemplateResponse,
   NotificationTemplatesResponse,
   PlatformSettingsResponse,
+  PlatformSettingValue,
   AdminIntegrationsResponse,
   AdminIntegrationResponse,
   AdminIntegrationSchemaResponse,
@@ -776,7 +777,7 @@ export async function fetchPlatformSettings(): Promise<PlatformSettingsResponse>
 }
 
 export async function patchPlatformSettings(
-  payload: Record<string, string | number | string[]>,
+  payload: Record<string, PlatformSettingValue>,
 ): Promise<PlatformSettingsResponse> {
   const res = await fetch('/api/super-admin/settings', {
     method: 'PATCH',

@@ -42,7 +42,7 @@ class SearchPublicPropertyRequest extends BaseFormRequest
     {
         parent::prepareForValidation();
 
-        foreach (['furnished', 'featured'] as $cle) {
+        foreach (['furnished', 'featured', 'placements'] as $cle) {
             $valeur = $this->input($cle);
 
             if (! is_string($valeur)) {
@@ -172,6 +172,10 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'available_from' => 'nullable|date',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
+            // TCK-687 (P18.01) — `false` coupe les emplacements ET les places réservées : ni
+            // `sponsored`, ni `placement: reserved`, ni impression comptée. Pour un appelant qui
+            // n'affiche pas les emplacements (la rangée « À vendre » de l'accueil). Absent : `true`.
+            'placements' => 'nullable|boolean',
         ];
     }
 }

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -9,38 +9,37 @@ import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 import { AgencyActivityFeed } from '../AgencyActivityFeed';
 
 /**
- * TCK-375 — **« les liens qui ont une destination dans `/admin` y renvoient »**, et ce qu'il a
- * fallu mesurer pour savoir ce que ça voulait dire.
+ * TCK-375 — **chaque lien du flux d'activité mène à une page qui existe**, et l'équipe à l'écran
+ * de l'administration de l'agence.
  *
- * ────────────────────────────────────────────────────────────────────────────────────────────
- * CE QUE LA MESURE A RENDU, ET QUI CONTREDIT LE CONTEXTE DU TICKET
- * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-375 avait mesuré que trois des quatre liens (`/app/bookings`, `/app/maintenance`,
+ * `/app/customers`) n'avaient aucun équivalent dans l'ancienne console d'agence, et que seule
+ * l'équipe y renvoyait. TCK-649 (ADR-0064) a fait de cette console une section de `/app` : `/app/agency/*`.
+ * La question « reste-t-on dans la console ? » n'a donc plus d'objet — il n'y a plus qu'une
+ * coque. Celle qui reste : le lien mène-t-il quelque part ?
  *
- * Le ticket décrit le flux d'activité comme un défaut : *« trois liens sur quatre sortent de la
- * console où l'utilisateur se trouve »*. C'est exact, et ce n'est pas un défaut du flux :
- * l'inventaire des quinze routes `/admin/**` pris le 2026-08-27 ne contient **ni
- * `/admin/bookings`, ni `/admin/maintenance`, ni `/admin/customers`**. Les trois liens sortent
- * parce qu'il n'y a nulle part où rester. Le seul des quatre qui ait une destination dans la
- * console — l'équipe — y renvoyait **déjà**.
- *
- * Réécrire les trois autres aurait donc voulu dire créer trois écrans, ce que le ticket exclut
- * explicitement (« Le contenu des écrans de destination » est hors périmètre).
- *
- * ────────────────────────────────────────────────────────────────────────────────────────────
- * D'OÙ CE TEST PLUTÔT QU'UN CORRECTIF
- * ────────────────────────────────────────────────────────────────────────────────────────────
- *
- * Un test qui affirmerait `['/app/bookings', …]` en dur ne prouverait rien : il resterait vert le
- * jour où `/admin/bookings` naît, c'est-à-dire exactement le jour où le lien devient faux.
- *
- * Celui-ci DÉRIVE la question du système de fichiers : pour chaque lien sortant vers `/app/X`, il
- * exige qu'aucune page `/admin/X` n'existe. Le jour où quelqu'un ajoute cet écran, ce test
- * rougit et nomme le lien à déplacer — sans que personne ait à se souvenir de cette règle.
- *
+ * Le test la DÉRIVE du système de fichiers plutôt que d'une liste écrite à la main : un lien dont
+ * la page disparaît, ou qu'on réécrit vers une page inexistante, le fait rougir en le nommant.
  * *Un invariant vérifié contre une liste écrite à la main n'est vrai que le jour où on l'écrit.*
  */
 
-const RACINE_ADMIN = join(process.cwd(), 'src', 'app', '(dashboard)', 'admin');
+const RACINE_APP = join(process.cwd(), 'src', 'app', '(dashboard)', 'app');
+
+/**
+ * La page qui sert `segments` sous `dossier`, en traversant les groupes de routes (`(liste)`) :
+ * ils structurent le système de fichiers sans apparaître dans l'URL.
+ */
+function pageExiste(dossier: string, segments: readonly string[]): boolean {
+  if (segments.length === 0) {
+    if (existsSync(join(dossier, 'page.tsx'))) return true;
+  } else if (existsSync(join(dossier, segments[0]))) {
+    if (pageExiste(join(dossier, segments[0]), segments.slice(1))) return true;
+  }
+  if (!existsSync(dossier)) return false;
+  return readdirSync(dossier, { withFileTypes: true }).some(
+    (entree) => entree.isDirectory() && /^\(.+\)$/.test(entree.name) && pageExiste(join(dossier, entree.name), segments),
+  );
+}
 
 function summary(): DashboardAgencySummary {
   return {
@@ -70,33 +69,28 @@ function liens(): string[] {
     .filter((h): h is string => Boolean(h));
 }
 
-describe('flux d’activité — destinations (TCK-375)', () => {
-  it('renvoie dans la console dès qu’un écran `/admin` existe pour la destination', () => {
-    const sortants = liens().filter((href) => href.startsWith('/app/'));
-    expect(sortants.length).toBeGreaterThan(0);
-
-    const rapatriables = sortants.filter((href) =>
-      existsSync(join(RACINE_ADMIN, href.slice('/app/'.length), 'page.tsx')),
-    );
-
-    // Aucun lien ne doit sortir vers `/app/X` alors que `/admin/X` existe.
-    expect(rapatriables).toEqual([]);
+describe('flux d’activité — destinations (TCK-375, TCK-649)', () => {
+  it('chaque lien mène à une page de `/app` qui existe', () => {
+    const hrefs = liens();
+    expect(hrefs).toHaveLength(4);
+    for (const href of hrefs) {
+      expect(href.startsWith('/app/'), `${href} sort de /app`).toBe(true);
+      const segments = href.slice('/app/'.length).split('?')[0].split('/');
+      expect(pageExiste(RACINE_APP, segments), `${href} n'a pas de page.tsx`).toBe(true);
+    }
   });
 
-  it('l’équipe — la seule destination qui existe sous `/admin` — y renvoie', () => {
+  it('l’équipe renvoie à l’administration de l’agence, `/app/agency/team`', () => {
     // Le préalable du test : si cette page disparaissait, l'assertion suivante ne mesurerait
     // plus rien.
-    expect(existsSync(join(RACINE_ADMIN, 'team', 'page.tsx'))).toBe(true);
-    expect(liens()).toContain('/admin/team');
-    expect(liens()).not.toContain('/app/team');
+    expect(pageExiste(RACINE_APP, ['agency', 'team'])).toBe(true);
+    expect(liens()).toContain('/app/agency/team');
   });
 
-  it('aucun lien du flux ne pointe vers une page inexistante de `/admin`', () => {
-    const internes = liens().filter((href) => href.startsWith('/admin/'));
-    expect(internes.length).toBeGreaterThan(0);
-    for (const href of internes) {
-      const chemin = join(RACINE_ADMIN, href.slice('/admin/'.length).split('?')[0], 'page.tsx');
-      expect(existsSync(chemin), `${href} n'a pas de page.tsx`).toBe(true);
-    }
+  it('la résolution traverse les groupes de routes, et refuse une page qui n’existe pas', () => {
+    // `/app/bookings` est servie par `bookings/(liste)/page.tsx` : sans la traversée, le premier
+    // test rougirait sur un lien juste. Et une résolution qui accepterait tout ne prouverait rien.
+    expect(pageExiste(RACINE_APP, ['bookings'])).toBe(true);
+    expect(pageExiste(RACINE_APP, ['team'])).toBe(false);
   });
 });

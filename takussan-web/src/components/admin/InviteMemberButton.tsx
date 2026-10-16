@@ -11,11 +11,11 @@ import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 
 /**
- * Le déclencheur « Inviter » de `/admin/team`, autoportant.
+ * Le déclencheur « Inviter » de `/app/agency/team`, autoportant.
  *
  * Il existe pour une raison d'emplacement, pas de comportement : les guidelines veulent l'action
  * principale d'un écran **en tête, à côté du titre**, et `PageHeader` expose un emplacement
- * `actions` que la console `/admin` n'utilisait nulle part. La page est un server component ; ce
+ * `actions` que la console d'agence n'utilisait nulle part. La page est un server component ; ce
  * bouton porte donc lui-même l'état d'ouverture du dialogue, ce qui lui évite de remonter dans le
  * `TeamConsole` — qui n'aurait alors plus rien à voir avec la mise en page.
  *

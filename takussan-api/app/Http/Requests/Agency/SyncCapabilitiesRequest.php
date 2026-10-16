@@ -52,8 +52,7 @@ class SyncCapabilitiesRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
-            'capabilities.*.not_in' => 'Cette capacité est réservée à la plateforme : '
-                .'aucun rôle d\'agence ne peut la porter.',
+            'capabilities.*.not_in' => __('agencies.validation.capability_platform_reserved'),
         ];
     }
 }

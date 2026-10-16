@@ -11,6 +11,8 @@ import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/brand/Logo';
+import { PastilleCredits } from '@/components/credits/PastilleCredits';
+import { voitLePortefeuille } from '@/lib/navigation/acces-app';
 
 /**
  * TCK-371 (revue adverse) — l'anneau de focus des deux contrôles ÉCRITS À LA MAIN de la barre
@@ -19,11 +21,12 @@ import { Logo } from '@/components/brand/Logo';
  *
  * Ces deux-là n'en portaient AUCUN : ils retombaient sur la règle globale `* { outline-ring/50 }`
  * de `globals.css`, mesurée à **1,73:1** sur le fond de la barre — sous les 3:1 qu'exige
- * WCAG 1.4.11. `AdminShell` monte cette barre sur CHAQUE page `/admin`, et le hamburger est le
- * SEUL contrôle qui ouvre le tiroir de navigation sous `md`.
+ * WCAG 1.4.11. `AppShell` monte cette barre sur CHAQUE page de `/app` — section d'agence comprise
+ * depuis TCK-649 —, et le hamburger est le SEUL contrôle qui ouvre le tiroir de navigation sous `md`.
  *
- * Même anneau blanc, et pour la même raison, que `AdminSidebar` — dont le docblock porte les
- * mesures des trois fonds. Ici il n'y en a que deux, `bg-foreground` étant posé sur le `<header>` :
+ * Même anneau blanc, et pour la même raison, que la barre latérale sombre de l'ancienne console
+ * d'administration (TCK-371). Il n'y a ici que deux fonds, `bg-foreground` étant posé sur le
+ * `<header>` :
  *
  *   barre nue                    #1f1812   →   `white` 17,53:1   (`outline-ring` : 3,30:1)
  *   hamburger survolé `bg-white/10` #352f2a →  `white` 13,17:1   (`outline-ring` : 2,48:1 ✗)
@@ -66,7 +69,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
 
       {/* TCK-505 (#1) — visible dès `lg` seulement, et compressible. À `md` la coque montre déjà
           la barre latérale (256 px) : un `min-w-80` posé au même pixel faisait déborder le
-          document de +81 à +118 px sur les 58 pages `/app` et `/admin` à 768 px. */}
+          document de +81 à +118 px sur 58 pages de la console à 768 px. */}
       <SearchAutocomplete
         variant="navbar"
         className="ml-6 hidden lg:block min-w-0 flex-1 max-w-xl"
@@ -76,6 +79,9 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
           prénom) se cachent sous `lg`, il ne reste que les icônes. */}
       <div className="ml-auto flex min-w-0 shrink items-center gap-2">
         <ProfileSwitcher user={user} />
+        {/* TCK-642 — le solde de l'espace actif, juste après le sélecteur qui le choisit. Dès `md`
+            seulement : sous ce seuil, il est dans le tiroir (entrée « Crédits »). */}
+        {voitLePortefeuille(user.roles) ? <PastilleCredits ton="sombre" className="hidden md:inline-flex" /> : null}
         {/* TCK-017 — language switcher persisted via cookie + (when logged in)
             PATCH /api/users/me by the client inside the switcher. */}
         <LanguageSwitcher

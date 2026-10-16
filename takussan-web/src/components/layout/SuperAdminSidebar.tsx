@@ -163,7 +163,14 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'platform',
     items: [
-      { href: '/super-admin/settings', labelKey: 'settings', icon: SlidersHorizontal, ability: 'platform.settings.manage' },
+      {
+        href: '/super-admin/settings',
+        labelKey: 'settings',
+        icon: SlidersHorizontal,
+        ability: 'platform.settings.manage',
+        // TCK-651 (ADR-0065) — l'éditeur brut de la table (`/super-admin/settings/global`, TCK-648)
+        // a disparu : la portée `global` s'écrit ici, au catalogue, et seulement ici.
+      },
       { href: '/super-admin/integrations', labelKey: 'integrations', icon: PlugZap },
       { href: '/super-admin/feature-flags', labelKey: 'featureFlags', icon: FlaskConical },
       { href: '/super-admin/alerts', labelKey: 'alerts', icon: Siren },

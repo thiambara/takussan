@@ -258,7 +258,9 @@ php artisan scout:import "App\Models\User"
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par le service `release` (`takussan-api/docker/release.sh`, ADR-0028) quand
-  `SCOUT_DRIVER=meilisearch`.
+  `SCOUT_DRIVER=meilisearch`. **Son échec arrête le déploiement** : `release` sort en erreur et
+  les services ne démarrent pas (TCK-710), car des réglages périmés font échouer la recherche
+  publique au lieu de la dégrader.
 - `scout:import` est lancé **par le même service**, pour tous les modèles indexés, quand
   l'empreinte `.search-shape` de l'image — la forme des documents : `config/scout.php`, les
   modèles qui déclarent `toSearchableArray()`, `app/Support/Search/`, `lang/fr/properties.php` —
@@ -619,5 +621,5 @@ npm run build
 - `docs/design-guidelines.md` — UI / UX
 - `docs/plans/2026-04-18-seeding-annee-activite.md` — plan d'origine du seeding démo (archive : le
   raisonnement, pas l'état ; la source est `takussan-api/database/seeders/`)
-- `docs/backlog/INDEX.md` — kanban des tickets
+- `docs/backlog/INDEX.md` — kanban des tickets, généré à la demande (`node docs/backlog/gen-index.mjs`), non versionné (ADR-0067)
 - `CLAUDE.md` — règles agent / monorepo

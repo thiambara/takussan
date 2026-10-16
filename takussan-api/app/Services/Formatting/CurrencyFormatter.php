@@ -37,6 +37,11 @@ class CurrencyFormatter
         $formatter = new NumberFormatter($effectiveLocale, NumberFormatter::DECIMAL);
         $formatter->setAttribute(NumberFormatter::MIN_FRACTION_DIGITS, $decimals);
         $formatter->setAttribute(NumberFormatter::MAX_FRACTION_DIGITS, $decimals);
+        // TCK-726 (P26.02) — sans mode réglé, ICU arrondit au pair : 18 004,5 de TVA s'imprimait
+        // 18 004 sous un total de 118 030, et 1 250,5 s'imprimait 1 250 quand `round()`
+        // (PHP_ROUND_HALF_UP) en encaisse 1 251. Le demi s'éloigne de zéro, comme à l'encaissement
+        // et comme le `formatCurrency` du front (`Intl.NumberFormat`, `halfExpand`).
+        $formatter->setAttribute(NumberFormatter::ROUNDING_MODE, NumberFormatter::ROUND_HALFUP);
 
         $number = $formatter->format((float) $amount);
         if ($number === false) {

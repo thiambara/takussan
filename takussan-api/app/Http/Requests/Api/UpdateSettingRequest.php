@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Api;
 
-use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\SettingScope;
 
@@ -53,14 +52,12 @@ class UpdateSettingRequest extends BaseFormRequest
         ];
     }
 
-    /** TCK-600 — même refus qu'à la création : une ligne de catalogue ne se modifie pas d'ici. */
+    /**
+     * TCK-651 (ADR-0065) — la route brute n'écrit plus la portée `global` : ce que le code y lit
+     * s'écrit par un catalogue. `authorize()` a déjà rendu 403 à qui n'est pas super-admin.
+     */
     protected function passedValidation(): void
     {
-        $setting = $this->route('setting');
-        abort_code_if(
-            $setting->scope === SettingScope::Global && EditablePlatformSettings::managedByCatalogue($setting->key),
-            422,
-            'setting.managed_by_catalogue',
-        );
+        abort_code_if($this->route('setting')->scope === SettingScope::Global, 422, 'setting.global_not_writable');
     }
 }

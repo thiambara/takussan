@@ -1,5 +1,5 @@
 /**
- * TCK-595 (AC18, côté écran) — l'onglet « Impayés » de `/admin/finances` est la balance âgée.
+ * TCK-595 (AC18, côté écran) — l'onglet « Impayés » de `/app/agency/finances` est la balance âgée.
  *
  * Le jeu simulé est celui d'AC18 : quatre loyers de 100 000 échus de 10, 40, 75 et 120 jours, tous
  * au statut `pending`. L'onglet épinglait `filter[status]=late` sur l'historique des paiements, et

@@ -79,4 +79,40 @@ class PropertyRedactorTest extends TestCase
 
         $this->assertSame($properties, PropertyRedactor::redact($properties));
     }
+
+    /**
+     * TCK-692 (P19.03, décision du porteur) — l'adresse et le numéro sont expurgés, sous leur nom
+     * nu ou préfixé ; les drapeaux et dates qui les qualifient restent lisibles.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function clesDeContact(): array
+    {
+        return [
+            'email' => ['email'],
+            'phone' => ['phone'],
+            'target_email' => ['target_email'],
+            'secondary_phone' => ['secondary_phone'],
+            'contactEmail' => ['contactEmail'],
+            'Phone' => ['Phone'],
+        ];
+    }
+
+    #[DataProvider('clesDeContact')]
+    public function test_l_adresse_et_le_numero_sont_expurges(string $key): void
+    {
+        $this->assertSame([$key => self::R], PropertyRedactor::redact([$key => 'TEMOIN']));
+    }
+
+    public function test_un_drapeau_ou_une_date_de_contact_reste_lisible(): void
+    {
+        $properties = [
+            'email_verified_at' => '2026-10-16T10:00:00+00:00',
+            'phone_verified_at' => null,
+            'notifications_email_enabled' => true,
+            'secondary_phone_whatsapp' => false,
+        ];
+
+        $this->assertSame($properties, PropertyRedactor::redact($properties));
+    }
 }

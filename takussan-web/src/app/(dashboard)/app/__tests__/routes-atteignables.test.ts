@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { PAGES_ADMIN } from '@/lib/access/pages-admin';
+
 /**
  * TCK-379 — AC1 : aucune route de `/app` ne doit être injoignable.
  *
@@ -152,7 +154,21 @@ const FICHIERS = listeFichiers(RACINE).map((f) => ({
  * doivent tenir sur la MÊME ligne de code, commentaires blanchis. *Un test qui compte les mentions
  * textuelles d'une route accepte une phrase de docblock aussi bien qu'un `<Link>` cliquable.*
  */
+/**
+ * TCK-649 (ADR-0064 §2) — le seul producteur de liens qui n'écrit pas ses `href` sur une ligne :
+ * la table des pages d'administration. Chaque page qui y porte une entrée de menu est rendue en
+ * lien par la section d'agence d'`AppSidebar` (`avecSectionAgence`), pour tout profil qui peut
+ * l'ouvrir. Le compter ici est DÉRIVÉ de la table, comme le menu lui-même : une page qui perdrait
+ * son entrée (`menu: null`) sans gagner de lien ailleurs redeviendrait orpheline, et rougirait.
+ */
+const DESSERVIES_PAR_LA_SECTION_D_AGENCE: ReadonlySet<string> = new Set(
+  PAGES_ADMIN.filter((page) => page.menu !== null).map((page) => page.chemin),
+);
+
 function citations(route: string, dossierPropre: string): string[] {
+  if (DESSERVIES_PAR_LA_SECTION_D_AGENCE.has(route)) {
+    return ['lib/access/pages-admin.ts → components/layout/AppSidebar.tsx (section d’agence)'];
+  }
   const motif = new RegExp(
     route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w/-])',
   );

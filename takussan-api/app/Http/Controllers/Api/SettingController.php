@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreSettingRequest;
 use App\Http\Requests\Api\UpdateSettingRequest;
@@ -44,6 +43,9 @@ class SettingController extends Controller
 
         if ($data['scope'] === SettingScope::Global->value) {
             abort_code_unless($user->isSuperAdmin(), 403, 'setting.global_forbidden');
+            // TCK-651 (ADR-0065) — une clé globale que le code lit s'écrit par son catalogue, et
+            // seulement par lui ; toute autre n'a pas de lecteur. La route brute ne fait que l'agence.
+            abort_code(422, 'setting.global_not_writable');
         } else {
             $targetAgencyId = $data['scope_id'] ?? $user->agency_id;
             abort_code_unless(
@@ -97,12 +99,9 @@ class SettingController extends Controller
             );
         }
 
-        // TCK-600 — supprimer une ligne de catalogue la remettait à son défaut sans règle ni trace.
-        abort_code_if(
-            $setting->scope === SettingScope::Global && EditablePlatformSettings::managedByCatalogue($setting->key),
-            422,
-            'setting.managed_by_catalogue',
-        );
+        // TCK-600 — supprimer une ligne de catalogue la remettait à son défaut sans règle ni trace ;
+        // TCK-651 (ADR-0065) — aucune ligne globale ne s'efface plus d'ici.
+        abort_code_if($setting->scope === SettingScope::Global, 422, 'setting.global_not_writable');
 
         $setting->delete();
 

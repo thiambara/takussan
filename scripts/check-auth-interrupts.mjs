@@ -232,8 +232,12 @@ const REFUS_ARTISANAL = [
   // TCK-633 (lot B) — dix pages `/admin/*` ont QUITTÉ cet inventaire : elles ne décident plus de
   // leur accès à la main, elles appellent `garderPageAdmin('<chemin>')` (table `PAGES_ADMIN`,
   // `lib/access/pages-admin-server.ts`). Le plafond descend d'autant, de 22 à 12.
-  'src/app/(dashboard)/admin/finances/page.tsx',
-  'src/app/(dashboard)/admin/layout.tsx',
+  //
+  // TCK-649 (ADR-0064) — les deux qui restaient ont DÉMÉNAGÉ sous `/app/agency`, sans changer de
+  // nature : même raisonnement que TCK-426 ci-dessus, un inventaire indexé sur des chemins suit
+  // le déménagement.
+  'src/app/(dashboard)/app/agency/finances/page.tsx',
+  'src/app/(dashboard)/app/agency/layout.tsx',
   'src/app/(dashboard)/app/maintenance/providers/layout.tsx',
   'src/app/(dashboard)/app/overview/agency/layout.tsx',
   'src/app/(dashboard)/app/overview/agent/layout.tsx',

@@ -17,6 +17,9 @@ use Tests\Support\FabriqueDemandesEtVisites;
  * hors catalogue que lisent les services métier : l'écrire hors de `/api/admin` exige la 2FA
  * plateforme, comme sous la console. `SettingController` n'était dans aucune liste.
  *
+ * TCK-651 (ADR-0065) — la route brute ne fait plus la portée globale (422) ; reste le geste d'un
+ * profil plateforme sur la portée d'une agence, quelle qu'elle soit, toujours sous second facteur.
+ *
  * L'admin d'agence, sur la portée `agency`, n'est pas concerné : `PLATFORM_TWO_FACTOR` ne vise que
  * les profils plateforme.
  */
@@ -35,17 +38,18 @@ class PlatformSettingsTwoFactorTest extends ApiTestCase
     }
 
     #[DataProvider('sansSecondFacteur')]
-    public function test_la_plateforme_n_ecrit_pas_un_reglage_global_sans_son_second_facteur(bool $a2fa, string $code): void
+    public function test_la_plateforme_n_ecrit_pas_un_reglage_d_agence_sans_son_second_facteur(bool $a2fa, string $code): void
     {
+        $agence = Agency::factory()->create();
         $existant = Setting::query()->create([
             'key' => 'invoice.reminder_offsets_days',
             'value' => ['value' => [1, 3, 7]],
-            'scope' => SettingScope::Global,
-            'scope_id' => null,
+            'scope' => SettingScope::Agency,
+            'scope_id' => $agence->id,
         ]);
         $enTetes = $this->superAdmin($a2fa);
 
-        $this->refuse($this->postJson('/api/settings', ['key' => self::CLE, 'scope' => 'global', 'value' => ['value' => true]], $enTetes), $code);
+        $this->refuse($this->postJson('/api/settings', ['key' => self::CLE, 'scope' => 'agency', 'scope_id' => $agence->id, 'value' => ['value' => true]], $enTetes), $code);
         $this->refuse($this->putJson("/api/settings/{$existant->id}", ['value' => ['value' => [30]]], $enTetes), $code);
         $this->refuse($this->deleteJson("/api/settings/{$existant->id}", [], $enTetes), $code);
 
@@ -54,13 +58,14 @@ class PlatformSettingsTwoFactorTest extends ApiTestCase
     }
 
     /** Témoin : sous une session à deux facteurs, le même geste passe. */
-    public function test_une_session_a_deux_facteurs_ecrit_le_reglage_global(): void
+    public function test_une_session_a_deux_facteurs_ecrit_le_reglage_d_une_agence(): void
     {
+        $agence = Agency::factory()->create();
         $super = User::factory()->withTwoFactor()->create();
         $this->materializeRoleProfile($super, 'super_admin');
         $this->actingAsWithStepUp($super);
 
-        $this->postJson('/api/settings', ['key' => self::CLE, 'scope' => 'global', 'value' => ['value' => true]])
+        $this->postJson('/api/settings', ['key' => self::CLE, 'scope' => 'agency', 'scope_id' => $agence->id, 'value' => ['value' => true]])
             ->assertCreated();
     }
 

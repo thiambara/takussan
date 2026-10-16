@@ -19,8 +19,9 @@ type Props = {
  * composant les rend tous ») : la version locale rendait sa phrase en 12 px, sous le plancher de
  * 14 px du corps, et dans une carte qu'aucun autre état vide du produit ne dessine.
  *
- * TCK-633 (lot B) — la variante « admin » ne se montre que s'il existe une page `/admin/*` que le
- * profil peut ouvrir, et mène à la première : « Ouvrir mon espace » chez un solo.
+ * TCK-633 (lot B) — la variante « admin » ne se montre que s'il existe une page d'administration
+ * (`/app/agency/*`, TCK-649) que le profil peut ouvrir, et mène à la première : « Ouvrir mon espace »
+ * chez un solo.
  */
 export function DashboardEmpty({ roles }: Props) {
   const t = useTranslations('dashboard.empty');

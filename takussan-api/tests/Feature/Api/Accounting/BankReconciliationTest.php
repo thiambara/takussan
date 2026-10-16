@@ -6,15 +6,22 @@ use App\Jobs\Accounting\MatchBankStatementJob;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Customer;
 use App\Models\Enums\BankStatementLineDirection;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Invoice;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
+use App\Services\Model\LeasePaymentService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -359,6 +366,164 @@ class BankReconciliationTest extends TestCase
         $this->assertSame($payment->id, $line->matched_payment_id);
     }
 
+    public function test_la_recherche_manuelle_trouve_l_echeance_payee_en_ligne_penalite_comprise(): void
+    {
+        // TCK-715 (P25.01) — l'échéance de l'AC14, payée en ligne 157 500. Le dialogue de recherche
+        // s'ouvre au montant de la ligne : la recherche comparait `amount` (150 000) et rendait `[]`.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $found = $this->searchCredit($ctx['agency'], 157_500);
+
+        $this->assertSame([['lease_payment', $ctx['payment']->id]], $found);
+    }
+
+    public function test_apres_un_checkout_abandonne_puis_un_virement_le_montant_attendu_est_celui_de_l_echeance(): void
+    {
+        // TCK-715 (P25.02) — un checkout de 157 500 (pénalité comprise) ouvert puis abandonné ;
+        // trois heures plus tard, le loyer est enregistré payé par virement (150 000). Le montant
+        // figé du checkout restait sur la ligne, et le matcher le préférait à `amount`.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->travel(3)->hours();
+        app(LeasePaymentService::class)->markPaid($ctx['payment']->refresh(), ['payment_method' => 'bank_transfer']);
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertEquals(157_500, $payment->metadata['gateway_expected_amount']);
+
+        $statement = BankStatement::factory()->create([
+            'agency_id' => $ctx['agency']->id,
+            'status' => BankStatementStatus::ReadyForReview,
+        ]);
+        $line = BankStatementLine::factory()->create([
+            'bank_statement_id' => $statement->id,
+            'direction' => BankStatementLineDirection::Credit,
+            'amount' => 150_000,
+            'currency' => 'XOF',
+            'posted_at' => now()->addDay()->toDateString(),
+            'reference' => null,
+            'counterparty' => null,
+        ]);
+
+        (new MatchBankStatementJob($statement->id))->handle(app(ReconciliationMatcher::class));
+
+        $line->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
+        $this->assertSame(LeasePayment::class, $line->matched_payment_type);
+        $this->assertSame($payment->id, $line->matched_payment_id);
+
+        // La recherche manuelle suit la même règle : le montant de l'échéance, pas celui du checkout.
+        $this->assertSame([['lease_payment', $payment->id]], $this->searchCredit($ctx['agency'], 150_000));
+        $this->assertSame([], $this->searchCredit($ctx['agency'], 157_500));
+    }
+
+    /** @return list<array{0: string, 1: int}> */
+    private function searchCredit(Agency $agency, int $amount): array
+    {
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+
+        return array_map(
+            fn ($c) => [$c['type'], $c['id']],
+            $this->actingAs($admin)
+                ->getJson("/api/agencies/{$agency->id}/bank-statements/payment-search?amount={$amount}&direction=credit")
+                ->assertOk()
+                ->json('data'),
+        );
+    }
+
+    public function test_la_regle_contrepartie_s_applique_aux_encaissements(): void
+    {
+        // TCK-706 (P25.03) — un crédit à J+5, hors de la règle « ±2 jours » : seule la règle
+        // « contrepartie ≥ 85 % » peut le porter au-dessus de 60. Le matcher ne chargeait pas la
+        // clé du payeur, et la relation rendait `null` sans erreur.
+        $payer = Customer::factory()->create(['first_name' => 'Aïssatou', 'last_name' => 'Ndiaye']);
+        $paidAt = '2026-04-10 10:00:00';
+
+        $leasePayment = LeasePayment::factory()->paid()->create([
+            'payer_id' => $payer->id, 'amount' => 150_000, 'currency' => 'XOF', 'paid_at' => $paidAt,
+        ]);
+        $leasePayment->lease->update(['agency_id' => $this->agency->id]);
+
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $bookingPayment = BookingPayment::factory()->paid()->create([
+            'booking_id' => Booking::factory()->create(['property_id' => $property->id])->id,
+            'payer_id' => $payer->id, 'amount' => 160_000, 'currency' => 'XOF', 'paid_at' => $paidAt,
+        ]);
+
+        $invoice = Invoice::factory()->sent()->create([
+            'agency_id' => $this->agency->id, 'customer_id' => $payer->id,
+            'subtotal' => 170_000, 'tax_amount' => 0, 'total_amount' => 170_000, 'currency' => 'XOF',
+            'issue_date' => '2026-04-10',
+        ]);
+
+        $cases = [
+            [LeasePayment::class, $leasePayment->id, 150_000],
+            [BookingPayment::class, $bookingPayment->id, 160_000],
+            [Invoice::class, $invoice->id, 170_000],
+        ];
+
+        foreach ($cases as [$type, $id, $amount]) {
+            $line = $this->statementLine(BankStatementLineDirection::Credit, $amount, '2026-04-15');
+            $line->update(['counterparty' => 'Aïssatou Ndiaye']);
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+
+            $line->refresh();
+            $this->assertSame($type, $line->matched_payment_type);
+            $this->assertSame($id, $line->matched_payment_id);
+            $this->assertSame(80, $line->match_confidence, "{$type} : la règle contrepartie ne s'applique pas.");
+        }
+    }
+
+    public function test_une_facture_non_encaissable_n_est_ni_suggeree_ni_confirmable(): void
+    {
+        // TCK-724 (P25.04) — une facture brouillon, annulée ou nulle n'attend aucun encaissement :
+        // le matcher la proposait à 70, et `confirmMatch()` lui posait `bank_reconciled_at`.
+        $line = $this->statementLine(BankStatementLineDirection::Credit, 33_333, '2026-04-11');
+
+        foreach ([InvoiceStatus::Draft, InvoiceStatus::Cancelled, InvoiceStatus::Void] as $status) {
+            $invoice = $this->invoiceOf(33_333, $status);
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+            $this->assertNull($line->refresh()->matched_payment_id, "Une facture {$status->value} a été suggérée.");
+
+            $this->actingAs($this->admin)
+                ->postJson("/api/bank-statement-lines/{$line->id}/match", ['payment_type' => 'invoice', 'payment_id' => $invoice->id])
+                ->assertStatus(422)
+                ->assertJsonPath('errors.payment_id.0', __('reconciliation.validation.invoice_not_reconcilable'));
+            $this->assertNull($invoice->refresh()->bank_reconciled_at);
+
+            $invoice->delete();
+        }
+    }
+
+    public function test_une_facture_envoyee_en_retard_ou_payee_reste_rapprochable(): void
+    {
+        // TCK-724 (P25.04) — le versant autorisé : `sent`, `overdue` et `paid` restent suggérés et
+        // confirmables, pour qu'un filtre qui refuserait tout ne puisse pas rendre le test précédent vert.
+        foreach ([InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Paid] as $status) {
+            $invoice = $this->invoiceOf(44_444, $status);
+            $line = $this->statementLine(BankStatementLineDirection::Credit, 44_444, '2026-04-11');
+
+            (new MatchBankStatementJob($line->bank_statement_id))->handle(app(ReconciliationMatcher::class));
+            $line->refresh();
+            $this->assertSame([Invoice::class, $invoice->id], [$line->matched_payment_type, $line->matched_payment_id], "Une facture {$status->value} n'a pas été suggérée.");
+
+            $this->actingAs($this->admin)
+                ->postJson("/api/bank-statement-lines/{$line->id}/match", ['payment_type' => 'invoice', 'payment_id' => $invoice->id])
+                ->assertOk();
+            $this->assertNotNull($invoice->refresh()->bank_reconciled_at);
+        }
+    }
+
     // ─── Finalize ────────────────────────────────────────────────
 
     public function test_finalize_statement(): void
@@ -404,6 +569,15 @@ class BankReconciliationTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('data.status', 'partially_reconciled');
+    }
+
+    private function invoiceOf(int $total, InvoiceStatus $status): Invoice
+    {
+        return Invoice::factory()->create([
+            'agency_id' => $this->agency->id, 'status' => $status,
+            'subtotal' => $total, 'tax_amount' => 0, 'total_amount' => $total, 'currency' => 'XOF',
+            'issue_date' => '2026-04-11',
+        ]);
     }
 
     private function completedPayout(Agency $agency, int $net, string $processedAt): Payout

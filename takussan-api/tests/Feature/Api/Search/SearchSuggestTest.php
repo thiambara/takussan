@@ -8,7 +8,6 @@ use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\RateLimiter;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -195,14 +194,32 @@ class SearchSuggestTest extends TestCase
 
     public function test_rate_limit_returns_429_after_60_requests(): void
     {
-        RateLimiter::clear('search-suggest|'.request()->ip());
-
         for ($i = 0; $i < 60; $i++) {
             $this->getJson($this->url.'?q=da');
         }
 
         $response = $this->getJson($this->url.'?q=da');
         $response->assertStatus(429);
+    }
+
+    /**
+     * TCK-652 (piste P01.03) — la limite est PAR VISITEUR (TCK-107 : « 60 req/min/IP »).
+     * Sans `->by()`, `ThrottleRequests` compte sous une clé unique pour tout le site : les
+     * 60 appels d'un visiteur faisaient répondre 429 au suivant, quel qu'il soit.
+     */
+    public function test_rate_limit_is_counted_per_visitor_ip(): void
+    {
+        for ($i = 0; $i < 60; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson($this->url.'?q=da');
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->getJson($this->url.'?q=da')
+            ->assertStatus(429);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.2'])
+            ->getJson($this->url.'?q=da')
+            ->assertOk();
     }
 
     public function test_cache_control_header_set_to_60_seconds(): void
@@ -212,6 +229,40 @@ class SearchSuggestTest extends TestCase
         $cacheControl = $response->headers->get('Cache-Control', '');
         $this->assertStringContainsString('public', $cacheControl);
         $this->assertStringContainsString('max-age=60', $cacheControl);
+    }
+
+    /**
+     * TCK-707 (P28.01) — le défaut que TCK-341 a corrigé sur `discovery` : un
+     * corps qui change avec la langue, servi `public`, sans `Vary:
+     * Accept-Language`. Le libellé de `property_types` passe par `trans()`, et
+     * l'URL appelée par `useSuggest` ne porte pas la langue : sans `Vary`, un
+     * cache HTTP peut rendre le corps d'une autre langue pendant 60 s.
+     *
+     * La prémisse (deux corps distincts) est assertée : sans elle, le `Vary`
+     * serait une tautologie. `Origin`, posé par le CORS, doit survivre.
+     */
+    public function test_suggest_varie_avec_la_langue_et_le_declare_sans_chasser_origin(): void
+    {
+        $property = Property::factory()->published()->create(['type' => PropertyType::Apartment]);
+        Address::factory()->create([
+            'addressable_type' => Property::class,
+            'addressable_id' => $property->id,
+            'city' => 'Dakar',
+        ]);
+        $this->indexProperties();
+
+        $origin = config('cors.allowed_origins')[0] ?? 'http://localhost:3000';
+        $fr = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'fr', 'Origin' => $origin])->assertOk();
+        $en = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'en', 'Origin' => $origin])->assertOk();
+
+        $this->assertNotSame($fr->getContent(), $en->getContent(), 'Prémisse : suggest varie avec la langue.');
+        $this->assertStringContainsString('public', (string) $fr->headers->get('Cache-Control'));
+
+        foreach (['fr' => $fr, 'en' => $en] as $langue => $reponse) {
+            $vary = array_map('trim', explode(',', (string) $reponse->headers->get('Vary')));
+            $this->assertContains('Accept-Language', $vary, "{$langue} — Vary émis : ".$reponse->headers->get('Vary'));
+            $this->assertContains('Origin', $vary, "{$langue} — Vary émis : ".$reponse->headers->get('Vary'));
+        }
     }
 
     /**

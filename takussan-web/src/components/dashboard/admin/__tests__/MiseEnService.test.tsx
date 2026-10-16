@@ -6,7 +6,7 @@ import { withIntl } from '@/test/intl';
 import { ApiError } from '@/lib/api';
 import { MiseEnService } from '../MiseEnService';
 
-/** TCK-589 — la carte « Mise en service » de `/admin`, alimentée par `setup-status`. */
+/** TCK-589 — la carte « Mise en service » du tableau de bord d'agence, alimentée par `setup-status`. */
 const apiRequest = vi.fn();
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -50,7 +50,7 @@ describe('MiseEnService', () => {
     expect(apiRequest).toHaveBeenCalledWith('/api/agencies/7/setup-status', expect.anything());
     expect(within(carte).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2');
     expect(within(carte).getByText('2 sur 7 étapes terminées')).toBeInTheDocument();
-    expect(within(carte).getByRole('link', { name: /Dossier KYC vérifié/ })).toHaveAttribute('href', '/admin/agency/kyc');
+    expect(within(carte).getByRole('link', { name: /Dossier KYC vérifié/ })).toHaveAttribute('href', '/app/agency/kyc');
     expect(within(carte).getByRole('link', { name: /Premier bien publié/ })).toHaveAttribute('href', '/app/properties/new');
     // Une étape faite n'est plus un lien.
     expect(within(carte).queryByRole('link', { name: /Logo de l’agence ajouté/ })).toBeNull();

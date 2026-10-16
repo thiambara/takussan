@@ -27,6 +27,10 @@ final class NotificationTarget
      * Les genres de cible, et le chemin de console de chacun. `{id}` est remplacé par
      * l'identifiant ; un chemin sans `{id}` est une liste.
      *
+     * TCK-649 (ADR-0064) — l'administration d'agence vit sous `/app/agency` ; `/admin` n'existe plus.
+     * Le chemin se calcule à la LECTURE : changer une ligne ici fait suivre les notifications déjà
+     * stockées. `scripts/check-notification-target-paths.mjs` vérifie que chacun mène à une page.
+     *
      * @var array<string, string>
      */
     public const PATHS = [
@@ -39,16 +43,18 @@ final class NotificationTarget
         'conversation' => '/app/messages?conversation={id}',
         // TCK-590 — la boîte « Demandes », ouverte sur la demande.
         'lead' => '/app/leads?lead={id}',
-        'agency_kyc' => '/admin/agency/kyc',
+        'agency_kyc' => '/app/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
-        'finances' => '/admin/finances',
-        'team' => '/admin/team',
-        'agency_settings' => '/admin/agency',
+        'finances' => '/app/agency/finances',
+        'team' => '/app/agency/team',
+        'agency_settings' => '/app/agency',
         // TCK-601 — une alerte de gouvernance ouvre le journal d'audit de l'agence.
-        'audit' => '/admin/audit',
-        // TCK-597 — la boîte des avis reçus, et la modération des avis de l'agence.
-        'reviews' => '/app/reviews',
-        'review_moderation' => '/admin/reviews',
+        'audit' => '/app/agency/audit',
+        // TCK-597 — la boîte des avis reçus, et la modération des avis de l'agence. Elle visait
+        // `/admin/reviews`, page qui n'a jamais existé (relevé par TCK-649). Même défaut
+        // pour la boîte : `/app/reviews` n'existe pas, elle vit sous le profil.
+        'reviews' => '/app/profile/reviews',
+        'review_moderation' => '/app/agency/moderation',
         // TCK-599 — une alerte de recherche ouvre les recherches sauvegardées, une alerte de favori
         // la liste des favoris.
         'saved_searches' => '/app/saved-searches',

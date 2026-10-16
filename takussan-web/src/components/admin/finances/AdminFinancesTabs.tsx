@@ -24,8 +24,8 @@ import { useTranslations } from 'next-intl';
 /**
  * Les valeurs acceptées par `?tab=`.
  *
- * **Exportée depuis TCK-375** : le bloc de files de `/admin` renvoie vers
- * `/admin/finances?tab=impayes`, et un lien vers un onglet inexistant retomberait en silence sur
+ * **Exportée depuis TCK-375** : le bloc de files du tableau de bord d'agence renvoie vers
+ * `/app/agency/finances?tab=impayes`, et un lien vers un onglet inexistant retomberait en silence sur
  * « encaissements » — la ligne mènerait à côté de ce qu'elle annonce, sans qu'aucun test ne le
  * voie. L'invariant se vérifie contre CETTE table, jamais contre une chaîne recopiée.
  */

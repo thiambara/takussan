@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -12,8 +13,13 @@ use Illuminate\Foundation\Queue\Queueable;
  * The job re-enters the router which goes back through the fallback
  * chain — quiet hours has lifted by the time the job runs so the
  * router will proceed normally.
+ *
+ * TCK-678 (piste P11.03) — chiffré (`ShouldBeEncrypted`) : le texte est déjà rendu et porte les
+ * liens de paiement, de quittance ou d'invitation, qui attendent la fin de la nuit dans la table
+ * `jobs`. Même règle que `CodedNotification` (TCK-602) ; `JobSmsChiffreTest` l'exige de tout job
+ * portant un texte de SMS.
  */
-class SendDeferredSmsJob implements ShouldQueue
+class SendDeferredSmsJob implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 

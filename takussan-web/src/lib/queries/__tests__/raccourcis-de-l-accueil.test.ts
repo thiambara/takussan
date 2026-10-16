@@ -46,6 +46,12 @@ describe('raccourcisDeLAccueil', () => {
     expect(new URLSearchParams(urls[0]!.split('?')[1]).get('contract_type')).toBe('sale');
   });
 
+  it('coupe les emplacements : la rangée ne les affiche pas, ils ne comptent donc aucune impression (TCK-687)', async () => {
+    await raccourcisDeLAccueil('fr');
+
+    expect(new URLSearchParams(urls[0]!.split('?')[1]).get('placements')).toBe('false');
+  });
+
   it('en panne, la section disparaît', async () => {
     reponses['/public/properties/search'] = new Error('Meilisearch éteint');
 

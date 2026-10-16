@@ -39,8 +39,9 @@ import type { OwnerPropertyEntry } from '@/lib/owner-onboarding';
  * Four steps (mirror of the SP wizard, TCK-261):
  *   1. Phone OTP (mandatory).
  *   2. KYC : upload CNI + RIB + NINEA. Each upload persists immediately.
- *      Bottom CTA submits the dossier (status = pending_review). Wizard is
- *      resumable — closing the tab keeps the uploaded docs.
+ *      Bottom CTA submits the dossier (kyc.submitted_at ; no review queue
+ *      reads it, TCK-685). Wizard is resumable — closing the tab keeps
+ *      the uploaded docs.
  *   3. Product tour : 3 skippable slides ("Vos biens", "Vos paiements",
  *      "Vos messages").
  *   4. Recap : list of pre-attached properties. Final CTA → /app.

@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
  * (l'ablation : remettre l'ancienne classe à côté de la nouvelle rougit) et la présence de la
  * paire `sm:grid-cols-2 lg:grid-cols-4` sur CHAQUE grille — une page en porte deux.
  */
-const PAGES = ['agency', 'owner', 'tenant', 'agent'] as const;
+const PAGES = ['owner', 'tenant', 'agent'] as const;
 
 describe('vues d’ensemble — les KPI passent en quatre colonnes à lg, pas à md (TCK-505 #9)', () => {
   it.each(PAGES)('overview/%s/page.tsx', (vue) => {
@@ -27,4 +27,25 @@ describe('vues d’ensemble — les KPI passent en quatre colonnes à lg, pas à
       expect(grille).toContain('lg:grid-cols-4');
     }
   });
+});
+
+/**
+ * TCK-647 — la vue agence ne pose plus sa grille elle-même : ses indicateurs sont ceux d'`AgencyKpis`,
+ * repris de l'ancien tableau de bord de la console d'agence (six tuiles : deux colonnes, trois à `lg`, six à
+ * `2xl`). La règle de TCK-505 se lit donc là : aucune colonne gagnée à `md`.
+ */
+it('overview/agency : la grille d’AgencyKpis ne gagne aucune colonne à md', () => {
+  const page = readFileSync(join(__dirname, '..', 'agency', 'page.tsx'), 'utf8');
+  expect(page).toContain('<AgencyKpis ');
+
+  const source = readFileSync(
+    join(__dirname, '../../../../../components/dashboard/admin/AgencyKpis.tsx'),
+    'utf8',
+  );
+  const grilles = source.match(/className="[^"]*\bgrid\b[^"]*grid-cols-[^"]*"/g) ?? [];
+  expect(grilles.length).toBeGreaterThan(0);
+  for (const grille of grilles) {
+    expect(grille).not.toMatch(/\bmd:grid-cols-/);
+    expect(grille).toContain('lg:grid-cols-');
+  }
 });

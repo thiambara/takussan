@@ -76,8 +76,12 @@ class PropertyController extends Controller
             $base->where('status', '!=', PropertyStatus::Archived);
         }
 
-        $paginator = Property::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // TCK-662 (P01.01) — `defaultSortsWithRelevance()` doit être évalué APRÈS `buildQuery()`,
+        // qui interroge Meilisearch : sans recherche, ou avec un `sort=` explicite, rien ne change.
+        $query = Property::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...Property::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         // TCK-603 (ADR-0059 §6, verif-603 m4) — `agency_id` demandé, chaque ligne rend `primary_contact`

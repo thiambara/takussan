@@ -714,7 +714,7 @@ garde. La CI et le rituel de fin de branche continuent de jouer la suite entièr
 répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un repli par prudence.
 
 La carte (`tests/impact-map.json`) est **dérivée, jamais éditée à la main** — même règle que
-`docs/backlog/INDEX.md`. `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
+`docs/backlog/INDEX.md` (qui, lui, n'est même plus versionné — ADR-0067). `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
 elle se régénère avec `php bin/build-impact-map.php <rapport-de-couverture> tests/impact-map.json`
 à partir d'un rapport `--coverage-php` produit par **PHPUnit invoqué directement** :
 
@@ -864,8 +864,15 @@ Le mot « admin » recouvre trois surfaces distinctes dans ce produit, et les co
 
 | Surface | Où | Qui |
 |---|---|---|
-| **Admin d'agence** | front, `/admin/*` — 10 pages | le patron d'une agence, sur **son** agence |
+| **Admin d'agence** | front, `/app/agency/*` — une section de `/app`, dans sa coque | le patron d'une agence, sur **son** agence |
 | **Super-admin** | front, `/super-admin/*` — 26 pages | l'équipe Takussan, sur **la plateforme** |
 | **`/api/admin/*`** | back, gardé par le middleware alias `super-admin` | l'API qui sert la console super-admin |
 
 Le disparu s'appelait `/admin` **sur le domaine de l'API** — d'où la confusion. Il n'en reste rien.
+
+**Plus aucune URL du front ne commence par `/admin`** depuis ADR-0064 (TCK-649) : l'administration
+d'agence a quitté `/admin/*` pour `/app/agency/*`, sans redirection — une ancienne URL rend 404. Le
+mot reste dans le code (`PAGES_ADMIN`, `garderPageAdmin`, le rôle `admin` de la table des pages) et
+dans `/api/admin/*`, qui n'a rien à voir. Un chemin émis par l'API vers le front
+(`NotificationTarget::PATHS`) vise donc `/app/agency/*` ; `scripts/check-notification-target-paths.mjs`
+casse si l'un d'eux ne correspond à aucune page.

@@ -48,7 +48,7 @@ class AgencyUpgradeRequestController extends Controller
 
         $paginator = AgencyUpgradeRequest::buildQuery($base, $request)
             ->defaultSort('-submitted_at')
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->paginated($paginator, AgencyUpgradeRequestResource::collection($paginator)->toArray($request));
     }

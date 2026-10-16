@@ -77,6 +77,16 @@ const nextConfig: NextConfig = {
   // N'a d'effet QUE sur le serveur de développement — aucun build de production n'est concerné.
   // (TCK-328, ardoise D-57 ; `./dev.sh doctor` nomme le cas si cette liste disparaît.)
   allowedDevOrigins: ['127.0.0.1', '[::1]'],
+  // ── `serverActions.bodySizeLimit` — TCK-673 (P08.01) ─────────────────────────────────────────
+  //
+  // Le défaut est 1 Mo (`next/dist/server/app-render/action-handler.js`), multipart compris : au-delà,
+  // l'action rend 413 « Body exceeded 1 MB ». Une seule photo réduite pèse déjà 1,4 Mo (TCK-542).
+  // 12 Mo = une photo par action, 10 Mo au plus (`MediaManager`), plus l'enveloppe multipart. Les
+  // photos partent une par une (`PropertyWizard`, `MediaManager`) : relever ce plafond ne suffit pas
+  // à faire passer un lot, et ne doit pas y suffire.
+  experimental: {
+    serverActions: { bodySizeLimit: '12mb' },
+  },
   images: {
     // ── Le loader de Cloudflare Transformations — ADR-0029 §4, TCK-540 ──────────
     //

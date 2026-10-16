@@ -31,7 +31,7 @@ describe('hrefConnexion — le lien « Connexion » emporte la page courante', (
   });
 
   it('hors du site public, rien à quoi revenir', () => {
-    for (const chemin of ['/auth/register', '/app/overview', '/admin/users', '/onboarding/owner']) {
+    for (const chemin of ['/auth/register', '/app/overview', '/app/agency/team', '/onboarding/owner']) {
       expect(hrefConnexion(chemin)).toBe('/auth/login');
     }
   });

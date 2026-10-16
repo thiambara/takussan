@@ -17,8 +17,9 @@
  * plus simple de poser une classe. *Chercher l'outil et pas le geste : on ne trouve alors que les
  * usages sophistiqués.*
  *
- * La CONCLUSION, elle, tient : `AppTopbar` n'est monté que par `AppShell` et `AdminShell`, et
- * aucune portée `.dark` ne les enveloppe. **C'est ce qui rend le défaut dangereux plutôt
+ * La CONCLUSION, elle, tient : `AppTopbar` n'est monté que par `AppShell` (la seconde coque qui le
+ * montait, `AdminShell`, est partie avec l'ancienne console — TCK-649), et aucune portée `.dark` ne
+ * l'enveloppe. **C'est ce qui rend le défaut dangereux plutôt
  * qu'anodin** — un raisonnement faux qui conclut juste est le plus difficile à corriger, rien ne le
  * contredit donc rien ne le rejoue. Ce module transforme la conclusion en CONDITION VÉRIFIÉE :
  * le jour où quelqu'un met `AppShell` sous une portée `.dark` — exactement ce que `SuperAdminShell`

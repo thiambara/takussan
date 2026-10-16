@@ -79,7 +79,7 @@ export function StatementsList({ agencyId }: { readonly agencyId: number }) {
               <tr key={r.id} className="align-top">
                 <td className="px-3 py-2">
                   <Link
-                    href={`/admin/finances/reconciliation/${r.id}`}
+                    href={`/app/agency/finances/reconciliation/${r.id}`}
                     className="font-medium text-foreground underline-offset-2 hover:underline"
                   >
                     {r.bank_name || t('list.fallbackName', { id: String(r.id) })}

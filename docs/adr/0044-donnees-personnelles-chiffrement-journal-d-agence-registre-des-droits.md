@@ -3,6 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
+- **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
 ## Contexte
 
@@ -40,7 +41,8 @@ trace conservée cinq ans.**
 
 - **Mécanisme** : cast `encrypted` sur des colonnes `text`. Retenu pour `owner_profiles.rib`,
   `tax_id`, `id_document_number` et `agency_upgrade_requests.ninea`, `rib_pro` ; tout RIB stocké
-  ailleurs (moyens de versement de TCK-594) suit la même forme. Les migrations chiffrent l'existant
+  ailleurs (moyens de versement de TCK-594) suit la même forme. **Étendu le 2026-10-16** à
+  `customers.id_number` et `guarantors.id_number` ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)). Les migrations chiffrent l'existant
   par lots, de façon idempotente (une valeur déjà déchiffrable est laissée telle quelle), et leur
   `down()` **déchiffre** — l'aller-retour est testé.
 - **`APP_KEY` devient une donnée de production à part entière.** Elle chiffre désormais des données
@@ -88,7 +90,9 @@ trace conservée cinq ans.**
 - **`failed_jobs.exception`** : le fournisseur de jobs échoués (`queue.failer`) est **décoré** pour
   écrire `SafeExceptionContext` (JSON) au lieu de `(string) $e`. Écarté : une purge périodique (la
   donnée vit jusqu'au passage) et `zend.exception_ignore_args` seul (il ne retire pas les valeurs du
-  message). Le `payload` reste intact : il est nécessaire au rejeu.
+  message). Le `payload` reste intact : il est nécessaire au rejeu. **Depuis le 2026-10-16**, sa
+  durée de vie est bornée à 30 jours par `queue:prune-failed` ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)) :
+  l'écart de la purge vaut pour l'exception, pas pour le `payload`.
 - Un modèle `Auditable` journalise une **liste blanche** (`logOnly`), jamais tout son `fillable`.
   Une donnée chiffrée n'y figure jamais ; une `Integration` journalise `credentials_changed: true`,
   sans valeur.
@@ -140,7 +144,8 @@ existantes se fait par migration, une jointure par type de sujet.
   la déclaration à la CDP est un geste du porteur, hors code). `due_at = received_at + délai`.
 - **Conservation** : les journaux `PersonalDataAccess` et `Privacy` se conservent **5 ans**, alignés
   sur la conservation KYC. La purge du journal (`activitylog:clean`, 365 jours) n'est pas planifiée
-  aujourd'hui ; TCK-537, qui la planifiera, doit **exempter** ces deux journaux.
+  aujourd'hui ; TCK-537, qui la planifiera, doit **exempter** ces deux journaux. Les jobs échoués
+  (`failed_jobs`, `payload` compris) se conservent **30 jours** ([§ Amendement](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723)).
 
 ### 5. Le KYC d'agence a une échéance
 
@@ -179,3 +184,109 @@ Aucun contrôle de forme du NINEA ni du RCCM (dette D-68).
   `AuditAgencyResolver`, `PropertyRedactor` ; `AgencyAuditScopeTest`, `ActivityLogAgencyBackfillTest`.
 - Consultations et registre : `PersonalDataAccessLogger`, `PrivacyRequest` ;
   `PersonalDataAccessLogTest`, `PrivacyRequestRegistryTest`, `CrossTenantAuditExportTest`.
+
+## Amendement du 2026-10-16 — la pièce du locataire et de la caution, et la purge des jobs échoués (TCK-723)
+
+Deux décisions du porteur (2026-10-15 et 2026-10-16), issues des pistes P23.03 et P19.07 du
+[fichier de pistes](../plans/2026-10-15-pistes-d-amelioration.md). **Cet amendement ne change aucun
+code** : A s'applique dans un ticket à part, B est planifié par l'implémenteur des pistes.
+
+### A. La règle du §1 s'étend à `customers.id_number` et `guarantors.id_number`
+
+#### Pourquoi
+
+Relu le 2026-10-16 sur `pre-dev` (`2bbc9956`) :
+
+- Le numéro de pièce du **bailleur** suit le §1 : `owner_profiles.id_document_number` est chiffré,
+  `$hidden`, rendu masqué (`id_document_number_masked`, `Masking::tail()`), et sa valeur claire ne
+  sort que par `GET /api/owners/{ownerProfile}/sensitive`, sous step-up
+  (`ProtectedActions::STEP_UP`) et journalisée (`PersonalDataAccessLogger`, surface
+  `owner_sensitive`).
+- Le numéro de pièce du **locataire** et de la **caution** est un `varchar` en clair
+  (`2026_04_17_160006_create_customers_table.php:21`, `2026_04_17_160007_create_guarantors_table.php:18`),
+  sans cast (`Customer`, `Guarantor`). Il est rendu en clair à tout lecteur de la fiche :
+  `CustomerResource` (l. 20) — y compris imbriqué dans un bail ou une réservation —, et
+  `GuarantorController::format` (l. 93). `fields[customers]=id,id_number` le demande
+  (`Customer::$queryFields`). Aucune lecture n'exige de step-up ni ne laisse de ligne
+  `PersonalDataAccess`.
+- Le dépôt le traitait déjà en donnée sensible partout ailleurs : hors du journal d'activité
+  (`Customer::getActivitylogOptions`), hors de Meilisearch (`Customer::toSearchableArray`), hors de
+  l'export CSV (`ExportDataService::customers`). La même donnée était protégée chez le bailleur et
+  livrée chez son locataire.
+
+#### Décision
+
+**Le numéro de pièce d'identité du locataire et de la caution suit la règle du §1 sans exception :
+chiffré par le cast `encrypted`, jamais en clair dans une réponse par défaut, lisible en clair par
+une lecture dédiée seulement, sous step-up et journalisée.**
+
+1. **Chiffrement** : cast `encrypted` sur `customers.id_number` et `guarantors.id_number`, passées
+   en `text`. La migration chiffre l'existant par lots, de façon idempotente (une valeur déjà
+   déchiffrable est laissée telle quelle), et son `down()` **déchiffre** puis rend le `varchar` —
+   l'aller-retour est testé, comme `encrypt_sensitive_columns_on_owner_profiles`.
+2. **Jamais en clair par défaut** : `id_number` entre dans `$hidden` des deux modèles. Les fiches,
+   les listes et les formes imbriquées (`include=tenant`, `include=customer`) rendent
+   `id_number_masked` (`Masking::tail()`), jamais `id_number`. Qui reçoit le masque reste réglé par
+   P23.02 (le lecteur qu'admet `CustomerPolicy::view`).
+3. **Hors des sparse fieldsets et de la recherche** : `id_number` quitte `Customer::$queryFields` ;
+   le contrôleur ajoute la colonne au `select` pour calculer le masque, comme
+   `OwnerProfileController::index`. `Guarantor` n'a pas de `$queryFields` (`fields[guarantors]` n'est
+   pas ouvert) et n'en reçoit pas qui le contienne. Aucune des deux colonnes n'entre dans
+   `$requestSearchFields` : une colonne chiffrée ne se cherche pas (§1, pas d'empreinte HMAC).
+4. **Lecture claire dédiée**, sur le modèle d'`OwnerProfileController::sensitive` : une route `GET
+   …/{id}/sensitive` par modèle, autorisée par une capacité `viewSensitive` de sa policy, inscrite
+   dans `ProtectedActions::STEP_UP` — donc refusée sous impersonation par
+   `EnforceImpersonationReadOnly` (ADR-0055 §3) —, et une ligne `PersonalDataAccessLogger::record()`
+   par consultation, sous une surface propre à chaque modèle.
+5. **Écriture inchangée pour le client de l'API** : `id_number` reste accepté en entrée
+   (`Store`/`UpdateCustomerRequest`, `Store`/`UpdateGuarantorRequest`, `AttachGuarantorLeaseRequest`)
+   et s'écrit à travers le cast ; une écriture brute pose une valeur chiffrée ou `null` (voir
+   Conséquences).
+
+#### Deux questions tranchées par le porteur le 2026-10-16
+
+6. **Le revenu mensuel suit la même règle, chez la caution comme chez le bailleur.**
+   `guarantors.monthly_income` et `owner_profiles.monthly_income` sont chiffrés, masqués par
+   défaut et lisibles en clair par la même lecture dédiée que la pièce. Pour le bailleur, la colonne
+   entre dans `OwnerProfile::SENSITIVE`. Le prix est accepté : un montant chiffré ne se trie, ne se
+   filtre ni ne se somme plus côté base.
+7. **Seul l'admin de l'agence lit la valeur claire**, comme pour le bailleur
+   (`OwnerProfilePolicy::viewSensitive`). L'agent qui saisit le locataire ou la caution écrit la
+   valeur, et ne la relit ensuite que masquée.
+
+#### Application
+
+Un ticket à part, écrit par l'implémenteur des pistes (P23.03, validée le 2026-10-16) : TCK-723 ne
+fait que cet amendement. Gardes attendues : aller-retour
+de la migration ; aucune réponse par défaut (fiche et liste de clients, `include=tenant`, fiche de caution) ne porte la
+clé `id_number` ; `fields[customers]=id_number` refusé ; une lecture claire exige le step-up,
+laisse une ligne `PersonalDataAccess`, et rend 403 sous impersonation. Le contrat change pour le
+front, qui lit `id_number` aujourd'hui (types, formulaire client, section des cautions).
+
+### B. Les jobs échoués sont purgés à 30 jours
+
+#### Pourquoi
+
+Le §2 rend `failed_jobs.exception` sûr dès l'écriture et garde le `payload` **intact**, pour le
+rejeu (`SanitizingFailedJobProvider`). Le `payload` porte le job sérialisé, donc ses propriétés :
+une donnée personnelle qui y entre y vit aussi longtemps que la ligne. Or rien ne purge la table :
+`queue:prune-failed` n'est pas planifiée (`routes/console.php`, relu le 2026-10-16), et la file est
+`database` en préproduction (`docs/infra/prod-drivers.json`). L'écart d'une purge, au §2, visait
+l'exception, que le décorateur rend sûre ; le `payload` ne peut pas l'être sans perdre le rejeu —
+sa durée de vie est le seul levier.
+
+#### Décision
+
+**Un job échoué se conserve 30 jours, `payload` compris : `queue:prune-failed --hours=720` est
+planifiée chaque jour, et `queue:prune-batches` l'est aussi.** Un job échoué se rejoue dans les
+30 jours, ou ne se rejoue plus. La purge ne remplace pas le décorateur du §2 : l'exception reste
+sûre dès l'écriture, la purge borne le `payload`. `queue:prune-batches` garde la durée par défaut du
+framework ; aucun code ne crée de lot aujourd'hui (`Bus::batch` absent d'`app/`), la planification
+borne `job_batches` le jour où il en naîtra.
+
+#### Application
+
+La planification est faite par l'implémenteur des pistes (P19.07), hors de TCK-723. Le docblock de
+`SanitizingFailedJobProvider` (« Écarté (ADR-0044) : une purge périodique ») est à reprendre avec
+elle. La politique de confidentialité (`privacy.ts` §6) ne cite pas les jobs échoués : qu'elle doive
+le faire relève de TCK-537.

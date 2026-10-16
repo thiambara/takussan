@@ -72,7 +72,8 @@ class UpdatePropertyRequest extends FormRequest
             'address' => ['sometimes', 'nullable', 'array'],
             'address.street' => ['sometimes', 'nullable', 'string', 'max:255'],
             'address.neighborhood' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'address.city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            // TCK-703 (P17.01) — `null` rendait 500 (colonne NOT NULL) : 422, la clé reste facultative.
+            'address.city' => ['sometimes', 'filled', 'string', 'max:120'],
             'address.region' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
             'address.postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],

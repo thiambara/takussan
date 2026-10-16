@@ -46,13 +46,20 @@ class UserAdminController extends Controller
         // table: only the query-builder package is still installed.
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch.
-        $query = User::buildQuery($base, $request);
+        //
+        // TCK-665 (piste P03.02) — hors super-admin, les `include=…Profiles` et `filter[role]`
+        // sont bornés à l'agence active, et `include=platformProfile` est refusé : la base bornée
+        // ci-dessus ne suffisait pas, les relations chargées sortaient les profils des autres
+        // agences de la personne listée.
+        $query = $base === null
+            ? User::buildQuery(null, $request)
+            : User::buildAgencyTeamQuery($base, $request, (int) $agencyId);
 
         $paginator = $query
             ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        // TCK-589 — la colonne 2FA de la console d'équipe (`/admin/team` lit cette
+        // TCK-589 — la colonne 2FA de la console d'équipe (`/app/agency/team` lit cette
         // liste) : champ calculé, jamais via `User::$queryFields` (cf. `TeamController`).
         $items = $paginator->items();
         $enabled = User::query()->whereKey(array_map(fn (User $u) => $u->getKey(), $items))->pluck('two_factor_enabled', 'id');

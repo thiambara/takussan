@@ -61,7 +61,7 @@ class RequireTwoFactor
 
     private function requiresTwoFactor(Request $request, User $user): bool
     {
-        $plateforme = $user->platformProfile()->exists();
+        $plateforme = $user->holdsPlatformProfile();
         if ($request->is('api/admin', 'api/admin/*') && $plateforme) {
             return true;
         }

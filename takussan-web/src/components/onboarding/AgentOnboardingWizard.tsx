@@ -53,7 +53,7 @@ import type {
  *   1. Phone OTP (mandatory).
  *   2. KYC : license_number input + license card / CNI / photo uploads.
  *      Each upload persists immediately. Bottom CTA submits the dossier
- *      (status = pending_review). Wizard is resumable — closing the tab
+ *      (kyc.submitted_at ; no review queue reads it, TCK-685). Wizard is resumable — closing the tab
  *      keeps the uploaded docs.
  *   3. Specialization & intervention zones — selection persists via the
  *      dedicated PATCH endpoint so zones are saved even if the user

@@ -501,7 +501,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Administrateur plateforme yi rekk ñoo yor paramètre global yi.',
-        'managed_by_catalogue' => 'Paramètre bii, katalog bi moo koy saytu : soppil ko ci console platform bi.',
+        'global_not_writable' => 'Yoon wu yépp wi du bindati paramètre global yi : soppil leen ci paramètre platform bi.',
         'other_agency_forbidden' => 'Paramètre yu sa agence rekk nga mën a toppatoo.',
     ],
     'share_link' => [
@@ -560,6 +560,10 @@ return [
         'no_active_agency' => 'Jàngalekat bi tànn nga ñoom amul agence. Tàllal ko walla wax agence bi laaj nga jox-ko ndimo.',
         'not_blocked' => 'Kont bii tëjuñu ko.',
         'not_in_active_agency' => 'Jàngalekat bi tànn nga ñoom du ci sa agence bi nga di liggéeyal.',
+        'role_change_self' => 'Mënoo soppi sa rol ci sa bopp.',
+        'role_last_admin' => 'Du ñu mën digal mujj admin bi ci agence bi.',
+        'role_member_not_active' => 'Bokk bii doxul ci agence bi : delloo ko balaa ngay soppi rolam.',
+        'role_primary_admin' => 'Mënuñu jële rolu njiitu agence bi.',
     ],
     'visit' => [
         'active_limit_reached' => 'Am nga ba noppi :max seeti yuy dox ci kër gii. Neenalal benn balaa ngay laaj beneen.',

@@ -96,10 +96,6 @@
     "userMenuFor": "Menu utilisateur — {name}",
     "accountFallback": "Mon compte",
     "administration": "Administration",
-    "links": {
-      "buy": "Acheter",
-      "rent": "Louer"
-    },
     "categories": {
       "apartment": "Appartement",
       "house": "Maison",
@@ -151,11 +147,9 @@
       "crm": "Clients (CRM)",
       "calendar": "Calendrier",
       "onboardingPending": "Onboardings en attente",
-      "administration": "Administration",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
       "sections": {
-        "catalog": "Catalogue",
         "discover": "Découvrir",
         "requests": "Demandes",
         "engagements": "Engagements",
@@ -170,20 +164,15 @@
       "commissions": "Commissions"
     },
     "admin": {
-      "dashboard": "Tableau de bord",
-      "properties": "Biens",
       "team": "Équipe",
       "agency": "Agence",
       "kyc": "KYC agence",
       "billing": "Abonnement",
-      "finances": "Finances",
+      "finances": "Finances de l'agence",
       "reviewModeration": "Modération avis",
       "propertyModeration": "Modération biens",
       "auditLog": "Journal d'audit",
-      "settings": "Paramètres",
       "sectionLabel": "Administration",
-      "backToPersonal": "Retour à l'espace perso",
-      "proLocked": "Réservé aux comptes pro",
       "pendingBadge": "{count} en attente",
       "roles": "Rôles",
       "integrations": "Intégrations",
@@ -268,7 +257,8 @@
     "searchSurface": {
       "title": "Rechercher un bien",
       "back": "Retour"
-    }
+    },
+    "creditsBalance": "Crédits : {count, plural, one {# crédit} other {# crédits}}"
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
@@ -699,7 +689,14 @@
       "bathroomsShort": "{count} sdb",
       "photoPending": "Photo à venir",
       "rentNoPeriod": "· loyer",
-      "robe": { "sponsored": "Sponsorisé", "featured": "En vedette" }, "badge": { "urgent": "Urgent", "priceDrop": "Baisse de prix" }
+      "robe": {
+        "sponsored": "Sponsorisé",
+        "featured": "En vedette"
+      },
+      "badge": {
+        "urgent": "Urgent",
+        "priceDrop": "Baisse de prix"
+      }
     },
     "row": {
       "viewAll": "Tout voir",
@@ -1156,7 +1153,9 @@
         "whatsappQuestion": "Ce numéro reçoit-il WhatsApp ?",
         "verifiedBadge": "Vérifié",
         "whatsappYes": "Oui",
-        "whatsappNo": "Non"
+        "whatsappNo": "Non",
+        "subtitleMany": "Les visiteurs vous joindront à ces numéros. Ils ne sont révélés qu’à leur demande.",
+        "numbersAria": "Vos numéros vérifiés"
       }
     },
     "contacts": {
@@ -1269,7 +1268,8 @@
         "bulkError": "Action en lot impossible.",
         "bulkArchived": "Biens archivés.",
         "bulkUnpublished": "Biens dépubliés.",
-        "caption": "Liste des biens du tableau de bord"
+        "caption": "Liste des biens du tableau de bord",
+        "reference": "Réf. {value}"
       },
       "filters": {
         "searchLabel": "Rechercher un bien",
@@ -1320,6 +1320,16 @@
           "createdFrom": "Créé après",
           "createdTo": "Créé avant",
           "agent": "Agent"
+        },
+        "mobile": {
+          "button": "Filtres",
+          "buttonAria": "Filtres et tri — {count, plural, =0 {aucun filtre actif} =1 {# filtre actif} other {# filtres actifs}}",
+          "title": "Filtres et tri",
+          "description": "Chaque choix s’applique aussitôt à la liste.",
+          "sortHeading": "Trier par",
+          "scopeHeading": "Afficher",
+          "criteriaHeading": "Critères",
+          "showResults": "Voir les résultats"
         }
       },
       "actions": {
@@ -1629,7 +1639,8 @@
         "current": "en cours",
         "optional": "facultatif",
         "reopen": "Revenir à : {step}"
-      }
+      },
+      "photosProgress": "Envoi des photos : {sent} sur {total}"
     },
     "titleTypes": {
       "bail": "Bail",
@@ -1722,24 +1733,9 @@
     },
     "agency": {
       "title": "Vue agence",
-      "loadError": "Impossible de charger les données.",
       "period": "Indicateurs clés sur la période — {start} au {end}",
-      "activeProperties": "Biens actifs",
-      "publishedHint": "{count} publiés",
-      "activeLeases": "Baux actifs",
-      "rentedHint": "{count} biens loués",
-      "revenueMonth": "Revenus du mois",
-      "commissionHint": "Commissions : {amount}",
-      "overdue": "Impayés",
-      "overdueHint": "{amount} · {rate}%",
-      "customers": "Clients",
-      "team": "Équipe",
-      "pendingRequests": "Demandes en attente",
-      "bookingsHint": "Réservations",
-      "openMaintenance": "Maintenance ouverte",
-      "chartTitle": "Revenus et occupation sur 12 mois",
-      "chartRevenue": "Revenus",
-      "chartOccupancy": "Taux d'occupation (%)"
+      "chartOccupancy": "Taux d'occupation (%)",
+      "occupancyHeading": "Occupation — 12 derniers mois"
     },
     "pipelineStages": {
       "lead": "Leads",
@@ -1936,7 +1932,8 @@
       "publish": "Publier un bien",
       "published": "Publiés",
       "soldRented": "Vendus / Loués",
-      "archived": "Archivés"
+      "archived": "Archivés",
+      "countersAria": "Compteurs de biens — filtrer la liste"
     },
     "profile": {
       "metaTitle": "Mon profil",
@@ -2202,11 +2199,11 @@
       "publishedHint": "{count} publiés",
       "activeLeases": "Baux actifs",
       "occupancyRate": "Taux d'occupation",
-      "occupancyHint": "{rented} loués / {total}",
       "revenueMonth": "Revenus du mois",
       "overdue": "Impayés",
-      "overdueHint": "{count} échéances",
-      "unpaidRate": "Taux d'impayés"
+      "unpaidRate": "Taux d'impayés",
+      "rentedHint": "{count} biens loués",
+      "commissionHint": "Commissions : {amount}"
     },
     "agencyActivity": {
       "heading": "Activité récente",
@@ -2273,6 +2270,22 @@
       "description": "Cet élément n'existe pas, ou il ne relève pas de votre agence. Vérifiez le lien, ou revenez à la liste.",
       "backToList": "Revenir à la liste",
       "backToDashboard": "Retour au tableau de bord"
+    },
+    "agencySetup": {
+      "title": "Mise en service de l’agence",
+      "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
+      "progress": "{done} sur {total} étapes terminées",
+      "done": "Fait",
+      "todo": "À faire",
+      "steps": {
+        "kyc_verified": "Dossier KYC vérifié",
+        "logo": "Logo de l’agence ajouté",
+        "commission_rate": "Taux de commission renseigné",
+        "payment_integration": "Moyen de paiement connecté",
+        "first_member": "Premier membre invité dans l’équipe",
+        "first_published_property": "Premier bien publié",
+        "admin_two_factor": "Double authentification de l’administrateur activée"
+      }
     }
   },
   "errors": {
@@ -3220,7 +3233,9 @@
       "loadError": "Impossible de charger les conversations.",
       "empty": "Pas encore de conversation.",
       "groupBadge": "Groupe",
-      "muted": "Conversation en sourdine"
+      "muted": "Conversation en sourdine",
+      "emptyHint": "Une conversation commence quand vous écrivez au sujet d’une annonce, depuis sa fiche — ou quand quelqu’un vous écrit.",
+      "emptyCta": "Parcourir les annonces"
     },
     "propertyDraft": {
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
@@ -3884,15 +3899,10 @@
     },
     "payment": {
       "title": "Enregistrer un paiement",
-      "description": "Loyer, charges ou régularisation pour ce bail.",
-      "amount": "Montant",
-      "type": "Type",
+      "description": "Choisissez l’échéance que le locataire a réglée.",
       "method": "Moyen",
-      "periodStart": "Période début",
-      "periodEnd": "Période fin",
       "effectiveDate": "Date effective",
       "reference": "Référence / Reçu",
-      "notes": "Notes",
       "saving": "Enregistrement…",
       "methods": {
         "cash": "Espèces",
@@ -3901,14 +3911,8 @@
         "check": "Chèque",
         "card": "Carte bancaire"
       },
-      "types": {
-        "rent": "Loyer",
-        "charges": "Charges",
-        "deposit": "Caution",
-        "deposit_refund": "Remboursement caution",
-        "regularization": "Régularisation",
-        "penalty": "Pénalité"
-      }
+      "installment": "Échéance",
+      "noInstallment": "Aucune échéance en attente sur ce bail."
     },
     "guarantor": {
       "title": "Garants",
@@ -4804,11 +4808,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer."
+          "submittedBody": "Vous pouvez continuer."
         },
         "tour": {
           "title": "Découvrez votre espace",
@@ -4936,11 +4940,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer.",
+          "submittedBody": "Vous pouvez continuer.",
           "licenseNumberLabel": "Numéro de carte professionnelle",
           "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
         },
@@ -5683,12 +5687,6 @@
     }
   },
   "admin": {
-    "notices": {
-      "tagsPlatformManaged": {
-        "title": "Les tags sont gérés par la plateforme",
-        "body": "Il n'existe pas de page « Tags » au niveau d'une agence : le référentiel des tags est maintenu par Takussan pour rester commun à tout le catalogue. Vous avez été redirigé vers le tableau de bord."
-      }
-    },
     "moderation": {
       "reviews": {
         "empty_title": "Aucun avis à modérer",
@@ -6143,27 +6141,6 @@
       }
     },
     "pages": {
-      "home": {
-        "noAgency": "Tableau de bord agence",
-        "title": "Tableau de bord agence",
-        "subtitle": "Vue d'ensemble de l'agence"
-      },
-      "setupStatus": {
-        "title": "Mise en service de l’agence",
-        "description": "Ce qu’il reste à faire pour que l’agence fonctionne pleinement.",
-        "progress": "{done} sur {total} étapes terminées",
-        "done": "Fait",
-        "todo": "À faire",
-        "steps": {
-          "kyc_verified": "Dossier KYC vérifié",
-          "logo": "Logo de l’agence ajouté",
-          "commission_rate": "Taux de commission renseigné",
-          "payment_integration": "Moyen de paiement connecté",
-          "first_member": "Premier membre invité dans l’équipe",
-          "first_published_property": "Premier bien publié",
-          "admin_two_factor": "Double authentification de l’administrateur activée"
-        }
-      },
       "team": {
         "shortTitle": "Équipe",
         "shortSubtitle": "Gestion des membres de l'agence",
@@ -6207,17 +6184,9 @@
         "payoutsBody": "Suivi des virements émis par la plateforme après encaissement.",
         "payoutsBodyFull": "Suivi des virements émis par la plateforme après retenue de la commission."
       },
-      "settings": {
-        "title": "Paramètres",
-        "subtitle": "Paramètres globaux clé/valeur, feature flags et intégrations.",
-        "navAria": "Sections des paramètres",
-        "tabGeneral": "Général",
-        "tabIntegrations": "Intégrations",
-        "loadError": "Impossible de charger les paramètres : {message}"
-      },
       "integrations": {
         "title": "Intégrations",
-        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks.",
+        "subtitle": "Providers externes (paiement, SMS, e-mail) et leurs webhooks. Les secrets ne sont jamais ré-affichés après enregistrement.",
         "loadError": "Impossible de charger les intégrations : {message}"
       }
     },
@@ -6622,7 +6591,8 @@
         "finalizeFailed": "Le relevé n’a pas pu être finalisé.",
         "previous": "Précédent",
         "next": "Suivant",
-        "pageOf": "Page {page} sur {total}"
+        "pageOf": "Page {page} sur {total}",
+        "metaTitle": "Relevé bancaire"
       },
       "search": {
         "title": "Chercher le paiement",
@@ -7172,11 +7142,30 @@
     "boosts": {
       "title": "Mise en avant",
       "subtitle": "Boosts du parc, catalogue des offres et mesure des emplacements.",
-      "tabs": { "label": "Écrans de la mise en avant", "boosts": "Boosts", "catalogue": "Catalogue", "stats": "Statistiques" },
+      "tabs": {
+        "label": "Écrans de la mise en avant",
+        "boosts": "Boosts",
+        "catalogue": "Catalogue",
+        "stats": "Statistiques"
+      },
       "statusFilter": "Filtrer par statut",
-      "statuses": { "all": "Tous", "active": "Actifs", "paused": "En pause", "ended": "Terminés", "cancelled": "Annulés", "refunded": "Remboursés" },
-      "kinds": { "bump": "Remontée", "featured": "Vedette", "badge": "Badge" },
-      "variants": { "urgent": "Urgent", "price_drop": "Baisse de prix" },
+      "statuses": {
+        "all": "Tous",
+        "active": "Actifs",
+        "paused": "En pause",
+        "ended": "Terminés",
+        "cancelled": "Annulés",
+        "refunded": "Remboursés"
+      },
+      "kinds": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": "Badge"
+      },
+      "variants": {
+        "urgent": "Urgent",
+        "price_drop": "Baisse de prix"
+      },
       "caption": "Boosts du parc",
       "colProperty": "Bien",
       "colAgency": "Espace",
@@ -8372,12 +8361,14 @@
       "updatedByOn": "Modifié par {name} le {date}",
       "defaultValue": "Valeur par défaut",
       "errors": {
-        "xofRequired": "XOF doit rester dans les devises supportées."
+        "xofRequired": "XOF doit rester dans les devises supportées.",
+        "integerList": "Saisissez au moins un nombre entier de jours, séparés par des virgules."
       },
       "categories": {
         "currency": "Devises",
         "limits": "Limites techniques",
-        "boost": "Crédits et mise en avant"
+        "boost": "Crédits et mise en avant",
+        "rentals": "Location"
       },
       "keys": {
         "currency": {
@@ -8397,16 +8388,64 @@
           }
         },
         "credits": {
-          "welcome_amount": { "label": "Crédits de bienvenue", "description": "Crédits offerts à un espace, une fois par numéro de téléphone vérifié." },
-          "welcome_validity_days": { "label": "Validité des crédits offerts", "description": "En jours. S’applique aux octrois futurs et aux crédits offerts par la console." },
-          "expiry_notice_days": { "label": "Préavis d’expiration", "description": "En jours avant l’expiration d’un lot. 0 désactive le préavis." }
+          "welcome_amount": {
+            "label": "Crédits de bienvenue",
+            "description": "Crédits offerts à un espace, une fois par numéro de téléphone vérifié."
+          },
+          "welcome_validity_days": {
+            "label": "Validité des crédits offerts",
+            "description": "En jours. S’applique aux octrois futurs et aux crédits offerts par la console."
+          },
+          "expiry_notice_days": {
+            "label": "Préavis d’expiration",
+            "description": "En jours avant l’expiration d’un lot. 0 désactive le préavis."
+          }
         },
         "boost": {
-          "bump_cooldown_hours": { "label": "Délai entre deux remontées", "description": "En heures, pour un même bien." },
-          "sponsored_slots_per_page": { "label": "Emplacements « Sponsorisé » par page", "description": "De 0 à 10. 0 désactive les emplacements." },
-          "reserved_top_results": { "label": "Places réservées en tête de la première page", "description": "De 0 à 10. 0 désactive les places réservées." }
+          "bump_cooldown_hours": {
+            "label": "Délai entre deux remontées",
+            "description": "En heures, pour un même bien."
+          },
+          "sponsored_slots_per_page": {
+            "label": "Emplacements « Sponsorisé » par page",
+            "description": "De 0 à 10. 0 désactive les emplacements."
+          },
+          "reserved_top_results": {
+            "label": "Places réservées en tête de la première page",
+            "description": "De 0 à 10. 0 désactive les places réservées."
+          }
+        },
+        "invoice": {
+          "reminder_offsets_days": {
+            "label": "Relances de facture impayée",
+            "description": "En jours après l’échéance, de 1 à 365, dix relances au plus. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "lease": {
+          "rent_review_max_pct": {
+            "label": "Plafond de révision du loyer",
+            "description": "En pourcentage, au-dessus de 0 et jusqu’à 100. Une agence qui a son propre réglage garde le sien."
+          },
+          "early_termination_penalty_months": {
+            "label": "Pénalité de résiliation anticipée",
+            "description": "En mois de loyer, de 1 à 24. Une agence qui a son propre réglage garde le sien."
+          },
+          "require_signature": {
+            "label": "Signature exigée au renouvellement",
+            "description": "Un bail renouvelé attend la signature des parties avant de prendre effet. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "late_fees": {
+          "cap_percent": {
+            "label": "Plafond des pénalités de retard",
+            "description": "En pourcentage du montant de l’échéance, de 0 à 100. Vide : aucun plafond. Une agence qui a son propre réglage garde le sien."
+          }
         }
-      }
+      },
+      "noLimit": "Aucun plafond",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "integerListPlaceholder": "3, 7, 15"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Agence créée",
@@ -8797,7 +8836,6 @@
     "integrations": {
       "empty_title": "Aucune intégration configurée",
       "empty_description": "Ajoutez-en une pour activer les paiements Wave, Orange Money, Stripe, etc.",
-      "intro": "Connectez les providers externes (paiement, SMS, e-mail). Les secrets ne sont jamais ré-affichés après enregistrement.",
       "add": "Ajouter une intégration",
       "statusActive": "Active",
       "statusInactive": "Désactivée",
@@ -8873,40 +8911,6 @@
         "signing_secret": "Secret de signature",
         "secret_key": "Clé secrète"
       }
-    },
-    "settings": {
-      "empty_title": "Aucun paramètre pour ce filtre",
-      "empty_description": "Changez de portée ou effacez la recherche pour voir les autres clés.",
-      "filterByScope": "Filtrer par portée",
-      "scopes": {
-        "all": "Tous",
-        "global": "Globaux",
-        "agency": "Agence"
-      },
-      "new": "Nouveau paramètre",
-      "tableCaption": "Réglages de la plateforme",
-      "columns": {
-        "key": "Clé",
-        "scope": "Portée",
-        "value": "Valeur",
-        "actions": "Actions"
-      },
-      "actions": {
-        "edit": "Modifier {key}",
-        "delete": "Supprimer {key}"
-      },
-      "confirmSensitive": "Le paramètre « {key} » a un impact global. Confirmer la modification ?",
-      "confirmDelete": "Supprimer le paramètre « {key} » ?",
-      "updated": "Paramètre « {key} » mis à jour.",
-      "deleted": "Paramètre « {key} » supprimé.",
-      "saved": "Paramètre « {key} » enregistré.",
-      "keyRequired": "La clé est requise.",
-      "create": {
-        "description": "Les paramètres acceptent n’importe quelle valeur JSON. Les scalaires simples (texte, nombre, booléen) sont encapsulés automatiquement.",
-        "keyPlaceholder": "ex : maintenance_mode",
-        "saving": "Enregistrement…"
-      },
-      "valuePlaceholder": "true  •  42  •  \"bonjour\"  •  '{'\"enabled\": true'}'"
     }
   },
   "adminTags": {
@@ -9756,7 +9760,8 @@
       "monthlyRentRequired": "Le loyer mensuel est requis pour une location.",
       "emailInvalid": "Email invalide.",
       "refundExceedsDeposit": "Le montant dépasse la caution restante.",
-      "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel."
+      "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel.",
+      "installmentRequired": "Sélectionnez une échéance."
     },
     "maintenance": {
       "propertyRequired": "Sélectionnez un bien.",
@@ -9819,9 +9824,6 @@
       "savedSearchNameRequired": "Donnez un nom à cette recherche."
     },
     "setting": {
-      "keyRequired": "La clé est requise.",
-      "keyTooLong": "La clé est trop longue.",
-      "keyPattern": "Caractères invalides (alphanumériques, \".\", \"_\" et \"-\").",
       "providerRequired": "Le fournisseur est requis.",
       "providerTooLong": "Le nom du fournisseur est trop long.",
       "webhookUrlInvalid": "URL invalide. Exemple : https://exemple.sn/webhook",

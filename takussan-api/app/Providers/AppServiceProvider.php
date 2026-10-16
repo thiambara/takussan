@@ -90,6 +90,7 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
+use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -187,6 +188,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
         $this->app->scoped(WebhookJournal::class);
+
+        // TCK-708 (P01.04) — SCOPED : les impressions que la requête a servies, que le middleware
+        // `boost.impressions` diffère puis valide, une fois la réponse connue (aucune sur un 304).
+        $this->app->scoped(BoostStatsRecorder::class);
 
         // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
         // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
@@ -369,8 +374,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootRateLimiters(): void
     {
-        // TCK-107 — named rate limiter; key is "search-suggest|{ip}" (Laravel default for named limiters).
-        RateLimiter::for('search-suggest', fn () => Limit::perMinute(60));
+        // TCK-107 — 60 req/min PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour
+        // tout le site (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur
+        // qui tapait vite faisait répondre 429 à tous les autres.
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($this->visitorRateLimitKey($request)));
 
         // Public POST endpoints — keyed by authenticated user_id when a valid
         // Bearer token is present, otherwise by the visitor IP (resolved via

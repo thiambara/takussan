@@ -73,6 +73,14 @@ class ReconciliationManager
             ]);
         }
 
+        // TCK-724 (P25.04) — un crédit ne se rapproche que d'une facture envoyée, en retard ou payée :
+        // une facture brouillon, annulée ou nulle recevait `bank_reconciled_at`.
+        if ($payment instanceof Invoice && ! in_array($payment->status, Invoice::RECONCILABLE_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'payment_id' => [__('reconciliation.validation.invoice_not_reconcilable')],
+            ]);
+        }
+
         // Guard: currency match
         $paymentCurrency = $payment->currency instanceof \BackedEnum ? $payment->currency->value : $payment->currency;
         if ($line->currency !== $paymentCurrency) {

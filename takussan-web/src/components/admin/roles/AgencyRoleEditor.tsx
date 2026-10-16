@@ -31,7 +31,7 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
- * TCK-279 (AC11) — panneau droit de `/admin/roles`.
+ * TCK-279 (AC11) — panneau droit de `/app/agency/roles`.
  *
  * ## Deux requêtes, deux boutons, une seule intention — et pourquoi
  *

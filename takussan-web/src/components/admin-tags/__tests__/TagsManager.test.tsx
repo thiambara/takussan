@@ -9,10 +9,10 @@ const createMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
 
-vi.mock('@/app/actions/admin-tags', () => ({
-  createTagAction: (...args: unknown[]) => createMock(...args),
-  updateTagAction: (...args: unknown[]) => updateMock(...args),
-  deleteTagAction: (...args: unknown[]) => deleteMock(...args),
+vi.mock('@/app/actions/console', () => ({
+  createConsoleTagAction: (...args: unknown[]) => createMock(...args),
+  updateConsoleTagAction: (...args: unknown[]) => updateMock(...args),
+  deleteConsoleTagAction: (...args: unknown[]) => deleteMock(...args),
 }));
 
 const initialTags = [
@@ -90,7 +90,7 @@ describe('<TagsManager />', () => {
     expect(await screen.findByText(/utilisé par un ou plusieurs biens/i)).toBeInTheDocument();
   });
 
-  it('opens the create dialog and calls createTagAction on submit', async () => {
+  it('opens the create dialog and calls createConsoleTagAction on submit', async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
       ok: true,
@@ -119,7 +119,7 @@ describe('<TagsManager />', () => {
   /**
    * TCK-292 (lot L) — les cinq messages de `tagFormSchema` partaient en CLÉ BRUTE.
    *
-   * Le test voisin (« opens the create dialog and calls createTagAction ») ne pouvait pas le voir :
+   * Le test voisin (« opens the create dialog and calls createConsoleTagAction ») ne pouvait pas le voir :
    * il ne passe QUE par le chemin valide. Rien dans cette suite n'avait jamais regardé ce que le
    * formulaire affiche quand il refuse — d'où une régression invisible à la CI.
    *

@@ -26,7 +26,6 @@ import {
   type NavCounterKey,
   type NavItem,
 } from '../AppSidebar';
-import { AdminSidebar } from '../AdminSidebar';
 import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path';
 
 let pathname = '/app';
@@ -55,7 +54,13 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   useUnhandledLeadsCount: (options: OptionsDeSondage = {}) => unhandledLeadsMock(options),
 }));
 
-// `AdminSidebar` sonde deux files de modération ; on ne teste ici que son `aria-current`.
+// TCK-642 — le solde de crédits, montré en bout de l'entrée « Crédits » dans le tiroir.
+const soldeMock = vi.fn<(options: { enabled: boolean }) => number | null>(() => null);
+vi.mock('@/lib/queries/credits-solde', () => ({
+  useSoldeCredits: (options: { enabled: boolean }) => soldeMock(options),
+}));
+
+// La section d'agence sonde deux files de modération ; on ne teste ici que son `aria-current`.
 vi.mock('@/lib/queries/reviews-moderation', () => ({
   fetchModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
 }));
@@ -109,6 +114,8 @@ beforeEach(() => {
   pendingVisitsMock.mockReturnValue({ data: undefined });
   unhandledLeadsMock.mockReset();
   unhandledLeadsMock.mockReturnValue({ data: undefined });
+  soldeMock.mockReset();
+  soldeMock.mockReturnValue(null);
 });
 
 /**
@@ -169,7 +176,9 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
+    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
+    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
     '/app/credits',
   ],
   // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
@@ -197,7 +206,9 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin', '/app/profile/reviews', '/app/commissions',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
+    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
+    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
     '/app/credits',
   ],
 };
@@ -293,37 +304,12 @@ describe('AC3 — aria-current="page"', () => {
     expect(screen.getByRole('link', { name: 'Baux' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('AdminSidebar le porte aussi', () => {
-    pathname = '/admin/settings/tags';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AdminSidebar user={userWith(['super_admin'])} agencyIsStandard />
-        </QueryClientProvider>,
-      ),
-    );
-    const actifs = screen
-      .getAllByRole('link')
-      .filter((el) => el.getAttribute('aria-current') === 'page');
-    expect(actifs).toHaveLength(1);
-    expect(actifs[0]).toHaveTextContent('Paramètres');
-  });
-
-  it('AdminSidebar n’allume plus DEUX modérations sur /admin/moderation/properties', () => {
-    pathname = '/admin/moderation/properties';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AdminSidebar user={userWith(['super_admin'])} agencyIsStandard />
-        </QueryClientProvider>,
-      ),
-    );
-    const actifs = screen
-      .getAllByRole('link')
-      .filter((el) => el.getAttribute('aria-current') === 'page');
-    expect(actifs).toHaveLength(1);
+  // TCK-649 — la barre de l'ancienne console est partie ; sa règle reste, sur la section d'agence :
+  // sur `/app/agency/moderation/properties`, « Modération avis » et « Modération biens » sont deux
+  // préfixes valides, et une seule entrée s'allume.
+  it('la section d’agence n’allume qu’UNE modération sur /app/agency/moderation/properties', () => {
+    renderSidebar(['super_admin'], '/app/agency/moderation/properties');
+    expect(activeLabels()).toEqual(['Modération biens']);
   });
 });
 
@@ -341,31 +327,36 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
   // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
   // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
   // TCK-633 lot F — 26 → 27 : le portefeuille de crédits (`/app/credits`).
-  it('les 27 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
+  // TCK-649 — 27 → 26 : l'emplacement « Administration » ne vient plus de `buildNavItems` ; la
+  // section d'agence est ajoutée depuis la table (`avecSectionAgence`).
+  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
     const items = buildNavItems(userWith(['agency_admin']));
-    expect(items).toHaveLength(27);
+    expect(items).toHaveLength(26);
     for (const item of items) expect(SECTION_ORDER).toContain(item.section);
     const groupes = groupBySection(items);
     expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(27);
+    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
   });
 
-  it('un rôle sans catalogue ne voit aucune césure vide', () => {
-    const groupes = groupBySection(buildNavItems(userWith(['service_provider'])));
-    expect(groupes.map((g) => g.section)).not.toContain('catalog');
-    for (const g of groupes) expect(g.items.length).toBeGreaterThan(0);
+  it('aucun rôle ne voit de césure vide', () => {
+    for (const role of ROLES) {
+      for (const g of groupBySection(buildNavItems(userWith([role])))) {
+        expect(g.items.length, `${role} — ${g.section}`).toBeGreaterThan(0);
+      }
+    }
   });
 
-  it('TCK-625 — le catalogue d’un client se réduit à « Publier un bien »', () => {
+  // TCK-646 — la section « Catalogue » a disparu : « Publier un bien » est monté en tête.
+  it('TCK-625 — un client garde « Publier un bien », désormais en tête', () => {
     const groupes = groupBySection(buildNavItems(userWith(['customer'])));
-    const catalogue = groupes.find((g) => g.section === 'catalog');
-    expect(catalogue?.items.map((i) => i.href)).toEqual(['/publish']);
+    const tete = groupes.find((g) => g.section === 'primary');
+    expect(tete?.items.map((i) => i.href)).toContain('/publish');
     expect(groupes.flatMap((g) => g.items)).toHaveLength(14);
   });
 
   it('les en-têtes de section sont peints pour un agency_admin', () => {
     renderSidebar(['agency_admin'], '/app');
-    for (const libelle of ['CATALOGUE', 'DÉCOUVRIR', 'DEMANDES', 'ENGAGEMENTS', 'PILOTAGE']) {
+    for (const libelle of ['DÉCOUVRIR', 'DEMANDES', 'ENGAGEMENTS', 'PILOTAGE']) {
       // Les en-têtes sont mis en capitales par CSS (`uppercase`) : on cherche le texte SOURCE.
       // TCK-590 — correspondance EXACTE : l'entrée « Demandes de contact » contient « Demandes »,
       // et une recherche partielle trouvait deux éléments.
@@ -391,8 +382,8 @@ describe('AC4 — le regroupement ne change AUCUN droit', () => {
     const entetes = Array.from(container.querySelectorAll('nav p')).map((p) =>
       p.textContent?.trim(),
     );
+    // TCK-646 — plus de « Catalogue » : ses entrées sont en tête, sans en-tête.
     expect(entetes).toEqual([
-      'Catalogue',
       'Découvrir',
       'Demandes',
       'Engagements',
@@ -596,5 +587,114 @@ describe('accessibilité du <nav>', () => {
       // `opacity-60` composait `--muted-foreground` à 2,51:1 sur `--card`. Sans lui : 5,72:1.
       expect(entree.className).not.toContain('opacity-60');
     }
+  });
+});
+
+/**
+ * TCK-646 — décision du porteur du 2026-10-14 : Mes biens · Publier un bien · Messagerie ·
+ * Réservations · Visites · Crédits, en tête, juste après « Tableau de bord ».
+ *
+ * La tête attendue est ÉCRITE À LA MAIN par rôle, à partir de la ligne de {@link HREFS_PAR_ROLE} :
+ * une entrée que le rôle n'a pas n'y figure pas (AC3), et l'ordre relatif des autres est celui du
+ * porteur. Elle est lue sur le DOM monté, pas sur `buildNavItems` : c'est l'ordre que l'on VOIT.
+ */
+const TETE_PAR_ROLE: Record<UserRole, string[]> = {
+  customer: ['/app', '/publish', '/app/messages', '/app/bookings', '/app/visits'],
+  tenant: ['/app', '/publish', '/app/messages', '/app/bookings', '/app/visits'],
+  agent: ['/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits'],
+  agency_admin: [
+    '/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits',
+    '/app/credits',
+  ],
+  owner: ['/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits'],
+  service_provider: ['/app', '/app/messages'],
+  super_admin: [
+    '/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits',
+    '/app/credits',
+  ],
+};
+
+/** Les six entrées déplacées — toutes formes de « Publier un bien » comprises. */
+const DEPLACEES = new Set([
+  '/app/properties', '/app/properties/new', '/publish', '/app/messages', '/app/bookings',
+  '/app/visits', '/app/credits',
+]);
+
+function hrefsRendus(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll('nav a')).map((a) => a.getAttribute('href') ?? '');
+}
+
+describe('TCK-646 — six entrées en tête du menu, dans l’ordre du porteur', () => {
+  it('AC1 — un profil qui a les six : « Tableau de bord » puis les six, dans l’ordre exact', () => {
+    const { container } = renderSidebar(['agency_admin'], '/app');
+    const libelles = Array.from(container.querySelectorAll('nav a'))
+      .slice(0, 7)
+      .map((a) => a.textContent?.trim());
+    expect(libelles).toEqual([
+      'Tableau de bord', 'Mes biens', 'Publier un bien', 'Messagerie', 'Réservations', 'Visites',
+      'Crédits',
+    ]);
+  });
+
+  it.each(ROLES)('AC3 — %s : sa tête est exactement ses entrées déplacées, dans l’ordre', (role) => {
+    const { container } = renderSidebar([role], '/app');
+    const rendus = hrefsRendus(container);
+    const tete = TETE_PAR_ROLE[role];
+    expect(rendus.slice(0, tete.length)).toEqual(tete);
+    // …et aucune entrée déplacée ne traîne plus bas.
+    expect(rendus.slice(tete.length).filter((href) => DEPLACEES.has(href))).toEqual([]);
+  });
+
+  it.each(ROLES)('AC2 — %s : aucune entrée n’apparaît deux fois', (role) => {
+    const { container } = renderSidebar([role], '/app');
+    const rendus = hrefsRendus(container);
+    expect(new Set(rendus).size).toBe(rendus.length);
+  });
+
+  it('la tête porte le libellé que le rôle avait déjà (bailleur : « Proposer », client : « Mes visites »)', () => {
+    const { container, unmount } = renderSidebar(['owner'], '/app');
+    expect(container.querySelectorAll('nav a')[2]).toHaveTextContent('Proposer un bien à mon agence');
+    unmount();
+    const client = renderSidebar(['customer'], '/app');
+    const liens = Array.from(client.container.querySelectorAll('nav a')).map((a) => a.textContent?.trim());
+    expect(liens.slice(0, 5)).toEqual([
+      'Tableau de bord', 'Publier un bien', 'Messagerie', 'Mes réservations', 'Mes visites',
+    ]);
+  });
+
+  it('la tête se lit sans en-tête de section', () => {
+    const { container } = renderSidebar(['agency_admin'], '/app');
+    const premierBloc = container.querySelector('nav > div');
+    expect(premierBloc?.querySelector('p')).toBeNull();
+    expect(premierBloc?.querySelectorAll('a')).toHaveLength(7);
+  });
+});
+
+describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () => {
+  it('lu seulement par qui voit l’entrée', () => {
+    renderSidebar(['agent'], '/app');
+    expect(soldeMock).toHaveBeenCalledWith({ enabled: false });
+    soldeMock.mockClear();
+    renderSidebar(['agency_admin'], '/app');
+    expect(soldeMock).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it('affiché en bout de ligne, chiffres tabulaires, caché dès `md` (la barre haute le porte)', () => {
+    soldeMock.mockReturnValue(1250);
+    renderSidebar(['agency_admin'], '/app');
+    // `format.number` sépare les milliers d'une espace fine insécable : on la normalise.
+    const lien = screen.getByRole('link', { name: (nom) => nom.replace(/\s/g, ' ') === 'Crédits : 1 250 crédits' });
+    expect(lien).toHaveAttribute('href', '/app/credits');
+    const valeur = lien.querySelector('[data-slot="valeur-entree"]');
+    expect(valeur?.textContent?.replace(/\s/g, ' ')).toBe('1 250');
+    expect(valeur?.className).toContain('tabular-nums');
+    expect(valeur?.className).toContain('md:hidden');
+  });
+
+  it('solde inconnu (chargement, refus, panne) : l’entrée reste nue, sans « 0 »', () => {
+    soldeMock.mockReturnValue(null);
+    renderSidebar(['agency_admin'], '/app');
+    const lien = screen.getByRole('link', { name: 'Crédits' });
+    expect(lien.querySelector('[data-slot="valeur-entree"]')).toBeNull();
   });
 });

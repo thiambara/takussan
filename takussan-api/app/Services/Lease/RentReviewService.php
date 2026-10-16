@@ -3,10 +3,15 @@
 namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseRentReviewed;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
+use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +20,12 @@ use Illuminate\Validation\ValidationException;
 /**
  * TCK-091 — Rent review on an active lease.
  *
- * The new rent is applied immediately to the lease row; effective_date
- * is recorded in the activity log so the rent-schedule generator (TCK-027)
- * can use it as a cut-off when materializing future {@see LeasePayment}
- * rows. Already-issued rent payments are NOT amended retroactively.
+ * The new rent is applied immediately to the lease row, and effective_date is recorded in the
+ * activity log. TCK-668 (P04.02) — the schedule is generated whole at activation, so the review
+ * also rewrites the rent payments already generated whose period starts on or after
+ * effective_date, while they are still `pending` and not being paid (no open checkout, no
+ * recorded part-payment): {@see self::rewriteUpcomingRentPayments()}. A paid, part-paid or
+ * in-progress payment keeps the rent it was issued at.
  *
  * Variations above the configured threshold (default 20 %) require the
  * `force=true` flag AND `Capability::LeasesRentReviewForce` — on a legacy lease only: a cap frozen
@@ -106,6 +113,7 @@ class RentReviewService
             }
 
             $lease->forceFill(['monthly_rent' => $newRent])->save();
+            $this->rewriteUpcomingRentPayments($lease, $newRent, $effectiveDate);
 
             activity('Lease')
                 ->performedOn($lease)
@@ -137,6 +145,50 @@ class RentReviewService
     }
 
     /**
+     * TCK-668 (P04.02) — à `effective_date`, les échéances de loyer `pending` dont la période
+     * commence à cette date ou après passent au nouveau loyer, × le nombre de mois de leur période
+     * (P04.01 : une échéance trimestrielle couvre trois mois). Jamais une échéance payée, ni en
+     * cours de paiement : checkout ouvert (le montant y est figé), ou acompte déjà enregistré.
+     * Appelée sous le verrou du bail ; les échéances sont verrouillées à leur tour.
+     */
+    private function rewriteUpcomingRentPayments(Lease $lease, float $newRent, string $effectiveDate): void
+    {
+        $gateway = app(PaymentGatewayService::class);
+
+        $payments = LeasePayment::query()
+            ->where('lease_id', $lease->id)
+            ->where('payment_type', LeasePaymentType::Rent->value)
+            ->where('status', PaymentStatus::Pending->value)
+            ->where('period_start', '>=', $effectiveDate)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($payments as $payment) {
+            $paidAmount = (float) (is_array($payment->metadata) ? ($payment->metadata['paid_amount'] ?? 0) : 0);
+            if ($paidAmount > 0 || $gateway->openCheckout($payment) !== null) {
+                continue;
+            }
+
+            $payment->forceFill(['amount' => round($newRent * $this->monthsOf($payment), 2)])->save();
+        }
+    }
+
+    /**
+     * Le nombre de mois que couvre la période de l'échéance, un au moins.
+     */
+    private function monthsOf(LeasePayment $payment): int
+    {
+        if ($payment->period_start === null || $payment->period_end === null) {
+            return 1;
+        }
+
+        $start = Carbon::parse($payment->period_start)->startOfDay();
+        $endExclusive = Carbon::parse($payment->period_end)->startOfDay()->addDay();
+
+        return max(1, (int) round($start->floatDiffInMonths($endExclusive)));
+    }
+
+    /**
      * VERIF-596 passe 2 (N1, ADR-0042 §1) — le plafond que CE bail exécute : celui figé avec son
      * contrat, imprimé et signé ; le réglage de l'agence du bail, sinon le global (TCK-600, verif-600
      * H1), seulement pour un bail antérieur (colonne nulle).
@@ -155,12 +207,9 @@ class RentReviewService
     public function resolveMaxPct(?int $agencyId = null): float
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
-        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
-        if ($row === null) {
-            return (float) self::DEFAULT_MAX_PCT;
-        }
-
-        $value = $row->value;
+        // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
+        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
+            ?? app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct');
         if (is_array($value)) {
             $value = $value['value'] ?? array_values($value)[0] ?? null;
         }

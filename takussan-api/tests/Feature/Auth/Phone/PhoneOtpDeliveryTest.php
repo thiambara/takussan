@@ -62,7 +62,11 @@ class PhoneOtpDeliveryTest extends TestCase
 
         $stocke = Cache::get("phone-otp:{$user->id}");
         $this->assertIsArray($stocke);
-        $this->assertStringNotContainsString($sms->lastCodeFor('+221770000001'), json_encode($stocke));
+        // Aucune valeur stockée n'est le code. Pas de recherche de sous-chaîne dans le JSON : un
+        // code tiré au hasard peut figurer dans le numéro ou l'échéance (« 217700 » dans
+        // « +221770000001 », rouge CI de la PR #452).
+        $code = $sms->lastCodeFor('+221770000001');
+        $this->assertNotContains($code, array_map(fn ($v) => (string) $v, $stocke));
     }
 
     public function test_l_onboarding_bailleur_recoit_son_code_par_sms_et_le_valide(): void

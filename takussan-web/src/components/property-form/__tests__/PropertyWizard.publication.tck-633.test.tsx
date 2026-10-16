@@ -171,3 +171,47 @@ describe('PropertyWizard — publier avec un contact (TCK-633)', () => {
     });
   });
 });
+
+/**
+ * TCK-643 — la dernière étape affiche les numéros déjà vérifiés ; AC4 : la publication reste
+ * possible EXACTEMENT dans les mêmes cas qu'avant. L'assistant ne filtre rien lui-même : il tente
+ * toujours `POST …/publish`, et c'est la réponse de l'API qui débloque (en ligne) ou bloque (bloc
+ * des coordonnées). Un affichage ne doit ni empêcher la tentative, ni la remplacer.
+ */
+describe('PropertyWizard — numéros vérifiés à la dernière étape (TCK-643)', () => {
+  const SECOND = { secondary_phone: '+221780000902', secondary_phone_verified_at: '2026-10-02T00:00:00Z', secondary_phone_whatsapp: true };
+
+  it('les deux numéros vérifiés sont affichés à l’étape Finition', async () => {
+    auth.user = { ...auth.user, phone_whatsapp: true, ...SECOND };
+    await allerAuBout();
+
+    const liste = screen.getByRole('list', { name: 'Vos numéros vérifiés' });
+    expect(liste).toHaveTextContent('+221 77 000 09 01');
+    expect(liste).toHaveTextContent('+221 78 000 09 02');
+  });
+
+  it.each([
+    ['principal vérifié', {}, true],
+    ['principal + second vérifiés', SECOND, true],
+    ['second vérifié seul', { phone_verified_at: null, ...SECOND }, false],
+    ['rien de vérifié', { phone_verified_at: null }, false],
+  ] as const)('AC4 — %s : la publication est tentée, et l’API seule en décide', async (_cas, compte, accepte) => {
+    auth.user = { ...auth.user, ...compte };
+    if (!accepte) {
+      pub.publier.mockResolvedValueOnce({ ok: false, status: 422, message: 'x', missing: ['verified_phone'], contactIsSelf: true });
+    }
+    const user = await allerAuBout();
+
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(pub.publier).toHaveBeenCalledTimes(1));
+    expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
+    if (accepte) {
+      await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    } else {
+      expect(await screen.findByText(/Il manque vos coordonnées pour publier/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
+      expect(routeur.push).not.toHaveBeenCalled();
+    }
+  });
+});

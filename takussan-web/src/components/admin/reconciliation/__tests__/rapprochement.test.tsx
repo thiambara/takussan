@@ -90,6 +90,15 @@ describe('StatementsList — échecs et lignes sautées visibles (AC18)', () => 
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText('2 / 5 rapprochées')).toBeInTheDocument();
   });
+
+  it('chaque relevé ouvre son détail sous `/app/agency` (TCK-649)', () => {
+    q.useBankStatements.mockReturnValue(ok({ data: [releve({ id: 9 })] }));
+    render(withIntl(<StatementsList agencyId={3} />));
+    expect(screen.getByRole('link', { name: 'CBAO' })).toHaveAttribute(
+      'href',
+      '/app/agency/finances/reconciliation/9',
+    );
+  });
 });
 
 const MAPPING: CsvMapping = {
@@ -172,6 +181,14 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
         ],
         meta: { current_page: 1, last_page: 1, per_page: 50, total: 3 },
       }),
+    );
+  });
+
+  it('le retour mène à la liste des relevés, sous `/app/agency` (TCK-649)', () => {
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.getByRole('link', { name: fr.admin.reconciliation.detail.back })).toHaveAttribute(
+      'href',
+      '/app/agency/finances/reconciliation',
     );
   });
 

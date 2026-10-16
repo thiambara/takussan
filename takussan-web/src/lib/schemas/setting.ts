@@ -2,66 +2,11 @@ import { z } from 'zod';
 import { msgValidation } from './messages';
 
 /**
- * Setting / Integration (admin) schemas — TCK-068.
+ * Integration (admin) schemas — TCK-068.
+ *
+ * TCK-651 (ADR-0065) — le formulaire brut d'un paramètre (clé, portée, valeur libre) a disparu avec
+ * `/super-admin/settings/global` : la portée `global` s'écrit au catalogue, typée.
  */
-
-export const settingScopeValues = ['global', 'agency'] as const;
-
-export const settingFormSchema = z.object({
-  key: z
-    .string()
-    .trim()
-    .min(1, msgValidation('setting.keyRequired'))
-    .max(255, msgValidation('setting.keyTooLong'))
-    .regex(/^[a-z0-9_.-]+$/i, msgValidation('setting.keyPattern')),
-  scope: z.enum(settingScopeValues),
-  value: z.string(), // raw text / JSON — validated at submit time
-});
-
-export type SettingFormValues = z.infer<typeof settingFormSchema>;
-
-/**
- * Parse the raw text input into a JSON-compatible value. Accepts
- * `true/false`, numbers, JSON literals (`{...}`, `[...]`) and falls back
- * to a plain string. The backend stores `value` as a JSON array/object so
- * scalars are wrapped in `{ value: <scalar> }` — matching how TCK-023 seeds
- * basic settings.
- */
-export function parseSettingRawValue(raw: string): Record<string, unknown> {
-  const trimmed = raw.trim();
-  if (trimmed === '') return { value: null };
-  if (trimmed === 'true') return { value: true };
-  if (trimmed === 'false') return { value: false };
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return { value: Number(trimmed) };
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) return { value: parsed };
-      if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
-      return { value: parsed };
-    } catch {
-      /* fallthrough to string */
-    }
-  }
-  return { value: trimmed };
-}
-
-/**
- * Flatten the API value back to a raw text input. Mirrors
- * `parseSettingRawValue` so the round-trip is stable for the common cases.
- */
-export function stringifySettingValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') {
-    const obj = value as Record<string, unknown>;
-    if ('value' in obj && Object.keys(obj).length === 1) {
-      return stringifySettingValue(obj.value);
-    }
-    return JSON.stringify(obj, null, 2);
-  }
-  if (typeof value === 'boolean' || typeof value === 'number') return String(value);
-  return String(value);
-}
 
 /**
  * SMS provider IDs supported by the multi-provider router (TCK-102).

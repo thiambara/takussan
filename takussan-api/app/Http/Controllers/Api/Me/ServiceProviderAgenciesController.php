@@ -37,7 +37,7 @@ class ServiceProviderAgenciesController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = $this->tailleDePage($request, 20);
 
         if ($sp === null) {
             // La liste vide reste une LISTE : elle porte les quatre clés canoniques comme les

@@ -126,7 +126,7 @@ class OwnerOnboardingTest extends TestCase
             ->exists());
     }
 
-    public function test_kyc_submit_marks_dossier_as_pending_review(): void
+    public function test_kyc_submit_marks_dossier_as_submitted_without_a_review_status(): void
     {
         $user = User::factory()->create();
         $owner = OwnerProfile::factory()->create(['user_id' => $user->id]);
@@ -135,11 +135,12 @@ class OwnerOnboardingTest extends TestCase
         $response = $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/submit");
 
         $response->assertOk()
-            ->assertJsonPath('data.kyc.status', 'pending_review')
+            ->assertJsonMissingPath('data.kyc.status')
             ->assertJsonPath('data.id', $owner->id);
 
         $owner->refresh();
-        $this->assertSame('pending_review', data_get($owner->metadata, 'kyc.status'));
+        // TCK-685 (P15.02) : aucune file ne relit ce dossier ; aucun statut « en revue » n'est posé.
+        $this->assertNull(data_get($owner->metadata, 'kyc.status'));
         $this->assertNotEmpty(data_get($owner->metadata, 'kyc.submitted_at'));
     }
 

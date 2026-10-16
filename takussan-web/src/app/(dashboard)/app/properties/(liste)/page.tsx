@@ -13,6 +13,8 @@ import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStr
 import { AvertissementNumeroNonVerifie } from '@/components/contact/AvertissementNumeroNonVerifie';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/console';
+import { RESERVE_SOUS_LANCEUR } from '@/components/chat-widget/reserve';
+import { cn } from '@/lib/utils';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.properties');
@@ -85,10 +87,13 @@ export default async function Page({
   };
   const sort = asString(params.sort);
 
+  // TCK-662 (P01.01) — un tri absent ou inconnu reste absent : `fetchDashboardProperties` pose
+  // `-created_at` hors recherche, et n'en pose aucun pendant une recherche, que l'API classe alors
+  // par pertinence.
   const safeSort =
     sort && ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'].includes(sort)
       ? sort
-      : '-created_at';
+      : undefined;
 
   // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
   // only pull `meta.total` — keeps the dashboard snappy.
@@ -163,14 +168,23 @@ export default async function Page({
   ];
 
   return (
-    <div className="space-y-6">
+    // TCK-644 — sous `lg`, l'écart vertical se resserre (16 px au lieu de 24) et la page réserve
+    // en bas la place du lanceur de messagerie (AC4 : la dernière carte défile au-dessus).
+    <div className={cn('space-y-4 lg:space-y-6', RESERVE_SOUS_LANCEUR)}>
+      {/* TCK-644 — sous `lg`, une seule rangée : le titre à gauche, « Publier un bien » à droite ;
+          la ligne de contexte attend `sm` (à 390 px elle coûtait deux lignes avant la première
+          carte). Dès `lg`, l'en-tête de la console à l'identique. */}
       <PageHeader
         title={t('title')}
-        description={t('subtitle')}
+        description={<span className="hidden sm:inline">{t('subtitle')}</span>}
+        className="flex-row items-center justify-between lg:items-start"
         actions={
           <Link
             href="/app/properties/new"
-            className={buttonVariants({ size: 'lg' })}
+            className={cn(
+              buttonVariants({ size: 'lg' }),
+              'h-10 rounded-xl px-3.5 lg:h-9 lg:rounded-lg lg:px-2.5',
+            )}
           >
             <Plus className="size-4" aria-hidden="true" />
             {t('publish')}
@@ -181,7 +195,7 @@ export default async function Page({
       {/* TCK-633 (lot C, tour 2) — un numéro non vérifié n'est pas servi sur les annonces en ligne. */}
       <AvertissementNumeroNonVerifie phoneVerifiedAt={user.phone_verified_at} annoncesEnLigne={publishedCount} />
 
-      <PropertyKpiStrip tiles={kpiTiles} />
+      <PropertyKpiStrip tiles={kpiTiles} label={t('countersAria')} />
 
       <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} />
 

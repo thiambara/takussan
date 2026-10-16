@@ -91,14 +91,18 @@ async function contexteAdmin(
   return { roles, agence, capacites };
 }
 
-/** Les pages `/admin/*` accessibles au profil actif — pour PEINDRE (menu, liens, carte du profil). */
+/** Les pages d'administration accessibles au profil actif — pour PEINDRE (section d'agence du menu, liens, carte du profil). */
 export async function accesAdmin(user?: User): Promise<AccesAdmin> {
   const moi = user ?? (await getMeAction());
   return accesDepuis(await contexteAdmin(moi, TOUT, 'affichage'));
 }
 
 /**
- * LA garde d'une page `/admin/*`. Première instruction de chaque page — `check-pro-routes` le vérifie.
+ * LA garde d'une page d'administration (`/app/agency/*`, TCK-649). Première instruction de chaque
+ * page — `check-pro-routes` le vérifie.
+ *
+ * ⚠ Elle refuse par `redirect()` depuis la PAGE : son 307 ne tient que tant qu'aucun `loading.tsx`
+ * ne couvre la page (TCK-426) — `app/__tests__/etats-de-route.test.ts` le garde.
  *
  *  · page accessible → rien ;
  *  · capacités ILLISIBLES sur une page qui en exige une → `/verification-indisponible` ;

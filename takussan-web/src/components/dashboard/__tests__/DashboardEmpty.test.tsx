@@ -14,13 +14,13 @@ function rendre(acces: AccesAdmin | null, roles: Parameters<typeof DashboardEmpt
 
 describe('<DashboardEmpty> (TCK-633)', () => {
   it('solo : « Ouvrir mon espace » vers sa première page', () => {
-    rendre({ chemins: ['/admin/agency'], espaceIndividuel: true }, ['agency_admin']);
-    expect(screen.getByRole('link', { name: 'Ouvrir mon espace' })).toHaveAttribute('href', '/admin/agency');
+    rendre({ chemins: ['/app/agency'], espaceIndividuel: true }, ['agency_admin']);
+    expect(screen.getByRole('link', { name: 'Ouvrir mon espace' })).toHaveAttribute('href', '/app/agency');
   });
 
-  it("admin standard : le lien d'avant, vers /admin", () => {
-    rendre({ chemins: ['/admin', '/admin/agency'], espaceIndividuel: false }, ['agency_admin']);
-    expect(screen.getByRole('link', { name: "Aller à l'administration" })).toHaveAttribute('href', '/admin');
+  it('admin standard : vers sa première page d’administration, /app/agency/team', () => {
+    rendre({ chemins: ['/app/agency/team', '/app/agency'], espaceIndividuel: false }, ['agency_admin']);
+    expect(screen.getByRole('link', { name: "Aller à l'administration" })).toHaveAttribute('href', '/app/agency/team');
   });
 
   it("aucune page d'admin accessible : la variante utilisateur", () => {

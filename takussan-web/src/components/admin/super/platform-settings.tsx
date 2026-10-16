@@ -16,16 +16,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { patchPlatformSettings } from '@/lib/queries/super-admin';
-import type { PlatformSetting, PlatformSettingCategory } from '@/types/super-admin';
+import type { PlatformSetting, PlatformSettingCategory, PlatformSettingValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
-type SettingValue = string | number | string[];
+type SettingValue = PlatformSettingValue;
 type Draft = Record<string, SettingValue>;
 
-export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost'];
+export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost', 'rentals'];
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout.
@@ -56,7 +56,7 @@ export function SettingsSection({
   const [error, setError] = useState<string | null>(null);
   const requiresRestart = settings.some((setting) => setting.requires_restart);
   const hasChanges = settings.some((setting) => JSON.stringify(draft[setting.key]) !== JSON.stringify(setting.value));
-  const clientError = validateSection(draft, t);
+  const clientError = validateSection(settings, draft, t);
 
   const mutation = useMutation({
     mutationFn: () => patchPlatformSettings(draft),
@@ -171,7 +171,7 @@ export function SettingField({
         {setting.type === 'multi_select' ? (
           <div className="flex flex-wrap gap-2">
             {(setting.options ?? []).map((option) => {
-              const selected = Array.isArray(value) && value.includes(option);
+              const selected = Array.isArray(value) && (value as string[]).includes(option);
               return (
                 <Button
                   key={option}
@@ -181,7 +181,7 @@ export function SettingField({
                   className={cn('min-w-16', selected && 'ring-1 ring-foreground/20', option === 'XOF' && selected && 'cursor-not-allowed')}
                   onClick={() => {
                     if (option === 'XOF' && selected) return;
-                    const current = Array.isArray(value) ? value : [];
+                    const current = Array.isArray(value) ? (value as string[]) : [];
                     onChange(selected ? current.filter((item) => item !== option) : [...current, option]);
                   }}
                 >
@@ -203,6 +203,38 @@ export function SettingField({
             onChange={(event) => onChange(event.target.value)}
           />
         ) : null}
+
+        {/* TCK-651 — un décimal vide se lit « aucun plafond » quand la clé l'admet, jamais zéro. */}
+        {setting.type === 'decimal' ? (
+          <Input
+            id={setting.key}
+            type="number"
+            min={0}
+            step="any"
+            inputMode="decimal"
+            placeholder={setting.nullable ? t('noLimit') : undefined}
+            value={value === null || value === undefined ? '' : String(value)}
+            onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value)}
+          />
+        ) : null}
+
+        {setting.type === 'boolean' ? (
+          <div className="flex items-center gap-3">
+            <input
+              id={setting.key}
+              type="checkbox"
+              role="switch"
+              checked={value === true}
+              onChange={(event) => onChange(event.target.checked)}
+              className="size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+            />
+            <span className="text-sm text-foreground">{value === true ? t('enabled') : t('disabled')}</span>
+          </div>
+        ) : null}
+
+        {setting.type === 'integer_list' ? (
+          <IntegerListInput id={setting.key} value={value} onChange={onChange} />
+        ) : null}
       </div>
       <p className="text-sm text-muted-foreground">
         {setting.updated_by
@@ -218,10 +250,60 @@ export function SettingField({
   );
 }
 
-function validateSection(draft: Draft, t: (key: string) => string): string | null {
+/**
+ * TCK-651 — une liste d'entiers se saisit « 3, 7, 15 ». Le brouillon porte la liste lue ; un jeton
+ * qui n'est pas un entier y reste tel quel, pour que la section le refuse avant l'envoi.
+ */
+function parseIntegerList(text: string): (number | string)[] {
+  return text
+    .split(/[\s,;]+/)
+    .filter((token) => token !== '')
+    .map((token) => (/^\d+$/.test(token) ? Number(token) : token));
+}
+
+function IntegerListInput({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: SettingValue;
+  onChange: (value: SettingValue) => void;
+}) {
+  const t = useTranslations('superAdmin.platformSettings');
+  const list = Array.isArray(value) ? (value as (number | string)[]) : [];
+  const [text, setText] = useState(list.join(', '));
+  // Le texte saisi reste affiché tant qu'il dit la même liste que le brouillon ; une
+  // réinitialisation ou un enregistrement (liste triée par l'API) le remplace.
+  const shown = JSON.stringify(parseIntegerList(text)) === JSON.stringify(list) ? text : list.join(', ');
+
+  return (
+    <Input
+      id={id}
+      type="text"
+      inputMode="numeric"
+      placeholder={t('integerListPlaceholder')}
+      value={shown}
+      onChange={(event) => {
+        setText(event.target.value);
+        onChange(parseIntegerList(event.target.value) as SettingValue);
+      }}
+    />
+  );
+}
+
+function validateSection(settings: PlatformSetting[], draft: Draft, t: (key: string) => string): string | null {
   const supportedCurrencies = draft['currency.supported'];
-  if (Array.isArray(supportedCurrencies) && !supportedCurrencies.includes('XOF')) {
+  if (Array.isArray(supportedCurrencies) && !(supportedCurrencies as string[]).includes('XOF')) {
     return t('errors.xofRequired');
+  }
+
+  for (const setting of settings) {
+    const value = draft[setting.key];
+    if (setting.type === 'integer_list'
+      && (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'number'))) {
+      return t('errors.integerList');
+    }
   }
 
   return null;

@@ -15,7 +15,7 @@ class PropertyPriceHistoryController extends Controller
         $this->authorize('view', $property);
 
         $paginator = $property->priceHistory()
-            ->paginate((int) $request->input('per_page', 20));
+            ->paginate($this->tailleDePage($request, 20));
 
         return $this->json([
             'data' => $paginator->getCollection()->map(fn (PropertyPriceHistory $h) => [

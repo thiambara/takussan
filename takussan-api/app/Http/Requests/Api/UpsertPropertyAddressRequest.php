@@ -36,7 +36,8 @@ class UpsertPropertyAddressRequest extends BaseFormRequest
             'label' => ['nullable', 'string', 'max:255'],
             'street' => ['nullable', 'string', 'max:255'],
             'neighborhood' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:255'],
+            // TCK-703 (P17.01) — `null` rendait 500 (colonne NOT NULL) : 422 ; omise, le défaut 'Dakar'.
+            'city' => ['filled', 'string', 'max:255'],
             'region' => ['nullable', 'string', 'max:255'],
             'country' => ['nullable', 'string', 'size:2'],
             'postal_code' => ['nullable', 'string', 'max:20'],

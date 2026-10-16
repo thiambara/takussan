@@ -40,7 +40,7 @@ class RoleController extends Controller
             $request,
         )
             ->defaultSort('name')
-            ->paginate((int) $request->input('per_page', 50));
+            ->paginate($this->tailleDePage($request, 50));
 
         return $this->paginated($paginator, AgencyRoleResource::collection($paginator)->toArray($request));
     }

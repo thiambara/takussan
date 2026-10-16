@@ -215,6 +215,7 @@ export function HomepageDiscovery({
             loading={loading}
             error={error}
             robeVedette
+            emplacementSponsorise
           />
         </section>
 

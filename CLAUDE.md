@@ -138,7 +138,7 @@ Racine — **les gardes ne s'énumèrent pas ici, elles se listent** :
 ```bash
 ls scripts/check-*.mjs                        # l'inventaire, toujours juste
 for g in scripts/check-*.mjs; do node "$g" || echo "✗ $g"; done   # toutes, d'un coup
-node docs/backlog/gen-index.mjs --check        # + les deux générateurs
+node docs/backlog/gen-index.mjs --check        # + les deux générateurs (celui-ci : la source se rend)
 node docs/gen-features-by-actor.mjs --check
 ```
 
@@ -280,6 +280,12 @@ d'`api-ci.yml` (TCK-479), qui tourne **la nuit** depuis ADR-0063, y pousse un co
 `enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
 d'application, ou exception) — ticket à part si on la veut.
 
+**`pre-dev` est la branche des agents planifiés** ([ADR-0066](docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md)) :
+l'explorateur, le mesureur et l'implémenteur du fichier de pistes y ouvrent leurs PR, jamais
+vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-mêmes :
+`scripts/agents/pistes.sh` vérifie le périmètre de chaque rôle avant tout push
+(`~/.takussan-agents/outils/pistes.sh etat`, `pause`).
+
 ## Specs & backlog
 
 **Sources de vérité fonctionnelles** (ne jamais dupliquer dans un ticket) :
@@ -290,12 +296,14 @@ d'application, ou exception) — ticket à part si on la veut.
   (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
   jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
 
-**Backlog** : `docs/backlog/` → `INDEX.md` + `tickets/TCK-NNN-<slug>.md`.
+**Backlog** : `docs/backlog/` → `tickets/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
 
-> **`INDEX.md` est GÉNÉRÉ** depuis les frontmatters par `node docs/backlog/gen-index.mjs`.
-> Ne jamais l'éditer à la main — éditer le frontmatter du ticket, puis régénérer.
-> `node docs/backlog/check-backlog.mjs` garde sa fraîcheur, et la CI rejoue les deux.
-> [Pourquoi : il était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
+> **`INDEX.md` est GÉNÉRÉ, et n'est plus versionné** ([ADR-0067](docs/adr/0067-l-index-du-backlog-n-est-plus-versionne.md)) :
+> `node docs/backlog/gen-index.mjs` l'écrit en local, git l'ignore. La source est le frontmatter
+> des tickets ; la liste des ouverts se prend par `node docs/backlog/check-backlog.mjs --report`.
+> Versionné, il entrait en conflit entre deux PR qui ajoutent chacune un ticket, et deux PR vertes
+> fusionnées coup sur coup laissaient un index périmé sans conflit.
+> [Pourquoi il est généré : il était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
 
 **Format ticket** : frontmatter YAML (`id`, `title`, `status`, `phase`, `family`, `estimate`,
 `created`, `updated`, `depends_on`, `blocks`, `spec_refs`, `tags`, `wave`) + corps.
@@ -392,8 +400,11 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    propre commentaire.
 
 5. **Le front possède le texte affiché.** L'API émet des codes et des données ; les libellés passent
-   par next-intl (`fr`/`en`/`wo`). *Tenu à 82 fichiers sur 875 : la règle est une intention, pas un
-   état (dette D-24).*
+   par next-intl (`fr`/`en`/`wo`). *L'état de la règle ne s'écrit pas ici, il se prend :
+   `cd takussan-web && node scripts/check-i18n.mjs --report` (parité des clés, texte en dur toléré
+   ou excusé). Son vert est un plancher : il ne lit que `takussan-web/src`, donc ni les libellés que
+   l'API émet encore en français (P06.12), ni la justesse du wolof (dette D-24). Un compte écrit
+   ici a survécu deux mois à la mesure qui le démentait (TCK-722).*
 
 ### Migrations — les pièges PostgreSQL
 

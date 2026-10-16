@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { PRO_ROUTES, isProRouteLocked } from '../pro-features';
+import { PAGES_ADMIN } from '../pages-admin';
 import type { User, UserRole } from '@/types/user';
 
 /**
@@ -45,8 +46,9 @@ describe('PRO_ROUTES', () => {
     ]);
   });
 
-  it('TCK-633 — ne contient plus aucune route /admin : `PAGES_ADMIN` les décrit et les garde', () => {
+  it('TCK-633 — ne contient aucune page d’administration : `PAGES_ADMIN` les décrit et les garde', () => {
     expect([...PRO_ROUTES]).toEqual(['/app/overview/agency', '/app/owners']);
+    for (const page of PAGES_ADMIN) expect(PRO_ROUTES.has(page.chemin)).toBe(false);
   });
 
   it("ne cadenasse ni les KPI ni les alertes de seuil — aucune spec ne les restreint", () => {

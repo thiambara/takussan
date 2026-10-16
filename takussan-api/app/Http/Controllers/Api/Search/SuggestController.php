@@ -20,6 +20,11 @@ class SuggestController extends Controller
 
         return response()
             ->json(['data' => $payload])
-            ->header('Cache-Control', 'public, max-age=60');
+            ->header('Cache-Control', 'public, max-age=60')
+            // TCK-707 — le libellé de `property_types` est traduit dans la langue de la
+            // requête, et l'URL ne la porte pas : sans ce `Vary`, un cache HTTP rend le
+            // corps d'une autre langue. `Origin` n'est pas répété : le CORS l'ajoute au
+            // `Vary` existant (même forme que `discovery`, TCK-341).
+            ->header('Vary', 'Accept-Language');
     }
 }

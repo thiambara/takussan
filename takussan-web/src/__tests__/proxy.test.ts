@@ -296,7 +296,7 @@ describe('les fichiers de métadonnées de Next gardent leur URL racine', () => 
 });
 
 describe('la garde d’authentification est ANCRÉE sur une frontière de segment', () => {
-  it('les sosies de /app, /admin et /auth ne sont pas happés par la console', () => {
+  it('les sosies de /app et /auth ne sont pas happés par la console', () => {
     // ⚠️ Mesuré AVANT correctif : `/apple-icon` rendait 307 vers
     // `/auth/login?redirect=%2Fapple-icon` — la garde d'authentification, pas la redirection de
     // langue. `pathname.startsWith('/app')` confond un préfixe et un segment, la MÊME faute que le
@@ -307,10 +307,10 @@ describe('la garde d’authentification est ANCRÉE sur une frontière de segmen
     }
   });
 
-  it('mais /app, /admin et /auth EUX-MÊMES le sont toujours — nus comme suivis d’un segment', () => {
+  it('mais /app et /auth EUX-MÊMES le sont toujours — nus comme suivis d’un segment', () => {
     // L'ancrage ne doit pas relâcher la garde : c'est l'autre moitié, et c'est celle qu'un
     // correctif d'ancrage rate quand il oublie le `$`.
-    for (const chemin of ['/app', '/app/overview', '/admin', '/admin/users']) {
+    for (const chemin of ['/app', '/app/overview', '/app/agency', '/app/agency/team']) {
       const url = proxy(requete(chemin)).headers.get('location');
       expect(url, chemin).toContain('/auth/login');
     }
@@ -330,9 +330,23 @@ describe('la garde d’authentification est intacte', () => {
     expect(url.searchParams.get('redirect')).toBe('/app/overview');
   });
 
-  it('/admin sans jeton aussi', () => {
-    const r = proxy(requete('/admin/users'));
-    expect(cheminDe(r.headers.get('location')!)).toBe('/auth/login');
+  it('/app/agency sans jeton aussi — l’administration d’agence vit sous /app (TCK-649)', () => {
+    const r = proxy(requete('/app/agency/team'));
+    expect(r.status).toBe(307);
+    const url = new URL(r.headers.get('location')!, 'https://www.takussan.com');
+    expect(url.pathname).toBe('/auth/login');
+    expect(url.searchParams.get('redirect')).toBe('/app/agency/team');
+  });
+
+  // TCK-649 (ADR-0064 §4) — l'ancien préfixe de la console n'est ni gardé ni redirigé : il est
+  // laissé au routeur, qui n'y sert plus rien (404). Ni vers la connexion (une garde sur une URL
+  // morte promettrait une page après connexion), ni vers une URL préfixée d'une langue.
+  it.each([[false], [true]])('/admin/* est laissé au routeur, sans redirection (jeton : %s)', (avecJeton) => {
+    for (const chemin of ['/admin', '/admin/team', '/admin/agency/kyc']) {
+      const r = proxy(requete(chemin, avecJeton ? { cookies: { [AUTH_COOKIE_NAME]: 'jeton' } } : undefined));
+      expect(r.headers.get('location'), chemin).toBeNull();
+      expect(r.status, chemin).toBe(200);
+    }
   });
 
   it('/auth avec un jeton revient sur la console', () => {

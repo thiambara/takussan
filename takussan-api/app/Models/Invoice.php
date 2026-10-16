@@ -143,6 +143,20 @@ class Invoice extends AbstractModel
         return $this->belongsTo(BankStatementLine::class, 'bank_statement_line_id');
     }
 
+    /**
+     * TCK-724 (P25.04) — les statuts d'une facture qui attend, ou a reçu, un encaissement. Un
+     * brouillon, une facture annulée ou nulle n'en attend aucun : ni le matcher, ni la recherche
+     * manuelle ne les proposent, et `ReconciliationManager::confirmMatch()` les refuse.
+     *
+     * @var list<InvoiceStatus>
+     */
+    public const RECONCILABLE_STATUSES = [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Paid];
+
+    public function scopeReconcilable(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::RECONCILABLE_STATUSES);
+    }
+
     public function scopeWhereNotReconciled(Builder $query): Builder
     {
         return $query->whereNull('bank_reconciled_at');

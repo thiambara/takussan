@@ -1,5 +1,5 @@
 /**
- * TCK-595 (AD16, § Direction UX) — l'onglet « Performance » de `/admin/team`.
+ * TCK-595 (AD16, § Direction UX) — l'onglet « Performance » de `/app/agency/team`.
  *
  * Il n'est offert qu'aux agences `standard` et à qui détient `reports.view_agency` (la garde de
  * l'API) ; il remplace alors la liste des membres par une ligne par agent, triable par colonne.
@@ -19,7 +19,7 @@ vi.mock('@/components/crm/AgentAbsencesSection', () => ({ AgentAbsencesSection: 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(etat.recherche),
-  usePathname: () => '/admin/team',
+  usePathname: () => '/app/agency/team',
 }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1, agency_id: 5 }, token: 'jeton', isLoading: false }),

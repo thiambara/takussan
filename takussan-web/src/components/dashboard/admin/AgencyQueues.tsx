@@ -8,6 +8,7 @@ import type { ComponentType } from 'react';
 
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { useAuth } from '@/context/AuthContext';
+import type { CheminAdmin } from '@/lib/access/pages-admin';
 import {
   agencyKycQueryOptions,
   kycDemandeUnGeste,
@@ -18,15 +19,17 @@ import type { KycDossierStatus } from '@/types/super-admin';
 import { cn } from '@/lib/utils';
 
 /**
- * TCK-375 — le bloc de FILES D'ATTENTE de `/admin`, en tête de l'écran.
+ * TCK-375 — le bloc de FILES D'ATTENTE du tableau de bord d'agence, en tête de l'écran (sous
+ * `/app/overview/agency` depuis TCK-647).
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE CE BLOC CHANGE, ET POURQUOI IL EST EN TÊTE
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * `/admin` ouvrait sur six tuiles KPI : un écran de CONSTAT. Rien n'y disait qu'une action était
- * attendue, et rien n'y menait. L'ordre de lecture porte la priorité — *ce qui demande un geste
- * passe avant ce qui décrit un état* — donc les files montent au-dessus des KPI, qui restent.
+ * Le tableau de bord d'agence ouvrait sur six tuiles KPI : un écran de CONSTAT. Rien n'y disait
+ * qu'une action était attendue, et rien n'y menait. L'ordre de lecture porte la priorité — *ce
+ * qui demande un geste passe avant ce qui décrit un état* — donc les
+ * files montent au-dessus des KPI, qui restent.
  *
  * **Chaque ligne est un chemin, jamais un chiffre.** Un compteur sans destination ne dit à
  * personne ce qu'il faut en faire ; c'est ce qui faisait des six tuiles un tableau de bord
@@ -56,18 +59,19 @@ const ICONES: Record<QueueId, ComponentType<{ className?: string }>> = {
 };
 
 /**
- * Les destinations. Chacune est l'écran qui permet de TRAITER la file, dans la console où
- * l'utilisateur se trouve déjà.
+ * Les destinations. Chacune est l'écran qui permet de TRAITER la file : une page de
+ * l'administration de l'agence (`/app/agency/*`, TCK-649). Le type les tient à la table des pages
+ * (`CheminAdmin`) : un chemin qu'elle ne déclare pas ne compile pas.
  *
  * ⚠ `?tab=impayes` n'est pas un ornement : `AdminFinancesTabs` lit son onglet dans `?tab=`
  * (`searchParams.get('tab')`) et ouvre sinon sur « encaissements ». Un lien nu vers
- * `/admin/finances` aurait mené à côté de ce que la ligne annonce.
+ * `/app/agency/finances` aurait mené à côté de ce que la ligne annonce.
  */
-const DESTINATIONS: Record<QueueId, string> = {
-  kyc: '/admin/agency/kyc',
-  moderation: '/admin/moderation/properties',
-  invitations: '/admin/team',
-  overdue: '/admin/finances?tab=impayes',
+const DESTINATIONS: Record<QueueId, CheminAdmin | `${CheminAdmin}?${string}`> = {
+  kyc: '/app/agency/kyc',
+  moderation: '/app/agency/moderation/properties',
+  invitations: '/app/agency/team',
+  overdue: '/app/agency/finances?tab=impayes',
 };
 
 /**
@@ -88,7 +92,7 @@ interface AgencyQueuesProps {
   /**
    * `false` en agence `individual`, `undefined` quand on n'a pas pu savoir.
    *
-   * ⚠ La distinction est la même que celle d'`AdminSidebar` : `undefined` laisse la file
+   * ⚠ La distinction est la même que celle de la barre latérale (`AppSidebar`) : `undefined` laisse la file
    * affichée, `false` la retire. Écraser l'inconnu en `false` ferait disparaître des files
    * légitimes sur une panne passagère de `/api/agencies/{id}`.
    */

@@ -11,7 +11,9 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
 use App\Services\Invoice\InvoiceNumberAllocator;
+use App\Services\Model\InvoiceService;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
@@ -155,11 +157,11 @@ class EarlyTerminationService
                 ])->status(422);
             }
 
-            // Void the pending penalty invoice if it exists; we keep the row
-            // for audit (rather than delete it) and the cancelled state is
-            // documented in `Invoice::booted` transitions.
-            if ($invoice) {
-                $invoice->forceFill(['status' => InvoiceStatus::Cancelled])->save();
+            // TCK-669 (P04.03, ADR-0039 §7) — la pénalité naît émise et numérotée : elle ne
+            // s'annule que par un avoir, comme toute facture émise. Déjà annulée à part, elle
+            // n'en reçoit pas un second.
+            if ($invoice && ! in_array($invoice->status, [InvoiceStatus::Cancelled, InvoiceStatus::Void], true)) {
+                app(InvoiceService::class)->cancel($invoice, $actor);
             }
 
             $lease->forceFill([
@@ -291,12 +293,9 @@ class EarlyTerminationService
     public function resolvePenaltyMonths(?int $agencyId = null): int
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
-        $row = ScopedSetting::row(self::SETTING_KEY, $agencyId);
-        if ($row === null) {
-            return self::SETTING_DEFAULT_MONTHS;
-        }
-
-        $value = $row->value;
+        // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
+        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
+            ?? app(PlatformSettingService::class)->getValue('lease.early_termination_penalty_months');
         if (is_array($value)) {
             $value = $value['value'] ?? array_values($value)[0] ?? null;
         }

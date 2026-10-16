@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
  *
  * Deux écrans composent désormais un message : `ChatView`, sur une conversation qui existe, et
  * `PropertyDraftChatView`, sur une conversation qui n'existe pas encore. Leurs mécaniques n'ont
- * presque rien en commun — l'un poste sur `/conversations/{id}/messages` et sait joindre un
- * fichier, l'autre appelle `contact-message` qui crée le fil et n'accepte qu'un texte — mais
+ * presque rien en commun — l'un poste sur `/conversations/{id}/messages` et joint une note
+ * vocale, l'autre appelle `contact-message` qui crée le fil et n'accepte qu'un texte — mais
  * leur ALLURE doit être la même : c'est le même champ, au même endroit, dans le même écran.
  *
  * Ce composant ne porte donc que la mise en forme : le cadre, la ligne d'erreur, la rangée et le

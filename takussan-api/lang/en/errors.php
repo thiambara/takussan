@@ -501,7 +501,7 @@ return [
     ],
     'setting' => [
         'global_forbidden' => 'Only platform administrators manage global settings.',
-        'managed_by_catalogue' => 'This setting is managed by its catalogue: change it from the platform console.',
+        'global_not_writable' => 'The generic route no longer writes global settings: change them from the platform settings.',
         'other_agency_forbidden' => 'You can only manage your own agency\'s settings.',
     ],
     'share_link' => [
@@ -560,6 +560,10 @@ return [
         'no_active_agency' => 'The target user has no resolvable agency context. Activate a profile for them or specify the target agency before assigning an agency-scoped role.',
         'not_blocked' => 'This account is not blocked.',
         'not_in_active_agency' => 'The target user does not belong to your active agency.',
+        'role_change_self' => 'You cannot change your own role.',
+        'role_last_admin' => 'Cannot remove the last admin of the agency.',
+        'role_member_not_active' => 'This member is not active in the agency: reactivate them before changing their role.',
+        'role_primary_admin' => 'The primary admin of the agency cannot lose their role.',
     ],
     'visit' => [
         'active_limit_reached' => 'You already have :max active visits on this property. Cancel one before requesting another.',

@@ -32,7 +32,7 @@ interface AdminUsersFiltersProps {
 }
 
 /**
- * TCK-133 — filter bar for `/admin/users` (agency_admin scope). All
+ * TCK-133 — filter bar of the team console (agency_admin scope). All
  * state is mirrored in the URL query string so the page is shareable
  * and reload-safe. The agency scope itself is implicit — the backend
  * applies it from the active profile (TCK-141 / TCK-147), the frontend

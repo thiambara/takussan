@@ -14,7 +14,7 @@ import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
 /**
  * Dashboard route group layout.
  *
- * Protects every route under `(dashboard)` — i.e. `/app/*` and `/admin/*` —
+ * Protects every route under `(dashboard)` — i.e. `/app/*` —
  * by calling `getMeAction()`, which reads the auth cookie and actually hits
  * `/api/users/me`. A stale or revoked token redirects to
  * `/api/auth/session-expired` (handled inside `getMeAction`), which clears the
@@ -26,8 +26,9 @@ import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
  * surfaces a global red banner with the day-precise countdown when one
  * is active. Cancel button on the banner revokes the request inline.
  *
- * i18n (TCK-337) : frontière de dictionnaire. `(dashboard)` ne porte que sa propre chrome — les
- * deux sous-arbres `/app` et `/admin` ont chacun leur frontière, plus riche. ⚠ Un provider
+ * i18n (TCK-337) : frontière de dictionnaire. `(dashboard)` ne porte que sa propre chrome — le
+ * sous-arbre `/app` a sa frontière, plus riche, et la section d'agence `/app/agency` la sienne
+ * (TCK-649). ⚠ Un provider
  * imbriqué REMPLACE celui du parent : chaque entrée de la table est donc l'ensemble CUMULÉ.
  *
  * SEO: noindex for every dashboard page — these are authenticated, private.

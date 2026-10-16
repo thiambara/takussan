@@ -90,7 +90,8 @@ const ATTENDU: Record<string, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/credits', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence vient de la table.
+    '/app/leases/onboarding-pending',
   ],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -99,7 +100,8 @@ const ATTENDU: Record<string, string[]> = {
     '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
     '/app/overview/agency', '/app/credits', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
     '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    '/app/leases/onboarding-pending', '/admin',
+    // TCK-649 — plus d'emplacement « Administration » : la section d'agence vient de la table.
+    '/app/leases/onboarding-pending',
   ],
   // Son métier, et rien d'autre : interventions, messagerie, documents (§1.8 de features.md).
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
@@ -200,7 +202,10 @@ describe('AppSidebar — table des href par rôle', () => {
   for (const [role, attendu] of Object.entries(ATTENDU)) {
     it(`${role} reçoit exactement ses entrées`, () => {
       const hrefs = buildNavItems(utilisateur([role as UserRole])).map((i) => i.href);
-      expect(hrefs).toEqual(attendu);
+      // TCK-646 — à l'ordre près : six entrées sont montées en tête du menu, ce qui ne change AUCUN
+      // droit. L'ordre est gardé par `AppSidebar.test.tsx` (« six entrées en tête »), le jeu ici.
+      expect([...hrefs].sort()).toEqual([...attendu].sort());
+      expect(hrefs).toHaveLength(attendu.length);
     });
   }
 

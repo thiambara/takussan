@@ -20,7 +20,7 @@ const hrefs = () => screen.getAllByRole('link').map((l) => l.getAttribute('href'
 describe('<ProfileAdminSection> (TCK-633)', () => {
   it('solo : « Mon espace », un rôle compréhensible, et aucun lien vers une page qui le refuse', async () => {
     accesAdmin.mockResolvedValue({
-      chemins: ['/admin/agency', '/admin/agency/kyc', '/admin/finances', '/admin/settings/integrations'],
+      chemins: ['/app/agency', '/app/agency/kyc', '/app/agency/finances', '/app/agency/integrations'],
       espaceIndividuel: true,
     });
     render((await ProfileAdminSection({ user: ADMIN }))!);
@@ -28,21 +28,22 @@ describe('<ProfileAdminSection> (TCK-633)', () => {
     expect(screen.getByRole('heading', { name: 'Mon espace' })).toBeInTheDocument();
     expect(screen.getByText("Titulaire de l'espace")).toBeInTheDocument();
     expect(screen.queryByText('Admin agence')).toBeNull();
-    expect(hrefs()).toEqual(['/admin/agency']);
-    expect(screen.getByRole('link', { name: 'Ouvrir mon espace' })).toHaveAttribute('href', '/admin/agency');
+    expect(hrefs()).toEqual(['/app/agency']);
+    expect(screen.getByRole('link', { name: 'Ouvrir mon espace' })).toHaveAttribute('href', '/app/agency');
     expect(accesAdmin).toHaveBeenCalledWith(ADMIN);
   });
 
   it("admin standard : la carte d'avant, à l'identique", async () => {
     accesAdmin.mockResolvedValue({
-      chemins: ['/admin', '/admin/team', '/admin/agency', '/admin/audit'],
+      chemins: ['/app/agency/team', '/app/agency', '/app/agency/audit'],
       espaceIndividuel: false,
     });
     render((await ProfileAdminSection({ user: ADMIN }))!);
 
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByText('Admin agence')).toBeInTheDocument();
-    expect(hrefs()).toEqual(['/admin/agency', '/admin/audit', '/admin']);
+    // TCK-649 — les liens de la carte, puis l'entrée vers la PREMIÈRE page accessible (l'Équipe).
+    expect(hrefs()).toEqual(['/app/agency', '/app/agency/audit', '/app/agency/team']);
   });
 
   it('aucune page accessible : la carte ne se rend pas', async () => {

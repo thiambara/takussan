@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -163,5 +164,132 @@ class PaymentRegistrationTest extends TestCase
             'payment_type' => 'rent', // valid for lease, invalid for booking
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['payment_type']);
+    }
+
+    // ─── TCK-684 (P13.05) — le locataire et le client ne se déclarent pas payés ───────────────
+    // Décision du porteur : « statut forcé à pending et paid_at refusé hors du personnel ; la route
+    // reste ». Le personnel (bailleur, propriétaire, agence, super-admin) garde son geste.
+
+    /**
+     * @return array{0: User, 1: Lease}
+     */
+    private function leaseWithTenantAccount(): array
+    {
+        $tenantUser = User::factory()->create();
+        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
+        $lease = Lease::factory()->create(['tenant_id' => $tenant->id]);
+
+        return [$tenantUser, $lease];
+    }
+
+    /**
+     * @return array{0: User, 1: Booking}
+     */
+    private function bookingWithCustomerAccount(): array
+    {
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $booking = Booking::factory()->create(['customer_id' => $customer->id]);
+
+        return [$customerUser, $booking];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function leaseBody(Lease $lease, array $extra = []): array
+    {
+        return $extra + [
+            'payable_type' => 'lease',
+            'payable_id' => $lease->id,
+            'amount' => 250_000,
+            'payment_type' => LeasePaymentType::Rent->value,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bookingBody(Booking $booking, array $extra = []): array
+    {
+        return $extra + [
+            'payable_type' => 'booking',
+            'payable_id' => $booking->id,
+            'amount' => 75_000,
+            'payment_type' => BookingPaymentType::Deposit->value,
+        ];
+    }
+
+    public function test_tenant_declaring_paid_gets_a_pending_lease_payment(): void
+    {
+        [$tenantUser, $lease] = $this->leaseWithTenantAccount();
+        Sanctum::actingAs($tenantUser);
+
+        $this->postJson('/api/payments', $this->leaseBody($lease, ['status' => PaymentStatus::Paid->value]))
+            ->assertCreated()
+            ->assertJsonPath('data.status', PaymentStatus::Pending->value);
+
+        $this->assertDatabaseHas('lease_payments', ['lease_id' => $lease->id, 'status' => PaymentStatus::Pending->value, 'paid_at' => null]);
+    }
+
+    public function test_tenant_cannot_send_paid_at(): void
+    {
+        [$tenantUser, $lease] = $this->leaseWithTenantAccount();
+        Sanctum::actingAs($tenantUser);
+
+        $this->postJson('/api/payments', $this->leaseBody($lease, ['paid_at' => now()->toDateString()]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['paid_at']);
+
+        $this->assertDatabaseCount('lease_payments', 0);
+    }
+
+    public function test_customer_without_status_gets_a_pending_booking_payment(): void
+    {
+        [$customerUser, $booking] = $this->bookingWithCustomerAccount();
+        Sanctum::actingAs($customerUser);
+
+        $this->postJson('/api/payments', $this->bookingBody($booking))
+            ->assertCreated()
+            ->assertJsonPath('data.status', PaymentStatus::Pending->value);
+
+        $this->assertDatabaseHas('booking_payments', ['booking_id' => $booking->id, 'status' => PaymentStatus::Pending->value, 'paid_at' => null]);
+    }
+
+    public function test_customer_declaring_paid_gets_a_pending_booking_payment(): void
+    {
+        [$customerUser, $booking] = $this->bookingWithCustomerAccount();
+        Sanctum::actingAs($customerUser);
+
+        $this->postJson('/api/payments', $this->bookingBody($booking, ['status' => PaymentStatus::Paid->value]))
+            ->assertCreated()
+            ->assertJsonPath('data.status', PaymentStatus::Pending->value);
+    }
+
+    public function test_customer_cannot_send_paid_at(): void
+    {
+        [$customerUser, $booking] = $this->bookingWithCustomerAccount();
+        Sanctum::actingAs($customerUser);
+
+        $this->postJson('/api/payments', $this->bookingBody($booking, ['paid_at' => now()->toDateString()]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['paid_at']);
+
+        $this->assertDatabaseCount('booking_payments', 0);
+    }
+
+    public function test_landlord_still_records_a_paid_lease_payment(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->create(['landlord_id' => $landlord->id]);
+        Sanctum::actingAs($landlord);
+
+        $this->postJson('/api/payments', $this->leaseBody($lease, [
+            'status' => PaymentStatus::Paid->value,
+            'paid_at' => now()->toDateString(),
+        ]))->assertCreated()
+            ->assertJsonPath('data.status', PaymentStatus::Paid->value);
     }
 }

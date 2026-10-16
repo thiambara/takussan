@@ -66,8 +66,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
-  // TCK-633 (lot B) — les pages `/admin/*` accessibles, pour l'entrée d'administration de la barre,
-  // du menu utilisateur, des raccourcis et des états vides. L'agence est relue par la promesse mise
+  // TCK-633 (lot B) — les pages d'administration accessibles, pour la section d'agence de la barre
+  // (TCK-649), le menu utilisateur, les raccourcis et les états vides. L'agence est relue par la promesse mise
   // en cache ci-dessus ; les capacités coûtent une requête, pour un `agency_admin` seulement.
   const acces = await accesAdmin(user);
 

@@ -33,8 +33,8 @@ import { isAgencyStaffRow } from './isAgencyStaffRow';
  * une valeur inconnue du dictionnaire retombe sur la valeur brute de l'API,
  * exactement comme avant.
  *
- * TCK-373 — c'était une table de CLASSES (`bg-emerald-500/10`, `bg-stone-500/10`,
- * `bg-red-500/10`), l'une des quatre recettes de « succès » de la console. Le ton dit
+ * TCK-373 — c'était une table de CLASSES (fonds émeraude, pierre et rouge de la palette
+ * Tailwind brute, à 10 %), l'une des quatre recettes de « succès » de la console. Le ton dit
  * désormais ce que le statut veut dire ; la couleur se décide dans `StatusBadge`.
  * Cette table garde son second rôle, qui n'est pas décoratif : une clé absente
  * signale un statut que le dictionnaire ne connaît pas, et le libellé retombe alors
