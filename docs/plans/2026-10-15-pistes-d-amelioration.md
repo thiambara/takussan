@@ -456,7 +456,7 @@ Ce qui tient (lu) :
 
 ### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
 - Réf : P03.03
-- Statut : validé — type crm exclu hors de l'agence du personnel, en index et en show
+- Statut : fait · TCK-666
 - Gravité : 🔴 défaut avéré, impact modéré (des libellés, pas des fiches)
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:18-45,67-77`, `takussan-api/app/Http/Controllers/Api/CustomerTagController.php:60-66`, `takussan-api/app/Models/Tag.php:21-23`
 - Constat :
@@ -467,6 +467,7 @@ Ce qui tient (lu) :
   - Aucun test entre deux agences (lu).
 - Piste : exclure le type `crm` hors de l'agence du personnel, dans `index` comme dans `show`, et un test entre deux agences.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `TagController.php:17-46,62-73` (le périmètre d'agence n'agit que si `filter[type]=crm` est envoyé et `agency_id` non nul ; `show` ne regarde que le statut) et `Tag.php:21-23` (statut `approved` par défaut) ; test temporaire, retiré depuis, étiquette CRM créée comme `CustomerTagController` la crée et posée sur un client de l'agence A, compte `customer` sans agence → `GET /api/tags` la liste (200) et `GET /api/tags/{id}` la rend (200). Non re-mesuré : l'angle mort de `check-agency-scope-clause.mjs`. Classement : V2, exclure le type `crm` hors de l'agence du personnel restreint une lecture que des appelants légitimes (autocomplétion des étiquettes) utilisent aujourd'hui.
+- Mesure (2026-10-16, 1efd784a, implementeur) : `TagCrmAgencyScopeTest` avant correctif, agences A et B chacune avec un client étiqueté CRM → 3 rouges sur 4 : un agent de A, un compte sans agence et un bailleur de A listent l'étiquette de B (le bailleur lit aussi celle de A) ; la console passait déjà. Correctif : scope `Tag::sansCrmHorsDeSonAgence()` (personnel par `staffAgencyId()`) en index et en show (404). Ablation : contrôleur d'origine → 3 rouges ; garde de `show` seule retirée → 3 rouges ; `agency_id` au lieu de `staffAgencyId()` → le cas du bailleur rouge ; remis → 4 verts.
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
 - Réf : P03.04
