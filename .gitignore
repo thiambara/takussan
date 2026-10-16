@@ -35,3 +35,7 @@ ds-bundle/
 .design-sync/entry/types/
 .design-sync/entry/dist/
 .design-sync/entry/messages.generated.json
+
+# Index du backlog — GÉNÉRÉ à la demande par `node docs/backlog/gen-index.mjs`, jamais versionné
+# (ADR-0067) : versionné, il entrait en conflit entre deux PR qui ajoutent chacune un ticket.
+docs/backlog/INDEX.md

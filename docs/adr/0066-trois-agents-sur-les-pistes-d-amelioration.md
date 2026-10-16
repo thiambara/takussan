@@ -152,7 +152,10 @@ d'implémenter.
    ancienne à la plus récente :
    - une PR verte est fusionnée seulement si le porteur l'a permis (§ « Décisions du porteur »,
      Q1). C'est d'ordinaire le fusionneur qui l'a déjà fusionnée (Q1 ci-dessous) ;
-   - une PR en conflit sur le seul `docs/backlog/INDEX.md` est réconciliée **sans modèle** :
+   - une PR verte n'est fusionnée qu'après un **essai de fusion** sur la base courante, gardes
+     comprises ([ADR-0067](0067-l-index-du-backlog-n-est-plus-versionne.md)) ;
+   - une PR en conflit sur le seul `docs/backlog/INDEX.md` est réconciliée **sans modèle** (depuis
+     ADR-0067, l'index n'étant plus versionné, en le retirant) :
      `pre-dev` y est fusionnée, l'index régénéré, l'arbre vérifié comme avant toute publication,
      puis poussé. Deux PR de l'implémenteur ouvertes ensemble ajoutent chacune un ticket, et le
      compte « Done — N » de l'index change dans les deux : la seconde à fusionner entre toujours en
@@ -228,7 +231,10 @@ borne, même par une PR fusionnée.
   - il ne fusionne que les PR ouvertes par le script : une branche `agents/*` étiquetée
     `agent:*`, ou la PR `dev → pre-dev` étiquetée `agents:synchro`, et jamais avec
     `--delete-branch` pour cette dernière ;
-  - une PR du porteur vers `pre-dev` n'est jamais touchée.
+  - une PR du porteur vers `pre-dev` n'est jamais touchée ;
+  - depuis le 2026-10-16, chaque fusion est d'abord **essayée** sur la base courante, gardes
+    comprises, et refusée si l'arbre fusionné rougit
+    ([ADR-0067](0067-l-index-du-backlog-n-est-plus-versionne.md)).
 
   Ajouté le 2026-10-15, après le premier cycle : sans lui, une PR verte attendait le passage
   suivant de son propre agent (jusqu'à 3 h pour l'explorateur). L'agent restait bloqué pendant ce

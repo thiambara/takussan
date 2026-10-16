@@ -437,8 +437,10 @@ export type GenerateSchedulePayload = {
 };
 
 export function useGenerateSchedule(leaseId: number) {
-  return useApiMutation<ApiResponse<{ generated: number }>, GenerateSchedulePayload>(
-    { path: cheminApi`/api/leases/${leaseId}/generate-schedule`, method: 'POST' },
+  // La route est `POST api/leases/{lease}/payments/generate-schedule`, et elle
+  // rend `payments_created` (`LeaseController::generateSchedule`) — TCK-682.
+  return useApiMutation<ApiResponse<{ payments_created: number }>, GenerateSchedulePayload>(
+    { path: cheminApi`/api/leases/${leaseId}/payments/generate-schedule`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
