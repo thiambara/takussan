@@ -440,7 +440,7 @@ Ce qui tient (lu) :
 
 ### `/api/users?include=…Profiles` fait sortir les profils des autres agences
 - Réf : P03.02
-- Statut : validé — includes et filter[role] bornés à l'agence active ; include=platformProfile refusé hors console
+- Statut : fait · TCK-665
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:35-49`, `takussan-api/app/Models/User.php:156`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:277-280`
 - Constat :
@@ -452,6 +452,7 @@ Ce qui tient (lu) :
   - `UserAdminAgencyScopeTest` n'a aucun cas avec `include` (lu).
 - Piste : des `AllowedInclude::custom` contraints à l'agence active, idem pour `filter[role]`, et un test avec une personne présente dans deux agences.
 - Mesure (2026-10-15, c8f7f127, mesureur) : test temporaire, retiré depuis, admin de l'agence A, personne bailleur dans A et agent dans B (`license_number` `LIC-B-42`, `commission_rate` 7,5) → `GET /api/users?include=agentProfiles` rend 200 avec le profil d'agent de B entier (`agency_id` de B, licence, commission, `metadata`) ; `GET /api/users?filter[role]=agent` rend cette personne. Lu `User.php:156` (`$requestLoadable`) et `UserAdminController.php:35-50`. Non re-mesuré : `include=platformProfile`, qui reste à vérifier. Classement : V2 et V3, contraindre les includes et le filtre à l'agence active change ce qu'une autorisation livre et touche des données personnelles d'une agence tierce.
+- Mesure (2026-10-16, b775f8f6, implementeur) : reproduit avant correctif par `UserAdminIncludeScopeTest`, admin de A, personne bailleur dans A, agent (`LIC-B-42`) et admin dans B → profils de B livrés par `include=…Profiles`, personne retenue par `filter[role]=agent` et par `filter[role]=service_provider` (collaboration avec B seulement), `include=platformProfile` en 200 : 4 rouges sur 6. Correctif : `User::buildAgencyTeamQuery()` hors super-admin (includes de profils bornés à l'agence active par `AgencyScopedRelationship`, sparse fieldsets gardés ; `platformProfile` refusé en 400 ; `filter[role]` jugé dans l'agence, `super_admin` vide), et la console d'équipe ne demande plus `platformProfile`. 6 verts ; ablation (contrôleur remis sur `buildQuery()`) → les mêmes 4 rouges, remis → vert.
 
 ### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
 - Réf : P03.03
