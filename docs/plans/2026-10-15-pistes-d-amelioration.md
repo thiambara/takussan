@@ -2706,7 +2706,7 @@ n'est pas repris ici.*
 
 ### `include=user` rend la ligne `users` entière (38 colonnes, dont `google_id`, `metadata` et le second numéro) sur quatre listes, à un simple agent pour deux d'entre elles
 - Réf : P21.01
-- Statut : validé — projection fixe du User inclus : id, noms, e-mail, téléphone, avatar
+- Statut : fait · TCK-693
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Resources/OwnerProfileResource.php:36`, `takussan-api/app/Http/Controllers/Api/Agency/TeamController.php:61`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Models/User.php:77-79`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:75`, `takussan-web/src/lib/queries/service-providers.ts:115`
 - Constat :
@@ -2721,6 +2721,7 @@ n'est pas repris ici.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : faire passer le `User` inclus par une projection fixe (un `UserResource` « public » : id, noms, e-mail, téléphone, avatar) dans ces quatre réponses, au lieu de `relationsToArray()` et du modèle brut ; ou, au minimum, poser une projection par défaut quand `fields[users]` est absent. Test : pour chaque route, `include=user` sans `fields[users]` ne rend ni `google_id`, ni `metadata`, ni `secondary_phone` ; ablation sur la projection.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : code relu (`OwnerProfileResource.php:36` `relationsToArray()`, `TeamController.php:61` `$paginator->items()`, `ServiceProviderProfileController.php:46-49`, `TenantOnboardingPendingController.php:70` paginateur brut, `User::$hidden` l. 77-79 à quatre colonnes), puis test temporaire retiré : `User` bailleur portant `google_id`, `secondary_phone` et `metadata`, `GET /api/owners?include=user` par un agent → 200 et 38 clés dont ces trois, `GET /api/agencies/{a}/team?include=user` par un admin → 200, 38 clés, `google_id` présent. Le constat tient tel qu'écrit. Classement : V3, le correctif décide quelles données personnelles sortent d'un `User` inclus (choix de la projection « publique »).
+- Mesure (2026-10-16, 92d8ec12, implementeur) : reproduit avant correctif par `IncludedUserProjectionTest` (agent sur `/api/owners`, `…/service-providers` et `…/tenant-onboarding-pending`, admin sur `…/team`, `include=user` sans `fields[users]`) → 4 rouges, 38 clés dont `google_id` et `secondary_phone*` ; `IncludedUserResource` (id, `first_name`, `last_name`, `full_name`, `email`, `phone`, `avatar_url`) branchée sur les quatre réponses → 5 verts ; ablation (les cinq fichiers de `app/` remis à l'origine) → 5 rouges, correctif remis → 5 verts.
 
 ### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
 - Réf : P21.02
