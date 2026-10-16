@@ -3,6 +3,7 @@
 @php
     // Expected variables:
     //   $lease, $payment, $tenant, $property, $agency
+    //   $wording (TCK-725) : title, amount_line, attestation — selon le type d'échéance
     //   $generated_at
     // TCK-084 — `@currency` handles locale + symbol; the payment row carries
     // the locked currency, with agency-fallback for legacy data.
@@ -16,10 +17,15 @@
     $paymentDate = $payment->paid_at;
     $lateFee = (float) ($payment->late_fee_amount ?? 0);
     $lateFeePaid = $lateFee > 0 && $payment->late_fee_paid_at !== null;
+    $wording ??= [
+        'title' => 'Quittance de loyer',
+        'amount_line' => 'Loyer acquitté',
+        'attestation' => 'Cette quittance atteste du règlement du loyer pour la période indiquée.',
+    ];
 @endphp
 
 @section('content')
-    <h1>Quittance de loyer</h1>
+    <h1>{{ $wording['title'] }}</h1>
     <p class="muted">Référence : {{ $payment->reference_number ?? 'N/A' }}</p>
 
     <h2>Bien concerné</h2>
@@ -57,7 +63,7 @@
         </tr>
         @endif
         <tr>
-            <th>Loyer acquitté</th>
+            <th>{{ $wording['amount_line'] }}</th>
             <td class="amount"><strong>@currency($payment->amount, $currency)</strong></td>
         </tr>
         {{-- TCK-593 — la pénalité sur sa propre ligne ; elle ne s'additionne au loyer que réglée. --}}
@@ -97,7 +103,7 @@
     </table>
 
     <p class="muted">
-        Cette quittance atteste du règlement du loyer pour la période indiquée.
+        {{ $wording['attestation'] }}
         Elle ne vaut pas lettre de décharge pour les autres sommes dues au titre du bail.
     </p>
 @endsection
