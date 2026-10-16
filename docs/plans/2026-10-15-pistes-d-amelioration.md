@@ -228,7 +228,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Des réglages d'index périmés font échouer la liste par défaut
 - Réf : P01.07
-- Statut : validé — release.sh échoue si scout:sync-index-settings échoue ; pas de tri dégradé
+- Statut : fait · TCK-710
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/scout.php:217`, `takussan-api/app/Services/Search/PropertySearchService.php:615`, `takussan-api/docker/release.sh:27-28`
 - Constat :
@@ -236,6 +236,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - `release.sh` ne fait qu'avertir quand la synchronisation des réglages échoue.
 - Piste : faire échouer le déploiement sur une synchronisation ratée, ou dégrader le tri au lieu de lever.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `config/scout.php:217` (`ranked_at` déclaré triable), `PropertySearchService.php:613-615` (`ranked_at:desc` par défaut sans mot), `docker/release.sh:26-28` (un échec de `scout:sync-index-settings` n'écrit qu'un avertissement) ; `GET` en lecture sur l'index local → attributs triables `[_geo, created_at, featured, price, published_at]`, et `search?q=&sort=ranked_at:desc` → `invalid_search_sort` ; le document 1 n'a ni `ranked_at` ni `region`. Classement : V5, le défaut tient sur l'index local, et l'issue principale de la piste (faire échouer le déploiement) modifie `release.sh` ; l'autre (dégrader le tri au lieu de lever) est un choix sur ce que la liste montre quand l'index est périmé.
+- Mesure (2026-10-16, 201a6842, implementeur) : `scripts/test-release-reindex.sh` augmenté d'un passage où `scout:sync-index-settings` échoue → avant correctif, `release.sh` sortait en 0 et lançait 2 `scout:import` ; après, sortie 1 et aucune importation, et `SCOUT_DRIVER=collection` sort toujours en 0. Ablation : `release.sh` de `pre-dev` remis → les deux vérifications rouges ; correctif remis → 13 vérifications vertes. Tri de `PropertySearchService` inchangé.
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
