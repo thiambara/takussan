@@ -2331,7 +2331,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Une adresse envoyée avec `city: null` rend 500 sur les trois voies d'écriture
 - Réf : P17.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-703
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:83`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:75`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:39`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:17`
 - Constat :
@@ -2340,6 +2340,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le front n'y arrive pas : `city` est requis par `lib/schemas/property.ts:163` (lu). Le défaut touche les clients directs de l'API.
 - Piste : `address.city` en `required_with:address` (ou `required` sur l'upsert), pour un 422 au lieu d'un 500. Un test par voie, qui attend 422.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `StorePropertyRequest.php:83` et `UpdatePropertyRequest.php:75` (`address.city` `nullable`), `UpsertPropertyAddressRequest.php:39` (`city` `nullable`), migration `2026_04_17_160003…:17` (`string('city')->default('Dakar')`, donc NOT NULL) ; aucun commit ni ticket ne les a touchées depuis TCK-633 ; test temporaire, retiré depuis (charge 3,06 / 2,50 / 2,38 sur 8 cœurs) → `POST /api/properties` avec `address.city: null`, `PUT /api/properties/{id}/address` avec `city: null` et `PATCH /api/properties/{id}` avec `address.city: null` rendent tous trois **500** `SQLSTATE[23502] null value in column "city"` ; le front exige la ville (`lib/schemas/property.ts:163`). Classement : A1, le contrat est écrit par la colonne NOT NULL et par le schéma du front, et retirer `nullable` des trois règles (en gardant `sometimes` pour le PATCH et l'upsert) fait d'un `null` explicite un 422 sans rien changer à un appel qui omet la clé.
+- Mesure (2026-10-16, 7f5eaa8d, implementeur) : reproduit par `tests/Feature/Geo/AdresseSansVilleTest.php` avant correctif (charge 1,60 sur 8 cœurs) → les trois voies rendaient 500 sur `city: null`, et `POST` avec `geo_city_id` et `city: null` rendait 201 (la canonisation réécrit la ville) ; `nullable` remplacé par `filled` dans les trois FormRequests → 7 verts (null refusé en 422, base intacte ; ville omise : défaut `Dakar` ou ville conservée) ; ablation, les trois règles remises → 4 rouges ; `php bin/impacted-tests.php --run` → 765 verts. Vu au passage, non traité : `country` a la même forme (`NOT NULL DEFAULT 'SN'`, règles `nullable`).
 
 ### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
 - Réf : P17.02
