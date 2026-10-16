@@ -95,6 +95,8 @@ class EvaluateOperationalAlertsTest extends TestCase
         foreach (RecordQueueHeartbeat::QUEUES as $file) {
             (new RecordQueueHeartbeat($file))->handle();
         }
+        // TCK-680 — un planificateur sans exécution récente rend la santé `failed`, pas `degraded`.
+        DB::table('scheduled_task_runs')->insert(['task' => 'health:probe', 'last_run_at' => now(), 'status' => 'finished', 'created_at' => now(), 'updated_at' => now()]);
         $this->assertSame('degraded', app(HealthcheckService::class)->snapshot()['status']);
 
         $this->evaluer();
