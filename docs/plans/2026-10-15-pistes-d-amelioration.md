@@ -101,7 +101,7 @@ voie d'écriture (angle 13, puis 47).
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | fait |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | fait |
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | fait |
-| 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
+| 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | fait |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
@@ -3401,3 +3401,60 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
 - Mesure (2026-10-16, af610be5, mesureur) : `php artisan route:list --path=api/enums -v` → groupe `api` et `SetCacheHeaders:public;max_age=300;etag` seuls, ni `auth` ni limiteur ; relu `BusinessEnumService.php:50` (`usage_count`) et `:213-231` (`usageCounts`, `whereIn` sur toute la table, sans filtre de visibilité) ; test temporaire retiré, un `villa` publié et deux passés en `draft`, `GET /api/enums/property_type` anonyme → 200, `max-age=300, public`, `usage_count: 3` pour `villa` contre 1 bien `public()`, même md5 en `fr` et `en` ; `grep -rn enums takussan-web/src` → seuls les chemins `/api/super-admin/enums/…` et des libellés, aucun appelant de la route publique hors `BusinessEnumTest.php:27` ; le constat tient. Classement : V7, la piste propose deux correctifs (retirer `usage_count` de la lecture publique, ou retirer la route) et renvoie à l'angle 66 sur qui doit lire ces valeurs, ce qui est un choix de produit.
+
+## Angle 29 — Langue des destinataires sans compte
+
+*Exploré le 2026-10-16 sur `pre-dev` 39b5fd85, par l'explorateur, seul (aucun sous-agent). Relu :
+`InvitationService` (`send`, `deliver`, `remindPending`, `preferredLocale`), les quatre services
+d'invitation par rôle et la cooptation super-admin, `InvitationMailable`, `ContactSansCompte` et ses
+sept appelants, `NotificationService::send()` pour un contact, `PropertyVisitController::store`,
+`ContactLeadService`, `RecordPublicSearchAlert`, `Application::setLocale()` du framework, et côté
+front `apiRequest` (`api.ts:620-665`) et les actions publiques de `actions/property.ts`. Ce qui tient
+sans défaut, et n'a donc pas d'entrée : la demande de contact et la demande de visite publiques
+enregistrent la langue de la page (`apiRequest` la transmet en `Accept-Language`, repli serveur
+`getLocale()`), et leurs envois la relisent ; l'abonné aux alertes publiques porte sa `locale`
+validée (`AlertSubscriber implements HasLocalePreference`) ; l'avis à l'ancien numéro prend la
+langue du compte. Mesures par test temporaire, retiré, sur la base de test ; charge 1,72 sur
+8 cœurs. La valeur d'`APP_LOCALE` en préproduction n'a pas été lue (hors du poste) : `.env.example`
+déclare `fr`, `config/app.php:83` replie sur `en`.*
+
+### Une invitation sans compte part dans la langue de l'invitant, et sa relance J+2 dans celle du processus : deux langues pour la même invitation
+- Réf : P29.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Invitation/InvitationService.php:946-966`, `:517-538`, `:1000-1012`, `takussan-api/app/Mail/InvitationMailable.php:19-22`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:17-18`, `:75-78`
+- Constat :
+  - `preferredLocale()` rend `$user?->preferred_language`, sinon `metadata.locale`, sinon `config('app.locale')` (lu, l. 1009-1011). Le docblock présente `metadata.locale` comme un « caller hint », et `InvitationMailable` dit que la langue est « set explicitly by the caller » (lu).
+  - Aucun appelant n'écrit `metadata.locale` : `OwnerInvitationService.php:103-107`, `AgentInvitationService.php:106-109`, `ServiceProviderInvitationService.php:142-158` et `SuperAdminCooptationService.php:73-81` passent prénom, nom et drapeaux seulement (lu ; `grep -rn "'locale'" app` ne rend aucune écriture vers une invitation).
+  - Pour un destinataire sans compte, la langue retombe donc sur `config('app.locale')`, que `Application::setLocale()` réécrit à chaque requête (lu, `vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1603-1611`). Le premier envoi suit la langue négociée de l'**invitant** ; la relance, jouée par `invitations:remind` hors requête, suit la langue du processus.
+  - Mesuré : test temporaire, `POST /api/agencies/{id}/owners/invite` sous `Accept-Language: en` puis `wo` → `InvitationMailable` envoyés en `locale=en` et `locale=wo`, `metadata` = `{first_name, last_name, owner_type}` ; `remindPending()` joué ensuite sous la langue de processus `fr` → les deux relances en `locale=fr`. Même invitation par numéro seul (`auth.phone_login.enabled`) sous `en` → `CodedNotification` routée vers `sms`/`whatsapp` en `locale=en`.
+  - Ce SMS est adressé à un `ContactSansCompte`, dont le docblock pose la règle « jamais la langue du processus (`app()->getLocale()`), qui est celle de l'acteur ou du worker » (lu, l. 17-18 ; même règle dans ADR-0032 § 3, l. 109-110). `fromInvitation()` reçoit cette langue telle quelle (l. 72-79).
+  - Aucun test ne fixe la langue d'une invitation (mesuré : `grep -rln locale tests | xargs grep -li invitation` → aucun test d'invitation).
+  - Accessoire : `CreateInvitationRequest.php:75` accepte `metadata` libre, donc un `metadata.locale` non validé passerait tel quel à `Mail::locale()` (lu, à vérifier).
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : écrire la langue résolue dans l'invitation à sa création (`metadata.locale` ou colonne), et la relire à l'envoi comme à la relance, pour qu'une invitation ait une seule langue. Le choix de cette langue (celle de l'invitant, `fr` explicite comme `ContactSansCompte::DEFAULT_LOCALE`, ou un champ du formulaire) reste à trancher. Garder par un test : invitation créée sous `en`, relance jouée sous `fr` → même langue des deux côtés.
+
+### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
+- Réf : P29.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
+- Constat :
+  - Sur la route de l'agent (`POST /api/property-visits`), la visite d'un client sans compte enregistre `'locale' => $visitor?->preferredLocale() ?? app()->getLocale()`, soit la langue négociée de l'agent (lu, l. 190).
+  - `fromVisit()` relit cette `locale` pour tout envoi au visiteur (lu, l. 65) : confirmation, replanification, annulation et rappels de visite partent dans la langue de l'agent.
+  - Le même client, rattaché à un bail, est servi par `fromCustomer()`, qui pose `fr` explicitement à défaut de compte (lu, l. 44). Un client sans compte reçoit donc ses visites dans la langue de l'agent et ses relances de loyer en français.
+  - TCK-590 (l. 226-227) écrit « celle enregistrée sur la visite / le lead pour un anonyme » : pour une demande publique, c'est la langue de la page du visiteur ; pour une visite saisie par l'agent, ce n'est celle du visiteur que par hasard (lu).
+  - Établi comment : lu. L'envoi effectif dans la langue de l'agent n'a pas été rejoué (à vérifier).
+- Piste : sur la route de l'agent, enregistrer `ContactSansCompte::DEFAULT_LOCALE` à défaut de compte, comme `fromCustomer()`, ou la langue de la fiche client si P29.03 en crée une. Garder par un test : visite créée sous `Accept-Language: en` pour un client sans compte → `locale` = `fr`.
+
+### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
+- Réf : P29.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/Customer.php:55-64`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `docs/adr/0032-l-api-n-ecrit-plus-de-prose.md:109-111`
+- Constat :
+  - `customers` n'a aucune colonne de langue (mesuré : `grep -n "locale\|lang"` sur les migrations qui créent ou modifient `customers` → rien ; `$fillable` sans langue, lu l. 55-64).
+  - `fromCustomer()` rend la langue du compte lié, sinon `fr` (lu, l. 44). C'est un choix écrit par ADR-0032 § 3, et TCK-588:114 note que « `Customer` ne porte ni langue ni consentement » (lu) : ce n'est pas un défaut.
+  - Effet : un locataire anglophone ou wolophone saisi par l'agence reçoit avis de retard, quittances par SMS et rappels en français, sans que l'agence puisse rien y changer (déduit des appelants `SendLeasePaymentReminders.php:174` et `SendRentReceiptAfterOnlinePayment.php:44`).
+  - Établi comment : lu.
+- Piste : une langue facultative sur la fiche client (`in:fr,en,wo`), saisie par l'agence et relue par `fromCustomer()` avant le repli `fr`. Elle servirait aussi P29.02. Migration et champ de formulaire neufs : choix de produit.
