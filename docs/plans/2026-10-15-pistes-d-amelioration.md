@@ -3311,7 +3311,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Sans `SMS_WEBHOOK_URL_TOKEN`, LAfricaMobile échoue sur tout SMS rattaché à une notification
 - Réf : P27.01
-- Statut : validé — sans la clé, envoyer sans accusé de réception, avec un `Log::warning` ; pas de refus au démarrage ; reste : poser `SMS_WEBHOOK_URL_TOKEN` dans Dokploy (porteur)
+- Statut : fait · TCK-727 — reste : poser `SMS_WEBHOOK_URL_TOKEN` dans Dokploy (porteur)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:75-76,119-131`, `takussan-api/config/sms.php:174`, `takussan-api/routes/api/sms-webhooks.php:31-33`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-173`
 - Constat :
@@ -3325,6 +3325,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré.
 - Piste : envoyer sans `ret_url` quand le jeton est vide, avec un `Log::warning` (l'accusé de réception est perdu, pas le SMS) ; ou faire échouer bruyamment au démarrage. Un test du routeur, jeton vide et `notification_id` posé, garde le retour.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `LAfricaMobileSmsDriver.php:75-76,119-131` (`ret_url` construit hors du `try`), `config/sms.php:174` (défaut `''`), `sms-webhooks.php:31` (segment `{token}` exigé) ; `git log b57126b7..HEAD` sur ces fichiers → vide ; test temporaire (retiré), jeton vide, `notification_id` posé, LAM et Mtarget actifs → tentative 1 `lafricamobile` `failed` / `driver_exception_UrlGenerationException`, tentative 2 `mtarget` `sent`, 0 requête vers LAM. Le `notification_id` vient de `SmsChannel.php:84` (`resolveAppNotificationId`), pas de `CodedNotification.php`, qui ne le cite plus. `docs/integrations/sms.md:198` fait de la clé un prérequis de déploiement. Classement : V5, le défaut naît d'une variable d'environnement absente, et la piste laisse le choix entre perdre l'accusé et refuser de démarrer.
+- Mesure (2026-10-16, 19732e24, implementeur) : test neuf `SmsRouterDriverTest::test_lam_sends_without_return_url_when_webhook_token_is_missing` (jeton vide, `notification_id` posé, LAM seule) rouge avant correctif : `lafricamobile` `failed` / `driver_exception_UrlGenerationException` → `LAfricaMobileSmsDriver` envoie sans `ret_url` et journalise un `Log::warning` ; 17 verts, ablation : le test rougit seul (1 échec sur 17), correctif remis, vert. Le versant jeton posé (`ret_url` présent) est gardé par un second test.
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
