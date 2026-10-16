@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Export\ExportDataService;
 use Illuminate\Validation\Rule;
 
 /**
@@ -32,7 +33,8 @@ class ShowExportRequest extends BaseFormRequest
             'format' => ['sometimes', Rule::in(['csv', 'xlsx', 'excel', 'pdf'])],
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:50000'],
+            // TCK-713 — le plafond dépend du format : 2 000 lignes en PDF, 10 000 sinon.
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.ExportDataService::maxRows($this->input('format'))],
         ];
     }
 }
