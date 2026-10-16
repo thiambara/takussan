@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { X, RotateCcw, Search, Star, Loader2, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { iconeDuType } from '@/components/home/icones-de-categorie';
 import { Input } from '@/components/ui/input';
@@ -341,6 +342,7 @@ export function FilterSidebar({
   geolocalisation,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
+  const fmt = useFormatteurs();
   const tTypes = useTranslations('property.types');
   const tPeriods = useTranslations('property.rentPeriods');
   const tTitleTypes = useTranslations('property.titleTypes');
@@ -448,8 +450,10 @@ export function FilterSidebar({
     const parts: string[] = [];
     const min = nombreVersFiltre(priceMinDraft);
     const max = nombreVersFiltre(priceMaxDraft);
-    if (min !== undefined) parts.push(`≥ ${min.toLocaleString('fr-SN')} FCFA`);
-    if (max !== undefined) parts.push(`≤ ${max.toLocaleString('fr-SN')} FCFA`);
+    // P06.05 / TCK-721 — le montant suit la langue de l'app (il était figé en `'fr-SN'`), et
+    // s'écrit comme les puces de la barre (`F CFA`, TCK-552) plutôt qu'avec un « FCFA » de gabarit.
+    if (min !== undefined) parts.push(`≥ ${fmt.montant(min)}`);
+    if (max !== undefined) parts.push(`≤ ${fmt.montant(max)}`);
     return parts.join(' · ');
   })();
 

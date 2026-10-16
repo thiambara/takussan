@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,7 @@ const SESSIONS_KEY = ['security', 'sessions'] as const;
 
 export function ActiveSessionsSection() {
   const t = useTranslations('profile.security.sessions');
+  const fmt = useFormatteurs();
   const tCommon = useTranslations('common.status');
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
@@ -100,7 +102,7 @@ export function ActiveSessionsSection() {
                 <p className="text-xs text-muted-foreground">
                   {t('lastActivity')}{' '}
                   {session.last_used_at
-                    ? new Date(session.last_used_at).toLocaleString('fr-FR')
+                    ? fmt.dateTime(session.last_used_at)
                     : t('unknown')}
                 </p>
                 {session.ip ? (

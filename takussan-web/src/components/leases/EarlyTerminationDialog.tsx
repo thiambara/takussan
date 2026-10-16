@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ export function EarlyTerminationDialog({
   onSubmitted,
 }: EarlyTerminationDialogProps) {
   const t = useTranslations('lease.early_termination');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const noticeDays = lease.notice_period_days ?? DEFAULT_NOTICE_DAYS;
   const minDate = useMemo(() => todayPlusDays(noticeDays), [noticeDays]);
@@ -165,7 +167,7 @@ export function EarlyTerminationDialog({
                 {estimate.months > 0
                   ? t('estimate_breakdown', {
                       months: estimate.months,
-                      amount: estimate.amount.toLocaleString(),
+                      amount: fmt.nombre(estimate.amount),
                       currency: lease.currency,
                     })
                   : t('estimate_zero')}

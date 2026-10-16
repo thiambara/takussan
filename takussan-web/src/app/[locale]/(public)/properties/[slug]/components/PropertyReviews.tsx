@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Star, MessageSquareReply, Pencil } from 'lucide-react';
 import { usePropertyReviews } from '@/hooks/usePropertyReviews';
 import { useAuth } from '@/context/AuthContext';
@@ -28,13 +29,11 @@ interface PropertyReviewsProps {
   agencyId?: number | null;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+/**
+ * P06.05 / TCK-721 — la date d'un avis suit la langue de la page. Elle était figée en `'fr-FR'` :
+ * sous `/en`, la fiche publique affichait « 12 oct. 2026 ».
+ */
+const DATE_D_AVIS = { day: 'numeric', month: 'short', year: 'numeric' } as const;
 
 interface ReviewItemProps {
   review: PropertyReview;
@@ -46,6 +45,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
   const t = useTranslations('property.reviews');
   // Libellé partagé avec la fiche publique d'agence et d'agent (`ReviewsSection`).
   const tNote = useTranslations('publicProfile.reviews');
+  const fmt = useFormatteurs();
   const [editing, setEditing] = useState(false);
   const hasReply = Boolean(review.reply_content);
 
@@ -70,7 +70,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
             <p className="font-medium text-foreground">{review.author.name}</p>
-            <time className="text-xs text-muted-foreground">{formatDate(review.created_at)}</time>
+            <time className="text-xs text-muted-foreground">{fmt.date(review.created_at, DATE_D_AVIS)}</time>
           </div>
           <div
             role="img"
@@ -102,7 +102,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
                   {t('agentReply')}
                   {review.replied_at && (
                     <span className="ml-2 text-muted-foreground font-normal">
-                      · {formatDate(review.replied_at)}
+                      · {fmt.date(review.replied_at, DATE_D_AVIS)}
                     </span>
                   )}
                 </p>
