@@ -3493,7 +3493,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Renommer un équipement du catalogue ne change rien à l'écran, et le déploiement suivant recrée l'ancien nom sous un slug sans traduction
 - Réf : P30.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser le renommage d'un équipement du catalogue, ou faire suivre le catalogue
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:59-78`, `takussan-api/app/Http/Controllers/Api/TagController.php:77-86`, `takussan-api/app/Services/Tags/TagCatalog.php:68-81`, `takussan-web/src/lib/libelle-equipement.ts:31-34`
 - Constat :
@@ -3503,10 +3503,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Mesuré (test temporaire) : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` `{name: "Piscine privée"}` → 200, slug `piscine` ; `synchroniser()` rejoué → deux lignes approuvées, `Piscine privée|piscine` et `Piscine|piscine-2`. Effet à l'écran (déduit de `libelleEquipement`) : en français, deux options « Piscine » dans le formulaire et la recherche ; en anglais, « Swimming pool » et « Piscine ».
   - À vérifier : une recherche sauvegardée `tags=Piscine` (le filtre porte des noms, `PropertySearchService.php:552-559`) ne trouverait plus les biens du tag renommé, réindexés sous « Piscine privée » : l'alerte se tairait.
 - Piste : décider ce qu'est un renommage d'équipement du catalogue. Soit le refuser (409, comme un nom pris) et ne renommer que les propositions ; soit faire suivre le catalogue (le nom versionné se compare aussi au slug, pour ne pas recréer). Garder par un test : renommer puis rejouer `synchroniser()` → une seule ligne pour ce slug.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : aucun commit depuis 11df6a87 sur `app/Services/Tags`, `TagController.php` ni `libelle-equipement.ts` (`git log`), aucun ticket (`grep -rln` dans `docs/backlog/tickets`) ; relu `TagModeration::renommer()` (n'écrit que `name`), `TagCatalog::assurer()` (cherche par nom, `slugLibre()` à la création), `libelleEquipement()` (traduit par slug) ; test temporaire retiré (charge 1,58 sur 8 cœurs) : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` → 200 slug `piscine`, `PUT /api/tags/{id}` → 200 slug `piscine`, `synchroniser()` rejoué → `Piscine chauffée|piscine|approved ; Piscine|piscine-2|approved` ; le constat tient, l'alerte de recherche sauvegardée n'a pas été rejouée. Classement : V7, la piste laisse le choix entre refuser le renommage d'un équipement du catalogue et faire suivre le catalogue.
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser la fusion d'une source du catalogue, ou la tracer pour la synchronisation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
 - Constat :
@@ -3515,10 +3516,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Mesuré (test temporaire) : `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200 ; `synchroniser()` rejoué → `Ventilateurs` existe de nouveau, approuvé, sous un nouvel identifiant et sans bien. La fusion voulue par la modération est défaite, et l'équipement fusionné revient dans les listes.
   - Aucun test ne fusionne puis resynchronise (lu, `TagCatalogTest.php`, cinq tests).
 - Piste : refuser en 422 la fusion d'une source du catalogue (`in_array($src->name, TagCatalog::EQUIPEMENTS)`), ou garder une trace de la fusion que `synchroniser()` respecte, comme pour un refus. Garder par un test : fusionner puis synchroniser.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagModeration::fusionner()` (aucune exclusion du catalogue, la source est supprimée) et `TagCatalog::assurer()` (recrée tout nom absent) ; test temporaire retiré : catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200, source supprimée ; `synchroniser()` rejoué → `Ventilateurs` recréé sous l'id 82 (ancien 71), approuvé, 0 bien ; le constat tient. Classement : V7, la piste propose deux comportements de modération (422 sur une source du catalogue, ou trace respectée par la synchronisation), et la trace demanderait un stockage neuf (V4).
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : reprendre le slug d'une proposition existante réécrit une donnée
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
 - Constat :
@@ -3527,10 +3529,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Mesuré (test temporaire) : proposition `Forage !` en attente (slug `forage`), puis `synchroniser()` → `Forage|forage-2|approved`. Le front cherche `amenityCatalog.forage-2`, absent : l'équipement du catalogue s'affiche « Forage » en anglais. Si la proposition est approuvée plus tard, c'est elle qui prend la traduction « Borehole » (déduit de `libelleEquipement`).
   - Le test du front calcule le slug à partir du nom (`slugDuCatalogue`) ; il ne voit pas le slug réellement écrit en base (lu, l. 58-62).
 - Piste : réserver les slugs du catalogue. `slugLibre()` refuserait à une proposition un slug calculé depuis `TagCatalog::EQUIPEMENTS` (suffixe d'office), et `synchroniser()` reprendrait le slug exact s'il est détenu par une proposition. Garder par le test ci-dessus, inversé.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagCatalog::slugLibre()` (suffixe `-n` au premier slug pris) et `TagProposals::proposer()` (même `slugLibre()`) ; test temporaire retiré : proposition `Forage !` en attente, slug `forage`, puis `synchroniser()` → `Forage !|forage|pending ; Forage|forage-2|approved` ; le constat tient, l'affichage en anglais est déduit de `libelleEquipement()` (lu, `libelle-equipement.ts:31-34`), non rejoué. Classement : V4, que `synchroniser()` reprenne le slug détenu par une proposition réécrit des lignes existantes, et le suffixe d'office change le slug qu'une proposition reçoit.
 
 ### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
 - Réf : P30.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : indexer des libellés anglais, et choisir leur source unique
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Property.php:476-479`, `takussan-api/config/scout.php:184-187`
 - Constat :
@@ -3538,10 +3541,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Mesuré (`tinker`, index de développement) : `Property::search()` → `piscine` 52, `swimming pool` 0, `pool` 0 ; `climatisation` 57, `air conditioning` 0.
   - Le choix d'indexer un vocabulaire français est écrit pour les types et contrats (`Property.php:234-262`, alias français, wolof en attente de validation) ; rien n'est écrit pour l'anglais. La fiche, la recherche et les filtres sont pourtant servis en anglais.
 - Piste : un champ dérivé `amenities_label` (ou l'extension de `tags`) qui porte aussi les libellés anglais du catalogue, ce qui suppose de les rendre lisibles par l'API (copie versionnée, ou génération depuis `en.json`). Le wolof attend la validation de TCK-339, comme les types. Choix de produit et de source unique des libellés.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : relu `Property::toSearchableArray()` (`tags` = noms en base) et `config/scout.php` (`tags` cherchable) ; `tinker` en lecture sur l'index de développement, `Property::search()` → `piscine` 52, `swimming pool` 0, `pool` 0, `climatisation` 57, `air conditioning` 0 ; le constat tient. Classement : V7 et V6, la piste demande un choix de produit (recherche en anglais) et une source unique des libellés partagée entre front et API.
 
 ### 26 équipements du catalogue sur 35 s'affichent avec l'icône générique
 - Réf : P30.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le choix des icônes est un choix de design
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:23-60`, `.../PropertyAmenities.tsx:19`
 - Constat :
@@ -3549,10 +3553,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Mesuré (script `node` sur les slugs du catalogue face aux clés de `AMENITY_ICONS`) : 9 slugs ont une icône (`piscine`, `climatisation`, `ascenseur`, `parking`, `garage`, `terrasse`, `jardin`, `wifi`, `tv`) ; 26 retombent sur `Building2`, dont `cuisine-equipee`, `securite-247`, `salle-de-sport`, `machine-a-laver`, `groupe-electrogene`.
   - Une partie des clés ne correspond à aucun slug du catalogue : `cuisine`, `securite`, `salle_sport`, `buanderie`, `internet`, `meuble` (lu).
 - Piste : clés d'icônes alignées sur les slugs du catalogue, et un test qui rougit sur un slug du catalogue sans icône (même lecture du fichier PHP que `libelle-equipement.test.ts`). Le choix des icônes est un choix de design.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : relu `PropertyAmenities.tsx:19` (`tag.icon ?? tag.slug`) et `amenity-icons.ts` ; `SELECT type, status, count(*), count(icon) FROM tags GROUP BY 1,2` en lecture sur la base de développement → 0 icône sur 41 lignes ; script `node` des slugs de `TagCatalog::EQUIPEMENTS` face aux clés de `AMENITY_ICONS` → 9 sur 35 ont une icône (`piscine, climatisation, ascenseur, parking, garage, terrasse, jardin, wifi, tv`), 26 retombent sur `Building2` ; le constat tient. Classement : V7, aligner les clés demande de choisir 26 icônes.
 
 ### Petites améliorations
 - Réf : P30.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : libellés CRM traduits et ordre des listes ; V8 : quatre correctifs distincts
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:40`, `takussan-web/src/components/customer-dashboard/CustomerTagPicker.tsx:152`, `:258`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:214`, `takussan-api/app/Http/Controllers/Api/TagController.php:33`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27`, `:49`, `takussan-web/src/components/compare/compare-rows.ts:63-68`, `takussan-api/app/Services/Tags/TagProposals.php:46`
 - Constat :
@@ -3561,3 +3566,4 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Le comparateur rend les étiquettes qui ne sont pas des équipements par leur nom brut (`otherTagNames`, lu).
   - Un anglophone qui tape « Pool » ou « Generator » se voit proposer « Ajouter » à côté de l'équipement traduit (`combobox.tsx:56-58` compare au libellé affiché, lu). Le serveur ne replie que sur les noms français (`TagProposals::parNom`, lu) : le nom anglais devient une proposition en attente, doublon d'un équipement existant que la modération doit fusionner (déduit, à vérifier).
 - Piste : traduire les étiquettes CRM du catalogue par slug comme les équipements (même fonction, autre espace de clés) ; retrier les options sur le libellé affiché ; passer `otherTagNames` par le même traducteur. Pour la saisie libre, que le front résolve un nom tapé égal (au repli près) à un libellé traduit vers l'identifiant de l'équipement avant de l'envoyer en `tag_names`.
+- Mesure (2026-10-16, 4c7d8810, mesureur) : relu `CustomerTagPicker.tsx:152`, `:155` et `CustomerListFilters.tsx:214` (rendent `tag.name`), `TagController.php:33` (`defaultSort('name')`), `GeoReferentialController.php:27` (tri `und-x-icu`), `ChampEquipements.tsx:51` (traduit sans retrier), `compare-rows.ts:63-68` (`otherTagNames` rend `tag.name`), `combobox.tsx:56-58` (compare au libellé affiché) ; `grep -i prospect src/messages/en.json` rend 14 lignes, contrairement au constat, mais aucune ne traduit l'étiquette « Prospect chaud » ; la proposition d'un nom anglais en doublon n'a pas été rejouée et reste à vérifier ; les trois premiers points tiennent. Classement : V7 et V8, traduire les étiquettes CRM est un texte métier neuf, et l'entrée réunit quatre correctifs indépendants.
