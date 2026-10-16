@@ -12,13 +12,13 @@ Execute a backlog ticket against the codebase. The ticket is the **contract**, t
 **Announce at start:** "I'm using the implementing-specs skill to execute TCK-NNN."
 
 **Ticket location:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
-**Index (GENERATED — never hand-edit):** `docs/backlog/INDEX.md`, rebuilt by `node docs/backlog/gen-index.mjs`
+**Index (GENERATED, not versioned — ADR-0067):** `docs/backlog/INDEX.md`, written locally by `node docs/backlog/gen-index.mjs` and ignored by git. Never commit it.
 **Specs (read-only):** `docs/features.md`, `docs/models-spec.md`
 
 ## When to use
 
 - The user asks to implement a specific TCK-NNN.
-- The user asks to work on the next available ticket (pick the first `todo` in `INDEX.md` with no unresolved `depends_on`).
+- The user asks to work on the next available ticket (run `node docs/backlog/gen-index.mjs`, then pick the first `todo` in `INDEX.md` with no unresolved `depends_on`).
 
 ## When NOT to use
 
@@ -87,16 +87,15 @@ status: doing
 updated: <today YYYY-MM-DD>
 ```
 
-**7. Regenerate `INDEX.md` — do NOT edit it.**
+**7. Check the backlog source — there is no index to commit.**
 
 ```bash
-node docs/backlog/gen-index.mjs      # rebuilds INDEX.md from the frontmatters
-node docs/backlog/check-backlog.mjs  # verifies the source still tells the truth
+node docs/backlog/gen-index.mjs --check  # the source renders: no duplicate id, no unknown status
+node docs/backlog/check-backlog.mjs      # verifies the source still tells the truth
 ```
 
-The frontmatter you just changed **is** the source; the index derives from it. Hand-moving a bullet
-is how `INDEX.md` came to be false on 213 of its 266 entries (debt D-15), and Repo CI now rejects a
-stale index anyway.
+The frontmatter you just changed **is** the source. `INDEX.md` is derived from it on demand and is
+ignored by git (ADR-0067): versioned, it conflicted between any two PRs that each added a ticket.
 
 ### Phase 3 — Plan the work
 
@@ -202,13 +201,13 @@ updated: <today>
 
 Use `done` directly only if the user explicitly asked to auto-close.
 
-**19. Regenerate `INDEX.md`.**
+**19. Check the backlog source again.**
 
 ```bash
-node docs/backlog/gen-index.mjs && node docs/backlog/check-backlog.mjs
+node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs
 ```
 
-Same rule as step 7: the frontmatter is the source, the index is derived. Never hand-edit it.
+Same rule as step 7: the frontmatter is the source, the index is derived and never committed.
 
 **20. Post-implementation sync-specs.**
 
