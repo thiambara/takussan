@@ -88,8 +88,8 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
             type="number"
             label={t('amount')}
             required
-            min={0}
-            step={100}
+            min={1}
+            step="any"
           />
           <FormSelect<LeasePaymentFormValues>
             control={form.control}

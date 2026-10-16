@@ -226,8 +226,8 @@ export function LeaseRenewalDialog({
                 <Input
                   id="renew-rent"
                   type="number"
-                  min={0}
-                  step={1000}
+                  min={1}
+                  step="any"
                   value={form.monthly_rent}
                   onChange={(e) => setForm((s) => ({ ...s, monthly_rent: e.target.value }))}
                 />
@@ -248,7 +248,7 @@ export function LeaseRenewalDialog({
                   id="renew-deposit"
                   type="number"
                   min={0}
-                  step={1000}
+                  step="any"
                   value={form.deposit_amount}
                   onChange={(e) => setForm((s) => ({ ...s, deposit_amount: e.target.value }))}
                 />
