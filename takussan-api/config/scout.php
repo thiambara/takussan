@@ -8,6 +8,12 @@ use App\Models\Message;
 use App\Models\Property;
 use App\Models\User;
 
+// TCK-709 (P01.06) — Meilisearch ne rend jamais plus de `maxTotalHits` résultats, et son défaut
+// est 1000 : sans ce réglage, `take(SEARCH_ID_CAP)` (5000, `HasQueryBuilder`) tronquait à 1000
+// en silence, et la pagination publique s'arrêtait à la page 25. La valeur suit SEARCH_ID_CAP ;
+// `tests/Feature/Search/SearchIdCapIndexSettingsTest.php` lit les deux et rougit s'ils divergent.
+$pagination = ['maxTotalHits' => 5000];
+
 return [
 
     /*
@@ -219,6 +225,7 @@ return [
                 // reste triable pour les appelants existants, mais plus aucun tri par défaut ne le lit.
                 'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', 'ranked_at', '_geo'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
                 // TCK-335 — mots vides français. Meilisearch les retire À LA
                 // REQUÊTE comme à l'indexation : c'est ce qui fait que
                 // `q=à vendre` cesse de rendre le catalogue entier. Mesuré le
@@ -260,12 +267,14 @@ return [
                 'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at'],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
             Document::class => [
                 'searchableAttributes' => ['title', 'description'],
                 'filterableAttributes' => ['type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
             // TCK-281 — entites internes. Le callback `filter[search]` ne fait
             // que `::search()->keys()` : aucun attribut filtrable ni triable
@@ -276,18 +285,22 @@ return [
             Customer::class => [
                 'searchableAttributes' => ['first_name', 'last_name', 'email', 'phone'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
             MaintenanceRequest::class => [
                 'searchableAttributes' => ['title', 'description'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
             Agency::class => [
                 'searchableAttributes' => ['name', 'email', 'license_number'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
             User::class => [
                 'searchableAttributes' => ['first_name', 'last_name', 'email', 'username', 'phone'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                'pagination' => $pagination,
             ],
         ],
     ],
