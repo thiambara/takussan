@@ -334,7 +334,7 @@ Déjà sain (mesuré ou lu) :
 
 ### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
 - Réf : P02.05
-- Statut : validé — corriger le 400 ; suggestions CRM triées par usage dans l'agence ; retirer le compte properties redondant
+- Statut : fait · TCK-712 — reste : lancer la requête des équipements en parallèle de celle du bien sur la fiche (`properties/[id]/page.tsx`), que la décision ne reprend pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:20,45,143-147`, `takussan-web/src/app/(dashboard)/app/properties/[id]/page.tsx:62,104`, `takussan-api/app/Models/Tag.php:32`
 - Constat :
@@ -343,6 +343,7 @@ Déjà sain (mesuré ou lu) :
   - À vérifier : `fetchCrmTags` envoie `sort=-usage_count`, absent de `$requestSortable`. Le 400 serait masqué par `.catch(() => [])`, et les suggestions CRM seraient toujours vides.
 - Piste : lire `properties_count`/`customers_count`, et lancer la requête des tags en parallèle de celle du bien.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `TagController.php:20,43-47,143-148` et `Tag.php:32` (`$requestSortable = ['id','name','type','created_at']`), `customers.ts:36,232-246`, `customers/[id]/page.tsx:91`, `properties/[id]/page.tsx:62-104` ; test temporaire, retiré depuis, agent d'agence, 5 étiquettes CRM et 5 équipements → `GET /api/tags?filter[type]=crm&fields[tags]=id,name,color,usage_count&sort=-usage_count` rend 400 `http.bad_request`, et rend encore 400 sans le `sort` : c'est `fields[tags]=usage_count` qui suffit à le refuser ; sans `usage_count` → 200 ; `filter[type]=amenity` → 20 requêtes dont 12 `count(*)`, soit deux comptes par étiquette. Correction du constat : le compte `customers` de `format()` est borné à l'agence, ce que `withCount` ne fait pas ; seul le compte `properties` est redondant. Classement : V7, la part de performance seule serait A2, mais corriger le 400 rend visibles des suggestions qui n'ont jamais été affichées, et l'ordre « par usage dans l'agence » demande un tri neuf ou un choix de produit.
+- Mesure (2026-10-16, 8edb161f, implementeur) : `TagCrmSuggestionsTest` écrit d'abord ; agent d'agence, la requête de `fetchCrmTags` sans `usage_count` dans `fields` → 400 (le tri seul suffit à le refuser) ; `filter[type]=amenity` sur 4 étiquettes → 4 `count(*)` de biens, 8 sous `fields[tags]=id,name` (le `fields` emportait le `withCount`) → tri `usage_count` (biens + clients de l'agence de l'appelant) dans `Tag::buildQuery()`, `withCount` après `buildQuery()`, `properties_count` lu dans `format()`, `TAG_FIELDS` sans `usage_count` ; 2 verts, et 3 ablations rouges (tri retiré : 400 ; `withCount` remis avant : 8 comptes ; tri sans borne d'agence : ordre global) ; `tests/Feature/Tags` et les classes de `TagController` : 76 + 26 verts.
 
 ### `whereDate()` sur un horodatage empêche l'usage de l'index
 - Réf : P02.06
