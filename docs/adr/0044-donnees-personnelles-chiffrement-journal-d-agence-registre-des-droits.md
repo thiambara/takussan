@@ -3,7 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
-- **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. `guarantors.monthly_income` reste une question ouverte. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
+- **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
 ## Contexte
 
@@ -243,22 +243,21 @@ une lecture dédiée seulement, sous step-up et journalisée.**
    et s'écrit à travers le cast ; une écriture brute pose une valeur chiffrée ou `null` (voir
    Conséquences).
 
-#### Questions ouvertes — non tranchées par le porteur
+#### Deux questions tranchées par le porteur le 2026-10-16
 
-- **`guarantors.monthly_income`** — le revenu mensuel de la caution, `decimal(14,2)` en clair, rendu
-  par `GuarantorController::format` (l. 96) à tout lecteur de la fiche. Le chiffrer et le masquer
-  comme `id_number`, ou le laisser en clair : **rien n'est décidé ici.** À peser : un montant chiffré
-  ne se trie, ne se filtre ni ne se somme plus ; et le même champ du bailleur,
-  `owner_profiles.monthly_income`, est aujourd'hui en clair et hors d'`OwnerProfile::SENSITIVE` —
-  la réponse pour la caution vaudra question pour lui.
-- **Qui lit la valeur claire.** `OwnerProfilePolicy::viewSensitive` la réserve à l'admin de l'agence
-  du profil ; l'agent n'y a pas accès. Le locataire et la caution sont saisis par l'agent, qui
-  prépare le bail : reprendre la même restriction n'est pas décidé. Le ticket d'application la pose
-  au porteur avant d'écrire la policy.
+6. **Le revenu mensuel suit la même règle, chez la caution comme chez le bailleur.**
+   `guarantors.monthly_income` et `owner_profiles.monthly_income` sont chiffrés, masqués par
+   défaut et lisibles en clair par la même lecture dédiée que la pièce. Pour le bailleur, la colonne
+   entre dans `OwnerProfile::SENSITIVE`. Le prix est accepté : un montant chiffré ne se trie, ne se
+   filtre ni ne se somme plus côté base.
+7. **Seul l'admin de l'agence lit la valeur claire**, comme pour le bailleur
+   (`OwnerProfilePolicy::viewSensitive`). L'agent qui saisit le locataire ou la caution écrit la
+   valeur, et ne la relit ensuite que masquée.
 
 #### Application
 
-Un ticket à part, **à écrire** : TCK-723 ne fait que cet amendement. Gardes attendues : aller-retour
+Un ticket à part, écrit par l'implémenteur des pistes (P23.03, validée le 2026-10-16) : TCK-723 ne
+fait que cet amendement. Gardes attendues : aller-retour
 de la migration ; aucune réponse par défaut (fiche et liste de clients, `include=tenant`, fiche de caution) ne porte la
 clé `id_number` ; `fields[customers]=id_number` refusé ; une lecture claire exige le step-up,
 laisse une ligne `PersonalDataAccess`, et rend 403 sous impersonation. Le contrat change pour le

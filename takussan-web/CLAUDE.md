@@ -260,6 +260,11 @@ l'ADR. 3 locales — `fr`, `en`, `wo`, toutes indexables. Fuseau figé à `Afric
   ou son `wo` fait rougir. Le compte courant se lit dans `node scripts/check-i18n.mjs --report`,
   jamais ici : un compte de clés `wo` manquantes recopié dans ce paragraphe a survécu des semaines
   à la mesure qui le démentait (TCK-722).
+
+> ⏸ **Le wolof est en pause depuis le 2026-10-16, jusqu'à nouvel ordre du porteur.** Aucun texte
+> wolof neuf ne s'écrit, et aucun texte wolof existant ne se réécrit. Une clé ajoutée porte en `wo`
+> **le texte français tel quel** : la parité tient, et la page wolof affiche le français, comme le
+> repli le ferait. Une piste ou un ticket qui ne porte que sur le wolof attend.
 - **Cliquet PAR FICHIER sur le texte en dur** — `scripts/i18n-baseline.json`, produit par le scan
   de `scripts/i18n-scan.mjs`. Un compte qui monte échoue ; un fichier neuf portant du texte échoue ;
   un compte qui descend échoue tant qu'on n'a pas lancé `--update`.

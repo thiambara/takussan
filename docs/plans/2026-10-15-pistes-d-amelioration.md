@@ -2936,7 +2936,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
 - Réf : P23.03
-- Statut : retenu · à valider — V4 : chiffrement de deux colonnes par migration, et V3 ; porteur (2026-10-15) : traité hors agents, ADR-0044 § 1 à étendre
+- Statut : validé — selon l'amendement du 2026-10-16 d'ADR-0044 (TCK-723) : `customers.id_number`, `guarantors.id_number`, et le revenu mensuel de la caution et du bailleur, chiffrés et masqués par défaut ; valeur claire par une lecture dédiée sous step-up et journalisée, pour l'admin d'agence seul
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
 - Constat :
@@ -2948,7 +2948,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu, et test temporaire.
 - Piste : étendre ADR-0044 §1 aux deux colonnes : chiffrement par migration réversible, forme masquée par défaut, valeur claire par une lecture dédiée sous step-up et journalisée, comme `owners/{id}/sensitive`. C'est un choix de produit et de schéma, à poser par ADR. À défaut, au moins la masquer dans les listes et sous impersonation.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu les migrations `2026_04_17_160006` (l. 21) et `2026_04_17_160007` (l. 18, 21) : `id_number` et `monthly_income` en `string` et `decimal` clairs ; `grep -n encrypted` sur `Customer.php` et `Guarantor.php` → rien ; `CustomerResource.php:20` et `GuarantorController.php:93,96` les rendent en clair ; aucun ticket ne traite leur chiffrement (`grep` dans `docs/backlog/tickets`). Le scénario sous impersonation n'est pas rejoué : la lecture du code est inchangée, et le test de P23.02 rend `id_number` en clair à un autre lecteur. Classement : V4, la piste chiffre deux colonnes par migration, avec un ADR (V6) sur ce qui est exposé (V3).
-- Mesure (2026-10-16, 55a41109, humain) : ADR-0044 amendé en session (TCK-723) : `customers.id_number` et `guarantors.id_number` suivent le § 1 (cast `encrypted`, masqués par défaut, lecture claire dédiée sous step-up et journalisée) ; deux questions ouvertes dans l'ADR : `monthly_income` (garant et bailleur), et qui lit la valeur claire. L'application reste à faire.
+- Mesure (2026-10-16, 55a41109, humain) : ADR-0044 amendé en session (TCK-723) : `customers.id_number` et `guarantors.id_number` suivent le § 1 (cast `encrypted`, masqués par défaut, lecture claire dédiée sous step-up et journalisée) ; le porteur a tranché ses deux questions (points 6 et 7 : revenu mensuel de la caution et du bailleur compris, valeur claire pour l'admin d'agence seul). L'application reste à faire.
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
