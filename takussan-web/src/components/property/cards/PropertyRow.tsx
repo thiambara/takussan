@@ -11,6 +11,7 @@ import { PropertyCardListing } from './PropertyCardListing';
 import { PropertyCardCompact } from './PropertyCardCompact';
 import type { CardVariant } from './types';
 import { EnTeteDeRangee } from './EnTeteDeRangee';
+import { marquerArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
 
 export type { CardVariant } from './types';
 
@@ -41,6 +42,13 @@ interface PropertyRowProps {
    * vedette n'est pas un placement payé, il est là pour une autre raison.
    */
   readonly robeVedette?: boolean;
+  /**
+   * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : l'API compte une impression par
+   * bien qu'elle y sert, et un clic sur une carte note l'arrivée sponsorisée que le compteur de vue
+   * de la fiche consomme. Sans ce marqueur, ses impressions ne deviennent jamais des clics.
+   * Réservé à la rangée vedette de l'accueil.
+   */
+  readonly emplacementSponsorise?: boolean;
 }
 
 interface VariantSpec {
@@ -145,6 +153,7 @@ export function PropertyRow({
   action,
   priorityCount = 0,
   robeVedette = false,
+  emplacementSponsorise = false,
 }: PropertyRowProps) {
   const t = useTranslations('property.row');
   const spec = VARIANTS[variant];
@@ -185,6 +194,16 @@ export function PropertyRow({
   }
 
   const Card = spec.Card;
+
+  // TCK-704 — la carte n'est pas enveloppée (la disposition règle la largeur de chaque enfant
+  // direct du défileur) : le bien se retrouve par le rang de l'enfant qui contient le lien cliqué.
+  function noterArrivee(event: React.MouseEvent<HTMLDivElement>) {
+    const lien = (event.target as HTMLElement).closest('a');
+    if (!lien) return;
+    const rang = Array.from(event.currentTarget.children).findIndex((carte) => carte.contains(lien));
+    const bien = loading ? undefined : properties[rang];
+    if (bien) marquerArriveeSponsorisee(bien.slug);
+  }
 
   return (
     <section className="relative @container">
@@ -250,6 +269,7 @@ export function PropertyRow({
       ) : (
         <div
           ref={scrollerRef}
+          onClickCapture={emplacementSponsorise ? noterArrivee : undefined}
           className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
         >
           {loading

@@ -68,6 +68,7 @@ vi.mock('@/components/property/cards/PropertyRow', () => ({
     viewAllHref,
     properties,
     error,
+    emplacementSponsorise,
   }: {
     variant: string;
     eyebrow?: string;
@@ -75,8 +76,13 @@ vi.mock('@/components/property/cards/PropertyRow', () => ({
     viewAllHref?: string;
     properties: readonly PropertyListItem[];
     error: string | null;
+    emplacementSponsorise?: boolean;
   }) => (
-    <section data-testid={`row-${variant}`} data-href={viewAllHref}>
+    <section
+      data-testid={`row-${variant}`}
+      data-href={viewAllHref}
+      data-emplacement={emplacementSponsorise ? 'sponsorise' : undefined}
+    >
       <p data-testid={`eyebrow-${variant}`}>{eyebrow}</p>
       <h2 data-testid={`title-${variant}`}>{title}</h2>
       {error ? <p data-testid={`error-${variant}`}>{error}</p> : null}
@@ -384,5 +390,24 @@ describe('<HomepageDiscovery> — TCK-628', () => {
     expect(screen.getAllByTestId('row-standard').map((r) => r.dataset.href)).not.toContain(
       '/properties?contract_type=sale',
     );
+  });
+});
+
+// TCK-704 (P18.02, ADR-0061 §7) — la rangée vedette est le seul emplacement de l'accueil : la seule
+// dont un clic note l'arrivée sponsorisée. Ailleurs, un clic n'est pas celui d'une place payée.
+describe('<HomepageDiscovery> — TCK-704', () => {
+  beforeEach(() => {
+    mockRows = makeRows({ items: [makeProperty(1)], city: 'Dakar', requested_city: null, fallback: false });
+    mockLoading = false;
+    mockFailed = false;
+    mockGeoCity = undefined;
+  });
+
+  it('seule la rangée vedette est un emplacement sponsorisé', () => {
+    renderPage('fr', { vente: [makeProperty(50)] });
+
+    const emplacements = document.querySelectorAll('[data-emplacement="sponsorise"]');
+    expect(emplacements).toHaveLength(1);
+    expect(emplacements[0]).toHaveAttribute('data-href', '/properties?featured=true');
   });
 });
