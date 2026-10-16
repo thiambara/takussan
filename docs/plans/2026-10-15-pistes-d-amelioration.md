@@ -305,7 +305,7 @@ Déjà sain (mesuré ou lu) :
 
 ### Le profil plateforme est relu à chaque autorisation
 - Réf : P02.03
-- Statut : validé — platformProfile chargé une fois par requête ; une révocation prend effet à la requête suivante
+- Statut : fait · TCK-711
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:678`, `takussan-api/app/Models/Concerns/HasProfiles.php:327-331`, `RequireTwoFactor.php:64`, `RequireRecentTwoFactor.php:45`, `LeaseResource.php:125`
 - Constat :
@@ -314,6 +314,7 @@ Déjà sain (mesuré ou lu) :
   - `LeaseResource` l'appelle une fois par ligne. `ReviewController.php:67-70` contourne déjà le problème localement (lu).
 - Piste : charger `platformProfile` une fois par requête, dans `ResolveActiveProfile`.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `AppServiceProvider.php:680` (`Gate::before` → `isSuperAdmin()`), `HasProfiles.php:327-334` (`activePlatformLevel()` relit `platformProfile()->active()->first()` si la relation n'est pas chargée), `RequireTwoFactor.php:64` et `RequireRecentTwoFactor.php:45` (`platformProfile()->exists()`), `LeaseResource.php:125`, `ReviewController.php:68-70` (`loadMissing('platformProfile')` local) ; tinker en lecture sur la base de dev → `isSuperAdmin()` trois fois = 3 requêtes `platform_profiles`, `Gate::allows('leases.terminate')` trois fois = 18 requêtes, dont une `platform_profiles` par appel. Classement : V2, le gain est de performance, mais charger le profil plateforme une fois par requête fige le contournement super-admin de toutes les autorisations pour la durée de la requête, ce qui demande l'accord du porteur.
+- Mesure (2026-10-16, 8edb161f, implementeur) : `PlatformProfileLuUneFoisParRequeteTest` écrit d'abord, rouge avant correctif : `GET /api/leases` d'un super-admin sur 3 baux lisait `platform_profiles` 8 fois. Correctif : `ResolveActiveProfile` charge `platformProfile` par `load()` une fois par requête, et les trois `platformProfile()->exists()` de la 2FA (`RequireTwoFactor`, `RequireRecentTwoFactor`, `TwoFactorRequirement`) relisent la relation chargée → 1 lecture, 2 verts. Ablation : `load()` retiré → 8 lectures, rouge ; `loadMissing()` à sa place → la révocation entre deux requêtes sur la même instance n'est plus vue (200 au lieu de 403), rouge.
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
 - Réf : P02.04
