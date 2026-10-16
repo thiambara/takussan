@@ -87,7 +87,9 @@ function buildListParams({
     fields: { customers: DASHBOARD_CUSTOMER_FIELDS },
     filter,
     include: ['tags'],
-    sort: sort ?? '-created_at',
+    // TCK-702 (P16.02) — une recherche se classe par pertinence côté API (TCK-281), et
+    // `defaultSorts()` s'efface devant tout `sort=` explicite : pas de tri par défaut ici.
+    sort: sort ?? (filters?.search ? undefined : '-created_at'),
     page: page ?? 1,
     per_page: perPage ?? 20,
   };
