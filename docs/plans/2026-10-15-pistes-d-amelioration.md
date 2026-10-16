@@ -3097,7 +3097,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Un loyer payé en ligne pénalité comprise est introuvable par la recherche manuelle au montant de la ligne
 - Réf : P25.01
-- Statut : validé — une seule expression du montant attendu d'une échéance, partagée par le matcher et la recherche manuelle, et qui suit la règle de P25.02
+- Statut : fait · TCK-715
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/PaymentSearchService.php:159-170`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:86-91`, `takussan-web/src/components/admin/reconciliation/PaymentSearchDialog.tsx:46-48`
 - Constat :
@@ -3109,10 +3109,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : une seule expression du « montant attendu sur le compte » pour une `LeasePayment`, partagée par le matcher et la recherche (scope ou méthode du modèle). Garde : le test AC14 de `BankReconciliationTest` doublé côté recherche manuelle.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `PaymentSearchService.php:159-170` (`applySearch` : `ABS(amount - ?) < 1`, utilisé par `searchLeasePayments` l. 84) contre `ReconciliationMatcher.php:86-91` (`COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, échéance initiée en ligne puis soldée par webhook Wave à 157 500, `GET /api/agencies/{agency}/bank-statements/payment-search?amount=…&direction=credit` en admin d'agence → `200 []` à 157 500, 1 résultat à 150 000 (le chemin exact de la route est sous `agencies/{agency}`, le constat l'abrégeait). Classement : V1, l'expression à partager est celle du montant attendu d'un paiement, que P25.02 montre fausse après un règlement manuel : la corriger ici sans trancher P25.02 propagerait le défaut.
+- Mesure (2026-10-16, de18f26c, implementeur) : reproduit avant correctif par `BankReconciliationTest::test_la_recherche_manuelle_trouve_l_echeance_payee_en_ligne_penalite_comprise` (load 14,31 sur 8 cœurs) : échéance initiée en ligne puis soldée par webhook Wave à 157 500, `payment-search?amount=157500&direction=credit` → `[]` → `LeasePayment::scopeWhereExpectedAmountNear()`, une seule expression appelée par `ReconciliationMatcher` et `PaymentSearchService` ; ablation (trois fichiers d'`app/` remis à `pre-dev`) → rouge `two arrays are identical`, remis → vert, 18 tests verts sur la classe.
 
 ### Après un checkout abandonné et un règlement manuel, le matcher cherche encore le montant du checkout
 - Réf : P25.02
-- Statut : validé — le montant figé ne se lit que si l'échéance a été soldée en ligne ; sinon `amount`
+- Statut : fait · TCK-715
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:671`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:919-926`, `takussan-api/app/Services/Model/LeasePaymentService.php:59-66`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:89-91`
 - Constat :
@@ -3124,6 +3125,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : ne lire le montant figé que si l'échéance a été soldée en ligne (`gateway.settled_by` ≠ `manual`, ou le montant de la transaction qui a soldé), sinon `amount`. Garde : un test « checkout abandonné puis virement ».
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `PaymentGatewayService.php:671` (`gateway_expected_amount` figé à l'initiation), `:919-926` (`markManualSettlement` ne pose que `settled_by = manual`), `:869-893` (`supersedeOpenCheckout` ne touche pas au montant figé) et `ReconciliationMatcher.php:89-91` ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence qui encaisse la pénalité en ligne, checkout ouvert puis abandonné, 3 h plus tard `LeasePaymentService::markPaid` (virement) → `paid`, `gateway_expected_amount = 157500`, `settled_by = manual`, `late_fee_paid_at = null` ; crédit de 150 000 à J+1 → `suggestFor()` rend `null`. Classement : V1, choisir le montant attendu (montant figé, `amount`, ou montant de la transaction qui a soldé) est une règle sur un montant de paiement.
+- Mesure (2026-10-16, de18f26c, implementeur) : reproduit avant correctif par `BankReconciliationTest::test_apres_un_checkout_abandonne_puis_un_virement_le_montant_attendu_est_celui_de_l_echeance` (load 14,31 sur 8 cœurs) : checkout de 157 500 abandonné, `markPaid` par virement 3 h plus tard, crédit de 150 000 à J+1 → `unmatched` → le scope ne lit `gateway_expected_amount` que si `gateway.settled_by` est posé et ≠ `manual` ; le test vérifie aussi la recherche (trouvée à 150 000, plus à 157 500) ; ablation de la seule condition « soldée en ligne » → ce test rouge (`Unmatched` au lieu de `Suggested`), celui de P25.01 vert ; remise → vert.
 
 ### La règle « contrepartie ≥ 85 % » du matcher ne peut jamais s'appliquer aux encaissements
 - Réf : P25.03
