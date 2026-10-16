@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Rules\PixelsAuPlus;
 use App\Rules\TelephoneJoignable;
 use App\Services\Auth\PhoneChangeGuard;
 use App\Support\CaseInsensitive;
@@ -47,7 +48,8 @@ class UpdateProfileRequest extends FormRequest
                     $echec('validation.unique')->translate();
                 }
             }],
-            'avatar' => ['nullable', 'image', 'max:2048'],
+            // TCK-677 (P10.02) — miniature synchrone : au-delà de 20 Mpx, refus avant tout décodage.
+            'avatar' => ['nullable', 'image', 'max:2048', new PixelsAuPlus],
             'avatar_remove' => ['sometimes', 'boolean'],
             // E.164 strict — leading "+", country code [1-9], 6-14 more digits.
             // Empty string is allowed and treated as "clear" in the controller.

@@ -1077,6 +1077,7 @@ _(aucun)_
 - [TCK-674](tickets/TCK-674-dialogues-hauteur-bornee.md) — Un dialogue plus haut que l'écran défile en lui-même : hauteur bornée dans la primitive `S · P0 · bug`
 - [TCK-675](tickets/TCK-675-liste-de-biens-vide-noindex.md) — Une liste publique de biens sans résultat est servie en noindex, follow (soft-404 des facettes) `S · P1 · bug`
 - [TCK-676](tickets/TCK-676-photo-en-echec-ne-laisse-rien.md) — Une photo de bien qui échoue à la conversion ne laisse ni ligne ni copie temporaire, et le 422 la nomme `S · P0 · bug`
+- [TCK-677](tickets/TCK-677-photos-et-avatar-bornes-a-vingt-megapixels.md) — Une photo de bien ou un avatar de plus de 20 Mpx est refusé sur son en-tête, avant tout décodage `S · P0 · bug`
 - [TCK-678](tickets/TCK-678-sms-reporte-chiffre-en-file.md) — Le SMS reporté la nuit attend chiffré dans la file, et tout job portant un texte de SMS doit l'être `S · P0 · bug`
 - [TCK-682](tickets/TCK-682-generer-echeancier-route-reelle.md) — « Générer l'échéancier » poste sur la route réelle et lit payments_created `S · P1 · bug`
 
