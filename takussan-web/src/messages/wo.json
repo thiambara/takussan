@@ -5923,7 +5923,8 @@
         "current": "ñu ngi ci",
         "optional": "doyul waar",
         "reopen": "Dellu ci : {step}"
-      }
+      },
+      "photosProgress": "Yónnee nataal yi : {sent} ci {total}"
     },
     "titleTypes": {
       "bail": "Contrat",
