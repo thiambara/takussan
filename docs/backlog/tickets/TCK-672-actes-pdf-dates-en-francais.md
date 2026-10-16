@@ -29,7 +29,7 @@ portait « Quittance de loyer … October 2026 », celle d'un lecteur wolof « O
 
 ## Décision du porteur
 
-les actes restent en français : dates et titres forcés en fr
+les actes restent en français : dates et titres forcés en fr ; reste : les trois lignes d'ADR qui posent que les actes restent en français, par le porteur
 
 ## Reste à faire
 
