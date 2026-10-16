@@ -1995,7 +1995,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### `POST /api/payments`, sans appelant, laisse le locataire se déclarer payé
 - Réf : P13.05
-- Statut : validé — statut forcé à pending et paid_at refusé hors du personnel ; la route reste
+- Statut : fait · TCK-684
 - Gravité : 🔴 défaut avéré (effets en aval à vérifier)
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:37-92,372-382`, `takussan-api/app/Http/Requests/PaymentStoreRequest.php:13-15,30-32`, `takussan-api/app/Services/Model/LeasePaymentService.php:26`, `takussan-api/app/Services/Model/BookingPaymentService.php:22-24`
 - Constat :
@@ -2006,6 +2006,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : écriture lue ; soldes, reçus et relevés en aval à vérifier.
 - Piste : retirer la route, qui n'a aucun appelant. À défaut, forcer `pending` et refuser `paid_at` à tout autre que le personnel.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `PaymentController.php:37-92` (statut et `paid_at` transmis tels quels) et `:372-382` (`authorizeLeaseManage` admet le locataire), `PaymentStoreRequest.php:13-15,30-32`, `LeasePaymentService.php:23-35` (statut fourni gardé) ; test temporaire, retiré depuis : un compte lié par `Customer.user_id` au locataire d'un bail poste `status=paid`, `paid_at` sur `/api/payments` → **201**, `data.status = paid`. Aucun appelant front (`grep` de `/api/payments` hors `history` dans `takussan-web/src` vide) ; seul `PaymentRegistrationTest` appelle la route, sans cas locataire ni client. Effets en aval (soldes, reçus, relevés) non re-mesurés. Classement : V1, retirer la route ou restreindre qui écrit un paiement `paid` touche l'écriture d'un paiement.
+- Mesure (2026-10-16, 0f922581, implementeur) : `PaymentRegistrationTest`, six cas neufs : avant correctif, un locataire qui poste `status=paid` et un client qui poste sans statut ou avec `status=paid` obtiennent un paiement `paid`, et `paid_at` envoyé par l'un ou l'autre rend 201 (5 rouges ; le bailleur `paid` reste vert) → les deux helpers de `PaymentController` rendent le rôle, le statut du payeur est forcé à `pending` et son `paid_at` rend 422 sans écriture ; 14 verts, ablation : contrôleur de `pre-dev` remis, 5 rouges, correctif remis, 14 verts.
 
 ### La colonne « Push » des préférences ne pilote rien
 - Réf : P13.06
