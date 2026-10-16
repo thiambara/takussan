@@ -244,21 +244,23 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
 - Réf : P01.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : suggestions neuves dans l'état vide
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:125`, `takussan-api/app/Models/Property.php:321-338`
 - Constat :
   - Le repli exige au moins 2 termes. En dessous de 5 lettres, aucune faute n'est tolérée : `ker` rend 0, sans suggestion (mesuré).
   - Fonctionnent bien (mesuré) : la recherche par référence (`NSRKO42K`, `pr-nsrko42k`) et l'accent dans la requête (`Guediawaye` trouve `Guédiawaye`).
 - Piste : en cas de zéro résultat, proposer les suggestions de `SuggestService` dans `SearchEmpty`.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PropertySearchService.php:125` (`totalHits === 0 && count($useful) >= 2` : le repli exige toujours deux termes utiles), `SuggestService.php:157` (`dakr -> rien`, `oneTypo = 5` documenté) et `SearchEmpty.tsx` (aucun appel à `SuggestService`, aucune suggestion) ; `git log -S` et `grep` dans les tickets → aucun commit ni ticket ne l'a traité (TCK-558, `done`, ne propose pas de suggestion). Le rendu « `ker` → 0 » n'a pas été rejoué sur l'index (clé Meilisearch dans le `.env`, non lue) : il repose sur le seuil de 2 termes et le `oneTypo` lus. Classement : V7, afficher des suggestions dans l'état vide est un comportement visible neuf, au texte et à la mise en page à décider.
 
 ### La carte charge toutes les photos, et les coordonnées ne sont pas indexées
 - Réf : P01.10
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:521`, `takussan-api/app/Http/Resources/PropertyMapGeoJsonResource.php:49`
 - Constat : `with('media')` charge toutes les photos de jusqu'à 501 biens pour n'en lire qu'une. `addresses` n'a aucun index sur `latitude`/`longitude` (mesuré, `pg_indexes`).
 - Piste : charger la seule première photo, et ajouter un index `(latitude, longitude)` si la carte grossit.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:521` (`->with('address', 'media')`, limite `MAP_MAX_RESULTS + 1` l. 554) et `PropertyMapGeoJsonResource.php:49` (seul `getFirstMedia('photos')` est lu) ; tinker en lecture, `pg_indexes` sur `addresses` → trois index (`addressable`, `geo_city_id`, `geo_neighborhood_id`), aucun sur `latitude`/`longitude`, et aucune migration de l'arbre n'en pose. Les deux faits tiennent ; l'index n'est justifié par aucune mesure de lenteur (842 biens en dev), seule la partie photo est retenue comme correctif. Classement : A2, restreindre le chargement anticipé à la première photo de la collection `photos` ne change pas la vignette rendue.
 
 ## Angle 2 — Performances des requêtes
 
@@ -375,35 +377,39 @@ Déjà sain (mesuré ou lu) :
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : les compteurs des onglets lisent les cinq requêtes
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
 - Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
 - Piste : `enabled` réservé à l'onglet actif, et `nowIso` arrondi à la minute.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `VisitsList.tsx:37-69` (cinq `useVisits`, `nowIso = useMemo(() => new Date().toISOString(), [])`, recalculé à chaque montage, dans les paramètres donc la clé) et l. 88-93 : chaque onglet affiche `query.data.meta.total` en badge, et la requête « Non attribuées » part aussi pour qui n'est pas du personnel. Le constat tient, mais il omet que les quatre requêtes inactives nourrissent les compteurs visibles. Classement : V7, réserver `enabled` à l'onglet actif retire ou change les compteurs affichés, un choix d'interface ; seul l'arrondi de `nowIso` relèverait d'A2.
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : la purge supprime des lignes
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
 - Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `HealthcheckService.php:142` (`latest('last_run_at')->value(…)`, sans filtre de tâche), `ScheduledTaskInspector.php:15-37` (dernière exécution par tâche, sous-requête corrélée), la migration `2026_05_07_000226` (seul index `task`), aucun `Prunable` sur `ScheduledTaskRun` ni purge dans `routes/console.php` ; TCK-383 (`done`) écarte la rétention de son périmètre. Tinker en lecture → 14 948 lignes du 2026-09-10 au 2026-10-15, `EXPLAIN ANALYZE` de la requête de la l. 142 → `Seq Scan` puis `Sort` top-N, 3,6 ms. Classement : V4, la purge est une suppression de données dont la durée de rétention est à choisir ; l'index seul relèverait d'A2.
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:156`
 - Constat : `ORDER BY ranked_at DESC NULLS LAST, id DESC` force un Sort : l'index `ranked_at` est en ASC (mesuré).
 - Piste : un index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:156-157` (`orderByRaw('ranked_at DESC NULLS LAST')->orderByDesc('id')`, la ligne n'a pas bougé) et la migration `2026_10_12_500300` (`properties_ranked_at_idx` en ASC) ; tinker en lecture, `EXPLAIN ANALYZE` de la requête de `index()` (scope `public()`, `limit 20`) → `Bitmap Heap Scan` puis `Sort` top-N sur `ranked_at DESC NULLS LAST, id DESC`, 9,2 ms pour 842 biens. Classement : A2, une migration neuve d'ajout d'index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`, avec son `down()`, ne change pas le résultat.
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : chemin de calcul des pénalités
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
 - Piste : lire le plafond une fois par agence dans `applyForAgency`.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `LateFeeCalculator.php:183-200` (`applyCap()` appelle `capPercent()` à chaque échéance, `ScopedSetting::agencyRow(…)` lu en base, repli sur `PlatformSettingService::getValue`) et `ApplyLateFeesJob.php:48-60` (`applyForAgency` boucle par échéance sur `$calculator->apply()`) ; aucun commit depuis TCK-651 n'y a touché. Le constat tient. Classement : V1, le correctif modifie la fonction qui calcule le plafond d'une pénalité, même sans changer son résultat.
 
 ## Angle 3 — Isolation entre agences et autorisation
 
@@ -506,11 +512,12 @@ Ce qui tient (lu) :
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : portée d'agence de la console d'équipe
 - Gravité : 🟢 à vérifier
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
 - Piste : relayer l'indice de profil comme les fetchers serveur (`RequestOptions` de `src/lib/api.ts`).
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu `admin-users/[[...path]]/route.ts:26-29` (seuls `Accept`, `Authorization` et `Content-Type` relayés), `lib/queries/admin-users.ts:64` (le navigateur passe par ce relais), `ResolveActiveProfile.php:101-140` (sans indice ni cookie, auto-bascule seulement si une seule agence) et `UserAdminController.php:16-22` ; test temporaire, retiré depuis, admin de deux agences sur `GET /api/users` → **403** sans indice, **200** avec `X-Active-Profile-Hint: agency_admin:<id>` ; admin d'une seule agence → 200. Le constat « à vérifier » est vérifié côté API. Classement : V2, le correctif change le profil, donc l'agence, sous lequel l'API juge chaque appel de la console d'équipe.
 
 ## Angle 4 — Argent : montants, devises, arrondis, factures, paiements
 
@@ -635,7 +642,7 @@ contre le code par la session.*
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
 - Réf : P04.11
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : paiement partiel
 - Gravité : 🟢 amélioration
 - Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
 - Constat :
@@ -643,6 +650,7 @@ contre le code par la session.*
   - L'idempotence tient malgré tout, grâce au verrou de ligne et à `gateway_events`.
   - Rien n'écrit `metadata.paid_amount` : le statut `partially_paid` n'a pas de montant (lu).
 - Piste : un index sur `transaction_id`, et terminer ou retirer le paiement partiel.
+- Mesure (2026-10-15, 6a221e0f, mesureur) : lu les migrations `create_lease_payments_table.php:27` et `create_booking_payments_table.php:26` (`transaction_id` sans index), `PaymentGatewayService.php:716-729` (`where('transaction_id', …)` puis `whereJsonContains('metadata->gateway->transactions', …)`) et `HasPaymentAttributes.php:205-235` ; `grep paid_amount app/` → lu et validé, jamais écrit ; tinker en lecture, `pg_indexes` → aucun index sur `transaction_id` pour les deux tables (seul `invoices` en a un). Les deux faits tiennent. Classement : V1, terminer ou retirer le paiement partiel touche l'écriture d'un montant reçu ; l'index seul relèverait d'A2.
 
 **Ce qui tient** (lu) :
 - la conversion ×100 est faite une seule fois, puis re-divisée par Wave et Orange Money (`PaymentGatewayService.php:215`, `WaveDriver.php:48`, `OrangeMoneyDriver.php:55`) ;
