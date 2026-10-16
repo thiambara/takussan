@@ -224,7 +224,7 @@ export function CreateInvoiceDialog({
                     name={`items.${index}.unit_price`}
                     type="number"
                     min={0}
-                    step={100}
+                    step="any"
                     placeholder={t('unitPricePlaceholder')}
                   />
                   <Button

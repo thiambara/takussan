@@ -229,8 +229,8 @@ export function CreateLeaseForm() {
               type="number"
               label={t('salePrice')}
               required
-              min={0}
-              step={1000}
+              min={1}
+              step="any"
             />
           ) : (
             <FormInput<CreateLeaseFormValues>
@@ -239,8 +239,8 @@ export function CreateLeaseForm() {
               type="number"
               label={t('monthlyRent')}
               required
-              min={0}
-              step={1000}
+              min={1}
+              step="any"
             />
           )}
           <FormInput<CreateLeaseFormValues>
@@ -250,7 +250,7 @@ export function CreateLeaseForm() {
             label={t('deposit')}
             required
             min={0}
-            step={1000}
+            step="any"
           />
         </div>
 

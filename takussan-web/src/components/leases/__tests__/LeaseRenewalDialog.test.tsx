@@ -122,4 +122,18 @@ describe('<LeaseRenewalDialog>', () => {
       screen.getByText(/Le locataire et le bien ne peuvent pas être modifiés/i),
     ).toBeInTheDocument();
   });
+
+  // TCK-670 (P04.04) — `step={1000}` marquait un loyer de 152 500 en `stepMismatch`.
+  it('accepte un loyer et une caution hors des milliers', () => {
+    render(withProviders(<LeaseRenewalDialog open onOpenChange={() => {}} parent={parent} />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+    const rentInput = document.getElementById('renew-rent') as HTMLInputElement;
+    const depositInput = document.getElementById('renew-deposit') as HTMLInputElement;
+    fireEvent.change(rentInput, { target: { value: '152500' } });
+    fireEvent.change(depositInput, { target: { value: '305000' } });
+
+    expect(rentInput.validity.valid).toBe(true);
+    expect(depositInput.validity.valid).toBe(true);
+  });
 });

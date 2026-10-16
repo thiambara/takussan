@@ -168,8 +168,8 @@ export function DepositRefundModal({
             <Input
               id="deposit-refund-amount"
               type="number"
-              min={0.01}
-              step={1000}
+              min={1}
+              step="any"
               {...register('amount', { valueAsNumber: true })}
             />
             <p className="text-xs text-muted-foreground">
