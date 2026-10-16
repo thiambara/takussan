@@ -6,6 +6,7 @@ use App\Jobs\Audit\ExportActivityLogJob;
 use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\User;
+use App\Support\Audit\PropertyRedactor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\ApiTestCase;
@@ -262,5 +263,48 @@ class ActivityLogExporterTest extends ApiTestCase
 
         $this->assertStringContainsString('user-agency-a@example-a.test', $body);
         $this->assertStringContainsString('user-agency-b@example-b.test', $body);
+    }
+
+    // ─── TCK-692 — l'avant/après d'une modification, expurgé ───────────────────
+
+    /**
+     * activitylog v5 range les champs modifiés dans `attribute_changes`, et `properties` reste
+     * vide : l'export lisait `properties` seul et rendait `properties_diff` vide pour toute
+     * modification d'un modèle (P19.03).
+     */
+    public function test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges(): void
+    {
+        $sujet = User::factory()->create([
+            'first_name' => 'Avant',
+            'email' => 'avant.tck692@exemple.sn',
+            'phone' => '+221770000692',
+        ]);
+        $sujet->update([
+            'first_name' => 'Apres',
+            'email' => 'apres.tck692@exemple.sn',
+            'phone' => '+221770000693',
+        ]);
+
+        $this->apiActingAsRole('super_admin');
+
+        $body = $this->apiGet('/api/activity-logs/export?format=csv')
+            ->assertOk()
+            ->streamedContent();
+
+        $lignes = array_map('str_getcsv', preg_split('/\R/', trim(substr($body, 3))));
+        $entete = array_shift($lignes);
+        $ligne = collect($lignes)
+            ->map(fn (array $valeurs) => array_combine($entete, $valeurs))
+            ->first(fn (array $l) => $l['event'] === 'updated' && (int) $l['subject_id'] === $sujet->id);
+
+        $this->assertNotNull($ligne, 'La modification du sujet manque à l\'export.');
+        $diff = json_decode($ligne['properties_diff'], true);
+        $this->assertSame('Apres', $diff['attributes']['first_name'] ?? null);
+        $this->assertSame('Avant', $diff['old']['first_name'] ?? null);
+        $this->assertSame(PropertyRedactor::REDACTED, $diff['attributes']['email'] ?? null);
+        $this->assertSame(PropertyRedactor::REDACTED, $diff['old']['phone'] ?? null);
+        foreach (['avant.tck692', 'apres.tck692', '770000692', '770000693'] as $temoin) {
+            $this->assertStringNotContainsString($temoin, $body);
+        }
     }
 }

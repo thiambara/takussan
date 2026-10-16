@@ -2532,7 +2532,7 @@ ajoutent que des faits neufs.*
 
 ### L'export CSV du journal rend `properties_diff` vide pour toute modification d'un modèle
 - Réf : P19.03
-- Statut : validé — lire attribute_changes ; PropertyRedactor masque aussi email et phone
+- Statut : fait · TCK-692
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Audit/ActivityLogExporter.php:135-158`, `takussan-api/app/Services/Crm/CustomerActivityFeed.php:65-67`
 - Constat :
@@ -2542,6 +2542,7 @@ ajoutent que des faits neufs.*
   - Aucun test ne vérifie `properties_diff` (mesuré : `grep -rln properties_diff takussan-api/tests` → rien).
 - Piste : lire `attribute_changes`, le passer par `PropertyRedactor` comme `properties`. Un test : l'export d'une ligne `updated` porte l'ancienne et la nouvelle valeur, expurgées. L'angle 56 cherche les autres lecteurs restés sur l'ancienne forme.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `ActivityLogExporter::mapRow()` (cherche `attributes`/`old` dans `properties` seulement) et `CustomerActivityFeed::format()` (lit `attribute_changes`) ; `PropertyRedactor` ne masque que des secrets et `rib`/`iban`/`tax_id`/`ninea`/`id_document`, pas `email` ni `phone` ; même test temporaire, retiré depuis → les lignes `created`/`updated`/`deleted` d'un `User` ont `properties = []` et le diff dans `attribute_changes` ; `mapRow()` appelé par réflexion sur la ligne `updated` rend `properties_diff = NULL` ; `grep properties_diff tests` → seul `tests/impact-map.json`, aucun test ne le vérifie. Constat confirmé. Classement : V3, la correction fait sortir dans un fichier téléchargé les valeurs personnelles avant/après que `PropertyRedactor` laisse passer, ce que TCK-613 (`todo`, export du journal et données personnelles) doit trancher.
+- Mesure (2026-10-16, 34b00664, implementeur) : reproduit avant correctif par le test neuf `ActivityLogExporterTest::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` (un `User` modifié, export CSV du super-admin) → `properties_diff` sans `attributes` (« null is identical to 'Apres' »), et `PropertyRedactor` laissait `email`/`phone` en clair (6 clés en rouge). Correctif : `mapRow()` lit `attribute_changes` passé par `PropertyRedactor`, qui masque toute clé de dernier segment `email` ou `phone`. Ablation : `mapRow()` seul remis → 1 rouge ; `PropertyRedactor` seul remis → 7 rouges ; remis → 34 verts.
 
 ### La purge que TCK-537 doit planifier n'épargnerait pas la plupart des journaux de preuve
 - Réf : P19.04
