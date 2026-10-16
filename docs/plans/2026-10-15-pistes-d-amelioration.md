@@ -3144,7 +3144,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Le matcher propose des factures brouillon, annulées et nulles
 - Réf : P25.04
-- Statut : validé — seuls les statuts sent, overdue et paid sont rapprochables, et `confirmMatch()` refuse les autres
+- Statut : fait · TCK-724
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:69-96`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:99-114`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`
 - Constat :
@@ -3155,6 +3155,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : borner les factures candidates aux statuts encaissables (`sent`, `overdue`, `paid`) dans le matcher, la recherche et `confirmMatch()`. Garde : un test par statut exclu.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:69-96` (aucun filtre de statut), `PaymentSearchService.php:99-114` (idem), `ReconciliationManager.php:39-97` (seul `payout_not_completed` juge un statut) et `PaymentGatewayService.php:1294-1296` (`isPayable` : `sent|overdue`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, facture de 33 333 émise le jour même en `draft`, `cancelled` puis `void`, crédit de 33 333 à J+1 → `Invoice conf=70` dans les trois cas. Classement : V1, la liste des statuts rapprochables (`paid` inclus ou non, `isPayable` ne la donne pas) et un refus neuf dans `confirmMatch()` sur une écriture comptable sont à décider.
+- Mesure (2026-10-16, 0b77b543, implementeur) : reproduit avant correctif par `BankReconciliationTest::test_une_facture_non_encaissable_n_est_ni_suggeree_ni_confirmable` et `PaymentSearchTest::test_la_recherche_ne_propose_que_les_factures_encaissables` (load 1,20 sur 8 cœurs) : facture `draft` de 33 333, crédit de 33 333 → suggérée (`Failed asserting that 2 is null`), et la recherche rend les six statuts → `Invoice::RECONCILABLE_STATUSES` (`sent`, `overdue`, `paid`) borne le matcher et la recherche, et `confirmMatch()` rend 422 `invoice_not_reconcilable` ; versant autorisé testé pour les trois statuts ; ablation complète (`app/` remis à `pre-dev`) → les deux tests d'exclusion rouges, ablation fine (garde de `confirmMatch()` seule retirée) → `Expected 422 but received 200`, remis → 24 verts sur les deux classes, 67 sur `tests/Feature/Api/Accounting/`.
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
