@@ -150,7 +150,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### La recherche dans `/app` ne trouve ni les brouillons ni les biens privés, et ne trie pas par pertinence
 - Réf : P01.01
-- Statut : fait · TCK-662
+- Statut : fait · TCK-662 — reste : le second mécanisme de tri, avec TCK-578 et son ADR
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:235`, `takussan-api/app/Models/Property.php:499-508`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:80`, `takussan-web/src/lib/queries/properties-server.ts:126`
 - Constat :
