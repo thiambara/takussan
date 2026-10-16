@@ -542,7 +542,7 @@ contre le code par la session.*
 
 ### La révision de loyer n'atteint jamais les échéances déjà générées
 - Réf : P04.02
-- Statut : validé — à effective_date, réécrire les échéances pending dont la période commence après, jamais une échéance payée ou en cours de paiement
+- Statut : fait · TCK-668
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/RentReviewService.php:109`, `takussan-api/app/Services/Model/LeaseService.php:152,198`
 - Constat :
@@ -552,6 +552,7 @@ contre le code par la session.*
   - Aucun test ne lit les `LeasePayment` après une révision (lu).
 - Piste : à `effective_date`, réécrire le montant des échéances `pending` à venir, sous verrou du bail, et un test.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `RentReviewService.php:109` (seul `forceFill(['monthly_rent' => …])`), `LeaseService.php:198` (`lease.schedule_exists`), `grep -rn effective_date app` → aucun lecteur hors `RentReviewService` et l'historique (`LeaseRentController.php:68`), aucun observateur ni écouteur sur `monthly_rent` ; `RentReviewServiceTest.php` ne lit aucun `LeasePayment` → le défaut tient. Précision : le docblock (l. 18-22) dit que le générateur lira `effective_date` comme borne, et que les échéances déjà émises ne sont PAS modifiées ; il décrit donc un générateur qui n'existe pas plutôt que « le contraire ». Classement : V1, la piste réécrit le montant d'échéances existantes, et le docblock en fait un choix (quelles échéances amender).
+- Mesure (2026-10-16, 5fa8aefe, implementeur) : reproduit par `RentReviewServiceTest` — révision 200 000 → 220 000, échéances `pending` du mois d'effet et du suivant restées à 200 000, échéance trimestrielle à 600 000 inchangée (2 rouges) → `rewriteUpcomingRentPayments()` sous le verrou du bail : `rent` `pending` dont `period_start >= effective_date`, × mois de la période, jamais `paid`/`partially_paid`/checkout ouvert/acompte ; 11 verts ; ablations (appel, garde checkout, filtres statut et type, multiplication par les mois) chacune rouge.
 
 ### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
 - Réf : P04.03
