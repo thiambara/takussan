@@ -495,7 +495,7 @@ Ce qui tient (lu) :
 
 ### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
 - Réf : P03.05
-- Statut : validé — UpdatePropertyRequest seule, et une garde neuve qui fige les 27 autres ; reste : les 27 autres FormRequests, une à une
+- Statut : fait · TCK-730 — reste : les 27 autres FormRequests, une à une
 - Gravité : 🟠 dette
 - Où :
   - `Api/PropertyController.php:183-185` ;
@@ -513,6 +513,7 @@ Ce qui tient (lu) :
   - `PUT /api/properties/{id}` est l'endpoint le plus utilisé du lot (lu ; compte par grep).
 - Piste : déléguer dans `authorize()` (`can('update', $this->route('property'))`), et une garde qui refuse `extends FormRequest` hors de `BaseFormRequest`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : `grep -rlE 'extends FormRequest'` hors `Admin/` et `Auth/` → 28 FormRequests ; lu `UpdatePropertyRequest.php:31-36` (`authorize()` rend `user() !== null`) et `PropertyController.php:183-185` (`authorize('update')` dans le corps) ; test temporaire, retiré depuis, utilisateur sans lien avec le bien → `PUT /api/properties/{id}` avec un corps invalide rend 422 et nomme les champs `type` et `price`, avec un corps vide rend 403. Les autres endpoints cités n'ont pas été rejoués un à un. Classement : V2 et V8, déléguer l'autorisation dans 28 `authorize()` peut refuser un appelant légitime si une délégation diffère de la règle du contrôleur, et l'ensemble, garde comprise, dépasse un ticket.
+- Mesure (2026-10-16, 71b58ea4, implementeur) : `grep -rlE 'extends FormRequest'` hors `Admin/` et `Auth/` → toujours 28 ; `AuthorizationPrecedesValidationTest::test_property_update_denies_before_it_validates`, membre d'une autre agence, corps `{type: chateau, price: cher}` → 422 sur `type` et `price` avant correctif → `UpdatePropertyRequest` étend `BaseFormRequest` et délègue à `can('update')` : 403 en PUT et PATCH, 422 gardé pour le super-admin ; garde `FormRequestEtendBaseFormRequestTest` qui fige les 27 autres et expire ; ablation : 2 rouges (le 403, la garde qui nomme `UpdatePropertyRequest.php`), 23 verts une fois remis.
 
 ### Oracles d'existence entre agences
 - Réf : P03.06
