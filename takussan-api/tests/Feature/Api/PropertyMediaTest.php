@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -66,9 +67,64 @@ class PropertyMediaTest extends TestCase
         $this->postJson("/api/properties/{$property->id}/media", [
             'photos' => [UploadedFile::fake()->create('broken.png', 1, 'image/png')],
         ])->assertStatus(422)
-            ->assertJsonValidationErrors(['photos']);
+            // TCK-676 — la photo en échec est nommée par son rang.
+            ->assertJsonValidationErrors(['photos.0']);
 
         $this->assertSame(0, $property->refresh()->getMedia('photos')->count());
+    }
+
+    /**
+     * TCK-676 (P10.01) — une photo que GD ne décode pas échoue APRÈS l'écriture de sa ligne et
+     * la copie de son original (`FileAdder::processMediaItem`), dans la miniature synchrone. Le
+     * `catch` appelait `$media?->delete()` sur un `$media` toujours nul : la ligne restait, sans
+     * miniature, et la copie de l'original restait dans le répertoire temporaire de conversion.
+     *
+     * Le faux PNG de `test_corrupted_image_…` échoue à la règle `image` et n'atteint jamais ce
+     * `catch` : celui-ci a un en-tête valide et un corps illisible.
+     */
+    public function test_photo_that_fails_conversion_is_removed_and_listed_while_the_others_stay(): void
+    {
+        Storage::fake('public');
+        Storage::fake(config('media-library.disk_name'));
+        $temp = storage_path('framework/testing/media-temp-'.uniqid());
+        config(['media-library.temporary_directory_path' => $temp]);
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $response = $this->postJson("/api/properties/{$property->id}/media", [
+            'photos' => [
+                UploadedFile::fake()->image('good.jpg'),
+                $this->truncatedPng('broken.png'),
+                UploadedFile::fake()->image('after.jpg'),
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['photos.1'])
+            ->assertJsonMissingValidationErrors(['photos.0', 'photos.2']);
+
+        $names = $property->refresh()->getMedia('photos')->pluck('file_name')->all();
+        $this->assertSame(['good.jpg', 'after.jpg'], $names);
+        $this->assertSame([], glob($temp.'/*') ?: []);
+
+        File::deleteDirectory($temp);
+    }
+
+    /** En-tête PNG valide (signature + IHDR 64×64), corps à zéro : `image` passe, GD échoue. */
+    private function truncatedPng(string $name): UploadedFile
+    {
+        $image = imagecreatetruecolor(64, 64);
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+
+        $path = tempnam(sys_get_temp_dir(), 'png');
+        file_put_contents($path, substr($png, 0, 33).str_repeat("\0", 2048));
+
+        return new UploadedFile($path, $name, 'image/png', null, true);
     }
 
     /**

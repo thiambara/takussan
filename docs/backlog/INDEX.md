@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**618 tickets** — 45 ouverts, 571 livrés.
+**619 tickets** — 45 ouverts, 572 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 571 |
+| ✅ Done | 572 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 571
+## ✅ Done — 572
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 58 tickets</summary>
+<summary><strong>Sans vague</strong> — 59 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1075,6 +1075,7 @@ _(aucun)_
 - [TCK-672](tickets/TCK-672-actes-pdf-dates-en-francais.md) — Les actes PDF (bail, état des lieux, quittances, facture) se rendent en français, dates comprises `S · P1 · bug`
 - [TCK-673](tickets/TCK-673-photos-une-server-action-par-photo.md) — Les photos d'un bien partent une par une, et la limite de 1 Mo des server actions est relevée `M · P0 · bug`
 - [TCK-675](tickets/TCK-675-liste-de-biens-vide-noindex.md) — Une liste publique de biens sans résultat est servie en noindex, follow (soft-404 des facettes) `S · P1 · bug`
+- [TCK-676](tickets/TCK-676-photo-en-echec-ne-laisse-rien.md) — Une photo de bien qui échoue à la conversion ne laisse ni ligne ni copie temporaire, et le 422 la nomme `S · P0 · bug`
 
 </details>
 
