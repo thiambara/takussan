@@ -41,8 +41,20 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const domaines: DomainesDeFacette = await domainesDeLaListe(params);
   const { title, description } = await titreEtDescription(params, domaines);
 
-  const locale = await getLocale();
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
   const chemin = cheminCanoniqueDeLaListe(params, domaines);
+
+  // TCK-675 (P09.02) — une combinaison de facettes valides prise une à une peut ne désigner aucun
+  // bien : `?type=factory&contract_type=rent&city=Dakar` rendait 200, « Usine à louer à Dakar » et
+  // `index, follow` sur une liste vide (soft-404). La recherche est EXACTEMENT celle de la page —
+  // même clef, même langue — pour que `cache()` la partage : aucun aller-retour de plus.
+  // Une panne (`null`) n'affirme rien : la page garde l'indexation héritée du layout.
+  const resultat = await rechercherBiensPublics(
+    clefDeRecherche(parametresDeRecherche(parametresDepuisNext(await searchParams))),
+    locale,
+  );
+  const vide = resultat !== null && resultat.meta.total === 0;
 
   return {
     title,
@@ -51,7 +63,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     // `?type=villa&page=3&sort=-created_at&per_page=48`, les quatre déclarations désignent
     // `/‹langue›/properties?type=villa`. Deux signaux qui se contredisent font ignorer le groupe
     // entier — cf. `alternatesPubliques`.
-    alternates: alternatesPubliques(chemin, isLocale(locale) ? locale : 'fr'),
+    alternates: alternatesPubliques(chemin, locale),
+    // `follow` reste vrai : les liens de la page (filtres, autres facettes) mènent à des pages
+    // réelles. Omettre la clé laisse hériter du layout, qui déclare `index, follow`.
+    ...(vide ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
