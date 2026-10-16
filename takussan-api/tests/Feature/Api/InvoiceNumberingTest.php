@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Contracts\Payments\PaymentDriverContract;
 use App\Exceptions\ApiError;
 use App\Models\Customer;
+use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Integration;
 use App\Models\Invoice;
@@ -103,6 +104,42 @@ class InvoiceNumberingTest extends TestCase
         $penalty = Invoice::query()->findOrFail($lease->early_termination_invoice_id);
         $this->assertSame(InvoiceStatus::Sent, $penalty->status);
         $this->assertSame('FA-2026-00002', $penalty->reference_number);
+    }
+
+    /**
+     * TCK-669 (P04.03, ADR-0039 §7) — annuler la résiliation anticipée annule une pénalité ÉMISE :
+     * elle passe par l'avoir, et son numéro FA-… n'est pas perdu sans contrepassation.
+     */
+    public function test_cancelling_an_early_termination_credits_its_issued_penalty(): void
+    {
+        [$agency, , $tenant] = $this->invoicingAgency();
+        $landlord = User::factory()->withOwnerProfile($agency)->create();
+        $lease = Lease::factory()->active()->create([
+            'agency_id' => $agency->id,
+            'landlord_id' => $landlord->id,
+            'property_id' => Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $landlord->id])->id,
+            'tenant_id' => $tenant->id,
+            'start_date' => now()->subMonths(6)->toDateString(),
+            'end_date' => now()->addMonths(6)->toDateString(),
+            'monthly_rent' => 400_000,
+        ]);
+        $service = app(EarlyTerminationService::class);
+        $lease = $service->request($lease, $landlord, [
+            'effective_date' => now()->addDays(45)->toDateString(),
+        ]);
+        $penaltyId = $lease->early_termination_invoice_id;
+
+        $service->cancel($lease->fresh(), $landlord);
+
+        $penalty = Invoice::query()->findOrFail($penaltyId);
+        $this->assertSame(InvoiceStatus::Cancelled, $penalty->status);
+        $this->assertSame('FA-2026-00001', $penalty->reference_number);
+
+        $credit = Invoice::query()->where('credited_invoice_id', $penaltyId)->sole();
+        $this->assertSame(InvoiceKind::CreditNote, $credit->kind);
+        $this->assertSame(InvoiceStatus::Void, $credit->status);
+        $this->assertEquals((float) $penalty->total_amount, (float) $credit->total_amount);
+        $this->assertSame('AV-2026-00001', $credit->reference_number);
     }
 
     public function test_ac12_a_draft_settled_by_the_gateway_is_numbered(): void

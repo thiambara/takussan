@@ -1069,6 +1069,7 @@ _(aucun)_
 - [TCK-666](tickets/TCK-666-etiquettes-crm-bornees-a-l-agence.md) — Étiquettes : une étiquette CRM ne se lit que depuis l'agence du personnel qui l'emploie `S · P0 · bug`
 - [TCK-667](tickets/TCK-667-echeance-trimestrielle-ou-annuelle-facture-tous-ses-mois.md) — Échéancier : une échéance trimestrielle ou annuelle facture tous les mois de sa période `S · P1 · bug`
 - [TCK-668](tickets/TCK-668-revision-de-loyer-reecrit-les-echeances.md) — La révision de loyer réécrit les échéances pending dont la période commence à sa date d'effet `S · P0 · bug`
+- [TCK-669](tickets/TCK-669-annuler-la-resiliation-anticipee-credite-sa-penalite.md) — Annuler une résiliation anticipée annule sa pénalité émise par un avoir `S · P0 · bug`
 - [TCK-670](tickets/TCK-670-montants-jamais-refuses-par-le-pas-natif.md) — Un montant n'est jamais refusé par le pas natif du champ : restitution de caution, bail, paiements, facture `S · P0 · bug`
 - [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
 - [TCK-672](tickets/TCK-672-actes-pdf-dates-en-francais.md) — Les actes PDF (bail, état des lieux, quittances, facture) se rendent en français, dates comprises `S · P1 · bug`
