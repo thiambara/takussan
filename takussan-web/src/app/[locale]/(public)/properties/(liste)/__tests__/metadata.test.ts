@@ -6,6 +6,8 @@ import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
 import { ORIGINE_SITE } from '@/lib/alternates';
 import { TIMEZONE, type Locale } from '@/i18n/config';
+import { clefDeRecherche, parametresDeRecherche } from '@/lib/recherche-publique';
+import type { SearchResult } from '@/types/search';
 
 /**
  * TCK-433 · AC1 et AC3 — la métadonnée de `/properties`.
@@ -74,6 +76,26 @@ vi.mock('@/lib/queries/facettes', async () => {
   };
 });
 
+/**
+ * TCK-675 — la recherche que `generateMetadata` partage avec la page. Doublée à la frontière de
+ * `rechercherBiensPublics` : le test porte sur la règle « liste vide ⇒ `noindex` », pas sur le
+ * catalogue. `totalServi` vaut `null` pour simuler une panne (la fonction rend alors `null`).
+ */
+let totalServi: number | null = 3;
+const recherchesDemandees: Array<[string, string]> = [];
+
+vi.mock('@/lib/queries/public-search', () => ({
+  rechercherBiensPublics: async (requete: string, locale: string): Promise<SearchResult | null> => {
+    recherchesDemandees.push([requete, locale]);
+    if (totalServi === null) return null;
+    return {
+      data: [],
+      facets: {},
+      meta: { current_page: 1, last_page: 1, per_page: 30, total: totalServi },
+    } as unknown as SearchResult;
+  },
+}));
+
 vi.mock('next-intl/server', () => ({
   getLocale: async () => localeCourante,
   getTranslations: async (namespace?: string) => {
@@ -99,6 +121,8 @@ const metadonnee = (requete: Record<string, string | string[]>, locale: Locale =
 
 beforeEach(() => {
   localeCourante = 'fr';
+  totalServi = 3;
+  recherchesDemandees.length = 0;
 });
 
 describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
@@ -303,5 +327,38 @@ describe('TCK-598 · AC11 — le quartier dans la canonique et le titre', () => 
     const meta = await metadonnee({ city: 'Thiès', location: 'Mermoz' });
     expect(meta.title).toContain('Thiès');
     expect(meta.title).not.toContain('Mermoz');
+  });
+});
+
+describe('TCK-675 · P09.02 — une liste vide n’est pas une page à indexer', () => {
+  // Décision du porteur : « noindex, follow quand total === 0 ».
+  const requete = { type: 'factory', contract_type: 'rent', city: 'Dakar' };
+
+  it('total === 0 : `noindex, follow`', async () => {
+    totalServi = 0;
+    const meta = await metadonnee(requete);
+    expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+
+  it('total > 0 : aucune clé `robots`, le layout (`index, follow`) s’applique', async () => {
+    totalServi = 1;
+    const meta = await metadonnee(requete);
+    expect(meta.robots).toBeUndefined();
+  });
+
+  it('recherche en panne : rien n’est affirmé, aucune clé `robots`', async () => {
+    totalServi = null;
+    const meta = await metadonnee(requete);
+    expect(meta.robots).toBeUndefined();
+  });
+
+  it('la recherche demandée est CELLE de la page — même clef, même langue — pour que `cache()` la partage', async () => {
+    totalServi = 0;
+    await metadonnee({ ...requete, tags: ['a', 'b'], page: '2' }, 'en');
+    const attendue = new URLSearchParams();
+    for (const [cle, valeur] of Object.entries({ ...requete, page: '2' })) attendue.append(cle, valeur);
+    attendue.append('tags', 'a');
+    attendue.append('tags', 'b');
+    expect(recherchesDemandees).toEqual([[clefDeRecherche(parametresDeRecherche(attendue)), 'en']]);
   });
 });
