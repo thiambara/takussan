@@ -426,7 +426,7 @@ Ce qui tient (lu) :
 
 ### `PUT /api/users/{user}/role` contourne les garde-fous de l'équipe
 - Réf : P03.01
-- Statut : validé — mêmes gardes qu'AgencyMemberRemovalService : refus sur l'admin principal, le dernier admin, soi-même et un membre non actif
+- Statut : fait · TCK-664
 - Gravité : 🔴 défaut avéré, au sein d'une même agence
 - Où : `takussan-api/app/Http/Controllers/Api/UserRoleController.php:38-74,104-135`, `takussan-api/app/Http/Requests/Api/UpdateUserRoleRequest.php:10-16`
 - Constat :
@@ -437,6 +437,7 @@ Ce qui tient (lu) :
   - Aucun test de `UserRoleControllerTest` ne vise ces cas (lu).
 - Piste : une policy `changeMemberRole` qui réutilise les gardes d'`AgencyMemberRemovalService`, un refus des cibles non actives, et un test par garde.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `UserRoleController.php:37-135` (appartenance sans statut, `setAgent()`/`setOwner()` suppriment les profils `agency_admin`, aucune garde sur soi, le dernier admin ni la suspension) ; test temporaire, retiré depuis, admin unique de l'agence → `PUT /api/users/{agent suspendu}/role {role: agency_admin}` rend 200 et un profil admin `active`, puis `PUT /api/users/{soi}/role {role: agent}` rend 200 et laisse l'agence sans aucun profil admin. Le front l'appelle par le BFF `/api/admin-users/{id}/role` (`admin-users.ts:81`). Classement : V2, le correctif ajoute des refus sur une autorisation qu'un admin d'agence légitime utilise aujourd'hui.
+- Mesure (2026-10-16, ddb5f050, implementeur) : avant correctif, `UserRoleControllerTest` (+4 cas) : changer son propre rôle, rétrograder l'admin principal, rétrograder le seul admin (acteur super-admin) et promouvoir un agent suspendu rendent tous 200 → `UserRoleController::assertRoleChangeable()` et le dernier admin compté sous verrou de `agencies` ; 422 `user.role_change_self`, `user.role_primary_admin`, `user.role_last_admin`, `user.role_member_not_active`, rien d'écrit, et un co-admin non protégé se rétrograde toujours (200). Ablation : contrôleur remis à `pre-dev` → 4 rouges sur 18 ; remis → 18 verts.
 
 ### `/api/users?include=…Profiles` fait sortir les profils des autres agences
 - Réf : P03.02
