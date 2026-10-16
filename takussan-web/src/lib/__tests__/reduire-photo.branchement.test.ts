@@ -23,7 +23,8 @@ const ECRANS_DE_PHOTOS = [
   'components/admin-agency/AgencyConfigForm.tsx',
   'components/maintenance/MaintenanceForm.tsx',
   'components/maintenance/MaintenanceCompleteForm.tsx',
-  'components/messages/ChatView.tsx',
+  // `components/messages/ChatView.tsx` n'en est plus : TCK-683 a retiré le trombone, qui postait
+  // vers une route absente. La messagerie n'envoie plus aucune photo.
 ] as const;
 
 const PIECES_JUSTIFICATIVES = [
