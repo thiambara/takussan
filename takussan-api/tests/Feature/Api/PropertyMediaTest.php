@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\ImageEnTete;
 use Tests\TestCase;
 
 class PropertyMediaTest extends TestCase
@@ -107,6 +108,29 @@ class PropertyMediaTest extends TestCase
 
         $this->assertIsArray($ini);
         $this->assertSame('20', $ini['max_file_uploads'] ?? null);
+    }
+
+    /**
+     * TCK-677 (P10.02) — une photo de plus de 20 Mpx est refusée À LA VALIDATION, sur son en-tête,
+     * avant que la miniature synchrone ne la décode en entier. Le fichier ne porte que son en-tête
+     * (9 000 × 9 000 annoncés, quelques octets) : c'est la forme d'une bombe de décompression.
+     */
+    public function test_photo_above_twenty_megapixels_returns_422_before_any_media(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/media", [
+            'photos' => [UploadedFile::fake()->image('ok.jpg', 10, 10), ImageEnTete::png(9000, 9000, 'bombe.png')],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['photos.1' => __('validation.dimensions', ['attribute' => 'photos.1'])])
+            ->assertJsonMissingValidationErrors(['photos.0']);
+
+        $this->assertSame(0, $property->refresh()->getMedia('photos')->count());
     }
 
     public function test_missing_photos_returns_422(): void

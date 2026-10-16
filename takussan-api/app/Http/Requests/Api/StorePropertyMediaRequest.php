@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\PixelsAuPlus;
 
 /**
  * TCK-305 — extrait de PropertyMediaController::store(), où les règles étaient écrites en ligne.
@@ -34,13 +35,16 @@ class StorePropertyMediaRequest extends BaseFormRequest
      * de `docker/php.ini` applique avant même la validation. Sans elle, un 21e fichier était ignoré
      * EN SILENCE par PHP, et le lot accepté amputé.
      *
+     * TCK-677 (P10.02) — `PixelsAuPlus` : la miniature est synchrone, et une photo de plus de
+     * 20 Mpx est refusée avant que GD ne la décode.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
             'photos' => ['required', 'array', 'max:20'],
-            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240', new PixelsAuPlus],
         ];
     }
 
