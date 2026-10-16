@@ -1248,7 +1248,7 @@ Correct (mesuré ou lu) :
 
 ### Les combinaisons de facettes sans résultat sont indexables (soft-404)
 - Réf : P09.02
-- Statut : validé — noindex, follow quand total === 0
+- Statut : fait · TCK-675
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:47-55`, `takussan-web/src/lib/canonique.ts:284`
 - Constat :
@@ -1257,6 +1257,7 @@ Correct (mesuré ou lu) :
   - `generateMetadata` ne pose aucun `robots` (relu). Les annuaires, eux, ont `facette.indexable` (`agencies/page.tsx:53`).
 - Piste : `robots: { index: false, follow: true }` quand `total === 0`, en partageant le résultat de la recherche avec `generateMetadata` par `cache()`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `properties/(liste)/page.tsx:35-55` (`generateMetadata` ne rend que `title`, `description` et `alternates`, aucun `robots`), `(public)/layout.tsx:56` (`robots: { index: true, follow: true }` hérité) et `canonique.ts:284-316` (`filtresCanoniques` juge chaque clé seule contre son domaine, jamais la combinaison) ; `agencies/page.tsx:54` pose bien `noindex` si `!facette.indexable` ; lecture par tinker de la base de dev → 4 biens `factory`, tous en `rent`, à Saint-Louis, Touba et Kaolack : `type=factory&contract_type=rent&city=Dakar` rend donc 0 bien sous une canonique qui garde les trois facettes. Le rendu HTTP n'a pas été rejoué (front et API locaux arrêtés). Classement : V7, aucun ticket ni ADR n'écrit la règle « liste vide ⇒ `noindex` » pour les biens (TCK-433 et TCK-436 ne la posent que pour les valeurs hors domaine et les annuaires).
+- Mesure (2026-10-16, b57126b7, implementeur) : relu `properties/(liste)/page.tsx` : `generateMetadata` ne posait toujours aucun `robots` ni ne lisait le total ; test neuf de `(liste)/__tests__/metadata.test.ts` à `total: 0` → `meta.robots` `undefined` (rouge) → `generateMetadata` lit la recherche de la page (même clef, même langue, partagée par `cache()`) et pose `noindex, follow` sur `total === 0`, rien sur un total positif ni sur une panne ; ablation (`vide = false`) → rouge, remis → 40 verts.
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
