@@ -2409,7 +2409,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### La rangée « À vendre » de l'accueil compte des impressions sponsorisées qu'elle n'affiche jamais, et montre des places payées sans le badge
 - Réf : P18.01
-- Statut : validé — paramètre qui coupe les emplacements (aucune impression) pour la rangée de l'accueil
+- Statut : fait · TCK-687
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/raccourcis-de-l-accueil.ts:24-31`, `takussan-web/src/components/property/HomepageDiscovery.tsx:221-231`, `takussan-api/app/Services/Search/PropertySearchService.php:143-146,634-673`, `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-34`
 - Constat :
@@ -2420,6 +2420,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Les places réservées ne comptent pas d'impression, ni sur l'accueil ni sur `/properties` : seules les entrées de `sponsored` sont comptées (lu, `PropertySearchService.php:657-659`). L'ADR-0061 § 10 ne parle que des « emplacements » : est-ce voulu ? À vérifier.
 - Piste : un paramètre qui coupe les emplacements, ou un endpoint dédié pour la rangée. Côté front, la robe pour `placement === 'reserved'`, ou pas de place réservée hors de `/properties`. Un test API : la requête de l'accueil ne compte aucune impression. Un test front : une place réservée porte toujours la robe.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `raccourcis-de-l-accueil.ts:24-31` (`contract_type=sale&per_page=12`, seul `data` est lu), `HomepageDiscovery.tsx:221-231` (rangée « À vendre » sans `robeVedette`), `PropertySearchService.php:143-146,634-673` (régime strict → `placements()` → `BoostStatsRecorder::impressions()`), aucun commit sur ces chemins depuis 6c8a08b0 ; test temporaire, retiré depuis : cinq vedettes de vente, sept biens, réglages par défaut, `GET /api/public/properties/search?contract_type=sale&per_page=12` sous `Googlebot/2.1` → `sponsored = [4,5,2]`, **3 impressions** comptées, et `data` ouvre sur deux `placement: "reserved"`. Classement : V7, le défaut tient en entier, mais la piste offre trois issues (paramètre qui coupe, endpoint dédié, robe sur la place réservée) qui changent chacune ce que voit le visiteur, et la question des impressions des places réservées (ADR-0061 § 10) reste au porteur.
+- Mesure (2026-10-16, 8ddb3caa, implementeur) : reproduit avant correctif par `AccueilSansEmplacementsTest` (trois vedettes de vente, trois biens organiques, 3 emplacements et 2 places réservées) : `GET /api/public/properties/search?contract_type=sale&per_page=12&placements=false` rendait `sponsored` non vide, le paramètre étant ignoré → `placements=false` coupe emplacements et places réservées (`sponsored = []`, `data` tout `organic`, 0 impression), le témoin sans paramètre sert et compte toujours, `placements=peut-etre` rend 422 ; l'accueil envoie `placements=false` (`raccourcis-de-l-accueil.test.ts`) ; ablation du correctif API puis front, rouge chaque fois, puis vert.
 
 ### Les impressions de la rangée vedette de l'accueil ne peuvent jamais devenir des clics
 - Réf : P18.02
