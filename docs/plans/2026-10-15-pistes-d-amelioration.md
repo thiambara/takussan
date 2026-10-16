@@ -3267,7 +3267,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Sans `SMS_WEBHOOK_URL_TOKEN`, LAfricaMobile échoue sur tout SMS rattaché à une notification
 - Réf : P27.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : clé d'environnement absente, choix entre envoyer sans accusé et refuser au démarrage
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:75-76,119-131`, `takussan-api/config/sms.php:174`, `takussan-api/routes/api/sms-webhooks.php:31-33`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-173`
 - Constat :
@@ -3280,10 +3280,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Les tests ne le voient pas : `SmsRouterDriverTest::setUp` pose le jeton (lu, l. 37).
   - Établi comment : lu et mesuré.
 - Piste : envoyer sans `ret_url` quand le jeton est vide, avec un `Log::warning` (l'accusé de réception est perdu, pas le SMS) ; ou faire échouer bruyamment au démarrage. Un test du routeur, jeton vide et `notification_id` posé, garde le retour.
+- Mesure (2026-10-16, a76d2fe2, mesureur) : relu `LAfricaMobileSmsDriver.php:75-76,119-131` (`ret_url` construit hors du `try`), `config/sms.php:174` (défaut `''`), `sms-webhooks.php:31` (segment `{token}` exigé) ; `git log b57126b7..HEAD` sur ces fichiers → vide ; test temporaire (retiré), jeton vide, `notification_id` posé, LAM et Mtarget actifs → tentative 1 `lafricamobile` `failed` / `driver_exception_UrlGenerationException`, tentative 2 `mtarget` `sent`, 0 requête vers LAM. Le `notification_id` vient de `SmsChannel.php:84` (`resolveAppNotificationId`), pas de `CodedNotification.php`, qui ne le cite plus. `docs/integrations/sms.md:198` fait de la clé un prérequis de déploiement. Classement : V5, le défaut naît d'une variable d'environnement absente, et la piste laisse le choix entre perdre l'accusé et refuser de démarrer.
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : contredit TCK-102:82, et le sort des codes OTP est à décider
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-105,143-150`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:78-88`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:76-87`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:175-188`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:82-87`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:223`
 - Constat :
@@ -3295,10 +3296,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Le repli immédiat sur timeout est prescrit : TCK-102:82 dit « Driver throw HTTP / timeout / code erreur provider → fallback immédiat ». Ce choix ne pèse ni le doublon ni le double coût.
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : distinguer l'échec sûr (connexion refusée, 4xx) de l'échec ambigu (délai de lecture, 5xx). Un échec ambigu ne passerait pas au fournisseur suivant pour un message non critique : statut `unknown`, réconcilié par l'accusé de réception ou le puller. Choix à faire pour les codes OTP. Un test par pilote garde le classement.
+- Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:94-105,143-150`, `SmsRouterDriver.php:175-188`, TCK-102:82 ; test temporaire (retiré) → Orange qui lève `ConnectionException` (« cURL error 28 ») : résultat `lafricamobile` `sent` ; Orange en 502 : résultat `lafricamobile` `sent`. Le doublon côté fournisseur reste non mesurable depuis le poste. Classement : V7, la piste renverse un comportement prescrit par TCK-102 (« timeout → fallback immédiat ») et laisse ouvert le traitement des OTP.
 
 ### Une exception levée après l'acceptation d'un fournisseur fait renvoyer le SMS
 - Réf : P27.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:153`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:107`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:112`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-179,239-268`, `deploy/takussan/compose.api.yml:55`
 - Constat :
@@ -3307,10 +3309,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Une violation de l'index unique `(provider, provider_message_id)` suffirait à lever ici, par exemple un fournisseur qui réutilise un identifiant (déduit, à vérifier).
   - Établi comment : lu.
 - Piste : sortir `last_used_at` du chemin d'envoi (ou l'entourer d'un `try`), et rendre l'écriture de la tentative non bloquante pour un SMS déjà accepté (journal d'erreur, pas d'exception). Un test qui fait lever l'écriture de la tentative après un `sent` garde le retour.
+- Mesure (2026-10-16, a76d2fe2, mesureur) : relu `SmsRouterDriver.php:166-188,239-268` et les `forceFill(['last_used_at' …])->save()` hors `try` (`OrangeSmsDriver.php:153`, `LAfricaMobileSmsDriver.php:107`, `MtargetSmsDriver.php:112`) ; test temporaire (retiré) : `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM rendu → tentative 1 `lafricamobile` `failed` / `driver_exception_RuntimeException`, tentative 2 `mtarget` `sent` (le doublon est donc mesuré, plus déduit) ; `push_id` LAM déjà présent sur une autre notification → `UniqueConstraintViolationException` sortie du routeur. Le rejeu du job par `--tries=3` reste déduit (`compose.api.yml:54`, et non 55). Classement : A1, le routeur arrête déjà la chaîne sur un succès (`isTerminalSuccess`, l. 181-187) et le défaut viole ce contrat sans choix de produit.
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : délai du worker et budget de la chaîne relèvent du déploiement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:66,98,111,120,215-225,245`, `takussan-api/config/sms.php` (`fallback_chains`), `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:383`
 - Constat :
@@ -3319,10 +3322,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Les codes OTP partent de façon synchrone dans la requête HTTP (lu, `PhoneVerificationService.php:383`) : l'utilisateur attend toute la chaîne. Le délai du serveur web et de Traefik n'a pas été relevé.
   - Établi comment : lu, somme des délais déduite.
 - Piste : borner la durée totale de la chaîne (budget de temps partagé entre pilotes), et poser `$timeout` sur les notifications SMS au-dessus de ce budget. Le délai du worker est une affaire de déploiement.
+- Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:98,120,218-220,245` (`timeout(10)` par appel, verrou 10 s attendu 5 s), `config/sms.php` (`orange` → `orange, lafricamobile, mtarget`), `compose.api.yml:54` (`queue:work … --tries=3`, sans `--timeout`, ligne 54 et non 55), `grep` sur `CodedNotification.php` → ni `$timeout` ni `$tries` ; `PhoneVerificationService.php:383` envoie l'OTP de façon synchrone. Somme des délais et mise à mort du job non mesurées. Classement : V5, le délai du worker est dans `deploy/`, et le budget partagé est un choix de conception.
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options pour Mtarget, dont le format de réponse à plusieurs numéros n'est pas vérifié
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:115,219`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:117-121`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:89-109`
 - Constat :
@@ -3331,3 +3335,4 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - **Mtarget lit `results[0]` pour tout le lot.** Le code et le ticket d'un lot viennent du premier élément (l. 90-91). Mesuré : réponse `[{code 0}, {code -3}]` pour deux numéros → les deux `sent`. Le format réel de la réponse Mtarget à plusieurs numéros n'est pas vérifié, et aucun appelant n'envoie aujourd'hui plus d'un numéro (lu : `SmsChannel`, `WhatsappChannel`, `PhoneVerificationService`, `DeletionStepUpService`).
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : reprendre le compteur à la dernière tentative enregistrée ; mettre le renvoi après 401 sous le même `try` ; lire le résultat par numéro chez Mtarget, ou n'envoyer qu'un numéro par appel.
+- Mesure (2026-10-16, a76d2fe2, mesureur) : test temporaire (retiré) → heures calmes puis envoi avec `bypass_quiet_hours` : tentatives `[1 router deferred_to_fallback, 1 lafricamobile failed, 2 mtarget sent]` ; Orange 401 puis `ConnectionException` au renvoi (`OrangeSmsDriver.php:117-121`, hors `try`) : 2 appels d'envoi, résultat `lafricamobile` `sent` ; Mtarget `results` `[{code 0}, {code -3}]` pour deux numéros → les deux `sent` (`MtargetSmsDriver.php:90-91`). Les trois parties tiennent. Classement : V7, la partie Mtarget laisse deux options sur un format fournisseur non vérifié ; les deux premières seraient A1 si on les séparait.
