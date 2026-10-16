@@ -232,6 +232,40 @@ class SearchSuggestTest extends TestCase
     }
 
     /**
+     * TCK-707 (P28.01) — le défaut que TCK-341 a corrigé sur `discovery` : un
+     * corps qui change avec la langue, servi `public`, sans `Vary:
+     * Accept-Language`. Le libellé de `property_types` passe par `trans()`, et
+     * l'URL appelée par `useSuggest` ne porte pas la langue : sans `Vary`, un
+     * cache HTTP peut rendre le corps d'une autre langue pendant 60 s.
+     *
+     * La prémisse (deux corps distincts) est assertée : sans elle, le `Vary`
+     * serait une tautologie. `Origin`, posé par le CORS, doit survivre.
+     */
+    public function test_suggest_varie_avec_la_langue_et_le_declare_sans_chasser_origin(): void
+    {
+        $property = Property::factory()->published()->create(['type' => PropertyType::Apartment]);
+        Address::factory()->create([
+            'addressable_type' => Property::class,
+            'addressable_id' => $property->id,
+            'city' => 'Dakar',
+        ]);
+        $this->indexProperties();
+
+        $origin = config('cors.allowed_origins')[0] ?? 'http://localhost:3000';
+        $fr = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'fr', 'Origin' => $origin])->assertOk();
+        $en = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'en', 'Origin' => $origin])->assertOk();
+
+        $this->assertNotSame($fr->getContent(), $en->getContent(), 'Prémisse : suggest varie avec la langue.');
+        $this->assertStringContainsString('public', (string) $fr->headers->get('Cache-Control'));
+
+        foreach (['fr' => $fr, 'en' => $en] as $langue => $reponse) {
+            $vary = array_map('trim', explode(',', (string) $reponse->headers->get('Vary')));
+            $this->assertContains('Accept-Language', $vary, "{$langue} — Vary émis : ".$reponse->headers->get('Vary'));
+            $this->assertContains('Origin', $vary, "{$langue} — Vary émis : ".$reponse->headers->get('Vary'));
+        }
+    }
+
+    /**
      * TCK-335 — LE defaut du ticket : `SuggestService` filtrait par
      * `str_starts_with` sur une liste tiree de la base, donc une seule faute de frappe
      * rendait ZERO suggestion, alors que Meilisearch tourne a cote.
