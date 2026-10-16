@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\Currency;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -120,6 +121,23 @@ class PaymentSearchTest extends ApiTestCase
     // ─── Helpers ─────────────────────────────────────────────────
 
     /** @return array<int,array<string,mixed>> */
+    public function test_la_recherche_ne_propose_que_les_factures_encaissables(): void
+    {
+        // TCK-724 (P25.04) — brouillon, annulée et nulle n'attendent aucun encaissement.
+        $kept = [];
+        foreach (InvoiceStatus::cases() as $status) {
+            $invoice = $this->invoice($this->agency, 'STATUT-'.$status->value, 15000);
+            $invoice->update(['status' => $status]);
+            if (in_array($status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Paid], true)) {
+                $kept[] = $invoice->id;
+            }
+        }
+
+        $found = collect($this->search('STATUT-'))->where('type', 'invoice')->pluck('id')->sort()->values()->all();
+
+        $this->assertSame(collect($kept)->sort()->values()->all(), $found);
+    }
+
     private function search(string $query, ?int $amount = null): array
     {
         $url = "/api/agencies/{$this->agency->id}/bank-statements/payment-search?q=".urlencode($query);
@@ -168,6 +186,8 @@ class PaymentSearchTest extends ApiTestCase
             'agency_id' => $agency->id,
             'customer_id' => Customer::factory()->create(['agency_id' => $agency->id])->id,
             'reference_number' => $reference,
+            // TCK-724 (P25.04) — une facture brouillon n'est pas encaissable : la recherche l'écarte.
+            'status' => InvoiceStatus::Sent,
             'subtotal' => $amount,
             'total_amount' => $amount,
             'currency' => Currency::XOF,
