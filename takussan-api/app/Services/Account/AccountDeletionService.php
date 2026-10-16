@@ -14,6 +14,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
@@ -286,6 +287,14 @@ class AccountDeletionService
             ->where('subject_id', $user->getKey())
             ->whereNotNull('attribute_changes')
             ->update(['attribute_changes' => null]);
+
+        // TCK-691 (P19.02) — chaque envoi SMS ou WhatsApp garde le numéro du destinataire dans
+        // `notification_delivery_attempts.to`. Le compte n'étant que soft-deleted, la FK en
+        // `cascadeOnDelete` ne joue pas : le numéro est effacé, la tentative reste.
+        NotificationDeliveryAttempt::query()
+            ->whereIn('app_notification_id', $user->appNotifications()->select('id'))
+            ->whereNotNull('to')
+            ->update(['to' => null]);
 
         unset($originalEmail);
 
