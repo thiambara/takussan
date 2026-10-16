@@ -2264,7 +2264,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### La pertinence de TCK-281 n'agit nulle part : le front impose toujours `sort=-created_at`
 - Réf : P16.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-702
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/customers.ts:91`, `maintenance.ts:111`, `documents.ts:75`, `super-admin.ts:102`, `admin-users.ts:60` ; `takussan-api/app/Http/Controllers/Api/CustomerController.php:40`, `MaintenanceRequestController.php:55,81`, `AgencyController.php:41,177`
 - Constat :
@@ -2274,6 +2274,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, des deux côtés.
 - Piste : ne pas envoyer `sort` quand `search` n'est pas vide (ou envoyer un `sort=relevance` explicite), avec un test front par liste.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `customers.ts:79-94` (`sort: sort ?? '-created_at'`, et la page `customers/(liste)/page.tsx:72` ne passe jamais `sort`) et `maintenance.ts:100-112` (`params?.sort ?? '-created_at'`), contre `CustomerController.php:40` et `MaintenanceRequestController.php:55,81` (`defaultSorts(...defaultSortsWithRelevance(...))`, qu'un `sort=` explicite remplace) : sur ces deux listes, la pertinence ne s'applique jamais. Le reste du constat ne tient pas tel qu'écrit : `documents.ts:75` vise `DocumentController.php:46`, qui a un `defaultSort('-created_at')` en dur (c'est P16.03) ; `super-admin.ts` passe par le BFF vers `/api/admin/agencies`, recherche SQL hors Scout par choix (TCK-281, « Hors périmètre ») ; `admin-users.ts` vise `/api/users`, sans `defaultSortsWithRelevance`. `AgencyController.php:177` (membres) n'a pas été rapporté à son appelant (`agent-crm.ts:110` envoie `sort ?? '-created_at'`). Lu, non exécuté. Classement : A1, TCK-281 écrit que la recherche des clients et des interventions est « classée par pertinence », et le correctif ne retire que le tri par défaut quand une recherche est posée.
+- Mesure (2026-10-16, 5ddca3b3, implementeur) : reproduit par `recherche-par-pertinence.tck-702.test.tsx` avant correctif : `fetchDashboardCustomers` avec `filters.search` envoyait `sort=-created_at`, et `useMaintenanceRequests` / `useMaintenanceHistoryForProperty` avec `search` aussi (2 rouges sur 6) → plus de tri par défaut quand une recherche est posée, `-created_at` sans recherche, un tri de l'appelant part toujours ; 6 verts. Ablation fichier par fichier : `customers.ts` remis → 1 rouge, `maintenance.ts` remis → 1 rouge ; remis → 6 verts. Documents (P16.03), agences du super-admin et `admin-users` hors du cas, comme la mesure précédente l'établissait ; `fetchAgencyMembers` n'a aucun appelant.
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
