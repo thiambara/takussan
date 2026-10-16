@@ -40,8 +40,8 @@ export type MessageMetadata = {
   actor_name?: string;
   target_id?: number;
   target_name?: string;
-  old_role?: 'member' | 'admin';
-  new_role?: 'member' | 'admin';
+  /** `event: 'role_changed'` — le nouveau rôle (`SystemMessageFactory::roleChanged()`). */
+  role?: 'member' | 'admin';
   old_subject?: string;
   new_subject?: string;
   /** TCK-592 — `event: 'maintenance'` : la cause et le statut, en CODES rendus par le front. */
@@ -100,7 +100,11 @@ export type Conversation = {
     slug: string;
     main_photo_url: string | null;
   };
-  last_message?: Message;
+  /**
+   * TCK-671 — rendu par la liste (`ConversationController::index`) : le type du dernier message, et la
+   * `metadata` d'un avis système seulement (`null` sinon), d'où le front dérive l'aperçu.
+   */
+  last_message?: Pick<Message, 'id' | 'type' | 'metadata'> | null;
 };
 
 /**
