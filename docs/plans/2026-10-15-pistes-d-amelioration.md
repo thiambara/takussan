@@ -2515,7 +2515,7 @@ ajoutent que des faits neufs.*
 
 ### Le numéro de téléphone survit à l'anonymisation dans `notification_delivery_attempts.to`, une table sans purge
 - Réf : P19.02
-- Statut : validé — to mis à null à l'anonymisation ; tentatives purgées après 90 jours
+- Statut : fait · TCK-691
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:26`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:255`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:320`
 - Constat :
@@ -2525,6 +2525,7 @@ ajoutent que des faits neufs.*
   - Aucune commande planifiée ne purge `notification_delivery_attempts` (lu, `routes/console.php`). La politique ne lui donne aucune durée (lu, `privacy.ts:121-134`).
 - Piste : à l'anonymisation, mettre `to` à `null` (ou le masquer) sur les tentatives des notifications du compte ; fixer une durée de rétention des tentatives et la planifier. Un test : après `anonymize()`, aucune tentative ne porte le numéro d'origine.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `anonymize()` (ni `notification_delivery_attempts` ni `app_notifications` touchées) et la migration `2026_04_27_000001` (`to` nullable, FK `cascadeOnDelete` sur `app_notifications`, que le soft-delete du compte ne déclenche pas) ; `routes/console.php` : aucune purge de la table ; même test temporaire, retiré depuis, avec une notification et une tentative `to = +221771234567` → après `anonymize()`, la tentative garde `to = +221771234567` et la notification existe toujours. Constat confirmé. Classement : V3, la piste choisit ce qui est effacé ou masqué et une durée de rétention que la politique ne donne pas.
+- Mesure (2026-10-16, aa45a57f, implementeur) : reproduit avant correctif par `AccountDeletionExecuteTest::test_execute_efface_le_numero_des_tentatives_d_envoi_du_compte` (tentative `to = +221771234567` sur une notification du compte, puis `executeDeletion()`) → rouge, 1 tentative porte encore le numéro ; et par `PruneNotificationDeliveryAttemptsCommandTest` → rouge, commande et planification absentes ; correctif : `anonymize()` met `to` à `null` sur les tentatives des notifications du compte (celles d'un autre compte gardent le leur), et `notifications:prune-delivery-attempts` supprime les tentatives de plus de 90 jours, planifiée chaque jour à 03:50 sans chevauchement → vert ; ablation : sans l'effacement, rouge (1 ligne au lieu de 0) ; sans la suppression ni la planification, 2 rouges (la tentative de 91 jours reste, l'événement est introuvable).
 
 ### L'export CSV du journal rend `properties_diff` vide pour toute modification d'un modèle
 - Réf : P19.03
