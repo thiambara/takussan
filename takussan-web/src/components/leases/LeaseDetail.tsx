@@ -305,8 +305,6 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <GuarantorSection
         leaseId={leaseId}
-        guarantor={lease.guarantor ?? null}
-        guarantorsCount={lease.guarantor ? 1 : 0}
         canManage={isAgentSurface}
       />
 

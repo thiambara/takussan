@@ -167,7 +167,6 @@ export type LeaseTenantLite = {
 };
 
 export type LeaseWithRelations = Lease & {
-  guarantor?: Guarantor;
   tenant?: LeaseTenantLite | null;
   payments?: LeasePayment[];
   property?: LeasePropertyLite;
@@ -181,7 +180,7 @@ export function useLease(id: number | null | undefined) {
       // omit from sparse fieldset; PropertyResource emits it anyway.
       properties: ['id', 'title', 'slug'],
     },
-    include: ['property', 'guarantor', 'payments'],
+    include: ['property', 'payments'],
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
@@ -464,10 +463,35 @@ export type CreateGuarantorPayload = {
   notes?: string;
 };
 
+/**
+ * TCK-695 — un garant tel que le rend `GET /api/leases/{id}/guarantors`
+ * (`LeaseController::listGuarantors`) : les garants du pivot `lease_guarantor`, trois au plus.
+ */
+export type LeaseGuarantor = Pick<Guarantor, 'id' | 'first_name' | 'last_name' | 'phone' | 'email'> & {
+  role: string | null;
+};
+
+/**
+ * TCK-695 — les garants du bail se lisent par leur route : `GET /api/leases/{id}` ignore
+ * `include`, et l'ajout n'écrit pas `leases.guarantor_id`.
+ */
+export function useLeaseGuarantors(leaseId: number | null | undefined) {
+  return useApiQuery<ApiResponse<LeaseGuarantor[]>>(
+    ['leases', 'guarantors', leaseId],
+    cheminApi`/api/leases/${leaseId ?? 0}/guarantors`,
+    { enabled: Boolean(leaseId) },
+  );
+}
+
 export function useCreateGuarantor(leaseId: number) {
   return useApiMutation<ApiResponse<Guarantor>, CreateGuarantorPayload>(
     { path: cheminApi`/api/leases/${leaseId}/guarantors`, method: 'POST' },
-    { invalidate: [['leases', 'detail', leaseId]] },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'guarantors', leaseId],
+      ],
+    },
   );
 }
 
