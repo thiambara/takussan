@@ -942,10 +942,11 @@ jobs:
         # contient pas (TCK-300).
         run: node scripts/check-prod-drivers.mjs --report
 
-      - name: INDEX.md est à jour de ses frontmatters
-        # `--check` n'écrit rien et sort non nul si l'index est périmé. Sans cette étape, la règle
-        # « on régénère après avoir touché un ticket » redeviendrait tenue par la seule discipline
-        # — celle qu'on vient précisément de retirer.
+      - name: La source du backlog se rend en index sans erreur
+        # INDEX.md n'est plus versionné (ADR-0067) : il n'y a plus de copie à juger périmée. Reste
+        # la SOURCE — `--check` n'écrit rien et sort non nul sur un id dupliqué, un statut ou une
+        # vague inconnus. Deux PR ouvertes ensemble peuvent prendre le même numéro de ticket : c'est
+        # ici, sur l'arbre fusionné, que la seconde le découvre.
         run: node docs/backlog/gen-index.mjs --check
 
       - name: Les statuts des tickets ne sont pas contredits par git

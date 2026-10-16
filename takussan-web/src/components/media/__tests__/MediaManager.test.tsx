@@ -188,6 +188,64 @@ describe('<MediaManager>', () => {
     expect(uploadedBatch[0].name).toBe('ok.jpg');
   });
 
+  it('TCK-673 — une requête PAR PHOTO : un échec reste sur sa ligne, les autres passent', async () => {
+    // Le lot partait en UNE requête, plafonnée à 1 Mo par Next : au-delà, tout tombait d'un coup,
+    // après une progression simulée jusqu'à 85 %.
+    const onUpload = vi
+      .fn<(files: File[]) => Promise<MediaItem[]>>()
+      .mockResolvedValueOnce([{ id: 11, thumbnail: 'a' }])
+      .mockRejectedValueOnce(new Error('Trop lourde'))
+      .mockResolvedValueOnce([{ id: 13, thumbnail: 'c' }]);
+
+    render(withIntl(<MediaManager items={[]} onUpload={onUpload} onReorder={vi.fn()} onDelete={vi.fn()} />));
+
+    fireEvent.change(screen.getByTestId('media-manager-input'), {
+      target: {
+        files: [
+          makeFile('a.jpg', 'image/jpeg'),
+          makeFile('b.jpg', 'image/jpeg', 2048),
+          makeFile('c.jpg', 'image/jpeg', 4096),
+        ],
+      },
+    });
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(3));
+    expect(onUpload.mock.calls.map(([fs]) => (fs as File[]).map((f) => f.name))).toEqual([
+      ['a.jpg'],
+      ['b.jpg'],
+      ['c.jpg'],
+    ]);
+
+    const lignes = within(screen.getByTestId('media-manager-progress')).getAllByRole('listitem');
+    await waitFor(() =>
+      expect(lignes[2].querySelector('[data-testid="progress-bar"]')).toHaveAttribute('data-status', 'done'),
+    );
+    expect(lignes[0].querySelector('[data-testid="progress-bar"]')).toHaveAttribute('data-status', 'done');
+    expect(within(lignes[1]).getByRole('alert')).toHaveTextContent('Trop lourde');
+    expect(screen.getAllByTestId('media-tile')).toHaveLength(2);
+  });
+
+  it('TCK-673 — la photo suivante attend que la précédente ait abouti', async () => {
+    let terminer: (items: MediaItem[]) => void = () => {};
+    const onUpload = vi
+      .fn<(files: File[]) => Promise<MediaItem[]>>()
+      .mockImplementationOnce(() => new Promise((r) => (terminer = r)))
+      .mockResolvedValueOnce([{ id: 2, thumbnail: 'b' }]);
+
+    render(withIntl(<MediaManager items={[]} onUpload={onUpload} onReorder={vi.fn()} onDelete={vi.fn()} />));
+    fireEvent.change(screen.getByTestId('media-manager-input'), {
+      target: { files: [makeFile('a.jpg', 'image/jpeg'), makeFile('b.jpg', 'image/jpeg', 2048)] },
+    });
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    const barres = () => screen.getAllByTestId('progress-bar').map((b) => b.getAttribute('data-status'));
+    expect(barres()).toEqual(['uploading', 'pending']);
+
+    await act(async () => terminer([{ id: 1, thumbnail: 'a' }]));
+    await waitFor(() => expect(barres()).toEqual(['done', 'done']));
+    expect(onUpload).toHaveBeenCalledTimes(2);
+  });
+
   it('reorders tiles via native drag-drop and calls onReorder with the new id list', async () => {
     vi.useRealTimers(); // drag/drop test doesn't need fake timers
     const onReorder = vi.fn().mockResolvedValue(undefined);

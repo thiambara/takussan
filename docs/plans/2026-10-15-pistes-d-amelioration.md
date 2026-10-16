@@ -560,7 +560,7 @@ contre le code par la session.*
 
 ### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
 - Réf : P04.03
-- Statut : validé
+- Statut : fait · TCK-669
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/EarlyTerminationService.php:162-163` (création en `:337`)
 - Constat :
@@ -569,6 +569,7 @@ contre le code par la session.*
   - Un numéro `FA-…` disparaît ainsi sans contrepassation. `EarlyTerminationServiceTest.php:151` ne vérifie pas l'avoir (lu).
 - Piste : passer par `InvoiceService::cancel()`, et asserter `credited_invoice_id`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `EarlyTerminationService.php:162-164` (`$invoice->forceFill(['status' => Cancelled])->save()`), `:338-345` (facture créée `Sent` puis numérotée par `InvoiceNumberAllocator`) et `InvoiceService::cancel()` (l. 119-140 : avoir créé pour une facture `Sent`/`Overdue`, ADR-0039 §7) ; `EarlyTerminationServiceTest.php` ne cite ni `Cancelled` ni avoir → le constat tient, lignes inchangées. Classement : V1, le comportement attendu est écrit (ADR-0039 §7, A1), mais le correctif écrit une facture d'avoir, ce que V1 réserve au porteur.
+- Mesure (2026-10-16, 5fa8aefe, implementeur) : avant correctif, `InvoiceNumberingTest::test_cancelling_an_early_termination_credits_its_issued_penalty` rouge (pénalité `FA-2026-00001` passée `cancelled`, aucun avoir : `ModelNotFoundException` sur `credited_invoice_id`) → `EarlyTerminationService::cancel()` délègue à `InvoiceService::cancel()` ; avoir `AV-2026-00001` du même montant créé ; une pénalité déjà annulée est laissée telle quelle (`test_cancel_tolerates_a_penalty_already_cancelled`) ; ablation de chacune des deux parties : rouge, puis vert remis.
 
 ### Restitution de caution : le champ refuse tout montant rond
 - Réf : P04.04
@@ -1115,7 +1116,7 @@ Sain (vérifié par l'agent) :
 
 ### Les photos d'un bien partent par une server action plafonnée à 1 Mo
 - Réf : P08.01
-- Statut : validé — une server action par photo, progression par fichier, bodySizeLimit à 12 Mo ; max_file_uploads et photos max:20
+- Statut : fait · TCK-673
 - Gravité : 🔴 défaut avéré (un envoi réel reste à rejouer)
 - Où : `takussan-web/next.config.ts` (pas de clé `serverActions`), `takussan-web/src/app/actions/dashboard-properties.ts:243`, `takussan-web/src/components/property-form/PropertyWizard.tsx:325-329`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:71`
 - Constat :
@@ -1125,10 +1126,11 @@ Sain (vérifié par l'agent) :
   - `MediaManager.tsx:172-190` simule la progression jusqu'à 85 %, puis tout tombe d'un coup.
 - Piste : une photo par requête, par route handler BFF ou directement vers l'API, avec une vraie progression (XHR) et une reprise par fichier. Relever `bodySizeLimit` seul ne règle pas le réseau lent.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `next.config.ts` (aucune clé `serverActions`), `next/dist/server/app-render/action-handler.js:517-519` (Next 16.3.1, `'1 MB'` par défaut) et `:665-700` (le corps multipart passe par `sizeLimitTransform` et lève un 413 au-delà), `PropertyWizard.tsx:325-329` (toutes les photos dans un seul `FormData` vers `uploadPropertyPhotosAction`, `dashboard-properties.ts:243`), `reduire-photo.ts:24` (`COTE_MAX = 2560`) et TCK-542 l. 128 (1 446 048 o pour une photo réduite) → le constat tient à la lecture ; ce passage n'a rejoué aucun envoi réel. Classement : V7 et V8, la piste change la voie d'envoi (route handler ou API directe), la progression visible et la reprise par fichier, sur trois écrans : plus d'un ticket et des choix de produit.
+- Mesure (2026-10-16, b57126b7, implementeur) : reproduit avant correctif par trois tests rouges : `next.config.ts` sans `serverActions.bodySizeLimit` ; `PropertyWizard` qui envoie un seul `FormData` de trois photos ; `MediaManager` qui passe tout le lot à `uploading` d'un coup → `next-config.server-actions.test.ts`, `MediaManager.test.tsx` (2 tests) et `PropertyWizard.test.tsx` (3 tests : une action par photo, « Envoi des photos : 1 sur 2 », reprise de la seule photo en échec) ; ablation (correctif retiré) → 6 rouges, remis → verts. Aucun envoi réel rejoué ; `proxyClientMaxBodySize` (10 Mo par défaut sur `src/proxy.ts`) reste hors périmètre, noté dans TCK-673.
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
 - Réf : P08.02
-- Statut : validé — max-h-[calc(100dvh-2rem)] overflow-y-auto dans la primitive
+- Statut : fait · TCK-674
 - Gravité : 🔴 défaut avéré (rendu à vérifier)
 - Où : `takussan-web/src/components/ui/dialog.tsx:58`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:172`
 - Constat :
@@ -1137,6 +1139,7 @@ Sain (vérifié par l'agent) :
   - Même risque pour `CreateInvoiceDialog`, `InviteAgentDialog` et `GuarantorSection` (comptage).
 - Piste : `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive, ou un pied collant ; une feuille du bas sous `sm`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `dialog.tsx:58-60` (`fixed top-1/2 … -translate-y-1/2`, ni `max-h` ni `overflow-y-auto` ; dernier changement `f21ccd17`, TCK-529) et `PropertyVisitDialog.tsx:171` (`DialogContent className="sm:max-w-lg"`, sans hauteur bornée) ; `grep` → 71 fichiers utilisent `DialogContent` (le constat disait 75), 3 seulement posent `max-h-[90dvh] overflow-y-auto` (`GardeDoubleFacteur.tsx:70`, `PrivacyRequestsConsole.tsx:463,611`). La primitive ne borne donc pas la hauteur (lu) ; le débordement du dialogue de visite sur un 360×640 n'a **pas** été rendu, et reste une estimation. Classement : V7, borner la hauteur ou passer en feuille du bas sous `sm` change la mise en page des 71 dialogues, et la piste laisse le choix entre deux dessins.
+- Mesure (2026-10-16, b57126b7, implementeur) : relu `dialog.tsx:58` sur l'arbre (ni `max-h` ni `overflow-y-auto`) ; `dialog-hauteur-bornee.test.tsx` lit le CSS compilé par Tailwind pour les classes du dialogue rendu (avec `sm:max-w-lg`, classe de `PropertyVisitDialog`) → rouge avant correctif (aucun `max-height` compilé), vert avec `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive ; ablation (primitive remise à `pre-dev`) → rouge, correctif remis → vert. Rendu réel en navigateur non mesuré.
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
 - Réf : P08.03
@@ -1249,7 +1252,7 @@ Correct (mesuré ou lu) :
 
 ### Les combinaisons de facettes sans résultat sont indexables (soft-404)
 - Réf : P09.02
-- Statut : validé — noindex, follow quand total === 0
+- Statut : fait · TCK-675
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:47-55`, `takussan-web/src/lib/canonique.ts:284`
 - Constat :
@@ -1258,6 +1261,7 @@ Correct (mesuré ou lu) :
   - `generateMetadata` ne pose aucun `robots` (relu). Les annuaires, eux, ont `facette.indexable` (`agencies/page.tsx:53`).
 - Piste : `robots: { index: false, follow: true }` quand `total === 0`, en partageant le résultat de la recherche avec `generateMetadata` par `cache()`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `properties/(liste)/page.tsx:35-55` (`generateMetadata` ne rend que `title`, `description` et `alternates`, aucun `robots`), `(public)/layout.tsx:56` (`robots: { index: true, follow: true }` hérité) et `canonique.ts:284-316` (`filtresCanoniques` juge chaque clé seule contre son domaine, jamais la combinaison) ; `agencies/page.tsx:54` pose bien `noindex` si `!facette.indexable` ; lecture par tinker de la base de dev → 4 biens `factory`, tous en `rent`, à Saint-Louis, Touba et Kaolack : `type=factory&contract_type=rent&city=Dakar` rend donc 0 bien sous une canonique qui garde les trois facettes. Le rendu HTTP n'a pas été rejoué (front et API locaux arrêtés). Classement : V7, aucun ticket ni ADR n'écrit la règle « liste vide ⇒ `noindex` » pour les biens (TCK-433 et TCK-436 ne la posent que pour les valeurs hors domaine et les annuaires).
+- Mesure (2026-10-16, b57126b7, implementeur) : relu `properties/(liste)/page.tsx` : `generateMetadata` ne posait toujours aucun `robots` ni ne lisait le total ; test neuf de `(liste)/__tests__/metadata.test.ts` à `total: 0` → `meta.robots` `undefined` (rouge) → `generateMetadata` lit la recherche de la page (même clef, même langue, partagée par `cache()`) et pose `noindex, follow` sur `total === 0`, rien sur un total positif ni sur une panne ; ablation (`vide = false`) → rouge, remis → 40 verts.
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
@@ -1336,7 +1340,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Un lot de photos qui échoue laisse le média raté attaché au bien
 - Réf : P10.01
-- Statut : validé — supprimer le média raté et son répertoire temporaire ; la réponse liste les photos en échec
+- Statut : fait · TCK-676
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:39-49`
 - Constat :
@@ -1349,10 +1353,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu, chemin vendor suivi.
 - Piste : retrouver et supprimer le média raté par `$property->media()->latest('id')`, ou convertir après une transaction. Rendre le lot tout-ou-rien, ou renvoyer un résultat photo par photo. Ajouter un test avec un PNG corrompu.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `PropertyMediaController.php:34-58` (inchangé : `$media = null`, puis `$media?->delete()` dans le `catch`) et `FileAdder.php:605` (`$model->media()->save($media)` avant la copie et les conversions) ; test Feature temporaire (retiré) : un lot `good.jpg` + un PNG tronqué (en-tête valide, corps à zéro) → **422** `photo_unprocessable`, et `getMedia('photos')` en compte **2**, `broken.png` compris. Le test existant `test_corrupted_image_is_rejected_without_persisting_media` ne voit pas le défaut : son faux PNG échoue à la règle `image` et n'atteint jamais le `catch`. Le répertoire temporaire de conversion n'a pas été mesuré. Classement : V7 ; supprimer le média raté relèverait d'A1 (le nom du test existant l'écrit), mais la piste demande aussi de choisir entre un lot atomique et un résultat par photo, ce qui change la réponse vue par l'écran.
+- Mesure (2026-10-16, 9c6918fa, implementeur) : test `PropertyMediaTest::test_photo_that_fails_conversion_is_removed_and_listed_while_the_others_stay` (lot `good.jpg`, PNG à en-tête valide et corps à zéro, `after.jpg`) → avant correctif, 422 sur la seule clé `photos` et le premier échec arrêtait le lot ; après, 422 sur `photos.1` seule, le bien garde `good.jpg` et `after.jpg`, et le répertoire temporaire de conversion est vide. Ablation, une pièce à la fois : sans la suppression par `uuid`, `broken.png` reste ; sans la suppression du parent temporaire, un répertoire reste ; avec `break` au lieu de `continue`, `after.jpg` manque. Les trois sont rouges, et le test repasse au vert une fois le correctif remis.
 
 ### Aucune borne de dimensions : une bombe de décompression tue la requête
 - Réf : P10.02
-- Statut : validé — refus au-delà de 20 Mpx (getimagesize sans décoder)
+- Statut : fait · TCK-677
 - Gravité : 🔴 défaut avéré (OOM calculé, non mesuré)
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:37`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Models/Property.php:778`, `takussan-api/app/Models/Concerns/HasMediaConversions.php:26-28`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -1364,10 +1369,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu, mémoire estimée par calcul.
 - Piste : refuser au-delà d'un nombre de pixels donné (`dimensions:max_width=…,max_height=…`, ou `getimagesize` sans décoder) avant `addMedia`.
 - Mesure (2026-10-15, 25820d04, mesureur) : `grep -rn 'dimensions:' app/Http` → vide ; relu `StorePropertyMediaRequest.php:37` (`max:10240`), `UpdateProfileRequest.php:50` (`avatar` : `image`, `max:2048`), `Property.php:778` et `HasMediaConversions.php:26-28` (`thumbnail` en `nonQueued`), `config/media-library.php:229` (pilote `gd`) ; mesuré en CLI : un PNG uni de 9 000 × 9 000 pèse **237 Ko**, et `imagecreatefrompng` + `imagescale` sous `memory_limit=256M` **réussit** avec un pic PHP de 2 Mo et un RSS de **715 Mo** (`/usr/bin/time -l`). Le constat est inexact sur le mécanisme : GD alloue hors du gestionnaire de mémoire de PHP, `memory_limit` ne l'arrête pas, et il n'y a pas d'erreur fatale ; le risque réel est la mémoire du conteneur (≈ 8,8 o/pixel mesurés, soit plusieurs Go pour 20 000 × 20 000), non mesurée ici. Classement : V7, choisir le plafond (une photo de téléphone de 48 Mpx doit passer) décide quelles images sont refusées.
+- Mesure (2026-10-16, e5a71ad8, implementeur) : avant correctif, un PNG réduit à son en-tête annonçant 9 000 × 9 000 passait la validation de `POST /api/properties/{id}/media` (l'échec venait de GD, en `photo_unprocessable`) et rendait **500** sur `PUT /api/auth/profile` (« gd-png: fatal libpng error ») → règle `PixelsAuPlus` (`getimagesize`, refus au-delà de 20 000 000 pixels, message `validation.dimensions`) sur `photos.*` et `avatar` ; 8 tests (`PixelsAuPlusTest`, `PropertyMediaTest`, `AuthProfileTest`) verts ; ablation : règle retirée des deux FormRequests → 2 rouges, `>` changé en `>=` → 1 rouge, remis → verts.
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
 - Réf : P10.03
-- Statut : validé — une server action par photo, progression par fichier, bodySizeLimit à 12 Mo ; max_file_uploads et photos max:20
+- Statut : fait · TCK-673
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/media/MediaManager.tsx:78-79`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:70`, `takussan-api/docker/Caddyfile:22-31`, `takussan-api/docker/php.ini:5-6`, `takussan-api/config/media-library.php:55`
 - Constat : l'interface annonce 20 fichiers de 10 Mo et les envoie en une seule requête. Côté API, les couches se succèdent ainsi :
@@ -1380,6 +1386,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   Établi comment : lu ; la valeur par défaut de `max_file_uploads` est mesurée en local.
 - Piste : une requête par photo, ou des paquets bornés à moins de 25 MiB. Fixer `max_file_uploads` explicitement et ajouter `photos` `max:20`.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaManager.tsx:78-79` (`DEFAULT_MAX_SIZE` 10 Mo, `DEFAULT_MAX_FILES` 20), `PropertyMediaPanel.tsx:69-71` (tout le lot dans une seule `FormData`, envoyée à `uploadPropertyPhotosAction`), `dashboard-properties.ts:243-256` puis `properties-server.ts:309-322` (une seule requête `photos[]` vers l'API), `docker/Caddyfile` (`request_body max_size 25MiB`, et 413 sur `Content-Length` > 26214400), `docker/php.ini` (`upload_max_filesize 25M`, `post_max_size 26M`, `max_file_uploads` non fixé), `StorePropertyMediaRequest.php:36` (`photos` : `required`, `array`, sans `max`) ; mesuré `ini_get('max_file_uploads')` en CLI → `20`. Les couches de l'API sont telles que décrites. Le lot n'atteint d'ailleurs pas l'API au-delà de 1 Mo : il passe d'abord par une server action sans `serverActions.bodySizeLimit` (`node_modules/next/dist/server/app-render/action-handler.js:517-519`, 413 « Body exceeded 1 MB »), ce que porte déjà P08.01. Classement : V5 et V7, fixer `max_file_uploads` touche `takussan-api/docker/`, et découper l'envoi change le comportement de l'écran ; à traiter avec P08.01, qui choisit la voie d'envoi.
+- Mesure (2026-10-16, b57126b7, implementeur) : reproduit avant correctif : `POST /api/properties/{id}/media` avec 21 photos rendait 201, et `docker/php.ini` ne fixait pas `max_file_uploads` → `PropertyMediaTest` (21 photos → 422 sur `photos`, aucun média ; `max_file_uploads = 20` lu dans `docker/php.ini`) ; ablation → 2 rouges, remis → verts. L'envoi photo par photo vient de P08.01, même ticket.
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
@@ -1509,7 +1516,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
 - Réf : P11.03
-- Statut : validé — ShouldBeEncrypted sur SendDeferredSmsJob, et un test qui l'exige de tout job portant un texte de SMS
+- Statut : fait · TCK-678
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:56-57,214`, `takussan-api/app/Jobs/SendDeferredSmsJob.php:16`, `takussan-api/config/sms.php:125-129`
 - Constat :
@@ -1520,6 +1527,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, chemin complet.
 - Piste : `ShouldBeEncrypted` sur `SendDeferredSmsJob`, plus une garde qui l'exige de tout job portant un texte de SMS.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `SendDeferredSmsJob.php:16` (`implements ShouldQueue` seul, aucun `ShouldBeEncrypted` ; `git log` : intact depuis TCK-102), `SmsRouterDriver.php:56-57,211-214` (`deferAll` remet le texte rendu au job, retardé à la fin de la fenêtre), `config/sms.php` (`quiet_hours` 22 h-6 h, actif par défaut), `CodedNotification.php:40,172-175` (chiffrée, mais `isCriticalSms()` rend `false`, donc reportée la nuit) et `lang/fr/notifications.php:294,301,328` (`sms_link` porte `:payment_url` et `:receipt_url`) ; `grep ShouldBeEncrypted app/` → seuls `CodedNotification` et `RecordPublicSearchAlert`. Aucun ticket ne le traite. Le lien d'invitation n'a pas été suivi jusqu'au SMS → le constat tient pour les liens de paiement et de quittance. Classement : V3, la piste change ce que la base conserve en clair de liens porteurs ; le comportement attendu est écrit par TCK-602, mais le doute sur V3 classe à valider.
+- Mesure (2026-10-16, 6efe6fec, implementeur) : avant correctif, `SmsRouterDriverTest::test_deferred_sms_is_stored_encrypted_in_the_jobs_table` (file `database`, 23 h 30, SMS non critique) lit dans `jobs` une charge qui porte en clair le lien `…?token=jeton-porteur-secret` et le numéro `+221771234567`, et la garde `JobSmsChiffreTest` nomme `App\Jobs\SendDeferredSmsJob` → `ShouldBeEncrypted` ajouté : la charge ne porte plus ni lien ni numéro et se déchiffre en le texte ; ablation (interface retirée) : 2 rouges sur 16, remise : 16 verts.
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
@@ -1945,7 +1953,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### « Générer l'échéancier » appelle une route qui n'existe pas
 - Réf : P13.02
-- Statut : validé
+- Statut : fait · TCK-682
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/leases.ts:436`, `takussan-api/routes/api/leases.php:33`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:154`
 - Constat :
@@ -1955,6 +1963,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré par `route:list`, et lu.
 - Piste : aligner le chemin et la clé de réponse.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : `php artisan route:list --path=generate-schedule` → une seule route, `POST api/leases/{lease}/payments/generate-schedule` ; lu `leases.ts:434-444` (`/api/leases/${leaseId}/generate-schedule`, réponse typée `{ generated: number }`), `LeaseController.php:149-154` (rend `payments_created`) et `LeaseDetail.tsx:65,181-184` (bouton monté) → le chemin du front n'existe pas. Aucun ticket ouvert ne le traite (TCK-044, TCK-596 `done`). Classement : V1, le correctif est un alignement de chemin et de clé (A1 par le contrat de la route), mais il rend atteignable depuis l'écran l'écriture d'échéances de loyer, et le doute classe à valider.
+- Mesure (2026-10-16, d0957db9, implementeur) : `useGenerateSchedule(42).mutateAsync({})` émettait `POST /api/leases/42/generate-schedule` (route absente) et `tsc` refusait `payments_created` sur `{ generated: number }` → chemin aligné sur `/api/leases/{id}/payments/generate-schedule` et réponse typée `payments_created` ; test `generer-echeancier.tck-682.test.tsx` vert, ablation : correctif retiré, chemin rouge et 1 erreur `tsc`, remis, vert.
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
 - Réf : P13.03

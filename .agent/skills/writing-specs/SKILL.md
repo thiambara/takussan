@@ -12,7 +12,7 @@ Create backlog tickets that describe a **delta** to produce — never a copy of 
 **Announce at start:** "I'm using the writing-specs skill to create ticket TCK-NNN."
 
 **Save tickets to:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
-**Index:** `docs/backlog/INDEX.md` is **GENERATED** — never edit it by hand.
+**Index:** `docs/backlog/INDEX.md` is **GENERATED and not versioned** (ADR-0067) — never edit it, never commit it.
 **Template:** `docs/backlog/_template.md`
 
 ## When to use
@@ -125,17 +125,17 @@ Follow `_template.md` sections exactly:
 
 Re-read the ticket. For each paragraph ask: *"Would this be in the spec if I looked? If yes, delete it and add a `spec_refs` link."* The ticket must be incomprehensible without the `spec_refs` — that's the proof they're load-bearing, not decorative.
 
-### 9. Regenerate `INDEX.md` — do NOT edit it
+### 9. Check the backlog source — there is no index to commit
 
-`docs/backlog/INDEX.md` is generated from the ticket frontmatters. Run:
+`docs/backlog/INDEX.md` is generated from the ticket frontmatters, on demand, and ignored by git
+(ADR-0067). Run:
 
 ```bash
-node docs/backlog/gen-index.mjs      # rewrites INDEX.md
-node docs/backlog/check-backlog.mjs  # verifies the source still tells the truth
+node docs/backlog/gen-index.mjs --check  # the source renders: no duplicate id, no unknown status
+node docs/backlog/check-backlog.mjs      # verifies the source still tells the truth
 ```
 
-Both run in Repo CI. `gen-index.mjs --check` fails the build if `INDEX.md` is stale, so a
-hand-edit is caught rather than merged.
+Both run in Repo CI. Versioned, the index conflicted between any two PRs that each added a ticket.
 
 The **Graphe de dépendances** block no longer exists in the generated output — the dependency
 information lives in each ticket's `depends_on` / `blocks`, and `check-backlog.mjs` verifies
@@ -156,7 +156,7 @@ Before considering the ticket done:
 - [ ] `spec_refs.features` OR `spec_refs.models` has at least one entry
 - [ ] `created` and `updated` set to today
 - [ ] No content in "Notes d'implémentation"
-- [ ] `node docs/backlog/gen-index.mjs` has been run, and `check-backlog.mjs` passes
+- [ ] `node docs/backlog/gen-index.mjs --check` and `check-backlog.mjs` pass
 
 ## Common rationalizations
 
@@ -164,8 +164,8 @@ Before considering the ticket done:
 |---|---|
 | "Just a quick note in the ticket about the spec" | The ticket is the delta. Notes about the spec belong in the spec. Delete. |
 | "The spec is vague, so I'll clarify in the ticket" | No — open a PR on the spec. The ticket trusts the spec. |
-| "I can skip regenerating INDEX.md" | Repo CI runs `gen-index.mjs --check` and fails on a stale index. |
-| "I can hand-edit INDEX.md" | It is generated. Your edit is overwritten at the next run, and CI rejects it meanwhile. |
+| "I'll commit INDEX.md so the PR shows the ticket" | It is ignored by git (ADR-0067). The ticket file is the record. |
+| "I can hand-edit INDEX.md" | It is generated, local, and overwritten at the next run. Edit the frontmatter. |
 | "This is a tiny fix, I'll just file a bug in the ticket and skip `spec_refs`" | A bug still touches a behavior described somewhere. Find the anchor or STOP. |
 | "I'll reuse TCK-042, nobody will notice" | IDs are immutable. Use the next unused number. |
 | "Let me quickly also edit `features.md` to add this line" | Out of scope for this skill. STOP and propose a spec PR. |
@@ -225,6 +225,6 @@ _(à remplir par implementing-specs)_
 ## Remember
 
 - Tickets reference specs; they never copy them.
-- `INDEX.md` is generated: regenerate it, never edit it.
+- `INDEX.md` is generated on demand and never committed.
 - Empty `Notes d'implémentation` at creation — always.
 - `depends_on` is the contract that `implementing-specs` enforces. Get it right.
