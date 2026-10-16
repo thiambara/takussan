@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**621 tickets** — 45 ouverts, 574 livrés.
+**622 tickets** — 45 ouverts, 575 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 574 |
+| ✅ Done | 575 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 574
+## ✅ Done — 575
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 61 tickets</summary>
+<summary><strong>Sans vague</strong> — 62 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1078,6 +1078,7 @@ _(aucun)_
 - [TCK-675](tickets/TCK-675-liste-de-biens-vide-noindex.md) — Une liste publique de biens sans résultat est servie en noindex, follow (soft-404 des facettes) `S · P1 · bug`
 - [TCK-676](tickets/TCK-676-photo-en-echec-ne-laisse-rien.md) — Une photo de bien qui échoue à la conversion ne laisse ni ligne ni copie temporaire, et le 422 la nomme `S · P0 · bug`
 - [TCK-677](tickets/TCK-677-photos-et-avatar-bornes-a-vingt-megapixels.md) — Une photo de bien ou un avatar de plus de 20 Mpx est refusé sur son en-tête, avant tout décodage `S · P0 · bug`
+- [TCK-678](tickets/TCK-678-sms-reporte-chiffre-en-file.md) — Le SMS reporté la nuit attend chiffré dans la file, et tout job portant un texte de SMS doit l'être `S · P0 · bug`
 
 </details>
 

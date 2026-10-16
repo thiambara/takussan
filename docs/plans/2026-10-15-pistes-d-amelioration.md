@@ -1515,7 +1515,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
 - Réf : P11.03
-- Statut : validé — ShouldBeEncrypted sur SendDeferredSmsJob, et un test qui l'exige de tout job portant un texte de SMS
+- Statut : fait · TCK-678
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:56-57,214`, `takussan-api/app/Jobs/SendDeferredSmsJob.php:16`, `takussan-api/config/sms.php:125-129`
 - Constat :
@@ -1526,6 +1526,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, chemin complet.
 - Piste : `ShouldBeEncrypted` sur `SendDeferredSmsJob`, plus une garde qui l'exige de tout job portant un texte de SMS.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `SendDeferredSmsJob.php:16` (`implements ShouldQueue` seul, aucun `ShouldBeEncrypted` ; `git log` : intact depuis TCK-102), `SmsRouterDriver.php:56-57,211-214` (`deferAll` remet le texte rendu au job, retardé à la fin de la fenêtre), `config/sms.php` (`quiet_hours` 22 h-6 h, actif par défaut), `CodedNotification.php:40,172-175` (chiffrée, mais `isCriticalSms()` rend `false`, donc reportée la nuit) et `lang/fr/notifications.php:294,301,328` (`sms_link` porte `:payment_url` et `:receipt_url`) ; `grep ShouldBeEncrypted app/` → seuls `CodedNotification` et `RecordPublicSearchAlert`. Aucun ticket ne le traite. Le lien d'invitation n'a pas été suivi jusqu'au SMS → le constat tient pour les liens de paiement et de quittance. Classement : V3, la piste change ce que la base conserve en clair de liens porteurs ; le comportement attendu est écrit par TCK-602, mais le doute sur V3 classe à valider.
+- Mesure (2026-10-16, 6efe6fec, implementeur) : avant correctif, `SmsRouterDriverTest::test_deferred_sms_is_stored_encrypted_in_the_jobs_table` (file `database`, 23 h 30, SMS non critique) lit dans `jobs` une charge qui porte en clair le lien `…?token=jeton-porteur-secret` et le numéro `+221771234567`, et la garde `JobSmsChiffreTest` nomme `App\Jobs\SendDeferredSmsJob` → `ShouldBeEncrypted` ajouté : la charge ne porte plus ni lien ni numéro et se déchiffre en le texte ; ablation (interface retirée) : 2 rouges sur 16, remise : 16 verts.
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
