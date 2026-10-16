@@ -184,23 +184,38 @@ class PaymentGatewayInitiateTest extends TestCase
         ])->assertForbidden();
     }
 
+    /**
+     * TCK-694 (P12.01) — l'intégration d'une autre agence, complète et créée la première, ne sert
+     * jamais : le fournisseur est appelé avec la clé de l'agence du payable, et le checkout
+     * enregistre son intégration. Avant, la seule assertion était `assertOk()` sous un faux Wave
+     * qui répond 200 à toute clé : sans le filtre d'agence, le test restait vert.
+     */
     public function test_initiate_only_uses_agency_scoped_integration(): void
     {
-        $ctx = $this->makeContext('wave');
-        $otherAgency = Agency::factory()->create();
-        // Add another integration on a different agency — must not be picked.
-        Integration::factory()->create([
-            'agency_id' => $otherAgency->id,
+        // Créée AVANT celle de l'agence, avec des identifiants complets : sans le filtre
+        // d'agence, rien ne l'écarte.
+        $foreign = Integration::factory()->create([
+            'agency_id' => Agency::factory()->create()->id,
             'provider' => 'wave',
             'is_active' => true,
-            'credentials' => ['api_key' => 'foreign'],
+            'credentials' => ['api_key' => 'foreign_key', 'webhook_secret' => 'foreign_secret'],
         ]);
+        $ctx = $this->makeContext('wave');
+        $own = Integration::query()->where('agency_id', $ctx['agency']->id)->sole();
 
         Sanctum::actingAs($ctx['owner']);
 
         $this->postJson("/api/booking-payments/{$ctx['payment']->id}/initiate", [
             'provider' => 'wave',
         ])->assertOk();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.wave.com')
+            && $request->hasHeader('Authorization', 'Bearer wave_test_key'));
+        Http::assertNotSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer foreign_key'));
+
+        $gateway = $ctx['payment']->refresh()->metadata['gateway'] ?? [];
+        $this->assertSame($own->id, $gateway['integration_id'] ?? null);
+        $this->assertNotSame($foreign->id, $gateway['integration_id'] ?? null);
     }
 
     // ─── TCK-593 — ce qui est dû, et une seule fois ─────────────────────────
