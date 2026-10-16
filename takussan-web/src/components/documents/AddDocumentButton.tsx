@@ -16,6 +16,8 @@ interface AddDocumentButtonProps {
   readonly size?: 'sm' | 'default' | 'lg';
   readonly variant?: 'default' | 'outline' | 'ghost';
   readonly displayLabel?: string;
+  /** Appelé après un dépôt réussi, p. ex. pour rafraîchir une liste rendue côté serveur. */
+  readonly onUploaded?: () => void;
 }
 
 /**
@@ -30,6 +32,7 @@ export function AddDocumentButton({
   size = 'sm',
   variant = 'outline',
   displayLabel,
+  onUploaded,
 }: AddDocumentButtonProps) {
   const t = useTranslations('documents.actions');
   const [open, setOpen] = useState(false);
@@ -43,6 +46,7 @@ export function AddDocumentButton({
       <DocumentUploadDialog
         open={open}
         onOpenChange={setOpen}
+        onUploaded={onUploaded}
         defaultDocumentable={{
           type: documentableType,
           id: documentableId,

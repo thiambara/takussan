@@ -8,7 +8,6 @@ import type {
   CustomerListItem,
   CustomerDetail,
   CustomerNote,
-  CustomerDocument,
   CustomerRelationship,
 } from '@/types/customer';
 import type { Tag } from '@/types/tag';
@@ -172,25 +171,6 @@ export async function fetchCustomerNotes(
   const res = await apiRequest<ApiResponse<CustomerNote[]>>(
     cheminApi`/api/customers/${customerId}/notes${requete(qs)}`,
     { token },
-  );
-  return res.data;
-}
-
-export async function uploadCustomerDocument(
-  token: string,
-  customerId: number,
-  file: File,
-): Promise<CustomerDocument> {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await apiRequest<ApiResponse<CustomerDocument>>(
-    cheminApi`/api/customers/${customerId}/documents`,
-    {
-      method: 'POST',
-      body: form,
-      token,
-      formData: true,
-    },
   );
   return res.data;
 }
