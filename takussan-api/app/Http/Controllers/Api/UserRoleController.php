@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\UpdateUserRoleRequest;
+use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -64,7 +65,18 @@ class UserRoleController extends Controller
             abort_code(422, 'user.no_active_agency');
         }
 
+        $this->assertRoleChangeable($actor, $user, $data['role'], (int) $targetAgencyId);
+
         DB::transaction(function () use ($user, $data, $targetAgencyId) {
+            if ($this->demotesAdmin($user, $data['role'], (int) $targetAgencyId)) {
+                // TCK-664 — le dernier admin, compté SOUS VERROU de la ligne parent : verrouiller
+                // les profils existants ne sérialiserait pas deux rétrogradations croisées.
+                Agency::query()->whereKey($targetAgencyId)->lockForUpdate()->first();
+                abort_code_if(! AgencyAdminProfile::query()
+                    ->where('agency_id', $targetAgencyId)
+                    ->where('user_id', '!=', $user->id)
+                    ->exists(), 422, 'user.role_last_admin');
+            }
             $this->mutateProfileForRole($user, $data['role'], $targetAgencyId);
         });
 
@@ -78,6 +90,40 @@ class UserRoleController extends Controller
                 'roles' => $user->fresh()->profileTypes()->all(),
             ],
         ]);
+    }
+
+    /**
+     * TCK-664 (P03.01) — les gardes des voies sœurs (AgencyMemberRemovalService,
+     * TeamMemberSuspensionService) : on ne change pas son propre rôle, on ne retire pas le profil
+     * admin de l'administrateur principal, et un membre dont un profil dans l'agence n'est pas
+     * actif (suspendu, inactif, en attente, archivé, bloqué) ne change pas de rôle — sans quoi la
+     * promotion lui rendrait un profil actif neuf. Le dernier admin se juge sous verrou, plus haut.
+     */
+    private function assertRoleChangeable(User $actor, User $user, string $role, int $agencyId): void
+    {
+        abort_code_if($actor->id === $user->id, 422, 'user.role_change_self');
+
+        $primaryAdminId = Agency::query()->whereKey($agencyId)->value('primary_admin_id');
+        abort_code_if(
+            $primaryAdminId !== null && (int) $primaryAdminId === $user->id && $this->demotesAdmin($user, $role, $agencyId),
+            422,
+            'user.role_primary_admin',
+        );
+
+        $notActive = collect([AgentProfile::query(), OwnerProfile::query(), AgencyAdminProfile::query()])
+            ->contains(fn ($query) => $query
+                ->where('user_id', $user->id)
+                ->where('agency_id', $agencyId)
+                ->where('status', '!=', 'active')
+                ->exists());
+        abort_code_if($notActive, 422, 'user.role_member_not_active');
+    }
+
+    /** Seuls `agent` et `owner` suppriment un profil `agency_admin` (cf. setAgent(), setOwner()). */
+    private function demotesAdmin(User $user, string $role, int $agencyId): bool
+    {
+        return in_array($role, ['agent', 'owner'], true)
+            && $user->agencyAdminProfiles()->where('agency_id', $agencyId)->exists();
     }
 
     /**
