@@ -2117,7 +2117,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### KYC de l'agent et du bailleur : « en revue » pour toujours
 - Réf : P15.02
-- Statut : validé — retirer la promesse « Votre agence va le vérifier » et le statut pending_review
+- Statut : fait · TCK-685
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:130-141`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:126-131`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:92-98`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:50-58`, `takussan-web/src/messages/fr.json:4825,4957`
 - Constat :
@@ -2128,6 +2128,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu et grep.
 - Piste : une file de relecture (agence ou console) avec notification, ou retirer la promesse et le statut.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `AgentProfileController.php:127-141` et `OwnerProfileController.php:118-131` (seuls écrivains de `metadata.kyc.status = pending_review`) ; `grep` de `kyc.status`, `metadata->kyc` et `metadata['kyc']` dans `takussan-api/app` et `takussan-web/src` → aucun autre lecteur (les clés `kyc.status` du front sont les libellés de la file d'agence) ; `KycWorkflowService.php:50` ne connaît que `dossierForAgency` ; `fr.json:4825,4957` promettent « Votre agence va le vérifier. Vous pouvez continuer. ». Notification et écran d'agence absents : lu par `grep`, non exécuté. Classement : V7, la piste choisit entre une file de relecture neuve (agence ou console) et le retrait d'un statut et d'un texte visibles.
+- Mesure (2026-10-16, 215e40d5, implementeur) : reproduit avant correctif — `POST /api/me/{agent-profiles,owner-profiles}/{id}/kyc/submit` rendait `data.kyc.status = pending_review` et l'écrivait dans `metadata.kyc` (tests `AgentOnboardingTest`/`OwnerOnboardingTest` réécrits, rouges), et `submittedBody`/`submittedBadge` promettaient la relecture de l'agence et « en revue » dans les trois langues (`kyc-sans-promesse-de-revue.test.ts`, 6 rouges) → les contrôleurs ne posent ni ne renvoient plus `kyc.status`, les textes gardent « Soumis » et « Vous pouvez continuer. » ; ablation (messages et contrôleurs remis à `pre-dev`) : 6/6 et 2/2 rouges, correctif remis : verts. `docs/features.md` (wizard Owner, « en `pending_review` ») reste à faire converger par `/sync-specs`.
 
 ### Une agence individuelle qui active la modération ne peut plus publier
 - Réf : P15.03
