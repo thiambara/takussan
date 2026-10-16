@@ -52,7 +52,10 @@ class AgencyUpdateRequest extends BaseFormRequest
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
             'currency' => ['sometimes', Rule::enum(Currency::class), Rule::in(self::supportedCurrencies())],
-            'moderation_required' => ['sometimes', 'boolean'], // TCK-597 — l'agence choisit de modérer ses annonces.
+            // TCK-597 — l'agence choisit de modérer ses annonces. TCK-686 — pas une agence
+            // `individual` : sa file de modération n'existe pas (la page exige `standard`), et ses
+            // biens resteraient en attente pour toujours. `false` reste accepté.
+            'moderation_required' => ['sometimes', 'boolean', ...($this->isIndividual() ? ['declined'] : [])],
             // TCK-593 — plus `nullable` : `settings` se FUSIONNE clé par clé dans
             // `AgencyController::update`, et un `null` au premier niveau ne dit pas quelle clé
             // retirer. Une clé à `null`, elle, revient au défaut du code.
@@ -81,8 +84,7 @@ class AgencyUpdateRequest extends BaseFormRequest
      */
     private function legalRules(): array
     {
-        $agency = $this->route('agency');
-        $individual = $agency instanceof Agency && $agency->kind === AgencyKind::Individual;
+        $individual = $this->isIndividual();
 
         $rules = [
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -92,5 +94,12 @@ class AgencyUpdateRequest extends BaseFormRequest
         ];
 
         return $individual ? array_map(static fn (): array => ['prohibited'], $rules) : $rules;
+    }
+
+    private function isIndividual(): bool
+    {
+        $agency = $this->route('agency');
+
+        return $agency instanceof Agency && $agency->kind === AgencyKind::Individual;
     }
 }
