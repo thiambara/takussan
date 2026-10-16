@@ -3367,7 +3367,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/search/suggest` est servie `public, max-age=60` sans `Vary: Accept-Language`, alors que son corps change avec la langue
 - Réf : P28.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Search/SuggestController.php:16-23`, `takussan-api/app/Services/Search/SuggestService.php:200-225`, `takussan-api/tests/Feature/Api/Search/SearchSuggestTest.php:226-233`, `takussan-web/src/hooks/useSuggest.ts:20-28`
 - Constat :
@@ -3378,10 +3378,11 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Le seul test sur l'en-tête vérifie `public` et `max-age=60` (lu, `SearchSuggestTest.php:226-233`) : il serait vert avec le défaut.
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : ajouter `Vary: Accept-Language` à la réponse, sans écraser le `Origin` de CORS (même forme que `discovery`). Garder par un test sur le modèle de `CataloguePublicCacheTest` : deux langues, deux corps distincts, et `Accept-Language` présent dans `Vary`. Une garde plus large rejouerait chaque route à `Cache-Control: public` sous deux langues et exigerait des corps identiques ou un `Vary: Accept-Language`.
+- Mesure (2026-10-16, af610be5, mesureur) : relu `SuggestController.php:23` (`Cache-Control: public, max-age=60`, aucun `Vary`) et `SuggestService.php:222` (`trans()` dans la langue de la requête) ; `git log -S` et `grep -rn` dans `docs/backlog/tickets` sans correctif (seul `PublicPropertyController.php:362` pose `Vary: Accept-Language, Authorization`) ; test temporaire retiré, un bien `apartment` publié, `GET /api/search/suggest?q=ap&limit=10` sous `fr`, `en`, `wo` (charge 2,41 sur 8 cœurs) → trois corps distincts (`Appartement`, `Apartment`, `Appart` ; md5 `31a267a9…`, `f8ce5fd3…`, `5a133324…`), tous `max-age=60, public` avec `Vary: Origin` seul ; le constat tient en entier, lignes inchangées. Classement : A1, le comportement attendu est écrit par TCK-341 et le commentaire de `PublicPropertyController.php:336-362` (un corps qui change avec la langue sous `public` porte `Vary: Accept-Language`), et le correctif (ajouter `Accept-Language` au `Vary` sans écraser `Origin`, plus un test à deux langues) ne demande aucun choix de produit.
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux correctifs possibles, retirer `usage_count` ou la route
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
 - Constat :
@@ -3391,3 +3392,4 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Aucun appelant dans le front hors de la console super-admin, qui passe par ses propres chemins (`takussan-web/src/lib/queries/super-admin.ts:707-721`) (mesuré : `grep -rn "enums" takussan-web/src`). Le corps est le même dans les trois langues (même md5 en `fr` et `en`) : il n'y a pas ici de défaut de cache par langue.
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
+- Mesure (2026-10-16, af610be5, mesureur) : `php artisan route:list --path=api/enums -v` → groupe `api` et `SetCacheHeaders:public;max_age=300;etag` seuls, ni `auth` ni limiteur ; relu `BusinessEnumService.php:50` (`usage_count`) et `:213-231` (`usageCounts`, `whereIn` sur toute la table, sans filtre de visibilité) ; test temporaire retiré, un `villa` publié et deux passés en `draft`, `GET /api/enums/property_type` anonyme → 200, `max-age=300, public`, `usage_count: 3` pour `villa` contre 1 bien `public()`, même md5 en `fr` et `en` ; `grep -rn enums takussan-web/src` → seuls les chemins `/api/super-admin/enums/…` et des libellés, aucun appelant de la route publique hors `BusinessEnumTest.php:27` ; le constat tient. Classement : V7, la piste propose deux correctifs (retirer `usage_count` de la lecture publique, ou retirer la route) et renvoie à l'angle 66 sur qui doit lire ces valeurs, ce qui est un choix de produit.
