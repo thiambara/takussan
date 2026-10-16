@@ -138,7 +138,7 @@ Racine — **les gardes ne s'énumèrent pas ici, elles se listent** :
 ```bash
 ls scripts/check-*.mjs                        # l'inventaire, toujours juste
 for g in scripts/check-*.mjs; do node "$g" || echo "✗ $g"; done   # toutes, d'un coup
-node docs/backlog/gen-index.mjs --check        # + les deux générateurs
+node docs/backlog/gen-index.mjs --check        # + les deux générateurs (celui-ci : la source se rend)
 node docs/gen-features-by-actor.mjs --check
 ```
 
@@ -296,12 +296,14 @@ vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-m�
   (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
   jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
 
-**Backlog** : `docs/backlog/` → `INDEX.md` + `tickets/TCK-NNN-<slug>.md`.
+**Backlog** : `docs/backlog/` → `tickets/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
 
-> **`INDEX.md` est GÉNÉRÉ** depuis les frontmatters par `node docs/backlog/gen-index.mjs`.
-> Ne jamais l'éditer à la main — éditer le frontmatter du ticket, puis régénérer.
-> `node docs/backlog/check-backlog.mjs` garde sa fraîcheur, et la CI rejoue les deux.
-> [Pourquoi : il était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
+> **`INDEX.md` est GÉNÉRÉ, et n'est plus versionné** ([ADR-0067](docs/adr/0067-l-index-du-backlog-n-est-plus-versionne.md)) :
+> `node docs/backlog/gen-index.mjs` l'écrit en local, git l'ignore. La source est le frontmatter
+> des tickets ; la liste des ouverts se prend par `node docs/backlog/check-backlog.mjs --report`.
+> Versionné, il entrait en conflit entre deux PR qui ajoutent chacune un ticket, et deux PR vertes
+> fusionnées coup sur coup laissaient un index périmé sans conflit.
+> [Pourquoi il est généré : il était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
 
 **Format ticket** : frontmatter YAML (`id`, `title`, `status`, `phase`, `family`, `estimate`,
 `created`, `updated`, `depends_on`, `blocks`, `spec_refs`, `tags`, `wave`) + corps.

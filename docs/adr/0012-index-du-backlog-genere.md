@@ -1,6 +1,6 @@
 # ADR-0012 — L'index du backlog est généré, jamais maintenu à la main
 
-- **Statut** : Accepté
+- **Statut** : Accepté — amendé par [ADR-0067](0067-l-index-du-backlog-n-est-plus-versionne.md) le 2026-10-16 : l'index reste généré, il n'est plus versionné, et `--check` valide la source au lieu de comparer deux fichiers.
 - **Date** : 2026-08-12
 
 ## Contexte

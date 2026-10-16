@@ -62,6 +62,13 @@ const DEAD_ON_PURPOSE = '<!-- lien-mort-assumé -->';
 const DEAD_ON_PURPOSE_RE = /<!--\s*lien-mort-assumé\s*(?::|-->)/;
 
 /**
+ * Fichiers GÉNÉRÉS à la demande et ignorés par git : ils n'existent pas sur un clone frais (la CI),
+ * et existent sur un poste qui les a générés. Les citer n'est pas citer un fichier mort — c'est
+ * citer une commande. Chacun nomme son générateur (ADR-0067 pour l'index du backlog).
+ */
+const GENERES = new Map([['docs/backlog/INDEX.md', 'node docs/backlog/gen-index.mjs']]);
+
+/**
  * Une citation n'est un CHEMIN que si elle porte un séparateur. `` `models-spec.md` `` est un
  * NOM de document — la façon normale de désigner une spec en prose — et le résoudre relativement
  * au fichier citant produirait des faux positifs en masse (149 sur 443 à la mesure).
@@ -128,6 +135,9 @@ for (const file of scope) {
       if (/^(https?:)?\/\//.test(raw)) continue;
       const cleaned = raw.replace(/^\.\//, '');
       checked += 1;
+      const cible = relative(ROOT, resolve(ROOT, cleaned)).split(sep).join('/');
+      const depuisLeFichier = relative(ROOT, resolve(dirname(file), cleaned)).split(sep).join('/');
+      if (GENERES.has(cible) || GENERES.has(depuisLeFichier)) continue;
       const found =
         existsSync(resolve(dirname(file), cleaned)) || existsSync(resolve(ROOT, cleaned));
       if (found) continue;

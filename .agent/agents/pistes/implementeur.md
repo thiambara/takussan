@@ -90,10 +90,10 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
      - chaque `npm run check:*`.
    - Dépôt :
      - `for g in scripts/check-*.mjs; do node "$g" || echo "✗ $g"; done` ;
-     - `node docs/backlog/gen-index.mjs` puis `--check`.
+     - `node docs/backlog/gen-index.mjs --check` (l'index n'est plus versionné, ADR-0067 : rien à commiter).
    - **Jamais de suite entière** : la CI de la PR la joue.
 6. **Clore** :
-   - le ticket passe à `done`, son index est régénéré, et ses notes d'implémentation ne gardent
+   - le ticket passe à `done`, et ses notes d'implémentation ne gardent
      que le non-évident (ablation, piège rencontré) ;
    - l'entrée du fichier de pistes passe à `fait · TCK-NNN`, et ta ligne `Mesure` dit ce que le
      test a établi. **S'il reste quelque chose**, elle passe à `fait · TCK-NNN — reste : <…>` :
