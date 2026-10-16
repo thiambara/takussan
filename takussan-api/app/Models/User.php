@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Includes\AgencyScopedRelationship;
 use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Scout\Searchable;
@@ -39,6 +41,8 @@ use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
@@ -163,21 +167,66 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     protected static function customQueryFilters(): array
     {
-        return [
-            AllowedFilter::callback(
-                'role',
-                fn (Builder $q, string $value) => match ($value) {
-                    'agent' => $q->whereHas('agentProfiles'),
-                    'agency_admin' => $q->whereHas('agencyAdminProfiles'),
-                    'owner' => $q->whereHas('ownerProfiles'),
-                    'service_provider' => $q->whereHas('serviceProviderProfile'),
-                    'super_admin' => $q->whereHas('platformProfile', fn (Builder $pp) => $pp
+        return [self::roleFilter(null)];
+    }
+
+    /**
+     * TCK-665 (piste P03.02) — la liste d'équipe d'une agence (`GET /api/users`, hors super-admin).
+     *
+     * Même liste blanche que {@see HasQueryBuilder::buildQuery()}, à trois écarts près, tous bornés
+     * à `$agencyId` : les profils inclus (`agentProfiles`, `ownerProfiles`, `agencyAdminProfiles`)
+     * ne portent que ceux de l'agence ; `include=platformProfile` est refusé (400), être opérateur
+     * de la plateforme ne se lit pas depuis une agence ; `filter[role]` juge le rôle DANS l'agence.
+     * Sans cela, la base bornée par le contrôleur laissait sortir, par la personne listée, ses
+     * profils des autres agences — licence, commission, revenus, `metadata`.
+     *
+     * @param  Builder<static>  $base
+     */
+    public static function buildAgencyTeamQuery(Builder $base, Request $request, int $agencyId): QueryBuilder
+    {
+        $filters = array_filter(
+            static::getAllowedQueryFilters(),
+            fn (AllowedFilter $filter) => $filter->getName() !== 'role',
+        );
+
+        $includes = array_map(
+            fn (string $rel) => AllowedInclude::custom($rel, new AgencyScopedRelationship($agencyId)),
+            ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles'],
+        );
+
+        return QueryBuilder::for($base, $request)
+            ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable)
+            ->allowedIncludes(...$includes);
+    }
+
+    /**
+     * `filter[role]` — le rôle se lit sur les profils polymorphes. `$agencyId` non nul : le profil
+     * doit être tenu DANS cette agence (le prestataire, par une collaboration avec elle), et
+     * `super_admin` ne rend personne.
+     */
+    private static function roleFilter(?int $agencyId): AllowedFilter
+    {
+        $inAgency = fn (Builder $p) => $agencyId === null ? $p : $p->where('agency_id', $agencyId);
+
+        return AllowedFilter::callback(
+            'role',
+            fn (Builder $q, string $value) => match ($value) {
+                'agent' => $q->whereHas('agentProfiles', $inAgency),
+                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
+                'owner' => $q->whereHas('ownerProfiles', $inAgency),
+                'service_provider' => $agencyId === null
+                    ? $q->whereHas('serviceProviderProfile')
+                    : $q->whereHas('serviceProviderProfile.agencyCollaborations', $inAgency),
+                'super_admin' => $agencyId === null
+                    ? $q->whereHas('platformProfile', fn (Builder $pp) => $pp
                         ->whereNull('revoked_at')
-                        ->where('level', PlatformProfileLevel::SuperAdmin->value)),
-                    default => $q->whereRaw('1 = 0'),
-                },
-            ),
-        ];
+                        ->where('level', PlatformProfileLevel::SuperAdmin->value))
+                    : $q->whereRaw('1 = 0'),
+                default => $q->whereRaw('1 = 0'),
+            },
+        );
     }
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
