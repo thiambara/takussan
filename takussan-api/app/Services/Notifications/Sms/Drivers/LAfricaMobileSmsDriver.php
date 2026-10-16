@@ -62,6 +62,14 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
         }
         $segments = SmsSegmentCalculator::segmentsCount($message);
         $notificationId = $context['notification_id'] ?? null;
+        // TCK-727 (P27.01) — sans jeton, la route signée ne se construit pas
+        // (segment `{token}` exigé) : on perd l'accusé de réception, pas le SMS.
+        if ($notificationId && (string) $this->config->get('sms.webhook_url_token', '') === '') {
+            Log::warning('[sms.lam] SMS_WEBHOOK_URL_TOKEN absent : envoi sans accusé de réception', [
+                'notification_id' => (int) $notificationId,
+            ]);
+            $notificationId = null;
+        }
 
         $results = [];
         foreach ($recipients as $recipient) {
