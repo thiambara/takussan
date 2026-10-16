@@ -35,6 +35,10 @@ class AuthController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => $request->password,
+            // TCK-689 (P11.01) — la langue négociée par `SetLocaleMiddleware` (le front envoie
+            // celle qu'il affiche), comme `PhoneLoginService::createAccount()` : sans elle, la
+            // colonne gardait son défaut `fr`, et toutes les notifications partaient en français.
+            'preferred_language' => app()->getLocale(),
         ]);
 
         // TCK-272 — ce mot de passe a été CHOISI par l'utilisateur, il le
