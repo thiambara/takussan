@@ -3066,11 +3066,11 @@
           "title": "Sa kayit justification",
           "subtitle": "Yónni sa CNI, sa RIB ak sa NINEA. Mën nga ko def ñaari yoon.",
           "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Yónni (xool nañu ko)",
+          "submittedBadge": "Yónni",
           "submitCta": "Yónni sa dossier KYC",
           "submitting": "Yónnee na…",
           "submittedTitle": "Dossier KYC yónni nañu ko",
-          "submittedBody": "Sa ajance dina ko xool. Mën nga jëkk."
+          "submittedBody": "Mën nga jëkk."
         },
         "tour": {
           "title": "Xamal sa espace",
@@ -3198,11 +3198,11 @@
           "title": "Sa pieces justificatives",
           "subtitle": "Karte professionnelle, pièce d'identité ak foto. Mën nga ko mottali ñu bari.",
           "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Soumis (ñu di seet)",
+          "submittedBadge": "Soumis",
           "submitCta": "Yónn sa dossier KYC",
           "submitting": "Yónn naa…",
           "submittedTitle": "Dossier KYC yónn na",
-          "submittedBody": "Sa ajance dina ko vérifier. Mën nga continuer.",
+          "submittedBody": "Mën nga continuer.",
           "licenseNumberLabel": "Numero karte professionnelle",
           "licenseNumberHint": "Bind fi numero bi nekk ci sa karte d'agent."
         },

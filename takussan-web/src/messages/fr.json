@@ -4819,11 +4819,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer."
+          "submittedBody": "Vous pouvez continuer."
         },
         "tour": {
           "title": "Découvrez votre espace",
@@ -4951,11 +4951,11 @@
           "title": "Vos pièces justificatives",
           "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis (en revue)",
+          "submittedBadge": "Soumis",
           "submitCta": "Soumettre mon dossier KYC",
           "submitting": "Envoi…",
           "submittedTitle": "Dossier KYC envoyé",
-          "submittedBody": "Votre agence va le vérifier. Vous pouvez continuer.",
+          "submittedBody": "Vous pouvez continuer.",
           "licenseNumberLabel": "Numéro de carte professionnelle",
           "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
         },

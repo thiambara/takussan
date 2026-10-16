@@ -4819,11 +4819,11 @@
           "title": "Your supporting documents",
           "subtitle": "Upload your ID, bank details and NINEA. You may complete this in several sessions.",
           "draftBadge": "Draft",
-          "submittedBadge": "Submitted (under review)",
+          "submittedBadge": "Submitted",
           "submitCta": "Submit my KYC dossier",
           "submitting": "Submitting…",
           "submittedTitle": "KYC dossier submitted",
-          "submittedBody": "Your agency will review it. You can continue."
+          "submittedBody": "You can continue."
         },
         "tour": {
           "title": "Discover your space",
@@ -4951,11 +4951,11 @@
           "title": "Your supporting documents",
           "subtitle": "Licence card, ID and profile picture. You may complete this in several sessions.",
           "draftBadge": "Draft",
-          "submittedBadge": "Submitted (under review)",
+          "submittedBadge": "Submitted",
           "submitCta": "Submit my KYC dossier",
           "submitting": "Submitting…",
           "submittedTitle": "KYC dossier submitted",
-          "submittedBody": "Your agency will review it. You can continue.",
+          "submittedBody": "You can continue.",
           "licenseNumberLabel": "Licence number",
           "licenseNumberHint": "Use the number printed on your professional card."
         },
