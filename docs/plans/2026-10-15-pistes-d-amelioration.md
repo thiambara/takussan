@@ -2134,7 +2134,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Une agence individuelle qui active la modération ne peut plus publier
 - Réf : P15.03
-- Statut : validé — réglage caché et refusé (422) pour une agence individual
+- Statut : fait · TCK-686
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:401-423,497`, `takussan-web/src/lib/access/pages-admin.ts:92-96`, `takussan-api/app/Observers/PropertyObserver.php:120-140`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:55`
 - Constat :
@@ -2144,6 +2144,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, front et API.
 - Piste : cacher et refuser le réglage en `individual`, ou exempter l'admin unique.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `AgencyConfigForm.tsx:401-423` (case `moderation_required` hors du bloc `individual ? null` de la l. 497), `AgencyUpdateRequest.php:55` (`sometimes|boolean`, sans condition sur le type d'agence), `PropertyObserver.php:43-53` et `:129-131` (`moderation_required` → `pending_review`, « Pas d'exemption par rôle »), `pages-admin.ts:92-96` (`/app/agency/moderation/properties` exige `agence: 'standard'`). L'API d'approbation (`POST /api/properties/{p}/approve`, gate `approve-property`) n'a pas été éprouvée pour un admin `individual` : seul l'écran manquant est établi. Classement : V7, les deux pistes (cacher et refuser le réglage, ou exempter l'admin unique) changent un comportement visible et en choisissent un.
+- Mesure (2026-10-16, fe095462, implementeur) : avant correctif, `PATCH /api/agencies/{id}` `moderation_required: true` sur une agence `individual` rendait 200 (`AgencyTest::test_individual_agency_cannot_enable_moderation`, rouge « Expected 422 but received 200 »), et `AgencyConfigForm` rendait la case et l'envoyait (`AgencyConfigForm.moderation.test.tsx`, rouge). Correctif : `declined` pour une agence `individual` dans `AgencyUpdateRequest`, case non rendue, clé non envoyée par `normaliseAgencyForm`. Ablation : chacun des trois retraits rougit son test, remis verts. Non fait : une agence `individual` déjà à `true` en base reste modérée (réécriture de données, V4).
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04

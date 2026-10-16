@@ -153,6 +153,28 @@ class AgencyTest extends ApiTestCase
         $this->assertTrue($agency->refresh()->moderation_required);
     }
 
+    /**
+     * TCK-686 (P15.03) — une agence `individual` n'a pas de file de modération (la page exige une
+     * agence `standard`) : activer la modération y bloquerait toute publication. Refusé en 422 ;
+     * `false` reste accepté.
+     */
+    public function test_individual_agency_cannot_enable_moderation(): void
+    {
+        $agency = Agency::factory()->individual()->create(['moderation_required' => false]);
+        $admin = User::factory()->withTwoFactor()->create();
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+
+        $this->actingAsApi($admin);
+        $this->patchJson("/api/agencies/{$agency->id}", ['moderation_required' => true])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('moderation_required');
+        $this->assertFalse($agency->refresh()->moderation_required);
+
+        $this->patchJson("/api/agencies/{$agency->id}", ['moderation_required' => false])
+            ->assertOk()
+            ->assertJsonPath('data.moderation_required', false);
+    }
+
     public function test_primary_admin_can_show_agency(): void
     {
         $admin = User::factory()->create();

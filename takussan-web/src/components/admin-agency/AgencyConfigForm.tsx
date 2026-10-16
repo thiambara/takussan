@@ -401,26 +401,30 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         {/* TCK-098 — moderation toggle */}
         {/* Tout l'encadré est cliquable : le `::after` du libellé le recouvre, sans que le texte
             d'aide n'entre dans le nom accessible de la case. La case seule faisait 13 × 16 px. */}
-        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
-          <input
-            id="moderation_required"
-            type="checkbox"
-            aria-describedby="moderation_required-hint"
-            {...form.register('moderation_required')}
-            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
-          />
-          <div>
-            <label
-              htmlFor="moderation_required"
-              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
-            >
-              {t('moderation.label')}
-            </label>
-            <p id="moderation_required-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
-              {t('moderation.hint')}
-            </p>
+        {/* TCK-686 — pas pour une agence `individual` : sa file de modération n'existe pas
+            (`/app/agency/moderation/properties` exige `standard`), et l'API refuse la case (422). */}
+        {individual ? null : (
+          <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+            <input
+              id="moderation_required"
+              type="checkbox"
+              aria-describedby="moderation_required-hint"
+              {...form.register('moderation_required')}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+            />
+            <div>
+              <label
+                htmlFor="moderation_required"
+                className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+              >
+                {t('moderation.label')}
+              </label>
+              <p id="moderation_required-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+                {t('moderation.hint')}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* TCK-593 — encaissement des pénalités de retard avec le paiement en ligne. */}
         <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
