@@ -6,7 +6,10 @@ use App\Domain\Alerts\AlertableEvents;
 use App\Jobs\SendAdminAlert;
 use App\Models\AlertRule;
 use App\Models\User;
+use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Models\Activity;
+use Throwable;
 
 class AlertRuleService
 {
@@ -73,7 +76,7 @@ class AlertRuleService
             ->where('is_active', true)
             ->get()
             ->each(function (AlertRule $rule) use ($activity, $event): void {
-                SendAdminAlert::dispatch($rule->id, [
+                $job = new SendAdminAlert($rule->id, [
                     'title' => $event,
                     'message' => __('notifications.admin_alert.activity_message', [
                         'event' => $event,
@@ -85,7 +88,43 @@ class AlertRuleService
                     'actor_id' => $activity->causer_id,
                     'subject_id' => $activity->subject_id,
                 ]);
+
+                if (! self::isOperational($event)) {
+                    dispatch($job);
+
+                    return;
+                }
+
+                $this->deliverNow($job, $rule, $event);
             });
+    }
+
+    /**
+     * TCK-679 (P14.01) — une alerte d'exploitation est écrite par `alerts:evaluate`, dans le
+     * scheduler. Mise en file, elle attendrait le worker dont elle annonce peut-être la panne
+     * (`ops_queue_stalled` sur `default`) : elle part donc ici, dans le processus qui l'évalue.
+     */
+    public static function isOperational(string $event): bool
+    {
+        return str_starts_with($event, 'ops_');
+    }
+
+    /**
+     * Synchrone, un canal en échec lèverait dans l'écouteur de création du journal : la commande
+     * tomberait, sans évaluer les transitions suivantes ni livrer les autres règles. L'échec est
+     * compté sur la règle par `SendAdminAlert::failed()` (la file `sync` l'appelle) et journalisé
+     * sous sa forme sûre (ADR-0044) ; il n'est pas retenté.
+     */
+    private function deliverNow(SendAdminAlert $job, AlertRule $rule, string $event): void
+    {
+        try {
+            dispatch_sync($job);
+        } catch (Throwable $e) {
+            Log::error('[AlertRuleService] Operational alert delivery failed', [
+                'alert_rule_id' => $rule->id,
+                'event' => $event,
+            ] + SafeExceptionContext::of($e));
+        }
     }
 
     private function payload(AlertRule $rule): array
