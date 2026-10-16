@@ -7,7 +7,7 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  *
  * The wizard talks to four backend endpoints:
  *  1. POST /api/me/owner-profiles/{id}/kyc/upload    — multipart CNI/RIB/NINEA
- *  2. POST /api/me/owner-profiles/{id}/kyc/submit    — flips KYC to pending_review
+ *  2. POST /api/me/owner-profiles/{id}/kyc/submit    — stamps kyc.submitted_at
  *  3. POST /api/owner/onboard/complete                — OTP + flip status + cookie
  *  4. GET  /api/me/owner-profiles/{id}/properties    — pre-attached properties
  */
@@ -16,7 +16,6 @@ export type OwnerKycSubmitResponse = {
   data: {
     id: number;
     kyc: {
-      status: string;
       submitted_at: string | null;
       docs: string[];
     };
