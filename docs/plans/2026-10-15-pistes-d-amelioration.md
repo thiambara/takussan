@@ -161,7 +161,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les quartiers proposés par le panneau ne correspondent pas aux quartiers indexés
 - Réf : P01.02
-- Statut : validé — filtrer par geo_neighborhood_id quand il est posé, sinon par le nom normalisé sans accent ni tiret ; adresses non réécrites
+- Statut : fait · TCK-663
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/ChoixDuReferentiel.tsx:227-233`, `takussan-api/app/Services/Search/PropertySearchService.php:446-447`
 - Constat :
@@ -173,6 +173,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - En production : à vérifier.
 - Piste : rattacher les adresses au référentiel (migration de données), puis indexer et filtrer par le nom canonique ou par `geo_neighborhood_id`.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `PropertySearchService.php:446-447` (`neighborhood = <nom>` en égalité stricte) et `ChoixDuReferentiel.tsx:226-233` (noms du référentiel proposés) ; tinker en lecture → `PropertySearchService::search(['location' => 'Grand Yoff'])` rend 0, `'Grand-Yoff'` en rend 9 (le constat disait 39 : ce chiffre ne compte que les biens publics) ; `geo_neighborhoods` ne connaît que `Grand Yoff`, `addresses` que `Grand-Yoff` (42) ; 205 adresses sur 826 portent un quartier absent du référentiel, 322 sont rattachées à `geo_neighborhood_id`. Classement : V4, rattacher les adresses au référentiel réécrit des données existantes.
+- Mesure (2026-10-16, 64d25ff, implementeur) : reproduit avant correctif par `QuartierDuPanneauTest` (liste `/api/public/properties/search` et carte `/map`) → `location=Grand Yoff` rend `[]` pour une adresse non rattachée « Grand-Yoff », et `location=Sacré-Cœur 3` rend `[]` au lieu des biens rattachés à ce quartier ou saisis « Sacre Coeur 3 » ; correctif : `geo_neighborhood_id` et `neighborhood_key` (`CleDeQuartier`) indexés et filtrés, même règle en SQL pour la carte, adresses non réécrites → 2 verts (28 assertions) ; ablation de la clause de liste, de celle de la carte, puis des identifiants du référentiel → rouge à chaque fois sur l'assertion visée, correctif remis → vert.
 
 ### Les suggestions de recherche ont une limite unique de 60 requêtes par minute pour tout le site
 - Réf : P01.03
@@ -753,7 +754,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : planifier ou retirer le résumé quotidien jamais planifié
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -761,16 +762,18 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `boosts:tick` annonce que « chaque transition » est réclamée, mais `pause()` et `resume()` écrivent le modèle chargé.
   - `SendProspectMatchDigest` envoie avant de poser sa clé d'idempotence, et journalise `$e->getMessage()`, ce que TCK-601 interdit (lu).
 - Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `SendRawNotificationEmailJob.php:42-48` (`catch (\Throwable)` → `report()`, sans relance : `$tries` et `backoff()` sont inopérants) ; `grep -rn` dans `app/` : le job n'est dispatché que par `NotificationService::sendEmail()` (l. 207), appelé par `notify()` (l. 173), elle-même appelée seulement par `notifyMany()` (l. 199) — aucun appelant de `notify`/`notifyMany` dans `app/`, seuls `tests/Support/ProseLitteraleScanner.php` et sa fixture les nomment, ce qui lève le « à vérifier » ; `SendDailyNotificationDigest` absent de `routes/console.php` et de tout dispatch (seul `NotificationDigestTest` l'instancie) ; `BoostLifecycle.php:204-218` : `pause()`/`resume()` font `forceFill()->save()` sur le modèle chargé, quand `end()` (l. 221) réclame par `UPDATE … WHERE status IN`, donc le docblock de `BoostsTick.php:11-16` reste inexact pour elles ; `SendProspectMatchDigest.php:93-99` appelle `send()` puis seulement `?->update(['data' => … 'digest_date' …])`, et l. 76-80 journalise `'message' => $e->getMessage()` alors que `App\Support\Logging\SafeExceptionContext` existe → les trois points tiennent. Classement : V7, retirer ou planifier le résumé quotidien est un choix de produit, et réclamer `pause()`/`resume()` touche la durée de boosts payés (V1).
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : un `CACHE_PREFIX` par environnement déployé
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/compose.api.yml:65`, `takussan-api/config/app.php:70`, `deploy/server/compose.data.yml:31`
 - Constat :
   - Il n'y a qu'un scheduler, et Dakar est en UTC+0 sans heure d'été.
   - La préproduction et la future production partageront `redis-takussan`. Avec le même `APP_NAME` et le même `REDIS_CACHE_DB`, leurs verrous de scheduler entreraient en collision : chaque environnement sauterait les tâches de l'autre (à vérifier quand la production existera).
 - Piste : un `CACHE_PREFIX` par environnement.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `grep -rn onOneServer` dans `takussan-api/routes`, `app`, `bootstrap` → aucun usage (le titre nomme un appel absent du code ; les 46 occurrences sont des `withoutOverlapping`, dont le mutex passe aussi par le cache) ; lu `config/cache.php:115` (`CACHE_PREFIX` dérivé d'`APP_NAME`), `config/database.php:171,194` (`REDIS_PREFIX` dérivé d'`APP_NAME`, `REDIS_CACHE_DB` à `1` par défaut), `config/app.php:70` (`'timezone' => 'UTC'`), `deploy/takussan/compose.api.yml:65-68` (un seul service `scheduler`), `deploy/server/compose.data.yml:27-31` (un `redis-takussan` unique), `.env.example:118` (`# CACHE_PREFIX=` commenté) → le piège tient, sans défaut aujourd'hui puisque aucune production n'existe (CLAUDE.md). Classement : V5, le correctif est une variable d'environnement posée par déploiement.
 
 ## Angle 6 — Texte affiché par l'API et i18n fr/en/wo
 
@@ -918,7 +921,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Des documents qui affirment l'inverse de la mesure
 - Réf : P06.13
-- Statut : à mesurer
+- Statut : retenu · à valider — V9 : chemin fermé, deux corrections sur trois sont dans `CLAUDE.md` et `takussan-web/CLAUDE.md`
 - Gravité : 🟢 amélioration
 - Où : `CLAUDE.md` (principe n° 5), `takussan-web/CLAUDE.md` (section i18n), `PropertiesDiscoveryPage.tsx:333`
 - Constat :
@@ -926,14 +929,16 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - « wo traîne 88 clés manquantes » est faux : il en manque 0.
   - « `lang/fr/validation.php` ne porte pas `boolean` » est faux aussi (mesuré).
 - Piste : remplacer ces chiffres par la commande qui les donne.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `node scripts/check-i18n.mjs --report` (dans `takussan-web/`) → « en 0/0, wo 0/0 clé(s) manquante(s) sur 8022 clés fr » et « 0 TOLÉRÉE(S) … sur 0 fichier(s) » ; `CLAUDE.md:401` dit toujours « Tenu à 82 fichiers sur 875 », `takussan-web/CLAUDE.md:245-246` « `wo` traîne 88 clés manquantes » ; `lang/fr/validation.php:38` porte `boolean`, et `tinker` `__('validation.boolean', ['attribute' => 'furnished'], 'fr')` → « Le champ furnished doit être vrai ou faux. » (le `wo` est traduit aussi), contre le commentaire de `PropertiesDiscoveryPage.tsx:332-335` → les trois écarts tiennent. Classement : V9, la correction relève de A6, mais deux des trois fichiers sont des `CLAUDE.md` que l'implémenteur ne touche pas.
 
 ### Pages légales vides en wolof
 - Réf : P06.14
-- Statut : à mesurer
+- Statut : caduc — comportement voulu et écrit dans `docs/features.md:702-706` et `content/legal/README.md:44-46`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/content/legal/terms.ts:445`, `privacy.ts:351`, `notice.ts:125`
 - Constat : ``export const wo = ``;``. La page affiche le français avec une mention, et c'est documenté (lu).
 - Piste : traduction à planifier, ou mention dans la spec.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `terms.ts:445`, `privacy.ts:351`, `notice.ts:125` (`export const wo = ``;`, inchangés) ; `docs/features.md:702-706` stipule que le wolof n'est pas fourni « à dessein » (« une traduction juridique demande un traducteur qui en réponde ») et que la page affiche alors le français avec la mention, et `takussan-web/src/content/legal/README.md:44-46` le redit → la branche « mention dans la spec » de la piste est déjà faite, et la branche « traduction » est un travail de traducteur juridique, pas un défaut du code. Classement : aucun critère, le comportement constaté est celui que la spec écrit.
 
 ## Angle 7 — Accessibilité du front (WCAG 2.2 AA)
 
@@ -1080,11 +1085,12 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : captions et libellés contextuels neufs, en fr/en/wo
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
 - Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : `grep -c caption` → 0 dans `payments/InvoicesTable.tsx`, `payments/PayoutsTable.tsx`, `payments/PaymentsHistoryTable.tsx` et `billing/PayoutTable.tsx`, qui rendent un `<table>` nu (`PayoutsTable.tsx:67`, `PaymentsHistoryTable.tsx:84`, `PayoutTable.tsx:106`) ; `InvoicesTable.tsx:99-106` et `PayoutsTable.tsx:116` rendent `tTable('open')` (« Ouvrir », `messages/fr.json:1779`) sans libellé propre à la ligne ; `PropertyReviewForm.tsx:69,80` pose `role="radiogroup"`/`role="radio"` sans aucun `onKeyDown` ni gestion des flèches ; `console/DataTable.tsx:61-65` impose bien `caption` → tout tient. Classement : V7, chaque caption et chaque libellé contextuel est un texte neuf à écrire dans les trois langues, et passer par `DataTable` refond quatre tableaux.
 
 ## Angle 8 — Parcours sur téléphone
 
@@ -1190,7 +1196,7 @@ Sain (vérifié par l'agent) :
 
 ### Petites améliorations
 - Réf : P08.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : second bouton « Prendre une photo » et squelettes de chargement neufs
 - Gravité : 🟢 amélioration
 - Où et constat (lu ou mesuré) :
   - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
@@ -1199,6 +1205,7 @@ Sain (vérifié par l'agent) :
   - fiches publiques de bien, d'agence et d'agent sans `loading.tsx` : ce sont les pages ouvertes depuis WhatsApp ;
   - `capture` absent de l'état des lieux et des photos du bien (`InventoryDetail.tsx:263`, `StepPhotos.tsx:31`).
 - Piste : `PhoneInput`, `FormAmountInput`, `90dvh` dans la primitive, des squelettes de chargement, et un second bouton « Prendre une photo » avec `capture="environment"`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `GuarantorSection.tsx:81-84` (téléphone affiché en texte, sans lien `tel:`) et l. 188-192 (`FormInput` `name="phone"` sans `type`) ; `CreateLeaseForm.tsx:229,239,249,273` : `type="number"` sans `inputMode` ; `ui/sheet.tsx:102` `max-h-[90vh]` contre `PropertyListFilters.tsx:395` `max-h-[88dvh]` ; `ls` de `(public)/properties/[slug]`, `(public)/agencies/[slug]`, `(public)/agents/[slug]` → aucun `loading.tsx` (seul `properties/(liste)/loading.tsx` existe) ; `InventoryDetail.tsx:263` et `StepPhotos.tsx:31` passent par `MediaDropzone` sans `capture`, que seuls trois composants de `maintenance/` posent → les cinq points tiennent. Classement : V7, le second bouton photo et les squelettes sont du comportement visible et du design neufs ; `type="tel"`, `inputMode` et `dvh`, pris seuls, relèveraient de A4.
 
 ## Angle 9 — Pages publiques : SEO et partage
 
@@ -1297,7 +1304,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : forme des canoniques paginées, des titres et descriptions de fiche ; `takussan-web/CLAUDE.md` est un chemin fermé
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1311,6 +1318,7 @@ Correct (mesuré ou lu) :
   - `generateSitemaps()` ;
   - des métadonnées propres aux `not-found` ;
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `canonique.ts:358-378` (`cheminCanoniqueDeLaListe` retire `page` ; son docblock : `page=3` → `/properties?type=villa`) ; `(public)/properties/(liste)/page.tsx` n'appelle jamais `notFound()` et ne lit pas `last_page` ; `properties/[slug]/page.tsx:98-99` : `property.description?.slice(0, 160) ?? …`, donc une chaîne vide passe le `??` et la coupe tombe au caractère ; `sitemap.ts:23-31,313` lève au-delà de 50 000 `<url>` et `generateSitemaps` n'est cité qu'en commentaire ; `properties/[slug]/not-found.tsx` n'exporte aucune métadonnée, sous `(public)/layout.tsx:56` en `index: true, follow: true` ; `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` dans l'URL » alors que les pages vivent sous `src/app/[locale]/` → tout tient en lecture ; le double `noindex`/`index, follow` rendu et les 1 011 `<loc>` n'ont pas été remesurés (application non lancée). Classement : V7, canonique par page, `notFound()` au-delà de la dernière page et contenu des titres changent ce que voient les moteurs, et la correction du document est dans un `CLAUDE.md`.
 
 ## Angle 10 — Médias : tailles, conversions, disques, nettoyage
 
@@ -1439,13 +1447,14 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Petites améliorations
 - Réf : P10.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : paquets de l'image de l'API et options de `next/image` en production
 - Gravité : 🟢 amélioration
 - Constat (lu) :
   - **Optimiseurs** (`config/media-library.php:167-205`) : ils sont configurés, mais ni `jpegoptim`, ni `cwebp`, ni `avifenc` ne sont installés dans l'image (`Dockerfile:20`). Spatie les saute en silence, et le commentaire `--strip-all` laisse croire que l'EXIF est retiré.
   - **`next/image`** (`takussan-web/next.config.ts:113-166`) : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` sont actifs en production, sans `contentSecurityPolicy`. Le commentaire de `deviceSizes` cite `preview` 800 px comme plus grande image, alors que c'est `full` 1600 px. Des avatars jusqu'à 2560 px sont affichés en 32 à 64 px.
   - **Fichiers privés** : rien n'est rangé au mauvais endroit (KYC, baux, documents, états des lieux : disque privé). L'URL présignée dure 5 min, l'URL d'API signée 30 min. Reste à vérifier : la signature apparaît-elle dans le journal Traefik ?
 - Piste : installer les binaires ou retirer le bloc ; couper les deux options `dangerously*` hors développement ; servir l'avatar en conversion.
+- Mesure (2026-10-16, ddb5f050, mesureur) : lu `config/media-library.php:167-205` (Jpegoptim avec `--strip-all`, Pngquant, Optipng, Svgo, Gifsicle, Cwebp, Avifenc) ; `grep -rn 'jpegoptim|cwebp|avifenc|optipng|pngquant'` dans `takussan-api/Dockerfile` et `deploy/` → rien, et `Dockerfile:20` n'installe que des extensions PHP ; `next.config.ts:161-162` : `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP` à `true` sans condition d'environnement ni `contentSecurityPolicy` ; les commentaires de `next.config.ts:110-145` tiennent `preview` 800 px pour le plafond, quand `Property.php:762-786` déclare une conversion `full` à 1600 px → les deux premiers points tiennent ; la signature dans le journal Traefik n'est pas mesurable depuis le poste (préproduction hors d'atteinte), et la taille des avatars n'a pas été remesurée. Classement : V5, installer des binaires dans l'image ou changer la configuration d'images servie en production relève du déploiement, et retirer le bloc d'optimiseurs est un choix (V6).
 
 Angles voisins : mémoire et `--timeout` de `worker-media` face aux originaux de 48 Mpx ; contenu réel de `storage/media-library/temp` en préproduction ; facture Transformations et R2 au tableau de bord Cloudflare.
 
@@ -1585,7 +1594,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : numéros complets dans les journaux
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1598,6 +1607,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -1727,7 +1737,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P12.10
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Constat (mesuré) :
   - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
@@ -1739,6 +1749,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     - aucun test back ne moque sa propre classe ;
     - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
 - Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
+- Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rn 'assertTrue(true)' tests` → 3 (`ExampleTest.php:14`, `SeedingMediaFailuresTest.php:154`, `DigestBuilderServiceTest.php:131`) ; lu `SponsoredImpressionsTest.php:38` (lit la clé de l'heure `now()` après deux recherches) et `MaintenanceStructuredQuoteTest.php:93` (compare à `now()->addDays(10)->toDateString()`), `grep -c 'freezeTime\|travelTo'` → 0 dans les deux fichiers ; la carte d'impact a été régénérée le 2026-10-15 (`3a2c9108`, sur `53b3d2ee`) et il lui manque encore 15 classes dont `RentalSettingsCatalogueTest`, surtout des gardes qui ne couvrent pas `app/` : partie non retenue ; l'exemple front `MaintenanceScheduler.test.tsx:70` est inexact (l. 67-68 vérifient déjà l'argument `mode`) et les six tests ne sont pas nommés : partie non re-mesurée. Retenu : le temps figé dans les deux tests et les trois `assertTrue(true)`. Classement : A5, rendre déterministes et effectifs des tests existants, sans seuil ni choix de produit.
 
 ## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
 
@@ -1888,7 +1899,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : deux chantiers, et un seuil d'alerte à choisir
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1896,6 +1907,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 - Piste :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `SystemMetricsController.php` (l. 35-46 sont aujourd'hui `TREND_KEYS` ; aucun taux d'échec de paiement ni de webhook) et `HealthcheckService::probe` (aucune sonde `payments`) ; `grep -rn 'Context::add\|withContext\|shareContext' app bootstrap` → rien ; `bootstrap/app.php:151-153` journalise `query_exception` avec le seul `user_id` → les deux constats tiennent. Classement : V8, la sonde et le contexte de journal font deux tickets, la sonde demande un seuil, et mettre l'agence dans chaque journal touche V3.
 
 ## Angle 13 — Code mort et doublons
 
@@ -2032,7 +2044,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Petites améliorations
 - Réf : P13.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : retrait de colonnes, et V8 : plusieurs tickets
 - Gravité : 🟢 amélioration
 - Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
   - **Fichiers front morts** : 8, dont :
@@ -2055,6 +2067,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - **Colonnes jamais lues ni écrites** : `Property.lot_position` et `admin_monitored`, `ServiceProviderProfile.insurance_policy_id` et `hourly_rate_max`, `OwnerProfile.guarantor_user_id`, `NotificationTemplate.meta_category` et `meta_variables`.
   - **Clés i18n** : environ 202 feuilles sur 8 032 ont un nom absent du code, une partie dynamique. Aucune garde ne les voit.
 - Piste : supprimer après relecture des cinq ou six éléments qui touchent un parcours ; un seul `formatCurrency` ; documenter ou retirer les colonnes ; un rapport des clés i18n inutilisées (pas encore un cliquet).
+- Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rlw` hors tests dans `takussan-web/src` → `Money.tsx` sans importeur ; `ShareButton`, `deleteWizardDraft`, `useUpdateLease`, `useRefundDeposit`, `useConfirmEarlyTermination`, `switchActiveProfileAction` présents dans leur seul fichier de définition, `useRequireAuth` en plus dans un commentaire d'`AuthContext.tsx:63` ; `formatCurrency` défini deux fois (`lib/format.ts:158`, `lib/format/currency.ts:73`) ; `PhoneRule` citée par le seul commentaire de `ResendPhoneVerificationRequest.php:42`, qui l'écarte délibérément ; `acceptForAuthenticatedUser`, `filterChannels`, `effectiveLimitsForAgency` et l'enum `UserRole` (`app/Models/Enums/UserRole.php`) présents dans un seul fichier d'`app` ; les sept colonnes ne figurent que dans leur modèle → tient sur ce qui a été re-mesuré ; les normalisations de téléphone, `formatRelativeDate` et les clés i18n n'ont pas été re-mesurées. Classement : V4 et V8, retirer des colonnes change le schéma, et l'ensemble fait plusieurs tickets.
 
 ## Angle 15 — Parcours d'une agence neuve
 
@@ -2186,10 +2199,11 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P15.10
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : notification neuve
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `NotificationCode.php:131-132` (`property.approved`, `property.rejected`, aucun code de soumission) et `:161` (`review.to_moderate`) ; `grep -rn PendingReview app/Services app/Http/Controllers` → `PropertyModerationService.php:131` repasse un bien en `pending_review` sans notifier, aucun autre émetteur → le constat tient. Classement : V7, une notification aux admins est un comportement visible et un texte neufs.
 
 ## Angle 16 — Listes internes sur un modèle `Searchable`
 
@@ -2268,7 +2282,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P16.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
@@ -2276,6 +2290,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - les mises à jour en masse sur des modèles `Searchable` ne touchent que des colonnes non indexées (`AgentHandoverService.php:196,200`, `AccountDeletionService.php:229`) ;
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`removeAllFromSearch` sur cette seule liste) ; `grep -rln 'Searchable;' app/Models` → s'y ajoutent `Agency`, `User`, `Customer`, `MaintenanceRequest`, dont l'index n'est jamais vidé ; décompte « 8 pour 5 » non re-mesuré (il demande la clé Meilisearch), repris de la mesure de P16.01 du 2026-10-15 → tient, et c'est le même défaut que P16.01, toujours `retenu · autonome` et non traité. Classement : A1, le docblock de `reindexSearchableModels` (« every searchable model ») écrit déjà le comportement attendu, et le correctif de P16.01 vide aussi ces index.
 
 ## Angle 17 — Qualité des adresses : référentiel ou texte libre
 
@@ -2343,7 +2358,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retrait ou alignement à choisir, signal de distance neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -2355,6 +2370,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - le chargeur ne recrée pas un quartier refusé ou fusionné ;
     - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
 - Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `routes/api/properties.php:53-54` (`PUT` et `DELETE …/address`) et `UpsertPropertyAddressRequest.php:34-46` (`max:255`, ni `geo_city_id` ni `geo_neighborhood_id`) ; `grep -rn "/address" takussan-web/src` → aucun appel, seul le récit de `property-form/payload.ts:17` ; `grep -rn 'Senegal::contient' app` → un seul usage (`GeoLinkController.php:22`), aucune comparaison à la ville → les deux constats tiennent ; le recentrage de la carte côté front n'a pas été vérifié. Classement : V7, la `Piste` laisse le choix entre retirer et aligner les routes, et le signal de distance est un comportement visible neuf.
 
 ## Angle 18 — Statistiques Boost face aux robots, aux rendus serveur et aux revalidations
 
@@ -2430,7 +2446,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : plafond, marqueur et `/playground` à décider
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2439,6 +2455,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **`/playground` est servi sur le site public** (noindex, mais non interdit par `robots.txt`) et appelle la recherche par `useProperties` pour ses rangées « près de toi » et « location » (lu). Chaque affichage compte des impressions sponsorisées qu'il ne montre pas.
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
+- Mesure (2026-10-16, b775f8f6, mesureur) : lu `BoostStatsRecorder.php:36-44` (`RateLimiter::hit(…, 3600) > 1`) contre `PropertyViewCounter.php:31` (`MAX_PAR_HEURE = 3`) ; `arrivee-sponsorisee.ts:7-25` (une seule clé `sessionStorage`) ; `PlaygroundClient.tsx:30-31` (`city` et `transaction`), qui passent par `/public/properties/search` (`useProperties.ts:66`), où `PropertySearchService.php:659` compte les impressions → les trois constats tiennent ; le comportement des onglets selon les navigateurs n'a pas été vérifié. Classement : V7, chaque correctif est un choix (plafond, forme du lien, sort de `/playground`), et ces compteurs mesurent un produit payé (V1).
 
 ## Angle 19 — Rétention des tables qui grossissent
 
@@ -2521,7 +2538,7 @@ ajoutent que des faits neufs.*
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : durée de conservation des notifications, à écrire dans la politique
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/NotificationController.php:20-31`, `takussan-api/database/migrations/2026_04_17_160032_create_app_notifications_table.php:13,26`, `takussan-web/src/content/legal/privacy.ts:121-134`
 - Constat :
@@ -2529,10 +2546,11 @@ ajoutent que des faits neufs.*
   - La liste et le compteur filtrent sur `read_at` (lu, `NotificationController.php:21,29-30`). L'index posé est `(user_id, is_read)`. Mesuré par `EXPLAIN ANALYZE` : PostgreSQL passe par `app_notifications_user_id_digested_at_index` sur `user_id` seul, filtre `read_at` en mémoire, puis trie par `created_at`. 0,2 ms à ce volume.
   - `is_read` et `read_at` disent la même chose : mesuré, 4 069 lignes `false`/`null` et 6 202 `true`/non nul, aucune divergence. Seuls les deux résumés lisent encore `is_read` (lu, `SendDailyNotificationDigest.php:40`, `DigestBuilderService.php:30`).
 - Piste : une durée pour les notifications lues (par exemple 6 mois), écrite dans la politique ; un index `(user_id, created_at DESC, id DESC)`, avec une condition partielle `WHERE read_at IS NULL` pour le compteur, posé sur mesure d'un volume réel.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `NotificationController.php:17-31` (liste et compteur filtrent sur `read_at`, triés `created_at` puis `id`), la migration de création (index `(user_id, is_read)`, l. 26), `routes/console.php` (aucune purge d'`app_notifications`) et `privacy.ts:121-140` (§ 6 sans ligne pour les notifications) ; `is_read` lu seulement par `SendDailyNotificationDigest.php:40` et `DigestBuilderService.php:30` ; en lecture sur la base de dev, `SELECT` → 10 271 lignes depuis le 2025-07-24, 6 202 lues, 0 ligne où `is_read` diverge de `read_at`, et `EXPLAIN` de la liste non lue de l'utilisateur le plus chargé → `Bitmap Index Scan` sur `app_notifications_user_id_digested_at_index`, `Filter: (read_at IS NULL)`, puis `Sort` sur `created_at DESC, id DESC`. Constat confirmé. Classement : V3, la piste fixe ce qui est conservé et combien de temps, et l'écrit dans la politique de confidentialité ; l'index seul (A2) attend, selon la piste elle-même, un volume réel.
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : durée de conservation des jobs échoués, dont le payload est gardé tel quel
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2541,6 +2559,7 @@ ajoutent que des faits neufs.*
   - **`next_due_at` vaut toujours `null`** dans l'inspecteur des tâches (lu, `ScheduledTaskInspector.php:43`).
   - **Ce qui tient** : `integration_webhook_logs` (`webhooks:prune`), les jetons (`sanctum:prune-expired`, `sessions:prune-idle`), les brouillons, les archives d'export et les alertes non confirmées ont leur purge planifiée (lu, `console.php:49,79,101-104,118,169`). `platform_metrics_daily` écrit une ligne par jour (lu, ADR-0057 : « ne demande aucune purge ») ; `property_boost_daily_stats` une par bien et par jour (mesuré : 71 lignes en dev). Les sessions sont en Redis (lu, `prod-drivers.json`) : la table `sessions` ne grossit pas.
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `routes/console.php` (ni `queue:prune-failed` ni `queue:prune-batches`, aucun `model:prune`), `SanitizingFailedJobProvider.php:17` (le `payload` n'est pas touché, pour le rejeu), `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION` = `database`), `User.php:379-399` (`LogOptions::defaults()` sans `useLogName`, alors qu'`Auditable.php:31` nomme par classe), `config/activitylog.php:24` (`default_log_name` = `default`) et `ScheduledTaskInspector.php:43` (`'next_due_at' => null`, que le front type `string | null` dans `types/super-admin.ts:814`). Lignes citées inchangées, les trois défauts tiennent ; le journal de `User` est lu, pas re-mesuré par test. Classement : V3, la durée de purge des `failed_jobs` décide de ce qui est conservé et doit s'écrire dans l'ADR-0044 ; renommer le journal de `User` change le `log_name` des écritures neuves, que toute lecture par nom distinguerait des anciennes.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 
@@ -2630,7 +2649,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : recouvre les tests de budget de P20.01 à P20.05 et ne passe au vert qu'après eux
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Providers/AppServiceProvider.php`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`
 - Constat :
@@ -2638,6 +2657,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Quatre listes ont un test de budget ; les cinq défauts ci-dessus sont sur des listes qui n'en ont pas (lu).
   - Une interdiction du chargement paresseux en test attraperait P20.01 et P20.04, et le média de P20.05 ; elle ne verrait pas les requêtes directes (`isSuperAdmin()`, `activeVersion()`, `staffAgencyId()`) (déduit, à vérifier).
 - Piste : un test paramétré « 2 lignes = 12 lignes » sur les listes pro appelées par le front (baux, clients, réservations, demandes d'intervention, documents, conversations), sur le modèle de `PropertyIndexQueryBudgetTest::test_ac15…` ; et, à mesurer d'abord, `Model::preventLazyLoading()` dans `Tests\TestCase`.
+- Mesure (2026-10-16, 1efd784a, mesureur) : `grep -rn "preventLazyLoading\|shouldBeStrict" app tests bootstrap` → aucun résultat ; ajout temporaire de `Model::preventLazyLoading()` dans `Tests\TestCase::setUp()`, retiré depuis, charge 1,99 puis 2,94 sur 8 cœurs : `tests/Feature/Crm` et `tests/Feature/Property` → 135 verts, puis `CustomerTest`, `DocumentTest`, `ConversationTest`, `CustomerTagsTest`, `PerPageQueryParameterTest` et `BookingResponseDeadlineTest` → 57 verts, aucune exception de chargement paresseux, alors que P20.01, P20.04 et P20.05 sont ouvertes : Laravel ne lève que sur un modèle chargé avec d'autres, et ces tests ne créent pas la forme fautive (plusieurs lignes, avec notes ou photo). Le « déduit, à vérifier » est donc infirmé pour les tests existants : l'interdiction seule n'attrape rien sans un test à plusieurs lignes par liste. Classement : V8, chacune des cinq pistes P20.01 à P20.05, `retenu · autonome`, porte déjà son test de budget ; le test paramétré les recouvre, rougit tant qu'elles ne sont pas faites, et l'interdiction globale n'a pas de valeur mesurée.
 
 ## Angle 21 — Données personnelles d'un `User` sorties par `include=`
 
@@ -2732,7 +2752,7 @@ n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : choisir les champs du carnet des prestataires, dont `metadata`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -2741,6 +2761,7 @@ n'est pas repris ici.*
   - Sur `GET /api/leases/{id}`, `renewed_from`, `renewals` et `renewals_count` sortent à `[]` alors que rien ne les charge. Mesuré : `whenLoaded`/`whenCounted` sous `toArray()` direct, le même piège que décrit `UserResource`. Aucun lecteur au front (lu : `grep renewals_count|renewed_from` → vide).
   - Établi comment : mesuré par test temporaire, et lu.
 - Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `TenantOnboardingPendingController.php:68-70` (`$this->json($page)` sur le paginateur brut), `ServiceProviderProfileController.php:46-49` (`'data' => $paginator->items()`, sans ressource), `ServiceProviderProfile.php:29-31,58-63` (`metadata` et `insurance_policy_id` dans `$fillable` et `$queryFields` ; `metadata` porte l'email du brouillon, l. 140-150) et `LeaseResource.php:78-80` ; `tinker` en lecture, `LeaseResource::make(Lease::first())->toArray(request())` → `renewals`, `renewals_count` et `renewed_from` présents, valant chacun un `MissingValue` (rendu `{}` par `json_encode`, le constat écrit `[]`). Les trois parties tiennent. Classement : V3, la ressource du carnet décide de ce qui est exposé d'un profil de prestataire, `metadata` compris ; l'enveloppe (`$this->paginated()`, A1 par TCK-304) et les clés de `LeaseResource` (A1) seraient autonomes seules.
 
 ## Angle 22 — FormRequests sans autorisation propre, et règles d'autorisation dans les services
 
@@ -2799,7 +2820,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Petites améliorations
 - Réf : P22.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : autorisation déplacée dans `authorize()` sur des routes qu'un appelant légitime emploie
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
 - Constat :
@@ -2809,6 +2830,7 @@ Ce qui tient (lu ou mesuré) :
   - `POST /api/properties/{id}/duplicate`, compte sans lien : `title_suffix` de 60 caractères → 422, corps vide → 403 (mesuré) ; la policy `duplicate` existe déjà et n'est pas appelée dans `authorize()`.
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `PropertyPolicy.php:223-231` (`bulkArchive` rend `$user !== null`), l'`authorize()` des quatre FormRequests : `MatchBankStatementLineRequest.php:12` et `UpdateBankCsvMappingRequest.php:31` (« Policy handles authorization »), `StoreBankStatementRequest.php:15` (« Policy handles fine-grained authorization ») et `StoreRoleDelegationRequest.php:14` (« Fine-grained authorization handled by policy in controller »), toutes `return true` ; `PropertyDuplicateRequest.php:19` (`$this->user() !== null`) ; `Api/UpdateIntegrationRequest.php:34` (`mayManage`) et `Api/Admin/UpdateIntegrationRequest.php:24` (`true`), deux classes de même nom court. Les commentaires diffèrent un peu de la citation, le défaut tient ; l'inversion 422/403 se lit au code et n'a pas été rejouée. Classement : V2, chaque correctif change la réponse d'une route autorisée, et le retrait de `bulkArchive` attend la capacité de P22.02, validée mais non faite.
 
 ## Angle 23 — Lectures de données personnelles sans step-up, face à `REFUSED_READS`
 
@@ -2902,7 +2924,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P23.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : garde d'impersonation qui ne passe au vert qu'après P23.01 et P23.05
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:15-25,37-43`, `docs/adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md`
 - Constat :
@@ -2911,6 +2933,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Le relevé des « autres lectures GET » du docblock (l. 21-24 : `auth/sessions`, `me/calendar-feed`, `integrations`, `invitations`) ne cite ni `documents`, ni `customers`, ni `notifications`.
   - Établi comment : lu.
 - Piste : une garde qui ouvre une session d'impersonation sur une cible garnie (pièce de profil, fiche client avec pièce, notification à pièces jointes) et balaie les `GET` de `route:list`. Elle échoue sur toute réponse 200 qui porte un champ `signature=`, `token`, `file_url` vers une pièce, ou `id_number`. Corriger l'ADR pour qu'il écrive le code réellement émis.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `EnforceImpersonationReadOnly.php:14-45` (docblock l. 19 : `impersonation.read_only` ; relevé des lectures GET l. 21-24 sans `documents`, `customers` ni `notifications` ; consigne « Rien d'autre ne l'attrape » l. 37-43) et l. 84 (`abort_code(403, 'impersonation.read_only')`), contre `docs/adr/0055-…md:64` (`impersonation_read_only`). Lignes citées inchangées, constat confirmé. Classement : V2, la garde balaie les lectures sous impersonation et rougit sur P23.01 et P23.05, validées mais non faites ; seule la correction de l'ADR (A6) serait autonome.
 
 ## Angle 24 — Crédits et Boost : idempotence des achats, remboursements, ce que voit l'espace
 
@@ -2999,7 +3022,7 @@ sont pas reprises.*
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : préavis d'expiration d'un lot de crédits remboursé
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3007,6 +3030,7 @@ sont pas reprises.*
   - **Préavis d'expiration répété** : un lot `refund` hérite de l'expiration de son lot d'origine et naît sans `expiry_notice_sent_at` (lu, `CreditLedger.php:227`). Mesuré, test temporaire : lot de bienvenue expirant à J+20, Vedette 30 jours, préavis envoyé à J+14 ; bien loué à J+15 → lot `refund` de 30 crédits, même échéance, et un **second préavis** au passage suivant (2 notifications pour la même date).
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `lang/{fr,en,wo}/errors.php:93` (« 24 heures » en dur dans les trois langues), `BoostPurchaseService.php:80-89` (délai = `bumpCooldownHours()`, `available_at` en `toIso8601String()`), `grep -rn bump_cooldown takussan-web/src` → seules des clés `bump_cooldown_hours` du réglage dans `messages/*.json`, aucune pour le code d'erreur ; `CreditLedger.php:218-229` (`applyRefund` passe par `grant()` avec l'expiration du lot d'origine, sans `expiry_notice_sent_at`) et `CreditExpiryNotifier.php:27,35` (sélectionne les lots `whereNull('expiry_notice_sent_at')`). Lignes à peine décalées, les deux défauts tiennent ; le second préavis se lit au code, il n'a pas été rejoué. Classement : V1, la piste touche l'écriture d'un lot de crédits remboursés, et le message demande un texte neuf dans trois langues (V7).
 
 ## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
 
@@ -3106,7 +3130,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : rapprochement d'encaissements, et la piste dit « à trancher entrée par entrée »
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3116,3 +3140,4 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - **Même paiement suggéré pour deux lignes** : le job ne retire pas des candidats un paiement déjà suggéré sur une autre ligne du relevé (lu, `MatchBankStatementJob.php:30-49`). La seconde confirmation rend `already_reconciled`.
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
+- Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.

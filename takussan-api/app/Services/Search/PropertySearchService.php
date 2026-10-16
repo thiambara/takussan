@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Services\Boost\BoostSettings;
 use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
+use App\Support\Search\CleDeQuartier;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -443,8 +444,15 @@ class PropertySearchService
     {
         $filter = self::publicFilter();
 
+        // TCK-663 (P01.02) — le panneau propose les noms du référentiel (« Grand Yoff »), une adresse
+        // non rattachée porte un texte libre (« Grand-Yoff ») : l'égalité stricte rendait 0 bien.
+        // Rattachée, l'adresse se juge par son identifiant ; sinon par sa clé repliée.
         if (! empty($p['location'])) {
-            $filter[] = 'neighborhood = '.self::quote((string) $p['location']);
+            $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de((string) $p['location']));
+            $ids = app(QuartierDuFiltre::class)->idsDuReferentiel((string) $p['location']);
+            $filter[] = $ids === []
+                ? $libre
+                : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
         }
         if (! empty($p['city'])) {
             $filter[] = 'city = '.self::quote((string) $p['city']);
