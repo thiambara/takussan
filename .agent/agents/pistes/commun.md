@@ -47,6 +47,11 @@ faute, même si elle passe.
 - **Lire ou afficher un secret** : `.env`, trousseau, jeton. Ce qui s'affiche finit dans un
   journal.
 - **Ajouter, retirer ou mettre à jour une dépendance.**
+- **Écrire du wolof.** Le wolof est en pause depuis le 2026-10-16, jusqu'à nouvel ordre du
+  porteur : aucun texte `wo` neuf, aucune réécriture d'un texte `wo` existant. Une clé que tu
+  ajoutes porte en `wo` **le texte français tel quel**, pour que la parité de `check:i18n` tienne.
+  Une piste qui ne porte que sur le wolof ne se prend pas ; une piste qui demande du wolof en plus
+  d'autre chose se fait sans lui, et ta PR le dit.
 - **Modifier tes propres bornes** : `.agent/agents/`, `.claude/`, `scripts/agents/`,
   `scripts/check-pistes.mjs`, la CI, l'ADR-0066.
 - **Lancer une suite entière** (`php artisan test` sans argument, `npm run test`, `--parallel`,

@@ -865,7 +865,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
-- Statut : retenu · à valider — V7 : texte wolof neuf, à écrire par un locuteur ; porteur (2026-10-15) : en attente d'un relecteur wolof
+- Statut : retenu · à valider — V7 : texte wolof neuf, à écrire par un locuteur ; porteur (2026-10-15) : en attente d'un relecteur wolof ; porteur (2026-10-16) : wolof en pause jusqu'à nouvel ordre
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/messages/wo.json:5731-5734,3549`, `takussan-web/src/messages/fr.json:3897`
 - Constat :
@@ -1102,7 +1102,7 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : validé — libellés contextuels et captions en fr/en/wo ; le wolof n'est pas relu
+- Statut : validé — libellés contextuels et captions en fr/en ; en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16)
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
@@ -3558,7 +3558,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Petites améliorations
 - Réf : P30.06
-- Statut : validé — les quatre correctifs, un ticket chacun : étiquettes CRM traduites par slug, options retriées sur le libellé affiché, otherTagNames par le même traducteur, nom tapé égal à un libellé traduit résolu vers l'équipement ; le wolof n'est pas relu
+- Statut : validé — les quatre correctifs, un ticket chacun : étiquettes CRM traduites par slug, options retriées sur le libellé affiché, otherTagNames par le même traducteur, nom tapé égal à un libellé traduit résolu vers l'équipement ; en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:40`, `takussan-web/src/components/customer-dashboard/CustomerTagPicker.tsx:152`, `:258`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:214`, `takussan-api/app/Http/Controllers/Api/TagController.php:33`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27`, `:49`, `takussan-web/src/components/compare/compare-rows.ts:63-68`, `takussan-api/app/Services/Tags/TagProposals.php:46`
 - Constat :
