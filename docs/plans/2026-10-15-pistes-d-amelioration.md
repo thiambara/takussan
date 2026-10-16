@@ -1964,7 +1964,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Pièces jointes de la messagerie : envoi vers une route absente
 - Réf : P13.03
-- Statut : validé — retirer le trombone pour l'instant
+- Statut : fait · TCK-683
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/messages/ChatView.tsx:226,442`, `takussan-web/src/lib/queries/conversations.ts:423`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:285-299`
 - Constat :
@@ -1973,6 +1973,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré, et lu.
 - Piste : accepter le fichier dans `sendMessage`, comme l'audio, ou retirer le trombone.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `ChatView.tsx:221-233` (`uploadAttachment` poste `file` sur `/api/conversations/{c}/messages/{m}/attachments`, appelé l. 255 après l'envoi du texte, erreur `chat.uploadFailed` l. 257) et `conversations.ts:423` (même chemin) ; `php artisan route:list --path=conversations` → 17 routes, aucune ne contient `attach` (`route:list | grep -i attach` vide) ; `ConversationController::sendMessage` (l. 285-299) ne lit que `audio`. Les lignes citées tiennent, à `ChatView.tsx:226` près (l'appel, la fonction commence l. 221). Classement : V7, la piste laisse le choix entre une voie d'envoi neuve côté API (fichier joint à un message, comportement visible neuf) et le retrait du trombone (fonction visible retirée).
+- Mesure (2026-10-16, d0957db9, implementeur) : reproduit avant correctif — `route:list --path=conversations` rend 17 routes, aucune avec `attach` ; `ChatView.tsx` montait le trombone (`aria-label="Joindre un fichier"`, `input type="file"`) et postait sur `/messages/${messageId}/attachments`, comme `useUploadAttachment` (`conversations.ts:423`, sans appelant) → trombone et hook retirés, note vocale gardée ; `ChatView.test.tsx` (aucun trombone rendu ; aucun fichier de `src/` ne vise `messages/${…}/attachments`) : 2 rouges sans le correctif, 2 verts avec.
 
 ### Documents de la fiche client : envoi vers une route absente
 - Réf : P13.04
