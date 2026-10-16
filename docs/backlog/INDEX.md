@@ -1066,6 +1066,7 @@ _(aucun)_
 - [TCK-663](tickets/TCK-663-quartier-du-panneau-trouve-ses-biens.md) — Recherche : le quartier proposé par le panneau trouve les biens de ce quartier `S · P0 · bug`
 - [TCK-664](tickets/TCK-664-changement-de-role-garde-comme-le-retrait.md) — Le changement de rôle d'un membre suit les gardes du retrait et de la suspension `S · P0 · bug`
 - [TCK-665](tickets/TCK-665-liste-d-equipe-bornee-a-l-agence.md) — La liste d'équipe ne livre que les profils et rôles tenus dans l'agence active `S · P0 · bug`
+- [TCK-667](tickets/TCK-667-echeance-trimestrielle-ou-annuelle-facture-tous-ses-mois.md) — Échéancier : une échéance trimestrielle ou annuelle facture tous les mois de sa période `S · P1 · bug`
 - [TCK-668](tickets/TCK-668-revision-de-loyer-reecrit-les-echeances.md) — La révision de loyer réécrit les échéances pending dont la période commence à sa date d'effet `S · P0 · bug`
 - [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
 

@@ -530,7 +530,7 @@ contre le code par la session.*
 
 ### Échéancier trimestriel ou annuel : un seul mois de loyer facturé par période
 - Réf : P04.01
-- Statut : validé — montant = loyer mensuel × mois de la période, la période couvrant tous ses mois
+- Statut : fait · TCK-667
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:203,220,245`
 - Constat :
@@ -540,6 +540,7 @@ contre le code par la session.*
   - `GenerateLeasePaymentScheduleTest` ne teste aucune fréquence (lu).
 - Piste : multiplier par le nombre de mois de la période, couvrir toute la période, et un test par fréquence.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `LeaseService.php` `scheduleUnderLock()` (`$amount = monthly_rent`, l. 203 ; `period_start`/`period_end` = début et fin du mois de l'échéance, l. 224-225) et `advancePeriod()` (l. 241-247 : +1, +3 ou +12 mois), `CreateLeaseForm.tsx:43` (`quarterly`, `yearly` proposés) ; `git log -S` et `grep` des tickets → aucun correctif ni ticket ouvert ; seul `LeaseContractTermsTest.php` cite `quarterly`, aucun test d'échéancier par fréquence → le constat tient tel qu'écrit, lignes inchangées. Classement : V1, le correctif réécrit le montant et la période de chaque échéance de loyer.
+- Mesure (2026-10-16, 53425e4e, implementeur) : avant correctif, `GenerateLeasePaymentScheduleTest` sur un bail du 2026-01-01 au 2026-12-31 à 100 000 → trimestriel : 4 échéances de 100 000 couvrant janvier, avril, juillet, octobre seuls ; annuel : 1 échéance de 100 000 sur janvier → `LeaseService::scheduleUnderLock()` facture loyer × mois de la période (1, 3, 12), la période couvrant tous ses mois et la dernière s'arrêtant au mois de fin du bail ; 4 tests (un par fréquence, plus la dernière période d'un bail de 10 mois), ablation : correctif retiré → 3 rouges (le mensuel reste vert), borne de fin seule retirée → 1 rouge, remis → 9 verts.
 
 ### La révision de loyer n'atteint jamais les échéances déjà générées
 - Réf : P04.02
