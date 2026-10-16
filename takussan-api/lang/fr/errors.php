@@ -560,6 +560,10 @@ return [
         'no_active_agency' => 'L’utilisateur cible n’a pas de contexte d’agence résolu. Activez un profil pour lui ou précisez l’agence cible avant d’attribuer un rôle scoping-agence.',
         'not_blocked' => 'Ce compte n\'est pas bloqué.',
         'not_in_active_agency' => 'L’utilisateur cible n’appartient pas à votre agence active.',
+        'role_change_self' => 'Vous ne pouvez pas changer votre propre rôle.',
+        'role_last_admin' => 'Impossible de retirer le dernier administrateur de l\'agence.',
+        'role_member_not_active' => 'Ce membre n\'est pas actif dans l\'agence : réactivez-le avant de changer son rôle.',
+        'role_primary_admin' => 'Impossible de retirer son rôle à l\'administrateur principal de l\'agence.',
     ],
     'visit' => [
         'active_limit_reached' => 'Vous avez déjà :max visites en cours sur ce bien. Annulez-en une avant d\'en demander une autre.',

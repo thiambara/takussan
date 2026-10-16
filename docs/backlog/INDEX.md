@@ -1064,6 +1064,7 @@ _(aucun)_
 - [TCK-661](tickets/TCK-661-reversement-selectionnable-au-clavier.md) — Le détail d'un reversement plateforme s'ouvre au clavier `S · P0 · bug`
 - [TCK-662](tickets/TCK-662-recherche-des-biens-classee-par-pertinence.md) — La recherche des biens dans /app est classée par pertinence `S · P0 · bug`
 - [TCK-663](tickets/TCK-663-quartier-du-panneau-trouve-ses-biens.md) — Recherche : le quartier proposé par le panneau trouve les biens de ce quartier `S · P0 · bug`
+- [TCK-664](tickets/TCK-664-changement-de-role-garde-comme-le-retrait.md) — Le changement de rôle d'un membre suit les gardes du retrait et de la suspension `S · P0 · bug`
 - [TCK-665](tickets/TCK-665-liste-d-equipe-bornee-a-l-agence.md) — La liste d'équipe ne livre que les profils et rôles tenus dans l'agence active `S · P0 · bug`
 - [TCK-668](tickets/TCK-668-revision-de-loyer-reecrit-les-echeances.md) — La révision de loyer réécrit les échéances pending dont la période commence à sa date d'effet `S · P0 · bug`
 
