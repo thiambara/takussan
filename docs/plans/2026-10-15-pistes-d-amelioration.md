@@ -1484,7 +1484,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les comptes inscrits par e-mail reçoivent tout en français, quelle que soit leur langue
 - Réf : P11.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-689
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/actions/locale.ts:41`, `takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php:35`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33`, `takussan-api/database/migrations/2026_04_15_210400_add_fields_to_users_table.php:28`, `takussan-api/app/Services/Model/NotificationService.php:89`
 - Constat : c'est la conséquence visible du 🔴 de l'angle 6.
@@ -1499,6 +1499,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - écrire la langue négociée à l'inscription ;
   - un test bout en bout : changer de langue, puis vérifier la langue d'un `CodedNotification`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `actions/locale.ts:41` (`PATCH /api/users/me`, erreur avalée), `UpdateMeRequest.php:35` (`PREFERENCE_FIELDS = ['city', 'search_intent', 'entry_intent']`), `AuthController.php:32-37` (inscription sans `preferred_language`) et `NotificationService.php:89` (`preferredLocale() ?? config('app.locale')`) ; `route:list --path=api/users/me` → aucune route ; test Feature temporaire (retiré) : inscription avec `Accept-Language: en` → 201 et `preferred_language = fr` ; `PATCH /api/users/me` → **404** ; `PATCH /api/me {preferred_language: en}` → 200 et la colonne reste `fr`. TCK-550 avait relevé le même écart et l'avait laissé « à ouvrir en ticket ». Classement : A1, TCK-017 écrit que le sélecteur persiste la langue dans `preferred_language` par l'appel que le front fait déjà ; corriger, c'est ajouter `preferred_language` (`fr`, `en`, `wo`) aux préférences de `PATCH /api/me`, faire viser `/api/me` à `setLocaleAction`, et écrire à l'inscription la langue résolue par `SetLocaleMiddleware`, comme `PhoneLoginService.php:171` le fait déjà.
+- Mesure (2026-10-16, 1945dbf8, implementeur) : relu `UpdateMeRequest.php` (règle `preferred_language`), `MeController.php:68` et `actions/locale.ts` (`/api/me`) : les deux premiers volets sont livrés par TCK-655 ; `AuthController::register()` n'écrit toujours pas la colonne, mesuré par `AuthRegistrationTest` : inscription sous `Accept-Language: en` puis `wo` → `preferred_language = fr`, et une `CodedNotification` part en `fr` → correctif : `register()` écrit `app()->getLocale()` ; 13 verts ; ablation (ligne retirée) → 3 rouges (`en`, `wo`, bout en bout), remise → 13 verts.
 
 ### Le courriel d'invitation part à l'intérieur de la transaction de l'appelant
 - Réf : P11.02
