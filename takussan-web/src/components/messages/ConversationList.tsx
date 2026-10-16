@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
 import type { Conversation } from '@/types/message';
+import { useTexteMessageSysteme } from './useTexteMessageSysteme';
 
 interface ConversationListProps {
   readonly selectedId: number | null;
@@ -115,6 +116,12 @@ function ConversationRow({
   const groupParticipants = (conversation.participants ?? []).filter(
     (p) => !p.left_at,
   );
+  // TCK-671 (P06.02) — l'aperçu d'un avis système est écrit en français par l'API : il se dérive
+  // de `metadata.event`, dans la langue du lecteur. Le texte du serveur reste le repli.
+  const texteSysteme = useTexteMessageSysteme();
+  const apercu =
+    (conversation.last_message?.type === 'system' ? texteSysteme(conversation.last_message.metadata) : null) ??
+    conversation.last_message_preview;
   return (
     <li>
       <button
@@ -191,7 +198,7 @@ function ConversationRow({
                 unread > 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
               )}
             >
-              {conversation.last_message_preview ?? '—'}
+              {apercu ?? '—'}
             </p>
           </div>
         </div>

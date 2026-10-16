@@ -799,7 +799,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Messages système des groupes : rôle toujours « member », aperçu figé en français
 - Réf : P06.02
-- Statut : validé — clé alignée, rôle traduit, aperçu dérivé de metadata.event côté front
+- Statut : fait · TCK-671
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/SystemMessageFactory.php:75,129-143`, `takussan-web/src/components/messages/SystemMessageBubble.tsx:36`, `takussan-api/app/Observers/MessageObserver.php:13`
 - Constat :
@@ -807,6 +807,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `humanise()` écrit des `sprintf` en français dont l'observer tire `last_message_preview`, affiché tel quel par `ConversationList.tsx:194` (lu).
 - Piste : aligner la clé, traduire le rôle, et dériver l'aperçu côté front depuis `metadata.event`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `SystemMessageFactory.php:68-75` (`metadata.role`), `:113` (`content` = `humanise()`), `:125-143` (`sprintf` français), `SystemMessageBubble.tsx:36` (`meta.new_role ?? 'member'`), `MessageObserver.php:13-17` (aperçu tiré de `content`) et `ConversationList.tsx:194` (affiché tel quel) → les deux défauts tiennent, lignes inchangées. Classement : V7, l'alignement de la clé `role` relèverait seul d'A1, mais dériver l'aperçu de `metadata.event` change le contrat de la liste des conversations et son rendu, un choix de produit.
+- Mesure (2026-10-16, a29376a5, implementeur) : reproduit avant correctif → `SystemMessageBubble.test.tsx` rendait « Alice a changé le rôle de Bob en member » pour `role: admin` (2 rouges), `GET /api/conversations` ne rendait aucun `last_message` (`ConversationListSystemPreviewTest`, 2 rouges), et la liste sous `en` affichait l'aperçu français du serveur (`ConversationList.test.tsx`, 1 rouge). Correctif : `last_message` `{id, type, metadata}` (metadata d'un avis système seulement) dans la liste, hook `useTexteMessageSysteme` partagé par la bulle et la liste, lecture de `role` traduite par `messaging.group.info.roleAdmin`/`roleMember` → 2/2 API et 12/12 front verts. Ablation : `lastMessage` retiré → 2 rouges ; filtre système retiré → 1 rouge ; aperçu remis sur `last_message_preview` → 1 rouge ; `new_role` relu → 2 rouges ; rôle non traduit → 2 rouges.
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
 - Réf : P06.03
