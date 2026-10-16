@@ -3494,7 +3494,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Renommer un équipement du catalogue ne change rien à l'écran, et le déploiement suivant recrée l'ancien nom sous un slug sans traduction
 - Réf : P30.01
-- Statut : retenu · à valider — V7 : refuser le renommage d'un équipement du catalogue, ou faire suivre le catalogue
+- Statut : validé — refuser en 409 le renommage d'un équipement du catalogue ; seules les propositions se renomment ; un test : renommage refusé puis synchroniser() → une seule ligne pour ce slug
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:59-78`, `takussan-api/app/Http/Controllers/Api/TagController.php:77-86`, `takussan-api/app/Services/Tags/TagCatalog.php:68-81`, `takussan-web/src/lib/libelle-equipement.ts:31-34`
 - Constat :
@@ -3508,7 +3508,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
-- Statut : retenu · à valider — V7 : refuser la fusion d'une source du catalogue, ou la tracer pour la synchronisation
+- Statut : validé — refuser en 422 la fusion dont la source est un équipement du catalogue ; pas de trace de fusion
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
 - Constat :
@@ -3521,7 +3521,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
-- Statut : retenu · à valider — V4 : reprendre le slug d'une proposition existante réécrit une donnée
+- Statut : validé — réserver les slugs du catalogue : suffixe d'office pour une proposition, et synchroniser() reprend le slug exact à une proposition non approuvée qui le détient
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
 - Constat :
@@ -3534,7 +3534,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
 - Réf : P30.04
-- Statut : retenu · à valider — V7 : indexer des libellés anglais, et choisir leur source unique
+- Statut : retenu · à valider — V7 : indexer des libellés anglais, et choisir leur source unique ; porteur (2026-10-16) : plus tard, avec la source unique des libellés et TCK-339
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Property.php:476-479`, `takussan-api/config/scout.php:184-187`
 - Constat :
@@ -3546,7 +3546,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### 26 équipements du catalogue sur 35 s'affichent avec l'icône générique
 - Réf : P30.05
-- Statut : retenu · à valider — V7 : le choix des icônes est un choix de design
+- Statut : validé — clés d'icônes alignées sur les slugs du catalogue, icône Lucide la plus proche, revue à la PR ; un test rougit sur un slug du catalogue sans icône
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:23-60`, `.../PropertyAmenities.tsx:19`
 - Constat :
@@ -3558,7 +3558,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Petites améliorations
 - Réf : P30.06
-- Statut : retenu · à valider — V7 : libellés CRM traduits et ordre des listes ; V8 : quatre correctifs distincts
+- Statut : validé — les quatre correctifs, un ticket chacun : étiquettes CRM traduites par slug, options retriées sur le libellé affiché, otherTagNames par le même traducteur, nom tapé égal à un libellé traduit résolu vers l'équipement ; le wolof n'est pas relu
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:40`, `takussan-web/src/components/customer-dashboard/CustomerTagPicker.tsx:152`, `:258`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:214`, `takussan-api/app/Http/Controllers/Api/TagController.php:33`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27`, `:49`, `takussan-web/src/components/compare/compare-rows.ts:63-68`, `takussan-api/app/Services/Tags/TagProposals.php:46`
 - Constat :
