@@ -1129,7 +1129,7 @@ Sain (vérifié par l'agent) :
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
 - Réf : P08.02
-- Statut : validé — max-h-[calc(100dvh-2rem)] overflow-y-auto dans la primitive
+- Statut : fait · TCK-674
 - Gravité : 🔴 défaut avéré (rendu à vérifier)
 - Où : `takussan-web/src/components/ui/dialog.tsx:58`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:172`
 - Constat :
@@ -1138,6 +1138,7 @@ Sain (vérifié par l'agent) :
   - Même risque pour `CreateInvoiceDialog`, `InviteAgentDialog` et `GuarantorSection` (comptage).
 - Piste : `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive, ou un pied collant ; une feuille du bas sous `sm`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `dialog.tsx:58-60` (`fixed top-1/2 … -translate-y-1/2`, ni `max-h` ni `overflow-y-auto` ; dernier changement `f21ccd17`, TCK-529) et `PropertyVisitDialog.tsx:171` (`DialogContent className="sm:max-w-lg"`, sans hauteur bornée) ; `grep` → 71 fichiers utilisent `DialogContent` (le constat disait 75), 3 seulement posent `max-h-[90dvh] overflow-y-auto` (`GardeDoubleFacteur.tsx:70`, `PrivacyRequestsConsole.tsx:463,611`). La primitive ne borne donc pas la hauteur (lu) ; le débordement du dialogue de visite sur un 360×640 n'a **pas** été rendu, et reste une estimation. Classement : V7, borner la hauteur ou passer en feuille du bas sous `sm` change la mise en page des 71 dialogues, et la piste laisse le choix entre deux dessins.
+- Mesure (2026-10-16, b57126b7, implementeur) : relu `dialog.tsx:58` sur l'arbre (ni `max-h` ni `overflow-y-auto`) ; `dialog-hauteur-bornee.test.tsx` lit le CSS compilé par Tailwind pour les classes du dialogue rendu (avec `sm:max-w-lg`, classe de `PropertyVisitDialog`) → rouge avant correctif (aucun `max-height` compilé), vert avec `max-h-[calc(100dvh-2rem)] overflow-y-auto` dans la primitive ; ablation (primitive remise à `pre-dev`) → rouge, correctif remis → vert. Rendu réel en navigateur non mesuré.
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
 - Réf : P08.03
@@ -1338,7 +1339,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Un lot de photos qui échoue laisse le média raté attaché au bien
 - Réf : P10.01
-- Statut : validé — supprimer le média raté et son répertoire temporaire ; la réponse liste les photos en échec
+- Statut : fait · TCK-676
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:39-49`
 - Constat :
@@ -1351,6 +1352,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu, chemin vendor suivi.
 - Piste : retrouver et supprimer le média raté par `$property->media()->latest('id')`, ou convertir après une transaction. Rendre le lot tout-ou-rien, ou renvoyer un résultat photo par photo. Ajouter un test avec un PNG corrompu.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `PropertyMediaController.php:34-58` (inchangé : `$media = null`, puis `$media?->delete()` dans le `catch`) et `FileAdder.php:605` (`$model->media()->save($media)` avant la copie et les conversions) ; test Feature temporaire (retiré) : un lot `good.jpg` + un PNG tronqué (en-tête valide, corps à zéro) → **422** `photo_unprocessable`, et `getMedia('photos')` en compte **2**, `broken.png` compris. Le test existant `test_corrupted_image_is_rejected_without_persisting_media` ne voit pas le défaut : son faux PNG échoue à la règle `image` et n'atteint jamais le `catch`. Le répertoire temporaire de conversion n'a pas été mesuré. Classement : V7 ; supprimer le média raté relèverait d'A1 (le nom du test existant l'écrit), mais la piste demande aussi de choisir entre un lot atomique et un résultat par photo, ce qui change la réponse vue par l'écran.
+- Mesure (2026-10-16, 9c6918fa, implementeur) : test `PropertyMediaTest::test_photo_that_fails_conversion_is_removed_and_listed_while_the_others_stay` (lot `good.jpg`, PNG à en-tête valide et corps à zéro, `after.jpg`) → avant correctif, 422 sur la seule clé `photos` et le premier échec arrêtait le lot ; après, 422 sur `photos.1` seule, le bien garde `good.jpg` et `after.jpg`, et le répertoire temporaire de conversion est vide. Ablation, une pièce à la fois : sans la suppression par `uuid`, `broken.png` reste ; sans la suppression du parent temporaire, un répertoire reste ; avec `break` au lieu de `continue`, `after.jpg` manque. Les trois sont rouges, et le test repasse au vert une fois le correctif remis.
 
 ### Aucune borne de dimensions : une bombe de décompression tue la requête
 - Réf : P10.02
