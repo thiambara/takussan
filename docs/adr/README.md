@@ -37,7 +37,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0009](0009-montant-decimal-entier-a-la-frontiere.md) | Montant décimal en base, entier ×100 à la frontière du driver de paiement | Accepté |
 | [0010](0010-auth-token-sanctum-en-cookie.md) | Auth par token Sanctum porté par un cookie httpOnly, pas le mode SPA stateful | Accepté |
 | [0011](0011-environnement-de-dev-conteneurise.md) | L'environnement de développement est conteneurisé et calqué sur la production | Accepté |
-| [0012](0012-index-du-backlog-genere.md) | L'index du backlog est généré, jamais maintenu à la main | Accepté |
+| [0012](0012-index-du-backlog-genere.md) | L'index du backlog est généré, jamais maintenu à la main | Accepté — amendé par ADR-0067 (plus versionné) |
 | [0013](0013-un-seul-back-office-en-nextjs.md) | Il n'y a qu'un back-office, et il est en Next.js — Filament supprimé | Accepté |
 | [0014](0014-catalogue-code-defini-materialise-et-reconcilie.md) | Un catalogue défini en code et matérialisé en base se réconcilie ; il ne se lit pas à deux endroits | Accepté |
 | [0015](0015-react-compiler-active.md) | Le React Compiler est activé, et la mémoïsation manuelle devient l'exception | Accepté |
@@ -88,6 +88,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0064](0064-l-administration-d-agence-vit-dans-app.md) | L'administration d'agence vit dans `/app` (`/app/agency/*`), servie par `AppShell` et un menu dérivé de la table des pages ; un seul tableau de bord d'agence ; `/admin` disparaît sans redirection, ses deux pages super-admin rejoignent `/super-admin` | Accepté |
 | [0065](0065-les-reglages-metier-a-repli-global-entrent-au-catalogue.md) | Une clé de portée `global` que le code lit s'écrit par un catalogue, et seulement par lui : les cinq réglages métier à repli global (`ScopedSetting`) entrent dans `EditablePlatformSettings` ; la route brute `/api/settings` ne fait plus que la portée `agency` ; `/super-admin/settings/global` disparaît (amende ADR-0064 §1) | Accepté |
 | [0066](0066-trois-agents-sur-les-pistes-d-amelioration.md) | Trois agents planifiés traitent le fichier de pistes (explorer, re-mesurer et classer, implémenter l'autonome) ; l'agent propose, `scripts/agents/pistes.sh` vérifie le périmètre de son rôle puis publie une PR vers `pre-dev` | Accepté |
+| [0067](0067-l-index-du-backlog-n-est-plus-versionne.md) | `docs/backlog/INDEX.md` n'est plus versionné (généré à la demande, ignoré par git) ; le fusionneur essaie chaque fusion vers `pre-dev` sur la base courante et la refuse si les gardes rougissent l'arbre fusionné (amende ADR-0012 et ADR-0066 § 4) | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
