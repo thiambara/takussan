@@ -4,6 +4,12 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\DocumentType;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderProfile;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -33,6 +39,21 @@ class Document extends AbstractModel implements HasMedia
         'metadata' => 'array',
     ];
 
+    /**
+     * TCK-697 (P23.01, ADR-0055 §3) — une PIÈCE : identité, RIB, NINEA. Rattachée à un profil, elle
+     * est refusée sous impersonation ({@see self::isProfilePiece()}), comme `api/kyc/documents/*`.
+     */
+    public const PIECE_TYPES = [DocumentType::IdCard, DocumentType::Rib, DocumentType::Ninea];
+
+    /** Les profils qu'un `Document` peut porter — les assistants d'accueil y rangent les pièces. */
+    public const PROFILE_TYPES = [
+        OwnerProfile::class,
+        AgentProfile::class,
+        AgencyAdminProfile::class,
+        ServiceProviderProfile::class,
+        PlatformProfile::class,
+    ];
+
     protected static array $requestFilterable = ['documentable_id', 'documentable_type', 'uploaded_by', 'type', 'is_verified'];
 
     protected static array $requestSortable = ['id', 'created_at', 'expiry_date', 'name'];
@@ -46,6 +67,27 @@ class Document extends AbstractModel implements HasMedia
         'name', 'type', 'description', 'is_verified', 'expiry_date',
         'created_at', 'updated_at',
     ];
+
+    /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */
+    public function isProfilePiece(): bool
+    {
+        return in_array($this->type, self::PIECE_TYPES, true)
+            && in_array($this->documentable_type, self::PROFILE_TYPES, true);
+    }
+
+    /**
+     * TCK-697 — tout sauf les pièces rattachées à un profil. La négation est écrite colonne par
+     * colonne, avec ses `NULL` : un `NOT (type IN … AND documentable_type IN …)` écarterait aussi
+     * les lignes dont l'une des deux colonnes est nulle (`NOT NULL` n'est pas vrai).
+     */
+    public function scopeExcludingProfilePieces(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull('type')
+            ->orWhereNotIn('type', array_map(fn (DocumentType $t) => $t->value, self::PIECE_TYPES))
+            ->orWhereNull('documentable_type')
+            ->orWhereNotIn('documentable_type', self::PROFILE_TYPES));
+    }
 
     public function toSearchableArray(): array
     {
