@@ -1641,7 +1641,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le test d'isolation à l'initiation du paiement ne peut pas voir le défaut
 - Réf : P12.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-694
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Api/PaymentGatewayInitiateTest.php:187-204`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:76-77`
 - Constat :
@@ -1652,6 +1652,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : asserter `metadata.gateway.integration_id`, ou `Http::assertSent` sur l'en-tête `Authorization: Bearer wave_test_key`.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `PaymentGatewayInitiateTest.php:187-204` (seule assertion `assertOk()`) et `PaymentGatewayService::resolveIntegration` (la ligne citée a bougé : le filtre est aujourd'hui `:76-78`, `where agency_id = ? or agency_id is null`) ; ablation (charge 3,23 / 8 cœurs) en remplaçant le filtre par `orderByDesc('id')->first()` → **rouge** (422 au lieu de 200), mais parce que l'intégration étrangère du test n'a pas de `webhook_secret` (`WaveDriver::CREDENTIAL_KEYS`) et rend le fournisseur indisponible ; même ablation avec `'webhook_secret' => 'foreign_secret'` ajouté au test → **vert**. Code et test restaurés. Le test ne voit donc la fuite que par accident de fixture. Classement : A5, ajouter une assertion sur l'intégration réellement utilisée (`Http::assertSent` sur `Authorization: Bearer`, ou `integration_id`) et compléter les identifiants de la fixture, sans toucher au code ni à un seuil.
+- Mesure (2026-10-16, af610be5, implementeur) : filtre `agency_id` retiré de `resolveIntegration()` → l'ancien test vert (1 assertion, `assertOk()`) → test réécrit : intégration étrangère complète et créée avant celle de l'agence, `Http::assertSent` sur `Bearer wave_test_key`, `assertNotSent` sur la clé étrangère, `metadata.gateway.integration_id` = l'intégration de l'agence ; ablation (même retrait) → rouge « An expected request was not recorded » ; filtre remis → `PaymentGatewayInitiateTest` 13 verts (58 assertions).
 
 ### Les obligations qui bloquent la suppression d'un compte ne sont gardées que pour le bail actif
 - Réf : P12.02
