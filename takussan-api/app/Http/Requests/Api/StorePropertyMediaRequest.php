@@ -29,11 +29,17 @@ class StorePropertyMediaRequest extends BaseFormRequest
         return $this->user()?->can('update', $this->route('property')) === true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * TCK-673 (P10.03) — `max:20` : la borne que l'interface annonce, et celle que `max_file_uploads`
+     * de `docker/php.ini` applique avant même la validation. Sans elle, un 21e fichier était ignoré
+     * EN SILENCE par PHP, et le lot accepté amputé.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
-            'photos' => ['required', 'array'],
+            'photos' => ['required', 'array', 'max:20'],
             'photos.*' => ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];
     }

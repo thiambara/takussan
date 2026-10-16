@@ -71,6 +71,44 @@ class PropertyMediaTest extends TestCase
         $this->assertSame(0, $property->refresh()->getMedia('photos')->count());
     }
 
+    /**
+     * TCK-673 (P10.03) — l'interface annonce 20 photos au plus. Sans borne, la 21e partait vers
+     * `max_file_uploads` (20 par défaut), qui l'ignore EN SILENCE : le lot était accepté amputé.
+     */
+    public function test_more_than_twenty_photos_returns_422_without_persisting_media(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $photos = [];
+        for ($i = 1; $i <= 21; $i++) {
+            $photos[] = UploadedFile::fake()->image("photo{$i}.jpg", 10, 10);
+        }
+
+        $this->postJson("/api/properties/{$property->id}/media", ['photos' => $photos])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['photos']);
+
+        $this->assertSame(0, $property->refresh()->getMedia('photos')->count());
+    }
+
+    /**
+     * TCK-673 (P10.03) — la borne de PHP est écrite dans l'image, pas laissée au défaut : elle doit
+     * rester celle de la règle `photos` `max:20`, faute de quoi un fichier au-delà disparaît sans
+     * erreur avant même la validation.
+     */
+    public function test_image_php_ini_pins_max_file_uploads_to_twenty(): void
+    {
+        $ini = parse_ini_file(base_path('docker/php.ini'));
+
+        $this->assertIsArray($ini);
+        $this->assertSame('20', $ini['max_file_uploads'] ?? null);
+    }
+
     public function test_missing_photos_returns_422(): void
     {
         $owner = User::factory()->create();

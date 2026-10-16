@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -28,8 +27,9 @@ import { reduirePhotos, reduirePhotosSousPlafond } from '@/lib/reduire-photo';
  *
  * Plug the callbacks to any resource's media endpoints. The backend
  * contract we assume:
- *   - `onUpload(files)` resolves once the items are persisted and returns
- *     the freshly-created media (so the grid updates immediately).
+ *   - `onUpload([file])` — called once PER FILE, sequentially (TCK-673) —
+ *     resolves once the item is persisted and returns the freshly-created
+ *     media (so the grid updates immediately).
  *   - `onReorder(orderedIds)` persists the new order. First id = cover.
  *   - `onDelete(id)` removes a single item.
  *
@@ -48,10 +48,8 @@ export interface MediaItem {
 
 export interface MediaManagerProps {
   readonly items: MediaItem[];
-  readonly onUpload: (
-    files: File[],
-    onProgress: (perFile: UploadProgress[]) => void,
-  ) => Promise<MediaItem[]>;
+  /** Appelé UNE fois par photo, l'une après l'autre (TCK-673) : `files` n'en porte qu'une. */
+  readonly onUpload: (files: File[]) => Promise<MediaItem[]>;
   readonly onReorder: (mediaIds: number[]) => Promise<void>;
   readonly onDelete: (mediaId: number) => Promise<void>;
   /** Accepted MIME list — defaults to images only. */
@@ -130,10 +128,13 @@ export function MediaManager({
   // before React has committed the state update from dragStart.
   const dragIndexRef = useRef<number | null>(null);
 
-  // Sync external updates (e.g. initial fetch).
-  useEffect(() => {
+  // Sync external updates (e.g. initial fetch). Pendant le rendu, et non dans un effet
+  // (`react-hooks/set-state-in-effect`, levé depuis TCK-673) : même résultat, sans second rendu.
+  const [itemsRecus, setItemsRecus] = useState(items);
+  if (items !== itemsRecus) {
+    setItemsRecus(items);
     setGrid(items);
-  }, [items]);
+  }
 
   const acceptAttr = useMemo(() => accept.join(','), [accept]);
 
@@ -166,53 +167,29 @@ export function MediaManager({
       setProgress(entries);
       setError(null);
 
-      const valid = files.filter((_, i) => entries[i].status !== 'error');
-      if (valid.length === 0) return;
-
-      // Mark valid files as uploading and simulate progress. The server
-      // action is atomic per-call (no XHR-level progress events), so we
-      // animate optimistically — the final state swaps to `done` once the
-      // call resolves, or `error` on failure.
-      setProgress((prev) =>
-        prev.map((p) =>
-          p.status === 'error' ? p : { ...p, status: 'uploading', progress: 10 },
-        ),
-      );
-
-      const tick = window.setInterval(() => {
-        setProgress((prev) =>
-          prev.map((p) =>
-            p.status === 'uploading' && p.progress < 85
-              ? { ...p, progress: p.progress + 10 }
-              : p,
-          ),
-        );
-      }, 150);
-
+      // TCK-673 (P08.01) — UNE requête par photo, l'une après l'autre. Le lot partait en un seul
+      // appel, plafonné par Next (`serverActions.bodySizeLimit`) : au-delà, tout tombait d'un coup,
+      // après une progression SIMULÉE jusqu'à 85 %. Chaque ligne dit désormais ce qui arrive à SA
+      // photo, et un échec n'emporte pas les autres.
+      const majLigne = (i: number, ligne: Partial<UploadProgress>) =>
+        setProgress((prev) => prev.map((p, j) => (j === i ? { ...p, ...ligne } : p)));
       try {
-        const created = await onUpload(valid, (next) => setProgress(next));
-        setGrid((prev) => [...prev, ...created]);
-        setProgress((prev) =>
-          prev.map((p) =>
-            p.status === 'uploading' ? { ...p, status: 'done', progress: 100 } : p,
-          ),
-        );
-      } catch (e) {
-        setProgress((prev) =>
-          prev.map((p) =>
-            p.status === 'uploading'
-              ? {
-                  ...p,
-                  status: 'error',
-                  progress: 0,
-                  error:
-                    e instanceof Error ? e.message : t('upload_error'),
-                }
-              : p,
-          ),
-        );
+        for (let i = 0; i < files.length; i++) {
+          if (entries[i].status === 'error') continue;
+          majLigne(i, { status: 'uploading', progress: 0 });
+          try {
+            const created = await onUpload([files[i]]);
+            setGrid((prev) => [...prev, ...created]);
+            majLigne(i, { status: 'done', progress: 100 });
+          } catch (e) {
+            majLigne(i, {
+              status: 'error',
+              progress: 0,
+              error: e instanceof Error ? e.message : t('upload_error'),
+            });
+          }
+        }
       } finally {
-        window.clearInterval(tick);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
@@ -370,8 +347,11 @@ export function MediaManager({
                     className={cn(
                       'h-full bg-primary transition-[width]',
                       p.status === 'done' && 'bg-success',
+                      // Une server action ne rend aucun octet de progression : la barre dit que
+                      // CETTE photo part, sans inventer de pourcentage (TCK-673).
+                      p.status === 'uploading' && 'animate-pulse opacity-60',
                     )}
-                    style={{ width: `${p.progress}%` }}
+                    style={{ width: p.status === 'uploading' ? '100%' : `${p.progress}%` }}
                     data-testid="progress-bar"
                     data-status={p.status}
                     data-progress={p.progress}

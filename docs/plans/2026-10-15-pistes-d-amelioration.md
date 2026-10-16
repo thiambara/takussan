@@ -1114,7 +1114,7 @@ Sain (vérifié par l'agent) :
 
 ### Les photos d'un bien partent par une server action plafonnée à 1 Mo
 - Réf : P08.01
-- Statut : validé — une server action par photo, progression par fichier, bodySizeLimit à 12 Mo ; max_file_uploads et photos max:20
+- Statut : fait · TCK-673
 - Gravité : 🔴 défaut avéré (un envoi réel reste à rejouer)
 - Où : `takussan-web/next.config.ts` (pas de clé `serverActions`), `takussan-web/src/app/actions/dashboard-properties.ts:243`, `takussan-web/src/components/property-form/PropertyWizard.tsx:325-329`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:71`
 - Constat :
@@ -1124,6 +1124,7 @@ Sain (vérifié par l'agent) :
   - `MediaManager.tsx:172-190` simule la progression jusqu'à 85 %, puis tout tombe d'un coup.
 - Piste : une photo par requête, par route handler BFF ou directement vers l'API, avec une vraie progression (XHR) et une reprise par fichier. Relever `bodySizeLimit` seul ne règle pas le réseau lent.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `next.config.ts` (aucune clé `serverActions`), `next/dist/server/app-render/action-handler.js:517-519` (Next 16.3.1, `'1 MB'` par défaut) et `:665-700` (le corps multipart passe par `sizeLimitTransform` et lève un 413 au-delà), `PropertyWizard.tsx:325-329` (toutes les photos dans un seul `FormData` vers `uploadPropertyPhotosAction`, `dashboard-properties.ts:243`), `reduire-photo.ts:24` (`COTE_MAX = 2560`) et TCK-542 l. 128 (1 446 048 o pour une photo réduite) → le constat tient à la lecture ; ce passage n'a rejoué aucun envoi réel. Classement : V7 et V8, la piste change la voie d'envoi (route handler ou API directe), la progression visible et la reprise par fichier, sur trois écrans : plus d'un ticket et des choix de produit.
+- Mesure (2026-10-16, b57126b7, implementeur) : reproduit avant correctif par trois tests rouges : `next.config.ts` sans `serverActions.bodySizeLimit` ; `PropertyWizard` qui envoie un seul `FormData` de trois photos ; `MediaManager` qui passe tout le lot à `uploading` d'un coup → `next-config.server-actions.test.ts`, `MediaManager.test.tsx` (2 tests) et `PropertyWizard.test.tsx` (3 tests : une action par photo, « Envoi des photos : 1 sur 2 », reprise de la seule photo en échec) ; ablation (correctif retiré) → 6 rouges, remis → verts. Aucun envoi réel rejoué ; `proxyClientMaxBodySize` (10 Mo par défaut sur `src/proxy.ts`) reste hors périmètre, noté dans TCK-673.
 
 ### Les dialogues n'ont ni hauteur maximale ni défilement
 - Réf : P08.02
@@ -1366,7 +1367,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
 - Réf : P10.03
-- Statut : validé — une server action par photo, progression par fichier, bodySizeLimit à 12 Mo ; max_file_uploads et photos max:20
+- Statut : fait · TCK-673
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/media/MediaManager.tsx:78-79`, `takussan-web/src/components/property-dashboard/PropertyMediaPanel.tsx:70`, `takussan-api/docker/Caddyfile:22-31`, `takussan-api/docker/php.ini:5-6`, `takussan-api/config/media-library.php:55`
 - Constat : l'interface annonce 20 fichiers de 10 Mo et les envoie en une seule requête. Côté API, les couches se succèdent ainsi :
@@ -1379,6 +1380,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   Établi comment : lu ; la valeur par défaut de `max_file_uploads` est mesurée en local.
 - Piste : une requête par photo, ou des paquets bornés à moins de 25 MiB. Fixer `max_file_uploads` explicitement et ajouter `photos` `max:20`.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaManager.tsx:78-79` (`DEFAULT_MAX_SIZE` 10 Mo, `DEFAULT_MAX_FILES` 20), `PropertyMediaPanel.tsx:69-71` (tout le lot dans une seule `FormData`, envoyée à `uploadPropertyPhotosAction`), `dashboard-properties.ts:243-256` puis `properties-server.ts:309-322` (une seule requête `photos[]` vers l'API), `docker/Caddyfile` (`request_body max_size 25MiB`, et 413 sur `Content-Length` > 26214400), `docker/php.ini` (`upload_max_filesize 25M`, `post_max_size 26M`, `max_file_uploads` non fixé), `StorePropertyMediaRequest.php:36` (`photos` : `required`, `array`, sans `max`) ; mesuré `ini_get('max_file_uploads')` en CLI → `20`. Les couches de l'API sont telles que décrites. Le lot n'atteint d'ailleurs pas l'API au-delà de 1 Mo : il passe d'abord par une server action sans `serverActions.bodySizeLimit` (`node_modules/next/dist/server/app-render/action-handler.js:517-519`, 413 « Body exceeded 1 MB »), ce que porte déjà P08.01. Classement : V5 et V7, fixer `max_file_uploads` touche `takussan-api/docker/`, et découper l'envoi change le comportement de l'écran ; à traiter avec P08.01, qui choisit la voie d'envoi.
+- Mesure (2026-10-16, b57126b7, implementeur) : reproduit avant correctif : `POST /api/properties/{id}/media` avec 21 photos rendait 201, et `docker/php.ini` ne fixait pas `max_file_uploads` → `PropertyMediaTest` (21 photos → 422 sur `photos`, aucun média ; `max_file_uploads = 20` lu dans `docker/php.ini`) ; ablation → 2 rouges, remis → verts. L'envoi photo par photo vient de P08.01, même ticket.
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04

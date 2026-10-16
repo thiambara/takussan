@@ -1668,7 +1668,8 @@
         "current": "in progress",
         "optional": "optional",
         "reopen": "Go back to: {step}"
-      }
+      },
+      "photosProgress": "Uploading photos: {sent} of {total}"
     },
     "titleTypes": {
       "bail": "Lease",
