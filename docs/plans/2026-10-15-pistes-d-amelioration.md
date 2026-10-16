@@ -1792,7 +1792,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Si le planificateur meurt, personne ne le voit
 - Réf : P14.02
-- Statut : validé — sonde scheduler avec status (échec après 5 min sans exécution), /api/health en 503 sur failed ; reste : les healthchecks des workers et la sonde UptimeRobot, par le porteur
+- Statut : fait · TCK-680 — reste : les healthchecks des workers et la sonde UptimeRobot, par le porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/routes/console.php:110-115`, `takussan-api/app/Services/Admin/HealthcheckService.php:139-143`, `takussan-api/app/Http/Controllers/Api/HealthController.php:17`, `deploy/takussan/compose.api.yml:44,67`, `docs/infra/hebergement.md:92`
 - Constat :
@@ -1807,6 +1807,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - un `status` pour la sonde `scheduler` (dernière exécution plus vieille que quelques minutes = échec) ;
   - un healthcheck de battement sur `scheduler` et sur les workers.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `routes/console.php:110-115` (battements, `health:probe`, `alerts:evaluate` planifiés), `HealthcheckService.php:139-143` (sonde `scheduler` sans `status`, hors du `worst()`), `HealthcheckService::publicStatus` (`unknown` par défaut) et `HealthController` (`json()` sans code, donc 200), `grep DiagnosingHealth app bootstrap` → rien ; `compose.api.yml` : un seul `healthcheck` (l. 44, `api`) ; `docs/infra/hebergement.md`, ligne « Surveillance externe » : UptimeRobot ne sonde que `/up` (et la sonde de `deploy.takussan.com`). Le compte UptimeRobot lui-même n'a pas été consulté. Classement : V5, la piste touche `deploy/` et la surveillance externe, et changer le code HTTP de `/api/health` modifie un contrat public.
+- Mesure (2026-10-16, 45fd5aab, implementeur) : avant correctif, la sonde `scheduler` n'a pas de clé `status` (`Undefined array key "status"` dans le test) et `/api/health` rend 200 sur un statut `failed` en cache → `HealthcheckProbesTest` (301 s sans exécution : sonde et statut global `failed` ; 60 s : `ok` ; aucune exécution : `failed`) et `HealthCheckTest` (503 sur `failed`, 200 sur `degraded` et `unknown`) ; ablation des deux fichiers d'`app/` : 4 rouges sur 25, correctif remis : 25 verts. Planificateur arrêté, `health:probe` ne tourne plus et le statut public expire en `unknown` (200) après 10 min : la décision ne retient que `failed` pour le 503.
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03

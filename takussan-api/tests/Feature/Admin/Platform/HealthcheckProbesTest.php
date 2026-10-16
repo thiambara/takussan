@@ -127,6 +127,64 @@ class HealthcheckProbesTest extends TestCase
         $this->assertSame('ok', $workers['queues']['media']['status']);
     }
 
+    /**
+     * TCK-680 (P14.02) — la sonde `scheduler` relevait `last_run_at` sans `status` : un
+     * planificateur arrêté ne comptait pas dans le statut global, qui restait `ok`.
+     */
+    public function test_un_planificateur_sans_execution_depuis_cinq_minutes_fait_echouer_le_statut_global(): void
+    {
+        $this->sondesSaines();
+        $this->executionPlanifiee(now()->subSeconds(301));
+
+        $instantane = $this->sonder();
+
+        $this->assertSame('failed', $instantane['scheduler']['status']);
+        $this->assertSame('failed', $instantane['status']);
+        $this->assertNotNull($instantane['scheduler']['checked_at']);
+    }
+
+    public function test_un_planificateur_qui_a_tourne_il_y_a_une_minute_est_ok(): void
+    {
+        $this->sondesSaines();
+        $this->executionPlanifiee(now()->subMinute());
+
+        $instantane = $this->sonder();
+
+        $this->assertSame('ok', $instantane['scheduler']['status']);
+        $this->assertSame('ok', $instantane['status']);
+    }
+
+    public function test_un_planificateur_qui_n_a_jamais_tourne_echoue(): void
+    {
+        $this->sondesSaines();
+
+        $instantane = $this->sonder();
+
+        $this->assertNull($instantane['scheduler']['last_run_at']);
+        $this->assertSame('failed', $instantane['scheduler']['status']);
+        $this->assertSame('failed', $instantane['status']);
+    }
+
+    /** Toutes les sondes autres que `scheduler` à `ok` : seul le planificateur fait varier le statut. */
+    private function sondesSaines(): void
+    {
+        config(['mail.default' => 'ses', 'cdn.enabled' => false]);
+        foreach (RecordQueueHeartbeat::QUEUES as $file) {
+            (new RecordQueueHeartbeat($file))->handle();
+        }
+    }
+
+    private function executionPlanifiee($quand): void
+    {
+        DB::table('scheduled_task_runs')->insert([
+            'task' => 'health:probe',
+            'last_run_at' => $quand,
+            'status' => 'finished',
+            'created_at' => $quand,
+            'updated_at' => $quand,
+        ]);
+    }
+
     public function test_le_statut_global_est_la_pire_sonde_et_chaque_sonde_est_datee(): void
     {
         $this->assertSame('ok', HealthcheckService::worst(['ok', 'ok']));

@@ -25,6 +25,27 @@ class HealthCheckTest extends TestCase
             ->assertExactJson(['status' => 'ok', 'checked_at' => '2026-10-08T10:00:00.000000Z']);
     }
 
+    /**
+     * TCK-680 (P14.02) — `failed` rendait un HTTP 200 : une sonde externe sur le code de réponse
+     * ne voyait rien. `degraded` et `unknown` restent en 200 (décision du porteur).
+     */
+    public function test_health_answers_503_when_the_cached_status_is_failed(): void
+    {
+        Cache::put(HealthcheckService::STATUS_KEY, ['status' => 'failed', 'checked_at' => '2026-10-08T10:00:00.000000Z'], 600);
+
+        $this->getJson('/api/health')
+            ->assertStatus(503)
+            ->assertExactJson(['status' => 'failed', 'checked_at' => '2026-10-08T10:00:00.000000Z']);
+    }
+
+    public function test_health_stays_200_when_degraded_or_unknown(): void
+    {
+        $this->getJson('/api/health')->assertOk()->assertJsonPath('status', 'unknown');
+
+        Cache::put(HealthcheckService::STATUS_KEY, ['status' => 'degraded', 'checked_at' => '2026-10-08T10:00:00.000000Z'], 600);
+        $this->getJson('/api/health')->assertOk()->assertJsonPath('status', 'degraded');
+    }
+
     public function test_admin_health_reports_a_degraded_cdn(): void
     {
         $cdn = $this->mock(CdnProviderContract::class);
