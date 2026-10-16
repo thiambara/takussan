@@ -26,12 +26,13 @@ class MapPublicPropertyRequest extends SearchPublicPropertyRequest
      * - `sort` : decision motivee dans `PublicPropertyController::map()` (`PropertyMapRadiusTest::
      *   test_map_ne_declare_aucun_tri`) ;
      * - `page`, `per_page` : la carte est un GeoJSON plafonne, sans pagination ;
-     * - `lat_min` … `lng_max` : le rectangle de la liste ; la carte a le sien, `bounds`.
+     * - `lat_min` … `lng_max` : le rectangle de la liste ; la carte a le sien, `bounds` ;
+     * - `placements` : la carte ne sert aucun emplacement (TCK-687).
      *
      * ⚠ Miroir de `CLES_PROPRES_A_LA_LISTE` dans `takussan-web/src/lib/recherche-publique.ts` :
      * `search-filters.parity.test.ts` compare les deux listes.
      */
-    public const CLES_PROPRES_A_LA_LISTE = ['q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max'];
+    public const CLES_PROPRES_A_LA_LISTE = ['q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements'];
 
     /** @return array<string, mixed> */
     public function rules(): array

@@ -143,7 +143,12 @@ class PropertySearchService
 
         // TCK-633 lot F (ADR-0061 §7) — emplacements « Sponsorisé » et places réservées. Rien en
         // recherche ÉLARGIE : le vivier suit le régime strict, qui vient d'y rendre zéro.
-        [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT
+        // TCK-687 (P18.01) — rien non plus quand l'appelant les coupe (`placements=false`) : il ne
+        // les affiche pas, et une impression ne se compte que pour un emplacement montré.
+        $avecEmplacements = filter_var($params['placements'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+        // Hors de la graine de rotation : `placements=true` doit servir la même rotation que l'absence.
+        unset($params['placements']);
+        [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT && $avecEmplacements
             ? $this->placements($term, $filter, $sort, $page, $perPage, $params, $result)
             : [$this->withPlacement($this->hydrate($result['hits'] ?? []), 'organic'), []];
 
