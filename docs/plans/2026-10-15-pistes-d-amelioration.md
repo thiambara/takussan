@@ -102,7 +102,7 @@ voie d'écriture (angle 13, puis 47).
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | fait |
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | fait |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | fait |
-| 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
+| 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | fait |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
@@ -139,6 +139,7 @@ voie d'écriture (angle 13, puis 47).
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
+| 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
 
 ---
 
@@ -3472,3 +3473,91 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu.
 - Piste : une langue facultative sur la fiche client (`in:fr,en,wo`), saisie par l'agence et relue par `fromCustomer()` avant le repli `fr`. Elle servirait aussi P29.02. Migration et champ de formulaire neufs : choix de produit.
 - Mesure (2026-10-16, b14cd410, mesureur) : `grep -ln "'customers'" database/migrations/* | xargs grep -n "locale\|lang"` → aucune colonne de langue sur `customers` (seule touche : `property_contact_leads`) ; `Customer.php:55-64` `$fillable` sans langue ; `ContactSansCompte.php:44` rend `user?->preferredLocale() ?? 'fr'` ; le constat tient, comme amélioration et non comme défaut (ADR-0032 § 3). Classement : V4 et V7, la piste demande une migration autre qu'un index et un champ de formulaire neuf.
+
+## Angle 30 — Équipements du catalogue : traduction par slug, renommage et fusion
+
+*Exploré le 2026-10-16 sur `pre-dev` 11df6a87, par l'explorateur, seul (aucun sous-agent). Relu :
+`TagCatalog`, `TagProposals`, `TagModeration` (`renommer`, `fusionner`), `TagController::index`
+et `update`, `GeoReferentialController::amenities`, `PropertyResource` (bloc `tags`),
+`Property::toSearchableArray` et `config/scout.php`, ADR-0062 § 7 ; côté front
+`libelle-equipement.ts` et son test, `libelle-equipement-par-nom.ts`, `ChampEquipements`,
+`combobox.tsx`, `PropertyAmenities`, `amenity-icons.ts`, `compare-rows.ts`, `CustomerTagPicker`,
+`CustomerListFilters`. Ce qui tient, et n'a pas d'entrée : les six écrans publics et le formulaire
+traduisent les équipements du catalogue par leur slug, une proposition en attente reste telle que
+saisie, et un test rougit sur un équipement sans ses trois traductions ; l'API n'émet aucun nom
+d'équipement dans un e-mail, un SMS ou un PDF (`grep tags` sur `app/Mail`, `app/Notifications`,
+`resources/views` → rien). Mesures : un test temporaire, retiré, sur la base de test (charge 2,33
+sur 8 cœurs) ; `SELECT` et `Property::search()` en lecture par `tinker` sur la base et l'index de
+développement (35 équipements approuvés, 1 proposition, 802 documents indexés). Rien n'a été lu en
+préproduction : on ne sait pas si un équipement du catalogue y a déjà été renommé ou fusionné.*
+
+### Renommer un équipement du catalogue ne change rien à l'écran, et le déploiement suivant recrée l'ancien nom sous un slug sans traduction
+- Réf : P30.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Tags/TagModeration.php:59-78`, `takussan-api/app/Http/Controllers/Api/TagController.php:77-86`, `takussan-api/app/Services/Tags/TagCatalog.php:68-81`, `takussan-web/src/lib/libelle-equipement.ts:31-34`
+- Constat :
+  - `renommer()` n'écrit que `name` (lu, l. 70) ; le slug reste celui du nom d'origine. Les deux routes y mènent : `PATCH /api/admin/tags/{tag}` (file de modération) et `PUT /api/tags/{tag}`, que le commentaire désigne comme « la page catalogue » (lu, `TagController.php:81-85`).
+  - Le front traduit tout équipement approuvé par son slug, en français comme ailleurs (lu, `libelle-equipement.ts:33` ; `fr.json` `property.amenityCatalog.piscine` = « Piscine »). Un équipement du catalogue renommé s'affiche donc sous l'ancien libellé dans les trois langues : le renommage n'a aucun effet visible hors de la console.
+  - `synchroniser()` cherche chaque nom du catalogue par son nom (lu, l. 70). Le nom d'origine n'existe plus : il est recréé, et `slugLibre()` lui donne `<slug>-2`, que les fichiers de traduction ne connaissent pas.
+  - Mesuré (test temporaire) : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` `{name: "Piscine privée"}` → 200, slug `piscine` ; `synchroniser()` rejoué → deux lignes approuvées, `Piscine privée|piscine` et `Piscine|piscine-2`. Effet à l'écran (déduit de `libelleEquipement`) : en français, deux options « Piscine » dans le formulaire et la recherche ; en anglais, « Swimming pool » et « Piscine ».
+  - À vérifier : une recherche sauvegardée `tags=Piscine` (le filtre porte des noms, `PropertySearchService.php:552-559`) ne trouverait plus les biens du tag renommé, réindexés sous « Piscine privée » : l'alerte se tairait.
+- Piste : décider ce qu'est un renommage d'équipement du catalogue. Soit le refuser (409, comme un nom pris) et ne renommer que les propositions ; soit faire suivre le catalogue (le nom versionné se compare aussi au slug, pour ne pas recréer). Garder par un test : renommer puis rejouer `synchroniser()` → une seule ligne pour ce slug.
+
+### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
+- Réf : P30.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
+- Constat :
+  - `fusionner()` accepte pour source tout équipement non refusé et sans liaison hors des biens, catalogue compris, puis le supprime (lu, l. 97 et 113).
+  - `tags:sync-catalog`, joué à chaque déploiement, recrée tout nom du catalogue absent (lu, l. 72-79). Le docblock protège un refus (« un refus de modération ne se défait pas par déploiement », l. 21) ; rien ne protège une fusion.
+  - Mesuré (test temporaire) : `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200 ; `synchroniser()` rejoué → `Ventilateurs` existe de nouveau, approuvé, sous un nouvel identifiant et sans bien. La fusion voulue par la modération est défaite, et l'équipement fusionné revient dans les listes.
+  - Aucun test ne fusionne puis resynchronise (lu, `TagCatalogTest.php`, cinq tests).
+- Piste : refuser en 422 la fusion d'une source du catalogue (`in_array($src->name, TagCatalog::EQUIPEMENTS)`), ou garder une trace de la fusion que `synchroniser()` respecte, comme pour un refus. Garder par un test : fusionner puis synchroniser.
+
+### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
+- Réf : P30.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
+- Constat :
+  - Deux noms distincts pour l'index `tags_name_lower_unique` peuvent avoir le même slug : la ponctuation et les accents sortent du slug, pas du repli de casse (lu, `CaseInsensitive` : ICU sans `unaccent`). Une proposition « Forage ! » ou « Fibre optique. » prend ainsi le slug d'un équipement du catalogue.
+  - Si la proposition existe avant que le catalogue n'ajoute ce nom, `slugLibre()` donne `forage-2` à l'équipement du catalogue (lu, l. 60-63).
+  - Mesuré (test temporaire) : proposition `Forage !` en attente (slug `forage`), puis `synchroniser()` → `Forage|forage-2|approved`. Le front cherche `amenityCatalog.forage-2`, absent : l'équipement du catalogue s'affiche « Forage » en anglais. Si la proposition est approuvée plus tard, c'est elle qui prend la traduction « Borehole » (déduit de `libelleEquipement`).
+  - Le test du front calcule le slug à partir du nom (`slugDuCatalogue`) ; il ne voit pas le slug réellement écrit en base (lu, l. 58-62).
+- Piste : réserver les slugs du catalogue. `slugLibre()` refuserait à une proposition un slug calculé depuis `TagCatalog::EQUIPEMENTS` (suffixe d'office), et `synchroniser()` reprendrait le slug exact s'il est détenu par une proposition. Garder par le test ci-dessus, inversé.
+
+### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
+- Réf : P30.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/Property.php:476-479`, `takussan-api/config/scout.php:184-187`
+- Constat :
+  - Le document indexé porte `tags` = les noms en base, en français (lu, `Property.php:479`) ; `tags` est un attribut cherchable (lu, `scout.php:186`). Les traductions du catalogue n'existent que dans `takussan-web/src/messages/*.json` : l'API ne peut pas les indexer.
+  - Mesuré (`tinker`, index de développement) : `Property::search()` → `piscine` 52, `swimming pool` 0, `pool` 0 ; `climatisation` 57, `air conditioning` 0.
+  - Le choix d'indexer un vocabulaire français est écrit pour les types et contrats (`Property.php:234-262`, alias français, wolof en attente de validation) ; rien n'est écrit pour l'anglais. La fiche, la recherche et les filtres sont pourtant servis en anglais.
+- Piste : un champ dérivé `amenities_label` (ou l'extension de `tags`) qui porte aussi les libellés anglais du catalogue, ce qui suppose de les rendre lisibles par l'API (copie versionnée, ou génération depuis `en.json`). Le wolof attend la validation de TCK-339, comme les types. Choix de produit et de source unique des libellés.
+
+### 26 équipements du catalogue sur 35 s'affichent avec l'icône générique
+- Réf : P30.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:23-60`, `.../PropertyAmenities.tsx:19`
+- Constat :
+  - L'icône se cherche par `tag.icon ?? tag.slug` (lu, `PropertyAmenities.tsx:19`). Aucune ligne de `tags` n'a d'`icon` (mesuré : `SELECT type, status, count(icon)` → 0 sur 41), et le catalogue n'en pose pas (lu).
+  - Mesuré (script `node` sur les slugs du catalogue face aux clés de `AMENITY_ICONS`) : 9 slugs ont une icône (`piscine`, `climatisation`, `ascenseur`, `parking`, `garage`, `terrasse`, `jardin`, `wifi`, `tv`) ; 26 retombent sur `Building2`, dont `cuisine-equipee`, `securite-247`, `salle-de-sport`, `machine-a-laver`, `groupe-electrogene`.
+  - Une partie des clés ne correspond à aucun slug du catalogue : `cuisine`, `securite`, `salle_sport`, `buanderie`, `internet`, `meuble` (lu).
+- Piste : clés d'icônes alignées sur les slugs du catalogue, et un test qui rougit sur un slug du catalogue sans icône (même lecture du fichier PHP que `libelle-equipement.test.ts`). Le choix des icônes est un choix de design.
+
+### Petites améliorations
+- Réf : P30.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Tags/TagCatalog.php:40`, `takussan-web/src/components/customer-dashboard/CustomerTagPicker.tsx:152`, `:258`, `takussan-web/src/components/customer-dashboard/CustomerListFilters.tsx:214`, `takussan-api/app/Http/Controllers/Api/TagController.php:33`, `takussan-api/app/Http/Controllers/Public/GeoReferentialController.php:27`, `:49`, `takussan-web/src/components/compare/compare-rows.ts:63-68`, `takussan-api/app/Services/Tags/TagProposals.php:46`
+- Constat :
+  - Les cinq étiquettes CRM du catalogue (`VIP`, `Prospect chaud`, `Étranger`, `Famille`, `Étudiant`) s'affichent par leur nom en base dans les trois langues : `CustomerTagPicker` et `CustomerListFilters` rendent `tag.name` (lu), et aucun message ne les traduit (mesuré : `grep -i 'prospect' src/messages/en.json` → rien). ADR-0062 § 7 ne traite que des équipements.
+  - L'ordre des listes d'équipements est celui du nom français (`defaultSort('name')`, `orderByRaw(name COLLATE "und-x-icu")`, lu), et ni `ChampEquipements` ni la combobox ne retrient après traduction (lu). Mesuré (script `node`) : en anglais, la liste commence par « Playground · Lift · Balcony · Security cameras · Staff quarters · Water heater… ». Le comparateur, lui, trie sur le libellé affiché (lu, `compare-rows.ts:56`).
+  - Le comparateur rend les étiquettes qui ne sont pas des équipements par leur nom brut (`otherTagNames`, lu).
+  - Un anglophone qui tape « Pool » ou « Generator » se voit proposer « Ajouter » à côté de l'équipement traduit (`combobox.tsx:56-58` compare au libellé affiché, lu). Le serveur ne replie que sur les noms français (`TagProposals::parNom`, lu) : le nom anglais devient une proposition en attente, doublon d'un équipement existant que la modération doit fusionner (déduit, à vérifier).
+- Piste : traduire les étiquettes CRM du catalogue par slug comme les équipements (même fonction, autre espace de clés) ; retrier les options sur le libellé affiché ; passer `otherTagNames` par le même traducteur. Pour la saisie libre, que le front résolve un nom tapé égal (au repli près) à un libellé traduit vers l'identifiant de l'équipement avant de l'envoyer en `tag_names`.
