@@ -108,7 +108,9 @@ function toSpatieParams(
     filter: Object.keys(filter).length ? filter : undefined,
     // TCK-592 (P17) — le bien (quartier) et son agence : « Mes interventions » les nomme.
     include: ['property'],
-    sort: params?.sort ?? '-created_at',
+    // TCK-702 (P16.02) — une recherche se classe par pertinence côté API (TCK-281), et
+    // `defaultSorts()` s'efface devant tout `sort=` explicite : pas de tri par défaut ici.
+    sort: params?.sort ?? (params?.search ? undefined : '-created_at'),
     page: params?.page,
     per_page: params?.per_page ?? 20,
   };
