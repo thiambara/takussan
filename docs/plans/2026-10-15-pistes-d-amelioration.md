@@ -1035,7 +1035,7 @@ Sain (vérifié par l'agent) :
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
 - Réf : P07.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-731
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `takussan-web/src/components/home/Navbar.tsx:419,677`
 - Constat :
@@ -1044,6 +1044,7 @@ Sain (vérifié par l'agent) :
   - `role="combobox"` est sur le `div`, selon le motif ARIA 1.1 (lu ; rendu du focus à vérifier).
 - Piste : un `aria-label` traduit, le motif ARIA 1.2, et `focus-within:ring-2` sur la pilule.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `SearchAutocomplete.tsx:226-262` : `role="combobox"` sur le `div` (l.227), `role="searchbox"` sur l'`input` (l.242), ni `aria-label` ni `<label>` sur l'`input`, `outline-none` l.259, aucun `focus`/`focus-within` sur le `div` (lu) ; `grep focus-within Navbar.tsx` → rien, et `globals.css` n'a de règle `:focus-visible` que pour les marqueurs de carte (l.773, l.809) ; la clé `t('placeholder')` existe déjà et nomme le listbox l.270 ; aucun test ne vise ce composant → tient. Classement : A4, attribut ARIA et anneau de focus sur un jeton existant, sans texte neuf : nommer l'`input` par la clé existante, porter `role="combobox"`/`aria-expanded`/`aria-haspopup` sur l'`input` (motif ARIA 1.2) et poser `focus-within:ring-2 focus-within:ring-ring` sur la pilule.
+- Mesure (2026-10-16, 56aed2b1, implementeur) : traité avec P31.01, même composant et même correctif ; reproduit avant correctif par `SearchAutocomplete.aria.test.tsx` : `getByRole('combobox', { name })` ne trouve aucun `input` (rôle `searchbox`, sans nom hors placeholder) → rôle combobox, `aria-expanded`, `aria-haspopup` et `aria-label` (le texte affiché, aucune clé neuve) portés par l'`input`, anneau de focus sur la pilule ; ablation : rouge sans le correctif, vert avec ; tests existants passés de `searchbox` à `combobox`.
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
@@ -3609,7 +3610,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Le champ de recherche de la barre ne montre aucun focus au clavier, et pointe vers une liste absente
 - Réf : P31.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-731
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `:266-268`
 - Constat :
@@ -3619,6 +3620,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et instantané CDP sur `next dev`, code relu.
 - Piste : voir P07.06, qui porte le libellé, le motif ARIA 1.2 et le `focus-within:` de la pilule. Ce constat y ajoute : n'émettre `aria-controls` que lorsque la liste est montée (ou la monter vide et masquée), et garder par un test de rendu qui vérifie que tout `aria-controls` et `aria-activedescendant` du composant vise un `id` présent, fermé comme ouvert.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `SearchAutocomplete.tsx` : `aria-controls={listboxId}` sur le `div` `combobox` (l. 230) et sur l'`input` (l. 244) sans condition, `id={listboxId}` rendu seulement sous `{open && …}` (l. 266-268), `outline-none` sur l'`input` (l. 259) et aucune classe `focus`/`focus-within` sur la pilule (l. 231-235) ; `git log --oneline 7abe36d..979edb0f -- takussan-web` → aucun commit, le code mesuré par l'explorateur est inchangé ; axe et l'instantané CDP non rejoués (pas de navigateur dans ce passage), la référence vide se lit dans le code → tient. Classement : A4 et A5, attribut ARIA conditionné au montage de la liste et test de rendu des `id` visés, sans texte ni design neuf ; l'anneau de focus reste porté par P07.06 (déjà `retenu · autonome`), à traiter dans le même ticket.
+- Mesure (2026-10-16, 56aed2b1, implementeur) : reproduit avant correctif par `SearchAutocomplete.aria.test.tsx` : fermé, `div[aria-controls]` et `input[aria-controls]` visent un `id` absent (« _r_1_ »), aucun `input` de rôle combobox, aucune classe de focus sur la pilule → `aria-controls` posé liste ouverte seulement, `aria-activedescendant` seulement si l'option est rendue, anneau `focus-within:ring-2 ring-ring` (contour `primary-foreground` sur la barre de la console) et, en barre de bureau, `has-[input:focus-visible]:ring-2` sur la pilule visible ; ablation : 9 rouges sur 9 sans le correctif, 1 rouge (`aria-activedescendant` pendant un chargement) sans le seul garde de l'option, 1 rouge dans `Navbar.responsive.test.tsx` sans le changement de `Navbar.tsx` ; 61 fichiers de `components/{search,home,layout}` verts. axe non rejoué (pas de navigateur).
 
 ### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
 - Réf : P31.02

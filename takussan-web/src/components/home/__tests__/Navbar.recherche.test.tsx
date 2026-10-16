@@ -81,7 +81,7 @@ const SAISIE = 'villa avec piscine';
 
 /** Le champ de recherche du bandeau — celui dont les trois gestes partent. */
 function champ() {
-  return screen.getByRole('searchbox');
+  return screen.getByRole('combobox');
 }
 
 function derniereUrl(): string {
@@ -221,7 +221,7 @@ describe('Navbar — le champ montre la recherche en vigueur', () => {
     // TCK-549 — la saisie mobile n'est plus dans le menu : c'est la pastille qui l'ouvre.
     await user.click(screen.getByRole('button', { name: /villa piscine/ }));
     const dialogue = await screen.findByRole('dialog');
-    expect(within(dialogue).getByRole('searchbox')).toHaveValue('villa piscine');
+    expect(within(dialogue).getByRole('combobox')).toHaveValue('villa piscine');
   });
 
   it('le terme se modifie dans le champ, et la loupe remplace `q` sans perdre les autres filtres', async () => {
