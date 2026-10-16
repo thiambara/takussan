@@ -193,7 +193,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Deux recherches par changement de filtre, et des impressions Boost gonflées
 - Réf : P01.04
-- Statut : validé — impression dédoublonnée par visiteur et par bien sur 30 min, aucune sur un 304
+- Statut : fait · TCK-708 — reste : la double recherche par changement de filtre (rendu serveur puis client) côté front, qui reste un coût sans plus gonfler les impressions
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/hooks/useSearch.ts:183,360-364`, `takussan-web/src/app/[locale]/(public)/properties/(liste)/page.tsx:133-134`, `takussan-api/app/Services/Search/PropertySearchService.php:659`
 - Constat :
@@ -202,6 +202,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Or les impressions sont une métrique vendue aux agences.
 - Piste : naviguer sans rendu serveur, ou consommer la graine à chaque nouvelle clé. Compter l'impression côté client, ou la dédoublonner par visiteur.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `useSearch.ts:166-183` (graine et `requeteDejaServie` lues au seul montage, remises à `null` au premier passage de l'effet), `useSearch.ts:258-269` (`router.push`/`replace` dans une transition RSC), `useSearch.ts:360-366` (le client refait `apiFetch` dès que la clé change), `(liste)/page.tsx:120-134` (le rendu serveur appelle `rechercherBiensPublics`, mémoïsé par le seul `cache()` de React, donc par requête), `routes/api/public.php:19-49` (`cache.headers:etag` : un 304 recalcule tout, dit le commentaire mesuré de TCK-341) ; les deux appels n'ont pas été relevés dans un journal. Classement : V7, la partie « impressions comptées à chaque appel et à chaque 304 » tient par lecture, et les deux issues de la piste (naviguer sans rendu serveur, ou compter côté client ou par visiteur) changent la définition d'une impression.
+- Mesure (2026-10-16, 4e2a29bb, implementeur) : reproduit avant correctif par `SponsoredImpressionsTest` (même visiteur deux fois, revalidation `If-None-Match` en 304 après 31 min, accueil deux fois) → 2 impressions au lieu de 1 sur les trois tests ; correctif (middleware `boost.impressions` à l'extérieur de `cache.headers:etag`, dédoublonnage `VisitorFingerprint` × bien sur 30 min) → 3/3 verts, 81/81 dans `tests/Feature/Boost` ; ablation (correctif retiré) → 3 rouges, remis → verts ; compteur placé à l'intérieur de `cache.headers` → le seul test du 304 rouge.
 
 ### Avec un tri par prix, la recherche élargie classe mal
 - Réf : P01.05
