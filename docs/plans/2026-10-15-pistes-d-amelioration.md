@@ -3217,7 +3217,7 @@ forcée »).*
 
 ### Une caution, une pénalité ou des charges payées sortent en « Quittance de loyer — Loyer acquitté »
 - Réf : P26.01
-- Statut : validé — un intitulé et une ligne de montant par type (caution, pénalité, charges, loyer) ; pas de refus de la quittance hors loyer
+- Statut : fait · TCK-725
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:30-41`, `takussan-api/resources/views/pdf/receipts/rent.blade.php:22,60,100`, `takussan-api/app/Http/Resources/LeasePaymentResource.php:43`, `takussan-web/src/components/payments/CustomerPayments.tsx:227`, `takussan-api/app/Services/Model/LeaseService.php:283-296`
 - Constat :
@@ -3228,6 +3228,7 @@ forcée »).*
   - Établi comment : lu, et une mesure de rendu sur une caution.
 - Piste : un intitulé et une ligne de montant par type (« Reçu de dépôt de garantie », « Reçu d'indemnité »…), ou refuser la quittance hors `rent` comme pour `deposit_refund`. Un test par type, qui lise le texte rendu et non les octets `%PDF-`.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `DocumentPdfController.php:30-41` (seuls l'impayé et `deposit_refund` sont refusés), `rent.blade.php:22,60,100` (titre, « Loyer acquitté » et mention uniques), `LeasePaymentResource.php:43` et `CustomerPayments.tsx:227` (bouton hors `deposit_refund` seulement), aucun commit postérieur sur ces fichiers (`git log` : dernier 1c32de99, TCK-602) ; `tinker` en lecture, rendu de `pdf.receipts.rent` pour `lease_payments.id = 1` (`deposit`, `paid`) → « Quittance de loyer … Période May 2026 · Loyer acquitté 611 895 F CFA · Méthode bank_transfer … atteste du règlement du loyer » ; `SELECT` sur `lease_payments` `paid` → 2 836 `rent`, 332 `deposit`. Le cas `penalty` reste déduit, non rendu. Classement : V7, la piste offre deux voies (texte métier neuf par type, ou retrait de la quittance pour ces types) qui sont un choix de produit.
+- Mesure (2026-10-16, 57648350, implementeur) : avant correctif, `ReceiptPdfTest::test_le_recu_hors_loyer_dit_ce_qui_a_ete_paye` (rendu par la route, HTML relu) rougit sur les quatre types `deposit`, `penalty`, `charges`, `regularization` payés : tous impriment « Quittance de loyer … Loyer acquitté … règlement du loyer » → `DocumentPdfController::receiptWording()` donne un intitulé, une ligne de montant et une mention par type, le loyer garde son texte (`test_le_loyer_garde_sa_quittance`) ; 12 verts, et l'ablation du contrôleur et du gabarit rend 4 rouges.
 
 ### La facture PDF imprime une TVA et un total qui ne s'additionnent pas
 - Réf : P26.02
