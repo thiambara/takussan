@@ -1503,7 +1503,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le courriel d'invitation part à l'intérieur de la transaction de l'appelant
 - Réf : P11.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-690
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:84,99`, `OwnerInvitationService.php:96`, `ServiceProviderInvitationService.php:151`, `InvitationService.php:232-238`
 - Constat :
@@ -1514,6 +1514,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, et mesuré par l'agent avec une sonde tokenizer.
 - Piste : `DB::afterCommit(fn () => $this->deliver(...))`, ou un mailable mis en file avec `afterCommit()`.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `InvitationService.php:228-235` (commentaire : l'envoi est « intentionally *outside* the DB transaction » pour qu'une panne SMTP n'annule pas l'invitation) et `deliver()` (`:940-947`, `Mail::…->send()` synchrone, `InvitationMailable` sans `ShouldQueue`), et les appels depuis `DB::transaction` à `AgentInvitationService.php:84,99`, `OwnerInvitationService.php:78,96`, `ServiceProviderInvitationService.php:98,151` ; test Feature temporaire (retiré) sur `POST /api/agencies/{id}/agents/invite` en `agency_admin` : transport qui lève `TransportException` → **500**, 0 invitation et 0 profil `Draft` ; témoin avec `Mail::fake()` → 201, 1 et 1. Les 35 échecs Resend de préproduction et le cas « échec après l'envoi » n'ont pas été re-mesurés. Classement : A1, le comportement attendu est écrit dans le commentaire de `send()` ; le correctif enveloppe `$this->deliver(...)` dans `DB::afterCommit(...)`, avec un test qui fait échouer le transport sous `AgentInvitationService::invite` et retrouve l'invitation et le profil.
+- Mesure (2026-10-16, 1945dbf8, implementeur) : avant correctif, `InvitationDeliveredAfterCommitTest` (transport `Mail::extend` qui lève `TransportException`) rend 500 et **0 invitation** sur `POST …/agents/invite`, `…/owners/invite` et `…/service-providers/invite`, et un appelant dont la `DB::transaction` échoue après `send()` laisse partir l'`InvitationMailable` (cas « échec après l'envoi », mesuré) → `DB::afterCommit(fn () => $this->deliver(...))` dans `send()` : invitation et profil survivent à la panne (toujours 500), aucun courriel sur rollback, envoi inchangé hors panne ; ablation (appel direct remis) : 4 rouges sur 5, remise : 5 verts ; `tests/Feature/Invitation` + `SuperAdminInvitationLifecycleTest` : 125 verts ; `impacted-tests --run` : 468 verts.
 
 ### Les SMS reportés la nuit gardent les liens porteurs en clair dans `jobs`
 - Réf : P11.03
