@@ -555,7 +555,7 @@ contre le code par la session.*
 
 ### L'annulation d'une résiliation anticipée annule une facture émise sans avoir
 - Réf : P04.03
-- Statut : validé
+- Statut : fait · TCK-669
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Lease/EarlyTerminationService.php:162-163` (création en `:337`)
 - Constat :
@@ -564,6 +564,7 @@ contre le code par la session.*
   - Un numéro `FA-…` disparaît ainsi sans contrepassation. `EarlyTerminationServiceTest.php:151` ne vérifie pas l'avoir (lu).
 - Piste : passer par `InvoiceService::cancel()`, et asserter `credited_invoice_id`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `EarlyTerminationService.php:162-164` (`$invoice->forceFill(['status' => Cancelled])->save()`), `:338-345` (facture créée `Sent` puis numérotée par `InvoiceNumberAllocator`) et `InvoiceService::cancel()` (l. 119-140 : avoir créé pour une facture `Sent`/`Overdue`, ADR-0039 §7) ; `EarlyTerminationServiceTest.php` ne cite ni `Cancelled` ni avoir → le constat tient, lignes inchangées. Classement : V1, le comportement attendu est écrit (ADR-0039 §7, A1), mais le correctif écrit une facture d'avoir, ce que V1 réserve au porteur.
+- Mesure (2026-10-16, 5fa8aefe, implementeur) : avant correctif, `InvoiceNumberingTest::test_cancelling_an_early_termination_credits_its_issued_penalty` rouge (pénalité `FA-2026-00001` passée `cancelled`, aucun avoir : `ModelNotFoundException` sur `credited_invoice_id`) → `EarlyTerminationService::cancel()` délègue à `InvoiceService::cancel()` ; avoir `AV-2026-00001` du même montant créé ; une pénalité déjà annulée est laissée telle quelle (`test_cancel_tolerates_a_penalty_already_cancelled`) ; ablation de chacune des deux parties : rouge, puis vert remis.
 
 ### Restitution de caution : le champ refuse tout montant rond
 - Réf : P04.04
