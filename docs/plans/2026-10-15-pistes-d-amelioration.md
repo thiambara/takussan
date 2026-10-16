@@ -2248,7 +2248,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Après un seed, les recherches de clients, d'interventions et d'utilisateurs ne trouvent presque rien
 - Réf : P16.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-701 — reste : une garde qui compare, sur un environnement, le nombre de documents indexés au nombre de lignes non supprimées
 - Gravité : 🔴 défaut avéré (sur les environnements seedés)
 - Où : `takussan-api/database/seeders/YearOfActivitySeeder.php:123-127,266-269`, `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-235`
 - Constat :
@@ -2260,6 +2260,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - `release.sh` (l. 39-46) importe tous les modèles. Un déploiement n'est donc touché que si son marqueur de forme n'a pas bougé depuis TCK-281 (à vérifier sur Dokploy).
 - Piste : dériver `SEARCHABLE_MODELS` de la même source que les modèles indexés de `release.sh`, plutôt que d'une liste écrite à la main. Ajouter une garde qui compare le nombre de documents indexés au nombre de lignes non supprimées.
 - Mesure (2026-10-15, 5062193b, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`reindexSearchableModels` ne pousse que cette liste) ; `grep -rl 'use Searchable' app/Models` → sept modèles (s'y ajoutent `Customer`, `MaintenanceRequest`, `User`, `Agency`) ; tinker en lecture sur la base et l'index de dev → clients 564 en base pour 2 indexés, interventions 212 pour 82 (le constat disait 0), utilisateurs 304 pour 52, agences 5 pour 8, biens 842 pour 802. `docker/release.sh:39-46` importe tous les modèles indexés : lu, Dokploy non vérifié. Classement : A1, le docblock de la constante (« Searchable models that must be (re)pushed ») et `takussan-api/CLAUDE.md` (« ne pas recopier cette liste ailleurs : elle se dérive du code ») écrivent déjà le comportement attendu.
+- Mesure (2026-10-16, 39b5fd85, implementeur) : `SeedingReindexTest` (moteur Scout espion branché sur `reindexSearchableModels()`) rendait `[Document, Message, Property]` contre les sept modèles de `Tests\Support\SearchableModels::all()` → le seeder itère désormais sur `App\Support\Search\SearchableModels::all()`, dérivée du trait `Searchable` ; test vert, ablation (liste écrite à la main remise) rouge, correctif remis vert.
 
 ### La pertinence de TCK-281 n'agit nulle part : le front impose toujours `sort=-created_at`
 - Réf : P16.02
