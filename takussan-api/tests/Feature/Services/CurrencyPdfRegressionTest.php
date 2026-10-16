@@ -220,6 +220,56 @@ class CurrencyPdfRegressionTest extends TestCase
         }
     }
 
+    /**
+     * TCK-726 (P26.02) — la facture imprimée doit s'additionner. `InvoiceService` range la TVA au
+     * centime (100 025 × 18 % = 18 004,5) ; arrondie au pair à l'affichage, elle s'imprimait
+     * 18 004, pour un total de 118 030 : 100 025 + 18 004 = 118 029. Le test lit les trois
+     * montants dans le texte rendu, non dans les octets du PDF.
+     */
+    public function test_invoice_subtotal_and_tax_add_up_to_the_printed_total(): void
+    {
+        $agency = Agency::factory()->create(['currency' => Currency::XOF]);
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $invoice = Invoice::factory()->create([
+            'customer_id' => $customer->id,
+            'agency_id' => $agency->id,
+            'currency' => Currency::XOF,
+            'subtotal' => 100_025,
+            'tax_rate' => 18,
+            'tax_amount' => 18_004.5,
+            'total_amount' => 118_029.5,
+        ]);
+
+        $html = View::make('pdf.invoices.default', [
+            'invoice' => $invoice,
+            'customer' => $customer,
+            'agency' => $agency,
+            'title' => 'Facture',
+            'document_label' => 'Facture',
+            'generated_at' => now(),
+            'footer_note' => 'Test',
+        ])->render();
+
+        $printed = fn (string $label): int => $this->printedAmountAfter($html, $label);
+
+        $this->assertSame(100_025, $printed('Sous-total'));
+        $this->assertSame(18_005, $printed('TVA (18%)'));
+        $this->assertSame(118_030, $printed('Total TTC'));
+        $this->assertSame($printed('Total TTC'), $printed('Sous-total') + $printed('TVA (18%)'));
+    }
+
+    /**
+     * Le montant XOF imprimé dans la cellule qui suit le libellé `$label` du pied de facture.
+     */
+    private function printedAmountAfter(string $html, string $label): int
+    {
+        $pattern = '/'.preg_quote($label, '/').'<\/td>\s*<td[^>]*>(?:<strong>)?([0-9\x{00A0}\x{202F} ]+)\x{00A0}F CFA/u';
+        $this->assertSame(1, preg_match($pattern, $html, $m), "Montant introuvable après « {$label} »");
+
+        return (int) preg_replace('/\D/u', '', $m[1]);
+    }
+
     public function test_pdf_service_renders_real_pdf_for_eur_agency(): void
     {
         $agency = Agency::factory()->create(['currency' => Currency::EUR]);
