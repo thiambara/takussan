@@ -32,7 +32,11 @@ export const DASHBOARD_CUSTOMER_FIELDS = [
   'created_at',
 ] as const;
 
-export const TAG_FIELDS = ['id', 'name', 'color', 'usage_count'] as const;
+/**
+ * Les colonnes des suggestions CRM. `usage_count` n'en est pas une : c'est un compte, que l'API
+ * rend toujours et sur lequel elle trie (`sort=-usage_count`). Le demander ici rendait 400 (TCK-712).
+ */
+export const TAG_FIELDS = ['id', 'name', 'color'] as const;
 
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
