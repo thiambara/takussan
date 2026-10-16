@@ -46,7 +46,14 @@ class UserAdminController extends Controller
         // table: only the query-builder package is still installed.
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch.
-        $query = User::buildQuery($base, $request);
+        //
+        // TCK-665 (piste P03.02) — hors super-admin, les `include=…Profiles` et `filter[role]`
+        // sont bornés à l'agence active, et `include=platformProfile` est refusé : la base bornée
+        // ci-dessus ne suffisait pas, les relations chargées sortaient les profils des autres
+        // agences de la personne listée.
+        $query = $base === null
+            ? User::buildQuery(null, $request)
+            : User::buildAgencyTeamQuery($base, $request, (int) $agencyId);
 
         $paginator = $query
             ->defaultSorts(...User::defaultSortsWithRelevance('-created_at'))

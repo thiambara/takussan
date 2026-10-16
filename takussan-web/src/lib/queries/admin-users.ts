@@ -53,7 +53,8 @@ export async function fetchAdminUsers(
 ): Promise<AdminAgencyUsersResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[users]', ADMIN_USERS_FIELDS.join(','));
-  qs.set('include', 'agentProfiles,ownerProfiles,agencyAdminProfiles,platformProfile');
+  // TCK-665 — sans `platformProfile` : l'API le refuse hors de la console super-admin (400).
+  qs.set('include', 'agentProfiles,ownerProfiles,agencyAdminProfiles');
   if (params.search) qs.set('filter[search]', params.search);
   if (params.status) qs.set('filter[status]', params.status);
   if (params.role) qs.set('filter[role]', params.role);
