@@ -160,7 +160,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les quartiers proposés par le panneau ne correspondent pas aux quartiers indexés
 - Réf : P01.02
-- Statut : validé — filtrer par geo_neighborhood_id quand il est posé, sinon par le nom normalisé sans accent ni tiret ; adresses non réécrites
+- Statut : fait · TCK-663
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/search/ChoixDuReferentiel.tsx:227-233`, `takussan-api/app/Services/Search/PropertySearchService.php:446-447`
 - Constat :
@@ -172,6 +172,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - En production : à vérifier.
 - Piste : rattacher les adresses au référentiel (migration de données), puis indexer et filtrer par le nom canonique ou par `geo_neighborhood_id`.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `PropertySearchService.php:446-447` (`neighborhood = <nom>` en égalité stricte) et `ChoixDuReferentiel.tsx:226-233` (noms du référentiel proposés) ; tinker en lecture → `PropertySearchService::search(['location' => 'Grand Yoff'])` rend 0, `'Grand-Yoff'` en rend 9 (le constat disait 39 : ce chiffre ne compte que les biens publics) ; `geo_neighborhoods` ne connaît que `Grand Yoff`, `addresses` que `Grand-Yoff` (42) ; 205 adresses sur 826 portent un quartier absent du référentiel, 322 sont rattachées à `geo_neighborhood_id`. Classement : V4, rattacher les adresses au référentiel réécrit des données existantes.
+- Mesure (2026-10-16, 64d25ff, implementeur) : reproduit avant correctif par `QuartierDuPanneauTest` (liste `/api/public/properties/search` et carte `/map`) → `location=Grand Yoff` rend `[]` pour une adresse non rattachée « Grand-Yoff », et `location=Sacré-Cœur 3` rend `[]` au lieu des biens rattachés à ce quartier ou saisis « Sacre Coeur 3 » ; correctif : `geo_neighborhood_id` et `neighborhood_key` (`CleDeQuartier`) indexés et filtrés, même règle en SQL pour la carte, adresses non réécrites → 2 verts (28 assertions) ; ablation de la clause de liste, de celle de la carte, puis des identifiants du référentiel → rouge à chaque fois sur l'assertion visée, correctif remis → vert.
 
 ### Les suggestions de recherche ont une limite unique de 60 requêtes par minute pour tout le site
 - Réf : P01.03
