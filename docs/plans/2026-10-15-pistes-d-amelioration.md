@@ -100,7 +100,7 @@ voie d'écriture (angle 13, puis 47).
 | 25 | Rapprochement bancaire quand une pénalité est incluse dans l'encaissement | fait |
 | 26 | PDF (quittances, contrats, factures) : loyer non mensuel, TVA arrondie, devise | fait |
 | 27 | Routeur SMS (`SmsRouterDriver::walkChain`) : SMS envoyé et facturé deux fois sur un timeout suivi d'un repli | fait |
-| 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | à faire |
+| 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | fait |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | à faire |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | à faire |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
@@ -138,6 +138,7 @@ voie d'écriture (angle 13, puis 47).
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
+| 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 
 ---
 
@@ -3343,3 +3344,46 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : reprendre le compteur à la dernière tentative enregistrée ; mettre le renvoi après 401 sous le même `try` ; lire le résultat par numéro chez Mtarget, ou n'envoyer qu'un numéro par appel.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : test temporaire (retiré) → heures calmes puis envoi avec `bypass_quiet_hours` : tentatives `[1 router deferred_to_fallback, 1 lafricamobile failed, 2 mtarget sent]` ; Orange 401 puis `ConnectionException` au renvoi (`OrangeSmsDriver.php:117-121`, hors `try`) : 2 appels d'envoi, résultat `lafricamobile` `sent` ; Mtarget `results` `[{code 0}, {code -3}]` pour deux numéros → les deux `sent` (`MtargetSmsDriver.php:90-91`). Les trois parties tiennent. Classement : V7, la partie Mtarget laisse deux options sur un format fournisseur non vérifié ; les deux premières seraient A1 si on les séparait.
+
+## Angle 28 — Cache des pages publiques par langue
+
+*Exploré le 2026-10-16 sur `pre-dev` aa45a57f, par l'explorateur, seul (aucun sous-agent). Relu : les
+lectures partagées du front (`public-property.ts`, `facettes.ts`, `sitemap-catalogue.ts`, route BFF
+`api/maintenance/status`), `apiFetch` (`api.ts:99-138`), la clé du cache de données de Next 16.3.1
+(`node_modules/next/dist/server/lib/incremental-cache/index.js:213-290` : les en-têtes de la requête
+entrent dans la clé, `Accept-Language` compris), et toutes les réponses de l'API qui portent un
+`Cache-Control: public` (`grep -rn "Cache-Control\|cache.headers" routes app/Http`). Ce qui tient sans
+défaut, et n'a donc pas d'entrée : la fiche (`getProperty`) passe la langue en `Accept-Language`, que la
+clé de Next sépare ; les domaines de facettes et le sitemap ne portent aucun libellé ; `discovery` émet
+`Vary: Accept-Language, Authorization`, gardé par `CataloguePublicCacheTest` ; `search` est en
+`no-cache` + ETag calculé sur le corps ; `/api/enums/{key}` et `/api/maintenance/status` rendent les
+trois langues dans un même corps ; le cache Laravel `search:suggest:types:{locale}` porte la langue.
+Mesures par tests temporaires, retirés, sur la base de test ; charge 1,69 sur 8 cœurs. Le
+comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com` n'a pas été observé.*
+
+### `/api/search/suggest` est servie `public, max-age=60` sans `Vary: Accept-Language`, alors que son corps change avec la langue
+- Réf : P28.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Search/SuggestController.php:16-23`, `takussan-api/app/Services/Search/SuggestService.php:200-225`, `takussan-api/tests/Feature/Api/Search/SearchSuggestTest.php:226-233`, `takussan-web/src/hooks/useSuggest.ts:20-28`
+- Constat :
+  - Le contrôleur pose `Cache-Control: public, max-age=60` et aucun `Vary` (lu, l. 23). Le groupe `property_types` porte un libellé traduit par `trans()` dans la langue de la requête (lu, `SuggestService.php:222`).
+  - Mesuré : test temporaire, un bien publié de type `apartment`, `GET /api/search/suggest?q=ap&limit=10` sous `Accept-Language` `fr`, `en`, `wo` → trois corps distincts (`Appartement`, `Apartment`, `Appart` ; md5 `31a267a9…`, `f8ce5fd3…`, `5a133324…`), tous en `max-age=60, public`, `Vary: Origin` seul (posé par CORS).
+  - L'appelant est le navigateur, sur une URL qui ne porte pas la langue : `useSuggest` appelle `/api/search/suggest?q=…&limit=10` (lu, `useSuggest.ts:20-28`). La clé React Query porte la langue, pas l'URL : après un changement de langue, la même saisie redemande la même URL, et un cache HTTP sans `Vary` peut rendre le corps de l'autre langue pendant 60 s (sémantique HTTP, à vérifier au navigateur).
+  - C'est le défaut que TCK-341 a corrigé sur `discovery` et qu'il décrit dans le commentaire de `PublicPropertyController.php:336-362` (« trois corps distincts servis `public, s-maxage=300` sous UNE seule entrée de cache »). `suggest` ne l'a pas reçu.
+  - Le seul test sur l'en-tête vérifie `public` et `max-age=60` (lu, `SearchSuggestTest.php:226-233`) : il serait vert avec le défaut.
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : ajouter `Vary: Accept-Language` à la réponse, sans écraser le `Origin` de CORS (même forme que `discovery`). Garder par un test sur le modèle de `CataloguePublicCacheTest` : deux langues, deux corps distincts, et `Accept-Language` présent dans `Vary`. Une garde plus large rejouerait chaque route à `Cache-Control: public` sous deux langues et exigerait des corps identiques ou un `Vary: Accept-Language`.
+
+### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
+- Réf : P28.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
+- Constat :
+  - La route n'a que le groupe `api` et `cache.headers:public;max_age=300;etag` : ni `auth`, ni le limiteur `public-read` du groupe `public.*` (mesuré : `php artisan route:list --path=api/enums -v`).
+  - `get()` ajoute à chaque valeur un `usage_count`, compté sur toute la table `properties`, sans filtre de visibilité ni d'agence (lu, `BusinessEnumService.php:224-228`).
+  - Mesuré : test temporaire, un bien `villa` publié et deux en brouillon, `GET /api/enums/property_type` anonyme → 200, `usage_count: 3` pour `villa` (le catalogue public en compte 1). Les quatre clés (`property_type`, `contract_type`, `title_type`, `rent_period`) comptent sur `Property` (lu, `EditableBusinessEnums.php:23-41`).
+  - Aucun appelant dans le front hors de la console super-admin, qui passe par ses propres chemins (`takussan-web/src/lib/queries/super-admin.ts:707-721`) (mesuré : `grep -rn "enums" takussan-web/src`). Le corps est le même dans les trois langues (même md5 en `fr` et `en`) : il n'y a pas ici de défaut de cache par langue.
+  - Établi comment : lu et mesuré (test temporaire).
+- Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
