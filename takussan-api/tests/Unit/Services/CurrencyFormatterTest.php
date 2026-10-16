@@ -60,6 +60,21 @@ class CurrencyFormatterTest extends TestCase
         }
     }
 
+    /**
+     * TCK-726 (P26.02) — un demi s'arrondit vers le haut, comme `round()` (PHP_ROUND_HALF_UP)
+     * à l'encaissement (`amountDue()`, `PayoutCalculator`). Sans mode d'arrondi, ICU arrondit au
+     * pair : 1 250,5 s'imprimait 1 250 quand on en encaissait 1 251, et une facture PDF à
+     * 100 025 + 18 004,5 de TVA imprimait une TVA de 18 004 pour un total de 118 030.
+     */
+    public function test_a_half_rounds_up_like_the_amount_charged(): void
+    {
+        $this->assertSame('1 251 F CFA', $this->normalize($this->formatter->format(1_250.5, Currency::XOF)));
+        $this->assertSame('18 005 F CFA', $this->normalize($this->formatter->format(18_004.5, Currency::XOF)));
+        $this->assertSame('118 030 F CFA', $this->normalize($this->formatter->format(118_029.5, Currency::XOF)));
+        // 2,125 est exact en binaire : seul le mode d'arrondi décide entre 2,12 et 2,13.
+        $this->assertSame('2,13 €', $this->normalize($this->formatter->format(2.125, Currency::EUR)));
+    }
+
     public function test_parse_strips_currency_symbol_before_decoding(): void
     {
         // The locale-aware parser would otherwise stop at the `€` sign.
