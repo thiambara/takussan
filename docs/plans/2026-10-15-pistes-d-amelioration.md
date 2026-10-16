@@ -1656,7 +1656,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Les obligations qui bloquent la suppression d'un compte ne sont gardées que pour le bail actif
 - Réf : P12.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-698
 - Gravité : 🔴 garde absente
 - Où : `takussan-api/tests/Feature/Auth/AccountDeletionRequestTest.php:151-168`, `takussan-api/app/Services/Account/AccountDeletionService.php:326-375`
 - Constat :
@@ -1666,6 +1666,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré sur le clover CI, et lu.
 - Piste : un test par type d'obligation (bail résilié et échéance `Late`, facture due, réservation ouverte), plus le cas d'une restitution de caution en attente, qui ne doit pas bloquer (TCK-595 H-2).
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `AccountDeletionService::collectOpenObligations` (`:286-380`, loyers en attente `:329-333`, factures `:346-349`, réservations `:362-365`) et `AccountDeletionRequestTest.php:151` ; ablation (charge 3,04 / 8 cœurs) en ajoutant `whereRaw("false")` aux trois requêtes, puis les 13 fichiers de `tests/` qui citent la suppression de compte (`AccountDeletion*`, `AccountErasureListingsTest`, `AdminUserLifecycleTest`, `PrivacyRequestRegistryTest`, `DashboardTenantDepositRefundTest`…) → **79 verts, 376 assertions**. Code restauré. Classement : A5, des tests de bout en bout par type d'obligation (et la restitution de caution qui ne bloque pas, TCK-595 H-2) sur un comportement déjà écrit, sans toucher au code.
+- Mesure (2026-10-16, 3b6abb26, implementeur) : chaque requête de `collectOpenObligations` neutralisée par `whereRaw('false')` (loyers, factures, réservations) → les 7 tests d'`AccountDeletionRequestTest` verts → 3 tests de bout en bout sur `POST /api/auth/me/deletion-request` (bail résilié + échéance `late`, facture `overdue`, réservation `confirmed`), plus un témoin soldé (202) ; ablation, une requête à la fois → seul le test de cette obligation rouge ; filtre de statut des factures retiré → le témoin rouge ; code intact → 11 verts (43 assertions). La restitution de caution (TCK-595 H-2) est déjà gardée par `DashboardTenantDepositRefundTest`.
 
 ### La signature Orange Money n'est jamais testée en refus
 - Réf : P12.03
