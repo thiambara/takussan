@@ -2498,7 +2498,7 @@ ajoutent que des faits neufs.*
 
 ### L'anonymisation d'un compte recopie son identité d'origine dans `activity_log`, qui n'est jamais purgé
 - Réf : P19.01
-- Statut : validé — anonymiser sans journaliser, et effacer attribute_changes des lignes de ce compte
+- Statut : fait · TCK-688 — reste : les lignes dont ce compte est seulement le causeur, que le correctif ne touche pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:218-271`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/routes/console.php` (aucune entrée `activitylog:clean`), `takussan-web/src/content/legal/privacy.ts:123,129`
 - Constat :
@@ -2510,6 +2510,7 @@ ajoutent que des faits neufs.*
   - Établi comment : test temporaire `anonymize()` sur la base de test, puis lecture de `activity_log` filtrée par sujet.
 - Piste : anonymiser sans journaliser les valeurs (`$user->disableLogging()` autour du `save()`, ou une ligne `Account` sans diff), et effacer `attribute_changes` des lignes dont le sujet ou le causeur est ce compte. Un test : après `anonymize()`, aucune ligne de `activity_log` ne contient l'e-mail ni le téléphone d'origine. Ablation : retirer la coupure → rouge.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `AccountDeletionService::anonymize()` (`forceFill([...])->save()` puis `delete()`, aucune coupure du journal, lignes 218-279) et `User::getActivitylogOptions()` (`User.php:379-398`, `email`, `phone`, noms, `username` journalisés) ; `routes/console.php` sans `activitylog:clean` ; `clean_after_days = 365` ; `grep` des tickets → TCK-537 (`todo`) planifie la purge mais ne traite pas l'identité recopiée par l'anonymisation ; test temporaire `tests/Feature/Tmp/MesureurP19Test.php`, retiré depuis (charge 1,58 / 1,54 / 1,89 sur 8 cœurs), qui crée un utilisateur, le modifie puis l'anonymise → quatre lignes `default` sur ce sujet ; la ligne `updated` de l'anonymisation porte sous `attribute_changes.old` l'e-mail, le téléphone, le prénom, le nom et l'identifiant d'origine, la ligne `created` aussi ; `attribute_changes::text like` sur l'e-mail ou le numéro → 2 lignes. Constat confirmé tel qu'écrit. Classement : V3, la piste décide ce que le journal conserve d'un compte supprimé et réécrit des lignes de preuve existantes (V4 aussi pour la réécriture de l'historique).
+- Mesure (2026-10-16, 1945dbf8, implementeur) : reproduit avant correctif par `AccountDeletionExecuteTest::test_execute_ne_laisse_pas_l_identite_d_origine_dans_activity_log` (compte créé avec e-mail, téléphone, noms et identifiant, puis modifié, puis `executeDeletion()`) → rouge, 2 lignes d'`activity_log` portent encore l'e-mail d'origine ; correctif dans `anonymize()` (`disableLogging()` autour du `save()` et du `delete()`, `attribute_changes` mis à `null` sur les lignes dont le compte est le sujet) → vert ; ablation : sans `disableLogging()`, rouge (4 lignes sur le sujet au lieu de 2), sans l'effacement, rouge (1 ligne porte l'e-mail). Les lignes dont le compte n'est que le causeur ne sont pas touchées (hypothèse du ticket).
 
 ### Le numéro de téléphone survit à l'anonymisation dans `notification_delivery_attempts.to`, une table sans purge
 - Réf : P19.02
