@@ -2,9 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Document;
-use App\Models\Message;
-use App\Models\Property;
+use App\Support\Search\SearchableModels;
 use Database\Seeders\Activity\BookingPaymentSeeder;
 use Database\Seeders\Activity\BookingSeeder;
 use Database\Seeders\Activity\InventorySeeder;
@@ -46,7 +44,6 @@ use Database\Seeders\System\AgencyUpgradeRequestSeeder;
 use Database\Seeders\System\GeoReferentialSeeder;
 use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -110,20 +107,6 @@ class YearOfActivitySeeder extends Seeder
         // it stays idempotent.
         PropertyMediaSeeder::class,
         PostProcessingSeeder::class,
-    ];
-
-    /**
-     * Searchable models that must be (re)pushed to the search engine once the
-     * pipeline is done. Scout syncing is disabled during seeding (see
-     * {@see prepareEnvironment()}) so the bulk inserts never reach the engine
-     * on their own.
-     *
-     * @var array<int, class-string<Model>>
-     */
-    private const SEARCHABLE_MODELS = [
-        Property::class,
-        Document::class,
-        Message::class,
     ];
 
     /**
@@ -248,7 +231,9 @@ class YearOfActivitySeeder extends Seeder
     }
 
     /**
-     * Rebuild the search index for every searchable model. Without this the
+     * Rebuild the search index for every searchable model — the list is DERIVED
+     * from the code ({@see SearchableModels}), never written here: a hand-kept
+     * list stayed at Property/Document/Message after TCK-281 (TCK-701). Without this the
      * Meilisearch-backed endpoints (e.g. GET /public/properties/search) return
      * nothing after a fresh seed, because Scout was muted during the inserts.
      *
@@ -263,7 +248,7 @@ class YearOfActivitySeeder extends Seeder
             return;
         }
 
-        foreach (self::SEARCHABLE_MODELS as $model) {
+        foreach (SearchableModels::all() as $model) {
             $this->command?->getOutput()?->writeln("  > Reindexing {$model}");
             $model::removeAllFromSearch();
             $model::makeAllSearchable();
