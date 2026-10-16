@@ -27,7 +27,14 @@ class CustomerResource extends BaseResource
             'user_id' => $this->user_id,
             'added_by_id' => $this->added_by_id,
             'metadata' => $this->metadata,
-            'notes' => $this->notes,
+            // TCK-705 (P20.01) — `notes` est une colonne ET une relation `HasMany`. `$this->notes`
+            // retombait sur la relation quand la colonne n'était pas lue (`fields[customers]`) et
+            // la chargeait paresseusement, une requête par ligne. La colonne si elle a été lue, la
+            // relation si `include=notes` l'a chargée, rien sinon.
+            'notes' => $this->when(
+                array_key_exists('notes', $this->resource->getAttributes()) || $this->resource->relationLoaded('notes'),
+                fn () => $this->resource->notes,
+            ),
             // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite. Réservés au
             // personnel de l'agence de la fiche (verif-591 m2) : la ressource est imbriquée dans le
             // bail (`include=tenant`) et la réservation, et le bailleur lisait le budget plafond de
