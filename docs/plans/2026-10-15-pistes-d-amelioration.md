@@ -458,7 +458,7 @@ Ce qui tient (lu) :
 
 ### Les étiquettes CRM de toutes les agences sont lisibles par tout compte connecté
 - Réf : P03.03
-- Statut : validé — type crm exclu hors de l'agence du personnel, en index et en show
+- Statut : fait · TCK-666
 - Gravité : 🔴 défaut avéré, impact modéré (des libellés, pas des fiches)
 - Où : `takussan-api/app/Http/Controllers/Api/TagController.php:18-45,67-77`, `takussan-api/app/Http/Controllers/Api/CustomerTagController.php:60-66`, `takussan-api/app/Models/Tag.php:21-23`
 - Constat :
@@ -469,6 +469,7 @@ Ce qui tient (lu) :
   - Aucun test entre deux agences (lu).
 - Piste : exclure le type `crm` hors de l'agence du personnel, dans `index` comme dans `show`, et un test entre deux agences.
 - Mesure (2026-10-15, c8f7f127, mesureur) : lu `TagController.php:17-46,62-73` (le périmètre d'agence n'agit que si `filter[type]=crm` est envoyé et `agency_id` non nul ; `show` ne regarde que le statut) et `Tag.php:21-23` (statut `approved` par défaut) ; test temporaire, retiré depuis, étiquette CRM créée comme `CustomerTagController` la crée et posée sur un client de l'agence A, compte `customer` sans agence → `GET /api/tags` la liste (200) et `GET /api/tags/{id}` la rend (200). Non re-mesuré : l'angle mort de `check-agency-scope-clause.mjs`. Classement : V2, exclure le type `crm` hors de l'agence du personnel restreint une lecture que des appelants légitimes (autocomplétion des étiquettes) utilisent aujourd'hui.
+- Mesure (2026-10-16, 1efd784a, implementeur) : `TagCrmAgencyScopeTest` avant correctif, agences A et B chacune avec un client étiqueté CRM → 3 rouges sur 4 : un agent de A, un compte sans agence et un bailleur de A listent l'étiquette de B (le bailleur lit aussi celle de A) ; la console passait déjà. Correctif : scope `Tag::sansCrmHorsDeSonAgence()` (personnel par `staffAgencyId()`) en index et en show (404). Ablation : contrôleur d'origine → 3 rouges ; garde de `show` seule retirée → 3 rouges ; `agency_id` au lieu de `staffAgencyId()` → le cas du bailleur rouge ; remis → 4 verts.
 
 ### Sous impersonation, l'opérateur lit en clair les comptes de reversement de la cible
 - Réf : P03.04
@@ -571,7 +572,7 @@ contre le code par la session.*
 
 ### Restitution de caution : le champ refuse tout montant rond
 - Réf : P04.04
-- Statut : validé — step="any" et min={1}, zod reste la seule borne
+- Statut : fait · TCK-670
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/leases/DepositRefundModal.tsx:171-172`
 - Constat :
@@ -582,6 +583,7 @@ contre le code par la session.*
   - La modale est simulée dans son seul test.
 - Piste : `step="any"` ou `step={1}` avec `min={1}`, ou passer par `FormAmountInput`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : lu `DepositRefundModal.tsx:158-172` (`<form>` sans `noValidate`, `min={0.01} step={1000}`), `CreateLeaseForm.tsx:233,243,253` et `LeaseRenewalDialog.tsx:230,251` (`step={1000}`) ; mesuré sous jsdom (`node -e`, `validity.stepMismatch`) → `min=0.01 step=1000` : 150000 → `true`, 150000.01 → `false` ; `min=0 step=1000` : 152500 → `true`, 150000 → `false`. Le constat tient tel qu'écrit. Classement : V1, le correctif change les montants qu'un écran de restitution, de bail et de renouvellement peut envoyer, et le choix du pas (`any`, `1`, `FormAmountInput`) en est un ; dans le doute, à valider.
+- Mesure (2026-10-16, 8ff39d7a, implementeur) : reproduit avant correctif par `leases/__tests__/montants-hors-pas.test.tsx` → le montant pré-rempli 150 000 de `DepositRefundModal` est en `stepMismatch` (`min=0.01 step=1000`) et le clic sur « Confirmer le remboursement » n'appelle pas l'API ; un loyer de 152 500 en `stepMismatch` dans `CreateLeaseForm` et `LeaseRenewalDialog` (cas ajouté à `LeaseRenewalDialog.test.tsx`) → `min={1} step="any"` sur les montants que zod veut positifs, `step="any"` avec `min={0}` gardé sur les cautions (zod `nonnegative`) ; 6 rouges avant, 9 verts après ; ablation (six composants remis) → les mêmes 6 rouges, correctif remis → verts. Traité avec P08.03.
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
@@ -813,7 +815,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Les PDF (bail, état des lieux, quittances, facture) sont en français seulement, avec des dates dans une autre langue
 - Réf : P06.03
-- Statut : validé — les actes restent en français : dates et titres forcés en fr ; reste : les trois lignes d'ADR qui posent que les actes restent en français, par le porteur
+- Statut : fait · TCK-672 — reste : les trois lignes d'ADR qui posent que les actes restent en français, par le porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/resources/views/pdf/leases/contract.blade.php`, `inventories/report.blade.php`, `receipts/rent.blade.php:22`, `receipts/booking.blade.php`, `invoices/default.blade.php`, `layouts/base.blade.php:18`, `takussan-api/app/Services/Pdf/DocumentPdfService.php:143`
 - Constat :
@@ -824,6 +826,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Aucun ADR ne dit que ces actes sont en français par choix (mesuré par script).
 - Piste : décider par ADR (français juridique, ou acte bilingue), puis passer par `lang/*`.
 - Mesure (2026-10-15, f74f3d21, mesureur) : compté `__(`/`@lang`/`trans(` par gabarit → 0 dans `leases/contract`, `inventories/report`, `receipts/rent`, `receipts/booking` et `invoices/default`, 17 dans `statements/owner`, 1 dans `maintenance/quote` ; lu `layouts/base.blade.php:18` (`<html lang="fr">`), `receipts/rent.blade.php:12` (`translatedFormat('F Y')` ; le constat citait la l. 22), `InventoryController.php:209` et `PaymentReceiptPdf.php:58` (titres en dur ; ce dernier vit sous `app/Services/Payments/`) → le constat tient. Classement : V6, la piste elle-même demande un ADR (français juridique ou acte bilingue), et la langue d'un bail signé est un choix de produit.
+- Mesure (2026-10-16, a29376a5, implementeur) : `ActesPdfEnFrancaisTest` avant correctif, pilote PDF remplacé par un pilote qui garde le HTML → la quittance demandée en `Accept-Language: en` imprime « October 2026 », rendue sous `wo` « Oktoobar 2026 » (2 rouges) ; les titres passés par les appelants sont déjà des littéraux français → `DocumentPdfService::render()` rend les cinq gabarits d'actes sous `withLocale('fr')`, « Octobre 2026 » dans les deux cas et locale du lecteur rendue après ; ablation (forçage retiré) → 2 rouges, `fr` forcé partout → le relevé de gérance traduit rougit (« Management statement » perdu) ; remis → 3 verts.
 
 ### Des messages de validation en français en dur, servis tels quels en `en` et `wo`
 - Réf : P06.04
@@ -840,7 +843,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Dates du site public figées en `fr-FR`
 - Réf : P06.05
-- Statut : validé — site public seulement, par useFormatteurs ; reste : l'espace /app, et le cliquet de la garde descendu par le porteur
+- Statut : retenu · à valider — chemin fermé : scripts/check-locale-figee.mjs (V9, distinct du V8 accordé) : la garde échoue quand le compte descend sous PLAFOND_RESTE = 20, donc le site public ne se corrige pas sans descendre le cliquet dans le même diff, que la précision réserve au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `takussan-web/src/components/public/profile/ReviewsSection.tsx:23`
 - Constat :
@@ -850,6 +853,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `check-locale-figee.mjs` les tolère dans son cliquet (mesuré).
 - Piste : `useFormatteurs()`, et faire descendre le plafond du cliquet.
 - Mesure (2026-10-15, 5e758845, mesureur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16` et `ReviewsSection.tsx:23` (`toLocaleDateString('fr-FR', …)` quelle que soit la locale) et les sites cités, lignes inchangées, sauf `PropertyList.tsx:504`, qui fige `'fr-SN'` par `Intl.DateTimeFormat` et non `'fr-FR'` ; `grep -rn "toLocaleString()" components/leases` → 7 hors tests ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20) et console hors périmètre 1 (`lib/utils.ts`) ; `lib/format.ts:75-79` a déjà tranché `fr → 'fr-SN'` et `useFormatteurs()` existe → le constat tient. Classement : V8, TCK-347 (`todo`, estimé L) décrit déjà ce delta avec des comptes périmés (86 sites) ; le reprendre ou le découper, et faire descendre les cliquets de la garde (V9), revient au porteur.
+- Mesure (2026-10-16, 964d9f59, implementeur) : lu `PropertyReviews.tsx:32`, `PropertyPriceHistory.tsx:16`, `ReviewsSection.tsx:23` → `toLocaleDateString('fr-FR', …)` inconditionnel, le défaut tient ; `node scripts/check-locale-figee.mjs --report` → reste du dépôt 20 (cliquet 20), dont ces trois fichiers à 1 chacun ; essai sur l'arbre (une seule ligne de `PropertyReviews.tsx` passée à la locale, puis remise) → `✗ RESTE DU DÉPÔT : 19 occurrence(s) hors consoles, alors que le cliquet dit 20`, sortie 1. Le correctif validé fait donc descendre le compte à 17 et exige `PLAFOND_RESTE = 17` dans le même diff ; `scripts/check-pistes.mjs` refuse toute modification d'une garde existante (V9), et la précision garde ce cliquet au porteur. Classement : chemin fermé (V9) ; aucune ligne de code écrite. Deux voies pour le porteur : descendre lui-même le cliquet avec le correctif, ou rendre la précision compatible (par exemple, cliquet descendu dans la même PR).
 
 ### Wolof : 334 valeurs identiques au français, dont des phrases d'interface
 - Réf : P06.06
@@ -1136,12 +1140,13 @@ Sain (vérifié par l'agent) :
 
 ### Un montant hors pas bloque l'envoi des formulaires de bail et de paiement
 - Réf : P08.03
-- Statut : validé — step="any" et min={1}, zod reste la seule borne
+- Statut : fait · TCK-670
 - Gravité : 🔴 défaut avéré — même famille que « Restitution de caution » à l'angle 4
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx:233,243,253`, `LeasePaymentDialog.tsx:92`, `DepositRefundModal.tsx:172`, `bookings/BookingPaymentDialog.tsx:91`, `payments/CreateInvoiceDialog.tsx:227`
 - Constat : `FormInput` transmet `step` (`components/forms/FormInput.tsx:90`), et aucun de ces 5 formulaires n'a `noValidate`. Un loyer de 75 500 ou un paiement de 12 350 sont refusés avant `onSubmit` (lu).
 - Piste : retirer `step` (zod valide déjà), ou poser `noValidate`. À traiter avec l'angle 4, en un seul ticket.
 - Mesure (2026-10-15, 25820d04, mesureur) : relu `FormInput.tsx` (`...inputProps` transmet `step` et `min` à l'`<input>`) et les cinq `<form>` cités, aucun avec `noValidate` ; `step` toujours présent à `CreateLeaseForm.tsx:233,243,253` (1000), `LeasePaymentDialog.tsx:92` et `BookingPaymentDialog.tsx:91` (100), `DepositRefundModal.tsx:172` (1000, avec `min={0.01}`), `CreateInvoiceDialog.tsx:227` (100) ; test vitest temporaire (retiré) qui soumet un `FormInput type=number` dans un `<form>` par un clic → `min=0 step=100` : 12350 → `stepMismatch`, 0 envoi ; `min=0 step=1000` : 75500 → 0 envoi ; `min=0.01 step=1000` : 50000 → 0 envoi ; témoin 12300 → 1 envoi. Le constat tient, et `DepositRefundModal` refuse même les montants ronds. Classement : V1, le correctif élargit les montants qu'un écran d'argent peut envoyer, et la piste le lie à P04.10 (déjà classé V1) en un seul ticket.
+- Mesure (2026-10-16, 8ff39d7a, implementeur) : reproduit avant correctif par `leases/__tests__/montants-hors-pas.test.tsx` → 12 350 en `stepMismatch` dans `LeasePaymentDialog` et `BookingPaymentDialog` (`step=100`), 152 500 et 75 500 dans `CreateLeaseForm` (`step=1000`), un prix unitaire de 12 350 dans `CreateInvoiceDialog` (`step=100`) → `step="any"` partout, `min={1}` sur les paiements, `min={0}` gardé sur `unit_price` (zod `nonnegative`) ; ablation → rouges, correctif remis → verts. Traité avec P04.04 dans TCK-670.
 
 ### Les marges de zone sûre sont sans effet : pas de `viewport-fit=cover`
 - Réf : P08.04

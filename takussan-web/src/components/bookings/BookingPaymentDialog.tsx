@@ -87,8 +87,8 @@ export function BookingPaymentDialog({
             type="number"
             label={t('fields.amount')}
             required
-            min={0}
-            step={100}
+            min={1}
+            step="any"
           />
           <FormSelect<BookingPaymentFormValues>
             control={form.control}
