@@ -95,7 +95,15 @@ class ReconciliationMatcher
             $dateColumn = $modelClass === Invoice::class ? 'issue_date' : 'paid_at';
             $query->whereBetween($dateColumn, [$windowStart, $windowEnd]);
 
-            $results = $query->get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn]);
+            // TCK-706 (P25.03) — la clé du payeur, et sa relation chargée d'avance : sans elle,
+            // `resolvePayerName()` lisait une relation `null` et la règle 80 ne s'appliquait jamais.
+            [$payerKey, $payerRelation] = $modelClass === Invoice::class
+                ? ['customer_id', 'customer']
+                : ['payer_id', 'payer'];
+
+            $results = $query
+                ->with("{$payerRelation}:id,first_name,last_name")
+                ->get(['id', $amountColumn, 'currency', 'reference_number', $dateColumn, $payerKey]);
 
             foreach ($results as $row) {
                 $candidates->push((object) [
