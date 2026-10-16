@@ -714,7 +714,7 @@ garde. La CI et le rituel de fin de branche continuent de jouer la suite entièr
 répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un repli par prudence.
 
 La carte (`tests/impact-map.json`) est **dérivée, jamais éditée à la main** — même règle que
-`docs/backlog/INDEX.md`. `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
+`docs/backlog/INDEX.md` (qui, lui, n'est même plus versionné — ADR-0067). `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
 elle se régénère avec `php bin/build-impact-map.php <rapport-de-couverture> tests/impact-map.json`
 à partir d'un rapport `--coverage-php` produit par **PHPUnit invoqué directement** :
 

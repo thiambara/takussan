@@ -619,5 +619,5 @@ npm run build
 - `docs/design-guidelines.md` — UI / UX
 - `docs/plans/2026-04-18-seeding-annee-activite.md` — plan d'origine du seeding démo (archive : le
   raisonnement, pas l'état ; la source est `takussan-api/database/seeders/`)
-- `docs/backlog/INDEX.md` — kanban des tickets
+- `docs/backlog/INDEX.md` — kanban des tickets, généré à la demande (`node docs/backlog/gen-index.mjs`), non versionné (ADR-0067)
 - `CLAUDE.md` — règles agent / monorepo

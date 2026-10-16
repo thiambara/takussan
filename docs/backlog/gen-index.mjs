@@ -14,14 +14,20 @@
  *
  * Usage :
  *   node docs/backlog/gen-index.mjs            # réécrit INDEX.md
- *   node docs/backlog/gen-index.mjs --check    # n'écrit rien ; sort en 1 si INDEX.md est périmé
+ *   node docs/backlog/gen-index.mjs --check    # n'écrit rien ; sort en 1 si la source est incohérente
+ *
+ * INDEX.md n'est PLUS VERSIONNÉ depuis ADR-0067 (2026-10-16) : il est ignoré par git et se génère à
+ * la demande. Versionné, il entrait en conflit entre deux PR ouvertes ensemble dès que chacune
+ * ajoutait un ticket, et deux PR vertes fusionnées coup sur coup laissaient un index périmé sans
+ * aucun conflit — `pre-dev` est restée rouge ainsi. Une vue dérivée n'a rien à faire dans git.
  *
  * Ce script CASSE sur une source incohérente (statut inconnu, vague inexistante, id dupliqué) —
  * il vaut mieux ne rien générer qu'un index faux. La fraîcheur du contenu, elle, est l'affaire de
- * `check-backlog.mjs` : celui-ci garantit que la SORTIE suit la SOURCE, l'autre que la SOURCE suit
- * la RÉALITÉ. Aucun des deux ne peut voir ce que voit l'autre.
+ * `check-backlog.mjs` : celui-ci garantit que la SOURCE est cohérente (et la sortie, rendue à la
+ * demande, la suit par construction), l'autre que la SOURCE suit la RÉALITÉ. Aucun des deux ne peut
+ * voir ce que voit l'autre.
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -255,14 +261,12 @@ L.push('');
 
 const rendu = L.join('\n');
 
+// `--check` ne compare plus rien : INDEX.md n'est plus versionné (ADR-0067), il n'y a pas de copie
+// de référence à laquelle confronter le rendu. Ce qui reste à garder, c'est la SOURCE : arrivé ici,
+// elle s'est rendue sans erreur (id dupliqué, statut ou vague inconnus casseraient plus haut).
 if (CHECK) {
-  const actuel = existsSync(SORTIE) ? readFileSync(SORTIE, 'utf8') : '';
-  if (actuel === rendu) {
-    console.log('✓ INDEX.md est à jour de ses frontmatters.');
-    process.exit(0);
-  }
-  console.error('✗ INDEX.md est périmé — lancer `node docs/backlog/gen-index.mjs`.');
-  process.exit(1);
+  console.log(`✓ la source du backlog se rend sans erreur — ${tickets.length} tickets, rien n'a été écrit.`);
+  process.exit(0);
 }
 
 writeFileSync(SORTIE, rendu);
