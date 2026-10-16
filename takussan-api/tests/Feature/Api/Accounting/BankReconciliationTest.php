@@ -20,6 +20,7 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
+use App\Services\Model\LeasePaymentService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -362,6 +363,79 @@ class BankReconciliationTest extends TestCase
         $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
         $this->assertSame(LeasePayment::class, $line->matched_payment_type);
         $this->assertSame($payment->id, $line->matched_payment_id);
+    }
+
+    public function test_la_recherche_manuelle_trouve_l_echeance_payee_en_ligne_penalite_comprise(): void
+    {
+        // TCK-715 (P25.01) — l'échéance de l'AC14, payée en ligne 157 500. Le dialogue de recherche
+        // s'ouvre au montant de la ligne : la recherche comparait `amount` (150 000) et rendait `[]`.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+        $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
+
+        $found = $this->searchCredit($ctx['agency'], 157_500);
+
+        $this->assertSame([['lease_payment', $ctx['payment']->id]], $found);
+    }
+
+    public function test_apres_un_checkout_abandonne_puis_un_virement_le_montant_attendu_est_celui_de_l_echeance(): void
+    {
+        // TCK-715 (P25.02) — un checkout de 157 500 (pénalité comprise) ouvert puis abandonné ;
+        // trois heures plus tard, le loyer est enregistré payé par virement (150 000). Le montant
+        // figé du checkout restait sur la ligne, et le matcher le préférait à `amount`.
+        $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
+
+        $this->travel(3)->hours();
+        app(LeasePaymentService::class)->markPaid($ctx['payment']->refresh(), ['payment_method' => 'bank_transfer']);
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertEquals(157_500, $payment->metadata['gateway_expected_amount']);
+
+        $statement = BankStatement::factory()->create([
+            'agency_id' => $ctx['agency']->id,
+            'status' => BankStatementStatus::ReadyForReview,
+        ]);
+        $line = BankStatementLine::factory()->create([
+            'bank_statement_id' => $statement->id,
+            'direction' => BankStatementLineDirection::Credit,
+            'amount' => 150_000,
+            'currency' => 'XOF',
+            'posted_at' => now()->addDay()->toDateString(),
+            'reference' => null,
+            'counterparty' => null,
+        ]);
+
+        (new MatchBankStatementJob($statement->id))->handle(app(ReconciliationMatcher::class));
+
+        $line->refresh();
+        $this->assertSame(BankStatementLineMatchStatus::Suggested, $line->match_status);
+        $this->assertSame(LeasePayment::class, $line->matched_payment_type);
+        $this->assertSame($payment->id, $line->matched_payment_id);
+
+        // La recherche manuelle suit la même règle : le montant de l'échéance, pas celui du checkout.
+        $this->assertSame([['lease_payment', $payment->id]], $this->searchCredit($ctx['agency'], 150_000));
+        $this->assertSame([], $this->searchCredit($ctx['agency'], 157_500));
+    }
+
+    /** @return list<array{0: string, 1: int}> */
+    private function searchCredit(Agency $agency, int $amount): array
+    {
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $agency->update(['primary_admin_id' => $admin->id]);
+
+        return array_map(
+            fn ($c) => [$c['type'], $c['id']],
+            $this->actingAs($admin)
+                ->getJson("/api/agencies/{$agency->id}/bank-statements/payment-search?amount={$amount}&direction=credit")
+                ->assertOk()
+                ->json('data'),
+        );
     }
 
     public function test_la_regle_contrepartie_s_applique_aux_encaissements(): void

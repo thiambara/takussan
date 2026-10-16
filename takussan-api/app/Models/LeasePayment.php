@@ -8,6 +8,7 @@ use App\Models\Concerns\HasPaymentAttributes;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -117,6 +118,31 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         $agencyId = $this->lease()->value('agency_id');
 
         return $agencyId !== null ? (int) $agencyId : null;
+    }
+
+    /**
+     * TCK-715 (P25.01, P25.02) — le montant attendu sur le compte de l'agence, à `$tolerance` près.
+     * Une seule expression, partagée par le matcher (`ReconciliationMatcher`) et la recherche
+     * manuelle (`PaymentSearchService`).
+     *
+     * Le montant figé à l'initiation du checkout (`metadata.gateway_expected_amount`, pénalité
+     * comprise quand l'agence l'encaisse en ligne, TCK-593) ne se lit que si l'échéance a été
+     * soldée EN LIGNE : `metadata.gateway.settled_by` porte alors l'identifiant de la transaction.
+     * Un règlement manuel y pose `manual` (`PaymentGatewayService::markManualSettlement`), et le
+     * montant figé d'un checkout abandonné ne dit plus rien de l'argent reçu : `amount`.
+     */
+    public function scopeWhereExpectedAmountNear(Builder $query, float $amount, float $tolerance): Builder
+    {
+        $metadata = $query->qualifyColumn('metadata');
+        $settledBy = "({$metadata}->'gateway'->>'settled_by')";
+        $rowAmount = $query->qualifyColumn('amount');
+
+        return $query->whereRaw(
+            "ABS(CASE WHEN {$settledBy} IS NOT NULL AND {$settledBy} <> ? "
+            ."THEN COALESCE(({$metadata}->>'gateway_expected_amount')::numeric, {$rowAmount}) "
+            ."ELSE {$rowAmount} END - ?) < ?",
+            [PaymentGatewayService::SETTLED_MANUALLY, $amount, $tolerance],
+        );
     }
 
     /**

@@ -84,12 +84,14 @@ class ReconciliationMatcher
             $amountColumn = $modelClass === Invoice::class ? 'total_amount' : 'amount';
 
             // TCK-593 — une échéance payée en ligne arrive sur le compte pour le montant FIGÉ à
-            // l'initiation (`metadata.gateway_expected_amount`), pénalité comprise quand l'agence
-            // l'encaisse en ligne : 157 500, pas 150 000. Le montant de l'échéance en repli.
-            $amountExpression = $modelClass === LeasePayment::class
-                ? "COALESCE((metadata->>'gateway_expected_amount')::numeric, amount)"
-                : $amountColumn;
-            $query->whereRaw("ABS({$amountExpression} - ?) < 0.01", [$amount]);
+            // l'initiation, pénalité comprise quand l'agence l'encaisse en ligne : 157 500, pas
+            // 150 000. TCK-715 — l'expression vit sur le modèle, partagée avec la recherche
+            // manuelle, et ne lit le montant figé que d'une échéance soldée en ligne.
+            if ($modelClass === LeasePayment::class) {
+                $query->whereExpectedAmountNear($amount, 0.01);
+            } else {
+                $query->whereRaw("ABS({$amountColumn} - ?) < 0.01", [$amount]);
+            }
 
             // Date window
             $dateColumn = $modelClass === Invoice::class ? 'issue_date' : 'paid_at';
