@@ -1353,7 +1353,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Aucune borne de dimensions : une bombe de décompression tue la requête
 - Réf : P10.02
-- Statut : validé — refus au-delà de 20 Mpx (getimagesize sans décoder)
+- Statut : fait · TCK-677
 - Gravité : 🔴 défaut avéré (OOM calculé, non mesuré)
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyMediaRequest.php:37`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Models/Property.php:778`, `takussan-api/app/Models/Concerns/HasMediaConversions.php:26-28`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -1365,6 +1365,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu, mémoire estimée par calcul.
 - Piste : refuser au-delà d'un nombre de pixels donné (`dimensions:max_width=…,max_height=…`, ou `getimagesize` sans décoder) avant `addMedia`.
 - Mesure (2026-10-15, 25820d04, mesureur) : `grep -rn 'dimensions:' app/Http` → vide ; relu `StorePropertyMediaRequest.php:37` (`max:10240`), `UpdateProfileRequest.php:50` (`avatar` : `image`, `max:2048`), `Property.php:778` et `HasMediaConversions.php:26-28` (`thumbnail` en `nonQueued`), `config/media-library.php:229` (pilote `gd`) ; mesuré en CLI : un PNG uni de 9 000 × 9 000 pèse **237 Ko**, et `imagecreatefrompng` + `imagescale` sous `memory_limit=256M` **réussit** avec un pic PHP de 2 Mo et un RSS de **715 Mo** (`/usr/bin/time -l`). Le constat est inexact sur le mécanisme : GD alloue hors du gestionnaire de mémoire de PHP, `memory_limit` ne l'arrête pas, et il n'y a pas d'erreur fatale ; le risque réel est la mémoire du conteneur (≈ 8,8 o/pixel mesurés, soit plusieurs Go pour 20 000 × 20 000), non mesurée ici. Classement : V7, choisir le plafond (une photo de téléphone de 48 Mpx doit passer) décide quelles images sont refusées.
+- Mesure (2026-10-16, e5a71ad8, implementeur) : avant correctif, un PNG réduit à son en-tête annonçant 9 000 × 9 000 passait la validation de `POST /api/properties/{id}/media` (l'échec venait de GD, en `photo_unprocessable`) et rendait **500** sur `PUT /api/auth/profile` (« gd-png: fatal libpng error ») → règle `PixelsAuPlus` (`getimagesize`, refus au-delà de 20 000 000 pixels, message `validation.dimensions`) sur `photos.*` et `avatar` ; 8 tests (`PixelsAuPlusTest`, `PropertyMediaTest`, `AuthProfileTest`) verts ; ablation : règle retirée des deux FormRequests → 2 rouges, `>` changé en `>=` → 1 rouge, remis → verts.
 
 ### Les limites de taille, couche par couche, ne laissent pas passer 20 photos
 - Réf : P10.03
