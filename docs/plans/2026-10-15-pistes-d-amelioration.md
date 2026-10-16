@@ -2434,7 +2434,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Les impressions de la rangée vedette de l'accueil ne peuvent jamais devenir des clics
 - Réf : P18.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-704
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`, `takussan-web/src/components/property/HomepageDiscovery.tsx:207-217`, `takussan-web/src/components/boost/EmplacementSponsorise.tsx:37`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:9-25`, `takussan-api/app/Http/Controllers/Api/Admin/AdminBoostStatsController.php:15-37`
 - Constat :
@@ -2443,6 +2443,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - La console super-admin somme toutes les impressions et tous les clics par jour, sans distinguer la surface (lu, `AdminBoostStatsController.php:15-19`). Le taux de clic affiché mêle donc des impressions de l'accueil, dont aucune ne peut produire un clic, à celles de la recherche. Il est biaisé vers le bas d'une part inconnue.
 - Piste : marquer l'arrivée depuis la rangée vedette, comme le fait l'emplacement de recherche. Ou ne pas compter cette rangée, et le dire dans l'ADR. Un test front : un clic sur une carte de la rangée vedette pose le marqueur.
 - Mesure (2026-10-15, 48195c53, mesureur) : lu `HomepageDiscoveryService.php:107-113` (la rangée vedette compte une impression par bien servi), `arrivee-sponsorisee.ts:9-25`, `AdminBoostStatsController.php:15-37` (somme toutes surfaces) ; `grep -rln "EmplacementSponsorise\|marquerArriveeSponsorisee" takussan-web/src` → seuls `EmplacementSponsorise.tsx`, `arrivee-sponsorisee.ts`, `PropertiesDiscoveryPage.tsx` et deux tests ; `PropertyRow.tsx` ne marque rien (lu, l. 147 et 265). L'ADR-0061 § 7 fait de la rangée vedette un emplacement et le § 10 définit le clic comme « une vue de la fiche arrivée par un lien d'emplacement ». Classement : A1, le comportement attendu est écrit dans l'ADR-0061 ; le correctif marque l'arrivée (`marquerArriveeSponsorisee(slug)`) au clic d'une carte de la rangée vedette, sans rien changer à l'affichage, et la variante « ne pas compter cette rangée » de la piste n'est pas couverte par ce classement.
+- Mesure (2026-10-16, b14cd410, implementeur) : reproduit avant correctif : `grep -rn marquerArriveeSponsorisee takussan-web/src` → seul `EmplacementSponsorise.tsx` l'appelle, et `PropertyRow` ne pose aucun écouteur ; nouveaux tests rouges sur l'arbre d'origine (clic sur la carte « Bien 2 » d'une rangée `emplacementSponsorise` → `consommerArriveeSponsorisee('bien-2')` faux ; aucune rangée de l'accueil n'est un emplacement) → `PropertyRow` note l'arrivée du bien cliqué quand `emplacementSponsorise` est posée, et seule la rangée vedette de l'accueil la pose (`PropertyCard.robe.test.tsx`, `HomepageDiscovery.test.tsx`, 27 verts) ; ablation de l'écouteur puis de l'option, un rouge chaque fois, puis vert. La variante « ne pas compter cette rangée » n'est pas prise.
 
 ### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
 - Réf : P18.03

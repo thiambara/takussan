@@ -1,7 +1,7 @@
 ---
 id: TCK-704
 title: "Rangée vedette de l'accueil : un clic sur une carte marque l'arrivée sponsorisée"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -48,18 +48,18 @@ vue de la fiche consomme déjà (`CompteurDeVue`).
 
 ## Delta à produire
 
-- [ ] `PropertyRow` : une option `emplacementSponsorise` ; quand elle est posée, un clic sur un lien
+- [x] `PropertyRow` : une option `emplacementSponsorise` ; quand elle est posée, un clic sur un lien
       d'une carte note l'arrivée sponsorisée du bien de cette carte. Rien ne change à l'affichage.
-- [ ] `HomepageDiscovery` : la rangée vedette passe cette option, et elle seule.
-- [ ] Tests : `PropertyCard.robe.test.tsx` (le clic marque, et une rangée sans l'option ne marque
+- [x] `HomepageDiscovery` : la rangée vedette passe cette option, et elle seule.
+- [x] Tests : `PropertyCard.robe.test.tsx` (le clic marque, et une rangée sans l'option ne marque
       rien) et `HomepageDiscovery.test.tsx` (seule la rangée vedette est un emplacement).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — dans une rangée `emplacementSponsorise`, un clic sur le lien d'une carte rend
+- [x] AC1 — dans une rangée `emplacementSponsorise`, un clic sur le lien d'une carte rend
       `consommerArriveeSponsorisee(<slug de cette carte>)` vrai, une seule fois.
-- [ ] AC2 — dans une rangée sans l'option, le même clic ne note rien.
-- [ ] AC3 — sur l'accueil, la rangée vedette porte l'option ; les rangées « Près de toi »,
+- [x] AC2 — dans une rangée sans l'option, le même clic ne note rien.
+- [x] AC3 — sur l'accueil, la rangée vedette porte l'option ; les rangées « Près de toi »,
       « À louer », « À vendre » et « Dernières annonces » ne la portent pas.
 
 ## Hors périmètre
@@ -70,4 +70,10 @@ vue de la fiche consomme déjà (`CompteurDeVue`).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : retirer `onClickCapture` du défileur de `PropertyRow` → AC1 rouge (le slug
+  n'est pas noté), le reste vert ; retirer `emplacementSponsorise` de la rangée vedette dans
+  `HomepageDiscovery` → AC3 rouge ; remis → 27 verts sur les deux fichiers.
+- **Piège** : la carte ne peut pas être enveloppée. `DISPOSITIONS` impose la largeur à chaque
+  enfant DIRECT du défileur (`[&>*]:w-…`, `snap-start`) : un `<li>` ou un `<div>` autour de la carte
+  casserait la mise en page. L'écouteur est posé une fois, en capture, sur le défileur, et le bien
+  se retrouve par le rang de l'enfant qui contient le lien cliqué.
