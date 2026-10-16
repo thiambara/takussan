@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**611 tickets** — 45 ouverts, 564 livrés.
+**613 tickets** — 45 ouverts, 566 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 564 |
+| ✅ Done | 566 |
 | 🗑️ Obsolete | 2 |
 
 ## Légende
@@ -91,7 +91,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 564
+## ✅ Done — 566
 
 <details>
 <summary><strong>Vague 79 — Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)</strong> — 1 ticket</summary>
@@ -1015,7 +1015,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 51 tickets</summary>
+<summary><strong>Sans vague</strong> — 53 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -1066,8 +1066,10 @@ _(aucun)_
 - [TCK-663](tickets/TCK-663-quartier-du-panneau-trouve-ses-biens.md) — Recherche : le quartier proposé par le panneau trouve les biens de ce quartier `S · P0 · bug`
 - [TCK-664](tickets/TCK-664-changement-de-role-garde-comme-le-retrait.md) — Le changement de rôle d'un membre suit les gardes du retrait et de la suspension `S · P0 · bug`
 - [TCK-665](tickets/TCK-665-liste-d-equipe-bornee-a-l-agence.md) — La liste d'équipe ne livre que les profils et rôles tenus dans l'agence active `S · P0 · bug`
+- [TCK-667](tickets/TCK-667-echeance-trimestrielle-ou-annuelle-facture-tous-ses-mois.md) — Échéancier : une échéance trimestrielle ou annuelle facture tous les mois de sa période `S · P1 · bug`
 - [TCK-668](tickets/TCK-668-revision-de-loyer-reecrit-les-echeances.md) — La révision de loyer réécrit les échéances pending dont la période commence à sa date d'effet `S · P0 · bug`
 - [TCK-670](tickets/TCK-670-montants-jamais-refuses-par-le-pas-natif.md) — Un montant n'est jamais refusé par le pas natif du champ : restitution de caution, bail, paiements, facture `S · P0 · bug`
+- [TCK-671](tickets/TCK-671-avis-systeme-des-groupes-role-et-apercu-traduits.md) — Avis système des groupes : le rôle se lit et se traduit, l'aperçu de la liste se dérive de l'événement `S · P0 · bug`
 
 </details>
 
