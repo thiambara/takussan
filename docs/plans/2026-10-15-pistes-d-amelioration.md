@@ -358,12 +358,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Export synchrone jusqu'à 50 000 modèles complets
 - Réf : P02.07
-- Statut : validé — colonnes sélectionnées ; plafond de 10 000 lignes (2 000 en PDF)
+- Statut : fait · TCK-713
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Export/ExportDataService.php:109,139,463-467`, `takussan-api/app/Http/Controllers/Api/ExportController.php:82`
 - Constat : `limit(≤ 50 000)->get()` sans `select`, jsonb compris, pendant la requête HTTP (lu).
 - Piste : sélectionner les colonnes exportées, `lazyById()` avec une réponse en flux, ou une tâche en file au-delà d'un seuil.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `ExportDataService.php:103-128,134-140,455-467` (`limit(≤ 50 000)->get()` sans `select`, puis `map` en tableau), `ShowExportRequest.php:32,35` (`limit` jusqu'à 50 000, formats `csv`, `xlsx`, `pdf`), `ExportController.php:82` (`collect()` pendant la requête) et le rédacteur d'export (`csv()` diffuse un tableau déjà chargé en entier). Classement : V7, sélectionner les colonnes serait A2, mais le défaut porté par l'entrée (50 000 lignes, PDF compris, dans la requête HTTP) ne se ferme qu'en changeant ce que l'utilisateur reçoit : un flux, une tâche en file avec notification, ou un plafond plus bas.
+- Mesure (2026-10-16, 8ca7d33f, implementeur) : reproduit avant correctif par `ExportColonnesEtPlafondTest` → les neuf exports lisent `select * from "<table>"`, `limit=10001` et `format=pdf&limit=2001` rendent 200, un PDF sans `limit` demande `limit 5000` (12 rouges sur 14) → `select` des colonnes exportées sur les neuf requêtes, `limit` au plus 10 000 (2 000 en PDF) dans `ShowExportRequest`, défaut ramené à 2 000 en PDF ; 14 verts sous `preventAccessingMissingAttributes`, ablation → 12 rouges, `metadata` retirée du `select` de la balance âgée → reste dû faux, rouge.
 
 ### La liste pro des biens fait six requêtes HTTP, dont deux en série
 - Réf : P02.08
