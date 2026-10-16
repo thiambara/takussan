@@ -13,6 +13,8 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -235,6 +237,40 @@ class SmsRouterDriverTest extends TestCase
         Queue::assertPushed(SendDeferredSmsJob::class);
 
         CarbonImmutable::setTestNow(); // reset
+    }
+
+    /**
+     * TCK-678 (piste P11.03) — le SMS reporté la nuit attend dans la table `jobs`, avec son texte
+     * déjà rendu (lien de paiement, de quittance, d'invitation) : sa charge y est chiffrée, comme
+     * celle de `CodedNotification` (TCK-602).
+     */
+    public function test_deferred_sms_is_stored_encrypted_in_the_jobs_table(): void
+    {
+        $this->makeIntegration('sms_orange');
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-26 23:30:00', 'Africa/Dakar'));
+        config()->set('sms.quiet_hours.enabled', true);
+        config()->set('queue.default', 'database');
+        Http::fake();
+
+        $lien = 'https://takussan.test/payments/pay?token=jeton-porteur-secret';
+        $this->app->make(SmsRouterDriver::class)->send('+221771234567', 'Payez ici : '.$lien, [
+            'agency_id' => $this->agency->id,
+            'is_critical' => false,
+        ]);
+
+        Http::assertNothingSent();
+        $charges = DB::table('jobs')->pluck('payload');
+        $this->assertCount(1, $charges, 'le SMS est reporté dans la file database');
+        $charge = (string) $charges->first();
+        $this->assertSame(SendDeferredSmsJob::class, json_decode($charge, true)['displayName']);
+        $this->assertStringNotContainsString('jeton-porteur-secret', $charge, 'le lien porteur ne reste pas en clair');
+        $this->assertStringNotContainsString('221771234567', $charge, 'le numéro ne reste pas en clair');
+
+        $commande = Crypt::decryptString(json_decode($charge, true)['data']['command']);
+        $this->assertStringContainsString('jeton-porteur-secret', $commande, 'la charge déchiffrée porte bien le texte');
+
+        CarbonImmutable::setTestNow();
     }
 
     public function test_quiet_hours_does_not_defer_critical(): void
