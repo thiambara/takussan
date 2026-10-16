@@ -3,9 +3,14 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\AccountDeletionRequest;
+use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Invoice;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\User;
 use App\Notifications\AccountDeletionRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,5 +170,91 @@ class AccountDeletionRequestTest extends TestCase
 
         $obligations = collect($response->json('obligations'));
         $this->assertTrue($obligations->contains(fn ($o) => $o['type'] === 'lease' && $o['id'] === $lease->id));
+    }
+
+    /**
+     * TCK-698 (P12.02) — un bail résilié ne bloque rien : seule l'échéance en retard
+     * qui lui reste rattachée doit empêcher l'ancien locataire d'effacer son compte.
+     */
+    public function test_blocked_by_a_late_rent_on_a_terminated_lease(): void
+    {
+        [$user, $customer] = $this->formerTenant();
+        $lease = Lease::factory()->create(['tenant_id' => $customer->id, 'status' => LeaseStatus::Terminated]);
+        $payment = LeasePayment::factory()->late()->create(['lease_id' => $lease->id, 'payer_id' => $customer->id]);
+
+        $obligations = $this->refusedObligations($user);
+
+        $this->assertSame([['lease_payment', $payment->id]], $obligations);
+    }
+
+    /** TCK-698 (P12.02) — une facture envoyée et impayée, adressée au client lié au compte. */
+    public function test_blocked_by_an_unpaid_invoice(): void
+    {
+        [$user, $customer] = $this->formerTenant();
+        $invoice = Invoice::factory()->create(['customer_id' => $customer->id, 'status' => InvoiceStatus::Overdue]);
+        Invoice::factory()->paid()->create(['customer_id' => $customer->id]);
+
+        $obligations = $this->refusedObligations($user);
+
+        $this->assertSame([['invoice', $invoice->id]], $obligations);
+    }
+
+    /** TCK-698 (P12.02) — une réservation créée par le compte et encore en cours. */
+    public function test_blocked_by_an_open_booking(): void
+    {
+        [$user] = $this->formerTenant();
+        $booking = Booking::factory()->create(['created_by_id' => $user->id, 'status' => BookingStatus::Confirmed]);
+        Booking::factory()->cancelled()->create(['created_by_id' => $user->id]);
+
+        $obligations = $this->refusedObligations($user);
+
+        $this->assertSame([['booking', $booking->id]], $obligations);
+    }
+
+    /**
+     * Témoin des trois tests précédents : soldées, les mêmes obligations ne bloquent plus. Sans lui,
+     * une requête qui bloquerait tout le monde rendrait les trois verts.
+     */
+    public function test_settled_obligations_do_not_block(): void
+    {
+        Notification::fake();
+        [$user, $customer] = $this->formerTenant();
+        $lease = Lease::factory()->create(['tenant_id' => $customer->id, 'status' => LeaseStatus::Terminated]);
+        LeasePayment::factory()->paid()->create(['lease_id' => $lease->id, 'payer_id' => $customer->id]);
+        Invoice::factory()->paid()->create(['customer_id' => $customer->id]);
+        Booking::factory()->create(['created_by_id' => $user->id, 'status' => BookingStatus::Completed]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/auth/me/deletion-request', [
+            'password' => 'correct-horse',
+            'reason_code' => 'privacy',
+        ])->assertStatus(202);
+    }
+
+    /** @return array{0: User, 1: Customer} */
+    private function formerTenant(): array
+    {
+        $user = User::factory()->create(['password' => bcrypt('correct-horse')]);
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+
+        return [$user, $customer];
+    }
+
+    /** @return list<array{0: string, 1: int}> */
+    private function refusedObligations(User $user): array
+    {
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/auth/me/deletion-request', [
+            'password' => 'correct-horse',
+            'reason_code' => 'privacy',
+        ])->assertStatus(422);
+
+        $this->assertNull($user->fresh()->deletion_requested_at);
+
+        return collect($response->json('obligations'))
+            ->map(fn (array $o): array => [$o['type'], $o['id']])
+            ->values()
+            ->all();
     }
 }
