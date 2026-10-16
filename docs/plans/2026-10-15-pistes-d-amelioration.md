@@ -1774,7 +1774,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### L'alerte « file à l'arrêt » part sur la file arrêtée
 - Réf : P14.01
-- Statut : validé — alertes ops_* envoyées de façon synchrone depuis le scheduler
+- Statut : fait · TCK-679
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:76`, `takussan-api/app/Jobs/SendAdminAlert.php:14`, `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:41`
 - Constat :
@@ -1785,6 +1785,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu, chemin suivi de bout en bout.
 - Piste : envoyer les alertes `ops_*` de façon synchrone (`dispatchSync`) ou depuis un autre conteneur. Mieux, par un canal extérieur à l'application, comme le Telegram de `seuils.sh`.
 - Mesure (2026-10-15, 6c8a08b0, mesureur) : lu `EvaluateOperationalAlerts.php:41,72` (`activity('Ops')->event('ops_queue_stalled')`), `AppServiceProvider.php:640` (`AuditActivity::created` → `DispatchAlerts`, synchrone), `AlertRuleService::dispatchForActivity` (`SendAdminAlert::dispatch` sans `onQueue`), `SendAdminAlert.php:14` (`ShouldQueue`), `config/queue.php:42` (`DB_QUEUE` par défaut `default`) et `compose.api.yml:55,61` (`default` lu par le seul `worker` ; `worker-media` lit `media,reconciliation`) → le chemin du constat tient. Non exécuté : la mort du worker. Classement : V5, la piste (envoi synchrone, autre conteneur, ou canal hors application) est un choix d'infrastructure et de canal.
+- Mesure (2026-10-16, 45fd5aab, implementeur) : `OperationalAlertDeliveryTest` sous la connexion `database`, file `default` à l'arrêt : avant correctif, `alerts:evaluate` laisse le `SendAdminAlert` de `ops_queue_stalled` dans `jobs` et ne poste aucun webhook (2 rouges sur 3) → `AlertRuleService::dispatchForActivity` livre les `ops_*` par `dispatch_sync`, un échec attrapé par règle et journalisé (`SafeExceptionContext`) ; 3 verts, ablation du correctif → 2 rouges, ablation du seul `try/catch` → la `RequestException` d'un webhook en 500 fait tomber la commande.
 
 ### Si le planificateur meurt, personne ne le voit
 - Réf : P14.02
