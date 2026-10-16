@@ -212,17 +212,25 @@ class LeaseService
             $count = 0;
 
             while ($end === null || $current->lte($end)) {
+                // P04.01 (TCK-667) — une échéance couvre tous les mois de sa période et les facture
+                // chacun : loyer mensuel × mois. La dernière s'arrête au mois de fin du bail.
+                $periodStart = $current->copy()->startOfMonth();
+                $months = $this->monthsPerPeriod($frequency);
+                if ($end !== null) {
+                    $months = min($months, (int) $periodStart->diffInMonths($end->copy()->startOfMonth()) + 1);
+                }
+
                 LeasePayment::create([
                     'lease_id' => $lease->id,
                     'reference_number' => ReferenceNumberGenerator::leasePayment(),
                     'payer_id' => $lease->tenant_id,
                     'payment_type' => LeasePaymentType::Rent->value,
-                    'amount' => $amount,
+                    'amount' => $amount * $months,
                     'currency' => $lease->currency?->value ?? 'XOF',
                     'status' => PaymentStatus::Pending,
                     'due_date' => $current->toDateString(),
-                    'period_start' => $current->copy()->startOfMonth()->toDateString(),
-                    'period_end' => $current->copy()->endOfMonth()->toDateString(),
+                    'period_start' => $periodStart->toDateString(),
+                    'period_end' => $periodStart->copy()->addMonthsNoOverflow($months - 1)->endOfMonth()->toDateString(),
                 ]);
 
                 $count++;
@@ -236,6 +244,15 @@ class LeaseService
 
             return $count;
         });
+    }
+
+    private function monthsPerPeriod(PaymentFrequency $frequency): int
+    {
+        return match ($frequency) {
+            PaymentFrequency::Monthly => 1,
+            PaymentFrequency::Quarterly => 3,
+            PaymentFrequency::Yearly => 12,
+        };
     }
 
     private function advancePeriod(Carbon $date, PaymentFrequency $frequency): Carbon
