@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Agency;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\IncludedUserResource;
 use App\Models\Agency;
 use App\Models\Lease;
 use App\Models\TenantOnboardingChecklist;
@@ -65,6 +66,10 @@ class TenantOnboardingPendingController extends Controller
         $perPage = max(1, min($request->integer('per_page', 20), 100));
 
         $page = $query->paginate($perPage);
+
+        // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
+        IncludedUserResource::preload($page->items());
+        $page->through(fn ($checklist) => IncludedUserResource::inParent($checklist));
 
         return $this->json($page);
     }
