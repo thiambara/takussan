@@ -8272,7 +8272,8 @@
         "super_admin_payout_period_closed": "Payout period closed",
         "ops_failed_jobs_spike": "Spike of failed jobs",
         "ops_queue_stalled": "Job queue stalled",
-        "ops_health_degraded": "Platform health degraded"
+        "ops_health_degraded": "Platform health degraded",
+        "ops_critical_job_failed": "Money or lease job failed"
       },
       "channels": {
         "email": "Email",

@@ -7625,7 +7625,8 @@
         "super_admin_payout_period_closed": "Jamonoy delloo xaalis tëj nañu ko",
         "ops_failed_jobs_spike": "Liggéey yu bari yu yàqu",
         "ops_queue_stalled": "Toggu liggéey taxaw na",
-        "ops_health_degraded": "Wérgi platform bi wàññiku na"
+        "ops_health_degraded": "Wérgi platform bi wàññiku na",
+        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail"
       },
       "channels": {
         "email": "Imeel",

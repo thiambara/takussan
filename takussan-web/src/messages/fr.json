@@ -8272,7 +8272,8 @@
         "super_admin_payout_period_closed": "Période de reversement clôturée",
         "ops_failed_jobs_spike": "Rafale d’échecs de jobs",
         "ops_queue_stalled": "File de jobs à l’arrêt",
-        "ops_health_degraded": "Santé de la plateforme dégradée"
+        "ops_health_degraded": "Santé de la plateforme dégradée",
+        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail"
       },
       "channels": {
         "email": "E-mail",

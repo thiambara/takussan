@@ -50,6 +50,8 @@ class AlertableEvents
             'ops_failed_jobs_spike',
             'ops_queue_stalled',
             'ops_health_degraded',
+            // TCK-772 — écrit par `failed()` des jobs d'argent et de bail (`AlertsOnFirstFailure`).
+            'ops_critical_job_failed',
         ];
     }
 
