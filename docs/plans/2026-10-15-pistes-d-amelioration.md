@@ -1875,7 +1875,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
-- Statut : validé — failed() sur les trois jobs d'argent et de bail, qui écrit une activité alertable dès le premier échec
+- Statut : fait · TCK-772
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
 - Constat :
@@ -1886,6 +1886,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:27` (`FAILED_JOBS_SPIKE_THRESHOLD = 20`) et `:33-37` (fenêtre d'une heure) ; `routes/console.php:37,43,59` → les trois jobs passent par `Schedule::job` ; les trois classes `implements ShouldQueue` (`Jobs/Lease/ApplyLateFeesJob.php:22`, `Jobs/SendLeasePaymentReminders.php:43`, `Jobs/Invoice/SendOverdueRemindersJob.php:21`), aucune n'a de `failed()` (grep) ; `vendor/…/Scheduling/Schedule.php:221-222` → un `ShouldQueue` est seulement mis en file, donc `ScheduledTaskFinished` et la ligne `scheduled_task_runs` ne voient que la mise en file. Le constat tient en entier ; le précédent de préproduction n'est pas re-mesurable d'ici. Classement : V7, la piste laisse ouverts le mécanisme et la liste des jobs « d'argent et de bail », et un événement alertable neuf est un comportement visible neuf.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, `(new ApplyLateFeesJob)->failed($e)` lève `Call to undefined method` (de même pour `SendLeasePaymentReminders` et `SendOverdueRemindersJob`) : aucun des trois n'a de `failed()` → `CriticalJobFailureAlertTest` : `failed()` de chacun écrit `ops_critical_job_failed` (job, classe de l'exception, sans son message), et une règle active part en synchrone ; ablation du trait `AlertsOnFirstFailure` → 3 rouges sur 4, remis → 4 verts.
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
