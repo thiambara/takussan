@@ -316,6 +316,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
+        'file_rejected' => 'Ce fichier ne peut pas être ajouté : vérifiez sa taille et son format.',
         'photo_unprocessable' => 'Nataal bii mënuñu ko liggéeyal. Seetal fichier bi te jéemaat.',
         'unsupported_target' => 'Mbir mii mënul am média.',
     ],

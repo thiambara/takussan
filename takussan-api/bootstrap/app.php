@@ -27,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Spatie\MediaLibrary\MediaCollections\Exceptions\FileCannotBeAdded;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -116,6 +117,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
+            }
+
+            // TCK-763 (P10.07) — un fichier que la médiathèque refuse (taille, type, collection)
+            // est une erreur de la requête, pas du serveur : 422 et un code, sans le message de
+            // Spatie, qui porte le chemin temporaire du fichier.
+            if ($e instanceof FileCannotBeAdded) {
+                $e = new ApiError(422, 'media.file_rejected');
             }
 
             if ($e instanceof ApiError) {
