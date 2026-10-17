@@ -2197,7 +2197,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04
-- Statut : validé — avecGardeDoubleFacteur branché sur les trois formulaires ; la 2FA en tête de la carte Mise en service
+- Statut : fait · TCK-761
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
 - Constat :
@@ -2208,6 +2208,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu ; chemin du service 2FA à vérifier.
 - Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ProtectedActions.php:124-175` (`AGENCY_TWO_FACTOR` contient `IntegrationController@store|update|test`, `AgencyController@update`, `AgentInvitationController@__invoke`) ; `RequireTwoFactor.php:80-82` → `TwoFactorRequirement::requiredAtAgency()`, qui rend `true` pour tout titulaire d'un profil d'admin d'agence, hôte solo compris (vérifie le « chemin du service 2FA à vérifier » du constat) ; `grep DoubleFacteur` dans `InviteAgentDialog.tsx` (passe par `useApiForm`, qui ne la gère pas), `IntegrationsManager.tsx` (server actions, refus versé en erreur de champ l. 191-196) et `AgencyConfigForm.tsx` → aucun ; `MiseEnService.tsx:37-45` met `admin_two_factor` en dernier. Le constat tient. Classement : V2, la piste branche la garde de second facteur sur trois formulaires et réordonne la carte (V7).
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep DoubleFacteur` dans `InviteAgentDialog.tsx`, `IntegrationsManager.tsx` et `AgencyConfigForm.tsx` → rien, et `admin-agency.ts` ne rendait pas le `code` du refus ; tests neufs → 10 rouges (garde jamais appelée, geste non rejoué, `admin_two_factor` pas en tête) → les trois formulaires passent par `avecGardeDoubleFacteur[Action]` (enregistrement et confirmation du seuil ; création, modification, activation, test et suppression d'intégration ; invitation), `admin-agency.ts` rend le `code`, la carte met la 2FA en tête. Ablations : `garde = null` → 7 rouges, tri retiré → 1, `code` retiré → 2 ; remis → verts (192 tests des quatre dossiers).
 
 ### SMS muet : première publication et signature bloquées, sans repli
 - Réf : P15.05
