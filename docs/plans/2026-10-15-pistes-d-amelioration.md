@@ -3042,7 +3042,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
-- Statut : validé — index filtré par uploaded_by pour tous, super-admin compris, si aucun écran de la console ne l'appelle ; lecture d'une pièce par un profil plateforme journalisée par PersonalDataAccessLogger
+- Statut : fait · TCK-820 — reste : `GET /api/search/documents` garde l'exemption du super-admin (`DocumentSearchService.php:22`) et lui rend encore les documents de toute la plateforme
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Models/Document.php:36`, `takussan-api/app/Policies/DocumentPolicy.php:38`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:37,46`
 - Constat :
@@ -3053,6 +3053,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu et grep.
 - Piste : journaliser par `PersonalDataAccessLogger` toute lecture par un profil plateforme d'un `Document` de type pièce dont il n'est pas le téléverseur, ou retirer le pouvoir global de `index` au profit d'une voie de console. Garde : un test qui vérifie la ligne de journal.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `DocumentController::index` (filtre `uploaded_by` hors super-admin seulement), `Document.php:36` (`type` filtrable), `DocumentPolicy.php:38` ; le point « à vérifier » est vérifié par test temporaire, retiré depuis : une `id_card` avec fichier, téléversée par un autre compte, puis super-admin (`operateur()` avec step-up) → `GET /api/documents?filter[type]=id_card` 200, 1 document, `file_url` signée ; `GET /api/documents/{id}` 200 ; `GET <file_url>` 302 ; 0 ligne `PersonalDataAccess` dans `activity_log`. Classement : V3, la piste propose deux voies (journaliser, ou retirer le pouvoir de `index`, ce qui touche aussi V2), un choix sur la consultation des pièces d'identité.
+- Mesure (2026-10-17, 11118c160, implementeur) : condition de la décision vérifiée, aucun écran de la console n'appelle `GET /api/documents` (seule `DocumentsLibrary`, sous `/app/documents`) ; avant correctif, `DocumentPieceAccessTest` : la liste `filter[type]=id_card` du super-admin contenait la pièce d'un autre compte, et `GET /api/documents/{id}` comme le téléchargement d'une version ne laissaient aucune ligne `PersonalDataAccess` (3 rouges) → filtre `uploaded_by` pour tous, `PersonalDataAccessLogger::recordPlatformPieceRead()` (surface `document_piece`, pièce de `PIECE_TYPES` lue par un profil plateforme qui ne l'a pas téléversée) appelée par `show` et `download` ; 4 verts, ablation (contrôleurs d'origine) → 3 rouges, correctif remis → 4 verts ; 78 verts sur dix classes voisines.
 
 ### Des URL signées de 7 jours vers des pièces privées sont rangées dans `app_notifications.data`, et relues par `GET /api/notifications`
 - Réf : P23.05
