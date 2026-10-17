@@ -19,7 +19,7 @@ const FICHIERS = [
 /** Les classes de chaque `<input>` / `<textarea>` du fichier, avec la ligne de la balise. */
 function champs(source: string): { ligne: number; classes: string }[] {
   const trouves: { ligne: number; classes: string }[] = [];
-  const balise = /<(input|textarea)\b([^>]*?)\/?>/gs;
+  const balise = /<(input|textarea)\b([^>]*?)\/?>/g;
   for (const m of source.matchAll(balise)) {
     const attributs = m[2];
     if (/type="(checkbox|radio|file|range|hidden)"/.test(attributs)) continue;
