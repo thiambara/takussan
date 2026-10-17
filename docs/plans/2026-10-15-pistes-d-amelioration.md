@@ -1976,7 +1976,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : validé — `request_id`, agence et profil dans le contexte des journaux (`Log::withContext`) ; reste : la sonde payments et son seuil d'alerte
+- Statut : fait · TCK-774 — reste : la sonde payments et son seuil d'alerte
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1985,6 +1985,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `SystemMetricsController.php` (l. 35-46 sont aujourd'hui `TREND_KEYS` ; aucun taux d'échec de paiement ni de webhook) et `HealthcheckService::probe` (aucune sonde `payments`) ; `grep -rn 'Context::add\|withContext\|shareContext' app bootstrap` → rien ; `bootstrap/app.php:151-153` journalise `query_exception` avec le seul `user_id` → les deux constats tiennent. Classement : V8, la sonde et le contexte de journal font deux tickets, la sonde demande un seuil, et mettre l'agence dans chaque journal touche V3.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, un `Log::info` écrit dans une route du groupe `api` n'a ni `request_id` ni agence ni profil dans son contexte (`Undefined array key "request_id"`, 2 rouges) → middleware `ShareRequestLogContext` après `ResolveActiveProfile` (`Log::withContext`) ; `RequestLogContextTest` : 2 verts, ablation du middleware → 2 rouges. La sonde `payments` n'est pas faite (reste du porteur).
 
 ## Angle 13 — Code mort et doublons
 
