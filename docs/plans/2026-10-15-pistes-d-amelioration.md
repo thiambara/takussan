@@ -2932,7 +2932,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Les trois routes de traitement en lot sont ouvertes à tout compte connecté et disent quels identifiants de biens et de comptes existent
 - Réf : P22.02
-- Statut : validé — authorize() exige la capacité de l'action unitaire à l'agence active ; le bilan confond forbidden et not_found ; user_id jugé dans le service, parmi les membres de l'agence
+- Statut : fait · TCK-817
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:407-458`, `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/PropertyBulkAssignRequest.php`, `takussan-api/app/Http/Requests/PropertyBulkArchiveRequest.php`, `takussan-api/app/Services/Property/PropertyBulkAssignService.php:40-47`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:47-63`
 - Constat :
@@ -2947,6 +2947,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : refuser en tête de route ce qu'aucun profil de personnel ne peut faire (une capacité `properties.update` à l'agence active, dans `authorize()`), confondre `not_found` et `forbidden` dans le bilan d'un appelant qui n'est pas du personnel, et juger `user_id` dans le service plutôt que par `exists:`. Un test par route avec un compte sans agence.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyBulkAssignRequest` et `PropertyBulkArchiveRequest` (`return $this->user() !== null;`), `PropertyPolicy::bulkArchive()` l. 229-232 (`return $user !== null;`) ; test temporaire, retiré depuis, compte `User::factory()` sans agence, bien d'agence tiers et identifiant absent `987654321` : `bulk-assign` → 200, `failed` = `forbidden` pour le bien, `not_found` pour l'absent ; `user_id` absent → 422 « The selected user id is invalid » ; `bulk-visibility` → 200, même bilan ; `bulk-archive` → 200 `forbidden` pour le bien, 422 sur `property_ids.0` pour l'absent. Constat confirmé tel qu'écrit. Classement : V2, le correctif change qui peut appeler ces routes et ce que le bilan dit à l'appelant.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `PropertyBulkRoutesGateTest`, avant correctif : compte `User::factory()` sans agence → 200 sur `bulk-visibility` et `bulk-assign`, 422 sur `bulk-archive` (`property_ids.0`) ; agent d'une agence → `forbidden` pour un bien tiers, `not_found` pour un absent ; `user_id` absent → `errors.user_id` → `authorize()` invoque `PropertyPolicy::bulkUpdate()` / `bulkPublish()` (capacité à l'agence active), `exists:` retirés, bien illisible rendu `not_found`, cible cherchée parmi les membres de l'agence active (422 `user.not_in_active_agency` identique pour un absent et un compte d'une autre agence) ; ablation : tout le correctif retiré → 7 rouges, les seuls services → 2 rouges ; remis → 7 verts, et les 71 tests des trois routes verts après réécriture de ceux qui actaient l'ancien comportement.
 
 ### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
 - Réf : P22.03
