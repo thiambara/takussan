@@ -74,3 +74,6 @@ tranche pas. Ce point n'est pas fait ; l'entrée passe à `fait — reste`.
 - Ablation : `routes/`, `app/` revenus à `pre-dev`, les trois tests rougissent (deux purges non
   planifiées, `log_name` = `default`) ; remis, verts.
 - `queue:prune-batches` garde la durée par défaut du framework (24 h), comme le dit l'ADR.
+- Piège : `AuditLogTest::test_admin_can_list_audit_logs` comptait sous `default` l'entrée que la
+  factory de `User` écrit d'elle-même. Elle passe sous `User` : le test compte désormais une entrée
+  par journal.
