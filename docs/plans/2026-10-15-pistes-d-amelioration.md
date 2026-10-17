@@ -738,7 +738,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
 - Réf : P05.04
-- Statut : validé — try/catch par demande, journal par SafeExceptionContext (ADR-0044), orderBy scheduled_for
+- Statut : fait · TCK-741
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
 - Constat :
@@ -746,6 +746,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - La seule trace est une ligne `failed` dans `scheduled_task_runs` (lu).
 - Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:43-50` (boucle sans `try/catch`) et `AccountDeletionService::dueForExecution()` (`AccountDeletionService.php:406-414`, sans `orderBy`) → une exception d'`executeDeletion()` arrête la commande, et les demandes suivantes, dans l'ordre que rend PostgreSQL, attendent l'heure suivante ; aucun ticket ouvert ne le traite (`TCK-080`, `TCK-600` : done). Classement : V3, le correctif touche à l'exécution des suppressions de données personnelles.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck741_une_suppression_en_echec_ne_bloque_pas_les_suivantes` (deux demandes échues, `executeDeletion()` qui lève sur la plus ancienne) → l'exception remontait de la commande et la seconde demande restait non exécutée ; `test_tck741_les_demandes_echues_sont_rendues_par_date_prevue` → ordre de l'identifiant, pas de `scheduled_for` → `try/catch` par demande avec `Log::error` + `SafeExceptionContext::of()` (le message de l'exception absent du journal, vérifié), sortie 1 si une demande a échoué, `orderBy('scheduled_for')` ; ablation : 2 rouges, correctif remis : 8 verts sur 2 classes.
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
 - Réf : P05.05
