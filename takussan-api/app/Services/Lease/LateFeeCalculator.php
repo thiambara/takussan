@@ -191,7 +191,25 @@ class LateFeeCalculator
         return min($fee, $ceiling);
     }
 
+    /**
+     * TCK-779 (P02.13) — le plafond lu, par agence, pour la vie de l'instance : `ApplyLateFeesJob`
+     * en résout une par passage et boucle par échéance, sur une valeur constante pour l'agence.
+     *
+     * @var array<int|string, float|null>
+     */
+    private array $capByAgency = [];
+
     protected function capPercent(?int $agencyId = null): ?float
+    {
+        $cle = $agencyId ?? 'sans-agence';
+        if (! array_key_exists($cle, $this->capByAgency)) {
+            $this->capByAgency[$cle] = $this->readCapPercent($agencyId);
+        }
+
+        return $this->capByAgency[$cle];
+    }
+
+    private function readCapPercent(?int $agencyId): ?float
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
         // TCK-651 (ADR-0065) — le global et l'absence de plafond par défaut viennent du catalogue.
