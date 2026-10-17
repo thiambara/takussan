@@ -46,8 +46,7 @@ final class BoostPurchaseService
      */
     public function purchaseOnce(Property $property, BoostProduct $product, User $buyer, ?string $idempotencyKey): BoostPurchaseResult
     {
-        abort_code_unless($product->is_active, 422, 'boost.product_inactive');
-        $this->assertBoostable($property);
+        $this->assertHasSpace($property);
 
         try {
             return DB::transaction(function () use ($property, $product, $buyer, $idempotencyKey): BoostPurchaseResult {
@@ -57,6 +56,11 @@ final class BoostPurchaseService
                 if ($cacheKey !== null && ($replayed = $this->replay($cacheKey, $locked, $product)) !== null) {
                     return new BoostPurchaseResult($replayed, true);
                 }
+
+                // TCK-823 (P24.04) — jugés SOUS le verrou, sur les lignes verrouillées : une
+                // dépublication ou un retrait d'offre écrit entre-temps ne passe plus.
+                $this->assertProductActive($product);
+                $this->assertPublic($locked);
 
                 $boost = match ($product->kind) {
                     BoostKind::Bump => $this->bump($locked, $agency, $product, $buyer),
@@ -112,20 +116,33 @@ final class BoostPurchaseService
     public function offerFeatured(Property $property, BoostProduct $product, User $operator, string $reason): PropertyBoost
     {
         abort_code_unless($product->kind === BoostKind::Featured, 422, 'boost.offer_featured_only');
-        $this->assertBoostable($property);
+        $this->assertHasSpace($property);
 
         return DB::transaction(function () use ($property, $product, $operator, $reason): PropertyBoost {
             [$agency, $locked] = $this->lock($property);
+            $this->assertPublic($locked);
 
             return $this->featured($locked, $agency, $product, $operator, true, $reason);
         });
     }
 
-    private function assertBoostable(Property $property): void
+    private function assertHasSpace(Property $property): void
     {
         abort_code_if($property->agency_id === null, 422, 'boost.no_space');
+    }
+
+    /** Sous le verrou du bien : une dépublication attend la fin de l'achat, ou l'achat la voit. */
+    private function assertPublic(Property $locked): void
+    {
         // Le prédicat public est COMPOSÉ, jamais recopié : `scopePublic()` fait foi.
-        abort_code_unless(Property::query()->public()->whereKey($property->getKey())->exists(), 422, 'boost.property_not_public');
+        abort_code_unless(Property::query()->public()->whereKey($locked->getKey())->exists(), 422, 'boost.property_not_public');
+    }
+
+    /** L'offre relue sous un verrou partagé : un retrait concurrent attend la fin de l'achat. */
+    private function assertProductActive(BoostProduct $product): void
+    {
+        $active = BoostProduct::query()->whereKey($product->getKey())->sharedLock()->value('is_active');
+        abort_code_unless((bool) $active, 422, 'boost.product_inactive');
     }
 
     /** @return array{0: Agency, 1: Property} */
