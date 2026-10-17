@@ -7,6 +7,7 @@
 - **Dettes et tickets concernés** : D-04, D-09, D-10 · TCK-288, TCK-332, TCK-333
 - **Périmètre** : le serveur est **partagé** avec CheckPrint Plus (`thiambara/check-print-plus`). Cet ADR fixe les règles du serveur pour les deux projets ; les fichiers propres à CheckPrint Plus vivent dans son dépôt.
 - **Amendement du 2026-10-04** : CheckPrint Plus est **arrêté** et a quitté le serveur, qui ne porte plus que Takussan. Les décisions de cet ADR valent toujours pour Takussan ; ce qu'elles disent de CheckPrint Plus (MySQL 8.4, `redis-cpp`, application de bureau, phase F4) est historique. Relevé : [`docs/infra/hebergement.md`](../infra/hebergement.md).
+- **Amendement du 2026-10-18** : [ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md) remplace le § 3 (une seule image de front par commit, configurée à l'exécution par Dokploy et promue telle quelle en production), précise le § 5 (un environnement Dokploy par cible, un réseau et un nom d'API par environnement), le § 6 (un Redis par environnement, dans la pile d'API) et le § 7 (archivage continu des journaux de la base par WAL-G, verrou de rétention sur les seaux). Le reste tient.
 
 ## Contexte
 
