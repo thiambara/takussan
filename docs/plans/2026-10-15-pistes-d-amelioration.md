@@ -1903,7 +1903,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Le courriel de notification n'est jamais retenté
 - Réf : P14.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-770
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
 - Constat :
@@ -1913,6 +1913,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Jobs/SendRawNotificationEmailJob.php:23-48` → `$tries = 3`, `backoff [10, 60, 180]`, et un `catch (\Throwable)` sans condition ; test temporaire (Mail::raw qui lève, `handle()` appelé, retiré ensuite) → vert, aucune exception à la première tentative (`attempts() = 1`) : le job est réussi, jamais retenté (charge 2,49 sur 8 cœurs). Classement : A1, le commentaire `:38-41` du job écrit le comportement attendu (retenter par `$tries`, n'avaler qu'à la dernière tentative), et le corriger ne demande aucun choix de produit.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SendRawNotificationEmailJobTest` avant correctif → rouge à la tentative 1 sur 3 (`Mail::raw` qui lève : aucune exception ne sort, le job est réussi) → `handle()` relève tant qu'il reste une tentative, hors file `sync` où l'échec reste avalé ; 3 verts. Ablation : relance retirée → 1 rouge ; garde `SyncJob` retirée → 1 rouge (l'échec atteint l'appelant) ; remis → verts, `NotificationTest` vert.
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
 - Réf : P14.07
