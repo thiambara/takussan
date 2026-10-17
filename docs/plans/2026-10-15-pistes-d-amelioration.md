@@ -2650,7 +2650,7 @@ ajoutent que des faits neufs.*
 
 ### `scheduled_task_runs` : environ 10 000 lignes par jour en production, et la console agrège tout l'historique
 - Réf : P19.05
-- Statut : validé — purge planifiée à 7 jours, en gardant la dernière exécution par tâche ; moyenne sur 7 jours ; nom stable sans le binaire PHP
+- Statut : fait · TCK-801 — reste : la purge planifiée de `scheduled_task_runs`, à 7 jours ici et à 90 jours en P02.11 : durée à trancher par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/console.php:106-115`, `takussan-api/app/Services/Admin/ScheduledRunRecorder.php:56-73`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:17-48`
 - Constat :
@@ -2660,6 +2660,7 @@ ajoutent que des faits neufs.*
   - Le nom d'une commande est sa ligne de commande complète, chemin absolu du binaire PHP compris (mesuré : `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe`). Changer de version de PHP ou d'image coupe l'historique en deux, et l'ancien nom reste listé dans la console à jamais : aucune ligne ne disparaît.
 - Piste : une purge planifiée à quelques jours, bornée à la dernière exécution conservée par tâche ; une moyenne sur une fenêtre (7 jours) ; un nom stable par `->name()` ou dérivé de la commande Artisan sans le binaire. Un test : deux chemins de binaire différents donnent le même nom.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `routes/console.php:106-113` (quatre battements, `impersonation:close-expired` et `health:probe` chaque minute), `ScheduledRunRecorder::record()` (une ligne par exécution) et `nomDe()` (`description` sinon la commande complète), `ScheduledTaskInspector::all()` (`GROUP BY task`, `avg(duration_ms)` sur tout l'historique, sous-requête triée) ; `grep -rln scheduled_task_runs app/Console database/migrations` → seule la migration de création, aucune purge ; `SELECT` en lecture sur la base de dev → 14 948 lignes, 39 tâches, et `health:probe` nommée `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe` (1 964 lignes). Le volume de préproduction reste à vérifier. Classement : V4, la purge supprime des données, et la fenêtre de moyenne change ce que la console affiche (V7) : deux choix pour le porteur.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `ScheduledRunRecorder::nomDe()` rendait la commande entière (deux binaires PHP → deux noms) et `ScheduledTaskInspector::all()` moyennait tout l'historique (5 100 ms pour des exécutions récentes de 100 et 300 ms) → deux tests neufs de `SchedulerRunStatusTest` (nom sans binaire, moyenne sur 7 jours) ; ablation : correctif retiré, les deux rougissent ; remis, la classe est verte (10 tests). La purge n'est pas posée : sa durée contredit celle de P02.11 (90 jours, décision postérieure).
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
