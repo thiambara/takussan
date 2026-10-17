@@ -106,7 +106,7 @@ voie d'écriture (angle 13, puis 47).
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | fait |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | fait |
-| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
+| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | fait |
 | 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
 | 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
 | 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | à faire |
@@ -143,6 +143,7 @@ voie d'écriture (angle 13, puis 47).
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
+| 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
 
 ---
 
@@ -3808,3 +3809,81 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 - Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `Footer.tsx:1` (`'use client'`), `:101-103` (deux `useTranslations` et `new Date().getFullYear()`, ni état, ni effet, ni gestionnaire), ses enfants `ChoixDeLangue` et `LienLocalise` sont eux-mêmes `'use client'` et `Logo` est neutre ; `grep -rln "home/Footer'" src` → 17 importeurs, dont quatre client (`HomepageDiscovery`, `PropertiesDiscoveryPage`, `PublicFavoritesPage`, `CompareClient`) qui le garderont dans leur JS ; `footer` est dans `src/i18n/namespaces.json:152` ; la mesure CSS n'a pas été refaite, et le point `@base-ui/react` ne demande rien → seule la partie `Footer` tient comme correctif. Classement : A2, retirer `'use client'` de `Footer` (le `useTranslations` de next-intl vaut côté serveur et côté client) et régénérer `namespaces.json` par `check-i18n-namespaces.mjs` ne change aucun rendu ; le gain se limite aux pages serveur qui l'importent.
 - Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `Footer.serveur.test.ts`, qui trace le graphe client des 13 importeurs serveur de `Footer` (fiches bien, agence, agent et leurs `not-found`, réservation, paiement, partage, deux pages d'alertes, `PageLegale`, `IndexDeProfils`) : 13 rouges, `Footer.tsx` dans chacun → `'use client'` retiré, sans autre changement ; ablation : directive remise → les 13 rouges ; 16/16 verts, 155 tests de `components/home` verts ; `check-i18n-namespaces` conforme sans régénérer `namespaces.json` (le dérivateur ne distingue pas client et serveur, et `HomepageDiscovery`, client, lit encore `footer`).
+
+## Angle 34 — Plan de bascule de la phase F côté SEO
+
+*Exploré le 2026-10-17 sur `pre-dev` dfff1f69, par l'explorateur, seul (aucun sous-agent). Tout est
+relu dans le dépôt : TCK-517, la phase F du plan d'auto-hébergement
+(`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951` et suivantes), `images.yml`, le
+`Dockerfile` du front, `robots.ts`, `sitemap.ts`, `alternates.ts`, `proxy.ts`, et les pages de
+`origin/master` (`fefe2c87`) par `git ls-tree` et `git show`. Les deux artefacts cités viennent du
+`next build` resté dans `takussan-web/.next` (2026-10-17, 01 h 17) ; aucun des fichiers qui les
+produisent n'a changé depuis le 2026-10-16 (`git log --since`). **Rien n'a été mesuré hors du poste** :
+ni l'index Google actuel, ni la Search Console, ni le site de production. Ce que Google a gardé de
+l'ancien site reste donc inconnu. Déjà couverts, et pas repris ici : le build du 15 août en
+production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues indexables (P09.05).*
+
+### Les décisions SEO du porteur pour la bascule ne sont écrites ni dans TCK-517 ni dans le plan de la phase F
+- Réf : P34.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/backlog/tickets/TCK-517-production-auto-hebergee.md`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951-4200`, `docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md:154-168`, `takussan-web/src/proxy.ts:161`
+- Constat :
+  - Le porteur a tranché le 2026-10-15 que P09.01 (« soumettre le sitemap à la Search Console ») et P09.07 (« 308 vers /fr ») sont « traités hors agents, dans la phase F (TCK-517) ». Ces décisions ne vivent que dans les lignes `Statut` de ce fichier (lu).
+  - `grep -rn -i "search console\|google-site-verification\|IndexNow\|bing webmaster" docs`, hors ce fichier → rien. Aucune tâche F1 à F5 ne vérifie la propriété du site, ne soumet le sitemap, ne relève l'index avant la bascule ni ne le suit après (mesuré).
+  - `grep -n 308` sur TCK-517, sur le plan et sur ADR-0026 → seule la règle inverse, ADR-0026 § 3 (« redirigent en 307, jamais en 308 »). `proxy.ts:161` répond toujours `NextResponse.redirect(url, 307)` (lu, mesuré).
+  - Le contrôle de F3 étape 3 (`attendre …/robots.txt`) prouve le commit servi, pas le contenu de `robots.txt` ni celui du sitemap (lu, `images.yml:157-160`).
+  - L'ajout à l'ardoise que demandait P09.01 n'est pas fait non plus : `grep -i "seo\|sitemap\|référencement" docs/ardoise.md` → rien (mesuré ; voir P09.01).
+  - Établi comment : lecture et `grep`. Le CLAUDE.md racine écrit qu'« une décision qui ne vit que dans un ticket clos est une décision perdue » ; une ligne `Statut` en est une autre forme.
+- Piste : ajouter à la phase F une tâche SEO, F3 étape 7 ou F6 : la propriété Search Console par enregistrement DNS TXT chez Cloudflare (il survit à la bascule, contrairement à un fichier ou à une balise servis par Vercel), un relevé de l'index et des erreurs de couverture avant F3, la soumission du sitemap après la seconde ligne `✓`, un relevé à J+7 avant F5. La redirection 308 demande d'abord un amendement d'ADR-0026 § 3. Garde possible : F3 vérifie que `robots.txt` cite le sitemap de l'origine de production et que le sitemap compte plus d'URL que les seules pages statiques.
+
+### Le sitemap est figé au build, et le premier build de production se fait sans API
+- Réf : P34.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
+- Constat :
+  - `/sitemap.xml` est prérendu au build : `prerender-manifest.json` → `"compute":"static"`, `"initialRevalidateSeconds":3600` (mesuré sur le build local). `sitemap.ts:69` déclare `revalidate = 3600`.
+  - Chaque source qui échoue est seulement journalisée (`console.error`, `sitemap.ts:178-182`), et le build passe. Le sitemap du build local compte **12 `<loc>`**, les quatre pages statiques dans les trois langues : aucun bien, aucune ville, aucun profil (mesuré : `grep -c "<loc>" .next/server/app/sitemap.xml.body`). L'état de l'API locale à 01 h 17 n'est pas connu.
+  - Le catalogue est lu par `apiFetch`, donc sur `NEXT_PUBLIC_API_URL`, l'URL publique (lu). Dans le plan, l'image `:prod` se construit en F2 étape 4, quand l'API de production ne sert encore rien : elle ne se déploie qu'en F3 (lu).
+  - L'image servie après la bascule porterait donc un sitemap de 12 URL. Il ne serait refait qu'à la première requête une heure après le démarrage du conteneur, et cette requête recevrait encore l'ancien (à vérifier sur l'image : comportement ISR de Next en `standalone`).
+- Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
+
+### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
+- Réf : P34.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : plan F2 étape 1 (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`, bloc `master)`), `.github/workflows/images.yml:36-44,100-103`, `takussan-web/Dockerfile:17,28`
+- Constat :
+  - Le bloc que F2 ajoute au `case` d'`images.yml` écrit trois sorties (`environnement`, `api_url`, `site_url`). Le `case` actuel en écrit quatre, avec `media_url`, et le build du front passe `NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}` (lu).
+  - `Dockerfile:28` : `test -n "$NEXT_PUBLIC_MEDIA_URL" || … exit 1`. Recopié tel quel, F2 fait échouer le build de l'image `:prod` (lu ; l'échec est bruyant, pas silencieux).
+  - Aucune tâche F ne parle des médias de production (`awk 'NR>=3951' … | grep -i "media\|R2\|0029"` → une seule ligne, sur les sauvegardes). `takussan-web/CLAUDE.md` interdit de poser cette variable sans la bascule des médias de l'environnement sur R2 : sinon les photos sortent en pleine taille, sans optimiseur. Les `og:image` des fiches en dépendent (lu).
+- Piste : compléter F2 avec la `media_url` de production et une étape F1 pour le seau public et le disque de production (ADR-0029), ou dire explicitement que la production démarre sans R2. Le plan se corrige seul ; une garde qui compare les sorties de chaque branche du `case` d'`images.yml` attraperait la même faute à l'exécution.
+
+### F3 ne dit pas quelles variables d'exécution reçoivent le front et l'API de production
+- Réf : P34.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : plan F3 étape 1, `docs/infra/hebergement.md:171-180`, `takussan-web/src/app/api/revalidation/fiche/route.ts:78-89`, `takussan-api/config/services.php:55-58`
+- Constat :
+  - Pour `takussan-web-prod`, F3 ne donne que l'image, le domaine et l'absence d'authentification basique. `hebergement.md:176-180` liste pour `takussan-web-preview` trois variables d'exécution : `PUBLIC_CACHE_REVALIDATE_SECRET`, `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` (lu).
+  - Secret vide, le handler de révocation rend 401 à tout appel (`route.ts:84-89`, lu). Une fiche dépubliée ou retirée reste alors servie, à un robot comme à un visiteur, jusqu'à la fin du cache de données (300 s selon `hebergement.md:174`).
+  - L'API de production prend « l'environnement de D1, à ces différences près », et la table des différences ne cite ni `PUBLIC_CACHE_REVALIDATE_URL` ni `PUBLIC_CACHE_REVALIDATE_SECRET` (lu). Recopiée de la préproduction, l'URL viserait le handler du front de préproduction, et la production révoquerait le cache de la préproduction (à vérifier : `hebergement.md:171` dit ces clés « à poser » au 2026-10-08, sans dire si elles le sont).
+  - À vérifier aussi : en préproduction, cette URL passe par l'authentification basique de Traefik, qui couvre toute l'application (`hebergement.md:183`). Le POST de l'API y recevrait 401 avant d'atteindre Next (déduit, non mesuré).
+- Piste : ajouter à F3 la table des variables d'exécution de `takussan-web-prod` et les deux clés `PUBLIC_CACHE_*` dans celle de l'API, avec l'URL de production. Pour la préproduction, mesurer un POST signé contre l'URL publique.
+
+### Petites améliorations
+- Réf : P34.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
+- Constat :
+  - **`Disallow: /app` interdit aussi `/apple-icon.png`.** Le `robots.txt` du build porte `Disallow: /app` sans barre finale, et `apple-icon.png` est servi à la racine (mesuré dans `.next/server/app/`). La correspondance se fait par préfixe et la règle la plus longue l'emporte sur `Allow: /`. Le commentaire de `sitemap.ts:335-337` affirme pourtant qu'« aucune surface publique ne commence par l'un de ces préfixes » (lu ; l'effet sur l'icône affichée par Google est à vérifier). Aucun test ne confronte la liste aux fichiers de la racine (`grep -rln apple-icon src` → proxy et routage seulement).
+  - **`/publish` est interdit aux robots sans porter `noindex`** : `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx` et `maintenance/page.tsx` ne déclarent aucun `robots`, et la racine non plus (lu). C'est le piège que `robots.ts` décrit pour `/playground`. Sur `master`, `/publish` n'avait ni `noindex` ni `robots.txt` : une URL que Google aurait gardée n'en sortirait plus (index réel à vérifier). `/auth`, lui, portait déjà `noindex` sur `master` (`git show origin/master:…/(auth)/layout.tsx:21`).
+  - **Préproduction : une seule barrière contre l'indexation, hors du dépôt.** `robots.ts` rend `Allow: /` quel que soit l'environnement, et rien ne pose `noindex` quand `ORIGINE_SITE` diffère d'`ORIGINE_PRODUCTION` (lu). Seule l'authentification basique de Dokploy protège le front de préproduction, et `hebergement.md:211` laisse ouverte son remplacement par Cloudflare Access. Côté API, `public/robots.txt` vaut `Disallow:` (tout permis) et `/` rend la vue `welcome` en HTML, en préproduction comme en production (lu).
+  - **F3 étape 4 éprouve la redirection de l'apex sur `/fr/biens?page=2`**, un chemin qui n'existe pas : la liste est `/fr/properties` (lu). Le 301 se vérifie quand même, mais la commande suivante ne prouve rien de la cible.
+- Piste :
+  - `Disallow: /app/` et `Disallow: /app$`, ou une liste confrontée aux fichiers servis à la racine par un test ;
+  - `robots: { index: false }` sur les passages interdits ;
+  - `X-Robots-Tag: noindex` ou `Disallow: /` dès que l'origine n'est pas celle de la production, côté front et côté API ;
+  - `/fr/properties?page=2` dans la commande de F3.
