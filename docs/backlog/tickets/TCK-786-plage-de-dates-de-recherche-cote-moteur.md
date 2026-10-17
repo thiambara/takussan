@@ -1,7 +1,7 @@
 ---
 id: TCK-786
 title: "/search/documents et /search/messages : la plage de dates filtre dans Meilisearch, avant la pagination"
-status: doing
+status: done
 phase: P2
 family: applicatif
 estimate: S
@@ -32,18 +32,18 @@ Scout) ne correspond pas aux pages. Le commentaire invoque « datetime vs timest
 
 ## Delta à produire
 
-- [ ] `date_from` → clause Scout native `created_at >= <début du jour, timestamp>` ;
+- [x] `date_from` → clause Scout native `created_at >= <début du jour, timestamp>` ;
       `date_to` → `created_at <= <fin du jour, timestamp>`, sur les deux services.
-- [ ] Le commentaire « Date range stays an Eloquent refinement » est retiré.
-- [ ] Le test de plage de dates passe sur Meilisearch réel (le pilote `collection` ne compare pas
+- [x] Le commentaire « Date range stays an Eloquent refinement » est retiré.
+- [x] Le test de plage de dates passe sur Meilisearch réel (le pilote `collection` ne compare pas
       un timestamp à une colonne `timestamp`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Documents : avec trois correspondances hors plage plus récentes et une dans la plage,
+- [x] AC1 — Documents : avec trois correspondances hors plage plus récentes et une dans la plage,
       `sort=-created_at&per_page=1` rend la correspondance de la plage en page 1, et `total` vaut 1.
-- [ ] AC2 — Messages : même cas, même résultat.
-- [ ] AC3 — Les bornes sont inclusives au jour, comme avec `whereDate` : un élément créé le jour
+- [x] AC2 — Messages : même cas, même résultat.
+- [x] AC3 — Les bornes sont inclusives au jour, comme avec `whereDate` : un élément créé le jour
       de `date_to` est rendu.
 
 ## Hors périmètre
@@ -58,3 +58,11 @@ Scout) ne correspond pas aux pages. Le commentaire invoque « datetime vs timest
   comme `whereDate` les entendait.
 
 ## Notes d'implémentation
+
+- Ablation : les deux services remis à `pre-dev` → les 2 tests « en première page » de
+  `SearchDateRangeTest` rouges (page 1 vide) ; le seul `MessageSearchService` remis → 1 rouge ;
+  remis → 3 verts. Le test des bornes inclusives est vert avant comme après : il épingle que la
+  clause native garde la sémantique de `whereDate`.
+- Piège : `DocumentSearchTest` tourne sur le pilote `collection`, qui rejoue les `where` Scout
+  en SQL ; `created_at >= <entier>` y lève une `QueryException` sur PostgreSQL. Son
+  `test_date_range_filter` a donc rejoint `SearchDateRangeTest`, sur Meilisearch réel.
