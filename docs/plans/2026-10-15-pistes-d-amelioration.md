@@ -1203,12 +1203,13 @@ Sain (vérifié par l'agent) :
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
-- Statut : validé — avertissement beforeunload seulement quand le formulaire est modifié
+- Statut : fait · TCK-755
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `grep -l 'useWizardDraft\|localStorage\|sessionStorage'` sur `CreateLeaseForm.tsx`, `CustomerForm.tsx` et `PropertyForm.tsx` → rien ; `grep -rln beforeunload takussan-web/src` hors tests → `hooks/useWizardDraft.ts:264`, un **commentaire** seulement (le constat disait « aucun » : il n'y a aucun gestionnaire) → tient. Classement : V7, une reprise de brouillon ou un avertissement de départ sur trois écrans est une interaction neuve (quand proposer, quand purger), qu'aucune spec n'écrit pour ces formulaires.
+- Mesure (2026-10-17, 18c6141d, implementeur) : `grep -rn beforeunload takussan-web/src` hors tests → le seul commentaire de `useWizardDraft.ts:264` ; un `beforeunload` annulable émis après une saisie dans chacun des trois formulaires n'est pas annulé (3 tests rouges) → tient. Correctif : `useAvertissementDepart(isDirty)`, `isDirty` lu par `useFormState`. Ablation : écouteur retiré → 4 rouges ; branchement retiré de `CustomerForm` → son test rouge ; remis → 46/46 verts.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
