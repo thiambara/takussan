@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Policies\BasePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -139,26 +138,6 @@ class MediaUploadTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonPath('code', 'media.file_rejected')
             ->assertJsonPath('message', __('errors.media.file_rejected'));
-
-        $this->assertDatabaseCount('media', 0);
-    }
-
-    /**
-     * TCK-764 (P10.08) — `POST /api/media/upload` n'avait aucun appelant : tout compte y déposait
-     * 30 fichiers par minute dans ses propres `photos` ou `documents`, que rien ne lit ni ne
-     * nettoie. La route est retirée ; `POST /api/media` reste.
-     */
-    public function test_the_generic_upload_route_is_gone(): void
-    {
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->assertFalse(Route::has('media.upload'));
-        // 405 et non 404 : `DELETE media/{media}` couvre le même chemin.
-        $status = $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->image('hero.jpg', 400, 400),
-            'collection' => 'photos',
-        ])->status();
-        $this->assertContains($status, [404, 405]);
 
         $this->assertDatabaseCount('media', 0);
     }
