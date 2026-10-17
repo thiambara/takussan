@@ -1,7 +1,7 @@
 ---
 id: TCK-753
 title: "Anneau de focus plein, et contour des champs à 3:1"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -47,17 +47,17 @@ Au clavier, on voit où est le focus ; un champ se distingue de son fond.
 
 ## Delta à produire
 
-- [ ] `ring-ring/50` → `ring-ring` dans `src/`, et `outline-ring/50` → `outline-ring` dans
+- [x] `ring-ring/50` → `ring-ring` dans `src/`, et `outline-ring/50` → `outline-ring` dans
       `globals.css`.
-- [ ] `--input` clair à `#918672` (`globals.css` et `JETONS_CLAIR`).
-- [ ] `disabled:bg-input/50` → `disabled:bg-border/50` (`input`, `textarea`) ; `divide-input` →
+- [x] `--input` clair à `#918672` (`globals.css` et `JETONS_CLAIR`).
+- [x] `disabled:bg-input/50` → `disabled:bg-border/50` (`input`, `textarea`) ; `divide-input` →
       `divide-border` (`TagsManager`).
-- [ ] `src/test/__tests__/focus-et-contour-des-champs.contraste.test.ts`.
+- [x] `src/test/__tests__/focus-et-contour-des-champs.contraste.test.ts`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Aucun `ring-ring/<n>` ni `outline-ring/<n>` dans `src/`.
-- [ ] AC2 — `--input` tient 3:1 sur `--background` et sur `--card`.
+- [x] AC1 — Aucun `ring-ring/<n>` ni `outline-ring/<n>` dans `src/`.
+- [x] AC2 — `--input` tient 3:1 sur `--background` et sur `--card`.
 
 ## Hors périmètre
 
@@ -66,4 +66,7 @@ Au clavier, on voit où est le focus ; un champ se distingue de son fond.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : sources d'avant remises (test gardé) → 4 rouges sur 5 (84 `ring-ring/50` dans
+  58 fichiers, `--input` à 1,20:1 et 1,26:1, `disabled:bg-input/50`) ; correctif remis → 5 verts.
+- `jetons-compiles.test.ts` confronte `JETONS_CLAIR` à la compilation de `globals.css` : les deux
+  valeurs de `--input` changent ensemble.
