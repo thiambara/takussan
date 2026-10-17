@@ -131,10 +131,12 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -464,6 +466,26 @@ class AppServiceProvider extends ServiceProvider
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
         // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
         RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+
+        // P36.07 (TCK-798) — accusés de livraison SMS et WhatsApp : un seau par fournisseur et par
+        // IP. Ils arrivent en rafale depuis quelques IP (jusqu'à 500 par envoi Mtarget, un statut
+        // par message chez Meta) : l'ancien `throttle:120,1` en refusait le surplus. Le débit
+        // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
+        // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
+        // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp'] as $limiter) {
+            RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
+                ->by('ip:'.$request->ip())
+                ->response(function (Request $request, array $headers) use ($limiter): never {
+                    Log::warning('[webhook] débit dépassé, accusé refusé en 429', [
+                        'limiter' => $limiter,
+                        'ip' => $request->ip(),
+                        'route' => $request->route()?->getName(),
+                    ]);
+
+                    throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
+                }));
+        }
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
