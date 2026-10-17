@@ -2949,7 +2949,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
 - Réf : P22.03
-- Statut : validé — les trois services d'invitation appellent la policy au lieu de leur copie ; reste : la règle de facture jugée deux fois (StoreInvoiceRequest et InvoiceService), les autres règles des services, et la garde étendue à app/Services
+- Statut : fait · TCK-819 — reste : la règle de facture jugée deux fois (StoreInvoiceRequest et InvoiceService), les autres règles des services, et la garde étendue à app/Services
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:222-242`, `takussan-api/app/Policies/AgentProfilePolicy.php:71-95`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:153-169`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:213-228`, `takussan-api/app/Services/Model/InvoiceService.php:34-42`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Services/Model/BookingService.php:60-102`, `scripts/check-controller-authorization.mjs:1-60`
 - Constat :
@@ -2959,6 +2959,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et grep.
 - Piste : ramener chaque règle de service dans la policy de l'action et faire appeler la policy par le service quand il est aussi appelé hors HTTP ; étendre la garde à `app/Services/` avec une liste d'exemptions justifiées (règles métier qui ne sont pas des autorisations : verrou de suspension, seuil d'approbation des reversements).
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `AgentInvitationService::assertInviterCanManageTeam()` l. 222-243 et `AgentProfilePolicy::canManageTeamIn()` l. 71-92 : la copie n'est plus mot pour mot, la policy refuse d'abord par `AgencyKindGuard::canFormTeam()`, que le service ne regarde pas (les deux copies ont déjà divergé) ; `InvoiceService::create()` l. 34-42 juge « personnel de l'agence du client, ou client sans agence ajouté par soi » quand `StoreInvoiceRequest::authorize()` l. 28-31 passe par `can('create', Invoice::class)`, soit `Capability::InvoicesCreate` (`InvoicePolicy.php:26-29`) ; `scripts/check-controller-authorization.mjs:59` ne balaie que `app/Http/Controllers`. Constat confirmé, précisé sur la copie. Classement : V2 et V8, réunir chaque règle dans sa policy change l'autorisation d'appelants légitimes sur plusieurs domaines ; seule l'extension de la garde serait A5.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `InvitationServicesFollowPolicyTest` fixe la décision de la policy par `Gate::before` : refusée, un admin d'agence passait quand même les trois invitations, la suspension et le retrait d'un agent ; accordée, un compte sans profil recevait 403 des trois services (6 rouges) → les trois services appellent la policy par `Gate::forUser()->denies()` (`invite`, `suspend`, `delete`), même 403 et même message ; `assertAgencyCanInvite()` reste en tête ; 7 verts, ablation (services d'origine) → 6 rouges, correctif remis → 7 verts ; 166 verts sur les invitations, l'équipe, la suspension et les rôles.
 
 ### Petites améliorations
 - Réf : P22.04
