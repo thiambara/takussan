@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\BookingPayment;
@@ -51,7 +52,7 @@ class LemonSqueezyEventListenerTest extends TestCase
 
         $payment = BookingPayment::factory()->create([
             'booking_id' => $booking->id,
-            'amount' => 19_99,
+            'amount' => 19.99,
             'currency' => Currency::USD,
             'status' => $status,
             'transaction_id' => $orderId,
@@ -151,6 +152,53 @@ class LemonSqueezyEventListenerTest extends TestCase
         $this->assertSame(100, $ctx['payment']->metadata['fees_amount']);
         $this->assertSame(1999, $ctx['payment']->metadata['net_amount']);
         $this->assertSame('USD', $ctx['payment']->metadata['currency']);
+    }
+
+    /**
+     * TCK-734 (P04.06) — un ordre Lemon Squeezy inférieur au dû ne solde pas l'échéance : le pilote
+     * rend désormais le montant encaissé, et la garde de sous-paiement le compare.
+     */
+    public function test_an_order_below_the_amount_due_does_not_settle_the_payment(): void
+    {
+        $ctx = $this->arrange();
+        $payload = $this->orderCreated($ctx['payment'], total: 1000);
+
+        try {
+            app(PaymentGatewayService::class)->handleWebhookEvent('order_created', $payload);
+            $this->fail('un ordre de 10,00 USD a soldé une échéance de 19,99 USD');
+        } catch (ApiError $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('payment.amount_short', $e->errorCode);
+        }
+
+        $this->assertSame(PaymentStatus::Pending, $ctx['payment']->refresh()->status);
+
+        app(PaymentGatewayService::class)->handleWebhookEvent('order_created', $this->orderCreated($ctx['payment'], total: 1999));
+        $this->assertSame(PaymentStatus::Paid, $ctx['payment']->refresh()->status);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function orderCreated(BookingPayment $payment, int $total): array
+    {
+        return [
+            'meta' => ['event_name' => 'order_created'],
+            'data' => [
+                'id' => $payment->transaction_id,
+                'attributes' => [
+                    'total' => $total,
+                    'currency' => 'USD',
+                    'status' => 'paid',
+                    'first_order_item' => [
+                        'custom_data' => [
+                            'payment_id' => (string) $payment->id,
+                            'payment_type' => BookingPayment::class,
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     public function test_driver_extract_fees_static(): void

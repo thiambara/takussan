@@ -294,7 +294,7 @@ export function MediaManager({
           void handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring',
           isDragOverDropzone && 'border-primary bg-muted',
         )}
       >
@@ -578,7 +578,7 @@ export function MediaDropzone({
           void validateAndEmit(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring',
           isDragOver && 'border-primary bg-muted',
         )}
       >
@@ -618,7 +618,7 @@ export function MediaDropzone({
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className="absolute right-1 top-1 rounded-full bg-background/70 p-1.5 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                className="absolute right-1 top-1 rounded-full bg-background/70 p-1.5 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
                 aria-label={t('remove_file_aria', { name: file.name })}
               >
                 <X className="size-3" aria-hidden="true" />

@@ -469,11 +469,8 @@ class LeaseRenewalService
     protected function requireSignatureFlag(?int $agencyId = null): bool
     {
         // TCK-600 (verif-600 H1), TCK-651 (ADR-0065) — l'agence, sinon le catalogue.
-        $value = ScopedSetting::agencyRow('lease.require_signature', $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('lease.require_signature');
-        if (is_array($value)) {
-            $value = $value['value'] ?? array_values($value)[0] ?? null;
-        }
+        $value = ScopedSetting::value('lease.require_signature', $agencyId,
+            app(PlatformSettingService::class)->getValue('lease.require_signature'));
 
         return filter_var($value, FILTER_VALIDATE_BOOL);
     }

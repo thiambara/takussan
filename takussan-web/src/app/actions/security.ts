@@ -18,6 +18,7 @@ import {
   type TwoFactorEnableResponse,
 } from '@/lib/security';
 import type { EnvoiCodeSms } from '@/lib/security';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-069 — thin server-action wrappers that read the Sanctum token from
@@ -58,6 +59,7 @@ type CleRepli =
   | 'revokeSessionFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  journaliserErreurInattendue('security', err);
   const t = await getTranslations('serverActions.security');
   const repli = t(cleRepli);
   if (err instanceof ApiError) {

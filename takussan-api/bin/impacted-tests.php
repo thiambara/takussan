@@ -8,6 +8,8 @@
  *   php bin/impacted-tests.php              # ce que dit `git status` (l'agent qui itère)
  *   php bin/impacted-tests.php --base=dev   # + tout ce qui sépare HEAD de `dev`
  *   php bin/impacted-tests.php --run        # exécute au lieu d'afficher la commande
+ *   php bin/impacted-tests.php --run --parallel[=4]
+ *                                           # la sélection en 4 processus (paratest)
  *
  * ⚠ UN VERT DE CETTE COMMANDE NE DIT RIEN DE LA SUITE. C'est une boucle de retour
  * rapide pendant le développement, pas une garde. La CI et le rituel de fin de
@@ -32,9 +34,12 @@ $mapPath = $api.'/tests/impact-map.json';
 
 $base = null;
 $run = false;
+$processes = null;
 foreach (array_slice($argv, 1) as $arg) {
     if ($arg === '--run') {
         $run = true;
+    } elseif ($arg === '--parallel' || preg_match('/^--parallel=([1-9][0-9]*)$/', $arg, $m)) {
+        $processes = (int) ($m[1] ?? 4);
     } elseif (str_starts_with($arg, '--base=')) {
         $base = substr($arg, strlen('--base='));
     } else {
@@ -157,7 +162,11 @@ if (! $statusKnown) {
     // de ne toucher ni git ni le disque.
     $translations = new TranslationUsage($api);
 
-    $selection = (new ImpactSelector($map, $translations->consumersOf(...)))
+    // Les tests postérieurs à la carte ne sont gardés que s'ils citent une classe que le
+    // diff touche (cf. `ImpactSelector::testsSinceMapCommit()`) : leur source se lit ici.
+    $sourceOf = fn (string $class): string => (string) @file_get_contents($api.'/'.ImpactMap::fileForClass($class));
+
+    $selection = (new ImpactSelector($map, $translations->consumersOf(...), $sourceOf))
         ->select(array_keys($changed), $diffFor, $testClassesSince);
 
     if ($selection->fullSuite) {
@@ -172,6 +181,9 @@ if (! $statusKnown) {
             printf("  %s\n", $file);
         }
         $command = 'php artisan test '.implode(' ', array_map('escapeshellarg', $selection->testFiles()));
+        if ($processes !== null) {
+            $command = parallelCommand($api, $selection->testFiles(), $processes);
+        }
     }
 }
 
@@ -182,4 +194,44 @@ if (! $run) {
 
 chdir($api);
 passthru($command, $code);
+if (isset($parallelConfig)) {
+    @unlink($parallelConfig);
+}
 exit($code);
+
+/**
+ * `--parallel` : paratest ne prend qu'UN chemin, pas une liste de fichiers. La sélection
+ * passe donc par une copie de `phpunit.xml` dont la seule suite liste ces fichiers, écrite
+ * hors de l'arbre (un agent doit le rendre propre) et retirée après l'exécution. Les
+ * chemins y sont absolus : une configuration se lit relativement à son propre répertoire.
+ * Chaque processus a sa base (`Tests\Support\TestDatabase`, validé sous `--parallel`).
+ *
+ * @param  list<string>  $files
+ */
+function parallelCommand(string $api, array $files, int $processes): string
+{
+    global $parallelConfig;
+
+    $xml = new DOMDocument;
+    $xml->load($api.'/phpunit.xml');
+    $root = $xml->documentElement;
+    $root->removeAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'noNamespaceSchemaLocation');
+    $root->setAttribute('bootstrap', $api.'/'.$root->getAttribute('bootstrap'));
+    foreach (iterator_to_array($xml->getElementsByTagName('directory')) as $dir) {
+        $dir->nodeValue = $api.'/'.$dir->nodeValue;
+    }
+    $suites = $xml->getElementsByTagName('testsuites')->item(0);
+    while ($suites->firstChild) {
+        $suites->removeChild($suites->firstChild);
+    }
+    $suite = $suites->appendChild($xml->createElement('testsuite'));
+    $suite->setAttribute('name', 'impact');
+    foreach ($files as $file) {
+        $suite->appendChild($xml->createElement('file', $api.'/'.$file));
+    }
+
+    $parallelConfig = sys_get_temp_dir().'/impacted-tests-'.getmypid().'.xml';
+    $xml->save($parallelConfig);
+
+    return sprintf('php artisan test --parallel --processes=%d --configuration=%s', $processes, escapeshellarg($parallelConfig));
+}

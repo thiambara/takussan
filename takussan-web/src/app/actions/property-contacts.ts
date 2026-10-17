@@ -6,6 +6,7 @@ import { apiRequest, messageErreurApi } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /** TCK-633 (lot C) — remplace les contacts sur place d'un bien (`PUT /api/properties/{id}/contacts`). */
 export async function replacePropertyContactsAction(
@@ -28,6 +29,7 @@ export async function replacePropertyContactsAction(
     });
     return { ok: true };
   } catch (err) {
+    journaliserErreurInattendue('property-contacts', err);
     const repli = (await getTranslations('property.form.publishContact'))('failed');
     return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
   }

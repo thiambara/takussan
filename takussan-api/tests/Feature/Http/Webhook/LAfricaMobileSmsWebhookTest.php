@@ -3,10 +3,14 @@
 namespace Tests\Feature\Http\Webhook;
 
 use App\Models\AppNotification;
+use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
+use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -38,18 +42,52 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         return $notification;
     }
 
-    public function test_delivered_status_6_marks_delivered_on_signed_url(): void
+    /**
+     * P36.01 (TCK-795) — l'URL de rappel telle que le pilote l'envoie à LAM : `ret_url` capturé
+     * dans la requête sortante, jamais reconstruit par le test.
+     */
+    private function retUrlEmisParLePilote(int $notificationId): string
+    {
+        Integration::query()->firstOrCreate(
+            ['provider' => 'sms_lafricamobile', 'agency_id' => null],
+            [
+                'credentials' => ['accountid' => 'lam-acc', 'password' => 'lam-pass', 'sender_id' => 'TAKUSSAN'],
+                'metadata' => [],
+                'is_active' => true,
+            ],
+        );
+        Http::fake(['*' => Http::response(['push_id' => 'lam-envoi'], 200)]);
+
+        $this->app->make(LAfricaMobileSmsDriver::class)
+            ->send('+221761111111', 'Bonjour', ['notification_id' => $notificationId]);
+
+        // La dernière requête sortante : un test peut envoyer plusieurs SMS.
+        [$request] = Http::recorded()->last();
+        $retUrl = $request->data()['ret_url'] ?? null;
+        $this->assertIsString($retUrl);
+        $this->assertStringContainsString("/{$notificationId}?", $retUrl);
+
+        return $retUrl;
+    }
+
+    /** Ce que LAM ajoute au `ret_url` au rappel (LAMPUSH v2.3, `docs/integrations/sms.md`). */
+    private function rappelDeLam(string $retUrl, string $pushId, int $status, string $text = 'DELIVRD'): string
+    {
+        return $retUrl.'&'.http_build_query([
+            'push_id' => $pushId,
+            'ret_id' => 'ret-'.$pushId,
+            'to' => '221761111111',
+            'status' => $status,
+            'text' => $text,
+        ]);
+    }
+
+    public function test_delivered_status_6_marks_delivered_on_the_ret_url_emitted_by_the_driver(): void
     {
         $n = $this->makeNotificationWithAttempt('lam-1');
-        $url = URL::signedRoute('sms.webhook.lafricamobile', [
-            'token' => 'tck-102-token',
-            'notification' => $n->id,
-            'push_id' => 'lam-1',
-            'status' => 6,
-            'text' => 'DELIVRD',
-        ]);
-        $response = $this->getJson($url);
-        $response->assertOk();
+
+        $this->getJson($this->rappelDeLam($this->retUrlEmisParLePilote($n->id), 'lam-1', 6))->assertOk();
+
         $attempt = NotificationDeliveryAttempt::query()
             ->where('app_notification_id', $n->id)
             ->where('provider_message_id', 'lam-1')
@@ -72,13 +110,7 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         // vue passer (journaux, proxy de l'opérateur). Le rejeu ne doit ni
         // dupliquer la tentative, ni faire régresser son statut.
         $n = $this->makeNotificationWithAttempt('lam-3');
-        $url = URL::signedRoute('sms.webhook.lafricamobile', [
-            'token' => 'tck-102-token',
-            'notification' => $n->id,
-            'push_id' => 'lam-3',
-            'status' => 6,
-            'text' => 'DELIVRD',
-        ]);
+        $url = $this->rappelDeLam($this->retUrlEmisParLePilote($n->id), 'lam-3', 6);
 
         $this->getJson($url)->assertOk();
         $this->getJson($url);
@@ -94,23 +126,38 @@ class LAfricaMobileSmsWebhookTest extends TestCase
 
     public function test_a_tampered_signed_url_is_refused(): void
     {
-        // La signature couvre la CHAÎNE de requête : changer le statut après
-        // coup doit invalider l'URL. Sans ce cas, on ne distingue pas « URL
-        // signée » de « URL contenant une signature ».
+        // La signature couvre ce que NOUS signons (jeton, notification,
+        // expiration) — pas les paramètres que LAM ajoute (P36.01). Changer
+        // la notification visée ou l'expiration doit invalider l'URL.
         $n = $this->makeNotificationWithAttempt('lam-4');
-        $url = URL::signedRoute('sms.webhook.lafricamobile', [
-            'token' => 'tck-102-token',
-            'notification' => $n->id,
-            'push_id' => 'lam-4',
-            'status' => 6,
-            'text' => 'DELIVRD',
-        ]);
+        $autre = AppNotification::factory()->create(['user_id' => $n->user_id]);
+        $retUrl = $this->retUrlEmisParLePilote($n->id);
 
-        $this->getJson(str_replace('status=6', 'status=1', $url))->assertForbidden();
+        $autreNotification = str_replace("/{$n->id}?", "/{$autre->id}?", $retUrl);
+        $this->assertNotSame($retUrl, $autreNotification);
+        $this->getJson($this->rappelDeLam($autreNotification, 'lam-4', 6))->assertForbidden();
+
+        $expiration = preg_replace_callback('/expires=(\d+)/', fn (array $m) => 'expires='.((int) $m[1] + 86400), $retUrl);
+        $this->assertNotSame($retUrl, $expiration);
+        $this->getJson($this->rappelDeLam($expiration, 'lam-4', 6))->assertForbidden();
 
         $this->assertSame(
             SmsResult::STATUS_SENT,
             NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-4')->first()->status,
+        );
+    }
+
+    public function test_an_expired_ret_url_is_refused(): void
+    {
+        $n = $this->makeNotificationWithAttempt('lam-6');
+        $retUrl = $this->retUrlEmisParLePilote($n->id);
+
+        $this->travel(8)->days();
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-6', 6))->assertForbidden();
+        $this->assertSame(
+            SmsResult::STATUS_SENT,
+            NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-6')->first()->status,
         );
     }
 
@@ -120,19 +167,66 @@ class LAfricaMobileSmsWebhookTest extends TestCase
         // vient de nous, le jeton prouve qu'elle vise ce webhook-ci. Une URL
         // signée par nous avec un mauvais jeton doit rester refusée.
         $n = $this->makeNotificationWithAttempt('lam-5');
-        $url = URL::signedRoute('sms.webhook.lafricamobile', [
+        $url = URL::temporarySignedRoute('sms.webhook.lafricamobile', now()->addDay(), [
             'token' => 'mauvais-jeton',
             'notification' => $n->id,
-            'push_id' => 'lam-5',
-            'status' => 6,
-            'text' => 'DELIVRD',
         ]);
 
-        $this->getJson($url)->assertNotFound();
+        $this->getJson($this->rappelDeLam($url, 'lam-5', 6))->assertNotFound();
 
         $this->assertSame(
             SmsResult::STATUS_SENT,
             NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-5')->first()->status,
         );
+    }
+
+    // ─── P36.02 (TCK-796) ────────────────────────────────────────
+
+    public function test_a_late_sent_does_not_regress_a_delivered_attempt(): void
+    {
+        // Précédence du pulling `[sent, delivered, failed]` : un `sent`
+        // (status=4) tardif ou rejoué n'efface ni `delivered` ni `delivered_at`.
+        $n = $this->makeNotificationWithAttempt('lam-7');
+        $retUrl = $this->retUrlEmisParLePilote($n->id);
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-7', 6))->assertOk();
+        $deliveredAt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-7')->first()->delivered_at;
+        $this->assertNotNull($deliveredAt);
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-7', 4, 'SENT'))->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-7')->first();
+        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
+        $this->assertEquals($deliveredAt, $attempt->delivered_at);
+    }
+
+    // ─── P36.03 (TCK-797) ────────────────────────────────────────
+
+    public function test_an_unknown_or_absent_status_is_ignored_with_a_warning(): void
+    {
+        Log::spy();
+        $n = $this->makeNotificationWithAttempt('lam-p3603');
+        $retUrl = $this->retUrlEmisParLePilote($n->id);
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-p3603', 16, 'UNKNOWN'))->assertOk();
+        $this->getJson($retUrl.'&push_id=lam-p3603')->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-p3603')->first();
+        $this->assertSame(SmsResult::STATUS_SENT, $attempt->status);
+        $this->assertNull($attempt->failure_reason);
+        Log::shouldHaveReceived('warning')->twice()->withArgs(fn (string $message) => str_contains($message, 'statut non terminal'));
+    }
+
+    public function test_the_terminal_failures_are_written(): void
+    {
+        foreach ([2 => 'UNDELIV', 12 => 'EXPIRED', 23 => 'REJECTD'] as $status => $text) {
+            $n = $this->makeNotificationWithAttempt("lam-f{$status}");
+
+            $this->getJson($this->rappelDeLam($this->retUrlEmisParLePilote($n->id), "lam-f{$status}", $status, $text))->assertOk();
+
+            $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', "lam-f{$status}")->first();
+            $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status, $text);
+            $this->assertSame($text, $attempt->failure_reason);
+        }
     }
 }

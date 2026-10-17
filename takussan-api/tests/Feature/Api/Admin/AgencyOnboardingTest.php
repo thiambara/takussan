@@ -4,7 +4,7 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
 use App\Models\User;
-use App\Notifications\ResetPasswordNotification;
+use App\Notifications\AgencyAdminActivationNotification;
 use App\Services\Admin\AgencyProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -36,7 +36,8 @@ class AgencyOnboardingTest extends TestCase
         $this->assertTrue($admin->agentProfiles()->where('agency_id', $agency->id)->exists());
         $this->assertTrue($admin->isAgencyAdminAt((int) $agency->id));
 
-        Notification::assertSentTo($admin, ResetPasswordNotification::class);
+        // TCK-781 — l'e-mail « Activez votre compte », et non la réinitialisation.
+        Notification::assertSentTo($admin, AgencyAdminActivationNotification::class);
 
         $this->assertTrue(
             Activity::query()

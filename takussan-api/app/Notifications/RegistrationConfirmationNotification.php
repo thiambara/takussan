@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -12,8 +14,16 @@ use Illuminate\Notifications\Messages\MailMessage;
  * preserved, but overrides the mail content to use our localized Blade/lang
  * strings (FR/EN/WO supported via lang/<locale>/notifications.php).
  */
-class RegistrationConfirmationNotification extends VerifyEmail
+class RegistrationConfirmationNotification extends VerifyEmail implements ShouldQueue
 {
+    use Queueable;
+
+    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications-urgent'];
+    }
+
     /**
      * Build the mail message with localized strings.
      */

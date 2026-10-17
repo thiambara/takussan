@@ -41,7 +41,9 @@ class CourtierAbsentTest extends TestCase
         ['config/auth.php', '| reset "broker" for your application. You may change these values'],
         ['config/auth.php', "'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),"],
         ['app/Services/Admin/UserSupportService.php', "\$status = Password::broker()->sendResetLink(['email' => \$target->email]);"],
-        ['app/Services/Admin/AgencyProvisioningService.php', "\$status = Password::broker()->sendResetLink(['email' => \$admin->email]);"],
+        // TCK-781 — le jeu de jetons `activations` (lien d'activation du gérant provisionné, 7 jours).
+        ['app/Services/Admin/AgencyProvisioningService.php', "\$token = Password::broker('activations')->createToken(\$admin);"],
+        ['app/Http/Controllers/Api/Auth/PasswordResetController.php', "\$status = Password::broker(\$this->jeuDeJetons(\$request->boolean('activation'), \$data['email']))->reset("],
     ];
 
     public function test_aucune_ligne_ne_nomme_le_courtier_hors_du_password_broker(): void

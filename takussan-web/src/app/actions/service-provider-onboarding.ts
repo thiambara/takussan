@@ -16,6 +16,7 @@ import {
   type ServiceProviderAgenciesResponse,
   type TradesPayload,
 } from '@/lib/service-provider-onboarding';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-261 — server actions consumed by `<ServiceProviderOnboardingWizard>`.
@@ -33,6 +34,7 @@ export type ActionResult<T> =
 type CleRepli = 'tradesFailed' | 'availabilityFailed' | 'completeFailed' | 'agenciesFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<never>> {
+  journaliserErreurInattendue('service-provider-onboarding', err);
   // Module `'use server'` : le texte se compose ICI, avec `getTranslations`. Voir `src/lib/api.ts`.
   const [tRacine, t] = await Promise.all([getTranslations(), getTranslations('serverActions.serviceProviderOnboarding')]);
   const repli = t(cleRepli);

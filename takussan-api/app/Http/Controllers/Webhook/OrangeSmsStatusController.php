@@ -8,6 +8,7 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 — Inbound DLR from Orange Sénégal SMS API.
@@ -51,6 +52,17 @@ use Illuminate\Http\Request;
  */
 class OrangeSmsStatusController extends Controller
 {
+    /**
+     * P36.03 (TCK-797) — les seuls statuts écrits, ceux qui sont sûrement terminaux. Les autres
+     * (`MessageWaiting`, `DeliveredToNetwork`, `DeliveryUncertain`,
+     * `DeliveryNotificationNotSupported`, ou un statut inconnu) ne disent ni la remise ni l'échec :
+     * ils sont ignorés avec un `Log::warning`, au lieu d'être écrits `failed` par défaut.
+     */
+    private const TERMINAL_STATUSES = [
+        'DeliveredToTerminal' => SmsResult::STATUS_DELIVERED,
+        'DeliveryImpossible' => SmsResult::STATUS_FAILED,
+    ];
+
     public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         $token = (string) config('sms.webhook_url_token', '');
@@ -81,13 +93,13 @@ class OrangeSmsStatusController extends Controller
             abort(404);
         }
         $journal->annotate(['external_id' => $providerMessageId, 'event_type' => $providerStatus]);
-        $newStatus = match ($providerStatus) {
-            'DeliveredToTerminal' => SmsResult::STATUS_DELIVERED,
-            'DeliveryImpossible',
-            'DeliveryNotificationNotSupported',
-            'MessageWaiting' => SmsResult::STATUS_FAILED,
-            default => SmsResult::STATUS_FAILED,
-        };
+        $newStatus = self::TERMINAL_STATUSES[$providerStatus] ?? null;
+        if ($newStatus === null) {
+            Log::warning('[sms.orange.webhook] statut non terminal ou inconnu ignoré', ['message_id' => $providerMessageId, 'status' => $providerStatus]);
+            $journal->annotate(['matched_count' => 0]);
+
+            return new JsonResponse(['ok' => true]);
+        }
         $deliveredAt = $newStatus === SmsResult::STATUS_DELIVERED ? now() : null;
         $updated = $updater->applyStatus(
             provider: 'orange',
@@ -95,6 +107,7 @@ class OrangeSmsStatusController extends Controller
             newStatus: $newStatus,
             failureReason: $newStatus === SmsResult::STATUS_FAILED ? $providerStatus : null,
             deliveredAt: $deliveredAt,
+            statusPrecedence: DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE,
         );
         if (! $updated) {
             // Silent 404 — payload didn't match any tracked attempt. TCK-602 — un « non apparié »,

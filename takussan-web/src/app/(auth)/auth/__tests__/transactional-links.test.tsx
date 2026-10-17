@@ -128,6 +128,37 @@ describe('transactional auth links', () => {
     expect(pushMock).toHaveBeenCalledWith('/auth/login?reset=1');
   });
 
+  // TCK-781 (P15.07, P13.09) — le lien d'activation du gérant provisionné porte `activation=1` :
+  // la page le relaie à l'API (jeton de 7 jours) et mène à l'assistant d'agence après la connexion.
+  it('relays the activation flag and leads the provisioned manager to the agency onboarding', async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams(
+      'token=activation-token&email=awa%40sunu.test&activation=1',
+    );
+    resetPasswordMock.mockResolvedValue({ message: 'Password reset.' });
+
+    render(withIntl(<ResetPasswordPage />));
+
+    await user.type(screen.getByLabelText('Nouveau mot de passe'), 'newpassword123');
+    await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'newpassword123');
+    await user.click(
+      screen.getByRole('button', { name: 'Définir le nouveau mot de passe' }),
+    );
+
+    await waitFor(() =>
+      expect(resetPasswordMock).toHaveBeenCalledWith({
+        token: 'activation-token',
+        email: 'awa@sunu.test',
+        password: 'newpassword123',
+        password_confirmation: 'newpassword123',
+        activation: true,
+      }),
+    );
+    expect(pushMock).toHaveBeenCalledWith(
+      '/auth/login?reset=1&redirect=%2Fonboarding%2Fagency-admin',
+    );
+  });
+
   it('shows the reset success message on the login page', () => {
     searchParams = new URLSearchParams('reset=1');
 

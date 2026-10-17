@@ -10,6 +10,7 @@ import { getActiveProfileId, getToken } from '@/lib/session';
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 export type ProfilesActionResult =
   | { ok: true; data: MyProfilesResponse }
@@ -36,6 +37,7 @@ export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
     const data = await fetchMyProfiles(token, active);
     return { ok: true, data };
   } catch (err) {
+    journaliserErreurInattendue('profiles', err);
     const [tRacine, t] = await Promise.all([
       getTranslations(),
       getTranslations('serverActions.profiles'),
@@ -70,6 +72,7 @@ export async function switchActiveProfileAction(
     });
     return { ok: true, data: res.data };
   } catch (err) {
+    journaliserErreurInattendue('profiles', err);
     const [tRacine, t] = await Promise.all([
       getTranslations(),
       getTranslations('serverActions.profiles'),

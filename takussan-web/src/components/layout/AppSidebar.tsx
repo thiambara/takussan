@@ -558,11 +558,13 @@ function SidebarItem({
       <span
         role="link"
         aria-disabled="true"
+        tabIndex={0}
         title={t('proLocked')}
         className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5"
       >
         <Icon className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{label}</span>
+        <span className="sr-only">{t('proLocked')}</span>
         <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
       </span>
     );

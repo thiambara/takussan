@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Invoice;
 
+use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Services\Invoice\OverdueReminderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,7 +21,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class SendOverdueRemindersJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use AlertsOnFirstFailure, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function handle(OverdueReminderService $service): int
     {

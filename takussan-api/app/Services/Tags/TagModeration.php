@@ -63,6 +63,11 @@ final class TagModeration
 
         $biens = DB::transaction(function () use ($tag, $nom) {
             $ligne = $this->verrouiller($tag);
+            // TCK-729 (P30.01) — le front traduit un équipement du catalogue par son slug, et
+            // `tags:sync-catalog` le retrouve par son nom : renommé, il garderait son libellé à
+            // l'écran et serait recréé au déploiement suivant sous `<slug>-2`. Seules les
+            // propositions se renomment.
+            abort_code_if(TagCatalog::estUnEquipement($ligne->name), 409, 'tags.catalog_rename_forbidden');
             $pris = Tag::query()->whereKeyNot($ligne->getKey())
                 ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])
                 ->exists();

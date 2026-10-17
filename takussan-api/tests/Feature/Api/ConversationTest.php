@@ -2,13 +2,16 @@
 
 namespace Tests\Feature\Api;
 
+use App\Jobs\NotifyNewMessageJob;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationType;
 use App\Models\Lease;
+use App\Models\Message;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -284,5 +287,78 @@ class ConversationTest extends TestCase
             'participants' => [$other->id],
             'lease_id' => $bail->id,
         ])->assertCreated();
+    }
+
+    /**
+     * TCK-805 (P38.03) — le premier message joint à la création passe par le même envoi que
+     * `sendMessage()`. Les deux branches de `store()` le créaient sans `NotifyNewMessageJob`.
+     */
+    public function test_le_premier_message_d_une_directe_est_notifie(): void
+    {
+        Queue::fake();
+
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $this->mettreEnContact($me, $other);
+
+        Sanctum::actingAs($me);
+
+        $conversationId = $this->postJson('/api/conversations', [
+            'participants' => [$other->id],
+            'initial_message' => 'Bonjour',
+        ])->assertCreated()->json('data.id');
+
+        $message = Message::query()->where('conversation_id', $conversationId)->sole();
+        Queue::assertPushed(NotifyNewMessageJob::class, 1);
+        Queue::assertPushed(NotifyNewMessageJob::class, fn (NotifyNewMessageJob $job) => $job->messageId === $message->id);
+    }
+
+    public function test_le_premier_message_d_un_groupe_est_notifie(): void
+    {
+        Queue::fake();
+
+        $me = User::factory()->create();
+        $b = User::factory()->create();
+        $c = User::factory()->create();
+        $agency = $this->mettreEnContact($me, $b);
+        $this->materializeRoleProfile($c, 'agent', $agency);
+
+        Sanctum::actingAs($me);
+
+        $conversationId = $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Équipe',
+            'participants' => [$b->id, $c->id],
+            'initial_message' => 'Bienvenue',
+        ])->assertCreated()->json('data.id');
+
+        $message = Message::query()
+            ->where('conversation_id', $conversationId)
+            ->where('content', 'Bienvenue')
+            ->sole();
+        Queue::assertPushed(NotifyNewMessageJob::class, 1);
+        Queue::assertPushed(NotifyNewMessageJob::class, fn (NotifyNewMessageJob $job) => $job->messageId === $message->id);
+    }
+
+    public function test_une_creation_sans_premier_message_ne_notifie_aucun_message(): void
+    {
+        Queue::fake();
+
+        $me = User::factory()->create();
+        $b = User::factory()->create();
+        $c = User::factory()->create();
+        $agency = $this->mettreEnContact($me, $b);
+        $this->materializeRoleProfile($c, 'agent', $agency);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', ['participants' => [$b->id]])->assertCreated();
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Équipe',
+            'participants' => [$b->id, $c->id],
+        ])->assertCreated();
+
+        Queue::assertNotPushed(NotifyNewMessageJob::class);
     }
 }

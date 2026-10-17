@@ -294,11 +294,8 @@ class EarlyTerminationService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('lease.early_termination_penalty_months');
-        if (is_array($value)) {
-            $value = $value['value'] ?? array_values($value)[0] ?? null;
-        }
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId,
+            app(PlatformSettingService::class)->getValue('lease.early_termination_penalty_months'));
 
         $months = (int) $value;
 

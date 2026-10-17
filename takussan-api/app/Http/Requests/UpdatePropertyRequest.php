@@ -18,7 +18,6 @@ use App\Services\Property\CoutDEntree;
 use App\Services\Property\HierarchyService;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -28,11 +27,18 @@ use Illuminate\Validation\Rule;
  * replaces, plus the `parent_id` rules required to enforce
  * anti-cycle / max-depth / same-agency invariants.
  */
-class UpdatePropertyRequest extends FormRequest
+class UpdatePropertyRequest extends BaseFormRequest
 {
+    /**
+     * TCK-730 (P03.05) — la policy que le contrôleur appelait après la validation est appelée ici,
+     * avant elle : un appelant sans droit sur le bien reçoit 403, plus 422 et les noms des champs.
+     */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $bien = $this->route('property');
+
+        return $bien instanceof Property
+            && $this->user()?->can('update', $bien) === true;
     }
 
     public function rules(): array

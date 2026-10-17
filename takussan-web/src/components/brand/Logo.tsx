@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
  */
 
 /** Rayons du soleil : centre (24, 33), de r = 14 à r = 20, de −180° à 0° par pas de 30°. */
-const RAYONS = [
+export const RAYONS = [
   'M10.00 33.00L4.00 33.00',
   'M11.88 26.00L6.68 23.00',
   'M17.00 20.88L14.00 15.68',

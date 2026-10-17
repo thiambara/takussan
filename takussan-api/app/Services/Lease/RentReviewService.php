@@ -208,11 +208,8 @@ class RentReviewService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct');
-        if (is_array($value)) {
-            $value = $value['value'] ?? array_values($value)[0] ?? null;
-        }
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId,
+            app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct'));
 
         $pct = (float) $value;
 

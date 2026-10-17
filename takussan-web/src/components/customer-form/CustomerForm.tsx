@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Controller } from 'react-hook-form';
+import { Controller, useFormState } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -16,6 +16,7 @@ import {
   FormSelect,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { ApiError } from '@/lib/api';
 import {
   customerFormSchema,
@@ -157,6 +158,11 @@ export function CustomerForm({
         router.refresh();
       },
     });
+
+  // P08.06 (TCK-755) — avertir avant de quitter la page, seulement quand le formulaire est modifié.
+  // `useFormState` et non `form.formState` lu au rendu : compilé, la lecture resterait figée (TCK-571).
+  const { isDirty } = useFormState({ control: form.control });
+  useAvertissementDepart(isDirty);
 
   const { control } = form;
   // « Indifférent » est une option à part entière : sans elle, un type choisi ne s'effaçait plus.

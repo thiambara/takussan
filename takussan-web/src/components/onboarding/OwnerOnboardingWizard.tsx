@@ -546,7 +546,7 @@ function RecapStep({ ownerProfileId }: { ownerProfileId: number }) {
             </div>
             <a
               href={`/app/properties/${property.id}`}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
             >
               {t('viewAll')}
             </a>

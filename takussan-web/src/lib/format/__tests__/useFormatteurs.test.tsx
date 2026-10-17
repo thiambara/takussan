@@ -128,6 +128,24 @@ describe('formatteursPour — la partie pure', () => {
   it('formate le montant au contrat du dépôt, pas au code ISO', () => {
     expect(formatteursPour('fr').montant(150_000, 'XOF')).toContain('F CFA');
   });
+
+  // TCK-738 (P04.09) — les décimales viennent de la devise (`CURRENCY_METADATA`) : 12,50 €
+  // s'affichait « 13 € ».
+  const espaces = (s: string) => s.replace(/[\s  ]/g, ' ');
+
+  it('affiche les décimales de la devise', () => {
+    expect(espaces(formatteursPour('fr').montant(12.5, 'EUR'))).toBe('12,50 €');
+    expect(espaces(formatteursPour('en').montant(12.5, 'USD'))).toBe('$12.50');
+  });
+
+  it('garde le franc CFA sans décimale', () => {
+    expect(espaces(formatteursPour('fr').montant(150_000.4, 'XOF'))).toBe('150 000 F CFA');
+  });
+
+  it('accepte un maximum seul sous les décimales de la devise, sans lever', () => {
+    expect(() => formatteursPour('fr').montant(12.5, 'EUR', { maximumFractionDigits: 0 })).not.toThrow();
+    expect(espaces(formatteursPour('fr').montant(12.5, 'EUR', { maximumFractionDigits: 0 }))).toBe('13 €');
+  });
 });
 
 describe('useFormatteurs — la locale vient bien de next-intl', () => {

@@ -13,6 +13,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\Logging\SafeExceptionContext;
 use App\Support\TelephoneSaisi;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -178,9 +179,14 @@ class VisitNotifier
                     $this->params($visit, $code, $recipient->timezone),
                     NotificationTarget::of('visit', $visit->id),
                 );
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 // Notification routing failures must never bubble up and break
-                // the originating HTTP request.
+                // the originating HTTP request — but they are logged (TCK-771),
+                // in the safe form of ADR-0044, never the message.
+                Log::warning('[VisitNotifier] agency notification failed', [
+                    'visit_id' => $visit->id,
+                    'code' => $code->value,
+                ] + SafeExceptionContext::of($e));
             }
         }
     }
@@ -211,8 +217,13 @@ class VisitNotifier
             );
 
             return $sms;
-        } catch (\Throwable) {
-            // Silent — see toAgency().
+        } catch (\Throwable $e) {
+            // Non-blocking, logged — see toAgency().
+            Log::warning('[VisitNotifier] visitor notification failed', [
+                'visit_id' => $visit->id,
+                'code' => $code->value,
+            ] + SafeExceptionContext::of($e));
+
             return null;
         }
     }

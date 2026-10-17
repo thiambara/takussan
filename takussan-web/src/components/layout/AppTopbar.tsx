@@ -19,7 +19,7 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
  * haute. Les autres (`ProfileSwitcher`, `LanguageSwitcher`, `NotificationBell`, `UserMenu`)
  * passent par la primitive `Button` et portent son propre anneau.
  *
- * Ces deux-là n'en portaient AUCUN : ils retombaient sur la règle globale `* { outline-ring/50 }`
+ * Ces deux-là n'en portaient AUCUN : ils retombaient sur la règle globale `* { outline-ring }`
  * de `globals.css`, mesurée à **1,73:1** sur le fond de la barre — sous les 3:1 qu'exige
  * WCAG 1.4.11. `AppShell` monte cette barre sur CHAQUE page de `/app` — section d'agence comprise
  * depuis TCK-649 —, et le hamburger est le SEUL contrôle qui ouvre le tiroir de navigation sous `md`.

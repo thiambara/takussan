@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Sms\Drivers;
 
+use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -17,13 +18,13 @@ use Illuminate\Support\Facades\Log;
  *
  * Endpoint: POST {send_url} (form-urlencoded).
  * Auth   : `username` / `password` in the body.
- * Batch  : `msisdn` is a comma-separated list, max 500 per call.
  * Errors : Mtarget returns negative codes (-1 … -15) — mapped to
  *          {@see SmsResult::failed()} with a stable `failure_reason`.
  *
- * Multi-recipient calls are batched in chunks of 500. Each chunk
- * generates a single HTTP request — successes are split per-recipient
- * in the returned map.
+ * P27.05 (TCK-784) — UN numéro par appel. `msisdn` accepte une liste, mais la réponse d'un lot
+ * était lue par son seul `results[0]` : un numéro refusé passait `sent` avec le premier. Le format
+ * réel d'une réponse à plusieurs numéros n'étant pas vérifié, chaque numéro a son appel et son
+ * résultat. (`sms.mtarget.batch_max` n'est plus lu.)
  */
 class MtargetSmsDriver implements SmsDriverInterface
 {
@@ -51,7 +52,6 @@ class MtargetSmsDriver implements SmsDriverInterface
         }
         $creds = $integration->credentials ?? [];
         $url = (string) $this->config->get('sms.mtarget.send_url');
-        $batchMax = (int) $this->config->get('sms.mtarget.batch_max', 500);
         $segments = SmsSegmentCalculator::segmentsCount($message);
         $isUnicode = SmsSegmentCalculator::isUnicode($message);
         $senderId = (string) ($context['sender_id']
@@ -60,7 +60,7 @@ class MtargetSmsDriver implements SmsDriverInterface
             ?? 'TAKUSSAN');
 
         $results = [];
-        foreach (array_chunk($recipients, $batchMax) as $chunk) {
+        foreach (array_chunk($recipients, 1) as $chunk) {
             $payload = [
                 'username' => $creds['username'] ?? '',
                 'password' => $creds['password'] ?? '',
@@ -80,7 +80,7 @@ class MtargetSmsDriver implements SmsDriverInterface
             } catch (\Throwable $e) {
                 Log::warning('[sms.mtarget] HTTP exception', ['error' => $e->getMessage()]);
                 foreach ($chunk as $n) {
-                    $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_http_exception');
+                    $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_http_exception', AmbiguousDelivery::fromThrowable($e));
                 }
 
                 continue;
@@ -103,13 +103,14 @@ class MtargetSmsDriver implements SmsDriverInterface
                 }
             } else {
                 $reason = 'mtarget_error_'.$code;
+                $ambiguous = AmbiguousDelivery::fromStatus($response->status());
                 foreach ($chunk as $n) {
-                    $results[$n] = SmsResult::failed($n, $this->id(), $reason);
+                    $results[$n] = SmsResult::failed($n, $this->id(), $reason, $ambiguous);
                 }
             }
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $integration->markUsed();
 
         return $results;
     }

@@ -22,7 +22,7 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $base = Booking::query()->with(['property.address', 'customer', 'agency']);
+        $base = Booking::query()->with(['property.address', 'property.media', 'customer', 'agency']);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {

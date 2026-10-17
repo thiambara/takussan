@@ -473,3 +473,22 @@ describe('la matrice, lue jusqu’au bout par l’édition (TCK-488)', () => {
     expect(setPropertyTagsAction).not.toHaveBeenCalled();
   });
 });
+
+/** P08.06 (TCK-755) — quitter la page avertit seulement quand le formulaire est modifié. */
+describe('PropertyForm — avertissement de départ (TCK-755)', () => {
+  const quitterLaPage = () => {
+    const evenement = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(evenement);
+    return evenement.defaultPrevented;
+  };
+
+  it("n'avertit pas sur un bien relu sans changement, avertit dès qu'un champ est modifié", async () => {
+    const user = userEvent.setup();
+    renderForm(maison());
+    expect(quitterLaPage()).toBe(false);
+
+    await user.type(screen.getByLabelText(/code postal/i), '1');
+
+    expect(quitterLaPage()).toBe(true);
+  });
+});

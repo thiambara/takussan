@@ -78,7 +78,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, `pgvector/pgvector:pg17`, limite 1 Gio | 2026-09-14 | `docker service ls` (Dokploy suffixe le nom donné) |
 | Meilisearch, Redis | `meilisearch:7700` (v1.16), `redis-takussan:6379` — Compose `donnees` du projet *Serveur*, sans port publié | 2026-09-14 | `docker ps --format '{{.Names}} {{.Image}}'` |
 | Bases de préproduction | `takussan_preview` (`LOCALE C`, `CONNECT` révoqué à `PUBLIC`) | 2026-09-14 | plan, tâche A4, étapes 9 et 10 |
-| Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` | 2026-09-14 | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
+| Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` ; la page de Cloudflare en publie autant le 2026-10-17. Comparées chaque jour, avec le `TRUSTED_PROXIES` de chaque conteneur `api`, par `plages-cloudflare.timer` (`deploy/server/plages-cloudflare.sh`, P37.05) : alerte Telegram par franchissement, rien n'est écrit. **Installé le 2026-10-17, 18:52 CEST** (runbook, étape 10 ; `sha256` du script identique au dépôt, `0cc3f196…`), premier passage du timer le lendemain à 07:00 : `--etat` → les 22 plages dans `traefik.yml` et dans le `TRUSTED_PROXIES` de `takussan-api-preview-4iza80-api-1`. **Ablation jouée, timer arrêté** : une source qui publie `198.51.100.0/24` en plus → une alerte par liste (deux messages), rejouée → silence, source réelle → deux retours à la normale, rejouée → silence, aucun marqueur restant ; aucune ligne `✗` d'envoi Telegram. `systemctl start plages-cloudflare.service` → `Result=success` | 2026-10-17 | `plages-cloudflare --etat` ; `systemctl list-timers plages-cloudflare.timer` ; `journalctl -u plages-cloudflare.service` |
 | Sous-réseau de `dokploy-network` | `10.0.1.0/24` (overlay) — tête de `TRUSTED_PROXIES` | 2026-09-14 | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
 | IP du client jusqu'à Laravel | prouvée par ablation sur `preview.api.takussan.com` (DNS seul) : liste = `203.0.113.7` → `403 Source IP not allowed` avec **et** sans `X-Forwarded-For: 203.0.113.7` ; liste = IP du poste → le filtre laisse passer. La clé est ensuite retirée | 2026-09-14 | plan, tâche D5, étape 4 |
 | IP du visiteur sur le chemin serveur Next → API | **non mesurée** — inférée par ADR-0052 §5 (`VISITOR_IP_TRUSTED_HOPS=2` sur `preview`). À relever par le porteur AVANT puis APRÈS avoir posé `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` (AC22 de TCK-598) | — | ADR-0052 §6 (commande `RateLimiter::attempts` dans le conteneur `api`) |
@@ -329,6 +329,18 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    « Executing command », puis `smoke-api.sh pile` en local, qui joue la même commande. ⚠ Sans
    `-A curl/8`, le *Browser Integrity Check* de Cloudflare refuse l'appel (`403`, code `1010`) ;
    mesuré depuis `urllib` de Python.
+
+10. Les plages Cloudflare (P37.05) — `bootstrap.sh` § 9 pose les unités, qui attendent le script :
+    `scp deploy/server/plages-cloudflare.sh root@178.18.247.62:/usr/local/sbin/plages-cloudflare`.
+    Sur un serveur préparé avant ce § 9 (le serveur actuel), le § 9 seul se rejoue :
+    `awk '/^# ── 9\./,/^echo "✓ serveur préparé/' deploy/server/bootstrap.sh | sed '$d' | ssh root@178.18.247.62 bash`.
+    Il lit les secrets Telegram de `/etc/default/seuils` (étape 8). Preuve : `plages-cloudflare
+    --etat` nomme chaque conteneur `api` et rend « les 22 plages Cloudflare y sont » pour
+    `traefik.yml` comme pour chaque `TRUSTED_PROXIES` ; puis l'ablation, timer arrêté comme pour
+    les seuils : une source qui publie une plage de plus (`SOURCE_CF=file:///root/faux`, avec
+    `ips-v4` et `ips-v6` copiés et une ligne ajoutée) doit alerter une fois, se taire au second
+    passage, et `plages-cloudflare` sans la variable doit annoncer le retour. Éprouvé en local le
+    2026-10-17 sur des listes et un conteneur factices.
 
 ⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
 `~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau

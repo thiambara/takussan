@@ -49,8 +49,12 @@ class DocumentController extends Controller
             $base->excludingProfilePieces();
         }
 
-        $paginator = Document::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // P16.03 (TCK-785) — la pertinence de `filter[search]` à défaut d'un `sort=`, comme TCK-281 :
+        // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
+        $query = Document::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
@@ -63,11 +67,16 @@ class DocumentController extends Controller
         $fqcn = $this->resolveDocumentableType($data['documentable_type']);
         abort_code_if($fqcn === null, 422, 'document.unsupported_type');
 
-        $model = $fqcn::query()->find($data['documentable_id']);
-        abort_code_if($model === null, 404, 'document.owner_not_found');
-
         $user = $request->user();
-        $this->authorize('attachTo', [Document::class, $model]);
+
+        // TCK-732 (P03.06) — un porteur interdit rend la même réponse qu'un porteur introuvable :
+        // un 403 ici dirait qu'un bien, un bail ou un client d'une autre agence existe.
+        $model = $fqcn::query()->find($data['documentable_id']);
+        abort_code_if(
+            $model === null || ! $user->can('attachTo', [Document::class, $model]),
+            404,
+            'document.owner_not_found'
+        );
 
         $document = Document::create([
             'documentable_id' => $model->getKey(),

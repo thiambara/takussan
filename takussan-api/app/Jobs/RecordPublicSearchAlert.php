@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\SmsCodeUndelivered;
 use App\Models\AlertSubscriber;
 use App\Models\SavedSearch;
 use App\Notifications\SearchAlertConfirmationNotification;
@@ -121,7 +122,13 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
             $subscriber->notify(new SearchAlertConfirmationNotification($token));
             $delivered = true;
         } else {
-            $delivered = $codes->sendCodeTo(self::SCOPE.$subscriber->id, $this->contact, $subscriber->locale);
+            // P15.05 (TCK-783) — un code qu'aucun fournisseur n'a accepté n'est pas une confirmation
+            // envoyée : elle ne compte pas dans le plafond du jour.
+            try {
+                $delivered = $codes->sendCodeTo(self::SCOPE.$subscriber->id, $this->contact, $subscriber->locale);
+            } catch (SmsCodeUndelivered) {
+                $delivered = false;
+            }
         }
 
         if ($delivered) {

@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2, ChevronRight, Circle } from 'lucide-react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import type { CheminAdmin } from '@/lib/access/pages-admin';
+import { PAGES_ADMIN, type CheminAdmin } from '@/lib/access/pages-admin';
+import type { AgencyKind } from '@/types/agency';
 
 /**
  * TCK-589 — la carte « Mise en service » en tête du tableau de bord d'agence (`/app/overview/agency`
@@ -44,11 +45,31 @@ const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' 
   admin_two_factor: '/app/profile',
 };
 
-interface MiseEnServiceProps {
-  readonly agencyId: number | null;
+/** L'étape qui en conditionne d'autres, montrée la première (TCK-761). */
+const ETAPE_EN_TETE = 'admin_two_factor';
+
+/**
+ * TCK-777 (P15.08) — une étape s'applique à l'agence quand l'écran qui la fait lui est ouvert. La
+ * règle n'est pas recopiée : elle se lit dans la table des pages (`agence: 'standard'`). Pour une
+ * agence `individual`, « premier membre » (`/app/agency/team`) tombe ainsi : l'hôte solo n'a pas
+ * d'équipe, et l'étape ne serait jamais faite.
+ */
+function etapeApplicable(key: string, kind: AgencyKind | null): boolean {
+  if (kind === 'standard') return true;
+  const page = PAGES_ADMIN.find((p) => p.chemin === DESTINATIONS[key]);
+  return page?.exige.agence !== 'standard';
 }
 
-export function MiseEnService({ agencyId }: MiseEnServiceProps) {
+interface MiseEnServiceProps {
+  readonly agencyId: number | null;
+  /**
+   * Le `kind` de l'agence, qui filtre les étapes. `standard` par défaut : c'est la seule agence
+   * que sert `/app/overview/agency`.
+   */
+  readonly kind?: AgencyKind | null;
+}
+
+export function MiseEnService({ agencyId, kind = 'standard' }: MiseEnServiceProps) {
   const t = useTranslations('dashboard.agencySetup');
   const { data } = useApiQuery<SetupStatusResponse>(
     ['agencies', agencyId, 'setup-status'],
@@ -57,11 +78,19 @@ export function MiseEnService({ agencyId }: MiseEnServiceProps) {
   );
 
   if (!data || data.data.complete) return null;
-  const etapes = data.data.steps;
+  // TCK-777 — la progression et la disparition se jugent sur les étapes qui s'appliquent, pas sur
+  // `complete`, que l'API calcule sur les sept.
+  const etapes = data.data.steps.filter((e) => etapeApplicable(e.key, kind));
   if (etapes.length === 0 || etapes.every((e) => e.done)) return null;
 
   const faites = etapes.filter((e) => e.done).length;
-  const connues = etapes.filter((e) => e.key in DESTINATIONS);
+  // TCK-761 (P15.04) — la 2FA de l'admin passe en tête : elle conditionne trois autres étapes
+  // (commission, intégration de paiement, premier membre), que l'API refuse sans elle
+  // (`ProtectedActions::AGENCY_TWO_FACTOR`). Les autres gardent l'ordre de l'API
+  // (`sort` est stable, et trie la copie que rend `filter`).
+  const connues = etapes
+    .filter((e) => e.key in DESTINATIONS)
+    .sort((a, b) => Number(b.key === ETAPE_EN_TETE) - Number(a.key === ETAPE_EN_TETE));
 
   return (
     <section

@@ -20,6 +20,7 @@ const QUARTIERS: OptionDeListe[] = [
   { value: '1', label: 'Liberté 4' },
   { value: '2', label: 'Mermoz' },
   { value: '3', label: 'Médina' },
+  { value: '4', label: 'Grand Yoff' },
 ];
 
 function Simple({ surChoix, surCreation }: { surChoix: (o: OptionDeListe | null) => void; surCreation: (t: string) => void }) {
@@ -72,6 +73,12 @@ function Multiple({ surCreation }: { surCreation: (t: string) => void }) {
 describe('replis', () => {
   it('la recherche replie les accents, les espaces et la casse', () => {
     expect(replierPourRecherche('  Liberté   4 ')).toBe('liberte 4');
+  });
+
+  it('la recherche replie aussi tirets et apostrophes, comme le résolveur du serveur (TCK-788)', () => {
+    expect(replierPourRecherche('Grand-Yoff')).toBe(replierPourRecherche('Grand Yoff'));
+    expect(replierPourRecherche('Cité d’Arafat')).toBe('cite d arafat');
+    expect(replierPourRecherche("Cité d'Arafat")).toBe('cite d arafat');
   });
 
   it("l'identité ne replie QUE la casse et les espaces — comme l'index du serveur", () => {
@@ -137,6 +144,21 @@ describe('<Combobox>', () => {
     await user.keyboard('{Enter}');
 
     expect(surChoix).toHaveBeenLastCalledWith({ value: '1', label: 'Liberté 4' });
+    expect(surCreation).not.toHaveBeenCalled();
+  });
+
+  it('« Grand-Yoff » trouve « Grand Yoff » et Entrée choisit l’existant (TCK-788)', async () => {
+    const user = userEvent.setup();
+    const surChoix = vi.fn();
+    const surCreation = vi.fn();
+    render(<Simple surChoix={surChoix} surCreation={surCreation} />);
+
+    await user.type(screen.getByLabelText('Quartier'), 'Grand-Yoff');
+    const options = await screen.findAllByRole('option');
+    expect(options[0]).toHaveTextContent('Grand Yoff');
+    await user.keyboard('{Enter}');
+
+    expect(surChoix).toHaveBeenLastCalledWith({ value: '4', label: 'Grand Yoff' });
     expect(surCreation).not.toHaveBeenCalled();
   });
 

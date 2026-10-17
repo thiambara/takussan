@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Lease;
 
+use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -21,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class ApplyLateFeesJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use AlertsOnFirstFailure, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function handle(LateFeeCalculator $calculator): int
     {

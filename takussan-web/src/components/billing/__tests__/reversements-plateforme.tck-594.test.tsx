@@ -108,6 +108,7 @@ describe('Reversements plateforme — trois mains et une preuve (TCK-594)', () =
       excluded: [
         { agency_id: 4, reason: 'agency_not_active' },
         { agency_id: 9, reason: 'already_closed' },
+        { agency_id: 12, reason: 'mixed_currencies' },
       ],
     });
     render(withIntl(avecClient(<PayoutCloseDialog />)));
@@ -116,6 +117,8 @@ describe('Reversements plateforme — trois mains et une preuve (TCK-594)', () =
 
     expect(await screen.findByText('Agence #4 — agence suspendue ou non active')).toBeInTheDocument();
     expect(screen.getByText('Agence #9 — période déjà clôturée')).toBeInTheDocument();
-    expect(screen.getByText(/2 agences écartées/)).toBeInTheDocument();
+    // TCK-733 (P04.05) — une agence dont les encaissements mélangent deux devises est écartée.
+    expect(screen.getByText('Agence #12 — devises mélangées')).toBeInTheDocument();
+    expect(screen.getByText(/3 agences écartées/)).toBeInTheDocument();
   });
 });

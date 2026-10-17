@@ -131,10 +131,12 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -283,19 +285,24 @@ class AppServiceProvider extends ServiceProvider
     private function registerSmsServices(): void
     {
         // TCK-102 — register the multi-provider SMS stack. Each leaf
-        // driver is a singleton so its in-process state (Mtarget batch
+        // driver is shared (scoped) so its in-process state (Mtarget batch
         // counter, LAM ret_url cache, etc.) survives across notifications
         // dispatched in the same request. The router collects them by id.
-        $this->app->singleton(IntegrationLocator::class);
+        // TCK-765 (P11.06) — the locator caches Integration rows (null
+        // included), so it and every class holding it are `scoped()`: the
+        // queue worker forgets them between two jobs, and an Integration
+        // turned on or rotated takes effect on the next job instead of
+        // after the worker's --max-time.
+        $this->app->scoped(IntegrationLocator::class);
         $this->app->singleton(OperatorResolver::class);
         $this->app->singleton(QuietHoursGuard::class);
         $this->app->singleton(OrangeDailyCapTracker::class);
         $this->app->singleton(OrangeOAuthTokenCache::class);
         $this->app->singleton(LogSmsDriver::class);
-        $this->app->singleton(OrangeSmsDriver::class);
-        $this->app->singleton(MtargetSmsDriver::class);
-        $this->app->singleton(LAfricaMobileSmsDriver::class);
-        $this->app->singleton(SmsRouterDriver::class, function ($app): SmsRouterDriver {
+        $this->app->scoped(OrangeSmsDriver::class);
+        $this->app->scoped(MtargetSmsDriver::class);
+        $this->app->scoped(LAfricaMobileSmsDriver::class);
+        $this->app->scoped(SmsRouterDriver::class, function ($app): SmsRouterDriver {
             return new SmsRouterDriver(
                 drivers: [
                     'orange' => $app->make(OrangeSmsDriver::class),
@@ -328,7 +335,7 @@ class AppServiceProvider extends ServiceProvider
         // drivers, one conditional binding on config. `log` is the
         // default so nothing calls the operator until an env says so.
         $this->app->singleton(LogDlrPuller::class);
-        $this->app->singleton(MtargetDlrPuller::class);
+        $this->app->scoped(MtargetDlrPuller::class);
         $this->app->bind(SmsDlrPullerInterface::class, function ($app): SmsDlrPullerInterface {
             return match ((string) $app['config']->get('sms.dlr_pulling.driver', 'log')) {
                 'mtarget' => $app->make(MtargetDlrPuller::class),
@@ -344,7 +351,7 @@ class AppServiceProvider extends ServiceProvider
         // and falls back to the SMS router on ineligibility / hard failure.
         $this->app->singleton(ServiceWindow::class);
         $this->app->singleton(LogWhatsappDriver::class);
-        $this->app->singleton(CloudApiWhatsappDriver::class);
+        $this->app->scoped(CloudApiWhatsappDriver::class);
 
         // `log` in local/testing, `cloud` everywhere else.
         $this->app->bind(WhatsappDriverInterface::class, function ($app): WhatsappDriverInterface {
@@ -459,6 +466,26 @@ class AppServiceProvider extends ServiceProvider
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
         // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
         RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+
+        // P36.07 (TCK-798) — accusés de livraison SMS et WhatsApp : un seau par fournisseur et par
+        // IP. Ils arrivent en rafale depuis quelques IP (jusqu'à 500 par envoi Mtarget, un statut
+        // par message chez Meta) : l'ancien `throttle:120,1` en refusait le surplus. Le débit
+        // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
+        // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
+        // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp'] as $limiter) {
+            RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
+                ->by('ip:'.$request->ip())
+                ->response(function (Request $request, array $headers) use ($limiter): never {
+                    Log::warning('[webhook] débit dépassé, accusé refusé en 429', [
+                        'limiter' => $limiter,
+                        'ip' => $request->ip(),
+                        'route' => $request->route()?->getName(),
+                    ]);
+
+                    throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
+                }));
+        }
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop

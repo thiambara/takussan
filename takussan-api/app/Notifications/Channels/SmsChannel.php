@@ -24,7 +24,8 @@ use Illuminate\Support\Facades\RateLimiter;
  *   3. User opt-in via PreferenceResolver — bypassed when the
  *      Notification is `isCriticalSms()=true`.
  *   4. Rate limit: 5 SMS / hour / user (configurable). Counted before
- *      any provider is touched (AC13).
+ *      any provider is touched (AC13). Critical SMS count in a bucket of
+ *      their own, same bound (TCK-799).
  *
  * TCK-588 — un destinataire ROUTÉ (`Notification::route('sms', …)`, un contact sans compte)
  * n'a pas de clé : sa limite se compte par numéro, `sms-channel:phone:{e164}`. Sans elle, il
@@ -52,7 +53,8 @@ class SmsChannel
         }
         if (! PhoneNumber::isValid($phone)) {
             Log::warning('[sms-channel] invalid phone — rejected before routing', [
-                'phone' => $phone,
+                // TCK-800 (P11.10) — le suffixe seul, comme `PhoneVerificationService`.
+                'phone_suffix' => substr($phone, -4),
                 'notification' => $notification::class,
             ]);
 
@@ -79,6 +81,8 @@ class SmsChannel
         $message = $notification->toSms($notifiable);
         $context = [
             'is_critical' => $isCritical,
+            // TCK-766 — un code à usage unique garde le repli sur un échec ambigu.
+            'is_otp' => method_exists($notification, 'isOtpSms') && $notification->isOtpSms(),
             'event_type' => $this->resolveEventType($notification),
             'agency_id' => $this->resolveAgencyId($notifiable),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),
@@ -144,9 +148,11 @@ class SmsChannel
     private function withinRateLimit(object $notifiable, bool $isCritical, string $phone): bool
     {
         $userId = method_exists($notifiable, 'getKey') ? $notifiable->getKey() : null;
-        $key = $userId
-            ? "sms-channel:user:{$userId}"
-            : 'sms-channel:phone:'.PhoneNumber::normalize($phone);
+        // TCK-799 (P11.05) — un SMS critique (code de signature, alerte de sécurité) a son propre
+        // seau, à la même borne : les rappels ne l'épuisent plus, ni lui les rappels.
+        $key = ($isCritical ? 'sms-channel:critical:' : 'sms-channel:').($userId
+            ? "user:{$userId}"
+            : 'phone:'.PhoneNumber::normalize($phone));
         $maxAttempts = (int) $this->config->get('sms.rate_limit.per_user_per_hour', 5);
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             Log::info('[sms-channel] rate limit hit — skipping', [

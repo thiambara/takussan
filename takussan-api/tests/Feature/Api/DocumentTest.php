@@ -58,7 +58,37 @@ class DocumentTest extends TestCase
             'name' => 'Title deed',
             'type' => DocumentType::Other->value,
             'file' => UploadedFile::fake()->create('deed.pdf', 100, 'application/pdf'),
-        ])->assertForbidden();
+        ])->assertNotFound()
+            ->assertJsonPath('code', 'document.owner_not_found');
+    }
+
+    /**
+     * TCK-732 (P03.06) — un porteur interdit et un porteur introuvable rendent la même réponse :
+     * sans cela, `POST /api/documents` dit si un bien d'une autre agence existe.
+     */
+    public function test_forbidden_owner_and_missing_owner_get_the_same_response(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $other = User::factory()->create();
+
+        Sanctum::actingAs($other);
+
+        $post = fn (int $id) => $this->postJson('/api/documents', [
+            'documentable_type' => 'property',
+            'documentable_id' => $id,
+            'name' => 'Title deed',
+            'type' => DocumentType::Other->value,
+            'file' => UploadedFile::fake()->create('deed.pdf', 100, 'application/pdf'),
+        ]);
+
+        $interdit = $post($property->id);
+        $introuvable = $post($property->id + 1000);
+
+        $introuvable->assertNotFound();
+        $this->assertSame($introuvable->status(), $interdit->status());
+        $this->assertSame($introuvable->json(), $interdit->json());
+        $this->assertDatabaseCount('documents', 0);
     }
 
     public function test_unsupported_documentable_type_returns_422(): void

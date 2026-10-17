@@ -12,6 +12,7 @@ import {
   type AccountDeletionRequest,
   type RequestAccountDeletionPayload,
 } from '@/lib/account-deletion';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-080 — server-action wrappers for the deletion lifecycle. All return
@@ -44,6 +45,7 @@ function requireToken(
 type CleRepli = 'loadFailed' | 'submitFailed' | 'sendCodeFailed' | 'cancelFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string; obligations?: AccountDeletionObligation[]; errors?: Record<string, string[]> }> {
+  journaliserErreurInattendue('account-deletion', err);
   const t = await getTranslations('serverActions.accountDeletion');
   const fallback = t(cleRepli);
   if (err instanceof ApiError) {

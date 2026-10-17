@@ -27,7 +27,7 @@ export function BarreDeMarque({ largeur = 'max-w-4xl', className }: BarreDeMarqu
       <div className={cn('mx-auto flex h-14 w-full items-center px-4 sm:px-6', largeur)}>
         <Link
           href="/"
-          className="inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
         >
           <Logo nom={t('appName')} />
         </Link>

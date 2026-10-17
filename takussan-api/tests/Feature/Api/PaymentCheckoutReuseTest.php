@@ -446,9 +446,18 @@ class PaymentCheckoutReuseTest extends TestCase
         $integration = Integration::query()->where('agency_id', $ctx['agency']->id)->firstOrFail();
         $orphans = array_values(array_filter($logged, fn ($l) => $l['message'] === 'payment_webhook_unmatched'));
         $this->assertCount(1, $orphans);
-        $this->assertSame(
-            ['provider' => 'wave', 'transaction_id' => 'txn_inconnu_42', 'type' => 'paid', 'integration_id' => $integration->id, 'agency_id' => $ctx['agency']->id],
-            $orphans[0]['context'],
-        );
+        // TCK-774 — le contexte partagé de la requête s'y ajoute : `request_id`, et le profil actif,
+        // absent sur un webhook. L'agence de l'appel l'emporte sur celle, nulle, du contexte partagé.
+        $context = $orphans[0]['context'];
+        $this->assertIsString($context['request_id'] ?? null);
+        unset($context['request_id']);
+        ksort($context);
+        $expected = [
+            'provider' => 'wave', 'transaction_id' => 'txn_inconnu_42', 'type' => 'paid',
+            'integration_id' => $integration->id, 'agency_id' => $ctx['agency']->id,
+            'profile_type' => null, 'profile_id' => null,
+        ];
+        ksort($expected);
+        $this->assertSame($expected, $context);
     }
 }

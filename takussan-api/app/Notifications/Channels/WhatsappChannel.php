@@ -75,7 +75,8 @@ class WhatsappChannel
         }
         if (! PhoneNumber::isValid($phone)) {
             Log::warning('[whatsapp-channel] invalid phone — rejected', [
-                'phone' => $phone,
+                // TCK-800 (P11.10) — le suffixe seul, comme `PhoneVerificationService`.
+                'phone_suffix' => substr($phone, -4),
                 'notification' => $notification::class,
             ]);
 
@@ -124,6 +125,11 @@ class WhatsappChannel
 
         if ($result->isTerminalSuccess()) {
             return $results;
+        }
+        // TCK-766 (P27.02) — Meta a pu accepter le message (délai dépassé, 5xx) : le
+        // renvoyer par SMS le ferait recevoir deux fois. Seul un échec sûr se replie.
+        if ($result->ambiguous) {
+            return ['whatsapp' => $result];
         }
 
         return $this->fallbackToSms($notifiable, $notification, $phone, $context, $result);

@@ -1,6 +1,17 @@
 import { z } from 'zod';
 import { requiredStringSchema } from './common';
 import { msgValidation } from './messages';
+import {
+  propertyTypeValues,
+  contractTypeValues,
+  propertyStatusValues,
+  propertyVisibilityValues,
+  currencyValues,
+  rentPeriodValues,
+  titleTypeValues,
+  conditionValues,
+  newBuildConditionValues,
+} from '@/lib/enums/property';
 
 /**
  * Property-related Zod schemas used by the agent dashboard CRUD flows
@@ -11,60 +22,19 @@ import { msgValidation } from './messages';
  * for the authoritative field list.
  */
 
-export const propertyTypeValues = [
-  'land',
-  'house',
-  'apartment',
-  'villa',
-  'studio',
-  'room',
-  'office',
-  'shop',
-  'warehouse',
-  'factory',
-  'farm',
-  'hotel',
-  'resort',
-  'garage',
-  'parking',
-  'other',
-] as const;
-
-export const contractTypeValues = ['sale', 'rent'] as const;
-
-export const propertyStatusValues = [
-  'draft',
-  'available',
-  'sold',
-  'rented',
-  'under_maintenance',
-  'unavailable',
-  'pending',
-  'archived',
-] as const;
-
-export const propertyVisibilityValues = ['public', 'private'] as const;
-
-export const currencyValues = ['XOF', 'XAF', 'EUR', 'USD'] as const;
-
-export const rentPeriodValues = ['daily', 'weekly', 'monthly', 'yearly'] as const;
-
-/**
- * TCK-464 — `TitleType` côté backend. ⚠ La quatrième valeur est `'autre'` et non `'other'` :
- * `src/types/property.ts` écrivait `'other'`, une valeur que l'API n'a jamais pu émettre. Le
- * défaut était invisible tant qu'aucun écran n'écrivait ni ne discriminait `title_type`.
- */
-export const titleTypeValues = ['bail', 'titre_foncier', 'deliberation', 'autre'] as const;
-
-/**
- * TCK-508 — `PropertyCondition` côté backend, dans l'ordre de l'enum. Le vocabulaire
- * (`property.conditions`) est tenu aligné sur `lang/<locale>/properties.php` par
- * `property-labels.parity.test.ts`.
- */
-export const conditionValues = ['off_plan', 'new', 'renovated', 'good', 'to_renovate'] as const;
-
-/** Les deux états qui sont un argument de vente, et les seuls à porter un badge public. */
-export const newBuildConditionValues = ['off_plan', 'new'] as const satisfies readonly (typeof conditionValues)[number][];
+// TCK-744 — les listes de valeurs vivent dans `@/lib/enums/property`, sans dépendance ; réexportées
+// ici pour les formulaires. Un composant d'affichage les importe de là-bas, jamais d'ici.
+export {
+  propertyTypeValues,
+  contractTypeValues,
+  propertyStatusValues,
+  propertyVisibilityValues,
+  currencyValues,
+  rentPeriodValues,
+  titleTypeValues,
+  conditionValues,
+  newBuildConditionValues,
+};
 
 /**
  * TCK-598 (V9) — les bornes du coût d'entrée, celles de `CoutDEntree::regles()` côté API : mois de

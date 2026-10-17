@@ -114,7 +114,7 @@ describe('Navbar — « Louer | Acheter » segmenté', () => {
     const user = userEvent.setup();
     monter();
     await user.click(bouton('Acheter'));
-    await user.type(screen.getAllByRole('searchbox')[0], 'Almadies{Enter}');
+    await user.type(screen.getAllByRole('combobox')[0], 'Almadies{Enter}');
     const url = derniereUrl();
     expect(new URLSearchParams(url.split('?')[1]).get('q')).toBe('Almadies');
     expect(contrat(url)).toBe('sale');

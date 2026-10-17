@@ -283,6 +283,7 @@ return [
         'not_requested' => 'Amul kontraa buñuy xaar xaatim : laaj bi lañu wara jëkk a yónne.',
         'resend_too_soon' => 'Yónne nañu kood leegi : xaaral benn simili balaa ngay laaj beneen.',
         'terms_changed' => 'Bayle bi soppiku na bi ñuy waajal kontra bi : dara fëjjul. Laajaatal xaatim bi.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [
@@ -316,6 +317,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
+        'file_rejected' => 'Ce fichier ne peut pas être ajouté : vérifiez sa taille et son format.',
         'photo_unprocessable' => 'Nataal bii mënuñu ko liggéeyal. Seetal fichier bi te jéemaat.',
         'unsupported_target' => 'Mbir mii mënul am média.',
     ],
@@ -405,6 +407,8 @@ return [
         'missing' => 'Amuloo benn nimero telefon bu ñu bind.',
         'resend_too_soon' => 'Yónne nañu code leegi. Mën ngaa laaj beneen ci :seconds s.',
         'send_limit' => 'Laaj nga code yu bari ci nimero bii. Jéemaatal ci :minutes min.',
+        // P15.05 (TCK-783) — aucun fournisseur n'a accepté le SMS du code.
+        'sms_undelivered' => 'Le SMS portant votre code n\'a pas pu être envoyé. Réessayez dans une minute.',
         'send_limit_day' => 'Laaj nga code yu bari tey ci nimero bii. Jéemaatal ci :hours h.',
         'change_requires_proof' => 'Ngir soppi nimero bu ñu dëggal, wonal ci kanam ne yaa ko yor : code bi ñu yónne ci nimero boobu, walla sa baatu jàll.',
         'no_verified_number' => 'Amul benn nimero bu ñu dëggal ci kont bii.',
@@ -525,6 +529,7 @@ return [
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',
     ],
     'tags' => [
+        'catalog_rename_forbidden' => 'Un équipement du catalogue ne se renomme pas : seules les propositions se renomment.',
         'merge_into_self' => 'Benn jumtukaay du boole ak boppam.',
         'merge_target_invalid' => 'Li ñu jëm war na doon jumtukaay bu ñu nangu walla buy xaar.',
         'merge_source_invalid' => 'Jumtukaay rekk mooy boole ak jumtukaay.',

@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import { inviteAgencyAgent } from '@/lib/queries/agency-invitations';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { useApiForm } from '@/hooks/useApiForm';
 import { Button } from '@/components/ui/button';
 import {
@@ -78,6 +80,9 @@ export function InviteAgentDialog({
   const t = useTranslations('admin.inviteAgent');
   const tCommon = useTranslations('common.actions');
   const { token } = useAuth();
+  // TCK-761 (P15.04) — inviter un agent exige la 2FA de l'admin (`AgentInvitationController`) :
+  // `useApiForm` ne connaît pas la garde, l'appel lui est donc confié ici.
+  const garde = useGardeDoubleFacteur();
   const schema = buildSchema(t('emailInvalid'), t('required'));
   const roleOptions = ROLE_KEYS.map((k) => ({ value: k, label: t(`roles.${k}`) }));
 
@@ -85,18 +90,22 @@ export function InviteAgentDialog({
     schema,
     defaultValues: { first_name: '', last_name: '', email: '', phone: '', role: 'agent' },
     onSubmit: async (values) =>
-      inviteAgencyAgent(
-        agencyId,
-        {
-          email: values.email,
-          role: values.role,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          // Une chaîne vide n'est pas « pas de téléphone » : la règle backend est
-          // `nullable`, pas `nullable|string|min:0`.
-          phone: values.phone?.trim() ? values.phone.trim() : null,
-        },
-        token ?? '',
+      avecGardeDoubleFacteur(
+        () =>
+          inviteAgencyAgent(
+            agencyId,
+            {
+              email: values.email,
+              role: values.role,
+              first_name: values.first_name,
+              last_name: values.last_name,
+              // Une chaîne vide n'est pas « pas de téléphone » : la règle backend est
+              // `nullable`, pas `nullable|string|min:0`.
+              phone: values.phone?.trim() ? values.phone.trim() : null,
+            },
+            token ?? '',
+          ),
+        garde,
       ),
     onSuccess: () => {
       onSuccess?.();
@@ -133,7 +142,7 @@ export function InviteAgentDialog({
                 id="invite-agent-first-name"
                 type="text"
                 autoComplete="given-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.first_name ? true : undefined}
                 {...register('first_name')}
               />
@@ -151,7 +160,7 @@ export function InviteAgentDialog({
                 id="invite-agent-last-name"
                 type="text"
                 autoComplete="family-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.last_name ? true : undefined}
                 {...register('last_name')}
               />
@@ -172,7 +181,7 @@ export function InviteAgentDialog({
               type="email"
               autoComplete="email"
               placeholder={t('emailPlaceholder')}
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.email ? true : undefined}
               {...register('email')}
             />
@@ -191,7 +200,7 @@ export function InviteAgentDialog({
               id="invite-agent-phone"
               type="tel"
               autoComplete="tel"
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.phone ? true : undefined}
               {...register('phone')}
             />

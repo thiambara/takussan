@@ -428,7 +428,7 @@ export function AuditTrail() {
                 l'exemption ferait PERDRE une mesure : `DropdownMenuItem` pose `outline-none` et
                 ne signale le focus que par `data-highlighted:bg-card` — un changement de FOND,
                 pas un anneau. Sans ces classes, l'indication retombe sur la règle globale
-                `* { outline-ring/50 }` de globals.css, mesurée à 2,12:1 sur `--card` : sous les
+                `* { outline-ring }` de globals.css, mesurée à 2,12:1 sur `--card` : sous les
                 3:1 qu'exige WCAG 1.4.11. Le jeton est donc PLEIN, jamais `/50` — c'est la
                 conclusion que la re-mesure de TCK-371 a produite, et elle vaut pour le code neuf.
               */}
@@ -602,7 +602,7 @@ function AuditSubjectCell({ log }: { readonly log: ActivityLogEntry }) {
   return (
     <Link
       href={href}
-      className="text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {contenu}
     </Link>

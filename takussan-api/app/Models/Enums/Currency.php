@@ -61,6 +61,17 @@ enum Currency: string
     }
 
     /**
+     * TCK-736 (P04.08) — LA règle d'arrondi d'un montant : à l'unité de sa devise
+     * (`decimalPlacesOf`), au plus proche, la moitié vers le haut. Celle de
+     * `PaymentGatewayService::roundToCurrencyUnit()` (TCK-593) et de `PayoutCalculator` : ce qui
+     * entre et ce qui sort s'arrondissent de la même façon. Le XOF n'a pas de sous-unité.
+     */
+    public static function roundAmount(float $amount, self|string|null $currency): float
+    {
+        return round($amount, self::decimalPlacesOf($currency), PHP_ROUND_HALF_UP);
+    }
+
+    /**
      * Default locale tag used for grouping/decimal separators. Callers can
      * override at format-time when they really need a different locale (e.g.
      * an English-speaking landlord billing in EUR).

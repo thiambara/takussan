@@ -48,6 +48,14 @@ return [
         'ignore' => 'Si vous n\'avez pas demandé de réinitialisation, aucune action supplémentaire n\'est requise.',
     ],
 
+    'agency_admin_activation' => [
+        'subject' => 'Activez votre compte Takussan',
+        'greeting' => 'Bonjour !',
+        'intro' => 'Un compte de gérant d\'agence a été créé pour vous sur Takussan. Choisissez votre mot de passe pour l\'activer, puis configurez votre agence.',
+        'action' => 'Activer mon compte',
+        'expire' => 'Ce lien d\'activation expirera dans :count jours.',
+    ],
+
     'new_booking' => [
         'subject' => 'Nouvelle réservation #:reference',
         'greeting' => 'Bonjour,',
@@ -251,6 +259,7 @@ return [
     'admin_alert' => [
         'test_message' => '[TEST] :event déclenché par test synthétique.',
         'activity_message' => ':event — acteur :actor, objet :subject',
+        'failing_suffix' => ' — sondes en échec : :probes',
     ],
 
     // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).
@@ -709,6 +718,11 @@ return [
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
                 'sms' => 'Takussan : annonce « :property » approuvée.',
             ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
+            ],
             'rejected' => [
                 'title' => 'Bien refusé : :property',
                 'body' => 'Votre bien « :property » a été refusé. Motif : :reason. Vous pouvez corriger l\'annonce et la resoumettre depuis votre espace.',
@@ -858,5 +872,22 @@ return [
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
     'property_proposed' => [
         'title' => 'Bien proposé par un bailleur : :title',
+    ],
+    // TCK-748 — texte de départ de l'éditeur de gabarits (console super-admin), une langue par
+    // fichier. Syntaxe `{{ … }}` de NotificationTemplateService, pas `:param` : ces chaînes ne
+    // passent jamais par trans() avec des paramètres.
+    'editable_templates' => [
+        'booking_confirmed' => [
+            'subject' => 'Réservation confirmée',
+            'body' => 'Bonjour {{ user.first_name }}, votre réservation {{ booking.code }} est confirmée.',
+        ],
+        'payment_received' => [
+            'subject' => 'Paiement reçu',
+            'body' => 'Bonjour {{ user.first_name }}, paiement reçu: {{ payment.amount }} {{ payment.currency }}.',
+        ],
+        'maintenance_created' => [
+            'subject' => 'Maintenance créée',
+            'body' => 'Bonjour {{ user.first_name }}, demande {{ maintenance.reference }} créée pour {{ property.title }}.',
+        ],
     ],
 ];

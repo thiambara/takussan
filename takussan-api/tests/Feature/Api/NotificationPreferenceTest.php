@@ -17,7 +17,7 @@ class NotificationPreferenceTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/notifications/preferences')
+        $this->getJson('/api/me/notification-preferences')
             ->assertOk()
             ->assertJsonStructure(['data' => [
                 'notifications_email_enabled',
@@ -31,7 +31,7 @@ class NotificationPreferenceTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $this->putJson('/api/notifications/preferences', [
+        $this->putJson('/api/me/notification-preferences', [
             'notifications_email_enabled' => false,
             'notifications_push_enabled' => true,
         ])->assertOk()
@@ -73,7 +73,7 @@ class NotificationPreferenceTest extends TestCase
         config()->set('broadcasting.default', 'log');
         Sanctum::actingAs($user);
 
-        return collect($this->getJson('/api/notifications/preferences')->assertOk()->json('data.preferences'))
+        return collect($this->getJson('/api/me/notification-preferences')->assertOk()->json('data.preferences'))
             ->keyBy(fn (array $cell) => "{$cell['event_type']}|{$cell['channel']}")
             ->all();
     }
@@ -109,7 +109,7 @@ class NotificationPreferenceTest extends TestCase
         Sanctum::actingAs($user);
         NotificationPreference::query()->where('user_id', $user->id)->where('event_type', 'review_received')->where('channel', 'sms')->delete();
 
-        $this->putJson('/api/notifications/preferences', [
+        $this->putJson('/api/me/notification-preferences', [
             'preferences' => [['event_type' => 'review_received', 'channel' => 'sms', 'enabled' => true]],
         ])->assertOk();
 
@@ -120,7 +120,7 @@ class NotificationPreferenceTest extends TestCase
 
     public function test_unauthenticated_cannot_access_preferences(): void
     {
-        $this->getJson('/api/notifications/preferences')
+        $this->getJson('/api/me/notification-preferences')
             ->assertUnauthorized();
     }
 }

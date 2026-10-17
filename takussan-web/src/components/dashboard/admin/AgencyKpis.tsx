@@ -38,7 +38,7 @@ export function AgencyKpis({ summary }: Props) {
       <AgencyKpiTile
         label={t('properties')}
         value={formatNumber(summary.properties.total, locale)}
-        hint={t('publishedHint', { count: formatNumber(summary.properties.published, locale) })}
+        hint={t('publishedHint', { count: summary.properties.published })}
       />
       <AgencyKpiTile
         label={t('activeLeases')}
@@ -48,7 +48,7 @@ export function AgencyKpis({ summary }: Props) {
       <AgencyKpiTile
         label={t('occupancyRate')}
         value={formatPercent(summary.occupancy.rate_percent / 100, locale)}
-        hint={t('rentedHint', { count: formatNumber(summary.properties.rented, locale) })}
+        hint={t('rentedHint', { count: summary.properties.rented })}
       />
       <AgencyKpiTile
         label={t('revenueMonth')}

@@ -415,14 +415,17 @@ export function Navbar({ className }: NavbarProps) {
             bande de catégories, qui ne défile donc jamais — à 1024, c'est « Publier » qui sortait. */}
         <div className="hidden lg:flex flex-col max-w-xl w-full min-w-0 mx-auto gap-0">
           {/* Search Bar — `Accueil.dc.html` : épingle de lieu, champ, « Acheter | Louer » segmenté,
-              loupe ronde de 40 px, dans une pilule de 52 px. */}
-          <div className="flex h-[52px] items-center gap-2 bg-card border border-border rounded-full pl-1 pr-1.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] hover:shadow-md transition-shadow">
+              loupe ronde de 40 px, dans une pilule de 52 px.
+              TCK-731 — l'anneau de focus du champ passe sur CETTE pilule, la seule visible : celle
+              du champ est aplatie ci-dessous (`ring-0` compris), et le sélecteur et la loupe ont
+              le leur, d'où `has-[input:focus-visible]` et non `focus-within`. */}
+          <div className="flex h-[52px] items-center gap-2 bg-card border border-border rounded-full pl-1 pr-1.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] hover:shadow-md transition-shadow has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring">
             <SearchAutocomplete
               variant="hero"
               icone={MapPin}
               imposer={transactionImposee}
               placeholder={t('searchPlaceholder')}
-              className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[15px] [&_input]:font-normal"
+              className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:ring-0 [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[15px] [&_input]:font-normal"
               value={qEnVigueur}
               onQueryChange={(v) => setLocation(v)}
             />

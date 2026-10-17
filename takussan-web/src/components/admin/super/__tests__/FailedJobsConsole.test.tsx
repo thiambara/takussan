@@ -101,7 +101,7 @@ describe('<FailedJobsConsole> (TCK-365)', () => {
     await user.click(screen.getByRole('button', { name: /Rejouer tout/i }));
 
     // Le compte annoncé est celui de la FILE ENTIÈRE (`meta.total`), pas celui de la page.
-    expect(await screen.findByText(/37 job\(s\) échoué\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/37 jobs échoués seront remis en file/)).toBeInTheDocument();
     expect(retryAllFailedJobs).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: /^Annuler$/ }));

@@ -12,6 +12,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\EncaissementsPlateforme;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class PlatformPayoutSegregationTest extends TestCase
 {
+    use EncaissementsPlateforme;
     use RefreshDatabase;
 
     private function closeOne(Agency $agency): PlatformPayout
@@ -28,10 +30,11 @@ class PlatformPayoutSegregationTest extends TestCase
             'property_id' => Property::factory()->create(['agency_id' => $agency->id])->id,
             'agency_id' => $agency->id,
         ]);
-        BookingPayment::factory()->create([
+        // TCK-733 — soldé par l'intégration de la plateforme : seul ce qu'elle encaisse se reverse.
+        $this->soldeParLaPlateforme(BookingPayment::factory()->create([
             'booking_id' => $booking->id, 'amount' => 100_000,
             'status' => PaymentStatus::Paid, 'paid_at' => '2026-09-15 10:00:00',
-        ]);
+        ]));
 
         $this->postJson('/api/admin/payouts/close-period', [
             'agency_id' => $agency->id,

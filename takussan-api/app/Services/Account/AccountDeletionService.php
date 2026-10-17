@@ -433,9 +433,12 @@ class AccountDeletionService
     {
         $now ??= now();
 
+        // TCK-741 — la plus ancienne échéance d'abord : l'ordre ne dépend plus du moteur.
         return AccountDeletionRequest::query()
             ->whereNull('executed_at')
             ->where('scheduled_for', '<=', $now)
+            ->orderBy('scheduled_for')
+            ->orderBy('id')
             ->get();
     }
 }

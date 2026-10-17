@@ -2136,6 +2136,10 @@
       "property": "Kër",
       "loadingProperties": "Yeb kër yi…",
       "selectProperty": "Tànnal benn kër",
+      "emptyProperties": "Aucun bien ne peut encore recevoir de bail : un bien vendu, loué ou archivé n’est pas proposé.",
+      "createProperty": "Créer un bien",
+      "emptyTenants": "Aucun locataire ne correspond.",
+      "addTenant": "Ajouter un locataire",
       "tenant": "Luwékat",
       "tenantSearchPlaceholder": "Seet ci tur, email walla telefon",
       "searching": "Seet…",
@@ -5045,6 +5049,7 @@
       "next": "Bi ci topp",
       "gallery": {
         "close": "Tëj",
+        "viewerLabel": "Photos : {title}",
         "previousPhoto": "Nataal bi jiitu",
         "nextPhoto": "Nataal bi ci topp",
         "noPhoto": "Amul nataal",
@@ -7624,7 +7629,8 @@
         "super_admin_payout_period_closed": "Jamonoy delloo xaalis tëj nañu ko",
         "ops_failed_jobs_spike": "Liggéey yu bari yu yàqu",
         "ops_queue_stalled": "Toggu liggéey taxaw na",
-        "ops_health_degraded": "Wérgi platform bi wàññiku na"
+        "ops_health_degraded": "Wérgi platform bi wàññiku na",
+        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail"
       },
       "channels": {
         "email": "Imeel",
@@ -8175,6 +8181,7 @@
       "cancel": "Neenal",
       "author": "{name} moo ko digle",
       "authorUnknown": "Bindkat bi xameesu ko",
+      "similar": "Proche de : {names}",
       "usage": "{count, plural, =0 {Amul benn anons} =1 {# anons} other {# anons}}",
       "emptyTitle": "Amul benn ndigal buy xaar",
       "emptyDescription": "Ndigal yi dinañu feeñ fii bu benn anons am ko.",
@@ -9546,7 +9553,8 @@
         "excludedRow": "Agence #{agency} — {reason}",
         "excludedReason": {
           "agency_not_active": "agence bi dañu ko taxawal walla doxul",
-          "already_closed": "diir bi tëju na ba noppi"
+          "already_closed": "diir bi tëju na ba noppi",
+          "mixed_currencies": "devises mélangées"
         }
       },
       "detail": {
@@ -10708,6 +10716,10 @@
         "rejected": {
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
+        },
+        "submitted_for_review": {
+          "title": "Bien à modérer : {property}",
+          "body": "Le bien « {property} » attend votre validation avant d'être publié."
         },
         "calendar_conflict": {
           "title": "Calendrier yi dañuy xeex : {property}",

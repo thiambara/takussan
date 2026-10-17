@@ -236,7 +236,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
               <th scope="col" className="px-4 py-3 font-semibold text-right">{t('columns.actions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-input">
+          <tbody className="divide-y divide-border">
             {filteredTags.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-0">

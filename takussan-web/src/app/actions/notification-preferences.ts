@@ -9,6 +9,7 @@ import {
 } from '@/lib/notification-preferences';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-070 — Server actions for the notification preferences matrix.
@@ -22,6 +23,7 @@ type ActionResult<T> =
 type CleRepli = 'loadFailed' | 'updateFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  journaliserErreurInattendue('notification-preferences', err);
   const t = await getTranslations('serverActions.notificationPreferences');
   const repli = t(cleRepli);
   if (err instanceof ApiError) {

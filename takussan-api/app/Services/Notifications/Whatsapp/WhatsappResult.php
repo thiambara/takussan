@@ -31,6 +31,9 @@ class WhatsappResult
         public readonly ?string $failureReason = null,
         public readonly ?\DateTimeImmutable $sentAt = null,
         public readonly ?\DateTimeImmutable $deliveredAt = null,
+        // TCK-766 — Meta a pu accepter le message (délai dépassé, 5xx) : pas de
+        // repli SMS, voir AmbiguousDelivery.
+        public readonly bool $ambiguous = false,
     ) {}
 
     public static function sent(string $to, string $provider, string $providerMessageId): self
@@ -44,7 +47,7 @@ class WhatsappResult
         );
     }
 
-    public static function failed(string $to, string $provider, string $reason): self
+    public static function failed(string $to, string $provider, string $reason, bool $ambiguous = false): self
     {
         return new self(
             to: $to,
@@ -52,6 +55,7 @@ class WhatsappResult
             status: self::STATUS_FAILED,
             failureReason: $reason,
             sentAt: new \DateTimeImmutable,
+            ambiguous: $ambiguous,
         );
     }
 

@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -14,9 +16,15 @@ use Illuminate\Notifications\Notification;
  * acte destructif, pas une invitation à agir depuis un e-mail. Un
  * destinataire qui n'a rien demandé n'a rien à cliquer, juste à ignorer.
  */
-class AccountDeletionStepUpCodeNotification extends Notification
+class AccountDeletionStepUpCodeNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+
+    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications-urgent'];
+    }
 
     public function __construct(
         public readonly string $code,

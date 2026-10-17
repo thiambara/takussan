@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
@@ -15,6 +13,12 @@ export interface FooterProps {
 
 /**
  * Le pied de page public — TCK-437.
+ *
+ * TCK-745 (P33.06) — **composant serveur, sans directive.** Ni état, ni effet, ni gestionnaire :
+ * `useTranslations` de next-intl vaut des deux côtés, et ses enfants interactifs (`ChoixDeLangue`,
+ * `LienLocalise`) portent leur propre `'use client'`. Monté par une page serveur, il ne coûte plus
+ * rien à son JS client ; monté par un composant client, il y entre comme avant. N'y ajouter aucun
+ * crochet d'état ou d'effet : garde `__tests__/Footer.serveur.test.ts`.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * LE FORMULAIRE DE NEWSLETTER A ÉTÉ RETIRÉ, ET C'EST UNE DÉCISION MESURÉE

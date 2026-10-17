@@ -44,13 +44,18 @@ class EvaluateOperationalAlerts extends Command
             'workers_status' => $workers['status'] ?? null,
         ]);
 
+        $failing = collect($snapshot)
+            ->filter(fn ($probe) => is_array($probe) && ($probe['status'] ?? 'ok') !== 'ok')
+            ->map(fn (array $probe) => $probe['status'])
+            ->sortKeys()
+            ->all();
+        // TCK-769 (P14.05) — la santé ré-alerte quand l'ENSEMBLE des sondes en échec ou leur
+        // niveau change, pas seulement au passage de « ok » à « pas ok » : un `degraded` permanent
+        // (courriel en `log` en préproduction) taisait ensuite tout `failed`.
         $this->transition('ops_health_degraded', ($snapshot['status'] ?? 'ok') !== 'ok', [
             'status' => $snapshot['status'] ?? null,
-            'failing' => collect($snapshot)
-                ->filter(fn ($probe) => is_array($probe) && ($probe['status'] ?? 'ok') !== 'ok')
-                ->map(fn (array $probe) => $probe['status'])
-                ->all(),
-        ]);
+            'failing' => $failing,
+        ], json_encode([$snapshot['status'] ?? null, $failing]));
 
         return self::SUCCESS;
     }
@@ -61,14 +66,18 @@ class EvaluateOperationalAlerts extends Command
     }
 
     /**
+     * `$signature` décrit l'état actif : tant qu'il ne change pas, la condition qui dure se tait ;
+     * qu'il change, et elle alerte de nouveau. Sans signature, seul le passage à « oui » alerte.
+     *
      * @param  array<string,mixed>  $properties
      */
-    private function transition(string $event, bool $active, array $properties): void
+    private function transition(string $event, bool $active, array $properties, ?string $signature = null): void
     {
-        $was = (bool) Cache::get(self::stateKey($event), false);
-        Cache::forever(self::stateKey($event), $active);
+        $was = Cache::get(self::stateKey($event), false);
+        $now = $active ? ($signature ?? true) : false;
+        Cache::forever(self::stateKey($event), $now);
 
-        if ($active && ! $was) {
+        if ($active && $was !== $now) {
             activity('Ops')->event($event)->withProperties($properties)->log($event);
             $this->line($event);
         }

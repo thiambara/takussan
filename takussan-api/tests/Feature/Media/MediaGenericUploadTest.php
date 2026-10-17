@@ -5,14 +5,17 @@ namespace Tests\Feature\Media;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Covers the generic, non-coupled POST /api/media/upload endpoint: any
- * authenticated user may upload a file. The resulting Media row is attached
- * to the caller as owner.
+ * TCK-764 (P10.08) — `POST /api/media/upload`, l'envoi « générique » attaché au compte appelant,
+ * est retiré. Il n'avait aucun appelant : tout compte y déposait 30 fichiers par minute dans ses
+ * propres `photos` ou `documents`, que rien ne lit ni ne nettoie. Ses cas de validation vivent
+ * dans `MediaUploadTest` (`POST /api/media`), et ses deux cas de disque dans
+ * `MediaDiskPrivatePhotosTest`. Cette classe garde le retrait.
  */
 class MediaGenericUploadTest extends TestCase
 {
@@ -21,96 +24,23 @@ class MediaGenericUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
         Storage::fake(config('media-library.disk_name'));
         Storage::fake(config('media-library.public_disk_name'));
     }
 
-    public function test_authenticated_user_can_upload_generic_photo(): void
+    public function test_the_generic_upload_route_is_gone(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs(User::factory()->create());
 
-        $response = $this->postJson('/api/media/upload', [
+        $this->assertFalse(Route::has('media.upload'));
+
+        // 405 et non 404 : `DELETE media/{media}` couvre le même chemin.
+        $status = $this->postJson('/api/media/upload', [
             'file' => UploadedFile::fake()->image('hero.jpg', 400, 400),
             'collection' => 'photos',
-        ]);
+        ])->status();
+        $this->assertContains($status, [404, 405]);
 
-        $response->assertCreated()
-            ->assertJsonStructure([
-                'data' => ['id', 'collection_name', 'file_name', 'mime_type', 'size', 'url', 'conversions'],
-            ])
-            ->assertJsonPath('data.collection_name', 'photos')
-            ->assertJsonPath('data.model_type', User::class)
-            ->assertJsonPath('data.model_id', $user->id);
-
-        $this->assertDatabaseCount('media', 1);
-    }
-
-    public function test_collection_defaults_to_photos_when_omitted(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->image('untitled.png'),
-        ])->assertCreated()
-            ->assertJsonPath('data.collection_name', 'photos');
-    }
-
-    public function test_guest_cannot_upload(): void
-    {
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->image('hero.jpg'),
-            'collection' => 'photos',
-        ])->assertUnauthorized();
-    }
-
-    public function test_rejects_oversized_photo(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->image('huge.jpg')->size(11 * 1024),
-            'collection' => 'photos',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['file']);
-    }
-
-    public function test_rejects_unsupported_mime(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->create('bad.exe', 10, 'application/octet-stream'),
-            'collection' => 'photos',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['file']);
-    }
-
-    public function test_rejects_invalid_collection(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->image('hero.jpg'),
-            'collection' => 'bogus',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['collection']);
-    }
-
-    public function test_pdf_upload_to_documents_is_accepted(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/media/upload', [
-            'file' => UploadedFile::fake()->create('contract.pdf', 200, 'application/pdf'),
-            'collection' => 'documents',
-        ])->assertCreated()
-            ->assertJsonPath('data.collection_name', 'documents');
+        $this->assertDatabaseCount('media', 0);
     }
 }

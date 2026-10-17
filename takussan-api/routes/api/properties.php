@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\FavoriteController;
-use App\Http\Controllers\Api\PropertyAddressController;
 use App\Http\Controllers\Api\PropertyAncestorsController;
 use App\Http\Controllers\Api\PropertyChildrenController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
@@ -48,10 +47,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('properties/{property}/view', [PropertyController::class, 'recordView'])->name('properties.view');
     Route::get('properties/{property}/children', [PropertyChildrenController::class, 'index'])->name('properties.children');
     Route::get('properties/{property}/ancestors', [PropertyAncestorsController::class, 'index'])->name('properties.ancestors');
-
-    // Address (upsert + clear)
-    Route::put('properties/{property}/address', [PropertyAddressController::class, 'upsert'])->name('properties.address.upsert');
-    Route::delete('properties/{property}/address', [PropertyAddressController::class, 'destroy'])->name('properties.address.destroy');
 
     // Media
     Route::get('properties/{property}/media', [PropertyMediaController::class, 'index'])->name('properties.media.index');

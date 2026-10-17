@@ -11,6 +11,7 @@ import {
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-255 — Server action consumed by `<HostIndividualWizard>`.
@@ -47,6 +48,7 @@ export async function hostIndividualOnboardAction(
 
     return { ok: true, data: res.data };
   } catch (err) {
+    journaliserErreurInattendue('onboarding', err);
     if (err instanceof ApiError) {
       const data = err.data as { errors?: Record<string, string[]>; message?: string } | null;
       return {

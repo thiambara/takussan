@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Concerns\SupportsSms;
+use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -23,12 +24,32 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
 
     public const CHANNEL_MAIL = 'mail';
 
+    /**
+     * TCK-799 (P11.05) — ce que le canal SMS a rendu, posé par {@see afterSending()}. Un objet, et
+     * non un booléen : Laravel envoie une COPIE de la notification à chaque canal (`clone`), et
+     * seule une référence partagée revient à l'appelant.
+     *
+     * @var \ArrayObject<string, bool>
+     */
+    private readonly \ArrayObject $outcome;
+
     public function __construct(
         public readonly string $code,
         public readonly string $reference,
         public readonly int $expiresInMinutes,
         public readonly string $channel,
-    ) {}
+    ) {
+        $this->outcome = new \ArrayObject;
+    }
+
+    /**
+     * `true` si le code est parti (ou a pu partir), `false` s'il n'est sûrement pas parti, `null`
+     * si aucun canal SMS n'a répondu (e-mail, ou faux `Notification` des tests).
+     */
+    public function smsLeft(): ?bool
+    {
+        return $this->outcome['sms_left'] ?? null;
+    }
 
     /** @return array<int, string> */
     public function via(object $notifiable): array
@@ -63,6 +84,31 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
     }
 
     public function isCriticalSms(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Rappel de Laravel après chaque canal. {@see SmsChannel} rend `null` quand il refuse (borne
+     * horaire, numéro invalide), sinon un résultat par numéro : le code est parti si l'un d'eux est
+     * envoyé, différé, ou en échec ambigu (le fournisseur a pu l'accepter).
+     */
+    public function afterSending(object $notifiable, string $channel, mixed $response): void
+    {
+        if ($channel !== SmsChannel::class) {
+            return;
+        }
+        $left = false;
+        foreach (is_array($response) ? $response : [] as $result) {
+            if ($result instanceof SmsResult && ($result->status !== SmsResult::STATUS_FAILED || $result->ambiguous)) {
+                $left = true;
+            }
+        }
+        $this->outcome['sms_left'] = $left;
+    }
+
+    /** TCK-766 — le code de signature doit arriver : il garde le repli sur un échec ambigu. */
+    public function isOtpSms(): bool
     {
         return true;
     }

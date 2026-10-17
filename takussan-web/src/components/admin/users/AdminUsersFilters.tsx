@@ -98,7 +98,7 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder={t('filters.searchPlaceholder')}
-            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       </form>

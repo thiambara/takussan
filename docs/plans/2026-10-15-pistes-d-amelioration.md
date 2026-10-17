@@ -103,14 +103,14 @@ voie d'écriture (angle 13, puis 47).
 | 28 | Cache des pages publiques par langue : les `*_label` localisés entrent-ils dans la clé de cache ? | fait |
 | 29 | Langue des destinataires sans compte (invitations, contacts) : `metadata.locale` jamais transmis ? | fait |
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | fait |
-| 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | à faire |
+| 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | fait |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
-| 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
-| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
-| 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
-| 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
-| 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | à faire |
-| 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | à faire |
+| 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | fait |
+| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | fait |
+| 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | fait |
+| 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | fait |
+| 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | fait |
+| 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | fait |
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | à faire |
 | 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | à faire |
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
@@ -140,6 +140,14 @@ voie d'écriture (angle 13, puis 47).
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
+| 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
+| 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
+| 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
+| 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
+| 72 | Ce qu'un accusé `failed` reçu après coup (SMS ou WhatsApp) déclenche : repli sur un autre canal, renvoi, trace pour l'expéditeur — face aux envois critiques (OTP, code de signature de bail) | à faire |
+| 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | à faire |
+| 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
+| 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
 
 ---
 
@@ -397,12 +405,13 @@ Déjà sain (mesuré ou lu) :
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
-- Statut : validé — un index et une purge à 90 jours
+- Statut : fait · TCK-802 — reste : la purge planifiée à 90 jours, que contredit celle de P19.05 (7 jours) : durée à trancher par le porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
 - Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `HealthcheckService.php:142` (`latest('last_run_at')->value(…)`, sans filtre de tâche), `ScheduledTaskInspector.php:15-37` (dernière exécution par tâche, sous-requête corrélée), la migration `2026_05_07_000226` (seul index `task`), aucun `Prunable` sur `ScheduledTaskRun` ni purge dans `routes/console.php` ; TCK-383 (`done`) écarte la rétention de son périmètre. Tinker en lecture → 14 948 lignes du 2026-09-10 au 2026-10-15, `EXPLAIN ANALYZE` de la requête de la l. 142 → `Seq Scan` puis `Sort` top-N, 3,6 ms. Classement : V4, la purge est une suppression de données dont la durée de rétention est à choisir ; l'index seul relèverait d'A2.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `scheduled_task_runs` n'avait que l'index `task`, et la lecture de la dernière exécution d'une tâche passait par un `Sort` (plan relevé sous `enable_seqscan = off`) → migration neuve `(task, last_run_at desc, id desc)` et `ScheduledTaskRunsIndexTest` (index présent, plan sans `Sort`) ; ablation : migration retirée, les deux tests rougissent ; remise, verts. La purge n'est pas posée : sa durée contredit celle de P19.05 (7 jours). La sonde de la l. 142 (aujourd'hui l. 366), sans filtre de tâche, ne profite pas de cet index.
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
@@ -415,12 +424,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
-- Statut : validé — le plafond des pénalités lu une fois par agence, même résultat
+- Statut : fait · TCK-779
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
 - Piste : lire le plafond une fois par agence dans `applyForAgency`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `LateFeeCalculator.php:183-200` (`applyCap()` appelle `capPercent()` à chaque échéance, `ScopedSetting::agencyRow(…)` lu en base, repli sur `PlatformSettingService::getValue`) et `ApplyLateFeesJob.php:48-60` (`applyForAgency` boucle par échéance sur `$calculator->apply()`) ; aucun commit depuis TCK-651 n'y a touché. Le constat tient. Classement : V1, le correctif modifie la fonction qui calcule le plafond d'une pénalité, même sans changer son résultat.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif par `ApplyLateFeesJobTest::test_le_plafond_de_l_agence_est_lu_une_fois_par_passage` : trois échéances d'une agence à plafond de 3 % lisent sa ligne `settings` trois fois en un passage → `capPercent()` garde la valeur par agence pour la vie de l'instance (le job en résout une par passage) ; une lecture, pénalités inchangées (3 000 sur 100 000) ; ablation : rouge (3 lectures), correctif remis vert ; 10 classes voisines vertes (151 tests).
 
 ## Angle 3 — Isolation entre agences et autorisation
 
@@ -494,7 +504,7 @@ Ce qui tient (lu) :
 
 ### Dix endpoints valident avant d'autoriser (422 au lieu de 403)
 - Réf : P03.05
-- Statut : validé — UpdatePropertyRequest seule, et une garde neuve qui fige les 27 autres ; reste : les 27 autres FormRequests, une à une
+- Statut : fait · TCK-730 — reste : les 27 autres FormRequests, une à une
 - Gravité : 🟠 dette
 - Où :
   - `Api/PropertyController.php:183-185` ;
@@ -512,10 +522,11 @@ Ce qui tient (lu) :
   - `PUT /api/properties/{id}` est l'endpoint le plus utilisé du lot (lu ; compte par grep).
 - Piste : déléguer dans `authorize()` (`can('update', $this->route('property'))`), et une garde qui refuse `extends FormRequest` hors de `BaseFormRequest`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : `grep -rlE 'extends FormRequest'` hors `Admin/` et `Auth/` → 28 FormRequests ; lu `UpdatePropertyRequest.php:31-36` (`authorize()` rend `user() !== null`) et `PropertyController.php:183-185` (`authorize('update')` dans le corps) ; test temporaire, retiré depuis, utilisateur sans lien avec le bien → `PUT /api/properties/{id}` avec un corps invalide rend 422 et nomme les champs `type` et `price`, avec un corps vide rend 403. Les autres endpoints cités n'ont pas été rejoués un à un. Classement : V2 et V8, déléguer l'autorisation dans 28 `authorize()` peut refuser un appelant légitime si une délégation diffère de la règle du contrôleur, et l'ensemble, garde comprise, dépasse un ticket.
+- Mesure (2026-10-16, 71b58ea4, implementeur) : `grep -rlE 'extends FormRequest'` hors `Admin/` et `Auth/` → toujours 28 ; `AuthorizationPrecedesValidationTest::test_property_update_denies_before_it_validates`, membre d'une autre agence, corps `{type: chateau, price: cher}` → 422 sur `type` et `price` avant correctif → `UpdatePropertyRequest` étend `BaseFormRequest` et délègue à `can('update')` : 403 en PUT et PATCH, 422 gardé pour le super-admin ; garde `FormRequestEtendBaseFormRequestTest` qui fige les 27 autres et expire ; ablation : 2 rouges (le 403, la garde qui nomme `UpdatePropertyRequest.php`), 23 verts une fois remis.
 
 ### Oracles d'existence entre agences
 - Réf : P03.06
-- Statut : validé — POST /api/documents : même 404 pour « introuvable » et « interdit » ; le reste tel quel
+- Statut : fait · TCK-732
 - Gravité : 🟠 risque faible
 - Où : `Api/DocumentController.php:57-63`, `Api/Accounting/BankStatementLineController.php:42` (avec `ReconciliationManager.php:51-53`), `Requests/Api/StoreConversationRequest.php:103-108`
 - Constat :
@@ -524,6 +535,7 @@ Ce qui tient (lu) :
   - La conversation distingue « introuvable » et « non joignable » (lu).
 - Piste : autoriser avant de résoudre, ou rendre le même code dans les deux cas.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `DocumentController::store()` (`find()` puis `abort_code_if(null, 404, 'document.owner_not_found')` avant `authorize('attachTo')`, lignes 51-62), `BankStatementLineController::match()` (`findOrFail` du paiement → 404, puis `ReconciliationManager::confirmMatch()` → 403 `reconciliation.cross_agency`, `:51-53`) et `StoreConversationRequest` (`participants_unavailable` quand l'identifiant n'existe pas, puis `guardReach()` pour un utilisateur existant non joignable, lignes 108-130). Les trois distinctions tiennent ; lignes du rapprochement à `:42` comme écrit. Classement : V2, la piste change le code rendu à des appelants légitimes et le choix entre « autoriser d'abord » et « même code partout » n'est écrit nulle part.
+- Mesure (2026-10-16, 60b4751b, implementeur) : `DocumentTest`, compte sans lien avec un bien existant → 403 avant correctif, et 404 `document.owner_not_found` pour un identifiant inexistant → `store()` rend 404 `document.owner_not_found` quand `attachTo` refuse ; `test_forbidden_owner_and_missing_owner_get_the_same_response` exige statut et corps identiques ; ablation : 2 rouges, 11 verts une fois remis. Rapprochement et conversation laissés tels quels, selon la décision.
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
@@ -597,7 +609,7 @@ contre le code par la session.*
 
 ### Clôture plateforme : périmètre et devise du reversement
 - Réf : P04.05
-- Statut : validé — paiements soldés par une intégration globale seulement, pénalité incluse, devises mélangées refusées
+- Statut : fait · TCK-733
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:234-276`
 - Constat :
@@ -606,10 +618,11 @@ contre le code par la session.*
   - La pénalité encaissée avec le loyer est absente du brut (lu ; intention à vérifier).
 - Piste : borner aux paiements soldés par une intégration globale, inclure la pénalité, et refuser les devises mélangées comme le fait `PayoutCalculator`.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `PlatformPayoutService::closeForAgency()` (lignes 220-290) : `BookingPayment` et `LeasePayment` `paid` de l'agence sans filtre de canal ni d'intégration (seul `deposit_refund` est exclu), `currency` prise sur `$eligible->first()` sans contrôle de mélange ; `amountDue()` (`PaymentGatewayService.php:1238-1258`) ajoute au loyer la pénalité restant due quand l'agence l'encaisse en ligne, alors que la clôture ne somme que `amount` : la pénalité encaissée avec le loyer n'entre pas au brut (lu ; intention de TCK-223 non tranchée). Classement : V1, montant et devise d'un reversement.
+- Mesure (2026-10-16, 1811897f, implementeur) : reproduit avant correctif par `PlatformPayoutScopeTest` → une réservation en espèces et un loyer soldé par l'intégration de l'agence entrent au brut, un loyer réglé en espèces pendant un checkout plateforme ouvert est reversé, la pénalité de 10 000 soldée avec un loyer de 200 000 manque au brut (200 000 au lieu de 210 000), et XOF et EUR mêlés donnent un reversement (201) : 6 tests sur 7 rouges sur le service de pre-dev. Correctif : seuls les paiements dont le checkout de `settled_by` a été initié par une intégration à `agency_id` nul, pénalité de ce checkout au brut et à la commission, 422 `payout.mixed_currencies` pour une agence et exclusion `mixed_currencies` en clôture globale ; 7 verts. Ablation (service remis à l'état de pre-dev) → les 6 mêmes rouges, et ablations partielles (détail, repli sur `transaction_id`) → un rouge chacune ; correctif remis → verts.
 
 ### La garde de sous-paiement ne s'applique pas à Lemon Squeezy, ni peut-être à Orange Money
 - Réf : P04.06
-- Statut : validé — Lemon Squeezy, Wave et Flutterwave : chaque pilote fournit amount et currency, et un test l'exige de tout pilote (Flutterwave n'a pas encore de pilote : la règle s'appliquera à sa création) ; Orange Money attend un exemple réel de notification ; reste : Orange Money, sur un exemple réel de notification
+- Statut : fait · TCK-734 — reste : Orange Money, sur un exemple réel de notification
 - Gravité : 🟠 risque ou dette
 - Où : `PaymentGatewayService.php:606-609`, `LemonSqueezyDriver.php:159-172`, `OrangeMoneyDriver.php:65,148-149` (sous `takussan-api/app/Services/Payments/`)
 - Constat :
@@ -617,19 +630,21 @@ contre le code par la session.*
   - Orange Money envoie `OUV`, la devise du bac à sable, pour du XOF. Le format des notifications est à vérifier.
 - Piste : chaque pilote fournit le montant (en unité majeure) et la devise ; la devise Orange Money passe en configuration par environnement.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `assertReportedAmountCoversPayment()` (`PaymentGatewayService.php:605-615`, sort quand `metadata.amount` ou `currency` manque), `LemonSqueezyDriver::extractFees()` (rend `gross_amount`, `fees_amount`, `net_amount`, `currency`, jamais `amount`) et `OrangeMoneyDriver.php:65` (`XOF` → `OUV`), `:148-149` (`amount`/`currency` repris du payload). La partie Lemon Squeezy tient ; la forme réelle des notifications Orange Money (devise renvoyée `OUV` ou `XOF`) n'est pas re-mesurée, faute d'exemple dans le dépôt. Classement : V1, garde d'un paiement.
+- Mesure (2026-10-16, acc699ce, implementeur) : reproduit avant correctif par `PaymentDriverReportsAmountTest` (neuf) → l'événement « payé » de Lemon Squeezy ne porte aucun `amount` (Wave le porte), et par `LemonSqueezyEventListenerTest` → un ordre de 1 000 centimes solde une échéance de 19,99 USD → `extractFees()` rend `amount = total / 100` dans `currency` ; le test exige `amount` et `currency` de tout pilote de `DRIVERS`, Orange Money excepté et nommé ; deux fixtures à `19_99` (1 999 USD) ramenées à `19.99` ; ablation (ligne retirée) → 2 rouges, remise → 6 verts.
 
 ### Lemon Squeezy ignore la devise du payable
 - Réf : P04.07
-- Statut : validé — refus à l'initiation quand la devise du payable diffère de celle de la boutique
+- Statut : fait · TCK-735
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:47-55,164`
 - Constat : `$currency` n'est pas lu, et `custom_price` est exprimé dans la devise de la boutique. `extractFees()` mélange `total_usd` et des taxes en devise de boutique (lu ; comportement de l'API à vérifier).
 - Piste : refuser quand la devise du payable diffère de celle de la boutique.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `LemonSqueezyDriver::initiate()` (lignes 47-60 : `$currency` jamais lu, `custom_price => $amountCents`) et `extractFees()` (`gross` = `total` ou `total_usd`, `net` = `total_usd` ou `total` moins `tax` et `discount_total`, devise par défaut `USD`). Le code tient tel que décrit ; le comportement de l'API Lemon Squeezy n'est pas re-mesuré (hors poste). Classement : V1, montant et devise d'un paiement.
+- Mesure (2026-10-17, 0456a55f, implementeur) : reproduit avant correctif par `LemonSqueezyStoreCurrencyTest` → un payable en EUR sur une boutique en USD ouvre un checkout (`POST /v1/checkouts` envoyé, aucun refus), de même qu'une boutique sans devise lisible : 2 rouges sur 3. Correctif : `initiate()` lit `GET /v1/stores/{id}` et rend 422 `payment.currency_unsupported` sur une autre devise, 502 `payment.provider_unavailable` sur une devise illisible, avant tout checkout ; 3 verts. Ablation (comparaison retirée) → les 2 mêmes rouges ; remise → verts. La devise de boutique dans `attributes.currency` vient de la documentation de l'API, non re-mesurée (hors poste).
 
 ### Arrondis au centime sur du XOF
 - Réf : P04.08
-- Statut : validé — une seule fonction d'arrondi par devise (Currency::decimalPlacesOf) pour la facture, la commission, la caution et le reversement
+- Statut : fait · TCK-736
 - Gravité : 🟠 risque ou dette
 - Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
 - Constat :
@@ -637,10 +652,11 @@ contre le code par la session.*
   - La clôture (arrondi par ligne, en PHP) et le détail (`SUM` en SQL) peuvent différer (lu).
 - Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `app/Services/Model/InvoiceService.php:58` (`round($subtotal * $taxRate / 100, 2)`, le constat ne donnait pas le dossier), `CommissionLedgerService.php:82` (`floor(round($base * $share, 6)) / 100`, au centime), `DepositRefundService.php:58,85,166` (`round(…, 2)`), `PlatformPayoutService` (arrondi par ligne à 2 décimales dans `closeForAgency()`, `SUM` SQL puis `round(…, 2)` dans `breakdown()`), contre `PaymentGatewayService::roundToCurrencyUnit()` (`Currency::decimalPlacesOf`) et `PayoutCalculator::round()`. Constat confirmé ; l'exemple 118 001,18 n'est pas re-calculé par exécution. Classement : V1, calcul de montants de facture, de commission et de reversement.
+- Mesure (2026-10-17, 4bf83b81, implementeur) : avant correctif, les quatre tests neufs rendaient en XOF une TVA de 18 000,18 sur 100 001 à 18 %, une caution rendue de 300 000,40, une commission de 30 000,30 sur 100 001 à 30 % et une commission plateforme de 10 001,00 pour deux lignes de 5 000,50 → `Currency::roundAmount()` (arrondi à `decimalPlacesOf`, moitié vers le haut) dans les quatre services, plancher à l'unité de la devise pour la commission du grand livre, `ROUND` par ligne dans le détail du reversement ; ablation des services : 4 rouges, ablation du seul `ROUND` du détail : 1 rouge, correctif remis : 111 verts sur 13 classes.
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
-- Statut : validé — devise par défaut d'une facture = celle de l'agence ; décimales de CURRENCY_METADATA à l'affichage
+- Statut : fait · TCK-738
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/InvoiceService.php:75`, `takussan-web/src/lib/format/useFormatteurs.ts:131-133`, `RevenueChart.tsx:171`
 - Constat :
@@ -649,6 +665,7 @@ contre le code par la session.*
   - `RevenueChart` formate toujours en XOF (lu).
 - Piste : par défaut, la devise de l'agence, et les décimales de `CURRENCY_METADATA`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Services/Model/InvoiceService.php:75` (le fichier a quitté `Services/Invoice/`) : `'currency' => $data['currency'] ?? 'XOF'`, alors que `Agency` porte une colonne `currency` castée en `Currency` (`Agency.php:68`) ; `takussan-web/src/lib/format/useFormatteurs.ts:129-135` : `fmt.montant` pose `minimumFractionDigits: 0, maximumFractionDigits: 0` sauf option contraire ; `RevenueChart.tsx:171` : `fmt.montant(…, 'XOF', { maximumFractionDigits: 0 })` → les trois points du constat tiennent, aucun commit ni ticket ne les traite (`grep maximumFractionDigits` dans les tickets : rien). Classement : V1 et V7, la devise par défaut d'une facture est une écriture de montant, et l'affichage des décimales hors XOF change ce que l'utilisateur voit.
+- Mesure (2026-10-17, eb6aee73, implementeur) : avant correctif, une facture émise sans devise par un agent d'une agence en EUR rendait `data.currency` = `XOF` (`InvoiceTest`), et `fmt.montant(12.5, 'EUR')` rendait `13 €` → repli sur `agencies.currency` de l'émetteur dans `InvoiceService::create()`, décimales de `CURRENCY_METADATA` dans `fmt.montant` et `PayoutTable`, et `formatCurrency` qui borne le défaut à l'option explicite (sans quoi `{ maximumFractionDigits: 0 }` sur de l'EUR levait une `RangeError`) ; ablation : 1 rouge par correctif (API, `fmt.montant`, bornage), remis : 21 verts sur `InvoiceTest`, 397 sur les 31 fichiers front qui citent `montant`. `RevenueChart` reste en XOF : il somme `plans.monthly_price_xof`, une devise de plateforme.
 
 ### Restitution d'une caution jamais encaissée
 - Réf : P04.10
@@ -684,7 +701,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Un verrou `withoutOverlapping` reste orphelin 24 h si le scheduler est tué au redéploiement
 - Réf : P05.01
-- Statut : validé — withoutOverlapping(N) proche de la période, sans toucher deploy/ ; reste : le stop_grace_period dans deploy/, par le porteur, avec P05.06
+- Statut : fait · TCK-737 — reste : le stop_grace_period dans deploy/, par le porteur, avec P05.06
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:65-68`, `takussan-api/routes/console.php:106,113,115,151,174`
 - Constat :
@@ -694,10 +711,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `impersonation:close-expired`, `health:probe` et `boosts:tick` durent de 12 à 25 s en dev (mesuré). Un déploiement qui tombe pendant l'une d'elles la saute donc 24 h (lu ; non observé en préproduction).
 - Piste : `->withoutOverlapping(N)` avec N proche de la période, et `stop_grace_period: 120s`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `deploy/takussan/compose.api.yml:64-67` (service `scheduler` sans `stop_grace_period`), `takussan-api/docker/entrypoint.sh` (`exec "$@"` : `schedule:work` est PID 1), `routes/console.php:106,113,115,151,174` (lignes inchangées), et le framework v13.25.0 : `ScheduleWorkCommand::listenForSignals()` piège SIGTERM et attend la fin des `schedule:run` en cours sans leur relayer le signal, `Event::ensureMutexIsReleasedOnSignal()` ne libère le verrou que si le processus enfant reçoit lui-même le signal, `expiresAt = 1440` ; `CACHE_STORE=redis` en préproduction (`prod-drivers.json`, mesuré le 2026-09-14) → le constat tient, mais seulement pour une exécution qui dépasse les 10 s de grâce : une exécution plus courte finit et rend son verrou, ce que le constat ne disait pas ; le saut de 24 h n'est pas observé. Classement : V5, la moitié du correctif est un réglage de `deploy/takussan/compose.api.yml`.
+- Mesure (2026-10-17, 4bf83b81, implementeur) : avant correctif, `ScheduleOverlapLockTest` (neuf, qui parcourt les tâches planifiées et compare `expiresAt` à la période déduite de l'expression cron) relevait 19 tâches infra-quotidiennes, de période 1 à 60 min, sous un verrou de 1 440 min → `withoutOverlapping(N)` avec N égal à la période (1, 5, 15, 60) dans `routes/console.php`, `deploy/` non touché ; ablation : 1 rouge sur les 19 tâches, correctif remis : vert, et 29 verts sur les 7 classes qui lisent le planning.
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
 - Réf : P05.02
-- Statut : validé — rattrapage sur 3 jours au plus, un envoi par jalon, relances de facture et de loyer seulement
+- Statut : fait · TCK-739
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
 - Constat :
@@ -711,10 +729,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne couvre un jour manqué (lu).
 - Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `OverdueReminderService.php:127-131` (`in_array($daysOverdue, $offsets, true)`, correspondance exacte), `SendLeasePaymentReminders.php:57,68,123` (`whereDate('due_date', …)` exact), `SendNotificationDigestJob.php:52-66` (heure locale exactement égale à `digest_send_at`, aucune colonne `digested_at` lue), `SendPropertyVisitReminders.php:60-66` (fenêtre de ±5 min), `routes/console.php:159` (`monthlyOn(1, '08:00')`) → aucun ne rattrape une exécution manquée ; mais `TCK-092` (done), l. 170-175, écrit que « la J+3 manquée n'est pas rattrapée (hors scope V1 — comportement documenté) » : pour les factures, c'est un choix posé, pas un oubli. Classement : V7 et V8, rattraper change quelles relances partent, contre un choix écrit, sur cinq jobs distincts.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `OverdueReminderService::processOne()` (`in_array($daysOverdue, $offsets)`) et `SendLeasePaymentReminders::claim()` (`whereDate('due_date', $dueDate)`) ne relançaient qu'au jour exact : 4 tests neufs rouges (facture à J+4 et J+8, loyer J+1 rattrapé à J+2, J-3 rattrapé à J-2) → fenêtre de 3 jours par jalon, et garde par jalon sur `last_reminder_sent_at` pour les factures (le compteur seul relançait J+7 rattrapé deux jours de suite) ; ablation : 4 rouges, garde par jalon seule : 1 rouge ; correctif remis : 39 verts sur 4 classes. Digest, visites et relevé de gérance non touchés, selon la décision.
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
 - Réf : P05.03
-- Statut : validé — réserver et envoyer échéance par échéance
+- Statut : fait · TCK-740
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
 - Constat :
@@ -723,10 +742,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne simule un échec en cours de boucle (lu).
 - Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Jobs/SendLeasePaymentReminders.php:55-147` : `claim()` pose `reminder_<jalon>_sent_at` sur toutes les échéances du jalon (une transaction par échéance) avant toute boucle d'envoi, sans `$timeout` ni `catch` ; `NotificationService::send()` (`Services/Model/NotificationService.php:75-117`) ne capture que l'événement de diffusion, l'écriture et `notify()` peuvent lever ; `tests/Feature/Jobs/SendLeasePaymentRemindersTest.php` : 12 tests, aucun n'échoue en cours de boucle → constat confirmé. Classement : V7, réserver par échéance ou rendre la réservation fait passer la relance d'« au plus une fois » à « au moins une fois », un choix que voit le locataire.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes` (deux échéances à J+1, `NotificationService::send()` qui lève au premier envoi, puis rejeu) → 0 relance au rejeu : la seconde échéance restait marquée sans envoi → `claim()` réserve sous verrou et rend les échéances une à une ; ablation : 1 rouge, correctif remis : 16 verts. Aucun `$timeout` ajouté.
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
 - Réf : P05.04
-- Statut : validé — try/catch par demande, journal par SafeExceptionContext (ADR-0044), orderBy scheduled_for
+- Statut : fait · TCK-741
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
 - Constat :
@@ -734,10 +754,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - La seule trace est une ligne `failed` dans `scheduled_task_runs` (lu).
 - Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:43-50` (boucle sans `try/catch`) et `AccountDeletionService::dueForExecution()` (`AccountDeletionService.php:406-414`, sans `orderBy`) → une exception d'`executeDeletion()` arrête la commande, et les demandes suivantes, dans l'ordre que rend PostgreSQL, attendent l'heure suivante ; aucun ticket ouvert ne le traite (`TCK-080`, `TCK-600` : done). Classement : V3, le correctif touche à l'exécution des suppressions de données personnelles.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck741_une_suppression_en_echec_ne_bloque_pas_les_suivantes` (deux demandes échues, `executeDeletion()` qui lève sur la plus ancienne) → l'exception remontait de la commande et la seconde demande restait non exécutée ; `test_tck741_les_demandes_echues_sont_rendues_par_date_prevue` → ordre de l'identifiant, pas de `scheduled_for` → `try/catch` par demande avec `Log::error` + `SafeExceptionContext::of()` (le message de l'exception absent du journal, vérifié), sortie 1 si une demande a échoué, `orderBy('scheduled_for')` ; ablation : 2 rouges, correctif remis : 8 verts sur 2 classes.
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
 - Réf : P05.05
-- Statut : validé — after_commit => true sur les connexions de file
+- Statut : fait · TCK-746
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,64,73` (`after_commit => false`), par exemple `LateFeeCalculator.php:162` et `BookingExpirationService.php:204-206`
 - Constat :
@@ -745,6 +766,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Passer `QUEUE_CONNECTION` à `redis` (évoqué en `docs/configuration.md:136`) enverrait des notifications pour des écritures annulées. Rien ne garde cette propriété (lu ; aucun test trouvé).
 - Piste : `after_commit => true` sur toutes les connexions de file, ou une garde.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/config/queue.php:44,53,64,73` : `after_commit => false` sur les quatre connexions ; la file `database` prend `DB_QUEUE_CONNECTION`, vide, donc la connexion par défaut et sa transaction ; `LateFeeCalculator.php:162` dispatche `LeasePaymentLateFeeApplied` dans `DB::transaction` ; `afterCommit` n'apparaît qu'en cinq dispatchs ponctuels (`LeaseService`, `AgencyObserver`, …) ; `docs/configuration.md:136` : `QUEUE_CONNECTION=database # ou redis / sqs` ; aucun test ne garde la propriété → constat confirmé. Classement : V6, passer `after_commit` à `true` partout change le moment de tous les dispatchs, une décision transverse.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `QueueAfterCommitTest` (file `database`) lit une ligne dans `jobs` **dans** la transaction qui a mis le job en file, et la propriété `after_commit` vaut `false` sur `database`, `beanstalkd`, `sqs`, `redis` → `after_commit => true` sur ces quatre connexions ; aucune ligne avant le commit, une après, rien pour une transaction annulée, dispatch immédiat hors transaction ; ablation (`false` remis) : 2 rouges sur 4, correctif remis : 4 verts, et les 8 classes qui basculent la file sur `database` restent vertes.
 
 ### `retry_after` à 90 s est sous le `$timeout` de quatre jobs ; un seul worker sert aussi la file urgente
 - Réf : P05.06
@@ -880,7 +902,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
-- Statut : validé — chaque langue pré-remplie depuis lang/{locale} ; seules les langues modifiées sont persistées
+- Statut : fait · TCK-748
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
@@ -888,10 +910,11 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `NotificationTemplateService.php:157-165` : `fallbackBody()` ignore `$locale` et rend le corps français, `fallbackSubject()` (l.152-155) rend le `name` français (lu) ; `update()` l.58-70 écrit les trois langues et replie sur `templates['fr']` pour toute langue absente (lu) ; `notification-templates.tsx:80` envoie tout `templates` (lu) ; `renderActive()` l.96-113 préfère la ligne active en base, et sert deux appelants (`NewBookingNotification.php:151`, `NotificationRenderer.php:214`) ; `SELECT` sur `notification_templates` par tinker → 9 lignes, toutes `whatsapp` et traduites, aucune ligne d'un événement éditable : le défaut n'a pas encore écrit en base de dev → tient. Classement : V7, pré-remplir depuis `lang/*` et ne persister que les langues touchées change ce que l'éditeur montre et enregistre.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `NotificationTemplateTest` avant correctif → 2 rouges sur 8 : le `GET` rend en `en` le corps français (clé `lang/en` absente, `fallbackBody()` ignore `$locale`), et un `PATCH` des trois langues, `fr` seule modifiée, écrit `['fr','en','wo']` → bloc `editable_templates` dans `lang/{fr,en,wo}/notifications.php` (`wo` = texte français tel quel, wolof en pause), `update()` n'écrit plus une langue sans ligne restée égale à son texte de départ ; ablation (service d'avant remis) → les 2 mêmes rouges, ligne `fr` porteuse de `is_active=false` retirée → 1 rouge ; remis → 8/8 verts, 42 tests voisins verts.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
-- Statut : validé — traduire en anglais les 55 attributs déjà traduits en fr
+- Statut : fait · TCK-749
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
@@ -899,6 +922,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 (mesuré) ; `is_active` absent du bloc `fr` ; tinker `Validator::make([], ['is_active'=>'required'])` en `fr` → « Le champ is active est obligatoire. », en `en` → « The is active field is required. » ; TCK-651:138 le relève aussi (« le champ value ») → tient. Classement : V7, la piste ouvre un choix entre traduire des centaines de noms de champ en trois langues et remplacer la prose 422 par des libellés du front.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 ; `AttributsDeValidationTraduitsTest` avant correctif → 2 rouges sur 2 (`validation.attributes` absent en `en`, « The property id field is required. ») → bloc `attributes` anglais, mêmes 55 clés dans le même ordre ; ablation (fichier d'avant remis) → les 2 mêmes rouges ; remis → vert, `MessagesDeValidationTraduitsTest` et `ValidationMessagesLocaleTest` verts.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
@@ -911,7 +935,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Pluriels absents
 - Réf : P06.10
-- Statut : validé — ICU plural en fr et en ; en wo une seule forme other qui reprend le texte actuel
+- Statut : fait · TCK-752 — reste : brancher la règle (`accordsManquants` de `takussan-web/scripts/i18n-pluriels.mjs`) dans `check-i18n.mjs`, garde existante que l'implémenteur ne modifie pas (V9)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
 - Constat :
@@ -920,6 +944,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `AgencyKpis` passe un nombre déjà formaté dans `count` (mesuré).
 - Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
 - Mesure (2026-10-15, e9f9289c, mesureur) : parcours de `fr.json` et `en.json` par node, motif `{count} <mot>` sans `plural` → 40 messages dans chaque langue (dont des cas neutres comme « {count} en attente »), et 9 formes « (s) » en `fr`, 5 en `en` (mesuré ; comptes plus bas que les 49/50/7 du constat) ; `fr.json:95` `nav.propertiesCount` = « {count} biens », lu par `Navbar.tsx:518` ; `AgencyKpis.tsx:42,52` passe `formatNumber(…)` dans `count` (lu) → tient. Classement : V7, les formes ICU demandent un texte wolof neuf, et la règle `check-i18n` proposée est une garde de plus à cadrer.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/i18n/__tests__/pluriels.test.ts` → 11 rouges sur 17 (« 1 biens loués », « 1 months of deposit », « 2 document(s) »), et la règle neuve `accordsManquants` (`scripts/i18n-pluriels.mjs`, tenue par ce test) relève 52 messages en fr et en (mesuré) → plural posé sur 24 messages fr et 27 en, appelants qui passaient `String(n)` ou `formatNumber(…)` ramenés au nombre, `wo.json` inchangé (wolof en pause : sa valeur `{count} …` rend déjà le texte actuel), messages invariables listés dans `scripts/i18n-pluriels.mjs` ; ablation (dictionnaires d'avant) → les 11 mêmes rouges, correctif remis → 17 verts.
 
 ### Titre d'annonce suggéré en langue mêlée
 - Réf : P06.11
@@ -1033,7 +1058,7 @@ Sain (vérifié par l'agent) :
 
 ### Champ de recherche principal : pas de libellé, et focus peu visible
 - Réf : P07.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-731
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `takussan-web/src/components/home/Navbar.tsx:419,677`
 - Constat :
@@ -1042,6 +1067,7 @@ Sain (vérifié par l'agent) :
   - `role="combobox"` est sur le `div`, selon le motif ARIA 1.1 (lu ; rendu du focus à vérifier).
 - Piste : un `aria-label` traduit, le motif ARIA 1.2, et `focus-within:ring-2` sur la pilule.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `SearchAutocomplete.tsx:226-262` : `role="combobox"` sur le `div` (l.227), `role="searchbox"` sur l'`input` (l.242), ni `aria-label` ni `<label>` sur l'`input`, `outline-none` l.259, aucun `focus`/`focus-within` sur le `div` (lu) ; `grep focus-within Navbar.tsx` → rien, et `globals.css` n'a de règle `:focus-visible` que pour les marqueurs de carte (l.773, l.809) ; la clé `t('placeholder')` existe déjà et nomme le listbox l.270 ; aucun test ne vise ce composant → tient. Classement : A4, attribut ARIA et anneau de focus sur un jeton existant, sans texte neuf : nommer l'`input` par la clé existante, porter `role="combobox"`/`aria-expanded`/`aria-haspopup` sur l'`input` (motif ARIA 1.2) et poser `focus-within:ring-2 focus-within:ring-ring` sur la pilule.
+- Mesure (2026-10-16, 56aed2b1, implementeur) : traité avec P31.01, même composant et même correctif ; reproduit avant correctif par `SearchAutocomplete.aria.test.tsx` : `getByRole('combobox', { name })` ne trouve aucun `input` (rôle `searchbox`, sans nom hors placeholder) → rôle combobox, `aria-expanded`, `aria-haspopup` et `aria-label` (le texte affiché, aucune clé neuve) portés par l'`input`, anneau de focus sur la pilule ; ablation : rouge sans le correctif, vert avec ; tests existants passés de `searchbox` à `combobox`.
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
@@ -1065,7 +1091,7 @@ Sain (vérifié par l'agent) :
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
-- Statut : validé — anneau de focus plein ; --input assombri à 3:1
+- Statut : fait · TCK-753
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
 - Constat :
@@ -1073,10 +1099,11 @@ Sain (vérifié par l'agent) :
   - `--input: #ebe5d5`, seul contour d'un champ, est à 1,26:1 (WCAG 1.4.11, mesuré).
 - Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `button.tsx:31` et `input.tsx:20` (`focus-visible:ring-3 focus-visible:ring-ring/50`), `globals.css:29` (`--background: #fcf9f3`), `:163-164` (`--input: #ebe5d5`, `--ring: #a85332`) ; calcul WCAG en `node` : `ring` à 50 % mêlé au fond → 2,08:1 contre `--background` ; `--input` → 1,20:1 contre `--background` et 1,26:1 contre le blanc → tient. Classement : V7, ni l'anneau plein ni un nouveau `--input` ne se ramènent sur un jeton existant : c'est une modification de la palette et du focus de toutes les primitives, un choix de dessin.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/test/__tests__/focus-et-contour-des-champs.contraste.test.ts` → 4 rouges sur 5 : 84 `ring-ring/50` dans 58 fichiers de `src/` plus `outline-ring/50` dans `globals.css:694`, `--input` à 1,20:1 sur `--background` et 1,26:1 sur `--card` (mesuré par `contraste-wcag.ts`) → anneaux et contour de base pleins, `--input` clair à `#918672` (3,41 / 3,59 / 3,04:1 sur fond, carte, muted), fond désactivé et séparateur de `TagsManager` passés sur `--border` pour garder leur aspect ; ablation (sources d'avant) → les 4 mêmes rouges, correctif remis → 5 verts, et 339 tests verts sur `src/test`, `ui/` et les tests a11y qui lisent l'anneau.
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
 - Réf : P07.10
-- Statut : validé — outline blanc de 2 px décalé sur le marqueur ; aria-label sur la visionneuse ; entrée verrouillée focusable, raison en sr-only
+- Statut : fait · TCK-754
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
 - Constat :
@@ -1085,6 +1112,7 @@ Sain (vérifié par l'agent) :
   - `<span role="link" aria-disabled title>` n'est pas focusable, et la raison du verrou n'est que dans `title` (signalé par TCK-371, toujours présent).
 - Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `globals.css:772-778` (`.takussan-price-marker__pill:focus-visible` = même règle que `:hover`, `background: #b66c43` contre `#c87a52` au repos, `outline: none`) ; calcul WCAG en `node` → 1,22:1 entre les deux fonds ; `PropertyLightbox.tsx:55` : `DialogPrimitive.Popup` sans `aria-label` ni `Title` (les seuls `aria-label` sont les boutons l.63,93,101) ; `AppSidebar.tsx:557-568` : `<span role="link" aria-disabled="true" title={t('proLocked')}>` sans `tabIndex` → les trois constats tiennent. Classement : V7, le nom de la visionneuse serait A4, mais le contour du marqueur est un dessin neuf et rendre focusable une entrée verrouillée change le parcours clavier de la barre latérale.
+- Mesure (2026-10-17, dfff1f69, implementeur) : relu `globals.css:774-780` (`:focus-visible` partagé avec `:hover`, `outline: none`), `PropertyLightbox.tsx:55` (`Popup` sans nom) et `AppSidebar.tsx:557-568` (span cadenassé sans `tabIndex`) → les trois tiennent ; trois tests neufs (`marqueur-focus.test.ts`, `PropertyLightbox.a11y.test.tsx`, un cas d'`AppSidebar.test.tsx`) rouges avant correctif → règle `:focus-visible` à `outline: 2px solid #ffffff` décalé de 2 px, `aria-label` « Photos : {title} » sur la visionneuse (`wo` = texte français), `tabIndex={0}` et raison en `sr-only` ; ablation (sources d'avant) → les 3 mêmes rouges, correctif remis → verts, 345 tests verts sur `components/layout`, `components/map` et la fiche publique.
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11
@@ -1184,12 +1212,13 @@ Sain (vérifié par l'agent) :
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
-- Statut : validé — avertissement beforeunload seulement quand le formulaire est modifié
+- Statut : fait · TCK-755
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `grep -l 'useWizardDraft\|localStorage\|sessionStorage'` sur `CreateLeaseForm.tsx`, `CustomerForm.tsx` et `PropertyForm.tsx` → rien ; `grep -rln beforeunload takussan-web/src` hors tests → `hooks/useWizardDraft.ts:264`, un **commentaire** seulement (le constat disait « aucun » : il n'y a aucun gestionnaire) → tient. Classement : V7, une reprise de brouillon ou un avertissement de départ sur trois écrans est une interaction neuve (quand proposer, quand purger), qu'aucune spec n'écrit pour ces formulaires.
+- Mesure (2026-10-17, 18c6141d, implementeur) : `grep -rn beforeunload takussan-web/src` hors tests → le seul commentaire de `useWizardDraft.ts:264` ; un `beforeunload` annulable émis après une saisie dans chacun des trois formulaires n'est pas annulé (3 tests rouges) → tient. Correctif : `useAvertissementDepart(isDirty)`, `isDirty` lu par `useFormState`. Ablation : écouteur retiré → 4 rouges ; branchement retiré de `CustomerForm` → son test rouge ; remis → 46/46 verts.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
@@ -1202,21 +1231,23 @@ Sain (vérifié par l'agent) :
 
 ### Barres d'onglets sans défilement
 - Réf : P08.08
-- Statut : validé — overflow-x-auto dans TabsList, patron de CustomerDetailTabs
+- Statut : fait · TCK-756
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `tabs.tsx:27` (`inline-flex w-fit`, aucun `overflow`) et `:87` (déclencheurs `whitespace-nowrap`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu), `CustomerDetailTabs.tsx:65` (enveloppe `overflow-x-auto`) ; largeur rendue par Chromium headless des libellés `fr` (14 px, graisse 500, padding de la primitive, **police de repli** Helvetica et non DM Sans) → **454 px** pour les cinq onglets des paiements, **394 px** pour ceux du bien, contre 328 px disponibles → la barre déborde. Que ce soit `<main>` qui défile n'a **pas** été mesuré : retenu pour le débordement seul. Classement : V7, faire défiler la primitive touche toutes les barres, et la règle « défile dans son conteneur » n'est écrite que pour les tables.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `ui/tabs.tsx:27` (`inline-flex w-fit … justify-center`, aucun `overflow`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu) → tient. Correctif dans la primitive : `max-w-full`, `justify-center-safe` (centré, un débordement perd son début), `overflow-x-auto` sur la variante `default` seule (le liseré de `line` est posé 5 px sous la liste). Test `tabs.defilement.test.tsx` ; ablation : primitive d'avant → rouge ; remise → 99/99 verts sur 18 fichiers. Non observé dans un navigateur.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-757
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `RoomEditor.tsx:140` (`<textarea>` en `text-sm`), `InviteAgentDialog.tsx:136,154,175,194` et `InviteMemberDialog.tsx:111` (`<input>` en `text-sm`, sans `text-base`) — lignes inchangées ; `ui/input.tsx:18-20` écrit la règle (« 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus ») et `ui/textarea.tsx:10` l'applique → tient. Le zoom lui-même n'a pas été observé sur un iPhone. Classement : A1, le comportement attendu est écrit dans la primitive, et le correctif aligne six champs sur elle sans choix de produit.
+- Mesure (2026-10-17, 18c6141d, implementeur) : garde de source `champs-sans-zoom-ios.test.ts` sur les trois fichiers cités → 3 rouges, exactement les six champs (`RoomEditor.tsx:137`, `InviteAgentDialog.tsx:132,150,170,190`, `InviteMemberDialog.tsx`) → tient. Correctif : `text-base md:text-sm`. Ablation : fichiers d'avant → 3 rouges ; remis → verts. Cinq autres champs du dépôt en `text-sm` seul, hors piste, sont listés dans TCK-757.
 
 ### Petites améliorations
 - Réf : P08.10
@@ -1276,7 +1307,7 @@ Correct (mesuré ou lu) :
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
-- Statut : validé — openGraph par défaut dans le layout public ; image générée depuis le logo ; pas d'image par ville
+- Statut : fait · TCK-759
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
 - Constat :
@@ -1285,10 +1316,11 @@ Correct (mesuré ou lu) :
   - Sur la fiche manquent `og:url`, `og:locale`, `og:site_name` et les dimensions, et l'image vient de la conversion `preview` en 800×600 (mesuré pour `/fr` ; `og:image` d'une fiche avec photo à vérifier).
 - Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `find takussan-web/src/app -name 'opengraph-image*' -o -name 'twitter-image*'` → rien ; `(public)/page.tsx:20-23` ne rend que `alternates`, `(public)/layout.tsx:45-57` et `app/layout.tsx:57-63` aucun `openGraph` ; seules les fiches de bien, d'agence et d'agent en déclarent ; `properties/[slug]/page.tsx:115-126` pose `title`, `description`, `type` et `images` sans `url`, `locale`, `siteName` ni dimensions ; l'image vient de `main_photo_url`, soit la conversion `preview` (`PropertyResource.php:137`), `width(800)->height(600)` (`Property.php:779`) → tient. Aucune page n'a été rendue. Classement : V7, une image de partage 1200×630 et des textes par ville ou quartier sont un visuel et un texte neufs.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `find takussan-web/src/app -name 'opengraph-image*'` → rien ; `(public)/layout.tsx` ne rendait ni `openGraph` ni `twitter` ; test neuf `(public)/__tests__/apercu-de-partage.test.ts` → 5 rouges sur 5 → `openGraph` par défaut au layout (`website`, `siteName`, `og:locale` `fr_SN`/`en_US`/`wo_SN`, sans titre ni description, que Next reprend de la page) et `opengraph-image.tsx` 1200×630 rendu depuis le symbole du logo ; le test rend le PNG et lit ses dimensions. Ablation (layout et image retirés) → 5 rouges, remis → 5 verts. Aucune image par ville.
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
-- Statut : validé — Offer avec businessFunction LeaseOut ou Sell, unitCode selon rent_period, champs hors domaine retirés de Place
+- Statut : fait · TCK-758
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -1297,6 +1329,7 @@ Correct (mesuré ou lu) :
   - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `jsonld-property.ts:80-113` : `priceSpecification` est posé dans `mainEntity`, typé par `SOUS_TYPE_SCHEMA` (`:17-33`, `Apartment`, `House`, `Room`, `Accommodation` ou `Place`), aucun `offers`, ni `contract_type` ni `rent_period` émis ; `floorSize`, `numberOfBedrooms` et `yearBuilt` sont posés aussi sur `Place` (terrain, bureau, parking), où schema.org ne les définit pas ; `priceCurrency` vaut bien `XOF` par défaut → tient. Aucun validateur de données structurées n'a été lancé. Classement : V7, choisir `businessFunction` et le `unitCode` de chaque `rent_period` n'est écrit par aucun ticket ni ADR.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `jsonld-property.ts` : `priceSpecification` toujours sur le `mainEntity`, aucun `offers`, champs de logement posés sur `Place` ; 7 tests neufs de `jsonld-property.test.ts` rouges → tient. Correctif : `offers` = `Offer` (`Sell` ou `LeaseOut`, `UnitPriceSpecification` `DAY`/`WEE`/`MON`/`ANN`), plus de prix sur le bien, `Place` sans champ de logement (`numberOfBathroomsTotal` compris). Le test « jamais `Product`/`Offer` » de TCK-335 garde désormais `Product` seul. Ablation : fichier d'avant → 8 rouges ; remis → 22/22. Aucun validateur lancé.
 
 ### Chaque fiche a trois URL au contenu principal identique
 - Réf : P09.05
@@ -1326,10 +1359,11 @@ Correct (mesuré ou lu) :
 - Constat : le 307 avec `Vary: Cookie, Accept-Language` est délibéré (ADR-0026). Mais la production sert aujourd'hui `/properties` sans préfixe : tout l'index actuel passera par une redirection temporaire, et Googlebot finira sur `/fr` (mesuré, lu).
 - Piste : le décider dans le plan de bascule, par exemple une 308 pour les robots, ou accepter le délai explicitement.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `takussan-web/src/proxy.ts:153-162` (inchangé : `NextResponse.redirect(url, 307)` puis `Vary: Cookie, Accept-Language`) et ADR-0026 § 3 et « Ce que ça coûte », qui écrit déjà le prix de la bascule (« des signaux d'indexation à reconstruire ») sans parler du plan de bascule ; `grep -rn '307\|308' docs/backlog/tickets/TCK-517*` → vide : le plan de bascule ne tranche pas la question. La production n'a pas été mesurée (sortir du poste est interdit au mesureur) : « la production sert `/properties` sans préfixe » reste à vérifier. Classement : V6, toute réponse autre qu'« accepter le délai » (308 pour les robots, par exemple) revient sur une décision d'ADR, et l'accepter est une décision du porteur.
+- Mesure (2026-10-17, 2a2fc6e4, humain) : amendement d'ADR-0026 du 2026-10-17 écrit (option a) : 308 vers `/fr` à la phase F, après la migration des liens internes sans préfixe et le test qui la garde ; plan F2, étape 4.
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : validé — la partie code (canoniques, 404 au-delà de la dernière page, coupe des descriptions, `generateSitemaps()`, métadonnées des pages introuvables)
+- Statut : validé — canonique propre à chaque page et `resumePourMeta()` ; au-delà de `last_page`, `robots: noindex` sur la page (le `loading.tsx` de la liste reste, le code reste 200) ; retirer `robots: index, follow` du layout public, valeur par défaut, pour lever la contradiction de la page introuvable ; reste : `generateSitemaps()`, reporté tant que le parc est loin de 16 600 biens
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1345,6 +1379,7 @@ Correct (mesuré ou lu) :
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `canonique.ts:358-378` (`cheminCanoniqueDeLaListe` retire `page` ; son docblock : `page=3` → `/properties?type=villa`) ; `(public)/properties/(liste)/page.tsx` n'appelle jamais `notFound()` et ne lit pas `last_page` ; `properties/[slug]/page.tsx:98-99` : `property.description?.slice(0, 160) ?? …`, donc une chaîne vide passe le `??` et la coupe tombe au caractère ; `sitemap.ts:23-31,313` lève au-delà de 50 000 `<url>` et `generateSitemaps` n'est cité qu'en commentaire ; `properties/[slug]/not-found.tsx` n'exporte aucune métadonnée, sous `(public)/layout.tsx:56` en `index: true, follow: true` ; `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` dans l'URL » alors que les pages vivent sous `src/app/[locale]/` → tout tient en lecture ; le double `noindex`/`index, follow` rendu et les 1 011 `<loc>` n'ont pas été remesurés (application non lancée). Classement : V7, canonique par page, `notFound()` au-delà de la dernière page et contenu des titres changent ce que voient les moteurs, et la correction du document est dans un `CLAUDE.md`.
 - Mesure (2026-10-16, 55a41109, humain) : le reste documentaire est fait en session (TCK-722) : `takussan-web/CLAUDE.md` décrit le segment `[locale]` d'ADR-0026 ; reste la partie code, à l'implémenteur.
+- Mesure (2026-10-17, 0785a29d, implementeur) : les cinq constats tiennent en lecture (`cheminCanoniqueDeLaListe` retire toujours `page`, `(liste)/page.tsx` sans `notFound()`, `description?.slice(0, 160)` sur la fiche, `robots.ts:38` et `sitemap.ts` sans `generateSitemaps`, `properties/[slug]/not-found.tsx` sans métadonnée), mais le correctif dépasse M : (1) `notFound()` au-delà de `last_page` rendrait **200**, car `(liste)/loading.tsx` est une frontière de suspension au-dessus de la page, gardée par `pas-de-frontiere-de-suspension.test.ts:385-390`, et le 404 du site public ne vient que du corps de page hors de toute frontière (mesure du 2026-08-28 écrite dans `agencies/[slug]/page.tsx`) : servir un vrai 404 demande de déplacer ou retirer ce `loading.tsx` ; (2) un `not-found.tsx` de segment n'accepte ni `metadata` ni `generateMetadata` (la doc de Next 16, `not-found.md:185`, ne les ouvre qu'à `global-not-found.js`, derrière `experimental.globalNotFound`) : corriger le titre et le double `robots` passe par ce drapeau ou par le retrait du `robots` explicite du layout public, deux choix ; (3) `generateSitemaps()` sert `/sitemap/<id>.xml` et plus `/sitemap.xml` (`generate-sitemaps.md:20`), que `robots.ts:38` déclare : il faut un index écrit à la main et l'URL publique change. Restent S chacun : la canonique par page et `resumePourMeta()`. Classement : V8, à découper en tickets ; les choix (1) à (3) reviennent au porteur.
 
 ## Angle 10 — Médias : tailles, conversions, disques, nettoyage
 
@@ -1402,7 +1437,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
-- Statut : validé — médias d'un modèle supprimé en douceur purgés 90 jours après deleted_at, collections de preuve exclues
+- Statut : fait · TCK-750 — reste : la requête par média de `media:cleanup` (une lecture du modèle par ligne, sur tout le parc, chaque nuit)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1414,10 +1449,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaCleanup.php:23-60` (inchangé depuis TCK-050, `git log` : 2 commits ; `isOrphan()` fait `$type::query()->whereKey($id)->exists()`, et son commentaire dit « soft-deleted targets count as orphans (per ticket spec) », ce que TCK-050 écrit l. 96) et `routes/console.php:67` (`dailyAt('03:00')`) ; test Feature temporaire (retiré) : un `Property` avec une photo datée de 2 jours, supprimé en douceur, puis `media:cleanup` → **0** média restant, en 3 requêtes pour un média. `Lease` porte déjà `SoftDeletes` (`Lease.php:28`) : le constat dit « le jour où un bail serait supprimé en douceur », mais aucun `->delete()` de bail n'a été trouvé dans `app/` (grep), donc le chemin reste théorique pour les baux. La requête par média tient (une `exists()` par ligne, lu). Classement : V3, garder les médias d'un bien supprimé, et pour combien de temps, est un choix de conservation qui contredit la règle écrite par TCK-050.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `MediaCleanupTest` avant correctif → 2 rouges sur 7 : la photo d'un bien supprimé en douceur 89 jours plus tôt est purgée (0 média), et `signed_contract` et `room_photos` d'un bail et d'un état des lieux signé supprimés partent aussi → `isOrphan()` lit le modèle `withTrashed()`, purge après `deleted_at` + 90 jours, preuves de TCK-596 exclues ; ablation (commande d'avant remise) → les 2 mêmes rouges, exclusion des preuves retirée seule → 1 rouge ; remis → 7/7 verts.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
-- Statut : validé — avatar réencodé à l'upload (EXIF retiré), et la conversion servie au lieu de l'original
+- Statut : fait · TCK-762
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
 - Constat :
@@ -1427,10 +1463,11 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `User.php:404` (collection `avatar` sur le disque public), `AuthController.php:209-213` (`addMediaFromRequest('avatar')`, aucun traitement), `UserResource.php:37` (`getFirstMediaUrl('avatar')`, l'original), et les mêmes URL d'original dans `PublicAgentController.php:180`, `PublicPropertyController.php:1066`, `PropertyResource.php:411` ; test Feature temporaire (retiré) : un JPEG portant un segment EXIF avec `GPSLatitudeRef = N`, envoyé à `PUT /api/auth/profile` → 200, média sur le disque `public`, URL `/storage/1/selfie.jpg`, et `exif_read_data` du fichier stocké rend toujours `GPSLatitudeRef = "N"`. Les trois conversions (`full`, `preview`, `thumbnail`) sont produites et rien ne les sert. Le front ne réencode que l'image au-delà de 2 560 px (`reduire-photo.ts:1-22`). Classement : V3, la piste change ce qui est exposé d'une donnée personnelle, et le choix entre conversion servie et retrait de l'EXIF reste ouvert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `AuthProfileTest` avant correctif → 2 rouges : un JPEG portant `GPSLatitudeRef = N` et `Orientation = 6`, envoyé à `PUT /api/auth/profile`, est rangé avec son EXIF, et `avatar_url` vise l'original → `AvatarReencode` (décodage et réencodage GD, orientation appliquée aux pixels) et `User::avatarUrl()` (la miniature, sinon `null`), repris par les huit appelants ; ablation : contrôleur d'avant → le test EXIF rougit, `UserResource` d'avant → le test d'URL rougit, `MessagingContactResource` d'avant → la garde `AvatarServiEnMiniatureTest` rougit ; remis → verts, 75 tests des classes qui rendent un avatar verts. Les originaux déjà déposés gardent leur EXIF (hors périmètre, V4).
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
-- Statut : validé — HEIC refusé (mimes:jpg,jpeg,png,webp) sur l'état des lieux et l'avatar
+- Statut : fait · TCK-751
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1442,19 +1479,21 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `UploadRoomPhotosInventoryRequest.php:39` (`required`, `image`, `max:5120`), `UpdateProfileRequest.php:50` (`nullable`, `image`, `max:2048`), `vendor/…/ValidatesAttributes.php:1533` (`heic`, `heif` dans la liste de `image`), `PdfImageEmbedder.php:30,108-116` (rend `null` hors jpeg, png, webp, gif) ; mesuré `function_exists('imagecreatefromheif')` → `false` et `gd_info()` sans prise en charge HEIF ; HEIC réel produit par `sips -s format heic` (finfo : `image/heic`), puis test Feature temporaire (retiré) : la règle de l'état des lieux **passe**, et `PUT /api/auth/profile` avec ce fichier → 200, média `image/heic` sur le disque public, `generated_conversions` vide, `avatar_url` = l'original `.heic`. L'absence au PDF de l'état des lieux est déduite de `PdfImageEmbedder::encode`, non rejouée. Classement : V7, la piste laisse ouvert le choix entre refuser le HEIC (`mimes:`) et le convertir à l'entrée, et un refus change ce qu'un utilisateur de l'API peut envoyer.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : HEIC réduit à sa boîte `ftyp` (finfo → `image/heic`, `image` passe, `mimes:jpg,jpeg,png,webp` échoue, mesuré par tinker) ; `InventoryRoomPhotosTest` et `AuthProfileTest` avant correctif → 2 rouges, 200 au lieu de 422 → `mimes:jpg,jpeg,png,webp` sur les deux règles ; ablation (FormRequests d'avant remis) → les 2 mêmes rouges ; remis → 34/34 verts, 78 tests des classes voisines verts.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
-- Statut : validé — validation des documents ramenée à 10 Mo, FileCannotBeAdded traduit en 422
+- Statut : fait · TCK-763
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
 - Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
 - Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaUploadRequest.php:16` et `GenericMediaUploadRequest.php:19` (`MAX_DOCUMENT_KB = 25 * 1024`), `config/media-library.php:55` (`max_file_size` 10 Mo) ; `grep -rn 'FileIsTooBig\|FileCannotBeAdded' app bootstrap config` → vide ; test Feature temporaire (retiré) : un PDF réel de 15 Mo, collection `documents`, sur `POST /api/media` et sur `POST /api/media/upload` → **500** sur les deux, message de Spatie « has a size of 15 MB which is greater than the maximum ». Le seul appelant du front (`agencies.ts:144`) envoie un logo, pas un document. Classement : V9, aligner les plafonds demande de choisir entre baisser la validation à 10 Mo et monter le plafond global de Spatie à 25 Mo, qui vaut pour toutes les collections ; la traduction de `FileCannotBeAdded` en 422, seule, serait A1.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `MediaUploadTest` avant correctif → 2 rouges en 500 (`FileIsTooBig`) : un PDF réel de 15 Mo dans `documents`, et un PDF de 200 Ko sous un plafond de médiathèque abaissé à 100 Ko → `MAX_DOCUMENT_KB` = 10 Mo dans les deux FormRequests, et `FileCannotBeAdded` rendu en 422 `media.file_rejected` par `bootstrap/app.php` ; ablation : FormRequest d'avant → le premier rougit, `bootstrap/app.php` d'avant → le second ; remis → 12/12 verts.
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
 - Réf : P10.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-764 — reste : limiter les conversions de `User` aux collections affichées (`performOnCollections`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
 - Constat :
@@ -1464,6 +1503,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `routes/api/media.php:12-14` (route `media.upload`, `throttle:30,1`) et `MediaController.php:70-93` (attache le fichier à l'appelant, collection `photos` par défaut) ; `grep -rn 'media/upload\|media.upload' takussan-web/src takussan-api/app takussan-api/routes` → aucun appelant (seul un commentaire de `User.php:403`) ; seuls `tests/Feature/Media/MediaGenericUploadTest.php` et `MediaDiskPrivatePhotosTest.php` l'appellent ; aucune lecture de `User.photos` ni de `User.documents` dans `app/` (grep). Les trois conversions sur chaque image de `User`, avatar compris, sont mesurées sous P10.05 (`generated_conversions` = `full`, `preview`, `thumbnail`), et aucune ressource ne sert une conversion d'avatar (grep `getFirstMediaUrl('avatar'` : l'original partout). La route avait été demandée par TCK-016, sans écran pour l'appeler, et `docs/features.md` ne la cite pas. Classement : A3 pour le seul retrait de la route sans appelant ; la partie « conversions » est laissée à P10.05, qui choisit ce que l'avatar sert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `git grep` de `media/upload`, `media.upload` et `GenericMediaUploadRequest` → aucun appelant hors des tests et d'un commentaire ; un cas de garde avant correctif → 1 rouge, la route existe et un envoi crée un média → route, `MediaController::upload()` et `GenericMediaUploadRequest` retirés, `MediaGenericUploadTest` réécrit pour garder le retrait, les deux cas de disque de `MediaDiskPrivatePhotosTest` passés sur `POST /api/media` ; ablation (les trois remis) → le même rouge ; retirés → vert.
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
@@ -1545,7 +1585,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
-- Statut : validé — ShouldQueue sur l'inscription, la réinitialisation et les AccountDeletion*, file notifications-urgent
+- Statut : fait · TCK-747 — reste : AccountDeletionExecutedNotification reste synchrone ; la mettre en file demande de ranger l'adresse d'origine dans la charge du job après l'effacement (V3)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33-46`, `takussan-api/app/Notifications/RegistrationConfirmationNotification.php`
 - Constat :
@@ -1555,10 +1595,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `ShouldQueue`, avec les codes à usage unique sur `notifications-urgent`.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `AuthController::register` (l. 31-46 : `User::create` hors transaction, `event(new Registered)`) relu, `RegistrationConfirmationNotification` étend `VerifyEmail` sans `ShouldQueue`, ni `ResetPasswordNotification` ; les trois `AccountDeletion*` n'ont que le trait `Queueable`, sans `ShouldQueue` ; test temporaire retiré : SMTP sur `127.0.0.1:1`, `POST /api/auth/register` → 500, aucun jeton, compte créé en base ; même corps rejoué → 422 `email: The email has already been taken.` Le constat tient. Classement : V2, le correctif touche le parcours d'inscription et de réinitialisation, et le choix de file (`notifications-urgent`) en fait partie.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `NotificationsDeCompteEnFileTest` (file `database`, SMTP sur `127.0.0.1:1`) → `POST /api/auth/register` et `POST /api/auth/forgot-password` rendent 500 (`TransportException`), aucune ligne `jobs` → `ShouldQueue` et `viaQueues()` = `notifications-urgent` sur l'inscription, la réinitialisation et trois `AccountDeletion*`, `ShouldBeEncrypted` sur les deux qui portent un jeton ou un code ; l'inscription rend un jeton, la réinitialisation 200, le jeton absent en clair de la charge ; `AccountDeletionExecutedNotification` laissée synchrone (le worker relirait la ligne déjà anonymisée) ; ablation : 3 rouges sur 4, correctif remis : 4 verts, et 14 classes voisines (suppression de compte, vérification d'e-mail, réinitialisation, langues) vertes.
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
 - Réf : P11.05
-- Statut : validé — Log::warning et tentative journalisée sans notification_id ; seau séparé pour les codes critiques ; 503 lisible si rien n'est parti
+- Statut : fait · TCK-799
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -1570,10 +1611,12 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `SmsRouterDriver.php:195-201` et `appendAttempt` (l. 239-243, sort sans rien écrire si `notification_id` est nul), `SmsChannel::withinRateLimit` (l. 143-160, seau unique de `sms.rate_limit.per_user_per_hour` = 5, codes critiques compris) et `LeaseSignatureService::sendCode` (l. 112-136, rend `channel: sms` sans lire le résultat) relus ; test temporaire retiré : chaînes vides, `SmsRouterDriver::send` d'un SMS critique sans `notification_id` → `failed`/`no_provider_available`, et `Log::spy` n'a reçu ni `info`, ni `warning`, ni `error`. Tient pour le chemin « aucun fournisseur » ; inexact sur un point : le seau plein, lui, laisse un `Log::info` (`SmsChannel.php:152`). Classement : V7, la piste choisit entre un seau séparé pour les codes et un 503 visible, et la signature de bail en dépend (V2).
+- Mesure (2026-10-17, b8b556ed, implementeur) : relu `database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:20-22` (`app_notification_id` en `foreignId()->constrained()`, non nul) et `SmsRouterDriver::appendAttempt()` (`if (! $notificationId) return;`) → une tentative sans notification ne peut s'écrire dans cette table qu'après une migration qui rend la colonne nullable (ou une table à part) : critère V4, autre que le V7 accordé. Si « tentative journalisée » veut dire au journal applicatif et non en base, la piste redevient faisable sans migration : à préciser. Le reste de la décision (`Log::warning`, seau séparé, 503) n'a pas été commencé.
+- Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `SmsFailureTraceTest` → chaîne sans fournisseur : aucun `Log::warning` ; SMS sans notification : aucune ligne `notification_delivery_attempts` ; seau ordinaire plein : le SMS critique refusé (`null`) ; `LeaseSignatureTest` → SMS de code en échec `no_provider_available` : 202 `channel: sms` → migration neuve (`app_notification_id` nullable, `down()` qui supprime les lignes sans notification, jouée aller-retour par un test de mesure retiré), `warning` avec le suffixe du numéro, tentative écrite sans notification sous point de sauvegarde, clé `sms-channel:critical:…` à la même borne, 503 `lease_signature.sms_not_sent` par `afterSending()` ; ablation : routeur seul → 3 rouges, canal seul → 1, service seul → 1, migration retirée → 2 ; correctif remis : 52 verts, et `tests/Feature/Services/Sms` et les classes voisines vertes (102 tests).
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
-- Statut : validé — repli sur l'intégration plateforme ; scoped() au lieu de singleton()
+- Statut : fait · TCK-765
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
 - Constat :
@@ -1583,6 +1626,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `IntegrationLocator::find` (l. 18-33 : avec `agency_id`, seule l'intégration de l'agence ; cache par clé, nul compris), `SmsChannel::resolveAgencyId` (l. 102-107, lit `User::agency_id`, que `getAgencyIdAttribute` rend nul pour un multi-agences, `User.php:263-288`) et `AppServiceProvider::registerSmsServices` (`singleton(IntegrationLocator::class)`) relus ; `grep -rn 'flush()' app` → aucun appelant de `IntegrationLocator::flush()`. Le constat tient à la lecture ; l'intention (un compte SMS d'agence voulu ou non) n'est écrite nulle part, ADR-0032 l. 74 et 125 met le coût à la plateforme. Classement : V7, le repli sur la plateforme est une décision de facturation et de produit ; seul le passage à `scoped()` serait A1.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `IntegrationLocatorTest` → une agence sans intégration propre ne trouve pas celle de la plateforme (`find()` rend nul), et une intégration Orange créée après un premier envoi n'est pas vue après `forgetScopedInstances()` (`lafricamobile` au lieu d'`orange`) → `find()` retombe sur la plateforme, localisateur et ses six consommateurs en `scoped()` ; ablation : `singleton()` remis seul → 1 rouge, ancien `find()` remis seul → 1 rouge ; correctif remis : 3 verts, `tests/Feature/Services/Sms` et `Whatsapp` verts (74 tests).
 
 ### Diffusion en double, avant le commit, avec le contenu écrit au journal
 - Réf : P11.07
@@ -1613,7 +1657,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Aucun `afterCommit` : pas de dégât aujourd'hui, grâce à la seule file `database`
 - Réf : P11.09
-- Statut : validé — after_commit => true sur les connexions de file
+- Statut : fait · TCK-746
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,73`, `takussan-api/app/Notifications/CodedNotification.php:40`
 - Constat :
@@ -1623,10 +1667,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `ShouldQueueAfterCommit` sur `CodedNotification` et les autres notifications en file.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `config/queue.php:44,53,64,73` → `after_commit => false` sur les quatre connexions ; `grep -rn 'AfterCommit' app` → seuls `RevalidatePublicPropertyPage` (`afterCommit()`) et trois événements `ShouldDispatchAfterCommit`, aucune notification ; 24 fichiers de `app/Notifications` sont `ShouldQueue` ; `docs/infra/prod-drivers.json` donne `QUEUE_CONNECTION=database` en préproduction (mesuré le 2026-09-14) et en production (prescrit), et `DB_QUEUE_CONNECTION` n'est pas posé dans `.env.example` → le constat tient tel qu'écrit : aucun dégât tant que la file est `database` sur la connexion par défaut. Classement : V6, poser l'envoi après commit sur toutes les notifications (ou par `after_commit` de la connexion) est une décision transverse sur la file, au-delà d'un défaut au comportement écrit.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `QueueAfterCommitTest` (file `database`) lit une ligne dans `jobs` **dans** la transaction qui a mis le job en file, et la propriété `after_commit` vaut `false` sur `database`, `beanstalkd`, `sqs`, `redis` → `after_commit => true` sur ces quatre connexions ; aucune ligne avant le commit, une après, rien pour une transaction annulée, dispatch immédiat hors transaction ; ablation (`false` remis) : 2 rouges sur 4, correctif remis : 4 verts, et les 8 classes qui basculent la file sur `database` restent vertes.
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : validé — ne journaliser que les 4 derniers chiffres des numéros, `backoff` et un `failed()` qui journalise
+- Statut : fait · TCK-800
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1640,6 +1685,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
+- Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `NotificationFailureLoggingTest` → un numéro invalide routé (`0012-34-56-7890`) écrit `phone` entier au `warning` de `SmsChannel` et de `WhatsappChannel` ; le job en file d'une `CodedNotification` rend `null` en `backoff()` et son `failed()` n'écrit rien → `phone_suffix` (4 derniers caractères) sur les deux canaux, `backoff()` = `[60, 300, 900]`, `failed()` qui écrit un `error` avec le code, le canal (retenu par `middleware()` à la mise en file) et l'identifiant de la cloche, sans le message de l'exception ; ablation : chacun des cinq morceaux retiré seul → 1 rouge ; correctif remis : 2 verts, et 147 tests voisins (notifications, WhatsApp, canal SMS) verts.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -1754,7 +1800,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
-- Statut : validé — deux tests : data-exports/[id]/download et account-deletion.ts
+- Statut : fait · TCK-760
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
 - Constat :
@@ -1769,6 +1815,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré, par un script qui résout les imports.
 - Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
 - Mesure (2026-10-15, 89a52efe, mesureur) : script node hors dépôt qui cherche, dans les `*.test.ts(x)` de `takussan-web/src`, un import de chaque action non remplacé par `vi.mock` → 15 actions sur 27 sans test : `account-deletion`, `agent-onboarding`, `auto-onboard`, `contact-preferences`, `invitations`, `kpis`, `locale`, `notification-preferences`, `notifications`, `onboarding`, `owner-onboarding`, `property-contacts`, `secondary-phone`, `service-provider-onboarding`, `super-admin-cooptation` ; `find src/app/api -name route.ts` → 36 handlers, et aucun `*.test.ts*` sous `data-exports/[id]/download`, `me/owner-profiles/[id]/kyc`, `admin-users`, `super-admin-properties`, `me/wizard-drafts`. Le décompte des 24 handlers n'est pas refait. La PR ouverte #421 touche `locale` et peut en couvrir une. Classement : V8, chaque test relève de A5, mais l'ensemble dépasse M et demande un découpage.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep -rln "account-deletion\|data-exports" takussan-web/src --include='*.test.*'` → aucun test n'importe `actions/account-deletion.ts` (`AccountDeletionSection.test.tsx` le remplace par `vi.mock`) ni `api/data-exports/[id]/download/route.ts` → tient. Deux tests neufs (`download/__tests__/route.test.ts`, 7 ; `actions/__tests__/account-deletion.test.ts`, 16) → 23 verts. Ablations : `set-cookie` relayé → 1 rouge, `segmentAmont` retiré → 3, `obligations` retirées de `failure()` → 4, clé de repli d'annulation changée → 1 ; remis → 23 verts.
 
 ### Petites améliorations
 - Réf : P12.10
@@ -1828,16 +1875,17 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03
-- Statut : validé — une commande qui crée les trois règles ops_*, destinataire = les super-admins, appelée par release.sh
+- Statut : fait · TCK-768
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
 - Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
 - Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `AlertRuleService::dispatchForActivity()` (`AlertRuleService.php:64-75`) → n'envoie que pour une ligne `alert_rules` active ; `grep -rln 'AlertRule\|alert_rules' database app/Console deploy docs/infra` → seule la migration `2026_05_07_000221_create_alert_rules_table.php`, aucun seeder, aucune commande, rien dans `deploy/`. L'état de la base de préproduction n'est pas mesuré : sortir du poste est interdit à ce rôle. Classement : V5, la piste touche au déploiement et à une variable d'environnement.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `EnsureOperationalAlertRulesTest` avant correctif → 4 rouges (`alerts:ensure-ops-rules` inexistante, aucune règle `alert_rules` créée) → la commande crée, pour chaque `ops_*` du catalogue sans règle, une règle courriel vers les super-admins actifs, sans réécrire une règle existante ni rien créer sans super-admin ; `docker/release.sh` l'appelle, échec toléré (`test-release-reindex.sh`, 2 vérifications neuves). Ablation : commande retirée → 4 rouges, appel retiré de `release.sh` → 1 rouge ; remis → verts.
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
-- Statut : validé — failed() sur les trois jobs d'argent et de bail, qui écrit une activité alertable dès le premier échec
+- Statut : fait · TCK-772
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
 - Constat :
@@ -1848,10 +1896,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:27` (`FAILED_JOBS_SPIKE_THRESHOLD = 20`) et `:33-37` (fenêtre d'une heure) ; `routes/console.php:37,43,59` → les trois jobs passent par `Schedule::job` ; les trois classes `implements ShouldQueue` (`Jobs/Lease/ApplyLateFeesJob.php:22`, `Jobs/SendLeasePaymentReminders.php:43`, `Jobs/Invoice/SendOverdueRemindersJob.php:21`), aucune n'a de `failed()` (grep) ; `vendor/…/Scheduling/Schedule.php:221-222` → un `ShouldQueue` est seulement mis en file, donc `ScheduledTaskFinished` et la ligne `scheduled_task_runs` ne voient que la mise en file. Le constat tient en entier ; le précédent de préproduction n'est pas re-mesurable d'ici. Classement : V7, la piste laisse ouverts le mécanisme et la liste des jobs « d'argent et de bail », et un événement alertable neuf est un comportement visible neuf.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, `(new ApplyLateFeesJob)->failed($e)` lève `Call to undefined method` (de même pour `SendLeasePaymentReminders` et `SendOverdueRemindersJob`) : aucun des trois n'a de `failed()` → `CriticalJobFailureAlertTest` : `failed()` de chacun écrit `ops_critical_job_failed` (job, classe de l'exception, sans son message), et une règle active part en synchrone ; ablation du trait `AlertsOnFirstFailure` → 3 rouges sur 4, remis → 4 verts.
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
-- Statut : validé — ré-alerter quand l'ensemble des sondes en échec ou leur niveau change ; properties.failing dans le message
+- Statut : fait · TCK-769
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
 - Constat :
@@ -1861,10 +1910,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:47-53` → `ops_health_degraded` vaut `status !== 'ok'`, un booléen ; `:66-74` n'écrit qu'au passage de faux à vrai, donc `degraded` → `failed` se tait ; `HealthcheckService.php:209-210` → transport `log` ⇒ sonde `mail` `degraded`, et `docs/infra/prod-drivers.json:50-52` relève `MAIL_MAILER=log` en préproduction ; `AlertRuleService.php:76-87` (le constat citait 78-82) → le message ne porte qu'`event`, `actor`, `subject`, les `properties` (dont `failing`) restent dans l'activité. Le constat tient en entier. Classement : V7, la règle de ré-alerte et un message enrichi changent ce que reçoit le destinataire, sans spec qui les fixe.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `HealthAlertRealertTest` avant correctif → 3 rouges sur 5 (`degraded` puis `failed` : 1 alerte ; une sonde de plus : 1 alerte ; message sans les sondes) → la transition de la santé porte une signature (statut global et sondes triées), et le message ajoute « sondes en échec : mail (degraded), … ». Ablation : signature retirée → 2 rouges, suffixe retiré → 1 rouge ; remis → 5 verts, et `EvaluateOperationalAlertsTest`, `OperationalAlertDeliveryTest` verts.
 
 ### Le courriel de notification n'est jamais retenté
 - Réf : P14.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-770
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
 - Constat :
@@ -1874,6 +1924,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Jobs/SendRawNotificationEmailJob.php:23-48` → `$tries = 3`, `backoff [10, 60, 180]`, et un `catch (\Throwable)` sans condition ; test temporaire (Mail::raw qui lève, `handle()` appelé, retiré ensuite) → vert, aucune exception à la première tentative (`attempts() = 1`) : le job est réussi, jamais retenté (charge 2,49 sur 8 cœurs). Classement : A1, le commentaire `:38-41` du job écrit le comportement attendu (retenter par `$tries`, n'avaler qu'à la dernière tentative), et le corriger ne demande aucun choix de produit.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SendRawNotificationEmailJobTest` avant correctif → rouge à la tentative 1 sur 3 (`Mail::raw` qui lève : aucune exception ne sort, le job est réussi) → `handle()` relève tant qu'il reste une tentative, hors file `sync` où l'échec reste avalé ; 3 verts. Ablation : relance retirée → 1 rouge ; garde `SyncJob` retirée → 1 rouge (l'échec atteint l'appelant) ; remis → verts, `NotificationTest` vert.
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
 - Réf : P14.07
@@ -1902,16 +1953,17 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Des notifications de prospects et de visites avalées sans trace
 - Réf : P14.09
-- Statut : validé — report par SafeExceptionContext dans les six catch, jamais getMessage
+- Statut : fait · TCK-771
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
 - Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
 - Piste : `report($e)`, sans changer le caractère non bloquant.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Services/Lead/ContactLeadService.php:232,332,346`, `Services/Visit/VisitNotifier.php:181,214`, `Services/Messaging/GroupConversationService.php:152` → six `catch (\Throwable)` vides, sans journal (`git grep 'report($e' app/Services` → 0). Le constat tient en entier. Mais `report($e)` écrit `getMessage()`, qu'`app/Support/Logging/SafeExceptionContext.php` (ADR-0044 §2) interdit : un refus SMTP y recopie l'adresse du destinataire. Classement : V3, il faut décider quoi journaliser depuis ces chemins de données de prospects, et aucun critère A ne couvre l'ajout d'un journal.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SwallowedNotificationFailuresAreLoggedTest` avant correctif → 5 rouges sur 5 (un envoi qui lève « refus SMTP pour <adresse> » ne laisse aucune ligne de journal, sur les six `catch`) → chacun écrit un `Log::warning` à libellé fixe, l'identifiant de l'objet et `SafeExceptionContext::of($e)`, sans l'adresse, et l'action aboutit. Ablation : les trois fichiers remis → 5 rouges ; remis → 5 verts, et 41 tests voisins verts.
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10
-- Statut : validé — statut et code du fournisseur seulement, numéro masqué, raw du DLR non journalisé
+- Statut : fait · TCK-773
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
 - Constat :
@@ -1921,10 +1973,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu. Le contenu réel des corps Wave et OM est à vérifier.
 - Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Payments/Drivers/WaveDriver.php:66,95` et `OrangeMoneyDriver.php:83,114,176` → `'body' => $response->body()` à chaque échec ; `Notifications/Sms/Dlr/DlrReportApplier.php:108-112` → `msisdn` en clair, et `:71-75` journalise aussi `$record->raw` entier ; `grep Wave|Orange|Dlr|msisdn` dans `TCK-613` (`todo`) → aucun de ces emplacements. Le contenu réel des corps Wave et OM reste à vérifier : il faudrait une réponse du fournisseur. Classement : V3, la piste décide de ce qu'un journal garde des données personnelles, sur des pilotes de paiement qui relèvent aussi de V1.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, une réponse 400 de Wave ou d'Orange Money portant `221771234567` se retrouve au journal par `body`, et `DlrReportApplier` journalise le `msisdn` en clair (rapport sans tentative) et le `raw` entier (statut inconnu) : 4 rouges → `ProviderResponseContext` (statut et code fournisseur), numéro masqué par `WebhookPayloadRedactor::maskPhone`, `record` retiré ; `PaymentDriverErrorLeakTest` et `MtargetDlrPullingTest` : 23 verts, ablation des trois fichiers → 4 rouges.
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
-- Statut : validé — un failure() commun qui journalise côté serveur le nom, le message et la pile de toute erreur hors ApiError, jamais les données saisies
+- Statut : fait · TCK-775
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
 - Constat :
@@ -1933,10 +1986,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré.
 - Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/actions/notifications.ts:23-35` (`failure()` : hors `ApiError`, rend le repli sans rien écrire) et `admin-settings.ts:63-87` (`mapError()`, même chose) ; `grep -rln catch src/app/actions/*.ts` → 27 modules ; `grep -rn 'console\.' src/app/actions src/app/api` → 2 appels réels dans `actions/` (`dashboard-properties.ts:64,68`) et 9 dans `api/`, les autres occurrences étant des mots de commentaire (« console.ts ») ; `takussan-web/CLAUDE.md` ne fixe aucune convention de journalisation → le constat tient. Classement : V3, aucun critère A ne s'applique (rien n'écrit le comportement attendu) et journaliser côté serveur une erreur qui peut porter des données saisies décide de ce qui est conservé.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `erreurs-inattendues-journalisees.test.ts` avant correctif → un `TypeError` levé dans `getNotificationsAction` et un `SyntaxError` dans `createIntegrationAction` rendent le repli sans aucun `console.error`, et 27 modules `'use server'` sur 27 qui attrapent n'ont aucun journal commun (6 ont un `catch` sans nom d'erreur) → `journaliserErreurInattendue` (module, nom, message, pile ; ni arguments ni `cause`) branchée dans chaque repli et chaque `catch`. Ablation : fonction neutralisée → 2 rouges ; `notifications.ts` remis → 2 rouges ; remis → 58 verts, et 200 tests de `actions/__tests__` verts.
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : validé — `request_id`, agence et profil dans le contexte des journaux (`Log::withContext`) ; reste : la sonde payments et son seuil d'alerte
+- Statut : fait · TCK-774 — reste : la sonde payments et son seuil d'alerte
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1945,6 +1999,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `SystemMetricsController.php` (l. 35-46 sont aujourd'hui `TREND_KEYS` ; aucun taux d'échec de paiement ni de webhook) et `HealthcheckService::probe` (aucune sonde `payments`) ; `grep -rn 'Context::add\|withContext\|shareContext' app bootstrap` → rien ; `bootstrap/app.php:151-153` journalise `query_exception` avec le seul `user_id` → les deux constats tiennent. Classement : V8, la sonde et le contexte de journal font deux tickets, la sonde demande un seuil, et mettre l'agence dans chaque journal touche V3.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, un `Log::info` écrit dans une route du groupe `api` n'a ni `request_id` ni agence ni profil dans son contexte (`Undefined array key "request_id"`, 2 rouges) → middleware `ShareRequestLogContext` après `ResolveActiveProfile` (`Log::withContext`) ; `RequestLogContextTest` : 2 verts, ablation du middleware → 2 rouges. La sonde `payments` n'est pas faite (reste du porteur).
 
 ## Angle 13 — Code mort et doublons
 
@@ -2042,7 +2097,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Réglages d'agence : trois magasins, dont deux sans écrivain
 - Réf : P13.07
-- Statut : validé — un seul lecteur ScopedSetting::value() portant le déballage ; la devise lue sur agencies.currency seulement ; clés mortes retirées du seeder ; booking_pending_expiry_hours laissé tel quel
+- Statut : fait · TCK-778
 - Gravité : 🟠 risque ou dette — **concerne cette branche**
 - Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
 - Constat :
@@ -2054,10 +2109,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : lu, et mesuré.
 - Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ScopedSetting.php:30-40` (`agencyRow()`, lecture seule) ; `routes/api/settings.php:11` (`POST settings`) et `grep -rn "/settings"` dans `takussan-web/src` → aucun appelant de `/api/settings` ; `BookingExpirationService.php:43` et `PaymentGatewayService.php:1328-1329` lisent `agencies.settings` (`booking_pending_expiry_hours`, `currency`) que `AgencyUpdateRequest.php:59-66` ne valide pas ; `SettingsSeeder.php:15-21` : six des sept clés n'ont aucun lecteur dans `app/` ni le front (`default_timezone` n'apparaît que comme mot dans `SetLocaleMiddleware.php:52`, qui lit `user->timezone`) ; le déballage `$value['value'] ?? array_values($value)[0]` est en **quatre** copies, non cinq (`LeaseRenewalService.php:475`, `RentReviewService.php:163`, `EarlyTerminationService.php:299`, `LateFeeCalculator.php:202`), à côté de `PlatformSettingService::unwrap()` (l. 180). Le constat tient, au compte des copies près. Classement : V4, la piste retire des données semées et touche la devise lue au paiement (V1), en plusieurs correctifs (V8).
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : le déballage en quatre copies et une variante (`OverdueReminderService::offsets`), aucune méthode `ScopedSetting::value()`, et une agence à `settings.currency = eur` et colonne `XOF` payait en `EUR` ; `SettingsSeeder` écrit huit clés, aucune lue dans `app/`, `routes/`, `config/`, `database/` ni le front → `ScopedSetting::value()` porte le déballage (type `_list` du catalogue : liste intacte), les cinq lecteurs l'appellent, `paymentCurrency()` ne lit plus `settings['currency']`, `SettingsSeeder` retiré ; `ScopedSettingReadersTest` (formes stockées, repli sur le catalogue, aucune copie restante) et `PaymentCurrencyFromAgencyColumnTest` : ablation 9 rouges sur 18, correctif remis 18 verts, 22 classes voisines vertes (237 tests).
 
 ### Routes en double et routes sans appelant
 - Réf : P13.08
-- Statut : validé — retirer les trois doublons (verify-phone, phone/resend, notifications/preferences) ; un test qui les vise passe sur la route gardée ; terminate reste ; reste : leases/{l}/terminate et les autres routes sans appelant
+- Statut : fait · TCK-780 — reste : leases/{l}/terminate et les autres routes sans appelant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
 - Constat :
@@ -2074,15 +2130,17 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré. Sur 686 routes `api/*`, une vingtaine est confirmée à la main ; le reste est à vérifier.
 - Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `routes/api/auth.php:70-71,75-76` (`verify-phone` et `phone/verify-otp`, `phone/send-otp` et `phone/resend` sur les mêmes actions), `notifications.php:15-20` (`notifications/preferences` et `me/notification-preferences`), `guarantors.php:7-12`, `leases.php:28,55`, `agencies.php:57`, `bookings.php:19`, `conversations.php:36-37` ; `grep -rln` de chaque chemin dans `takussan-web/src` hors tests, puis des formes `cheminApi` `}/terminate|stats|rent-history|expire-now|archive|unarchive` → aucun appelant pour `verify-phone`, `phone/resend`, `notifications/preferences`, `/api/guarantors` (le front passe par `/api/leases/{id}/guarantors`, `lib/queries/leases.ts:462`), `search/messages`, `search/documents`, `terminate`, `rent-history`, `expire-now`, `agencies/{a}/stats`, `settings/public`, `two-factor/qr`, l'archivage des conversations ; `recovery-codes` n'apparaît que sous `/regenerate` (`lib/security.ts:62`). Le constat tient sur ces routes ; un appelant hors du front (application tierce) n'a pas été cherché. Classement : V8, la piste couvre une quinzaine de routes de familles différentes, dont des routes d'authentification et de 2FA (V2) et une résiliation de bail.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : `auth.php:70,75` et `notifications.php:15-16` enregistrent les trois doublons, et `grep` dans `takussan-web/src`, `app/`, `scripts/` ne leur trouve aucun appelant (seuls `PhoneVerificationTest` et `NotificationPreferenceTest` les visent) → routes retirées, les deux tests repointés sur `phone/verify-otp`, `phone/send-otp` et `me/notification-preferences` ; `RoutesEnDoubleRetireesTest` : ablation rouge, correctif remis vert ; 35 classes voisines vertes (333 tests). ADR-0033 cite encore `phone/resend` (chemin fermé à l'agent).
 
 ### Page orpheline `/onboarding/agency-admin`
 - Réf : P13.09
-- Statut : validé — relier la page depuis l'activation du gérant provisionné (P15.07)
+- Statut : fait · TCK-781
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-12`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:43`
 - Constat : le docblock la dit atteinte par la redirection de l'e-mail d'activation. Mais la réinitialisation renvoie vers `/auth/login`, et aucun lien ne mène à cette page ni à `AgencyAdminOnboardingWizard` (mesuré, et lu).
 - Piste : relier la page depuis l'invitation, ou la retirer.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-14` (docblock « Reachable from the activation email's reset-password redirect ») et `(auth)/auth/reset-password/page.tsx:43` (`router.push('/auth/login?reset=1')`) ; `grep -rn "onboarding/agency-admin|AgencyAdminOnboardingWizard"` dans `takussan-web/src` et `takussan-api/app` → aucune référence hors de la page et du composant ; les redirections d'onboarding mènent toutes à `/onboarding/intention`, qui ne cite pas d'agence. Le constat tient. Classement : V7, la piste propose deux options (relier depuis l'invitation ou retirer une page) qui changent un parcours visible.
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `reset-password/page.tsx` pousse toujours `/auth/login?reset=1`, et aucun lien ne mène à `/onboarding/agency-admin` → corrigé par le même ticket que P15.07 : le lien d'activation porte `activation=1`, et la page mène à `/auth/login?reset=1&redirect=%2Fonboarding%2Fagency-admin` ; `transactional-links.test.tsx` rouge avant, vert après (5 sur 5).
 
 ### Petites améliorations
 - Réf : P13.10
@@ -2166,7 +2224,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04
-- Statut : validé — avecGardeDoubleFacteur branché sur les trois formulaires ; la 2FA en tête de la carte Mise en service
+- Statut : fait · TCK-761
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
 - Constat :
@@ -2177,10 +2235,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu ; chemin du service 2FA à vérifier.
 - Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ProtectedActions.php:124-175` (`AGENCY_TWO_FACTOR` contient `IntegrationController@store|update|test`, `AgencyController@update`, `AgentInvitationController@__invoke`) ; `RequireTwoFactor.php:80-82` → `TwoFactorRequirement::requiredAtAgency()`, qui rend `true` pour tout titulaire d'un profil d'admin d'agence, hôte solo compris (vérifie le « chemin du service 2FA à vérifier » du constat) ; `grep DoubleFacteur` dans `InviteAgentDialog.tsx` (passe par `useApiForm`, qui ne la gère pas), `IntegrationsManager.tsx` (server actions, refus versé en erreur de champ l. 191-196) et `AgencyConfigForm.tsx` → aucun ; `MiseEnService.tsx:37-45` met `admin_two_factor` en dernier. Le constat tient. Classement : V2, la piste branche la garde de second facteur sur trois formulaires et réordonne la carte (V7).
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep DoubleFacteur` dans `InviteAgentDialog.tsx`, `IntegrationsManager.tsx` et `AgencyConfigForm.tsx` → rien, et `admin-agency.ts` ne rendait pas le `code` du refus ; tests neufs → 10 rouges (garde jamais appelée, geste non rejoué, `admin_two_factor` pas en tête) → les trois formulaires passent par `avecGardeDoubleFacteur[Action]` (enregistrement et confirmation du seuil ; création, modification, activation, test et suppression d'intégration ; invitation), `admin-agency.ts` rend le `code`, la carte met la 2FA en tête. Ablations : `garde = null` → 7 rouges, tri retiré → 1, `code` retiré → 2 ; remis → verts (192 tests des quatre dossiers).
 
 ### SMS muet : première publication et signature bloquées, sans repli
 - Réf : P15.05
-- Statut : validé — issue() rend l'échec de livraison et l'écran le dit ; pas de repli par e-mail pour vérifier un téléphone ; reste : un repli pour la signature d'un bail quand le SMS ne part pas
+- Statut : fait · TCK-783 — reste : un repli pour la signature d'un bail quand le SMS ne part pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:299-325,381-401`, `takussan-api/app/Services/Property/PublishReadiness.php:73`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:120-135`
 - Constat :
@@ -2190,6 +2249,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : rendre l'échec de livraison au client ; offrir un repli par e-mail pour la vérification et la signature.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `PhoneVerificationService.php:299-323` (`issue()` rend `true` après `deliver()`, quelle qu'en soit l'issue) et `:381-401` (`deliver()` ne fait que journaliser quand aucun fournisseur n'accepte) ; `PublishReadiness.php:73` (contact principal au téléphone vérifié exigé) ; `LeaseSignatureService.php:120-121` (un numéro vérifié impose le canal SMS, sans repli par e-mail). Le constat tient ; la préproduction (`MAIL_MAILER=log`) n'a pas été re-mesurée, hors du poste. Classement : V2, la piste change ce que rend une vérification et ouvre un canal de vérification et de signature.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `SmsCodeUndeliveredTest`, routeur dont tout envoi échoue, avant correctif → `phone/send-otp`, `secondary-phone/send-otp` et `phone/change-code` rendent 200 `sent: true` (3 rouges) → `issue()` lève `SmsCodeUndelivered` (503 `phone.sms_undelivered`, message localisé, que les écrans affichent déjà par `messageErreurApi`) ; la connexion par téléphone reste 202, l'aperçu du code (ADR-0060) reste 200. Ablations : levée retirée → 3 rouges, `catch` de la connexion retiré → 1, condition d'aperçu retirée → 1 ; remis → 5 verts, et 202 tests de `Auth/Phone`, des alertes de recherche, de `Lang` et du SMS verts.
 
 ### Un bien créé par le personnel fait de l'agent le bailleur du contrat
 - Réf : P15.06
@@ -2206,7 +2266,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
 - Réf : P15.07
-- Statut : validé — gabarit « Activez votre compte » dédié, valable 7 jours (TCK-209), qui mène à /onboarding/agency-admin après le mot de passe ; le 409 d'un compte existant reste
+- Statut : fait · TCK-781
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:28-32,108-114`, `takussan-api/lang/fr/notifications.php:42-49`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -2215,10 +2275,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un gabarit d'activation dédié, valable plus longtemps, et le rattachement d'un compte existant.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `AgencyProvisioningService.php:27-32` (409 `agency.admin_email_taken` si l'e-mail existe) et `:108-115` (`sendActivationLink` = `Password::broker()->sendResetLink`), `User.php:596-599` → `ResetPasswordNotification`, gabarit `lang/fr/notifications.php:42-49` (« demande de réinitialisation… », « Si vous n'avez pas demandé… »), `config/auth.php:99` (`expire` 60) ; `git log` sans correctif depuis TCK-588. Le 409 est voulu par TCK-209 (« si déjà existant… refuser (409) ») ; TCK-209 promettait un e-mail « Activez votre compte » valable ≤ 7 jours (AC l. 69) mais sa note l. 82 assume le broker de réinitialisation à 60 min → seule la partie gabarit et durée tient. Classement : V2, la durée d'un lien d'activation de gérant et le rattachement d'un compte existant touchent l'authentification, et le gabarit est un texte métier neuf (V7).
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `AgencyProvisioningService::sendActivationLink` appelle `Password::broker()->sendResetLink`, et le provisionnement envoie `ResetPasswordNotification` (gabarit de réinitialisation, broker `users` à 60 min) ; `AgencyAdminActivationTest` rouge (3 sur 5) → broker `activations` à 7 jours (même table), `AgencyAdminActivationNotification` « Activez votre compte » (fr, en ; `wo` = texte français), lien `activation=1` ; `POST /api/auth/reset-password` ne juge par ce broker qu'un compte sans mot de passe choisi ; la page de réinitialisation mène à la connexion avec `redirect=/onboarding/agency-admin` ; le 409 reste. Ablation : API remise à `pre-dev` → 4 rouges sur 10, condition `hasUsablePassword()` retirée → 1 rouge ; remis → 20 verts sur 4 classes, et 5 verts côté front.
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
 - Réf : P15.08
-- Statut : validé — carte montée en tête de l'accueil pour tout admin d'agence, étapes filtrées par kind ; elle reste aussi sur /app/overview/agency
+- Statut : fait · TCK-777
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
 - Constat :
@@ -2227,10 +2288,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `overview/agency/page.tsx:92-93` (seul montage de `MiseEnService`, avec son test), `overview/agency/layout.tsx:38,54-59` (non-admin redirigé, `kind !== 'standard'` → `redirect('/app')`) et `(accueil)/page.tsx:52-77` (bannière de logo, brouillons, check-list locataire, KPI ou `DashboardEmpty`, raccourcis : aucune mise en service) ; `grep -rl MiseEnService src` → 4 fichiers, tous sous `overview/agency` ou le composant. Le constat tient. TCK-589 l. 204 place la carte « en tête de `/admin` », sans trancher l'agence individuelle. Classement : V7, monter la carte sur l'accueil et filtrer ses étapes par `kind` change ce que voit l'hôte solo.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `(accueil)/__tests__/mise-en-service.test.tsx` et `MiseEnService.kind.test.tsx` avant correctif → l'accueil d'un admin `individual` ou `standard` ne monte aucune carte, et la carte d'une agence `individual` liste « premier membre » (7 étapes) → carte montée sous l'en-tête pour tout `agency_admin`, et étapes dont l'écran exige `standard` dans `PAGES_ADMIN` retirées (6 pour `individual`). Ablation : les deux fichiers remis → 4 rouges sur 6 ; remis → 6 verts, et 34 tests voisins verts.
 
 ### Premier bail : sélecteur de biens vide, sans explication
 - Réf : P15.09
-- Statut : validé — biens proposés : tous sauf sold, archived et rented ; état vide avec des liens « créer un bien » et « ajouter un locataire »
+- Statut : fait · TCK-776
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
 - Constat :
@@ -2240,14 +2302,16 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `lib/queries/leases.ts:117` (`filter: { status: 'available' }`) et `CreateLeaseForm.tsx:112,136-146` (options = biens rendus, aucun état vide ni lien) ; `StoreLeaseRequest.php:37` n'exige que `exists:properties,id`, et `LeaseService.php` ne lit aucun `PropertyStatus` (grep) ; `PropertyStatus` compte 11 cas (`draft`, `pending_review`, `published`…). Le renvoi à l'angle 13 n'est pas re-mesuré ici. Classement : V7, choisir quels statuts de bien ouvrent un bail et écrire l'état vide avec ses appels à l'action sont des choix de produit.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `CreateLeaseForm.biens-proposes.test.tsx` avant correctif → `useLeasePropertyOptions` envoie `filter[status]=available`, et un sélecteur sans bien ni locataire n'affiche ni texte ni lien → `STATUTS_BIEN_POUR_UN_BAIL` (huit statuts, hors `sold`, `archived`, `rented`) et un état vide avec « Créer un bien » et « Ajouter un locataire ». Ablation : les deux fichiers remis → 2 rouges ; remis → 3 verts, et 70 tests de `components/leases` verts.
 
 ### Petites améliorations
 - Réf : P15.10
-- Statut : validé — prévenir les admins quand un dossier passe en pending_review
+- Statut : fait · TCK-782
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `NotificationCode.php:131-132` (`property.approved`, `property.rejected`, aucun code de soumission) et `:161` (`review.to_moderate`) ; `grep -rn PendingReview app/Services app/Http/Controllers` → `PropertyModerationService.php:131` repasse un bien en `pending_review` sans notifier, aucun autre émetteur → le constat tient. Classement : V7, une notification aux admins est un comportement visible et un texte neufs.
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `NotificationCode` sans code de soumission, et publier ou resoumettre un bien dans une agence à modération obligatoire n'écrit aucune notification (`PropertySubmittedForReviewNotificationTest`, 2 rouges) → code `property.submitted_for_review` (type `system`, sans interrupteur, comme l'approbation et le refus ; textes fr et en, `wo` = texte français), cible `/app/agency/moderation/properties`, et `PropertyObserver` prévient les admins actifs de l'agence, sauf l'auteur du geste, à l'entrée en `pending_review` (création ou changement de statut). Ablation : observer remis → 3 rouges sur 3 ; remis → 3 verts, et 79 tests voisins verts.
 
 ## Angle 16 — Listes internes sur un modèle `Searchable`
 
@@ -2290,7 +2354,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
-- Statut : validé — defaultSortsWithRelevance('-created_at') seulement ; reste : le périmètre de lecture des documents, par agence ou par documentable
+- Statut : fait · TCK-785 — reste : le périmètre de lecture des documents, par agence ou par documentable
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
 - Constat :
@@ -2299,10 +2363,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentController.php:35-50` (`where('uploaded_by', $user->id)` hors super-admin, puis `->defaultSort('-created_at')` en dur), `Document.php:42` (`$requestSearchFields` → `filter[search]` passe par Scout, `HasQueryBuilder.php:232-243`) et `lib/queries/documents.ts:69` (le front envoie `filter.search`) ; `defaultSortsWithRelevance` est appelé par 4 contrôleurs (agences, maintenance, clients, utilisateurs), pas par celui-ci. Les deux parties tiennent. TCK-281 AC1 ne cite pas les documents : la pertinence seule n'est donc pas un comportement déjà écrit. Classement : V2, élargir le périmètre à l'agence ou au `documentable` change une autorisation de lecture ; la partie tri, isolée, resterait un choix (V7) faute de spec.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `DocumentListRelevanceTest` avant correctif → `GET /api/documents?filter[search]=Ndiayefall` rend les trois documents par date (2 fautes, 1 faute, exact), 1 rouge sur 3 → `defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))` après `buildQuery()` ; un `sort=` explicite l'emporte, sans recherche le plus récent d'abord. Ablation : contrôleur remis → 1 rouge ; remis → 3 verts. Le périmètre `uploaded_by` n'est pas touché (reste).
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
-- Statut : validé — maxTotalHits = 5000 sur tous les index, comme P01.06 ; reste : agency_id filtrable et passé à Scout, pour que le filtre d'agence précède le plafond
+- Statut : caduc — maxTotalHits vaut déjà 5000 sur les 7 index (TCK-709, P01.06), gardé par SearchIdCapIndexSettingsTest ; le reste du porteur (agency_id filtrable et passé à Scout) n'est pas fait
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
 - Constat :
@@ -2312,10 +2377,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le volume de production est à vérifier.
 - Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `HasQueryBuilder.php:18-27` (`SEARCH_ID_CAP = 5000`, commentaire) et `:232` (`search()->take(5000)->keys()`), `config/scout.php:273-288` (clients, maintenance, agences, utilisateurs sans `filterableAttributes` ni `pagination`) ; tinker en lecture sur Meilisearch local → `maxTotalHits` vaut 1000 sur les 17 index (`takussan_local*` et `testing_*`), filtrables vides pour `customers`, `maintenance_requests`, `users`, `agencies`. Aucun index local ne dépasse 1 000 documents (802 biens, 52 utilisateurs, 2 clients indexés) : la troncature à 1 000 est déduite du plafond de Meilisearch, pas observée ; le volume de production reste à vérifier. Classement : V2, la piste fait porter le filtre d'agence par l'index au lieu du SQL, et en propose une seconde (relever `maxTotalHits`) entre lesquelles il faut choisir.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `config/scout.php:11-15` (`$pagination = ['maxTotalHits' => 5000]`, posé par a7e1d4f59, TCK-709) et `:228-303` (le réglage sur `Property`, `Message`, `Document`, `Customer`, `MaintenanceRequest`, `Agency`, `User`) ; `php artisan test tests/Feature/Search/SearchIdCapIndexSettingsTest.php` → 2 verts, dont celui qui confronte chaque index de `SearchableModels::all()` à 5000 ; le commentaire de `HasQueryBuilder::SEARCH_ID_CAP` dit déjà 5000. La décision du porteur est faite ; seul reste son « reste » (`agency_id` filtrable et passé à Scout), qui n'est pas confié.
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
 - Réf : P16.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-786
 - Gravité : 🟠 risque ou dette (routes sans appelant)
 - Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
 - Constat :
@@ -2325,10 +2391,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentSearchService.php:33-46` et `MessageSearchService.php:35-48` (`date_from`/`date_to` dans `$search->query(...)`), `Document.php:60` et `Message.php:34` (`created_at` indexé en timestamp), Scout v11.3.0 `Builder::paginate`/`getTotalCount` (le total est recompté en SQL, les lignes viennent de la page Meilisearch) ; test temporaire retiré (Meilisearch réel, 4 documents « daterange », un seul dans la plage, créé en dernier, `per_page=1`) → pages 1 à 3 vides, `total` 1 et `last_page` 1, le document n'apparaît qu'en page 4 ; aucun appelant front (`grep` sur `takussan-web/src`), mais les routes sont gardées par `DocumentSearchTest`, `MessageSearchTest` et `MaintenanceThreadAccessTest`. Classement : A1, TCK-094 spécifie `filter[date_from]`/`filter[date_to]` et `DocumentSearchTest::test_date_range_filter` en est le contrat ; le correctif garde les routes et passe la plage en clauses Scout natives sur le timestamp.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `SearchDateRangeTest` sur Meilisearch réel avant correctif : une correspondance dans la plage et trois plus récentes hors plage, `sort=-created_at&per_page=1` → page 1 vide, sur `/search/documents` comme sur `/search/messages` (2 rouges) → `date_from`/`date_to` passés en clauses Scout natives sur le timestamp (début et fin du jour, bornes inclusives comme `whereDate`) ; 3 verts, et `DocumentSearchTest`, `MessageSearchTest`, `MaintenanceThreadAccessTest` verts (29 tests). Ablation : les deux services remis → 2 rouges, le seul `MessageSearchService` remis → 1 rouge ; remis → verts. Routes gardées.
 
 ### Petites améliorations
 - Réf : P16.06
-- Statut : retenu · autonome
+- Statut : caduc — le seeder vide et réindexe tous les modèles Searchable depuis TCK-701 (P16.01)
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
@@ -2337,6 +2404,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`removeAllFromSearch` sur cette seule liste) ; `grep -rln 'Searchable;' app/Models` → s'y ajoutent `Agency`, `User`, `Customer`, `MaintenanceRequest`, dont l'index n'est jamais vidé ; décompte « 8 pour 5 » non re-mesuré (il demande la clé Meilisearch), repris de la mesure de P16.01 du 2026-10-15 → tient, et c'est le même défaut que P16.01, toujours `retenu · autonome` et non traité. Classement : A1, le docblock de `reindexSearchableModels` (« every searchable model ») écrit déjà le comportement attendu, et le correctif de P16.01 vide aussi ces index.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `YearOfActivitySeeder.php:241-254` : `reindexSearchableModels()` parcourt `App\Support\Search\SearchableModels::all()` (liste dérivée du code, a8d008b31, TCK-701) et appelle `removeAllFromSearch()` puis `makeAllSearchable()` pour chacun, `Agency`, `User`, `Customer` et `MaintenanceRequest` compris ; `php artisan test tests/Feature/Database/Seeders/SeedingReindexTest.php` → vert. Le défaut ne tient plus sur l'arbre ; le décompte « 8 pour 5 » de l'index local n'a pas été re-mesuré (il demande la clé Meilisearch).
 
 ## Angle 17 — Qualité des adresses : référentiel ou texte libre
 
@@ -2357,7 +2425,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
 - Réf : P17.02
-- Statut : validé — replier tirets et apostrophes des deux côtés ; les accents restent tels qu'ADR-0062 § 1 ; la liste de modération montre les quartiers approuvés dont la clé repliée sans accents coïncide ; reste : replier les accents dans le résolveur, si le porteur amende ADR-0062 § 1
+- Statut : fait · TCK-788 — reste : replier les accents dans le résolveur, si le porteur amende ADR-0062 § 1
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodResolver.php:24-43`, `takussan-web/src/components/ui/combobox.tsx:34-39`, `takussan-web/src/components/property-form/ChampsLieu.tsx:15-21`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:22-57`
 - Constat :
@@ -2371,10 +2439,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le nombre de propositions en double en production est à vérifier : la base de dev n'en a aucune (`select status, origin, count(*) from geo_neighborhoods` → 365 `approved/dataset`).
 - Piste : replier aussi tirets et apostrophes, des deux côtés (`replierPourRecherche` et une clé de comparaison du résolveur). Montrer dans la liste de modération les quartiers approuvés dont la clé repliée sans accents ni ponctuation coïncide. Ajouter un test « Grand-Yoff se replie sur Grand Yoff ».
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoNeighborhoodResolver.php:24-43` (`nettoyer` ne replie que les espaces, `trouver` compare par `CaseInsensitive`) et `combobox.tsx:34-40` (`replierPourRecherche` retire les accents, pas les tirets) ; test temporaire retiré, « Grand Yoff » et « Médina » approuvés dans une ville → `resoudreOuProposer` : `grand yoff` et `MÉDINA` rendent le quartier approuvé, `Grand-Yoff` et `Medina` créent chacun une proposition `pending`. Le constat tient en entier. Classement : V7, replier les accents revient sur un choix écrit d'ADR-0062 § 1, et la liste de modération enrichie de quartiers proches est un comportement visible neuf.
+- Mesure (2026-10-17, 8d59d1942, implementeur) : reproduit avant correctif par `tests/Feature/Geo/GeoNeighborhoodPunctuationFoldTest.php` (charge 2,02 sur 8 cœurs) → `Grand-Yoff` et `Cité d’Arafat` créaient chacun une proposition, et la file `GET /api/admin/geo/neighborhoods` ne portait aucun quartier proche ; le résolveur compare désormais sur une clé qui replie casse, blancs, tirets et apostrophes (nom exact prioritaire), la file rend `similar` (approuvés de la ville, clé repliée sans accents), `replierPourRecherche` replie les mêmes séparateurs et la file affiche « Proche de : … » → 5 verts côté API (« Medina » reste une proposition), 34 verts côté front ; ablation : 3 rouges sur 5 côté API, 5 rouges sur 34 côté front.
 
 ### Rejouer le référentiel ne réaligne pas les adresses existantes
 - Réf : P17.03
-- Statut : validé — quand le chargeur renomme, réécrire le texte des adresses et réindexer ; le rattacheur traite aussi les adresses qui ont une ville et pas de quartier
+- Statut : fait · TCK-787
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-85,93-137`, `takussan-api/app/Services/Geo/GeoAddressAttacher.php:20-42`
 - Constat :
@@ -2383,10 +2452,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Aujourd'hui : 0 adresse de dev dont le texte égale un quartier de sa ville sans y être rattachée (mesuré, `SELECT` avec `LOWER(… COLLATE "und-x-icu")`). Le défaut ne se voit qu'à la prochaine mise à jour du jeu : à vérifier.
 - Piste : dans le chargeur, réécrire le texte des adresses et réindexer les biens quand un nom change. Dans le rattacheur, traiter aussi `geo_city_id IS NOT NULL AND geo_neighborhood_id IS NULL AND neighborhood <> ''`. Garder chaque cas par un test de `GeoReferentialSync` rejoué deux fois.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoReferentialLoader.php:73-86` (ville renommée par `fill`/`save`) et `:93-137` (quartier renommé si `renamed_at` est nul, sans toucher `addresses` ni réindexer), `GeoAddressAttacher.php:20-42` (`whereNull('geo_city_id')` seulement), `GeoNeighborhoodModeration.php:47,71,100` (`reecrireAdresses`), ADR-0062 l. 76 (« Renommer ou fusionner un quartier réécrit le texte des adresses… et réindexe »). Les deux parties tiennent par lecture ; l'effet attend une mise à jour du jeu, non re-mesuré. Classement : V4, le correctif réécrit des données existantes (texte des adresses) à chaque chargement, même si ADR-0062 § 4 en décrit l'intention.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `GeoReferentialRealignementTest` (Meilisearch réel, jeu v1 modifié en répertoire temporaire, chaque chargement joué deux fois) avant correctif : quartier « Point E » renommé par le jeu → l'adresse garde « Point E » ; ville « Guédiawaye » renommée → l'adresse garde l'ancien nom ; « liberté 5 » d'une adresse déjà rattachée à Dakar → non rattachée après v2 (3 rouges) → le chargeur réécrit `neighborhood` par `save()` et `city` par une mise à jour SQL (un `save()` ferait tomber le quartier, règle 1 du canoniseur), le rattacheur rapporte aussi les adresses avec ville et sans quartier, sans proposer, et `GeoReferentialSync` réindexe les deux listes ; 4 verts, `tests/Feature/Geo/` vert (70). Ablation : réécritures retirées → 2 rouges, rattacheur remis → 1 rouge, réindexation des renommés retirée → 2 rouges ; remis → verts.
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04
-- Statut : validé — quartiers seedés tirés de geo_neighborhoods de la ville, coordonnées autour de son centre ; garde : toute adresse seedée avec un quartier est rattachée
+- Statut : fait · TCK-789
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/seeders/Support/FilterCoverageSeeder.php:241-249`, `takussan-api/database/seeders/Catalog/PropertySeeder.php:62-78,191-204`, `takussan-api/database/seeders/Support/SenegalFakerProvider.php:21-36,168-171`
 - Constat :
@@ -2402,10 +2472,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Mesuré : 180 adresses de Dakar ont un texte de quartier sans rattachement. Les 205 « quartiers hors référentiel » de P01.02 sont donc pour l'essentiel un artefact du seed : le défaut de filtre qu'elle décrit tient, mais ses comptes ne disent rien de la production (voir P01.02).
 - Piste : tirer les quartiers seedés dans `geo_neighborhoods` de la ville choisie, et les coordonnées autour du centre de cette ville. Une garde de seed : toute adresse seedée avec un texte de quartier est rattachée.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `FilterCoverageSeeder.php:241-251` (quartier `dakarNeighborhood()`, ville `senegaleseCity()`, région `Dakar`, coordonnées 14,6-14,8 / -17,5 à -17,3), `PropertySeeder.php:62-78` et `:191-204` (hors Dakar : latitude 12,5-16,7, longitude -17,5 à -11,5), `SenegalFakerProvider.php:18-40` (`Plateau`, `Grand-Yoff`, `Dieuppeul`, `Hann Maristes`, `Pikine`, `Guédiawaye` comme quartiers de Dakar) ; aucun commit sur ces trois fichiers depuis le constat ; `SELECT` en lecture sur la base de dev (adresses de biens) → 200 adresses hors de Dakar portent un quartier, 180 adresses de Dakar ont un quartier sans `geo_neighborhood_id`, sur 826. Constat confirmé, comptes identiques. Classement : V4, le correctif change les données que les seeders écrivent (noms de quartiers, coordonnées) et la garde de seed porte sur la suite entière (`database/seeders/` est un déclencheur dur), ce qui demande un choix sur le jeu de démonstration plutôt qu'un défaut au comportement écrit.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : reproduit avant correctif par `SeededAddressesAttachedTest` (référentiel chargé puis mini-pipeline Tag, Agency, User, Property, FilterCoverage ; charge 2,0 sur 8 cœurs) → `GeoReferentialSeeder` 35ᵉ du pipeline, après `PropertySeeder` (6ᵉ) ; plus de 26 quartiers semés non rattachés (« Plateau (Dakar) », « Pikine (Dakar) », « Fann (Mbour) ») ; 200 adresses à plus de 10 km du centre de leur ville (Ziguinchor 271 km, Louga 167 km) → référentiel en tête du pipeline, quartiers tirés des quartiers approuvés de la ville (`SeedGeo`), coordonnées à ±0,04° de son centre, noms du faker alignés sur le jeu ; 2 verts. Ablation : seeders remis → la garde des quartiers rouge ; ordre du pipeline remis → la garde d'ordre rouge ; remis → verts. `FilterCoverageTagsTest` et `SeedingReindexTest` verts.
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : validé — retirer les deux routes d'adresse sans appelant ; reste : le signal de distance
+- Statut : retenu · à valider — chemin fermé : retirer les deux routes impose de supprimer `tests/Feature/Api/PropertyAddressTest.php`, que la garde des agents refuse (« un test ne se supprime pas ») ; porteur (2026-10-17) : traité hors agents, en session : retrait des deux routes, de `PropertyAddressController`, d'`UpsertPropertyAddressRequest` et de leurs tests (l'API n'a jamais servi en production, aucun client hors dépôt ne peut les appeler) ; le signal de distance à la ville choisie, plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -2418,6 +2489,8 @@ Les deux 🔴 ont été relus par la session dans le code :
     - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
 - Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `routes/api/properties.php:53-54` (`PUT` et `DELETE …/address`) et `UpsertPropertyAddressRequest.php:34-46` (`max:255`, ni `geo_city_id` ni `geo_neighborhood_id`) ; `grep -rn "/address" takussan-web/src` → aucun appel, seul le récit de `property-form/payload.ts:17` ; `grep -rn 'Senegal::contient' app` → un seul usage (`GeoLinkController.php:22`), aucune comparaison à la ville → les deux constats tiennent ; le recentrage de la carte côté front n'a pas été vérifié. Classement : V7, la `Piste` laisse le choix entre retirer et aligner les routes, et le signal de distance est un comportement visible neuf.
+- Mesure (2026-10-17, 8d59d1942, implementeur) : `grep` sur tout le dépôt hors tickets → aucun appelant des deux routes ; test temporaire (retiré) → `PUT …/address` rendait 201 au propriétaire. Retirer les routes, `PropertyAddressController` et `UpsertPropertyAddressRequest` rendait obsolètes `tests/Feature/Api/PropertyAddressTest.php` (6 cas) et deux cas d'upsert d'`AdresseSansVilleTest` (TCK-703) ; `check-pistes --role implementeur` refuse la suppression du premier. Classement : chemin fermé, à la main du porteur ; le correctif tient en un S (routes, deux classes, deux fichiers de test), et TCK-490 avait gardé la route faute de preuve qu'aucun client hors dépôt ne l'appelle.
+- Mesure (2026-10-17, 034680882, humain) : fait en session (TCK-812) : les deux routes, `PropertyAddressController`, `UpsertPropertyAddressRequest` et `PropertyAddressTest.php` sont retirés ; les deux cas d'upsert d'`AdresseSansVilleTest` deviennent une garde (`PUT` et `DELETE …/address` → 404, adresse inchangée), qui rougit par ablation (routes remises → 200). Le volet « distance à la ville choisie » reste à faire, plus tard.
 
 ## Angle 18 — Statistiques Boost face aux robots, aux rendus serveur et aux revalidations
 
@@ -2459,7 +2532,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
 - Réf : P18.03
-- Statut : validé — couvert par la déduplication de P01.04 ; un test : deux appels, l'un avec near_city, comptent une fois
+- Statut : fait · TCK-790
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/public-discovery.ts:54-71`, `takussan-web/src/hooks/useHomepageDiscovery.ts:99-123`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`
 - Constat :
@@ -2468,10 +2541,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - La part des visiteurs dont la ville est devinée (ipapi.co, échéance de 1 200 ms) n'est pas connue. À vérifier.
 - Piste : ne compter la rangée vedette que sur l'appel sans ville, ou passer un paramètre `count=0` au rappel du client. Un test API : deux appels, l'un avec `near_city`, comptent une seule fois.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `HomepageDiscoveryService.php:107-113` (impressions de la rangée vedette à chaque appel), `SponsoredRotation::seed()` (graine = paramètres + heure UTC), `public/page.tsx:62` (rendu serveur sans ville), `useHomepageDiscovery.ts:99-123` (rappel client avec `near_city` quand une ville est devinée) ; test temporaire calqué sur `BoostStatsTest`, retiré depuis : `GET /api/public/properties/discovery` puis `?near_city=Dakar` → compteur d'impressions du boost à 2 pour une rangée vedette affichée une fois. Charge 2,55 sur 8 cœurs. La part des visiteurs dont la ville est devinée reste non mesurée. Classement : V7, « ne compter que l'appel sans ville » perd l'impression quand le rendu serveur a échoué et que le client appelle avec sa ville, et `count=0` ajoute un paramètre public : le choix revient au porteur.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : test neuf `SponsoredImpressionsTest::test_l_accueil_rappele_avec_near_city_ne_compte_qu_une_fois` (même IP, accueil sans ville puis `?near_city=Dakar`) → vert d'emblée : 1 impression, le dédoublonnage de TCK-708 couvre le défaut ; ablation (dédoublonnage par visiteur de `commitImpressions()` neutralisé) → rouge, 2 impressions ; remis → vert, 4 verts dans la classe. Non mesuré : l'IP que l'API voit pour l'appel du rendu serveur, qui part du serveur du front.
 
 ### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
 - Réf : P18.04
-- Statut : validé — aucune impression quand l'agent est reconnu comme robot, par une liste courte sans dépendance
+- Statut : fait · TCK-792
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-44`, `takussan-web/src/lib/queries/public-search.ts:48-60`, `takussan-web/src/lib/queries/public-discovery.ts:54-71`
 - Constat :
@@ -2480,10 +2554,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Les clics, eux, exigent un clic réel suivi d'un `POST` depuis le navigateur (lu, `CompteurDeVue.tsx:29-41`). Un robot gonfle donc les impressions sans clic, et le taux de clic baisse d'autant. Le volume réel est à vérifier dans les journaux de préproduction.
 - Piste : ne pas compter quand l'agent est reconnu comme robot (liste courte, sans dépendance), ou compter l'impression depuis le navigateur après affichage, comme la vue de fiche (TCK-598). Un test : une recherche sous `Googlebot` ne compte rien.
 - Mesure (2026-10-15, d62e3290, mesureur) : `grep -rniE "isbot|crawler|googlebot|bingbot|userAgent\(\)"` sur `takussan-api/app` et `takussan-web/src` → seulement `LeaseSignatureService.php:164` et `ContactLeadService.php:213,311` (journalisation), aucun filtre ; `BoostStatsRecorder::impressions()` est appelé par `HomepageDiscoveryService.php:113` et `PropertySearchService.php:659` sans regarder l'agent (lu) ; `public-search.ts:48-60` appelle sans `partage` (lu) ; test temporaire, retiré depuis : un troisième `GET /api/public/properties/discovery` sous l'agent `Googlebot/2.1` fait passer le compteur de 2 à 3. Le volume réel des robots n'est pas mesuré. Classement : V7, la piste propose deux définitions de l'impression (liste courte d'agents, ou comptage par le navigateur comme TCK-598), et choisir l'une est un choix de mesure produit, la seconde changeant aussi l'architecture du comptage.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `RobotImpressionsTest` : `GET /api/public/properties/search` sous Googlebot puis `/discovery` sous bingbot comptaient chacun 1 impression ; et `api.agent-du-visiteur.test.ts` : la recherche et l'accueil rendus côté serveur ne transmettaient aucun `User-Agent` → `CountBoostImpressions` écarte les impressions d'un agent que `RobotUserAgent` reconnaît (Googlebot, bingbot… mais pas un téléphone Cubot), et `apiFetch` transmet l'agent du visiteur sur un appel non partagé ; 2 + 25 + 4 verts, témoins navigateur comptés ; ablation du middleware (2 rouges), de l'exception Cubot (1 rouge) et de l'en-tête front (2 rouges), puis vert.
 
 ### Un vidage qui échoue perd les compteurs de l'heure
 - Réf : P18.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-793 — reste : isoler `flush()` des autres étapes de `boosts:tick`, pour qu'une étape antérieure qui lève ne le saute plus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:69-90`, `takussan-api/app/Console/Commands/BoostsTick.php:23-30`
 - Constat :
@@ -2492,10 +2567,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - `flush()` vient en dernier dans le tick (lu, ligne 28). Une exception d'une étape précédente le saute tant qu'elle se répète. Les compteurs vivent 48 h (`TTL_HOURS`) : au-delà, ils sont perdus sans trace.
 - Piste : lire avec `get`, écrire, puis `forget` dans le même passage, ou `GETDEL` Redis par heure complète. Isoler `flush()` des autres étapes du tick. Un test : un `upsert` qui lève laisse les compteurs en cache pour le tick suivant.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `BoostStatsRecorder::flush()` (`Cache::pull` des deux compteurs, puis `upsert`, puis `LAST_FLUSHED_KEY`) et `BoostsTick.php:23-30` (`flush()` en dernière étape) ; test temporaire, retiré depuis : deux impressions, une heure plus tard un `flush()` dont l'`insert` dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → exception propagée, clé de cache de l'heure à `NULL`, puis `boosts:tick` normal → 0 ligne, les deux impressions sont perdues. Charge 2,55 sur 8 cœurs. Les deux autres parties ne sont pas re-mesurées par exécution : le double versement demande deux planificateurs (aucun aujourd'hui), et le saut de `flush()` quand une étape antérieure lève tient par lecture seulement. Classement : A1, l'en-tête de la classe et l'ADR-0061 § 10 écrivent que les compteurs sont versés dans `property_boost_daily_stats` ; le correctif lit chaque compteur par `get`, écrit la ligne, puis `forget` la clé après l'`upsert` réussi, sans toucher à l'ordre des étapes du tick ni au verrou entre serveurs, hors de ce classement.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `BoostStatsFlushFailureTest` : deux impressions et un clic, puis un `flush()` dont l'écriture dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → compteur des impressions à 0 en cache → `flush()` lit, écrit, puis retire : les compteurs restent après l'échec, et les deux ticks suivants versent 2 impressions et 1 clic une seule fois ; 7 verts sur `BoostStatsFlushFailureTest`, `BoostStatsTest` et `BoostsTickIdempotenceTest` ; ablation (`pull` restauré : 1 rouge ; retrait supprimé : 2 rouges), puis vert. Ni l'ordre des étapes du tick ni le double versement entre planificateurs ne sont touchés, hors du classement A1.
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : validé — plafond des clics aligné sur celui des vues (3 par heure), marqueur `?src=sponsored` dans l'URL, `/playground` retiré des environnements déployés
+- Statut : fait · TCK-794
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2505,6 +2581,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `BoostStatsRecorder.php:36-44` (`RateLimiter::hit(…, 3600) > 1`) contre `PropertyViewCounter.php:31` (`MAX_PAR_HEURE = 3`) ; `arrivee-sponsorisee.ts:7-25` (une seule clé `sessionStorage`) ; `PlaygroundClient.tsx:30-31` (`city` et `transaction`), qui passent par `/public/properties/search` (`useProperties.ts:66`), où `PropertySearchService.php:659` compte les impressions → les trois constats tiennent ; le comportement des onglets selon les navigateurs n'a pas été vérifié. Classement : V7, chaque correctif est un choix (plafond, forme du lien, sort de `/playground`), et ces compteurs mesurent un produit payé (V1).
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif : `BoostStatsTest` à quatre clics d'une IP puis un d'une autre → 2 clics versés au lieu de 4 ; `EmplacementSponsorise.test.tsx` et `PropertyCard.robe.test.tsx` : le lien d'un emplacement et de la rangée vedette menait à `/fr/properties/<slug>` sans marqueur ; `CompteurDeVueSponsorise.test.tsx` : une fiche ouverte avec `?src=sponsored` envoyait une vue organique ; `playground/__tests__/page.test.tsx` : la page se rendait en production → plafond à `MAX_PAR_HEURE` (3), contexte `ArriveeSponsorisee` qui marque `LienDeCarte`, `CompteurDeVue` qui lit puis retire le marqueur de l'URL, `/playground` en 404 sous `NODE_ENV=production` ; 5 verts API et 40 verts front ; ablation (plafond : 1 rouge ; marqueur, compteur et garde : 4 rouges), puis vert.
 
 ## Angle 19 — Rétention des tables qui grossissent
 
@@ -2577,7 +2654,7 @@ ajoutent que des faits neufs.*
 
 ### `scheduled_task_runs` : environ 10 000 lignes par jour en production, et la console agrège tout l'historique
 - Réf : P19.05
-- Statut : validé — purge planifiée à 7 jours, en gardant la dernière exécution par tâche ; moyenne sur 7 jours ; nom stable sans le binaire PHP
+- Statut : fait · TCK-801 — reste : la purge planifiée de `scheduled_task_runs`, à 7 jours ici et à 90 jours en P02.11 : durée à trancher par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/console.php:106-115`, `takussan-api/app/Services/Admin/ScheduledRunRecorder.php:56-73`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:17-48`
 - Constat :
@@ -2587,6 +2664,7 @@ ajoutent que des faits neufs.*
   - Le nom d'une commande est sa ligne de commande complète, chemin absolu du binaire PHP compris (mesuré : `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe`). Changer de version de PHP ou d'image coupe l'historique en deux, et l'ancien nom reste listé dans la console à jamais : aucune ligne ne disparaît.
 - Piste : une purge planifiée à quelques jours, bornée à la dernière exécution conservée par tâche ; une moyenne sur une fenêtre (7 jours) ; un nom stable par `->name()` ou dérivé de la commande Artisan sans le binaire. Un test : deux chemins de binaire différents donnent le même nom.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `routes/console.php:106-113` (quatre battements, `impersonation:close-expired` et `health:probe` chaque minute), `ScheduledRunRecorder::record()` (une ligne par exécution) et `nomDe()` (`description` sinon la commande complète), `ScheduledTaskInspector::all()` (`GROUP BY task`, `avg(duration_ms)` sur tout l'historique, sous-requête triée) ; `grep -rln scheduled_task_runs app/Console database/migrations` → seule la migration de création, aucune purge ; `SELECT` en lecture sur la base de dev → 14 948 lignes, 39 tâches, et `health:probe` nommée `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe` (1 964 lignes). Le volume de préproduction reste à vérifier. Classement : V4, la purge supprime des données, et la fenêtre de moyenne change ce que la console affiche (V7) : deux choix pour le porteur.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `ScheduledRunRecorder::nomDe()` rendait la commande entière (deux binaires PHP → deux noms) et `ScheduledTaskInspector::all()` moyennait tout l'historique (5 100 ms pour des exécutions récentes de 100 et 300 ms) → deux tests neufs de `SchedulerRunStatusTest` (nom sans binaire, moyenne sur 7 jours) ; ablation : correctif retiré, les deux rougissent ; remis, la classe est verte (10 tests). La purge n'est pas posée : sa durée contredit celle de P02.11 (90 jours, décision postérieure).
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
@@ -2602,7 +2680,7 @@ ajoutent que des faits neufs.*
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at`
+- Statut : fait · TCK-803 — reste : `next_due_at` de l'inspecteur des tâches, à calculer depuis l'expression cron ou à retirer, la `Piste` laissant le choix ouvert
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2613,6 +2691,7 @@ ajoutent que des faits neufs.*
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `routes/console.php` (ni `queue:prune-failed` ni `queue:prune-batches`, aucun `model:prune`), `SanitizingFailedJobProvider.php:17` (le `payload` n'est pas touché, pour le rejeu), `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION` = `database`), `User.php:379-399` (`LogOptions::defaults()` sans `useLogName`, alors qu'`Auditable.php:31` nomme par classe), `config/activitylog.php:24` (`default_log_name` = `default`) et `ScheduledTaskInspector.php:43` (`'next_due_at' => null`, que le front type `string | null` dans `types/super-admin.ts:814`). Lignes citées inchangées, les trois défauts tiennent ; le journal de `User` est lu, pas re-mesuré par test. Classement : V3, la durée de purge des `failed_jobs` décide de ce qui est conservé et doit s'écrire dans l'ADR-0044 ; renommer le journal de `User` change le `log_name` des écritures neuves, que toute lecture par nom distinguerait des anciennes.
 - Mesure (2026-10-16, 55a41109, humain) : l'ADR-0044 est amendé en session (TCK-723) : 30 jours pour `failed_jobs`, `payload` compris, et `queue:prune-batches` planifié ; le docblock de `SanitizingFailedJobProvider.php` (« Écarté (ADR-0044) : une purge périodique ») est à mettre à jour avec la purge.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, ni `queue:prune-failed` ni `queue:prune-batches` parmi les événements du planificateur, et une modification de `User` écrite sous le journal `default` → `QueueRetentionScheduleTest` (deux purges planifiées chaque jour sans chevauchement, `--hours=720` ; journal `User`) ; ablation : correctif retiré, les trois tests rougissent ; remis, verts. Docblock de `SanitizingFailedJobProvider` repris. `next_due_at` n'est pas fait : la `Piste` propose de le calculer ou de retirer la clé, et la précision ne tranche pas.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 
@@ -2665,7 +2744,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
-- Statut : retenu · autonome
+- Statut : caduc — fermé par TCK-711 (P02.03) : `ResolveActiveProfile` charge le profil plateforme une fois par requête, et `isSuperAdmin()` ne réinterroge plus `platform_profiles` par ligne
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:119-136`, `takussan-api/app/Models/Customer.php:146-149`, `takussan-api/app/Http/Resources/CustomerResource.php:83-96`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `takussan-api/app/Http/Controllers/Api/BookingController.php:25`
 - Constat :
@@ -2675,10 +2754,11 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel.
 - Piste : lire `isSuperAdmin()` une fois par requête dans les deux ressources, à côté du cache existant ; ou traiter P02.03.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `LeaseResource.php:118-136` (`isSuperAdmin()` l. 125, appelé avant le cache de `staffAgencyId()`), `CustomerResource.php:84-96` (cache des seules agences) et `Customer.php:146-149` (`criteriaBelongTo()` relit `isSuperAdmin()`, qui passe par `HasProfiles::activePlatformLevel()`) ; test temporaire, retiré depuis, admin d'agence, lignes dotées d'un bien avec photo, `select … from "platform_profiles"` comptées : `GET /api/leases?include=property,tenant` 7 pour 2 lignes → 27 pour 12 (2 par ligne), `GET /api/bookings?include=property,customer` 5 → 15 (1 par ligne), `GET /api/customers` 9 pour 4 fiches → 25 pour 20 (1 par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé, lignes citées inchangées. Classement : A2, la réponse ne change pas ; le correctif lit `isSuperAdmin()` une fois par requête dans `$request->attributes`, à côté des caches existants de `LeaseResource::viewerIsAgencyStaff()` et `CustomerResource::readsCriteria()` (qui court-circuite alors `criteriaBelongTo()` pour le super-admin), sans toucher au modèle `User` ni à `Gate::before` (P02.03, V2), avec un test de budget « 2 lignes = 12 lignes » sur les trois listes.
+- Mesure (2026-10-17, 803747565, implementeur) : test temporaire, retiré ensuite (admin d'agence, requêtes sur `platform_profiles` comptées, charge 2,2 sur 8 cœurs) : `GET /api/leases?include=property,tenant`, `GET /api/bookings?include=property,customer` et `GET /api/customers` → 1 requête pour 2 lignes comme pour 12 ; le `$user->load('platformProfile')` de `ResolveActiveProfile.php:69` (TCK-711, 2026-10-16) retiré à titre d'épreuve → 7 → 27, 5 → 15 et 7 → 17, les chiffres de la mesure du 2026-10-15 ; remis. Le défaut ne tient plus sur cet arbre.
 
 ### Le bien imbriqué par `include=property` charge sa photo ligne par ligne
 - Réf : P20.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-806
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/PropertyResource.php:137`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `BookingController.php:25`, `ConversationController.php:37`
 - Constat :
@@ -2688,6 +2768,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture des `with()` des trois contrôleurs.
 - Piste : précharger `property.media` (filtré sur la collection `photos`) dans les trois `index()`, ou un helper commun aux contrôleurs qui imbriquent `PropertyResource` ; test de budget.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyResource.php:137` (`getFirstMedia('photos')`), les `with()` de `LeaseController.php:31` (`property.address`, `tenant`), `BookingController.php:25` (`property.address`, `customer`, `agency`) et `ConversationController.php:37` (`property`, `participants.media`) : aucun ne charge `property.media` ; test temporaire, retiré depuis, chaque bien avec une photo, `select … from "media"` comptées : baux 2 pour 2 lignes → 12 pour 12, réservations 2 → 12, conversations 3 pour 2 → 15 pour 14 (une par ligne, l'écart constant venant de `participants.media`). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2, préchargement sans changement de réponse ; le correctif ajoute `property.media` aux `with()` des trois `index()` (comme TCK-595 pour la liste des biens), avec un test de budget sur chacune.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par `NestedPropertyPhotoQueryBudgetTest` (chaque bien avec sa photo, requêtes sur `media` comptées) → baux 2 pour 2 lignes et 12 pour 12, réservations 2 → 12, conversations 3 → 13 ; correctif : `property.media` ajouté aux `with()` des trois `index()` → constant, `main_photo_url` toujours rendu ; ablation (`git apply -R` du correctif) → les trois tests rougissent.
 
 ### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
 - Réf : P20.05
@@ -2749,7 +2830,7 @@ n'est pas repris ici.*
 
 ### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
 - Réf : P21.02
-- Statut : validé — sans fields[users], la projection par défaut de P21.01 ; google_id et metadata jamais rendus
+- Statut : fait · TCK-791
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:49-63`, `takussan-web/src/lib/queries/admin-users.ts:55`
 - Constat :
@@ -2758,6 +2839,7 @@ n'est pas repris ici.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : la même projection que P21.01, appliquée par `UserAdminController::index` ; test sans `fields[users]`.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `UserAdminController::index` l. 49-63 (`$this->paginated($paginator, $items)`, `$items` = modèles `User` bruts, seul `two_factor_enabled` y est ajouté) ; seul appelant du front, le proxy `app/api/admin-users/[[...path]]/route.ts:24`, que `admin-users.ts` appelle avec `fields[users]` (lu) ; test temporaire, retiré depuis, admin d'agence, membre portant `google_id`, `secondary_phone` et `metadata` : `GET /api/users` sans paramètre → 200, 38 clés dont ces trois. Constat confirmé. Classement : V3, le correctif décide quelles données personnelles d'un `User` sortent par défaut, le même choix que P21.01.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : reproduit avant correctif par `UserAdminDefaultProjectionTest` (admin d'agence, membre portant `google_id` et `metadata`) → `GET /api/users` sans `fields[users]` rend 38 clés dont `google_id` et `metadata`, avec ou sans `include=agencyAdminProfiles` (2 rouges) ; `fields[users]=…,google_id` → 400 déjà → sans `fields[users]`, les lignes passent par `IncludedUserResource` plus `two_factor_enabled` et les relations incluses ; 3 verts. Ablation (contrôleur remis) → 2 rouges ; remis → verts. Seul appelant du front, `fetchAdminUsers`, passe `fields[users]` (lu, `admin-users.ts:55`).
 
 ### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
 - Réf : P21.03
@@ -3330,7 +3412,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
-- Statut : validé — un échec ambigu (délai dépassé, 5xx) ne passe pas au fournisseur suivant ; les codes OTP gardent le repli
+- Statut : fait · TCK-766
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-105,143-150`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:78-88`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:76-87`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:175-188`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:82-87`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:223`
 - Constat :
@@ -3343,10 +3425,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : distinguer l'échec sûr (connexion refusée, 4xx) de l'échec ambigu (délai de lecture, 5xx). Un échec ambigu ne passerait pas au fournisseur suivant pour un message non critique : statut `unknown`, réconcilié par l'accusé de réception ou le puller. Choix à faire pour les codes OTP. Un test par pilote garde le classement.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:94-105,143-150`, `SmsRouterDriver.php:175-188`, TCK-102:82 ; test temporaire (retiré) → Orange qui lève `ConnectionException` (« cURL error 28 ») : résultat `lafricamobile` `sent` ; Orange en 502 : résultat `lafricamobile` `sent`. Le doublon côté fournisseur reste non mesurable depuis le poste. Classement : V7, la piste renverse un comportement prescrit par TCK-102 (« timeout → fallback immédiat ») et laisse ouvert le traitement des OTP.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `AmbiguousSmsFailureTest` → Orange en « cURL error 28 » ou en 502, LAfricaMobile en délai dépassé et Mtarget en 503 passent tous au pilote suivant (4 rouges) → drapeau `ambiguous` sur `SmsResult` et `WhatsappResult` (délai dépassé, 5xx), la chaîne s'arrête pour le numéro sauf `is_otp` (posé par `PhoneVerificationService`, `DeletionStepUpService` et `LeaseSignatureCodeNotification`), et WhatsApp ne se replie plus en SMS sur un échec ambigu ; connexion refusée et 4xx se replient toujours ; ablation : routeur et `WhatsappChannel` remis → 6 rouges, drapeaux `is_otp` retirés → 1 rouge ; correctif remis : 366 tests verts sur `Services/Sms`, `Services/Whatsapp`, `Auth/Phone`, `AccountDeletionStepUpTest`, `LeaseSignatureTest`, `Notifications`. Quatre tests existants qui prenaient un 500 pour un refus passent en 400.
 
 ### Une exception levée après l'acceptation d'un fournisseur fait renvoyer le SMS
 - Réf : P27.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-767
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:153`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:107`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:112`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-179,239-268`, `deploy/takussan/compose.api.yml:55`
 - Constat :
@@ -3356,6 +3439,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu.
 - Piste : sortir `last_used_at` du chemin d'envoi (ou l'entourer d'un `try`), et rendre l'écriture de la tentative non bloquante pour un SMS déjà accepté (journal d'erreur, pas d'exception). Un test qui fait lever l'écriture de la tentative après un `sent` garde le retour.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `SmsRouterDriver.php:166-188,239-268` et les `forceFill(['last_used_at' …])->save()` hors `try` (`OrangeSmsDriver.php:153`, `LAfricaMobileSmsDriver.php:107`, `MtargetSmsDriver.php:112`) ; test temporaire (retiré) : `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM rendu → tentative 1 `lafricamobile` `failed` / `driver_exception_RuntimeException`, tentative 2 `mtarget` `sent` (le doublon est donc mesuré, plus déduit) ; `push_id` LAM déjà présent sur une autre notification → `UniqueConstraintViolationException` sortie du routeur. Le rejeu du job par `--tries=3` reste déduit (`compose.api.yml:54`, et non 55). Classement : A1, le routeur arrête déjà la chaîne sur un succès (`isTerminalSuccess`, l. 181-187) et le défaut viole ce contrat sans choix de produit.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `SmsAcceptedThenErrorTest` → `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM : résultat `mtarget` (renvoi) ; `push_id` LAM déjà enregistré ailleurs : `UniqueConstraintViolationException` sortie du routeur → `Integration::markUsed()` qui journalise sans lever (pilotes SMS et WhatsApp Cloud), `appendAttempt()` sous `try` ; ablation : routeur remis → 1 rouge, pilotes et modèle remis → 1 rouge ; correctif remis : 2 verts, 241 tests verts sur `Services/Sms`, `Services/Whatsapp` et 20 classes qui créent des intégrations.
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
@@ -3372,7 +3456,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
-- Statut : validé — un seul numéro par appel chez Mtarget
+- Statut : fait · TCK-784 — reste : reprendre le compteur de tentatives à la dernière enregistrée après les heures calmes, et mettre le renvoi Orange après 401 sous le même `try`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:115,219`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:117-121`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:89-109`
 - Constat :
@@ -3382,6 +3466,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : reprendre le compteur à la dernière tentative enregistrée ; mettre le renvoi après 401 sous le même `try` ; lire le résultat par numéro chez Mtarget, ou n'envoyer qu'un numéro par appel.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : test temporaire (retiré) → heures calmes puis envoi avec `bypass_quiet_hours` : tentatives `[1 router deferred_to_fallback, 1 lafricamobile failed, 2 mtarget sent]` ; Orange 401 puis `ConnectionException` au renvoi (`OrangeSmsDriver.php:117-121`, hors `try`) : 2 appels d'envoi, résultat `lafricamobile` `sent` ; Mtarget `results` `[{code 0}, {code -3}]` pour deux numéros → les deux `sent` (`MtargetSmsDriver.php:90-91`). Les trois parties tiennent. Classement : V7, la partie Mtarget laisse deux options sur un format fournisseur non vérifié ; les deux premières seraient A1 si on les séparait.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `MtargetOneNumberPerCallTest` avant correctif → deux numéros partent en un appel (`msisdn` en liste), et la réponse `-3` du second n'est pas la sienne (1 rouge) → un appel par numéro (`array_chunk(…, 1)`), chaque résultat lu dans sa propre réponse. Ablation : pilote remis → 1 rouge ; remis → vert, et 65 tests de `Services/Sms` verts. Les deux autres points de la piste ne sont pas faits (reste).
 
 ## Angle 28 — Cache des pages publiques par langue
 
@@ -3447,7 +3532,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une invitation sans compte part dans la langue de l'invitant, et sa relance J+2 dans celle du processus : deux langues pour la même invitation
 - Réf : P29.01
-- Statut : validé — la langue est écrite à la création de l'invitation : `fr` explicite (`DEFAULT_LOCALE`), comme `ContactSansCompte` ; la fiche client de P29.03 l'affinera
+- Statut : fait · TCK-728
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Invitation/InvitationService.php:946-966`, `:517-538`, `:1000-1012`, `takussan-api/app/Mail/InvitationMailable.php:19-22`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:17-18`, `:75-78`
 - Constat :
@@ -3461,6 +3546,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : écrire la langue résolue dans l'invitation à sa création (`metadata.locale` ou colonne), et la relire à l'envoi comme à la relance, pour qu'une invitation ait une seule langue. Le choix de cette langue (celle de l'invitant, `fr` explicite comme `ContactSansCompte::DEFAULT_LOCALE`, ou un champ du formulaire) reste à trancher. Garder par un test : invitation créée sous `en`, relance jouée sous `fr` → même langue des deux côtés.
 - Mesure (2026-10-16, b14cd410, mesureur) : relu `InvitationService.php:946-966` (`deliver` résout la langue par `preferredLocale()`), `:1008-1012` (`preferred_language`, sinon `metadata.locale`, sinon `config('app.locale')`), `:517-538` (`remindPending` rappelle `deliver`) ; `grep -rn "'locale'" app/Services app/Http/Requests | grep -i invit` → la seule lecture de `InvitationService.php:1011`, aucune écriture ; `CreateInvitationRequest.php:75` accepte toujours `metadata` comme tableau libre ; test temporaire retiré (charge 1,27 sur 8 cœurs), deux `POST /api/agencies/{id}/owners/invite` sous `Accept-Language: en` puis `wo`, puis `remindPending()` sous `fr` trois jours plus tard → `InvitationMailable` en `en` et `wo` à l'envoi, `fr` et `fr` à la relance, `metadata` = `{first_name, last_name, owner_type}` ; la voie SMS n'a pas été rejouée, elle passe par le même `deliver()` (lu) ; le constat tient. Classement : V7, la piste laisse ouvert le choix de la langue à écrire (celle de l'invitant, `fr` explicite ou un champ de formulaire), et le stockage en colonne toucherait V4.
+- Mesure (2026-10-16, 19732e24, implementeur) : avant correctif, `InvitationLocaleTest` (neuf) rouge sur ses trois cas : `metadata.locale` nul après deux `POST /api/agencies/{id}/owners/invite` sous `en` et `wo` et après une invitation par numéro sous `en`, et relance d'une ligne sans `metadata.locale` partie en `en` sous `app.locale = en` → `send()` écrit `metadata.locale = fr` (`ContactSansCompte::DEFAULT_LOCALE`) et `preferredLocale()` replie sur `fr` au lieu de `config('app.locale')` ; envois et relances jouées sous `en` partent tous en `fr`, 3 verts ; ablation de l'écriture → 2 rouges, du repli → 1 rouge ; `php bin/impacted-tests.php --run` → 658 verts.
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
@@ -3508,7 +3594,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Renommer un équipement du catalogue ne change rien à l'écran, et le déploiement suivant recrée l'ancien nom sous un slug sans traduction
 - Réf : P30.01
-- Statut : validé — refuser en 409 le renommage d'un équipement du catalogue ; seules les propositions se renomment ; un test : renommage refusé puis synchroniser() → une seule ligne pour ce slug
+- Statut : fait · TCK-729
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:59-78`, `takussan-api/app/Http/Controllers/Api/TagController.php:77-86`, `takussan-api/app/Services/Tags/TagCatalog.php:68-81`, `takussan-web/src/lib/libelle-equipement.ts:31-34`
 - Constat :
@@ -3519,6 +3605,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - À vérifier : une recherche sauvegardée `tags=Piscine` (le filtre porte des noms, `PropertySearchService.php:552-559`) ne trouverait plus les biens du tag renommé, réindexés sous « Piscine privée » : l'alerte se tairait.
 - Piste : décider ce qu'est un renommage d'équipement du catalogue. Soit le refuser (409, comme un nom pris) et ne renommer que les propositions ; soit faire suivre le catalogue (le nom versionné se compare aussi au slug, pour ne pas recréer). Garder par un test : renommer puis rejouer `synchroniser()` → une seule ligne pour ce slug.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : aucun commit depuis 11df6a87 sur `app/Services/Tags`, `TagController.php` ni `libelle-equipement.ts` (`git log`), aucun ticket (`grep -rln` dans `docs/backlog/tickets`) ; relu `TagModeration::renommer()` (n'écrit que `name`), `TagCatalog::assurer()` (cherche par nom, `slugLibre()` à la création), `libelleEquipement()` (traduit par slug) ; test temporaire retiré (charge 1,58 sur 8 cœurs) : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` → 200 slug `piscine`, `PUT /api/tags/{id}` → 200 slug `piscine`, `synchroniser()` rejoué → `Piscine chauffée|piscine|approved ; Piscine|piscine-2|approved` ; le constat tient, l'alerte de recherche sauvegardée n'a pas été rejouée. Classement : V7, la piste laisse le choix entre refuser le renommage d'un équipement du catalogue et faire suivre le catalogue.
+- Mesure (2026-10-16, 71b58ea4, implementeur) : avant correctif, test temporaire retiré : catalogue chargé, `PATCH /api/admin/tags/{Piscine}` `{name: "Piscine privée"}` → 200, puis `synchroniser()` → `Piscine privée|piscine|approved ; Piscine|piscine-2|approved` ; le constat tient → `TagCatalogRenommageTest` (4 cas : file de modération et page catalogue → 409 `tags.catalog_rename_forbidden`, une seule ligne `Piscine|piscine` après `synchroniser()` ; nom du catalogue à la casse près refusé ; proposition toujours renommable), 3 rouges sans la garde de `renommer()` (ablation), 4 verts avec.
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
@@ -3582,3 +3669,669 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Un anglophone qui tape « Pool » ou « Generator » se voit proposer « Ajouter » à côté de l'équipement traduit (`combobox.tsx:56-58` compare au libellé affiché, lu). Le serveur ne replie que sur les noms français (`TagProposals::parNom`, lu) : le nom anglais devient une proposition en attente, doublon d'un équipement existant que la modération doit fusionner (déduit, à vérifier).
 - Piste : traduire les étiquettes CRM du catalogue par slug comme les équipements (même fonction, autre espace de clés) ; retrier les options sur le libellé affiché ; passer `otherTagNames` par le même traducteur. Pour la saisie libre, que le front résolve un nom tapé égal (au repli près) à un libellé traduit vers l'identifiant de l'équipement avant de l'envoyer en `tag_names`.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `CustomerTagPicker.tsx:152`, `:155` et `CustomerListFilters.tsx:214` (rendent `tag.name`), `TagController.php:33` (`defaultSort('name')`), `GeoReferentialController.php:27` (tri `und-x-icu`), `ChampEquipements.tsx:51` (traduit sans retrier), `compare-rows.ts:63-68` (`otherTagNames` rend `tag.name`), `combobox.tsx:56-58` (compare au libellé affiché) ; `grep -i prospect src/messages/en.json` rend 14 lignes, contrairement au constat, mais aucune ne traduit l'étiquette « Prospect chaud » ; la proposition d'un nom anglais en doublon n'a pas été rejouée et reste à vérifier ; les trois premiers points tiennent. Classement : V7 et V8, traduire les étiquettes CRM est un texte métier neuf, et l'entrée réunit quatre correctifs indépendants.
+
+## Angle 31 — Passage axe au navigateur sur les parcours publics
+
+*Exploré le 2026-10-16 sur `pre-dev` 7abe36d, par l'explorateur. Tout a été lancé et relu par
+l'explorateur lui-même, sans sous-agent. Montage : `next dev` de l'arbre de l'explorateur (port
+3199) devant un **faux API** local qui rend des réponses réelles, prises une fois en lecture dans
+le processus (`tinker`, `CACHE_STORE=array`, `Request::create` en `GET` sur la base de dev) ; Chrome
+sans tête piloté par CDP, `axe-core` 4.13.0 du `node_modules` du front injecté, règles `wcag2a`,
+`wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` et `best-practice`, à 1280 et 390 px. Pages passées :
+accueil, recherche, fiche bien, index et fiche d'agence, index des agents, comparateur, favoris,
+mentions légales, les cinq pages `/auth/*`, `/invitations/accept`, `/maintenance`. **Limites** :
+l'API réelle n'a pas tourné (elle aurait écrit dans la base de dev : compteur de vues, jetons de
+connexion), les photos de la base de dev sont absentes, et **l'espace connecté (`/app`) n'a pas été
+passé** : il demandait de relancer le faux API, et la garde refuse l'arrêt d'un processus. Le
+contraste n'est pas tranché par axe : il rend `color-contrast` « incomplete » sur 631 nœuds de
+l'accueil et 104 de la recherche, tous « overlapped by another element » — le lien étiré
+`a.absolute.inset-0` de `LienDeCarte` couvre chaque carte (mesuré par `elementsFromPoint`). Un
+calcul maison sur les styles calculés s'est trompé sur le texte posé sur photo : aucun constat de
+contraste n'en est tiré. Sous `prefers-reduced-motion: reduce` émulé, l'accueil ne garde aucune
+animation (mesuré), rien n'est donc ajouté à P07.11.*
+
+### Le champ de recherche de la barre ne montre aucun focus au clavier, et pointe vers une liste absente
+- Réf : P31.01
+- Statut : fait · TCK-731
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/search/SearchAutocomplete.tsx:226-262`, `:266-268`
+- Constat :
+  - Atteint au clavier (deux Tab sur `/fr/legal/privacy`, `:focus-visible` vrai), l'`input` et ses trois parents gardent exactement le même `box-shadow`, `outline`, fond et bordure qu'avant le focus (mesuré : instantané des styles calculés avant et après, sur Chrome sans tête). Le focus est donc invisible : c'est le « rendu du focus à vérifier » de P07.06, tranché.
+  - `aria-controls={listboxId}` est posé sur le `div` `combobox` (l. 230) et sur l'`input` (l. 244) en permanence, alors que l'élément `id={listboxId}` n'est rendu que si `open` (l. 266-268) (lu).
+  - axe rend `aria-valid-attr-value` (impact « critical ») sur cet `input` sur chaque page publique à 1280 px : accueil, recherche, fiche, agences, agents, comparateur, favoris, mentions légales (mesuré : `aria-controls="…H1_"` invalide). À 390 px la barre n'affiche pas le champ, et la règle ne sort pas (mesuré).
+  - Établi comment : axe et instantané CDP sur `next dev`, code relu.
+- Piste : voir P07.06, qui porte le libellé, le motif ARIA 1.2 et le `focus-within:` de la pilule. Ce constat y ajoute : n'émettre `aria-controls` que lorsque la liste est montée (ou la monter vide et masquée), et garder par un test de rendu qui vérifie que tout `aria-controls` et `aria-activedescendant` du composant vise un `id` présent, fermé comme ouvert.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `SearchAutocomplete.tsx` : `aria-controls={listboxId}` sur le `div` `combobox` (l. 230) et sur l'`input` (l. 244) sans condition, `id={listboxId}` rendu seulement sous `{open && …}` (l. 266-268), `outline-none` sur l'`input` (l. 259) et aucune classe `focus`/`focus-within` sur la pilule (l. 231-235) ; `git log --oneline 7abe36d..979edb0f -- takussan-web` → aucun commit, le code mesuré par l'explorateur est inchangé ; axe et l'instantané CDP non rejoués (pas de navigateur dans ce passage), la référence vide se lit dans le code → tient. Classement : A4 et A5, attribut ARIA conditionné au montage de la liste et test de rendu des `id` visés, sans texte ni design neuf ; l'anneau de focus reste porté par P07.06 (déjà `retenu · autonome`), à traiter dans le même ticket.
+- Mesure (2026-10-16, 56aed2b1, implementeur) : reproduit avant correctif par `SearchAutocomplete.aria.test.tsx` : fermé, `div[aria-controls]` et `input[aria-controls]` visent un `id` absent (« _r_1_ »), aucun `input` de rôle combobox, aucune classe de focus sur la pilule → `aria-controls` posé liste ouverte seulement, `aria-activedescendant` seulement si l'option est rendue, anneau `focus-within:ring-2 ring-ring` (contour `primary-foreground` sur la barre de la console) et, en barre de bureau, `has-[input:focus-visible]:ring-2` sur la pilule visible ; ablation : 9 rouges sur 9 sans le correctif, 1 rouge (`aria-activedescendant` pendant un chargement) sans le seul garde de l'option, 1 rouge dans `Navbar.responsive.test.tsx` sans le changement de `Navbar.tsx` ; 61 fichiers de `components/{search,home,layout}` verts. axe non rejoué (pas de navigateur).
+
+### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
+- Réf : P31.02
+- Statut : retenu · autonome
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/page.tsx:170-211`, `[slug]/not-found.tsx:16-38`, `[slug]/bien-retire.tsx:52`, `[slug]/PropertyDetailContent.tsx:134`
+- Constat :
+  - La page rend `<Navbar />`, `<NavbarSpacer />`, le corps puis `<Footer />`, sans `<main>` autour du corps (l. 205-211) ; même forme pour le bien retiré (l. 172-178), le bien indisponible (corps = un `div`, l. 150-155) et `not-found.tsx` (un `div`, l. 20) (lu). `PropertyDetailContent` commence par un `div` (l. 134) (lu).
+  - axe sur la fiche : `landmark-one-main` et `region` sur 89 nœuds à 1280 px, 90 à 390 px (mesuré). Les autres pages publiques passées (accueil, recherche, agences, agents, légales, comparateur, favoris) ont leur `<main>` et ne sortent pas la règle (mesuré).
+  - La fiche est aussi la page où le clavier traverse le plus de barre : 18 Tab (logo, recherche, Louer, Acheter, neuf types, favoris, langue, connexion, publier) avant le fil d'Ariane (mesuré). Sans `<main>` ni lien d'évitement (P31.04), un lecteur d'écran n'a pas de saut vers le contenu, hors des titres.
+  - Établi comment : axe et parcours au Tab par CDP, code relu.
+- Piste : envelopper le corps des quatre états dans `<main>` (dans `page.tsx` et `not-found.tsx`, pas dans `PropertyDetailContent`, pour ne pas en rendre deux). Garde : un test qui rend chaque `page.tsx` publique et `not-found.tsx` et compte exactement un `main`, ou une garde statique sur les pages qui montent `Navbar`.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `[slug]/page.tsx` : branche retirée (l. 172-178) et rendu final (l. 205-211) en `<>` `Navbar`/`NavbarSpacer`/corps/`Footer` sans `<main>`, `bienIndisponible()` rend un `div` (l. 152) ; `not-found.tsx:20` un `div` ; `bien-retire.tsx:53` un `div` ; `PropertyDetailContent.tsx:134` un `div` ; `grep -n "<main"` sur le dossier `[slug]` et sur `(public)/layout.tsx` et `app/layout.tsx` → 0 ligne ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, repère `<main>` ajouté autour du corps des quatre états, sans rendu visuel ni texte neuf, avec un test qui compte un seul `main`.
+
+### Les pages d'authentification n'ont pas de repère `<main>`
+- Réf : P31.03
+- Statut : retenu · autonome
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(auth)/layout.tsx:58-138`
+- Constat :
+  - `AuthPanneau` rend une grille de `div` ; le formulaire est dans `div.w-full.max-w-md` (l. 125), sans `<main>`, et aucun `page.tsx` de `(auth)/auth/` n'en ajoute (lu ; `grep -rn "<main" "src/app/(auth)"` hors tests → 0 ligne, mesuré).
+  - axe : `landmark-one-main` et `region` (6 à 15 nœuds) sur `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password` et `/auth/verify-email`, à 1280 px, et sur `/auth/login` à 390 px (mesuré).
+  - Établi comment : axe, code relu.
+- Piste : `<main>` sur le panneau du formulaire (l. 97), le panneau visuel restant hors du repère. Même garde que P31.02.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx` : le panneau du formulaire est un `div` (l. 97) et le formulaire est dans `div.w-full.max-w-md` (l. 125) ; `grep -rn "<main" "src/app/(auth)"` → 0 ligne, tests compris ; les cinq `page.tsx` de `(auth)/auth/` n'en rendent pas ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, le `div` du panneau devient `<main>` sans changement visuel ni texte neuf.
+
+### Aucun lien d'évitement hors de la console super-admin
+- Réf : P31.04
+- Statut : retenu · autonome
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/layout/SuperAdminShell.tsx:83-91,102-107`, `takussan-web/src/components/layout/AppShell.tsx:120`, `takussan-web/src/components/home/Navbar.tsx`
+- Constat :
+  - Le seul lien « Aller au contenu principal » du front est celui de `SuperAdminShell` (l. 83-91), qui vise un `<main tabIndex={-1}>` (l. 102-107) ; `grep -rn "skipToContent\|focus:not-sr-only" src` ne rend que ce fichier et les trois dictionnaires (lu).
+  - Sur le site public, le premier Tab va au logo, puis 17 autres traversent la barre avant le contenu (mesuré sur l'accueil et la fiche). `AppShell` rend un `<main>` sans `id` ni `tabIndex` (l. 120), sans lien d'évitement devant la barre latérale (lu ; non passé au navigateur, cf. en-tête).
+  - Le libellé existe déjà en trois langues sous `nav.superAdmin.skipToContent` (lu, `fr.json:190`) ; il est rangé dans l'espace de la console.
+  - Établi comment : parcours au Tab par CDP, code relu.
+- Piste : le même lien en tête de `Navbar` (ou du layout public) et d'`AppShell`, vers un `<main id tabIndex={-1}>`, avec le libellé déplacé vers un espace commun (`common`), sans texte neuf. Le test d'AC3 de `SuperAdminShell` sert de modèle.
+- Mesure (2026-10-16, 979edb0f, mesureur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → seuls `SuperAdminShell.tsx:88-90`, son test `SuperAdminShell.a11y.test.tsx:111` et la clé `nav.superAdmin.skipToContent` des dictionnaires (`fr.json:190`, `en.json:190`) ; `AppShell.tsx:120` rend `<main className=…>` sans `id` ni `tabIndex` ; `Navbar.tsx` n'a pas de lien d'évitement ; le parcours au Tab n'a pas été rejoué → tient. Classement : A4, le motif (lien `sr-only` révélé au focus vers un `<main id tabIndex={-1}>`) et son libellé existent déjà en trois langues, il se recopie dans la barre publique et `AppShell` avec la clé déplacée vers un espace commun, sans texte neuf.
+
+### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
+- Réf : P31.05
+- Statut : validé — pied de page en `h2`, et un `h2` `sr-only` au-dessus des grilles de résultats et de l'index des agences ; garde : `heading-order` d'axe ; en `wo`, le texte français tel quel
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
+- Constat :
+  - Les colonnes du pied de page sont des `h4` (l. 183, et `pied-legal` en `sr-only` l. 216) (lu). Sur les pages dont le contenu n'a qu'un `h1` (mentions légales, CGU, agents, comparateur et favoris vides), axe rend `heading-order` sur `#pied-discover` (mesuré).
+  - Sur la recherche (1280 et 390 px), le titre de la première carte est un `h3` qui suit directement le `h1` de la liste ; même règle sur la première carte de `/fr/agencies`, dont le titre est le `h3` de `ProfileCard.tsx:93` sous le `h1` d'`IndexDeProfils.tsx:109` (mesuré, puis lu).
+  - Établi comment : axe, code relu.
+- Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `Footer.tsx:183` et `:216` (`h4`), `h3` dans `PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65` et `ProfileCard.tsx:93`, `h1` dans `IndexDeProfils.tsx:109` ; les cartes sont montées aussi par `ApercuAnnonce.tsx`, `PropertyRow.tsx` et `PortfolioTabs.tsx`, où leur niveau dépend d'autres titres ; axe non rejoué → tient. Classement : V7, le pied de page en `h2` est mécanique, mais l'ordre des titres des cartes demande soit un titre de section neuf (texte), soit un niveau de carte qui vaut pour tous ses conteneurs.
+
+### Les six pages d'authentification portent le même titre d'onglet
+- Réf : P31.06
+- Statut : validé — libellés d'onglet courts et neufs (Connexion, Inscription, Mot de passe oublié, Nouveau mot de passe, Vérification de l'e-mail) ; en `wo`, le texte français tel quel ; un test par page
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
+- Constat :
+  - Le layout déclare un modèle `title.template = "%s — Takussan"` et un défaut « Authentification — Takussan » (lu). Aucune des pages `login`, `register`, `forgot-password`, `reset-password`, `verify-email` n'exporte `metadata` ni `generateMetadata` (lu : `grep -c` → 0 pour chacune ; `login/page.tsx` est `'use client'`).
+  - Les cinq pages passées au navigateur ont toutes le titre « Authentification — Takussan » (mesuré). Le modèle n'est jamais rempli, et un lecteur d'écran ou un historique ne distingue pas « Connexion » de « Mot de passe oublié ».
+  - Établi comment : `document.title` relevé par CDP, code relu.
+- Piste : un `layout.tsx` serveur par page d'auth (ou un `generateMetadata` dans un `page.tsx` serveur qui monte le composant client) qui remplit le modèle par le titre déjà affiché dans le formulaire, sans texte neuf. Garde : un test qui vérifie que chaque page de `(auth)/auth/` fournit un titre.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx:27-35` (`generateMetadata` qui ne pose que `template` « %s — Takussan » et `default` « Authentification — Takussan », `fr.json:500-503`) ; `grep -c "Metadata"` → 0 dans les cinq `page.tsx` de `auth/*`, dans `verify-email/[id]/[hash]/page.tsx` et dans `oauth/[provider]/callback/page.tsx`, toutes `'use client'` pour les cinq premières ; les titres de formulaire existants sont `auth.login.title` « Content de vous revoir », `auth.register.title` « Créez votre compte », `auth.forgotPassword.title`, `auth.resetPassword.title`, `auth.verifyEmail.title` ; `document.title` non relevé → tient (le titre « six pages » compte sept pages sans titre propre). Classement : V7, reprendre le titre du formulaire donnerait « Content de vous revoir — Takussan » à la connexion, et nommer la page autrement est un texte neuf.
+
+### Petites améliorations
+- Réf : P31.07
+- Statut : validé — `min-h-6` et soulignement permanent sur les deux liens de `PropertyAgentCard`, titre de l'invitation par le modèle commun
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
+- Constat :
+  - Fiche bien : les liens vers l'agent et l'agence mesurent 82 × 17 et 108 × 18 px, l'un au-dessus de l'autre ; axe rend `target-size` (WCAG 2.5.8) sur les deux (mesuré à 1280 px). Ils ne se distinguent du texte voisin que par la graisse et au survol (`hover:underline`, lu).
+  - `/invitations/accept` a pour titre « Accepter une invitation », sans le suffixe « — Takussan » des autres pages (mesuré) : `generateMetadata` y rend `t('metaTitle')` seul (lu, l. 19).
+  - Établi comment : axe et `document.title` par CDP.
+- Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
+- Mesure (2026-10-16, 979edb0f, mesureur) : relu `PropertyAgentCard.tsx:94-112` : liens `LienLocalise` vers l'agent (`hover:underline`, sans hauteur minimale) et l'agence (`min-w-0 truncate hover:underline`) ; `invitations/accept/page.tsx:17-19` : `generateMetadata` rend `t('metaTitle')` seul (« Accepter une invitation ») et `invitations/layout.tsx` ne pose aucun `template` (`grep -rn template src/app/invitations` → 0), alors que `(public)/layout.tsx:52` pose « %s — Takussan » ; la taille des cibles n'a pas été remesurée → les deux points tiennent. Classement : V7, le titre de l'invitation est mécanique (A4), mais agrandir et souligner en permanence les liens de la carte change son dessin.
+
+## Angle 33 — Poids JS des routes publiques
+
+*Exploré le 2026-10-17 sur `pre-dev` eb6aee73, par l'explorateur, seul (aucun sous-agent). Deux
+`next build` de production (Turbopack, `takussan-web/`, charge 6 à 11 sur 8 cœurs : les temps ne
+valent rien, les octets si), l'un sur l'arbre tel quel, l'autre avec `<ChatWidget />` remplacé par
+`() => null` dans `src/app/layout.tsx` (ablation, retirée depuis). Le JS initial d'une route est
+l'union des `entryJSFiles` de son `page_client-reference-manifest.js` (racine, frontières d'erreur,
+layouts, page ; `global-error` intégré exclu) et des `rootMainFiles` de `build-manifest.json`,
+compressés en gzip niveau 9 par Node ; les polices viennent de `.next/server/next-font-manifest.json` ;
+l'attribution par paquet vient de `next experimental-analyze -o`. **Le réseau 3G n'a pas été
+simulé** : `next start` demande l'API (absente pendant le passage), et la charge RSC du document
+(dictionnaire, ADR-0022) n'est pas comptée ici. Les durées citées sont des calculs, pas des mesures.*
+
+### Quatre polices que seul `/playground` lit sont préchargées sur toutes les routes, Geist n'étant lue nulle part
+- Réf : P33.01
+- Statut : fait · TCK-742
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/layout.tsx:2`, `takussan-web/src/app/layout.tsx:24-29`, `takussan-web/src/app/layout.tsx:89`, `takussan-web/src/app/[locale]/(public)/playground/playground.css:117-126`, `takussan-web/src/components/playground/TypographySwitcher.tsx:14-15`
+- Constat :
+  - Le layout racine déclare six familles `next/font/google` (Geist, Manrope, Inter, Bricolage Grotesque, DM Sans, Fraunces), toutes avec le préchargement par défaut, et pose leurs six variables sur `<html>` (lu).
+  - `globals.css:297-300` ne lit que « DM Sans » et « Bricolage Grotesque » (lu). `grep -rn "font-geist\|font-manrope\|font-inter\|font-fraunces" src` ne rend que `playground.css` et `TypographySwitcher.tsx` ; `--font-geist` n'est lue par aucun fichier (mesuré).
+  - Mesuré : `next-font-manifest.json` → les **139** routes de l'application préchargent les mêmes **7** fichiers woff2, **257 Kio**. Rapprochés des `@font-face` du CSS émis : Geist 28,6 Kio, Manrope 24,0, Inter 47,3, Fraunces 44,6 + 35,7, soit **180 Kio préchargés sans usage** hors `/playground` ; Bricolage 40,3 et DM Sans 36,1 sont les seuls utiles.
+  - Un `preload` de police part avec la priorité haute, en concurrence avec le JS et le CSS de la page. Calcul, non mesuré : à 1,6 Mbit/s, 180 Kio coûtent près d'une seconde de liaison.
+  - P18.06 est `validé` pour retirer `/playground` des environnements déployés ; ce retrait ne retire pas les déclarations du layout racine, qui resteraient alors sans aucun lecteur.
+- Piste : ne garder au layout racine que Bricolage Grotesque et DM Sans ; déclarer Manrope, Inter et Fraunces dans un layout ou une page propre à `/playground` (ou `preload: false`), retirer Geist. Garde : un test qui lit `layout.tsx` et refuse une famille dont la variable n'est lue par aucun CSS ni composant hors `playground`.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `src/app/layout.tsx:2,24-29,89` : six familles `next/font/google` sans option `preload`, leurs six variables posées sur `<html>` ; `grep -rn 'font-geist\|font-manrope\|font-inter\|font-fraunces' src` hors layout ne rend que `playground.css:115-126`, `TypographySwitcher.tsx:14-15` et le double de `metadata-base.test.ts:36-41` ; `globals.css:297-300` ne lit que DM Sans et Bricolage ; `next-font-manifest.json` du dernier build local (2026-10-15, layout inchangé depuis) → 139 routes, mêmes 7 woff2, 256,5 Kio ; aucun commit ni ticket ne l'a traité (`git log -S 'preload: false'` vide) → le constat tient tel quel. Classement : A2, performance sans changement de rendu : Bricolage et DM Sans restent au layout racine, Manrope, Inter et Fraunces passent dans un layout propre à `/playground` qui pose leurs variables, Geist est retirée, et un test (A5) refuse au layout racine une famille dont la variable n'est lue hors `playground`.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `polices-du-layout-racine.test.ts`, rouge sur `Geist`, `Manrope`, `Inter`, `Fraunces` déclarées au layout racine sans lecteur hors du playground → Bricolage et DM Sans seules au layout racine, Manrope, Inter et Fraunces déclarées par `playground/page.tsx` (enveloppe `display: contents`), Geist retirée ; ablation : layout rendu à six familles → rouge, Fraunces retirée de la page → rouge sur `--font-fraunces` ; 2/2 verts, `metadata-base`, `robots` et `canonique-de-chaque-page` verts (32 tests).
+
+### Le widget de messagerie, invisible au visiteur anonyme, met la messagerie, zod et react-hook-form dans le JS initial de toutes les pages
+- Réf : P33.02
+- Statut : fait · TCK-743
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/layout.tsx:14`, `takussan-web/src/app/layout.tsx:110`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:9-11`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:145`, `takussan-web/src/components/messages/ChatView.tsx:6-8`, `takussan-web/src/components/messages/ChatView.tsx:25`, `takussan-web/src/components/messages/ChatView.tsx:31`
+- Constat :
+  - `ChatWidget` est monté par le layout racine et importe statiquement `ConversationList`, `ChatView` et `PropertyDraftChatView` (lu). Il rend `null` tant qu'aucun utilisateur n'est connecté (`isVisible = Boolean(user) && …`, lu), mais son code est importé de toute façon. Seule la cartographie passe par `next/dynamic` dans tout `src/` (3 sites, mesuré par `grep -rn "dynamic(" src`).
+  - `ChatView` importe `react-hook-form`, `useResolveurValidation` (zod), `sendMessageSchema` (`lib/schemas/message.ts` → `import { z } from 'zod'`) et `VoiceNoteRecorder` (lu).
+  - Mesuré, JS initial gzip, avant → sans le widget (même arbre, deux builds) : mentions légales, CGU et confidentialité **450 → 322 Kio** (−28 %) ; accueil **470 → 407** ; index des agences et des agents **452 → 330** ; paiement par lien et partage **452 → 325-331** ; fiche agence 511 → 458 ; fiche bien 580 → 538 ; recherche 555 → 538. En brut, une page légale passe de 1 472 à 994 Kio de JS à analyser.
+  - Le morceau de zod (64,2 Kio gzip, chaîne `ZodError`) figure dans les `entryJSFiles` de `[project]/src/app/layout` (mesuré) : il est payé par toute route, `/auth/login` comprise (448 Kio).
+- Piste : charger le widget par `next/dynamic` (`ssr: false`) derrière la condition `user`, ou ne monter que le lanceur et importer le panneau à la première ouverture. Garde : un test ou une garde de build qui refuse `zod` et `react-hook-form` dans les `entryJSFiles` du layout racine (voir P33.05).
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `ChatWidget.tsx:9-11` (imports statiques de `ConversationList`, `ChatView`, `PropertyDraftChatView`), `:145` `isVisible = Boolean(user) && !isHiddenByRoute`, `:170` `return null` ; `ChatView.tsx:6-8,25` importe `react-hook-form`, `useResolveurValidation` et `sendMessageSchema` ; `grep -rn 'dynamic(' src` → 3 sites, tous cartographiques ; dans le build local du 2026-10-15, les `entryJSFiles` de `[project]/src/app/layout` de `/legal/notice` contiennent deux morceaux portant `ZodError` (`2a0zrz29ftn70.js`, `1f6glm94c8plh.js`) ; les octets avant/après du constat n'ont pas été rejoués (pas de build sur ec405f7a) → le constat tient. Classement : A2, découpage du code sans changement de résultat : `ChatWidget` garde statiques sa garde `isVisible` et ce qu'elle lit, et ne rend qu'ensuite un corps chargé par `next/dynamic` (`ssr: false`) contenant le lanceur et le panneau actuels, de sorte que le visiteur anonyme ne télécharge rien de la messagerie ; le brouillon de TCK-500 vit dans `ChatDraftContext`, hors du widget, et reste lu au montage.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `js-initial-du-layout-racine.test.ts`, traceur d'imports statiques du graphe client de `src/app/layout.tsx`, rouge sur quatre chemins, tous par `ChatWidget → ChatView` (zod par `schemas/message.ts`, react-hook-form et `@hookform/resolvers` par `useApiForm.ts`) → `ChatWidget` réduit à la garde `user`, le corps actuel devenu `CorpsDuWidget` chargé par `next/dynamic` (rendu serveur gardé) ; ablation : corps réimporté statiquement → traceur rouge et `ChatWidget.garde.test.tsx` rouge (corps chargé pour l'anonyme) ; 4/4 verts, les 23 tests du widget verts sur le corps.
+
+### zod arrive aussi sur les pages publiques par des listes de valeurs rangées dans les modules de schémas
+- Réf : P33.03
+- Statut : fait · TCK-744
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property/PropertyCard.tsx:25`, `takussan-web/src/components/property/cards/NewBuildChip.tsx:4`, `takussan-web/src/components/search/FilterSidebar.tsx:16`, `takussan-web/src/lib/schemas/property.ts:1`, `takussan-web/src/lib/schemas/property.ts:14`, `takussan-web/src/lib/schemas/property.ts:64-67`
+- Constat :
+  - `PropertyCard`, `NewBuildChip` et `FilterSidebar` n'importent de `@/lib/schemas/property` que des tableaux `as const` (`propertyTypeValues`, `conditionValues`, `newBuildConditionValues`, `titleTypeValues`) pour traduire des libellés (lu) ; ce module commence par `import { z } from 'zod'` et construit ses schémas au chargement (lu).
+  - Mesuré, sur le build sans widget : la fiche bien porte encore le morceau zod de 64,2 Kio gzip dans son JS initial, alors que la page légale ne l'a plus. Que `PropertyCard` (par `PropertySimilar`) soit le seul chemin qui l'y amène est **à vérifier** : les dialogues de la fiche relus (`PropertyVisitDialog`, `PropertyReservationDialog`) n'importent ni zod ni un schéma.
+  - L'accueil, la recherche et les fiches agence et agent rendent aussi des cartes de bien ; la part de zod qui leur reste sans le widget n'a pas été isolée (à vérifier).
+- Piste : sortir les listes de valeurs dans un module sans dépendance (`lib/enums/property.ts`), que `schemas/property.ts` réimporte ; les composants d'affichage importent ce module-là. Garde : une règle `no-restricted-imports` qui interdit `@/lib/schemas/*` sous `src/components/property/` et `src/components/search/` hors formulaires.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyCard.tsx:25`, `NewBuildChip.tsx:4`, `FilterSidebar.tsx:16` (seulement des tableaux `as const`) et `lib/schemas/property.ts:1` (`import { z } from 'zod'`) ; le « à vérifier » est levé par un traceur d'imports statiques temporaire depuis `PropertyDetailContent.tsx` : les seuls modules du graphe qui importent zod sont `lib/schemas/property.ts` et `lib/schemas/common.ts` (atteint par lui), et `schemas/property` y entre par **trois** chemins, `PropertyCard`, `NewBuildChip` (par `PropertyHeader`) et `components/property-form/options.ts:2-9`, qui réimporte six listes de valeurs : `PropertyCard` n'est donc pas le seul chemin ; l'accueil (`(public)/page.tsx`) y mène par les mêmes (graphe statique, frontières client non distinguées) → le constat tient, chemins corrigés. Classement : A2, déplacer les listes `as const` dans un module sans dépendance que `schemas/property.ts` réexporte, et y faire pointer `property-form/options.ts`, `NewBuildChip`, `PropertyCard` et `FilterSidebar`, ne change aucune valeur ; la règle `no-restricted-imports` de la piste est une garde neuve (A5).
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `zod-hors-des-pages-publiques.test.ts`, qui trace le graphe client statique de chaque `page.tsx` et `layout.tsx` de `[locale]/(public)` : six entrées (accueil, recherche, fiches bien, agence et agent, favoris) atteignent zod par `PropertyCard` ou `NewBuildChip` → `schemas/property` ; hors de ces chemins, seuls `BookingTunnel` et `SaveSearchButton` (formulaires, admis par la table du test) y mènent → les neuf listes `as const` dans `lib/enums/property.ts` sans import, réexportées par `schemas/property.ts`, et les quatre importeurs repointés ; ablation : `NewBuildChip` seul rendu au module de schémas → les six rouges ; 20/20 verts, `tsc` propre, 37 fichiers de tests des modules touchés verts (un rouge d'interaction sous charge, vert seul).
+
+### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
+- Réf : P33.04
+- Statut : validé — dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après ; reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
+- Constat :
+  - `PropertyDetailContent` est `'use client'` et importe statiquement une trentaine de blocs de la fiche, description et caractéristiques comprises, plus quatre dialogues (`PropertyVisitDialog`, `PropertyReservationDialog`, `PropertyShareDialog`, `PropertyContactMessageDialog`) et les formulaires d'avis (lu). Seule la carte est différée (`PropertyLocationMap.tsx:8`, lu).
+  - `PropertyVisitDialog` importe `Calendar` (react-day-picker) et `Popover`, `PropertyReservationDialog` importe `DatePicker` (lu). Mesuré : le morceau de react-day-picker (17,5 Kio gzip, classes `rdp-`) est dans le JS initial de la fiche ; Leaflet (43,2 Kio) ne l'est pas.
+  - Mesuré, build sans widget : la fiche ajoute **216 Kio gzip** de JS initial à ce que charge une page légale (538 contre 322), en onze morceaux, dont 64,2 de zod (P33.03), 44,8 et 27,4 qui portent les dialogues de visite et de réservation, 17,5 de react-day-picker.
+  - Calcul, non mesuré : à 1,6 Mbit/s (≈ 200 Kio/s), les 580 Kio de JS initial de la fiche demandent environ 3 s de transfert, avant analyse et sans compter les polices (P33.01) ni le document.
+- Piste : différer les dialogues par `next/dynamic` au premier `open`, puis rendre côté serveur les blocs sans interaction (description, caractéristiques, équipements, avertissement de sécurité) en ne gardant client que les îlots qui en ont besoin. Mesurer avant et après par la méthode de P33.05.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyDetailContent.tsx:1` (`'use client'`, 36 lignes `import`), `:21-27` (dialogues de visite, réservation — dont le crochet `useIntentionDeReservation` exporté du même module —, partage, message), `:37` `PropertyReviews` ; `PropertyVisitDialog.tsx:15-16` importe `Calendar` et `Popover`, `PropertyReservationDialog.tsx:13` `DatePicker` ; seule `PropertyLocationMap.tsx:8` passe par `dynamic` ; les octets du constat n'ont pas été rejoués → le constat tient. Classement : V8, la première moitié (dialogues différés par `next/dynamic`, en sortant `useIntentionDeReservation` de leur module) serait A2, mais la seconde découpe toute la fiche en îlots client et tient sur plus d'un ticket.
+
+### Aucune garde ne voit le poids du JS d'une route
+- Réf : P33.05
+- Statut : validé — `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport seul, sans seuil ni refus ; le seuil se décide plus tard sur les chiffres
+- Gravité : 🟢 amélioration
+- Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
+- Constat :
+  - `grep -rln -i "budget\|gzip" scripts .github/workflows takussan-web/scripts` ne rend que `check-i18n-namespaces.mjs` (part du dictionnaire, ADR-0022) et `check-super-admin-tokens.mjs` (sans rapport) (mesuré). Next 16 n'imprime plus la colonne « First Load JS » à la fin de `next build` (mesuré : la sortie ne liste que les routes et leur mode).
+  - Les deux défauts P33.01 et P33.02 ne cassent rien et ne se voient dans aucun journal ; l'ADR-0015 chiffrait encore le JS par page en 2026-08, et rien ne l'a remesuré depuis.
+  - La mesure de ce passage tient en un script de 30 lignes sur des fichiers que `next build` produit déjà (`page_client-reference-manifest.js`, `build-manifest.json`, `next-font-manifest.json`), sans dépendance.
+- Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
+- Mesure (2026-10-17, ec405f7a, mesureur) : `grep -rlin 'budget\|gzip' scripts .github/workflows takussan-web/scripts` → `check-super-admin-tokens.mjs`, `check-i18n-namespaces.mjs` et `scripts/agents/pistes.sh` (sans rapport) ; `ls takussan-web/scripts | grep -i poids` → vide ; aucun commit ne cite `poids-des-routes` hors l'angle 33 → aucune garde ne voit le poids des routes, le constat tient. Classement : V5, le script ne sert que branché après le build de `.github/workflows/web-ci.yml`, et V9, son refus de `zod` au layout racine est un seuil de garde neuf.
+
+### Petites améliorations
+- Réf : P33.06
+- Statut : fait · TCK-745 — reste : refaire la mesure du CSS initial des pages publiques après P33.01
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/home/Footer.tsx:1-10`, `takussan-web/src/components/home/Footer.tsx:101-102`, `takussan-web/src/app/globals.css`
+- Constat :
+  - `Footer` est `'use client'` pour deux `useTranslations` et aucun état ni effet (lu) : il pourrait être rendu côté serveur par `getTranslations`, et sortir l'espace `footer` du dictionnaire client.
+  - Le CSS initial de toute page publique fait 268 Kio bruts, 39 Kio gzip, en deux fichiers qui bloquent le rendu (mesuré par `entryCSSFiles`) ; il porte les `@font-face` des six familles de P33.01.
+  - `@base-ui/react` pèse environ 120 Kio par module compressé dans le graphe d'une page légale (mesuré par `experimental-analyze`), surtout `floating-ui`, `combobox`, `menu` et `toast` : la barre publique (autocomplétion, menus, favoris) les charge partout. Rien à corriger en soi ; à garder en vue si la barre grossit.
+- Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `Footer.tsx:1` (`'use client'`), `:101-103` (deux `useTranslations` et `new Date().getFullYear()`, ni état, ni effet, ni gestionnaire), ses enfants `ChoixDeLangue` et `LienLocalise` sont eux-mêmes `'use client'` et `Logo` est neutre ; `grep -rln "home/Footer'" src` → 17 importeurs, dont quatre client (`HomepageDiscovery`, `PropertiesDiscoveryPage`, `PublicFavoritesPage`, `CompareClient`) qui le garderont dans leur JS ; `footer` est dans `src/i18n/namespaces.json:152` ; la mesure CSS n'a pas été refaite, et le point `@base-ui/react` ne demande rien → seule la partie `Footer` tient comme correctif. Classement : A2, retirer `'use client'` de `Footer` (le `useTranslations` de next-intl vaut côté serveur et côté client) et régénérer `namespaces.json` par `check-i18n-namespaces.mjs` ne change aucun rendu ; le gain se limite aux pages serveur qui l'importent.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `Footer.serveur.test.ts`, qui trace le graphe client des 13 importeurs serveur de `Footer` (fiches bien, agence, agent et leurs `not-found`, réservation, paiement, partage, deux pages d'alertes, `PageLegale`, `IndexDeProfils`) : 13 rouges, `Footer.tsx` dans chacun → `'use client'` retiré, sans autre changement ; ablation : directive remise → les 13 rouges ; 16/16 verts, 155 tests de `components/home` verts ; `check-i18n-namespaces` conforme sans régénérer `namespaces.json` (le dérivateur ne distingue pas client et serveur, et `HomepageDiscovery`, client, lit encore `footer`).
+
+## Angle 34 — Plan de bascule de la phase F côté SEO
+
+*Exploré le 2026-10-17 sur `pre-dev` dfff1f69, par l'explorateur, seul (aucun sous-agent). Tout est
+relu dans le dépôt : TCK-517, la phase F du plan d'auto-hébergement
+(`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951` et suivantes), `images.yml`, le
+`Dockerfile` du front, `robots.ts`, `sitemap.ts`, `alternates.ts`, `proxy.ts`, et les pages de
+`origin/master` (`fefe2c87`) par `git ls-tree` et `git show`. Les deux artefacts cités viennent du
+`next build` resté dans `takussan-web/.next` (2026-10-17, 01 h 17) ; aucun des fichiers qui les
+produisent n'a changé depuis le 2026-10-16 (`git log --since`). **Rien n'a été mesuré hors du poste** :
+ni l'index Google actuel, ni la Search Console, ni le site de production. Ce que Google a gardé de
+l'ancien site reste donc inconnu. Déjà couverts, et pas repris ici : le build du 15 août en
+production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues indexables (P09.05).*
+
+### Les décisions SEO du porteur pour la bascule ne sont écrites ni dans TCK-517 ni dans le plan de la phase F
+- Réf : P34.01
+- Statut : retenu · à valider — V5 et V6 : tâche de bascule (DNS Cloudflare, Search Console) et 308 contraire à ADR-0026 § 3 ; porteur (2026-10-17) : traité hors agents, en session : tâche SEO de la phase F et amendement d'ADR-0026 § 3 pour la 308
+- Gravité : 🟠 risque ou dette
+- Où : `docs/backlog/tickets/TCK-517-production-auto-hebergee.md`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951-4200`, `docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md:154-168`, `takussan-web/src/proxy.ts:161`
+- Constat :
+  - Le porteur a tranché le 2026-10-15 que P09.01 (« soumettre le sitemap à la Search Console ») et P09.07 (« 308 vers /fr ») sont « traités hors agents, dans la phase F (TCK-517) ». Ces décisions ne vivent que dans les lignes `Statut` de ce fichier (lu).
+  - `grep -rn -i "search console\|google-site-verification\|IndexNow\|bing webmaster" docs`, hors ce fichier → rien. Aucune tâche F1 à F5 ne vérifie la propriété du site, ne soumet le sitemap, ne relève l'index avant la bascule ni ne le suit après (mesuré).
+  - `grep -n 308` sur TCK-517, sur le plan et sur ADR-0026 → seule la règle inverse, ADR-0026 § 3 (« redirigent en 307, jamais en 308 »). `proxy.ts:161` répond toujours `NextResponse.redirect(url, 307)` (lu, mesuré).
+  - Le contrôle de F3 étape 3 (`attendre …/robots.txt`) prouve le commit servi, pas le contenu de `robots.txt` ni celui du sitemap (lu, `images.yml:157-160`).
+  - L'ajout à l'ardoise que demandait P09.01 n'est pas fait non plus : `grep -i "seo\|sitemap\|référencement" docs/ardoise.md` → rien (mesuré ; voir P09.01).
+  - Établi comment : lecture et `grep`. Le CLAUDE.md racine écrit qu'« une décision qui ne vit que dans un ticket clos est une décision perdue » ; une ligne `Statut` en est une autre forme.
+- Piste : ajouter à la phase F une tâche SEO, F3 étape 7 ou F6 : la propriété Search Console par enregistrement DNS TXT chez Cloudflare (il survit à la bascule, contrairement à un fichier ou à une balise servis par Vercel), un relevé de l'index et des erreurs de couverture avant F3, la soumission du sitemap après la seconde ligne `✓`, un relevé à J+7 avant F5. La redirection 308 demande d'abord un amendement d'ADR-0026 § 3. Garde possible : F3 vérifie que `robots.txt` cite le sitemap de l'origine de production et que le sitemap compte plus d'URL que les seules pages statiques.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `git log dfff1f69..18c6141d` sur TCK-517, le plan, ADR-0026, `proxy.ts`, `images.yml` et l'ardoise → aucun commit ; `grep -rni 'search console\|google-site-verification\|IndexNow\|bing webmaster' docs` hors ce fichier → rien ; `grep -n 308` sur TCK-517, le plan et ADR-0026 → seuls ADR-0026:154-168 (307, jamais 308) et deux 308 sans rapport (Mo, tâches) ; `proxy.ts:161` → `NextResponse.redirect(url, 307)` ; plan F3 étape 3 (l. 4104) n'attend que `robots.txt sert <commit>` ; `grep -ni 'seo\|sitemap\|référencement' docs/ardoise.md` → rien → le constat tient en entier. Classement : V5, la tâche ajoutée vit dans le plan de déploiement et passe par un enregistrement DNS, et V6, la 308 demande d'amender ADR-0026 § 3.
+- Mesure (2026-10-17, 4e394b92, humain) : le plan de la phase F porte la tâche SEO (F1 étape 7 : propriété Search Console par DNS TXT et relevé de l'index ; F3 étape 3 point 6 : `robots.txt` et compte des `<loc>` ; F3 étape 7 : soumission ; F5 étape 1 : relevé à J+7), TCK-517 la cite (AC5) et l'ardoise porte D-72. Reste : l'amendement d'ADR-0026 § 3 pour la 308, suspendu à une question au porteur (les liens internes sans préfixe de langue).
+- Mesure (2026-10-17, 2a2fc6e4, humain) : l'amendement d'ADR-0026 § 3 est écrit (option a du porteur) : 308 vers `/fr`, sans `Vary` ni négociation, à la phase F, à condition qu'aucun lien interne ne rende un chemin localisable sans préfixe, gardé par un test ; plan F2, étape 4. La piste est faite côté documents ; le code suit en F2.
+
+### Le sitemap est figé au build, et le premier build de production se fait sans API
+- Réf : P34.02
+- Statut : validé — sitemap rendu à la demande avec un cache de données d'une heure, et non plus prérendu au build ; reste : compter ses `<loc>` en F3 avant la soumission, hors agents dans le plan
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
+- Constat :
+  - `/sitemap.xml` est prérendu au build : `prerender-manifest.json` → `"compute":"static"`, `"initialRevalidateSeconds":3600` (mesuré sur le build local). `sitemap.ts:69` déclare `revalidate = 3600`.
+  - Chaque source qui échoue est seulement journalisée (`console.error`, `sitemap.ts:178-182`), et le build passe. Le sitemap du build local compte **12 `<loc>`**, les quatre pages statiques dans les trois langues : aucun bien, aucune ville, aucun profil (mesuré : `grep -c "<loc>" .next/server/app/sitemap.xml.body`). L'état de l'API locale à 01 h 17 n'est pas connu.
+  - Le catalogue est lu par `apiFetch`, donc sur `NEXT_PUBLIC_API_URL`, l'URL publique (lu). Dans le plan, l'image `:prod` se construit en F2 étape 4, quand l'API de production ne sert encore rien : elle ne se déploie qu'en F3 (lu).
+  - L'image servie après la bascule porterait donc un sitemap de 12 URL. Il ne serait refait qu'à la première requête une heure après le démarrage du conteneur, et cette requête recevrait encore l'ancien (à vérifier sur l'image : comportement ISR de Next en `standalone`).
+- Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
+- Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 3 point 6 compte les `<loc>` contre `meta.total` de la liste publique avant toute soumission, et F2 étape 1 exige que la piste soit fusionnée avant le build `:prod`.
+
+### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
+- Réf : P34.03
+- Statut : retenu · à valider — V5 : sortie `media_url` de production dans `images.yml` et médias de production sur R2 ; porteur (2026-10-17) : traité hors agents, en session : `media_url` de production en F2 et étape F1 du seau R2 de production (ADR-0029)
+- Gravité : 🟠 risque ou dette
+- Où : plan F2 étape 1 (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`, bloc `master)`), `.github/workflows/images.yml:36-44,100-103`, `takussan-web/Dockerfile:17,28`
+- Constat :
+  - Le bloc que F2 ajoute au `case` d'`images.yml` écrit trois sorties (`environnement`, `api_url`, `site_url`). Le `case` actuel en écrit quatre, avec `media_url`, et le build du front passe `NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}` (lu).
+  - `Dockerfile:28` : `test -n "$NEXT_PUBLIC_MEDIA_URL" || … exit 1`. Recopié tel quel, F2 fait échouer le build de l'image `:prod` (lu ; l'échec est bruyant, pas silencieux).
+  - Aucune tâche F ne parle des médias de production (`awk 'NR>=3951' … | grep -i "media\|R2\|0029"` → une seule ligne, sur les sauvegardes). `takussan-web/CLAUDE.md` interdit de poser cette variable sans la bascule des médias de l'environnement sur R2 : sinon les photos sortent en pleine taille, sans optimiseur. Les `og:image` des fiches en dépendent (lu).
+- Piste : compléter F2 avec la `media_url` de production et une étape F1 pour le seau public et le disque de production (ADR-0029), ou dire explicitement que la production démarre sans R2. Le plan se corrige seul ; une garde qui compare les sorties de chaque branche du `case` d'`images.yml` attraperait la même faute à l'exécution.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F2 étape 1 (l. 4016-4027) : le bloc `master)` écrit `environnement`, `api_url`, `site_url`, sans `media_url` ; `images.yml:32,42` déclare et écrit `media_url` pour `preview`, `:103` passe `NEXT_PUBLIC_MEDIA_URL` au build du front ; `takussan-web/Dockerfile:28` sort en `exit 1` si elle est vide ; `awk 'NR>=3951' <plan> | grep -i 'media\|R2\|0029'` → une seule ligne, sur les sauvegardes lues dans R2 → le constat tient. Classement : V5, le correctif fixe une URL de production dans `.github/workflows/images.yml` et décide du seau de médias de production (ADR-0029).
+- Mesure (2026-10-17, 4e394b92, humain) : fait en session : F2 étape 1 écrit `media_url=https://media.takussan.com` (quatre sorties, jamais trois), F1 étape 6 crée les seaux `takussan-prod-media` et `takussan-prod-private`, le jeton `takussan-prod-app` et la copie nocturne du seau privé, F3 étape 1 porte les clés `MEDIA_*` et `R2_*` de production.
+
+### F3 ne dit pas quelles variables d'exécution reçoivent le front et l'API de production
+- Réf : P34.04
+- Statut : retenu · à valider — V5 : variables d'environnement du front et de l'API de production ; porteur (2026-10-17) : traité hors agents, en session : variables d'exécution de `takussan-web-prod` et clés `PUBLIC_CACHE_*` de l'API dans le plan F3
+- Gravité : 🟠 risque ou dette
+- Où : plan F3 étape 1, `docs/infra/hebergement.md:171-180`, `takussan-web/src/app/api/revalidation/fiche/route.ts:78-89`, `takussan-api/config/services.php:55-58`
+- Constat :
+  - Pour `takussan-web-prod`, F3 ne donne que l'image, le domaine et l'absence d'authentification basique. `hebergement.md:176-180` liste pour `takussan-web-preview` trois variables d'exécution : `PUBLIC_CACHE_REVALIDATE_SECRET`, `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` (lu).
+  - Secret vide, le handler de révocation rend 401 à tout appel (`route.ts:84-89`, lu). Une fiche dépubliée ou retirée reste alors servie, à un robot comme à un visiteur, jusqu'à la fin du cache de données (300 s selon `hebergement.md:174`).
+  - L'API de production prend « l'environnement de D1, à ces différences près », et la table des différences ne cite ni `PUBLIC_CACHE_REVALIDATE_URL` ni `PUBLIC_CACHE_REVALIDATE_SECRET` (lu). Recopiée de la préproduction, l'URL viserait le handler du front de préproduction, et la production révoquerait le cache de la préproduction (à vérifier : `hebergement.md:171` dit ces clés « à poser » au 2026-10-08, sans dire si elles le sont).
+  - À vérifier aussi : en préproduction, cette URL passe par l'authentification basique de Traefik, qui couvre toute l'application (`hebergement.md:183`). Le POST de l'API y recevrait 401 avant d'atteindre Next (déduit, non mesuré).
+- Piste : ajouter à F3 la table des variables d'exécution de `takussan-web-prod` et les deux clés `PUBLIC_CACHE_*` dans celle de l'API, avec l'URL de production. Pour la préproduction, mesurer un POST signé contre l'URL publique.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F3 étape 1 (l. 4067-4087) : `takussan-web-prod` n'a qu'image, domaine et « sans authentification basique », et la table de l'API ne cite aucune clé `PUBLIC_CACHE_*` ; `hebergement.md:171-180` liste les trois variables d'exécution de `takussan-web-preview` et les dit « à poser » au 2026-10-08 ; `route.ts:79-89` rend 401 si le secret est vide ; `config/services.php:55-58` lit les deux clés, vides par défaut → la partie plan tient ; le 401 de Traefik sur le POST de préproduction reste déduit, non mesuré (hors du poste). Classement : V5, ce sont des variables d'environnement de production à fixer dans le plan de bascule.
+- Mesure (2026-10-17, 4e394b92, humain) : fait en session : F3 étape 1 porte les clés `PUBLIC_CACHE_*` de l'API de production (URL de production, secret neuf) et la table des variables d'exécution de `takussan-web-prod` ; `API_INTERNAL_URL` y vise le nom du conteneur de production, jamais l'alias `api` partagé avec la préproduction (D-71). Le POST signé en préproduction n'est pas mesuré : il suit la pose des clés (TCK-720).
+
+### Petites améliorations
+- Réf : P34.05
+- Statut : validé — `Disallow: /app/` et `/app$` avec un test contre les fichiers de la racine, `robots: { index: false }` sur les passages interdits, `noindex` (front et API) dès que l'origine n'est pas celle de la production ; reste : la commande de F3, hors agents en session
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
+- Constat :
+  - **`Disallow: /app` interdit aussi `/apple-icon.png`.** Le `robots.txt` du build porte `Disallow: /app` sans barre finale, et `apple-icon.png` est servi à la racine (mesuré dans `.next/server/app/`). La correspondance se fait par préfixe et la règle la plus longue l'emporte sur `Allow: /`. Le commentaire de `sitemap.ts:335-337` affirme pourtant qu'« aucune surface publique ne commence par l'un de ces préfixes » (lu ; l'effet sur l'icône affichée par Google est à vérifier). Aucun test ne confronte la liste aux fichiers de la racine (`grep -rln apple-icon src` → proxy et routage seulement).
+  - **`/publish` est interdit aux robots sans porter `noindex`** : `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx` et `maintenance/page.tsx` ne déclarent aucun `robots`, et la racine non plus (lu). C'est le piège que `robots.ts` décrit pour `/playground`. Sur `master`, `/publish` n'avait ni `noindex` ni `robots.txt` : une URL que Google aurait gardée n'en sortirait plus (index réel à vérifier). `/auth`, lui, portait déjà `noindex` sur `master` (`git show origin/master:…/(auth)/layout.tsx:21`).
+  - **Préproduction : une seule barrière contre l'indexation, hors du dépôt.** `robots.ts` rend `Allow: /` quel que soit l'environnement, et rien ne pose `noindex` quand `ORIGINE_SITE` diffère d'`ORIGINE_PRODUCTION` (lu). Seule l'authentification basique de Dokploy protège le front de préproduction, et `hebergement.md:211` laisse ouverte son remplacement par Cloudflare Access. Côté API, `public/robots.txt` vaut `Disallow:` (tout permis) et `/` rend la vue `welcome` en HTML, en préproduction comme en production (lu).
+  - **F3 étape 4 éprouve la redirection de l'apex sur `/fr/biens?page=2`**, un chemin qui n'existe pas : la liste est `/fr/properties` (lu). Le 301 se vérifie quand même, mais la commande suivante ne prouve rien de la cible.
+- Piste :
+  - `Disallow: /app/` et `Disallow: /app$`, ou une liste confrontée aux fichiers servis à la racine par un test ;
+  - `robots: { index: false }` sur les passages interdits ;
+  - `X-Robots-Tag: noindex` ou `Disallow: /` dès que l'origine n'est pas celle de la production, côté front et côté API ;
+  - `/fr/properties?page=2` dans la commande de F3.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `.next/server/app/robots.txt.body` de cet arbre → `Disallow: /app` sans barre, et `apple-icon.png` est servi à la racine (`src/app/apple-icon.png`, `.next/server/app/apple-icon.png.body`) ; le commentaire de `src/lib/sitemap.ts:335-337` affirme toujours qu'aucune surface publique ne commence par ces préfixes ; `grep -l robots` sur `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx`, `maintenance/page.tsx` et `app/layout.tsx` → aucun (seul `(auth)/layout.tsx:34` porte `index: false`) ; `robots.ts` rend `allow: '/'` sans condition d'origine ; `takussan-api/public/robots.txt` → `Disallow:`, `routes/web.php:7-9` → vue `welcome` ; plan F3 étape 4 (l. 4126,4130) éprouve `/fr/biens?page=2` → les quatre points tiennent ; l'effet réel sur l'icône chez Google n'est pas mesuré. Classement : V5, le `noindex` dépend de l'origine déployée et le dernier point corrige le plan de bascule, et V7, `Disallow: /app/` + `/app$` et le `noindex` des passages interdits changent ce qu'on expose aux moteurs ; le seul point `/app` relèverait d'A1.
+- Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 4 éprouve `/fr/properties?page=2`.
+
+## Angle 35 — Pages de facettes : texte propre et maillage interne
+
+*Exploré le 2026-10-17 sur `pre-dev` d3380eb58, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent : `(liste)/page.tsx`, `titre-de-la-liste.ts`, `facettes.ts`, `canonique.ts`, `fil-d-ariane.ts` et son test, `bien-retire.tsx`, `sitemap.ts`, `Footer.tsx`, `data/navigation.ts`, `SearchAutocomplete.tsx`, `PublicPropertyController::cities()` et `::neighborhoods()`, `GeoAddressCanonicalizer`, la migration du référentiel géographique. Les comptes viennent de la base de développement (SELECT par `docker exec … psql`, et `cities()`/`neighborhoods()` appelés par tinker), dont toutes les adresses publiques sont rattachées au référentiel : ce que la production contient n'est pas mesuré. Aucune page n'a été rendue : front et API locaux arrêtés.*
+
+### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
+- Réf : P35.01
+- Statut : validé — maillon de quartier cliquable vers sa canonique quand le quartier est dans le domaine indexable de sa ville, libellé sinon ; docblock et test du fil réécrits
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
+- Constat :
+  - Le maillon de quartier du fil d'Ariane de la fiche n'a pas de `href` (lu, `fil-d-ariane.ts:86-89`). Son docblock le justifie : « `location` est l'une des dix-sept clés ÉCARTÉES […] cette URL rend `<link rel="canonical" href="…/properties">` » (lu, l. 42-64).
+  - Cette raison ne tient plus : `CLES_CANONIQUES` porte `location` depuis TCK-598 (lu, `canonique.ts:270`). Un quartier qui atteint `SEUIL_QUARTIER_INDEXABLE` (3 biens) dans sa ville est canonique avec elle (lu, `canonique.ts:305-307,341-345`, `facettes.ts:90,126`).
+  - Le sitemap annonce ces pages de quartier (lu, `sitemap.ts:112-117`). Mesuré par tinker sur la base de dev (`cities()`, puis `neighborhoods()` pour chaque ville d'au moins 3 biens) : 10 villes, **20 quartiers indexables**, tous à Dakar.
+  - Aucun lien du HTML public ne mène à `?city=…&location=…` : `grep -rn "location="` sur `takussan-web/src` hors tests → le docblock du fil, `canonique.ts`, `facettes.ts`, `sitemap.ts`, et la seule `rechercheDuQuartier` de `bien-retire.tsx:32-38`, rendue sur la page d'un bien loué, vendu ou retiré (mesuré). L'autocomplétion compose bien ce lien, mais par `router.push` (lu, `SearchAutocomplete.tsx:38-46,158`), qu'un robot ne suit pas.
+  - Le test du fil fige l'absence de lien : `expect(nav.innerHTML).not.toContain('location=')` et la même assertion sur le JSON-LD (lu, `jsonld-fil-d-ariane.test.tsx:145,150`).
+  - Établi comment : lecture et `grep` ; le rendu HTTP d'une fiche du quartier n'a pas été rejoué.
+- Piste : rendre le maillon de quartier cliquable vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est dans le domaine indexable de sa ville, et le laisser en libellé sinon. Le fil doit alors recevoir le domaine des quartiers, que la fiche ne charge pas aujourd'hui. Corriger le docblock, et faire passer le test de « jamais `location=` » à « `location=` seulement si le quartier est indexable, et l'`item` est alors canonique de lui-même ».
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:42-64,86-89` (quartier sans `href`, docblock motivé par l'exclusion de `location`) contre `canonique.ts:270` (`CLES_CANONIQUES` porte `location`) et `canonique.ts:305-307,341-345` (quartier retenu s'il est dans le domaine de sa ville) ; `sitemap.ts:96-120` annonce ces quartiers et `construireSitemap` (`lib/sitemap.ts:306-319`) ne dédoublonne rien ; `grep -rn "location=" src` hors tests → docblocks, `canonique.ts`, `facettes.ts`, `lib/sitemap.ts` et seule `rechercheDuQuartier` de `bien-retire.tsx:32-38` ; `npx vitest run src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` → 10 verts, dont celui qui fige `not.toContain('location=')` ; aucun commit ni ticket ouvert ne l'a traité → le constat tient ; le compte de 20 quartiers indexables n'a pas été repris. Classement : V7, rendre le maillon cliquable renverse une décision de produit écrite le 2026-08-28 et ajoute à la fiche le chargement du domaine des quartiers ; seule la correction du docblock relèverait d'A6.
+
+### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
+- Réf : P35.02
+- Statut : validé — liens « Quartiers de <ville> » sur la page de ville et « Chercher par ville » dans le pied de page, chacun vers une canonique présente au sitemap ; en `wo`, le texte français tel quel
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/data/navigation.ts:124-139`, `takussan-web/src/components/home/Footer.tsx`, `takussan-web/src/components/property/HomepageDiscovery.tsx:162`
+- Constat :
+  - La liste ne rend aucun lien vers une autre facette de lieu : `grep href` dans `PropertiesDiscoveryPage.tsx` et `components/search/*.tsx` → seuls les liens de `Pagination.tsx` (mesuré). Les filtres de ville et de quartier naviguent par `router.push` (lu, `SearchAutocomplete.tsx:158`).
+  - Le pied de page public ne lie que `/properties`, `?featured=true`, `?sort=created_desc`, `/agencies`, `/agents`, `/favorites`, `/compare` et les pages légales (lu, `navigation.ts:124-139`) : aucune ville.
+  - L'accueil ne lie qu'une ville, celle de la rangée « près de vous » (`viewAllHref`, lu, `HomepageDiscovery.tsx:162`), devinée par la géolocalisation du client avec `Dakar` en repli (lu, `UserLocationProvider.tsx:56`). Que ce lien figure dans le HTML servi n'est pas mesuré (à vérifier).
+  - Les pages de ville ne sont donc atteintes que par le sitemap, par la ville du fil d'Ariane des fiches (lu, `fil-d-ariane.ts:80-84`) et peut-être par ce lien de l'accueil. Celles de quartier, par le sitemap seul (voir P35.01).
+- Piste : une liste de liens « Quartiers de Dakar » sur la page d'une ville, tirée du domaine indexable que `quartiersDeLaVille` sert déjà en cache, et une rangée « Chercher par ville » sur l'accueil ou dans le pied de page, tirée de `villesAvecComptes`. Un test vérifierait que chaque lien rendu est le chemin canonique d'une page présente au sitemap. Choix de produit : emplacement et libellés neufs.
+- Mesure (2026-10-17, c9ee68400, mesureur) : `grep -n href` sur `PropertiesDiscoveryPage.tsx` et `components/search/*.tsx` → seuls les liens de `Pagination.tsx`, `SearchAutocomplete.tsx:158` navigue par `router.push` ; `data/navigation.ts:122-140` (pied de page) ne lie aucune ville ; `HomepageDiscovery.tsx:162` lie la seule ville « près de vous » ; aucun commit ni ticket ouvert → le constat tient ; la présence de ce lien dans le HTML servi n'est pas mesurée. Classement : V7, emplacement et libellés neufs visibles, que la piste dit elle-même choix de produit.
+
+### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
+- Réf : P35.03
+- Statut : validé — palier 1 : le nombre de biens du lieu dans la description ; reste : le palier 2 (colonne de présentation), plus tard
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
+- Constat :
+  - Ce qui distingue une page de ville d'une autre se réduit au nom du lieu dans trois gabarits : `titleCity` (« {subject} à {city} »), `titleQuarter` et `description` (« {title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier. ») (mesuré, `node -e` sur `messages/fr.json` ; lu, `titre-de-la-liste.ts:95-104`). La liste ne rend aucun autre texte (lu, `PropertiesDiscoveryPage.tsx`).
+  - Ni `geo_regions`, ni `geo_cities`, ni `geo_neighborhoods` n'ont de colonne de texte : `slug`, `name`, coordonnées, et pour le quartier le statut de modération et son origine (lu, migration l. 29-79). Aucune source ne pourrait donc fournir un texte par lieu sans migration.
+  - Aucun chiffre propre au lieu (nombre de biens, fourchette de prix) n'entre dans la description, alors que `cities()` et `neighborhoods()` servent déjà le compte (lu, `PublicPropertyController.php:226-301`).
+  - Établi comment : lecture. L'effet sur l'indexation (pages jugées en double) n'est pas mesurable sur le poste.
+- Piste : deux paliers. Sans texte neuf rédigé à la main : glisser le compte dans la description (« 198 biens à Dakar… »), en le prenant au domaine déjà en cache. Avec texte rédigé : une colonne de présentation par ville et par quartier, saisie depuis la console du référentiel et traduite en `fr`/`en`, rendue sous le `<h1>`. Le second palier demande une migration et un texte métier neuf.
+- Mesure (2026-10-17, c9ee68400, mesureur) : `node -e` sur `messages/fr.json` → `meta.propertiesFiltered` ne porte que `titleContract`, `titleCity`, `titleQuarter`, `subjectAny` et `description`, gabarits sans compte ; `titre-de-la-liste.ts` les compose par le seul nom du lieu ; seule la migration `2026_10_12_400000` crée ou modifie les tables `geo_*`, sans colonne de texte → le constat tient. Classement : V7, le premier palier est déjà un texte de description neuf, et V4, le second demande une migration et un texte métier rédigé.
+
+### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
+- Réf : P35.04
+- Statut : retenu · autonome
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:226-253`, `takussan-web/src/lib/queries/facettes.ts:63-71`, `takussan-web/src/app/sitemap.ts:99-109`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:41-42,85-91,96-115`
+- Constat :
+  - `cities()` fait `groupBy('addresses.city')` sur la valeur brute, triée par compte décroissant (lu, l. 236-237). Son jumeau `neighborhoods()` replie la casse par `CaseInsensitive` et rend la graphie la plus fréquente (lu, l. 255-301).
+  - `villesDuCatalogue` replie chaque valeur en minuscules dans une `Map` (lu, `facettes.ts:69-70`). Si l'API rend « Saly » (40) puis « SALY » (2), le second `set` écrase le premier : la graphie canonique de la page devient la moins fréquente. `sitemap.ts:99` construit sa table de la même façon. Sa boucle (l. 102-118) parcourt en outre chaque variante et pousse le même chemin canonique deux fois (lu). Que `construireSitemap` dédoublonne n'est pas vérifié.
+  - Le cas suppose des graphies de ville différentes sur des biens publics. `GeoAddressCanonicalizer` réécrit `city` au nom du référentiel quand `villeParNom` trouve la ville (lu, l. 41-42 et 85-91). Il la laisse brute quand le nom est hors référentiel, ou présent dans plusieurs régions sans région fournie (lu, l. 96-115).
+  - Mesuré sur la base de dev : 504 villes au référentiel, 0 adresse publique sans `geo_city_id`, une seule graphie par ville. Le défaut n'y est donc **pas** observable (à vérifier sur la préproduction et la production).
+- Piste : grouper `cities()` comme `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), ce qui rend une entrée par ville, comptée une fois. Un test d'API avec deux graphies de la même ville garde la règle. Côté front, ne pas écraser une graphie déjà présente dans la `Map`.
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `PublicPropertyController::cities()` (`groupBy('addresses.city')` brut) contre `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), `facettes.ts:66-70` et `sitemap.ts:99` (`Map` en minuscules, le dernier `set` gagne) ; test temporaire retiré (quatre biens publics, « Zzvillex » ×3 et « ZZVILLEX » ×1, ville hors référentiel), `php artisan test` (charge 2,4 sur 8 cœurs) → `cities()` rend `[{Zzvillex,3},{ZZVILLEX,1}]`, donc le front retiendrait « ZZVILLEX » ; `construireSitemap` ne dédoublonne pas ; base de dev par `SELECT` → 826 adresses de biens, 10 graphies, 10 en minuscules, 0 sans `geo_city_id` : non observable en dev. Classement : A1, le repli de casse de la ville est le contrat écrit de l'appelant (`facettes.ts`, « `?city=dakar` et `?city=Dakar` désignent la même page ») et de son jumeau `neighborhoods()`, et le correctif ne demande aucun choix de produit.
+
+### Petites améliorations du maillage des facettes
+- Réf : P35.05
+- Statut : validé — ville du fil d'Ariane liée avec le contrat du maillon précédent ; page de ville indexable à partir de 3 biens, comme le quartier ; paires contrat × ville au sitemap à partir de 3 biens
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/fil-d-ariane.ts:70-84`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/queries/facettes.ts:81-90`
+- Constat :
+  - Le fil d'Ariane d'une fiche en location est « Accueil › Louer › Dakar », mais le lien de « Dakar » est `/properties?city=Dakar`, sans le contrat (lu, `fil-d-ariane.ts:73-84`). Le maillon qui suit « Louer » mène donc aux ventes aussi. `?contract_type=rent&city=Dakar` est canonique (lu, `canonique.ts:270`).
+  - Les combinaisons contrat × ville (« à louer à Dakar »), canoniques, ne sont ni au sitemap ni liées depuis une page (lu, `sitemap.ts:96-120`, `grep "contract_type=" src` hors tests → le fil d'Ariane et les rangées « à louer » et « à vendre » de l'accueil, `HomepageDiscovery.tsx:179,227`, toujours sans ville ; mesuré).
+  - Le seuil de 3 biens ne vaut que pour le quartier (lu, `facettes.ts:81-90`). Une ville d'un seul bien public est canonique et entre au sitemap (lu, `sitemap.ts:102-109`), c'est la page mince que le seuil évite au quartier. Dans la base de dev, la plus petite ville publique en compte 3 (mesuré, `cities()` par tinker) : aucune n'est concernée aujourd'hui.
+- Piste : lien de la ville du fil vers `?contract_type=<contrat>&city=<ville>`, la canonique du palier affiché, et l'égalité DOM ⇔ JSON-LD tient puisque les deux dérivent de `maillonsDeFiche`. Paires contrat × ville au sitemap pour les villes au-dessus d'un seuil. Même seuil, ou un seuil propre, pour la page de ville. Le choix des seuils revient au porteur.
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:80-84` (ville du fil vers `/properties?city=…`, sans le contrat du maillon précédent), `sitemap.ts:96-120` (villes et quartiers seuls, aucune paire contrat × ville), `facettes.ts:81-90` (`SEUIL_QUARTIER_INDEXABLE` ne vaut que pour le quartier) ; aucun commit ni ticket ouvert → les trois points tiennent ; le compte de la plus petite ville de dev n'a pas été repris. Classement : V7, la piste remet elle-même le choix des seuils au porteur, et le lien du fil change une cible visible.
+
+## Angle 36 — Webhooks de statut SMS et WhatsApp
+
+*Exploré le 2026-10-17 sur `pre-dev` 8ef0d0915, par l'explorateur. Relu par l'explorateur lui-même :
+les routes `sms-webhooks.php` et `whatsapp-webhooks.php`, les quatre contrôleurs de `Webhook/`,
+`DeliveryAttemptUpdater`, `UpdateWhatsappDeliveryStatusJob`, `DlrReportApplier`, `MtargetDlrPuller`,
+`MtargetTicketMatcher`, `SmsPullMtargetDlr`, `RestrictIpMiddleware`, `WebhookJournal`,
+`WebhookReplayer`, `LAfricaMobileSmsDriver`, `config/sms.php`, `config/whatsapp.php`, TCK-283,
+`docs/integrations/sms.md` et D-49 de l'ardoise. Aucun sous-agent. Mesures par un test temporaire
+(retiré) sous `php artisan test`, charge 1,50 / 1,63 / 2,01 sur 8 cœurs. Ce que LAfricaMobile,
+Orange, Mtarget et Meta envoient réellement ne se mesure pas depuis le poste : les formats viennent
+des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée derrière Traefik
+(schéma, hôte) relève de l'angle 37 et n'est pas traitée ici.*
+
+### Aucun accusé LAfricaMobile ne peut passer : l'URL signée ne couvre pas les paramètres que LAM y ajoute
+- Réf : P36.01
+- Statut : fait · TCK-795 — reste : confirmer sur un vrai rappel de LAM
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:85,128-140`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:32,50-53`, `takussan-api/tests/Feature/Http/Webhook/LAfricaMobileSmsWebhookTest.php:44-50`
+- Constat :
+  - Le pilote envoie à LAM un `ret_url` signé par `URL::temporarySignedRoute` avec le seul jeton et l'identifiant de notification (lu, l. 128-140). La signature de Laravel couvre toute la chaîne de requête.
+  - Le contrôleur exige `hasValidSignature()` (l. 32), puis lit `push_id`, `status` et `text` dans la chaîne de requête (l. 50-53). Ces paramètres ne peuvent venir que de LAM, ajoutés à l'URL au rappel (docblock du contrôleur, `docs/integrations/sms.md:91-93` : « DLR is GET with query params `push_id`, `ret_id`, `to`, `status`, `text` »).
+  - Mesuré (test temporaire retiré) : `ret_url` capturé à l'envoi, puis `GET ret_url&push_id=lam-real&status=6&text=DELIVRD` → **403** `http.forbidden`, tentative restée `sent`. Le même `ret_url` sans paramètre → **404** (`push_id` vide). Aucune des deux formes n'applique l'accusé.
+  - Les tests existants signent l'URL **avec** `push_id` et `status` déjà dedans (lu, `LAfricaMobileSmsWebhookTest.php:44-50`) : ils éprouvent une URL que le pilote ne produit jamais, et sont verts.
+  - Établi comment : lecture et mesure. Que LAM ajoute ses paramètres à l'URL plutôt que de la remplacer est la lecture des docblocks, non une capture d'un rappel réel.
+- Piste : exclure les paramètres du fournisseur de la vérification (`hasValidSignature(ignoreQuery: ['push_id', 'ret_id', 'to', 'status', 'text'])`), ou signer un chemin sans requête et vérifier à la main. Un test qui part du `ret_url` réellement émis par le pilote et y ajoute les paramètres de LAM garde le correctif ; les tests existants qui signent les paramètres de LAM sont à réécrire sur ce modèle.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) qui prend le `ret_url` produit par `LAfricaMobileSmsDriver::buildReturnUrl()` lui-même (par réflexion), sous `php artisan test`, charge 2,47 / 2,21 / 2,12 sur 8 cœurs ; relu `LAfricaMobileSmsStatusController.php:32` et la route, qui porte aussi le middleware `signed` (`routes/api/sms-webhooks.php`) ; `git log` des contrôleurs et pilotes : rien depuis TCK-727 → `ret_url` + `&push_id=lam-real&ret_id=x&to=…&status=6&text=DELIVRD` rend 403 `http.forbidden`, tentative restée `sent` ; `ret_url` nu rend 404 ; le constat tient en entier, et le correctif doit traiter le middleware `signed` de la route autant que `hasValidSignature()` du contrôleur. Classement : V2, le correctif desserre la signature qui authentifie le rappel, et que LAM ajoute ses paramètres sans remplacer l'URL reste tiré du seul docblock.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : `LAfricaMobileSmsWebhookTest` réécrit depuis le `ret_url` capturé dans la requête sortante du pilote, augmenté de `push_id`, `ret_id`, `to`, `status`, `text` → avant correctif 403 sur l'accusé `status=6` (3 rouges sur 6) ; `signed:push_id,ret_id,to,status,text` sur la route et `hasValidSignatureWhileIgnoring()` dans le contrôleur → 6 verts (notification ou expiration changées et URL expirée toujours 403, mauvais jeton 404) ; ablation : route seule → 3 rouges, contrôleur seul → 2 rouges.
+
+### Les accusés SMS poussés écrasent le dernier statut : un `sent` tardif ou rejoué efface un `delivered`
+- Réf : P36.02
+- Statut : fait · TCK-796
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:62-73`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-70`, `OrangeSmsStatusController.php:84-97`, `MtargetSmsStatusController.php:66-82`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:96-104`, `takussan-api/app/Services/Webhooks/WebhookReplayer.php:85-87`
+- Constat :
+  - `applyStatus` n'empêche une régression que si l'appelant passe `statusPrecedence` (lu, l. 62-68). WhatsApp et le pulling Mtarget le passent (lu, `UpdateWhatsappDeliveryStatusJob`, `DlrReportApplier.php:96-104`) ; les trois routes SMS poussées, non (lu). Le docblock de l'updater et TCK-283 disent ce choix délibéré pour le SMS (« last-write »). `DlrReportApplier` pose la règle inverse pour le même fournisseur Mtarget : « a report drained after a later one must never regress the row ».
+  - Mesuré (test temporaire retiré, URL signées comme dans les tests existants) : LAM `status=6` puis `status=4` → `delivered` puis `sent`, `delivered_at` remis à `NULL`.
+  - Le rejeu par le super-admin (`WebhookReplayer`, TCK-602) repasse une ligne ancienne par le même `process()` (lu, l. 85-87) : rejouer un accusé `sent` ou `failed` plus vieux que le dernier appliqué fait reculer la tentative de la même façon (déduit du point précédent, à vérifier).
+  - Pendant la période de recouvrement de TCK-294, Mtarget pousse et se fait tirer à la fois : les deux chemins n'appliquent pas la même règle à la même ligne (lu).
+- Piste : passer la même précédence `[sent, delivered, failed]` aux trois routes SMS poussées, ce qui aligne le push sur le pulling, et le dire dans le docblock de l'updater. Un test par route : `delivered` puis `sent` laisse `delivered` et `delivered_at`.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : LAM signé `status=6` puis `status=4`, Mtarget poussé `Status=3` puis `Status=1` ; relu `DeliveryAttemptUpdater.php:22` (« SMS/payment callers omit it and keep last-write ») → LAM : `delivered` puis `sent`, `delivered_at` remis à `NULL` ; Mtarget : `delivered` puis `failed` ; le constat tient, le point sur le rejeu (`WebhookReplayer`) n'a pas été exécuté et reste déduit. Classement : V7, la piste renverse une règle écrite comme choisie pour le SMS, au profit de la règle contraire de `DlrReportApplier`, et ce choix revient au porteur.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : un test par route (LAM `status=6` puis `4` ; Orange `DeliveryImpossible` puis `DeliveredToTerminal` ; Mtarget `Status=5` puis `3`) → avant correctif, les trois rougissent (LAM repasse à `sent`, Orange et Mtarget à `delivered`) ; `DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE` passée par les trois contrôleurs → verts, `delivered_at` gardé ; ablation : les trois `statusPrecedence:` retirés → 3 rouges.
+
+### Les statuts intermédiaires d'Orange et de Mtarget sont écrits comme des échecs
+- Réf : P36.03
+- Statut : fait · TCK-797 — reste : établir sur la documentation d'Orange Sénégal et de Mtarget quels statuts du push sont terminaux, et ajuster les tables
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:84-90`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:66-69`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-61`, `takussan-api/app/Services/Admin/HealthcheckService.php:241-253`
+- Constat :
+  - Orange : `MessageWaiting` est écrit `failed`, et tout autre statut aussi par le `default` (lu, l. 84-90), dont `DeliveredToNetwork` et `DeliveryUncertain`, des états non terminaux du vocabulaire OneAPI (à vérifier sur la documentation d'Orange Sénégal). Mesuré : `DeliveredToNetwork` → tentative `failed`, `failure_reason = DeliveredToNetwork` ; `MessageWaiting` reçu après un `delivered` → `failed`.
+  - Mtarget poussé : tout `Status` différent de 3 est `failed` (lu, l. 66-69), y compris un `Status` absent (`-1`). Le pulling, lui, ignore 0, 1 et 2 comme intermédiaires (lu, `DlrReportApplier.php:52-58`). Le docblock du contrôleur dit les deux jeux de codes différents ; lequel vaut pour le push reste à vérifier. Mesuré : `Status=2` → `failed` ; `Status=1` après `delivered` → `failed`.
+  - LAM : un `status` absent ou inconnu vaut 0 et s'écrit `failed` (lu, l. 51 et 57-61).
+  - La sonde de santé compte les tentatives `failed` de l'heure (lu, `HealthcheckService.php:241-253`) : un intermédiaire lu comme échec gonfle le taux, et peut passer le SMS en `degraded`.
+- Piste : ne rien écrire pour un statut non terminal (comme `DlrReportApplier`), une table explicite des statuts terminaux par fournisseur, et un `Log::warning` sur un statut inconnu au lieu d'un `failed` par défaut. Avec P36.02, un `delivered` n'est plus effacé. Un test par fournisseur sur un statut intermédiaire garde la règle.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : Orange `DeliveredToNetwork`, Mtarget poussé `Status=2` et `Status=1` après `delivered` ; relu `OrangeSmsStatusController.php` (`match`, `default => failed`) et `MtargetSmsStatusController.php` (`$statusCode === 3` seul) → Orange : 200, `failed`, `failure_reason = DeliveredToNetwork` ; Mtarget : `Status=2` → `failed`, `Status=1` après `delivered` → `failed` ; le comportement tient, mais quels codes sont terminaux chez Orange Sénégal et dans le push Mtarget n'est établi par aucun document du dépôt. Classement : V7, écrire la table des statuts terminaux est un choix tant que le vocabulaire des fournisseurs n'est pas lu.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : tests par fournisseur (Orange `DeliveredToNetwork`, `DeliveryUncertain`, `MessageWaiting`, `DeliveryNotificationNotSupported`, inconnu ; Mtarget poussé 0, 1, 2, 5, 99, absent, 1 après 3 ; LAM 16 et absent) → avant correctif 6 rouges, chacun écrit `failed` ; tables `TERMINAL_STATUSES` (Orange `DeliveredToTerminal`/`DeliveryImpossible`, Mtarget 3/4/6, LAM 6/4/2/12/23), tout autre statut ignoré avec un `Log::warning` → verts ; ablation : contrôleurs remis à l'état de TCK-796 → 6 rouges.
+
+### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
+- Réf : P36.04
+- Statut : validé — un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), repli sur la clé commune pendant la bascule ; reste : poser les trois clés dans Dokploy (porteur, TCK-720)
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
+- Constat :
+  - Les trois contrôleurs comparent le même `sms.webhook_url_token` (lu). Le pilote LAM l'écrit en clair dans le `ret_url` de chaque SMS envoyé (lu, l. 136-139) : il circule chez LAM, dans ses journaux et ses tableaux de bord, ce que D-49 décrit déjà comme le défaut du jeton d'URL.
+  - Mesuré : le jeton des tests LAM ouvre la route Orange, et un accusé `DeliveredToTerminal` y est appliqué (200, tentative `delivered`). En production, l'allowlist d'IP d'Orange reste la seule barrière restante (lu, `RestrictIpMiddleware`) ; hors production, une allowlist vide laisse passer (lu, l. 28-33).
+  - La rotation d'un jeton fuité chez LAM oblige à reconfigurer Orange et Mtarget (lu, `docs/integrations/sms.md` « Rotater en cas de compromission, mettre à jour le dashboard du provider »).
+- Piste : un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), avec repli sur la clé commune le temps de la bascule. Un test : le jeton LAM refusé sur la route Orange. Une variable d'environnement neuve est en jeu.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : jeton extrait du `ret_url` réellement produit par le pilote LAM, posté sur `/api/webhooks/sms/orange/status/{jeton}` ; relu `config/sms.php:174` et les trois contrôleurs (même `sms.webhook_url_token`) → 200, tentative Orange `delivered` ; le constat tient. Classement : V5, la piste ajoute des variables d'environnement, et elle touche aussi V2 (l'authentification de trois routes que les fournisseurs appellent).
+
+### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
+- Réf : P36.05
+- Statut : validé — route `GET` de vérification de Meta sur le même chemin, gardée par le jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration neuve et rend `hub.challenge` ; reste : poser la clé quand WhatsApp sera branché
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
+- Constat :
+  - Mesuré : `php artisan route:list --path=webhooks` → `POST api/webhooks/whatsapp/status/{token}` seul ; aucune route `GET` sur ce chemin.
+  - `grep -rn "hub.challenge|hub_challenge|verify_token|hub.mode" app routes config` → rien (mesuré). `config/whatsapp.php:29` annonce pourtant un « webhook verify token » dans `metadata` de l'intégration ; rien ne le lit.
+  - Meta exige, pour enregistrer l'URL de rappel d'une application, qu'un `GET` avec `hub.mode=subscribe`, `hub.verify_token` et `hub.challenge` rende le `challenge` (à vérifier sur la documentation de Meta). Sans lui, l'URL ne s'enregistre pas et aucun statut WhatsApp n'arrive (déduit, à vérifier).
+- Piste : une route `GET` sur le même chemin, gardée par le même jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration et rend `hub.challenge` en texte brut. Un test : bon jeton → 200 et le défi, mauvais → 403.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `php artisan route:list --path=webhooks` → seule `POST api/webhooks/whatsapp/status/{token}` ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien → aucune route `GET` et aucun lecteur du jeton de vérification ; ce que Meta exige pour enregistrer l'URL n'est pas vérifié depuis le poste. Classement : V5, le jeton de vérification est une valeur de configuration neuve à poser par environnement, et l'exigence de Meta, non lue, laisse le correctif hors de A1.
+
+### Rien n'abonne Orange aux accusés, et l'appariement suppose un `resourceURL` dans la notification
+- Réf : P36.06
+- Statut : retenu · à valider — V7 : la piste ouvre deux options et dépend de la documentation d'Orange ; porteur (2026-10-17) : plus tard, à la mise en service d'Orange, sur sa documentation
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-140`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:72-80`, `docs/integrations/sms.md` (« Operational checklist »)
+- Constat :
+  - L'envoi Orange ne pose ni `receiptRequest.notifyURL` ni `callbackData` (mesuré : `grep "receiptRequest|notifyURL|callbackData|webhook"` dans le pilote → rien), et aucun code n'appelle l'API d'abonnement aux accusés (mesuré, même `grep` dans `app/`).
+  - Le contrôleur prend l'identifiant dans `deliveryInfo.link`, sinon dans `callbackData` (lu, l. 72-80). Dans le vocabulaire OneAPI, `callbackData` est une valeur choisie par l'abonné ; comme le pilote n'en pose aucune, l'appariement repose sur un champ `link` dont la présence dans la notification d'Orange est à vérifier. Sinon chaque accusé finit en 404 « non apparié ».
+  - La liste de mise en service parle pour Orange d'une « per-signed URL pattern … same static URL form », sans dire comment l'URL est donnée à Orange (lu).
+- Piste : établir sur la documentation d'Orange Sénégal comment l'URL est enregistrée et ce que porte la notification. Puis poser `receiptRequest` (URL et `callbackData` = identifiant de la tentative) à l'envoi, ou documenter l'abonnement manuel dans le runbook. Un test sur une charge utile réelle d'Orange garde l'appariement.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rnE "receiptRequest|notifyURL|callbackData" app` → seulement la lecture de `callbackData` dans `OrangeSmsStatusController.php:75`, son docblock et `WebhookPayloadRedactor.php:61` ; rien dans `OrangeSmsDriver` → l'envoi ne demande aucun accusé, et aucun code ne s'abonne ; que la notification d'Orange porte `deliveryInfo.link` n'est pas vérifiable depuis le poste. Classement : V7, choisir entre `receiptRequest` à l'envoi et un abonnement manuel au runbook suppose la documentation d'Orange Sénégal, que le dépôt ne porte pas.
+
+### Le débit de 120 par minute et par IP refuse les rafales d'accusés, sans trace au journal
+- Réf : P36.07
+- Statut : fait · TCK-798
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/routes/api/sms-webhooks.php:22-33`, `takussan-api/routes/api/whatsapp-webhooks.php:16-18`, `takussan-api/config/sms.php` (`mtarget.batch_max`)
+- Constat :
+  - Chaque route d'accusés porte `throttle:120,1` par IP, **avant** `webhook.journal` (lu, ordre des middlewares, et le commentaire TCK-602 « vient juste après le débit »). Un 429 ne laisse donc aucune ligne au journal des webhooks (déduit de l'ordre, à vérifier).
+  - Un fournisseur envoie ses accusés depuis quelques IP. Mtarget accepte jusqu'à 500 numéros par appel (lu, `batch_max`), donc jusqu'à 500 accusés poussés pour un envoi ; Meta envoie un statut par message. Au-delà de 120 par minute, le reste prend 429 (déduit). Que le fournisseur réessaie après un 429 est à vérifier ; Meta réessaie sur tout non-2xx (docblock du contrôleur).
+  - Le débit sert à freiner le forçage du jeton (docblock des routes), alors que l'allowlist d'IP le fait déjà en production pour les routes SMS.
+- Piste : un limiteur nommé par fournisseur, plus large, ou le journal avant le débit pour qu'un refus se voie. À trancher avec la décision sur P36.04.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : 125 accusés Orange postés de la même IP, puis compte d'`IntegrationWebhookLog` ; relu l'ordre `['throttle:120,1', 'webhook.journal:…', …]` des routes SMS et WhatsApp → 120 réponses 200 et 5 réponses 429, 120 lignes au journal, aucune à 429 : un refus ne laisse aucune trace, c'est mesuré et non plus déduit ; la conduite des fournisseurs après un 429 reste à vérifier. Classement : V2, élargir le débit ou le déplacer change la protection du jeton d'URL, et la piste propose deux options liées à P36.04.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : `WebhookThrottleTest`, 125 accusés Orange de la même IP → avant correctif le 121ᵉ prend 429 (3 rouges) ; limiteurs `webhook-sms-orange`, `webhook-sms-mtarget`, `webhook-sms-lafricamobile`, `webhook-whatsapp` à 600 par minute et par IP, avant `webhook.journal`, `Log::warning` sur chaque 429 → aucun 429 sur la rafale, un seau plein rend 429 et journalise, l'autre fournisseur passe ; ablation : `throttle:120,1` remis → 3 rouges, rappel de journalisation retiré → 1 rouge.
+
+### Petites améliorations des webhooks de statut
+- Réf : P36.08
+- Statut : validé — les quatre points : retirer `WHATSAPP_WEBHOOK_IPS` et son docblock, déclarer `dlr_signature_ttl_days`, corriger le domaine de `docs/integrations/sms.md`, refuser un statut non signé dès qu'un jeton est posé quel que soit l'environnement
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
+- Constat :
+  - `whatsapp.webhook_allowed_ips` (`WHATSAPP_WEBHOOK_IPS`, déclarée dans `.env.example` et `.env.docker`) n'a aucun lecteur (mesuré : `grep -rn webhook_allowed_ips app config` → seul `RestrictIpMiddleware`, qui lit la clé `sms.`). Son docblock annonce un filtrage « optionnel » qui n'existe pas ; TCK-283 dit le contraire (pas de `restrict.ip`).
+  - `sms.lafricamobile.dlr_signature_ttl_days` est lu par le pilote, mais n'existe pas dans `config/sms.php` (mesuré, `grep`) : le délai de 7 jours n'est réglable que par le code.
+  - `docs/integrations/sms.md:79` donne l'URL de rappel Mtarget sur `api.takussan.app`, un domaine que le dépôt n'emploie nulle part ailleurs (lu).
+  - Hors production, un secret WhatsApp vide laisse passer un statut non signé dès que le jeton d'URL est posé (lu, l. 84-94). La préproduction n'a aujourd'hui aucune clé `WHATSAPP_*` (lu, `docs/infra/hebergement.md`), donc la route y répond 404.
+- Piste : retirer la clé morte et son docblock, ou la brancher ; déclarer `dlr_signature_ttl_days` dans la configuration ; corriger le domaine de la documentation ; refuser un statut non signé dès qu'un jeton est posé, quel que soit l'environnement.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rn "webhook_allowed_ips|dlr_signature_ttl_days" app config` → `whatsapp.webhook_allowed_ips` sans lecteur (`RestrictIpMiddleware` lit `sms.`), `WHATSAPP_WEBHOOK_IPS` dans `.env.example:328` et `.env.docker:353` ; `dlr_signature_ttl_days` lu par le pilote (l. 131), absent de `config/sms.php` ; `docs/integrations/sms.md:78` (et non 79) porte `api.takussan.app`, que `docs/infra/hebergement.md` n'emploie pas (`api.takussan.com`, `preview.api.takussan.com`) ; relu `WhatsappStatusController.php:84-94` (secret vide accepté hors production) → les quatre points tiennent ; le seul domaine de la documentation relèverait de A6 seul. Classement : V5, retirer la clé morte touche deux fichiers d'environnement, et le quatrième point (refuser un statut non signé hors production) touche aussi V2.
+
+## Angle 37 — `TRUSTED_PROXIES` derrière Traefik et clés des limiteurs par IP
+
+*Exploré le 2026-10-17 sur `pre-dev` 0f8959c99, par l'explorateur. Relu par l'explorateur lui-même :
+`bootstrap/app.php` (`trustProxies`), `TrustProxies` et `ThrottleRequests::resolveRequestSignature`
+dans `vendor/`, `AppServiceProvider::bootRateLimiters()` et `visitorRateLimitKey()`,
+`VisitorFingerprint`, `RestrictIpMiddleware`, `PropertyViewCounter`, `BoostStatsRecorder`,
+`ContactLeadService`, `docker/Caddyfile`, `deploy/takussan/compose.api.yml`, `takussan-web/src/lib/api.ts`,
+`src/app/actions/property.ts` et les route handlers de `src/app/api/`, ADR-0028 § 8, ADR-0052 § 5-6,
+`docs/infra/hebergement.md` (relevé de Dokploy), D-71 de l'ardoise et `php artisan route:list -v`.
+Aucun sous-agent. Une mesure par un test temporaire (retiré) sous `php artisan test`, charge
+2,54 / 2,49 / 2,58 sur 8 cœurs. La chaîne de confiance elle-même est déjà épinglée par
+`PublicReadLimiterPerVisitorTest` (mandataire de confiance, entrée de gauche forgée, client hors
+chaîne) et prouvée sur `preview.api` par l'ablation D5 : elle n'est pas reprise ici. Rien n'a été
+mesuré hors du poste (Traefik, Cloudflare, réseau `dokploy-network`). Le débit des webhooks d'accusés
+est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.*
+
+### Les limiteurs d'authentification et les compteurs de vues comptent une IPv6 entière, pas son /64
+- Réf : P37.01
+- Statut : validé — une seule fonction de clé par IP, `VisitorFingerprint::network`, pour tous les limiteurs et compteurs qui lisent `$request->ip()`, débits numériques des routes publiques compris ; un test par limiteur
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Providers/AppServiceProvider.php:458,466,472-473,482,586-590`, `takussan-api/app/Services/Property/PropertyViewCounter.php` (`cle()`), `takussan-api/app/Services/Boost/BoostStatsRecorder.php:85`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:626-629`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:381`
+- Constat :
+  - `visitorRateLimitKey()` ramène une IPv6 à son /64 (`VisitorFingerprint::network`, l. 586-590), avec la raison écrite : « sinon une adresse neuve du même abonné repart avec un compteur neuf » (verif-597 m6) (lu).
+  - Les limiteurs `auth-register` (10/min), `auth-password` (5/min), `auth-phone-send` (20/h), `ical-export` et `calendar-feed` se clés par `'ip:'.$request->ip()` brut (l. 458, 466, 472, 473, 482). Les débits numériques (`throttle:5,10` de `auth/login`, `throttle:6,1` de `pay/{token}/verify`…) aussi : `ThrottleRequests` signe `domaine|ip` pour un appelant sans compte (lu, `resolveRequestSignature`).
+  - Mesuré : test temporaire, retiré. Huit `POST /api/auth/forgot-password` depuis `2001:db8:1:2::1` à `::8` (même /64) → `200` ×8. Huit depuis la même adresse → `200` ×5 puis `429` ×3.
+  - `auth-phone-send` est la seule borne par IP de l'envoi de codes SMS, `PhoneSendQuota` bornant par numéro (commentaire TCK-622, l. 474-481). Un client IPv6 qui pulvérise des numéros n'a donc aucune borne d'envoi (déduit de la clé ; à vérifier : la part de clients IPv6 réellement vus derrière Cloudflare).
+  - Même écart sur les compteurs : la vue d'un bien (`property-view:<id>:<ip>`) et le clic d'un emplacement sponsorisé (`boost-click:<id>:<ip>`) dédoublonnent sur l'IP brute. Les impressions du même emplacement passent, elles, par `VisitorFingerprint::of()` (`CountBoostImpressions.php:39`) (lu).
+- Piste : une seule fonction de clé par IP (`VisitorFingerprint::network`) pour tous les limiteurs et compteurs qui lisent `$request->ip()`, y compris une signature maison pour les débits numériques des routes publiques. Un test par limiteur, sur le modèle de la mesure ci-dessus (deux adresses du même /64 → un seul seau), garde le retour.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `AppServiceProvider.php` : `auth-register`, `auth-password`, `auth-phone-send` (l. 472-473, 482), `ical-export` (l. 458) et `calendar-feed` (l. 466) toujours clés `'ip:'.$request->ip()`, seul `visitorRateLimitKey()` (l. 568-590) passe par `VisitorFingerprint::network` ; `PropertyViewCounter::cle()` (l. 49-51) et `BoostStatsRecorder::click()` (l. 83-85) sur l'IP brute ; test temporaire (retiré, charge 2,06/2,14/2,20 sur 8 cœurs) : 8 `POST /api/auth/forgot-password` depuis `2001:db8:1:2::1` à `::8` → `200` ×8, 8 depuis une même adresse → `200` ×5 puis `429` ×3 → le constat tient en entier ; la part de clients IPv6 derrière Cloudflare n'est pas mesurée. Classement : V2, changer la clé des limiteurs de l'authentification (et des débits numériques de `auth/login`) peut refuser des appelants légitimes qui partagent un /64, et la piste touche plusieurs limiteurs et compteurs à la fois.
+
+### Les flux iCal lus par Airbnb, Booking.com et Google Agenda sont bornés par IP de la plateforme, pas par flux
+- Réf : P37.02
+- Statut : validé — 30 par minute et par flux (clé par jeton haché), plus une borne de 600 par minute et par IP
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Providers/AppServiceProvider.php:455-466`, `takussan-api/routes/web.php:18-22`, `takussan-api/routes/api/calendar-feeds.php:14-16`
+- Constat :
+  - `ical-export` (`GET /ical/{token}.ics`, le calendrier d'un bien) et `calendar-feed` (`GET /api/calendar-feed/{token}.ics`, l'agenda d'un utilisateur) valent 30 par minute, clés `'ip:'.$request->ip()` (lu).
+  - Le commentaire de la l. 456-457 dit l'intention : « quelques appels par heure **et par flux** ». La clé ne porte pas le flux : tous les flux qu'une même plateforme relit partagent un seau (lu).
+  - ADR-0041 vise Airbnb, Booking.com et Google Agenda (l. 101). Ces services relisent les flux de tous leurs utilisateurs depuis des machines communes (à vérifier : leurs IP et leur fréquence). Au-delà de 30 flux par minute depuis une même IP, le 31ᵉ reçoit 429. Le calendrier exporté cesse alors de se mettre à jour sur l'autre plateforme, sans erreur côté Takussan, et c'est la double réservation qu'ADR-0041 veut empêcher (déduit de la clé).
+- Piste : clé par jeton (`'flux:'.hash($token)`), qui borne l'essai de jetons par flux, plus une borne large par IP contre l'énumération. Un test : 31 flux distincts depuis une même IP restent servis, 31 appels d'un même flux reçoivent un 429.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `AppServiceProvider.php:456-466` : `ical-export` et `calendar-feed` à 30/min clés `'ip:'.$request->ip()`, commentaire « par flux » l. 457 ; routes `routes/web.php:19-23` (`throttle:ical-export`) et `routes/api/calendar-feeds.php:14-17` (`throttle:calendar-feed`) → la clé ne porte pas le flux ; les IP et la fréquence réelles d'Airbnb, Booking.com et Google Agenda ne sont pas mesurées, l'effet (429 au 31ᵉ flux) reste déduit. Classement : V7, la piste fixe deux bornes neuves (par jeton, et une « borne large » par IP) dont les valeurs sont un choix sur un service que voient les plateformes tierces.
+
+### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
+- Réf : P37.03
+- Statut : validé — le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
+- Constat :
+  - La demande de visite et les deux demandes de contact (bien, agent) partent d'une action serveur (`'use server'`, `apiRequest`), pas du navigateur (lu). Elles sont bornées par visiteur : `public-contact-lead` 5 par 10 min, `public-visit-request` 10 par heure (lu, `route:list -v`).
+  - `apiRequest` y ajoute l'IP du visiteur en `X-Forwarded-For`, mais vise l'URL publique quand `API_INTERNAL_URL` manque (`baseServeur()`, l. 23-30, lu). L'ardoise (D-71) mesure cette clé absente sur la préproduction au 2026-10-12, et le porteur l'y laisse pour l'instant.
+  - Par l'URL publique, Traefik efface l'en-tête : l'appel ne vient pas de Cloudflare (ADR-0052 § 5 ; inféré, non mesuré, ADR-0052 § 6). L'API voit alors la même IP pour tous les visiteurs. Cinq demandes de contact anonymes en 10 minutes suffiraient à refuser la sixième, pour tout le site (déduit, à vérifier en préproduction).
+  - `ContactLeadService` range cette même IP dans `property_contact_leads.ip` (l. 214 et 313) : chaque demande porterait l'adresse du serveur, qui n'aide plus à repérer un abus (lu ; la valeur rangée en préproduction est à vérifier).
+  - D-71 dit l'effet en général (« les limiteurs par visiteur sont partagés »). Ce constat nomme les trois formulaires touchés et leurs bornes. Pour la production, voir P34.04.
+- Piste : mesurer en préproduction (`RateLimiter::attempts` de la clé, ADR-0052 § 6) ; puis poser `API_INTERNAL_URL` avant la phase F, ou envoyer ces trois formulaires du navigateur. Un test du front peut garder qu'une action serveur anonyme ne part jamais sur l'URL publique quand l'environnement déclare un chemin interne.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `takussan-web/src/lib/api.ts:15-34` (`baseServeur()` rend l'URL publique sans `API_INTERNAL_URL`), `src/app/actions/property.ts` (`'use server'`, `apiRequest` vers `visit-request` l. 120 et `contact-lead` l. 233), `AppServiceProvider.php:397-398` (`public-visit-request` 10/h, `public-contact-lead` 5/10 min par `visitorRateLimitKey`), `docs/infra/hebergement.md:84` (IP du visiteur sur ce chemin « non mesurée ») et `docs/ardoise.md:2998` (`API_INTERNAL_URL` absente) → la partie lue tient ; le seau partagé en préproduction et l'IP rangée dans `property_contact_leads.ip` ne se mesurent pas depuis le poste. Classement : V5, le correctif pose une variable d'environnement sur Dokploy, ou déplace l'envoi des formulaires vers le navigateur (V7).
+
+### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
+- Réf : P37.04
+- Statut : retenu · à valider — V5 : réseau Docker et TRUSTED_PROXIES ; porteur (2026-10-17) : traité hors agents, dans la phase F (TCK-517) : réseau dédié Traefik ↔ API, après un relevé sur le serveur
+- Gravité : 🟠 risque ou dette
+- Où : `docs/infra/hebergement.md:82`, `deploy/takussan/compose.api.yml:19-20,82-83`, `takussan-api/bootstrap/app.php:43-53`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
+- Constat :
+  - Le sous-réseau entier de `dokploy-network` (`10.0.1.0/24`) est en tête de `TRUSTED_PROXIES` (lu, relevé du 2026-09-14). Tous les services de la pile d'API y sont attachés (lu, `compose.api.yml`). Le port 8080 n'est pas publié, mais il reste joignable sur ce réseau (lu).
+  - Ce réseau porte aussi Dokploy, ses bases, le Compose `donnees` (PostgreSQL, Meilisearch, Redis) et d'autres projets (D-71 : « `dokploy-network`, qui porte d'autres projets ») (lu ; la liste des services attachés est à vérifier sur le serveur).
+  - Un service voisin qui appelle l'API sur le port 8080 est donc un mandataire de confiance. Son `X-Forwarded-For` fixe l'IP que voit Laravel : il franchit la liste d'IP des webhooks (`RestrictIpMiddleware` compare `$request->ip()`, l. 35-37) et choisit son seau dans tout limiteur par IP. ADR-0052 § 5 ne parle que des clients extérieurs (« aucun client extérieur ne peut emprunter ce chemin ») (déduit de la configuration ; à vérifier sur le serveur).
+  - ADR-0028 § 8 veut que Laravel ne croie que Traefik et Cloudflare. Croire le sous-réseau, c'est croire aussi tout ce qui y tourne.
+- Piste : borner la confiance aux seuls mandataires réels, par exemple un réseau dédié Traefik ↔ API (et front ↔ API pour le chemin interne), dont le sous-réseau seul entre dans `TRUSTED_PROXIES`. L'ablation de D5, rejouée depuis un service voisin, en serait la preuve.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `docs/infra/hebergement.md:82` (`10.0.1.0/24` en tête de `TRUSTED_PROXIES`, relevé du 2026-09-14), `deploy/takussan/compose.api.yml:20,83` (`dokploy-network`), `bootstrap/app.php:49-52` (`trustProxies(at:` sur la liste) et `RestrictIpMiddleware.php:35-37` (`in_array($request->ip(), …)`) → la configuration décrite tient ; la liste des services attachés à `dokploy-network` ne se relève que sur le serveur, hors du poste. Classement : V5, le correctif crée un réseau dédié dans `deploy/` et change `TRUSTED_PROXIES` sur Dokploy.
+
+### Les plages Cloudflare sont recopiées à la main dans `traefik.yml` et dans `TRUSTED_PROXIES`, sans contrôle de fraîcheur
+- Réf : P37.05
+- Statut : retenu · à valider — V5 : minuteur du serveur ; porteur (2026-10-17) : traité hors agents, en session : minuteur à côté de `seuils.timer` qui compare les plages et alerte par Telegram, sans rien écrire
+- Gravité : 🟠 risque ou dette
+- Où : `docs/infra/hebergement.md:81-82`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3523`, `deploy/server/`
+- Constat :
+  - Traefik ne croit les `X-Forwarded-*` que des plages Cloudflare : 15 en IPv4 et 7 en IPv6, relevées le 2026-09-14. Le plan D1 recopie ces mêmes plages dans `TRUSTED_PROXIES` (lu).
+  - La seule vérification est une commande manuelle (`curl … ips-v4`, « puis comparer au fichier »). Aucun minuteur de `deploy/server/` ni aucun workflow ne la rejoue (mesuré : `grep -n -i "cloudflare.com/ips\|ips-v4"` sur `deploy/server/*.sh` et `.github/workflows/*.yml` → rien).
+  - Une plage ajoutée par Cloudflare et absente de `traefik.yml` ferait effacer par Traefik l'en-tête de chaque visiteur servi par elle. Absente de `TRUSTED_PROXIES` seulement, elle ferait retenir par Laravel l'IP de la bordure Cloudflare. Dans les deux cas, ces visiteurs partageraient un seau, et les accusés d'un opérateur qui passent par `api.takussan.com` (proxifié) recevraient 403 de la liste d'IP (déduit d'ADR-0028 § 8, qui écrit ces deux effets).
+- Piste : un minuteur du serveur, à côté de `seuils.timer`, qui compare les deux listes à `https://www.cloudflare.com/ips-v4` et `ips-v6` et alerte par le canal Telegram existant. Ou une seule source pour les deux listes, écrite par ce minuteur.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : `grep -rn -i "cloudflare.com/ips\|ips-v4" deploy/ .github/workflows/ scripts/` → rien ; `ls deploy/server/` → `bootstrap.sh`, `certificats.sh`, `compose.data.yml`, `journaux-traefik.sh`, `sauvegarde-seau-prive.sh`, `seuils.sh`, aucun contrôle des plages ; `docs/infra/hebergement.md:81` ne donne qu'une vérification manuelle → le constat tient. Classement : V5, la piste ajoute un minuteur sous `deploy/server/` et touche `traefik.yml` et `TRUSTED_PROXIES`.
+- Mesure (2026-10-17, 4e394b92, humain) : fait en session : `deploy/server/plages-cloudflare.sh` compare chaque jour les plages publiées par Cloudflare à `traefik.yml` et au `TRUSTED_PROXIES` de chaque conteneur `api`, et alerte sur Telegram par franchissement, sans rien écrire ; unités en `bootstrap.sh` § 9, runbook étape 10. Éprouvé en local sur six cas (listes complètes, plage absente de chaque liste, silence au second passage, retour, source illisible, aucun conteneur). Pas encore installé sur le serveur.
+- Mesure (2026-10-17, 21b91599, humain) : installé sur le serveur à 18:52 CEST, timer quotidien actif ; `plages-cloudflare --etat` → les 22 plages dans `traefik.yml` et dans le `TRUSTED_PROXIES` de la préproduction ; ablation par une plage ajoutée à la source : alerte par liste, silence, retour, silence (relevé dans `docs/infra/hebergement.md`). La piste est faite, hors agents.
+
+### Petites améliorations
+- Réf : P37.06
+- Statut : validé — `headers:` restreint à `FOR | PROTO | PORT`, `IpUtils::checkIp` dans `RestrictIpMiddleware` ; un `TRUSTED_PROXIES` qui contient `*` donne un `Log::critical` et une sonde de santé `degraded`, sans refus au démarrage ; reste : la phrase du plan, hors agents
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/bootstrap/app.php:43-53`, `takussan-api/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php:22-27`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
+- Constat :
+  - `trustProxies(at: …)` est appelé sans `headers:`. Laravel croit donc aussi `X-Forwarded-Host`, `-Port`, `-Proto` et `-Prefix` de tout mandataire de confiance (lu, `TrustProxies::$headers`), et aucun `URL::forceRootUrl` ni `trustHosts` ne borne l'hôte (mesuré : `grep -rn "forceRootUrl\|forceScheme\|trustHosts" app bootstrap config` → rien). Par Cloudflare, que Traefik croit, un `X-Forwarded-Host` écrit par le client atteindrait Laravel (à vérifier : Cloudflare et Traefik le relaient-ils tels quels ?). Les liens des e-mails de réinitialisation et de vérification n'en dépendent pas : ils partent de `app.frontend_url` (lu, `AppServiceProvider.php:835-857`). Les URL rendues dans la réponse, elles, en dépendent (`url()` de `DataExportResource.php:23`, URL signée de `KycDossierResource.php:84`). Voir l'angle 73.
+  - `RestrictIpMiddleware` compare l'IP par égalité de chaîne (`in_array(…, true)`, l. 35-37) : ni plage CIDR, ni forme canonique d'une IPv6 (`2001:db8::1` ≠ `2001:0db8::1`) (lu). Un opérateur qui annonce une plage, ou une IPv6 écrite autrement, serait refusé en 403.
+  - Le plan dit que `bootstrap/app.php` « accepte pourtant » `TRUSTED_PROXIES=*` (l. 3796). En fait, le découpage par virgules en fait le tableau `['*']`, et `TrustProxies` ne reconnaît `*` que sous forme de chaîne (`$trustedIps === '*'`, l. 83) : le tableau part tel quel à Symfony, qui n'y voit aucune adresse (lu). Mesuré par `php -r` sur `Symfony\Component\HttpFoundation\Request` (`REMOTE_ADDR` 10.1.1.1, `X-Forwarded-For` 203.0.113.9) : `setTrustedProxies(['*'])` → `getClientIp()` rend `10.1.1.1` ; `['0.0.0.0/0']` → `203.0.113.9`. Posé par erreur, `*` ne croirait donc personne, sans erreur : tous les clients prendraient l'IP de Traefik. Rien ne refuse cette valeur au démarrage, et le plan décrit l'effet inverse.
+- Piste : `headers:` restreint à `FOR | PROTO` (ou `FOR | PROTO | PORT`) si l'hôte n'a pas à venir d'un mandataire, avec un test qui épingle l'hôte des URL rendues ; `IpUtils::checkIp` dans `RestrictIpMiddleware` ; refuser au démarrage un `TRUSTED_PROXIES` qui contient `*`, et corriger la phrase du plan (l. 3796).
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `bootstrap/app.php:49-52` (`trustProxies(at: …)` sans `headers:`), `TrustProxies.php:22` (`$headers` par défaut, `X-Forwarded-Host` compris) et l. 83 (`'*'` reconnu en chaîne seulement) ; `grep -rn "forceRootUrl\|forceScheme\|trustHosts" app bootstrap config` → rien ; `DataExportResource.php:23` (`url(…)`), `KycDossierResource.php:84` (`URL::temporarySignedRoute`) ; `RestrictIpMiddleware.php:35-37` (`in_array(…, true)`) ; `php -r` sur `Symfony\Component\HttpFoundation\Request` (`REMOTE_ADDR` 10.1.1.1, `X-Forwarded-For` 203.0.113.9) : `['*']` → `10.1.1.1`, `['0.0.0.0/0']` → `203.0.113.9` ; le plan l. 3796 dit toujours « accepte pourtant » → les trois points tiennent ; le relais de `X-Forwarded-Host` par Cloudflare et Traefik n'est pas mesuré. Classement : V5, restreindre les en-têtes de confiance et refuser `*` au démarrage portent sur une variable d'environnement et la confiance des mandataires, et la liste d'IP des webhooks touche une autorisation d'opérateurs (V2) ; seule la phrase du plan relèverait de A6.
+- Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : la phrase de D7 sur `TRUSTED_PROXIES=*` dit ce que mesure la piste.
+
+## Angle 38 — Messagerie : notifications et isolation des conversations
+
+*Exploré le 2026-10-17 sur `pre-dev` 63fb933cd, par l'explorateur. Relu par l'explorateur lui-même : `ConversationController`, `ConversationParticipantController`, `GroupConversationService`, `ConversationAccess`, `ConversationPolicy`, `MessagingReach`, `PropertyConversationResolver`, `PublicPropertyController::contactMessage()`, `NotifyNewMessageJob`, `ConversationInviteNotification`, `AppDatabaseChannel`, `MessageSearchService`, les FormRequests de la messagerie, et côté front `conversations.ts`, `NewGroupDialog.tsx`, `ConversationList.tsx`, `NotificationRow.tsx`. Aucun sous-agent. Les mesures viennent de deux classes de test temporaires (`QUEUE_CONNECTION=sync`, base de test propre, charge 12,9 sur 8 cœurs au lancement), retirées avant la fin. Rien n'a été mesuré en préproduction.*
+
+### Les membres d'un groupe neuf ne reçoivent aucune notification ; seuls ceux qu'on ajoute après coup sont prévenus
+- Réf : P38.01
+- Statut : fait · TCK-804
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:43-91,146-160`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:144-160`, `takussan-web/src/components/messages/NewGroupDialog.tsx:130`
+- Constat :
+  - L'en-tête du service promet d'envoyer une `ConversationInviteNotification` aux nouveaux participants (l. 25). Seul `addParticipants()` l'envoie (l. 146-160). `create()` attache les membres et rend la conversation, sans notification ni message système (lu).
+  - Le front crée ses groupes par ce chemin : `NewGroupDialog` appelle `useCreateGroupConversation`, qui poste `type: group` sur `POST /api/conversations` (lu).
+  - Mesuré (test temporaire) : un groupe créé avec deux membres → 0 ligne `app_notifications` pour chacun ; un troisième membre ajouté ensuite par `POST …/participants` → 1 ligne.
+  - Aucun test ne cite `ConversationInviteNotification` (mesuré : `grep -rln ConversationInviteNotification tests --include='*.php'` → rien).
+- Piste : envoyer l'invitation depuis `create()`, hors transaction, comme `addParticipants()`. Un test sur `POST /api/conversations` en groupe : chaque membre, sauf le créateur, reçoit une notification.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `GroupConversationService::create()` (attache les membres, aucune notification, aucun message système) contre `addParticipants()` (notifie hors transaction) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe créé par `POST /api/conversations` avec deux membres → 0 ligne `app_notifications` chacun, troisième membre ajouté par `POST …/participants` → 1 ; `git log 63fb933cd..7c7bd05bf` sur la messagerie → aucun commit ; aucun ticket ne le traite. Classement : A1, l'en-tête du service (l. 25) et TCK-085 (l. 121, 163) écrivent déjà que les nouveaux participants reçoivent `ConversationInviteNotification`, et le correctif réutilise la boucle d'`addParticipants()` sans choix de produit.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par le test neuf `GroupConversationCreationTest::test_chaque_membre_d_un_groupe_neuf_recoit_l_invitation_sauf_le_createur` (`Notification::fake()`, groupe créé par `POST /api/conversations` avec deux membres) → rouge, « notification was not sent » ; correctif : la boucle d'envoi d'`addParticipants()` extraite en `sendInvites()` et appelée par `create()` hors transaction → vert, créateur exclu, une invitation par membre, rien sur un 422 ; ablation (appel retiré de `create()`) → le test rougit seul, 30 autres verts.
+
+### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
+- Réf : P38.02
+- Statut : validé — `query()` du résolveur restreint aux conversations `direct` où le visiteur et le destinataire sont participants actifs (`left_at` nul) ; un groupe ou une directe quittée ne capte plus le contact, un fil neuf s'ouvre ; test : un groupe sur le bien ne capte pas le contact ; quand P38.05 sera fait, le destinataire cesse d'être un critère de recherche (ADR-0068 § 3)
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
+- Constat :
+  - `query()` cherche une conversation sur le bien dont l'expéditeur et le destinataire sont tous deux participants. Elle ne filtre ni `type = direct` ni `left_at` (lu, l. 106-112). `firstOrCreate()` et `findExisting()` reprennent donc un groupe s'il en existe un sur ce bien.
+  - Mesuré (test temporaire) : sur un bien, un groupe réunit le propriétaire (admin), un tiers, et le visiteur, qui l'a quitté. Le visiteur envoie « Prive » par `POST /api/public/properties/{slug}/contact-message`. Résultat : la réponse rend l'identifiant du groupe, le tiers lit « Prive » dans ce groupe, et le visiteur reçoit 403 sur le fil vers lequel `redirect_to` l'envoie.
+  - Le même chemin, quand le visiteur est encore membre du groupe, montre à tout le groupe un message écrit depuis un formulaire de contact privé (déduit de la même requête, non mesuré séparément).
+- Piste : restreindre `query()` aux conversations `direct` dont les deux participations sont actives (`left_at` nul). Un test : un groupe sur le bien ne capte pas le contact, et un fil neuf s'ouvre.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `PropertyConversationResolver::query()` : ni `type = direct` ni `left_at` ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe sur le bien (propriétaire admin, tiers, visiteur qui l'a quitté), puis `POST /api/public/properties/{slug}/contact-message` du visiteur → la réponse rend l'identifiant du groupe (type `group`), et `GET …/messages` du visiteur sur ce fil → 403. Constat confirmé tel qu'écrit. Classement : V3, le correctif change ce qui est exposé à des tiers, et restreindre aux participations actives décide aussi du sort d'une directe quittée (fil neuf ou reprise), qui est un choix de produit.
+
+### Un premier message joint à la création d'une conversation ne déclenche aucune notification
+- Réf : P38.03
+- Statut : fait · TCK-805
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:102-114,153-159,329`
+- Constat :
+  - `store()` (directe) et `storeGroup()` créent le message `initial_message` sans dispatcher `NotifyNewMessageJob`. Seul `sendMessage()` le fait (l. 329) (lu).
+  - Mesuré (test temporaire) : une directe créée avec `initial_message` → 0 notification pour le destinataire ; le message suivant, par `POST …/messages` → 1.
+  - Aucun écran du front n'envoie `initial_message` aujourd'hui : la directe n'a pas d'appelant, et `CreateGroupConversationPayload` ne porte pas ce champ (`conversations.ts:405-425`, lu). Le défaut est donc dans l'API, sans parcours qui l'atteigne : 🟠 et non 🔴.
+- Piste : dispatcher `NotifyNewMessageJob` après la transaction, dans les deux branches, ou retirer `initial_message` du contrat. Un test par branche.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `store()` (directe) et `storeGroup()` : le message `initial_message` est créé sans `NotifyNewMessageJob`, que seul `sendMessage()` dispatche ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : directe créée avec `initial_message` → 0 notification pour le destinataire, message suivant par `POST …/messages` → 1. Classement : A1, TCK-085 (l. 143, 163) fait passer toute notification de nouveau message par `NotifyNewMessageJob` (sourdine et départs compris), et le correctif attendu est de le dispatcher après la transaction dans les deux branches, sans retirer `initial_message` du contrat.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par deux tests neufs de `ConversationTest` (`Queue::fake()`, directe puis groupe créés par `POST /api/conversations` avec `initial_message`) → rouges, « pushed 0 times instead of 1 time » ; correctif : `NotifyNewMessageJob` dispatché après la transaction dans `store()` et après la création du message dans `storeGroup()` → verts, un seul job sur le message, aucun sans `initial_message` ; ablation (les deux `dispatch` retirés) → les deux tests rougissent, 11 autres verts.
+
+### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
+- Réf : P38.04
+- Statut : validé — `contactMessage()` passe par le chemin de `sendMessage()` : désarchivage du fil pour les autres participants, puis `NotifyNewMessageJob`, qui respecte la sourdine ; un test par effet
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
+- Constat :
+  - `sendMessage()` désarchive le fil pour les autres participants (l. 318-321), et `NotifyNewMessageJob` écarte les participants en sourdine (l. 45). `contactMessage()` écrit dans le même fil puis appelle `NotificationService::send()` en direct, sans l'un ni l'autre (lu).
+  - Mesuré (test temporaire) : le destinataire passe le fil en sourdine et l'archive, puis le visiteur écrit une seconde fois par la fiche. Le destinataire reçoit une notification (1 → 2), et le fil reste archivé (`archived_at` non nul).
+  - Le docblock de `toggleMute()` dit que les notifications respectent ce drapeau (`ConversationController.php:191-195`).
+- Piste : faire passer `contactMessage()` par le même chemin d'envoi que `sendMessage()` (désarchivage, puis `NotifyNewMessageJob`). Choisir avant si un contact par annonce doit percer la sourdine.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `contactMessage()` : ni désarchivage, ni passage par `NotifyNewMessageJob`, `NotificationService::send()` direct ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : le destinataire passe le fil en sourdine et l'archive, deuxième contact par la fiche → notifications 1 → 2, `archived_at` toujours non nul. Classement : V7, la piste elle-même demande de choisir si un contact d'annonce perce la sourdine avant d'aligner les deux chemins.
+
+### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
+- Réf : P38.05
+- Statut : validé — ADR-0068 : sur un fil de prospect, seul le contact principal actuel du bien répond (branche de `ConversationAccess`), l'ancien répondant perd l'accès, et le fil est transmis au nouveau (résolveur, désignation, retrait de collaboration, passation) ; gardes de l'ADR, § Application
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:27-51`, `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`
+- Constat :
+  - `ConversationAccess::allows()` ne juge que la participation active et, pour un fil d'intervention, la demande. Un fil rattaché à un bien ne dépend d'aucun lien au bien ni à l'agence (lu).
+  - Mesuré (test temporaire) : un agent collaborateur du bien reçoit un contact (« Mon numero 77 000 00 00 »). Sa ligne `property_collaborators` est ensuite supprimée. L'agent lit encore le fil (`GET …/messages` → 200, avec le numéro) et y écrit (`POST` → 201). La relance du visiteur par la fiche ouvre un fil neuf avec le nouveau contact principal (conversation 2), et l'historique reste chez l'ancien agent.
+  - Aucune règle écrite ne dit qui garde un fil de prospect après la fin d'une collaboration ou le départ d'un agent (à vérifier dans `docs/features.md` § 1.7 et ADR-0053).
+- Piste : décider à qui appartient le fil d'un prospect : à l'agence, et suit-il le contact principal ? Puis l'appliquer dans `ConversationAccess`, comme TCK-592 l'a fait pour les fils d'intervention, avec un test « collaboration retirée → 403 ».
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `ConversationAccess::allows()` : participation active et branche intervention seulement ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : contact reçu par l'agent collaborateur, ligne `property_collaborators` supprimée → l'agent lit (`GET …/messages` 200) et écrit (`POST` 201), la relance du visiteur ouvre un fil neuf (conversation 9 au lieu de 8). Classement : V2, le correctif retire une autorisation dont l'agent se sert aujourd'hui, et dépend d'une règle d'appartenance du fil que rien n'écrit.
+
+### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
+- Réf : P38.06
+- Statut : validé — repli commun aux trois chemins : prénom et nom, puis `username`, puis `—` ; l'e-mail ne sort plus jamais ; un test qui épingle les `params` d'un expéditeur sans nom ni `username`
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
+- Constat :
+  - Les trois chemins remplacent un nom vide par `$user->email`, et le contact public par `username` puis `email` (lu).
+  - Mesuré (test temporaire) : un expéditeur sans prénom ni nom (`secret@example.test`) écrit dans une directe. Le destinataire reçoit `params` = `{"sender":"secret@example.test","excerpt":"x"}`.
+  - `ConversationResource` pose la règle inverse pour les membres d'un fil : « le nom et l'avatar, jamais les coordonnées » (l. 43-44). La même règle vaut pour `MessagingContactResource`.
+- Piste : un repli sans coordonnée (`—`, comme TCK-588 le fait pour un expéditeur absent), commun aux trois chemins. Un test qui épingle les `params` d'un expéditeur sans nom.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `NotifyNewMessageJob` (repli `$sender->email`), `ConversationInviteNotification::displayInviter()` (repli `email`) et `PublicPropertyController::displayName()` (`username`, puis `email`) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : expéditeur sans prénom ni nom (`secret@example.test`) écrit dans le fil → `params` = `{"sender": "secret@example.test", "excerpt": "x"}` ; par la fiche, le même compte avec un `username` rend ce `username`, l'e-mail n'y sort que si `username` est vide (déduit de la ligne lue). Classement : V3, le correctif décide de ce qui est exposé au destinataire, et le repli (`—`, `username`) reste à choisir pour le chemin public.
+
+### Petites améliorations
+- Réf : P38.07
+- Statut : validé — quatre correctifs : invitation par `NotificationCode` avec la cible `conversation` (en `wo`, le texte français tel quel) ; `removeParticipant` refusé sur une directe ; `index()` ne charge que les participants actifs ; une ré-invitation pose `last_read_at` à l'heure de la ré-invitation
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Notifications/ConversationInviteNotification.php:73-84`, `takussan-web/src/components/notifications/NotificationRow.tsx:41`, `takussan-api/app/Policies/ConversationPolicy.php:29-37`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:38`, `takussan-api/app/Services/Messaging/GroupConversationService.php:115-134`
+- Constat :
+  - `ConversationInviteNotification` n'a ni `code` ni `target` (ADR-0032). Mesuré (test temporaire) : la ligne `app_notifications` vaut `code: null, target: null, title: "Invitation à un groupe : G"`. La ligne de la cloche n'est un lien que si `target.path` existe (`NotificationRow.tsx:41`, lu). L'invitation ne mène donc pas au groupe, et son titre est figé dans la langue de l'envoi.
+  - `removeParticipant()` permet à tout participant actif de se retirer lui-même, sans vérifier le type du fil (l. 26-35, lu). Une conversation directe peut donc être « quittée ». L'autre partie continue d'y écrire, sans notification pour celui qui est parti (`NotifyNewMessageJob` filtre `left_at`). Un écran du front l'expose-t-il ? (à vérifier)
+  - `index()` charge tous les participants, partis compris (`participants.media`, l. 38), là où `show()` ne garde que les actifs. Le front filtre `left_at`, mais le nom et l'avatar des anciens membres partent quand même dans la liste (lu).
+  - Une ré-invitation (l. 115-134) remet `left_at` et `archived_at` à nul, mais garde l'ancien `last_read_at`. Tout ce qui a été écrit pendant l'absence compte alors comme non lu (déduit, à vérifier).
+- Piste : faire passer l'invitation par `NotificationCode`, avec la cible `conversation`. Refuser `removeParticipant` sur une directe. Filtrer `left_at` dans le chargement de `index()`. Décider du `last_read_at` d'une ré-invitation.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : invitation → ligne `code: null, target: null, title: "Invitation à un groupe : G"` ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend le membre parti d'un groupe avec son `left_at` ; ré-invitation après un message écrit pendant l'absence → `unread_count` = 1 pour le ré-invité (le point « à vérifier » tient). Lu côté front : seul un groupe ouvre `ConversationInfoSheet` (`ChatView.tsx`, `isGroup && !isWidget`), donc aucun écran n'offre de quitter une directe. Classement : V8, quatre correctifs sans lien qui font plus d'un ticket, et le `last_read_at` d'une ré-invitation est un choix de produit (V7).

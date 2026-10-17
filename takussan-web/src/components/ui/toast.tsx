@@ -150,7 +150,7 @@ function Toaster({
                 tactile). La racine n'a pas d'`overflow-hidden`, qui rognerait la zone. */}
             <ToastPrimitive.Close
               aria-label={t("close")}
-              className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity after:absolute after:-inset-2.5 after:content-[''] hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity after:absolute after:-inset-2.5 after:content-[''] hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="size-3.5" />
             </ToastPrimitive.Close>

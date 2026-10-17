@@ -6,7 +6,7 @@ import {
   propertyTypeValues,
   propertyVisibilityValues,
   rentPeriodValues,
-} from '@/lib/schemas/property';
+} from '@/lib/enums/property';
 
 /**
  * Le VOCABULAIRE des énumérations de bien — six tables, un seul endroit.
