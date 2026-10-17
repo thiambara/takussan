@@ -53,11 +53,10 @@ class NotifyNewMessageJob implements ShouldQueue
             return;
         }
 
-        // TCK-588 — un expéditeur sans nom rend « — » dans la langue du destinataire, plutôt
-        // qu'un « Un contact » français écrit ici.
-        $senderName = $sender
-            ? trim(($sender->first_name ?? '').' '.($sender->last_name ?? '')) ?: $sender->email
-            : null;
+        // TCK-588 — un expéditeur absent rend « — » dans la langue du destinataire, plutôt
+        // qu'un « Un contact » français écrit ici. TCK-815 — un expéditeur sans nom ne rend
+        // jamais son e-mail : `nameWithoutContact()` se replie sur `username`, puis « — ».
+        $senderName = $sender?->nameWithoutContact();
 
         foreach ($recipients as $recipient) {
             $notifications->send($recipient, NotificationCode::MessageReceived, [

@@ -39,7 +39,6 @@ use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Models\Review;
-use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
@@ -1059,7 +1058,7 @@ class PublicPropertyController extends Controller
                 ],
                 'recipient' => $recipient === null ? null : [
                     'id' => $recipient->id,
-                    'name' => $this->displayName($recipient),
+                    'name' => $recipient->nameWithoutContact(),
                     'avatar_url' => $recipient->avatarUrl(),
                 ],
             ],
@@ -1137,12 +1136,6 @@ class PublicPropertyController extends Controller
             ->whereNot('status', PropertyStatus::Draft)
             ->where('slug', $slug)
             ->firstOrFail();
-    }
-
-    /** Le nom affiché d'un utilisateur, avec les mêmes replis que la notification d'origine. */
-    private function displayName(User $user): string
-    {
-        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: (string) ($user->username ?? $user->email);
     }
 
     /**
