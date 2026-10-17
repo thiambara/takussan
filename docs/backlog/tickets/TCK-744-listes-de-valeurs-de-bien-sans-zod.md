@@ -1,7 +1,7 @@
 ---
 id: TCK-744
 title: "Listes de valeurs de bien hors du module de schémas : zod quitte les pages publiques"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -48,20 +48,20 @@ Aucun. Aucune valeur ne change : les listes sont déplacées telles quelles.
 
 ## Delta à produire
 
-- [ ] `src/lib/enums/property.ts`, sans import : les neuf listes de valeurs.
-- [ ] `src/lib/schemas/property.ts` les importe et les réexporte.
-- [ ] `PropertyCard`, `NewBuildChip`, `FilterSidebar`, `property-form/options.ts` importent
+- [x] `src/lib/enums/property.ts`, sans import : les neuf listes de valeurs.
+- [x] `src/lib/schemas/property.ts` les importe et les réexporte.
+- [x] `PropertyCard`, `NewBuildChip`, `FilterSidebar`, `property-form/options.ts` importent
       `@/lib/enums/property`.
-- [ ] `src/test/graphe-client.ts` (traceur mutualisé, `js-initial-du-layout-racine.test.ts` s'y
+- [x] `src/test/graphe-client.ts` (traceur mutualisé, `js-initial-du-layout-racine.test.ts` s'y
       branche).
-- [ ] Garde `src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts`.
+- [x] Garde `src/app/[locale]/(public)/__tests__/zod-hors-des-pages-publiques.test.ts`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chaque `page.tsx` et `layout.tsx` de `[locale]/(public)`, le graphe client
+- [x] AC1 — Pour chaque `page.tsx` et `layout.tsx` de `[locale]/(public)`, le graphe client
       n'atteint `zod`, `react-hook-form` ou `@hookform/resolvers` que par un formulaire admis.
-- [ ] AC2 — `npx tsc --noEmit` propre : tous les importeurs des listes compilent.
-- [ ] AC3 — Les tests qui importent ces modules restent verts.
+- [x] AC2 — `npx tsc --noEmit` propre : tous les importeurs des listes compilent.
+- [x] AC3 — Les tests qui importent ces modules restent verts.
 
 ## Hors périmètre
 
@@ -71,4 +71,12 @@ Aucun. Aucune valeur ne change : les listes sont déplacées telles quelles.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif, six entrées publiques rougissent : accueil, recherche, fiches bien, agence et
+  agent, favoris, toutes par `PropertyCard` ou `NewBuildChip` → `schemas/property` (et
+  `schemas/common`). La règle `no-restricted-imports` de la piste n'aurait pas vu le chemin
+  `PropertyHeader → NewBuildChip`.
+- Ablation : `NewBuildChip` seul rendu à `@/lib/schemas/property` → les six mêmes rouges.
+  Correctif remis : 20/20 verts.
+- 37 fichiers de tests importent ces modules : 520/521 verts en une exécution groupée ; le rouge,
+  `FilterSidebar.retour.test.tsx` (« aucune entrée fantôme », interaction), est vert seul (15/15),
+  charge `vm.loadavg` montée de 2,0 à 7,7 sur 8 cœurs.
