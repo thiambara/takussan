@@ -148,7 +148,7 @@ class ListenerSideEffectsRunOnceTest extends TestCase
         ]);
         $payment = BookingPayment::factory()->create([
             'booking_id' => $booking->id,
-            'amount' => 19_99,
+            'amount' => 19.99,
             'currency' => Currency::USD,
             'status' => PaymentStatus::Pending,
             'transaction_id' => 'order_ls_once',
