@@ -4110,7 +4110,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Le débit de 120 par minute et par IP refuse les rafales d'accusés, sans trace au journal
 - Réf : P36.07
-- Statut : validé — un limiteur nommé par fournisseur, plus large que 120 par minute, et un `Log::warning` sur chaque 429 ; le journal des webhooks reste après le débit
+- Statut : fait · TCK-798
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/sms-webhooks.php:22-33`, `takussan-api/routes/api/whatsapp-webhooks.php:16-18`, `takussan-api/config/sms.php` (`mtarget.batch_max`)
 - Constat :
@@ -4119,6 +4119,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Le débit sert à freiner le forçage du jeton (docblock des routes), alors que l'allowlist d'IP le fait déjà en production pour les routes SMS.
 - Piste : un limiteur nommé par fournisseur, plus large, ou le journal avant le débit pour qu'un refus se voie. À trancher avec la décision sur P36.04.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : 125 accusés Orange postés de la même IP, puis compte d'`IntegrationWebhookLog` ; relu l'ordre `['throttle:120,1', 'webhook.journal:…', …]` des routes SMS et WhatsApp → 120 réponses 200 et 5 réponses 429, 120 lignes au journal, aucune à 429 : un refus ne laisse aucune trace, c'est mesuré et non plus déduit ; la conduite des fournisseurs après un 429 reste à vérifier. Classement : V2, élargir le débit ou le déplacer change la protection du jeton d'URL, et la piste propose deux options liées à P36.04.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : `WebhookThrottleTest`, 125 accusés Orange de la même IP → avant correctif le 121ᵉ prend 429 (3 rouges) ; limiteurs `webhook-sms-orange`, `webhook-sms-mtarget`, `webhook-sms-lafricamobile`, `webhook-whatsapp` à 600 par minute et par IP, avant `webhook.journal`, `Log::warning` sur chaque 429 → aucun 429 sur la rafale, un seau plein rend 429 et journalise, l'autre fournisseur passe ; ablation : `throttle:120,1` remis → 3 rouges, rappel de journalisation retiré → 1 rouge.
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
