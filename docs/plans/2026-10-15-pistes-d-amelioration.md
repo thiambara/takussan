@@ -3719,7 +3719,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Quatre polices que seul `/playground` lit sont préchargées sur toutes les routes, Geist n'étant lue nulle part
 - Réf : P33.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:2`, `takussan-web/src/app/layout.tsx:24-29`, `takussan-web/src/app/layout.tsx:89`, `takussan-web/src/app/[locale]/(public)/playground/playground.css:117-126`, `takussan-web/src/components/playground/TypographySwitcher.tsx:14-15`
 - Constat :
@@ -3729,10 +3729,11 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Un `preload` de police part avec la priorité haute, en concurrence avec le JS et le CSS de la page. Calcul, non mesuré : à 1,6 Mbit/s, 180 Kio coûtent près d'une seconde de liaison.
   - P18.06 est `validé` pour retirer `/playground` des environnements déployés ; ce retrait ne retire pas les déclarations du layout racine, qui resteraient alors sans aucun lecteur.
 - Piste : ne garder au layout racine que Bricolage Grotesque et DM Sans ; déclarer Manrope, Inter et Fraunces dans un layout ou une page propre à `/playground` (ou `preload: false`), retirer Geist. Garde : un test qui lit `layout.tsx` et refuse une famille dont la variable n'est lue par aucun CSS ni composant hors `playground`.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `src/app/layout.tsx:2,24-29,89` : six familles `next/font/google` sans option `preload`, leurs six variables posées sur `<html>` ; `grep -rn 'font-geist\|font-manrope\|font-inter\|font-fraunces' src` hors layout ne rend que `playground.css:115-126`, `TypographySwitcher.tsx:14-15` et le double de `metadata-base.test.ts:36-41` ; `globals.css:297-300` ne lit que DM Sans et Bricolage ; `next-font-manifest.json` du dernier build local (2026-10-15, layout inchangé depuis) → 139 routes, mêmes 7 woff2, 256,5 Kio ; aucun commit ni ticket ne l'a traité (`git log -S 'preload: false'` vide) → le constat tient tel quel. Classement : A2, performance sans changement de rendu : Bricolage et DM Sans restent au layout racine, Manrope, Inter et Fraunces passent dans un layout propre à `/playground` qui pose leurs variables, Geist est retirée, et un test (A5) refuse au layout racine une famille dont la variable n'est lue hors `playground`.
 
 ### Le widget de messagerie, invisible au visiteur anonyme, met la messagerie, zod et react-hook-form dans le JS initial de toutes les pages
 - Réf : P33.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:14`, `takussan-web/src/app/layout.tsx:110`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:9-11`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:145`, `takussan-web/src/components/messages/ChatView.tsx:6-8`, `takussan-web/src/components/messages/ChatView.tsx:25`, `takussan-web/src/components/messages/ChatView.tsx:31`
 - Constat :
@@ -3741,10 +3742,11 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Mesuré, JS initial gzip, avant → sans le widget (même arbre, deux builds) : mentions légales, CGU et confidentialité **450 → 322 Kio** (−28 %) ; accueil **470 → 407** ; index des agences et des agents **452 → 330** ; paiement par lien et partage **452 → 325-331** ; fiche agence 511 → 458 ; fiche bien 580 → 538 ; recherche 555 → 538. En brut, une page légale passe de 1 472 à 994 Kio de JS à analyser.
   - Le morceau de zod (64,2 Kio gzip, chaîne `ZodError`) figure dans les `entryJSFiles` de `[project]/src/app/layout` (mesuré) : il est payé par toute route, `/auth/login` comprise (448 Kio).
 - Piste : charger le widget par `next/dynamic` (`ssr: false`) derrière la condition `user`, ou ne monter que le lanceur et importer le panneau à la première ouverture. Garde : un test ou une garde de build qui refuse `zod` et `react-hook-form` dans les `entryJSFiles` du layout racine (voir P33.05).
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `ChatWidget.tsx:9-11` (imports statiques de `ConversationList`, `ChatView`, `PropertyDraftChatView`), `:145` `isVisible = Boolean(user) && !isHiddenByRoute`, `:170` `return null` ; `ChatView.tsx:6-8,25` importe `react-hook-form`, `useResolveurValidation` et `sendMessageSchema` ; `grep -rn 'dynamic(' src` → 3 sites, tous cartographiques ; dans le build local du 2026-10-15, les `entryJSFiles` de `[project]/src/app/layout` de `/legal/notice` contiennent deux morceaux portant `ZodError` (`2a0zrz29ftn70.js`, `1f6glm94c8plh.js`) ; les octets avant/après du constat n'ont pas été rejoués (pas de build sur ec405f7a) → le constat tient. Classement : A2, découpage du code sans changement de résultat : `ChatWidget` garde statiques sa garde `isVisible` et ce qu'elle lit, et ne rend qu'ensuite un corps chargé par `next/dynamic` (`ssr: false`) contenant le lanceur et le panneau actuels, de sorte que le visiteur anonyme ne télécharge rien de la messagerie ; le brouillon de TCK-500 vit dans `ChatDraftContext`, hors du widget, et reste lu au montage.
 
 ### zod arrive aussi sur les pages publiques par des listes de valeurs rangées dans les modules de schémas
 - Réf : P33.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property/PropertyCard.tsx:25`, `takussan-web/src/components/property/cards/NewBuildChip.tsx:4`, `takussan-web/src/components/search/FilterSidebar.tsx:16`, `takussan-web/src/lib/schemas/property.ts:1`, `takussan-web/src/lib/schemas/property.ts:14`, `takussan-web/src/lib/schemas/property.ts:64-67`
 - Constat :
@@ -3752,10 +3754,11 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Mesuré, sur le build sans widget : la fiche bien porte encore le morceau zod de 64,2 Kio gzip dans son JS initial, alors que la page légale ne l'a plus. Que `PropertyCard` (par `PropertySimilar`) soit le seul chemin qui l'y amène est **à vérifier** : les dialogues de la fiche relus (`PropertyVisitDialog`, `PropertyReservationDialog`) n'importent ni zod ni un schéma.
   - L'accueil, la recherche et les fiches agence et agent rendent aussi des cartes de bien ; la part de zod qui leur reste sans le widget n'a pas été isolée (à vérifier).
 - Piste : sortir les listes de valeurs dans un module sans dépendance (`lib/enums/property.ts`), que `schemas/property.ts` réimporte ; les composants d'affichage importent ce module-là. Garde : une règle `no-restricted-imports` qui interdit `@/lib/schemas/*` sous `src/components/property/` et `src/components/search/` hors formulaires.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyCard.tsx:25`, `NewBuildChip.tsx:4`, `FilterSidebar.tsx:16` (seulement des tableaux `as const`) et `lib/schemas/property.ts:1` (`import { z } from 'zod'`) ; le « à vérifier » est levé par un traceur d'imports statiques temporaire depuis `PropertyDetailContent.tsx` : les seuls modules du graphe qui importent zod sont `lib/schemas/property.ts` et `lib/schemas/common.ts` (atteint par lui), et `schemas/property` y entre par **trois** chemins, `PropertyCard`, `NewBuildChip` (par `PropertyHeader`) et `components/property-form/options.ts:2-9`, qui réimporte six listes de valeurs : `PropertyCard` n'est donc pas le seul chemin ; l'accueil (`(public)/page.tsx`) y mène par les mêmes (graphe statique, frontières client non distinguées) → le constat tient, chemins corrigés. Classement : A2, déplacer les listes `as const` dans un module sans dépendance que `schemas/property.ts` réexporte, et y faire pointer `property-form/options.ts`, `NewBuildChip`, `PropertyCard` et `FilterSidebar`, ne change aucune valeur ; la règle `no-restricted-imports` de la piste est une garde neuve (A5).
 
 ### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
 - Réf : P33.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : rendre côté serveur les blocs de la fiche est une restructuration de `PropertyDetailContent` au-delà de M
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
 - Constat :
@@ -3764,10 +3767,11 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Mesuré, build sans widget : la fiche ajoute **216 Kio gzip** de JS initial à ce que charge une page légale (538 contre 322), en onze morceaux, dont 64,2 de zod (P33.03), 44,8 et 27,4 qui portent les dialogues de visite et de réservation, 17,5 de react-day-picker.
   - Calcul, non mesuré : à 1,6 Mbit/s (≈ 200 Kio/s), les 580 Kio de JS initial de la fiche demandent environ 3 s de transfert, avant analyse et sans compter les polices (P33.01) ni le document.
 - Piste : différer les dialogues par `next/dynamic` au premier `open`, puis rendre côté serveur les blocs sans interaction (description, caractéristiques, équipements, avertissement de sécurité) en ne gardant client que les îlots qui en ont besoin. Mesurer avant et après par la méthode de P33.05.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyDetailContent.tsx:1` (`'use client'`, 36 lignes `import`), `:21-27` (dialogues de visite, réservation — dont le crochet `useIntentionDeReservation` exporté du même module —, partage, message), `:37` `PropertyReviews` ; `PropertyVisitDialog.tsx:15-16` importe `Calendar` et `Popover`, `PropertyReservationDialog.tsx:13` `DatePicker` ; seule `PropertyLocationMap.tsx:8` passe par `dynamic` ; les octets du constat n'ont pas été rejoués → le constat tient. Classement : V8, la première moitié (dialogues différés par `next/dynamic`, en sortant `useIntentionDeReservation` de leur module) serait A2, mais la seconde découpe toute la fiche en îlots client et tient sur plus d'un ticket.
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V9 : un pas de plus dans `web-ci.yml`, et un seuil de poids à décider
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -3775,10 +3779,11 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Les deux défauts P33.01 et P33.02 ne cassent rien et ne se voient dans aucun journal ; l'ADR-0015 chiffrait encore le JS par page en 2026-08, et rien ne l'a remesuré depuis.
   - La mesure de ce passage tient en un script de 30 lignes sur des fichiers que `next build` produit déjà (`page_client-reference-manifest.js`, `build-manifest.json`, `next-font-manifest.json`), sans dépendance.
 - Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
+- Mesure (2026-10-17, ec405f7a, mesureur) : `grep -rlin 'budget\|gzip' scripts .github/workflows takussan-web/scripts` → `check-super-admin-tokens.mjs`, `check-i18n-namespaces.mjs` et `scripts/agents/pistes.sh` (sans rapport) ; `ls takussan-web/scripts | grep -i poids` → vide ; aucun commit ne cite `poids-des-routes` hors l'angle 33 → aucune garde ne voit le poids des routes, le constat tient. Classement : V5, le script ne sert que branché après le build de `.github/workflows/web-ci.yml`, et V9, son refus de `zod` au layout racine est un seuil de garde neuf.
 
 ### Petites améliorations
 - Réf : P33.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:1-10`, `takussan-web/src/components/home/Footer.tsx:101-102`, `takussan-web/src/app/globals.css`
 - Constat :
@@ -3786,3 +3791,4 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Le CSS initial de toute page publique fait 268 Kio bruts, 39 Kio gzip, en deux fichiers qui bloquent le rendu (mesuré par `entryCSSFiles`) ; il porte les `@font-face` des six familles de P33.01.
   - `@base-ui/react` pèse environ 120 Kio par module compressé dans le graphe d'une page légale (mesuré par `experimental-analyze`), surtout `floating-ui`, `combobox`, `menu` et `toast` : la barre publique (autocomplétion, menus, favoris) les charge partout. Rien à corriger en soi ; à garder en vue si la barre grossit.
 - Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
+- Mesure (2026-10-17, ec405f7a, mesureur) : relu `Footer.tsx:1` (`'use client'`), `:101-103` (deux `useTranslations` et `new Date().getFullYear()`, ni état, ni effet, ni gestionnaire), ses enfants `ChoixDeLangue` et `LienLocalise` sont eux-mêmes `'use client'` et `Logo` est neutre ; `grep -rln "home/Footer'" src` → 17 importeurs, dont quatre client (`HomepageDiscovery`, `PropertiesDiscoveryPage`, `PublicFavoritesPage`, `CompareClient`) qui le garderont dans leur JS ; `footer` est dans `src/i18n/namespaces.json:152` ; la mesure CSS n'a pas été refaite, et le point `@base-ui/react` ne demande rien → seule la partie `Footer` tient comme correctif. Classement : A2, retirer `'use client'` de `Footer` (le `useTranslations` de next-intl vaut côté serveur et côté client) et régénérer `namespaces.json` par `check-i18n-namespaces.mjs` ne change aucun rendu ; le gain se limite aux pages serveur qui l'importent.
