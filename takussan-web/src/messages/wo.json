@@ -5045,6 +5045,7 @@
       "next": "Bi ci topp",
       "gallery": {
         "close": "Tëj",
+        "viewerLabel": "Photos : {title}",
         "previousPhoto": "Nataal bi jiitu",
         "nextPhoto": "Nataal bi ci topp",
         "noPhoto": "Amul nataal",

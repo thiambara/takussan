@@ -828,6 +828,7 @@
       "next": "Next",
       "gallery": {
         "close": "Close",
+        "viewerLabel": "Photos: {title}",
         "previousPhoto": "Previous photo",
         "nextPhoto": "Next photo",
         "noPhoto": "No photo",
