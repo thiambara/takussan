@@ -2234,7 +2234,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### SMS muet : première publication et signature bloquées, sans repli
 - Réf : P15.05
-- Statut : validé — issue() rend l'échec de livraison et l'écran le dit ; pas de repli par e-mail pour vérifier un téléphone ; reste : un repli pour la signature d'un bail quand le SMS ne part pas
+- Statut : fait · TCK-783 — reste : un repli pour la signature d'un bail quand le SMS ne part pas
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneVerificationService.php:299-325,381-401`, `takussan-api/app/Services/Property/PublishReadiness.php:73`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:120-135`
 - Constat :
@@ -2244,6 +2244,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : rendre l'échec de livraison au client ; offrir un repli par e-mail pour la vérification et la signature.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `PhoneVerificationService.php:299-323` (`issue()` rend `true` après `deliver()`, quelle qu'en soit l'issue) et `:381-401` (`deliver()` ne fait que journaliser quand aucun fournisseur n'accepte) ; `PublishReadiness.php:73` (contact principal au téléphone vérifié exigé) ; `LeaseSignatureService.php:120-121` (un numéro vérifié impose le canal SMS, sans repli par e-mail). Le constat tient ; la préproduction (`MAIL_MAILER=log`) n'a pas été re-mesurée, hors du poste. Classement : V2, la piste change ce que rend une vérification et ouvre un canal de vérification et de signature.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `SmsCodeUndeliveredTest`, routeur dont tout envoi échoue, avant correctif → `phone/send-otp`, `secondary-phone/send-otp` et `phone/change-code` rendent 200 `sent: true` (3 rouges) → `issue()` lève `SmsCodeUndelivered` (503 `phone.sms_undelivered`, message localisé, que les écrans affichent déjà par `messageErreurApi`) ; la connexion par téléphone reste 202, l'aperçu du code (ADR-0060) reste 200. Ablations : levée retirée → 3 rouges, `catch` de la connexion retiré → 1, condition d'aperçu retirée → 1 ; remis → 5 verts, et 202 tests de `Auth/Phone`, des alertes de recherche, de `Lang` et du SMS verts.
 
 ### Un bien créé par le personnel fait de l'agent le bailleur du contrat
 - Réf : P15.06
@@ -2348,7 +2349,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
-- Statut : validé — defaultSortsWithRelevance('-created_at') seulement ; reste : le périmètre de lecture des documents, par agence ou par documentable
+- Statut : fait · TCK-785 — reste : le périmètre de lecture des documents, par agence ou par documentable
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
 - Constat :
@@ -2357,6 +2358,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentController.php:35-50` (`where('uploaded_by', $user->id)` hors super-admin, puis `->defaultSort('-created_at')` en dur), `Document.php:42` (`$requestSearchFields` → `filter[search]` passe par Scout, `HasQueryBuilder.php:232-243`) et `lib/queries/documents.ts:69` (le front envoie `filter.search`) ; `defaultSortsWithRelevance` est appelé par 4 contrôleurs (agences, maintenance, clients, utilisateurs), pas par celui-ci. Les deux parties tiennent. TCK-281 AC1 ne cite pas les documents : la pertinence seule n'est donc pas un comportement déjà écrit. Classement : V2, élargir le périmètre à l'agence ou au `documentable` change une autorisation de lecture ; la partie tri, isolée, resterait un choix (V7) faute de spec.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `DocumentListRelevanceTest` avant correctif → `GET /api/documents?filter[search]=Ndiayefall` rend les trois documents par date (2 fautes, 1 faute, exact), 1 rouge sur 3 → `defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))` après `buildQuery()` ; un `sort=` explicite l'emporte, sans recherche le plus récent d'abord. Ablation : contrôleur remis → 1 rouge ; remis → 3 verts. Le périmètre `uploaded_by` n'est pas touché (reste).
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
@@ -3432,7 +3434,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
-- Statut : validé — un seul numéro par appel chez Mtarget
+- Statut : fait · TCK-784 — reste : reprendre le compteur de tentatives à la dernière enregistrée après les heures calmes, et mettre le renvoi Orange après 401 sous le même `try`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:115,219`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:117-121`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:89-109`
 - Constat :
@@ -3442,6 +3444,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : reprendre le compteur à la dernière tentative enregistrée ; mettre le renvoi après 401 sous le même `try` ; lire le résultat par numéro chez Mtarget, ou n'envoyer qu'un numéro par appel.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : test temporaire (retiré) → heures calmes puis envoi avec `bypass_quiet_hours` : tentatives `[1 router deferred_to_fallback, 1 lafricamobile failed, 2 mtarget sent]` ; Orange 401 puis `ConnectionException` au renvoi (`OrangeSmsDriver.php:117-121`, hors `try`) : 2 appels d'envoi, résultat `lafricamobile` `sent` ; Mtarget `results` `[{code 0}, {code -3}]` pour deux numéros → les deux `sent` (`MtargetSmsDriver.php:90-91`). Les trois parties tiennent. Classement : V7, la partie Mtarget laisse deux options sur un format fournisseur non vérifié ; les deux premières seraient A1 si on les séparait.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `MtargetOneNumberPerCallTest` avant correctif → deux numéros partent en un appel (`msisdn` en liste), et la réponse `-3` du second n'est pas la sienne (1 rouge) → un appel par numéro (`array_chunk(…, 1)`), chaque résultat lu dans sa propre réponse. Ablation : pilote remis → 1 rouge ; remis → vert, et 65 tests de `Services/Sms` verts. Les deux autres points de la piste ne sont pas faits (reste).
 
 ## Angle 28 — Cache des pages publiques par langue
 

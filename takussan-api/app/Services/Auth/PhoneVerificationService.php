@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Events\Auth\PhoneVerified;
+use App\Exceptions\SmsCodeUndelivered;
 use App\Models\User;
 use App\Services\Account\DeletionStepUpService;
 use App\Services\Notifications\Sms\SmsResult;
@@ -71,6 +72,8 @@ class PhoneVerificationService
     /**
      * Émet un code vers le numéro du compte. `false` si aucun numéro, ou si le
      * délai entre deux envois court encore. Ne rend jamais le code.
+     *
+     * @throws SmsCodeUndelivered quand aucun fournisseur n'accepte le SMS (P15.05)
      */
     public function sendOtp(User $user): bool
     {
@@ -119,6 +122,7 @@ class PhoneVerificationService
         $this->holdCooldown($this->numberSubject($scope, $phone));
     }
 
+    /** @throws SmsCodeUndelivered quand aucun fournisseur n'accepte le SMS (P15.05) */
     public function sendCodeTo(string $scope, string $phone, ?string $locale = null): bool
     {
         return $this->issue($this->numberSubject($scope, $phone), $phone, $locale);
@@ -315,10 +319,18 @@ class PhoneVerificationService
         ], self::CODE_TTL_SECONDS);
         $this->holdCooldown($subject);
 
-        $this->deliver($phone, $code, $locale);
+        $delivered = $this->deliver($phone, $code, $locale);
         // TCK-620 (ADR-0060) — hors production et drapeau allumé, le code revient aussi dans la
         // réponse. Résolu à l'appel : `OtpPreview` est SCOPED, ce service ne doit pas le retenir.
         app(OtpPreview::class)->record($code);
+
+        // P15.05 (TCK-783) — un code qu'aucun fournisseur n'a accepté ne se dit pas « envoyé ».
+        // Sauf aperçu allumé : la réponse porte alors le code, et c'est ainsi qu'on vérifie un
+        // numéro sans fournisseur hors production. Le code et le délai de renvoi restent posés :
+        // un échec « ambigu » peut être arrivé quand même (`AmbiguousDelivery`).
+        if (! $delivered && ! OtpPreview::enabled()) {
+            throw new SmsCodeUndelivered;
+        }
 
         return true;
     }
@@ -378,7 +390,8 @@ class PhoneVerificationService
         return false;
     }
 
-    private function deliver(string $phone, string $code, ?string $locale): void
+    /** `false` si aucun fournisseur n'a accepté le SMS. */
+    private function deliver(string $phone, string $code, ?string $locale): bool
     {
         $results = $this->sms->send($phone, __('auth.phone.sms_code', [
             'code' => $code,
@@ -397,7 +410,11 @@ class PhoneVerificationService
                 'phone_suffix' => substr($phone, -4),
                 'reasons' => array_values(array_map(fn (SmsResult $r) => $r->failureReason, $results)),
             ]);
+
+            return false;
         }
+
+        return true;
     }
 
     /**

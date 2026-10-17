@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Exceptions\SmsCodeUndelivered;
 use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
@@ -67,7 +68,14 @@ class PhoneLoginService
             return;
         }
 
-        if ($this->codes->sendCodeTo(self::SCOPE, $phone, $locale)) {
+        // P15.05 (TCK-783) — un SMS qu'aucun fournisseur n'a accepté ne se dit pas ici : cette
+        // réponse ne dit rien de l'issue. Il compte comme un envoi, délai de renvoi compris.
+        try {
+            $sent = $this->codes->sendCodeTo(self::SCOPE, $phone, $locale);
+        } catch (SmsCodeUndelivered) {
+            $sent = true;
+        }
+        if ($sent) {
             $this->quota->hit($phone);
         }
     }

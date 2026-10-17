@@ -406,6 +406,8 @@ return [
         'missing' => 'No phone number is on file.',
         'resend_too_soon' => 'A code was just sent. You can ask for another one in :seconds s.',
         'send_limit' => 'Too many codes requested for this number. Try again in :minutes min.',
+        // P15.05 (TCK-783) — aucun fournisseur n'a accepté le SMS du code.
+        'sms_undelivered' => 'The text message with your code could not be sent. Please try again in a minute.',
         'send_limit_day' => 'Too many codes requested for this number today. Try again in :hours h.',
         'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
         'no_verified_number' => 'No verified number is on file for this account.',

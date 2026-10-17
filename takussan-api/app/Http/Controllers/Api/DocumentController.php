@@ -49,8 +49,12 @@ class DocumentController extends Controller
             $base->excludingProfilePieces();
         }
 
-        $paginator = Document::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // P16.03 (TCK-785) — la pertinence de `filter[search]` à défaut d'un `sort=`, comme TCK-281 :
+        // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
+        $query = Document::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
         return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
