@@ -4060,7 +4060,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Les statuts intermédiaires d'Orange et de Mtarget sont écrits comme des échecs
 - Réf : P36.03
-- Statut : validé — n'écrire que les statuts sûrement terminaux, par une table explicite par fournisseur ; tout autre statut est ignoré avec un `Log::warning`
+- Statut : fait · TCK-797 — reste : établir sur la documentation d'Orange Sénégal et de Mtarget quels statuts du push sont terminaux, et ajuster les tables
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:84-90`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:66-69`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-61`, `takussan-api/app/Services/Admin/HealthcheckService.php:241-253`
 - Constat :
@@ -4070,6 +4070,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - La sonde de santé compte les tentatives `failed` de l'heure (lu, `HealthcheckService.php:241-253`) : un intermédiaire lu comme échec gonfle le taux, et peut passer le SMS en `degraded`.
 - Piste : ne rien écrire pour un statut non terminal (comme `DlrReportApplier`), une table explicite des statuts terminaux par fournisseur, et un `Log::warning` sur un statut inconnu au lieu d'un `failed` par défaut. Avec P36.02, un `delivered` n'est plus effacé. Un test par fournisseur sur un statut intermédiaire garde la règle.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : Orange `DeliveredToNetwork`, Mtarget poussé `Status=2` et `Status=1` après `delivered` ; relu `OrangeSmsStatusController.php` (`match`, `default => failed`) et `MtargetSmsStatusController.php` (`$statusCode === 3` seul) → Orange : 200, `failed`, `failure_reason = DeliveredToNetwork` ; Mtarget : `Status=2` → `failed`, `Status=1` après `delivered` → `failed` ; le comportement tient, mais quels codes sont terminaux chez Orange Sénégal et dans le push Mtarget n'est établi par aucun document du dépôt. Classement : V7, écrire la table des statuts terminaux est un choix tant que le vocabulaire des fournisseurs n'est pas lu.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : tests par fournisseur (Orange `DeliveredToNetwork`, `DeliveryUncertain`, `MessageWaiting`, `DeliveryNotificationNotSupported`, inconnu ; Mtarget poussé 0, 1, 2, 5, 99, absent, 1 après 3 ; LAM 16 et absent) → avant correctif 6 rouges, chacun écrit `failed` ; tables `TERMINAL_STATUSES` (Orange `DeliveredToTerminal`/`DeliveryImpossible`, Mtarget 3/4/6, LAM 6/4/2/12/23), tout autre statut ignoré avec un `Log::warning` → verts ; ablation : contrôleurs remis à l'état de TCK-796 → 6 rouges.
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
