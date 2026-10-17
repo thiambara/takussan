@@ -50,16 +50,21 @@ Un compte affiché au singulier s'accorde au singulier, en français comme en an
 
 - [x] `fr.json` et `en.json` : `plural` sur les messages qui s'accordent.
 - [x] Appelants : `String(n)` et `formatNumber(…)` remplacés par le nombre (`#` le formate).
-- [x] `scripts/check-i18n.mjs` : contrôle D, `{count} <lettre>` ou `<lettre>(s)` hors `plural`
-      en `fr` et `en`, avec la liste écrite des messages invariables.
+- [x] `scripts/i18n-pluriels.mjs` (neuf) : `{count} <lettre>` ou `<lettre>(s)` hors `plural`
+      en `fr` et `en`, avec la liste écrite des messages invariables ; gardé par le test vitest.
 - [x] Un test vitest qui rend les messages convertis à 1 et à 2.
 
 ## Critères d'acceptation
 
 - [x] AC1 — `nav.propertiesCount` rend « 1 bien » et « 2 biens » en `fr`, « 1 listing » et
       « 2 listings » en `en` ; de même pour chaque message converti.
-- [x] AC2 — `node scripts/check-i18n.mjs` rougit sur un `{count} biens` neuf hors `plural`.
+- [x] AC2 — `src/i18n/__tests__/pluriels.test.ts` rougit sur un `{count} biens` neuf hors `plural`.
 - [x] AC3 — `wo.json` inchangé.
+
+## Reste à faire
+
+- Brancher `accordsManquants` dans `scripts/check-i18n.mjs` : garde existante, que l'implémenteur
+  des pistes ne modifie pas (ADR-0066, V9).
 
 ## Hors périmètre
 
@@ -69,7 +74,10 @@ Un compte affiché au singulier s'accorde au singulier, en français comme en an
 ## Notes d'implémentation
 
 - **Ablation** : `fr.json` et `en.json` d'avant remis → `pluriels.test.ts` 11 rouges sur 17, et
-  `check-i18n` relève 52 messages (fr et en) ; correctif remis → 17 verts, garde verte.
+  `accordsManquants` relève 52 messages (fr et en) ; correctif remis → 17 verts.
+- Le branchement dans `check-i18n.mjs`, d'abord écrit, a été retiré : `check-pistes --role
+  implementeur` refuse toute modification d'une garde existante (V9). La règle vit dans un module
+  neuf, et c'est le test vitest qui la tient en CI.
 - ICU `plural` ne lit qu'un nombre : `formatNumber(…)` (« 1 500 ») y rend `NaN`. Les appelants
   passent le nombre, et `#` le formate. Pour garder « 1,500 » en anglais, `publishedHint` (`en`,
   invariable) passe à `{count, number}`.
