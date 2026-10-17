@@ -25,8 +25,8 @@ import { nommer, resoudreImport } from './analyse-statique';
 function directive(source: ts.SourceFile): 'client' | 'server' | null {
   for (const instruction of source.statements) {
     if (!ts.isExpressionStatement(instruction) || !ts.isStringLiteral(instruction.expression)) break;
-    if (instruction.expression.text === 'use client') return 'client';
-    if (instruction.expression.text === 'use server') return 'server';
+    const lue = /^use (client|server)$/.exec(instruction.expression.text);
+    if (lue) return lue[1] as 'client' | 'server';
   }
   return null;
 }
