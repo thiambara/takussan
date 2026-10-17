@@ -4031,7 +4031,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Aucun accusé LAfricaMobile ne peut passer : l'URL signée ne couvre pas les paramètres que LAM y ajoute
 - Réf : P36.01
-- Statut : validé — exclure de la vérification les paramètres ajoutés par LAM (`push_id`, `ret_id`, `to`, `status`, `text`), dans le middleware `signed` de la route comme dans le contrôleur ; tests réécrits depuis le `ret_url` réellement émis par le pilote ; reste : confirmer sur un vrai rappel de LAM
+- Statut : fait · TCK-795 — reste : confirmer sur un vrai rappel de LAM
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:85,128-140`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:32,50-53`, `takussan-api/tests/Feature/Http/Webhook/LAfricaMobileSmsWebhookTest.php:44-50`
 - Constat :
@@ -4042,6 +4042,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Établi comment : lecture et mesure. Que LAM ajoute ses paramètres à l'URL plutôt que de la remplacer est la lecture des docblocks, non une capture d'un rappel réel.
 - Piste : exclure les paramètres du fournisseur de la vérification (`hasValidSignature(ignoreQuery: ['push_id', 'ret_id', 'to', 'status', 'text'])`), ou signer un chemin sans requête et vérifier à la main. Un test qui part du `ret_url` réellement émis par le pilote et y ajoute les paramètres de LAM garde le correctif ; les tests existants qui signent les paramètres de LAM sont à réécrire sur ce modèle.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) qui prend le `ret_url` produit par `LAfricaMobileSmsDriver::buildReturnUrl()` lui-même (par réflexion), sous `php artisan test`, charge 2,47 / 2,21 / 2,12 sur 8 cœurs ; relu `LAfricaMobileSmsStatusController.php:32` et la route, qui porte aussi le middleware `signed` (`routes/api/sms-webhooks.php`) ; `git log` des contrôleurs et pilotes : rien depuis TCK-727 → `ret_url` + `&push_id=lam-real&ret_id=x&to=…&status=6&text=DELIVRD` rend 403 `http.forbidden`, tentative restée `sent` ; `ret_url` nu rend 404 ; le constat tient en entier, et le correctif doit traiter le middleware `signed` de la route autant que `hasValidSignature()` du contrôleur. Classement : V2, le correctif desserre la signature qui authentifie le rappel, et que LAM ajoute ses paramètres sans remplacer l'URL reste tiré du seul docblock.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : `LAfricaMobileSmsWebhookTest` réécrit depuis le `ret_url` capturé dans la requête sortante du pilote, augmenté de `push_id`, `ret_id`, `to`, `status`, `text` → avant correctif 403 sur l'accusé `status=6` (3 rouges sur 6) ; `signed:push_id,ret_id,to,status,text` sur la route et `hasValidSignatureWhileIgnoring()` dans le contrôleur → 6 verts (notification ou expiration changées et URL expirée toujours 403, mauvais jeton 404) ; ablation : route seule → 3 rouges, contrôleur seul → 2 rouges.
 
 ### Les accusés SMS poussés écrasent le dernier statut : un `sent` tardif ou rejoué efface un `delivered`
 - Réf : P36.02
