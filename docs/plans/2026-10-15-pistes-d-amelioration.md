@@ -1094,7 +1094,7 @@ Sain (vérifié par l'agent) :
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
 - Réf : P07.10
-- Statut : validé — outline blanc de 2 px décalé sur le marqueur ; aria-label sur la visionneuse ; entrée verrouillée focusable, raison en sr-only
+- Statut : fait · TCK-754
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
 - Constat :
@@ -1103,6 +1103,7 @@ Sain (vérifié par l'agent) :
   - `<span role="link" aria-disabled title>` n'est pas focusable, et la raison du verrou n'est que dans `title` (signalé par TCK-371, toujours présent).
 - Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `globals.css:772-778` (`.takussan-price-marker__pill:focus-visible` = même règle que `:hover`, `background: #b66c43` contre `#c87a52` au repos, `outline: none`) ; calcul WCAG en `node` → 1,22:1 entre les deux fonds ; `PropertyLightbox.tsx:55` : `DialogPrimitive.Popup` sans `aria-label` ni `Title` (les seuls `aria-label` sont les boutons l.63,93,101) ; `AppSidebar.tsx:557-568` : `<span role="link" aria-disabled="true" title={t('proLocked')}>` sans `tabIndex` → les trois constats tiennent. Classement : V7, le nom de la visionneuse serait A4, mais le contour du marqueur est un dessin neuf et rendre focusable une entrée verrouillée change le parcours clavier de la barre latérale.
+- Mesure (2026-10-17, dfff1f69, implementeur) : relu `globals.css:774-780` (`:focus-visible` partagé avec `:hover`, `outline: none`), `PropertyLightbox.tsx:55` (`Popup` sans nom) et `AppSidebar.tsx:557-568` (span cadenassé sans `tabIndex`) → les trois tiennent ; trois tests neufs (`marqueur-focus.test.ts`, `PropertyLightbox.a11y.test.tsx`, un cas d'`AppSidebar.test.tsx`) rouges avant correctif → règle `:focus-visible` à `outline: 2px solid #ffffff` décalé de 2 px, `aria-label` « Photos : {title} » sur la visionneuse (`wo` = texte français), `tabIndex={0}` et raison en `sr-only` ; ablation (sources d'avant) → les 3 mêmes rouges, correctif remis → verts, 345 tests verts sur `components/layout`, `components/map` et la fiche publique.
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11
