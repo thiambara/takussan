@@ -4242,7 +4242,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les membres d'un groupe neuf ne reçoivent aucune notification ; seuls ceux qu'on ajoute après coup sont prévenus
 - Réf : P38.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:43-91,146-160`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:144-160`, `takussan-web/src/components/messages/NewGroupDialog.tsx:130`
 - Constat :
@@ -4251,10 +4251,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : un groupe créé avec deux membres → 0 ligne `app_notifications` pour chacun ; un troisième membre ajouté ensuite par `POST …/participants` → 1 ligne.
   - Aucun test ne cite `ConversationInviteNotification` (mesuré : `grep -rln ConversationInviteNotification tests --include='*.php'` → rien).
 - Piste : envoyer l'invitation depuis `create()`, hors transaction, comme `addParticipants()`. Un test sur `POST /api/conversations` en groupe : chaque membre, sauf le créateur, reçoit une notification.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `GroupConversationService::create()` (attache les membres, aucune notification, aucun message système) contre `addParticipants()` (notifie hors transaction) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe créé par `POST /api/conversations` avec deux membres → 0 ligne `app_notifications` chacun, troisième membre ajouté par `POST …/participants` → 1 ; `git log 63fb933cd..7c7bd05bf` sur la messagerie → aucun commit ; aucun ticket ne le traite. Classement : A1, l'en-tête du service (l. 25) et TCK-085 (l. 121, 163) écrivent déjà que les nouveaux participants reçoivent `ConversationInviteNotification`, et le correctif réutilise la boucle d'`addParticipants()` sans choix de produit.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : un contact privé lu par les membres d'un groupe ; le cas d'une directe quittée est à trancher
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
 - Constat :
@@ -4262,10 +4263,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : sur un bien, un groupe réunit le propriétaire (admin), un tiers, et le visiteur, qui l'a quitté. Le visiteur envoie « Prive » par `POST /api/public/properties/{slug}/contact-message`. Résultat : la réponse rend l'identifiant du groupe, le tiers lit « Prive » dans ce groupe, et le visiteur reçoit 403 sur le fil vers lequel `redirect_to` l'envoie.
   - Le même chemin, quand le visiteur est encore membre du groupe, montre à tout le groupe un message écrit depuis un formulaire de contact privé (déduit de la même requête, non mesuré séparément).
 - Piste : restreindre `query()` aux conversations `direct` dont les deux participations sont actives (`left_at` nul). Un test : un groupe sur le bien ne capte pas le contact, et un fil neuf s'ouvre.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `PropertyConversationResolver::query()` : ni `type = direct` ni `left_at` ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe sur le bien (propriétaire admin, tiers, visiteur qui l'a quitté), puis `POST /api/public/properties/{slug}/contact-message` du visiteur → la réponse rend l'identifiant du groupe (type `group`), et `GET …/messages` du visiteur sur ce fil → 403. Constat confirmé tel qu'écrit. Classement : V3, le correctif change ce qui est exposé à des tiers, et restreindre aux participations actives décide aussi du sort d'une directe quittée (fil neuf ou reprise), qui est un choix de produit.
 
 ### Un premier message joint à la création d'une conversation ne déclenche aucune notification
 - Réf : P38.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:102-114,153-159,329`
 - Constat :
@@ -4273,10 +4275,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : une directe créée avec `initial_message` → 0 notification pour le destinataire ; le message suivant, par `POST …/messages` → 1.
   - Aucun écran du front n'envoie `initial_message` aujourd'hui : la directe n'a pas d'appelant, et `CreateGroupConversationPayload` ne porte pas ce champ (`conversations.ts:405-425`, lu). Le défaut est donc dans l'API, sans parcours qui l'atteigne : 🟠 et non 🔴.
 - Piste : dispatcher `NotifyNewMessageJob` après la transaction, dans les deux branches, ou retirer `initial_message` du contrat. Un test par branche.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `store()` (directe) et `storeGroup()` : le message `initial_message` est créé sans `NotifyNewMessageJob`, que seul `sendMessage()` dispatche ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : directe créée avec `initial_message` → 0 notification pour le destinataire, message suivant par `POST …/messages` → 1. Classement : A1, TCK-085 (l. 143, 163) fait passer toute notification de nouveau message par `NotifyNewMessageJob` (sourdine et départs compris), et le correctif attendu est de le dispatcher après la transaction dans les deux branches, sans retirer `initial_message` du contrat.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un contact par annonce doit-il percer la sourdine ?
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
 - Constat :
@@ -4284,10 +4287,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : le destinataire passe le fil en sourdine et l'archive, puis le visiteur écrit une seconde fois par la fiche. Le destinataire reçoit une notification (1 → 2), et le fil reste archivé (`archived_at` non nul).
   - Le docblock de `toggleMute()` dit que les notifications respectent ce drapeau (`ConversationController.php:191-195`).
 - Piste : faire passer `contactMessage()` par le même chemin d'envoi que `sendMessage()` (désarchivage, puis `NotifyNewMessageJob`). Choisir avant si un contact par annonce doit percer la sourdine.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `contactMessage()` : ni désarchivage, ni passage par `NotifyNewMessageJob`, `NotificationService::send()` direct ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : le destinataire passe le fil en sourdine et l'archive, deuxième contact par la fiche → notifications 1 → 2, `archived_at` toujours non nul. Classement : V7, la piste elle-même demande de choisir si un contact d'annonce perce la sourdine avant d'aligner les deux chemins.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : retirer l'accès d'un agent à un fil qu'il lit aujourd'hui ; à qui appartient le fil d'un prospect
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:27-51`, `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`
 - Constat :
@@ -4295,10 +4299,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : un agent collaborateur du bien reçoit un contact (« Mon numero 77 000 00 00 »). Sa ligne `property_collaborators` est ensuite supprimée. L'agent lit encore le fil (`GET …/messages` → 200, avec le numéro) et y écrit (`POST` → 201). La relance du visiteur par la fiche ouvre un fil neuf avec le nouveau contact principal (conversation 2), et l'historique reste chez l'ancien agent.
   - Aucune règle écrite ne dit qui garde un fil de prospect après la fin d'une collaboration ou le départ d'un agent (à vérifier dans `docs/features.md` § 1.7 et ADR-0053).
 - Piste : décider à qui appartient le fil d'un prospect : à l'agence, et suit-il le contact principal ? Puis l'appliquer dans `ConversationAccess`, comme TCK-592 l'a fait pour les fils d'intervention, avec un test « collaboration retirée → 403 ».
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `ConversationAccess::allows()` : participation active et branche intervention seulement ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : contact reçu par l'agent collaborateur, ligne `property_collaborators` supprimée → l'agent lit (`GET …/messages` 200) et écrit (`POST` 201), la relance du visiteur ouvre un fil neuf (conversation 9 au lieu de 8). Classement : V2, le correctif retire une autorisation dont l'agent se sert aujourd'hui, et dépend d'une règle d'appartenance du fil que rien n'écrit.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : l'e-mail de l'expéditeur exposé au destinataire ; le repli affiché est à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
 - Constat :
@@ -4306,10 +4311,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Mesuré (test temporaire) : un expéditeur sans prénom ni nom (`secret@example.test`) écrit dans une directe. Le destinataire reçoit `params` = `{"sender":"secret@example.test","excerpt":"x"}`.
   - `ConversationResource` pose la règle inverse pour les membres d'un fil : « le nom et l'avatar, jamais les coordonnées » (l. 43-44). La même règle vaut pour `MessagingContactResource`.
 - Piste : un repli sans coordonnée (`—`, comme TCK-588 le fait pour un expéditeur absent), commun aux trois chemins. Un test qui épingle les `params` d'un expéditeur sans nom.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `NotifyNewMessageJob` (repli `$sender->email`), `ConversationInviteNotification::displayInviter()` (repli `email`) et `PublicPropertyController::displayName()` (`username`, puis `email`) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : expéditeur sans prénom ni nom (`secret@example.test`) écrit dans le fil → `params` = `{"sender": "secret@example.test", "excerpt": "x"}` ; par la fiche, le même compte avec un `username` rend ce `username`, l'e-mail n'y sort que si `username` est vide (déduit de la ligne lue). Classement : V3, le correctif décide de ce qui est exposé au destinataire, et le repli (`—`, `username`) reste à choisir pour le chemin public.
 
 ### Petites améliorations
 - Réf : P38.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : quatre correctifs indépendants, dont un choix de produit (V7, `last_read_at`) et un code de notification neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ConversationInviteNotification.php:73-84`, `takussan-web/src/components/notifications/NotificationRow.tsx:41`, `takussan-api/app/Policies/ConversationPolicy.php:29-37`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:38`, `takussan-api/app/Services/Messaging/GroupConversationService.php:115-134`
 - Constat :
@@ -4318,3 +4324,4 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `index()` charge tous les participants, partis compris (`participants.media`, l. 38), là où `show()` ne garde que les actifs. Le front filtre `left_at`, mais le nom et l'avatar des anciens membres partent quand même dans la liste (lu).
   - Une ré-invitation (l. 115-134) remet `left_at` et `archived_at` à nul, mais garde l'ancien `last_read_at`. Tout ce qui a été écrit pendant l'absence compte alors comme non lu (déduit, à vérifier).
 - Piste : faire passer l'invitation par `NotificationCode`, avec la cible `conversation`. Refuser `removeParticipant` sur une directe. Filtrer `left_at` dans le chargement de `index()`. Décider du `last_read_at` d'une ré-invitation.
+- Mesure (2026-10-17, 7c7bd05bf, mesureur) : test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : invitation → ligne `code: null, target: null, title: "Invitation à un groupe : G"` ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend le membre parti d'un groupe avec son `left_at` ; ré-invitation après un message écrit pendant l'absence → `unread_count` = 1 pour le ré-invité (le point « à vérifier » tient). Lu côté front : seul un groupe ouvre `ConversationInfoSheet` (`ChatView.tsx`, `isGroup && !isWidget`), donc aucun écran n'offre de quitter une directe. Classement : V8, quatre correctifs sans lien qui font plus d'un ticket, et le `last_read_at` d'une ré-invitation est un choix de produit (V7).
