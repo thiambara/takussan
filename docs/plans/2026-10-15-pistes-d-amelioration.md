@@ -624,12 +624,13 @@ contre le code par la session.*
 
 ### Lemon Squeezy ignore la devise du payable
 - Réf : P04.07
-- Statut : validé — refus à l'initiation quand la devise du payable diffère de celle de la boutique
+- Statut : fait · TCK-735
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/LemonSqueezyDriver.php:47-55,164`
 - Constat : `$currency` n'est pas lu, et `custom_price` est exprimé dans la devise de la boutique. `extractFees()` mélange `total_usd` et des taxes en devise de boutique (lu ; comportement de l'API à vérifier).
 - Piste : refuser quand la devise du payable diffère de celle de la boutique.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `LemonSqueezyDriver::initiate()` (lignes 47-60 : `$currency` jamais lu, `custom_price => $amountCents`) et `extractFees()` (`gross` = `total` ou `total_usd`, `net` = `total_usd` ou `total` moins `tax` et `discount_total`, devise par défaut `USD`). Le code tient tel que décrit ; le comportement de l'API Lemon Squeezy n'est pas re-mesuré (hors poste). Classement : V1, montant et devise d'un paiement.
+- Mesure (2026-10-17, 0456a55f, implementeur) : reproduit avant correctif par `LemonSqueezyStoreCurrencyTest` → un payable en EUR sur une boutique en USD ouvre un checkout (`POST /v1/checkouts` envoyé, aucun refus), de même qu'une boutique sans devise lisible : 2 rouges sur 3. Correctif : `initiate()` lit `GET /v1/stores/{id}` et rend 422 `payment.currency_unsupported` sur une autre devise, 502 `payment.provider_unavailable` sur une devise illisible, avant tout checkout ; 3 verts. Ablation (comparaison retirée) → les 2 mêmes rouges ; remise → verts. La devise de boutique dans `attributes.currency` vient de la documentation de l'API, non re-mesurée (hors poste).
 
 ### Arrondis au centime sur du XOF
 - Réf : P04.08
