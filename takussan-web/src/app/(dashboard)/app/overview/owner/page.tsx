@@ -226,7 +226,7 @@ function DashboardLinkLine({
       href={href}
       // `bg-card/70` sur une carte `bg-card` ne se voyait pas : la ligne n'avait ni fond ni
       // survol visibles. Même surface que les lignes de la vue agent.
-      className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
     >
       <span className="text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground tabular-nums">{value}</span>

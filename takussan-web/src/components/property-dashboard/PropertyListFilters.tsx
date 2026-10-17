@@ -357,7 +357,7 @@ export function PropertyListFilters({
               key={chip.key}
               type="button"
               onClick={() => updateParam(chip.key, null)}
-              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring/50 lg:min-h-7 lg:px-2.5"
+              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring lg:min-h-7 lg:px-2.5"
             >
               <span className="text-muted-foreground">{chip.label}:</span>
               <span className="font-medium">{chip.value}</span>
@@ -370,7 +370,7 @@ export function PropertyListFilters({
           <button
             type="button"
             onClick={resetAll}
-            className="shrink-0 whitespace-nowrap rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="shrink-0 whitespace-nowrap rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
           >
             {t('resetAll')}
           </button>
@@ -406,7 +406,7 @@ export function PropertyListFilters({
               <button
                 type="button"
                 onClick={resetAll}
-                className="mt-1 shrink-0 rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="mt-1 shrink-0 rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
               >
                 {t('resetAll')}
               </button>
@@ -426,7 +426,7 @@ export function PropertyListFilters({
                   {sortOptions.map((opt) => (
                     <label
                       key={opt.value}
-                      className="relative flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-muted/60 px-3 text-center text-sm text-foreground transition-colors has-checked:bg-primary has-checked:font-medium has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+                      className="relative flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-muted/60 px-3 text-center text-sm text-foreground transition-colors has-checked:bg-primary has-checked:font-medium has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring"
                     >
                       <input
                         type="radio"
@@ -488,7 +488,7 @@ function Toggle({
   return (
     <label
       className={cn(
-        'inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+        'inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring',
         checked
           ? 'bg-primary/15 text-foreground'
           : 'bg-muted/50 text-muted-foreground hover:bg-muted',
@@ -516,7 +516,7 @@ function LigneACocher({
   readonly onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm text-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm text-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring">
       {label}
       <input
         type="checkbox"

@@ -69,7 +69,7 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
             <Star className="size-4 fill-primary text-primary" aria-hidden />
             <span className="font-display text-lg font-semibold">{average.toFixed(1)}</span>
             <span className="text-muted-foreground">
-              {t('count', { count: String(count) })}
+              {t('count', { count })}
             </span>
           </p>
         )}

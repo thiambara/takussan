@@ -588,6 +588,24 @@ describe('accessibilité du <nav>', () => {
       expect(entree.className).not.toContain('opacity-60');
     }
   });
+
+  it('l’entrée cadenassée se joint au clavier et dit pourquoi (TCK-754)', () => {
+    pathname = '/app';
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <AppSidebar user={userWith(['agency_admin'])} agencyIsStandard={false} />
+        </QueryClientProvider>,
+      ),
+    );
+    const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
+    expect(cadenasses).toHaveLength(2);
+    for (const entree of cadenasses) {
+      expect(entree).toHaveAttribute('tabindex', '0');
+      expect(entree.querySelector('.sr-only')).toHaveTextContent('Réservé aux comptes pro');
+    }
+  });
 });
 
 /**

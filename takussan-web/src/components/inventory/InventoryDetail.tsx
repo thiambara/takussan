@@ -239,7 +239,7 @@ function RoomCard({
                   }}
                   disabled={deletingId !== null}
                   aria-label={t('deleteRoomPhotoAria', { index: i + 1, room: room.name })}
-                  className="absolute right-1 top-1 inline-flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-60"
+                  className="absolute right-1 top-1 inline-flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60"
                 >
                   {deletingId === photo.id ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />

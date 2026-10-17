@@ -135,7 +135,7 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
           {/* ADR-0049 §3 — le détail par bail vit dans le grand livre. */}
           <Link
             href="/app/commissions"
-            className="mt-3 inline-block rounded-sm text-sm font-semibold text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="mt-3 inline-block rounded-sm text-sm font-semibold text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
           >
             {t('commissionsDetail')}
           </Link>
@@ -148,7 +148,7 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
             <ul className="space-y-3">
               {(data.visits?.today_items ?? []).map((visit) => (
                 <li key={visit.id} className="text-sm">
-                  <Link href={`/app/visits/${visit.id}`} className="rounded-sm font-semibold text-foreground tabular-nums outline-none transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <Link href={`/app/visits/${visit.id}`} className="rounded-sm font-semibold text-foreground tabular-nums outline-none transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring">
                     {formatTime(visit.scheduled_at, locale, t('timeUnknown'))} · {visit.property?.title ?? t('propertyFallback')}
                   </Link>
                   <p className="text-xs text-muted-foreground">
@@ -187,7 +187,7 @@ export default async function AgentDashboardPage({ searchParams }: Props = {}) {
                     </span>
                   </div>
                   {task.customer ? (
-                    <Link href={`/app/customers/${task.customer.id}`} className="mt-2 inline-block rounded-sm text-xs font-semibold text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50">
+                    <Link href={`/app/customers/${task.customer.id}`} className="mt-2 inline-block rounded-sm text-xs font-semibold text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
                       {t('open')} {task.customer.name}
                     </Link>
                   ) : null}
@@ -281,7 +281,7 @@ function BasculePortee({
   readonly agence: boolean;
   readonly t: (cle: string) => string;
 }) {
-  const onglet = 'inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50';
+  const onglet = 'inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring';
   const actif = 'bg-card text-foreground shadow-sm';
   const inactif = 'text-muted-foreground hover:text-foreground';
   return (
@@ -318,7 +318,7 @@ function MetricLink({
   return (
     <Link
       href={href}
-      className="mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm outline-none transition-colors last:mb-0 hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm outline-none transition-colors last:mb-0 hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring"
     >
       <span className="text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground tabular-nums">{formatNumber(value, locale)}</span>

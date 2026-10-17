@@ -653,7 +653,7 @@ function WelcomeStep({ agentProfileId }: { agentProfileId: number }) {
           <a
             href={`/app/customers/${lead.id}`}
             data-testid={`agent-first-lead-${lead.id}`}
-            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
           >
             <div className="flex min-w-0 flex-col">
               <span className="font-medium text-foreground">{lead.full_name}</span>

@@ -151,7 +151,7 @@ export function ParticipantPicker({
             placeholder={t('participantInputPlaceholder')}
             autoComplete="off"
             // 44 px : c'est le champ principal de l'étape, et il se tape au pouce.
-            className="h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-10 pl-9 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+            className="h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-10 pl-9 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring md:text-sm"
           />
           {enAttente && open ? (
             <Loader2

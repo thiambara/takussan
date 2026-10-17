@@ -92,7 +92,7 @@
     "searchAria": "Run search",
     "moreTypes": "More types",
     "more": "More",
-    "propertiesCount": "{count} listings",
+    "propertiesCount": "{count, plural, one {# listing} other {# listings}}",
     "userMenuFor": "User menu — {name}",
     "accountFallback": "My account",
     "administration": "Administration",
@@ -294,9 +294,9 @@
     "loading": "Loading…",
     "truncated": "{count}+ properties — zoom in to refine",
     "onMap": "{count, plural, =0 {No properties on the map} one {# property on the map} other {# properties on the map}}",
-    "clusterZoom": "{count} properties here — zoom in to see them",
-    "clusterList": "{count} properties close together — see the list",
-    "clusterListTitle": "{count} properties close together"
+    "clusterZoom": "{count, plural, one {# property here — zoom in to see it} other {# properties here — zoom in to see them}}",
+    "clusterList": "{count, plural, one {# property close by — see the list} other {# properties close together — see the list}}",
+    "clusterListTitle": "{count, plural, one {# property close by} other {# properties close together}}"
   },
   "publicContact": {
     "title": "Send a message",
@@ -752,8 +752,8 @@
       "yearly": "Yearly"
     },
     "detail": {
-      "reviewsCount": "({count} reviews)",
-      "viewsCount": "{count} views",
+      "reviewsCount": "({count, plural, one {# review} other {# reviews}})",
+      "viewsCount": "{count, plural, one {# view} other {# views}}",
       "reference": "Ref. {value}",
       "featured": "Featured",
       "shareAria": "Share this property",
@@ -828,6 +828,7 @@
       "next": "Next",
       "gallery": {
         "close": "Close",
+        "viewerLabel": "Photos: {title}",
         "previousPhoto": "Previous photo",
         "nextPhoto": "Next photo",
         "noPhoto": "No photo",
@@ -879,7 +880,7 @@
     },
     "reviews": {
       "title": "Reviews",
-      "countSuffix": "{count} reviews",
+      "countSuffix": "{count, plural, one {# review} other {# reviews}}",
       "loading": "Loading reviews…",
       "empty": "No reviews yet.",
       "notEligible": "You will be able to leave a review after a completed visit or a signed lease on this property.",
@@ -1227,7 +1228,7 @@
         "favorites": "Favourites",
         "favoritesHint": "Users who pinned it",
         "rating": "Average rating",
-        "ratingHint": "{count} reviews",
+        "ratingHint": "{count, plural, one {# review} other {# reviews}}",
         "address": "Address",
         "addressHint": "Location visible on the public record.",
         "edit": "Edit",
@@ -1658,9 +1659,9 @@
         "placeLater": "Location to come",
         "priceLater": "Price to come",
         "entryTitle": "Move-in cost",
-        "entryAdvance": "{count} months in advance",
-        "entryDeposit": "{count} months of deposit",
-        "entryFee": "{count} months of agency fees",
+        "entryAdvance": "{count, plural, one {# month in advance} other {# months in advance}}",
+        "entryDeposit": "{count, plural, one {# month of deposit} other {# months of deposit}}",
+        "entryFee": "{count, plural, one {# month of agency fees} other {# months of agency fees}}",
         "entryCharges": "{amount} of charges per month",
         "entryNote": "Indicative amount based on your answers; the published listing is authoritative.",
         "entryTotal": "Total on move-in: {amount}",
@@ -2225,13 +2226,13 @@
     },
     "agencyKpis": {
       "properties": "Properties",
-      "publishedHint": "{count} published",
+      "publishedHint": "{count, number} published",
       "activeLeases": "Active leases",
       "occupancyRate": "Occupancy rate",
       "revenueMonth": "Revenue this month",
       "overdue": "Overdue",
       "unpaidRate": "Unpaid rate",
-      "rentedHint": "{count} properties rented",
+      "rentedHint": "{count, plural, one {# property rented} other {# properties rented}}",
       "commissionHint": "Commissions: {amount}"
     },
     "agencyActivity": {
@@ -3186,7 +3187,7 @@
       },
       "attachmentRejected": "File rejected.",
       "uploadFailed": "The file couldn't be uploaded. Try again.",
-      "participants": "{count} participants",
+      "participants": "{count, plural, one {# participant} other {# participants}}",
       "viewProperty": "View property",
       "groupInfoAria": "Group info",
       "loadError": "Messages could not be loaded.",
@@ -5348,7 +5349,7 @@
     "multiAgency": {
       "welcomeAgency": "Welcome to {agency}",
       "welcomeGeneric": "A new agency awaits you",
-      "subtitle": "You now collaborate with {count} agency(ies). Your profile, KYC and trades are shared.",
+      "subtitle": "You now collaborate with {count, plural, one {# agency} other {# agencies}}. Your profile, KYC and trades are shared.",
       "status": {
         "active": "Active",
         "paused": "Paused",
@@ -6620,7 +6621,7 @@
       "drop_description": "Release to upload this file.",
       "upload_cta": "Upload a document",
       "error": "The documents could not be loaded.",
-      "count": "{count} document(s)",
+      "count": "{count, plural, one {# document} other {# documents}}",
       "delete_error": "Could not delete this document.",
       "verified": "Verified",
       "versions": "Versions",
@@ -7130,7 +7131,7 @@
       "titleCustomer": "Your visitor feedback",
       "titleAgent": "Agent feedback",
       "ratingLabel": "Rating (1 to 5)",
-      "starsAria": "{count} stars",
+      "starsAria": "{count, plural, one {# star} other {# stars}}",
       "commentLabel": "Comment (optional)",
       "placeholderCustomer": "What you thought of the property…",
       "placeholderAgent": "Feedback on how the visit went…",
@@ -7275,7 +7276,7 @@
       "empty_title": "No editable business enum",
       "empty_description": "Business value lists will show up here as soon as one is declared.",
       "navLabel": "Editable enums",
-      "valuesCount": "{count} values",
+      "valuesCount": "{count, plural, one {# value} other {# values}}",
       "addValue": "Add a value",
       "editValue": "Edit the value",
       "value": "Value",
@@ -7465,7 +7466,7 @@
       "preview": "Preview",
       "subject": "Subject",
       "body": "Body",
-      "smsSegments": "{count} segment(s)",
+      "smsSegments": "{count, plural, one {# segment} other {# segments}}",
       "previewTitle": "Preview"
     },
     "users": {
@@ -7508,7 +7509,7 @@
       "empty_description": "Publish an announcement to inform the platform's users.",
       "title": "Broadcast announcements",
       "subtitle": "Active, scheduled or expired broadcasts.",
-      "countBadge": "{count} announcements",
+      "countBadge": "{count, plural, one {# announcement} other {# announcements}}",
       "colTitle": "Title",
       "colSeverity": "Severity",
       "colSegment": "Segment",
@@ -7607,7 +7608,7 @@
       "detailUuid": "UUID",
       "detailException": "Exception",
       "confirmRetryAllTitle": "Retry every failed job",
-      "confirmRetryAllDescription": "{count} failed job(s) will be queued again at once. Past 500, the API refuses the batch.",
+      "confirmRetryAllDescription": "{count, plural, one {# failed job will be queued again at once.} other {# failed jobs will be queued again at once.}} Past 500, the API refuses the batch.",
       "confirmDeleteTitle": "Delete a failed job",
       "confirmDeleteDescription": "{count} failed job (#{id}) will be purged for good, with its payload and its trace.",
       "retryError": "Retrying this job failed.",
@@ -7888,7 +7889,7 @@
       "integrations": {
         "title": "Third-party integrations",
         "subtitle": "Configure payment, messaging and email providers without exposing secrets.",
-        "criticalDown": "{count} critical payment integration down."
+        "criticalDown": "{count, plural, one {# critical payment integration down.} other {# critical payment integrations down.}}"
       },
       "settings": {
         "title": "Platform settings",
@@ -8121,7 +8122,7 @@
         "review": "Review",
         "agencyFallback": "Agency #{id}",
         "agencyRef": "#{id}",
-        "plannedAgents": " · {count} planned agent(s)",
+        "plannedAgents": " · {count, plural, one {# planned agent} other {# planned agents}}",
         "userFallback": "User #{id}",
         "columns": {
           "agency": "Agency",
@@ -8146,7 +8147,7 @@
         "delay": {
           "today": "Today",
           "oneDay": "1 day",
-          "days": "{count} days"
+          "days": "{count, plural, one {# day} other {# days}}"
         },
         "pagination": {
           "previous": "Previous",
@@ -9908,7 +9909,7 @@
     },
     "growth": {
       "total": "Total:",
-      "chartAria": "Monthly trend — {metric}, {count} points."
+      "chartAria": "Monthly trend — {metric}, {count, plural, one {# point} other {# points}}."
     },
     "funnel": {
       "conversion": "Overall conversion:",
@@ -9930,7 +9931,7 @@
         "mrr": "MRR",
         "arr": "ARR"
       },
-      "chartAria": "Monthly MRR trend, {count} points.",
+      "chartAria": "Monthly MRR trend, {count, plural, one {# point} other {# points}}.",
       "chartCaption": "MRR per month, in XOF."
     },
     "cohorts": {
@@ -10067,7 +10068,7 @@
     "reviews": {
       "eyebrow": "Reviews & testimonials",
       "heading": "What clients say",
-      "count": "· {count} reviews",
+      "count": "· {count, plural, one {# review} other {# reviews}}",
       "ratingAria": "{rating} stars out of 5",
       "anonymous": "Anonymous"
     },
@@ -10698,7 +10699,7 @@
       "prospect_match": {
         "digest": {
           "title": "Properties match your prospects",
-          "body": "{properties} new or repriced property(ies) match {prospects} of your prospects."
+          "body": "{properties, plural, one {# new or repriced property matches} other {# new or repriced properties match}} {prospects} of your prospects."
         }
       },
       "property": {

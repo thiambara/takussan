@@ -59,7 +59,7 @@ export function PropertyKpiStrip({
             href={tile.href}
             aria-current={actif ? 'true' : undefined}
             className={cn(
-              'group flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
+              'group flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring',
               'lg:min-h-0 lg:flex-col lg:items-start lg:gap-1 lg:rounded-xl lg:px-4 lg:py-4',
               pastille,
               TONE_CLASSES[tile.tone ?? 'neutral'],

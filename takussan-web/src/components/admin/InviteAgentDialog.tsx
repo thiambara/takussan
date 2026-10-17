@@ -133,7 +133,7 @@ export function InviteAgentDialog({
                 id="invite-agent-first-name"
                 type="text"
                 autoComplete="given-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.first_name ? true : undefined}
                 {...register('first_name')}
               />
@@ -151,7 +151,7 @@ export function InviteAgentDialog({
                 id="invite-agent-last-name"
                 type="text"
                 autoComplete="family-name"
-                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.last_name ? true : undefined}
                 {...register('last_name')}
               />
@@ -172,7 +172,7 @@ export function InviteAgentDialog({
               type="email"
               autoComplete="email"
               placeholder={t('emailPlaceholder')}
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.email ? true : undefined}
               {...register('email')}
             />
@@ -191,7 +191,7 @@ export function InviteAgentDialog({
               id="invite-agent-phone"
               type="tel"
               autoComplete="tel"
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 aria-invalid={errors.phone ? true : undefined}
               {...register('phone')}
             />

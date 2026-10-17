@@ -257,7 +257,7 @@ describe('<ModerationBatchBar>', () => {
       ['review:12', 'review:13', 'property_report:2'],
       { decision: 'hide', reason_code: 'spam', reason: undefined },
     ));
-    expect(await within(barre).findByRole('status')).toHaveTextContent('1 traité(s), 1 en échec.');
+    expect(await within(barre).findByRole('status')).toHaveTextContent('1 traité, 1 en échec.');
     expect(within(barre).getByRole('status')).toHaveTextContent('review:13 — déjà tranché');
     expect(onDone).toHaveBeenCalled();
   });

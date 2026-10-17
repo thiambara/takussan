@@ -929,7 +929,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Pluriels absents
 - Réf : P06.10
-- Statut : validé — ICU plural en fr et en ; en wo une seule forme other qui reprend le texte actuel
+- Statut : fait · TCK-752 — reste : brancher la règle (`accordsManquants` de `takussan-web/scripts/i18n-pluriels.mjs`) dans `check-i18n.mjs`, garde existante que l'implémenteur ne modifie pas (V9)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
 - Constat :
@@ -938,6 +938,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `AgencyKpis` passe un nombre déjà formaté dans `count` (mesuré).
 - Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
 - Mesure (2026-10-15, e9f9289c, mesureur) : parcours de `fr.json` et `en.json` par node, motif `{count} <mot>` sans `plural` → 40 messages dans chaque langue (dont des cas neutres comme « {count} en attente »), et 9 formes « (s) » en `fr`, 5 en `en` (mesuré ; comptes plus bas que les 49/50/7 du constat) ; `fr.json:95` `nav.propertiesCount` = « {count} biens », lu par `Navbar.tsx:518` ; `AgencyKpis.tsx:42,52` passe `formatNumber(…)` dans `count` (lu) → tient. Classement : V7, les formes ICU demandent un texte wolof neuf, et la règle `check-i18n` proposée est une garde de plus à cadrer.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/i18n/__tests__/pluriels.test.ts` → 11 rouges sur 17 (« 1 biens loués », « 1 months of deposit », « 2 document(s) »), et la règle neuve `accordsManquants` (`scripts/i18n-pluriels.mjs`, tenue par ce test) relève 52 messages en fr et en (mesuré) → plural posé sur 24 messages fr et 27 en, appelants qui passaient `String(n)` ou `formatNumber(…)` ramenés au nombre, `wo.json` inchangé (wolof en pause : sa valeur `{count} …` rend déjà le texte actuel), messages invariables listés dans `scripts/i18n-pluriels.mjs` ; ablation (dictionnaires d'avant) → les 11 mêmes rouges, correctif remis → 17 verts.
 
 ### Titre d'annonce suggéré en langue mêlée
 - Réf : P06.11
@@ -1084,7 +1085,7 @@ Sain (vérifié par l'agent) :
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
-- Statut : validé — anneau de focus plein ; --input assombri à 3:1
+- Statut : fait · TCK-753
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
 - Constat :
@@ -1092,10 +1093,11 @@ Sain (vérifié par l'agent) :
   - `--input: #ebe5d5`, seul contour d'un champ, est à 1,26:1 (WCAG 1.4.11, mesuré).
 - Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `button.tsx:31` et `input.tsx:20` (`focus-visible:ring-3 focus-visible:ring-ring/50`), `globals.css:29` (`--background: #fcf9f3`), `:163-164` (`--input: #ebe5d5`, `--ring: #a85332`) ; calcul WCAG en `node` : `ring` à 50 % mêlé au fond → 2,08:1 contre `--background` ; `--input` → 1,20:1 contre `--background` et 1,26:1 contre le blanc → tient. Classement : V7, ni l'anneau plein ni un nouveau `--input` ne se ramènent sur un jeton existant : c'est une modification de la palette et du focus de toutes les primitives, un choix de dessin.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/test/__tests__/focus-et-contour-des-champs.contraste.test.ts` → 4 rouges sur 5 : 84 `ring-ring/50` dans 58 fichiers de `src/` plus `outline-ring/50` dans `globals.css:694`, `--input` à 1,20:1 sur `--background` et 1,26:1 sur `--card` (mesuré par `contraste-wcag.ts`) → anneaux et contour de base pleins, `--input` clair à `#918672` (3,41 / 3,59 / 3,04:1 sur fond, carte, muted), fond désactivé et séparateur de `TagsManager` passés sur `--border` pour garder leur aspect ; ablation (sources d'avant) → les 4 mêmes rouges, correctif remis → 5 verts, et 339 tests verts sur `src/test`, `ui/` et les tests a11y qui lisent l'anneau.
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
 - Réf : P07.10
-- Statut : validé — outline blanc de 2 px décalé sur le marqueur ; aria-label sur la visionneuse ; entrée verrouillée focusable, raison en sr-only
+- Statut : fait · TCK-754
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/globals.css:773-777`, `PropertyLightbox.tsx:55`, `takussan-web/src/components/layout/AppSidebar.tsx:557-568`
 - Constat :
@@ -1104,6 +1106,7 @@ Sain (vérifié par l'agent) :
   - `<span role="link" aria-disabled title>` n'est pas focusable, et la raison du verrou n'est que dans `title` (signalé par TCK-371, toujours présent).
 - Piste : un `outline` blanc de 2 px décalé ; `aria-label` sur le `Popup` ; `tabIndex={0}` et la raison en `sr-only`.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `globals.css:772-778` (`.takussan-price-marker__pill:focus-visible` = même règle que `:hover`, `background: #b66c43` contre `#c87a52` au repos, `outline: none`) ; calcul WCAG en `node` → 1,22:1 entre les deux fonds ; `PropertyLightbox.tsx:55` : `DialogPrimitive.Popup` sans `aria-label` ni `Title` (les seuls `aria-label` sont les boutons l.63,93,101) ; `AppSidebar.tsx:557-568` : `<span role="link" aria-disabled="true" title={t('proLocked')}>` sans `tabIndex` → les trois constats tiennent. Classement : V7, le nom de la visionneuse serait A4, mais le contour du marqueur est un dessin neuf et rendre focusable une entrée verrouillée change le parcours clavier de la barre latérale.
+- Mesure (2026-10-17, dfff1f69, implementeur) : relu `globals.css:774-780` (`:focus-visible` partagé avec `:hover`, `outline: none`), `PropertyLightbox.tsx:55` (`Popup` sans nom) et `AppSidebar.tsx:557-568` (span cadenassé sans `tabIndex`) → les trois tiennent ; trois tests neufs (`marqueur-focus.test.ts`, `PropertyLightbox.a11y.test.tsx`, un cas d'`AppSidebar.test.tsx`) rouges avant correctif → règle `:focus-visible` à `outline: 2px solid #ffffff` décalé de 2 px, `aria-label` « Photos : {title} » sur la visionneuse (`wo` = texte français), `tabIndex={0}` et raison en `sr-only` ; ablation (sources d'avant) → les 3 mêmes rouges, correctif remis → verts, 345 tests verts sur `components/layout`, `components/map` et la fiche publique.
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11

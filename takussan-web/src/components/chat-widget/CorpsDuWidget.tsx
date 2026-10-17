@@ -289,7 +289,7 @@ export function CorpsDuWidget() {
           aria-label={launcherAria}
           data-testid="chat-widget-launcher"
           className={cn(
-            'pointer-events-auto relative inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary pr-6 pl-5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
+            'pointer-events-auto relative inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary pr-6 pl-5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
             open && 'scale-95',
           )}
         >
@@ -316,7 +316,7 @@ export function CorpsDuWidget() {
         aria-label={launcherAria}
         data-testid="chat-widget-mobile-fab"
         style={{ bottom: mobileSlot.bottom }}
-        className="fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary pr-5 pl-4 text-sm font-semibold text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
+        className="fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary pr-5 pl-4 text-sm font-semibold text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:active:scale-100"
       >
         <MessageSquare className="size-5 shrink-0" aria-hidden />
         <span data-testid="chat-widget-mobile-fab-label">{t('launcherLabel')}</span>

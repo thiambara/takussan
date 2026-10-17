@@ -653,7 +653,7 @@ function RecapStep({ data, setData }: StepProps) {
         </p>
       ) : null}
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm transition-colors has-[:checked]:border-primary/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm transition-colors has-[:checked]:border-primary/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring">
         <input
           type="checkbox"
           checked={data.cgu_accepted}

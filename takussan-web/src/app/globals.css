@@ -160,7 +160,7 @@
 
   /* === Bordures & focus === */
   --border: #ebe5d5;
-  --input: #ebe5d5;
+  --input: #918672;
   --ring: #a85332;
 
   /* === Charts — variations tonales sur Lin === */
@@ -691,7 +691,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
@@ -777,6 +777,12 @@
   background: var(--primary-deep);
   box-shadow: 0 4px 12px rgba(31, 24, 18, 0.28);
   outline: none;
+}
+
+/* TCK-754 (P07.10) — le focus clavier ne se lit pas au seul fond (1,22:1 de l'état normal). */
+.takussan-price-marker__pill:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* TCK-553 — la grappe : un disque à l'encre du texte, qui porte son nombre de biens. Distincte

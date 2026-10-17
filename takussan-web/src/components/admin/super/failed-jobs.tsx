@@ -247,7 +247,7 @@ export function FailedJobsConsole() {
           title={pending.kind === 'retry-all' ? t('confirmRetryAllTitle') : t('confirmDeleteTitle')}
           description={
             pending.kind === 'retry-all'
-              ? t('confirmRetryAllDescription', { count: String(total) })
+              ? t('confirmRetryAllDescription', { count: total })
               : t('confirmDeleteDescription', { count: '1', id: String(pending.job.id) })
           }
           confirmPhrase={pending.kind === 'retry-all' ? RETRY_ALL_PHRASE : DELETE_PHRASE}

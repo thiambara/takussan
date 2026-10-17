@@ -53,7 +53,7 @@ export default function SuperAdminIntegrationsPage() {
 
       {criticalDown.length > 0 ? (
         <DestructiveBanner>
-          {t('criticalDown', { count: String(criticalDown.length) })}
+          {t('criticalDown', { count: criticalDown.length })}
         </DestructiveBanner>
       ) : null}
 

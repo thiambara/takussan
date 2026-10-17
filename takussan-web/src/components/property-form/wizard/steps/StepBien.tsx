@@ -147,7 +147,7 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
             type="button"
             aria-expanded={deplie}
             onClick={() => setPlusDeTypes((v) => !v)}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
             <Ellipsis className="size-4" aria-hidden="true" />
             {deplie ? t('fewerTypes') : t('moreTypes', { count: AUTRES_TYPES.length })}

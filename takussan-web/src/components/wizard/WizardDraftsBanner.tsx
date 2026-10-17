@@ -97,7 +97,7 @@ export function WizardDraftsBanner({ className, initialDrafts }: Props) {
             <li key={entry.key}>
               <Link
                 href={entry.resumeHref ?? '#'}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-[background-color,scale] duration-150 ease-out hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-[background-color,scale] duration-150 ease-out hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96]"
               >
                 {label}
                 <ArrowRight className="size-3.5" aria-hidden />
