@@ -1,7 +1,7 @@
 ---
 id: TCK-754
 title: "Focus du marqueur de carte, nom de la visionneuse, entrée verrouillée au clavier"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -46,17 +46,17 @@ atteint l'entrée réservée aux comptes pro avec sa raison.
 
 ## Delta à produire
 
-- [ ] `globals.css` : règle `:focus-visible` du marqueur avec `outline: 2px solid #ffffff` et
+- [x] `globals.css` : règle `:focus-visible` du marqueur avec `outline: 2px solid #ffffff` et
       `outline-offset: 2px`.
-- [ ] `PropertyLightbox` : `aria-label` sur `DialogPrimitive.Popup`.
-- [ ] `AppSidebar` : `tabIndex={0}` sur l'entrée cadenassée, raison en `sr-only`.
-- [ ] Tests.
+- [x] `PropertyLightbox` : `aria-label` sur `DialogPrimitive.Popup`.
+- [x] `AppSidebar` : `tabIndex={0}` sur l'entrée cadenassée, raison en `sr-only`.
+- [x] Tests.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le marqueur au focus déclare un contour blanc de 2 px, décalé de 2 px.
-- [ ] AC2 — La visionneuse ouverte est un `dialog` nommé.
-- [ ] AC3 — Chaque entrée cadenassée est focusable et porte sa raison dans son nom accessible.
+- [x] AC1 — Le marqueur au focus déclare un contour blanc de 2 px, décalé de 2 px.
+- [x] AC2 — La visionneuse ouverte est un `dialog` nommé.
+- [x] AC3 — Chaque entrée cadenassée est focusable et porte sa raison dans son nom accessible.
 
 ## Hors périmètre
 
@@ -64,4 +64,7 @@ atteint l'entrée réservée aux comptes pro avec sa raison.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : sources d'avant remises (tests gardés) → 3 rouges sur 3 tests neufs (`outline`
+  lu à `none`, dialogue sans nom, `tabindex` absent) ; correctif remis → verts.
+- La règle de survol partagée garde `outline: none` : la règle `:focus-visible` neuve vient après
+  elle et l'emporte, sans toucher au survol.
