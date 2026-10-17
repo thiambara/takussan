@@ -4270,7 +4270,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Un premier message joint à la création d'une conversation ne déclenche aucune notification
 - Réf : P38.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-805
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/ConversationController.php:102-114,153-159,329`
 - Constat :
@@ -4279,6 +4279,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Aucun écran du front n'envoie `initial_message` aujourd'hui : la directe n'a pas d'appelant, et `CreateGroupConversationPayload` ne porte pas ce champ (`conversations.ts:405-425`, lu). Le défaut est donc dans l'API, sans parcours qui l'atteigne : 🟠 et non 🔴.
 - Piste : dispatcher `NotifyNewMessageJob` après la transaction, dans les deux branches, ou retirer `initial_message` du contrat. Un test par branche.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `store()` (directe) et `storeGroup()` : le message `initial_message` est créé sans `NotifyNewMessageJob`, que seul `sendMessage()` dispatche ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : directe créée avec `initial_message` → 0 notification pour le destinataire, message suivant par `POST …/messages` → 1. Classement : A1, TCK-085 (l. 143, 163) fait passer toute notification de nouveau message par `NotifyNewMessageJob` (sourdine et départs compris), et le correctif attendu est de le dispatcher après la transaction dans les deux branches, sans retirer `initial_message` du contrat.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par deux tests neufs de `ConversationTest` (`Queue::fake()`, directe puis groupe créés par `POST /api/conversations` avec `initial_message`) → rouges, « pushed 0 times instead of 1 time » ; correctif : `NotifyNewMessageJob` dispatché après la transaction dans `store()` et après la création du message dans `storeGroup()` → verts, un seul job sur le message, aucun sans `initial_message` ; ablation (les deux `dispatch` retirés) → les deux tests rougissent, 11 autres verts.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
