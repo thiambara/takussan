@@ -72,6 +72,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 |---|---|---|---|
 | Version de Dokploy | `dokploy/dokploy:v0.30.8` — v0.30.6 posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6, TCK-526), montée en v0.30.8 par Settings → Update le 2026-10-08 ; Traefik non redémarré, `traefik.yml` intact (accessLog et courriel ACME relus) ; relevée dans `versions.json` | 2026-10-08 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
 | Version de Docker | `29.8.0` (paquets `5:29.8.0-1~ubuntu.24.04~noble`, containerd.io `2.3.5-1`, compose `5.5.1-1`, buildx `0.37.1-1`), **tenus par `apt-mark hold`** et épinglés dans `bootstrap.sh` § 0 (TCK-526). Rejoué le 2026-09-14 : `DOCKER_VERSION=99.0.0 bash bootstrap.sh` refuse avant tout geste ; `bash bootstrap.sh` sort en 0, `docker --version` inchangé | 2026-09-14 | `docker version --format '{{.Server.Version}}'` ; `apt-mark showhold` ; `dpkg-query -W docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin` |
+| Noyau et redémarrages | `6.8.0-147-generic` depuis le redémarrage du 2026-10-17, 22:26 Z, accordé par le porteur. Le serveur tournait en `-138` depuis 33 jours, alors que quatre noyaux plus récents et `libc6` étaient installés (`/var/run/reboot-required` daté du 2026-10-15). Les mises à jour automatiques installent, mais ne redémarrent jamais (`Automatic-Reboot` non posé) : le redémarrage se décide à la main. Retour en 40 s, les 11 mêmes conteneurs, port 3000 toujours fermé (règle reposée par `fermer-port-3000.service`). ⚠ Au démarrage, `worker` et `worker-media` échouent une vingtaine de secondes (`could not translate host name "serveur-postgres-egr6ii"`), le temps que le service PostgreSQL de Swarm démarre, puis repartent seuls (`restart: unless-stopped`). `cloud-init.service` échoue à chaque démarrage (commande `bootcmd` de Contabo, déjà en échec avant celui-ci), sans effet sur les services | 2026-10-17 | `uname -r` ; `ls /var/run/reboot-required` ; `cat /var/run/reboot-required.pkgs` ; `systemctl --failed` |
 | Courriel ACME (Let's Encrypt) | l'adresse du compte administrateur de Dokploy, posée le 2026-09-14, 23:14 Z dans `certificatesResolvers.letsencrypt.acme.email` de `/etc/dokploy/traefik/traefik.yml` (TCK-527 ; était `test@localhost.com`, écart A3 étape 5) ; Traefik redémarré, `acme.json` **intact** (même `sha256`, même date). ⚠ Le compte Let's Encrypt déjà enregistré garde son contact d'origine : Traefik ne le met pas à jour sans ré-enregistrer, ce qui demanderait d'effacer `acme.json` et de ré-émettre les cinq certificats — non fait, `certificats.yml` porte l'alerte d'échéance | 2026-09-14 | `grep -n email: /etc/dokploy/traefik/traefik.yml` (ne rend plus `localhost`) ; `sha256sum /etc/dokploy/traefik/dynamic/acme.json` avant et après |
 | Compte et 2FA | un seul compte (le porteur, créé le 2026-09-14), **`two_factor_enabled = t`** ; l'interface est derrière Cloudflare et le port 3000 est fermé (ci-dessous) | 2026-09-14 | `docker exec $(docker ps -q -f name=dokploy-postgres) psql -U dokploy -d dokploy -tAc 'select two_factor_enabled, created_at::date from "user"'` |
 | Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
@@ -103,9 +104,20 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Clés des objets dans R2 | Dokploy fait **précéder** le préfixe déclaré du nom interne du service : `serveur-postgres-egr6ii/postgres/takussan_preview/<date>.sql.gz`, `takussan-api-preview-4iza80_api/volumes/takussan-preview/…tar`, `backup-parse-multi-byte-card-vlwhry/dokploy/…zip`. Une liste filtrée sur le seul préfixe déclaré ne trouve **rien** | 2026-09-14 | `GET …/vps-sauvegardes?list-type=2` (SigV4) |
 | Restauration à blanc | PostgreSQL : diff des comptes **vide**, 92 tables, 86 927 lignes (préproduction arrêtée) ; volume de médias : 17 629 fichiers, **même** `sha256` | 2026-09-14 | plan, tâche D6, étapes 2 et 3 ; ticket TCK-515 |
 
-Projets Dokploy : **Serveur** (Compose `donnees`, `postgres`) et **Takussan** (Compose
-`takussan-api-preview`, Application `takussan-web-preview`). Leurs identifiants sont les variables de
-l'environnement GitHub `preview` de chaque dépôt et se relisent par `project.all`, jamais recopiés.
+Projets Dokploy :
+
+- **Serveur** : l'infrastructure partagée (Compose `donnees`, `postgres`), dans son environnement
+  par défaut ;
+- **Takussan** : deux environnements depuis le 2026-10-17 (ADR-0069 § 1, TCK-830).
+  - **`preview`** porte le Compose `takussan-api-preview` et l'Application `takussan-web-preview`.
+    Ils ont été **déplacés** depuis `production`, où l'installation les avait rangés, sans être
+    recréés : mêmes identifiants, même nom interne, même volume.
+  - **`production`**, l'environnement par défaut, est vide jusqu'à la phase F. La production s'y
+    crée sur la table de F3, jamais par `environment.duplicate`, qui recopierait les secrets de la
+    préproduction.
+
+Les identifiants des services sont les variables de l'environnement GitHub `preview` et se relisent
+par `project.all` ou `environment.byProjectId`, jamais recopiés.
 
 Le projet Compose de l'API Takussan s'appelle `takussan-api-preview-4iza80`, et Dokploy range son
 dépôt dans `/etc/dokploy/compose/takussan-api-preview-4iza80/code/`, avec le `.env` qu'il écrit à côté
