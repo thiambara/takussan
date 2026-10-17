@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl';
 
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { newBuildConditionValues } from '@/lib/schemas/property';
+import { newBuildConditionValues } from '@/lib/enums/property';
 import type { PropertyCondition } from '@/types/property';
 
 type EtatNeuf = (typeof newBuildConditionValues)[number];

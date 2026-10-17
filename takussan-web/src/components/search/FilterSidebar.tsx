@@ -13,7 +13,7 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
 import { ChoixDeQuartier, ChoixDeVille, ChoixDEquipements } from '@/components/search/ChoixDuReferentiel';
 import { AttenteDePuce } from '@/components/search/AttenteDePuce';
-import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
+import { conditionValues, titleTypeValues } from '@/lib/enums/property';
 import { filtersToParams } from '@/hooks/useSearch';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
