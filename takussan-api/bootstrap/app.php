@@ -16,6 +16,7 @@ use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
+use App\Http\Middleware\ShareRequestLogContext;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
 use App\Support\Logging\SafeExceptionContext;
@@ -81,6 +82,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
+            // TCK-774 (P14.12) — `request_id`, agence et profil actifs dans le contexte des
+            // journaux : après la résolution du profil.
+            ShareRequestLogContext::class,
             // TCK-600 (ADR-0048) — une agence suspendue ne s'écrit plus sous son profil actif.
             EnsureAgencyWritable::class,
             // TCK-600 (ADR-0055) — une session d'impersonation lit, elle n'écrit jamais.
