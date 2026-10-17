@@ -235,7 +235,8 @@ class WebhookJournalTest extends TestCase
         $this->postJson('/api/webhooks/whatsapp/status/mauvais-wa-602', ['entry' => []])->assertNotFound();
 
         $notification = AppNotification::factory()->create(['user_id' => User::factory()->create()->id]);
-        $signed = URL::signedRoute('sms.webhook.lafricamobile', ['token' => 'sms-url-token-602', 'notification' => $notification->id, 'push_id' => 'lam-602', 'status' => 6]);
+        // P36.01 (TCK-795) — LAM ajoute ses paramètres à l'URL signée, comme au rappel réel.
+        $signed = URL::signedRoute('sms.webhook.lafricamobile', ['token' => 'sms-url-token-602', 'notification' => $notification->id]).'&push_id=lam-602&status=6';
         $this->getJson($signed)->assertNotFound();
         parse_str((string) parse_url($signed, PHP_URL_QUERY), $signedQuery);
         $urlSignature = (string) ($signedQuery['signature'] ?? '');

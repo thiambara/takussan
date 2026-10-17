@@ -20,16 +20,24 @@ use Illuminate\Http\Request;
  * The route includes the AppNotification id passed at send time
  * (per-message ret_url), the random URL token, AND the Laravel
  * signed-route guard.
+ *
+ * P36.01 (TCK-795) — LAM AJOUTE ses paramètres au `ret_url` que nous avons
+ * signé : la signature ne couvre que ce que nous avons signé (jeton,
+ * notification, expiration), et ces paramètres-là sont exclus de la
+ * vérification, ici comme dans le middleware `signed` de la route.
  */
 class LAfricaMobileSmsStatusController extends Controller
 {
+    /** Paramètres que LAM ajoute au `ret_url` au rappel (LAMPUSH v2.3). */
+    public const LAM_QUERY_PARAMS = ['push_id', 'ret_id', 'to', 'status', 'text'];
+
     public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         $token = (string) config('sms.webhook_url_token', '');
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
-        if (! $request->hasValidSignature()) {
+        if (! $request->hasValidSignatureWhileIgnoring(self::LAM_QUERY_PARAMS)) {
             abort_code(403, 'webhook.signature_invalid');
         }
         // TCK-602 — l'IP (`restrict.ip`), le jeton et la signature d'URL ont passé.
