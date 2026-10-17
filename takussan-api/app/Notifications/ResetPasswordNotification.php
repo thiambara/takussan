@@ -4,6 +4,9 @@ namespace App\Notifications;
 
 use App\Providers\AppServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -12,8 +15,16 @@ use Illuminate\Notifications\Messages\MailMessage;
  * Wired via {@see AppServiceProvider::boot()} by replacing the
  * default createUrl used by Laravel's Password facade.
  */
-class ResetPasswordNotification extends ResetPassword
+class ResetPasswordNotification extends ResetPassword implements ShouldBeEncrypted, ShouldQueue
 {
+    use Queueable;
+
+    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications-urgent'];
+    }
+
     public function toMail($notifiable): MailMessage
     {
         $url = $this->resetUrl($notifiable);
