@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Boost\BoostStatsRecorder;
+use App\Support\Http\RobotUserAgent;
 use App\Support\VisitorFingerprint;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
  * ⚠ À placer À L'EXTÉRIEUR de `cache.headers:etag` : `SetCacheHeaders` joue le contrôleur (donc la
  * recherche et ses impressions) AVANT de comparer l'ETag. Seul un middleware qui l'enveloppe voit
  * le 304.
+ *
+ * TCK-792 (P18.04, décision du porteur) — aucune impression quand l'agent est reconnu comme robot.
  */
 final class CountBoostImpressions
 {
@@ -33,7 +36,8 @@ final class CountBoostImpressions
             throw $e;
         }
 
-        if ($response->getStatusCode() === Response::HTTP_NOT_MODIFIED || $response->getStatusCode() >= 400) {
+        if ($response->getStatusCode() === Response::HTTP_NOT_MODIFIED || $response->getStatusCode() >= 400
+            || RobotUserAgent::is($request->userAgent())) {
             $this->recorder->discardImpressions();
         } else {
             $this->recorder->commitImpressions(VisitorFingerprint::of($request));

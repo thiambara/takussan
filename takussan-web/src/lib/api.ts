@@ -123,6 +123,12 @@ export async function apiFetch<T>(
     const visiteur = await resolveVisitorIp();
     if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
   }
+  // TCK-792 (P18.04) — et son agent, pour que l'API ne compte aucune impression sponsorisée à un
+  // robot rendu côté serveur. Même exception : un appel partagé ne parle pour personne.
+  if (!options.partage && !enTetes['User-Agent']) {
+    const agent = await resolveVisitorUserAgent();
+    if (agent) enTetes['User-Agent'] = agent;
+  }
 
   const res = await fetch(`${apiUrl()}/api${path}`, {
     ...init,
@@ -611,6 +617,22 @@ async function resolveVisitorIp(): Promise<string | undefined> {
     const { headers } = await import('next/headers');
     const incoming = await headers();
     return ipDuVisiteur(incoming.get('x-forwarded-for'), sautsDeConfiance());
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * TCK-792 (P18.04) — l'agent (`User-Agent`) du visiteur de la requête en cours, côté serveur.
+ * L'API s'en sert pour ne pas compter d'impression sponsorisée à un robot. Rend `undefined` dans le
+ * navigateur (qui envoie le sien) et hors requête. Même garde que {@link resolveVisitorIp}.
+ */
+async function resolveVisitorUserAgent(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { headers } = await import('next/headers');
+    const incoming = await headers();
+    return incoming.get('user-agent')?.trim() || undefined;
   } catch {
     return undefined;
   }
