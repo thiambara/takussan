@@ -288,7 +288,7 @@ export function ListePourPublier({
                   disabled={desactivee}
                   onClick={() => onRouvrir(i)}
                   aria-label={t('preview.reopen', { step: e.libelle })}
-                  className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {contenu}
                 </button>
@@ -347,7 +347,7 @@ export function BarreApercu({
         onClick={() => setOuvert(true)}
         aria-label={t('openLabel')}
         data-testid="barre-apercu"
-        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset sm:px-6"
+        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:px-6"
       >
         <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
           {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}

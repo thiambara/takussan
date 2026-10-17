@@ -12,6 +12,7 @@ use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use LemonSqueezy\Laravel\LemonSqueezy;
 use Throwable;
 
 /**
@@ -47,6 +48,15 @@ class LemonSqueezyDriver implements PaymentDriverContract
     public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
     {
         $this->configurePackage();
+
+        // TCK-735 (pistes P04.07) — `custom_price` est compté dans la devise de la BOUTIQUE, pas
+        // dans celle du payable : 4 500 centimes d'un payable en EUR seraient encaissés 45 USD.
+        // Une autre devise que celle de la boutique est refusée avant tout checkout.
+        $storeCurrency = $this->storeCurrency();
+        abort_code_unless($storeCurrency === strtoupper($currency), 422, 'payment.currency_unsupported', [
+            'provider' => self::PROVIDER,
+            'currency' => strtoupper($currency),
+        ]);
 
         $billable = $this->resolveBillable();
         $variantId = $this->credential('variant_id');
@@ -153,6 +163,11 @@ class LemonSqueezyDriver implements PaymentDriverContract
      * Amounts in cents, USD by default — caller is responsible for
      * recording the currency separately.
      *
+     * TCK-734 (P04.06) — `amount` est le montant encaissé en UNITÉ MAJEURE, dans `currency` :
+     * `total` en centimes de la devise de la boutique, redivisé par 100 comme `custom_price` a été
+     * multiplié à l'initiation. Sans lui, la garde de sous-paiement ne comparait rien. Jamais
+     * `total_usd`, qui n'est pas dans la devise annoncée : sans `total`, pas de montant.
+     *
      * @param  array<string,mixed>  $attributes
      * @return array<string,mixed>
      */
@@ -164,12 +179,38 @@ class LemonSqueezyDriver implements PaymentDriverContract
         $net = (int) ($attributes['total_usd'] ?? $attributes['total'] ?? $gross) - $fees;
 
         return [
+            'amount' => is_numeric($attributes['total'] ?? null) ? ((int) $attributes['total']) / 100 : null,
             'gross_amount' => $gross,
             'fees_amount' => $fees,
             'net_amount' => max(0, $net),
             'currency' => strtoupper((string) ($attributes['currency'] ?? 'USD')),
             'lemon_squeezy_event' => $attributes['status'] ?? null,
         ];
+    }
+
+    /**
+     * TCK-735 — la devise de la boutique, lue sur l'API (`GET /v1/stores/{id}`, attribut
+     * `currency`). Une boutique injoignable, ou dont la devise ne se lit pas, ne se devine pas :
+     * 502, comme un checkout qui échoue (ADR-0044 §2, le message de l'exception reste hors du
+     * journal).
+     */
+    protected function storeCurrency(): string
+    {
+        $storeId = $this->credential('store_id');
+
+        try {
+            $currency = LemonSqueezy::api('GET', 'stores/'.rawurlencode($storeId))->json('data.attributes.currency');
+        } catch (Throwable $e) {
+            Log::warning('[lemon-squeezy] checkout failed', SafeExceptionContext::of($e));
+            abort_code(502, 'payment.provider_unavailable');
+        }
+
+        if (! is_string($currency) || trim($currency) === '') {
+            Log::warning('[lemon-squeezy] store currency unreadable', ['integration_id' => $this->integration->getKey()]);
+            abort_code(502, 'payment.provider_unavailable');
+        }
+
+        return strtoupper(trim($currency));
     }
 
     protected function resolveBillable(): Agency

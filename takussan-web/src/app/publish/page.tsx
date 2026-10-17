@@ -122,7 +122,7 @@ export default function PublishPage() {
                       type="button"
                       onClick={() => choisir(espace)}
                       disabled={choisi !== null}
-                      className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                      className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
                     >
                       <Icone className="size-5 shrink-0 text-primary" aria-hidden="true" />
                       <span className="min-w-0 flex-1">

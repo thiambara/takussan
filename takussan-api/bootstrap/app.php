@@ -16,6 +16,7 @@ use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
+use App\Http\Middleware\ShareRequestLogContext;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
 use App\Support\Logging\SafeExceptionContext;
@@ -27,6 +28,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Spatie\MediaLibrary\MediaCollections\Exceptions\FileCannotBeAdded;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -80,6 +82,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // la seconde orpheline — elle décrivait donc toujours une API supprimée.
         $middleware->api(append: [
             ResolveActiveProfile::class,
+            // TCK-774 (P14.12) — `request_id`, agence et profil actifs dans le contexte des
+            // journaux : après la résolution du profil.
+            ShareRequestLogContext::class,
             // TCK-600 (ADR-0048) — une agence suspendue ne s'écrit plus sous son profil actif.
             EnsureAgencyWritable::class,
             // TCK-600 (ADR-0055) — une session d'impersonation lit, elle n'écrit jamais.
@@ -116,6 +121,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
+            }
+
+            // TCK-763 (P10.07) — un fichier que la médiathèque refuse (taille, type, collection)
+            // est une erreur de la requête, pas du serveur : 422 et un code, sans le message de
+            // Spatie, qui porte le chemin temporaire du fichier.
+            if ($e instanceof FileCannotBeAdded) {
+                $e = new ApiError(422, 'media.file_rejected');
             }
 
             if ($e instanceof ApiError) {

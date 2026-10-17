@@ -53,6 +53,12 @@ final class TagCatalog
         });
     }
 
+    /** Le nom est-il celui d'un équipement du catalogue ? Comparé comme `assurer()` : casse repliée. */
+    public static function estUnEquipement(string $nom): bool
+    {
+        return in_array(CaseInsensitive::fold($nom), array_map(CaseInsensitive::fold(...), self::EQUIPEMENTS), true);
+    }
+
     /** Un slug libre : `tags.slug` est unique tous types confondus. */
     public static function slugLibre(string $nom): string
     {

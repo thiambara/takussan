@@ -21,6 +21,8 @@ interface SmsDriverInterface
      *                                        - `agency_id`    int     agency whose Integration to consume
      *                                        - `notification_id` int  AppNotification.id to log delivery_attempts
      *                                        - `sender_id`    string  override default Integration sender
+     *                                        - `is_otp`       bool    one-time code: keeps the fallback on an
+     *                                        ambiguous failure (TCK-766)
      * @return array<string,SmsResult> map keyed by recipient E.164
      */
     public function send(array|string $to, string $message, array $context = []): array;

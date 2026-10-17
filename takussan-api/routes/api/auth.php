@@ -67,13 +67,11 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // (1 000 000 combinations — at 5/min an attacker would still need
     // ~3 800 hours on average, further capped by the 5-min TTL of each
     // OTP).
-    Route::post('/verify-phone', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
     Route::post('/phone/verify-otp', [PhoneVerificationController::class, 'verify'])->middleware('throttle:5,1');
     // Vérification adverse M3 — le limiteur de `request-code` aussi, par numéro DESTINATAIRE
     // (celui du corps, sinon celui du compte) et par IP : `throttle:3,1` par compte ne bornait
     // rien, chaque compte neuf visant un numéro neuf. Les assistants d'onboarding passent ici.
     Route::post('/phone/send-otp', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
-    Route::post('/phone/resend', [PhoneVerificationController::class, 'resend'])->middleware(['throttle:3,1', 'throttle:auth-phone-send']);
     // TCK-589 p3-1 — un code à l'ANCIEN numéro vérifié, preuve exigée pour le remplacer. Mêmes
     // bornes que `send-otp` : sans corps, `auth-phone-send` compte sur le numéro du compte.
     Route::post('/phone/change-code', [PhoneVerificationController::class, 'changeCode'])

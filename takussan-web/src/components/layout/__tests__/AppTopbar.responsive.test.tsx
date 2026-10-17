@@ -83,7 +83,7 @@ afterEach(() => cleanup());
 describe('AppTopbar — rien ne pousse la barre au-delà du viewport à 768 px (TCK-505 #1)', () => {
   it('la recherche ne se montre que dès `lg`, et peut rétrécir (`min-w-0`, plus de `min-w-80`)', () => {
     rendreBarreHaute([profil('agent', 5)]);
-    const racine = screen.getByRole('searchbox').closest('.flex-1');
+    const racine = screen.getByRole('combobox').closest('.flex-1');
     expect(racine, 'la racine de SearchAutocomplete doit porter flex-1').not.toBeNull();
     const classes = racine!.className.split(/\s+/);
 

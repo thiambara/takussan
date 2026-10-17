@@ -4,15 +4,22 @@ namespace App\Notifications;
 
 use App\Models\AccountDeletionRequest;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
  * TCK-080 — J-N reminder (default J-7) before irreversible deletion.
  */
-class AccountDeletionReminderNotification extends Notification
+class AccountDeletionReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications-urgent'];
+    }
 
     public function __construct(public readonly AccountDeletionRequest $request) {}
 

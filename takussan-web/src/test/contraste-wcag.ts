@@ -110,7 +110,7 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   'on-surface-variant': '#6e655a',
   outline: '#ebe5d5',
   border: '#ebe5d5',
-  input: '#ebe5d5',
+  input: '#918672',
   ring: '#a85332',
   sidebar: '#ffffff',
   'sidebar-accent': '#f1ece0',

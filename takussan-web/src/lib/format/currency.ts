@@ -80,11 +80,14 @@ export function formatCurrency(
   }
 
   const meta = getMetadata(currency);
-  const {
-    locale = meta.locale,
-    minimumFractionDigits = meta.decimalPlaces,
-    maximumFractionDigits = meta.decimalPlaces,
-  } = options;
+  const { locale = meta.locale } = options;
+  // TCK-738 — la borne laissée par défaut suit celle que l'appelant fixe : un maximum seul sous
+  // les décimales de la devise (`{ maximumFractionDigits: 0 }` sur de l'EUR) donnait un minimum
+  // supérieur au maximum, et `Intl.NumberFormat` lève alors une `RangeError`.
+  const maximumFractionDigits = options.maximumFractionDigits
+    ?? Math.max(meta.decimalPlaces, options.minimumFractionDigits ?? 0);
+  const minimumFractionDigits = options.minimumFractionDigits
+    ?? Math.min(meta.decimalPlaces, maximumFractionDigits);
 
   const number = new Intl.NumberFormat(locale, {
     style: 'decimal',

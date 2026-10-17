@@ -283,6 +283,7 @@ return [
         'not_requested' => 'Aucun contrat n\'attend de signature : la demande doit d\'abord être lancée.',
         'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
         'terms_changed' => 'Le bail a été modifié pendant la préparation du contrat : rien n\'a été figé. Relancez la demande de signature.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
         'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
     ],
     'lease_payment' => [
@@ -316,6 +317,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'Ce fichier est une pièce de preuve : il ne se supprime pas.',
+        'file_rejected' => 'Ce fichier ne peut pas être ajouté : vérifiez sa taille et son format.',
         'photo_unprocessable' => 'Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.',
         'unsupported_target' => 'Cet objet ne peut pas porter de médias.',
     ],
@@ -405,6 +407,8 @@ return [
         'missing' => 'Aucun numéro de téléphone n\'est enregistré.',
         'resend_too_soon' => 'Un code vient de partir. Vous pourrez en demander un autre dans :seconds s.',
         'send_limit' => 'Trop de codes demandés pour ce numéro. Réessayez dans :minutes min.',
+        // P15.05 (TCK-783) — aucun fournisseur n'a accepté le SMS du code.
+        'sms_undelivered' => 'Le SMS portant votre code n\'a pas pu être envoyé. Réessayez dans une minute.',
         'send_limit_day' => 'Trop de codes demandés aujourd\'hui pour ce numéro. Réessayez dans :hours h.',
         'change_requires_proof' => 'Pour remplacer un numéro vérifié, confirmez d\'abord que vous le détenez : code reçu sur ce numéro, ou mot de passe.',
         'no_verified_number' => 'Aucun numéro vérifié n\'est enregistré sur ce compte.',
@@ -525,6 +529,7 @@ return [
         'two_factor_already_disabled' => 'La double authentification est déjà désactivée.',
     ],
     'tags' => [
+        'catalog_rename_forbidden' => 'Un équipement du catalogue ne se renomme pas : seules les propositions se renomment.',
         'merge_into_self' => 'Un équipement ne se fusionne pas avec lui-même.',
         'merge_target_invalid' => 'La cible doit être un équipement approuvé ou en attente.',
         'merge_source_invalid' => 'Seul un équipement se fusionne dans un équipement.',

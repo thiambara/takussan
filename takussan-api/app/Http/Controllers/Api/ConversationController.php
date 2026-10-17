@@ -35,7 +35,7 @@ class ConversationController extends Controller
         // jamais. Est non lu, pour le lecteur, tout message d'un AUTRE postérieur à son
         // `last_read_at` — hors avis système (« X a rejoint le groupe ») : on ne les attend pas.
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
-        $paginator = Conversation::with(['property', 'participants.media', 'lastMessage'])
+        $paginator = Conversation::with(['property.media', 'participants.media', 'lastMessage'])
             ->withCount(['messages as unread_count' => function ($q) use ($user) {
                 $q->where('messages.type', '!=', MessageType::System->value)
                     ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
@@ -84,7 +84,9 @@ class ConversationController extends Controller
         abort_code_if(count($participantIds) === 0, 422, 'conversation.participant_required');
         $data['participants'] = $participantIds;
 
-        $conversation = DB::transaction(function () use ($data, $user) {
+        $initialMessage = null;
+
+        $conversation = DB::transaction(function () use ($data, $user, &$initialMessage) {
             $conversation = Conversation::create([
                 'subject' => $data['subject'] ?? null,
                 'type' => $data['type'] ?? ConversationType::Direct->value,
@@ -110,10 +112,17 @@ class ConversationController extends Controller
                     'last_message_preview' => mb_substr($message->content, 0, 255),
                     'last_message_at' => now(),
                 ]);
+                $initialMessage = $message;
             }
 
             return $conversation;
         });
+
+        // TCK-805 (P38.03) — the initial message is notified like any other, after the commit
+        // (same path as sendMessage()).
+        if ($initialMessage !== null) {
+            NotifyNewMessageJob::dispatch($initialMessage->id);
+        }
 
         $conversation->loadMissing('property');
 
@@ -151,12 +160,15 @@ class ConversationController extends Controller
         );
 
         if (! empty($data['initial_message'])) {
-            $conversation->messages()->create([
+            $message = $conversation->messages()->create([
                 'sender_id' => $user->id,
                 'content' => $data['initial_message'],
                 'type' => MessageType::Text->value,
             ]);
             $conversation->refresh();
+
+            // TCK-805 (P38.03) — same notification path as sendMessage().
+            NotifyNewMessageJob::dispatch($message->id);
         }
 
         $conversation->loadMissing('property');

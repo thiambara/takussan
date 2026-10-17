@@ -283,6 +283,7 @@ return [
         'not_requested' => 'No contract is awaiting signature: the request must be sent first.',
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
+        'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [
@@ -316,6 +317,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'This file is evidence: it cannot be deleted.',
+        'file_rejected' => 'This file cannot be added: check its size and format.',
         'photo_unprocessable' => 'This image cannot be processed. Check the file and try again.',
         'unsupported_target' => 'This item cannot hold media.',
     ],
@@ -405,6 +407,8 @@ return [
         'missing' => 'No phone number is on file.',
         'resend_too_soon' => 'A code was just sent. You can ask for another one in :seconds s.',
         'send_limit' => 'Too many codes requested for this number. Try again in :minutes min.',
+        // P15.05 (TCK-783) — aucun fournisseur n'a accepté le SMS du code.
+        'sms_undelivered' => 'The text message with your code could not be sent. Please try again in a minute.',
         'send_limit_day' => 'Too many codes requested for this number today. Try again in :hours h.',
         'change_requires_proof' => 'To replace a verified number, first confirm you hold it: a code sent to that number, or your password.',
         'no_verified_number' => 'No verified number is on file for this account.',
@@ -525,6 +529,7 @@ return [
         'two_factor_already_disabled' => 'Two-factor authentication is already disabled.',
     ],
     'tags' => [
+        'catalog_rename_forbidden' => 'A catalogue amenity cannot be renamed: only proposals can be renamed.',
         'merge_into_self' => 'An amenity cannot be merged into itself.',
         'merge_target_invalid' => 'The target must be an approved or pending amenity.',
         'merge_source_invalid' => 'Only an amenity can be merged into an amenity.',

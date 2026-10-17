@@ -17,7 +17,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * sur R2, chaque conversion synchrone ajoute un encodage et une écriture distante à la
  * requête d'upload. Aucun écran ne lit `preview` ni `full` à la sortie de l'upload —
  * `MediaResource` rend `null` pour une conversion pas encore produite, et les avatars
- * sont servis en original (`getFirstMediaUrl('avatar')`).
+ * sont servis en `thumbnail` (`User::avatarUrl()`, TCK-762).
  */
 trait HasMediaConversions
 {

@@ -11,6 +11,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PlatformPayoutStatus;
+use App\Models\Integration;
 use App\Models\LeasePayment;
 use App\Models\PlatformPayout;
 use App\Models\User;
@@ -80,10 +81,14 @@ class PlatformPayoutService
 
                 continue;
             } catch (ApiError $e) {
-                if ($e->errorCode !== 'platform_payout.already_exists') {
-                    throw $e;
-                }
-                $excluded[] = ['agency_id' => $agencyId, 'reason' => 'already_closed'];
+                $reason = match ($e->errorCode) {
+                    'platform_payout.already_exists' => 'already_closed',
+                    // TCK-733 (P04.05) — un reversement ne mélange pas deux devises : l'agence est
+                    // écartée, la clôture globale continue.
+                    'payout.mixed_currencies' => 'mixed_currencies',
+                    default => throw $e,
+                };
+                $excluded[] = ['agency_id' => $agencyId, 'reason' => $reason];
 
                 continue;
             }
@@ -194,26 +199,36 @@ class PlatformPayoutService
      */
     public function breakdown(PlatformPayout $payout): array
     {
+        // TCK-736 (P04.08) — la commission s'arrondit ligne par ligne à l'unité de la devise, comme
+        // à la clôture : un `SUM` brut des commissions ne retomberait pas sur le montant figé.
+        $currency = $payout->currency;
+        $places = Currency::decimalPlacesOf($currency);
+        $aggregate = 'COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(ROUND(amount * platform_fee_pct_at_payment / 100, ?)), 0) as fees';
+
         $booking = BookingPayment::query()
             ->where('platform_payout_id', $payout->id)
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(amount * platform_fee_pct_at_payment / 100), 0) as fees')
+            ->selectRaw($aggregate, [$places])
             ->first();
 
         $lease = LeasePayment::query()
             ->where('platform_payout_id', $payout->id)
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(amount * platform_fee_pct_at_payment / 100), 0) as fees')
+            ->selectRaw($aggregate, [$places])
             ->first();
+
+        // TCK-733 (P04.05) — la pénalité encaissée avec le loyer vit dans le `metadata` du paiement,
+        // hors de portée d'un agrégat SQL : la clôture en a figé la somme sur le reversement.
+        $meta = is_array($payout->metadata) ? $payout->metadata : [];
 
         return [
             'booking' => [
                 'count' => (int) ($booking->count ?? 0),
-                'gross' => round((float) ($booking->gross ?? 0), 2),
-                'fees' => round((float) ($booking->fees ?? 0), 2),
+                'gross' => Currency::roundAmount((float) ($booking->gross ?? 0), $currency),
+                'fees' => Currency::roundAmount((float) ($booking->fees ?? 0), $currency),
             ],
             'lease' => [
                 'count' => (int) ($lease->count ?? 0),
-                'gross' => round((float) ($lease->gross ?? 0), 2),
-                'fees' => round((float) ($lease->fees ?? 0), 2),
+                'gross' => Currency::roundAmount((float) ($lease->gross ?? 0) + (float) ($meta['late_fees_gross'] ?? 0), $currency),
+                'fees' => Currency::roundAmount((float) ($lease->fees ?? 0) + (float) ($meta['late_fees_fee'] ?? 0), $currency),
             ],
         ];
     }
@@ -238,7 +253,7 @@ class PlatformPayoutService
             ->where('paid_at', '<=', $periodEnd)
             ->whereNull('platform_payout_id')
             ->lockForUpdate()
-            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency']);
+            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata']);
 
         // VERIF-594 passe 3, P3-2 — une ligne `deposit_refund` payée est une caution RENDUE au
         // locataire, une sortie : elle n'entre jamais dans ce que la plateforme reverse à l'agence.
@@ -250,30 +265,54 @@ class PlatformPayoutService
             ->where('paid_at', '<=', $periodEnd)
             ->whereNull('platform_payout_id')
             ->lockForUpdate()
-            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency']);
+            ->get(['id', 'amount', 'platform_fee_pct_at_payment', 'paid_at', 'currency', 'transaction_id', 'metadata', 'late_fee_amount']);
+
+        // TCK-733 (P04.05) — la plateforme ne reverse que ce qu'elle a encaissé : un paiement soldé
+        // par une intégration GLOBALE. Espèces, virement, intégration propre à l'agence : l'argent
+        // est déjà chez l'agence, la ligne reste hors de toute clôture.
+        $globalIntegrations = $this->globalIntegrationIds($bookingPayments->concat($leasePayments));
+        $bookingPayments = $bookingPayments->filter(fn ($p) => $this->settledBy($p, $globalIntegrations) !== null)->values();
+        $leasePayments = $leasePayments->filter(fn ($p) => $this->settledBy($p, $globalIntegrations) !== null)->values();
 
         $eligible = $bookingPayments->concat($leasePayments);
         if ($eligible->isEmpty()) {
             return null;
         }
 
+        // TCK-733 (P04.05) — un reversement ne mélange pas deux devises, comme `PayoutCalculator`.
+        $currencies = $eligible
+            ->map(fn ($row) => $row->currency instanceof Currency ? $row->currency->value : (string) ($row->currency ?? 'XOF'))
+            ->unique();
+        abort_code_if($currencies->count() > 1, 422, 'payout.mixed_currencies');
+        $currencyValue = (string) $currencies->first();
+
+        // TCK-736 (P04.08) — chaque commission s'arrondit à l'unité de la devise du reversement.
         $gross = 0.0;
         $fees = 0.0;
+        $lateFeesGross = 0.0;
+        $lateFeesFee = 0.0;
         foreach ($eligible as $row) {
-            $amount = (float) $row->amount;
             $pct = (float) ($row->platform_fee_pct_at_payment ?? 0);
+            $amount = (float) $row->amount;
             $gross += $amount;
-            $fees += round($amount * $pct / 100, 2);
-        }
+            $fees += Currency::roundAmount($amount * $pct / 100, $currencyValue);
 
-        $net = round($gross - $fees, 2);
+            // La pénalité réglée DANS le checkout qui a soldé le loyer est encaissée par la
+            // plateforme : elle entre au brut, et la commission la frappe comme le loyer.
+            $lateFee = $row instanceof LeasePayment ? $this->lateFeeSettledWith($row, $this->settledBy($row, $globalIntegrations)) : 0.0;
+            if ($lateFee > 0) {
+                $lateFeesGross += $lateFee;
+                $lateFeesFee += Currency::roundAmount($lateFee * $pct / 100, $currencyValue);
+            }
+        }
+        $gross += $lateFeesGross;
+        $fees += $lateFeesFee;
+
+        $net = Currency::roundAmount($gross - $fees, $currencyValue);
 
         $periodStart = $eligible->min('paid_at')
             ? Carbon::parse($eligible->min('paid_at'))->startOfDay()
             : $periodEnd->copy()->startOfMonth();
-
-        $currency = $eligible->first()?->currency;
-        $currencyValue = $currency instanceof Currency ? $currency->value : (string) ($currency ?? 'XOF');
 
         // TCK-594 — la course perdue sur l'index unique partiel n'est PAS attrapée ici : PostgreSQL
         // a déjà abandonné la transaction (piège n° 1). Elle remonte, et `closePeriod` la range.
@@ -281,8 +320,8 @@ class PlatformPayoutService
             'agency_id' => $agencyId,
             'period_start' => $periodStart->toDateString(),
             'period_end' => $periodEnd->toDateString(),
-            'gross_amount' => round($gross, 2),
-            'platform_fee_amount' => round($fees, 2),
+            'gross_amount' => Currency::roundAmount($gross, $currencyValue),
+            'platform_fee_amount' => Currency::roundAmount($fees, $currencyValue),
             'net_amount' => $net,
             'currency' => $currencyValue,
             'status' => PlatformPayoutStatus::Pending,
@@ -290,6 +329,8 @@ class PlatformPayoutService
             'metadata' => [
                 'booking_payments_count' => $bookingPayments->count(),
                 'lease_payments_count' => $leasePayments->count(),
+                'late_fees_gross' => Currency::roundAmount($lateFeesGross, $currencyValue),
+                'late_fees_fee' => Currency::roundAmount($lateFeesFee, $currencyValue),
             ],
         ]);
 
@@ -309,6 +350,106 @@ class PlatformPayoutService
         ]);
 
         return $payout;
+    }
+
+    /**
+     * Les intégrations GLOBALES (`agency_id` nul, supprimées comprises) parmi celles qui ont initié
+     * le règlement de ces paiements. Une requête pour toute la clôture.
+     *
+     * @param  iterable<BookingPayment|LeasePayment>  $payments
+     * @return array<int, true>
+     */
+    private function globalIntegrationIds(iterable $payments): array
+    {
+        $ids = [];
+        foreach ($payments as $payment) {
+            $id = $this->settlement($payment)['integration_id'];
+            if ($id !== null) {
+                $ids[$id] = true;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return array_fill_keys(
+            Integration::withTrashed()->whereKey(array_keys($ids))->whereNull('agency_id')->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            true,
+        );
+    }
+
+    /**
+     * L'entrée de checkout qui a soldé ce paiement, si une intégration globale l'a initié ; `null`
+     * sinon (aucun règlement en ligne noté, ou intégration d'agence).
+     *
+     * @param  array<int, true>  $globalIntegrations
+     * @return array<string, mixed>|null
+     */
+    private function settledBy(BookingPayment|LeasePayment $payment, array $globalIntegrations): ?array
+    {
+        $settlement = $this->settlement($payment);
+
+        return $settlement['integration_id'] !== null && isset($globalIntegrations[$settlement['integration_id']])
+            ? $settlement['entry']
+            : null;
+    }
+
+    /**
+     * Le règlement noté par `PaymentGatewayService` : le checkout de `settled_by`, et l'intégration
+     * qui l'a initié — la lecture de `PaymentGatewayService::initiatingIntegrationId()`.
+     *
+     * `settled_by` seul prouve un règlement EN LIGNE : un loyer réglé en espèces pendant qu'un
+     * checkout était ouvert garde ce checkout dans `transaction_id` et dans l'historique, sans
+     * qu'aucun argent soit passé par la plateforme.
+     *
+     * @return array{integration_id: int|null, entry: array<string, mixed>}
+     */
+    private function settlement(BookingPayment|LeasePayment $payment): array
+    {
+        $meta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
+        $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
+        $transactionId = $gateway['settled_by'] ?? null;
+
+        if (! is_string($transactionId) || $transactionId === '') {
+            return ['integration_id' => null, 'entry' => []];
+        }
+
+        foreach (is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [] as $entry) {
+            if (is_array($entry) && ($entry['transaction_id'] ?? null) === $transactionId) {
+                return [
+                    'integration_id' => is_numeric($entry['integration_id'] ?? null) ? (int) $entry['integration_id'] : null,
+                    'entry' => $entry,
+                ];
+            }
+        }
+
+        // Sans historique (checkout antérieur à TCK-593) : le checkout courant, s'il est celui-là.
+        if (($gateway['transaction_id'] ?? null) !== $transactionId) {
+            return ['integration_id' => null, 'entry' => []];
+        }
+
+        return [
+            'integration_id' => is_numeric($gateway['integration_id'] ?? null) ? (int) $gateway['integration_id'] : null,
+            'entry' => ['late_fee_included' => ($meta['late_fee_included'] ?? false) === true],
+        ];
+    }
+
+    /**
+     * La part de pénalité du checkout qui a soldé le loyer : son `late_fee_amount` figé à
+     * l'initiation, à défaut la pénalité de l'échéance (le repli de `applyStatusToPayment`).
+     *
+     * @param  array<string, mixed>|null  $entry
+     */
+    private function lateFeeSettledWith(LeasePayment $payment, ?array $entry): float
+    {
+        if ($entry === null || ($entry['late_fee_included'] ?? false) !== true) {
+            return 0.0;
+        }
+
+        return is_numeric($entry['late_fee_amount'] ?? null)
+            ? (float) $entry['late_fee_amount']
+            : (float) ($payment->late_fee_amount ?? 0);
     }
 
     /**

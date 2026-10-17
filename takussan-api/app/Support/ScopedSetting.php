@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use Illuminate\Support\Collection;
@@ -18,10 +19,42 @@ use Illuminate\Support\Collection;
  * global. `SettingController` ne laisse un admin d'agence écrire que dans son agence.
  *
  * TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue (`EditablePlatformSettings`,
- * catégorie `rentals`) : chaque lecteur écrit `agencyRow(…)?->value ?? getValue('<clé>')`.
+ * catégorie `rentals`).
+ *
+ * TCK-778 (P13.07) — chaque lecteur passe par `value()`, qui porte le déballage : il était recopié
+ * dans cinq services.
  */
 final class ScopedSetting
 {
+    /**
+     * TCK-778 (P13.07) — LA valeur d'un réglage métier pour une agence : sa ligne, sinon la valeur
+     * globale du catalogue, qui porte le défaut. Déballée ici, et nulle part ailleurs.
+     *
+     * La valeur globale est passée par le lecteur (`getValue('<clé>')`, en toutes lettres) : c'est
+     * ce littéral que `scripts/check-platform-catalogue-readers.mjs` reconnaît comme le lecteur
+     * d'une clé du catalogue.
+     *
+     * Une ligne d'agence est un objet JSON (`StoreSettingRequest` exige un tableau) :
+     * - `{"value": x}` rend `x` ;
+     * - pour une clé que le catalogue type liste (`integer_list`), tout autre tableau est la liste
+     *   elle-même ;
+     * - pour une clé scalaire, la première valeur : la forme héritée `{"months": 3}` rend `3`.
+     */
+    public static function value(string $key, ?int $agencyId, mixed $global): mixed
+    {
+        $value = self::agencyRow($key, $agencyId)?->value ?? $global;
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (str_ends_with((string) (EditablePlatformSettings::get($key)['type'] ?? ''), '_list')) {
+            return array_key_exists('value', $value) ? $value['value'] : $value;
+        }
+
+        return $value['value'] ?? array_values($value)[0] ?? null;
+    }
+
     /**
      * TCK-651 (ADR-0065) — la ligne de l'agence seule. Sans elle, le lecteur lit la valeur globale
      * par le catalogue (`PlatformSettingService::getValue('<clé>')`), qui porte le défaut : la ligne

@@ -910,7 +910,7 @@ export type PlatformPayoutResponse = { data: PlatformPayout };
 /** TCK-594 — une agence écartée de la clôture, et pourquoi : un code, le libellé est au front. */
 export type PlatformPayoutExclusion = {
   agency_id: number;
-  reason: 'agency_not_active' | 'already_closed';
+  reason: 'agency_not_active' | 'already_closed' | 'mixed_currencies';
 };
 
 export type PlatformPayoutClosePeriodResponse = {

@@ -1062,7 +1062,7 @@ class PublicPropertyController extends Controller
                 'recipient' => $recipient === null ? null : [
                     'id' => $recipient->id,
                     'name' => $this->displayName($recipient),
-                    'avatar_url' => $recipient->getFirstMediaUrl('avatar') ?: null,
+                    'avatar_url' => $recipient->avatarUrl(),
                 ],
             ],
         ]);

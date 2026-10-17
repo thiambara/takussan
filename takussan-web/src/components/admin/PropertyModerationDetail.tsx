@@ -139,7 +139,7 @@ export function PropertyModerationDetail({
             onChange={(e) => setRejectionReason(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder={t('rejectReasonPlaceholder')}
           />
           <p className="mt-1 text-right text-xs text-muted-foreground">

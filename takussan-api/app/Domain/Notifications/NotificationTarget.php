@@ -55,6 +55,8 @@ final class NotificationTarget
         // pour la boîte : `/app/reviews` n'existe pas, elle vit sous le profil.
         'reviews' => '/app/profile/reviews',
         'review_moderation' => '/app/agency/moderation',
+        // TCK-782 — un bien soumis à modération ouvre la file des biens de l'agence.
+        'property_moderation' => '/app/agency/moderation/properties',
         // TCK-599 — une alerte de recherche ouvre les recherches sauvegardées, une alerte de favori
         // la liste des favoris.
         'saved_searches' => '/app/saved-searches',

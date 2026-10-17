@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\Notification;
 /**
  * TCK-092 — Picks the overdue invoices that match a configured offset
  * (`invoice.reminder_offsets_days`, default `[3, 7, 15]`) and dispatches
- * a single reminder per (invoice, offset) pair.
+ * a single reminder per (invoice, offset) pair. TCK-739 — an offset missed on
+ * its day is still sent up to `CATCH_UP_DAYS` later, once.
  *
  * Idempotence has two complementary guards:
  *
@@ -34,6 +35,12 @@ class OverdueReminderService
 
     /** @var list<int> */
     public const DEFAULT_OFFSETS = [3, 7, 15];
+
+    /**
+     * TCK-739 (P05.02) — un jalon manqué (job arrêté le jour prévu) part encore jusqu'à ce nombre
+     * de jours après, une seule fois. Au-delà, il est perdu.
+     */
+    public const CATCH_UP_DAYS = 3;
 
     /**
      * Statuses that legitimately get reminders. The spec text says
@@ -56,11 +63,8 @@ class OverdueReminderService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence, sinon le global, sinon le défaut.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('invoice.reminder_offsets_days');
-        if (is_array($value) && array_key_exists('value', $value)) {
-            $value = $value['value'];
-        }
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId,
+            app(PlatformSettingService::class)->getValue('invoice.reminder_offsets_days'));
 
         if (! is_array($value)) {
             return self::DEFAULT_OFFSETS;
@@ -128,14 +132,23 @@ class OverdueReminderService
         $due = Carbon::parse($invoice->due_date)->startOfDay();
         $daysOverdue = (int) $due->diffInDays($today, false);
 
-        if ($daysOverdue <= 0 || ! in_array($daysOverdue, $offsets, true)) {
+        // TCK-739 — le jalon le plus tardif dont la fenêtre [offset, offset + CATCH_UP_DAYS]
+        // contient aujourd'hui.
+        $offset = null;
+        foreach ($offsets as $candidate) {
+            if ($daysOverdue >= $candidate && $daysOverdue - $candidate <= self::CATCH_UP_DAYS) {
+                $offset = $candidate;
+            }
+        }
+        if ($daysOverdue <= 0 || $offset === null) {
             return false;
         }
 
         $cap = count($offsets);
-        $expectedBucket = array_search($daysOverdue, $offsets, true) + 1;
+        $expectedBucket = array_search($offset, $offsets, true) + 1;
+        $milestoneDay = $due->copy()->addDays($offset);
 
-        $recipient = DB::transaction(function () use ($invoice, $now, $today, $daysOverdue, $cap, $expectedBucket) {
+        $recipient = DB::transaction(function () use ($invoice, $now, $today, $daysOverdue, $cap, $expectedBucket, $milestoneDay) {
             // Re-read the row under a lock so we observe the freshest
             // state — another worker may have just stamped it.
             $fresh = Invoice::query()->lockForUpdate()->find($invoice->id);
@@ -156,6 +169,14 @@ class OverdueReminderService
             // sent today (any offset), do not send a second one.
             if ($fresh->last_reminder_sent_at !== null
                 && Carbon::parse($fresh->last_reminder_sent_at)->isSameDay($today)
+            ) {
+                return null;
+            }
+
+            // TCK-739 — un envoi par jalon : une relance partie depuis le jour prévu de ce jalon
+            // l'a servi. Le compteur seul ne suffit pas quand un jalon antérieur a été perdu.
+            if ($fresh->last_reminder_sent_at !== null
+                && Carbon::parse($fresh->last_reminder_sent_at)->startOfDay()->gte($milestoneDay)
             ) {
                 return null;
             }
@@ -247,23 +268,25 @@ class OverdueReminderService
     ): Builder {
         $today = Carbon::instance($now)->startOfDay();
 
-        // The exact-day matrix: due_date == today - offset_n for any n.
-        // `whereDate` is used (instead of plain `whereIn`) because the
-        // underlying column may serialize a `date` cast as `Y-m-d H:i:s`,
-        // which would never match a bare `Y-m-d` literal. (This line named
+        // TCK-739 — une fenêtre par jalon : due_date ∈ [today - offset - CATCH_UP_DAYS,
+        // today - offset]. `whereDate` is used (instead of plain comparisons) because the
+        // underlying column may serialize a `date` cast as `Y-m-d H:i:s`. (This line named
         // "SQLite/MySQL" until 2026-08-22; both were retired by ADR-0020,
         // and the reason is a property of the CAST, not of the engine.)
-        $eligibleDates = array_map(
-            static fn (int $offset) => $today->copy()->subDays($offset)->toDateString(),
+        $windows = array_map(
+            static fn (int $offset) => [
+                $today->copy()->subDays($offset + self::CATCH_UP_DAYS)->toDateString(),
+                $today->copy()->subDays($offset)->toDateString(),
+            ],
             $offsets,
         );
 
         $query = Invoice::query()
             ->with('customer.user')
             ->whereIn('status', array_map(static fn (InvoiceStatus $s) => $s->value, self::REMINDABLE_STATUSES))
-            ->where(function ($q) use ($eligibleDates): void {
-                foreach ($eligibleDates as $date) {
-                    $q->orWhereDate('due_date', $date);
+            ->where(function ($q) use ($windows): void {
+                foreach ($windows as [$from, $to]) {
+                    $q->orWhere(fn ($w) => $w->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to));
                 }
             });
 

@@ -19,7 +19,7 @@ use Tests\TestCase;
 /**
  * TCK-633 lot F (ADR-0061 §10) — impressions et clics comptés en cache par boost et par heure, versés
  * par `boosts:tick` dans `property_boost_daily_stats`, une fois. Un clic = une vue de la fiche arrivée
- * par `src=sponsored`, une par IP et par heure.
+ * par `src=sponsored`, trois par IP et par heure (TCK-794).
  */
 class BoostStatsTest extends TestCase
 {
@@ -46,8 +46,12 @@ class BoostStatsTest extends TestCase
     {
         $recorder = app(BoostStatsRecorder::class);
         $recorder->impressions([$this->property->id, $this->property->id, 999999]);
-        $recorder->click($this->property, '10.0.0.1');
-        $recorder->click($this->property, '10.0.0.1');
+        // TCK-794 (P18.06) — trois clics par bien, par IP et par heure, comme les vues de fiche
+        // (`PropertyViewCounter::MAX_PAR_HEURE`) : derrière un NAT d'opérateur, plusieurs visiteurs
+        // partagent une IP. Le quatrième ne compte pas.
+        foreach (range(1, 4) as $_) {
+            $recorder->click($this->property, '10.0.0.1');
+        }
         $recorder->click($this->property, '10.0.0.2');
 
         $this->artisan('boosts:tick')->assertSuccessful();
@@ -60,14 +64,15 @@ class BoostStatsTest extends TestCase
         $ligne = DB::table('property_boost_daily_stats')->where('property_boost_id', $this->boost->id)->sole();
         $this->assertSame('2026-10-12', Carbon::parse($ligne->date)->toDateString());
         $this->assertSame(2, (int) $ligne->impressions);
-        $this->assertSame(2, (int) $ligne->clicks, 'une par IP et par heure');
+        $this->assertSame(4, (int) $ligne->clicks, 'trois par IP et par heure, plus celui de la seconde IP');
     }
 
     /**
-     * Le curseur `LAST_FLUSHED_KEY` et le `pull` des compteurs protègent tous deux contre un double
-     * versement — mesuré : remplacer `pull` par `get` laisse le test ci-dessus VERT, le curseur
-     * suffisant. Ce test-ci perd le curseur (éviction du magasin, `cache:clear` partiel) : seul le
-     * `pull` empêche alors de reverser les 48 dernières heures.
+     * Le curseur `LAST_FLUSHED_KEY` et le retrait des compteurs versés protègent tous deux contre un
+     * double versement — mesuré : ne plus retirer les compteurs laisse le test ci-dessus VERT, le
+     * curseur suffisant. Ce test-ci perd le curseur (éviction du magasin, `cache:clear` partiel) : seul
+     * le retrait (un `pull` jusqu'à TCK-793, un retrait après l'écriture depuis) empêche alors de
+     * reverser les 48 dernières heures.
      */
     public function test_un_curseur_perdu_ne_reverse_rien(): void
     {

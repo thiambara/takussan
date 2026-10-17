@@ -4,6 +4,7 @@ namespace App\Services\Notifications\Sms\Dlr;
 
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Webhooks\WebhookPayloadRedactor;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -71,7 +72,7 @@ class DlrReportApplier
             Log::warning('[sms.mtarget.pull] unknown delivery status code', [
                 'provider' => $provider,
                 'status' => $record->statusCode,
-                'record' => $record->raw,
+                // TCK-773 (P14.10) — pas le rapport brut : il porte le `msisdn` en clair.
             ]);
 
             return self::OUTCOME_UNKNOWN_STATUS;
@@ -108,7 +109,7 @@ class DlrReportApplier
         Log::warning('[sms.mtarget.pull] delivery report matched no attempt', [
             'provider' => $provider,
             'ticket' => $record->ticket,
-            'msisdn' => $record->msisdn,
+            'msisdn' => WebhookPayloadRedactor::maskPhone((string) $record->msisdn),
         ]);
 
         return self::OUTCOME_UNMATCHED;

@@ -82,7 +82,7 @@ class AlertRuleService
                         'event' => $event,
                         'actor' => (string) $activity->causer_id,
                         'subject' => (string) $activity->subject_id,
-                    ]),
+                    ]).$this->failingSuffix($activity),
                     'audit_url' => '/super-admin/audit?filter[event]='.$event,
                     'event' => $event,
                     'actor_id' => $activity->causer_id,
@@ -125,6 +125,24 @@ class AlertRuleService
                 'event' => $event,
             ] + SafeExceptionContext::of($e));
         }
+    }
+
+    /**
+     * TCK-769 (P14.05) — le message nomme les sondes en échec (`properties.failing`, écrit par
+     * `alerts:evaluate`) : sans cela, il fallait ouvrir le journal d'audit pour savoir laquelle.
+     */
+    private function failingSuffix(Activity $activity): string
+    {
+        $failing = $activity->properties['failing'] ?? null;
+        if (! is_array($failing) || $failing === []) {
+            return '';
+        }
+
+        $probes = collect($failing)
+            ->map(fn ($status, $probe): string => $probe.' ('.(is_scalar($status) ? $status : '?').')')
+            ->implode(', ');
+
+        return __('notifications.admin_alert.failing_suffix', ['probes' => $probes]);
     }
 
     private function payload(AlertRule $rule): array

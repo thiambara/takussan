@@ -218,31 +218,44 @@ export function SearchAutocomplete({
   }, []);
 
   const defaultPlaceholder = t('placeholder');
+  const nom = placeholder ?? defaultPlaceholder;
 
   const isNavbar = variant === 'navbar';
 
+  // TCK-731 (P31.01) — une référence ARIA ne vise que ce qui est rendu : la liste n'est montée
+  // qu'ouverte, et ses options seulement hors chargement. axe rendait `aria-valid-attr-value`
+  // (critique) sur chaque page publique, `aria-controls` visant en permanence une liste absente.
+  const optionActiveRendue = open && !showLoading && activeIndex >= 0 && activeIndex < flatItems.length;
+
   return (
     <div ref={containerRef} className={cn('relative', className)}>
+      {/*
+        TCK-731 (P07.06) — la pilule montre le focus de son champ, qui porte `outline-none` :
+        mesuré au clavier, ni l'`input` ni ses parents ne changeaient de style. Anneau plein au
+        jeton `ring` sur fond clair ; sur la barre sombre de la console (`bg-foreground`, où
+        `ring` ne fait que 3,30:1), contour décalé à l'encre de la variante, `primary-foreground`,
+        comme `ANNEAU_FOCUS` d'`AppTopbar` — mais par jeton : le blanc est refusé sous `/app`.
+      */}
       <div
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-controls={listboxId}
         className={cn(
           'flex items-center gap-2',
           isNavbar
-            ? 'h-9 min-w-72 rounded-full bg-card/10 px-4 text-primary-foreground/80 hover:bg-card/20'
-            : 'rounded-full border border-border bg-card px-4 py-2.5 shadow-sm hover:shadow-md transition-shadow',
+            ? 'h-9 min-w-72 rounded-full bg-card/10 px-4 text-primary-foreground/80 hover:bg-card/20 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary-foreground'
+            : 'rounded-full border border-border bg-card px-4 py-2.5 shadow-sm hover:shadow-md transition-shadow focus-within:ring-2 focus-within:ring-ring',
         )}
       >
         <Icone aria-hidden="true" className={cn('shrink-0', isNavbar ? 'size-4 text-primary-foreground/60' : 'size-4 text-primary')} />
+        {/* Motif combobox ARIA 1.2 : le rôle est sur l'`input`, nommé par le texte qu'il affiche. */}
         <input
           ref={inputRef}
           id={inputId}
-          role="searchbox"
+          role="combobox"
+          aria-label={nom}
+          aria-expanded={open}
+          aria-haspopup="listbox"
           aria-autocomplete="list"
-          aria-controls={listboxId}
-          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-item-${activeIndex}` : undefined}
+          aria-controls={open ? listboxId : undefined}
+          aria-activedescendant={optionActiveRendue ? `${listboxId}-item-${activeIndex}` : undefined}
           type="text"
           value={query}
           onChange={(e) => {
@@ -254,7 +267,7 @@ export function SearchAutocomplete({
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (query.length >= 1) setOpen(true); }}
-          placeholder={placeholder ?? defaultPlaceholder}
+          placeholder={nom}
           className={cn(
             'w-full bg-transparent text-sm outline-none',
             isNavbar ? 'text-primary-foreground placeholder:text-primary-foreground/50' : 'text-foreground placeholder:text-muted-foreground font-medium',

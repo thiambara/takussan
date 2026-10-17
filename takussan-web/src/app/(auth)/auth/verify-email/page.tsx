@@ -71,7 +71,7 @@ function VerifyEmailContent() {
             entier sur l'autre. */}
         <Link
           href={avecRedirection('/onboarding/intention', redirectBrut)}
-          className="flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
         >
           {t('continue')}
         </Link>

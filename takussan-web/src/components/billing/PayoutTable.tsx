@@ -63,10 +63,12 @@ export function PayoutStatusPill({ status }: { status: PlatformPayoutStatus }) {
  * Le `try/catch` d'origine gardait `Intl.NumberFormat({ style: 'currency' })` contre un code de
  * devise inconnu. Il disparaît avec lui : `formatCurrency` de `@/lib/format/currency` ne jette pas —
  * un code hors enum retombe sur les métadonnées XOF.
+ *
+ * Les décimales sont celles de la devise du reversement, et non plus 0 imposé (TCK-738).
  */
 export function useXof(): (amount: number, currency: string) => string {
   const fmt = useFormatteurs();
-  return (amount, currency) => fmt.montant(amount, currency, { maximumFractionDigits: 0 });
+  return (amount, currency) => fmt.montant(amount, currency);
 }
 
 export function PayoutTable({

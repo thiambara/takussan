@@ -66,7 +66,7 @@ export function SelecteurDeTransaction({ valeur, onChange, libelles, className }
               "after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-['']",
               'transition-[color,scale] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.96]',
               'motion-reduce:active:scale-100',
-              'outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              'outline-none focus-visible:ring-2 focus-visible:ring-ring',
               actif ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
             )}
           >

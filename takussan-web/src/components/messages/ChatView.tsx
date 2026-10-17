@@ -263,7 +263,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           {isGroup && conversation?.participants && (
             <p className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
               {t('chat.participants', {
-                count: String(conversation.participants.filter((p) => !p.left_at).length),
+                count: conversation.participants.filter((p) => !p.left_at).length,
               })}
               {isMuted && (
                 <BellOff className="size-3.5" role="img" aria-label={t('list.muted')} />

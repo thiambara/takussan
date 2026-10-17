@@ -458,4 +458,20 @@ class CommissionLedgerTest extends ApiTestCase
             $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonMissingPath('data.commission_amount');
         }
     }
+
+    /**
+     * TCK-736 (P04.08) — chaque ligne s'arrondit à l'unité INFÉRIEURE de la devise : 30 % de
+     * 100 001 XOF font 30 000,30, inscrits 30 000. En EUR, le centime inférieur reste.
+     */
+    public function test_a_line_is_floored_to_the_currency_unit(): void
+    {
+        $a = $this->agentAtRate(30);
+        $xof = $this->createLease(['commission_amount' => 100001, 'agent_id' => $a->id]);
+        $this->activate($xof);
+        $this->assertSame('30000.00', (string) CommissionEntry::query()->where('lease_id', $xof->id)->sole()->amount);
+
+        $eur = $this->createLease(['commission_amount' => 100001, 'agent_id' => $a->id, 'currency' => 'EUR']);
+        $this->activate($eur);
+        $this->assertSame('30000.30', (string) CommissionEntry::query()->where('lease_id', $eur->id)->sole()->amount);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Sms\Drivers;
 
+use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -90,7 +91,7 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
                     ->post($url, $payload);
             } catch (\Throwable $e) {
                 Log::warning('[sms.lam] HTTP exception', ['error' => $e->getMessage()]);
-                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'lam_http_exception');
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'lam_http_exception', AmbiguousDelivery::fromThrowable($e));
 
                 continue;
             }
@@ -108,11 +109,11 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
                 );
             } else {
                 $code = (string) ($body['error'] ?? $body['code'] ?? $response->status());
-                $results[$recipient] = SmsResult::failed($recipient, $this->id(), "lam_error_{$code}");
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), "lam_error_{$code}", AmbiguousDelivery::fromStatus($response->status()));
             }
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $integration->markUsed();
 
         return $results;
     }

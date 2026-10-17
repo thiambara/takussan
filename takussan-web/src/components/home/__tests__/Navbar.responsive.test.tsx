@@ -60,7 +60,7 @@ const classesDe = (el: Element | null) => (el?.className ?? '').split(/\s+/);
 describe('Navbar publique — la mise en page de bureau attend `lg` (TCK-505 #2)', () => {
   it('la colonne centrale de bureau (recherche + catégories) est `hidden lg:flex`', () => {
     monter();
-    const colonne = screen.getByRole('searchbox').closest('.max-w-xl');
+    const colonne = screen.getByRole('combobox').closest('.max-w-xl');
     expect(colonne, 'la colonne centrale porte max-w-xl').not.toBeNull();
     expect(classesDe(colonne)).toContain('hidden');
     expect(classesDe(colonne)).toContain('lg:flex');
@@ -116,5 +116,22 @@ describe('Navbar publique — le bouton menu est entier à 390 px (TCK-505 #3)',
     expect(classesDe(pastille)).toContain('flex-1');
     // Son `overflow` est visible : sans `min-w-0`, son minimum flex reste sa largeur de contenu.
     expect(classesDe(pastille)).toContain('min-w-0');
+  });
+});
+
+/**
+ * TCK-731 (P31.01) — la barre de bureau aplatit la pilule du champ : l'anneau de focus passe sur
+ * la pilule visible, au seul focus du champ (le sélecteur et la loupe ont le leur).
+ */
+describe('Navbar publique — le focus du champ de recherche se voit sur la pilule de bureau (TCK-731)', () => {
+  it('la pilule de 52 px porte l’anneau au focus du champ, la pilule interne aplatie n’en dessine pas', () => {
+    monter();
+    const champ = screen.getAllByRole('combobox').find((el) => el.closest('.max-w-xl'));
+    const pilule = champ?.closest('.h-\\[52px\\]') ?? null;
+    expect(pilule, 'la pilule de bureau porte h-[52px]').not.toBeNull();
+    expect(classesDe(pilule)).toContain('has-[input:focus-visible]:ring-2');
+    expect(classesDe(pilule)).toContain('has-[input:focus-visible]:ring-ring');
+    expect(classesDe(pilule)).not.toContain('focus-within:ring-2');
+    expect(classesDe(champ?.parentElement?.parentElement ?? null)).toContain('[&>div:first-child]:ring-0');
   });
 });

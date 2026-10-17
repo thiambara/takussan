@@ -129,6 +129,8 @@ export async function resetPassword(payload: {
   email: string;
   password: string;
   password_confirmation: string;
+  /** TCK-781 — lien d'activation du gérant provisionné (jeton de 7 jours). */
+  activation?: boolean;
 }): Promise<{ message: string }> {
   return apiRequest('/api/auth/reset-password', { method: 'POST', body: payload });
 }

@@ -1,5 +1,5 @@
 import type { Locale } from '@/i18n/config';
-import type { PropertyDetail, PropertyType } from '@/types/property';
+import type { PropertyDetail, PropertyType, RentPeriod } from '@/types/property';
 
 import { urlAbsolue } from './jsonld';
 
@@ -35,6 +35,20 @@ const SOUS_TYPE_SCHEMA: Record<PropertyType, string> = {
 
 type Noeud = Record<string, unknown>;
 
+/** Code d'unité UN/CEFACT du loyer, par période (P09.04, TCK-758). */
+const UNITE_DE_LOYER: Record<RentPeriod, string> = {
+  daily: 'DAY',
+  weekly: 'WEE',
+  monthly: 'MON',
+  yearly: 'ANN',
+};
+
+/** `businessFunction` GoodRelations de l'offre, par contrat (P09.04, TCK-758). */
+const FONCTION_COMMERCIALE = {
+  sale: 'http://purl.org/goodrelations/v1#Sell',
+  rent: 'http://purl.org/goodrelations/v1#LeaseOut',
+} as const;
+
 /** Retire les clés `undefined` — un JSON-LD ne doit porter que ce qu'on sait vraiment. */
 function sansVides(noeud: Noeud): Noeud {
   return Object.fromEntries(Object.entries(noeud).filter(([, v]) => v !== undefined));
@@ -43,14 +57,19 @@ function sansVides(noeud: Noeud): Noeud {
 /**
  * Données structurées d'une fiche de bien — `RealEstateListing` (TCK-335, étape 6).
  *
- * ⚠️ **Jamais `Product` ni `Offer`, et ce n'est pas une préférence de style.** Les règles Google
- * réservent le balisage produit aux produits vendus ; l'employer sur une annonce immobilière
- * expose le domaine entier à une action manuelle « balisage trompeur ». `RealEstateListing` est
- * un sous-type de page (`SearchResultsPage` → `WebPage`), et c'est son `mainEntity` qui porte le
- * bien lui-même.
+ * ⚠️ **Jamais `Product`.** Les règles Google réservent le balisage produit aux produits vendus ;
+ * l'employer sur une annonce immobilière expose le domaine à une action manuelle « balisage
+ * trompeur ». `RealEstateListing` est un sous-type de page (`SearchResultsPage` → `WebPage`), et
+ * c'est son `mainEntity` qui porte le bien lui-même.
  *
- * Le prix voyage donc en `PriceSpecification` attachée au `mainEntity`, et non en `Offer` :
- * on décrit un montant affiché, on n'ouvre pas de transaction.
+ * **Le prix voyage en `Offer`, sous `offers` de la page** (décision du porteur, P09.04, TCK-758,
+ * qui remplace le refus de `Offer` de TCK-335) : `PriceSpecification` n'est définie ni sur
+ * `Accommodation` ni sur `Place`, et un loyer sans contrat ni période ressemblait à un prix de
+ * vente. L'`Offer` dit le contrat (`businessFunction` `Sell` ou `LeaseOut`) et, pour une
+ * location, le prix par période (`UnitPriceSpecification`, `unitCode` UN/CEFACT).
+ *
+ * Un `Place` (terrain, bureau, parking…) ne porte ni chambres, ni salles d'eau, ni surface, ni
+ * année : schema.org ne les définit que sur `Accommodation`.
  *
  * ### Trois pièges, tous déjà payés ailleurs dans ce dépôt
  *
@@ -77,8 +96,11 @@ export function jsonLdRealEstateListing(property: PropertyDetail, locale: Locale
       ? { '@type': 'GeoCoordinates', latitude, longitude }
       : undefined;
 
+  const sousType = SOUS_TYPE_SCHEMA[property.type];
+  const logement = sousType !== 'Place';
+
   const bien = sansVides({
-    '@type': SOUS_TYPE_SCHEMA[property.type],
+    '@type': sousType,
     name: property.title,
     description: property.description ?? undefined,
     url,
@@ -92,19 +114,36 @@ export function jsonLdRealEstateListing(property: PropertyDetail, locale: Locale
       addressCountry: property.location.country ?? undefined,
     }),
     geo,
-    numberOfBedrooms: property.bedrooms ?? undefined,
-    numberOfBathroomsTotal: property.bathrooms ?? undefined,
-    floorSize:
-      property.area !== null
-        ? { '@type': 'QuantitativeValue', value: property.area, unitCode: 'MTK' }
+    ...(logement
+      ? {
+          numberOfBedrooms: property.bedrooms ?? undefined,
+          numberOfBathroomsTotal: property.bathrooms ?? undefined,
+          floorSize:
+            property.area !== null
+              ? { '@type': 'QuantitativeValue', value: property.area, unitCode: 'MTK' }
+              : undefined,
+          yearBuilt: property.year_built ?? undefined,
+        }
+      : {}),
+  });
+
+  // Décimal, tel que l'API l'émet. Cf. le piège n°1 du docblock.
+  const price = property.price;
+  const priceCurrency = property.currency ?? 'XOF';
+  const offre = sansVides({
+    '@type': 'Offer',
+    price,
+    priceCurrency,
+    businessFunction: property.contract_type ? FONCTION_COMMERCIALE[property.contract_type] : undefined,
+    priceSpecification:
+      property.contract_type === 'rent' && property.rent_period
+        ? {
+            '@type': 'UnitPriceSpecification',
+            price,
+            priceCurrency,
+            unitCode: UNITE_DE_LOYER[property.rent_period],
+          }
         : undefined,
-    yearBuilt: property.year_built ?? undefined,
-    priceSpecification: {
-      '@type': 'PriceSpecification',
-      // Décimal, tel que l'API l'émet. Cf. le piège n°1 du docblock.
-      price: property.price,
-      priceCurrency: property.currency ?? 'XOF',
-    },
   });
 
   return sansVides({
@@ -114,5 +153,6 @@ export function jsonLdRealEstateListing(property: PropertyDetail, locale: Locale
     url,
     datePosted: property.published_at ?? undefined,
     mainEntity: bien,
+    offers: offre,
   });
 }

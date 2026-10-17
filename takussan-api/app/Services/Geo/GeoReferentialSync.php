@@ -20,9 +20,14 @@ final class GeoReferentialSync
     public function executer(string $repertoire): array
     {
         $bilan = $this->chargeur->charger($repertoire);
+        $renommes = $this->chargeur->biensRenommes();
         $biens = $this->rattacheur->rattacher();
-        $this->reindexation->biens($biens);
+        // TCK-787 — les biens dont le jeu a renommé la ville ou le quartier se réindexent aussi.
+        $this->reindexation->biens([...$renommes, ...$biens]);
 
-        return $bilan + ['biens_rattaches' => count(array_unique($biens))];
+        return $bilan + [
+            'biens_rattaches' => count(array_unique($biens)),
+            'biens_renommes' => count(array_unique($renommes)),
+        ];
     }
 }

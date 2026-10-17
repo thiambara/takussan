@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { Fraunces, Inter, Manrope } from 'next/font/google';
+import { notFound } from 'next/navigation';
 
 import { PlaygroundClient } from './PlaygroundClient';
 
@@ -37,6 +39,28 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * TCK-742 (P33.01) — les familles que seul le playground lit sont déclarées ICI, et non au layout
+ * racine : une police déclarée par une page n'est préchargée que par elle, quand celles de la
+ * racine l'étaient par les 139 routes. Bricolage et DM Sans restent posées par la racine.
+ * `display: contents` : l'enveloppe ne porte que les variables, sans boîte.
+ */
+const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', weight: ['400', '500', '600'], style: ['normal', 'italic'] });
+
+/**
+ * TCK-794 (P18.06, décision du porteur) — **retiré des environnements déployés** : le playground
+ * appelle la recherche publique pour ses rangées « près de toi » et « location », et chaque
+ * affichage comptait des impressions sponsorisées qu'il ne montre pas. Toute image déployée est
+ * construite en production (`next build`) : la page y rend 404. Elle reste l'outil de développement
+ * que décrivent `docs/design-guidelines.md` et TCK-129, sous `next dev`.
+ */
 export default function PlaygroundPage() {
-  return <PlaygroundClient />;
+  if (process.env.NODE_ENV === 'production') notFound();
+  return (
+    <div className={`contents ${manrope.variable} ${inter.variable} ${fraunces.variable}`}>
+      <PlaygroundClient />
+    </div>
+  );
 }

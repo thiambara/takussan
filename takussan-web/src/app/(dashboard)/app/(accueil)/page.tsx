@@ -3,6 +3,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
+import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
 import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
 import { PageHeader } from '@/components/console';
@@ -13,6 +14,7 @@ import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
 import { aDesChiffres, fetchDashboardMe } from '@/lib/queries/dashboard-me';
 import { getTranslations } from 'next-intl/server';
 import { prenomDe } from '@/lib/identite';
+import type { AgencyKind } from '@/types/agency';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.home');
@@ -36,10 +38,15 @@ export default async function DashboardPage() {
   // uploaded a logo yet. We swallow fetch errors here so a stale agency
   // record never breaks the dashboard render — the banner just stays hidden.
   let showBrandingBanner = false;
-  if (isAgencyAdmin(user.roles) && user.agency_id) {
-    const agencyResult = await fetchAgencyAction(user.agency_id);
+  // TCK-777 (P15.08) — le `kind` filtre les étapes de la mise en service ; `null` si l'agence n'a
+  // pas pu être lue : la carte ne garde alors que les étapes ouvertes à tout admin.
+  let kind: AgencyKind | null = null;
+  const adminDAgence = isAgencyAdmin(user.roles) && !!user.agency_id;
+  if (adminDAgence) {
+    const agencyResult = await fetchAgencyAction(user.agency_id!);
     if (agencyResult.ok && agencyResult.data) {
       showBrandingBanner = !agencyResult.data.logo_url;
+      kind = agencyResult.data.kind ?? null;
     }
   }
 
@@ -49,6 +56,11 @@ export default async function DashboardPage() {
         title={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
         description={t('subtitle')}
       />
+
+      {/* TCK-777 (P15.08) — la mise en service en tête, pour tout admin d'agence, individuelle
+          comprise : elle n'était montée que sur /app/overview/agency, réservé aux agences
+          standard. Elle y reste aussi. Elle disparaît une fois l'agence prête. */}
+      {adminDAgence ? <MiseEnService agencyId={user.agency_id ?? null} kind={kind} /> : null}
 
       {showBrandingBanner ? <BrandingBanner /> : null}
 

@@ -65,7 +65,7 @@ export function ChoiceCard({
             : 'border-border bg-card hover:border-primary/40 hover:bg-muted/40',
           disabled && 'cursor-not-allowed opacity-50',
           // Le focus se peint sur la CARTE, l'input étant hors flux visuel.
-          'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50',
+          'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring',
         )}
       >
         <input

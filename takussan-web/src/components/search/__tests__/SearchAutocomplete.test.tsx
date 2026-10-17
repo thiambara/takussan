@@ -57,7 +57,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
@@ -67,7 +67,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'da');
 
     expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'da');
 
     fireEvent.keyDown(input, { key: 'ArrowDown' });
@@ -100,7 +100,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'da');
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -114,7 +114,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'appartement');
 
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -128,7 +128,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'da');
 
     expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe('SearchAutocomplete', () => {
 
     render(withProviders(<SearchAutocomplete />));
 
-    const input = screen.getByRole('searchbox');
+    const input = screen.getByRole('combobox');
     await userEvent.type(input, 'apprtement');
 
     const action = await screen.findByRole('button', { name: 'Rechercher « apprtement » dans les annonces' });
@@ -174,7 +174,7 @@ describe('SearchAutocomplete', () => {
 
       render(withProviders(<SearchAutocomplete value="villa piscine" />));
 
-      expect(screen.getByRole('searchbox')).toHaveValue('villa piscine');
+      expect(screen.getByRole('combobox')).toHaveValue('villa piscine');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(suggest).toHaveBeenLastCalledWith('villa piscine', { enabled: false });
     });
@@ -186,7 +186,7 @@ describe('SearchAutocomplete', () => {
 
       render(withProviders(<SearchAutocomplete value="villa" />));
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       await userEvent.clear(input);
       await userEvent.type(input, 'maison{Enter}');
 
@@ -200,7 +200,7 @@ describe('SearchAutocomplete', () => {
 
       render(withProviders(<SearchAutocomplete value="villa" />));
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       await userEvent.clear(input);
       fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -214,7 +214,7 @@ describe('SearchAutocomplete', () => {
 
       render(withProviders(<SearchAutocomplete value="villa" />));
 
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       await userEvent.clear(input);
       await userEvent.type(input, 'da');
       fireEvent.keyDown(input, { key: 'ArrowDown' });
@@ -237,7 +237,7 @@ describe('SearchAutocomplete', () => {
       const onValider = vi.fn();
 
       render(withProviders(<SearchAutocomplete onValider={onValider} />));
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       await userEvent.type(input, 'almadies');
       expect(onValider).not.toHaveBeenCalled();
 
@@ -252,7 +252,7 @@ describe('SearchAutocomplete', () => {
       const onValider = vi.fn();
 
       render(withProviders(<SearchAutocomplete onValider={onValider} />));
-      const input = screen.getByRole('searchbox');
+      const input = screen.getByRole('combobox');
       await userEvent.type(input, 'da');
       fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'Enter' });

@@ -274,7 +274,7 @@ export function PropertyList({
                 <div className="flex min-w-0 flex-1 flex-col">
                   <Link
                     href={`/app/properties/${property.id}`}
-                    className="line-clamp-2 text-base font-semibold leading-snug text-pretty text-foreground outline-none after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:text-primary focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+                    className="line-clamp-2 text-base font-semibold leading-snug text-pretty text-foreground outline-none after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:text-primary focus-visible:after:ring-3 focus-visible:after:ring-ring"
                   >
                     {property.title}
                   </Link>

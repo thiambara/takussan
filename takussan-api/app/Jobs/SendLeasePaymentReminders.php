@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -14,6 +15,7 @@ use App\Services\Notifications\NotificationRenderer;
 use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\PrimaryPropertyContact;
+use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,7 +32,8 @@ use Illuminate\Support\Facades\Log;
  *   · **Sélection.** Une échéance OUVERTE (`pending`, `partially_paid`, `late`), jamais le seul
  *     statut `late` : ce statut n'est écrit que par la pénalité (`LateFeeCalculator`), donc un
  *     bail sans pénalité n'était jamais relancé, et un bail à délai de grâce manquait J+1.
- *     J-3 sur `due_date = today + 3` ; retard sur `due_date ∈ {today - 1, today - 7}`.
+ *     J-3 sur `due_date = today + 3` ; retard sur `due_date ∈ {today - 1, today - 7}`. Un jalon
+ *     manqué se rattrape pendant `CATCH_UP_DAYS` jours (TCK-739).
  *   · **Montant.** Le solde (`remaining_amount`), pas `amount` — une échéance partiellement
  *     payée annonçait la somme entière.
  *   · **Jours.** `(int) due_date->diffInDays(now(), true)`. Carbon 3 rend `diffInDays` SIGNÉ et
@@ -42,7 +45,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SendLeasePaymentReminders implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use AlertsOnFirstFailure, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /** @var list<PaymentStatus> */
     public const OPEN_STATUSES = [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late];
@@ -52,9 +55,15 @@ class SendLeasePaymentReminders implements ShouldQueue
     /** @var list<int> */
     public const OVERDUE_DAYS = [1, 7];
 
+    /**
+     * TCK-739 (P05.02) — un jalon manqué (job arrêté le jour prévu) part encore jusqu'à ce nombre
+     * de jours après, une seule fois grâce à son marqueur. Au-delà, il est perdu.
+     */
+    public const CATCH_UP_DAYS = 3;
+
     public function handle(NotificationService $notifications): void
     {
-        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS)->toDateString(), 'due_soon') as $payment) {
+        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $payment) {
             $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentDueSoon, [
                 'amount' => $this->remaining($payment),
                 'due_date' => $payment->due_date?->toDateString(),
@@ -65,7 +74,7 @@ class SendLeasePaymentReminders implements ShouldQueue
         /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
         $digests = [];
         foreach (self::OVERDUE_DAYS as $offset) {
-            foreach ($this->claim(now()->subDays($offset)->toDateString(), "overdue_{$offset}") as $payment) {
+            foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $payment) {
                 $days = (int) $payment->due_date->diffInDays(now(), true);
                 $lease = $payment->lease;
                 $amount = $this->remaining($payment);
@@ -106,44 +115,53 @@ class SendLeasePaymentReminders implements ShouldQueue
     }
 
     /**
-     * Les échéances ouvertes dues ce jour-là et pas encore relancées pour ce jalon. Chaque
-     * marqueur est posé sous verrou de ligne : deux passages concurrents ne relancent pas deux
-     * fois la même échéance.
+     * Les échéances ouvertes dont le jalon tombait aujourd'hui (`$dueDate`) ou dans les
+     * `CATCH_UP_DAYS` jours précédents (TCK-739), et pas encore relancées pour ce jalon.
      *
-     * @return list<LeasePayment>
+     * TCK-740 (P05.03) — rendues UNE À UNE, chacune réservée sous verrou de ligne juste avant
+     * d'être rendue : deux passages concurrents ne relancent pas deux fois la même échéance, et
+     * un envoi qui lève ne laisse pas marquées, sans envoi, celles qui le suivent.
+     *
+     * @return \Generator<int, LeasePayment>
      */
-    private function claim(string $dueDate, string $milestone): array
+    private function claim(CarbonInterface $dueDate, string $milestone): \Generator
     {
         $key = "reminder_{$milestone}_sent_at";
         // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
         // pas relancé.
-        $ids = LeasePayment::query()
+        $candidates = LeasePayment::query()
             ->exceptDepositRefunds()
             ->whereIn('status', self::OPEN_STATUSES)
-            ->whereDate('due_date', $dueDate)
-            ->pluck('id');
-
-        $claimed = [];
-        foreach ($ids as $id) {
-            DB::transaction(function () use ($id, $key, &$claimed): void {
-                $payment = LeasePayment::query()->whereKey($id)->lockForUpdate()->first();
-                if (! $payment || ! empty(($payment->metadata ?? [])[$key])) {
-                    return;
-                }
-                $payment->forceFill(['metadata' => [...($payment->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
-                $claimed[] = $payment->id;
-            });
-        }
-
-        return LeasePayment::query()
-            ->whereKey($claimed)
+            ->whereDate('due_date', '<=', $dueDate->toDateString())
+            ->whereDate('due_date', '>=', $dueDate->copy()->subDays(self::CATCH_UP_DAYS)->toDateString())
             ->with([
                 'lease.tenant.user',
                 'lease.landlord',
                 ...array_map(fn (string $relation) => "lease.property.{$relation}", PrimaryPropertyContact::eagerLoads()),
             ])
-            ->get()
-            ->all();
+            ->orderBy('id')
+            ->get();
+
+        foreach ($candidates as $payment) {
+            $claimed = DB::transaction(function () use ($payment, $key): bool {
+                $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
+                if (! $locked
+                    || ! in_array($locked->status, self::OPEN_STATUSES, true)
+                    || ! empty(($locked->metadata ?? [])[$key])
+                ) {
+                    return false;
+                }
+                $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
+                // Le statut et le solde relus sous le verrou, les relations gardées.
+                $payment->setRawAttributes($locked->getAttributes(), true);
+
+                return true;
+            });
+
+            if ($claimed) {
+                yield $payment;
+            }
+        }
     }
 
     /** @return array{amount: string, currency: string} */

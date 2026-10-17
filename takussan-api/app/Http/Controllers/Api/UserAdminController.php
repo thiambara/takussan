@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Resources\IncludedUserResource;
 use App\Models\User;
 use App\Support\AgencyKindGuard;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class UserAdminController extends Controller
 {
@@ -65,6 +68,19 @@ class UserAdminController extends Controller
         $enabled = User::query()->whereKey(array_map(fn (User $u) => $u->getKey(), $items))->pluck('two_factor_enabled', 'id');
         foreach ($items as $item) {
             $item->setAttribute('two_factor_enabled', (bool) ($enabled[$item->getKey()] ?? false));
+        }
+
+        // TCK-791 (piste P21.02) — sans `fields[users]`, la projection par défaut de P21.01 et non
+        // la ligne `users` entière (38 clés, `google_id`, `metadata`, second numéro). Les relations
+        // demandées par `include=` restent rendues. Avec `fields[users]`, `User::$queryFields`
+        // borne déjà les colonnes : ni `google_id` ni `metadata` n'y figurent.
+        if (! filled($request->input('fields.users'))) {
+            (new Collection($items))->loadMissing('media');
+            $items = array_map(fn (User $user) => [
+                ...(new IncludedUserResource($user))->resolve(),
+                'two_factor_enabled' => $user->getAttribute('two_factor_enabled'),
+                ...Arr::except($user->relationsToArray(), ['media']),
+            ], $items);
         }
 
         return $this->paginated($paginator, $items);

@@ -204,4 +204,33 @@ class LeaseDepositRefundEndpointTest extends TestCase
             $upload->fresh()->collection_name
         );
     }
+
+    /**
+     * TCK-736 (P04.08) — la caution d'un bail en XOF se rend et se retient à l'unité : une saisie
+     * de 300 000,40 devient 300 000, et la retenue 200 000, jamais 199 999,60.
+     */
+    public function test_a_xof_refund_is_rounded_to_the_unit(): void
+    {
+        $admin = $this->actingAsRole('agency_admin');
+        $tenant = Customer::factory()->create(['agency_id' => $admin->agency_id]);
+        $lease = Lease::factory()->create([
+            'landlord_id' => $admin->id,
+            'agency_id' => $admin->agency_id,
+            'tenant_id' => $tenant->id,
+            'status' => LeaseStatus::Terminated,
+            'deposit_amount' => 500000,
+            'currency' => 'XOF',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson("/api/leases/{$lease->id}/deposit-refund", [
+            'amount' => 300000.4,
+            'reason' => 'Trous dans le mur du salon',
+        ])->assertCreated();
+
+        $this->assertSame('300000.00', (string) Payout::query()->where('lease_id', $lease->id)->sole()->gross_amount);
+        $this->assertSame('200000.00', (string) Invoice::query()->findOrFail($response->json('data.invoice_id'))->total_amount);
+        $this->assertSame('300000.00', (string) $lease->fresh()->deposit_refunded_amount);
+    }
 }

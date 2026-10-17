@@ -9,11 +9,17 @@ import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { RetenirArrivee } from '@/components/shared/RetenirArrivee';
 import { EnregistrerServiceWorker } from '@/components/shared/EnregistrerServiceWorker';
-import { isLocale } from '@/i18n/config';
+import { isLocale, type Locale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdOrganisation, jsonLdSiteWeb } from '@/lib/jsonld-site';
 
 type LocaleParams = { readonly params: Promise<{ locale: string }> };
+
+/**
+ * `og:locale` de chaque langue servie (TCK-759). Le site sert le Sénégal : `fr_SN` et `wo_SN` ;
+ * l'anglais n'y a pas de variante d'usage, d'où `en_US`.
+ */
+const LOCALE_OPEN_GRAPH: Record<Locale, string> = { fr: 'fr_SN', en: 'en_US', wo: 'wo_SN' };
 
 /**
  * Public route group layout.
@@ -54,6 +60,12 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
     },
     description: t('description'),
     robots: { index: true, follow: true },
+    // Aperçu de partage par défaut (TCK-759, P09.03). Ni titre ni description : Next reprend
+    // ceux de la page (`inheritFromMetadata`), quand un titre posé ici serait celui de l'accueil
+    // partout. Ni `url` : le layout ne connaît pas le chemin. L'image vient d'`opengraph-image.tsx`,
+    // et une page qui déclare son propre `openGraph` remplace celui-ci en entier.
+    openGraph: { type: 'website', siteName: 'Takussan', locale: LOCALE_OPEN_GRAPH[locale] },
+    twitter: { card: 'summary_large_image' },
   };
 }
 

@@ -47,6 +47,14 @@ return [
         'ignore' => 'Soo ñuulul soppi baatu jàng, bul dara def.',
     ],
 
+    'agency_admin_activation' => [
+        'subject' => 'Activez votre compte Takussan',
+        'greeting' => 'Bonjour !',
+        'intro' => 'Un compte de gérant d\'agence a été créé pour vous sur Takussan. Choisissez votre mot de passe pour l\'activer, puis configurez votre agence.',
+        'action' => 'Activer mon compte',
+        'expire' => 'Ce lien d\'activation expirera dans :count jours.',
+    ],
+
     'new_booking' => [
         'subject' => 'Reservation bu bees #:reference',
         'greeting' => 'Salaam,',
@@ -245,6 +253,7 @@ return [
     'admin_alert' => [
         'test_message' => '[TEST] :event tàmbali na ndax test synthétique.',
         'activity_message' => ':event — jëfekat :actor, mbir :subject',
+        'failing_suffix' => ' — sondes en échec : :probes',
     ],
 
     // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).
@@ -703,6 +712,11 @@ return [
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
             ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
+            ],
             'rejected' => [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',
@@ -854,5 +868,23 @@ return [
     // TCK-587 — un bailleur rattaché propose un bien à son agence (brouillon privé à relire).
     'property_proposed' => [
         'title' => 'Kër gu ab boroom kër yónnee : :title',
+    ],
+    // TCK-748 — texte de départ de l'éditeur de gabarits (console super-admin), une langue par
+    // fichier. Syntaxe `{{ … }}` de NotificationTemplateService, pas `:param` : ces chaînes ne
+    // passent jamais par trans() avec des paramètres. Le texte français tel quel : wolof en pause
+    // depuis le 2026-10-16, l'enregistrement ne persiste pas une langue laissée intacte.
+    'editable_templates' => [
+        'booking_confirmed' => [
+            'subject' => 'Réservation confirmée',
+            'body' => 'Bonjour {{ user.first_name }}, votre réservation {{ booking.code }} est confirmée.',
+        ],
+        'payment_received' => [
+            'subject' => 'Paiement reçu',
+            'body' => 'Bonjour {{ user.first_name }}, paiement reçu: {{ payment.amount }} {{ payment.currency }}.',
+        ],
+        'maintenance_created' => [
+            'subject' => 'Maintenance créée',
+            'body' => 'Bonjour {{ user.first_name }}, demande {{ maintenance.reference }} créée pour {{ property.title }}.',
+        ],
     ],
 ];

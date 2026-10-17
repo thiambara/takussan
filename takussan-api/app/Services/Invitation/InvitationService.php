@@ -161,7 +161,12 @@ class InvitationService
         $invitableType = $payload['invitable_type'] ?? null;
         $invitableId = $payload['invitable_id'] ?? null;
         $agencyId = $payload['agency_id'] ?? null;
-        $metadata = $payload['metadata'] ?? null;
+        // TCK-728 (P29.01) — UNE langue par invitation, écrite ici et relue à chaque envoi
+        // (envoi, relance, rappel) : `fr` explicite, comme tout contact sans compte
+        // ({@see ContactSansCompte::DEFAULT_LOCALE}), jamais la langue négociée de l'invitant
+        // ni celle du worker qui joue la relance. Le compte du destinataire, s'il existe,
+        // garde la priorité à l'envoi ({@see self::preferredLocale()}).
+        $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
         // rien. Le garde vit ICI et non seulement dans
@@ -1002,12 +1007,13 @@ class InvitationService
      *
      * Order:
      *  1. Existing User's `preferred_language` if we have one.
-     *  2. `metadata.locale` on the invitation (caller hint).
-     *  3. App default.
+     *  2. `metadata.locale`, written once by {@see self::send()} (TCK-728).
+     *  3. `fr` ({@see ContactSansCompte::DEFAULT_LOCALE}) for a row created before TCK-728 —
+     *     never `config('app.locale')`, which `setLocale()` rewrites per request and worker.
      */
     protected function preferredLocale(?User $user, Invitation $invitation): string
     {
         return $user?->preferred_language
-            ?? (string) (data_get($invitation->metadata, 'locale') ?? config('app.locale'));
+            ?? (string) (data_get($invitation->metadata, 'locale') ?? ContactSansCompte::DEFAULT_LOCALE);
     }
 }

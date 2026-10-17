@@ -9,6 +9,7 @@ import {
   type SuperAdminTwoFactorConfirmResponse,
   type SuperAdminTwoFactorEnrollResponse,
 } from '@/lib/security';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-264 — Server-action wrappers for the dedicated super-admin TOTP
@@ -41,6 +42,7 @@ type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string };
 type CleRepli = 'enrollFailed' | 'invalidTotp';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  journaliserErreurInattendue('super-admin-cooptation', err);
   const t = await getTranslations('serverActions.superAdminCooptation');
   const repli = t(cleRepli);
   if (err instanceof ApiError) {

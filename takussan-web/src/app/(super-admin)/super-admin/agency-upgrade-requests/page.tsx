@@ -144,7 +144,7 @@ export default function AgencyUpgradeRequestsListPage() {
             <p className="text-xs text-muted-foreground">
               {t('agencyRef', { id: String(row.agency_id) })}
               {row.planned_agents_count
-                ? t('plannedAgents', { count: String(row.planned_agents_count) })
+                ? t('plannedAgents', { count: row.planned_agents_count })
                 : null}
             </p>
           </div>
@@ -317,7 +317,7 @@ function formatElapsed(
   if (elapsedDays === null) return '—';
   if (elapsedDays === 0) return t('delay.today');
   if (elapsedDays === 1) return t('delay.oneDay');
-  return t('delay.days', { count: String(elapsedDays) });
+  return t('delay.days', { count: elapsedDays });
 }
 
 /**

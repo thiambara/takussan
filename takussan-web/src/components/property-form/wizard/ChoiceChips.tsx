@@ -189,7 +189,7 @@ export function ChoiceChips({
                 // `scale`, pas `transform` : sous Tailwind 4, `active:scale-*` écrit la propriété
                 // `scale`, que la liste précédente ne faisait pas transitionner.
                 'transition-[background-color,border-color,color,box-shadow,scale] duration-150 ease-out',
-                'active:scale-[0.97] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                'active:scale-[0.97] focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none',
                 variant === 'pastilles' && [
                   // `min-h-11` = 44 px : la cible tactile minimale. En dessous, le doigt rate.
                   'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm',

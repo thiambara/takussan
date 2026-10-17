@@ -89,7 +89,7 @@ describe('Pastille mobile — un tap ouvre une saisie (TCK-549 AC1)', () => {
     await user.click(pastille());
 
     const dialogue = await screen.findByRole('dialog');
-    const champ = within(dialogue).getByRole('searchbox');
+    const champ = within(dialogue).getByRole('combobox');
     expect(champ).toHaveAttribute('type', 'text');
     expect(champ).toHaveValue('Dakar');
     await waitFor(() => expect(champ).toHaveFocus());
@@ -103,7 +103,7 @@ describe('Pastille mobile — un tap ouvre une saisie (TCK-549 AC1)', () => {
 
     await user.click(pastille());
     const dialogue = await screen.findByRole('dialog');
-    await user.type(within(dialogue).getByRole('searchbox'), ' Plateau');
+    await user.type(within(dialogue).getByRole('combobox'), ' Plateau');
     await user.click(within(dialogue).getByRole('button', { name: 'Retour' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -136,7 +136,7 @@ describe('Pastille mobile — valider écrit `q`, garde les filtres, retire `pag
 
     await user.click(pastille());
     const dialogue = await screen.findByRole('dialog');
-    const champ = within(dialogue).getByRole('searchbox');
+    const champ = within(dialogue).getByRole('combobox');
     await user.clear(champ);
     await user.type(champ, 'Almadies{Enter}');
 
@@ -158,16 +158,16 @@ describe('Pastille mobile — valider écrit `q`, garde les filtres, retire `pag
 
     await user.click(pastille());
     let dialogue = await screen.findByRole('dialog');
-    await user.clear(within(dialogue).getByRole('searchbox'));
-    await user.type(within(dialogue).getByRole('searchbox'), 'Almadies{Enter}');
+    await user.clear(within(dialogue).getByRole('combobox'));
+    await user.type(within(dialogue).getByRole('combobox'), 'Almadies{Enter}');
     const urlEntree = String(push.mock.calls.at(-1)![0]);
 
     push.mockReset();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await user.click(pastille());
     dialogue = await screen.findByRole('dialog');
-    await user.clear(within(dialogue).getByRole('searchbox'));
-    await user.type(within(dialogue).getByRole('searchbox'), 'Almadies');
+    await user.clear(within(dialogue).getByRole('combobox'));
+    await user.type(within(dialogue).getByRole('combobox'), 'Almadies');
     await user.click(within(dialogue).getByRole('button', { name: 'Rechercher' }));
 
     expect(push).toHaveBeenCalledTimes(1);
@@ -260,7 +260,7 @@ describe('Pastille mobile — une saisie abandonnée ne ressort par aucun geste 
   async function abandonner(user: ReturnType<typeof userEvent.setup>, par: 'Retour' | 'Échap') {
     await user.click(pastille());
     const dialogue = await screen.findByRole('dialog');
-    await user.type(within(dialogue).getByRole('searchbox'), ' Plateau');
+    await user.type(within(dialogue).getByRole('combobox'), ' Plateau');
     if (par === 'Retour') await user.click(within(dialogue).getByRole('button', { name: 'Retour' }));
     else await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -293,7 +293,7 @@ describe('Pastille mobile — une saisie abandonnée ne ressort par aucun geste 
     await abandonner(user, 'Échap');
     await user.click(pastille());
     const dialogue = await screen.findByRole('dialog');
-    expect(within(dialogue).getByRole('searchbox')).toHaveValue('Dakar');
+    expect(within(dialogue).getByRole('combobox')).toHaveValue('Dakar');
     await user.click(within(dialogue).getByRole('button', { name: 'Rechercher' }));
 
     expect(push).toHaveBeenCalledTimes(1);

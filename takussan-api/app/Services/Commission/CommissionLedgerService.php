@@ -7,6 +7,7 @@ use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
+use App\Models\Enums\Currency;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyCollaborator;
@@ -24,8 +25,9 @@ use Illuminate\Support\Facades\DB;
  *  2. le négociateur (`leases.agent_id`), au taux de son `AgentProfile` actif dans l'agence,
  *     plafonné à `100 − Σ des parts servies`. Également collaborateur, il n'a qu'une ligne.
  *
- * Le reliquat reste à l'agence, sans ligne. Chaque montant est arrondi au centime INFÉRIEUR : la
- * somme des lignes ne dépasse jamais la base, quel que soit le nombre de parts.
+ * Le reliquat reste à l'agence, sans ligne. Chaque montant est arrondi à l'unité INFÉRIEURE de la
+ * devise du bail (`Currency::decimalPlacesOf`, TCK-736) : la somme des lignes ne dépasse jamais la
+ * base, quel que soit le nombre de parts.
  *
  * Idempotent par l'unicité `(lease_id, beneficiary_id)` et `insertOrIgnore` : une seconde émission
  * de `LeaseActivated` n'ajoute rien. On n'attrape jamais l'exception d'unicité (piège PostgreSQL
@@ -78,8 +80,9 @@ class CommissionLedgerService
         $now = now();
         $earnedAt = $lease->signed_at ?? $now;
         $rows = [];
+        $scale = 10 ** Currency::decimalPlacesOf($lease->currency);
         foreach ($shares as $beneficiaryId => $share) {
-            $amount = floor(round($base * $share, 6)) / 100;
+            $amount = floor(round($base * $share / 100 * $scale, 6)) / $scale;
             if ($share <= 0 || $amount <= 0) {
                 continue;
             }

@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /** TCK-626 — ce que l'acceptation rend d'utile au front (`InvitationResource`). */
 export type InvitationAcceptee = {
@@ -39,6 +40,7 @@ export async function accepterInvitationAction(
     );
     return { ok: true, invitation: reponse.data };
   } catch (err) {
+    journaliserErreurInattendue('invitations', err);
     const [tRacine, t] = await Promise.all([getTranslations(), getTranslations('invitationAccept')]);
     const repli = t('errors.generic');
     if (err instanceof ApiError) {

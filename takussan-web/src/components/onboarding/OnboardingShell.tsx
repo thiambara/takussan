@@ -63,14 +63,14 @@ export async function OnboardingShell({
         <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link
             href="/"
-            className="inline-flex rounded-md py-1 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="inline-flex rounded-md py-1 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
             {/* TCK-621 — la marque, et non plus son nom en texte nu. */}
             <Logo nom={tCommon('appName')} />
           </Link>
           <Link
             href="/"
-            className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
             <ArrowLeft className="size-4" aria-hidden />
             {t('exit')}

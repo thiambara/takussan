@@ -105,6 +105,31 @@ class AuthorizationPrecedesValidationTest extends ApiTestCase
             ->assertJsonValidationErrors(['visibility']);
     }
 
+    /**
+     * TCK-730 (P03.05) — `UpdatePropertyRequest` étendait `FormRequest` et autorisait tout compte
+     * connecté : un intrus recevait 422 et les noms des champs `type` et `price`.
+     */
+    public function test_property_update_denies_before_it_validates(): void
+    {
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $this->intrus();
+
+        $this->putJson("/api/properties/{$property->id}", ['type' => 'chateau', 'price' => 'cher'])
+            ->assertStatus(403);
+        $this->patchJson("/api/properties/{$property->id}", ['type' => 'chateau', 'price' => 'cher'])
+            ->assertStatus(403);
+    }
+
+    public function test_property_update_still_validates_for_an_authorized_caller(): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+
+        $this->putJson("/api/properties/{$property->id}", ['type' => 'chateau', 'price' => 'cher'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['type', 'price']);
+    }
+
     public function test_lease_termination_denies_before_it_validates(): void
     {
         $lease = Lease::factory()->create(['agency_id' => $this->agency->id]);

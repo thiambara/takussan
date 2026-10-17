@@ -80,31 +80,83 @@ function mainEntity(p: PropertyDetail): Noeud {
   return jsonLdRealEstateListing(p, 'fr').mainEntity as Noeud;
 }
 
-describe('jsonLdRealEstateListing', () => {
-  it("ne balise JAMAIS l'annonce en Product/Offer", () => {
-    const brut = JSON.stringify(jsonLdRealEstateListing(bien(), 'fr'));
+function offer(p: PropertyDetail): Noeud {
+  return jsonLdRealEstateListing(p, 'fr').offers as Noeud;
+}
 
-    expect(jsonLdRealEstateListing(bien(), 'fr')['@type']).toBe('RealEstateListing');
-    // Les règles Google réservent le balisage produit aux produits vendus ; l'employer sur une
-    // annonce immobilière expose à une action manuelle « balisage trompeur ».
+describe('jsonLdRealEstateListing', () => {
+  it("ne balise JAMAIS l'annonce en Product ; l'Offer ne vit que sous `offers` (P09.04, TCK-758)", () => {
+    const listing = jsonLdRealEstateListing(bien(), 'fr');
+    const brut = JSON.stringify(listing);
+
+    expect(listing['@type']).toBe('RealEstateListing');
+    // Les règles Google réservent le balisage produit aux produits vendus.
     expect(brut).not.toContain('"Product"');
-    expect(brut).not.toContain('"Offer"');
+    // Décision du porteur (P09.04) : le prix passe par une `Offer` de la page, jamais par le bien.
+    expect((listing.offers as Noeud)['@type']).toBe('Offer');
+    expect(mainEntity(bien())).not.toHaveProperty('priceSpecification');
+    expect(mainEntity(bien())).not.toHaveProperty('offers');
   });
 
   it('émet le prix DÉCIMAL, jamais multiplié par 100', () => {
-    const specification = mainEntity(bien({ price: 45_000_000 })).priceSpecification as Noeud;
+    const offre = offer(bien({ price: 45_000_000 }));
 
     // Le facteur 100 est la frontière du driver de paiement (principe non négociable n°3), et
     // il n'a rien à faire ici : le XOF n'a pas de sous-unité. 45 000 000 F ×100 afficherait
     // 4,5 milliards à un moteur de recherche.
-    expect(specification.price).toBe(45_000_000);
-    expect(specification.price).not.toBe(4_500_000_000);
+    expect(offre.price).toBe(45_000_000);
+    expect(offre.price).not.toBe(4_500_000_000);
   });
 
   it('émet priceCurrency « XOF », y compris quand l\'API ne dit rien', () => {
-    expect((mainEntity(bien()).priceSpecification as Noeud).priceCurrency).toBe('XOF');
-    expect((mainEntity(bien({ currency: null })).priceSpecification as Noeud).priceCurrency)
-      .toBe('XOF');
+    expect(offer(bien()).priceCurrency).toBe('XOF');
+    expect(offer(bien({ currency: null })).priceCurrency).toBe('XOF');
+  });
+
+  it('une vente est une Offer « Sell », sans prix unitaire', () => {
+    const offre = offer(bien({ contract_type: 'sale' }));
+
+    expect(offre.businessFunction).toBe('http://purl.org/goodrelations/v1#Sell');
+    expect(offre).not.toHaveProperty('priceSpecification');
+  });
+
+  it('une location est une Offer « LeaseOut », au prix unitaire de sa période', () => {
+    const unites = { daily: 'DAY', weekly: 'WEE', monthly: 'MON', yearly: 'ANN' } as const;
+    for (const [periode, unitCode] of Object.entries(unites)) {
+      const offre = offer(bien({ contract_type: 'rent', rent_period: periode as keyof typeof unites, price: 350_000 }));
+
+      expect(offre.businessFunction).toBe('http://purl.org/goodrelations/v1#LeaseOut');
+      expect(offre.priceSpecification).toEqual({
+        '@type': 'UnitPriceSpecification',
+        price: 350_000,
+        priceCurrency: 'XOF',
+        unitCode,
+      });
+    }
+  });
+
+  it('sans contrat ni période connus, ni businessFunction ni prix unitaire', () => {
+    const offre = offer(bien({ contract_type: null, rent_period: null }));
+    expect(offre).not.toHaveProperty('businessFunction');
+    expect(offre).not.toHaveProperty('priceSpecification');
+
+    expect(offer(bien({ contract_type: 'rent', rent_period: null }))).not.toHaveProperty('priceSpecification');
+  });
+
+  it('un `Place` (terrain, bureau, parking) ne porte aucun champ de logement', () => {
+    for (const type of ['land', 'office', 'parking'] as const) {
+      const entite = mainEntity(bien({ type, bedrooms: 2, bathrooms: 1, area: 500, year_built: 2010 }));
+
+      expect(entite['@type']).toBe('Place');
+      // schema.org ne définit ces propriétés que sur `Accommodation`.
+      expect(entite).not.toHaveProperty('floorSize');
+      expect(entite).not.toHaveProperty('numberOfBedrooms');
+      expect(entite).not.toHaveProperty('numberOfBathroomsTotal');
+      expect(entite).not.toHaveProperty('yearBuilt');
+    }
+    // Un logement les garde.
+    expect(mainEntity(bien({ type: 'villa' }))).toHaveProperty('floorSize');
+    expect(mainEntity(bien({ type: 'villa' }))).toHaveProperty('yearBuilt');
   });
 
   it('OMET `geo` quand latitude ou longitude est nulle', () => {

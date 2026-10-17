@@ -130,7 +130,7 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
                       {t('loading')}
                     </>
                   ) : (
-                    t('loadMore', { count: String(displayedTotals.all - accumulated.length) })
+                    t('loadMore', { count: displayedTotals.all - accumulated.length })
                   )}
                 </Button>
               </div>

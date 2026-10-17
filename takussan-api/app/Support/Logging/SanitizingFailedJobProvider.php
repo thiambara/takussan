@@ -16,8 +16,11 @@ use Throwable;
  * `queue.failer` écrit à la place la forme sûre de {@see SafeExceptionContext}, rendue en texte
  * pour la console des jobs échoués. Le `payload` n'est PAS touché : il est nécessaire au rejeu.
  *
- * Écarté (ADR-0044) : une purge périodique — la donnée vit jusqu'au passage ; et
- * `zend.exception_ignore_args` seul — il ne retire pas les valeurs du message.
+ * La purge ne remplace pas ce décorateur : `queue:prune-failed --hours=720`, planifiée chaque jour
+ * (`routes/console.php`, TCK-803), borne à 30 jours la vie du `payload`, que ce décorateur ne peut
+ * pas rendre sûr sans perdre le rejeu (ADR-0044, amendement du 2026-10-16).
+ *
+ * Écarté (ADR-0044) : `zend.exception_ignore_args` seul — il ne retire pas les valeurs du message.
  */
 final class SanitizingFailedJobProvider implements CountableFailedJobProvider, FailedJobProviderInterface, PrunableFailedJobProvider
 {

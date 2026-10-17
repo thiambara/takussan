@@ -45,7 +45,7 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
 
     render(withIntl(await Page()));
 
-    expect(screen.getByTestId('assistant')).toHaveTextContent(/annonce\(s\) active\(s\)/);
+    expect(screen.getByTestId('assistant')).toHaveTextContent(/annonces actives/);
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
     expect(screen.queryByTestId('quota-atteint')).not.toBeInTheDocument();
   });

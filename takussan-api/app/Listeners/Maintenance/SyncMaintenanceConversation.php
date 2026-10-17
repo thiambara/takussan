@@ -74,6 +74,8 @@ class SyncMaintenanceConversation
     {
         $creator = $actor ?? $mr->property?->owner ?? $mr->assignee;
 
+        // TCK-804 — no group invite here: the provider and the requester are already told by
+        // `maintenance.assigned` and `maintenance.step_*` (TCK-592), and nobody chose this group.
         return $this->groups->create(
             $creator,
             $mr->title,
@@ -81,6 +83,7 @@ class SyncMaintenanceConversation
             $mr->property_id,
             $mr->lease_id,
             $mr->id,
+            sendInvites: false,
         );
     }
 

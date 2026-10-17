@@ -70,8 +70,10 @@ export interface Formatteurs {
    * ⚠️ Mesuré le 2026-08-27 : sur XOF les deux rendent la MÊME chaîne en `fr`
    * (`Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' })` → `150 000 F CFA`).
    * L'écart n'apparaît que sur les autres devises de l'enum backend (`USD` place le symbole
-   * devant), et sur les décimales — d'où le `0` par défaut, qui reconduit le
-   * `maximumFractionDigits: 0` des sites remplacés.
+   * devant), et sur les décimales.
+   *
+   * Les décimales sont celles de la devise (`CURRENCY_METADATA`) : aucune en franc CFA, deux en
+   * EUR et USD. Le `0` imposé à toute devise rendait 12,50 € « 13 € » (TCK-738).
    */
   readonly montant: (
     value: number | null | undefined,
@@ -129,8 +131,6 @@ export function formatteursPour(locale: Locale): Formatteurs {
     montant: (value, currency, options) => {
       const sortie = formatCurrency(value, locale, {
         currency: currency ?? 'XOF',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
         ...options,
       });
       return sortie === '' ? VALEUR_ABSENTE : sortie;

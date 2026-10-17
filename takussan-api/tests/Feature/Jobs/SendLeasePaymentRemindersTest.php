@@ -20,6 +20,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Model\NotificationService;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -286,6 +287,69 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->run_();
 
         $this->assertCount(1, $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentDueSoon));
+    }
+
+    // ─── TCK-739 (P05.02) — un jalon manqué se rattrape pendant 3 jours ────────────────
+
+    public function test_tck739_un_j_plus_1_manque_part_le_lendemain_une_seule_fois(): void
+    {
+        Carbon::setTestNow('2026-10-01 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+
+        $this->run_();
+        Carbon::setTestNow('2026-10-02 08:00:00');
+        $this->run_();
+
+        $row = $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentOverdue)->sole();
+        $this->assertSame(2, $row->params['days']);
+    }
+
+    public function test_tck739_un_j_moins_3_manque_part_avant_l_echeance(): void
+    {
+        Carbon::setTestNow('2026-09-27 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29', 'status' => PaymentStatus::Pending]);
+
+        $this->run_();
+        $this->run_();
+
+        $this->assertCount(1, $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentDueSoon));
+    }
+
+    public function test_tck739_au_dela_de_trois_jours_le_jalon_est_perdu(): void
+    {
+        // J+5 : 4 jours après le jalon J+1, 2 jours avant J+7.
+        Carbon::setTestNow('2026-10-04 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+
+        $this->run_();
+
+        $this->assertCount(0, $this->rows($payment->lease->tenant->user));
+    }
+
+    // ─── TCK-740 (P05.03) — réserver et envoyer échéance par échéance ──────────────────
+
+    public function test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes(): void
+    {
+        Carbon::setTestNow('2026-09-30 08:00:00');
+        $this->payment(['due_date' => '2026-09-29']);
+        $this->payment(['due_date' => '2026-09-29']);
+        $this->partialMock(NotificationService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andThrow(new \RuntimeException('canal en panne'));
+        });
+
+        try {
+            $this->run_();
+            $this->fail('L\'envoi devait lever.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('canal en panne', $e->getMessage());
+        }
+
+        $this->app->forgetInstance(NotificationService::class);
+        $this->run_();
+
+        // La première échéance, réservée puis en échec, n'est pas relancée deux fois ; la seconde
+        // l'est, au rejeu.
+        $this->assertSame(1, AppNotification::query()->where('code', NotificationCode::LeasePaymentOverdue->value)->count());
     }
 
     // ─── TCK-602 — le lien de paiement dans la relance ─────────────────────────────────

@@ -36,6 +36,7 @@ describe('listerPropositions', () => {
         id: 7, name: 'Liberté 7', slug: 'liberte-7', status: 'pending', origin: 'proposed',
         city: { id: 3, name: 'Dakar' }, region: { id: 1, name: 'Dakar' },
         created_by: { id: 9, name: 'Awa Diop' }, addresses_count: 2, created_at: '2026-10-12T10:00:00+00:00',
+        similar: [{ id: 2, name: 'Liberté 6' }],
       }],
       meta: { total: 1, per_page: 20, current_page: 1, last_page: 1 },
     }));
@@ -46,7 +47,7 @@ describe('listerPropositions', () => {
     expect(chemin).toBe('/api/super-admin/geo/neighborhoods');
     expect(params).toEqual({ 'filter[status]': 'pending', page: '2', per_page: '20' });
     expect(init.credentials).toBe('include');
-    expect(page.data).toEqual([{ id: 7, name: 'Liberté 7', auteur: 'Awa Diop', usage: 2, lieu: 'Dakar · Dakar', villeId: 3 }]);
+    expect(page.data).toEqual([{ id: 7, name: 'Liberté 7', auteur: 'Awa Diop', usage: 2, lieu: 'Dakar · Dakar', villeId: 3, proches: ['Liberté 6'] }]);
     expect(page.meta.total).toBe(1);
   });
 
@@ -60,7 +61,7 @@ describe('listerPropositions', () => {
 
     expect(appel(0).chemin).toBe('/api/super-admin/tags/proposals');
     expect(appel(0).params['filter[status]']).toBe('pending');
-    expect(page.data).toEqual([{ id: 4, name: 'Puits', auteur: null, usage: 1, lieu: null, villeId: null }]);
+    expect(page.data).toEqual([{ id: 4, name: 'Puits', auteur: null, usage: 1, lieu: null, villeId: null, proches: [] }]);
   });
 
   it('une erreur de l’API remonte (la file affiche son état d’erreur)', async () => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { hrefDeFiche, useArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { cn } from '@/lib/utils';
 
@@ -94,9 +95,11 @@ export interface LienDeCarteProps {
 }
 
 export function LienDeCarte({ slug, idTitre, className }: LienDeCarteProps) {
+  // TCK-794 — dans un emplacement sponsorisé, le lien porte le marqueur d'arrivée.
+  const sponsorise = useArriveeSponsorisee();
   return (
     <LienLocalise
-      href={`/properties/${slug}`}
+      href={hrefDeFiche(slug, sponsorise)}
       aria-labelledby={idTitre}
       className={cn(
         // L'arrondi n'existe QU'AU FOCUS : un `rounded-xl` permanent rognait la cible aux quatre

@@ -197,38 +197,9 @@ class DocumentSearchTest extends TestCase
             ->assertUnauthorized();
     }
 
-    public function test_date_range_filter(): void
-    {
-        $user = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $user->id]);
-
-        Document::factory()->create([
-            'documentable_id' => $property->id,
-            'documentable_type' => Property::class,
-            'uploaded_by' => $user->id,
-            'name' => 'daterange plage test',
-            'type' => DocumentType::Other,
-            'created_at' => now()->subDays(30),
-        ]);
-
-        Document::factory()->create([
-            'documentable_id' => $property->id,
-            'documentable_type' => Property::class,
-            'uploaded_by' => $user->id,
-            'name' => 'daterange plage test',
-            'type' => DocumentType::Other,
-            'created_at' => now()->subDays(2),
-        ]);
-
-        $from = now()->subDays(7)->toDateString();
-        $to = now()->toDateString();
-
-        $response = $this->actingAs($user)
-            ->getJson("/api/search/documents?q=daterange&filter[date_from]={$from}&filter[date_to]={$to}");
-
-        $response->assertOk();
-        $response->assertJsonCount(1, 'data');
-    }
+    // TCK-786 — `test_date_range_filter` a rejoint `SearchDateRangeTest`, sur Meilisearch réel :
+    // la plage filtre désormais dans le moteur, et le pilote `collection` de cette classe la
+    // rejouerait en SQL, où `created_at` est un `timestamp` et non l'entier de l'index.
 
     public function test_admin_can_see_all_documents(): void
     {

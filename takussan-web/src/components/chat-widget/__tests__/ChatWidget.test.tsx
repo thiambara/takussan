@@ -11,7 +11,9 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import frMessages from '@/messages/fr.json';
-import { ChatWidget } from '../ChatWidget';
+// TCK-743 — le corps du widget porte toutes ses règles ; `ChatWidget` n'en est plus que la garde
+// « connecté », éprouvée par `ChatWidget.garde.test.tsx`.
+import { CorpsDuWidget as ChatWidget } from '../CorpsDuWidget';
 
 const usePathnameMock = vi.fn<() => string>();
 const useAuthMock = vi.fn<() => { user: { id: number } | null }>();

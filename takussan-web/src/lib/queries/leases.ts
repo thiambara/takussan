@@ -97,6 +97,22 @@ export function useLeases(params: UseLeasesParams = {}) {
   );
 }
 
+/**
+ * TCK-776 (P15.09) — les biens que le sélecteur du bail propose : tous, sauf ceux qu'on a vendus,
+ * archivés ou déjà loués. L'API n'exige aucun statut pour ouvrir un bail (`StoreLeaseRequest`) ;
+ * ne demander que `available` cachait le bien neuf (`draft`) et celui en modération.
+ */
+export const STATUTS_BIEN_POUR_UN_BAIL = [
+  'available',
+  'under_maintenance',
+  'unavailable',
+  'pending',
+  'draft',
+  'published',
+  'pending_review',
+  'rejected',
+] as const;
+
 export function useLeasePropertyOptions() {
   const spatieParams: SpatieQueryParams = {
     fields: {
@@ -114,7 +130,7 @@ export function useLeasePropertyOptions() {
         'created_at',
       ],
     },
-    filter: { status: 'available' },
+    filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
     per_page: 100,
   };

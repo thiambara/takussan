@@ -37,6 +37,20 @@ beforeEach(() => {
 });
 
 describe('MiseEnService', () => {
+  /** TCK-761 (P15.04) — la 2FA conditionne trois étapes : elle passe en tête, le reste garde l'ordre de l'API. */
+  it('place le second facteur en tête, et les autres étapes dans l’ordre de l’API', async () => {
+    apiRequest.mockResolvedValue({
+      data: { complete: false, steps: CLES.map((key) => ({ key, done: false })) },
+    });
+    monter();
+
+    const carte = await screen.findByTestId('agency-setup-status');
+    const lignes = within(carte).getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(lignes[0]).toMatch(/Double authentification de l’administrateur/);
+    expect(lignes[1]).toMatch(/Dossier KYC vérifié/);
+    expect(lignes).toHaveLength(7);
+  });
+
   it('une ligne par étape : cochée si faite, sinon un lien direct ; la progression', async () => {
     apiRequest.mockResolvedValue({
       data: {

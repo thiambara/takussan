@@ -79,8 +79,31 @@ class PaymentDriverErrorLeakTest extends TestCase
             $this->assertStringNotContainsString(self::SECRET, $verify->getContent(), "{$provider} verify");
         }
 
-        // Le corps n'est pas perdu : il est au journal du serveur.
-        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => ($c['body'] ?? null) === self::SECRET)->atLeast()->once();
+        // TCK-773 (P14.10) — le journal du serveur garde le statut, jamais le corps : il peut
+        // porter le numéro du payeur.
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => ($c['status'] ?? null) === 500)->atLeast()->once();
+        Log::shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($c) => str_contains((string) json_encode($c), self::SECRET))]);
+    }
+
+    /** TCK-773 (P14.10) — du corps du fournisseur, le journal ne garde que son code d'erreur. */
+    public function test_a_provider_failure_logs_its_status_and_code_never_the_body(): void
+    {
+        Log::spy();
+        Http::fake([
+            '*/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
+            '*' => Http::response(['code' => 'request-validation-error', 'message' => 'msisdn 221771234567 invalide'], 400),
+        ]);
+        $ctx = $this->withOrangeMoney();
+
+        foreach (['wave', 'orange_money'] as $provider) {
+            $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => $provider])->assertStatus(502);
+        }
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => $m === '[wave] checkout failed'
+            && $c === ['status' => 400, 'provider_code' => 'request-validation-error'])->once();
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => $m === '[orange-money] checkout failed'
+            && $c === ['status' => 400, 'provider_code' => 'request-validation-error'])->once();
+        Log::shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($c) => str_contains((string) json_encode($c), '221771234567'))]);
     }
 
     public function test_an_oauth_failure_is_a_provider_unavailable_without_its_body(): void

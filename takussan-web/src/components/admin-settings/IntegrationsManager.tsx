@@ -37,6 +37,8 @@ import {
 } from '@/app/actions/admin-settings';
 import type { Integration, IntegrationTestResult, PaymentProviderSchema } from '@/types/setting';
 import { IntegrationWebhookEndpoint } from './IntegrationWebhookEndpoint';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
 
 /**
  * Integration providers manager — TCK-068.
@@ -113,11 +115,15 @@ export function IntegrationsManager({
   const [dialogMode, setDialogMode] = useState<'closed' | 'create' | { edit: Integration }>('closed');
   const [rowError, setRowError] = useState<{ id: number; message: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  // TCK-761 (P15.04) — créer, modifier, tester ou supprimer une intégration exige la 2FA de
+  // l'admin (`IntegrationController@store|update|test|destroy`) : un refus ouvre la boîte de la
+  // coque, puis le geste est rejoué. Hors de la coque (`null`), le refus s'affiche comme avant.
+  const garde = useGardeDoubleFacteur();
 
   const handleTest = useCallback((integration: Integration) => {
     setTestResults((prev) => ({ ...prev, [integration.id]: 'loading' }));
     startTransition(async () => {
-      const result = await testIntegrationAction(integration.id);
+      const result = await avecGardeDoubleFacteurAction(() => testIntegrationAction(integration.id), garde);
       if (!result.ok) {
         setTestResults((prev) => ({
           ...prev,
@@ -141,13 +147,14 @@ export function IntegrationsManager({
         );
       }
     });
-  }, []);
+  }, [garde]);
 
   const handleToggle = useCallback((integration: Integration) => {
     startTransition(async () => {
-      const result = await updateIntegrationAction(integration.id, {
-        is_active: !integration.is_active,
-      });
+      const result = await avecGardeDoubleFacteurAction(
+        () => updateIntegrationAction(integration.id, { is_active: !integration.is_active }),
+        garde,
+      );
       if (!result.ok) {
         setRowError({ id: integration.id, message: result.message });
         return;
@@ -158,20 +165,20 @@ export function IntegrationsManager({
         );
       }
     });
-  }, []);
+  }, [garde]);
 
   const handleDelete = useCallback((integration: Integration) => {
     const ok = window.confirm(t('confirmDelete', { provider: integration.provider }));
     if (!ok) return;
     startTransition(async () => {
-      const result = await deleteIntegrationAction(integration.id);
+      const result = await avecGardeDoubleFacteurAction(() => deleteIntegrationAction(integration.id), garde);
       if (!result.ok) {
         setRowError({ id: integration.id, message: result.message });
         return;
       }
       setIntegrations((prev) => prev.filter((i) => i.id !== integration.id));
     });
-  }, [t]);
+  }, [t, garde]);
 
   const handleCreate = useCallback(
     async (values: IntegrationFormValues) => {
@@ -188,7 +195,7 @@ export function IntegrationsManager({
         };
       }
       const payload = normaliseIntegrationForm(parsed.data, 'create');
-      const result = await createIntegrationAction(payload);
+      const result = await avecGardeDoubleFacteurAction(() => createIntegrationAction(payload), garde);
       if (!result.ok) {
         return {
           ok: false as const,
@@ -198,7 +205,7 @@ export function IntegrationsManager({
       if (result.data) setIntegrations((prev) => [result.data as Integration, ...prev]);
       return { ok: true as const };
     },
-    [tValidation],
+    [tValidation, garde],
   );
 
   const handleEdit = useCallback(
@@ -216,7 +223,10 @@ export function IntegrationsManager({
         };
       }
       const payload = normaliseIntegrationForm(parsed.data, 'edit');
-      const result = await updateIntegrationAction(integration.id, payload);
+      const result = await avecGardeDoubleFacteurAction(
+        () => updateIntegrationAction(integration.id, payload),
+        garde,
+      );
       if (!result.ok) {
         return {
           ok: false as const,
@@ -230,7 +240,7 @@ export function IntegrationsManager({
       }
       return { ok: true as const };
     },
-    [tValidation],
+    [tValidation, garde],
   );
 
   return (

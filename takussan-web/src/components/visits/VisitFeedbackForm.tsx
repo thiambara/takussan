@@ -77,7 +77,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
                   ? 'border-warning/30 bg-warning/10 text-warning'
                   : 'border-border bg-card text-muted-foreground hover:bg-muted',
               )}
-              aria-label={t('starsAria', { count: String(n) })}
+              aria-label={t('starsAria', { count: n })}
             >
               {n}
             </button>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ForgotPasswordPasswordResetRequest;
 use App\Http\Requests\Auth\ResetPasswordPasswordResetRequest;
+use App\Models\User;
 use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,7 @@ class PasswordResetController extends Controller
         $data = $request->only('email', 'password', 'password_confirmation', 'token');
         $data['email'] = CaseInsensitive::fold(trim((string) $data['email']));
 
-        $status = Password::reset(
+        $status = Password::broker($this->jeuDeJetons($request->boolean('activation'), $data['email']))->reset(
             $data,
             function ($user, string $password) {
                 // TCK-272 — `password_set_at` marque un mot de passe CHOISI.
@@ -49,5 +50,24 @@ class PasswordResetController extends Controller
         }
 
         return $this->json(['message' => __($status)], 422);
+    }
+
+    /**
+     * TCK-781 (P15.07) — le lien d'activation du gérant provisionné porte `activation=1` et vaut
+     * 7 jours (`auth.passwords.activations`). Ce jeu de jetons ne juge que le jeton d'un compte
+     * qui n'a jamais choisi de mot de passe : présenté par un compte qui en a un, le drapeau ne
+     * fait pas vivre une réinitialisation ordinaire au-delà de ses 60 minutes. `null` : le jeu
+     * par défaut.
+     */
+    private function jeuDeJetons(bool $activation, string $email): ?string
+    {
+        if ($activation) {
+            $user = User::query()->where('email', $email)->first();
+            if ($user !== null && ! $user->hasUsablePassword()) {
+                return 'activations';
+            }
+        }
+
+        return null;
     }
 }

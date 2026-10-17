@@ -1,6 +1,6 @@
 # ADR-0066 — Trois agents planifiés traitent le fichier de pistes : l'explorateur relève, le mesureur re-mesure et classe, l'implémenteur corrige ce qui est classé autonome ; tout passe par une PR vers `pre-dev`, vérifiée avant le push par un script et non par l'agent
 
-- **Statut** : Accepté (2026-10-15)
+- **Statut** : Accepté (2026-10-15), amendé trois fois le 2026-10-17 (l'implémenteur livre par lot, puis par famille ; `impacted-tests` filtré et parallèle)
 - **Date** : 2026-10-15
 - **Tickets** : aucun (outillage du porteur)
 
@@ -45,7 +45,7 @@ que chaque agent lit en premier : elles sont écrites une seule fois.
 |---|---|---|---|
 | `pistes-explorateur` | le tableau des angles | une section `## Angle N` ; la ligne de l'angle passe à `fait` ; 0 à 3 angles proposés | un angle |
 | `pistes-mesureur` | `--liste "à mesurer"` | `Statut` et `Mesure` des entrées traitées | 8 entrées au plus |
-| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket, le code, ses tests ; `Statut` et `Mesure` | une piste (ou plusieurs de même cause) |
+| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 4 pistes d'une même famille, en une PR (amendements du 2026-10-17) |
 
 ### 2. Le format du fichier de pistes
 
@@ -267,6 +267,116 @@ borne, même par une PR fusionnée.
     moitié.
   - Les faire tourner ordinateur fermé (GitHub Actions en `cron`, clé d'API à l'usage) serait un
     amendement de cet ADR.
+
+## Amendement du 2026-10-17 — l'implémenteur livre par lot
+
+**Mesuré ce jour-là**, sur `~/.takussan-agents/journal.tsv` : 76 passages de l'implémenteur ont
+publié une PR, **une piste chacun**, en 16,6 min et 1,91 USD en moyenne. Les passages se suivent un
+à la fois (verrou par rôle, § 4). Il restait **140 pistes** à implémenter (115 `validé`, 25
+`retenu · autonome`) : environ 40 h de Mac éveillé à ce rythme. Le plafond de PR ouvertes ne
+bornait pas le débit ; la durée du passage, si. Une part de chaque passage ne dépend pas de la
+piste : la lecture des règles (`commun.md`, cet ADR, les `CLAUDE.md`), la préparation de l'arbre,
+les gardes du dépôt, la PR et sa CI.
+
+**Décision du porteur** : l'implémenteur livre **un lot** par passage, en une seule PR.
+
+- **1 à 4 pistes**, prises dans l'ordre de gravité du § « Décisions du porteur ». La première
+  entrée libre ouvre le lot et en fixe le côté (`takussan-api/` ou `takussan-web/`) ; les
+  suivantes du même côté le complètent, celles de l'autre côté sont sautées.
+- **Un lot ne mêle pas l'API et le front** *(remplacé le jour même par la règle de famille, ci-dessous)*. Une piste qui touche les deux côtés part seule, ou
+  avec les entrées de même cause qui partagent son ticket.
+- **Chaque piste garde son ticket, son test, son ablation et ses commits**, et elle est close
+  avant que la suivante commence. Une piste re-mesurée caduque ou reclassée à valider compte dans
+  le lot, et le passage continue avec la suivante.
+- **Le temps** : au-delà de 100 min, l'agent ne commence plus de piste et publie ce qui est clos.
+  Une piste commencée et non close est retirée de l'arbre.
+- **La réparation** : une piste qui ne se répare pas sort du lot par `git revert`, et son entrée
+  revient à son statut de départ. Les autres ne restent pas bloquées derrière elle.
+- **Les réglages** (`config.env`) : `BUDGET_IMPLEMENTEUR` passe de 20 à 45 USD, et
+  `DUREE_IMPLEMENTEUR` de 5 400 à 9 000 s.
+
+**Ce que la garde vérifie** (`check-pistes --role implementeur`, joué par `pistes.sh` avant tout
+push) : au plus 4 entrées changent de statut, et un lot de plusieurs tickets ne touche pas à la
+fois `takussan-api/` et `takussan-web/`. Ablation sur le fichier de pistes réel : 6 cas, 4 permis
+qui restent verts (1 piste, 4 pistes, une piste seule sur les deux côtés, 3 entrées d'un même
+ticket sur les deux côtés) et 2 interdits (5 pistes, 2 tickets sur les deux côtés) qui rougissent ;
+avec la garde d'avant l'amendement, les 2 interdits restaient verts.
+
+**Ce qu'elle ne vérifie pas** : le classement par taille (une piste M compte double, et un lot ne
+dépasse pas l'équivalent de 4 S), qui reste une consigne de l'agent ; ni la règle des 100 min.
+
+**Ce que ça coûte** : une CI rouge sur une piste retient tout le lot jusqu'à sa réparation, et
+la PR à relire est plus grosse. **Ce qui n'est pas mesuré** : le gain. Il est estimé à ×2 ou ×3,
+puisque la part fixe se paie une fois par lot. Il se relève sur le journal (pistes closes par
+heure de passage) après les premiers lots, et le plafond de 4 se rediscute sur ce chiffre.
+
+### Second amendement du 2026-10-17 — le lot se compose par famille
+
+**Relevé le même jour**, sur `pre-dev` = `4bf83b81` : 131 pistes à implémenter (74 🟠 et 30 🟢
+validées, 23 🟠 et 4 🟢 autonomes, aucune 🔴). D'après les fichiers que cite leur `Où`, 74 ne
+touchent que l'API, 21 que le front et 36 les deux. Lues une à une, elles forment environ 22
+familles de 3 à 8 pistes (index manquants, requêtes par ligne, routeur SMS, jobs planifiés,
+alertes, médias, Boost et crédits, rapprochement, PDF, autorisation, données personnelles,
+recherche, adresses, équipements, accessibilité des champs, primitives d'interface, repères de
+page…), et une douzaine de pistes isolées. Quatre paires ont la même cause (P02.11 et P19.05,
+P05.05 et P11.09, P05.08 et P14.06, P22.02 et P22.04).
+
+Deux défauts de la règle du premier amendement en sortaient :
+- **les 34 🟢 n'étaient prises par aucun passage** : l'ordre de choix s'arrêtait aux 🟠 autonomes,
+  et ce depuis l'origine de l'ADR ;
+- **les 36 pistes qui touchent les deux côtés partaient seules**, alors que plusieurs sont de la
+  même famille (crédits, médias, recherche).
+
+**Décision du porteur** :
+- **le lot se compose par famille** : la première entrée libre fixe la famille, et le lot se
+  complète d'abord avec les entrées libres de la même famille, de toute gravité ; s'il reste de
+  la place, avec les suivantes du même côté, si le lot ne touche qu'un côté ;
+- **les 🟢 entrent dans l'ordre de choix**, après les 🟠 autonomes, et complètent avant cela un
+  lot de leur famille ;
+- **un lot qui touche l'API et le front est permis s'il est une seule famille.**
+
+**Ce que la garde vérifie** : un lot de plusieurs tickets qui touche `takussan-api/` et
+`takussan-web/` doit former une seule famille, au sens mécanique : ses pistes faites se relient
+de proche en proche par un angle, un ticket ou un nom de fichier cité dans leur `Où` (le nom seul,
+car les chemins y sont tantôt complets, tantôt abrégés). Ablation sur le fichier réel, 8 cas : 5
+permis (même angle des deux côtés, fichier commun entre deux angles, chaîne de trois pistes, lot
+sans lien d'un seul côté, 4 pistes 🟠 et 🟢 d'une famille) restent verts, et 3 interdits (deux
+pistes sans lien des deux côtés, une piste sans lien ajoutée à une famille, 5 entrées) rougissent.
+La garde du premier amendement refusait 4 des 5 cas permis.
+
+**Ce qu'elle ne vérifie pas** : qu'un lot d'un seul côté soit une famille. Le remplissage par le
+côté reste permis, et la priorité donnée à la famille est une consigne de l'agent.
+
+### Troisième amendement du 2026-10-17 — `impacted-tests` dans un lot
+
+**Mesuré** sur le lot #539 (3 pistes, 11 fichiers) : `impacted-tests` a pris 1 303 s des 1 925 s
+du passage, pour 164 classes. **83 d'entre elles** n'avaient aucun lien avec le diff : ce sont les
+tests écrits depuis la carte d'impact, que le script ajoutait tous d'office. La carte se régénère
+la nuit sur `dev` et n'arrive sur `pre-dev` qu'après une promotion ; elle avait alors 531 commits
+de retard, et chaque PR d'agent allonge la liste.
+
+**Décision du porteur** :
+- **les tests écrits depuis la carte ne sont rejoués que s'ils citent une classe de `app/` que le
+  diff touche** (`ImpactSelector`), quand le diff n'est fait que de classes de `app/` et de tests ;
+  sinon, tous, comme avant ;
+- **`impacted-tests --parallel`** répartit la sélection sur 4 processus (paratest, par une copie de
+  `phpunit.xml` écrite hors de l'arbre). L'implémenteur le lance une fois par lot.
+
+**Mesuré au repos** (8 cœurs, charge entre 1,6 et 3,8), sur la plage exacte de #539 :
+
+| Sélection | Classes | Tests | Durée |
+|---|---|---|---|
+| avant (tous les tests postérieurs à la carte), en série | 164 | 1 392 | 381 s |
+| filtrée, en série | 92 | 835 | 277 s |
+| filtrée, 4 processus | 92 | 835 | **80 s** |
+
+Les trois exécutions sortent en 0. L'agent avait mesuré 1 303 s pour la première ligne, sous la
+charge des autres agents. Ablation des tests du sélecteur : le filtre retiré rougit 2 tests, la
+règle « hors de `app/`, on garde tout » retirée en rougit 1.
+
+**Ce que ça ne garantit pas** : un test neuf qui couvre une classe touchée sans la nommer (un test
+HTTP qui passe par la route d'un contrôleur modifié) n'est plus rejoué avant la PR. La CI joue la
+suite entière ; `impacted-tests` reste une boucle de retour, pas une garde.
 
 ## Conséquences
 

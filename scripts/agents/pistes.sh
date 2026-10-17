@@ -122,11 +122,11 @@ FUSION=manuelle
 # Plafond de dépense par passage (USD), transmis à claude --max-budget-usd.
 BUDGET_EXPLORATEUR=8
 BUDGET_MESUREUR=8
-BUDGET_IMPLEMENTEUR=20
+BUDGET_IMPLEMENTEUR=45
 # Durée maximale d'un passage (secondes) ; à l'échéance, tout le groupe de processus est tué.
 DUREE_EXPLORATEUR=2700
 DUREE_MESUREUR=2700
-DUREE_IMPLEMENTEUR=5400
+DUREE_IMPLEMENTEUR=9000
 # Au-delà de cette charge (moyenne à 5 min), aucun passage ne démarre. Vide = 1,5 × nombre de cœurs.
 CHARGE_MAX=
 # Réparations successives d'une même PR avant abandon (le porteur prend la main).

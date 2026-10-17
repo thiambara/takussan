@@ -1318,16 +1318,12 @@ class PaymentGatewayService
             return $currency;
         }
 
-        // TCK-084 will move agency currency to a top-level column. Until
-        // then, fall back to XOF (Senegal default).
+        // TCK-778 (P13.07) — la colonne `agencies.currency` (TCK-084), la seule que valide
+        // `AgencyUpdateRequest` ; `agencies.settings['currency']`, que rien n'écrit, n'est plus lue.
         $agencyId = $this->paymentAgencyId($payment);
         if ($agencyId !== null) {
             $agency = Agency::find($agencyId);
             if ($agency) {
-                $settings = is_array($agency->settings ?? null) ? $agency->settings : [];
-                if (! empty($settings['currency'])) {
-                    return strtoupper((string) $settings['currency']);
-                }
                 $columnCurrency = $agency->getAttribute('currency');
                 if ($columnCurrency) {
                     return strtoupper((string) (is_object($columnCurrency) ? $columnCurrency->value : $columnCurrency));

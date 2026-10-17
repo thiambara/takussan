@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\User;
 use App\Services\Boost\BoostLifecycle;
+use App\Services\Property\PropertyModerationNotifier;
 use App\Services\Property\SimilarPropertiesService;
 
 class PropertyObserver
@@ -183,6 +184,11 @@ class PropertyObserver
             app(BoostLifecycle::class)->reconcile($property, $this->actor());
         }
 
+        // TCK-782 (P15.10) — l'entrée dans la file prévient les admins ; y rester, non.
+        if ($property->wasChanged('status') && $property->status === PropertyStatus::PendingReview) {
+            app(PropertyModerationNotifier::class)->submitted($property, $this->actor());
+        }
+
         app(SimilarPropertiesService::class)->invalidateForProperty($property);
     }
 
@@ -190,6 +196,10 @@ class PropertyObserver
     {
         if ($property->agency_id) {
             $property->agency()->increment('properties_count');
+        }
+
+        if ($property->status === PropertyStatus::PendingReview) {
+            app(PropertyModerationNotifier::class)->submitted($property, $this->actor());
         }
 
         app(SimilarPropertiesService::class)->invalidateForProperty($property);

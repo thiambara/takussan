@@ -149,6 +149,9 @@ function LigneDeProposition({
         <div className="min-w-0">
           <p className="font-medium text-foreground">{p.name}</p>
           <p className="text-sm text-muted-foreground">{details.join(' · ')}</p>
+          {p.proches.length > 0 ? (
+            <p className="text-sm text-muted-foreground">{t('similar', { names: p.proches.join(', ') })}</p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" disabled={occupe} onClick={() => void executer({ type: 'approve' })}>

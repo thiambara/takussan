@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
+import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   confirmAgencyPayoutThreshold,
@@ -16,6 +17,7 @@ import {
 import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
 import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
 import type { Agency } from '@/types/agency';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Admin agency-config server actions — TCK-064.
@@ -23,13 +25,22 @@ import type { Agency } from '@/types/agency';
 
 type ActionResult<T = void> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | {
+      ok: false;
+      status?: number;
+      message: string;
+      errors?: Record<string, string[]>;
+      /** TCK-761 — le refus de second facteur, que l'écran confie à `GardeDoubleFacteur` (TCK-293). */
+      code?: CodeDoubleFacteur;
+    };
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: CodeDoubleFacteur;
 }> {
+  journaliserErreurInattendue('admin-agency', e);
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.
@@ -39,10 +50,12 @@ async function mapError(e: unknown): Promise<{
   ]);
   const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
+    const code = codeDoubleFacteur(e);
     return {
       status: e.status,
       message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
+      ...(code ? { code } : {}),
     };
   }
   return { message: repli };
