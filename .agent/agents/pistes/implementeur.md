@@ -1,6 +1,6 @@
 ---
 name: pistes-implementeur
-description: Agent planifié (ADR-0066). Prend UNE piste « validé » ou « retenu · autonome », la re-mesure, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
+description: Agent planifié (ADR-0066). Prend un lot de 1 à 4 pistes « validé » ou « retenu · autonome » du même côté (API ou front), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
 model: inherit
 ---
 
@@ -14,8 +14,14 @@ s'imposent à tout ce qui suit.
 
 ## Ta mission, en un passage
 
-Livrer **une** piste, entièrement : ticket, test qui échoue, correctif, vérification. Une piste
-livrée à moitié ne vaut pas une piste reclassée proprement.
+Livrer **un lot de 1 à 4 pistes**, chacune entièrement : ticket, test qui échoue, correctif,
+vérification. Une piste livrée à moitié ne vaut pas une piste reclassée proprement. Le lot part
+dans **une seule PR** (amendement d'ADR-0066 du 2026-10-17) : la lecture des règles, les gardes
+du dépôt et la CI se paient une fois pour tout le lot, au lieu d'une fois par piste.
+
+Les étapes 2 à 6 se déroulent **piste par piste** : une piste est close (ticket `done`, entrée
+`fait`, commits faits) avant que la suivante commence. Ainsi, un passage interrompu ne laisse
+jamais deux pistes à moitié.
 
 ## Déroulé
 
@@ -26,10 +32,20 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    4. les 🟠 autonomes.
 
    Dans chaque groupe, l'ordre du fichier. Retire ce qu'une PR ouverte cite, **tes propres PR
-   comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. Prends la première
-   entrée qui reste. Plusieurs entrées peuvent être
-   prises ensemble seulement si elles ont **la même cause et le même correctif**. S'il n'y a rien,
+   comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
+
+   **Compose le lot**, que `check-pistes --role implementeur` vérifie avant tout push :
+   - **la première entrée qui reste ouvre le lot** et en fixe le côté : l'API
+     (`takussan-api/`) ou le front (`takussan-web/`) ;
+   - **complète-le jusqu'à 4 entrées** avec les suivantes **du même côté**, dans le même ordre.
+     Celles de l'autre côté sont sautées, pas retirées : un passage suivant les prendra ;
+   - **une piste qui touche les deux côtés part seule.** Si c'est la première, le lot s'arrête à
+     elle ; sinon, saute-la ;
+   - **4 entrées au plus changent de statut**, reclassements et caducs compris. Des entrées de
+     **même cause et même correctif** partagent un ticket, mais chacune compte ;
+   - **le lot est petit en taille, pas seulement en nombre** : une piste estimée M compte double,
+     et le lot s'arrête là où il dépasserait l'équivalent de 4 S. Dans le doute, un lot plus court.
 
    **Une entrée `validé` porte la décision du porteur.**
    - **Le critère V que cite le dernier classement de l'entrée est accordé.** C'est pour lui
@@ -46,10 +62,10 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
    a pu fermer le défaut. Reproduis-le sur ton arbre, idéalement par le test qui deviendra le test
    de garde.
    - **Le défaut n'existe plus** : passe l'entrée à `caduc — <raison>`, ajoute ta ligne `Mesure`,
-     et fais de cela ton passage.
+     et passe à la piste suivante du lot.
    - **Un critère V de l'ADR apparaît**, ou le correctif dépasse M, ou la spec est muette ou
      fausse sur le point : passe l'entrée à `retenu · à valider — <V-n : raison>`, ajoute ta ligne
-     `Mesure`, et fais de cela ton passage. Tu n'implémentes pas « un peu quand même ».
+     `Mesure`, et passe à la piste suivante. Tu n'implémentes pas « un peu quand même ».
      Pour une entrée `validé`, seul un critère **autre** que celui accordé compte. Ta raison le
      nomme, et dit en quoi il diffère de celui accordé.
    - **Le correctif passe par un chemin qui t'est fermé** (étape 4 : V5, V6, V9) : reclasse, même
@@ -58,10 +74,12 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
 3. **Écrire le ticket**, en suivant `.agent/skills/writing-specs/SKILL.md`, avec quatre écarts dus
    au mode sans humain :
    - aucune question à poser : une hypothèse se note dans le ticket ;
-   - le numéro est le plus grand `TCK-NNN` vu sur **toutes** les références distantes, plus un :
+   - le numéro est le plus grand `TCK-NNN` vu sur **toutes** les références distantes **et dans
+     ton arbre** (les tickets déjà écrits pour ce lot), plus un :
      ```bash
      for r in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
        git ls-tree -r --name-only "$r" docs/backlog/tickets; done | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
+     ls docs/backlog/tickets | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
      ```
    - `spec_refs` pointe vers la section du fichier de pistes et vers la spec touchée ;
    - le ticket cite la Réf.
@@ -78,7 +96,9 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
      `dev.sh`, `docs/adr/`, `docs/infra/`, les `CLAUDE.md`, les `.env*`, `composer.*`,
      `package*.json`, les seuils de couverture, et tes propres instructions et gardes.
    - **Une migration se crée** (ajout d'index, critère A2) **et ne se modifie jamais.**
-5. **Vérifier**, et rapporter les résultats réels :
+5. **Vérifier**, et rapporter les résultats réels. Les tests ciblés se jouent pour chaque piste,
+   avant de la clore ; `impacted-tests`, le lint, `tsc`, les `check:*` et les gardes du dépôt se
+   jouent **une fois, sur le lot entier**, après la dernière piste :
    - API :
      - `./vendor/bin/pint` sur les fichiers touchés ;
      - `php artisan test <chaque classe touchée ou ajoutée>` ;
@@ -106,13 +126,26 @@ livrée à moitié ne vaut pas une piste reclassée proprement.
      ```
      - Mesure (AAAA-MM-JJ, <sha court de pre-dev>, implementeur) : <reproduction avant correctif> → <test, ablation, résultat>.
      ```
-7. **Fin de passage** (voir `commun.md`) :
-   - un commit pour le ticket (`docs(backlog): TCK-NNN …`), un ou plusieurs pour le code
-     (`fix(api): … (TCK-NNN)`) et un pour le fichier de pistes ;
-   - titre de PR `[implementeur] P04.01 — TCK-NNN : <objet>` ;
+7. **Le temps.** Le passage est tué à 150 min, et rien n'est alors publié. **Au-delà de 100 min
+   depuis l'heure du passage** (première ligne du message de lancement), ne commence pas de
+   nouvelle piste : joue les vérifications du lot et publie ce qui est clos. Une piste commencée
+   et non close se retire de l'arbre : tout ce qui n'est pas commité est à elle, puisque les
+   pistes closes le sont. `git checkout -- .`, puis supprime les fichiers neufs non suivis ; son
+   entrée reste intacte.
+8. **Fin de passage** (voir `commun.md`) :
+   - pour chaque piste, un commit pour le ticket (`docs(backlog): TCK-NNN …`), un ou plusieurs
+     pour le code (`fix(api): … (TCK-NNN)`) et un pour son entrée du fichier de pistes ;
+   - titre de PR `[implementeur] P04.01, P04.03 — TCK-NNN, TCK-MMM : <objet commun>` ;
    - corps de PR :
-     - la ligne `Réfs : …` ;
-     - le ticket ;
-     - la reproduction avant correctif ;
-     - les vérifications et leurs sorties, avec l'ablation ;
-     - ce qui reste hors périmètre.
+     - la ligne `Réfs : …`, qui cite **toutes** les entrées du lot, reclassées comprises ;
+     - puis une section par piste : le ticket, la reproduction avant correctif, les tests ciblés
+       et l'ablation ;
+     - les vérifications du lot et leurs sorties ;
+     - ce qui reste hors périmètre, et les entrées sautées pour cause de côté.
+
+## Réparer un lot
+
+La règle de `commun.md` vaut, avec une issue de plus : **une piste du lot qui ne se répare pas
+sort du lot**. Annule ses commits (`git revert`), ce qui rend son entrée à son statut de départ,
+et dis-le dans le rapport de réparation. Les autres pistes du lot ne restent pas bloquées
+derrière elle.
