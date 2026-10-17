@@ -4,9 +4,11 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Agency;
 use App\Models\AgencyRole;
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
@@ -160,6 +162,61 @@ class CustomerScopeTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.budget_max', '250000.00')
             ->assertJsonPath('data.seeking_cities', ['Dakar']);
+    }
+
+    /**
+     * TCK-808 (piste P23.02) — la pièce d'identité, le contact d'urgence, les notes et `metadata` d'un
+     * client ne sortent que vers le lecteur qu'admet `CustomerPolicy::view`. Le bailleur, à qui la
+     * fiche est refusée, les lisait par son bail (`show`, `include=tenant`) et sa réservation.
+     */
+    public function test_identity_contact_notes_and_metadata_are_rendered_to_the_customer_reader_only(): void
+    {
+        $agent = $this->member('agent');
+        $landlord = $this->member('owner');
+        $property = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $landlord->id]);
+        $tenant = Customer::factory()->create([
+            'agency_id' => $this->agency->id, 'added_by_id' => $agent->id,
+            'id_type' => IdType::IdCard, 'id_number' => 'SN-998877',
+            'emergency_contact_name' => 'Fatou Sow', 'emergency_contact_phone' => '+221770000009',
+            'notes' => 'Préfère être appelé le soir.', 'metadata' => ['source' => 'salon'],
+        ]);
+        $lease = Lease::factory()->create([
+            'property_id' => $property->id, 'landlord_id' => $landlord->id,
+            'tenant_id' => $tenant->id, 'agency_id' => $this->agency->id,
+        ]);
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id, 'customer_id' => $tenant->id, 'agency_id' => $this->agency->id,
+        ]);
+        $reserves = ['id_type', 'id_number', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
+
+        $this->actingAsApi($landlord)->apiGet("/api/customers/{$tenant->id}")->assertForbidden();
+        $vus = [
+            'bail' => $this->apiGet("/api/leases/{$lease->id}")->assertOk()->json('data.tenant'),
+            'liste des baux' => collect($this->apiGet('/api/leases?include=tenant')->assertOk()->json('data'))
+                ->firstWhere('id', $lease->id)['tenant'],
+            'réservation' => $this->apiGet("/api/bookings/{$booking->id}")->assertOk()->json('data.customer'),
+        ];
+        foreach ($vus as $voie => $vu) {
+            $this->assertSame($tenant->id, $vu['id'], $voie);
+            $this->assertSame($tenant->last_name, $vu['last_name'], $voie);
+            foreach ($reserves as $cle) {
+                $this->assertArrayNotHasKey($cle, $vu, "{$voie} : {$cle}");
+            }
+        }
+        $this->app['auth']->forgetGuards();
+
+        // Le lecteur de la fiche les lit, par la fiche comme par le bail.
+        $this->actingAsApi($agent)->apiGet("/api/customers/{$tenant->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id_number', 'SN-998877')
+            ->assertJsonPath('data.emergency_contact_phone', '+221770000009')
+            ->assertJsonPath('data.metadata.source', 'salon');
+        $this->apiGet("/api/leases/{$lease->id}")
+            ->assertOk()
+            ->assertJsonPath('data.tenant.id_type', 'id_card')
+            ->assertJsonPath('data.tenant.id_number', 'SN-998877')
+            ->assertJsonPath('data.tenant.emergency_contact_name', 'Fatou Sow')
+            ->assertJsonPath('data.tenant.notes', 'Préfère être appelé le soir.');
     }
 
     /**
