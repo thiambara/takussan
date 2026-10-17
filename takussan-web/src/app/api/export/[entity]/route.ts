@@ -2,8 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
+import { origineApi } from '@/lib/config-publique';
 
 const ALLOWED_ENTITIES = new Set([
   'payments',
@@ -37,7 +36,7 @@ export async function GET(
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
-  const upstream = new URL(`${API_URL}/api/export/${entity}`);
+  const upstream = new URL(`${origineApi()}/api/export/${entity}`);
   for (const key of FORWARD_PARAMS) {
     const v = request.nextUrl.searchParams.get(key);
     if (v !== null && v !== '') upstream.searchParams.set(key, v);

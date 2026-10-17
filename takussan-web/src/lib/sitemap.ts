@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { LOCALES_INDEXABLES, SEGMENTS_NON_LOCALISES, cheminLocalise, estCheminLocalisable } from '@/i18n/routing';
 
-import { ORIGINE_SITE, alternatesLangues } from './alternates';
+import { alternatesLangues, origineSite } from './alternates';
 
 /**
  * La forme du sitemap et de `robots.txt` — TCK-431.
@@ -152,10 +152,10 @@ export function absolu(chemin: string): string {
     );
   }
 
-  const url = `${ORIGINE_SITE}${chemin}`;
+  const url = `${origineSite()}${chemin}`;
   if (!/^https?:\/\/[^/]+\//.test(url) || url.includes('undefined')) {
     throw new Error(
-      `URL de sitemap non absolue ou incomplète : « ${url} ». Vérifier NEXT_PUBLIC_SITE_URL.`,
+      `URL de sitemap non absolue ou incomplète : « ${url} ». Vérifier SITE_URL (NEXT_PUBLIC_SITE_URL sous Vercel).`,
     );
   }
 

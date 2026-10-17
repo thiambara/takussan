@@ -1,8 +1,8 @@
 # Construit les images, les pousse sur GHCR, déclenche Dokploy, puis PROUVE ce qui est servi
 # (ADR-0028 §2, §3, §10). Le serveur ne construit rien : il tire ce que ce workflow pousse.
 #
-# Une image d'API par commit (elle sert tous les environnements) ; une image de front par
-# environnement (NEXT_PUBLIC_* est inliné à la compilation).
+# Une image par commit, API comme front (ADR-0069 § 3) : le front lit sa configuration à
+# l'exécution (API_URL, SITE_URL, MEDIA_URL, posées dans Dokploy), aucune n'est passée au build.
 #
 # Le déploiement n'est vert que lorsque l'URL PUBLIQUE rend le commit poussé dans `X-Build-Sha`.
 # Un appel à Dokploy qui répond 200 ne dit rien de ce qui tourne — c'est D-04 et ADR-0017.
@@ -95,12 +95,9 @@ jobs:
         with:
           context: takussan-web
           push: true
-          # Chaque NEXT_PUBLIC_* lue par le front doit figurer ici ET en ARG du Dockerfile :
-          # scripts/check-front-env-keys.mjs le vérifie.
+          # AUCUNE NEXT_PUBLIC_* : elle serait inlinée, et l'image ne servirait qu'un
+          # environnement (ADR-0069 § 3). scripts/check-front-env-keys.mjs le vérifie.
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ needs.cible.outputs.api_url }}
-            NEXT_PUBLIC_SITE_URL=${{ needs.cible.outputs.site_url }}
-            NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}
             BUILD_SHA=${{ github.sha }}
           tags: |
             ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}-sha-${{ github.sha }}

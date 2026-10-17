@@ -1,7 +1,8 @@
 import fr from '@/messages/fr.json';
 import en from '@/messages/en.json';
 import wo from '@/messages/wo.json';
-import { scriptDuServiceWorker, urlApiDepuisEnv } from '@/lib/pwa/service-worker';
+import { origineApi } from '@/lib/config-publique';
+import { scriptDuServiceWorker } from '@/lib/pwa/service-worker';
 import { versionDuDeploiement } from '@/lib/pwa/version';
 
 /**
@@ -25,7 +26,7 @@ export function GET(): Response {
 
   const script = scriptDuServiceWorker({
     version: versionMemorisee,
-    urlApi: urlApiDepuisEnv(process.env.NEXT_PUBLIC_API_URL),
+    urlApi: origineApi(),
     textes: { fr: fr.horsLigne, en: en.horsLigne, wo: wo.horsLigne },
   });
 

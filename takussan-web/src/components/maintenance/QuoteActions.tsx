@@ -13,6 +13,7 @@ import {
 import type { MaintenanceRequest } from '@/types/maintenance';
 
 import { QuoteRejectionModal } from './QuoteRejectionModal';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-592 — les gestes du devis, chacun derrière son drapeau : le donneur d'ordre DEMANDE
@@ -96,10 +97,7 @@ function QuotePdfButton({ id }: { readonly id: number }) {
   const [downloading, setDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const url =
-    (process.env.NEXT_PUBLIC_API_URL
-      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-      : 'http://localhost:8002') + `/api/maintenance-requests/${id}/quote/pdf`;
+  const url = `${origineApi()}/api/maintenance-requests/${id}/quote/pdf`;
 
   const download = async () => {
     setDownloading(true);

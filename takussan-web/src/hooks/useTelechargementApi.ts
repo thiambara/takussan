@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale } from 'next-intl';
 
 import { useAuth } from '@/context/AuthContext';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-593 (Partie 1) — LE mécanisme de téléchargement d'un document protégé de l'API.
@@ -20,10 +21,6 @@ import { useAuth } from '@/context/AuthContext';
  * L'échec est rendu comme une CATÉGORIE, jamais comme la prose du serveur : un 403 ou un 422 doit
  * se lire dans la langue de l'utilisateur, et c'est le composant qui la traduit.
  */
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
-
 export type EchecTelechargement = 'interdit' | 'indisponible' | 'echec';
 
 function categorie(status: number): EchecTelechargement {
@@ -46,7 +43,7 @@ export function useTelechargementApi() {
     setEnCours(true);
     setEchec(null);
     try {
-      const response = await fetch(`${API_URL}${chemin}`, {
+      const response = await fetch(`${origineApi()}${chemin}`, {
         headers: {
           Accept: 'application/pdf',
           'Accept-Language': locale,

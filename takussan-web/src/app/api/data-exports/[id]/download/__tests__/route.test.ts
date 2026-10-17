@@ -11,8 +11,9 @@ import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GET } from '../route';
+import { origineApi } from '@/lib/config-publique';
 
-const API = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
+const API = origineApi();
 
 function requete(cookies: Record<string, string>): NextRequest {
   const req = new NextRequest('http://localhost:3000/api/data-exports/7/download');

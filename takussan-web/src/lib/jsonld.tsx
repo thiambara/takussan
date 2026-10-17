@@ -1,7 +1,7 @@
 import type { Locale } from '@/i18n/config';
 import { cheminLocalise } from '@/i18n/routing';
 
-import { ORIGINE_SITE } from './alternates';
+import { origineSite } from './alternates';
 
 /**
  * Le socle commun des données structurées — TCK-435.
@@ -78,5 +78,5 @@ export function DonneesStructurees({ donnees }: { readonly donnees: unknown }) {
  *   adresse, laquelle ne sert aucune des trois.
  */
 export function urlAbsolue(chemin: string, locale: Locale): string {
-  return `${ORIGINE_SITE}${cheminLocalise(chemin, locale)}`;
+  return `${origineSite()}${cheminLocalise(chemin, locale)}`;
 }

@@ -35,7 +35,7 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 | Fichier | Rôle |
 |---|---|
 | `takussan-api/Dockerfile`, `takussan-api/docker/` | l'image de l'API — `api`, workers, planificateur, `release` et `seed` |
-| `takussan-web/Dockerfile` | l'image du front, **une par environnement** (`NEXT_PUBLIC_*` est inliné au build) |
+| `takussan-web/Dockerfile` | l'image du front, **une par commit** : `API_URL`, `SITE_URL` et `MEDIA_URL` se lisent à l'exécution, et `docker/demarrer.mjs` refuse de démarrer sans elles (ADR-0069 § 3) |
 | `deploy/takussan/compose.api.yml` | la pile d'API d'un environnement, déclarée dans Dokploy — déployée par la commande en deux temps du relevé (`run --rm release && up -d --build`, TCK-522), jamais par un simple `up` |
 | `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
@@ -191,7 +191,12 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   `VISITOR_IP_TRUSTED_HOPS` (`2` : Cloudflare puis Traefik — inféré, à confirmer par la mesure
   ci-dessus). Sur Vercel (`www`), `VISITOR_IP_TRUSTED_HOPS=1` et pas d'`API_INTERNAL_URL`.
 
-**`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
+**`takussan-web-preview`** (Application) : depuis ADR-0069 § 3, l'image ne porte plus rien de
+l'environnement, et le conteneur **refuse de démarrer** sans trois variables d'exécution, origines
+seules : `API_URL` (`https://preview.api.takussan.com`), `SITE_URL` (`https://preview.takussan.com`)
+et `MEDIA_URL` (`https://media-preview.takussan.com`). ⚠ **À poser AVANT le premier déploiement
+d'une image qui porte `docker/demarrer.mjs`** : sinon le nouveau conteneur sort en erreur, Swarm
+garde l'ancien, et la preuve d'`images.yml` rougit sur l'ancien commit. Une
 authentification basique (Traefik, onglet *Security* de l'Application) à **trois comptes** depuis le
 2026-09-14 (TCK-525) : ceux du porteur, et le compte **`ci`**, dont `ci:motdepasse` est le secret
 `PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` — la preuve d'`images.yml` ne dépend plus

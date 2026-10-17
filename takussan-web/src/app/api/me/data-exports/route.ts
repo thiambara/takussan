@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 async function forward(request: NextRequest): Promise<NextResponse> {
   const token = jetonEspaceApplicatif(request.cookies);
@@ -13,7 +10,7 @@ async function forward(request: NextRequest): Promise<NextResponse> {
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
-  const upstream = await fetch(`${API_URL}/api/me/data-exports${request.nextUrl.search}`, {
+  const upstream = await fetch(`${origineApi()}/api/me/data-exports${request.nextUrl.search}`, {
     method: request.method,
     headers,
   });

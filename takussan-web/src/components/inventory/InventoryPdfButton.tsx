@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-076 — "Télécharger PDF" button. The PDF route is guarded by session
@@ -38,10 +39,7 @@ export function InventoryPdfButton({
     return null;
   }
 
-  const baseUrl =
-    (process.env.NEXT_PUBLIC_API_URL
-      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-      : 'http://localhost:8002') + `/api/inventories/${inventoryId}/pdf`;
+  const baseUrl = `${origineApi()}/api/inventories/${inventoryId}/pdf`;
 
   const handleClick = async () => {
     setDownloading(true);

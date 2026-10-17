@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
+import { origineApi } from '@/lib/config-publique';
 
 
 /**
@@ -9,9 +10,6 @@ import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
  *
  * Forwards the GET to the Laravel backend with the user's bearer token.
  */
-
-const API_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
 type Params = Promise<{ id: string }>;
 
@@ -29,7 +27,7 @@ export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<N
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
-  const upstream = await fetch(`${API_URL}/api/me/agent-profiles/${id}/first-lead`, {
+  const upstream = await fetch(`${origineApi()}/api/me/agent-profiles/${id}/first-lead`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
