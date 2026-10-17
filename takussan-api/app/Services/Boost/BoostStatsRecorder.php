@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\RateLimiter;
  * TCK-633 lot F (ADR-0061 §10) — compteurs d'impressions et de clics, en cache par boost et par
  * HEURE UTC (incrément atomique du magasin), versés par `boosts:tick` dans
  * `property_boost_daily_stats`. Seules les heures COMPLÈTES se versent ; chaque clé versée est
- * retirée (`pull`) : un tick rejoué n'ajoute rien.
+ * retirée après l'écriture de sa ligne : un tick rejoué n'ajoute rien, et une écriture qui lève ne
+ * perd rien (TCK-793).
  */
 final class BoostStatsRecorder
 {
@@ -114,8 +115,11 @@ final class BoostStatsRecorder
                 ->pluck('id');
 
             foreach ($boostIds as $boostId) {
-                $impressions = (int) Cache::pull(self::key($boostId, $hour, 'impressions'), 0);
-                $clicks = (int) Cache::pull(self::key($boostId, $hour, 'clicks'), 0);
+                // TCK-793 (P18.05) — lus, écrits, PUIS retirés : une écriture qui lève laisse les
+                // compteurs au tick suivant, au lieu de les perdre comme le faisait `pull`.
+                $keys = [self::key($boostId, $hour, 'impressions'), self::key($boostId, $hour, 'clicks')];
+                $impressions = (int) Cache::get($keys[0], 0);
+                $clicks = (int) Cache::get($keys[1], 0);
                 if ($impressions === 0 && $clicks === 0) {
                     continue;
                 }
@@ -132,6 +136,7 @@ final class BoostStatsRecorder
                         'updated_at' => DB::raw('excluded.updated_at'),
                     ],
                 );
+                Cache::deleteMultiple($keys);
                 $touched++;
             }
             Cache::forever(self::LAST_FLUSHED_KEY, $hour->format('Y-m-d-H'));

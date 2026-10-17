@@ -64,10 +64,11 @@ class BoostStatsTest extends TestCase
     }
 
     /**
-     * Le curseur `LAST_FLUSHED_KEY` et le `pull` des compteurs protègent tous deux contre un double
-     * versement — mesuré : remplacer `pull` par `get` laisse le test ci-dessus VERT, le curseur
-     * suffisant. Ce test-ci perd le curseur (éviction du magasin, `cache:clear` partiel) : seul le
-     * `pull` empêche alors de reverser les 48 dernières heures.
+     * Le curseur `LAST_FLUSHED_KEY` et le retrait des compteurs versés protègent tous deux contre un
+     * double versement — mesuré : ne plus retirer les compteurs laisse le test ci-dessus VERT, le
+     * curseur suffisant. Ce test-ci perd le curseur (éviction du magasin, `cache:clear` partiel) : seul
+     * le retrait (un `pull` jusqu'à TCK-793, un retrait après l'écriture depuis) empêche alors de
+     * reverser les 48 dernières heures.
      */
     public function test_un_curseur_perdu_ne_reverse_rien(): void
     {
