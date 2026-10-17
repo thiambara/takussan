@@ -1444,7 +1444,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
-- Statut : validé — avatar réencodé à l'upload (EXIF retiré), et la conversion servie au lieu de l'original
+- Statut : fait · TCK-762
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
 - Constat :
@@ -1454,6 +1454,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `User.php:404` (collection `avatar` sur le disque public), `AuthController.php:209-213` (`addMediaFromRequest('avatar')`, aucun traitement), `UserResource.php:37` (`getFirstMediaUrl('avatar')`, l'original), et les mêmes URL d'original dans `PublicAgentController.php:180`, `PublicPropertyController.php:1066`, `PropertyResource.php:411` ; test Feature temporaire (retiré) : un JPEG portant un segment EXIF avec `GPSLatitudeRef = N`, envoyé à `PUT /api/auth/profile` → 200, média sur le disque `public`, URL `/storage/1/selfie.jpg`, et `exif_read_data` du fichier stocké rend toujours `GPSLatitudeRef = "N"`. Les trois conversions (`full`, `preview`, `thumbnail`) sont produites et rien ne les sert. Le front ne réencode que l'image au-delà de 2 560 px (`reduire-photo.ts:1-22`). Classement : V3, la piste change ce qui est exposé d'une donnée personnelle, et le choix entre conversion servie et retrait de l'EXIF reste ouvert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `AuthProfileTest` avant correctif → 2 rouges : un JPEG portant `GPSLatitudeRef = N` et `Orientation = 6`, envoyé à `PUT /api/auth/profile`, est rangé avec son EXIF, et `avatar_url` vise l'original → `AvatarReencode` (décodage et réencodage GD, orientation appliquée aux pixels) et `User::avatarUrl()` (la miniature, sinon `null`), repris par les huit appelants ; ablation : contrôleur d'avant → le test EXIF rougit, `UserResource` d'avant → le test d'URL rougit, `MessagingContactResource` d'avant → la garde `AvatarServiEnMiniatureTest` rougit ; remis → verts, 75 tests des classes qui rendent un avatar verts. Les originaux déjà déposés gardent leur EXIF (hors périmètre, V4).
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
