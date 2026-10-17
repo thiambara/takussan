@@ -12,7 +12,6 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
@@ -23,7 +22,6 @@ import type { PropertyListItem } from '@/types/property';
 import { PropertyCard } from '../PropertyCard';
 import { PropertyCardCover } from '../cards/PropertyCardCover';
 import { PropertyRow } from '../cards/PropertyRow';
-import { consommerArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
@@ -182,31 +180,25 @@ describe('PropertyRow — `robeVedette` habille les seules Vedettes actives (TCK
 
 /**
  * TCK-704 (P18.02, ADR-0061 §7 et §10) — la rangée vedette de l'accueil est un emplacement : ses
- * biens servis comptent une impression. Un clic n'est compté que si la fiche trouve le slug noté par
- * `marquerArriveeSponsorisee` : sans ce marqueur, ses impressions ne deviennent jamais des clics.
+ * biens servis comptent une impression. Un clic n'est compté que si la fiche arrive marquée : sans
+ * ce marqueur, ses impressions ne deviennent jamais des clics.
+ *
+ * TCK-794 (P18.06) — le marqueur est dans l'URL du lien (`?src=sponsored`), plus en stockage de
+ * session : il suit le clic du milieu et « ouvrir dans un nouvel onglet ».
  */
-describe('PropertyRow — `emplacementSponsorise` note l’arrivée au clic (TCK-704)', () => {
+describe('PropertyRow — `emplacementSponsorise` marque le lien de ses cartes (TCK-704, TCK-794)', () => {
   const BIENS = [bien(1, { featured: true }), bien(2, { featured: true })];
 
-  it('un clic sur la carte note l’arrivée de CE bien, consommée une fois', async () => {
-    sessionStorage.clear();
-    const user = userEvent.setup();
+  it('chaque carte de la rangée mène à sa fiche avec `?src=sponsored`', () => {
     monte(<PropertyRow variant="cover" title="Sélection" properties={BIENS} loading={false} error={null} robeVedette emplacementSponsorise />);
 
-    await user.click(screen.getByRole('link', { name: 'Bien 2' }));
-
-    expect(consommerArriveeSponsorisee('bien-1')).toBe(false);
-    expect(consommerArriveeSponsorisee('bien-2')).toBe(true);
-    expect(consommerArriveeSponsorisee('bien-2')).toBe(false);
+    expect(screen.getByRole('link', { name: 'Bien 1' })).toHaveAttribute('href', '/fr/properties/bien-1?src=sponsored');
+    expect(screen.getByRole('link', { name: 'Bien 2' })).toHaveAttribute('href', '/fr/properties/bien-2?src=sponsored');
   });
 
-  it('sans l’option, la même rangée ne note rien', async () => {
-    sessionStorage.clear();
-    const user = userEvent.setup();
+  it('sans l’option, la même rangée ne marque rien', () => {
     monte(<PropertyRow variant="cover" title="Sélection" properties={BIENS} loading={false} error={null} robeVedette />);
 
-    await user.click(screen.getByRole('link', { name: 'Bien 2' }));
-
-    expect(consommerArriveeSponsorisee('bien-2')).toBe(false);
+    expect(screen.getByRole('link', { name: 'Bien 2' })).toHaveAttribute('href', '/fr/properties/bien-2');
   });
 });

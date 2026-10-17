@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 
 import { urlApiPublique } from '@/lib/api';
-import { consommerArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
+import { consommerArriveeDansLUrl } from '@/components/boost/arrivee-sponsorisee';
 
 interface CompteurDeVueProps {
   readonly slug: string;
@@ -31,7 +31,8 @@ export function CompteurDeVue({ slug }: CompteurDeVueProps) {
     compte.current = slug;
 
     // TCK-633 lot F (ADR-0061 §10) — une vue arrivée par un emplacement « Sponsorisé » est un clic.
-    const source = consommerArriveeSponsorisee(slug) ? '?src=sponsored' : '';
+    // TCK-794 — le marqueur vient de l'URL de la fiche, qui le perd une fois lu.
+    const source = consommerArriveeDansLUrl() ? '?src=sponsored' : '';
     fetch(urlApiPublique(`/public/properties/${encodeURIComponent(slug)}/view${source}`), {
       method: 'POST',
       keepalive: true,

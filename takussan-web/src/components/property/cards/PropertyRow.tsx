@@ -11,7 +11,7 @@ import { PropertyCardListing } from './PropertyCardListing';
 import { PropertyCardCompact } from './PropertyCardCompact';
 import type { CardVariant } from './types';
 import { EnTeteDeRangee } from './EnTeteDeRangee';
-import { marquerArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
+import { ArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
 
 export type { CardVariant } from './types';
 
@@ -44,8 +44,9 @@ interface PropertyRowProps {
   readonly robeVedette?: boolean;
   /**
    * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : l'API compte une impression par
-   * bien qu'elle y sert, et un clic sur une carte note l'arrivée sponsorisée que le compteur de vue
-   * de la fiche consomme. Sans ce marqueur, ses impressions ne deviennent jamais des clics.
+   * bien qu'elle y sert, et le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`
+   * (TCK-794) que le compteur de vue de la fiche consomme. Sans ce marqueur, ses impressions ne
+   * deviennent jamais des clics.
    * Réservé à la rangée vedette de l'accueil.
    */
   readonly emplacementSponsorise?: boolean;
@@ -195,16 +196,6 @@ export function PropertyRow({
 
   const Card = spec.Card;
 
-  // TCK-704 — la carte n'est pas enveloppée (la disposition règle la largeur de chaque enfant
-  // direct du défileur) : le bien se retrouve par le rang de l'enfant qui contient le lien cliqué.
-  function noterArrivee(event: React.MouseEvent<HTMLDivElement>) {
-    const lien = (event.target as HTMLElement).closest('a');
-    if (!lien) return;
-    const rang = Array.from(event.currentTarget.children).findIndex((carte) => carte.contains(lien));
-    const bien = loading ? undefined : properties[rang];
-    if (bien) marquerArriveeSponsorisee(bien.slug);
-  }
-
   return (
     <section className="relative @container">
       <EnTeteDeRangee eyebrow={eyebrow} title={title}>
@@ -267,25 +258,26 @@ export function PropertyRow({
           {t('empty')}
         </div>
       ) : (
-        <div
-          ref={scrollerRef}
-          onClickCapture={emplacementSponsorise ? noterArrivee : undefined}
-          className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
-        >
-          {loading
-            ? Array.from({ length: spec.disposition === 'deux-lignes' ? 10 : 7 }).map((_, i) => (
-                <VariantSkeleton key={i} kind={spec.skeleton} />
-              ))
-            : properties.map((property, i) => (
-                <Card
-                  key={property.id}
-                  property={property}
-                  priority={i < priorityCount}
-                  index={i}
-                  robe={robeVedette && property.featured ? 'vedette' : undefined}
-                />
-              ))}
-        </div>
+        <ArriveeSponsorisee value={emplacementSponsorise}>
+          <div
+            ref={scrollerRef}
+            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
+          >
+            {loading
+              ? Array.from({ length: spec.disposition === 'deux-lignes' ? 10 : 7 }).map((_, i) => (
+                  <VariantSkeleton key={i} kind={spec.skeleton} />
+                ))
+              : properties.map((property, i) => (
+                  <Card
+                    key={property.id}
+                    property={property}
+                    priority={i < priorityCount}
+                    index={i}
+                    robe={robeVedette && property.featured ? 'vedette' : undefined}
+                  />
+                ))}
+          </div>
+        </ArriveeSponsorisee>
       )}
     </section>
   );
