@@ -69,9 +69,15 @@ class Document extends AbstractModel implements HasMedia
     ];
 
     /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */
+    /** TCK-820 (P23.04) — une pièce, quel que soit le modèle qui la porte. */
+    public function isPiece(): bool
+    {
+        return in_array($this->type, self::PIECE_TYPES, true);
+    }
+
     public function isProfilePiece(): bool
     {
-        return in_array($this->type, self::PIECE_TYPES, true)
+        return $this->isPiece()
             && in_array($this->documentable_type, self::PROFILE_TYPES, true);
     }
 

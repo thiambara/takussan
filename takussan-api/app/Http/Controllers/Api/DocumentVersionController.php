@@ -8,6 +8,7 @@ use App\Http\Resources\DocumentVersionResource;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -63,7 +64,7 @@ class DocumentVersionController extends Controller
      * du média quel qu'il soit (TCK-539). Un document peut être lourd : les octets ne traversent
      * pas le VPS, et l'autorisation vient d'être jugée.
      */
-    public function download(Request $request, Document $document, int $versionId, PrivateMediaAccess $access): Response
+    public function download(Request $request, Document $document, int $versionId, PrivateMediaAccess $access, PersonalDataAccessLogger $accessLog): Response
     {
         $this->authorize('view', $document);
 
@@ -71,6 +72,9 @@ class DocumentVersionController extends Controller
             ->firstWhere('id', $versionId);
 
         abort_code_if($media === null, 404, 'document.version_not_found');
+
+        // TCK-820 (P23.04) — la pièce lue par un profil plateforme laisse sa trace.
+        $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $access->redirect($media, 'attachment');
     }

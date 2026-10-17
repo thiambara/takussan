@@ -13,6 +13,7 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,11 +38,10 @@ class DocumentController extends Controller
     {
         $user = $request->user();
 
-        $base = Document::query();
-
-        if (! $user->isSuperAdmin()) {
-            $base->where('uploaded_by', $user->id);
-        }
+        // TCK-820 (P23.04) — ses propres téléversements, pour tous, super-admin compris : aucun écran
+        // de la console ne lit cette liste, et elle lui rendait les pièces de toute la plateforme.
+        // Le super-admin ouvre toujours un document par son identifiant (`show`), journalisé.
+        $base = Document::query()->where('uploaded_by', $user->id);
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
@@ -96,9 +96,10 @@ class DocumentController extends Controller
         ], 201);
     }
 
-    public function show(Request $request, Document $document): JsonResponse
+    public function show(Request $request, Document $document, PersonalDataAccessLogger $accessLog): JsonResponse
     {
         $this->authorize('view', $document);
+        $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $this->json([
             'data' => DocumentResource::make($document)->toArray($request),
