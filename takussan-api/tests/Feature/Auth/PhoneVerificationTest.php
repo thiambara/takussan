@@ -19,7 +19,7 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/verify-phone', ['code' => '123456'])
+        $this->postJson('/api/auth/phone/verify-otp', ['code' => '123456'])
             ->assertStatus(422);
 
         $this->assertNull($user->fresh()->phone_verified_at);
@@ -32,7 +32,7 @@ class PhoneVerificationTest extends TestCase
 
         $code = $this->issuePhoneCode($user);
 
-        $this->postJson('/api/auth/verify-phone', ['code' => $code])
+        $this->postJson('/api/auth/phone/verify-otp', ['code' => $code])
             ->assertOk()
             ->assertJsonPath('data.verified', true);
 
@@ -44,7 +44,7 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/verify-phone', ['code' => '12'])
+        $this->postJson('/api/auth/phone/verify-otp', ['code' => '12'])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['code']);
     }
@@ -54,7 +54,7 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/verify-phone', ['code' => '123456'])->assertStatus(422);
+        $this->postJson('/api/auth/phone/verify-otp', ['code' => '123456'])->assertStatus(422);
     }
 
     /**
@@ -91,7 +91,7 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/phone/resend')->assertStatus(422);
+        $this->postJson('/api/auth/phone/send-otp')->assertStatus(422);
     }
 
     public function test_resend_fails_if_phone_already_verified(): void
@@ -99,15 +99,13 @@ class PhoneVerificationTest extends TestCase
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => now()]);
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/auth/phone/resend')->assertStatus(422);
+        $this->postJson('/api/auth/phone/send-otp')->assertStatus(422);
     }
 
     public function test_both_endpoints_require_auth(): void
     {
-        $this->postJson('/api/auth/verify-phone', ['code' => '123456'])->assertUnauthorized();
-        $this->postJson('/api/auth/phone/resend')->assertUnauthorized();
-        $this->postJson('/api/auth/phone/send-otp')->assertUnauthorized();
         $this->postJson('/api/auth/phone/verify-otp', ['code' => '123456'])->assertUnauthorized();
+        $this->postJson('/api/auth/phone/send-otp')->assertUnauthorized();
     }
 
     /**
