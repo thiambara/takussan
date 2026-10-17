@@ -895,7 +895,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
-- Statut : validé — chaque langue pré-remplie depuis lang/{locale} ; seules les langues modifiées sont persistées
+- Statut : fait · TCK-748
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
@@ -903,10 +903,11 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `NotificationTemplateService.php:157-165` : `fallbackBody()` ignore `$locale` et rend le corps français, `fallbackSubject()` (l.152-155) rend le `name` français (lu) ; `update()` l.58-70 écrit les trois langues et replie sur `templates['fr']` pour toute langue absente (lu) ; `notification-templates.tsx:80` envoie tout `templates` (lu) ; `renderActive()` l.96-113 préfère la ligne active en base, et sert deux appelants (`NewBookingNotification.php:151`, `NotificationRenderer.php:214`) ; `SELECT` sur `notification_templates` par tinker → 9 lignes, toutes `whatsapp` et traduites, aucune ligne d'un événement éditable : le défaut n'a pas encore écrit en base de dev → tient. Classement : V7, pré-remplir depuis `lang/*` et ne persister que les langues touchées change ce que l'éditeur montre et enregistre.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `NotificationTemplateTest` avant correctif → 2 rouges sur 8 : le `GET` rend en `en` le corps français (clé `lang/en` absente, `fallbackBody()` ignore `$locale`), et un `PATCH` des trois langues, `fr` seule modifiée, écrit `['fr','en','wo']` → bloc `editable_templates` dans `lang/{fr,en,wo}/notifications.php` (`wo` = texte français tel quel, wolof en pause), `update()` n'écrit plus une langue sans ligne restée égale à son texte de départ ; ablation (service d'avant remis) → les 2 mêmes rouges, ligne `fr` porteuse de `is_active=false` retirée → 1 rouge ; remis → 8/8 verts, 42 tests voisins verts.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
-- Statut : validé — traduire en anglais les 55 attributs déjà traduits en fr
+- Statut : fait · TCK-749
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
@@ -914,6 +915,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 (mesuré) ; `is_active` absent du bloc `fr` ; tinker `Validator::make([], ['is_active'=>'required'])` en `fr` → « Le champ is active est obligatoire. », en `en` → « The is active field is required. » ; TCK-651:138 le relève aussi (« le champ value ») → tient. Classement : V7, la piste ouvre un choix entre traduire des centaines de noms de champ en trois langues et remplacer la prose 422 par des libellés du front.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 ; `AttributsDeValidationTraduitsTest` avant correctif → 2 rouges sur 2 (`validation.attributes` absent en `en`, « The property id field is required. ») → bloc `attributes` anglais, mêmes 55 clés dans le même ordre ; ablation (fichier d'avant remis) → les 2 mêmes rouges ; remis → vert, `MessagesDeValidationTraduitsTest` et `ValidationMessagesLocaleTest` verts.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
@@ -1418,7 +1420,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
-- Statut : validé — médias d'un modèle supprimé en douceur purgés 90 jours après deleted_at, collections de preuve exclues
+- Statut : fait · TCK-750 — reste : la requête par média de `media:cleanup` (une lecture du modèle par ligne, sur tout le parc, chaque nuit)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1430,6 +1432,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaCleanup.php:23-60` (inchangé depuis TCK-050, `git log` : 2 commits ; `isOrphan()` fait `$type::query()->whereKey($id)->exists()`, et son commentaire dit « soft-deleted targets count as orphans (per ticket spec) », ce que TCK-050 écrit l. 96) et `routes/console.php:67` (`dailyAt('03:00')`) ; test Feature temporaire (retiré) : un `Property` avec une photo datée de 2 jours, supprimé en douceur, puis `media:cleanup` → **0** média restant, en 3 requêtes pour un média. `Lease` porte déjà `SoftDeletes` (`Lease.php:28`) : le constat dit « le jour où un bail serait supprimé en douceur », mais aucun `->delete()` de bail n'a été trouvé dans `app/` (grep), donc le chemin reste théorique pour les baux. La requête par média tient (une `exists()` par ligne, lu). Classement : V3, garder les médias d'un bien supprimé, et pour combien de temps, est un choix de conservation qui contredit la règle écrite par TCK-050.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `MediaCleanupTest` avant correctif → 2 rouges sur 7 : la photo d'un bien supprimé en douceur 89 jours plus tôt est purgée (0 média), et `signed_contract` et `room_photos` d'un bail et d'un état des lieux signé supprimés partent aussi → `isOrphan()` lit le modèle `withTrashed()`, purge après `deleted_at` + 90 jours, preuves de TCK-596 exclues ; ablation (commande d'avant remise) → les 2 mêmes rouges, exclusion des preuves retirée seule → 1 rouge ; remis → 7/7 verts.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
@@ -1446,7 +1449,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
-- Statut : validé — HEIC refusé (mimes:jpg,jpeg,png,webp) sur l'état des lieux et l'avatar
+- Statut : fait · TCK-751
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1458,6 +1461,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `UploadRoomPhotosInventoryRequest.php:39` (`required`, `image`, `max:5120`), `UpdateProfileRequest.php:50` (`nullable`, `image`, `max:2048`), `vendor/…/ValidatesAttributes.php:1533` (`heic`, `heif` dans la liste de `image`), `PdfImageEmbedder.php:30,108-116` (rend `null` hors jpeg, png, webp, gif) ; mesuré `function_exists('imagecreatefromheif')` → `false` et `gd_info()` sans prise en charge HEIF ; HEIC réel produit par `sips -s format heic` (finfo : `image/heic`), puis test Feature temporaire (retiré) : la règle de l'état des lieux **passe**, et `PUT /api/auth/profile` avec ce fichier → 200, média `image/heic` sur le disque public, `generated_conversions` vide, `avatar_url` = l'original `.heic`. L'absence au PDF de l'état des lieux est déduite de `PdfImageEmbedder::encode`, non rejouée. Classement : V7, la piste laisse ouvert le choix entre refuser le HEIC (`mimes:`) et le convertir à l'entrée, et un refus change ce qu'un utilisateur de l'API peut envoyer.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : HEIC réduit à sa boîte `ftyp` (finfo → `image/heic`, `image` passe, `mimes:jpg,jpeg,png,webp` échoue, mesuré par tinker) ; `InventoryRoomPhotosTest` et `AuthProfileTest` avant correctif → 2 rouges, 200 au lieu de 422 → `mimes:jpg,jpeg,png,webp` sur les deux règles ; ablation (FormRequests d'avant remis) → les 2 mêmes rouges ; remis → 34/34 verts, 78 tests des classes voisines verts.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
