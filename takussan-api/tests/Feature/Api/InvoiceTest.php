@@ -225,6 +225,40 @@ class InvoiceTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_une_facture_sans_devise_prend_celle_de_l_agence(): void
+    {
+        // TCK-738 (P04.09) — une agence en EUR émettait ses factures en XOF faute de devise saisie.
+        $agency = Agency::factory()->create(['currency' => 'EUR']);
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $customer = Customer::factory()->create(['agency_id' => $agency->id]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 1250.5,
+        ])->assertCreated()
+            ->assertJsonPath('data.currency', 'EUR');
+    }
+
+    public function test_une_devise_explicite_gagne_sur_celle_de_l_agence(): void
+    {
+        $agency = Agency::factory()->create(['currency' => 'EUR']);
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $customer = Customer::factory()->create(['agency_id' => $agency->id]);
+
+        Sanctum::actingAs($agent);
+
+        $this->postJson('/api/invoices', [
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 100000,
+            'currency' => 'XOF',
+        ])->assertCreated()
+            ->assertJsonPath('data.currency', 'XOF');
+    }
+
     public function test_can_issue_invoice_for_booking(): void
     {
         // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
