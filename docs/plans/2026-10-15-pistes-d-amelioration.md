@@ -3290,7 +3290,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : validé — journaliser le statut et l'écart de montant à la confirmation ; reste : les autres points, un par un
+- Statut : fait · TCK-828 — reste : les autres points, un par un
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3301,6 +3301,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationConfirmationAuditTest` → une ligne de 7 500 se confirme sur une échéance `pending` de 150 000 et l'activité `matched` ne porte ni statut ni montant (3 rouges, clé `payment_status` absente) ; correctif : `payment_status`, `expected_amount` et `amount_gap` ajoutés à l'activité, montant attendu d'une échéance par `LeasePayment::expectedBankAmount()` (la règle du scope de TCK-715) → 3/3 verts, 120 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation : `confirmMatch()` d'origine → 3 rouges, `expectedBankAmount()` réduit à `amount` → 1 rouge (échéance soldée en ligne, écart de 7 500). Comportement inchangé : aucun refus ajouté.
 
 ## Angle 26 — PDF : quittances, contrats, factures
 
