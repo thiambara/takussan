@@ -646,7 +646,7 @@ contre le code par la session.*
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
-- Statut : validé — devise par défaut d'une facture = celle de l'agence ; décimales de CURRENCY_METADATA à l'affichage
+- Statut : fait · TCK-738
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/InvoiceService.php:75`, `takussan-web/src/lib/format/useFormatteurs.ts:131-133`, `RevenueChart.tsx:171`
 - Constat :
@@ -655,6 +655,7 @@ contre le code par la session.*
   - `RevenueChart` formate toujours en XOF (lu).
 - Piste : par défaut, la devise de l'agence, et les décimales de `CURRENCY_METADATA`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Services/Model/InvoiceService.php:75` (le fichier a quitté `Services/Invoice/`) : `'currency' => $data['currency'] ?? 'XOF'`, alors que `Agency` porte une colonne `currency` castée en `Currency` (`Agency.php:68`) ; `takussan-web/src/lib/format/useFormatteurs.ts:129-135` : `fmt.montant` pose `minimumFractionDigits: 0, maximumFractionDigits: 0` sauf option contraire ; `RevenueChart.tsx:171` : `fmt.montant(…, 'XOF', { maximumFractionDigits: 0 })` → les trois points du constat tiennent, aucun commit ni ticket ne les traite (`grep maximumFractionDigits` dans les tickets : rien). Classement : V1 et V7, la devise par défaut d'une facture est une écriture de montant, et l'affichage des décimales hors XOF change ce que l'utilisateur voit.
+- Mesure (2026-10-17, eb6aee73, implementeur) : avant correctif, une facture émise sans devise par un agent d'une agence en EUR rendait `data.currency` = `XOF` (`InvoiceTest`), et `fmt.montant(12.5, 'EUR')` rendait `13 €` → repli sur `agencies.currency` de l'émetteur dans `InvoiceService::create()`, décimales de `CURRENCY_METADATA` dans `fmt.montant` et `PayoutTable`, et `formatCurrency` qui borne le défaut à l'option explicite (sans quoi `{ maximumFractionDigits: 0 }` sur de l'EUR levait une `RangeError`) ; ablation : 1 rouge par correctif (API, `fmt.montant`, bornage), remis : 21 verts sur `InvoiceTest`, 397 sur les 31 fichiers front qui citent `montant`. `RevenueChart` reste en XOF : il somme `plans.monthly_price_xof`, une devise de plateforme.
 
 ### Restitution d'une caution jamais encaissée
 - Réf : P04.10
