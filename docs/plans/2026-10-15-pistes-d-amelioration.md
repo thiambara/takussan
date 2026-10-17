@@ -1669,7 +1669,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : validé — ne journaliser que les 4 derniers chiffres des numéros, `backoff` et un `failed()` qui journalise
+- Statut : fait · TCK-800
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1683,6 +1683,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
+- Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `NotificationFailureLoggingTest` → un numéro invalide routé (`0012-34-56-7890`) écrit `phone` entier au `warning` de `SmsChannel` et de `WhatsappChannel` ; le job en file d'une `CodedNotification` rend `null` en `backoff()` et son `failed()` n'écrit rien → `phone_suffix` (4 derniers caractères) sur les deux canaux, `backoff()` = `[60, 300, 900]`, `failed()` qui écrit un `error` avec le code, le canal (retenu par `middleware()` à la mise en file) et l'identifiant de la cloche, sans le message de l'exception ; ablation : chacun des cinq morceaux retiré seul → 1 rouge ; correctif remis : 2 verts, et 147 tests voisins (notifications, WhatsApp, canal SMS) verts.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
