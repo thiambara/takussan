@@ -725,7 +725,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
 - Réf : P05.03
-- Statut : validé — réserver et envoyer échéance par échéance
+- Statut : fait · TCK-740
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
 - Constat :
@@ -734,6 +734,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne simule un échec en cours de boucle (lu).
 - Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Jobs/SendLeasePaymentReminders.php:55-147` : `claim()` pose `reminder_<jalon>_sent_at` sur toutes les échéances du jalon (une transaction par échéance) avant toute boucle d'envoi, sans `$timeout` ni `catch` ; `NotificationService::send()` (`Services/Model/NotificationService.php:75-117`) ne capture que l'événement de diffusion, l'écriture et `notify()` peuvent lever ; `tests/Feature/Jobs/SendLeasePaymentRemindersTest.php` : 12 tests, aucun n'échoue en cours de boucle → constat confirmé. Classement : V7, réserver par échéance ou rendre la réservation fait passer la relance d'« au plus une fois » à « au moins une fois », un choix que voit le locataire.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes` (deux échéances à J+1, `NotificationService::send()` qui lève au premier envoi, puis rejeu) → 0 relance au rejeu : la seconde échéance restait marquée sans envoi → `claim()` réserve sous verrou et rend les échéances une à une ; ablation : 1 rouge, correctif remis : 16 verts. Aucun `$timeout` ajouté.
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
 - Réf : P05.04
