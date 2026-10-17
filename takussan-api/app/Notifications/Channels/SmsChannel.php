@@ -79,6 +79,8 @@ class SmsChannel
         $message = $notification->toSms($notifiable);
         $context = [
             'is_critical' => $isCritical,
+            // TCK-766 — un code à usage unique garde le repli sur un échec ambigu.
+            'is_otp' => method_exists($notification, 'isOtpSms') && $notification->isOtpSms(),
             'event_type' => $this->resolveEventType($notification),
             'agency_id' => $this->resolveAgencyId($notifiable),
             'notification_id' => $this->resolveAppNotificationId($notifiable, $notification),

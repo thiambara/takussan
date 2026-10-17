@@ -21,6 +21,7 @@ use App\Services\Notifications\Whatsapp\WhatsappResult;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
@@ -133,7 +134,7 @@ class WhatsappChannelTest extends TestCase
 
     public function test_ac3_hard_failure_falls_back_to_sms_with_two_attempts(): void
     {
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
         $appNotification = AppNotification::factory()->create(['user_id' => $this->user->id]);
         $channel = $this->app->make(WhatsappChannel::class);
@@ -149,6 +150,36 @@ class WhatsappChannelTest extends TestCase
             ->pluck('provider')->all();
         $this->assertContains('whatsapp_cloud', $providers);
         $this->assertContains('lafricamobile', $providers);
+    }
+
+    /** TCK-766 (P27.02) — Meta a pu accepter le message : pas de second envoi par SMS. */
+    public function test_ambiguous_failure_does_not_fall_back_to_sms(): void
+    {
+        $this->fakeHttp(graphStatus: 503, graphBody: ['error' => ['code' => 2]]);
+        $this->contact(now()->subHour());
+        $channel = $this->app->make(WhatsappChannel::class);
+
+        $result = $channel->send($this->user, $this->makeNotification('hi'));
+
+        $this->assertTrue($result['whatsapp']->ambiguous);
+        $this->assertArrayNotHasKey('sms', $result);
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'lampush'));
+    }
+
+    public function test_timeout_does_not_fall_back_to_sms(): void
+    {
+        Http::fake([
+            'graph.facebook.com/*' => fn () => throw new ConnectionException('cURL error 28: Operation timed out after 10000 milliseconds with 0 bytes received'),
+            'lampush*' => Http::response(['push_id' => 'lam-x'], 200),
+        ]);
+        $this->contact(now()->subHour());
+        $channel = $this->app->make(WhatsappChannel::class);
+
+        $result = $channel->send($this->user, $this->makeNotification('hi'));
+
+        $this->assertSame('whatsapp_http_exception', $result['whatsapp']->failureReason);
+        $this->assertArrayNotHasKey('sms', $result);
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'lampush'));
     }
 
     public function test_ac4_opted_out_contact_falls_back_to_sms_without_calling_meta(): void
@@ -254,7 +285,7 @@ class WhatsappChannelTest extends TestCase
     {
         // A fully-failed send (bad credentials / all recipients rejected) is
         // not a successful use of the integration.
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
         $channel = $this->app->make(WhatsappChannel::class);
 
@@ -302,7 +333,7 @@ class WhatsappChannelTest extends TestCase
      */
     public function test_tck599_sans_crochet_le_repli_sms_est_inchange(): void
     {
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
         $notification = $this->makeNotification('hi');
         $this->assertFalse(method_exists($notification, 'smsFallbackAllowed'));
@@ -316,7 +347,7 @@ class WhatsappChannelTest extends TestCase
 
     public function test_tck599_un_crochet_qui_accepte_garde_le_repli_sms(): void
     {
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
 
         $result = $this->app->make(WhatsappChannel::class)
@@ -328,7 +359,7 @@ class WhatsappChannelTest extends TestCase
 
     public function test_tck599_un_crochet_qui_refuse_coupe_le_repli_sms(): void
     {
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
 
         $result = $this->app->make(WhatsappChannel::class)
@@ -350,7 +381,7 @@ class WhatsappChannelTest extends TestCase
             ['user_id' => $this->user->id, 'event_type' => SavedSearchMatchesNotification::EVENT_TYPE, 'channel' => 'whatsapp'],
             ['enabled' => true],
         );
-        $this->fakeHttp(graphStatus: 500, graphBody: ['error' => ['code' => 131026]]);
+        $this->fakeHttp(graphStatus: 400, graphBody: ['error' => ['code' => 131026]]);
         $this->contact(now()->subHour());
         $recherche = SavedSearch::create(['user_id' => $this->user->id, 'name' => 'Dakar', 'criteria' => ['city' => 'Dakar']]);
 

@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\DB;
  *   Orange and roll directly to the next driver with status
  *   `deferred_to_fallback` and reason `orange_daily_cap_reached`.
  * - Missing Integration → silently skipped, router moves to next driver.
+ * - TCK-766 (P27.02) — an AMBIGUOUS failure (timeout, 5xx: the provider may
+ *   have accepted the message) ends the chain for that number, so it is not
+ *   sent twice; a one-time code (`is_otp`) keeps the fallback.
  */
 class SmsRouterDriver implements SmsDriverInterface
 {
@@ -112,6 +115,7 @@ class SmsRouterDriver implements SmsDriverInterface
     private function walkChain(array $chain, array $numbers, string $message, array $context): array
     {
         $finalResults = [];
+        $isOtp = (bool) ($context['is_otp'] ?? false);
         $attemptIndex = array_fill_keys($numbers, 0);
         $remaining = $numbers;
 
@@ -168,7 +172,7 @@ class SmsRouterDriver implements SmsDriverInterface
             } catch (\Throwable $e) {
                 $batch = [];
                 foreach ($callable as $n) {
-                    $batch[$n] = SmsResult::failed($n, $driverId, 'driver_exception_'.class_basename($e));
+                    $batch[$n] = SmsResult::failed($n, $driverId, 'driver_exception_'.class_basename($e), AmbiguousDelivery::fromThrowable($e));
                 }
             }
 
@@ -182,7 +186,7 @@ class SmsRouterDriver implements SmsDriverInterface
                     if ($driverId === 'orange') {
                         $this->orangeCap->increment($n);
                     }
-                } else {
+                } elseif (! $result->ambiguous || $isOtp) {
                     $next[] = $n;
                 }
             }

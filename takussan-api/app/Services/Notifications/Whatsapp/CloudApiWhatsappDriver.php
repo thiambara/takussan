@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Whatsapp;
 
+use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\PhoneNumber;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -84,7 +85,7 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
         } catch (\Throwable $e) {
             Log::warning('[whatsapp.cloud] HTTP exception', ['error' => $e->getMessage()]);
 
-            return WhatsappResult::failed($recipient, $this->id(), 'whatsapp_http_exception');
+            return WhatsappResult::failed($recipient, $this->id(), 'whatsapp_http_exception', AmbiguousDelivery::fromThrowable($e));
         }
 
         $body = $response->json() ?? [];
@@ -99,7 +100,7 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
             ?? $response->status()
         );
 
-        return WhatsappResult::failed($recipient, $this->id(), "whatsapp_error_{$errCode}");
+        return WhatsappResult::failed($recipient, $this->id(), "whatsapp_error_{$errCode}", AmbiguousDelivery::fromStatus($response->status()));
     }
 
     /**
