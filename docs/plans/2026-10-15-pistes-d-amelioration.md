@@ -1232,12 +1232,13 @@ Sain (vérifié par l'agent) :
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-757
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `RoomEditor.tsx:140` (`<textarea>` en `text-sm`), `InviteAgentDialog.tsx:136,154,175,194` et `InviteMemberDialog.tsx:111` (`<input>` en `text-sm`, sans `text-base`) — lignes inchangées ; `ui/input.tsx:18-20` écrit la règle (« 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus ») et `ui/textarea.tsx:10` l'applique → tient. Le zoom lui-même n'a pas été observé sur un iPhone. Classement : A1, le comportement attendu est écrit dans la primitive, et le correctif aligne six champs sur elle sans choix de produit.
+- Mesure (2026-10-17, 18c6141d, implementeur) : garde de source `champs-sans-zoom-ios.test.ts` sur les trois fichiers cités → 3 rouges, exactement les six champs (`RoomEditor.tsx:137`, `InviteAgentDialog.tsx:132,150,170,190`, `InviteMemberDialog.tsx`) → tient. Correctif : `text-base md:text-sm`. Ablation : fichiers d'avant → 3 rouges ; remis → verts. Cinq autres champs du dépôt en `text-sm` seul, hors piste, sont listés dans TCK-757.
 
 ### Petites améliorations
 - Réf : P08.10
