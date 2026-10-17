@@ -751,7 +751,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
 - Réf : P05.05
-- Statut : validé — after_commit => true sur les connexions de file
+- Statut : fait · TCK-746
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,64,73` (`after_commit => false`), par exemple `LateFeeCalculator.php:162` et `BookingExpirationService.php:204-206`
 - Constat :
@@ -759,6 +759,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Passer `QUEUE_CONNECTION` à `redis` (évoqué en `docs/configuration.md:136`) enverrait des notifications pour des écritures annulées. Rien ne garde cette propriété (lu ; aucun test trouvé).
 - Piste : `after_commit => true` sur toutes les connexions de file, ou une garde.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/config/queue.php:44,53,64,73` : `after_commit => false` sur les quatre connexions ; la file `database` prend `DB_QUEUE_CONNECTION`, vide, donc la connexion par défaut et sa transaction ; `LateFeeCalculator.php:162` dispatche `LeasePaymentLateFeeApplied` dans `DB::transaction` ; `afterCommit` n'apparaît qu'en cinq dispatchs ponctuels (`LeaseService`, `AgencyObserver`, …) ; `docs/configuration.md:136` : `QUEUE_CONNECTION=database # ou redis / sqs` ; aucun test ne garde la propriété → constat confirmé. Classement : V6, passer `after_commit` à `true` partout change le moment de tous les dispatchs, une décision transverse.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `QueueAfterCommitTest` (file `database`) lit une ligne dans `jobs` **dans** la transaction qui a mis le job en file, et la propriété `after_commit` vaut `false` sur `database`, `beanstalkd`, `sqs`, `redis` → `after_commit => true` sur ces quatre connexions ; aucune ligne avant le commit, une après, rien pour une transaction annulée, dispatch immédiat hors transaction ; ablation (`false` remis) : 2 rouges sur 4, correctif remis : 4 verts, et les 8 classes qui basculent la file sur `database` restent vertes.
 
 ### `retry_after` à 90 s est sous le `$timeout` de quatre jobs ; un seul worker sert aussi la file urgente
 - Réf : P05.06
@@ -1560,7 +1561,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'e-mail de vérification à l'inscription est synchrone
 - Réf : P11.04
-- Statut : validé — ShouldQueue sur l'inscription, la réinitialisation et les AccountDeletion*, file notifications-urgent
+- Statut : fait · TCK-747 — reste : AccountDeletionExecutedNotification reste synchrone ; la mettre en file demande de ranger l'adresse d'origine dans la charge du job après l'effacement (V3)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:33-46`, `takussan-api/app/Notifications/RegistrationConfirmationNotification.php`
 - Constat :
@@ -1570,10 +1571,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `ShouldQueue`, avec les codes à usage unique sur `notifications-urgent`.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `AuthController::register` (l. 31-46 : `User::create` hors transaction, `event(new Registered)`) relu, `RegistrationConfirmationNotification` étend `VerifyEmail` sans `ShouldQueue`, ni `ResetPasswordNotification` ; les trois `AccountDeletion*` n'ont que le trait `Queueable`, sans `ShouldQueue` ; test temporaire retiré : SMTP sur `127.0.0.1:1`, `POST /api/auth/register` → 500, aucun jeton, compte créé en base ; même corps rejoué → 422 `email: The email has already been taken.` Le constat tient. Classement : V2, le correctif touche le parcours d'inscription et de réinitialisation, et le choix de file (`notifications-urgent`) en fait partie.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `NotificationsDeCompteEnFileTest` (file `database`, SMTP sur `127.0.0.1:1`) → `POST /api/auth/register` et `POST /api/auth/forgot-password` rendent 500 (`TransportException`), aucune ligne `jobs` → `ShouldQueue` et `viaQueues()` = `notifications-urgent` sur l'inscription, la réinitialisation et trois `AccountDeletion*`, `ShouldBeEncrypted` sur les deux qui portent un jeton ou un code ; l'inscription rend un jeton, la réinitialisation 200, le jeton absent en clair de la charge ; `AccountDeletionExecutedNotification` laissée synchrone (le worker relirait la ligne déjà anonymisée) ; ablation : 3 rouges sur 4, correctif remis : 4 verts, et 14 classes voisines (suppression de compte, vérification d'e-mail, réinitialisation, langues) vertes.
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
 - Réf : P11.05
-- Statut : validé — Log::warning et tentative journalisée sans notification_id ; seau séparé pour les codes critiques ; 503 lisible si rien n'est parti
+- Statut : retenu · à valider — V4 : journaliser en base la tentative d'un SMS sans notification_id demande de rendre notification_delivery_attempts.app_notification_id nullable, une migration de schéma ; le V7 accordé ne portait que sur le choix seau séparé ou 503
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -1585,6 +1587,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `SmsRouterDriver.php:195-201` et `appendAttempt` (l. 239-243, sort sans rien écrire si `notification_id` est nul), `SmsChannel::withinRateLimit` (l. 143-160, seau unique de `sms.rate_limit.per_user_per_hour` = 5, codes critiques compris) et `LeaseSignatureService::sendCode` (l. 112-136, rend `channel: sms` sans lire le résultat) relus ; test temporaire retiré : chaînes vides, `SmsRouterDriver::send` d'un SMS critique sans `notification_id` → `failed`/`no_provider_available`, et `Log::spy` n'a reçu ni `info`, ni `warning`, ni `error`. Tient pour le chemin « aucun fournisseur » ; inexact sur un point : le seau plein, lui, laisse un `Log::info` (`SmsChannel.php:152`). Classement : V7, la piste choisit entre un seau séparé pour les codes et un 503 visible, et la signature de bail en dépend (V2).
+- Mesure (2026-10-17, b8b556ed, implementeur) : relu `database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:20-22` (`app_notification_id` en `foreignId()->constrained()`, non nul) et `SmsRouterDriver::appendAttempt()` (`if (! $notificationId) return;`) → une tentative sans notification ne peut s'écrire dans cette table qu'après une migration qui rend la colonne nullable (ou une table à part) : critère V4, autre que le V7 accordé. Si « tentative journalisée » veut dire au journal applicatif et non en base, la piste redevient faisable sans migration : à préciser. Le reste de la décision (`Log::warning`, seau séparé, 503) n'a pas été commencé.
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
@@ -1628,7 +1631,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Aucun `afterCommit` : pas de dégât aujourd'hui, grâce à la seule file `database`
 - Réf : P11.09
-- Statut : validé — after_commit => true sur les connexions de file
+- Statut : fait · TCK-746
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/queue.php:44,73`, `takussan-api/app/Notifications/CodedNotification.php:40`
 - Constat :
@@ -1638,6 +1641,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `ShouldQueueAfterCommit` sur `CodedNotification` et les autres notifications en file.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `config/queue.php:44,53,64,73` → `after_commit => false` sur les quatre connexions ; `grep -rn 'AfterCommit' app` → seuls `RevalidatePublicPropertyPage` (`afterCommit()`) et trois événements `ShouldDispatchAfterCommit`, aucune notification ; 24 fichiers de `app/Notifications` sont `ShouldQueue` ; `docs/infra/prod-drivers.json` donne `QUEUE_CONNECTION=database` en préproduction (mesuré le 2026-09-14) et en production (prescrit), et `DB_QUEUE_CONNECTION` n'est pas posé dans `.env.example` → le constat tient tel qu'écrit : aucun dégât tant que la file est `database` sur la connexion par défaut. Classement : V6, poser l'envoi après commit sur toutes les notifications (ou par `after_commit` de la connexion) est une décision transverse sur la file, au-delà d'un défaut au comportement écrit.
+- Mesure (2026-10-17, b8b556ed, implementeur) : avant correctif, `QueueAfterCommitTest` (file `database`) lit une ligne dans `jobs` **dans** la transaction qui a mis le job en file, et la propriété `after_commit` vaut `false` sur `database`, `beanstalkd`, `sqs`, `redis` → `after_commit => true` sur ces quatre connexions ; aucune ligne avant le commit, une après, rien pour une transaction annulée, dispatch immédiat hors transaction ; ablation (`false` remis) : 2 rouges sur 4, correctif remis : 4 verts, et les 8 classes qui basculent la file sur `database` restent vertes.
 
 ### Petites améliorations
 - Réf : P11.10

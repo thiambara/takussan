@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\AccountDeletionRequest;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -11,9 +12,15 @@ use Illuminate\Notifications\Notification;
  * TCK-080 — confirms a user's deletion request, gives the effective date,
  * and points at the cancellation route ("changed your mind?").
  */
-class AccountDeletionRequestedNotification extends Notification
+class AccountDeletionRequestedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    /** TCK-747 (P11.04) — les e-mails du compte partent par la file urgente, hors de la requête. */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'notifications-urgent'];
+    }
 
     public function __construct(public readonly AccountDeletionRequest $request) {}
 
