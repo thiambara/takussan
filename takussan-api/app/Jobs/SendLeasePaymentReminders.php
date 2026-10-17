@@ -115,45 +115,52 @@ class SendLeasePaymentReminders implements ShouldQueue
 
     /**
      * Les échéances ouvertes dont le jalon tombait aujourd'hui (`$dueDate`) ou dans les
-     * `CATCH_UP_DAYS` jours précédents (TCK-739), et pas encore relancées pour ce jalon. Chaque
-     * marqueur est posé sous verrou de ligne : deux passages concurrents ne relancent pas deux
-     * fois la même échéance.
+     * `CATCH_UP_DAYS` jours précédents (TCK-739), et pas encore relancées pour ce jalon.
      *
-     * @return list<LeasePayment>
+     * TCK-740 (P05.03) — rendues UNE À UNE, chacune réservée sous verrou de ligne juste avant
+     * d'être rendue : deux passages concurrents ne relancent pas deux fois la même échéance, et
+     * un envoi qui lève ne laisse pas marquées, sans envoi, celles qui le suivent.
+     *
+     * @return \Generator<int, LeasePayment>
      */
-    private function claim(CarbonInterface $dueDate, string $milestone): array
+    private function claim(CarbonInterface $dueDate, string $milestone): \Generator
     {
         $key = "reminder_{$milestone}_sent_at";
         // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
         // pas relancé.
-        $ids = LeasePayment::query()
+        $candidates = LeasePayment::query()
             ->exceptDepositRefunds()
             ->whereIn('status', self::OPEN_STATUSES)
             ->whereDate('due_date', '<=', $dueDate->toDateString())
             ->whereDate('due_date', '>=', $dueDate->copy()->subDays(self::CATCH_UP_DAYS)->toDateString())
-            ->pluck('id');
-
-        $claimed = [];
-        foreach ($ids as $id) {
-            DB::transaction(function () use ($id, $key, &$claimed): void {
-                $payment = LeasePayment::query()->whereKey($id)->lockForUpdate()->first();
-                if (! $payment || ! empty(($payment->metadata ?? [])[$key])) {
-                    return;
-                }
-                $payment->forceFill(['metadata' => [...($payment->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
-                $claimed[] = $payment->id;
-            });
-        }
-
-        return LeasePayment::query()
-            ->whereKey($claimed)
             ->with([
                 'lease.tenant.user',
                 'lease.landlord',
                 ...array_map(fn (string $relation) => "lease.property.{$relation}", PrimaryPropertyContact::eagerLoads()),
             ])
-            ->get()
-            ->all();
+            ->orderBy('id')
+            ->get();
+
+        foreach ($candidates as $payment) {
+            $claimed = DB::transaction(function () use ($payment, $key): bool {
+                $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
+                if (! $locked
+                    || ! in_array($locked->status, self::OPEN_STATUSES, true)
+                    || ! empty(($locked->metadata ?? [])[$key])
+                ) {
+                    return false;
+                }
+                $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
+                // Le statut et le solde relus sous le verrou, les relations gardées.
+                $payment->setRawAttributes($locked->getAttributes(), true);
+
+                return true;
+            });
+
+            if ($claimed) {
+                yield $payment;
+            }
+        }
     }
 
     /** @return array{amount: string, currency: string} */

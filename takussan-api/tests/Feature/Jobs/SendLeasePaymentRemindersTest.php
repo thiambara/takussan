@@ -20,6 +20,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Services\Model\NotificationService;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -323,6 +324,32 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->run_();
 
         $this->assertCount(0, $this->rows($payment->lease->tenant->user));
+    }
+
+    // ─── TCK-740 (P05.03) — réserver et envoyer échéance par échéance ──────────────────
+
+    public function test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes(): void
+    {
+        Carbon::setTestNow('2026-09-30 08:00:00');
+        $this->payment(['due_date' => '2026-09-29']);
+        $this->payment(['due_date' => '2026-09-29']);
+        $this->partialMock(NotificationService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andThrow(new \RuntimeException('canal en panne'));
+        });
+
+        try {
+            $this->run_();
+            $this->fail('L\'envoi devait lever.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('canal en panne', $e->getMessage());
+        }
+
+        $this->app->forgetInstance(NotificationService::class);
+        $this->run_();
+
+        // La première échéance, réservée puis en échec, n'est pas relancée deux fois ; la seconde
+        // l'est, au rejeu.
+        $this->assertSame(1, AppNotification::query()->where('code', NotificationCode::LeasePaymentOverdue->value)->count());
     }
 
     // ─── TCK-602 — le lien de paiement dans la relance ─────────────────────────────────
