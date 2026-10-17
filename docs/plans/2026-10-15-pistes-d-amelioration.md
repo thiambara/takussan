@@ -2815,7 +2815,7 @@ n'est pas repris ici.*
 
 ### `/api/users` rend des modèles `User` bruts : sans `fields[users]`, toutes les colonnes non cachées sortent
 - Réf : P21.02
-- Statut : validé — sans fields[users], la projection par défaut de P21.01 ; google_id et metadata jamais rendus
+- Statut : fait · TCK-791
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/UserAdminController.php:49-63`, `takussan-web/src/lib/queries/admin-users.ts:55`
 - Constat :
@@ -2824,6 +2824,7 @@ n'est pas repris ici.*
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : la même projection que P21.01, appliquée par `UserAdminController::index` ; test sans `fields[users]`.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `UserAdminController::index` l. 49-63 (`$this->paginated($paginator, $items)`, `$items` = modèles `User` bruts, seul `two_factor_enabled` y est ajouté) ; seul appelant du front, le proxy `app/api/admin-users/[[...path]]/route.ts:24`, que `admin-users.ts` appelle avec `fields[users]` (lu) ; test temporaire, retiré depuis, admin d'agence, membre portant `google_id`, `secondary_phone` et `metadata` : `GET /api/users` sans paramètre → 200, 38 clés dont ces trois. Constat confirmé. Classement : V3, le correctif décide quelles données personnelles d'un `User` sortent par défaut, le même choix que P21.01.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : reproduit avant correctif par `UserAdminDefaultProjectionTest` (admin d'agence, membre portant `google_id` et `metadata`) → `GET /api/users` sans `fields[users]` rend 38 clés dont `google_id` et `metadata`, avec ou sans `include=agencyAdminProfiles` (2 rouges) ; `fields[users]=…,google_id` → 400 déjà → sans `fields[users]`, les lignes passent par `IncludedUserResource` plus `two_factor_enabled` et les relations incluses ; 3 verts. Ablation (contrôleur remis) → 2 rouges ; remis → verts. Seul appelant du front, `fetchAdminUsers`, passe `fields[users]` (lu, `admin-users.ts:55`).
 
 ### `include=visitor` rend l'e-mail et le téléphone du visiteur que la ressource masque ailleurs au bailleur
 - Réf : P21.03
