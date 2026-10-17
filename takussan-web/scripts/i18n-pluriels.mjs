@@ -1,5 +1,9 @@
 /**
- * Contrôle D de `check-i18n.mjs` : les comptes qui ne s'accordent pas (TCK-752, P06.10).
+ * Les comptes qui ne s'accordent pas (TCK-752, P06.10).
+ *
+ * La garde est `src/i18n/__tests__/pluriels.test.ts`, jouée par `npm run test` : ce module n'est
+ * pas (encore) branché dans `check-i18n.mjs`, garde existante que l'implémenteur des pistes ne
+ * modifie pas (ADR-0066, V9).
  *
  * Un message `fr` ou `en` qui écrit `{count} biens` hors d'un ICU `plural` affiche « 1 biens » ;
  * une forme « document(s) » laisse le lecteur faire l'accord. Ce contrôle relève les deux.
@@ -14,7 +18,7 @@
  *
  * Un message dont le nom ne s'accorde pas dans sa langue (« avis », « mois », « en attente »)
  * s'inscrit dans `INVARIABLES`, par langue, avec sa raison. Une entrée qui ne correspond plus à
- * aucun message relevé fait rougir, comme les exceptions du contrôle C.
+ * aucun message relevé fait rougir le test, comme les exceptions du contrôle C de `check-i18n.mjs`.
  */
 
 const COUNT_NU = /\{count\}\s*\p{L}/u;

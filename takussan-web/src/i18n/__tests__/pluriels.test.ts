@@ -2,9 +2,9 @@
  * TCK-752 (P06.10) — un compte s'accorde : « 1 bien », « 2 biens », jamais « 1 biens » ni
  * « 1 document(s) ».
  *
- * Deux preuves : les messages convertis rendus à 1 et à 2 dans les deux langues, et le contrôle D
- * de `scripts/check-i18n.mjs` (`accordsManquants`) vide sur les vrais dictionnaires, et non vide
- * sur un message fautif.
+ * Deux preuves : les messages convertis rendus à 1 et à 2 dans les deux langues, et
+ * `accordsManquants` (`scripts/i18n-pluriels.mjs`) vide sur les vrais dictionnaires, et non vide
+ * sur un message fautif. C'est ce test qui garde la règle en CI.
  */
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
@@ -62,7 +62,7 @@ describe('pluriels ICU (TCK-752)', () => {
   });
 });
 
-describe('contrôle D de check-i18n : les comptes qui ne s’accordent pas', () => {
+describe('garde : les comptes qui ne s’accordent pas', () => {
   it.each(['fr', 'en'] as const)('ne relève rien dans %s.json', (locale) => {
     const { releves, perimees } = accordsManquants(feuilles(locale === 'fr' ? fr : en), locale);
     expect(releves).toEqual([]);
