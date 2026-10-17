@@ -76,3 +76,6 @@ un repli pour la signature d'un bail quand le SMS ne part pas
   (503 au lieu de 202) ; la condition d'aperçu retirée → 1 rouge. Remis → 5 verts.
 - Une sous-classe d'`ApiError`, et non `abort_code()` : les deux appelants muets la nomment dans
   leur `catch`, sans comparer un code en chaîne.
+- Piège : `PhoneVerificationTest` envoyait par le vrai routeur, sans fournisseur configuré, et
+  attendait 200. Ses 4 tests d'envoi rougissaient donc (503) : la classe installe désormais le faux
+  routeur, comme les autres classes qui éprouvent un envoi réussi.
