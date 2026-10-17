@@ -4268,7 +4268,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
-- Statut : validé — `query()` du résolveur restreint aux conversations `direct` où le visiteur et le destinataire sont participants actifs (`left_at` nul) ; un groupe ou une directe quittée ne capte plus le contact, un fil neuf s'ouvre ; test : un groupe sur le bien ne capte pas le contact ; quand P38.05 sera fait, le destinataire cesse d'être un critère de recherche (ADR-0068 § 3)
+- Statut : fait · TCK-813
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
 - Constat :
@@ -4277,6 +4277,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le même chemin, quand le visiteur est encore membre du groupe, montre à tout le groupe un message écrit depuis un formulaire de contact privé (déduit de la même requête, non mesuré séparément).
 - Piste : restreindre `query()` aux conversations `direct` dont les deux participations sont actives (`left_at` nul). Un test : un groupe sur le bien ne capte pas le contact, et un fil neuf s'ouvre.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `PropertyConversationResolver::query()` : ni `type = direct` ni `left_at` ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe sur le bien (propriétaire admin, tiers, visiteur qui l'a quitté), puis `POST /api/public/properties/{slug}/contact-message` du visiteur → la réponse rend l'identifiant du groupe (type `group`), et `GET …/messages` du visiteur sur ce fil → 403. Constat confirmé tel qu'écrit. Classement : V3, le correctif change ce qui est exposé à des tiers, et restreindre aux participations actives décide aussi du sort d'une directe quittée (fil neuf ou reprise), qui est un choix de produit.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (un groupe sur le bien réunissant propriétaire, visiteur et tiers ; une directe que le visiteur a quittée) → rouges, le contact rendait l'identifiant du groupe et de la directe quittée ; correctif : `query()` filtre `type = direct` et `left_at` nul sur les deux participations → verts, un fil direct neuf s'ouvre ; ablation clause par clause : sans `type`, le test du groupe rougit seul, sans `left_at`, celui de la directe quittée rougit seul ; 42 tests des quatre classes du contact verts.
 
 ### Un premier message joint à la création d'une conversation ne déclenche aucune notification
 - Réf : P38.03
@@ -4293,7 +4294,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
-- Statut : validé — `contactMessage()` passe par le chemin de `sendMessage()` : désarchivage du fil pour les autres participants, puis `NotifyNewMessageJob`, qui respecte la sourdine ; un test par effet
+- Statut : fait · TCK-814
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
 - Constat :
@@ -4302,6 +4303,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le docblock de `toggleMute()` dit que les notifications respectent ce drapeau (`ConversationController.php:191-195`).
 - Piste : faire passer `contactMessage()` par le même chemin d'envoi que `sendMessage()` (désarchivage, puis `NotifyNewMessageJob`). Choisir avant si un contact par annonce doit percer la sourdine.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `contactMessage()` : ni désarchivage, ni passage par `NotifyNewMessageJob`, `NotificationService::send()` direct ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : le destinataire passe le fil en sourdine et l'archive, deuxième contact par la fiche → notifications 1 → 2, `archived_at` toujours non nul. Classement : V7, la piste elle-même demande de choisir si un contact d'annonce perce la sourdine avant d'aligner les deux chemins.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (`QUEUE_CONNECTION=sync`) : le destinataire archive le fil puis reçoit un second contact → `archived_at` toujours non nul ; il le met en sourdine → notifications 1 → 2 ; correctif : `contactMessage()` reprend les écritures de `sendMessage()` en transaction (désarchivage des autres participants) puis dispatche `NotifyNewMessageJob` → verts ; ablation : sans le désarchivage, le premier rougit seul, avec l'envoi direct par `NotificationService` à la place du job, le second rougit seul.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
@@ -4317,7 +4319,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
-- Statut : validé — repli commun aux trois chemins : prénom et nom, puis `username`, puis `—` ; l'e-mail ne sort plus jamais ; un test qui épingle les `params` d'un expéditeur sans nom ni `username`
+- Statut : fait · TCK-815
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
 - Constat :
@@ -4326,6 +4328,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `ConversationResource` pose la règle inverse pour les membres d'un fil : « le nom et l'avatar, jamais les coordonnées » (l. 43-44). La même règle vaut pour `MessagingContactResource`.
 - Piste : un repli sans coordonnée (`—`, comme TCK-588 le fait pour un expéditeur absent), commun aux trois chemins. Un test qui épingle les `params` d'un expéditeur sans nom.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `NotifyNewMessageJob` (repli `$sender->email`), `ConversationInviteNotification::displayInviter()` (repli `email`) et `PublicPropertyController::displayName()` (`username`, puis `email`) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : expéditeur sans prénom ni nom (`secret@example.test`) écrit dans le fil → `params` = `{"sender": "secret@example.test", "excerpt": "x"}` ; par la fiche, le même compte avec un `username` rend ce `username`, l'e-mail n'y sort que si `username` est vide (déduit de la ligne lue). Classement : V3, le correctif décide de ce qui est exposé au destinataire, et le repli (`—`, `username`) reste à choisir pour le chemin public.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par quatre tests neufs de `SenderNameWithoutContactTest` : un expéditeur sans nom ni `username` (`secret@example.test`) écrit dans une directe → `params.sender` = l'e-mail ; l'invitation de ce compte → `inviter_name` = l'e-mail ; `GET …/conversation` d'une annonce dont il est le propriétaire → `recipient.name` = l'e-mail ; correctif : `User::nameWithoutContact()` (prénom et nom, `username`, `—`) appelé par les trois chemins → `params` = `{"sender": "—", "excerpt": "x"}`, verts ; ablation (dernier repli remis sur l'e-mail) → les trois tests sans `username` rougissent, celui du `username` reste vert.
 
 ### Petites améliorations
 - Réf : P38.07
