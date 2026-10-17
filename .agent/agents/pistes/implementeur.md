@@ -110,7 +110,9 @@ jamais deux pistes à moitié.
    - API :
      - `./vendor/bin/pint` sur les fichiers touchés ;
      - `php artisan test <chaque classe touchée ou ajoutée>` ;
-     - `php bin/impacted-tests.php --run`.
+     - `php bin/impacted-tests.php --base=origin/pre-dev --run --parallel`, une fois sur le lot :
+       la sélection répartie sur 4 processus. Les tests écrits depuis la carte n'y entrent que
+       s'ils citent une classe que le lot touche.
    - Front :
      - `npm run lint` ;
      - `npx tsc --noEmit` ;

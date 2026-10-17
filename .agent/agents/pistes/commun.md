@@ -54,9 +54,10 @@ faute, même si elle passe.
   d'autre chose se fait sans lui, et ta PR le dit.
 - **Modifier tes propres bornes** : `.agent/agents/`, `.claude/`, `scripts/agents/`,
   `scripts/check-pistes.mjs`, la CI, l'ADR-0066.
-- **Lancer une suite entière** (`php artisan test` sans argument, `npm run test`, `--parallel`,
-  une couverture). La CI de la PR les joue. Toi, tu lances les classes et fichiers que tu touches,
-  ou `php bin/impacted-tests.php --run`.
+- **Lancer une suite entière** (`php artisan test` sans argument, `npm run test`,
+  `php artisan test --parallel`, une couverture). La CI de la PR les joue. Toi, tu lances les
+  classes et fichiers que tu touches, ou `php bin/impacted-tests.php --run`. Son option
+  `--parallel` est permise : elle ne répartit que la sélection, jamais la suite.
 
 ## Comment tu établis un fait
 
