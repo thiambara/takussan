@@ -6,6 +6,7 @@ use App\Models\Enums\BoostKind;
 use App\Models\Enums\BoostStatus;
 use App\Models\Property;
 use App\Models\PropertyBoost;
+use App\Services\Property\PropertyViewCounter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -81,9 +82,13 @@ final class BoostStatsRecorder
         $this->pending = null;
     }
 
+    /**
+     * TCK-794 (P18.06, décision du porteur) — au plus trois clics par bien, par IP et par heure,
+     * comme les vues de fiche : derrière un NAT d'opérateur, plusieurs visiteurs partagent une IP.
+     */
     public function click(Property $property, string $ip): void
     {
-        if (RateLimiter::hit('boost-click:'.$property->getKey().':'.$ip, 3600) > 1) {
+        if (RateLimiter::hit('boost-click:'.$property->getKey().':'.$ip, PropertyViewCounter::FENETRE_SECONDES) > PropertyViewCounter::MAX_PAR_HEURE) {
             return;
         }
         foreach ($this->liveFeaturedBoosts([(int) $property->getKey()]) as $boostId) {
