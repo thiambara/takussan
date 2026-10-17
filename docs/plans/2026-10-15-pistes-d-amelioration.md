@@ -405,12 +405,13 @@ Déjà sain (mesuré ou lu) :
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
-- Statut : validé — un index et une purge à 90 jours
+- Statut : fait · TCK-802 — reste : la purge planifiée à 90 jours, que contredit celle de P19.05 (7 jours) : durée à trancher par le porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
 - Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `HealthcheckService.php:142` (`latest('last_run_at')->value(…)`, sans filtre de tâche), `ScheduledTaskInspector.php:15-37` (dernière exécution par tâche, sous-requête corrélée), la migration `2026_05_07_000226` (seul index `task`), aucun `Prunable` sur `ScheduledTaskRun` ni purge dans `routes/console.php` ; TCK-383 (`done`) écarte la rétention de son périmètre. Tinker en lecture → 14 948 lignes du 2026-09-10 au 2026-10-15, `EXPLAIN ANALYZE` de la requête de la l. 142 → `Seq Scan` puis `Sort` top-N, 3,6 ms. Classement : V4, la purge est une suppression de données dont la durée de rétention est à choisir ; l'index seul relèverait d'A2.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `scheduled_task_runs` n'avait que l'index `task`, et la lecture de la dernière exécution d'une tâche passait par un `Sort` (plan relevé sous `enable_seqscan = off`) → migration neuve `(task, last_run_at desc, id desc)` et `ScheduledTaskRunsIndexTest` (index présent, plan sans `Sort`) ; ablation : migration retirée, les deux tests rougissent ; remise, verts. La purge n'est pas posée : sa durée contredit celle de P19.05 (7 jours). La sonde de la l. 142 (aujourd'hui l. 366), sans filtre de tâche, ne profite pas de cet index.
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
