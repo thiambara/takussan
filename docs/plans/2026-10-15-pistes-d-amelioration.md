@@ -2102,7 +2102,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Routes en double et routes sans appelant
 - Réf : P13.08
-- Statut : validé — retirer les trois doublons (verify-phone, phone/resend, notifications/preferences) ; un test qui les vise passe sur la route gardée ; terminate reste ; reste : leases/{l}/terminate et les autres routes sans appelant
+- Statut : fait · TCK-780 — reste : leases/{l}/terminate et les autres routes sans appelant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
 - Constat :
@@ -2119,6 +2119,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré. Sur 686 routes `api/*`, une vingtaine est confirmée à la main ; le reste est à vérifier.
 - Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `routes/api/auth.php:70-71,75-76` (`verify-phone` et `phone/verify-otp`, `phone/send-otp` et `phone/resend` sur les mêmes actions), `notifications.php:15-20` (`notifications/preferences` et `me/notification-preferences`), `guarantors.php:7-12`, `leases.php:28,55`, `agencies.php:57`, `bookings.php:19`, `conversations.php:36-37` ; `grep -rln` de chaque chemin dans `takussan-web/src` hors tests, puis des formes `cheminApi` `}/terminate|stats|rent-history|expire-now|archive|unarchive` → aucun appelant pour `verify-phone`, `phone/resend`, `notifications/preferences`, `/api/guarantors` (le front passe par `/api/leases/{id}/guarantors`, `lib/queries/leases.ts:462`), `search/messages`, `search/documents`, `terminate`, `rent-history`, `expire-now`, `agencies/{a}/stats`, `settings/public`, `two-factor/qr`, l'archivage des conversations ; `recovery-codes` n'apparaît que sous `/regenerate` (`lib/security.ts:62`). Le constat tient sur ces routes ; un appelant hors du front (application tierce) n'a pas été cherché. Classement : V8, la piste couvre une quinzaine de routes de familles différentes, dont des routes d'authentification et de 2FA (V2) et une résiliation de bail.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : `auth.php:70,75` et `notifications.php:15-16` enregistrent les trois doublons, et `grep` dans `takussan-web/src`, `app/`, `scripts/` ne leur trouve aucun appelant (seuls `PhoneVerificationTest` et `NotificationPreferenceTest` les visent) → routes retirées, les deux tests repointés sur `phone/verify-otp`, `phone/send-otp` et `me/notification-preferences` ; `RoutesEnDoubleRetireesTest` : ablation rouge, correctif remis vert ; 35 classes voisines vertes (333 tests). ADR-0033 cite encore `phone/resend` (chemin fermé à l'agent).
 
 ### Page orpheline `/onboarding/agency-admin`
 - Réf : P13.09

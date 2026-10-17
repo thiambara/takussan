@@ -1,7 +1,7 @@
 ---
 id: TCK-780
 title: "Les trois routes en double (verify-phone, phone/resend, notifications/preferences) retirées"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -36,15 +36,15 @@ leases/{l}/terminate et les autres routes sans appelant
 
 ## Delta à produire
 
-- [ ] `routes/api/auth.php` : `verify-phone` et `phone/resend` retirées.
-- [ ] `routes/api/notifications.php` : `notifications/preferences` (GET et PUT) retirée.
-- [ ] `PhoneVerificationTest` et `NotificationPreferenceTest` visent `phone/verify-otp`,
+- [x] `routes/api/auth.php` : `verify-phone` et `phone/resend` retirées.
+- [x] `routes/api/notifications.php` : `notifications/preferences` (GET et PUT) retirée.
+- [x] `PhoneVerificationTest` et `NotificationPreferenceTest` visent `phone/verify-otp`,
       `phone/send-otp` et `me/notification-preferences`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Aucune des trois routes n'est plus enregistrée ; les routes gardées le sont toujours.
-- [ ] AC2 — Les tests de vérification du téléphone et des préférences passent sur les routes gardées.
+- [x] AC1 — Aucune des trois routes n'est plus enregistrée ; les routes gardées le sont toujours.
+- [x] AC2 — Les tests de vérification du téléphone et des préférences passent sur les routes gardées.
 
 ## Hors périmètre
 
@@ -59,4 +59,8 @@ leases/{l}/terminate et les autres routes sans appelant
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `routes/` remis à l'état d'avant → `RoutesEnDoubleRetireesTest` rougit ; correctif
+  remis → vert, et les 35 classes qui citent la vérification du téléphone ou les préférences vertes
+  (333 tests).
+- `test_both_endpoints_require_auth` visait déjà les deux formes de chaque route : une fois les
+  chemins repointés, ses lignes en double sont retirées.
