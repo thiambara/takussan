@@ -27,6 +27,7 @@ import type {
 import type { PropertyDetail } from '@/types/property';
 import { bulkPropertyArchive, bulkPropertyAssign, bulkPropertyVisibility } from '@/lib/queries/agent-crm';
 import type { BulkResult } from '@/types/agent-crm';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Dashboard Agent — server actions wrapping the property CRUD mutations
@@ -49,6 +50,7 @@ async function mapError(e: unknown): Promise<{
   message: string;
   errors?: Record<string, string[]>;
 }> {
+  journaliserErreurInattendue('dashboard-properties', e);
   // cf. `admin-agency.ts` — un module `'use server'` traduit avec `getTranslations`, jamais
   // en lisant un libellé pré-calculé sur l'objet d'erreur.
   const tRacine = await getTranslations();
@@ -59,13 +61,6 @@ async function mapError(e: unknown): Promise<{
       message: messageErreurApi(e, tRacine, t('networkErrorRetry')),
       errors: e.validationErrors,
     };
-  }
-  if (e instanceof Error) {
-    console.error(
-      `[dashboard-properties.action] ${e.name}: ${e.message}\ncause=${String(e.cause ?? 'none')}\n${e.stack ?? ''}`,
-    );
-  } else {
-    console.error('[dashboard-properties.action] non-Error:', String(e));
   }
   const t = await getTranslations('serverActions.shared');
   return { message: t('networkErrorRetry') };
@@ -169,7 +164,8 @@ export async function fetchListingQuotaAction(): Promise<ListingQuota | null> {
   if (!auth.ok) return null;
   try {
     return await fetchListingQuota(auth.token);
-  } catch {
+  } catch (err) {
+    journaliserErreurInattendue('dashboard-properties', err);
     return null;
   }
 }

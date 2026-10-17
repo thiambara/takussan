@@ -12,6 +12,7 @@ import type {
   VisitRequestPayload,
 } from '@/types/visit';
 import { cheminApi } from '@/lib/chemin-api';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -20,6 +21,7 @@ type ActionResult<T = undefined> =
 async function errorFromApi(
   e: unknown,
 ): Promise<{ status?: number; message: string; errors?: Record<string, string[]> }> {
+  journaliserErreurInattendue('property', e);
   const [tRacine, t] = await Promise.all([
     getTranslations(),
     getTranslations('serverActions.properties'),
@@ -166,7 +168,8 @@ export async function getReviewEligibility(
       eligible: !!res.data.eligible,
       alreadyReviewed: !!res.data.already_reviewed,
     };
-  } catch {
+  } catch (err) {
+    journaliserErreurInattendue('property', err);
     return { eligible: false, alreadyReviewed: false };
   }
 }

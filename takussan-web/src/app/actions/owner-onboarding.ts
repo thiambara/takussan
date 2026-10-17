@@ -14,6 +14,7 @@ import {
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-257 — server actions consumed by `<OwnerOnboardingWizard>`.
@@ -31,6 +32,7 @@ export type ActionResult<T> =
 type CleRepli = 'kycFailed' | 'completeFailed' | 'propertiesFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<never>> {
+  journaliserErreurInattendue('owner-onboarding', err);
   // Module `'use server'` : le texte se compose ICI, avec `getTranslations`. Voir `src/lib/api.ts`.
   const [tRacine, t] = await Promise.all([getTranslations(), getTranslations('serverActions.ownerOnboarding')]);
   const repli = t(cleRepli);

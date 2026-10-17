@@ -6,6 +6,7 @@ import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import { revalidatePath } from 'next/cache';
 import type { KpiConfig, KpiConfigInput } from '@/lib/queries/kpis';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Server actions for KPI configuration (TCK-032 P3).
@@ -30,6 +31,7 @@ export async function createKpiConfigAction(
     revalidatePath('/app/overview/kpis');
     return { ok: true, data: res.data };
   } catch (err) {
+    journaliserErreurInattendue('kpis', err);
     return { ok: false, message: (err as Error).message };
   }
 }
@@ -42,7 +44,8 @@ export async function deleteKpiConfigAction(id: number): Promise<{ ok: boolean }
     await apiRequest(cheminApi`/api/kpi-configs/${id}`, { token, method: 'DELETE' });
     revalidatePath('/app/overview/kpis');
     return { ok: true };
-  } catch {
+  } catch (err) {
+    journaliserErreurInattendue('kpis', err);
     return { ok: false };
   }
 }
