@@ -1484,7 +1484,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
 - Réf : P10.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-764 — reste : limiter les conversions de `User` aux collections affichées (`performOnCollections`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
 - Constat :
@@ -1494,6 +1494,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `routes/api/media.php:12-14` (route `media.upload`, `throttle:30,1`) et `MediaController.php:70-93` (attache le fichier à l'appelant, collection `photos` par défaut) ; `grep -rn 'media/upload\|media.upload' takussan-web/src takussan-api/app takussan-api/routes` → aucun appelant (seul un commentaire de `User.php:403`) ; seuls `tests/Feature/Media/MediaGenericUploadTest.php` et `MediaDiskPrivatePhotosTest.php` l'appellent ; aucune lecture de `User.photos` ni de `User.documents` dans `app/` (grep). Les trois conversions sur chaque image de `User`, avatar compris, sont mesurées sous P10.05 (`generated_conversions` = `full`, `preview`, `thumbnail`), et aucune ressource ne sert une conversion d'avatar (grep `getFirstMediaUrl('avatar'` : l'original partout). La route avait été demandée par TCK-016, sans écran pour l'appeler, et `docs/features.md` ne la cite pas. Classement : A3 pour le seul retrait de la route sans appelant ; la partie « conversions » est laissée à P10.05, qui choisit ce que l'avatar sert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `git grep` de `media/upload`, `media.upload` et `GenericMediaUploadRequest` → aucun appelant hors des tests et d'un commentaire ; `MediaUploadTest` avant correctif → 1 rouge, la route existe et un envoi crée un média → route, `MediaController::upload()` et `GenericMediaUploadRequest` retirés, `MediaGenericUploadTest` retiré, les deux cas de disque de `MediaDiskPrivatePhotosTest` passés sur `POST /api/media` ; ablation (les trois remis) → le même rouge ; retirés → 13/13 verts.
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
