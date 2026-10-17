@@ -405,12 +405,13 @@ Déjà sain (mesuré ou lu) :
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
-- Statut : validé — un index et une purge à 90 jours
+- Statut : fait · TCK-802 — reste : la purge planifiée à 90 jours, que contredit celle de P19.05 (7 jours) : durée à trancher par le porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Admin/HealthcheckService.php:142`
 - Constat : environ 11 000 lignes en 34 jours en dev, et aucune purge. La sonde de santé fait un Seq Scan suivi d'un Sort à chaque minute (mesuré).
 - Piste : un index `(task, last_run_at DESC, id DESC)` et une purge planifiée.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `HealthcheckService.php:142` (`latest('last_run_at')->value(…)`, sans filtre de tâche), `ScheduledTaskInspector.php:15-37` (dernière exécution par tâche, sous-requête corrélée), la migration `2026_05_07_000226` (seul index `task`), aucun `Prunable` sur `ScheduledTaskRun` ni purge dans `routes/console.php` ; TCK-383 (`done`) écarte la rétention de son périmètre. Tinker en lecture → 14 948 lignes du 2026-09-10 au 2026-10-15, `EXPLAIN ANALYZE` de la requête de la l. 142 → `Seq Scan` puis `Sort` top-N, 3,6 ms. Classement : V4, la purge est une suppression de données dont la durée de rétention est à choisir ; l'index seul relèverait d'A2.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `scheduled_task_runs` n'avait que l'index `task`, et la lecture de la dernière exécution d'une tâche passait par un `Sort` (plan relevé sous `enable_seqscan = off`) → migration neuve `(task, last_run_at desc, id desc)` et `ScheduledTaskRunsIndexTest` (index présent, plan sans `Sort`) ; ablation : migration retirée, les deux tests rougissent ; remise, verts. La purge n'est pas posée : sa durée contredit celle de P19.05 (7 jours). La sonde de la l. 142 (aujourd'hui l. 366), sans filtre de tâche, ne profite pas de cet index.
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
@@ -2652,7 +2653,7 @@ ajoutent que des faits neufs.*
 
 ### `scheduled_task_runs` : environ 10 000 lignes par jour en production, et la console agrège tout l'historique
 - Réf : P19.05
-- Statut : validé — purge planifiée à 7 jours, en gardant la dernière exécution par tâche ; moyenne sur 7 jours ; nom stable sans le binaire PHP
+- Statut : fait · TCK-801 — reste : la purge planifiée de `scheduled_task_runs`, à 7 jours ici et à 90 jours en P02.11 : durée à trancher par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/console.php:106-115`, `takussan-api/app/Services/Admin/ScheduledRunRecorder.php:56-73`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:17-48`
 - Constat :
@@ -2662,6 +2663,7 @@ ajoutent que des faits neufs.*
   - Le nom d'une commande est sa ligne de commande complète, chemin absolu du binaire PHP compris (mesuré : `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe`). Changer de version de PHP ou d'image coupe l'historique en deux, et l'ancien nom reste listé dans la console à jamais : aucune ligne ne disparaît.
 - Piste : une purge planifiée à quelques jours, bornée à la dernière exécution conservée par tâche ; une moyenne sur une fenêtre (7 jours) ; un nom stable par `->name()` ou dérivé de la commande Artisan sans le binaire. Un test : deux chemins de binaire différents donnent le même nom.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `routes/console.php:106-113` (quatre battements, `impersonation:close-expired` et `health:probe` chaque minute), `ScheduledRunRecorder::record()` (une ligne par exécution) et `nomDe()` (`description` sinon la commande complète), `ScheduledTaskInspector::all()` (`GROUP BY task`, `avg(duration_ms)` sur tout l'historique, sous-requête triée) ; `grep -rln scheduled_task_runs app/Console database/migrations` → seule la migration de création, aucune purge ; `SELECT` en lecture sur la base de dev → 14 948 lignes, 39 tâches, et `health:probe` nommée `'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe` (1 964 lignes). Le volume de préproduction reste à vérifier. Classement : V4, la purge supprime des données, et la fenêtre de moyenne change ce que la console affiche (V7) : deux choix pour le porteur.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, `ScheduledRunRecorder::nomDe()` rendait la commande entière (deux binaires PHP → deux noms) et `ScheduledTaskInspector::all()` moyennait tout l'historique (5 100 ms pour des exécutions récentes de 100 et 300 ms) → deux tests neufs de `SchedulerRunStatusTest` (nom sans binaire, moyenne sur 7 jours) ; ablation : correctif retiré, les deux rougissent ; remis, la classe est verte (10 tests). La purge n'est pas posée : sa durée contredit celle de P02.11 (90 jours, décision postérieure).
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
@@ -2677,7 +2679,7 @@ ajoutent que des faits neufs.*
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at`
+- Statut : fait · TCK-803 — reste : `next_due_at` de l'inspecteur des tâches, à calculer depuis l'expression cron ou à retirer, la `Piste` laissant le choix ouvert
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2688,6 +2690,7 @@ ajoutent que des faits neufs.*
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `routes/console.php` (ni `queue:prune-failed` ni `queue:prune-batches`, aucun `model:prune`), `SanitizingFailedJobProvider.php:17` (le `payload` n'est pas touché, pour le rejeu), `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION` = `database`), `User.php:379-399` (`LogOptions::defaults()` sans `useLogName`, alors qu'`Auditable.php:31` nomme par classe), `config/activitylog.php:24` (`default_log_name` = `default`) et `ScheduledTaskInspector.php:43` (`'next_due_at' => null`, que le front type `string | null` dans `types/super-admin.ts:814`). Lignes citées inchangées, les trois défauts tiennent ; le journal de `User` est lu, pas re-mesuré par test. Classement : V3, la durée de purge des `failed_jobs` décide de ce qui est conservé et doit s'écrire dans l'ADR-0044 ; renommer le journal de `User` change le `log_name` des écritures neuves, que toute lecture par nom distinguerait des anciennes.
 - Mesure (2026-10-16, 55a41109, humain) : l'ADR-0044 est amendé en session (TCK-723) : 30 jours pour `failed_jobs`, `payload` compris, et `queue:prune-batches` planifié ; le docblock de `SanitizingFailedJobProvider.php` (« Écarté (ADR-0044) : une purge périodique ») est à mettre à jour avec la purge.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, ni `queue:prune-failed` ni `queue:prune-batches` parmi les événements du planificateur, et une modification de `User` écrite sous le journal `default` → `QueueRetentionScheduleTest` (deux purges planifiées chaque jour sans chevauchement, `--hours=720` ; journal `User`) ; ablation : correctif retiré, les trois tests rougissent ; remis, verts. Docblock de `SanitizingFailedJobProvider` repris. `next_due_at` n'est pas fait : la `Piste` propose de le calculer ou de retirer la clé, et la précision ne tranche pas.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 

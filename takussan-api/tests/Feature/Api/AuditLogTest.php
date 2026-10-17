@@ -57,10 +57,14 @@ class AuditLogTest extends TestCase
             ]);
 
         // Two `created` entries exist: one auto-logged by the LogsActivity trait
-        // when the admin factory ran, plus the one manually seeded above.
+        // when the admin factory ran, plus the one manually seeded above. Since
+        // TCK-803 the auto-logged one is written under the `User` log, not `default`.
         $this->getJson('/api/audit-log?log_name=default&event=created')
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(1, 'data');
+        $this->getJson('/api/audit-log?log_name=User&event=created')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
     }
 
     public function test_admin_can_get_audit_logs_by_entity(): void

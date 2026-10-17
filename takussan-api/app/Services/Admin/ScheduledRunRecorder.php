@@ -62,13 +62,31 @@ class ScheduledRunRecorder
     }
 
     /**
+     * Le préfixe que `Schedule::command()` pose devant une commande Artisan : le binaire PHP puis
+     * `artisan`, chacun échappé (`Application::formatCommandString`), quel que soit leur chemin.
+     */
+    private const PREFIXE_ARTISAN = '/^(?:\'[^\']*\'|"[^"]*"|\S+)\s+(?:\'[^\']*artisan\'|"[^"]*artisan"|\S*artisan)\s+/';
+
+    /**
      * Nom lisible de la tâche — `description` (posée par `->name()`) puis la commande.
      *
      * Une fermeture planifiée sans nom n'a NI l'une NI l'autre : le repli garde alors la ligne
      * insérable plutôt que de lever sur une colonne non nullable.
+     *
+     * TCK-801 (P19.05) — une commande Artisan est nommée SANS le binaire PHP qui la lance
+     * (`health:probe`, et non `'/opt/…/8.4.6/bin/php' 'artisan' health:probe`) : changer de version
+     * de PHP ou d'image coupait l'historique d'une tâche en deux noms.
      */
     public static function nomDe(Event $task): string
     {
-        return $task->description ?: ($task->command ?: 'scheduled-task');
+        if ($task->description) {
+            return $task->description;
+        }
+
+        if (! $task->command) {
+            return 'scheduled-task';
+        }
+
+        return preg_replace(self::PREFIXE_ARTISAN, '', $task->command) ?: $task->command;
     }
 }
