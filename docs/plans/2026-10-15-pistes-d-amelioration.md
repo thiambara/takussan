@@ -2387,7 +2387,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P16.06
-- Statut : retenu · autonome
+- Statut : caduc — le seeder vide et réindexe tous les modèles Searchable depuis TCK-701 (P16.01)
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
@@ -2396,6 +2396,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`removeAllFromSearch` sur cette seule liste) ; `grep -rln 'Searchable;' app/Models` → s'y ajoutent `Agency`, `User`, `Customer`, `MaintenanceRequest`, dont l'index n'est jamais vidé ; décompte « 8 pour 5 » non re-mesuré (il demande la clé Meilisearch), repris de la mesure de P16.01 du 2026-10-15 → tient, et c'est le même défaut que P16.01, toujours `retenu · autonome` et non traité. Classement : A1, le docblock de `reindexSearchableModels` (« every searchable model ») écrit déjà le comportement attendu, et le correctif de P16.01 vide aussi ces index.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `YearOfActivitySeeder.php:241-254` : `reindexSearchableModels()` parcourt `App\Support\Search\SearchableModels::all()` (liste dérivée du code, a8d008b31, TCK-701) et appelle `removeAllFromSearch()` puis `makeAllSearchable()` pour chacun, `Agency`, `User`, `Customer` et `MaintenanceRequest` compris ; `php artisan test tests/Feature/Database/Seeders/SeedingReindexTest.php` → vert. Le défaut ne tient plus sur l'arbre ; le décompte « 8 pour 5 » de l'index local n'a pas été re-mesuré (il demande la clé Meilisearch).
 
 ## Angle 17 — Qualité des adresses : référentiel ou texte libre
 
