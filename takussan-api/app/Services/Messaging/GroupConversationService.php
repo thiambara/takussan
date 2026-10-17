@@ -39,6 +39,8 @@ class GroupConversationService
      * admin; every other user joins as `member`.
      *
      * @param  list<int>  $participantIds  Other users to invite. Creator must NOT be in this list (caller dedupes).
+     * @param  bool  $sendInvites  TCK-804 — false for a thread opened by the platform itself, whose members are
+     *                             already told by their own notification (see SyncMaintenanceConversation).
      */
     public function create(
         User $creator,
@@ -47,6 +49,7 @@ class GroupConversationService
         ?int $propertyId = null,
         ?int $leaseId = null,
         ?int $maintenanceRequestId = null,
+        bool $sendInvites = true,
     ): Conversation {
         $invited = [];
 
@@ -94,7 +97,9 @@ class GroupConversationService
 
         // TCK-804 (P38.01) — the members of a brand-new group are "fresh participants" too:
         // until then only addParticipants() sent the invite, and nobody heard of a new group.
-        $this->sendInvites($conversation, $creator, $invited);
+        if ($sendInvites) {
+            $this->sendInvites($conversation, $creator, $invited);
+        }
 
         return $conversation;
     }
