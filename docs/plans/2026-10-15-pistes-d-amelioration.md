@@ -3910,7 +3910,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
 - Réf : P35.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : maillon de quartier rendu cliquable, contre une décision écrite du 2026-08-28
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
 - Constat :
@@ -3921,10 +3921,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Le test du fil fige l'absence de lien : `expect(nav.innerHTML).not.toContain('location=')` et la même assertion sur le JSON-LD (lu, `jsonld-fil-d-ariane.test.tsx:145,150`).
   - Établi comment : lecture et `grep` ; le rendu HTTP d'une fiche du quartier n'a pas été rejoué.
 - Piste : rendre le maillon de quartier cliquable vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est dans le domaine indexable de sa ville, et le laisser en libellé sinon. Le fil doit alors recevoir le domaine des quartiers, que la fiche ne charge pas aujourd'hui. Corriger le docblock, et faire passer le test de « jamais `location=` » à « `location=` seulement si le quartier est indexable, et l'`item` est alors canonique de lui-même ».
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:42-64,86-89` (quartier sans `href`, docblock motivé par l'exclusion de `location`) contre `canonique.ts:270` (`CLES_CANONIQUES` porte `location`) et `canonique.ts:305-307,341-345` (quartier retenu s'il est dans le domaine de sa ville) ; `sitemap.ts:96-120` annonce ces quartiers et `construireSitemap` (`lib/sitemap.ts:306-319`) ne dédoublonne rien ; `grep -rn "location=" src` hors tests → docblocks, `canonique.ts`, `facettes.ts`, `lib/sitemap.ts` et seule `rechercheDuQuartier` de `bien-retire.tsx:32-38` ; `npx vitest run src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` → 10 verts, dont celui qui fige `not.toContain('location=')` ; aucun commit ni ticket ouvert ne l'a traité → le constat tient ; le compte de 20 quartiers indexables n'a pas été repris. Classement : V7, rendre le maillon cliquable renverse une décision de produit écrite le 2026-08-28 et ajoute à la fiche le chargement du domaine des quartiers ; seule la correction du docblock relèverait d'A6.
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : liens et libellés neufs sur la page de ville, l'accueil ou le pied de page
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/data/navigation.ts:124-139`, `takussan-web/src/components/home/Footer.tsx`, `takussan-web/src/components/property/HomepageDiscovery.tsx:162`
 - Constat :
@@ -3933,10 +3934,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - L'accueil ne lie qu'une ville, celle de la rangée « près de vous » (`viewAllHref`, lu, `HomepageDiscovery.tsx:162`), devinée par la géolocalisation du client avec `Dakar` en repli (lu, `UserLocationProvider.tsx:56`). Que ce lien figure dans le HTML servi n'est pas mesuré (à vérifier).
   - Les pages de ville ne sont donc atteintes que par le sitemap, par la ville du fil d'Ariane des fiches (lu, `fil-d-ariane.ts:80-84`) et peut-être par ce lien de l'accueil. Celles de quartier, par le sitemap seul (voir P35.01).
 - Piste : une liste de liens « Quartiers de Dakar » sur la page d'une ville, tirée du domaine indexable que `quartiersDeLaVille` sert déjà en cache, et une rangée « Chercher par ville » sur l'accueil ou dans le pied de page, tirée de `villesAvecComptes`. Un test vérifierait que chaque lien rendu est le chemin canonique d'une page présente au sitemap. Choix de produit : emplacement et libellés neufs.
+- Mesure (2026-10-17, c9ee68400, mesureur) : `grep -n href` sur `PropertiesDiscoveryPage.tsx` et `components/search/*.tsx` → seuls les liens de `Pagination.tsx`, `SearchAutocomplete.tsx:158` navigue par `router.push` ; `data/navigation.ts:122-140` (pied de page) ne lie aucune ville ; `HomepageDiscovery.tsx:162` lie la seule ville « près de vous » ; aucun commit ni ticket ouvert → le constat tient ; la présence de ce lien dans le HTML servi n'est pas mesurée. Classement : V7, emplacement et libellés neufs visibles, que la piste dit elle-même choix de produit.
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 et V4 : texte de description neuf, et colonne de présentation pour le second palier
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
 - Constat :
@@ -3945,10 +3947,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Aucun chiffre propre au lieu (nombre de biens, fourchette de prix) n'entre dans la description, alors que `cities()` et `neighborhoods()` servent déjà le compte (lu, `PublicPropertyController.php:226-301`).
   - Établi comment : lecture. L'effet sur l'indexation (pages jugées en double) n'est pas mesurable sur le poste.
 - Piste : deux paliers. Sans texte neuf rédigé à la main : glisser le compte dans la description (« 198 biens à Dakar… »), en le prenant au domaine déjà en cache. Avec texte rédigé : une colonne de présentation par ville et par quartier, saisie depuis la console du référentiel et traduite en `fr`/`en`, rendue sous le `<h1>`. Le second palier demande une migration et un texte métier neuf.
+- Mesure (2026-10-17, c9ee68400, mesureur) : `node -e` sur `messages/fr.json` → `meta.propertiesFiltered` ne porte que `titleContract`, `titleCity`, `titleQuarter`, `subjectAny` et `description`, gabarits sans compte ; `titre-de-la-liste.ts` les compose par le seul nom du lieu ; seule la migration `2026_10_12_400000` crée ou modifie les tables `geo_*`, sans colonne de texte → le constat tient. Classement : V7, le premier palier est déjà un texte de description neuf, et V4, le second demande une migration et un texte métier rédigé.
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:226-253`, `takussan-web/src/lib/queries/facettes.ts:63-71`, `takussan-web/src/app/sitemap.ts:99-109`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:41-42,85-91,96-115`
 - Constat :
@@ -3957,10 +3960,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Le cas suppose des graphies de ville différentes sur des biens publics. `GeoAddressCanonicalizer` réécrit `city` au nom du référentiel quand `villeParNom` trouve la ville (lu, l. 41-42 et 85-91). Il la laisse brute quand le nom est hors référentiel, ou présent dans plusieurs régions sans région fournie (lu, l. 96-115).
   - Mesuré sur la base de dev : 504 villes au référentiel, 0 adresse publique sans `geo_city_id`, une seule graphie par ville. Le défaut n'y est donc **pas** observable (à vérifier sur la préproduction et la production).
 - Piste : grouper `cities()` comme `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), ce qui rend une entrée par ville, comptée une fois. Un test d'API avec deux graphies de la même ville garde la règle. Côté front, ne pas écraser une graphie déjà présente dans la `Map`.
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `PublicPropertyController::cities()` (`groupBy('addresses.city')` brut) contre `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), `facettes.ts:66-70` et `sitemap.ts:99` (`Map` en minuscules, le dernier `set` gagne) ; test temporaire retiré (quatre biens publics, « Zzvillex » ×3 et « ZZVILLEX » ×1, ville hors référentiel), `php artisan test` (charge 2,4 sur 8 cœurs) → `cities()` rend `[{Zzvillex,3},{ZZVILLEX,1}]`, donc le front retiendrait « ZZVILLEX » ; `construireSitemap` ne dédoublonne pas ; base de dev par `SELECT` → 826 adresses de biens, 10 graphies, 10 en minuscules, 0 sans `geo_city_id` : non observable en dev. Classement : A1, le repli de casse de la ville est le contrat écrit de l'appelant (`facettes.ts`, « `?city=dakar` et `?city=Dakar` désignent la même page ») et de son jumeau `neighborhoods()`, et le correctif ne demande aucun choix de produit.
 
 ### Petites améliorations du maillage des facettes
 - Réf : P35.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : seuils de page de ville et de paires contrat × ville à trancher par le porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:70-84`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/queries/facettes.ts:81-90`
 - Constat :
@@ -3968,3 +3972,4 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Les combinaisons contrat × ville (« à louer à Dakar »), canoniques, ne sont ni au sitemap ni liées depuis une page (lu, `sitemap.ts:96-120`, `grep "contract_type=" src` hors tests → le fil d'Ariane et les rangées « à louer » et « à vendre » de l'accueil, `HomepageDiscovery.tsx:179,227`, toujours sans ville ; mesuré).
   - Le seuil de 3 biens ne vaut que pour le quartier (lu, `facettes.ts:81-90`). Une ville d'un seul bien public est canonique et entre au sitemap (lu, `sitemap.ts:102-109`), c'est la page mince que le seuil évite au quartier. Dans la base de dev, la plus petite ville publique en compte 3 (mesuré, `cities()` par tinker) : aucune n'est concernée aujourd'hui.
 - Piste : lien de la ville du fil vers `?contract_type=<contrat>&city=<ville>`, la canonique du palier affiché, et l'égalité DOM ⇔ JSON-LD tient puisque les deux dérivent de `maillonsDeFiche`. Paires contrat × ville au sitemap pour les villes au-dessus d'un seuil. Même seuil, ou un seuil propre, pour la page de ville. Le choix des seuils revient au porteur.
+- Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:80-84` (ville du fil vers `/properties?city=…`, sans le contrat du maillon précédent), `sitemap.ts:96-120` (villes et quartiers seuls, aucune paire contrat × ville), `facettes.ts:81-90` (`SEUIL_QUARTIER_INDEXABLE` ne vaut que pour le quartier) ; aucun commit ni ticket ouvert → les trois points tiennent ; le compte de la plus petite ville de dev n'a pas été repris. Classement : V7, la piste remet elle-même le choix des seuils au porteur, et le lien du fil change une cible visible.
