@@ -2372,7 +2372,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
 - Réf : P16.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-786
 - Gravité : 🟠 risque ou dette (routes sans appelant)
 - Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
 - Constat :
@@ -2382,6 +2382,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentSearchService.php:33-46` et `MessageSearchService.php:35-48` (`date_from`/`date_to` dans `$search->query(...)`), `Document.php:60` et `Message.php:34` (`created_at` indexé en timestamp), Scout v11.3.0 `Builder::paginate`/`getTotalCount` (le total est recompté en SQL, les lignes viennent de la page Meilisearch) ; test temporaire retiré (Meilisearch réel, 4 documents « daterange », un seul dans la plage, créé en dernier, `per_page=1`) → pages 1 à 3 vides, `total` 1 et `last_page` 1, le document n'apparaît qu'en page 4 ; aucun appelant front (`grep` sur `takussan-web/src`), mais les routes sont gardées par `DocumentSearchTest`, `MessageSearchTest` et `MaintenanceThreadAccessTest`. Classement : A1, TCK-094 spécifie `filter[date_from]`/`filter[date_to]` et `DocumentSearchTest::test_date_range_filter` en est le contrat ; le correctif garde les routes et passe la plage en clauses Scout natives sur le timestamp.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `SearchDateRangeTest` sur Meilisearch réel avant correctif : une correspondance dans la plage et trois plus récentes hors plage, `sort=-created_at&per_page=1` → page 1 vide, sur `/search/documents` comme sur `/search/messages` (2 rouges) → `date_from`/`date_to` passés en clauses Scout natives sur le timestamp (début et fin du jour, bornes inclusives comme `whereDate`) ; 3 verts, et `DocumentSearchTest`, `MessageSearchTest`, `MaintenanceThreadAccessTest` verts (29 tests). Ablation : les deux services remis → 2 rouges, le seul `MessageSearchService` remis → 1 rouge ; remis → verts. Routes gardées.
 
 ### Petites améliorations
 - Réf : P16.06
