@@ -29,7 +29,7 @@ se relie ni à sa requête ni à une agence.
 
 ## Décision du porteur
 
-`request_id`, agence et profil dans le contexte des journaux (`Log::withContext`)
+`request_id`, agence et profil dans le contexte des journaux (`Log::withContext`) ; reste : la sonde payments et son seuil d'alerte
 
 ## Reste à faire
 
