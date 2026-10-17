@@ -2874,7 +2874,7 @@ n'est pas repris ici.*
 
 ### Des `include=` acceptés, chargés en base, puis jamais émis
 - Réf : P21.05
-- Statut : validé — retirer de $requestLoadable ce qu'aucune ressource n'émet, guarantor compris une fois P21.04 faite ; une garde neuve confronte $requestLoadable aux whenLoaded
+- Statut : fait · TCK-807 — reste : les écarts que la garde exempte sur quatorze autres modèles (Agency, AgencyUpgradeRequest, Customer, Document, Inventory, Invitation, Invoice, KycDossier, MaintenanceRequest, OwnerProfile, PrivacyRequest, Property, ServiceProviderBill, User), à retirer ou à émettre un par un
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Lease.php:91`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Payout.php:65`, `takussan-api/app/Http/Resources/PayoutResource.php:12-55`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:66`, `takussan-api/app/Models/Booking.php:48`
 - Constat :
@@ -2885,6 +2885,7 @@ n'est pas repris ici.*
   - Établi comment : lu. Le coût en requêtes n'est pas mesuré.
 - Piste : retirer de `$requestLoadable` ce qu'aucune ressource n'émet, ou l'émettre par une projection. Une garde qui confronte `$requestLoadable` aux clés `whenLoaded()` de la ressource du modèle.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `Lease::$requestLoadable` (l. 91 : `landlord`, `agency`, `agent`, `guarantor`, `onboardingChecklist` sans clé dans `LeaseResource`, qui n'émet que `property`, `tenant`, `renewed_from`, `renewals`, `signatures`), `Payout::$requestLoadable` (l. 65, seul `issuer` est projeté par `PayoutResource.php:26`), `Booking::$requestLoadable` (l. 48, `agency` non émis par `BookingResource`), `PayoutController::show` l. 66 (`load(['landlord', …])`, non émis) ; le front demande `include: ['property', 'guarantor', 'payments']` (`leases.ts:184`, lu). Constat confirmé par lecture ; le coût en requêtes n'a pas été mesuré. Classement : V7, retirer `guarantor` de `$requestLoadable` ferait refuser l'appel actuel du front, et émettre `landlord` ou `agency` décide d'une donnée exposée (V3) : c'est un choix, que P21.04 attend aussi.
+- Mesure (2026-10-17, 6cc7d7fa2, implementeur) : avant correctif, `IncludeNonEmisRefuseTest` (owner de l'agence, un bail, un reversement, une réservation) → les 12 `include=` non émis (`landlord`, `agency`, `agent`, `guarantor`, `onboardingChecklist` sur `/api/leases`, `lease`, `booking`, `agency`, `landlord`, `approver`, `processor` sur `/api/payouts`, `agency` sur `/api/bookings`) rendent 200 ; la garde neuve `RequestLoadableEmittedTest` nomme `Booking`, `Lease`, `Payout` → retirés de `$requestLoadable`, `landlord` n'est plus chargé par `PayoutController`, 15 verts ; ablation (`app/` revenu à `pre-dev`) → 13 rouges, correctif remis → 15 verts. La garde exempte, comptés, les écarts de quatorze autres modèles.
 
 ### Petites améliorations
 - Réf : P21.06
