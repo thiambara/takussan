@@ -3366,7 +3366,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
-- Statut : validé — un échec ambigu (délai dépassé, 5xx) ne passe pas au fournisseur suivant ; les codes OTP gardent le repli
+- Statut : fait · TCK-766
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-105,143-150`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:78-88`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:76-87`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:175-188`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:82-87`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:223`
 - Constat :
@@ -3379,6 +3379,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : distinguer l'échec sûr (connexion refusée, 4xx) de l'échec ambigu (délai de lecture, 5xx). Un échec ambigu ne passerait pas au fournisseur suivant pour un message non critique : statut `unknown`, réconcilié par l'accusé de réception ou le puller. Choix à faire pour les codes OTP. Un test par pilote garde le classement.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:94-105,143-150`, `SmsRouterDriver.php:175-188`, TCK-102:82 ; test temporaire (retiré) → Orange qui lève `ConnectionException` (« cURL error 28 ») : résultat `lafricamobile` `sent` ; Orange en 502 : résultat `lafricamobile` `sent`. Le doublon côté fournisseur reste non mesurable depuis le poste. Classement : V7, la piste renverse un comportement prescrit par TCK-102 (« timeout → fallback immédiat ») et laisse ouvert le traitement des OTP.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `AmbiguousSmsFailureTest` → Orange en « cURL error 28 » ou en 502, LAfricaMobile en délai dépassé et Mtarget en 503 passent tous au pilote suivant (4 rouges) → drapeau `ambiguous` sur `SmsResult` et `WhatsappResult` (délai dépassé, 5xx), la chaîne s'arrête pour le numéro sauf `is_otp` (posé par `PhoneVerificationService`, `DeletionStepUpService` et `LeaseSignatureCodeNotification`), et WhatsApp ne se replie plus en SMS sur un échec ambigu ; connexion refusée et 4xx se replient toujours ; ablation : routeur et `WhatsappChannel` remis → 6 rouges, drapeaux `is_otp` retirés → 1 rouge ; correctif remis : 366 tests verts sur `Services/Sms`, `Services/Whatsapp`, `Auth/Phone`, `AccountDeletionStepUpTest`, `LeaseSignatureTest`, `Notifications`. Quatre tests existants qui prenaient un 500 pour un refus passent en 400.
 
 ### Une exception levée après l'acceptation d'un fournisseur fait renvoyer le SMS
 - Réf : P27.03
