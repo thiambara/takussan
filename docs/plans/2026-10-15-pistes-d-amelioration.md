@@ -906,7 +906,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
-- Statut : validé — traduire en anglais les 55 attributs déjà traduits en fr
+- Statut : fait · TCK-749
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
@@ -914,6 +914,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 (mesuré) ; `is_active` absent du bloc `fr` ; tinker `Validator::make([], ['is_active'=>'required'])` en `fr` → « Le champ is active est obligatoire. », en `en` → « The is active field is required. » ; TCK-651:138 le relève aussi (« le champ value ») → tient. Classement : V7, la piste ouvre un choix entre traduire des centaines de noms de champ en trois langues et remplacer la prose 422 par des libellés du front.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 ; `AttributsDeValidationTraduitsTest` avant correctif → 2 rouges sur 2 (`validation.attributes` absent en `en`, « The property id field is required. ») → bloc `attributes` anglais, mêmes 55 clés dans le même ordre ; ablation (fichier d'avant remis) → les 2 mêmes rouges ; remis → vert, `MessagesDeValidationTraduitsTest` et `ValidationMessagesLocaleTest` verts.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
