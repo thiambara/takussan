@@ -48,7 +48,10 @@ class GroupConversationService
         ?int $leaseId = null,
         ?int $maintenanceRequestId = null,
     ): Conversation {
-        return DB::transaction(function () use (
+        $invited = [];
+
+        $conversation = DB::transaction(function () use (
+            &$invited,
             $creator,
             $subject,
             $participantIds,
@@ -84,9 +87,16 @@ class GroupConversationService
                     'joined_at' => now(),
                 ]);
             }
+            $invited = array_map('intval', $unique);
 
             return $conversation->fresh();
         });
+
+        // TCK-804 (P38.01) — the members of a brand-new group are "fresh participants" too:
+        // until then only addParticipants() sent the invite, and nobody heard of a new group.
+        $this->sendInvites($conversation, $creator, $invited);
+
+        return $conversation;
     }
 
     /**
@@ -145,8 +155,20 @@ class GroupConversationService
             }
         });
 
-        // Out-of-tx so pre-commit failures don't stop the participant write.
-        foreach ($added as $uid) {
+        $this->sendInvites($conversation, $actor, $added);
+
+        return $added;
+    }
+
+    /**
+     * Send a `ConversationInviteNotification` to each freshly-attached user.
+     * Called out of the transaction, so a pre-commit failure doesn't stop the participant write.
+     *
+     * @param  list<int>  $userIds
+     */
+    private function sendInvites(Conversation $conversation, User $actor, array $userIds): void
+    {
+        foreach ($userIds as $uid) {
             $user = User::find($uid);
             if ($user) {
                 try {
@@ -160,8 +182,6 @@ class GroupConversationService
                 }
             }
         }
-
-        return $added;
     }
 
     /**
