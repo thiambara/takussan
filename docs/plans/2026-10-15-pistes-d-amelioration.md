@@ -3429,7 +3429,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
-- Statut : validé — un seul numéro par appel chez Mtarget
+- Statut : fait · TCK-784 — reste : reprendre le compteur de tentatives à la dernière enregistrée après les heures calmes, et mettre le renvoi Orange après 401 sous le même `try`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:115,219`, `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:117-121`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:89-109`
 - Constat :
@@ -3439,6 +3439,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : reprendre le compteur à la dernière tentative enregistrée ; mettre le renvoi après 401 sous le même `try` ; lire le résultat par numéro chez Mtarget, ou n'envoyer qu'un numéro par appel.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : test temporaire (retiré) → heures calmes puis envoi avec `bypass_quiet_hours` : tentatives `[1 router deferred_to_fallback, 1 lafricamobile failed, 2 mtarget sent]` ; Orange 401 puis `ConnectionException` au renvoi (`OrangeSmsDriver.php:117-121`, hors `try`) : 2 appels d'envoi, résultat `lafricamobile` `sent` ; Mtarget `results` `[{code 0}, {code -3}]` pour deux numéros → les deux `sent` (`MtargetSmsDriver.php:90-91`). Les trois parties tiennent. Classement : V7, la partie Mtarget laisse deux options sur un format fournisseur non vérifié ; les deux premières seraient A1 si on les séparait.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `MtargetOneNumberPerCallTest` avant correctif → deux numéros partent en un appel (`msisdn` en liste), et la réponse `-3` du second n'est pas la sienne (1 rouge) → un appel par numéro (`array_chunk(…, 1)`), chaque résultat lu dans sa propre réponse. Ablation : pilote remis → 1 rouge ; remis → vert, et 65 tests de `Services/Sms` verts. Les deux autres points de la piste ne sont pas faits (reste).
 
 ## Angle 28 — Cache des pages publiques par langue
 
