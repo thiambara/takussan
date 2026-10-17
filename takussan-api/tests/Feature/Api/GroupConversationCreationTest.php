@@ -11,8 +11,10 @@ use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\ConversationInviteNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -721,5 +723,58 @@ class GroupConversationCreationTest extends TestCase
         }
 
         $this->assertSame(0, Conversation::query()->count());
+    }
+
+    /**
+     * TCK-804 (P38.01) — l'invitation part aussi à la création. Seul `addParticipants()`
+     * l'envoyait : les membres d'un groupe neuf, créé par `NewGroupDialog`, n'en recevaient aucune.
+     */
+    public function test_chaque_membre_d_un_groupe_neuf_recoit_l_invitation_sauf_le_createur(): void
+    {
+        Notification::fake();
+
+        $me = User::factory()->create();
+        $b = User::factory()->create();
+        $c = User::factory()->create();
+        $this->relate($me, $b, $c);
+
+        Sanctum::actingAs($me);
+
+        $convId = $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Travaux salle de bain',
+            'participants' => [$b->id, $c->id, $me->id],
+        ])->assertCreated()->json('data.id');
+
+        foreach ([$b, $c] as $member) {
+            Notification::assertSentTo(
+                $member,
+                ConversationInviteNotification::class,
+                fn (ConversationInviteNotification $n) => $n->conversation->id === $convId
+                    && $n->inviter?->id === $me->id,
+            );
+            Notification::assertSentToTimes($member, ConversationInviteNotification::class, 1);
+        }
+        Notification::assertNotSentTo($me, ConversationInviteNotification::class);
+    }
+
+    public function test_un_groupe_refuse_n_envoie_aucune_invitation(): void
+    {
+        Notification::fake();
+
+        $me = User::factory()->create();
+        $b = User::factory()->create();
+        $stranger = User::factory()->create();
+        $this->relate($me, $b);
+
+        Sanctum::actingAs($me);
+
+        $this->postJson('/api/conversations', [
+            'type' => 'group',
+            'subject' => 'Refusé',
+            'participants' => [$b->id, $stranger->id],
+        ])->assertUnprocessable();
+
+        Notification::assertNothingSent();
     }
 }

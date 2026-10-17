@@ -28,7 +28,7 @@ class LeaseController extends Controller
     {
         $user = $request->user();
 
-        $base = Lease::query()->with(['property.address', 'tenant']);
+        $base = Lease::query()->with(['property.address', 'property.media', 'tenant']);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {

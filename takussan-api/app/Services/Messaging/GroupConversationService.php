@@ -39,6 +39,8 @@ class GroupConversationService
      * admin; every other user joins as `member`.
      *
      * @param  list<int>  $participantIds  Other users to invite. Creator must NOT be in this list (caller dedupes).
+     * @param  bool  $sendInvites  TCK-804 — false for a thread opened by the platform itself, whose members are
+     *                             already told by their own notification (see SyncMaintenanceConversation).
      */
     public function create(
         User $creator,
@@ -47,8 +49,12 @@ class GroupConversationService
         ?int $propertyId = null,
         ?int $leaseId = null,
         ?int $maintenanceRequestId = null,
+        bool $sendInvites = true,
     ): Conversation {
-        return DB::transaction(function () use (
+        $invited = [];
+
+        $conversation = DB::transaction(function () use (
+            &$invited,
             $creator,
             $subject,
             $participantIds,
@@ -84,9 +90,18 @@ class GroupConversationService
                     'joined_at' => now(),
                 ]);
             }
+            $invited = array_map('intval', $unique);
 
             return $conversation->fresh();
         });
+
+        // TCK-804 (P38.01) — the members of a brand-new group are "fresh participants" too:
+        // until then only addParticipants() sent the invite, and nobody heard of a new group.
+        if ($sendInvites) {
+            $this->sendInvites($conversation, $creator, $invited);
+        }
+
+        return $conversation;
     }
 
     /**
@@ -145,8 +160,20 @@ class GroupConversationService
             }
         });
 
-        // Out-of-tx so pre-commit failures don't stop the participant write.
-        foreach ($added as $uid) {
+        $this->sendInvites($conversation, $actor, $added);
+
+        return $added;
+    }
+
+    /**
+     * Send a `ConversationInviteNotification` to each freshly-attached user.
+     * Called out of the transaction, so a pre-commit failure doesn't stop the participant write.
+     *
+     * @param  list<int>  $userIds
+     */
+    private function sendInvites(Conversation $conversation, User $actor, array $userIds): void
+    {
+        foreach ($userIds as $uid) {
             $user = User::find($uid);
             if ($user) {
                 try {
@@ -160,8 +187,6 @@ class GroupConversationService
                 }
             }
         }
-
-        return $added;
     }
 
     /**
