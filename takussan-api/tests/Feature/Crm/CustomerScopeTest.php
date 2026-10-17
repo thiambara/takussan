@@ -217,6 +217,15 @@ class CustomerScopeTest extends ApiTestCase
             ->assertJsonPath('data.tenant.id_number', 'SN-998877')
             ->assertJsonPath('data.tenant.emergency_contact_name', 'Fatou Sow')
             ->assertJsonPath('data.tenant.notes', 'Préfère être appelé le soir.');
+        $this->app['auth']->forgetGuards();
+
+        // Une lecture dont `fields[customers]` omet `agency_id` et `added_by_id` est jugée sur la
+        // fiche relue, pas refusée faute des traits que la règle lit — ni accordée.
+        $this->actingAsApi($agent)->apiGet('/api/customers?fields[customers]=id,id_number')
+            ->assertOk()->assertJsonPath('data.0.id_number', 'SN-998877');
+        $this->app['auth']->forgetGuards();
+        $this->actingAsApi($landlord)->apiGet("/api/leases/{$lease->id}?include=tenant&fields[customers]=id,id_number")
+            ->assertOk()->assertJsonMissingPath('data.tenant.id_number');
     }
 
     /**
