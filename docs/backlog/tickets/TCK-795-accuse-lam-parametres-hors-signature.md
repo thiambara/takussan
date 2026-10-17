@@ -32,7 +32,7 @@ que le pilote ne produit jamais.
 
 ## Décision du porteur
 
-exclure de la vérification les paramètres ajoutés par LAM (`push_id`, `ret_id`, `to`, `status`, `text`), dans le middleware `signed` de la route comme dans le contrôleur ; tests réécrits depuis le `ret_url` réellement émis par le pilote
+exclure de la vérification les paramètres ajoutés par LAM (`push_id`, `ret_id`, `to`, `status`, `text`), dans le middleware `signed` de la route comme dans le contrôleur ; tests réécrits depuis le `ret_url` réellement émis par le pilote ; reste : confirmer sur un vrai rappel de LAM
 
 ## Reste à faire
 
