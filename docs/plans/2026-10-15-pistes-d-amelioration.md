@@ -894,7 +894,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
-- Statut : validé — chaque langue pré-remplie depuis lang/{locale} ; seules les langues modifiées sont persistées
+- Statut : fait · TCK-748
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
@@ -902,6 +902,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `NotificationTemplateService.php:157-165` : `fallbackBody()` ignore `$locale` et rend le corps français, `fallbackSubject()` (l.152-155) rend le `name` français (lu) ; `update()` l.58-70 écrit les trois langues et replie sur `templates['fr']` pour toute langue absente (lu) ; `notification-templates.tsx:80` envoie tout `templates` (lu) ; `renderActive()` l.96-113 préfère la ligne active en base, et sert deux appelants (`NewBookingNotification.php:151`, `NotificationRenderer.php:214`) ; `SELECT` sur `notification_templates` par tinker → 9 lignes, toutes `whatsapp` et traduites, aucune ligne d'un événement éditable : le défaut n'a pas encore écrit en base de dev → tient. Classement : V7, pré-remplir depuis `lang/*` et ne persister que les langues touchées change ce que l'éditeur montre et enregistre.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `NotificationTemplateTest` avant correctif → 2 rouges sur 8 : le `GET` rend en `en` le corps français (clé `lang/en` absente, `fallbackBody()` ignore `$locale`), et un `PATCH` des trois langues, `fr` seule modifiée, écrit `['fr','en','wo']` → bloc `editable_templates` dans `lang/{fr,en,wo}/notifications.php` (`wo` = texte français tel quel, wolof en pause), `update()` n'écrit plus une langue sans ligne restée égale à son texte de départ ; ablation (service d'avant remis) → les 2 mêmes rouges, ligne `fr` porteuse de `is_active=false` retirée → 1 rouge ; remis → 8/8 verts, 42 tests voisins verts.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
