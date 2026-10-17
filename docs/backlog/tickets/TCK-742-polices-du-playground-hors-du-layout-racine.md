@@ -1,7 +1,7 @@
 ---
 id: TCK-742
 title: "Polices : le layout racine ne précharge que Bricolage et DM Sans"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -45,16 +45,16 @@ du playground par sa page.
 
 ## Delta à produire
 
-- [ ] `src/app/layout.tsx` : ne garder que `Bricolage_Grotesque` et `DM_Sans` ; Geist retirée.
-- [ ] `src/app/[locale]/(public)/playground/page.tsx` : déclarer Manrope, Inter et Fraunces et
+- [x] `src/app/layout.tsx` : ne garder que `Bricolage_Grotesque` et `DM_Sans` ; Geist retirée.
+- [x] `src/app/[locale]/(public)/playground/page.tsx` : déclarer Manrope, Inter et Fraunces et
       poser leurs variables autour de `PlaygroundClient`.
-- [ ] Garde `src/app/__tests__/polices-du-layout-racine.test.ts`.
+- [x] Garde `src/app/__tests__/polices-du-layout-racine.test.ts`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Chaque famille déclarée au layout racine est lue (variable ou nom de famille) par un
+- [x] AC1 — Chaque famille déclarée au layout racine est lue (variable ou nom de famille) par un
       fichier de `src/` hors du playground et des tests.
-- [ ] AC2 — Chaque `var(--font-…)` que lit le playground est déclarée par la racine ou par sa page.
+- [x] AC2 — Chaque `var(--font-…)` que lit le playground est déclarée par la racine ou par sa page.
 
 ## Hors périmètre
 
@@ -65,4 +65,9 @@ du playground par sa page.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : layout racine rendu à ses six familles → AC1 rouge (`Geist`, `Manrope`, `Inter`,
+  `Fraunces` sans lecteur) ; Fraunces retirée de la page du playground → AC2 rouge
+  (`--font-fraunces`). Correctif remis : 2/2 verts.
+- Bricolage et DM Sans ne sont lues hors du playground que par leur NOM (`globals.css` :
+  `"DM Sans"`), jamais par leur variable : la garde accepte l'un ou l'autre, sinon elle
+  refuserait les deux seules familles utiles.
