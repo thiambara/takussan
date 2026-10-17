@@ -1,7 +1,7 @@
 ---
 id: TCK-752
 title: "Pluriels ICU en fr et en : plus de « 1 biens » ni de « (s) », et une garde"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -48,18 +48,18 @@ Un compte affiché au singulier s'accorde au singulier, en français comme en an
 
 ## Delta à produire
 
-- [ ] `fr.json` et `en.json` : `plural` sur les messages qui s'accordent.
-- [ ] Appelants : `String(n)` et `formatNumber(…)` remplacés par le nombre (`#` le formate).
-- [ ] `scripts/check-i18n.mjs` : contrôle D, `{count} <lettre>` ou `<lettre>(s)` hors `plural`
+- [x] `fr.json` et `en.json` : `plural` sur les messages qui s'accordent.
+- [x] Appelants : `String(n)` et `formatNumber(…)` remplacés par le nombre (`#` le formate).
+- [x] `scripts/check-i18n.mjs` : contrôle D, `{count} <lettre>` ou `<lettre>(s)` hors `plural`
       en `fr` et `en`, avec la liste écrite des messages invariables.
-- [ ] Un test vitest qui rend les messages convertis à 1 et à 2.
+- [x] Un test vitest qui rend les messages convertis à 1 et à 2.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `nav.propertiesCount` rend « 1 bien » et « 2 biens » en `fr`, « 1 listing » et
+- [x] AC1 — `nav.propertiesCount` rend « 1 bien » et « 2 biens » en `fr`, « 1 listing » et
       « 2 listings » en `en` ; de même pour chaque message converti.
-- [ ] AC2 — `node scripts/check-i18n.mjs` rougit sur un `{count} biens` neuf hors `plural`.
-- [ ] AC3 — `wo.json` inchangé.
+- [x] AC2 — `node scripts/check-i18n.mjs` rougit sur un `{count} biens` neuf hors `plural`.
+- [x] AC3 — `wo.json` inchangé.
 
 ## Hors périmètre
 
@@ -68,4 +68,11 @@ Un compte affiché au singulier s'accorde au singulier, en français comme en an
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : `fr.json` et `en.json` d'avant remis → `pluriels.test.ts` 11 rouges sur 17, et
+  `check-i18n` relève 52 messages (fr et en) ; correctif remis → 17 verts, garde verte.
+- ICU `plural` ne lit qu'un nombre : `formatNumber(…)` (« 1 500 ») y rend `NaN`. Les appelants
+  passent le nombre, et `#` le formate. Pour garder « 1,500 » en anglais, `publishedHint` (`en`,
+  invariable) passe à `{count, number}`.
+- Effet de bord assumé sur le wolof, non réécrit : un compte d'`AgencyKpis` qui y était formaté par
+  l'appelant s'affiche désormais sans séparateur de milliers (« 1500 »).
+- Messages invariables : liste écrite `INVARIABLES` de `scripts/i18n-pluriels.mjs`, par langue.
