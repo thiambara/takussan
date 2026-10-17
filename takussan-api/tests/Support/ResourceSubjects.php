@@ -5,6 +5,7 @@ namespace Tests\Support;
 use App\Http\Resources\Accounting\MatchCandidateResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\PayoutMethodResource;
@@ -54,16 +55,19 @@ final class ResourceSubjects
     public const JOUR = '2026-08-17';
 
     /**
-     * Les ressources qui réservent des clés au TITULAIRE du sujet (`user_id` = l'appelant).
+     * Les ressources qui réservent des clés au TITULAIRE du sujet, et la colonne qui le désigne.
      * Fabriqué par sa seule factory, le sujet appartient à un autre utilisateur que l'appelant, et
      * ces branches ne s'exécuteraient jamais : chacune reçoit un second sujet, dont l'appelant est
      * le titulaire.
      *
-     * @var list<class-string>
+     * @var array<class-string, string>
      */
     private const RESERVEES_AU_TITULAIRE = [
         // TCK-594 (ADR-0039 §6) — `account_identifier` et `account_holder_name` en clair.
-        PayoutMethodResource::class,
+        PayoutMethodResource::class => 'user_id',
+        // TCK-808 (P23.02) — pièce, contact d'urgence, `notes` et `metadata` au lecteur de la fiche,
+        // dont son auteur (fiche hors agence : `CustomerPolicy::view`).
+        CustomerResource::class => 'added_by_id',
     ];
 
     /**
@@ -82,8 +86,12 @@ final class ResourceSubjects
         foreach (ResourceInventory::modelesPour($resource) as $modele) {
             $sujets[class_basename($modele)] = self::modele($modele, $resource);
 
-            if ($appelant !== null && in_array($resource, self::RESERVEES_AU_TITULAIRE, true)) {
-                $sujets[class_basename($modele).' (titulaire)'] = self::modele($modele, $resource, ['user_id' => $appelant->id]);
+            if ($appelant !== null && array_key_exists($resource, self::RESERVEES_AU_TITULAIRE)) {
+                $colonne = self::RESERVEES_AU_TITULAIRE[$resource];
+                $attributs = $colonne === 'added_by_id'
+                    ? ['added_by_id' => $appelant->id, 'agency_id' => null]
+                    : [$colonne => $appelant->id];
+                $sujets[class_basename($modele).' (titulaire)'] = self::modele($modele, $resource, $attributs);
             }
         }
 

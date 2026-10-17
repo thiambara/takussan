@@ -62,7 +62,8 @@ class Payout extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'period_start', 'period_end', 'net_amount', 'scheduled_at', 'processed_at'];
 
-    protected static array $requestLoadable = ['lease', 'booking', 'agency', 'landlord', 'issuer', 'approver', 'processor'];
+    // TCK-807 (P21.05) — seul `issuer` est émis par `PayoutResource`. `RequestLoadableEmittedTest` le garde.
+    protected static array $requestLoadable = ['issuer'];
 
     protected static array $requestRangeFilters = ['net_amount', 'gross_amount'];
 
