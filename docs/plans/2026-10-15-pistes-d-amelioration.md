@@ -2296,11 +2296,12 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P15.10
-- Statut : validé — prévenir les admins quand un dossier passe en pending_review
+- Statut : fait · TCK-782
 - Gravité : 🟢 amélioration
 - Constat (lu) : il n'existe pas de code de notification « bien soumis à modération » (`NotificationCode.php:131-132` : seulement approuvé et refusé). L'admin ne découvre une soumission que par la file du tableau de bord `standard`, alors que les avis ont `review.to_moderate`.
 - Piste : notifier les admins actifs au passage en `pending_review`.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `NotificationCode.php:131-132` (`property.approved`, `property.rejected`, aucun code de soumission) et `:161` (`review.to_moderate`) ; `grep -rn PendingReview app/Services app/Http/Controllers` → `PropertyModerationService.php:131` repasse un bien en `pending_review` sans notifier, aucun autre émetteur → le constat tient. Classement : V7, une notification aux admins est un comportement visible et un texte neufs.
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `NotificationCode` sans code de soumission, et publier ou resoumettre un bien dans une agence à modération obligatoire n'écrit aucune notification (`PropertySubmittedForReviewNotificationTest`, 2 rouges) → code `property.submitted_for_review` (type `system`, sans interrupteur, comme l'approbation et le refus ; textes fr et en, `wo` = texte français), cible `/app/agency/moderation/properties`, et `PropertyObserver` prévient les admins actifs de l'agence, sauf l'auteur du geste, à l'entrée en `pending_review` (création ou changement de statut). Ablation : observer remis → 3 rouges sur 3 ; remis → 3 verts, et 79 tests voisins verts.
 
 ## Angle 16 — Listes internes sur un modèle `Searchable`
 
