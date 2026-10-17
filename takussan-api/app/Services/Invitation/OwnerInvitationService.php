@@ -3,15 +3,16 @@
 namespace App\Services\Invitation;
 
 use App\Models\Agency;
-use App\Models\Enums\Capability;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Policies\OwnerProfilePolicy;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -137,34 +138,15 @@ class OwnerInvitationService
     }
 
     /**
-     * Throws 403 unless the inviter may invite owners **in this agency**.
+     * Throws 403 unless {@see OwnerProfilePolicy::invite()} grants the invitation in this agency.
      *
-     * TCK-278 — the check is profile-based and the agency id is passed
-     * explicitly to `isAgencyAdminAt()`. It used to read « we pin the spatie
-     * team_id to the agency before the probe »; there is no team_id and no
-     * spatie any more (ADR-0002). The intent survives the mechanism: an
-     * `agency_admin` of a DIFFERENT agency must not pass this gate — which is
-     * exactly what the explicit `$agency->id` argument enforces.
-     *
-     * super_admin bypasses via the global Gate::before hook (handled by
-     * `$user->can(...)` callers) — this service is reachable from the
-     * agency-scoped controller only, so we re-probe defensively here.
+     * TCK-819 (P22.03) — la règle était recopiée ici depuis la policy ; le service appelle
+     * désormais la policy, par la Gate (le super-admin passe par `Gate::before`). Seule la FORME
+     * reste propre au service : un 403 avec son message, là où la policy rend un booléen.
      */
     protected function assertInviterCanInvite(User $inviter, Agency $agency): void
     {
-        if (method_exists($inviter, 'isSuperAdmin') && $inviter->isSuperAdmin()) {
-            return;
-        }
-
-        // TCK-278 — Profile-based check (cf. policy).
-        // TCK-395 — voir `MembershipCapabilityResolver::delegationAllows()` : la
-        // délégation passe désormais par le pivot et est bornée par les
-        // capacités propres du délégant, au lieu d'accorder l'agency_admin
-        // plein sur un simple test de chaîne.
-        $allowed = $inviter->isAgencyAdminAt((int) $agency->id)
-            || $inviter->canActAt(Capability::TeamInvite, $agency);
-
-        if (! $allowed) {
+        if (Gate::forUser($inviter)->denies('invite', [OwnerProfile::class, $agency])) {
             throw new HttpException(403, __('owners.invite.errors.permission_denied'));
         }
     }
