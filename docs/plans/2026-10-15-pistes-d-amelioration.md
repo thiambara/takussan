@@ -1950,7 +1950,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10
-- Statut : validé — statut et code du fournisseur seulement, numéro masqué, raw du DLR non journalisé
+- Statut : fait · TCK-773
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
 - Constat :
@@ -1960,6 +1960,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu. Le contenu réel des corps Wave et OM est à vérifier.
 - Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Payments/Drivers/WaveDriver.php:66,95` et `OrangeMoneyDriver.php:83,114,176` → `'body' => $response->body()` à chaque échec ; `Notifications/Sms/Dlr/DlrReportApplier.php:108-112` → `msisdn` en clair, et `:71-75` journalise aussi `$record->raw` entier ; `grep Wave|Orange|Dlr|msisdn` dans `TCK-613` (`todo`) → aucun de ces emplacements. Le contenu réel des corps Wave et OM reste à vérifier : il faudrait une réponse du fournisseur. Classement : V3, la piste décide de ce qu'un journal garde des données personnelles, sur des pilotes de paiement qui relèvent aussi de V1.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, une réponse 400 de Wave ou d'Orange Money portant `221771234567` se retrouve au journal par `body`, et `DlrReportApplier` journalise le `msisdn` en clair (rapport sans tentative) et le `raw` entier (statut inconnu) : 4 rouges → `ProviderResponseContext` (statut et code fournisseur), numéro masqué par `WebhookPayloadRedactor::maskPhone`, `record` retiré ; `PaymentDriverErrorLeakTest` et `MtargetDlrPullingTest` : 23 verts, ablation des trois fichiers → 4 rouges.
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
