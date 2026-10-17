@@ -3262,7 +3262,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : validé — à égalité entre deux encaissements, aucune suggestion
+- Statut : fait · TCK-827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3272,6 +3272,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:144-176` (ambiguïté jugée seulement `if ($bestScore === 60)`, `>` strict à `:149`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, deux loyers de 150 000 de deux baux de la même agence payés le même jour, crédit de 150 000 à J+1 → `LeasePayment conf=70` (le premier), à J+5 → `null`. Classement : V7, étendre l'ambiguïté aux paliers 70 et 80 change ce que voit l'agence (suggestion retirée, à apparier à la main), et la règle de départage (ambiguïté ou critère de plus) est un choix de produit.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationAmbiguityTest` → deux loyers de 150 000 à égalité rendent une suggestion au premier candidat aux paliers 70 (même jour, crédit à J+1), 80 (même payeur, crédit à J+5) et 95 (même référence) : 3 rouges ; correctif : `scoreCandidates()` compte les candidats au meilleur score et ne suggère rien à partir de deux → 4/4 verts, 117 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation (`scoreCandidates()` d'origine) → les 3 mêmes rouges, le témoin « un seul au meilleur score, un autre à 60 » reste vert.
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
