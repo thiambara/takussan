@@ -8,6 +8,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
+use App\Services\Admin\PlatformSettingService;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -213,7 +214,8 @@ class LateFeeCalculator
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
         // TCK-651 (ADR-0065) — le global et l'absence de plafond par défaut viennent du catalogue.
-        $value = ScopedSetting::value('late_fees.cap_percent', $agencyId);
+        $value = ScopedSetting::value('late_fees.cap_percent', $agencyId,
+            app(PlatformSettingService::class)->getValue('late_fees.cap_percent'));
 
         if ($value === null || $value === '') {
             return null;

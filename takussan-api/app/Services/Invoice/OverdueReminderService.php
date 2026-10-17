@@ -5,6 +5,7 @@ namespace App\Services\Invoice;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Notifications\InvoiceOverdueReminderNotification;
+use App\Services\Admin\PlatformSettingService;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -62,7 +63,8 @@ class OverdueReminderService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence, sinon le global, sinon le défaut.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId);
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId,
+            app(PlatformSettingService::class)->getValue('invoice.reminder_offsets_days'));
 
         if (! is_array($value)) {
             return self::DEFAULT_OFFSETS;

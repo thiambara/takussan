@@ -193,14 +193,16 @@ class ScopedSettingReadersTest extends TestCase
         $a = Agency::factory()->create();
         Setting::query()->create(['key' => $cle, 'value' => $stocke, 'scope' => SettingScope::Agency, 'scope_id' => $a->id]);
 
-        $this->assertSame($attendu, ScopedSetting::value($cle, $a->id));
+        $this->assertSame($attendu, ScopedSetting::value($cle, $a->id, 'global'));
     }
 
-    public function test_sans_ligne_d_agence_le_lecteur_unique_rend_la_valeur_du_catalogue(): void
+    public function test_sans_ligne_d_agence_le_lecteur_unique_deballe_la_valeur_globale(): void
     {
-        $this->assertSame(EarlyTerminationService::SETTING_DEFAULT_MONTHS, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, null));
-        $this->ligne(EarlyTerminationService::SETTING_KEY, 7, SettingScope::Global, null);
-        $this->assertSame(7, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, Agency::factory()->create()->id));
+        $a = Agency::factory()->create();
+
+        $this->assertSame(7, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, $a->id, 7));
+        $this->assertSame(3, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, null, ['months' => 3]));
+        $this->assertSame([3, 9], ScopedSetting::value(OverdueReminderService::SETTING_KEY, $a->id, [3, 9]));
     }
 
     /** TCK-778 (P13.07) — aucune copie du déballage ne survit hors de `ScopedSetting`. */

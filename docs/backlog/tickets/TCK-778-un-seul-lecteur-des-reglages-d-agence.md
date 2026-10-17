@@ -34,8 +34,8 @@ un seul lecteur ScopedSetting::value() portant le déballage ; la devise lue sur
 
 ## Delta à produire
 
-- [x] `ScopedSetting::value(string $key, ?int $agencyId): mixed` : la ligne de l'agence, sinon la
-      valeur du catalogue (`PlatformSettingService::getValue`), déballée en un seul endroit.
+- [x] `ScopedSetting::value(string $key, ?int $agencyId, mixed $global): mixed` : la ligne de
+      l'agence, sinon la valeur du catalogue que passe le lecteur, déballée en un seul endroit.
 - [x] Les cinq lecteurs (`LateFeeCalculator::capPercent`, `LeaseRenewalService::requireSignatureFlag`,
       `RentReviewService::resolveMaxPct`, `EarlyTerminationService::resolvePenaltyMonths`,
       `OverdueReminderService::offsets`) passent par lui, et ne gardent que leur conversion de type
@@ -76,3 +76,7 @@ un seul lecteur ScopedSetting::value() portant le déballage ; la devise lue sur
   `[3, 9]` sur les échéances ne se lisent pas de la même façon, et les deux copies d'origine
   divergeaient déjà sur ce point.
 - La garde de non-recopie interdit aussi `ScopedSetting::agencyRow(` hors de la classe.
+- `scripts/check-platform-catalogue-readers.mjs` reconnaît un lecteur au littéral
+  `getValue('<clé>')` : un `value()` qui lisait lui-même le catalogue la faisait rougir sur les cinq
+  clés. Chaque lecteur passe donc la valeur globale par son `getValue('<clé>')` en toutes lettres,
+  et la garde reste telle quelle.
