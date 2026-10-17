@@ -1448,7 +1448,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
-- Statut : validé — HEIC refusé (mimes:jpg,jpeg,png,webp) sur l'état des lieux et l'avatar
+- Statut : fait · TCK-751
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1460,6 +1460,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `UploadRoomPhotosInventoryRequest.php:39` (`required`, `image`, `max:5120`), `UpdateProfileRequest.php:50` (`nullable`, `image`, `max:2048`), `vendor/…/ValidatesAttributes.php:1533` (`heic`, `heif` dans la liste de `image`), `PdfImageEmbedder.php:30,108-116` (rend `null` hors jpeg, png, webp, gif) ; mesuré `function_exists('imagecreatefromheif')` → `false` et `gd_info()` sans prise en charge HEIF ; HEIC réel produit par `sips -s format heic` (finfo : `image/heic`), puis test Feature temporaire (retiré) : la règle de l'état des lieux **passe**, et `PUT /api/auth/profile` avec ce fichier → 200, média `image/heic` sur le disque public, `generated_conversions` vide, `avatar_url` = l'original `.heic`. L'absence au PDF de l'état des lieux est déduite de `PdfImageEmbedder::encode`, non rejouée. Classement : V7, la piste laisse ouvert le choix entre refuser le HEIC (`mimes:`) et le convertir à l'entrée, et un refus change ce qu'un utilisateur de l'API peut envoyer.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : HEIC réduit à sa boîte `ftyp` (finfo → `image/heic`, `image` passe, `mimes:jpg,jpeg,png,webp` échoue, mesuré par tinker) ; `InventoryRoomPhotosTest` et `AuthProfileTest` avant correctif → 2 rouges, 200 au lieu de 422 → `mimes:jpg,jpeg,png,webp` sur les deux règles ; ablation (FormRequests d'avant remis) → les 2 mêmes rouges ; remis → 34/34 verts, 78 tests des classes voisines verts.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
