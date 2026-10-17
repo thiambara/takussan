@@ -283,6 +283,7 @@ return [
         'not_requested' => 'No contract is awaiting signature: the request must be sent first.',
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'terms_changed' => 'The lease changed while the contract was being prepared: nothing was frozen. Request the signature again.',
+        'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
     ],
     'lease_payment' => [

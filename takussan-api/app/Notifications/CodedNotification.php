@@ -11,6 +11,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -18,6 +19,7 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-588 (ADR-0032) — l'envoi hors cloche d'une notification par code : e-mail, broadcast et
@@ -54,6 +56,49 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         // amont (les canaux ne recomptent pas) ; false, aucun canal mobile.
         public readonly ?bool $mobileBorne = null,
     ) {}
+
+    /**
+     * TCK-800 (P11.10) — le canal de CETTE copie en file. Laravel met en file une copie par canal,
+     * et `failed()` ne reçoit que l'exception : le canal se retient à la mise en file, par
+     * {@see middleware()}, que `NotificationSender::queueNotification()` appelle sur chaque copie.
+     */
+    public ?string $queuedChannel = null;
+
+    /**
+     * TCK-800 (P11.10) — attendre avant de réessayer : sans délai, le worker (`--tries=3`)
+     * épuisait ses trois essais en quelques secondes sur une panne brève du transport.
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [60, 300, 900];
+    }
+
+    /** @return list<object> */
+    public function middleware(object $notifiable, string $channel): array
+    {
+        $this->queuedChannel = $channel;
+
+        return [];
+    }
+
+    /**
+     * TCK-800 (P11.10) — l'échec final se journalise : le code, le canal, la ligne de la cloche. Ni
+     * les paramètres ni le message de l'exception, qui peuvent porter des données personnelles.
+     */
+    public function failed(?\Throwable $e): void
+    {
+        $context = $e !== null ? SafeExceptionContext::of($e) : [];
+
+        Log::error('[notifications] envoi abandonné', [
+            'code' => $this->code->value,
+            'channel' => $this->queuedChannel,
+            'app_notification_id' => $this->appNotificationId,
+            'exception' => $context['exception'] ?? null,
+            'at' => $context['at'] ?? null,
+        ]);
+    }
 
     /** Le SMS a été borné au point d'envoi : les canaux mobiles ne le recomptent pas. */
     public function mobileDejaBorne(): bool

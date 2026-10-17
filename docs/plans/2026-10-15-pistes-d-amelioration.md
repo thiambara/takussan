@@ -1598,7 +1598,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
 - Réf : P11.05
-- Statut : validé — `Log::warning` quand aucun fournisseur n'est disponible ; migration qui rend `notification_delivery_attempts.app_notification_id` nullable, et tentative écrite sans notification (le `down()` supprime les lignes sans notification) ; seau séparé pour les codes critiques ; 503 lisible si rien n'est parti
+- Statut : fait · TCK-799
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -1611,6 +1611,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Piste : `Log::warning` et une métrique ; un seau séparé pour les codes critiques, ou un 503 lisible.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `SmsRouterDriver.php:195-201` et `appendAttempt` (l. 239-243, sort sans rien écrire si `notification_id` est nul), `SmsChannel::withinRateLimit` (l. 143-160, seau unique de `sms.rate_limit.per_user_per_hour` = 5, codes critiques compris) et `LeaseSignatureService::sendCode` (l. 112-136, rend `channel: sms` sans lire le résultat) relus ; test temporaire retiré : chaînes vides, `SmsRouterDriver::send` d'un SMS critique sans `notification_id` → `failed`/`no_provider_available`, et `Log::spy` n'a reçu ni `info`, ni `warning`, ni `error`. Tient pour le chemin « aucun fournisseur » ; inexact sur un point : le seau plein, lui, laisse un `Log::info` (`SmsChannel.php:152`). Classement : V7, la piste choisit entre un seau séparé pour les codes et un 503 visible, et la signature de bail en dépend (V2).
 - Mesure (2026-10-17, b8b556ed, implementeur) : relu `database/migrations/2026_04_27_000001_create_notification_delivery_attempts_table.php:20-22` (`app_notification_id` en `foreignId()->constrained()`, non nul) et `SmsRouterDriver::appendAttempt()` (`if (! $notificationId) return;`) → une tentative sans notification ne peut s'écrire dans cette table qu'après une migration qui rend la colonne nullable (ou une table à part) : critère V4, autre que le V7 accordé. Si « tentative journalisée » veut dire au journal applicatif et non en base, la piste redevient faisable sans migration : à préciser. Le reste de la décision (`Log::warning`, seau séparé, 503) n'a pas été commencé.
+- Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `SmsFailureTraceTest` → chaîne sans fournisseur : aucun `Log::warning` ; SMS sans notification : aucune ligne `notification_delivery_attempts` ; seau ordinaire plein : le SMS critique refusé (`null`) ; `LeaseSignatureTest` → SMS de code en échec `no_provider_available` : 202 `channel: sms` → migration neuve (`app_notification_id` nullable, `down()` qui supprime les lignes sans notification, jouée aller-retour par un test de mesure retiré), `warning` avec le suffixe du numéro, tentative écrite sans notification sous point de sauvegarde, clé `sms-channel:critical:…` à la même borne, 503 `lease_signature.sms_not_sent` par `afterSending()` ; ablation : routeur seul → 3 rouges, canal seul → 1, service seul → 1, migration retirée → 2 ; correctif remis : 52 verts, et `tests/Feature/Services/Sms` et les classes voisines vertes (102 tests).
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
@@ -1669,7 +1670,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P11.10
-- Statut : validé — ne journaliser que les 4 derniers chiffres des numéros, `backoff` et un `failed()` qui journalise
+- Statut : fait · TCK-800
 - Gravité : 🟢 amélioration
 - Constat (lu, sauf mention) :
   - **Échecs en file** : aucun `$tries`, `backoff()` ni `failed()` sur `CodedNotification`. Le worker passe `--tries=3` sans délai : une panne Resend de quelques secondes épuise les trois essais.
@@ -1683,6 +1684,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     `withoutOverlapping()` sur un `Schedule::job` ne protège que la mise en file, pas l'exécution.
 - Piste : `backoff = [60, 300, 900]` et un `failed()` qui journalise le code et le canal ; ne journaliser que le suffixe des numéros.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
+- Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `NotificationFailureLoggingTest` → un numéro invalide routé (`0012-34-56-7890`) écrit `phone` entier au `warning` de `SmsChannel` et de `WhatsappChannel` ; le job en file d'une `CodedNotification` rend `null` en `backoff()` et son `failed()` n'écrit rien → `phone_suffix` (4 derniers caractères) sur les deux canaux, `backoff()` = `[60, 300, 900]`, `failed()` qui écrit un `error` avec le code, le canal (retenu par `middleware()` à la mise en file) et l'identifiant de la cloche, sans le message de l'exception ; ablation : chacun des cinq morceaux retiré seul → 1 rouge ; correctif remis : 2 verts, et 147 tests voisins (notifications, WhatsApp, canal SMS) verts.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 

@@ -197,12 +197,21 @@ class SmsRouterDriver implements SmsDriverInterface
 
         // Whatever is left after the full chain has no provider that
         // could deliver — finalize with a `no_provider_available`
-        // reason so the caller knows to fall back to email.
+        // reason. Nothing falls back to email on its own: TCK-799 (P11.05)
+        // logs a warning, the caller decides what to tell the user.
         foreach ($remaining as $n) {
             if (! isset($finalResults[$n])) {
                 $attemptIndex[$n]++;
                 $finalResults[$n] = SmsResult::failed($n, $this->id(), 'no_provider_available');
                 $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$n], $finalResults[$n]);
+                Log::warning('[sms.router] aucun fournisseur disponible', [
+                    'phone_suffix' => substr($n, -4),
+                    'chain' => $chain,
+                    'agency_id' => $context['agency_id'] ?? null,
+                    'event_type' => $context['event_type'] ?? null,
+                    'is_critical' => (bool) ($context['is_critical'] ?? false),
+                    'notification_id' => $context['notification_id'] ?? null,
+                ]);
             }
         }
 
@@ -246,12 +255,12 @@ class SmsRouterDriver implements SmsDriverInterface
      * TCK-767 (P27.03) — never throws: the attempt is written AFTER the provider
      * answered, and an exception here left the router (or rolled the number to
      * the next provider) and made the job resend an SMS already accepted.
+     *
+     * TCK-799 (P11.05) — an SMS without notification (a contact without an
+     * account, a lease signature code) writes its attempt too, unattached.
      */
     private function appendAttempt(?int $notificationId, int $attempt, SmsResult $result): void
     {
-        if (! $notificationId) {
-            return;
-        }
         try {
             $this->writeAttempt($notificationId, $attempt, $result);
         } catch (\Throwable $e) {
@@ -264,8 +273,18 @@ class SmsRouterDriver implements SmsDriverInterface
         }
     }
 
-    private function writeAttempt(int $notificationId, int $attempt, SmsResult $result): void
+    private function writeAttempt(?int $notificationId, int $attempt, SmsResult $result): void
     {
+        if (! $notificationId) {
+            // Dans sa propre transaction, comme l'autre chemin : imbriquée, c'est un point de
+            // sauvegarde, et un échec (identifiant fournisseur en double) n'abandonne pas la
+            // transaction de l'appelant (PostgreSQL, 25P02).
+            DB::transaction(fn () => NotificationDeliveryAttempt::query()->create(
+                ['app_notification_id' => null] + $this->attemptRow($attempt, $result),
+            ));
+
+            return;
+        }
         // Insert into the normalised `notification_delivery_attempts`
         // table. The unique index on (provider, provider_message_id)
         // makes DLR webhook lookups O(1) and prevents substring
@@ -277,19 +296,24 @@ class SmsRouterDriver implements SmsDriverInterface
             if (! $notification) {
                 return;
             }
-            NotificationDeliveryAttempt::query()->create([
-                'app_notification_id' => $notification->id,
-                'attempt' => $attempt,
-                'provider' => $result->provider,
-                'provider_message_id' => $result->providerMessageId,
-                'to' => $result->to,
-                'status' => $result->status,
-                'failure_reason' => $result->failureReason,
-                'cost_estimate' => $result->costEstimate,
-                'segments_count' => $result->segmentsCount,
-                'sent_at' => $result->sentAt,
-                'delivered_at' => $result->deliveredAt,
-            ]);
+            NotificationDeliveryAttempt::query()->create(['app_notification_id' => $notification->id] + $this->attemptRow($attempt, $result));
         });
+    }
+
+    /** @return array<string, mixed> */
+    private function attemptRow(int $attempt, SmsResult $result): array
+    {
+        return [
+            'attempt' => $attempt,
+            'provider' => $result->provider,
+            'provider_message_id' => $result->providerMessageId,
+            'to' => $result->to,
+            'status' => $result->status,
+            'failure_reason' => $result->failureReason,
+            'cost_estimate' => $result->costEstimate,
+            'segments_count' => $result->segmentsCount,
+            'sent_at' => $result->sentAt,
+            'delivered_at' => $result->deliveredAt,
+        ];
     }
 }
