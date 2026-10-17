@@ -3176,7 +3176,7 @@ sont pas reprises.*
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : validé — selon la piste
+- Statut : fait · TCK-826 — reste : le message du délai de Remontée (`:hours` et date formatée), que la parité des placeholders oblige à porter aussi dans le texte `wo` existant, en pause
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3185,6 +3185,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `lang/{fr,en,wo}/errors.php:93` (« 24 heures » en dur dans les trois langues), `BoostPurchaseService.php:80-89` (délai = `bumpCooldownHours()`, `available_at` en `toIso8601String()`), `grep -rn bump_cooldown takussan-web/src` → seules des clés `bump_cooldown_hours` du réglage dans `messages/*.json`, aucune pour le code d'erreur ; `CreditLedger.php:218-229` (`applyRefund` passe par `grant()` avec l'expiration du lot d'origine, sans `expiry_notice_sent_at`) et `CreditExpiryNotifier.php:27,35` (sélectionne les lots `whereNull('expiry_notice_sent_at')`). Lignes à peine décalées, les deux défauts tiennent ; le second préavis se lit au code, il n'a pas été rejoué. Classement : V1, la piste touche l'écriture d'un lot de crédits remboursés, et le message demande un texte neuf dans trois langues (V7).
+- Mesure (2026-10-17, 464374510, implementeur) : préavis reproduit avant correctif par `RefundLotExpiryNoticeTest` (lot de bienvenue à J+20, Vedette 15 jours à J+10, préavis à J+14, bien loué) → le lot `refund` naît sans `expiry_notice_sent_at` et le passage suivant envoie un second préavis (`1` au lieu de `0`) ; correctif : `CreditLedger::applyRefund()` reporte l'`expiry_notice_sent_at` du lot d'origine sur le lot remboursé → 2/2 verts, 127 verts sur `tests/Feature/Boost` et `tests/Feature/Credits` ; ablation (`applyRefund()` d'origine) → le même rouge, le témoin « lot d'origine pas encore prévenu » reste vert. Message du délai de Remontée non fait : `LangGroupParityTest` exige les mêmes placeholders en `fr`, `en` et `wo`, et `:hours` réécrirait le texte `wo` existant (`lang/wo/errors.php:93`), en pause.
 
 ## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
 
