@@ -165,6 +165,8 @@ class PaymentAmountScaleTest extends TestCase
     public function test_lemon_squeezy_recoit_des_centimes_et_ne_redivise_pas(): void
     {
         Http::fake([
+            // TCK-735 — le pilote lit d'abord la devise de la boutique : en USD, comme le payable.
+            'api.lemonsqueezy.com/v1/stores/*' => Http::response(['data' => ['id' => '1', 'attributes' => ['currency' => 'USD']]], 200),
             'api.lemonsqueezy.com/*' => Http::response([
                 'data' => [
                     'id' => '99',
