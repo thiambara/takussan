@@ -209,12 +209,15 @@ class PrivateMediaAccessTest extends ApiTestCase
         $state = app(DepositRefundService::class)->state($lease);
         $this->assertIsSignedPrivateMediaUrl($state['attachments'][0]['url'], $media);
 
+        // TCK-821 (P23.05) — l'URL longue ne vit plus que dans le courriel : `toArray()`, rangé en
+        // base par le canal `database`, ne porte que l'identifiant (DepositRefundAttachmentLinksTest).
         $notification = new LeaseDepositRefundNotification($lease, 300000, 200000, 'Réparations');
-        $payload = $notification->toArray((object) []);
-        $this->assertIsSignedPrivateMediaUrl($payload['attachments'][0]['url'], $media);
+        $this->assertArrayNotHasKey('url', $notification->toArray((object) [])['attachments'][0]);
+        preg_match('#https?://\S+signature=\S+#', implode("\n", $notification->toMail((object) [])->introLines), $m);
+        $this->assertIsSignedPrivateMediaUrl($m[0] ?? null, $media);
 
         // Le lien d'un courriel se lit plus tard qu'une page — mais il expire.
-        parse_str((string) parse_url($payload['attachments'][0]['url'], PHP_URL_QUERY), $query);
+        parse_str((string) parse_url($m[0], PHP_URL_QUERY), $query);
         $this->assertEqualsWithDelta(
             now()->addDays(LeaseDepositRefundNotification::ATTACHMENT_LINK_TTL_DAYS)->getTimestamp(),
             (int) $query['expires'],

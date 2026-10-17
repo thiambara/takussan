@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Enums\Currency;
 use App\Models\Lease;
+use App\Models\User;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Notifications\PreferenceResolver;
@@ -25,6 +26,12 @@ use Illuminate\Notifications\Notification;
  * par quiconque devinait l'identifiant. Elles sont désormais signées, et valent
  * {@see self::ATTACHMENT_LINK_TTL_DAYS} jours : un courriel se lit plus tard
  * qu'une page, mais un lien vers une pièce privée ne doit pas être éternel.
+ *
+ * TCK-821 (P23.05) — l'URL de 7 jours ne vit plus que dans le courriel. `toArray()`, que le canal
+ * `database` range dans `app_notifications.data` et que la cloche relit, ne porte que
+ * l'identifiant et le nom de chaque pièce : un lien qui ouvre sans session n'est plus conservé en
+ * base ni relu sept jours durant. La cloche le signe à la lecture, après l'autorisation du bail
+ * ({@see self::attachmentsAtRead()}), pour la durée courte de `PrivateMediaAccess`.
  */
 class LeaseDepositRefundNotification extends Notification implements ShouldQueue
 {
@@ -100,7 +107,10 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
             'retained' => $this->retained,
             'reason' => $this->reason !== '' ? $this->reason : null,
             'currency' => $this->lease->currency?->value,
-            'attachments' => $this->attachments(),
+            'attachments' => array_map(
+                fn (array $a): array => ['id' => $a['id'], 'name' => $a['name']],
+                $this->attachments(signed: false),
+            ),
             'title' => __('notifications.lease_deposit_refunded.subject', [
                 'reference' => $this->lease->reference_number ?? '#'.$this->lease->id,
             ]),
@@ -118,18 +128,50 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * @return list<array{id:int,name:string,url:string}>
+     * TCK-821 (P23.05) — les pièces rangées dans `data`, signées pour ce lecteur : une URL courte
+     * pour chaque pièce de la collection du bail, si le lecteur peut voir ce bail ; `null` sinon,
+     * ou pour une pièce qui n'appartient pas à ce bail.
+     *
+     * @param  array<string,mixed>  $data
+     * @return list<array{id:int,name:string,url:?string}>
      */
-    protected function attachments(): array
+    public static function attachmentsAtRead(array $data, ?User $reader): array
+    {
+        $stored = is_array($data['attachments'] ?? null) ? $data['attachments'] : [];
+        if ($stored === []) {
+            return [];
+        }
+
+        $lease = is_numeric($data['lease_id'] ?? null) ? Lease::query()->find((int) $data['lease_id']) : null;
+        $readable = $lease !== null && $reader !== null && $reader->can('view', $lease);
+        $media = $readable ? $lease->getMedia('lease_deposit_refund')->keyBy('id') : collect();
+        $access = app(PrivateMediaAccess::class);
+
+        return array_values(array_map(function (mixed $a) use ($media, $access): array {
+            $id = (int) data_get($a, 'id');
+            $file = $media->get($id);
+
+            return [
+                'id' => $id,
+                'name' => (string) data_get($a, 'name', ''),
+                'url' => $file !== null ? $access->signedUrl($file) : null,
+            ];
+        }, $stored));
+    }
+
+    /**
+     * @return list<array{id:int,name:string,url?:string}>
+     */
+    protected function attachments(bool $signed = true): array
     {
         return $this->lease->getMedia('lease_deposit_refund')
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'name' => $media->name,
-                'url' => app(PrivateMediaAccess::class)->signedUrl(
+                ...($signed ? ['url' => app(PrivateMediaAccess::class)->signedUrl(
                     $media,
                     now()->addDays(self::ATTACHMENT_LINK_TTL_DAYS),
-                ),
+                )] : []),
             ])
             ->values()
             ->all();
