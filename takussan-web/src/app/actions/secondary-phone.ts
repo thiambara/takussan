@@ -6,11 +6,13 @@ import { apiRequest, messageErreurApi } from '@/lib/api';
 import { codeApercu } from '@/lib/otp-preview';
 import { getToken } from '@/lib/session';
 import type { User } from '@/types/user';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /** TCK-633 (lot C) — le second numéro : code, vérification, retrait (`/api/auth/secondary-phone/*`). */
 type Echec = { ok: false; message: string };
 
 async function echec(err: unknown): Promise<Echec> {
+  journaliserErreurInattendue('secondary-phone', err);
   const repli = (await getTranslations('serverActions.security'))('sendOtpFailed');
   return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
 }

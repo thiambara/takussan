@@ -14,6 +14,7 @@ import {
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
 import type { CustomerDetail, CustomerNote } from '@/types/customer';
 import type { Tag } from '@/types/tag';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Dashboard Agent — CRM server actions (TCK-042).
@@ -52,6 +53,7 @@ async function mapError(e: unknown): Promise<{
   errors?: Record<string, string[]>;
   duplicates?: CustomerDuplicateMatch[];
 }> {
+  journaliserErreurInattendue('dashboard-customers', e);
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.

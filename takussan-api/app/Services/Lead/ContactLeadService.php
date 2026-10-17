@@ -22,9 +22,11 @@ use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-590 — une demande de contact arrive chez QUELQU'UN.
@@ -229,8 +231,9 @@ class ContactLeadService
 
         try {
             $this->notifyReceived($lead, $assignee);
-        } catch (\Throwable) {
-            // Un échec d'envoi ne défait pas l'attribution.
+        } catch (\Throwable $e) {
+            // Un échec d'envoi ne défait pas l'attribution (TCK-771 : il se journalise).
+            $this->logFailure('lead notification failed', $lead, $e);
         }
 
         return $lead->refresh();
@@ -329,8 +332,9 @@ class ContactLeadService
         foreach ($recipients as $recipient) {
             try {
                 $this->notifyReceived($lead, $recipient);
-            } catch (\Throwable) {
-                // Silencieux — même règle que les notifications de visite.
+            } catch (\Throwable $e) {
+                // Non bloquant — même règle que les notifications de visite.
+                $this->logFailure('lead notification failed', $lead, $e);
             }
         }
 
@@ -343,9 +347,18 @@ class ContactLeadService
                     'about' => $lead->property?->title ?: ($lead->recipient?->full_name ?: $lead->agency?->name),
                 ]);
             }
-        } catch (\Throwable) {
-            // Silencieux.
+        } catch (\Throwable $e) {
+            $this->logFailure('lead acknowledgement failed', $lead, $e);
         }
+    }
+
+    /**
+     * TCK-771 (P14.09) — un envoi qui échoue ne casse pas la requête, mais se journalise : sous la
+     * forme sûre d'ADR-0044, jamais le message (un refus SMTP y recopie l'adresse).
+     */
+    private function logFailure(string $what, PropertyContactLead $lead, \Throwable $e): void
+    {
+        Log::warning('[ContactLeadService] '.$what, ['lead_id' => $lead->id] + SafeExceptionContext::of($e));
     }
 
     /**

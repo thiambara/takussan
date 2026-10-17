@@ -6,6 +6,7 @@ import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import { revalidatePath } from 'next/cache';
 import type { ThresholdAlert, ThresholdAlertInput } from '@/lib/queries/alerts';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Server actions for threshold alerts (TCK-032 P3).
@@ -30,6 +31,7 @@ export async function createThresholdAlertAction(
     revalidatePath('/app/overview/alerts');
     return { ok: true, data: res.data };
   } catch (err) {
+    journaliserErreurInattendue('alerts', err);
     return { ok: false, message: (err as Error).message };
   }
 }
@@ -42,7 +44,8 @@ export async function deleteThresholdAlertAction(id: number): Promise<{ ok: bool
     await apiRequest(cheminApi`/api/threshold-alerts/${id}`, { token, method: 'DELETE' });
     revalidatePath('/app/overview/alerts');
     return { ok: true };
-  } catch {
+  } catch (err) {
+    journaliserErreurInattendue('alerts', err);
     return { ok: false };
   }
 }

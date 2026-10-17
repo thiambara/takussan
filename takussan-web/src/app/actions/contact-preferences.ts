@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import type { User } from '@/types/user';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-633 (lot C) — prénom, nom et cases WhatsApp, par `PUT /api/auth/profile` en JSON.
@@ -29,6 +30,7 @@ export async function updateContactPreferencesAction(
     const user = await apiRequest<User>('/api/auth/profile', { method: 'PUT', token, body: payload });
     return { ok: true, user };
   } catch (err) {
+    journaliserErreurInattendue('contact-preferences', err);
     const repli = (await getTranslations('profile.contact'))('saveError');
     return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
   }

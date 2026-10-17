@@ -245,6 +245,7 @@ return [
     'admin_alert' => [
         'test_message' => '[TEST] :event tàmbali na ndax test synthétique.',
         'activity_message' => ':event — jëfekat :actor, mbir :subject',
+        'failing_suffix' => ' — sondes en échec : :probes',
     ],
 
     // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).

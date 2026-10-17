@@ -7,6 +7,7 @@ import { getToken } from '@/lib/session';
 import { fetchTags, type FetchTagsParams } from '@/lib/queries/tags';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Admin tags & amenities server actions — TCK-066.
@@ -25,6 +26,7 @@ async function mapError(e: unknown): Promise<{
   message: string;
   errors?: Record<string, string[]>;
 }> {
+  journaliserErreurInattendue('admin-tags', e);
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.

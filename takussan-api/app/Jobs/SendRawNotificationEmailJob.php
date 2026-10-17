@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Services\Model\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -37,13 +38,22 @@ class SendRawNotificationEmailJob implements ShouldQueue
     {
         // Preserve the original "never let mail break the flow" resilience:
         // a misconfigured mailer should not fail the job in environments
-        // without SMTP. Transient failures are still retried via $tries
-        // before this catch is reached on the final attempt.
+        // without SMTP. Transient failures are retried via $tries: the error
+        // is swallowed on the final attempt only.
+        //
+        // TCK-770 (P14.06) — the catch used to swallow EVERY attempt, so the
+        // job succeeded on its first failure and was never retried. On the
+        // `sync` queue there is a single attempt, run inside the caller: the
+        // error is still swallowed there, as before.
         try {
             Mail::raw($this->body, function ($message): void {
                 $message->to($this->email)->subject($this->subject);
             });
         } catch (\Throwable $e) {
+            if (! $this->job instanceof SyncJob && $this->attempts() < $this->tries) {
+                throw $e;
+            }
+
             report($e);
         }
     }
