@@ -855,4 +855,22 @@ return [
     'property_proposed' => [
         'title' => 'Kër gu ab boroom kër yónnee : :title',
     ],
+    // TCK-748 — texte de départ de l'éditeur de gabarits (console super-admin), une langue par
+    // fichier. Syntaxe `{{ … }}` de NotificationTemplateService, pas `:param` : ces chaînes ne
+    // passent jamais par trans() avec des paramètres. Le texte français tel quel : wolof en pause
+    // depuis le 2026-10-16, l'enregistrement ne persiste pas une langue laissée intacte.
+    'editable_templates' => [
+        'booking_confirmed' => [
+            'subject' => 'Réservation confirmée',
+            'body' => 'Bonjour {{ user.first_name }}, votre réservation {{ booking.code }} est confirmée.',
+        ],
+        'payment_received' => [
+            'subject' => 'Paiement reçu',
+            'body' => 'Bonjour {{ user.first_name }}, paiement reçu: {{ payment.amount }} {{ payment.currency }}.',
+        ],
+        'maintenance_created' => [
+            'subject' => 'Maintenance créée',
+            'body' => 'Bonjour {{ user.first_name }}, demande {{ maintenance.reference }} créée pour {{ property.title }}.',
+        ],
+    ],
 ];
