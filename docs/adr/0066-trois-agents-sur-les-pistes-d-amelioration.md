@@ -1,6 +1,6 @@
 # ADR-0066 — Trois agents planifiés traitent le fichier de pistes : l'explorateur relève, le mesureur re-mesure et classe, l'implémenteur corrige ce qui est classé autonome ; tout passe par une PR vers `pre-dev`, vérifiée avant le push par un script et non par l'agent
 
-- **Statut** : Accepté (2026-10-15)
+- **Statut** : Accepté (2026-10-15), amendé le 2026-10-17 (l'implémenteur livre par lot)
 - **Date** : 2026-10-15
 - **Tickets** : aucun (outillage du porteur)
 
@@ -45,7 +45,7 @@ que chaque agent lit en premier : elles sont écrites une seule fois.
 |---|---|---|---|
 | `pistes-explorateur` | le tableau des angles | une section `## Angle N` ; la ligne de l'angle passe à `fait` ; 0 à 3 angles proposés | un angle |
 | `pistes-mesureur` | `--liste "à mesurer"` | `Statut` et `Mesure` des entrées traitées | 8 entrées au plus |
-| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket, le code, ses tests ; `Statut` et `Mesure` | une piste (ou plusieurs de même cause) |
+| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 4 pistes du même côté, en une PR (amendement du 2026-10-17) |
 
 ### 2. Le format du fichier de pistes
 
@@ -267,6 +267,48 @@ borne, même par une PR fusionnée.
     moitié.
   - Les faire tourner ordinateur fermé (GitHub Actions en `cron`, clé d'API à l'usage) serait un
     amendement de cet ADR.
+
+## Amendement du 2026-10-17 — l'implémenteur livre par lot
+
+**Mesuré ce jour-là**, sur `~/.takussan-agents/journal.tsv` : 76 passages de l'implémenteur ont
+publié une PR, **une piste chacun**, en 16,6 min et 1,91 USD en moyenne. Les passages se suivent un
+à la fois (verrou par rôle, § 4). Il restait **140 pistes** à implémenter (115 `validé`, 25
+`retenu · autonome`) : environ 40 h de Mac éveillé à ce rythme. Le plafond de PR ouvertes ne
+bornait pas le débit ; la durée du passage, si. Une part de chaque passage ne dépend pas de la
+piste : la lecture des règles (`commun.md`, cet ADR, les `CLAUDE.md`), la préparation de l'arbre,
+les gardes du dépôt, la PR et sa CI.
+
+**Décision du porteur** : l'implémenteur livre **un lot** par passage, en une seule PR.
+
+- **1 à 4 pistes**, prises dans l'ordre de gravité du § « Décisions du porteur ». La première
+  entrée libre ouvre le lot et en fixe le côté (`takussan-api/` ou `takussan-web/`) ; les
+  suivantes du même côté le complètent, celles de l'autre côté sont sautées.
+- **Un lot ne mêle pas l'API et le front.** Une piste qui touche les deux côtés part seule, ou
+  avec les entrées de même cause qui partagent son ticket.
+- **Chaque piste garde son ticket, son test, son ablation et ses commits**, et elle est close
+  avant que la suivante commence. Une piste re-mesurée caduque ou reclassée à valider compte dans
+  le lot, et le passage continue avec la suivante.
+- **Le temps** : au-delà de 100 min, l'agent ne commence plus de piste et publie ce qui est clos.
+  Une piste commencée et non close est retirée de l'arbre.
+- **La réparation** : une piste qui ne se répare pas sort du lot par `git revert`, et son entrée
+  revient à son statut de départ. Les autres ne restent pas bloquées derrière elle.
+- **Les réglages** (`config.env`) : `BUDGET_IMPLEMENTEUR` passe de 20 à 45 USD, et
+  `DUREE_IMPLEMENTEUR` de 5 400 à 9 000 s.
+
+**Ce que la garde vérifie** (`check-pistes --role implementeur`, joué par `pistes.sh` avant tout
+push) : au plus 4 entrées changent de statut, et un lot de plusieurs tickets ne touche pas à la
+fois `takussan-api/` et `takussan-web/`. Ablation sur le fichier de pistes réel : 6 cas, 4 permis
+qui restent verts (1 piste, 4 pistes, une piste seule sur les deux côtés, 3 entrées d'un même
+ticket sur les deux côtés) et 2 interdits (5 pistes, 2 tickets sur les deux côtés) qui rougissent ;
+avec la garde d'avant l'amendement, les 2 interdits restaient verts.
+
+**Ce qu'elle ne vérifie pas** : le classement par taille (une piste M compte double, et un lot ne
+dépasse pas l'équivalent de 4 S), qui reste une consigne de l'agent ; ni la règle des 100 min.
+
+**Ce que ça coûte** : une CI rouge sur une piste retient tout le lot jusqu'à sa réparation, et
+la PR à relire est plus grosse. **Ce qui n'est pas mesuré** : le gain. Il est estimé à ×2 ou ×3,
+puisque la part fixe se paie une fois par lot. Il se relève sur le journal (pistes closes par
+heure de passage) après les premiers lots, et le plafond de 4 se rediscute sur ce chiffre.
 
 ## Conséquences
 

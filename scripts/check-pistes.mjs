@@ -29,7 +29,8 @@
  * s'accorde pas ce que son rôle n'a pas : l'explorateur ne classe pas, le mesureur n'implémente
  * pas, et aucun agent n'écrit `validé`, qui est la signature du porteur. Une piste `validé` ne
  * revient au porteur qu'avec une raison. Sa précision (`validé — …`) se retrouve mot pour mot dans
- * le ticket qui la passe à `fait`.
+ * le ticket qui la passe à `fait`. Un passage de l'implémenteur fait changer de statut 4 entrées au
+ * plus, et un lot de plusieurs tickets ne mêle pas l'API et le front (amendement du 2026-10-17).
  *
  * ─── Ce qu'elle ne vérifie PAS ───────────────────────────────────────────────────────────────
  *
@@ -113,6 +114,9 @@ const GARDES = /^(scripts\/[^/]+\.mjs|docs\/backlog\/(gen-index|check-backlog)\.
 // Un test ne se supprime pas pour faire passer un correctif.
 const TESTS = /^takussan-api\/tests\/|\.test\.tsx?$/;
 const MIGRATIONS = /^takussan-api\/database\/migrations\//;
+// Entrées qu'un passage de l'implémenteur peut faire changer de statut (amendement d'ADR-0066 du
+// 2026-10-17) : un lot de 4 pistes au plus, reclassements et caducs compris.
+const LOT_MAX = 4;
 
 const MESURE = /^- Mesure \((\d{4}-\d{2}-\d{2}), ([0-9a-f]{7,40}), (explorateur|mesureur|implementeur|humain)\) : (.+)$/;
 
@@ -305,6 +309,8 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
     erreurs.push('le fichier a changé hors des lignes « - Statut : » et « - Mesure (…) : » (titre, constat, tableau, entrée ajoutée ou retirée)');
   }
   const permis = TRANSITIONS[role];
+  const basculees = [];
+  const tickets = new Set();
   for (const [ref, e] of apres) {
     const avantE = avant.get(ref);
     if (!avantE) continue;
@@ -317,6 +323,8 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
       erreurs.push(`${ref} : mesure ajoutée sans changement de statut`);
     }
     if (champ(avantE, 'Statut')?.valeur === champ(e, 'Statut')?.valeur) continue;
+    basculees.push(ref);
+    if (vers === 'fait') tickets.add(champ(e, 'Statut').valeur.match(/TCK-\d+/)?.[0]);
     if (!(permis[de] ?? []).includes(vers)) {
       erreurs.push(`${ref} : « ${de} » → « ${vers} » n'est pas une transition du rôle ${role}`);
       continue;
@@ -348,6 +356,18 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
           erreurs.push(`${ref} : la précision garde un reste ; l'entrée passe à « fait · ${tck} — reste : ${reste} »`);
         }
       }
+    }
+  }
+  // Un passage de l'implémenteur livre un lot (amendement du 2026-10-17) : au plus LOT_MAX entrées
+  // changent de statut, et un lot de plusieurs tickets ne mêle pas l'API et le front. Une piste qui
+  // touche les deux côtés part seule, ou avec les entrées de même cause qui partagent son ticket.
+  if (role === 'implementeur') {
+    if (basculees.length > LOT_MAX) {
+      erreurs.push(`un lot compte au plus ${LOT_MAX} entrées ; ${basculees.length} ont changé de statut (${basculees.join(', ')})`);
+    }
+    const cotes = ['takussan-api/', 'takussan-web/'].filter((c) => touche.some((f) => f.startsWith(c)));
+    if (tickets.size > 1 && cotes.length > 1) {
+      erreurs.push(`un lot de ${tickets.size} tickets (${[...tickets].join(', ')}) ne mêle pas l'API et le front : une piste qui touche les deux part seule`);
     }
   }
   return erreurs;
