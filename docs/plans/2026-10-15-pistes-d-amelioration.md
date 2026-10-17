@@ -633,7 +633,7 @@ contre le code par la session.*
 
 ### Arrondis au centime sur du XOF
 - Réf : P04.08
-- Statut : validé — une seule fonction d'arrondi par devise (Currency::decimalPlacesOf) pour la facture, la commission, la caution et le reversement
+- Statut : fait · TCK-736
 - Gravité : 🟠 risque ou dette
 - Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
 - Constat :
@@ -641,6 +641,7 @@ contre le code par la session.*
   - La clôture (arrondi par ligne, en PHP) et le détail (`SUM` en SQL) peuvent différer (lu).
 - Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `app/Services/Model/InvoiceService.php:58` (`round($subtotal * $taxRate / 100, 2)`, le constat ne donnait pas le dossier), `CommissionLedgerService.php:82` (`floor(round($base * $share, 6)) / 100`, au centime), `DepositRefundService.php:58,85,166` (`round(…, 2)`), `PlatformPayoutService` (arrondi par ligne à 2 décimales dans `closeForAgency()`, `SUM` SQL puis `round(…, 2)` dans `breakdown()`), contre `PaymentGatewayService::roundToCurrencyUnit()` (`Currency::decimalPlacesOf`) et `PayoutCalculator::round()`. Constat confirmé ; l'exemple 118 001,18 n'est pas re-calculé par exécution. Classement : V1, calcul de montants de facture, de commission et de reversement.
+- Mesure (2026-10-17, 4bf83b81, implementeur) : avant correctif, les quatre tests neufs rendaient en XOF une TVA de 18 000,18 sur 100 001 à 18 %, une caution rendue de 300 000,40, une commission de 30 000,30 sur 100 001 à 30 % et une commission plateforme de 10 001,00 pour deux lignes de 5 000,50 → `Currency::roundAmount()` (arrondi à `decimalPlacesOf`, moitié vers le haut) dans les quatre services, plancher à l'unité de la devise pour la commission du grand livre, `ROUND` par ligne dans le détail du reversement ; ablation des services : 4 rouges, ablation du seul `ROUND` du détail : 1 rouge, correctif remis : 111 verts sur 13 classes.
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
