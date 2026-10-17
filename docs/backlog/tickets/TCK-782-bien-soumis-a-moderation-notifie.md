@@ -1,7 +1,7 @@
 ---
 id: TCK-782
 title: "Les admins de l'agence sont prévenus quand un bien passe en pending_review"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: S
@@ -33,22 +33,22 @@ prévenir les admins quand un dossier passe en pending_review
 
 ## Delta à produire
 
-- [ ] `NotificationCode::PropertySubmittedForReview` (`property.submitted_for_review`), type
+- [x] `NotificationCode::PropertySubmittedForReview` (`property.submitted_for_review`), type
       `system`, paramètre `property`, sans interrupteur de préférence (comme `property.approved`
       et `property.rejected`), sans canal mobile.
-- [ ] Textes `codes.property.submitted_for_review` (API : `title`, `body`, `sms`) et
+- [x] Textes `codes.property.submitted_for_review` (API : `title`, `body`, `sms`) et
       `notifications.codes.property.submitted_for_review` (front : `title`, `body`), fr et en ;
       en `wo`, le texte français tel quel.
-- [ ] Cible `property_moderation` → `/app/agency/moderation/properties`.
-- [ ] `PropertyObserver` : au passage en `pending_review` (à la création comme à la mise à jour),
+- [x] Cible `property_moderation` → `/app/agency/moderation/properties`.
+- [x] `PropertyObserver` : au passage en `pending_review` (à la création comme à la mise à jour),
       chaque admin actif de l'agence du bien est notifié, sauf l'auteur du geste.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Publier un bien dans une agence à modération obligatoire notifie ses admins actifs,
+- [x] AC1 — Publier un bien dans une agence à modération obligatoire notifie ses admins actifs,
       avec le titre du bien et la cible de la file de modération.
-- [ ] AC2 — La resoumission d'un bien refusé notifie de même.
-- [ ] AC3 — Un bien qui reste en `pending_review` (une modification pendant l'attente) ne notifie
+- [x] AC2 — La resoumission d'un bien refusé notifie de même.
+- [x] AC3 — Un bien qui reste en `pending_review` (une modification pendant l'attente) ne notifie
       pas une seconde fois ; un admin d'une autre agence, un admin suspendu et l'auteur du geste ne
       reçoivent rien.
 
@@ -65,4 +65,9 @@ prévenir les admins quand un dossier passe en pending_review
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `PropertyObserver` remis à `pre-dev` → les 3 tests de
+  `PropertySubmittedForReviewNotificationTest` rouges ; remis → verts, et 79 tests voisins verts
+  (observer, modération, notifications, parité des langues).
+- Piège : un bien créé directement en `pending_review` (modération à la création) est une entrée
+  dans la file, donc prévenue par `created()` ; seule une mise à jour qui ne change pas le statut
+  ne l'est pas.
