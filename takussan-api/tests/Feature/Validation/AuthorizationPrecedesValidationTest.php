@@ -3,6 +3,8 @@
 namespace Tests\Feature\Validation;
 
 use App\Models\Agency;
+use App\Models\BankStatement;
+use App\Models\BankStatementLine;
 use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -192,6 +194,72 @@ class AuthorizationPrecedesValidationTest extends ApiTestCase
         $chemin = $this->cheminDe($gabarit);
 
         $this->json(strtoupper($verbe), $chemin, $corps)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($champs);
+    }
+
+    /**
+     * TCK-818 (P22.04) — quatre FormRequests portaient `return true; // Policy handles authorization`,
+     * et `PropertyDuplicateRequest` rendait `$this->user() !== null` : la policy, appelée dans le
+     * corps du contrôleur, venait après la validation.
+     *
+     * @return array<string, array{0: string, 1: array<string, mixed>, 2: list<string>}>
+     */
+    public static function routesAutoriseesDansLeCorps(): array
+    {
+        return [
+            'duplication d\'un bien' => ['/api/properties/{property}/duplicate', ['title_suffix' => str_repeat('x', 60)], ['title_suffix']],
+            'import d\'un relevé' => ['/api/agencies/{agency}/bank-statements', [], ['file']],
+            'correspondance CSV' => ['/api/agencies/{agency}/bank-statements/csv-mapping', ['has_header' => 'peut-être'], ['has_header']],
+            'rapprochement d\'une ligne' => ['/api/bank-statement-lines/{line}/match', ['payment_type' => 'inconnu'], ['payment_type', 'payment_id']],
+            'délégation de rôle' => ['/api/agencies/{agency}/role-delegations', [], ['user_id', 'ends_at']],
+        ];
+    }
+
+    private function cheminAutoriseDansLeCorps(string $gabarit): string
+    {
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $statement = BankStatement::factory()->create(['agency_id' => $this->agency->id]);
+        $line = BankStatementLine::factory()->create(['bank_statement_id' => $statement->id]);
+
+        return strtr($gabarit, [
+            '{property}' => (string) $property->id,
+            '{agency}' => (string) $this->agency->id,
+            '{line}' => (string) $line->id,
+        ]);
+    }
+
+    private function verbeDe(string $chemin): string
+    {
+        return str_ends_with($chemin, '/csv-mapping') ? 'PUT' : 'POST';
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesAutoriseesDansLeCorps')]
+    public function test_policy_called_in_the_body_now_denies_before_it_validates(string $gabarit, array $corps, array $champs): void
+    {
+        $chemin = $this->cheminAutoriseDansLeCorps($gabarit);
+        $this->intrus();
+
+        $this->json($this->verbeDe($chemin), $chemin, $corps)
+            ->assertStatus(403)
+            ->assertJsonMissingPath('errors');
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesAutoriseesDansLeCorps')]
+    public function test_policy_called_in_the_body_still_validates_for_an_authorized_caller(string $gabarit, array $corps, array $champs): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $chemin = $this->cheminAutoriseDansLeCorps($gabarit);
+
+        $this->json($this->verbeDe($chemin), $chemin, $corps)
             ->assertStatus(422)
             ->assertJsonValidationErrors($champs);
     }

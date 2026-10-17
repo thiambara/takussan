@@ -14,9 +14,10 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class PropertyDuplicateRequest extends FormRequest
 {
+    /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('duplicate', $this->route('property')) === true;
     }
 
     public function rules(): array
