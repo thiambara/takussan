@@ -419,12 +419,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
-- Statut : validé — le plafond des pénalités lu une fois par agence, même résultat
+- Statut : fait · TCK-779
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
 - Piste : lire le plafond une fois par agence dans `applyForAgency`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `LateFeeCalculator.php:183-200` (`applyCap()` appelle `capPercent()` à chaque échéance, `ScopedSetting::agencyRow(…)` lu en base, repli sur `PlatformSettingService::getValue`) et `ApplyLateFeesJob.php:48-60` (`applyForAgency` boucle par échéance sur `$calculator->apply()`) ; aucun commit depuis TCK-651 n'y a touché. Le constat tient. Classement : V1, le correctif modifie la fonction qui calcule le plafond d'une pénalité, même sans changer son résultat.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif par `ApplyLateFeesJobTest::test_le_plafond_de_l_agence_est_lu_une_fois_par_passage` : trois échéances d'une agence à plafond de 3 % lisent sa ligne `settings` trois fois en un passage → `capPercent()` garde la valeur par agence pour la vie de l'instance (le job en résout une par passage) ; une lecture, pénalités inchangées (3 000 sur 100 000) ; ablation : rouge (3 lectures), correctif remis vert ; 10 classes voisines vertes (151 tests).
 
 ## Angle 3 — Isolation entre agences et autorisation
 

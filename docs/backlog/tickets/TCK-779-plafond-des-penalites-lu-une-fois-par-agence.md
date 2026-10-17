@@ -1,7 +1,7 @@
 ---
 id: TCK-779
 title: "Pénalités de retard : le plafond lu une fois par agence, et non à chaque échéance"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -31,15 +31,15 @@ le plafond des pénalités lu une fois par agence, même résultat
 
 ## Delta à produire
 
-- [ ] `LateFeeCalculator::capPercent()` garde la valeur lue par agence pour la durée de vie de
+- [x] `LateFeeCalculator::capPercent()` garde la valeur lue par agence pour la durée de vie de
       l'instance : le job en résout une par passage.
-- [ ] Le résultat (montant de pénalité, plafond appliqué) ne change pas.
+- [x] Le résultat (montant de pénalité, plafond appliqué) ne change pas.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un passage du job sur trois échéances d'une même agence à plafond d'agence ne lit la
+- [x] AC1 — Un passage du job sur trois échéances d'une même agence à plafond d'agence ne lit la
       ligne `settings` de l'agence qu'une fois.
-- [ ] AC2 — Les pénalités écrites sont celles d'avant (plafonnées à la valeur de l'agence).
+- [x] AC2 — Les pénalités écrites sont celles d'avant (plafonnées à la valeur de l'agence).
 
 ## Hors périmètre
 
@@ -54,4 +54,8 @@ le plafond des pénalités lu une fois par agence, même résultat
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : `LateFeeCalculator.php` remis à l'état de TCK-778 → le test neuf rougit (3 lectures
+  de la ligne d'agence pour 3 échéances, au lieu de 1) ; correctif remis → vert, et les 10 classes
+  qui citent le calculateur ou le job vertes (151 tests).
+- Le test compte la requête de `ScopedSetting::agencyRow()` seule : la lecture globale passe par le
+  cache de `PlatformSettingService`, hors du sujet.
