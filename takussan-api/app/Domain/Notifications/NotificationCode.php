@@ -131,6 +131,9 @@ enum NotificationCode: string
     case PropertyApproved = 'property.approved';
     case PropertyRejected = 'property.rejected';
 
+    /** TCK-782 (P15.10) — un bien passe en `pending_review` : les admins actifs de son agence. */
+    case PropertySubmittedForReview = 'property.submitted_for_review';
+
     /** TCK-596 (ADR-0041 §6) — un événement importé chevauche une réservation confirmée. */
     case PropertyCalendarConflict = 'property.calendar_conflict';
 
@@ -230,7 +233,7 @@ enum NotificationCode: string
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
-            self::PropertyApproved, self::PropertyRejected,
+            self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
             self::ReviewToModerate, self::ReviewReceived,
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -284,6 +287,8 @@ enum NotificationCode: string
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
             self::BankStatementImported, self::BankStatementFinalized,
             self::PropertyApproved, self::PropertyRejected, self::ProspectMatchDigest,
+            // TCK-782 — comme l'approbation et le refus : non désactivable.
+            self::PropertySubmittedForReview,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
             self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
             // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
@@ -370,6 +375,7 @@ enum NotificationCode: string
             self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled,
             self::MaintenanceStepInProgressScheduled => ['request' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME],
             self::PropertyApproved => ['property' => self::PARAM_TEXT],
+            self::PropertySubmittedForReview => ['property' => self::PARAM_TEXT],
             self::PropertyRejected => ['property' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertyCalendarConflict => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],

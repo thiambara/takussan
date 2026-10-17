@@ -48,6 +48,14 @@ return [
         'ignore' => 'Si vous n\'avez pas demandé de réinitialisation, aucune action supplémentaire n\'est requise.',
     ],
 
+    'agency_admin_activation' => [
+        'subject' => 'Activez votre compte Takussan',
+        'greeting' => 'Bonjour !',
+        'intro' => 'Un compte de gérant d\'agence a été créé pour vous sur Takussan. Choisissez votre mot de passe pour l\'activer, puis configurez votre agence.',
+        'action' => 'Activer mon compte',
+        'expire' => 'Ce lien d\'activation expirera dans :count jours.',
+    ],
+
     'new_booking' => [
         'subject' => 'Nouvelle réservation #:reference',
         'greeting' => 'Bonjour,',
@@ -709,6 +717,11 @@ return [
                 'title' => 'Bien approuvé : :property',
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
                 'sms' => 'Takussan : annonce « :property » approuvée.',
+            ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
             ],
             'rejected' => [
                 'title' => 'Bien refusé : :property',

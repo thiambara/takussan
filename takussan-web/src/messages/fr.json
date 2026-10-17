@@ -10716,6 +10716,10 @@
           "title": "Bien refusé : {property}",
           "body": "Votre bien « {property} » a été refusé. Motif : {reason}. Vous pouvez corriger l'annonce et la resoumettre depuis votre espace."
         },
+        "submitted_for_review": {
+          "title": "Bien à modérer : {property}",
+          "body": "Le bien « {property} » attend votre validation avant d'être publié."
+        },
         "calendar_conflict": {
           "title": "Conflit de calendrier : {property}",
           "body": "Le calendrier « {feed} » bloque {property} du {start_date} au {end_date}, alors qu'une réservation confirmée occupe ces dates. Rien n'a été annulé : vérifiez les deux plateformes."

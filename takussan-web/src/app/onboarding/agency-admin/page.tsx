@@ -9,9 +9,10 @@ import { isAgencyAdmin } from '@/lib/roles';
 /**
  * TCK-270 — Post-activation landing page for a freshly-invited agency_admin.
  *
- * Reachable from the activation email's reset-password redirect (or directly
- * by URL during onboarding outreach). Non-blocking: the user can leave at any
- * time without breaking anything downstream.
+ * Reachable from the activation email (TCK-781): its link opens the
+ * reset-password page with `activation=1`, which then sends the manager to the
+ * login page with `redirect=/onboarding/agency-admin`. Non-blocking: the user
+ * can leave at any time without breaking anything downstream.
  *
  * Auth/role gating mirrors the dashboard: anyone who isn't an agency_admin
  * is bounced to /app where the role-aware shell takes over.

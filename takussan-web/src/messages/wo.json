@@ -10716,6 +10716,10 @@
           "title": "Yégle bi gàntu nañu ko : {property}",
           "body": "Sa yégle « {property} » gàntu nañu ko. Ngirte : {reason}. Mën nga koo defar te yónneewaat ko ci sa bérab."
         },
+        "submitted_for_review": {
+          "title": "Bien à modérer : {property}",
+          "body": "Le bien « {property} » attend votre validation avant d'être publié."
+        },
         "calendar_conflict": {
           "title": "Calendrier yi dañuy xeex : {property}",
           "body": "Calendrier « {feed} » dafa tëj {property} li dale {start_date} ba {end_date}, fekk réservation bu ñu dëggal moo jël bis yooyu. Dara neenalu ci : xoolal ñaari plateforme yi."

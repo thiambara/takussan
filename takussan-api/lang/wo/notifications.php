@@ -47,6 +47,14 @@ return [
         'ignore' => 'Soo ñuulul soppi baatu jàng, bul dara def.',
     ],
 
+    'agency_admin_activation' => [
+        'subject' => 'Activez votre compte Takussan',
+        'greeting' => 'Bonjour !',
+        'intro' => 'Un compte de gérant d\'agence a été créé pour vous sur Takussan. Choisissez votre mot de passe pour l\'activer, puis configurez votre agence.',
+        'action' => 'Activer mon compte',
+        'expire' => 'Ce lien d\'activation expirera dans :count jours.',
+    ],
+
     'new_booking' => [
         'subject' => 'Reservation bu bees #:reference',
         'greeting' => 'Salaam,',
@@ -703,6 +711,11 @@ return [
                 'title' => 'Yégle bi nangu nañu ko : :property',
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
+            ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
             ],
             'rejected' => [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
