@@ -18,6 +18,7 @@ use App\Models\SavedSearch;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 
 /**
@@ -137,6 +138,62 @@ class AuthorizationPrecedesValidationTest extends ApiTestCase
 
         $this->postJson("/api/leases/{$lease->id}/terminate", ['reason' => ['pas', 'une', 'chaîne']])
             ->assertStatus(403);
+    }
+
+    /**
+     * TCK-816 (P22.01) — les quatre voisines de `/terminate` sur le même bail, et la mise à jour
+     * d'une agence, avaient un `authorize()` qui rendait `true` sec : un compte sans lien recevait
+     * 422 et les noms des champs (`new_rent`, `reason`, `amount`, `effective_date`, `email`). Un
+     * cas par route, puisque chacune a son propre FormRequest.
+     *
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>, 3: list<string>}>
+     */
+    public static function routesDeBailEtDAgence(): array
+    {
+        return [
+            'révision du loyer' => ['patch', '/api/leases/{lease}/rent', ['new_rent' => 'cher'], ['new_rent', 'reason']],
+            'renouvellement' => ['post', '/api/leases/{lease}/renew', ['start_date' => 'demain', 'end_date' => 'jamais'], ['start_date', 'end_date']],
+            'restitution du dépôt' => ['post', '/api/leases/{lease}/deposit-refund', ['amount' => 'tout'], ['amount']],
+            'résiliation anticipée' => ['post', '/api/leases/{lease}/early-termination', ['effective_date' => 'hier'], ['effective_date']],
+            'mise à jour d\'agence' => ['put', '/api/agencies/{agency}', ['email' => 'pas-une-adresse'], ['email']],
+        ];
+    }
+
+    private function cheminDe(string $gabarit): string
+    {
+        $lease = Lease::factory()->create(['agency_id' => $this->agency->id]);
+
+        return strtr($gabarit, ['{lease}' => (string) $lease->id, '{agency}' => (string) $this->agency->id]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesDeBailEtDAgence')]
+    public function test_lease_and_agency_writes_deny_before_they_validate(string $verbe, string $gabarit, array $corps, array $champs): void
+    {
+        $chemin = $this->cheminDe($gabarit);
+        $this->intrus();
+
+        $this->json(strtoupper($verbe), $chemin, $corps)
+            ->assertStatus(403)
+            ->assertJsonMissingPath('errors');
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesDeBailEtDAgence')]
+    public function test_lease_and_agency_writes_still_validate_for_an_authorized_caller(string $verbe, string $gabarit, array $corps, array $champs): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $chemin = $this->cheminDe($gabarit);
+
+        $this->json(strtoupper($verbe), $chemin, $corps)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($champs);
     }
 
     public function test_payout_mark_failed_denies_before_it_validates(): void
