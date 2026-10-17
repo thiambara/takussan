@@ -1474,12 +1474,13 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
-- Statut : validé — validation des documents ramenée à 10 Mo, FileCannotBeAdded traduit en 422
+- Statut : fait · TCK-763
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
 - Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
 - Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaUploadRequest.php:16` et `GenericMediaUploadRequest.php:19` (`MAX_DOCUMENT_KB = 25 * 1024`), `config/media-library.php:55` (`max_file_size` 10 Mo) ; `grep -rn 'FileIsTooBig\|FileCannotBeAdded' app bootstrap config` → vide ; test Feature temporaire (retiré) : un PDF réel de 15 Mo, collection `documents`, sur `POST /api/media` et sur `POST /api/media/upload` → **500** sur les deux, message de Spatie « has a size of 15 MB which is greater than the maximum ». Le seul appelant du front (`agencies.ts:144`) envoie un logo, pas un document. Classement : V9, aligner les plafonds demande de choisir entre baisser la validation à 10 Mo et monter le plafond global de Spatie à 25 Mo, qui vaut pour toutes les collections ; la traduction de `FileCannotBeAdded` en 422, seule, serait A1.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `MediaUploadTest` avant correctif → 2 rouges en 500 (`FileIsTooBig`) : un PDF réel de 15 Mo dans `documents`, et un PDF de 200 Ko sous un plafond de médiathèque abaissé à 100 Ko → `MAX_DOCUMENT_KB` = 10 Mo dans les deux FormRequests, et `FileCannotBeAdded` rendu en 422 `media.file_rejected` par `bootstrap/app.php` ; ablation : FormRequest d'avant → le premier rougit, `bootstrap/app.php` d'avant → le second ; remis → 12/12 verts.
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
 - Réf : P10.08
