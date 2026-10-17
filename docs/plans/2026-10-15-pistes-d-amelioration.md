@@ -1082,7 +1082,7 @@ Sain (vérifié par l'agent) :
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
-- Statut : validé — anneau de focus plein ; --input assombri à 3:1
+- Statut : fait · TCK-753
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/ui/button.tsx:31`, `ui/input.tsx:20`, `takussan-web/src/app/globals.css:163,694`
 - Constat :
@@ -1090,6 +1090,7 @@ Sain (vérifié par l'agent) :
   - `--input: #ebe5d5`, seul contour d'un champ, est à 1,26:1 (WCAG 1.4.11, mesuré).
 - Piste : un anneau plein ou `outline-2 outline-offset-2`, et un jeton `--input` propre, autour de 3:1.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `button.tsx:31` et `input.tsx:20` (`focus-visible:ring-3 focus-visible:ring-ring/50`), `globals.css:29` (`--background: #fcf9f3`), `:163-164` (`--input: #ebe5d5`, `--ring: #a85332`) ; calcul WCAG en `node` : `ring` à 50 % mêlé au fond → 2,08:1 contre `--background` ; `--input` → 1,20:1 contre `--background` et 1,26:1 contre le blanc → tient. Classement : V7, ni l'anneau plein ni un nouveau `--input` ne se ramènent sur un jeton existant : c'est une modification de la palette et du focus de toutes les primitives, un choix de dessin.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/test/__tests__/focus-et-contour-des-champs.contraste.test.ts` → 4 rouges sur 5 : 84 `ring-ring/50` dans 58 fichiers de `src/` plus `outline-ring/50` dans `globals.css:694`, `--input` à 1,20:1 sur `--background` et 1,26:1 sur `--card` (mesuré par `contraste-wcag.ts`) → anneaux et contour de base pleins, `--input` clair à `#918672` (3,41 / 3,59 / 3,04:1 sur fond, carte, muted), fond désactivé et séparateur de `TagsManager` passés sur `--border` pour garder leur aspect ; ablation (sources d'avant) → les 4 mêmes rouges, correctif remis → 5 verts, et 339 tests verts sur `src/test`, `ui/` et les tests a11y qui lisent l'anneau.
 
 ### Focus du marqueur de carte, visionneuse sans nom, entrée verrouillée hors du clavier
 - Réf : P07.10
