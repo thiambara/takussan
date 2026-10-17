@@ -22,7 +22,7 @@ class MessagingContactResource extends BaseResource
         return [
             'id' => $this->id,
             'name' => $this->full_name,
-            'avatar_url' => $this->mediaUrl('avatar'),
+            'avatar_url' => $this->avatarUrl(),
         ];
     }
 }

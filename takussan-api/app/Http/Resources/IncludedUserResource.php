@@ -37,7 +37,7 @@ class IncludedUserResource extends BaseResource
             $projection['full_name'] = $user->full_name;
         }
         if (array_key_exists('id', $lu)) {
-            $projection['avatar_url'] = $user->getFirstMediaUrl('avatar') ?: null;
+            $projection['avatar_url'] = $user->avatarUrl();
         }
 
         return $projection;

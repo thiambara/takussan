@@ -13,6 +13,7 @@ use App\Services\Auth\LoginLock;
 use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
+use App\Services\Media\AvatarReencode;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -212,8 +213,13 @@ class AuthController extends Controller
         }
 
         if ($request->hasFile('avatar')) {
+            // TCK-762 (P10.05) — réencodé : l'avatar est public, et l'EXIF d'un selfie porte sa
+            // position GPS.
+            $avatar = $request->file('avatar');
             $user
-                ->addMediaFromRequest('avatar')
+                ->addMedia(AvatarReencode::sansMetadonnees($avatar))
+                ->usingName(pathinfo($avatar->getClientOriginalName(), PATHINFO_FILENAME))
+                ->usingFileName(AvatarReencode::nomDeFichier($avatar))
                 ->toMediaCollection('avatar');
         }
 

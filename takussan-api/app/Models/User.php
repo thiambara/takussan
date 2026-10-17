@@ -457,6 +457,21 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         $this->addMediaCollection('documents');
     }
 
+    /**
+     * TCK-762 (P10.05) — l'URL publique de l'avatar : la miniature carrée (`thumbnail`, 150 px,
+     * produite à l'upload), jamais l'original déposé. Une miniature jamais produite rend `null`
+     * plutôt qu'une URL en 404 ou que l'original — `getUrl($conversion)` ne vérifie rien.
+     * Lit la relation `media` si elle est chargée, comme `getFirstMediaUrl()`.
+     */
+    public function avatarUrl(): ?string
+    {
+        $media = $this->getFirstMedia('avatar');
+
+        return $media !== null && $media->hasGeneratedConversion('thumbnail')
+            ? $media->getUrl('thumbnail')
+            : null;
+    }
+
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'added_by_id');

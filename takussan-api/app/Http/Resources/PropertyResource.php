@@ -408,7 +408,7 @@ class PropertyResource extends BaseResource
             'name' => trim($user->first_name.' '.$user->last_name) ?: $user->username,
             // TCK-177 — used to link the contact card to /agents/[slug].
             'slug' => $user->username,
-            'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
+            'avatar_url' => $user->avatarUrl(),
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),
             // TCK-598 (V8, contrainte 9) — un BOOLÉEN dérivé, jamais la date ni le numéro. Il ne

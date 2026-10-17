@@ -31,7 +31,7 @@ class ReviewResource extends BaseResource
             'author' => [
                 'id' => $author?->id,
                 'name' => $authorName,
-                'avatar_url' => $author?->getFirstMediaUrl('avatar') ?: null,
+                'avatar_url' => $author?->avatarUrl(),
             ],
             'rating' => $this->rating,
             'title' => $this->title,
