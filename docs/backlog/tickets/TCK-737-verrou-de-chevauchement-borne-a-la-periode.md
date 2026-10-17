@@ -31,7 +31,7 @@ sautée 24 h.
 
 ## Décision du porteur
 
-withoutOverlapping(N) proche de la période, sans toucher deploy/
+withoutOverlapping(N) proche de la période, sans toucher deploy/ ; reste : le stop_grace_period dans deploy/, par le porteur, avec P05.06
 
 ## Reste à faire
 
