@@ -32,6 +32,17 @@ final class ImageEnTete
         return self::fichier($contenu, $nom, 'image/jpeg');
     }
 
+    /**
+     * TCK-751 (P10.06) — un HEIC réduit à sa boîte `ftyp` : finfo le reconnaît (`image/heic`), la
+     * règle `image` de Laravel 13 l'accepte, et GD ne sait pas le décoder.
+     */
+    public static function heic(string $nom = 'image.heic'): UploadedFile
+    {
+        $contenu = pack('N', 24).'ftypheic'.pack('N', 0).'mif1heic'.str_repeat("\x00", 64);
+
+        return self::fichier($contenu, $nom, 'image/heic');
+    }
+
     private static function fichier(string $contenu, string $nom, string $mime): UploadedFile
     {
         $chemin = tempnam(sys_get_temp_dir(), 'tck677');
