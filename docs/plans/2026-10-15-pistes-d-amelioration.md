@@ -2345,7 +2345,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Documents : un `defaultSort` en dur, et une liste bornée à ce qu'on a soi-même déposé
 - Réf : P16.03
-- Statut : validé — defaultSortsWithRelevance('-created_at') seulement ; reste : le périmètre de lecture des documents, par agence ou par documentable
+- Statut : fait · TCK-785 — reste : le périmètre de lecture des documents, par agence ou par documentable
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:41-47`
 - Constat :
@@ -2354,6 +2354,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : `Document::defaultSortsWithRelevance('-created_at')` ; le périmètre par agence ou par `documentable` dans un ticket à part.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentController.php:35-50` (`where('uploaded_by', $user->id)` hors super-admin, puis `->defaultSort('-created_at')` en dur), `Document.php:42` (`$requestSearchFields` → `filter[search]` passe par Scout, `HasQueryBuilder.php:232-243`) et `lib/queries/documents.ts:69` (le front envoie `filter.search`) ; `defaultSortsWithRelevance` est appelé par 4 contrôleurs (agences, maintenance, clients, utilisateurs), pas par celui-ci. Les deux parties tiennent. TCK-281 AC1 ne cite pas les documents : la pertinence seule n'est donc pas un comportement déjà écrit. Classement : V2, élargir le périmètre à l'agence ou au `documentable` change une autorisation de lecture ; la partie tri, isolée, resterait un choix (V7) faute de spec.
+- Mesure (2026-10-17, 0f8959c99, implementeur) : `DocumentListRelevanceTest` avant correctif → `GET /api/documents?filter[search]=Ndiayefall` rend les trois documents par date (2 fautes, 1 faute, exact), 1 rouge sur 3 → `defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))` après `buildQuery()` ; un `sort=` explicite l'emporte, sans recherche le plus récent d'abord. Ablation : contrôleur remis → 1 rouge ; remis → 3 verts. Le périmètre `uploaded_by` n'est pas touché (reste).
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
