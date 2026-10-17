@@ -2537,7 +2537,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
 - Réf : P18.04
-- Statut : validé — aucune impression quand l'agent est reconnu comme robot, par une liste courte sans dépendance
+- Statut : fait · TCK-792
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-44`, `takussan-web/src/lib/queries/public-search.ts:48-60`, `takussan-web/src/lib/queries/public-discovery.ts:54-71`
 - Constat :
@@ -2546,6 +2546,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Les clics, eux, exigent un clic réel suivi d'un `POST` depuis le navigateur (lu, `CompteurDeVue.tsx:29-41`). Un robot gonfle donc les impressions sans clic, et le taux de clic baisse d'autant. Le volume réel est à vérifier dans les journaux de préproduction.
 - Piste : ne pas compter quand l'agent est reconnu comme robot (liste courte, sans dépendance), ou compter l'impression depuis le navigateur après affichage, comme la vue de fiche (TCK-598). Un test : une recherche sous `Googlebot` ne compte rien.
 - Mesure (2026-10-15, d62e3290, mesureur) : `grep -rniE "isbot|crawler|googlebot|bingbot|userAgent\(\)"` sur `takussan-api/app` et `takussan-web/src` → seulement `LeaseSignatureService.php:164` et `ContactLeadService.php:213,311` (journalisation), aucun filtre ; `BoostStatsRecorder::impressions()` est appelé par `HomepageDiscoveryService.php:113` et `PropertySearchService.php:659` sans regarder l'agent (lu) ; `public-search.ts:48-60` appelle sans `partage` (lu) ; test temporaire, retiré depuis : un troisième `GET /api/public/properties/discovery` sous l'agent `Googlebot/2.1` fait passer le compteur de 2 à 3. Le volume réel des robots n'est pas mesuré. Classement : V7, la piste propose deux définitions de l'impression (liste courte d'agents, ou comptage par le navigateur comme TCK-598), et choisir l'une est un choix de mesure produit, la seconde changeant aussi l'architecture du comptage.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `RobotImpressionsTest` : `GET /api/public/properties/search` sous Googlebot puis `/discovery` sous bingbot comptaient chacun 1 impression ; et `api.agent-du-visiteur.test.ts` : la recherche et l'accueil rendus côté serveur ne transmettaient aucun `User-Agent` → `CountBoostImpressions` écarte les impressions d'un agent que `RobotUserAgent` reconnaît (Googlebot, bingbot… mais pas un téléphone Cubot), et `apiFetch` transmet l'agent du visiteur sur un appel non partagé ; 2 + 25 + 4 verts, témoins navigateur comptés ; ablation du middleware (2 rouges), de l'exception Cubot (1 rouge) et de l'en-tête front (2 rouges), puis vert.
 
 ### Un vidage qui échoue perd les compteurs de l'heure
 - Réf : P18.05
