@@ -9,7 +9,7 @@ wave: null
 created: 2026-10-17
 updated: 2026-10-17
 depends_on: []
-blocks: []
+blocks: [TCK-818]
 spec_refs:
   features:
     - "docs/features.md#11-gestion-des-biens"
