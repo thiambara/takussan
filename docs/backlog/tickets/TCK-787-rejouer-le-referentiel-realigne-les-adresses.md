@@ -1,7 +1,7 @@
 ---
 id: TCK-787
 title: "Rejouer le référentiel géographique réaligne le texte des adresses et rattache les quartiers apparus"
-status: doing
+status: done
 phase: P2
 family: applicatif
 estimate: M
@@ -38,22 +38,22 @@ quand le chargeur renomme, réécrire le texte des adresses et réindexer ; le r
 
 ## Delta à produire
 
-- [ ] Chargeur : un quartier dont le nom change (jeu, ou proposition que le jeu approuve sous sa
+- [x] Chargeur : un quartier dont le nom change (jeu, ou proposition que le jeu approuve sous sa
       graphie) réécrit `neighborhood` sur ses adresses ; une ville dont le nom change réécrit
       `city` sur les siennes ; les biens concernés sont rendus à `GeoReferentialSync`.
-- [ ] Rattacheur : les adresses `geo_city_id` non nul, `geo_neighborhood_id` nul et texte de
+- [x] Rattacheur : les adresses `geo_city_id` non nul, `geo_neighborhood_id` nul et texte de
       quartier non vide sont rapportées au référentiel de leur ville, **sans rien proposer**.
-- [ ] `GeoReferentialSync` réindexe les biens des deux listes, après les transactions.
+- [x] `GeoReferentialSync` réindexe les biens des deux listes, après les transactions.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le jeu renomme un quartier : l'adresse rattachée garde son quartier, prend le
+- [x] AC1 — Le jeu renomme un quartier : l'adresse rattachée garde son quartier, prend le
       nouveau nom, et le bien se trouve sous le nouveau nom et plus sous l'ancien.
-- [ ] AC2 — Le jeu renomme une ville : l'adresse rattachée garde sa ville et son quartier, prend
+- [x] AC2 — Le jeu renomme une ville : l'adresse rattachée garde sa ville et son quartier, prend
       le nouveau nom de ville, et le bien se trouve sous le nouveau nom.
-- [ ] AC3 — Une version du jeu ajoute un quartier que nomme déjà une adresse rattachée à sa
+- [x] AC3 — Une version du jeu ajoute un quartier que nomme déjà une adresse rattachée à sa
       ville : l'adresse s'y rattache, et le bien se trouve sous son identifiant.
-- [ ] AC4 — Chaque cas, rejoué une seconde fois, ne change plus rien ; un texte de quartier
+- [x] AC4 — Chaque cas, rejoué une seconde fois, ne change plus rien ; un texte de quartier
       inconnu ne crée aucune proposition.
 
 ## Hors périmètre
@@ -71,3 +71,11 @@ quand le chargeur renomme, réécrire le texte des adresses et réindexer ; le r
   réaligné par la modération, et le chargeur ne touche pas son nom.
 
 ## Notes d'implémentation
+
+- Ablation : les deux appels de réécriture du chargeur retirés → les 2 tests de renommage de
+  `GeoReferentialRealignementTest` rouges ; le rattacheur remis à `pre-dev` → le test du
+  quartier ajouté rouge ; `GeoReferentialSync` remis (sans réindexation des renommés) → les
+  2 tests de renommage rouges sur la recherche ; remis → 4 verts, et `tests/Feature/Geo/` vert
+  (70 tests).
+- Piège : la ville ne se réécrit pas par `save()`. La règle 1 du canoniseur re-rapproche une
+  ville en texte modifiée par son nom et remet le quartier à `null` quand il n'est pas fourni.
