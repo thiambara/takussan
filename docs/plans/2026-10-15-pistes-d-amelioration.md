@@ -4291,7 +4291,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
-- Statut : validé — `contactMessage()` passe par le chemin de `sendMessage()` : désarchivage du fil pour les autres participants, puis `NotifyNewMessageJob`, qui respecte la sourdine ; un test par effet
+- Statut : fait · TCK-814
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
 - Constat :
@@ -4300,6 +4300,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le docblock de `toggleMute()` dit que les notifications respectent ce drapeau (`ConversationController.php:191-195`).
 - Piste : faire passer `contactMessage()` par le même chemin d'envoi que `sendMessage()` (désarchivage, puis `NotifyNewMessageJob`). Choisir avant si un contact par annonce doit percer la sourdine.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `contactMessage()` : ni désarchivage, ni passage par `NotifyNewMessageJob`, `NotificationService::send()` direct ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : le destinataire passe le fil en sourdine et l'archive, deuxième contact par la fiche → notifications 1 → 2, `archived_at` toujours non nul. Classement : V7, la piste elle-même demande de choisir si un contact d'annonce perce la sourdine avant d'aligner les deux chemins.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (`QUEUE_CONNECTION=sync`) : le destinataire archive le fil puis reçoit un second contact → `archived_at` toujours non nul ; il le met en sourdine → notifications 1 → 2 ; correctif : `contactMessage()` reprend les écritures de `sendMessage()` en transaction (désarchivage des autres participants) puis dispatche `NotifyNewMessageJob` → verts ; ablation : sans le désarchivage, le premier rougit seul, avec l'envoi direct par `NotificationService` à la place du job, le second rougit seul.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
