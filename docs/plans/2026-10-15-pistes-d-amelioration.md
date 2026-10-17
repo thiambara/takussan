@@ -112,7 +112,7 @@ voie d'écriture (angle 13, puis 47).
 | 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | fait |
 | 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | fait |
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | fait |
-| 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | à faire |
+| 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | fait (couvert par l'angle 12) |
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
