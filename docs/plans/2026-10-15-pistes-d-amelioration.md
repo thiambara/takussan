@@ -2362,7 +2362,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
-- Statut : validé — maxTotalHits = 5000 sur tous les index, comme P01.06 ; reste : agency_id filtrable et passé à Scout, pour que le filtre d'agence précède le plafond
+- Statut : caduc — maxTotalHits vaut déjà 5000 sur les 7 index (TCK-709, P01.06), gardé par SearchIdCapIndexSettingsTest ; le reste du porteur (agency_id filtrable et passé à Scout) n'est pas fait
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
 - Constat :
@@ -2372,10 +2372,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le volume de production est à vérifier.
 - Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `HasQueryBuilder.php:18-27` (`SEARCH_ID_CAP = 5000`, commentaire) et `:232` (`search()->take(5000)->keys()`), `config/scout.php:273-288` (clients, maintenance, agences, utilisateurs sans `filterableAttributes` ni `pagination`) ; tinker en lecture sur Meilisearch local → `maxTotalHits` vaut 1000 sur les 17 index (`takussan_local*` et `testing_*`), filtrables vides pour `customers`, `maintenance_requests`, `users`, `agencies`. Aucun index local ne dépasse 1 000 documents (802 biens, 52 utilisateurs, 2 clients indexés) : la troncature à 1 000 est déduite du plafond de Meilisearch, pas observée ; le volume de production reste à vérifier. Classement : V2, la piste fait porter le filtre d'agence par l'index au lieu du SQL, et en propose une seconde (relever `maxTotalHits`) entre lesquelles il faut choisir.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `config/scout.php:11-15` (`$pagination = ['maxTotalHits' => 5000]`, posé par a7e1d4f59, TCK-709) et `:228-303` (le réglage sur `Property`, `Message`, `Document`, `Customer`, `MaintenanceRequest`, `Agency`, `User`) ; `php artisan test tests/Feature/Search/SearchIdCapIndexSettingsTest.php` → 2 verts, dont celui qui confronte chaque index de `SearchableModels::all()` à 5000 ; le commentaire de `HasQueryBuilder::SEARCH_ID_CAP` dit déjà 5000. La décision du porteur est faite ; seul reste son « reste » (`agency_id` filtrable et passé à Scout), qui n'est pas confié.
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
 - Réf : P16.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-786
 - Gravité : 🟠 risque ou dette (routes sans appelant)
 - Où : `takussan-api/app/Services/Search/DocumentSearchService.php:37-48`, `takussan-api/app/Services/Search/MessageSearchService.php:36-49`
 - Constat :
@@ -2385,10 +2386,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : clauses Scout natives en timestamps, ou suppression des deux routes.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `DocumentSearchService.php:33-46` et `MessageSearchService.php:35-48` (`date_from`/`date_to` dans `$search->query(...)`), `Document.php:60` et `Message.php:34` (`created_at` indexé en timestamp), Scout v11.3.0 `Builder::paginate`/`getTotalCount` (le total est recompté en SQL, les lignes viennent de la page Meilisearch) ; test temporaire retiré (Meilisearch réel, 4 documents « daterange », un seul dans la plage, créé en dernier, `per_page=1`) → pages 1 à 3 vides, `total` 1 et `last_page` 1, le document n'apparaît qu'en page 4 ; aucun appelant front (`grep` sur `takussan-web/src`), mais les routes sont gardées par `DocumentSearchTest`, `MessageSearchTest` et `MaintenanceThreadAccessTest`. Classement : A1, TCK-094 spécifie `filter[date_from]`/`filter[date_to]` et `DocumentSearchTest::test_date_range_filter` en est le contrat ; le correctif garde les routes et passe la plage en clauses Scout natives sur le timestamp.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `SearchDateRangeTest` sur Meilisearch réel avant correctif : une correspondance dans la plage et trois plus récentes hors plage, `sort=-created_at&per_page=1` → page 1 vide, sur `/search/documents` comme sur `/search/messages` (2 rouges) → `date_from`/`date_to` passés en clauses Scout natives sur le timestamp (début et fin du jour, bornes inclusives comme `whereDate`) ; 3 verts, et `DocumentSearchTest`, `MessageSearchTest`, `MaintenanceThreadAccessTest` verts (29 tests). Ablation : les deux services remis → 2 rouges, le seul `MessageSearchService` remis → 1 rouge ; remis → verts. Routes gardées.
 
 ### Petites améliorations
 - Réf : P16.06
-- Statut : retenu · autonome
+- Statut : caduc — le seeder vide et réindexe tous les modèles Searchable depuis TCK-701 (P16.01)
 - Gravité : 🟢 amélioration
 - Constat :
   - **Index fantômes** : 8 documents d'agence indexés pour 5 en base (mesuré). `migrate:fresh` ne vide pas l'index des modèles absents de `SEARCHABLE_MODELS`, et ces fantômes occupent des places sous le plafond de 1 000.
@@ -2397,6 +2399,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - aucun index ne dénormalise une relation (lu).
 - Piste : couverte par le premier constat (`removeAllFromSearch` sur tous les modèles indexés).
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `YearOfActivitySeeder.php:123-127` (`SEARCHABLE_MODELS` = `Property`, `Document`, `Message`) et `:258-272` (`removeAllFromSearch` sur cette seule liste) ; `grep -rln 'Searchable;' app/Models` → s'y ajoutent `Agency`, `User`, `Customer`, `MaintenanceRequest`, dont l'index n'est jamais vidé ; décompte « 8 pour 5 » non re-mesuré (il demande la clé Meilisearch), repris de la mesure de P16.01 du 2026-10-15 → tient, et c'est le même défaut que P16.01, toujours `retenu · autonome` et non traité. Classement : A1, le docblock de `reindexSearchableModels` (« every searchable model ») écrit déjà le comportement attendu, et le correctif de P16.01 vide aussi ces index.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `YearOfActivitySeeder.php:241-254` : `reindexSearchableModels()` parcourt `App\Support\Search\SearchableModels::all()` (liste dérivée du code, a8d008b31, TCK-701) et appelle `removeAllFromSearch()` puis `makeAllSearchable()` pour chacun, `Agency`, `User`, `Customer` et `MaintenanceRequest` compris ; `php artisan test tests/Feature/Database/Seeders/SeedingReindexTest.php` → vert. Le défaut ne tient plus sur l'arbre ; le décompte « 8 pour 5 » de l'index local n'a pas été re-mesuré (il demande la clé Meilisearch).
 
 ## Angle 17 — Qualité des adresses : référentiel ou texte libre
 
@@ -2434,7 +2437,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Rejouer le référentiel ne réaligne pas les adresses existantes
 - Réf : P17.03
-- Statut : validé — quand le chargeur renomme, réécrire le texte des adresses et réindexer ; le rattacheur traite aussi les adresses qui ont une ville et pas de quartier
+- Statut : fait · TCK-787
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-85,93-137`, `takussan-api/app/Services/Geo/GeoAddressAttacher.php:20-42`
 - Constat :
@@ -2443,6 +2446,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Aujourd'hui : 0 adresse de dev dont le texte égale un quartier de sa ville sans y être rattachée (mesuré, `SELECT` avec `LOWER(… COLLATE "und-x-icu")`). Le défaut ne se voit qu'à la prochaine mise à jour du jeu : à vérifier.
 - Piste : dans le chargeur, réécrire le texte des adresses et réindexer les biens quand un nom change. Dans le rattacheur, traiter aussi `geo_city_id IS NOT NULL AND geo_neighborhood_id IS NULL AND neighborhood <> ''`. Garder chaque cas par un test de `GeoReferentialSync` rejoué deux fois.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoReferentialLoader.php:73-86` (ville renommée par `fill`/`save`) et `:93-137` (quartier renommé si `renamed_at` est nul, sans toucher `addresses` ni réindexer), `GeoAddressAttacher.php:20-42` (`whereNull('geo_city_id')` seulement), `GeoNeighborhoodModeration.php:47,71,100` (`reecrireAdresses`), ADR-0062 l. 76 (« Renommer ou fusionner un quartier réécrit le texte des adresses… et réindexe »). Les deux parties tiennent par lecture ; l'effet attend une mise à jour du jeu, non re-mesuré. Classement : V4, le correctif réécrit des données existantes (texte des adresses) à chaque chargement, même si ADR-0062 § 4 en décrit l'intention.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `GeoReferentialRealignementTest` (Meilisearch réel, jeu v1 modifié en répertoire temporaire, chaque chargement joué deux fois) avant correctif : quartier « Point E » renommé par le jeu → l'adresse garde « Point E » ; ville « Guédiawaye » renommée → l'adresse garde l'ancien nom ; « liberté 5 » d'une adresse déjà rattachée à Dakar → non rattachée après v2 (3 rouges) → le chargeur réécrit `neighborhood` par `save()` et `city` par une mise à jour SQL (un `save()` ferait tomber le quartier, règle 1 du canoniseur), le rattacheur rapporte aussi les adresses avec ville et sans quartier, sans proposer, et `GeoReferentialSync` réindexe les deux listes ; 4 verts, `tests/Feature/Geo/` vert (70). Ablation : réécritures retirées → 2 rouges, rattacheur remis → 1 rouge, réindexation des renommés retirée → 2 rouges ; remis → verts.
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04

@@ -2,11 +2,13 @@
 
 namespace App\Services\Geo;
 
+use App\Models\Address;
 use App\Models\Enums\GeoNeighborhoodOrigin;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\GeoRegion;
+use App\Models\Property;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -23,9 +25,23 @@ use RuntimeException;
  *   · est APPROUVÉ s'il était une proposition (le jeu la confirme) ;
  *   · est IGNORÉ s'il est refusé ou fusionné — la décision humaine tient.
  * Rien n'est jamais supprimé : une ligne absente d'une extraction peut porter des adresses.
+ *
+ * TCK-787 (P17.03, ADR-0062 §4) — un NOM que le jeu change réécrit le texte des adresses qui
+ * pointent vers la ligne, comme la modération : sans cela, la fiche et l'index gardaient l'ancien
+ * nom. Les biens touchés se lisent par {@see self::biensRenommes()} ; `GeoReferentialSync` les
+ * réindexe après les transactions.
  */
 final class GeoReferentialLoader
 {
+    /** @var list<int> */
+    private array $biensRenommes = [];
+
+    /** @return list<int> les biens dont le dernier `charger()` a réécrit l'adresse */
+    public function biensRenommes(): array
+    {
+        return $this->biensRenommes;
+    }
+
     /** @return array{regions: int, villes: int, quartiers_crees: int, quartiers_mis_a_jour: int, quartiers_ignores: int} */
     public function charger(string $repertoire): array
     {
@@ -35,6 +51,7 @@ final class GeoReferentialLoader
             throw new RuntimeException("Aucun fichier de référentiel dans {$repertoire}.");
         }
 
+        $this->biensRenommes = [];
         $bilan = ['regions' => 0, 'villes' => 0, 'quartiers_crees' => 0, 'quartiers_mis_a_jour' => 0, 'quartiers_ignores' => 0];
         foreach ($fichiers as $fichier) {
             /** @var array{region: array<string, mixed>, cities: list<array<string, mixed>>} $donnees */
@@ -79,8 +96,12 @@ final class GeoReferentialLoader
             ?? new GeoCity(['geo_region_id' => $region->getKey(), 'slug' => $v['slug']]);
 
         $ville->fill(['name' => $v['name'], 'latitude' => $v['latitude'] ?? null, 'longitude' => $v['longitude'] ?? null]);
+        $renommee = $ville->exists && $ville->isDirty('name');
         if (! $ville->exists || $ville->isDirty()) {
             $ville->save();
+        }
+        if ($renommee) {
+            $this->reecrireVille($ville);
         }
 
         return $ville;
@@ -130,9 +151,44 @@ final class GeoReferentialLoader
             $champs['name'] = $q['name'];
         }
         $existant->fill($champs);
+        $renomme = $existant->isDirty('name');
         if ($existant->isDirty()) {
             $existant->save();
             $bilan['quartiers_mis_a_jour']++;
         }
+        if ($renomme) {
+            $this->reecrireQuartier($existant);
+        }
+    }
+
+    /**
+     * Par `save()` : le crochet d'`Address` garde le rattachement (le nom concorde) et aligne le
+     * texte, comme `GeoNeighborhoodModeration::reecrireAdresses`.
+     */
+    private function reecrireQuartier(GeoNeighborhood $quartier): void
+    {
+        Address::query()->where('geo_neighborhood_id', $quartier->getKey())->chunkById(200, function ($adresses) use ($quartier) {
+            foreach ($adresses as $adresse) {
+                $adresse->neighborhood = $quartier->name;
+                $adresse->save();
+                if ($adresse->addressable_type === Property::class) {
+                    $this->biensRenommes[] = (int) $adresse->addressable_id;
+                }
+            }
+        });
+    }
+
+    /**
+     * Par une mise à jour SQL, et non par `save()` : le crochet d'`Address` prendrait une ville en
+     * texte modifiée pour une saisie (règle 1 de `GeoAddressCanonicalizer`), la re-rapprocherait
+     * par son nom et ferait tomber le quartier. La valeur écrite est celle de sa règle 5.
+     */
+    private function reecrireVille(GeoCity $ville): void
+    {
+        $adresses = Address::query()->where('geo_city_id', $ville->getKey())->where('city', '<>', $ville->name);
+        foreach ((clone $adresses)->where('addressable_type', Property::class)->pluck('addressable_id') as $id) {
+            $this->biensRenommes[] = (int) $id;
+        }
+        $adresses->update(['city' => $ville->name, 'updated_at' => now()]);
     }
 }

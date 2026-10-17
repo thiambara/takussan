@@ -5,6 +5,7 @@ namespace App\Services\Search;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 
 class DocumentSearchService
 {
@@ -30,19 +31,16 @@ class DocumentSearchService
             $search->orderBy('created_at', 'desc');
         }
 
-        // Date range stays an Eloquent refinement: created_at is a datetime
-        // column in the DB but an int timestamp in the index, so a native
-        // Scout clause would only be correct against one of the two engines.
-        if (! empty($params['filter']['date_from']) || ! empty($params['filter']['date_to'])) {
-            $search->query(function ($builder) use ($params) {
-                if (! empty($params['filter']['date_from'])) {
-                    $builder->whereDate('created_at', '>=', $params['filter']['date_from']);
-                }
+        // TCK-786 (P16.05) — la plage de dates filtre DANS le moteur, comme le périmètre :
+        // passée en SQL par `query()`, elle s'appliquait à une page déjà découpée par
+        // Meilisearch (pages vides, correspondances inatteignables). `created_at` est indexé
+        // en timestamp et filtrable ; les bornes restent inclusives au jour, comme `whereDate`.
+        if (! empty($params['filter']['date_from'])) {
+            $search->where('created_at', '>=', Carbon::parse($params['filter']['date_from'])->startOfDay()->timestamp);
+        }
 
-                if (! empty($params['filter']['date_to'])) {
-                    $builder->whereDate('created_at', '<=', $params['filter']['date_to']);
-                }
-            });
+        if (! empty($params['filter']['date_to'])) {
+            $search->where('created_at', '<=', Carbon::parse($params['filter']['date_to'])->endOfDay()->timestamp);
         }
 
         $paginator = $search->paginate((int) ($params['per_page'] ?? 20));
