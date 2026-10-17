@@ -3787,7 +3787,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Petites améliorations
 - Réf : P33.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-745 — reste : refaire la mesure du CSS initial des pages publiques après P33.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:1-10`, `takussan-web/src/components/home/Footer.tsx:101-102`, `takussan-web/src/app/globals.css`
 - Constat :
@@ -3796,3 +3796,4 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - `@base-ui/react` pèse environ 120 Kio par module compressé dans le graphe d'une page légale (mesuré par `experimental-analyze`), surtout `floating-ui`, `combobox`, `menu` et `toast` : la barre publique (autocomplétion, menus, favoris) les charge partout. Rien à corriger en soi ; à garder en vue si la barre grossit.
 - Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `Footer.tsx:1` (`'use client'`), `:101-103` (deux `useTranslations` et `new Date().getFullYear()`, ni état, ni effet, ni gestionnaire), ses enfants `ChoixDeLangue` et `LienLocalise` sont eux-mêmes `'use client'` et `Logo` est neutre ; `grep -rln "home/Footer'" src` → 17 importeurs, dont quatre client (`HomepageDiscovery`, `PropertiesDiscoveryPage`, `PublicFavoritesPage`, `CompareClient`) qui le garderont dans leur JS ; `footer` est dans `src/i18n/namespaces.json:152` ; la mesure CSS n'a pas été refaite, et le point `@base-ui/react` ne demande rien → seule la partie `Footer` tient comme correctif. Classement : A2, retirer `'use client'` de `Footer` (le `useTranslations` de next-intl vaut côté serveur et côté client) et régénérer `namespaces.json` par `check-i18n-namespaces.mjs` ne change aucun rendu ; le gain se limite aux pages serveur qui l'importent.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `Footer.serveur.test.ts`, qui trace le graphe client des 13 importeurs serveur de `Footer` (fiches bien, agence, agent et leurs `not-found`, réservation, paiement, partage, deux pages d'alertes, `PageLegale`, `IndexDeProfils`) : 13 rouges, `Footer.tsx` dans chacun → `'use client'` retiré, sans autre changement ; ablation : directive remise → les 13 rouges ; 16/16 verts, 155 tests de `components/home` verts ; `check-i18n-namespaces` conforme sans régénérer `namespaces.json` (le dérivateur ne distingue pas client et serveur, et `HomepageDiscovery`, client, lit encore `footer`).
