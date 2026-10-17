@@ -36,11 +36,11 @@ La route, son action et son FormRequest disparaissent ; `POST /api/media` reste.
 ## Delta à produire
 
 - [x] Route `media.upload`, `MediaController::upload()` et `GenericMediaUploadRequest` retirés.
-- [x] `MediaGenericUploadTest` retiré : ses cas de validation existent dans `MediaUploadTest`.
+- [x] `MediaGenericUploadTest` réécrit pour garder le retrait : ses cas de validation existent
+      dans `MediaUploadTest` (un test ne se supprime pas, ADR-0066).
 - [x] Les deux cas de `MediaDiskPrivatePhotosTest` qui éprouvaient `MediaResource` par cette
       route passent par `POST /api/media`.
 - [x] `GenericMediaUploadRequest.php` sort de la liste figée de `FormRequestEtendBaseFormRequestTest`.
-- [x] Un cas dans `MediaUploadTest` : la route n'existe plus et rien n'est créé.
 
 ## Critères d'acceptation
 
@@ -54,6 +54,6 @@ La route, son action et son FormRequest disparaissent ; `POST /api/media` reste.
 
 ## Notes d'implémentation
 
-- Ablation : route, action et FormRequest d'avant remis → le cas rougit (201 au lieu d'aucun
-  média) ; retirés → 13/13 verts.
+- Ablation : route, action et FormRequest d'avant remis → `MediaGenericUploadTest` rougit (la
+  route existe, un envoi crée un média) ; retirés → vert, et `MediaUploadTest` 12/12.
 - 405 et non 404 : `DELETE media/{media}` couvre le chemin `media/upload`.
