@@ -2889,7 +2889,7 @@ n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : validé — pagination et ressources du carnet des prestataires, sans `metadata`
+- Statut : retenu · à valider — V7 : retirer `metadata` du carnet, comme le dit la précision, efface du carnet et du choix d'assignation le nom, l'e-mail, les métiers et les disponibilités d'un prestataire en brouillon, que le front lit dans `metadata` ; c'est un comportement visible, autre que le V3 accordé (ce qui est exposé), et le garder demande de choisir les sous-clés à projeter
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -2899,6 +2899,7 @@ n'est pas repris ici.*
   - Établi comment : mesuré par test temporaire, et lu.
 - Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `TenantOnboardingPendingController.php:68-70` (`$this->json($page)` sur le paginateur brut), `ServiceProviderProfileController.php:46-49` (`'data' => $paginator->items()`, sans ressource), `ServiceProviderProfile.php:29-31,58-63` (`metadata` et `insurance_policy_id` dans `$fillable` et `$queryFields` ; `metadata` porte l'email du brouillon, l. 140-150) et `LeaseResource.php:78-80` ; `tinker` en lecture, `LeaseResource::make(Lease::first())->toArray(request())` → `renewals`, `renewals_count` et `renewed_from` présents, valant chacun un `MissingValue` (rendu `{}` par `json_encode`, le constat écrit `[]`). Les trois parties tiennent. Classement : V3, la ressource du carnet décide de ce qui est exposé d'un profil de prestataire, `metadata` compris ; l'enveloppe (`$this->paginated()`, A1 par TCK-304) et les clés de `LeaseResource` (A1) seraient autonomes seules.
+- Mesure (2026-10-17, 6cc7d7fa2, implementeur) : relu `ServiceProviderProfileController.php:47-52` (lignes `service_provider_profiles` brutes, `meta` déjà par `paginationMeta`) et `TenantOnboardingPendingController.php:70` (`$this->json($page)` sur le paginateur, constat tenu) ; côté front, `SERVICE_PROVIDER_PROFILE_FIELDS` demande `metadata` (`service-providers.ts:29`), lu par `ServiceProvidersList.tsx:132,151,244,274` (métiers, zones, nom et e-mail du brouillon, relance de l'invitation par e-mail) et `MaintenanceAssignmentBlock.tsx:163-171` (nom, e-mail, `metadata.availability` du contrôle « travaille ce jour-là ») ; `metadata` porte l'e-mail et le nom du brouillon (`ServiceProviderProfile.php:139-150`). Classement : V7, voir le statut ; l'enveloppe de `tenant-onboarding-pending` (A1, TCK-304) et les clés absentes de `LeaseResource` (A1) restent autonomes seules.
 
 ## Angle 22 — FormRequests sans autorisation propre, et règles d'autorisation dans les services
 
