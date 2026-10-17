@@ -1,6 +1,6 @@
 # ADR-0066 — Trois agents planifiés traitent le fichier de pistes : l'explorateur relève, le mesureur re-mesure et classe, l'implémenteur corrige ce qui est classé autonome ; tout passe par une PR vers `pre-dev`, vérifiée avant le push par un script et non par l'agent
 
-- **Statut** : Accepté (2026-10-15), amendé deux fois le 2026-10-17 (l'implémenteur livre par lot, puis par famille)
+- **Statut** : Accepté (2026-10-15), amendé trois fois le 2026-10-17 (l'implémenteur livre par lot, puis par famille ; `impacted-tests` filtré et parallèle)
 - **Date** : 2026-10-15
 - **Tickets** : aucun (outillage du porteur)
 
@@ -346,6 +346,37 @@ La garde du premier amendement refusait 4 des 5 cas permis.
 
 **Ce qu'elle ne vérifie pas** : qu'un lot d'un seul côté soit une famille. Le remplissage par le
 côté reste permis, et la priorité donnée à la famille est une consigne de l'agent.
+
+### Troisième amendement du 2026-10-17 — `impacted-tests` dans un lot
+
+**Mesuré** sur le lot #539 (3 pistes, 11 fichiers) : `impacted-tests` a pris 1 303 s des 1 925 s
+du passage, pour 164 classes. **83 d'entre elles** n'avaient aucun lien avec le diff : ce sont les
+tests écrits depuis la carte d'impact, que le script ajoutait tous d'office. La carte se régénère
+la nuit sur `dev` et n'arrive sur `pre-dev` qu'après une promotion ; elle avait alors 531 commits
+de retard, et chaque PR d'agent allonge la liste.
+
+**Décision du porteur** :
+- **les tests écrits depuis la carte ne sont rejoués que s'ils citent une classe de `app/` que le
+  diff touche** (`ImpactSelector`), quand le diff n'est fait que de classes de `app/` et de tests ;
+  sinon, tous, comme avant ;
+- **`impacted-tests --parallel`** répartit la sélection sur 4 processus (paratest, par une copie de
+  `phpunit.xml` écrite hors de l'arbre). L'implémenteur le lance une fois par lot.
+
+**Mesuré au repos** (8 cœurs, charge entre 1,6 et 3,8), sur la plage exacte de #539 :
+
+| Sélection | Classes | Tests | Durée |
+|---|---|---|---|
+| avant (tous les tests postérieurs à la carte), en série | 164 | 1 392 | 381 s |
+| filtrée, en série | 92 | 835 | 277 s |
+| filtrée, 4 processus | 92 | 835 | **80 s** |
+
+Les trois exécutions sortent en 0. L'agent avait mesuré 1 303 s pour la première ligne, sous la
+charge des autres agents. Ablation des tests du sélecteur : le filtre retiré rougit 2 tests, la
+règle « hors de `app/`, on garde tout » retirée en rougit 1.
+
+**Ce que ça ne garantit pas** : un test neuf qui couvre une classe touchée sans la nommer (un test
+HTTP qui passe par la route d'un contrôleur modifié) n'est plus rejoué avant la PR. La CI joue la
+suite entière ; `impacted-tests` reste une boucle de retour, pas une garde.
 
 ## Conséquences
 

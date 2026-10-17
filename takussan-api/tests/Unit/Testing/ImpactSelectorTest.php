@@ -198,6 +198,64 @@ class ImpactSelectorTest extends TestCase
         );
     }
 
+    // ── Amendement d'ADR-0066 du 2026-10-17 : les tests postérieurs à la carte ──
+    //
+    // Quand le lanceur sait lire la source d'un test, un test postérieur à la carte
+    // n'est gardé que s'il cite une classe de `app/` que le diff touche. Le filtre ne
+    // vaut que pour un diff fait de classes de `app/` et de tests : ailleurs, on ne
+    // sait pas nommer ce qu'un test devrait citer, et on les garde tous.
+
+    /** @param  array<string,string>  $sources  classe de test → sa source */
+    private function selectorWithSources(array $sources): ImpactSelector
+    {
+        return new ImpactSelector($this->map(), fn (string $domaine): array => [], fn (string $classe): string => $sources[$classe] ?? '');
+    }
+
+    private const SOURCES = [
+        'Tests\Feature\Neuf\CiteTest' => "<?php\nuse App\\Support\\Price;\nPrice::of(10);",
+        'Tests\Feature\Neuf\SansRapportTest' => "<?php\n// Priceless : un nom plus long ne cite pas la classe.\n",
+    ];
+
+    public function test_a_test_written_since_the_map_is_kept_when_it_names_a_changed_class(): void
+    {
+        $s = $this->selectorWithSources(self::SOURCES)->select(
+            ['takussan-api/app/Support/Price.php'],
+            $this->noDiff(),
+            ['Tests\Feature\Neuf\CiteTest', 'Tests\Feature\Neuf\SansRapportTest'],
+        );
+
+        $this->assertFalse($s->fullSuite);
+        $this->assertSame(
+            ['Tests\Feature\Neuf\CiteTest', 'Tests\Unit\PriceTest'],
+            $s->classes,
+            'un test postérieur à la carte qui ne cite aucune classe touchée ne se rejoue pas',
+        );
+    }
+
+    public function test_tests_written_since_the_map_are_all_kept_when_the_diff_leaves_app(): void
+    {
+        $diff = fn (string $path): string => "+Route::get('/x', [PropertyController::class, 'index']);";
+        $s = $this->selectorWithSources(self::SOURCES)->select(
+            ['takussan-api/app/Support/Price.php', 'takussan-api/routes/api.php'],
+            $diff,
+            ['Tests\Feature\Neuf\CiteTest', 'Tests\Feature\Neuf\SansRapportTest'],
+        );
+
+        $this->assertFalse($s->fullSuite);
+        $this->assertContains('Tests\Feature\Neuf\SansRapportTest', $s->classes, 'une route ne se nomme pas : on garde tout');
+    }
+
+    public function test_a_diff_of_tests_alone_keeps_none_of_the_tests_written_since_the_map(): void
+    {
+        $s = $this->selectorWithSources(self::SOURCES)->select(
+            ['takussan-api/tests/Feature/Api/AgencyTest.php'],
+            $this->noDiff(),
+            ['Tests\Feature\Neuf\CiteTest'],
+        );
+
+        $this->assertSame(['Tests\Feature\Api\AgencyTest'], $s->classes);
+    }
+
     // ── TCK-476 : les fichiers de `lang/` ────────────────────────────────────
     //
     // Le repli n'est PAS remplacé, il est BORNÉ à ce qu'on sait situer. Les six

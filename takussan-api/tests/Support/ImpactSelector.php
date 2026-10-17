@@ -143,6 +143,7 @@ final class ImpactSelector
     public function __construct(
         private readonly ImpactMap $map,
         private readonly \Closure $consumersOfTranslationDomain,
+        private readonly ?\Closure $sourceOfTestClass = null,
     ) {}
 
     /**
@@ -152,7 +153,11 @@ final class ImpactSelector
      */
     public function select(array $changedPaths, callable $diffFor, array $testClassesSinceMapCommit): ImpactSelection
     {
-        $selected = array_fill_keys($testClassesSinceMapCommit, true);
+        $selected = [];
+        // Les noms des classes de `app/` que le diff touche : le filtre des tests postérieurs
+        // à la carte (cf. `testsSinceMapCommit()`). `null` dès qu'un chemin touché n'est pas
+        // une classe de `app/` : on ne sait plus nommer ce qu'un test devrait citer.
+        $appBasenames = [];
 
         foreach ($changedPaths as $path) {
             if (! str_starts_with($path, self::API_PREFIX)) {
@@ -169,6 +174,12 @@ final class ImpactSelector
                 if (str_starts_with($relative, $prefix)) {
                     return ImpactSelection::full("fichier global modifié : $relative");
                 }
+            }
+
+            if ($appBasenames !== null && ! str_starts_with($relative, 'tests/')) {
+                $appBasenames = str_starts_with($relative, 'app/') && str_ends_with($relative, '.php')
+                    ? [...$appBasenames, basename($relative, '.php')]
+                    : null;
             }
 
             if (str_starts_with($relative, 'tests/')) {
@@ -249,7 +260,50 @@ final class ImpactSelector
             return ImpactSelection::full("chemin non reconnu, sécurité par défaut : $relative");
         }
 
-        return ImpactSelection::partial(array_keys($selected));
+        $since = array_fill_keys($this->testsSinceMapCommit($testClassesSinceMapCommit, $appBasenames), true);
+
+        return ImpactSelection::partial(array_keys($since + $selected));
+    }
+
+    /**
+     * Les tests écrits ou modifiés depuis la carte, qu'elle ne connaît pas.
+     *
+     * Les ajouter tous refermait le trou « un test neuf couvre mon fichier », pour un coût
+     * qu'on croyait nul. Il ne l'est pas quand la carte retarde : sur `pre-dev`, elle n'est
+     * régénérée qu'après une promotion, et chaque PR des agents ajoute des tests. Mesuré le
+     * 2026-10-17 sur le lot #539 (3 pistes, 11 fichiers) : 83 de ses 164 classes venaient de
+     * là, la carte ayant 531 commits de retard.
+     *
+     * D'où le filtre (amendement d'ADR-0066 du 2026-10-17), actif seulement quand le
+     * lanceur sait lire la source d'un test : un test postérieur à la carte n'est gardé que
+     * s'il CITE l'une des classes de `app/` que le diff touche. Il ne s'applique qu'à un diff
+     * fait de classes de `app/` et de tests ; une route, un dictionnaire, une vue ou tout
+     * autre chemin (`$appBasenames === null`) les garde tous, comme avant.
+     *
+     * ⚠ Ce qu'il manque : un test neuf qui couvre une classe touchée SANS la nommer (un test
+     * HTTP qui passe par la route d'un contrôleur modifié). La CI joue la suite entière ;
+     * l'outil reste une boucle de retour, pas une garde.
+     *
+     * @param  list<string>  $since
+     * @param  list<string>|null  $appBasenames
+     * @return list<string>
+     */
+    private function testsSinceMapCommit(array $since, ?array $appBasenames): array
+    {
+        if ($this->sourceOfTestClass === null || $appBasenames === null) {
+            return $since;
+        }
+
+        if ($appBasenames === []) {
+            return [];
+        }
+
+        $motif = '/\b(?:'.implode('|', array_map(fn ($n) => preg_quote($n, '/'), array_unique($appBasenames))).')\b/';
+
+        return array_values(array_filter(
+            $since,
+            fn (string $class) => preg_match($motif, ($this->sourceOfTestClass)($class)) === 1,
+        ));
     }
 
     /**
