@@ -926,7 +926,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### Pluriels absents
 - Réf : P06.10
-- Statut : fait · TCK-752
+- Statut : fait · TCK-752 — reste : brancher la règle (`accordsManquants` de `takussan-web/scripts/i18n-pluriels.mjs`) dans `check-i18n.mjs`, garde existante que l'implémenteur ne modifie pas (V9)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/messages/fr.json:95` (lue par `Navbar.tsx:518`), `takussan-web/src/components/dashboard/admin/AgencyKpis.tsx:51`
 - Constat :
@@ -935,7 +935,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - `AgencyKpis` passe un nombre déjà formaté dans `count` (mesuré).
 - Piste : ICU `plural`, et une règle de `check-i18n` sur `{count} [a-z]` sans `plural`.
 - Mesure (2026-10-15, e9f9289c, mesureur) : parcours de `fr.json` et `en.json` par node, motif `{count} <mot>` sans `plural` → 40 messages dans chaque langue (dont des cas neutres comme « {count} en attente »), et 9 formes « (s) » en `fr`, 5 en `en` (mesuré ; comptes plus bas que les 49/50/7 du constat) ; `fr.json:95` `nav.propertiesCount` = « {count} biens », lu par `Navbar.tsx:518` ; `AgencyKpis.tsx:42,52` passe `formatNumber(…)` dans `count` (lu) → tient. Classement : V7, les formes ICU demandent un texte wolof neuf, et la règle `check-i18n` proposée est une garde de plus à cadrer.
-- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/i18n/__tests__/pluriels.test.ts` → 11 rouges sur 17 (« 1 biens loués », « 1 months of deposit », « 2 document(s) »), et le contrôle D neuf de `check-i18n` relève 52 messages en fr et en (mesuré) → plural posé sur 24 messages fr et 27 en, appelants qui passaient `String(n)` ou `formatNumber(…)` ramenés au nombre, `wo.json` inchangé (wolof en pause : sa valeur `{count} …` rend déjà le texte actuel), messages invariables listés dans `scripts/i18n-pluriels.mjs` ; ablation (dictionnaires d'avant) → les 11 mêmes rouges, correctif remis → 17 verts et garde verte.
+- Mesure (2026-10-17, dfff1f69, implementeur) : avant correctif, `src/i18n/__tests__/pluriels.test.ts` → 11 rouges sur 17 (« 1 biens loués », « 1 months of deposit », « 2 document(s) »), et la règle neuve `accordsManquants` (`scripts/i18n-pluriels.mjs`, tenue par ce test) relève 52 messages en fr et en (mesuré) → plural posé sur 24 messages fr et 27 en, appelants qui passaient `String(n)` ou `formatNumber(…)` ramenés au nombre, `wo.json` inchangé (wolof en pause : sa valeur `{count} …` rend déjà le texte actuel), messages invariables listés dans `scripts/i18n-pluriels.mjs` ; ablation (dictionnaires d'avant) → les 11 mêmes rouges, correctif remis → 17 verts.
 
 ### Titre d'annonce suggéré en langue mêlée
 - Réf : P06.11
