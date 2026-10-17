@@ -44,6 +44,9 @@ const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' 
   admin_two_factor: '/app/profile',
 };
 
+/** L'étape qui en conditionne d'autres, montrée la première (TCK-761). */
+const ETAPE_EN_TETE = 'admin_two_factor';
+
 interface MiseEnServiceProps {
   readonly agencyId: number | null;
 }
@@ -61,7 +64,13 @@ export function MiseEnService({ agencyId }: MiseEnServiceProps) {
   if (etapes.length === 0 || etapes.every((e) => e.done)) return null;
 
   const faites = etapes.filter((e) => e.done).length;
-  const connues = etapes.filter((e) => e.key in DESTINATIONS);
+  // TCK-761 (P15.04) — la 2FA de l'admin passe en tête : elle conditionne trois autres étapes
+  // (commission, intégration de paiement, premier membre), que l'API refuse sans elle
+  // (`ProtectedActions::AGENCY_TWO_FACTOR`). Les autres gardent l'ordre de l'API
+  // (`sort` est stable, et trie la copie que rend `filter`).
+  const connues = etapes
+    .filter((e) => e.key in DESTINATIONS)
+    .sort((a, b) => Number(b.key === ETAPE_EN_TETE) - Number(a.key === ETAPE_EN_TETE));
 
   return (
     <section
