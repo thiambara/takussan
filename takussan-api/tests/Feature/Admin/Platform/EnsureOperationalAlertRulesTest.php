@@ -18,7 +18,7 @@ class EnsureOperationalAlertRulesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_cree_les_trois_regles_ops_destinees_aux_super_admins(): void
+    public function test_cree_les_regles_ops_destinees_aux_super_admins(): void
     {
         $a = $this->superAdmin('a@example.test');
         $b = $this->superAdmin('b@example.test');
@@ -27,7 +27,8 @@ class EnsureOperationalAlertRulesTest extends TestCase
         $this->artisan('alerts:ensure-ops-rules')->assertSuccessful();
 
         $evenements = AlertRule::query()->orderBy('event')->pluck('event')->all();
-        $this->assertSame(['ops_failed_jobs_spike', 'ops_health_degraded', 'ops_queue_stalled'], $evenements);
+        // TCK-772 a ajouté `ops_critical_job_failed` au catalogue : il reçoit sa règle comme les autres.
+        $this->assertSame(['ops_critical_job_failed', 'ops_failed_jobs_spike', 'ops_health_degraded', 'ops_queue_stalled'], $evenements);
 
         foreach (AlertRule::all() as $regle) {
             $this->assertTrue($regle->is_active);
@@ -47,7 +48,7 @@ class EnsureOperationalAlertRulesTest extends TestCase
         $this->artisan('alerts:ensure-ops-rules')->assertSuccessful();
         $this->artisan('alerts:ensure-ops-rules')->assertSuccessful();
 
-        $this->assertSame(3, AlertRule::count());
+        $this->assertSame(4, AlertRule::count());
         $existante = AlertRule::query()->where('event', 'ops_queue_stalled')->sole();
         $this->assertFalse($existante->is_active);
         $this->assertSame(['slack'], $existante->channels_json);
