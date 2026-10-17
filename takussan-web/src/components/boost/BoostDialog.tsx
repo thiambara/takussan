@@ -16,8 +16,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
-import { useBoostProducts, useBuyBoost, useCredits } from './api';
+import { useBoostProducts, useBuyBoost, useCredits, usePropertyBoosts } from './api';
+import { effetAchat, type EffetAchat } from './effet-achat';
 import { manqueDeCredits, type BoostProduct } from './types';
 
 export interface BoostDialogProps {
@@ -46,6 +48,11 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
   const offre = liste.find((p) => p.id === choix) ?? null;
   const manque = offre ? Math.max(0, offre.price_credits - solde) : 0;
   const refusSolde = manqueDeCredits(achat.error);
+  // TCK-824 (P24.02) — le boost en place, lu à l'ouverture : l'offre choisie dit ce qu'elle lui fera.
+  const f = useFormatteurs();
+  const enPlace = usePropertyBoosts(propertyId, open);
+  const [maintenant] = useState(() => Date.now());
+  const effet = effetAchat(offre, enPlace.data?.data ?? [], enPlace.data?.bump_available_at ?? null, maintenant);
 
   const libelle = (p: BoostProduct) =>
     p.kind === 'bump'
@@ -53,6 +60,21 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
       : p.kind === 'featured'
         ? t('kinds.featured', { days: p.duration_days })
         : t(`kinds.badge.${p.variant ?? 'urgent'}`, { days: p.duration_days });
+
+  const direEffet = (e: NonNullable<EffetAchat>) => {
+    switch (e.type) {
+      case 'remplaceBadge':
+        return e.jusquA
+          ? t('dialog.effect.replacesBadge', { badge: t(`dialog.effect.badges.${e.variant}`), date: f.date(e.jusquA) })
+          : t('dialog.effect.replacesPausedBadge', { badge: t(`dialog.effect.badges.${e.variant}`) });
+      case 'prolongeVedette':
+        return e.jusquA
+          ? t('dialog.effect.extendsFeatured', { date: f.date(e.jusquA) })
+          : t('dialog.effect.extendsPausedFeatured', { days: e.jours });
+      case 'remonteeEnDelai':
+        return t('dialog.effect.bumpCooldown', { date: f.dateTime(e.aPartirDu) });
+    }
+  };
 
   const fermer = (ouvert: boolean) => {
     if (!ouvert) {
@@ -76,8 +98,8 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
     );
   };
 
-  const chargement = credits.isLoading || offres.isLoading;
-  const echec = credits.isError || offres.isError;
+  const chargement = credits.isLoading || offres.isLoading || enPlace.isLoading;
+  const echec = credits.isError || offres.isError || enPlace.isError;
 
   return (
     <Dialog open={open} onOpenChange={fermer}>
@@ -95,6 +117,7 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
             onRetry={() => {
               void credits.refetch();
               void offres.refetch();
+              void enPlace.refetch();
             }}
             retryLabel={t('dialog.retry')}
           />
@@ -119,6 +142,9 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
                 </li>
               ))}
             </ul>
+            <div aria-live="polite">
+              {effet ? <p className="rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{direEffet(effet)}</p> : null}
+            </div>
             {manque > 0 ? (
               <div role="alert" className="space-y-1 text-sm">
                 <p className="font-medium text-destructive">{t('dialog.missing', { count: manque })}</p>

@@ -15,7 +15,7 @@ use Illuminate\Http\JsonResponse;
 /** TCK-633 lot F (ADR-0061 §5) — les boosts d'un bien, et l'achat d'un boost. */
 class PropertyBoostController extends Controller
 {
-    public function index(Property $property): JsonResponse
+    public function index(Property $property, BoostPurchaseService $purchases): JsonResponse
     {
         $this->authorize('viewAny', [PropertyBoost::class, $property]);
 
@@ -26,7 +26,11 @@ class PropertyBoostController extends Controller
             ->limit(50)
             ->get();
 
-        return $this->json(['data' => PropertyBoostResource::collection($boosts)->resolve()]);
+        // TCK-824 (P24.02) — le dialogue d'achat dit le délai de Remontée AVANT la confirmation.
+        return $this->json([
+            'data' => PropertyBoostResource::collection($boosts)->resolve(),
+            'bump_available_at' => $purchases->bumpAvailableAt($property)?->toIso8601String(),
+        ]);
     }
 
     public function store(StorePropertyBoostRequest $request, Property $property, BoostPurchaseService $purchases, CreditLedger $ledger): JsonResponse

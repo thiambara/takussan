@@ -10909,7 +10909,18 @@
       "cancel": "Neenal",
       "confirm": "Dëggal",
       "done": "Def nañu ko : yokk gis-gis bi dox na.",
-      "failed": "Mënuñu denc yokk gis-gis bi."
+      "failed": "Mënuñu denc yokk gis-gis bi.",
+      "effect": {
+        "replacesBadge": "Ce badge remplace le badge « {badge} » actif jusqu’au {date}, sans remboursement.",
+        "replacesPausedBadge": "Ce badge remplace le badge « {badge} » en pause, sans remboursement.",
+        "extendsFeatured": "Prolonge la Vedette en cours jusqu’au {date}.",
+        "extendsPausedFeatured": "Prolonge de {days, plural, one {# jour} other {# jours}} la Vedette en pause.",
+        "bumpCooldown": "Remontée possible à partir du {date}.",
+        "badges": {
+          "urgent": "Urgent",
+          "price_drop": "Baisse de prix"
+        }
+      }
     },
     "marks": {
       "featured": "Vedette",

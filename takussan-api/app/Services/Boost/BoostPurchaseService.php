@@ -12,6 +12,7 @@ use App\Models\PropertyBoost;
 use App\Models\User;
 use App\Services\Credits\CreditLedger;
 use App\Services\Credits\InsufficientCredits;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -76,17 +77,28 @@ final class BoostPurchaseService
         return [$agency, $locked];
     }
 
-    private function bump(Property $property, Agency $agency, BoostProduct $product, User $buyer): PropertyBoost
+    /**
+     * TCK-824 (P24.02) — la fin du délai de Remontée en cours sur ce bien, `null` s'il n'y en a pas.
+     * La même règle refuse l'achat (`bump()`) et s'annonce avant lui (`GET …/boosts`).
+     */
+    public function bumpAvailableAt(Property $property): ?CarbonInterface
     {
-        $cooldown = $this->settings->bumpCooldownHours();
         $last = PropertyBoost::query()
             ->where('property_id', $property->getKey())
             ->where('kind', BoostKind::Bump)
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
             ->first();
-        if ($last !== null && $last->starts_at->copy()->addHours($cooldown)->isFuture()) {
-            abort_code(422, 'boost.bump_cooldown', ['available_at' => $last->starts_at->copy()->addHours($cooldown)->toIso8601String()]);
+        $availableAt = $last?->starts_at->copy()->addHours($this->settings->bumpCooldownHours());
+
+        return $availableAt !== null && $availableAt->isFuture() ? $availableAt : null;
+    }
+
+    private function bump(Property $property, Agency $agency, BoostProduct $product, User $buyer): PropertyBoost
+    {
+        $availableAt = $this->bumpAvailableAt($property);
+        if ($availableAt !== null) {
+            abort_code(422, 'boost.bump_cooldown', ['available_at' => $availableAt->toIso8601String()]);
         }
 
         // Une Remontée est instantanée : sa ligne naît close, et n'est jamais remboursée.

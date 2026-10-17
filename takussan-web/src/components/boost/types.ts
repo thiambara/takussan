@@ -67,6 +67,12 @@ export interface CreditsResponse {
   readonly meta: PaginationMeta;
 }
 
+/** TCK-824 — `GET /api/properties/{id}/boosts` : `bump_available_at` est `null` hors délai de Remontée. */
+export interface PropertyBoostsResponse {
+  readonly data: readonly PropertyBoost[];
+  readonly bump_available_at: string | null;
+}
+
 export interface BuyBoostResponse {
   readonly data: PropertyBoost;
   readonly balance: number;
