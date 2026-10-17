@@ -111,7 +111,7 @@ export function DashboardShortcuts({ roles, agencyId = null }: Props) {
           <Link
             key={href}
             href={href}
-            className="flex min-h-12 items-center gap-3 rounded-2xl bg-card p-4 outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]"
+            className="flex min-h-12 items-center gap-3 rounded-2xl bg-card p-4 outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96]"
           >
             <Icon className="size-5 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0 text-sm font-medium text-pretty text-foreground">{t(labelKey)}</span>

@@ -108,7 +108,7 @@ export function InviteMemberDialog({
               type="email"
               autoComplete="email"
               placeholder={t('emailPlaceholder')}
-              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               {...register('email')}
             />
             {errors.email ? (

@@ -56,7 +56,7 @@ export function FormCheckbox<TFieldValues extends FieldValues>({
               // les marges négatives rendent ce gain à la mise en page — la case garde sa taille
               // et les formulaires ne bougent pas. L'anneau suit le focus clavier de la case.
               className={cn(
-                '-mx-2 -my-3 flex cursor-pointer items-start gap-3 rounded-lg px-2 py-3 text-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
+                '-mx-2 -my-3 flex cursor-pointer items-start gap-3 rounded-lg px-2 py-3 text-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring',
                 disabled && 'cursor-not-allowed opacity-60',
               )}
             >

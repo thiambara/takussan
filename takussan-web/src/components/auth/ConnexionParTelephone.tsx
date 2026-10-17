@@ -40,7 +40,7 @@ interface ConnexionParTelephoneProps {
 type Etape = 'numero' | 'code' | 'double-facteur';
 
 const CLASSE_LIEN_SECONDAIRE =
-  'min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:text-muted-foreground disabled:no-underline';
+  'min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:text-muted-foreground disabled:no-underline';
 
 export function ConnexionParTelephone({ variante, onConnecte, onEmail }: ConnexionParTelephoneProps) {
   const t = useTranslations('auth.phoneLogin');

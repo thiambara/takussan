@@ -231,7 +231,7 @@ function DataTableHeaderCell<Row>({
           type="button"
           onClick={() => sort!.onChange(descending ? column.sortKey! : `-${column.sortKey}`)}
           // TCK-371 — l'en-tête de tri est un bouton ÉCRIT À LA MAIN : il n'hérite pas de
-          // l'anneau de la primitive `Button`. Jeton `--ring` PLEIN, jamais `ring-ring/50`
+          // l'anneau de la primitive `Button`. Jeton `--ring` PLEIN, jamais `ring-ring`
           // (l'idiome de `Button`), qui mesure 2,12:1 sur `--card` — sous les 3:1 de
           // WCAG 1.4.11. Mesuré à pleine opacité sur les trois fonds possibles de cette
           // primitive partagée (console agence, console super-admin et `/app` la montent) :

@@ -128,7 +128,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
         aria-label={t('changeAria')}
         disabled={switchMutation.isPending}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60',
+          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
           className,
         )}
       >

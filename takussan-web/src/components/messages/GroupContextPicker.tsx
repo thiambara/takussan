@@ -195,7 +195,7 @@ function ContextCombobox({
           autoComplete="off"
           // 44 px, comme le champ des participants : il se tape au pouce. `pr-16` réserve la croix
           // (44 px) et la pastille d'attente ; `text-ellipsis` dit qu'un long titre choisi est coupé.
-          className="h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-16 pl-3 text-base text-ellipsis outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+          className="h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-16 pl-3 text-base text-ellipsis outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring md:text-sm"
         />
         <div className="absolute right-0 flex h-full items-center text-muted-foreground">
           {enAttente && open ? (
@@ -208,7 +208,7 @@ function ContextCombobox({
           {value ? (
             <Combobox.Clear
               aria-label={clearLabel}
-              className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
             >
               <X aria-hidden className="size-4" />
             </Combobox.Clear>

@@ -60,7 +60,7 @@ function optionsAffichees(
 }
 
 const CLASSE_SAISIE =
-  'h-11 min-h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-11 pl-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm';
+  'h-11 min-h-11 w-full rounded-lg border border-input bg-transparent py-2 pr-11 pl-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm';
 const CLASSE_POPUP =
   'max-h-[min(var(--available-height),20rem)] w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border';
 const CLASSE_ITEM =
@@ -242,7 +242,7 @@ export function ComboboxMultiple({
     >
       <Base.Chips
         className={cn(
-          'flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input px-1.5 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50',
+          'flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input px-1.5 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring',
           invalide && 'border-destructive',
           className,
         )}

@@ -160,7 +160,7 @@
 
   /* === Bordures & focus === */
   --border: #ebe5d5;
-  --input: #ebe5d5;
+  --input: #918672;
   --ring: #a85332;
 
   /* === Charts — variations tonales sur Lin === */
@@ -691,7 +691,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;

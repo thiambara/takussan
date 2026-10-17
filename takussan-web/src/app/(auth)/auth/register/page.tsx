@@ -244,7 +244,7 @@ function RegisterForm() {
         <p className="mt-4 text-center">
           <button
             type="button"
-            className="min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
             onClick={() => setVoieEmail(false)}
           >
             {tTelephone('usePhone')}

@@ -171,7 +171,7 @@ export function AgencyCombobox({
         <Combobox.Input
           aria-label={label}
           placeholder={placeholder ?? t('placeholder')}
-          className="h-10 w-full rounded-lg border border-input bg-transparent py-2 pr-16 pl-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-10 w-full rounded-lg border border-input bg-transparent py-2 pr-16 pl-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring"
         />
         <div className="absolute right-1 flex h-full items-center text-muted-foreground">
           {enAttente ? (

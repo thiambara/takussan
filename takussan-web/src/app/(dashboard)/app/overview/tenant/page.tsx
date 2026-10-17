@@ -159,7 +159,7 @@ function CeQuiMAttend({
         <li>
           <Link
             href={prochaine ? `/app/visits/${prochaine.id}` : '/app/visits'}
-            className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
           >
             <span className="text-muted-foreground">{t('tenant.nextVisit')}</span>
             <span className="text-right font-semibold text-foreground tabular-nums">
@@ -181,7 +181,7 @@ function CeQuiMAttend({
         <li>
           <Link
             href="/app/maintenance"
-            className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
           >
             <span className="text-muted-foreground">{t('tenant.openMaintenance')}</span>
             <span className="font-semibold text-foreground tabular-nums">
@@ -242,7 +242,7 @@ function InvitationARechercher({
             <li key={bien.id}>
               <Link
                 href={hrefLocalise(`/properties/${bien.slug}`, locale)}
-                className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
               >
                 <span className="min-w-0 truncate text-foreground">{bien.title}</span>
                 <span className="shrink-0 font-semibold text-foreground tabular-nums">

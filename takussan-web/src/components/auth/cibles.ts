@@ -11,11 +11,11 @@
  * pseudo-élément, sans toucher à la mise en page — un `padding` pousserait la ligne.
  */
 export const CIBLE_LIEN_EN_LIGNE =
-  "relative rounded-sm after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "relative rounded-sm after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring";
 
 /**
  * Bascule d'affichage du mot de passe, posée dans le `trailing` d'un champ de 44 px : un carré de
  * 40 px, centré dans la hauteur du champ.
  */
 export const BASCULE_MOT_DE_PASSE =
-  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
+  'flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';

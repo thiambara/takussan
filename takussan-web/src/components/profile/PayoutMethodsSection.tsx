@@ -19,7 +19,7 @@ import type { PayoutMethodKind } from '@/types/invoice';
 const KINDS: readonly PayoutMethodKind[] = ['wave', 'orange_money', 'free_money', 'bank_transfer'];
 
 const SELECT_CLASS =
-  'h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
+  'h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 
 /**
  * TCK-594 (ADR-0039 §6) — où le bailleur ou le prestataire veut être payé.
