@@ -2417,7 +2417,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un quartier tapé avec un tiret ou sans accent crée une proposition en double d'un quartier approuvé
 - Réf : P17.02
-- Statut : validé — replier tirets et apostrophes des deux côtés ; les accents restent tels qu'ADR-0062 § 1 ; la liste de modération montre les quartiers approuvés dont la clé repliée sans accents coïncide ; reste : replier les accents dans le résolveur, si le porteur amende ADR-0062 § 1
+- Statut : fait · TCK-788 — reste : replier les accents dans le résolveur, si le porteur amende ADR-0062 § 1
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoNeighborhoodResolver.php:24-43`, `takussan-web/src/components/ui/combobox.tsx:34-39`, `takussan-web/src/components/property-form/ChampsLieu.tsx:15-21`, `takussan-api/app/Http/Controllers/Api/Admin/GeoNeighborhoodAdminController.php:22-57`
 - Constat :
@@ -2431,6 +2431,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le nombre de propositions en double en production est à vérifier : la base de dev n'en a aucune (`select status, origin, count(*) from geo_neighborhoods` → 365 `approved/dataset`).
 - Piste : replier aussi tirets et apostrophes, des deux côtés (`replierPourRecherche` et une clé de comparaison du résolveur). Montrer dans la liste de modération les quartiers approuvés dont la clé repliée sans accents ni ponctuation coïncide. Ajouter un test « Grand-Yoff se replie sur Grand Yoff ».
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoNeighborhoodResolver.php:24-43` (`nettoyer` ne replie que les espaces, `trouver` compare par `CaseInsensitive`) et `combobox.tsx:34-40` (`replierPourRecherche` retire les accents, pas les tirets) ; test temporaire retiré, « Grand Yoff » et « Médina » approuvés dans une ville → `resoudreOuProposer` : `grand yoff` et `MÉDINA` rendent le quartier approuvé, `Grand-Yoff` et `Medina` créent chacun une proposition `pending`. Le constat tient en entier. Classement : V7, replier les accents revient sur un choix écrit d'ADR-0062 § 1, et la liste de modération enrichie de quartiers proches est un comportement visible neuf.
+- Mesure (2026-10-17, 8d59d1942, implementeur) : reproduit avant correctif par `tests/Feature/Geo/GeoNeighborhoodPunctuationFoldTest.php` (charge 2,02 sur 8 cœurs) → `Grand-Yoff` et `Cité d’Arafat` créaient chacun une proposition, et la file `GET /api/admin/geo/neighborhoods` ne portait aucun quartier proche ; le résolveur compare désormais sur une clé qui replie casse, blancs, tirets et apostrophes (nom exact prioritaire), la file rend `similar` (approuvés de la ville, clé repliée sans accents), `replierPourRecherche` replie les mêmes séparateurs et la file affiche « Proche de : … » → 5 verts côté API (« Medina » reste une proposition), 34 verts côté front ; ablation : 3 rouges sur 5 côté API, 5 rouges sur 34 côté front.
 
 ### Rejouer le référentiel ne réaligne pas les adresses existantes
 - Réf : P17.03
