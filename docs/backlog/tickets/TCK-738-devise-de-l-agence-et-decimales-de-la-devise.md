@@ -1,7 +1,7 @@
 ---
 id: TCK-738
 title: "Facture sans devise : celle de l'agence ; montants affichés avec les décimales de leur devise"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -58,18 +58,18 @@ affichés au centime.
 
 ## Delta à produire
 
-- [ ] `InvoiceService::create()` : repli sur la devise de l'agence, puis XOF.
-- [ ] `fmt.montant` : plus de 0 décimale imposée ; le minimum se borne au maximum demandé.
-- [ ] `PayoutTable` (`useXof`) : plus de `maximumFractionDigits: 0` imposé.
-- [ ] Tests : `InvoiceTest` (deux cas), `useFormatteurs.test.tsx` (trois cas).
+- [x] `InvoiceService::create()` : repli sur la devise de l'agence, puis XOF.
+- [x] `fmt.montant` : plus de 0 décimale imposée ; le minimum se borne au maximum demandé.
+- [x] `PayoutTable` (`useXof`) : plus de `maximumFractionDigits: 0` imposé.
+- [x] Tests : `InvoiceTest` (deux cas), `useFormatteurs.test.tsx` (trois cas).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Agent d'une agence en EUR, facture sans `currency` : `data.currency` vaut `EUR`.
-- [ ] AC2 — Même agence, `currency: XOF` explicite : `data.currency` vaut `XOF`.
-- [ ] AC3 — `fmt.montant(12.5, 'EUR')` rend `12,50 €` en `fr` ; `fmt.montant(150000.4, 'XOF')`
+- [x] AC1 — Agent d'une agence en EUR, facture sans `currency` : `data.currency` vaut `EUR`.
+- [x] AC2 — Même agence, `currency: XOF` explicite : `data.currency` vaut `XOF`.
+- [x] AC3 — `fmt.montant(12.5, 'EUR')` rend `12,50 €` en `fr` ; `fmt.montant(150000.4, 'XOF')`
       rend `150 000 F CFA`.
-- [ ] AC4 — `fmt.montant(12.5, 'EUR', { maximumFractionDigits: 0 })` rend `13 €` sans lever.
+- [x] AC4 — `fmt.montant(12.5, 'EUR', { maximumFractionDigits: 0 })` rend `13 €` sans lever.
 
 ## Hors périmètre
 
@@ -78,3 +78,14 @@ affichés au centime.
 
 ## Notes d'implémentation
 
+- **Ablation API** : sans le repli sur la devise de l'agence, `test_une_facture_sans_devise_prend_celle_de_l_agence`
+  rougit (`XOF` au lieu de `EUR`) et le cas explicite reste vert ; correctif remis : 21 verts sur
+  `InvoiceTest`.
+- **Ablation front** : sans le correctif de `fmt.montant`, « affiche les décimales de la devise »
+  rougit (`13 €` au lieu de `12,50 €`) ; sans le seul bornage de `formatCurrency`, le cas
+  `{ maximumFractionDigits: 0 }` sur de l'EUR lève `RangeError: maximumFractionDigits value is out
+  of range`. Ce piège aurait cassé `PayoutTable`, qui passait ce maximum seul.
+- **Piège** : la PR #534 (TCK-736) réécrit la ligne `'currency' =>` de `create()` et y lit
+  `$data['currency'] ?? 'XOF'` pour arrondir la TVA. Le repli s'écrit donc en tête de `create()`,
+  sur `$data['currency']` : les deux diffs ne se chevauchent pas, et l'arrondi de TCK-736 lira la
+  devise de l'agence.
