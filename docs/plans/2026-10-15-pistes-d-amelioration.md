@@ -4265,7 +4265,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
-- Statut : validé — `query()` du résolveur restreint aux conversations `direct` où le visiteur et le destinataire sont participants actifs (`left_at` nul) ; un groupe ou une directe quittée ne capte plus le contact, un fil neuf s'ouvre ; test : un groupe sur le bien ne capte pas le contact ; quand P38.05 sera fait, le destinataire cesse d'être un critère de recherche (ADR-0068 § 3)
+- Statut : fait · TCK-813
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
 - Constat :
@@ -4274,6 +4274,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le même chemin, quand le visiteur est encore membre du groupe, montre à tout le groupe un message écrit depuis un formulaire de contact privé (déduit de la même requête, non mesuré séparément).
 - Piste : restreindre `query()` aux conversations `direct` dont les deux participations sont actives (`left_at` nul). Un test : un groupe sur le bien ne capte pas le contact, et un fil neuf s'ouvre.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `PropertyConversationResolver::query()` : ni `type = direct` ni `left_at` ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe sur le bien (propriétaire admin, tiers, visiteur qui l'a quitté), puis `POST /api/public/properties/{slug}/contact-message` du visiteur → la réponse rend l'identifiant du groupe (type `group`), et `GET …/messages` du visiteur sur ce fil → 403. Constat confirmé tel qu'écrit. Classement : V3, le correctif change ce qui est exposé à des tiers, et restreindre aux participations actives décide aussi du sort d'une directe quittée (fil neuf ou reprise), qui est un choix de produit.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (un groupe sur le bien réunissant propriétaire, visiteur et tiers ; une directe que le visiteur a quittée) → rouges, le contact rendait l'identifiant du groupe et de la directe quittée ; correctif : `query()` filtre `type = direct` et `left_at` nul sur les deux participations → verts, un fil direct neuf s'ouvre ; ablation clause par clause : sans `type`, le test du groupe rougit seul, sans `left_at`, celui de la directe quittée rougit seul ; 42 tests des quatre classes du contact verts.
 
 ### Un premier message joint à la création d'une conversation ne déclenche aucune notification
 - Réf : P38.03
