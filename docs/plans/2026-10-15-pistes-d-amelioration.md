@@ -2563,7 +2563,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : validé — plafond des clics aligné sur celui des vues (3 par heure), marqueur `?src=sponsored` dans l'URL, `/playground` retiré des environnements déployés
+- Statut : fait · TCK-794
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2573,6 +2573,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `BoostStatsRecorder.php:36-44` (`RateLimiter::hit(…, 3600) > 1`) contre `PropertyViewCounter.php:31` (`MAX_PAR_HEURE = 3`) ; `arrivee-sponsorisee.ts:7-25` (une seule clé `sessionStorage`) ; `PlaygroundClient.tsx:30-31` (`city` et `transaction`), qui passent par `/public/properties/search` (`useProperties.ts:66`), où `PropertySearchService.php:659` compte les impressions → les trois constats tiennent ; le comportement des onglets selon les navigateurs n'a pas été vérifié. Classement : V7, chaque correctif est un choix (plafond, forme du lien, sort de `/playground`), et ces compteurs mesurent un produit payé (V1).
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif : `BoostStatsTest` à quatre clics d'une IP puis un d'une autre → 2 clics versés au lieu de 4 ; `EmplacementSponsorise.test.tsx` et `PropertyCard.robe.test.tsx` : le lien d'un emplacement et de la rangée vedette menait à `/fr/properties/<slug>` sans marqueur ; `CompteurDeVueSponsorise.test.tsx` : une fiche ouverte avec `?src=sponsored` envoyait une vue organique ; `playground/__tests__/page.test.tsx` : la page se rendait en production → plafond à `MAX_PAR_HEURE` (3), contexte `ArriveeSponsorisee` qui marque `LienDeCarte`, `CompteurDeVue` qui lit puis retire le marqueur de l'URL, `/playground` en 404 sous `NODE_ENV=production` ; 5 verts API et 40 verts front ; ablation (plafond : 1 rouge ; marqueur, compteur et garde : 4 rouges), puis vert.
 
 ## Angle 19 — Rétention des tables qui grossissent
 
