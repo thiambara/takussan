@@ -10,7 +10,9 @@ import { cn } from '@/lib/utils';
  * TCK-633 — la liste à recherche du formulaire du bien (région, ville, quartier, équipements).
  *
  * Trois règles, et chacune a son test :
- *  1. on TROUVE sans les accents (`replierPourRecherche`) : « medina » trouve « Médina » ;
+ *  1. on TROUVE sans les accents, les tirets ni les apostrophes (`replierPourRecherche`) : « medina »
+ *     trouve « Médina », et « Grand-Yoff » trouve « Grand Yoff » (TCK-788 : le résolveur du serveur
+ *     replie les mêmes séparateurs, `GeoNeighborhoodResolver::SEPARATEURS`) ;
  *  2. un nom EXISTE à la casse près seulement (`replierPourIdentite`) — la règle de l'index du
  *     serveur, qui ne replie pas les accents (ADR-0025) ; « Liberte 4 » n'est donc pas un doublon
  *     de « Liberté 4 », mais l'existant est listé AVANT la ligne « Ajouter », et Entrée le choisit ;
@@ -30,9 +32,11 @@ export interface OptionDeListe {
 export const VALEUR_CREER = '__creer__';
 
 const DIACRITIQUES = /[\u0300-\u036f]/g;
+/** Blancs, tirets (ASCII et typographiques) et apostrophes : les séparateurs du résolveur serveur. */
+const SEPARATEURS = /[\s'’ʼ‐‑‒–—-]+/g;
 
 export function replierPourRecherche(texte: string): string {
-  return texte.normalize('NFD').replace(DIACRITIQUES, '').toLocaleLowerCase('fr').replace(/\s+/g, ' ').trim();
+  return texte.normalize('NFD').replace(DIACRITIQUES, '').toLocaleLowerCase('fr').replace(SEPARATEURS, ' ').trim();
 }
 
 export function replierPourIdentite(texte: string): string {

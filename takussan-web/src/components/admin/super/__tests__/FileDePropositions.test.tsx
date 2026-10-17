@@ -22,7 +22,7 @@ vi.mock('@/lib/queries/super-admin-propositions', () => ({
  * TCK-633 (AC5) — la file : une ligne par proposition en attente, quatre gestes, et la file
  * relue après chaque geste réussi.
  */
-const LIBERTE_7: Proposition = { id: 7, name: 'Liberté 7', auteur: 'Awa Diop', usage: 2, lieu: 'Dakar · Dakar', villeId: 3 };
+const LIBERTE_7: Proposition = { id: 7, name: 'Liberté 7', auteur: 'Awa Diop', usage: 2, lieu: 'Dakar · Dakar', villeId: 3, proches: [] };
 const PAGE = { data: [LIBERTE_7], meta: { total: 1, per_page: 20, current_page: 1, last_page: 1 } };
 
 function monter(genre: 'geo' | 'tags' = 'geo') {
@@ -53,6 +53,21 @@ describe('<FileDePropositions /> — TCK-633', () => {
     expect(screen.getByRole('heading', { name: 'Quartiers proposés' })).toBeInTheDocument();
     expect(within(l).getByText('Dakar · Dakar · Proposé par Awa Diop · 2 annonces')).toBeInTheDocument();
     expect(listerPropositions).toHaveBeenCalledWith('geo', 1);
+  });
+
+  it('une proposition dit les quartiers approuvés proches de son nom (TCK-788)', async () => {
+    vi.mocked(listerPropositions).mockResolvedValue({ ...PAGE, data: [{ ...LIBERTE_7, proches: ['Liberté 6', 'Liberte 7'] }] });
+    monter();
+
+    const l = await ligne();
+    expect(within(l).getByText('Proche de : Liberté 6, Liberte 7')).toBeInTheDocument();
+  });
+
+  it('sans quartier proche, aucune mention', async () => {
+    monter();
+
+    const l = await ligne();
+    expect(within(l).queryByText(/Proche de/)).not.toBeInTheDocument();
   });
 
   it('une file vide le dit, avec l’état vide du design system', async () => {

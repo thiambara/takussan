@@ -16,11 +16,31 @@ use Illuminate\Support\Facades\DB;
  * renvoie à sa cible), puis un REFUSÉ (qui renvoie `null`). Sans ce dernier, un nom refusé
  * retapé le lendemain recréerait la proposition que la modération vient d'écarter.
  *
- * La comparaison écrit EXACTEMENT l'expression de l'index (`CaseInsensitive::sql`), sinon elle ne
- * l'emprunte pas (CLAUDE.md, piège n°9).
+ * La comparaison replie la casse (`CaseInsensitive`, ADR-0025), les espaces, et — TCK-788 (P17.02) —
+ * les tirets et les apostrophes, comme `replierPourIdentite` côté front : « Grand-Yoff » est
+ * « Grand Yoff ». Les accents restent distincts (ADR-0062 § 1). Le nom exact l'emporte sur un nom
+ * seulement replié, pour qu'un doublon déjà en base ne change pas de cible. L'expression repliée
+ * n'emprunte pas l'index du nom : la recherche est bornée aux quartiers d'une ville.
  */
 final class GeoNeighborhoodResolver
 {
+    /** Les séparateurs repliés en une espace : blancs, tirets (ASCII et typographiques), apostrophes. */
+    public const SEPARATEURS = "[\\s'’ʼ‐‑‒–—-]+";
+
+    /** La clé de comparaison côté PHP — le pendant de l'expression SQL de {@see self::trouver()}. */
+    public static function cle(string $texte): string
+    {
+        return trim((string) preg_replace('/'.self::SEPARATEURS.'/u', ' ', CaseInsensitive::fold($texte)));
+    }
+
+    /** La même clé, accents retirés : ce qui rapproche « Medina » de « Médina » en modération. */
+    public static function cleSansAccents(string $texte): string
+    {
+        $decompose = \Normalizer::normalize(self::cle($texte), \Normalizer::FORM_D);
+
+        return (string) preg_replace('/\p{Mn}+/u', '', $decompose === false ? self::cle($texte) : $decompose);
+    }
+
     public function nettoyer(string $texte): string
     {
         return trim((string) preg_replace('/\s+/u', ' ', $texte));
@@ -33,10 +53,13 @@ final class GeoNeighborhoodResolver
             return null;
         }
 
+        $exact = CaseInsensitive::sql('name');
+
         return GeoNeighborhood::query()
             ->where('geo_city_id', $ville->getKey())
-            ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])
+            ->whereRaw("btrim(regexp_replace({$exact}, ?, ' ', 'g')) = ?", [self::SEPARATEURS, self::cle($nom)])
             ->orderByRaw("CASE WHEN merged_into_id IS NULL AND status <> 'rejected' THEN 0 WHEN merged_into_id IS NOT NULL THEN 1 ELSE 2 END")
+            ->orderByRaw("CASE WHEN {$exact} = ? THEN 0 ELSE 1 END", [CaseInsensitive::fold($nom)])
             ->orderBy('id')
             ->first();
     }
