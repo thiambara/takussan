@@ -4046,7 +4046,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Les accusés SMS poussés écrasent le dernier statut : un `sent` tardif ou rejoué efface un `delivered`
 - Réf : P36.02
-- Statut : validé — la précédence du pulling `[sent, delivered, failed]` sur les trois routes SMS poussées, dite dans le docblock de l'updater ; un test par route
+- Statut : fait · TCK-796
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:62-73`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-70`, `OrangeSmsStatusController.php:84-97`, `MtargetSmsStatusController.php:66-82`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:96-104`, `takussan-api/app/Services/Webhooks/WebhookReplayer.php:85-87`
 - Constat :
@@ -4056,6 +4056,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Pendant la période de recouvrement de TCK-294, Mtarget pousse et se fait tirer à la fois : les deux chemins n'appliquent pas la même règle à la même ligne (lu).
 - Piste : passer la même précédence `[sent, delivered, failed]` aux trois routes SMS poussées, ce qui aligne le push sur le pulling, et le dire dans le docblock de l'updater. Un test par route : `delivered` puis `sent` laisse `delivered` et `delivered_at`.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : LAM signé `status=6` puis `status=4`, Mtarget poussé `Status=3` puis `Status=1` ; relu `DeliveryAttemptUpdater.php:22` (« SMS/payment callers omit it and keep last-write ») → LAM : `delivered` puis `sent`, `delivered_at` remis à `NULL` ; Mtarget : `delivered` puis `failed` ; le constat tient, le point sur le rejeu (`WebhookReplayer`) n'a pas été exécuté et reste déduit. Classement : V7, la piste renverse une règle écrite comme choisie pour le SMS, au profit de la règle contraire de `DlrReportApplier`, et ce choix revient au porteur.
+- Mesure (2026-10-17, 512b85ccd, implementeur) : un test par route (LAM `status=6` puis `4` ; Orange `DeliveryImpossible` puis `DeliveredToTerminal` ; Mtarget `Status=5` puis `3`) → avant correctif, les trois rougissent (LAM repasse à `sent`, Orange et Mtarget à `delivered`) ; `DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE` passée par les trois contrôleurs → verts, `delivered_at` gardé ; ablation : les trois `statusPrecedence:` retirés → 3 rouges.
 
 ### Les statuts intermédiaires d'Orange et de Mtarget sont écrits comme des échecs
 - Réf : P36.03
