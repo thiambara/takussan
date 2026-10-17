@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\PaymentProvider;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class Integration extends AbstractModel
@@ -98,6 +100,23 @@ class Integration extends AbstractModel
     }
 
     /** TCK-293 — une intégration de paiement : celles que `PaymentGatewayService` sait piloter. */
+    /**
+     * TCK-767 (P27.03) — horodate le dernier usage, sans jamais lever : un pilote
+     * l'appelle APRÈS des envois acceptés, et une exception ici rangeait ces envois
+     * en échec et les faisait renvoyer par le fournisseur suivant.
+     */
+    public function markUsed(): void
+    {
+        try {
+            $this->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable $e) {
+            Log::warning('[integration] last_used_at non écrit', [
+                'integration_id' => $this->getKey(),
+                'provider' => $this->provider,
+            ] + SafeExceptionContext::of($e));
+        }
+    }
+
     public function isPaymentIntegration(): bool
     {
         return PaymentProvider::tryFrom((string) $this->provider) !== null;

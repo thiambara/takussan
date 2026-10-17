@@ -68,7 +68,7 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
             fn (WhatsappResult $r): bool => $r->isTerminalSuccess(),
         ) !== [];
         if ($anySucceeded) {
-            $integration->forceFill(['last_used_at' => now()])->save();
+            $integration->markUsed();
         }
 
         return $results;

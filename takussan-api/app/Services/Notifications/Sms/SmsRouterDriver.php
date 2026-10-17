@@ -5,9 +5,11 @@ namespace App\Services\Notifications\Sms;
 use App\Jobs\SendDeferredSmsJob;
 use App\Models\AppNotification;
 use App\Models\NotificationDeliveryAttempt;
+use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 / TCK-110 — Composite SMS driver. Groups recipients by
@@ -240,11 +242,30 @@ class SmsRouterDriver implements SmsDriverInterface
         return $this->integrations->find($agencyId, $providerKey) !== null;
     }
 
+    /**
+     * TCK-767 (P27.03) — never throws: the attempt is written AFTER the provider
+     * answered, and an exception here left the router (or rolled the number to
+     * the next provider) and made the job resend an SMS already accepted.
+     */
     private function appendAttempt(?int $notificationId, int $attempt, SmsResult $result): void
     {
         if (! $notificationId) {
             return;
         }
+        try {
+            $this->writeAttempt($notificationId, $attempt, $result);
+        } catch (\Throwable $e) {
+            Log::error('[sms.router] tentative non enregistrée', [
+                'notification_id' => $notificationId,
+                'attempt' => $attempt,
+                'provider' => $result->provider,
+                'status' => $result->status,
+            ] + SafeExceptionContext::of($e));
+        }
+    }
+
+    private function writeAttempt(int $notificationId, int $attempt, SmsResult $result): void
+    {
         // Insert into the normalised `notification_delivery_attempts`
         // table. The unique index on (provider, provider_message_id)
         // makes DLR webhook lookups O(1) and prevents substring

@@ -111,7 +111,7 @@ class MtargetSmsDriver implements SmsDriverInterface
             }
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $integration->markUsed();
 
         return $results;
     }
