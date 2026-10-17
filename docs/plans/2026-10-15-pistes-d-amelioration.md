@@ -1222,12 +1222,13 @@ Sain (vérifié par l'agent) :
 
 ### Barres d'onglets sans défilement
 - Réf : P08.08
-- Statut : validé — overflow-x-auto dans TabsList, patron de CustomerDetailTabs
+- Statut : fait · TCK-756
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `tabs.tsx:27` (`inline-flex w-fit`, aucun `overflow`) et `:87` (déclencheurs `whitespace-nowrap`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu), `CustomerDetailTabs.tsx:65` (enveloppe `overflow-x-auto`) ; largeur rendue par Chromium headless des libellés `fr` (14 px, graisse 500, padding de la primitive, **police de repli** Helvetica et non DM Sans) → **454 px** pour les cinq onglets des paiements, **394 px** pour ceux du bien, contre 328 px disponibles → la barre déborde. Que ce soit `<main>` qui défile n'a **pas** été mesuré : retenu pour le débordement seul. Classement : V7, faire défiler la primitive touche toutes les barres, et la règle « défile dans son conteneur » n'est écrite que pour les tables.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `ui/tabs.tsx:27` (`inline-flex w-fit … justify-center`, aucun `overflow`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu) → tient. Correctif dans la primitive : `max-w-full`, `justify-center-safe` (centré, un débordement perd son début), `overflow-x-auto` sur la variante `default` seule (le liseré de `line` est posé 5 px sous la liste). Test `tabs.defilement.test.tsx` ; ablation : primitive d'avant → rouge ; remise → 99/99 verts sur 18 fichiers. Non observé dans un navigateur.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
