@@ -12,10 +12,14 @@ use Tests\TestCase;
 
 /**
  * TCK-703 (P17.01) — `addresses.city` est `NOT NULL DEFAULT 'Dakar'` : une ville OMISE prend le
- * défaut, une ville envoyée à `null` ne le prend pas. Les trois voies d'écriture d'une adresse
+ * défaut, une ville envoyée à `null` ne le prend pas. Les voies d'écriture d'une adresse
  * rendaient 500 (`SQLSTATE[23502]`) sur un `null` explicite ; elles rendent 422.
  *
  * Les cas « ville omise » gardent ce qui marchait : la règle refuse le `null`, pas l'absence.
+ *
+ * TCK-812 (P17.05) — il n'en reste que deux : la création et la modification du bien. La troisième,
+ * `PUT` et `DELETE /api/properties/{property}/address`, n'avait aucun appelant et des règles plus
+ * lâches que la création (255 caractères, ni ville ni quartier du référentiel) ; elle est retirée.
  */
 class AdresseSansVilleTest extends TestCase
 {
@@ -100,29 +104,17 @@ class AdresseSansVilleTest extends TestCase
         $this->assertSame('Thiès', $adresse->city);
     }
 
-    public function test_l_upsert_refuse_une_ville_nulle_a_la_creation_comme_a_la_modification(): void
+    /**
+     * TCK-812 — la route à part ne revient pas : une adresse ne s'écrit plus qu'avec son bien, sous
+     * les règles de la création. Le bien a une adresse, pour qu'un 404 ne vienne pas d'elle.
+     */
+    public function test_l_adresse_ne_s_ecrit_plus_par_une_route_a_part(): void
     {
-        $sansAdresse = $this->creer(null)->assertCreated()->json('data.id');
-
-        $this->putJson("/api/properties/{$sansAdresse}/address", ['street' => '12 rue Carnot', 'city' => null])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('city');
-
         $bien = $this->bienAvecAdresse();
 
-        $this->putJson("/api/properties/{$bien->id}/address", ['city' => null])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('city');
+        $this->putJson("/api/properties/{$bien->id}/address", ['street' => '14 rue Carnot'])->assertNotFound();
+        $this->deleteJson("/api/properties/{$bien->id}/address")->assertNotFound();
 
-        $this->assertSame('Thiès', $bien->address()->firstOrFail()->city);
-    }
-
-    public function test_l_upsert_sans_ville_prend_le_defaut(): void
-    {
-        $sansAdresse = $this->creer(null)->assertCreated()->json('data.id');
-
-        $this->putJson("/api/properties/{$sansAdresse}/address", ['street' => '12 rue Carnot'])
-            ->assertCreated()
-            ->assertJsonPath('data.city', 'Dakar');
+        $this->assertSame('12 rue Carnot', $bien->address()->firstOrFail()->street);
     }
 }
