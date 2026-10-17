@@ -3749,7 +3749,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### zod arrive aussi sur les pages publiques par des listes de valeurs rangées dans les modules de schémas
 - Réf : P33.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-744
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/property/PropertyCard.tsx:25`, `takussan-web/src/components/property/cards/NewBuildChip.tsx:4`, `takussan-web/src/components/search/FilterSidebar.tsx:16`, `takussan-web/src/lib/schemas/property.ts:1`, `takussan-web/src/lib/schemas/property.ts:14`, `takussan-web/src/lib/schemas/property.ts:64-67`
 - Constat :
@@ -3758,6 +3758,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - L'accueil, la recherche et les fiches agence et agent rendent aussi des cartes de bien ; la part de zod qui leur reste sans le widget n'a pas été isolée (à vérifier).
 - Piste : sortir les listes de valeurs dans un module sans dépendance (`lib/enums/property.ts`), que `schemas/property.ts` réimporte ; les composants d'affichage importent ce module-là. Garde : une règle `no-restricted-imports` qui interdit `@/lib/schemas/*` sous `src/components/property/` et `src/components/search/` hors formulaires.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyCard.tsx:25`, `NewBuildChip.tsx:4`, `FilterSidebar.tsx:16` (seulement des tableaux `as const`) et `lib/schemas/property.ts:1` (`import { z } from 'zod'`) ; le « à vérifier » est levé par un traceur d'imports statiques temporaire depuis `PropertyDetailContent.tsx` : les seuls modules du graphe qui importent zod sont `lib/schemas/property.ts` et `lib/schemas/common.ts` (atteint par lui), et `schemas/property` y entre par **trois** chemins, `PropertyCard`, `NewBuildChip` (par `PropertyHeader`) et `components/property-form/options.ts:2-9`, qui réimporte six listes de valeurs : `PropertyCard` n'est donc pas le seul chemin ; l'accueil (`(public)/page.tsx`) y mène par les mêmes (graphe statique, frontières client non distinguées) → le constat tient, chemins corrigés. Classement : A2, déplacer les listes `as const` dans un module sans dépendance que `schemas/property.ts` réexporte, et y faire pointer `property-form/options.ts`, `NewBuildChip`, `PropertyCard` et `FilterSidebar`, ne change aucune valeur ; la règle `no-restricted-imports` de la piste est une garde neuve (A5).
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `zod-hors-des-pages-publiques.test.ts`, qui trace le graphe client statique de chaque `page.tsx` et `layout.tsx` de `[locale]/(public)` : six entrées (accueil, recherche, fiches bien, agence et agent, favoris) atteignent zod par `PropertyCard` ou `NewBuildChip` → `schemas/property` ; hors de ces chemins, seuls `BookingTunnel` et `SaveSearchButton` (formulaires, admis par la table du test) y mènent → les neuf listes `as const` dans `lib/enums/property.ts` sans import, réexportées par `schemas/property.ts`, et les quatre importeurs repointés ; ablation : `NewBuildChip` seul rendu au module de schémas → les six rouges ; 20/20 verts, `tsc` propre, 37 fichiers de tests des modules touchés verts (un rouge d'interaction sous charge, vert seul).
 
 ### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
 - Réf : P33.04
