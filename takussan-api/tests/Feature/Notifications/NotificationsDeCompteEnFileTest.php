@@ -7,6 +7,7 @@ use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionReminderNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Notifications\AccountDeletionStepUpCodeNotification;
+use App\Notifications\AgencyAdminActivationNotification;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
@@ -33,6 +34,7 @@ class NotificationsDeCompteEnFileTest extends TestCase
     private const EN_FILE = [
         RegistrationConfirmationNotification::class,
         ResetPasswordNotification::class,
+        AgencyAdminActivationNotification::class,
         AccountDeletionRequestedNotification::class,
         AccountDeletionReminderNotification::class,
         AccountDeletionStepUpCodeNotification::class,
@@ -41,6 +43,7 @@ class NotificationsDeCompteEnFileTest extends TestCase
     /** Celles qui portent un secret (jeton, code) : chiffrées dans la table `jobs`. */
     private const CHIFFREES = [
         ResetPasswordNotification::class,
+        AgencyAdminActivationNotification::class,
         AccountDeletionStepUpCodeNotification::class,
     ];
 

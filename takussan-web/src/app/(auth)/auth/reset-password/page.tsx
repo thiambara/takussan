@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FormError, FormGlobalError } from '@/components/forms';
 import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { useTranslations } from 'next-intl';
+import { avecRedirection } from '@/lib/redirection-interne';
 
 function ResetPasswordForm() {
   const t = useTranslations('auth.resetPassword');
@@ -18,6 +19,9 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const email = searchParams.get('email') ?? '';
+  // TCK-781 (P15.07, P13.09) — le lien d'activation du gérant provisionné : jeton de 7 jours côté
+  // API, puis l'assistant d'agence après la connexion.
+  const activation = searchParams.get('activation') === '1';
 
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -39,8 +43,13 @@ function ResetPasswordForm() {
         email,
         password,
         password_confirmation: passwordConfirmation,
+        ...(activation ? { activation: true } : {}),
       });
-      router.push('/auth/login?reset=1');
+      router.push(
+        activation
+          ? avecRedirection('/auth/login?reset=1', '/onboarding/agency-admin')
+          : '/auth/login?reset=1',
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 422 && err.data && typeof err.data === 'object' && 'errors' in err.data) {

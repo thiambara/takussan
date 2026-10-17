@@ -99,6 +99,17 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        // TCK-781 (P15.07) — le lien d'activation du gérant provisionné vaut 7 jours (TCK-209),
+        // et non les 60 minutes d'une réinitialisation. Même table : un e-mail n'y a qu'un jeton.
+        // `PasswordResetController` ne juge un jeton par ce broker que pour un compte qui n'a
+        // jamais choisi de mot de passe.
+        'activations' => [
+            'provider' => 'users',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60 * 24 * 7,
+            'throttle' => 60,
+        ],
     ],
 
     /*

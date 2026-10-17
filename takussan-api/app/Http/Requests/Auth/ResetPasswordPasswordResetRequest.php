@@ -32,6 +32,8 @@ class ResetPasswordPasswordResetRequest extends BaseFormRequest
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            // TCK-781 — le lien d'activation du gérant provisionné (7 jours).
+            'activation' => ['sometimes', 'boolean'],
         ];
     }
 }

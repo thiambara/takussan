@@ -47,6 +47,14 @@ return [
         'ignore' => 'If you did not request a password reset, no further action is required.',
     ],
 
+    'agency_admin_activation' => [
+        'subject' => 'Activate your Takussan account',
+        'greeting' => 'Hello!',
+        'intro' => 'An agency manager account has been created for you on Takussan. Choose your password to activate it, then set up your agency.',
+        'action' => 'Activate my account',
+        'expire' => 'This activation link will expire in :count days.',
+    ],
+
     'new_booking' => [
         'subject' => 'New booking #:reference',
         'greeting' => 'Hello,',

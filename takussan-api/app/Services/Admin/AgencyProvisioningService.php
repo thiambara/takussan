@@ -10,11 +10,13 @@ use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Notifications\AgencyAdminActivationNotification;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AgencyProvisioningService
 {
@@ -105,11 +107,18 @@ class AgencyProvisioningService
         });
     }
 
+    /**
+     * TCK-781 (P15.07) — un e-mail « Activez votre compte », valable 7 jours (broker
+     * `activations`, TCK-209), et non le gabarit de réinitialisation à 60 minutes. Un échec
+     * d'envoi rend 502 et annule le provisionnement (transaction englobante).
+     */
     protected function sendActivationLink(User $admin): void
     {
-        $status = Password::broker()->sendResetLink(['email' => $admin->email]);
-
-        if ($status !== Password::RESET_LINK_SENT) {
+        try {
+            $token = Password::broker('activations')->createToken($admin);
+            $admin->notify(new AgencyAdminActivationNotification($token));
+        } catch (Throwable $e) {
+            report($e);
             abort_code(502, 'mail.invitation_not_sent');
         }
     }
