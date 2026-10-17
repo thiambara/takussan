@@ -22,7 +22,7 @@ import {
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
-import { conditionValues, propertyTypeValues } from '@/lib/schemas/property';
+import { conditionValues, propertyTypeValues } from '@/lib/enums/property';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
