@@ -2359,7 +2359,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Plafond réel de 1 000 identifiants, toutes agences confondues
 - Réf : P16.04
-- Statut : validé — maxTotalHits = 5000 sur tous les index, comme P01.06 ; reste : agency_id filtrable et passé à Scout, pour que le filtre d'agence précède le plafond
+- Statut : caduc — maxTotalHits vaut déjà 5000 sur les 7 index (TCK-709, P01.06), gardé par SearchIdCapIndexSettingsTest ; le reste du porteur (agency_id filtrable et passé à Scout) n'est pas fait
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:20-27,235`, `takussan-api/config/scout.php:267-288`
 - Constat :
@@ -2369,6 +2369,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Le volume de production est à vérifier.
 - Piste : rendre `agency_id` filtrable et le passer à Scout ; à défaut, aligner `maxTotalHits` sur `SEARCH_ID_CAP` et corriger le commentaire.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `HasQueryBuilder.php:18-27` (`SEARCH_ID_CAP = 5000`, commentaire) et `:232` (`search()->take(5000)->keys()`), `config/scout.php:273-288` (clients, maintenance, agences, utilisateurs sans `filterableAttributes` ni `pagination`) ; tinker en lecture sur Meilisearch local → `maxTotalHits` vaut 1000 sur les 17 index (`takussan_local*` et `testing_*`), filtrables vides pour `customers`, `maintenance_requests`, `users`, `agencies`. Aucun index local ne dépasse 1 000 documents (802 biens, 52 utilisateurs, 2 clients indexés) : la troncature à 1 000 est déduite du plafond de Meilisearch, pas observée ; le volume de production reste à vérifier. Classement : V2, la piste fait porter le filtre d'agence par l'index au lieu du SQL, et en propose une seconde (relever `maxTotalHits`) entre lesquelles il faut choisir.
+- Mesure (2026-10-17, 0121d9360, implementeur) : lu `config/scout.php:11-15` (`$pagination = ['maxTotalHits' => 5000]`, posé par a7e1d4f59, TCK-709) et `:228-303` (le réglage sur `Property`, `Message`, `Document`, `Customer`, `MaintenanceRequest`, `Agency`, `User`) ; `php artisan test tests/Feature/Search/SearchIdCapIndexSettingsTest.php` → 2 verts, dont celui qui confronte chaque index de `SearchableModels::all()` à 5000 ; le commentaire de `HasQueryBuilder::SEARCH_ID_CAP` dit déjà 5000. La décision du porteur est faite ; seul reste son « reste » (`agency_id` filtrable et passé à Scout), qui n'est pas confié.
 
 ### `/search/documents` et `/search/messages` : le filtre de dates s'applique après la pagination de Meilisearch
 - Réf : P16.05
