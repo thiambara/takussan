@@ -3825,7 +3825,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les décisions SEO du porteur pour la bascule ne sont écrites ni dans TCK-517 ni dans le plan de la phase F
 - Réf : P34.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V6 : tâche de bascule (DNS Cloudflare, Search Console) et 308 contraire à ADR-0026 § 3
 - Gravité : 🟠 risque ou dette
 - Où : `docs/backlog/tickets/TCK-517-production-auto-hebergee.md`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951-4200`, `docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md:154-168`, `takussan-web/src/proxy.ts:161`
 - Constat :
@@ -3836,10 +3836,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - L'ajout à l'ardoise que demandait P09.01 n'est pas fait non plus : `grep -i "seo\|sitemap\|référencement" docs/ardoise.md` → rien (mesuré ; voir P09.01).
   - Établi comment : lecture et `grep`. Le CLAUDE.md racine écrit qu'« une décision qui ne vit que dans un ticket clos est une décision perdue » ; une ligne `Statut` en est une autre forme.
 - Piste : ajouter à la phase F une tâche SEO, F3 étape 7 ou F6 : la propriété Search Console par enregistrement DNS TXT chez Cloudflare (il survit à la bascule, contrairement à un fichier ou à une balise servis par Vercel), un relevé de l'index et des erreurs de couverture avant F3, la soumission du sitemap après la seconde ligne `✓`, un relevé à J+7 avant F5. La redirection 308 demande d'abord un amendement d'ADR-0026 § 3. Garde possible : F3 vérifie que `robots.txt` cite le sitemap de l'origine de production et que le sitemap compte plus d'URL que les seules pages statiques.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `git log dfff1f69..18c6141d` sur TCK-517, le plan, ADR-0026, `proxy.ts`, `images.yml` et l'ardoise → aucun commit ; `grep -rni 'search console\|google-site-verification\|IndexNow\|bing webmaster' docs` hors ce fichier → rien ; `grep -n 308` sur TCK-517, le plan et ADR-0026 → seuls ADR-0026:154-168 (307, jamais 308) et deux 308 sans rapport (Mo, tâches) ; `proxy.ts:161` → `NextResponse.redirect(url, 307)` ; plan F3 étape 3 (l. 4104) n'attend que `robots.txt sert <commit>` ; `grep -ni 'seo\|sitemap\|référencement' docs/ardoise.md` → rien → le constat tient en entier. Classement : V5, la tâche ajoutée vit dans le plan de déploiement et passe par un enregistrement DNS, et V6, la 308 demande d'amender ADR-0026 § 3.
 
 ### Le sitemap est figé au build, et le premier build de production se fait sans API
 - Réf : P34.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V7 : ordre du plan de bascule, et choix entre trois options de rendu du sitemap
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
 - Constat :
@@ -3848,10 +3849,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Le catalogue est lu par `apiFetch`, donc sur `NEXT_PUBLIC_API_URL`, l'URL publique (lu). Dans le plan, l'image `:prod` se construit en F2 étape 4, quand l'API de production ne sert encore rien : elle ne se déploie qu'en F3 (lu).
   - L'image servie après la bascule porterait donc un sitemap de 12 URL. Il ne serait refait qu'à la première requête une heure après le démarrage du conteneur, et cette requête recevrait encore l'ancien (à vérifier sur l'image : comportement ISR de Next en `standalone`).
 - Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
 
 ### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
 - Réf : P34.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : sortie `media_url` de production dans `images.yml` et médias de production sur R2
 - Gravité : 🟠 risque ou dette
 - Où : plan F2 étape 1 (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`, bloc `master)`), `.github/workflows/images.yml:36-44,100-103`, `takussan-web/Dockerfile:17,28`
 - Constat :
@@ -3859,10 +3861,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - `Dockerfile:28` : `test -n "$NEXT_PUBLIC_MEDIA_URL" || … exit 1`. Recopié tel quel, F2 fait échouer le build de l'image `:prod` (lu ; l'échec est bruyant, pas silencieux).
   - Aucune tâche F ne parle des médias de production (`awk 'NR>=3951' … | grep -i "media\|R2\|0029"` → une seule ligne, sur les sauvegardes). `takussan-web/CLAUDE.md` interdit de poser cette variable sans la bascule des médias de l'environnement sur R2 : sinon les photos sortent en pleine taille, sans optimiseur. Les `og:image` des fiches en dépendent (lu).
 - Piste : compléter F2 avec la `media_url` de production et une étape F1 pour le seau public et le disque de production (ADR-0029), ou dire explicitement que la production démarre sans R2. Le plan se corrige seul ; une garde qui compare les sorties de chaque branche du `case` d'`images.yml` attraperait la même faute à l'exécution.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F2 étape 1 (l. 4016-4027) : le bloc `master)` écrit `environnement`, `api_url`, `site_url`, sans `media_url` ; `images.yml:32,42` déclare et écrit `media_url` pour `preview`, `:103` passe `NEXT_PUBLIC_MEDIA_URL` au build du front ; `takussan-web/Dockerfile:28` sort en `exit 1` si elle est vide ; `awk 'NR>=3951' <plan> | grep -i 'media\|R2\|0029'` → une seule ligne, sur les sauvegardes lues dans R2 → le constat tient. Classement : V5, le correctif fixe une URL de production dans `.github/workflows/images.yml` et décide du seau de médias de production (ADR-0029).
 
 ### F3 ne dit pas quelles variables d'exécution reçoivent le front et l'API de production
 - Réf : P34.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : variables d'environnement du front et de l'API de production
 - Gravité : 🟠 risque ou dette
 - Où : plan F3 étape 1, `docs/infra/hebergement.md:171-180`, `takussan-web/src/app/api/revalidation/fiche/route.ts:78-89`, `takussan-api/config/services.php:55-58`
 - Constat :
@@ -3871,10 +3874,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - L'API de production prend « l'environnement de D1, à ces différences près », et la table des différences ne cite ni `PUBLIC_CACHE_REVALIDATE_URL` ni `PUBLIC_CACHE_REVALIDATE_SECRET` (lu). Recopiée de la préproduction, l'URL viserait le handler du front de préproduction, et la production révoquerait le cache de la préproduction (à vérifier : `hebergement.md:171` dit ces clés « à poser » au 2026-10-08, sans dire si elles le sont).
   - À vérifier aussi : en préproduction, cette URL passe par l'authentification basique de Traefik, qui couvre toute l'application (`hebergement.md:183`). Le POST de l'API y recevrait 401 avant d'atteindre Next (déduit, non mesuré).
 - Piste : ajouter à F3 la table des variables d'exécution de `takussan-web-prod` et les deux clés `PUBLIC_CACHE_*` dans celle de l'API, avec l'URL de production. Pour la préproduction, mesurer un POST signé contre l'URL publique.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F3 étape 1 (l. 4067-4087) : `takussan-web-prod` n'a qu'image, domaine et « sans authentification basique », et la table de l'API ne cite aucune clé `PUBLIC_CACHE_*` ; `hebergement.md:171-180` liste les trois variables d'exécution de `takussan-web-preview` et les dit « à poser » au 2026-10-08 ; `route.ts:79-89` rend 401 si le secret est vide ; `config/services.php:55-58` lit les deux clés, vides par défaut → la partie plan tient ; le 401 de Traefik sur le POST de préproduction reste déduit, non mesuré (hors du poste). Classement : V5, ce sont des variables d'environnement de production à fixer dans le plan de bascule.
 
 ### Petites améliorations
 - Réf : P34.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 et V7 : `noindex` selon l'environnement et plan F3, en plus d'une politique `robots` à trancher
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
 - Constat :
@@ -3887,3 +3891,4 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - `robots: { index: false }` sur les passages interdits ;
   - `X-Robots-Tag: noindex` ou `Disallow: /` dès que l'origine n'est pas celle de la production, côté front et côté API ;
   - `/fr/properties?page=2` dans la commande de F3.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `.next/server/app/robots.txt.body` de cet arbre → `Disallow: /app` sans barre, et `apple-icon.png` est servi à la racine (`src/app/apple-icon.png`, `.next/server/app/apple-icon.png.body`) ; le commentaire de `src/lib/sitemap.ts:335-337` affirme toujours qu'aucune surface publique ne commence par ces préfixes ; `grep -l robots` sur `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx`, `maintenance/page.tsx` et `app/layout.tsx` → aucun (seul `(auth)/layout.tsx:34` porte `index: false`) ; `robots.ts` rend `allow: '/'` sans condition d'origine ; `takussan-api/public/robots.txt` → `Disallow:`, `routes/web.php:7-9` → vue `welcome` ; plan F3 étape 4 (l. 4126,4130) éprouve `/fr/biens?page=2` → les quatre points tiennent ; l'effet réel sur l'icône chez Google n'est pas mesuré. Classement : V5, le `noindex` dépend de l'origine déployée et le dernier point corrige le plan de bascule, et V7, `Disallow: /app/` + `/app$` et le `noindex` des passages interdits changent ce qu'on expose aux moteurs ; le seul point `/app` relèverait d'A1.
