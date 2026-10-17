@@ -3735,7 +3735,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Le widget de messagerie, invisible au visiteur anonyme, met la messagerie, zod et react-hook-form dans le JS initial de toutes les pages
 - Réf : P33.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-743
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:14`, `takussan-web/src/app/layout.tsx:110`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:9-11`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:145`, `takussan-web/src/components/messages/ChatView.tsx:6-8`, `takussan-web/src/components/messages/ChatView.tsx:25`, `takussan-web/src/components/messages/ChatView.tsx:31`
 - Constat :
@@ -3745,6 +3745,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Le morceau de zod (64,2 Kio gzip, chaîne `ZodError`) figure dans les `entryJSFiles` de `[project]/src/app/layout` (mesuré) : il est payé par toute route, `/auth/login` comprise (448 Kio).
 - Piste : charger le widget par `next/dynamic` (`ssr: false`) derrière la condition `user`, ou ne monter que le lanceur et importer le panneau à la première ouverture. Garde : un test ou une garde de build qui refuse `zod` et `react-hook-form` dans les `entryJSFiles` du layout racine (voir P33.05).
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `ChatWidget.tsx:9-11` (imports statiques de `ConversationList`, `ChatView`, `PropertyDraftChatView`), `:145` `isVisible = Boolean(user) && !isHiddenByRoute`, `:170` `return null` ; `ChatView.tsx:6-8,25` importe `react-hook-form`, `useResolveurValidation` et `sendMessageSchema` ; `grep -rn 'dynamic(' src` → 3 sites, tous cartographiques ; dans le build local du 2026-10-15, les `entryJSFiles` de `[project]/src/app/layout` de `/legal/notice` contiennent deux morceaux portant `ZodError` (`2a0zrz29ftn70.js`, `1f6glm94c8plh.js`) ; les octets avant/après du constat n'ont pas été rejoués (pas de build sur ec405f7a) → le constat tient. Classement : A2, découpage du code sans changement de résultat : `ChatWidget` garde statiques sa garde `isVisible` et ce qu'elle lit, et ne rend qu'ensuite un corps chargé par `next/dynamic` (`ssr: false`) contenant le lanceur et le panneau actuels, de sorte que le visiteur anonyme ne télécharge rien de la messagerie ; le brouillon de TCK-500 vit dans `ChatDraftContext`, hors du widget, et reste lu au montage.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `js-initial-du-layout-racine.test.ts`, traceur d'imports statiques du graphe client de `src/app/layout.tsx`, rouge sur quatre chemins, tous par `ChatWidget → ChatView` (zod par `schemas/message.ts`, react-hook-form et `@hookform/resolvers` par `useApiForm.ts`) → `ChatWidget` réduit à la garde `user`, le corps actuel devenu `CorpsDuWidget` chargé par `next/dynamic` (rendu serveur gardé) ; ablation : corps réimporté statiquement → traceur rouge et `ChatWidget.garde.test.tsx` rouge (corps chargé pour l'anonyme) ; 4/4 verts, les 23 tests du widget verts sur le corps.
 
 ### zod arrive aussi sur les pages publiques par des listes de valeurs rangées dans les modules de schémas
 - Réf : P33.03
