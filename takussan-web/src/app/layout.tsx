@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Manrope, Inter, Bricolage_Grotesque, DM_Sans, Fraunces } from 'next/font/google';
+import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
@@ -21,12 +21,12 @@ import { messagesPour } from '@/i18n/messages';
 import { AudienceSansSecret } from '@/components/shared/AudienceSansSecret';
 import './globals.css';
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
-const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+// TCK-742 (P33.01) — seules les deux familles du design system. Toute famille déclarée ici est
+// PRÉCHARGÉE par toutes les routes : Manrope, Inter et Fraunces, que seul `/playground` lit, sont
+// déclarées par sa page ; Geist, lue nulle part, est retirée. Garde :
+// `src/app/__tests__/polices-du-layout-racine.test.ts`.
 const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-bricolage', weight: ['400', '500', '600', '700'] });
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans', weight: ['400', '500', '600', '700'] });
-const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', weight: ['400', '500', '600'], style: ['normal', 'italic'] });
 
 /**
  * `metadataBase` est posé ICI, et une seule fois — TCK-433.
@@ -88,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await messagesPour('.');
 
   return (
-    <html lang={locale} className={`${geist.variable} ${manrope.variable} ${inter.variable} ${bricolage.variable} ${dmSans.variable} ${fraunces.variable}`}>
+    <html lang={locale} className={`${bricolage.variable} ${dmSans.variable}`}>
       <body className="font-sans antialiased">
         <IntlProviderRacine locale={locale} messages={messages}>
           <QueryProvider>
