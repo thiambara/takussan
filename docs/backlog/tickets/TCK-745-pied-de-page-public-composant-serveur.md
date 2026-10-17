@@ -1,7 +1,7 @@
 ---
 id: TCK-745
 title: "Pied de page public en composant serveur"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -48,15 +48,19 @@ Aucun. Le rendu est le même.
 
 ## Delta à produire
 
-- [ ] Retirer `'use client'` de `Footer.tsx`.
-- [ ] `src/test/graphe-client.ts` : `modulesDuGrapheClient()`.
-- [ ] Garde `src/components/home/__tests__/Footer.serveur.test.ts`.
+- [x] Retirer `'use client'` de `Footer.tsx`.
+- [x] `src/test/graphe-client.ts` : `modulesDuGrapheClient()`.
+- [x] Garde `src/components/home/__tests__/Footer.serveur.test.ts`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chaque importeur serveur de `Footer`, `Footer.tsx` est hors du graphe client.
-- [ ] AC2 — Témoin : il est dans celui de `HomepageDiscovery`, importeur client.
-- [ ] AC3 — Les tests existants du pied de page restent verts.
+- [x] AC1 — Pour chaque importeur serveur de `Footer`, `Footer.tsx` est hors du graphe client.
+- [x] AC2 — Témoin : il est dans celui de `HomepageDiscovery`, importeur client.
+- [x] AC3 — Les tests existants du pied de page restent verts.
+
+## Reste à faire
+
+- Refaire la mesure du CSS initial des pages publiques après P33.01 (`entryCSSFiles` d'un build).
 
 ## Hors périmètre
 
@@ -66,4 +70,8 @@ Aucun. Le rendu est le même.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : 13 rouges, un par importeur serveur. Ablation : `'use client'` remis →
+  les 13 mêmes rouges ; retiré : 16/16 verts, et les 22 fichiers de `components/home/__tests__`
+  (155 tests) verts.
+- Aucun importeur client n'y ramène le pied de page sur ces 13 entrées : il suffisait de la
+  directive.
