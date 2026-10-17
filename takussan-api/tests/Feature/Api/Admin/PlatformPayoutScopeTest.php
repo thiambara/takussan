@@ -198,4 +198,29 @@ class PlatformPayoutScopeTest extends TestCase
             'paid_at' => self::PAID_AT,
         ]);
     }
+
+    /**
+     * TCK-736 (P04.08) — la commission de la plateforme s'arrondit à l'unité de la devise, ligne par
+     * ligne, à la clôture comme au détail : 5 % de 100 010 XOF font 5 000,50, retenus 5 001 par
+     * ligne. Arrondir la somme des deux lignes rendrait 10 001 au détail, contre 10 002 figés.
+     */
+    public function test_the_closure_and_its_breakdown_round_to_the_currency_unit(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+        $this->subscribe($agency, feePct: 5);
+        $this->soldeParLaPlateforme($this->bookingPayment($agency, 100_010));
+        $this->soldeParLaPlateforme($this->bookingPayment($agency, 100_010));
+
+        $this->close($agency)->assertCreated();
+
+        $payout = PlatformPayout::query()->where('agency_id', $agency->id)->firstOrFail();
+        $this->assertSame('200020.00', (string) $payout->gross_amount);
+        $this->assertSame('10002.00', (string) $payout->platform_fee_amount);
+        $this->assertSame('190018.00', (string) $payout->net_amount);
+
+        $this->getJson("/api/admin/payouts/{$payout->id}")->assertOk()
+            ->assertJsonPath('data.breakdown.booking.gross', 200020)
+            ->assertJsonPath('data.breakdown.booking.fees', 10002);
+    }
 }

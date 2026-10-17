@@ -4,6 +4,7 @@ namespace App\Services\Lease;
 
 use App\Events\Lease\LeaseDepositRefunded;
 use App\Models\Agency;
+use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -55,11 +56,12 @@ class DepositRefundService
         $deposit = (float) ($lease->deposit_amount ?? 0);
         abort_code_if($deposit <= 0, 422, 'deposit_refund.no_deposit');
 
-        $amount = round((float) ($data['amount'] ?? 0), 2);
+        // TCK-736 (P04.08) — rendu, retenu et cumul s'arrondissent à l'unité de la devise du bail.
+        $currency = $lease->currency?->value ?? 'XOF';
+        $amount = Currency::roundAmount((float) ($data['amount'] ?? 0), $currency);
         abort_code_if($amount <= 0, 422, 'deposit_refund.amount_required');
 
         $reason = isset($data['reason']) ? trim((string) $data['reason']) : '';
-        $currency = $lease->currency?->value ?? 'XOF';
 
         $result = DB::transaction(function () use ($lease, $issuedBy, $amount, $reason, $currency, $data) {
             // Re-fetch under a row lock so two concurrent partial refunds can't
@@ -82,7 +84,7 @@ class DepositRefundService
             $isPartial = $amount + 0.001 < $remaining;
             abort_code_if($isPartial && $reason === '', 422, 'deposit_refund.reason_required');
 
-            $retained = round($remaining - $amount, 2);
+            $retained = Currency::roundAmount($remaining - $amount, $currency);
             $now = now();
 
             $payment = LeasePayment::create([
@@ -163,7 +165,7 @@ class DepositRefundService
                 ],
             ]);
 
-            $totalRefunded = round((float) ($lease->deposit_refunded_amount ?? 0) + $amount, 2);
+            $totalRefunded = Currency::roundAmount((float) ($lease->deposit_refunded_amount ?? 0) + $amount, $currency);
             $lease->forceFill([
                 'deposit_refunded_amount' => $totalRefunded,
                 'deposit_refunded_at' => $now,

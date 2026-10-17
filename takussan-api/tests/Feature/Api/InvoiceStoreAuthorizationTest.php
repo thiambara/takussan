@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Invoice;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -213,5 +214,25 @@ class InvoiceStoreAuthorizationTest extends TestCase
         $this->postJson('/api/invoices', $this->body())->assertForbidden();
 
         $this->assertDatabaseCount('invoices', 0);
+    }
+
+    /**
+     * TCK-736 (P04.08) — la TVA s'arrondit à l'unité de la devise : 18 % de 100 001 XOF font
+     * 18 000,18, facturés 18 000 puisque le XOF n'a pas de sous-unité. En EUR, le centime reste.
+     */
+    public function test_the_tax_is_rounded_to_the_currency_unit(): void
+    {
+        Sanctum::actingAs(User::factory()->withAgentProfile($this->agency)->create());
+
+        $xof = $this->postJson('/api/invoices', ['subtotal' => 100001, 'tax_rate' => 18] + $this->body())->assertCreated();
+        $eur = $this->postJson('/api/invoices', ['subtotal' => 100001, 'tax_rate' => 18, 'currency' => 'EUR'] + $this->body())->assertCreated();
+
+        $invoice = Invoice::query()->findOrFail($xof->json('data.id'));
+        $this->assertSame('18000.00', (string) $invoice->tax_amount);
+        $this->assertSame('118001.00', (string) $invoice->total_amount);
+
+        $invoice = Invoice::query()->findOrFail($eur->json('data.id'));
+        $this->assertSame('18000.18', (string) $invoice->tax_amount);
+        $this->assertSame('118001.18', (string) $invoice->total_amount);
     }
 }
