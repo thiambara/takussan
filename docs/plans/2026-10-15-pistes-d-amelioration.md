@@ -3057,7 +3057,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Des URL signées de 7 jours vers des pièces privées sont rangées dans `app_notifications.data`, et relues par `GET /api/notifications`
 - Réf : P23.05
-- Statut : validé — ne ranger que les identifiants des médias et signer à la lecture après autorisation ; l'URL longue reste pour le courriel
+- Statut : fait · TCK-821
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:35,94-104,123-136`, `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:155-189`, `takussan-api/app/Http/Resources/AppNotificationResource.php:46`
 - Constat :
@@ -3069,6 +3069,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu.
 - Piste : ne ranger en base que les identifiants des médias, et signer à la lecture, dans `AppNotificationResource` ou un point de lecture dédié, après autorisation. Garder l'URL longue pour le seul courriel. Garde : un test qui vérifie qu'aucune `data` de notification écrite ne contient `signature=`.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `LeaseDepositRefundNotification.php:35,103,129-131` et `AppNotificationResource.php:46` (`data` rendu tel quel) ; `EnforceImpersonationReadOnly` ne cite pas `api/notifications` (grep) ; les trois points « à vérifier » le sont par test temporaire, retiré depuis : remboursement de caution avec une photo → 1 ligne `app_notifications` dont `data` contient `signature=` ; session d'impersonation sur le locataire → `GET /api/notifications` 200, corps avec `signature=` ; l'URL relue sans session → 302 ; la même au huitième jour (`travel(8)->days()`) → 403. Classement : V3, le correctif change ce qui est conservé dans `app_notifications` et la forme de `data` relue par le front.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `DepositRefundAttachmentLinksTest` : la ligne `app_notifications` d'un remboursement avec une photo contenait `signature=`, et `GET /api/notifications` rendait l'URL de 7 jours au lieu d'une URL courte (3 rouges) → `toArray()` ne range que `{id, name}`, `AppNotificationResource` signe à la lecture par `LeaseDepositRefundNotification::attachmentsAtRead()` (30 min, `LeasePolicy::view` sur le bail, pièce de sa collection, `null` sinon), le courriel garde ses 7 jours ; 4 verts, ablation (notification et ressource d'origine) → 3 rouges, correctif remis → 4 verts ; `PrivateMediaAccessTest` lit désormais le lien long dans le courriel ; 62 verts sur huit classes voisines.
 
 ### Petites améliorations
 - Réf : P23.06
