@@ -8181,6 +8181,7 @@
       "cancel": "Neenal",
       "author": "{name} moo ko digle",
       "authorUnknown": "Bindkat bi xameesu ko",
+      "similar": "Proche de : {names}",
       "usage": "{count, plural, =0 {Amul benn anons} =1 {# anons} other {# anons}}",
       "emptyTitle": "Amul benn ndigal buy xaar",
       "emptyDescription": "Ndigal yi dinañu feeñ fii bu benn anons am ko.",

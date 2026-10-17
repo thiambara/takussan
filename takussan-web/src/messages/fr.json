@@ -8828,6 +8828,7 @@
       "cancel": "Annuler",
       "author": "Proposé par {name}",
       "authorUnknown": "Auteur inconnu",
+      "similar": "Proche de : {names}",
       "usage": "{count, plural, =0 {Aucune annonce} =1 {# annonce} other {# annonces}}",
       "emptyTitle": "Aucune proposition en attente",
       "emptyDescription": "Les propositions apparaîtront ici dès qu’une annonce en contiendra.",

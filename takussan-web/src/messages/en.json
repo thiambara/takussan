@@ -8828,6 +8828,7 @@
       "cancel": "Cancel",
       "author": "Proposed by {name}",
       "authorUnknown": "Unknown author",
+      "similar": "Close to: {names}",
       "usage": "{count, plural, =0 {No listing} =1 {# listing} other {# listings}}",
       "emptyTitle": "No pending proposal",
       "emptyDescription": "Proposals will appear here as soon as a listing contains one.",

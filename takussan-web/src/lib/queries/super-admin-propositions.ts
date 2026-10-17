@@ -23,6 +23,11 @@ export interface Proposition {
   readonly lieu: string | null;
   /** La ville d'un quartier : on ne fusionne que dans la même (`geo.merge_other_city`). */
   readonly villeId: number | null;
+  /**
+   * TCK-788 — les quartiers APPROUVÉS de la même ville dont le nom, replié sans accents ni
+   * ponctuation, coïncide : le double probable, à fusionner. Toujours vide pour un équipement.
+   */
+  readonly proches: readonly string[];
 }
 
 export interface MetaDePage {
@@ -62,6 +67,8 @@ interface QuartierAdmin {
   readonly region: { readonly id: number; readonly name: string };
   readonly created_by: Auteur | null;
   readonly addresses_count: number;
+  /** TCK-788 — absent d'une réponse antérieure au champ. */
+  readonly similar?: readonly { readonly id: number; readonly name: string }[];
 }
 
 interface EquipementAdmin {
@@ -99,11 +106,12 @@ function depuisQuartier(q: QuartierAdmin): Proposition {
     usage: q.addresses_count,
     lieu: `${q.city.name} · ${q.region.name}`,
     villeId: q.city.id,
+    proches: (q.similar ?? []).map((s) => s.name),
   };
 }
 
 function depuisEquipement(e: EquipementAdmin): Proposition {
-  return { id: e.id, name: e.name, auteur: nomDAuteur(e.created_by), usage: e.properties_count, lieu: null, villeId: null };
+  return { id: e.id, name: e.name, auteur: nomDAuteur(e.created_by), usage: e.properties_count, lieu: null, villeId: null, proches: [] };
 }
 
 async function lireQuartiers(qs: URLSearchParams): Promise<Enveloppe<QuartierAdmin>> {
