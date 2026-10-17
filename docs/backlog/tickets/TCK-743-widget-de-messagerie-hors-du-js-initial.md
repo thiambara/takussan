@@ -1,7 +1,7 @@
 ---
 id: TCK-743
 title: "Widget de messagerie : son corps n'est chargé que pour un utilisateur connecté"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -46,18 +46,18 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] `ChatWidget.tsx` devient `CorpsDuWidget.tsx` (même code, export renommé).
-- [ ] Nouveau `ChatWidget.tsx` : garde `user`, puis `CorpsDuWidget` par `next/dynamic`.
-- [ ] `ChatWidget.test.tsx` porte sur le corps ; `ChatWidget.garde.test.tsx` sur la garde.
-- [ ] Garde `src/app/__tests__/js-initial-du-layout-racine.test.ts` : le graphe client statique
+- [x] `ChatWidget.tsx` devient `CorpsDuWidget.tsx` (même code, export renommé).
+- [x] Nouveau `ChatWidget.tsx` : garde `user`, puis `CorpsDuWidget` par `next/dynamic`.
+- [x] `ChatWidget.test.tsx` porte sur le corps ; `ChatWidget.garde.test.tsx` sur la garde.
+- [x] Garde `src/app/__tests__/js-initial-du-layout-racine.test.ts` : le graphe client statique
       du layout racine n'atteint ni `zod`, ni `react-hook-form`, ni `@hookform/resolvers`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Visiteur anonyme : `ChatWidget` ne rend rien et n'importe pas le corps.
-- [ ] AC2 — Utilisateur connecté : le corps est chargé et rendu.
-- [ ] AC3 — Le graphe client statique de `src/app/layout.tsx` n'atteint aucun des trois paquets.
-- [ ] AC4 — Les 23 tests existants du widget restent verts sur le corps.
+- [x] AC1 — Visiteur anonyme : `ChatWidget` ne rend rien et n'importe pas le corps.
+- [x] AC2 — Utilisateur connecté : le corps est chargé et rendu.
+- [x] AC3 — Le graphe client statique de `src/app/layout.tsx` n'atteint aucun des trois paquets.
+- [x] AC4 — Les 23 tests existants du widget restent verts sur le corps.
 
 ## Hors périmètre
 
@@ -66,4 +66,10 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif, le traceur rend quatre chemins, tous par `ChatWidget → ChatView` (zod par
+  `lib/schemas/message.ts`, react-hook-form et `@hookform/resolvers` par `hooks/useApiForm.ts`) :
+  le widget est le seul chemin statique du layout racine vers ces paquets.
+- Ablation : `CorpsDuWidget` réimporté statiquement par `ChatWidget` → AC3 rouge (les quatre
+  chemins, par le corps) et AC1 rouge (le corps est chargé pour l'anonyme). Correctif remis : verts.
+- Le traceur porte un témoin (`ChatView` doit lui montrer react-hook-form) : sans lui, un traceur
+  qui ne suivrait plus rien rendrait AC3 vert.
