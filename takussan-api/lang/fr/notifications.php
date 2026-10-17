@@ -718,6 +718,11 @@ return [
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
                 'sms' => 'Takussan : annonce « :property » approuvée.',
             ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
+            ],
             'rejected' => [
                 'title' => 'Bien refusé : :property',
                 'body' => 'Votre bien « :property » a été refusé. Motif : :reason. Vous pouvez corriger l\'annonce et la resoumettre depuis votre espace.',

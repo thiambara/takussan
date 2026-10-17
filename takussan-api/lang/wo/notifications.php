@@ -712,6 +712,11 @@ return [
                 'body' => 'Sa yégle « :property » nangu nañu ko, ñépp mën nañu koo gis léegi.',
                 'sms' => 'Takussan : yégle « :property » nangu nañu ko.',
             ],
+            'submitted_for_review' => [
+                'title' => 'Bien à modérer : :property',
+                'body' => 'Le bien « :property » attend votre validation avant d\'être publié.',
+                'sms' => 'Takussan : bien à modérer, « :property ».',
+            ],
             'rejected' => [
                 'title' => 'Yégle bi gàntu nañu ko : :property',
                 'body' => 'Sa yégle « :property » gàntu nañu ko. Ngirte : :reason. Mën nga koo defar te yónneewaat ko ci sa bérab.',

@@ -713,6 +713,11 @@ return [
                 'body' => 'Your property ":property" was approved and is now visible on the platform.',
                 'sms' => 'Takussan: listing ":property" approved.',
             ],
+            'submitted_for_review' => [
+                'title' => 'Property to review: :property',
+                'body' => 'The property “:property” is awaiting your approval before it goes live.',
+                'sms' => 'Takussan: property to review, “:property”.',
+            ],
             'rejected' => [
                 'title' => 'Property rejected: :property',
                 'body' => 'Your property ":property" was rejected. Reason: :reason. You can fix the listing and resubmit it from your workspace.',
