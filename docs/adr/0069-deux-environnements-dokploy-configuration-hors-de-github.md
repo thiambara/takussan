@@ -1,7 +1,7 @@
 # ADR-0069 — Préproduction et production sont deux environnements Dokploy ; la configuration vit dans Dokploy, les images n'en portent aucune
 
-- **Statut** : Proposé (décisions du porteur du 2026-10-17 : 1a, 3a, 4a, et « les variables
-  d'environnement quittent GitHub ») — à relire avant toute mise en œuvre
+- **Statut** : Accepté le 2026-10-18 par le porteur (décisions du 2026-10-17 : 1a, 3a, 4a, « les
+  variables d'environnement quittent GitHub », et le déclencheur gardé dans GitHub, option a)
 - **Date** : 2026-10-18
 - **Tickets** : à écrire (un par section de la décision, dans l'ordre de l'Application)
 - **Amende** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) § 3 (une image de front
