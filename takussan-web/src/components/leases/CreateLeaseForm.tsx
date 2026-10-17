@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Controller, useWatch, type Control } from 'react-hook-form';
+import { Controller, useFormState, useWatch, type Control } from 'react-hook-form';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -89,6 +90,11 @@ export function CreateLeaseForm() {
       router.push(`/app/leases/${result.data.id}`);
     },
   });
+
+  // P08.06 (TCK-755) — avertir avant de quitter la page, seulement quand le formulaire est modifié.
+  // `useFormState` et non `form.formState` lu au rendu : compilé, la lecture resterait figée (TCK-571).
+  const { isDirty } = useFormState({ control: form.control });
+  useAvertissementDepart(isDirty);
 
   const customerLabel = (customer: CustomerListItem) =>
     formatCustomerLabel(customer, (id) => t('customerFallback', { id: String(id) }));

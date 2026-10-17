@@ -121,3 +121,22 @@ describe('CustomerForm — doublon et critères', () => {
     expect(updateCustomerAction.mock.calls[1][1]).toMatchObject({ budget_max: 300000, seeking_cities: ['Dakar'] });
   });
 });
+
+/** P08.06 (TCK-755) — quitter la page avertit seulement quand le formulaire est modifié. */
+describe('CustomerForm — avertissement de départ (TCK-755)', () => {
+  const quitterLaPage = () => {
+    const evenement = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(evenement);
+    return evenement.defaultPrevented;
+  };
+
+  it("n'avertit pas sur un formulaire intact, avertit dès qu'un champ est saisi", async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CustomerForm mode="create" onSuccess={vi.fn()} />));
+    expect(quitterLaPage()).toBe(false);
+
+    await user.type(screen.getByLabelText(/Prénom/), 'Awa');
+
+    expect(quitterLaPage()).toBe(true);
+  });
+});
