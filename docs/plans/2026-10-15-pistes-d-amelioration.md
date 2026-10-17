@@ -2524,7 +2524,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Une visite de l'accueil compte deux impressions vedettes quand la ville du visiteur est devinée
 - Réf : P18.03
-- Statut : validé — couvert par la déduplication de P01.04 ; un test : deux appels, l'un avec near_city, comptent une fois
+- Statut : fait · TCK-790
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/public-discovery.ts:54-71`, `takussan-web/src/hooks/useHomepageDiscovery.ts:99-123`, `takussan-api/app/Services/Property/HomepageDiscoveryService.php:107-113`
 - Constat :
@@ -2533,6 +2533,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - La part des visiteurs dont la ville est devinée (ipapi.co, échéance de 1 200 ms) n'est pas connue. À vérifier.
 - Piste : ne compter la rangée vedette que sur l'appel sans ville, ou passer un paramètre `count=0` au rappel du client. Un test API : deux appels, l'un avec `near_city`, comptent une seule fois.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `HomepageDiscoveryService.php:107-113` (impressions de la rangée vedette à chaque appel), `SponsoredRotation::seed()` (graine = paramètres + heure UTC), `public/page.tsx:62` (rendu serveur sans ville), `useHomepageDiscovery.ts:99-123` (rappel client avec `near_city` quand une ville est devinée) ; test temporaire calqué sur `BoostStatsTest`, retiré depuis : `GET /api/public/properties/discovery` puis `?near_city=Dakar` → compteur d'impressions du boost à 2 pour une rangée vedette affichée une fois. Charge 2,55 sur 8 cœurs. La part des visiteurs dont la ville est devinée reste non mesurée. Classement : V7, « ne compter que l'appel sans ville » perd l'impression quand le rendu serveur a échoué et que le client appelle avec sa ville, et `count=0` ajoute un paramètre public : le choix revient au porteur.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : test neuf `SponsoredImpressionsTest::test_l_accueil_rappele_avec_near_city_ne_compte_qu_une_fois` (même IP, accueil sans ville puis `?near_city=Dakar`) → vert d'emblée : 1 impression, le dédoublonnage de TCK-708 couvre le défaut ; ablation (dédoublonnage par visiteur de `commitImpressions()` neutralisé) → rouge, 2 impressions ; remis → vert, 4 verts dans la classe. Non mesuré : l'IP que l'API voit pour l'appel du rendu serveur, qui part du serveur du front.
 
 ### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
 - Réf : P18.04
