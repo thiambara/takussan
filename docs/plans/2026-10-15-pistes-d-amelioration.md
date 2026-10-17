@@ -2274,7 +2274,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Premier bail : sélecteur de biens vide, sans explication
 - Réf : P15.09
-- Statut : validé — biens proposés : tous sauf sold, archived et rented ; état vide avec des liens « créer un bien » et « ajouter un locataire »
+- Statut : fait · TCK-776
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
 - Constat :
@@ -2284,6 +2284,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `lib/queries/leases.ts:117` (`filter: { status: 'available' }`) et `CreateLeaseForm.tsx:112,136-146` (options = biens rendus, aucun état vide ni lien) ; `StoreLeaseRequest.php:37` n'exige que `exists:properties,id`, et `LeaseService.php` ne lit aucun `PropertyStatus` (grep) ; `PropertyStatus` compte 11 cas (`draft`, `pending_review`, `published`…). Le renvoi à l'angle 13 n'est pas re-mesuré ici. Classement : V7, choisir quels statuts de bien ouvrent un bail et écrire l'état vide avec ses appels à l'action sont des choix de produit.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `CreateLeaseForm.biens-proposes.test.tsx` avant correctif → `useLeasePropertyOptions` envoie `filter[status]=available`, et un sélecteur sans bien ni locataire n'affiche ni texte ni lien → `STATUTS_BIEN_POUR_UN_BAIL` (huit statuts, hors `sold`, `archived`, `rented`) et un état vide avec « Créer un bien » et « Ajouter un locataire ». Ablation : les deux fichiers remis → 2 rouges ; remis → 3 verts, et 70 tests de `components/leases` verts.
 
 ### Petites améliorations
 - Réf : P15.10
