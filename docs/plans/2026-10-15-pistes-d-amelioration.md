@@ -2753,7 +2753,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### Le bien imbriqué par `include=property` charge sa photo ligne par ligne
 - Réf : P20.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-806
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/PropertyResource.php:137`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `BookingController.php:25`, `ConversationController.php:37`
 - Constat :
@@ -2763,6 +2763,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture des `with()` des trois contrôleurs.
 - Piste : précharger `property.media` (filtré sur la collection `photos`) dans les trois `index()`, ou un helper commun aux contrôleurs qui imbriquent `PropertyResource` ; test de budget.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyResource.php:137` (`getFirstMedia('photos')`), les `with()` de `LeaseController.php:31` (`property.address`, `tenant`), `BookingController.php:25` (`property.address`, `customer`, `agency`) et `ConversationController.php:37` (`property`, `participants.media`) : aucun ne charge `property.media` ; test temporaire, retiré depuis, chaque bien avec une photo, `select … from "media"` comptées : baux 2 pour 2 lignes → 12 pour 12, réservations 2 → 12, conversations 3 pour 2 → 15 pour 14 (une par ligne, l'écart constant venant de `participants.media`). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2, préchargement sans changement de réponse ; le correctif ajoute `property.media` aux `with()` des trois `index()` (comme TCK-595 pour la liste des biens), avec un test de budget sur chacune.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par `NestedPropertyPhotoQueryBudgetTest` (chaque bien avec sa photo, requêtes sur `media` comptées) → baux 2 pour 2 lignes et 12 pour 12, réservations 2 → 12, conversations 3 → 13 ; correctif : `property.media` ajouté aux `with()` des trois `index()` → constant, `main_photo_url` toujours rendu ; ablation (`git apply -R` du correctif) → les trois tests rougissent.
 
 ### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
 - Réf : P20.05
