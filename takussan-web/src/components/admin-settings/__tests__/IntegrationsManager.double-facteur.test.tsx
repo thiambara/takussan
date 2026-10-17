@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { ContexteGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import type { GardeDoubleFacteurFn } from '@/lib/double-facteur';
 import { withIntl } from '@/test/intl';
 import { IntegrationsManager } from '../IntegrationsManager';
 
@@ -34,7 +35,7 @@ const wave = {
 
 const REFUS = { ok: false, status: 403, message: 'Second facteur requis.', code: 'two_factor_step_up_required' } as const;
 
-function monter(garde: ReturnType<typeof vi.fn>) {
+function monter(garde: GardeDoubleFacteurFn) {
   render(
     withIntl(
       <ContexteGardeDoubleFacteur.Provider value={garde}>
