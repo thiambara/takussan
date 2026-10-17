@@ -86,5 +86,8 @@ P13.09 : relier la page depuis l'activation du gérant provisionné (P15.07)
   Côté front, le test du drapeau `activation` rougissait avant le correctif de la page.
 - Piège : `toMail()` appelé hors de la file rend la langue de l'application, pas celle du
   destinataire ; le test fixe `fr` avant de lire le sujet.
+- Piège : `CourtierAbsentTest` refuse le mot « broker » hors des lignes qu'il admet une à une
+  (ADR-0030). Le code n'en garde que deux lignes, déclarées dans sa liste ; les commentaires
+  disent « jeu de jetons ».
 - La notification rejoint `NotificationsDeCompteEnFileTest` (file urgente, chiffrée : elle porte
   un jeton).
