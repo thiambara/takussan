@@ -1,7 +1,7 @@
 ---
 id: TCK-781
 title: "L'activation du gérant provisionné : un e-mail « Activez votre compte » valable 7 jours, qui mène à /onboarding/agency-admin"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
@@ -39,30 +39,30 @@ P13.09 : relier la page depuis l'activation du gérant provisionné (P15.07)
 
 ## Delta à produire
 
-- [ ] `config/auth.php` : un broker `activations` (même fournisseur et même table), `expire` à
+- [x] `config/auth.php` : un broker `activations` (même fournisseur et même table), `expire` à
       10 080 minutes (7 jours).
-- [ ] `AgencyAdminActivationNotification` : gabarit « Activez votre compte » (fr, en ; en `wo`, le
+- [x] `AgencyAdminActivationNotification` : gabarit « Activez votre compte » (fr, en ; en `wo`, le
       texte français tel quel), qui dit la durée en jours ; file urgente et chiffrée, comme les
       autres e-mails du compte ; lien `/auth/reset-password?token=…&email=…&activation=1`.
-- [ ] `AgencyProvisioningService::sendActivationLink` : jeton créé par le broker `activations`,
+- [x] `AgencyProvisioningService::sendActivationLink` : jeton créé par le broker `activations`,
       envoi de la notification dédiée ; un échec d'envoi rend toujours 502 et annule tout.
-- [ ] `POST /api/auth/reset-password` : avec `activation=1`, le jeton est jugé par le broker
+- [x] `POST /api/auth/reset-password` : avec `activation=1`, le jeton est jugé par le broker
       `activations`, et seulement pour un compte qui n'a jamais choisi de mot de passe
       (`hasUsablePassword()` faux) ; sans lui, rien ne change (60 minutes).
-- [ ] Page `/auth/reset-password` : avec `activation=1`, la requête porte `activation`, et après
+- [x] Page `/auth/reset-password` : avec `activation=1`, la requête porte `activation`, et après
       le mot de passe la connexion redirige vers `/onboarding/agency-admin`.
-- [ ] Docblock de `/onboarding/agency-admin` ramené à ce qui y mène.
+- [x] Docblock de `/onboarding/agency-admin` ramené à ce qui y mène.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le provisionnement envoie `AgencyAdminActivationNotification`, et non
+- [x] AC1 — Le provisionnement envoie `AgencyAdminActivationNotification`, et non
       `ResetPasswordNotification` ; l'e-mail porte « Activez votre compte » et le lien
       `activation=1`.
-- [ ] AC2 — Le jeton d'activation est accepté 6 jours après l'envoi, refusé après 7 jours.
-- [ ] AC3 — Un jeton de réinitialisation ordinaire reste refusé après 60 minutes, même présenté
+- [x] AC2 — Le jeton d'activation est accepté 6 jours après l'envoi, refusé après 7 jours.
+- [x] AC3 — Un jeton de réinitialisation ordinaire reste refusé après 60 minutes, même présenté
       avec `activation=1` par un compte qui a déjà choisi son mot de passe.
-- [ ] AC4 — Un e-mail déjà inscrit rend toujours 409 `agency.admin_email_taken`.
-- [ ] AC5 — Sur la page de réinitialisation ouverte avec `activation=1`, la réussite mène à
+- [x] AC4 — Un e-mail déjà inscrit rend toujours 409 `agency.admin_email_taken`.
+- [x] AC5 — Sur la page de réinitialisation ouverte avec `activation=1`, la réussite mène à
       `/auth/login?reset=1&redirect=%2Fonboarding%2Fagency-admin`.
 
 ## Hors périmètre
@@ -80,4 +80,11 @@ P13.09 : relier la page depuis l'activation du gérant provisionné (P15.07)
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : les quatre fichiers d'API (broker, service, contrôleur, requête) remis à `pre-dev`
+  → 4 rouges sur 10 (`AgencyAdminActivationTest` 3, `AgencyOnboardingTest` 1) ; remis → verts.
+  La seule condition `hasUsablePassword()` du contrôleur retirée → 1 rouge (AC3) ; remise → vert.
+  Côté front, le test du drapeau `activation` rougissait avant le correctif de la page.
+- Piège : `toMail()` appelé hors de la file rend la langue de l'application, pas celle du
+  destinataire ; le test fixe `fr` avant de lire le sujet.
+- La notification rejoint `NotificationsDeCompteEnFileTest` (file urgente, chiffrée : elle porte
+  un jeton).
