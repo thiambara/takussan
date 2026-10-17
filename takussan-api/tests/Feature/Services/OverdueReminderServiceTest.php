@@ -65,11 +65,61 @@ class OverdueReminderServiceTest extends TestCase
 
     public function test_does_not_send_at_unlisted_offset(): void
     {
-        [$user] = $this->makeInvoice(daysAgo: 4);
+        // TCK-739 — J+11 : 4 jours après le jalon J+7, hors de la fenêtre de rattrapage.
+        [$user] = $this->makeInvoice(daysAgo: 11);
 
         $sent = $this->service->sendForAgency(null);
 
         $this->assertSame(0, $sent);
+        Notification::assertNothingSentTo($user);
+    }
+
+    /**
+     * TCK-739 (P05.02) — un jalon que le job n'a pas pu envoyer le jour prévu part au passage
+     * suivant, jusqu'à 3 jours après, et une seule fois.
+     */
+    public function test_tck739_un_jalon_manque_part_le_lendemain_une_seule_fois(): void
+    {
+        [$user, $invoice] = $this->makeInvoice(daysAgo: 4);
+
+        $this->assertSame(1, $this->service->sendForAgency(null));
+        $this->travel(1)->days();
+        $this->assertSame(0, $this->service->sendForAgency(null));
+
+        Notification::assertSentToTimes($user, InvoiceOverdueReminderNotification::class, 1);
+        $this->assertSame(1, (int) $invoice->fresh()->reminders_sent_count);
+    }
+
+    /**
+     * TCK-739 — les jalons J+3 et J+7 manqués tous deux : J+7 part une fois, au premier passage
+     * de sa fenêtre, et pas une seconde le lendemain, alors que le compteur reste sous son rang.
+     */
+    public function test_tck739_un_jalon_rattrape_ne_repart_pas_le_lendemain(): void
+    {
+        [$user] = $this->makeInvoice(daysAgo: 8);
+
+        $this->assertSame(1, $this->service->sendForAgency(null));
+        foreach ([1, 1] as $jours) {
+            $this->travel($jours)->days();
+            $this->assertSame(0, $this->service->sendForAgency(null));
+        }
+
+        Notification::assertSentToTimes($user, InvoiceOverdueReminderNotification::class, 1);
+    }
+
+    /**
+     * TCK-739 — au-delà de 3 jours de retard sur le jalon, rien ne part.
+     */
+    public function test_tck739_au_dela_de_trois_jours_le_jalon_est_perdu(): void
+    {
+        [$user] = $this->makeInvoice(daysAgo: 3 + 4);
+        Setting::query()->create([
+            'key' => OverdueReminderService::SETTING_KEY,
+            'value' => ['value' => [3]],
+            'scope' => 'global',
+        ]);
+
+        $this->assertSame(0, $this->service->sendForAgency(null));
         Notification::assertNothingSentTo($user);
     }
 

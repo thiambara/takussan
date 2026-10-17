@@ -288,6 +288,43 @@ class SendLeasePaymentRemindersTest extends TestCase
         $this->assertCount(1, $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentDueSoon));
     }
 
+    // ─── TCK-739 (P05.02) — un jalon manqué se rattrape pendant 3 jours ────────────────
+
+    public function test_tck739_un_j_plus_1_manque_part_le_lendemain_une_seule_fois(): void
+    {
+        Carbon::setTestNow('2026-10-01 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+
+        $this->run_();
+        Carbon::setTestNow('2026-10-02 08:00:00');
+        $this->run_();
+
+        $row = $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentOverdue)->sole();
+        $this->assertSame(2, $row->params['days']);
+    }
+
+    public function test_tck739_un_j_moins_3_manque_part_avant_l_echeance(): void
+    {
+        Carbon::setTestNow('2026-09-27 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29', 'status' => PaymentStatus::Pending]);
+
+        $this->run_();
+        $this->run_();
+
+        $this->assertCount(1, $this->rows($payment->lease->tenant->user, NotificationCode::LeasePaymentDueSoon));
+    }
+
+    public function test_tck739_au_dela_de_trois_jours_le_jalon_est_perdu(): void
+    {
+        // J+5 : 4 jours après le jalon J+1, 2 jours avant J+7.
+        Carbon::setTestNow('2026-10-04 08:00:00');
+        $payment = $this->payment(['due_date' => '2026-09-29']);
+
+        $this->run_();
+
+        $this->assertCount(0, $this->rows($payment->lease->tenant->user));
+    }
+
     // ─── TCK-602 — le lien de paiement dans la relance ─────────────────────────────────
 
     /**
