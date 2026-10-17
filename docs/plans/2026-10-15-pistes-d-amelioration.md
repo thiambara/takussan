@@ -1942,12 +1942,13 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Des notifications de prospects et de visites avalées sans trace
 - Réf : P14.09
-- Statut : validé — report par SafeExceptionContext dans les six catch, jamais getMessage
+- Statut : fait · TCK-771
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
 - Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
 - Piste : `report($e)`, sans changer le caractère non bloquant.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Services/Lead/ContactLeadService.php:232,332,346`, `Services/Visit/VisitNotifier.php:181,214`, `Services/Messaging/GroupConversationService.php:152` → six `catch (\Throwable)` vides, sans journal (`git grep 'report($e' app/Services` → 0). Le constat tient en entier. Mais `report($e)` écrit `getMessage()`, qu'`app/Support/Logging/SafeExceptionContext.php` (ADR-0044 §2) interdit : un refus SMTP y recopie l'adresse du destinataire. Classement : V3, il faut décider quoi journaliser depuis ces chemins de données de prospects, et aucun critère A ne couvre l'ajout d'un journal.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SwallowedNotificationFailuresAreLoggedTest` avant correctif → 5 rouges sur 5 (un envoi qui lève « refus SMTP pour <adresse> » ne laisse aucune ligne de journal, sur les six `catch`) → chacun écrit un `Log::warning` à libellé fixe, l'identifiant de l'objet et `SafeExceptionContext::of($e)`, sans l'adresse, et l'action aboutit. Ablation : les trois fichiers remis → 5 rouges ; remis → 5 verts, et 41 tests voisins verts.
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10
