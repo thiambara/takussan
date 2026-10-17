@@ -32,11 +32,12 @@ class PropertyBoostController extends Controller
     public function store(StorePropertyBoostRequest $request, Property $property, BoostPurchaseService $purchases, CreditLedger $ledger): JsonResponse
     {
         $product = BoostProduct::query()->findOrFail($request->integer('product_id'));
-        $boost = $purchases->purchase($property, $product, $request->user());
+        $achat = $purchases->purchaseOnce($property, $product, $request->user(), $request->idempotencyKey());
 
+        // TCK-822 : un rejeu par la même clé rend 200 et le boost déjà écrit, sans second débit.
         return $this->json([
-            'data' => PropertyBoostResource::make($boost->fresh())->resolve(),
+            'data' => PropertyBoostResource::make($achat->boost->fresh())->resolve(),
             'balance' => $ledger->balance((int) $property->agency_id),
-        ], 201);
+        ], $achat->replayed ? 200 : 201);
     }
 }
