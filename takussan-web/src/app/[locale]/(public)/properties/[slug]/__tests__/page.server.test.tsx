@@ -222,7 +222,7 @@ describe('fiche de bien — rendu serveur', () => {
     expect(script).not.toBeNull();
     const donnees = JSON.parse(script!.textContent ?? '{}');
     expect(donnees['@type']).toBe('RealEstateListing');
-    expect(donnees.mainEntity.priceSpecification.price).toBe(250_000);
+    expect(donnees.offers.price).toBe(250_000); // le prix vit dans l'Offer de la page (TCK-758)
   });
 
   it("le repli de `<meta description>` n'écrit jamais littéralement « null »", async () => {
