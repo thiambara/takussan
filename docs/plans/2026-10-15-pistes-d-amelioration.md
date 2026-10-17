@@ -2540,7 +2540,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Aucune impression ni aucun clic ne distingue un robot d'un visiteur
 - Réf : P18.04
-- Statut : validé — aucune impression quand l'agent est reconnu comme robot, par une liste courte sans dépendance
+- Statut : fait · TCK-792
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:28-44`, `takussan-web/src/lib/queries/public-search.ts:48-60`, `takussan-web/src/lib/queries/public-discovery.ts:54-71`
 - Constat :
@@ -2549,10 +2549,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - Les clics, eux, exigent un clic réel suivi d'un `POST` depuis le navigateur (lu, `CompteurDeVue.tsx:29-41`). Un robot gonfle donc les impressions sans clic, et le taux de clic baisse d'autant. Le volume réel est à vérifier dans les journaux de préproduction.
 - Piste : ne pas compter quand l'agent est reconnu comme robot (liste courte, sans dépendance), ou compter l'impression depuis le navigateur après affichage, comme la vue de fiche (TCK-598). Un test : une recherche sous `Googlebot` ne compte rien.
 - Mesure (2026-10-15, d62e3290, mesureur) : `grep -rniE "isbot|crawler|googlebot|bingbot|userAgent\(\)"` sur `takussan-api/app` et `takussan-web/src` → seulement `LeaseSignatureService.php:164` et `ContactLeadService.php:213,311` (journalisation), aucun filtre ; `BoostStatsRecorder::impressions()` est appelé par `HomepageDiscoveryService.php:113` et `PropertySearchService.php:659` sans regarder l'agent (lu) ; `public-search.ts:48-60` appelle sans `partage` (lu) ; test temporaire, retiré depuis : un troisième `GET /api/public/properties/discovery` sous l'agent `Googlebot/2.1` fait passer le compteur de 2 à 3. Le volume réel des robots n'est pas mesuré. Classement : V7, la piste propose deux définitions de l'impression (liste courte d'agents, ou comptage par le navigateur comme TCK-598), et choisir l'une est un choix de mesure produit, la seconde changeant aussi l'architecture du comptage.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `RobotImpressionsTest` : `GET /api/public/properties/search` sous Googlebot puis `/discovery` sous bingbot comptaient chacun 1 impression ; et `api.agent-du-visiteur.test.ts` : la recherche et l'accueil rendus côté serveur ne transmettaient aucun `User-Agent` → `CountBoostImpressions` écarte les impressions d'un agent que `RobotUserAgent` reconnaît (Googlebot, bingbot… mais pas un téléphone Cubot), et `apiFetch` transmet l'agent du visiteur sur un appel non partagé ; 2 + 25 + 4 verts, témoins navigateur comptés ; ablation du middleware (2 rouges), de l'exception Cubot (1 rouge) et de l'en-tête front (2 rouges), puis vert.
 
 ### Un vidage qui échoue perd les compteurs de l'heure
 - Réf : P18.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-793 — reste : isoler `flush()` des autres étapes de `boosts:tick`, pour qu'une étape antérieure qui lève ne le saute plus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:69-90`, `takussan-api/app/Console/Commands/BoostsTick.php:23-30`
 - Constat :
@@ -2561,10 +2562,11 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - `flush()` vient en dernier dans le tick (lu, ligne 28). Une exception d'une étape précédente le saute tant qu'elle se répète. Les compteurs vivent 48 h (`TTL_HOURS`) : au-delà, ils sont perdus sans trace.
 - Piste : lire avec `get`, écrire, puis `forget` dans le même passage, ou `GETDEL` Redis par heure complète. Isoler `flush()` des autres étapes du tick. Un test : un `upsert` qui lève laisse les compteurs en cache pour le tick suivant.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `BoostStatsRecorder::flush()` (`Cache::pull` des deux compteurs, puis `upsert`, puis `LAST_FLUSHED_KEY`) et `BoostsTick.php:23-30` (`flush()` en dernière étape) ; test temporaire, retiré depuis : deux impressions, une heure plus tard un `flush()` dont l'`insert` dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → exception propagée, clé de cache de l'heure à `NULL`, puis `boosts:tick` normal → 0 ligne, les deux impressions sont perdues. Charge 2,55 sur 8 cœurs. Les deux autres parties ne sont pas re-mesurées par exécution : le double versement demande deux planificateurs (aucun aujourd'hui), et le saut de `flush()` quand une étape antérieure lève tient par lecture seulement. Classement : A1, l'en-tête de la classe et l'ADR-0061 § 10 écrivent que les compteurs sont versés dans `property_boost_daily_stats` ; le correctif lit chaque compteur par `get`, écrit la ligne, puis `forget` la clé après l'`upsert` réussi, sans toucher à l'ordre des étapes du tick ni au verrou entre serveurs, hors de ce classement.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `BoostStatsFlushFailureTest` : deux impressions et un clic, puis un `flush()` dont l'écriture dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → compteur des impressions à 0 en cache → `flush()` lit, écrit, puis retire : les compteurs restent après l'échec, et les deux ticks suivants versent 2 impressions et 1 clic une seule fois ; 7 verts sur `BoostStatsFlushFailureTest`, `BoostStatsTest` et `BoostsTickIdempotenceTest` ; ablation (`pull` restauré : 1 rouge ; retrait supprimé : 2 rouges), puis vert. Ni l'ordre des étapes du tick ni le double versement entre planificateurs ne sont touchés, hors du classement A1.
 
 ### Petites améliorations
 - Réf : P18.06
-- Statut : validé — plafond des clics aligné sur celui des vues (3 par heure), marqueur `?src=sponsored` dans l'URL, `/playground` retiré des environnements déployés
+- Statut : fait · TCK-794
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:36-44`, `takussan-web/src/components/boost/arrivee-sponsorisee.ts:7-25`, `takussan-web/src/hooks/useProperties.ts:54-66`, `takussan-web/src/app/[locale]/(public)/playground/PlaygroundClient.tsx:30-32`
 - Constat :
@@ -2574,6 +2576,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - **Ce qui tient** : les compteurs sont en Redis (`docs/infra/prod-drivers.json`), donc `increment` est atomique ; une heure versée n'est jamais reversée (`LAST_FLUSHED_KEY`) ; la recherche élargie ne tire aucun emplacement.
 - Piste : aligner le plafond des clics sur celui des vues, ou le justifier ; porter le marqueur dans l'URL (`?src=sponsored`) plutôt qu'en stockage de session ; retirer `/playground` des environnements déployés, ou lui faire lire une source sans effet de bord.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `BoostStatsRecorder.php:36-44` (`RateLimiter::hit(…, 3600) > 1`) contre `PropertyViewCounter.php:31` (`MAX_PAR_HEURE = 3`) ; `arrivee-sponsorisee.ts:7-25` (une seule clé `sessionStorage`) ; `PlaygroundClient.tsx:30-31` (`city` et `transaction`), qui passent par `/public/properties/search` (`useProperties.ts:66`), où `PropertySearchService.php:659` compte les impressions → les trois constats tiennent ; le comportement des onglets selon les navigateurs n'a pas été vérifié. Classement : V7, chaque correctif est un choix (plafond, forme du lien, sort de `/playground`), et ces compteurs mesurent un produit payé (V1).
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif : `BoostStatsTest` à quatre clics d'une IP puis un d'une autre → 2 clics versés au lieu de 4 ; `EmplacementSponsorise.test.tsx` et `PropertyCard.robe.test.tsx` : le lien d'un emplacement et de la rangée vedette menait à `/fr/properties/<slug>` sans marqueur ; `CompteurDeVueSponsorise.test.tsx` : une fiche ouverte avec `?src=sponsored` envoyait une vue organique ; `playground/__tests__/page.test.tsx` : la page se rendait en production → plafond à `MAX_PAR_HEURE` (3), contexte `ArriveeSponsorisee` qui marque `LienDeCarte`, `CompteurDeVue` qui lit puis retire le marqueur de l'URL, `/playground` en 404 sous `NODE_ENV=production` ; 5 verts API et 40 verts front ; ablation (plafond : 1 rouge ; marqueur, compteur et garde : 4 rouges), puis vert.
 
 ## Angle 19 — Rétention des tables qui grossissent
 

@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import { PropertyCard } from '@/components/property/PropertyCard';
 import type { PropertyListItem } from '@/types/property';
-import { marquerArriveeSponsorisee } from './arrivee-sponsorisee';
+import { ArriveeSponsorisee } from './arrivee-sponsorisee';
 import { badgeDe } from './lecture-recherche';
 
 export interface EmplacementsSponsorisesProps {
@@ -28,19 +28,16 @@ export function EmplacementsSponsorises({ biens, sizes }: EmplacementsSponsorise
 
   return (
     <section aria-label={t('label')} className="contents">
-      <ul role="list" className="contents">
-        {biens.map((bien, i) => (
-          <li
-            key={bien.id}
-            data-emplacement="sponsorise"
-            onClickCapture={(event) => {
-              if ((event.target as HTMLElement).closest('a')) marquerArriveeSponsorisee(bien.slug);
-            }}
-          >
-            <PropertyCard property={bien} index={i} sizes={sizes} robe="sponsorise" badge={badgeDe(bien)} />
-          </li>
-        ))}
-      </ul>
+      {/* TCK-794 — le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`. */}
+      <ArriveeSponsorisee value>
+        <ul role="list" className="contents">
+          {biens.map((bien, i) => (
+            <li key={bien.id} data-emplacement="sponsorise">
+              <PropertyCard property={bien} index={i} sizes={sizes} robe="sponsorise" badge={badgeDe(bien)} />
+            </li>
+          ))}
+        </ul>
+      </ArriveeSponsorisee>
     </section>
   );
 }
