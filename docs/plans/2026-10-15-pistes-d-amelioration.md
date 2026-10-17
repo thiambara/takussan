@@ -3720,7 +3720,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Quatre polices que seul `/playground` lit sont préchargées sur toutes les routes, Geist n'étant lue nulle part
 - Réf : P33.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-742
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/layout.tsx:2`, `takussan-web/src/app/layout.tsx:24-29`, `takussan-web/src/app/layout.tsx:89`, `takussan-web/src/app/[locale]/(public)/playground/playground.css:117-126`, `takussan-web/src/components/playground/TypographySwitcher.tsx:14-15`
 - Constat :
@@ -3731,6 +3731,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - P18.06 est `validé` pour retirer `/playground` des environnements déployés ; ce retrait ne retire pas les déclarations du layout racine, qui resteraient alors sans aucun lecteur.
 - Piste : ne garder au layout racine que Bricolage Grotesque et DM Sans ; déclarer Manrope, Inter et Fraunces dans un layout ou une page propre à `/playground` (ou `preload: false`), retirer Geist. Garde : un test qui lit `layout.tsx` et refuse une famille dont la variable n'est lue par aucun CSS ni composant hors `playground`.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `src/app/layout.tsx:2,24-29,89` : six familles `next/font/google` sans option `preload`, leurs six variables posées sur `<html>` ; `grep -rn 'font-geist\|font-manrope\|font-inter\|font-fraunces' src` hors layout ne rend que `playground.css:115-126`, `TypographySwitcher.tsx:14-15` et le double de `metadata-base.test.ts:36-41` ; `globals.css:297-300` ne lit que DM Sans et Bricolage ; `next-font-manifest.json` du dernier build local (2026-10-15, layout inchangé depuis) → 139 routes, mêmes 7 woff2, 256,5 Kio ; aucun commit ni ticket ne l'a traité (`git log -S 'preload: false'` vide) → le constat tient tel quel. Classement : A2, performance sans changement de rendu : Bricolage et DM Sans restent au layout racine, Manrope, Inter et Fraunces passent dans un layout propre à `/playground` qui pose leurs variables, Geist est retirée, et un test (A5) refuse au layout racine une famille dont la variable n'est lue hors `playground`.
+- Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `polices-du-layout-racine.test.ts`, rouge sur `Geist`, `Manrope`, `Inter`, `Fraunces` déclarées au layout racine sans lecteur hors du playground → Bricolage et DM Sans seules au layout racine, Manrope, Inter et Fraunces déclarées par `playground/page.tsx` (enveloppe `display: contents`), Geist retirée ; ablation : layout rendu à six familles → rouge, Fraunces retirée de la page → rouge sur `--font-fraunces` ; 2/2 verts, `metadata-base`, `robots` et `canonique-de-chaque-page` verts (32 tests).
 
 ### Le widget de messagerie, invisible au visiteur anonyme, met la messagerie, zod et react-hook-form dans le JS initial de toutes les pages
 - Réf : P33.02
