@@ -121,6 +121,21 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     }
 
     /**
+     * TCK-828 (P25.07) — le montant attendu sur le compte de l'agence, pour CETTE ligne : la même
+     * règle que `scopeWhereExpectedAmountNear()`, lue en PHP. Le montant figé ne vaut que pour une
+     * échéance soldée en ligne ; sinon, `amount`.
+     */
+    public function expectedBankAmount(): float
+    {
+        $settledBy = $this->metadata['gateway']['settled_by'] ?? null;
+        if ($settledBy !== null && $settledBy !== PaymentGatewayService::SETTLED_MANUALLY) {
+            return (float) ($this->metadata['gateway_expected_amount'] ?? $this->amount);
+        }
+
+        return (float) $this->amount;
+    }
+
+    /**
      * TCK-715 (P25.01, P25.02) — le montant attendu sur le compte de l'agence, à `$tolerance` près.
      * Une seule expression, partagée par le matcher (`ReconciliationMatcher`) et la recherche
      * manuelle (`PaymentSearchService`).
