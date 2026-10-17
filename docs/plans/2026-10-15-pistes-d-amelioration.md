@@ -2466,7 +2466,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : validé — retirer les deux routes d'adresse sans appelant ; reste : le signal de distance
+- Statut : retenu · à valider — chemin fermé : retirer les deux routes impose de supprimer `tests/Feature/Api/PropertyAddressTest.php`, que la garde des agents refuse (« un test ne se supprime pas »)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -2479,6 +2479,7 @@ Les deux 🔴 ont été relus par la session dans le code :
     - le jeu n'a aucun quasi-doublon dans une même ville (mesuré : 0 groupe sur la clé repliée sans accents ni ponctuation).
 - Piste : retirer les deux routes, ou leur appliquer `GeoAddressRules` et les longueurs de la création. Signaler une position à plus de N km du centre de la ville choisie, comme le hors-Sénégal.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `routes/api/properties.php:53-54` (`PUT` et `DELETE …/address`) et `UpsertPropertyAddressRequest.php:34-46` (`max:255`, ni `geo_city_id` ni `geo_neighborhood_id`) ; `grep -rn "/address" takussan-web/src` → aucun appel, seul le récit de `property-form/payload.ts:17` ; `grep -rn 'Senegal::contient' app` → un seul usage (`GeoLinkController.php:22`), aucune comparaison à la ville → les deux constats tiennent ; le recentrage de la carte côté front n'a pas été vérifié. Classement : V7, la `Piste` laisse le choix entre retirer et aligner les routes, et le signal de distance est un comportement visible neuf.
+- Mesure (2026-10-17, 8d59d1942, implementeur) : `grep` sur tout le dépôt hors tickets → aucun appelant des deux routes ; test temporaire (retiré) → `PUT …/address` rendait 201 au propriétaire. Retirer les routes, `PropertyAddressController` et `UpsertPropertyAddressRequest` rendait obsolètes `tests/Feature/Api/PropertyAddressTest.php` (6 cas) et deux cas d'upsert d'`AdresseSansVilleTest` (TCK-703) ; `check-pistes --role implementeur` refuse la suppression du premier. Classement : chemin fermé, à la main du porteur ; le correctif tient en un S (routes, deux classes, deux fichiers de test), et TCK-490 avait gardé la route faute de preuve qu'aucun client hors dépôt ne l'appelle.
 
 ## Angle 18 — Statistiques Boost face aux robots, aux rendus serveur et aux revalidations
 
