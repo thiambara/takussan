@@ -44,6 +44,12 @@ class InvoiceService
 
         $agencyId = $user->agency_id;
 
+        // TCK-738 (P04.09) — sans devise, celle de l'agence de l'émetteur, à défaut XOF (repli
+        // plus bas). Une devise explicite gagne.
+        $data['currency'] ??= $agencyId !== null
+            ? Agency::query()->find($agencyId)?->currency?->value
+            : null;
+
         [$invoiceableType, $invoiceableId] = $this->resolveInvoiceableTarget(
             $data['invoiceable_type'] ?? null,
             $data['invoiceable_id'] ?? null,
