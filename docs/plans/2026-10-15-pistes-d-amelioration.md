@@ -3123,7 +3123,7 @@ sont pas reprises.*
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
-- Statut : validé — lire GET …/boosts à l'ouverture et dire, pour l'offre choisie, le remplacement sans remboursement, la prolongation ou le délai de Remontée
+- Statut : fait · TCK-824
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/boost/BoostDialog.tsx:29-55`, `takussan-web/src/components/boost/api.ts:12-31`, `takussan-api/routes/api/credits.php:14`, `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:18-30`
 - Constat :
@@ -3132,6 +3132,7 @@ sont pas reprises.*
   - Établi comment : lu, et `grep`.
 - Piste : lire `GET …/boosts` à l'ouverture du dialogue et dire, pour l'offre choisie, ce qui arrivera (« remplace le badge “Urgent” actif jusqu'au … », « prolonge la Vedette jusqu'au … », « Remontée possible à partir de … »). Garde : un test du dialogue qui monte un badge actif et attend l'avertissement.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostDialog.tsx:38-39` (seuls `useCredits` et `useBoostProducts`) ; `grep -rn "/boosts" takussan-web/src` → seul le `POST` de `components/boost/api.ts:28`, plus les routes `/super-admin/boosts` et `/api/super-admin/boosts`, sans rapport avec la lecture `GET /api/properties/{property}/boosts`, qui n'a toujours aucun appelant. Classement : V7, la piste ajoute un comportement visible et des textes métier neufs (« remplace le badge… », « prolonge la Vedette… »).
+- Mesure (2026-10-17, 464374510, implementeur) : `grep -rn '/boosts' takussan-web/src` → seul le `POST` de `components/boost/api.ts`, la lecture n'a toujours aucun appelant ; `PropertyBoostReadAheadTest` rouge avant correctif (`bump_available_at` absent), 6 cas neufs de `BoostDialog.test.tsx` rouges (5) avant correctif → après : la lecture rend la fin du délai de Remontée (même date que le refus 422), le dialogue lit `GET …/boosts` à l'ouverture et dit le remplacement sans remboursement, la prolongation (date, ou jours si en pause) ou le délai ; ablation : effet retiré → 4 rouges, `bump_available_at` à `null` → 1 rouge ; 3 + 10 verts.
 
 ### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
 - Réf : P24.03
