@@ -7,6 +7,7 @@ use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class MtargetSmsWebhookTest extends TestCase
@@ -149,7 +150,9 @@ class MtargetSmsWebhookTest extends TestCase
 
         $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', [
             'MsgId' => 'mtg-7',
-            'Status' => 5,
+            // P36.03 (TCK-797) — 6 « non remis », code terminal ; 5 n'est pas
+            // dans le vocabulaire du push, et s'ignore désormais.
+            'Status' => 6,
             'StatusText' => 'ABSENT_SUBSCRIBER',
             'DestinationAdress' => '221771111111',
         ])->assertOk();
@@ -205,12 +208,57 @@ class MtargetSmsWebhookTest extends TestCase
             'DestinationAdress' => '221771111111',
         ];
 
-        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(5, 'ABSENT_SUBSCRIBER'))->assertOk();
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(6, 'ABSENT_SUBSCRIBER'))->assertOk();
         $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(3, 'OK'))->assertOk();
 
         $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-p3602')->first();
         $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
         $this->assertSame('ABSENT_SUBSCRIBER', $attempt->failure_reason);
         $this->assertNull($attempt->delivered_at);
+    }
+
+    // ─── P36.03 (TCK-797) ────────────────────────────────────────
+
+    public function test_a_non_terminal_status_is_ignored_with_a_warning(): void
+    {
+        Log::spy();
+        foreach ([0, 1, 2, 5, 99] as $status) {
+            $this->makeNotificationWithAttempt("mtg-p3603-{$status}");
+
+            $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', [
+                'MsgId' => "mtg-p3603-{$status}",
+                'Status' => $status,
+                'StatusText' => 'EN_COURS',
+                'DestinationAdress' => '221771111111',
+            ])->assertOk();
+
+            $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', "mtg-p3603-{$status}")->first();
+            $this->assertSame(SmsResult::STATUS_SENT, $attempt->status, (string) $status);
+            $this->assertNull($attempt->failure_reason, (string) $status);
+        }
+        Log::shouldHaveReceived('warning')->times(5)->withArgs(fn (string $message) => str_contains($message, 'statut non terminal'));
+    }
+
+    public function test_an_absent_status_is_ignored(): void
+    {
+        $this->makeNotificationWithAttempt('mtg-p3603-absent');
+
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', [
+            'MsgId' => 'mtg-p3603-absent',
+            'DestinationAdress' => '221771111111',
+        ])->assertOk();
+
+        $this->assertSame(SmsResult::STATUS_SENT, NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-p3603-absent')->first()->status);
+    }
+
+    public function test_an_intermediate_after_delivered_keeps_delivered(): void
+    {
+        $this->makeNotificationWithAttempt('mtg-p3603-d');
+        $dlr = fn (int $status) => ['MsgId' => 'mtg-p3603-d', 'Status' => $status, 'StatusText' => 'x', 'DestinationAdress' => '221771111111'];
+
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(3))->assertOk();
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(1))->assertOk();
+
+        $this->assertSame(SmsResult::STATUS_DELIVERED, NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-p3603-d')->first()->status);
     }
 }

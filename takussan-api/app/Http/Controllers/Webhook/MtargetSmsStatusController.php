@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-102 — Inbound DLR from Mtarget. POST form-urlencoded with:
- *   MsgId, Status (3=delivered, others=failed), StatusText,
+ *   MsgId, Status (3=delivered, 4/6=failed, others ignored — P36.03), StatusText,
  *   DestinationAdress, DeliveryDateTime.
  *
  * Configured at the Mtarget account level — fixed URL per env.
@@ -35,6 +35,18 @@ use Illuminate\Support\Facades\Log;
  */
 class MtargetSmsStatusController extends Controller
 {
+    /**
+     * P36.03 (TCK-797) — les seuls statuts écrits : les codes terminaux de la documentation de
+     * l'opérateur (3 remis, 4 refusé, 6 non remis), ceux que le pulling écrit aussi. 0, 1 et 2
+     * (en cours), un `Status` absent ou inconnu sont ignorés avec un `Log::warning`, au lieu
+     * d'être écrits `failed` par défaut.
+     */
+    private const TERMINAL_STATUSES = [
+        3 => SmsResult::STATUS_DELIVERED,
+        4 => SmsResult::STATUS_FAILED,
+        6 => SmsResult::STATUS_FAILED,
+    ];
+
     public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
         if (! config('sms.mtarget.webhook_enabled', true)) {
@@ -63,10 +75,13 @@ class MtargetSmsStatusController extends Controller
         }
         $journal->annotate(['external_id' => $providerMessageId, 'event_type' => (string) $statusCode]);
 
-        $newStatus = match (true) {
-            $statusCode === 3 => SmsResult::STATUS_DELIVERED,
-            default => SmsResult::STATUS_FAILED,
-        };
+        $newStatus = self::TERMINAL_STATUSES[$statusCode] ?? null;
+        if ($newStatus === null) {
+            Log::warning('[sms.mtarget.webhook] statut non terminal ou inconnu ignoré', ['ticket' => $providerMessageId, 'status' => $statusCode, 'status_text' => $statusText]);
+            $journal->annotate(['matched_count' => 0]);
+
+            return new JsonResponse(['ok' => true]);
+        }
         $deliveredAt = $newStatus === SmsResult::STATUS_DELIVERED ? now() : null;
 
         // Mtarget returns ONE ticket for a batched send; our driver stores
