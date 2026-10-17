@@ -48,13 +48,16 @@ ni les notes, ni `metadata`, par quelque ressource qui l'imbrique.
   couple (agence de la fiche, auteur ou tiers), les seuls traits de la fiche que la règle lit.
 - [x] `id_type`, `id_number`, `emergency_contact_name`, `emergency_contact_phone`, `notes` et
   `metadata` étalés sous cette condition, comme les critères.
-- [x] Test : `CustomerScopeTest::test_identity_contact_notes_and_metadata_are_rendered_to_the_customer_reader_only`.
+- [x] Tests : `CustomerScopeTest::test_identity_contact_notes_and_metadata_are_rendered_to_the_customer_reader_only`,
+  `CustomerIndexQueryBudgetTest::test_la_liste_ne_relit_aucune_fiche_pour_juger_ses_champs_reserves`.
 
 ## Critères d'acceptation
 
 - [x] AC1 — le bailleur ne reçoit aucun des six champs par `GET /api/leases/{id}`,
   `GET /api/leases?include=tenant` ni `GET /api/bookings/{id}`, et reçoit encore le nom.
-- [x] AC2 — le lecteur de la fiche (l'agent qui l'a ajoutée) les reçoit par la fiche et par le bail.
+- [x] AC2 — le lecteur de la fiche (l'agent qui l'a ajoutée) les reçoit par la fiche et par le bail,
+  y compris par un `fields[customers]` qui omet `agency_id` et `added_by_id`.
+- [x] AC3 — la liste du CRM du front ne fait aucune requête de plus par ligne.
 
 ## Hors périmètre
 
@@ -68,5 +71,12 @@ ni les notes, ni `metadata`, par quelque ressource qui l'imbrique.
 - La mémoire par couple n'est exacte que tant que `CustomerPolicy::view` ne lit de la fiche que
   `agency_id` et `added_by_id` (relu : `isAuthorStillMember`, `seesWholeCrm`, et la Gate de
   capacité qui dérive l'agence de `agency_id`).
-- Une fiche chargée sans `agency_id` ni `added_by_id` (`fields[customers]` restreint) est jugée
-  sur des valeurs nulles : la policy refuse, les champs ne sortent pas.
+- Piège payé, relevé par `impacted-tests` : une fiche lue par `fields[customers]` sans `agency_id`
+  ni `added_by_id` était jugée sur des valeurs nulles, et la policy refusait au lecteur légitime
+  (`CustomerIndexQueryBudgetTest::test_la_relation_notes_sort_quand_elle_est_incluse`, rouge). Les
+  deux colonnes sont désormais relues pour cette fiche, une fois par requête, et seulement si un
+  champ réservé a été lu : la liste du CRM du front n'en lit aucun, et ne relit aucune fiche
+  (`test_la_liste_ne_relit_aucune_fiche_pour_juger_ses_champs_reserves`). Ablations : relecture
+  retirée → 2 rouges ; raccourci retiré → la liste relit chaque fiche, 1 rouge.
+- `DateInventoryByValueTest` n'atteignait plus `notes` : `ResourceSubjects::RESERVEES_AU_TITULAIRE`
+  donne à `CustomerResource` un second sujet dont l'appelant est l'auteur.
