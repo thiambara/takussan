@@ -2677,7 +2677,7 @@ ajoutent que des faits neufs.*
 
 ### Petites améliorations
 - Réf : P19.07
-- Statut : validé — purge des jobs échoués à 30 jours, `prune-batches`, `useLogName('User')` et `next_due_at`
+- Statut : fait · TCK-803 — reste : `next_due_at` de l'inspecteur des tâches, à calculer depuis l'expression cron ou à retirer, la `Piste` laissant le choix ouvert
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/console.php`, `takussan-api/app/Support/Logging/SanitizingFailedJobProvider.php:9-17`, `takussan-api/app/Models/User.php:379-398`, `takussan-api/app/Services/Admin/ScheduledTaskInspector.php:43`
 - Constat :
@@ -2688,6 +2688,7 @@ ajoutent que des faits neufs.*
 - Piste : planifier `queue:prune-failed --hours=…` et `queue:prune-batches`, avec une durée dite dans l'ADR-0044 ; nommer le journal de `User` (`useLogName('User')`) ; calculer `next_due_at` depuis l'expression cron ou retirer la clé.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `routes/console.php` (ni `queue:prune-failed` ni `queue:prune-batches`, aucun `model:prune`), `SanitizingFailedJobProvider.php:17` (le `payload` n'est pas touché, pour le rejeu), `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION` = `database`), `User.php:379-399` (`LogOptions::defaults()` sans `useLogName`, alors qu'`Auditable.php:31` nomme par classe), `config/activitylog.php:24` (`default_log_name` = `default`) et `ScheduledTaskInspector.php:43` (`'next_due_at' => null`, que le front type `string | null` dans `types/super-admin.ts:814`). Lignes citées inchangées, les trois défauts tiennent ; le journal de `User` est lu, pas re-mesuré par test. Classement : V3, la durée de purge des `failed_jobs` décide de ce qui est conservé et doit s'écrire dans l'ADR-0044 ; renommer le journal de `User` change le `log_name` des écritures neuves, que toute lecture par nom distinguerait des anciennes.
 - Mesure (2026-10-16, 55a41109, humain) : l'ADR-0044 est amendé en session (TCK-723) : 30 jours pour `failed_jobs`, `payload` compris, et `queue:prune-batches` planifié ; le docblock de `SanitizingFailedJobProvider.php` (« Écarté (ADR-0044) : une purge périodique ») est à mettre à jour avec la purge.
+- Mesure (2026-10-17, 7c7bd05bf, implementeur) : avant correctif, ni `queue:prune-failed` ni `queue:prune-batches` parmi les événements du planificateur, et une modification de `User` écrite sous le journal `default` → `QueueRetentionScheduleTest` (deux purges planifiées chaque jour sans chevauchement, `--hours=720` ; journal `User`) ; ablation : correctif retiré, les trois tests rougissent ; remis, verts. Docblock de `SanitizingFailedJobProvider` repris. `next_due_at` n'est pas fait : la `Piste` propose de le calculer ou de retirer la clé, et la précision ne tranche pas.
 
 ## Angle 20 — Nombre réel de requêtes SQL par écran
 
