@@ -3136,7 +3136,7 @@ sont pas reprises.*
 
 ### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
 - Réf : P24.03
-- Statut : validé — colonne « Objet » dans le journal : le bien et l'offre d'une dépense ou d'un remboursement de boost
+- Statut : fait · TCK-825
 - Gravité : 🟠 risque ou dette
 - Où : `docs/features.md:428`, `takussan-web/src/components/boost/CreditsPanel.tsx:21-24`, `takussan-api/app/Http/Resources/Credits/CreditMovementResource.php:12-22`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:187-191`
 - Constat :
@@ -3146,6 +3146,7 @@ sont pas reprises.*
   - Établi comment : lu.
 - Piste : soit rendre le bien et l'offre dans le journal (relation `propertyBoost.property` chargée, colonne « Objet »), soit corriger `features.md` pour dire ce que la page montre. Garde : un test de `CreditsPanel` sur une ligne de dépense rattachée à un boost.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `docs/features.md:428` (« page « Crédits » (solde, lots, historique, boosts) ») ; `CreditsPanel.tsx:22-24` : colonnes type, montant, motif (`m.reason ?? '—'`), aucune occurrence de « boost » ; `BoostPurchaseService::debit()` appelle `spend(…, $boost, $actor)` sans motif (l. 187-191). Classement : V7, la piste laisse le choix entre une colonne visible neuve et le retrait d'une fonction annoncée par la spec.
+- Mesure (2026-10-17, 464374510, implementeur) : relu `CreditMovementResource` (seul `property_boost_id`) et `CreditsPanel` (date, type, montant, motif) ; `CreditMovementObjectTest` et le cas neuf de `CreditsPanel.test.tsx` rouges avant correctif → après : `GET /api/credits` rend `boost` (genre, variante, bien) pour la dépense et le remboursement d'un boost, `null` pour un octroi, et la colonne « Objet » les affiche ; ablation : colonne retirée → rouge, chargement anticipé retiré → rouge.
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04
