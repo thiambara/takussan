@@ -195,6 +195,18 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
 
   {
+    fichier: 'src/test/graphe-client.ts',
+    motif: /^use (client|server)$/,
+    famille: 'TECHNIQUE',
+    raison:
+      "Membre droit d'une COMPARAISON avec le texte d'une directive de module "
+      + "(`instruction.expression.text === 'use client'`), dans le traceur de graphe client des "
+      + 'gardes de poids (TCK-743 à TCK-745). Ce sont les directives exactes de React : les '
+      + "traduire ferait cesser la reconnaissance des frontières client et serveur. Ce module est "
+      + "une infrastructure de TEST, sans aucun chemin vers un écran.",
+  },
+
+  {
     fichier: 'src/lib/access/server-guards.ts',
     litteral: 'fetch failed',
     famille: 'TECHNIQUE',
