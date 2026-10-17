@@ -63,11 +63,8 @@ class OverdueReminderService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence, sinon le global, sinon le défaut.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('invoice.reminder_offsets_days');
-        if (is_array($value) && array_key_exists('value', $value)) {
-            $value = $value['value'];
-        }
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId,
+            app(PlatformSettingService::class)->getValue('invoice.reminder_offsets_days'));
 
         if (! is_array($value)) {
             return self::DEFAULT_OFFSETS;

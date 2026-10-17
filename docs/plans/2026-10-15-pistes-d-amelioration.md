@@ -421,12 +421,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
-- Statut : validé — le plafond des pénalités lu une fois par agence, même résultat
+- Statut : fait · TCK-779
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Lease/LateFeeCalculator.php:185,199`, `takussan-api/app/Jobs/Lease/ApplyLateFeesJob.php:52-56`
 - Constat : une à deux lectures de `settings` par échéance, alors que la valeur est constante pour une agence. Le catalogue de TCK-651 met la valeur globale en cache ; la ligne d'agence ne l'est pas (lu).
 - Piste : lire le plafond une fois par agence dans `applyForAgency`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `LateFeeCalculator.php:183-200` (`applyCap()` appelle `capPercent()` à chaque échéance, `ScopedSetting::agencyRow(…)` lu en base, repli sur `PlatformSettingService::getValue`) et `ApplyLateFeesJob.php:48-60` (`applyForAgency` boucle par échéance sur `$calculator->apply()`) ; aucun commit depuis TCK-651 n'y a touché. Le constat tient. Classement : V1, le correctif modifie la fonction qui calcule le plafond d'une pénalité, même sans changer son résultat.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif par `ApplyLateFeesJobTest::test_le_plafond_de_l_agence_est_lu_une_fois_par_passage` : trois échéances d'une agence à plafond de 3 % lisent sa ligne `settings` trois fois en un passage → `capPercent()` garde la valeur par agence pour la vie de l'instance (le job en résout une par passage) ; une lecture, pénalités inchangées (3 000 sur 100 000) ; ablation : rouge (3 lectures), correctif remis vert ; 10 classes voisines vertes (151 tests).
 
 ## Angle 3 — Isolation entre agences et autorisation
 
@@ -2087,7 +2088,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Réglages d'agence : trois magasins, dont deux sans écrivain
 - Réf : P13.07
-- Statut : validé — un seul lecteur ScopedSetting::value() portant le déballage ; la devise lue sur agencies.currency seulement ; clés mortes retirées du seeder ; booking_pending_expiry_hours laissé tel quel
+- Statut : fait · TCK-778
 - Gravité : 🟠 risque ou dette — **concerne cette branche**
 - Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
 - Constat :
@@ -2099,10 +2100,11 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : lu, et mesuré.
 - Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ScopedSetting.php:30-40` (`agencyRow()`, lecture seule) ; `routes/api/settings.php:11` (`POST settings`) et `grep -rn "/settings"` dans `takussan-web/src` → aucun appelant de `/api/settings` ; `BookingExpirationService.php:43` et `PaymentGatewayService.php:1328-1329` lisent `agencies.settings` (`booking_pending_expiry_hours`, `currency`) que `AgencyUpdateRequest.php:59-66` ne valide pas ; `SettingsSeeder.php:15-21` : six des sept clés n'ont aucun lecteur dans `app/` ni le front (`default_timezone` n'apparaît que comme mot dans `SetLocaleMiddleware.php:52`, qui lit `user->timezone`) ; le déballage `$value['value'] ?? array_values($value)[0]` est en **quatre** copies, non cinq (`LeaseRenewalService.php:475`, `RentReviewService.php:163`, `EarlyTerminationService.php:299`, `LateFeeCalculator.php:202`), à côté de `PlatformSettingService::unwrap()` (l. 180). Le constat tient, au compte des copies près. Classement : V4, la piste retire des données semées et touche la devise lue au paiement (V1), en plusieurs correctifs (V8).
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : le déballage en quatre copies et une variante (`OverdueReminderService::offsets`), aucune méthode `ScopedSetting::value()`, et une agence à `settings.currency = eur` et colonne `XOF` payait en `EUR` ; `SettingsSeeder` écrit huit clés, aucune lue dans `app/`, `routes/`, `config/`, `database/` ni le front → `ScopedSetting::value()` porte le déballage (type `_list` du catalogue : liste intacte), les cinq lecteurs l'appellent, `paymentCurrency()` ne lit plus `settings['currency']`, `SettingsSeeder` retiré ; `ScopedSettingReadersTest` (formes stockées, repli sur le catalogue, aucune copie restante) et `PaymentCurrencyFromAgencyColumnTest` : ablation 9 rouges sur 18, correctif remis 18 verts, 22 classes voisines vertes (237 tests).
 
 ### Routes en double et routes sans appelant
 - Réf : P13.08
-- Statut : validé — retirer les trois doublons (verify-phone, phone/resend, notifications/preferences) ; un test qui les vise passe sur la route gardée ; terminate reste ; reste : leases/{l}/terminate et les autres routes sans appelant
+- Statut : fait · TCK-780 — reste : leases/{l}/terminate et les autres routes sans appelant
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/auth.php:70-71,75-76`, `routes/api/notifications.php:15-16`, `routes/api/guarantors.php:7-12`, `routes/api/search.php:13-14`, `routes/api/leases.php:28,55`, `routes/api/agencies.php:57`
 - Constat :
@@ -2119,6 +2121,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : mesuré. Sur 686 routes `api/*`, une vingtaine est confirmée à la main ; le reste est à vérifier.
 - Piste : retirer d'abord les doublons et `terminate`, puis la garde de l'angle 45.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `routes/api/auth.php:70-71,75-76` (`verify-phone` et `phone/verify-otp`, `phone/send-otp` et `phone/resend` sur les mêmes actions), `notifications.php:15-20` (`notifications/preferences` et `me/notification-preferences`), `guarantors.php:7-12`, `leases.php:28,55`, `agencies.php:57`, `bookings.php:19`, `conversations.php:36-37` ; `grep -rln` de chaque chemin dans `takussan-web/src` hors tests, puis des formes `cheminApi` `}/terminate|stats|rent-history|expire-now|archive|unarchive` → aucun appelant pour `verify-phone`, `phone/resend`, `notifications/preferences`, `/api/guarantors` (le front passe par `/api/leases/{id}/guarantors`, `lib/queries/leases.ts:462`), `search/messages`, `search/documents`, `terminate`, `rent-history`, `expire-now`, `agencies/{a}/stats`, `settings/public`, `two-factor/qr`, l'archivage des conversations ; `recovery-codes` n'apparaît que sous `/regenerate` (`lib/security.ts:62`). Le constat tient sur ces routes ; un appelant hors du front (application tierce) n'a pas été cherché. Classement : V8, la piste couvre une quinzaine de routes de familles différentes, dont des routes d'authentification et de 2FA (V2) et une résiliation de bail.
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : `auth.php:70,75` et `notifications.php:15-16` enregistrent les trois doublons, et `grep` dans `takussan-web/src`, `app/`, `scripts/` ne leur trouve aucun appelant (seuls `PhoneVerificationTest` et `NotificationPreferenceTest` les visent) → routes retirées, les deux tests repointés sur `phone/verify-otp`, `phone/send-otp` et `me/notification-preferences` ; `RoutesEnDoubleRetireesTest` : ablation rouge, correctif remis vert ; 35 classes voisines vertes (333 tests). ADR-0033 cite encore `phone/resend` (chemin fermé à l'agent).
 
 ### Page orpheline `/onboarding/agency-admin`
 - Réf : P13.09

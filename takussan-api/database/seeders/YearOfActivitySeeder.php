@@ -42,7 +42,6 @@ use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\AgencyUpgradeRequestSeeder;
 use Database\Seeders\System\GeoReferentialSeeder;
-use Database\Seeders\System\SettingsSeeder;
 use Database\Seeders\System\TagSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Config;
@@ -56,7 +55,6 @@ class YearOfActivitySeeder extends Seeder
         TagSeeder::class,
         // Core
         AgencySeeder::class,
-        SettingsSeeder::class,
         UserSeeder::class,
         DemoUsersSeeder::class,
         IntegrationSeeder::class,

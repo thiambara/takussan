@@ -5,9 +5,13 @@ namespace Tests\Feature\Jobs;
 use App\Jobs\Lease\ApplyLateFeesJob;
 use App\Models\Agency;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\SettingScope;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Setting;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ApplyLateFeesJobTest extends TestCase
@@ -41,6 +45,39 @@ class ApplyLateFeesJobTest extends TestCase
         // Second run is a no-op: idempotence via late_fee_applied_at.
         $second = app()->call([$job, 'handle']);
         $this->assertSame(0, $second);
+    }
+
+    /**
+     * TCK-779 (P02.13) — le plafond de l'agence se lit une fois par passage, et non à chaque
+     * échéance (une à deux lectures de `settings` chacune avant), pour la même pénalité.
+     */
+    public function test_le_plafond_de_l_agence_est_lu_une_fois_par_passage(): void
+    {
+        $agence = Agency::factory()->create();
+        Setting::query()->create(['key' => 'late_fees.cap_percent', 'value' => ['value' => 3], 'scope' => SettingScope::Agency, 'scope_id' => $agence->id]);
+        $bail = Lease::factory()->create(['agency_id' => $agence->id, 'late_fee_percent' => 10, 'late_fee_grace_days' => 0]);
+        $echeances = collect(range(1, 3))->map(fn (int $i) => LeasePayment::factory()->create([
+            'lease_id' => $bail->id,
+            'amount' => 100_000,
+            'due_date' => now()->subDays(3 + $i)->toDateString(),
+            'status' => PaymentStatus::Pending,
+            'late_fee_amount' => null,
+            'late_fee_applied_at' => null,
+        ]));
+
+        $lectures = 0;
+        DB::listen(function (QueryExecuted $q) use (&$lectures) {
+            if (preg_match('/from "settings" where "key" = \? and "scope" = \? and "scope_id" = \?/', $q->sql) === 1) {
+                $lectures++;
+            }
+        });
+
+        $this->assertSame(3, app()->call([new ApplyLateFeesJob, 'handle']));
+
+        $this->assertSame(1, $lectures, 'la ligne de l\'agence est relue à chaque échéance');
+        foreach ($echeances as $echeance) {
+            $this->assertSame('3000.00', (string) $echeance->fresh()->late_fee_amount, 'plafonnée à 3 % de 100 000');
+        }
     }
 
     public function test_processes_multiple_agencies(): void
