@@ -3,7 +3,7 @@ id: TCK-746
 title: "Files : after_commit sur toutes les connexions, une écriture annulée n'envoie rien"
 status: done
 phase: P2
-family: tech-debt
+family: technique
 estimate: S
 wave: null
 created: 2026-10-17
