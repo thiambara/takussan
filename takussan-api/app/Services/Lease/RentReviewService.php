@@ -10,7 +10,6 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Setting;
 use App\Models\User;
-use App\Services\Admin\PlatformSettingService;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
 use Illuminate\Support\Carbon;
@@ -208,11 +207,7 @@ class RentReviewService
     {
         // TCK-600 (verif-600 H1) — le réglage de l'agence du bail, sinon le global.
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
-        $value = ScopedSetting::agencyRow(self::SETTING_KEY, $agencyId)?->value
-            ?? app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct');
-        if (is_array($value)) {
-            $value = $value['value'] ?? array_values($value)[0] ?? null;
-        }
+        $value = ScopedSetting::value(self::SETTING_KEY, $agencyId);
 
         $pct = (float) $value;
 

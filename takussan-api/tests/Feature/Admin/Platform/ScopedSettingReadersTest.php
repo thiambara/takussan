@@ -21,6 +21,7 @@ use App\Services\Lease\LateFeeCalculator;
 use App\Services\Lease\LeaseRenewalService;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Lease\RentReviewService;
+use App\Support\ScopedSetting;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -164,6 +165,60 @@ class ScopedSettingReadersTest extends TestCase
             'late_fee_applied_at' => null,
         ])->fresh());
         $this->assertSame([3000.0, 10000.0], [$retard($bailA), $retard($bailB)]);
+    }
+
+    /**
+     * TCK-778 (P13.07) — UN lecteur porte le déballage d'une ligne d'agence. Les formes stockées
+     * se lisent comme les cinq copies qu'il remplace : `{"value": x}`, la forme héritée
+     * `{"months": 3}` (première valeur d'un objet), et une liste laissée intacte pour une clé que le
+     * catalogue type `integer_list`.
+     *
+     * @return array<string, array{string, mixed, mixed}>
+     */
+    public static function formesStockees(): array
+    {
+        return [
+            'enveloppe value' => [EarlyTerminationService::SETTING_KEY, ['value' => 4], 4],
+            'objet hérité' => [EarlyTerminationService::SETTING_KEY, ['months' => 3], 3],
+            'liste pour une clé scalaire' => [RentReviewService::SETTING_KEY, [12], 12],
+            'enveloppe value nulle' => ['late_fees.cap_percent', ['value' => null], null],
+            'liste d\'échéances nue' => [OverdueReminderService::SETTING_KEY, [3, 9], [3, 9]],
+            'liste d\'échéances enveloppée' => [OverdueReminderService::SETTING_KEY, ['value' => [3, 9]], [3, 9]],
+        ];
+    }
+
+    #[DataProvider('formesStockees')]
+    public function test_le_lecteur_unique_deballe_chaque_forme_stockee(string $cle, array $stocke, mixed $attendu): void
+    {
+        $a = Agency::factory()->create();
+        Setting::query()->create(['key' => $cle, 'value' => $stocke, 'scope' => SettingScope::Agency, 'scope_id' => $a->id]);
+
+        $this->assertSame($attendu, ScopedSetting::value($cle, $a->id));
+    }
+
+    public function test_sans_ligne_d_agence_le_lecteur_unique_rend_la_valeur_du_catalogue(): void
+    {
+        $this->assertSame(EarlyTerminationService::SETTING_DEFAULT_MONTHS, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, null));
+        $this->ligne(EarlyTerminationService::SETTING_KEY, 7, SettingScope::Global, null);
+        $this->assertSame(7, ScopedSetting::value(EarlyTerminationService::SETTING_KEY, Agency::factory()->create()->id));
+    }
+
+    /** TCK-778 (P13.07) — aucune copie du déballage ne survit hors de `ScopedSetting`. */
+    public function test_aucun_lecteur_ne_recopie_le_deballage(): void
+    {
+        $copies = [];
+        $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path(), \FilesystemIterator::SKIP_DOTS));
+        foreach ($fichiers as $fichier) {
+            if ($fichier->getExtension() !== 'php' || str_ends_with($fichier->getPathname(), 'Support/ScopedSetting.php')) {
+                continue;
+            }
+            $source = (string) file_get_contents($fichier->getPathname());
+            if (str_contains($source, 'ScopedSetting::agencyRow(') || preg_match('/array_values\(\$value\)\[0\]/', $source) === 1) {
+                $copies[] = str_replace(app_path().'/', '', $fichier->getPathname());
+            }
+        }
+
+        $this->assertSame([], $copies, 'ces fichiers déballent eux-mêmes une ligne de settings au lieu de ScopedSetting::value()');
     }
 
     private function bailNonFige(Agency $agence): Lease
