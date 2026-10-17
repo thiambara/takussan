@@ -2125,12 +2125,13 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Page orpheline `/onboarding/agency-admin`
 - Réf : P13.09
-- Statut : validé — relier la page depuis l'activation du gérant provisionné (P15.07)
+- Statut : fait · TCK-781
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-12`, `takussan-web/src/app/(auth)/auth/reset-password/page.tsx:43`
 - Constat : le docblock la dit atteinte par la redirection de l'e-mail d'activation. Mais la réinitialisation renvoie vers `/auth/login`, et aucun lien ne mène à cette page ni à `AgencyAdminOnboardingWizard` (mesuré, et lu).
 - Piste : relier la page depuis l'invitation, ou la retirer.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/onboarding/agency-admin/page.tsx:9-14` (docblock « Reachable from the activation email's reset-password redirect ») et `(auth)/auth/reset-password/page.tsx:43` (`router.push('/auth/login?reset=1')`) ; `grep -rn "onboarding/agency-admin|AgencyAdminOnboardingWizard"` dans `takussan-web/src` et `takussan-api/app` → aucune référence hors de la page et du composant ; les redirections d'onboarding mènent toutes à `/onboarding/intention`, qui ne cite pas d'agence. Le constat tient. Classement : V7, la piste propose deux options (relier depuis l'invitation ou retirer une page) qui changent un parcours visible.
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `reset-password/page.tsx` pousse toujours `/auth/login?reset=1`, et aucun lien ne mène à `/onboarding/agency-admin` → corrigé par le même ticket que P15.07 : le lien d'activation porte `activation=1`, et la page mène à `/auth/login?reset=1&redirect=%2Fonboarding%2Fagency-admin` ; `transactional-links.test.tsx` rouge avant, vert après (5 sur 5).
 
 ### Petites améliorations
 - Réf : P13.10
@@ -2255,7 +2256,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
 - Réf : P15.07
-- Statut : validé — gabarit « Activez votre compte » dédié, valable 7 jours (TCK-209), qui mène à /onboarding/agency-admin après le mot de passe ; le 409 d'un compte existant reste
+- Statut : fait · TCK-781
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AgencyProvisioningService.php:28-32,108-114`, `takussan-api/lang/fr/notifications.php:42-49`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -2264,6 +2265,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un gabarit d'activation dédié, valable plus longtemps, et le rattachement d'un compte existant.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `AgencyProvisioningService.php:27-32` (409 `agency.admin_email_taken` si l'e-mail existe) et `:108-115` (`sendActivationLink` = `Password::broker()->sendResetLink`), `User.php:596-599` → `ResetPasswordNotification`, gabarit `lang/fr/notifications.php:42-49` (« demande de réinitialisation… », « Si vous n'avez pas demandé… »), `config/auth.php:99` (`expire` 60) ; `git log` sans correctif depuis TCK-588. Le 409 est voulu par TCK-209 (« si déjà existant… refuser (409) ») ; TCK-209 promettait un e-mail « Activez votre compte » valable ≤ 7 jours (AC l. 69) mais sa note l. 82 assume le broker de réinitialisation à 60 min → seule la partie gabarit et durée tient. Classement : V2, la durée d'un lien d'activation de gérant et le rattachement d'un compte existant touchent l'authentification, et le gabarit est un texte métier neuf (V7).
+- Mesure (2026-10-17, 399c500d3, implementeur) : reproduit avant correctif : `AgencyProvisioningService::sendActivationLink` appelle `Password::broker()->sendResetLink`, et le provisionnement envoie `ResetPasswordNotification` (gabarit de réinitialisation, broker `users` à 60 min) ; `AgencyAdminActivationTest` rouge (3 sur 5) → broker `activations` à 7 jours (même table), `AgencyAdminActivationNotification` « Activez votre compte » (fr, en ; `wo` = texte français), lien `activation=1` ; `POST /api/auth/reset-password` ne juge par ce broker qu'un compte sans mot de passe choisi ; la page de réinitialisation mène à la connexion avec `redirect=/onboarding/agency-admin` ; le 409 reste. Ablation : API remise à `pre-dev` → 4 rouges sur 10, condition `hasUsablePassword()` retirée → 1 rouge ; remis → 20 verts sur 4 classes, et 5 verts côté front.
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
 - Réf : P15.08
