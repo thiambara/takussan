@@ -1784,7 +1784,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
-- Statut : validé — deux tests : data-exports/[id]/download et account-deletion.ts
+- Statut : fait · TCK-760
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
 - Constat :
@@ -1799,6 +1799,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré, par un script qui résout les imports.
 - Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
 - Mesure (2026-10-15, 89a52efe, mesureur) : script node hors dépôt qui cherche, dans les `*.test.ts(x)` de `takussan-web/src`, un import de chaque action non remplacé par `vi.mock` → 15 actions sur 27 sans test : `account-deletion`, `agent-onboarding`, `auto-onboard`, `contact-preferences`, `invitations`, `kpis`, `locale`, `notification-preferences`, `notifications`, `onboarding`, `owner-onboarding`, `property-contacts`, `secondary-phone`, `service-provider-onboarding`, `super-admin-cooptation` ; `find src/app/api -name route.ts` → 36 handlers, et aucun `*.test.ts*` sous `data-exports/[id]/download`, `me/owner-profiles/[id]/kyc`, `admin-users`, `super-admin-properties`, `me/wizard-drafts`. Le décompte des 24 handlers n'est pas refait. La PR ouverte #421 touche `locale` et peut en couvrir une. Classement : V8, chaque test relève de A5, mais l'ensemble dépasse M et demande un découpage.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep -rln "account-deletion\|data-exports" takussan-web/src --include='*.test.*'` → aucun test n'importe `actions/account-deletion.ts` (`AccountDeletionSection.test.tsx` le remplace par `vi.mock`) ni `api/data-exports/[id]/download/route.ts` → tient. Deux tests neufs (`download/__tests__/route.test.ts`, 7 ; `actions/__tests__/account-deletion.test.ts`, 16) → 23 verts. Ablations : `set-cookie` relayé → 1 rouge, `segmentAmont` retiré → 3, `obligations` retirées de `failure()` → 4, clé de repli d'annulation changée → 1 ; remis → 23 verts.
 
 ### Petites améliorations
 - Réf : P12.10
