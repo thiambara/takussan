@@ -5,7 +5,10 @@ namespace App\Console\Commands;
 use App\Models\AccountDeletionRequest;
 use App\Notifications\AccountDeletionReminderNotification;
 use App\Services\Account\AccountDeletionService;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * TCK-080 — sweeper that runs hourly:
@@ -41,21 +44,37 @@ class ExecuteScheduledAccountDeletions extends Command
         }
 
         $executions = 0;
+        $failures = 0;
         foreach ($this->service->dueForExecution() as $request) {
             /** @var AccountDeletionRequest $request */
             if (! $dryRun) {
-                $this->service->executeDeletion($request);
+                // TCK-741 (P05.04) — une demande en échec ne bloque pas les suivantes. Elle garde
+                // `executed_at` nul et sera retentée au passage suivant ; le journal ne porte que
+                // la forme sûre de l'exception (ADR-0044), jamais son message.
+                try {
+                    $this->service->executeDeletion($request);
+                } catch (Throwable $e) {
+                    $failures++;
+                    Log::error('[account-deletion] exécution en échec', [
+                        'account_deletion_request_id' => $request->id,
+                    ] + SafeExceptionContext::of($e));
+
+                    continue;
+                }
             }
             $executions++;
         }
 
         $this->info(sprintf(
-            'account:execute-deletions — reminders=%d executions=%d%s',
+            'account:execute-deletions — reminders=%d executions=%d failures=%d%s',
             $remindersSent,
             $executions,
+            $failures,
             $dryRun ? ' (dry-run)' : '',
         ));
 
-        return self::SUCCESS;
+        // Un échec au moins : la commande sort en échec, après avoir traité toutes les autres,
+        // pour que `scheduled_task_runs` le dise.
+        return $failures > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
