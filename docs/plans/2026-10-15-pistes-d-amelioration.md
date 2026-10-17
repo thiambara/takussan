@@ -707,7 +707,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
 - Réf : P05.02
-- Statut : validé — rattrapage sur 3 jours au plus, un envoi par jalon, relances de facture et de loyer seulement
+- Statut : fait · TCK-739
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
 - Constat :
@@ -721,6 +721,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne couvre un jour manqué (lu).
 - Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `OverdueReminderService.php:127-131` (`in_array($daysOverdue, $offsets, true)`, correspondance exacte), `SendLeasePaymentReminders.php:57,68,123` (`whereDate('due_date', …)` exact), `SendNotificationDigestJob.php:52-66` (heure locale exactement égale à `digest_send_at`, aucune colonne `digested_at` lue), `SendPropertyVisitReminders.php:60-66` (fenêtre de ±5 min), `routes/console.php:159` (`monthlyOn(1, '08:00')`) → aucun ne rattrape une exécution manquée ; mais `TCK-092` (done), l. 170-175, écrit que « la J+3 manquée n'est pas rattrapée (hors scope V1 — comportement documenté) » : pour les factures, c'est un choix posé, pas un oubli. Classement : V7 et V8, rattraper change quelles relances partent, contre un choix écrit, sur cinq jobs distincts.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `OverdueReminderService::processOne()` (`in_array($daysOverdue, $offsets)`) et `SendLeasePaymentReminders::claim()` (`whereDate('due_date', $dueDate)`) ne relançaient qu'au jour exact : 4 tests neufs rouges (facture à J+4 et J+8, loyer J+1 rattrapé à J+2, J-3 rattrapé à J-2) → fenêtre de 3 jours par jalon, et garde par jalon sur `last_reminder_sent_at` pour les factures (le compteur seul relançait J+7 rattrapé deux jours de suite) ; ablation : 4 rouges, garde par jalon seule : 1 rouge ; correctif remis : 39 verts sur 4 classes. Digest, visites et relevé de gérance non touchés, selon la décision.
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
 - Réf : P05.03
