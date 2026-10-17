@@ -4041,6 +4041,8 @@ la bascule (P09.01), et la décision ne vivait que dans le fichier de pistes.*
 **Files:**
 - Modify: `.github/workflows/images.yml`
 - Modify: `takussan-web/src/app/layout.tsx`, `takussan-web/package.json`, `takussan-web/package-lock.json`
+- Modify: `takussan-web/src/proxy.ts`, `takussan-web/src/__tests__/proxy.test.ts`, et les fichiers
+  de la surface publique qui rendent un lien sans préfixe de langue (étape 4)
 
 - [ ] **Étape 1 : `images.yml` sert aussi `master`**
 
@@ -4089,11 +4091,31 @@ Dans `src/app/layout.tsx`, supprimer l'import de la ligne 19
 Run: `npm run lint && npx tsc --noEmit && npm run test && npm run build && grep -rn vercel/analytics src package.json; cd ..`
 Expected : tout vert, et le `grep` final ne rend rien.
 
-- [ ] **Étape 4 : commit, puis fusion jusqu'à `master` sur demande du porteur**
+- [ ] **Étape 4 : les URL sans préfixe redirigent en 308 vers `/fr` (amendement d'ADR-0026 du 2026-10-17)**
+
+*Ajoutée le 2026-10-17 (pistes P09.07 et P34.01, décision du porteur).* Dans cet ordre, parce que
+la redirection n'est sûre qu'une fois la condition tenue :
+
+1. **La condition.** Relever, sur le front lancé (`./dev.sh`), chaque `href` interne qui vise un
+   chemin localisable sans préfixe, page publique par page publique (accueil, liste, fiche, agences,
+   agents, favoris, comparateur, pages légales, 404). Faire passer chacun par `LienLocalise` ou
+   `cheminLocalise`. Puis un test qui rougit si une page publique rend un tel `href`, éprouvé par
+   ablation : un `href="/properties"` ajouté dans une page publique le rougit.
+2. **La redirection.** `src/proxy.ts` : `NextResponse.redirect(url, 308)` vers
+   `cheminLocalise(pathname, 'fr')`, sans `Vary`, sans lire `NEXT_LOCALE` ni `Accept-Language` ;
+   le commentaire qui motivait le 307 renvoie à l'amendement. `src/__tests__/proxy.test.ts` : le cas
+   « 307 et NON 308 » devient « 308 vers `/fr`, quel que soit le cookie ou `Accept-Language` », et
+   chaque `toBe(307)` est relu. Ablation : remettre le 307, ou lire le cookie, rougit le test.
+
+Run: `npm run lint && npx tsc --noEmit && npm run test && npm run build`
+Expected : tout vert ; `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' -H 'Cookie: NEXT_LOCALE=en' http://localhost:3000/properties`
+→ `308 http://localhost:3000/fr/properties`.
+
+- [ ] **Étape 5 : commit, puis fusion jusqu'à `master` sur demande du porteur**
 
 ```bash
-git add .github/workflows/images.yml takussan-web/src/app/layout.tsx takussan-web/package.json takussan-web/package-lock.json
-git commit -m "ci(web): images.yml sert la production sur master ; retrait de @vercel/analytics (ADR-0028)"
+git add .github/workflows/images.yml takussan-web/src takussan-web/package.json takussan-web/package-lock.json
+git commit -m "ci(web): images.yml sert la production sur master ; 308 vers /fr ; retrait de @vercel/analytics (ADR-0028, ADR-0026)"
 ```
 
 Au push sur `master` : les jobs `api` et `web` construisent les images `:prod`, et `deploy` **attend

@@ -1,6 +1,7 @@
 # ADR-0026 — La langue est un segment d'URL, toujours présent, et seulement sur la surface publique
 
-- **Statut** : Accepté
+- **Statut** : Accepté ; § 3 amendé le 2026-10-17
+- **Amendement du 2026-10-17 (pistes P09.07 et P34.01)** : les URL sans préfixe redirigent en **308 vers `/fr`**, sans négociation, à partir de la phase F (tâche F2) et à une condition : plus aucun lien interne ne rend un chemin localisable sans préfixe. Jusque-là, le § 3 reste en vigueur et le code rend 307. Voir [§ Amendement du 2026-10-17](#amendement-du-2026-10-17--les-url-sans-préfixe-redirigent-en-308-vers-fr).
 - **Date de la décision** : 2026-08-27
 - **Tickets** : TCK-434 (implémente), TCK-431 (sitemap : consomme les alternatives), TCK-433
   (canonical / `metadataBase` : consomme la forme d'URL)
@@ -152,6 +153,10 @@ servis par `src/app` — groupes dépliés — et exige que chacun y figure. Le 
 retirer `onboarding` et `publish` laissait 187 tests sur 187 au vert.
 
 ### 3. Les URL héritées redirigent en **307**, jamais en 308
+
+> ⚠ **Remplacé à la phase F par l'[amendement du 2026-10-17](#amendement-du-2026-10-17--les-url-sans-préfixe-redirigent-en-308-vers-fr)** : 308 vers `/fr`, sans
+> négociation. Le raisonnement ci-dessous reste juste pour une cible qui dépend du demandeur ; c'est
+> la cible qui change.
 
 `/properties/<slug>` → `307` vers `/<locale>/properties/<slug>`, avec
 `Vary: Cookie, Accept-Language`. La locale de destination est choisie par : **cookie `NEXT_LOCALE`
@@ -344,3 +349,53 @@ Ce qui l'empêche de régresser : `src/i18n/__tests__/routing.test.ts`,
 sans son correctif (redirection retirée, en-tête de langue retiré, préséance de l'URL retirée,
 `x-default` retiré, groupe public remonté hors de `[locale]`, report au cookie retiré).
 `scripts/check-i18n-namespaces.mjs` casse si la frontière déplacée n'est pas déclarée.
+
+## Amendement du 2026-10-17 — les URL sans préfixe redirigent en 308 vers `/fr`
+
+**Décision du porteur** : 2026-10-15 (piste P09.07, « 308 vers /fr »), précisée le 2026-10-17
+(piste P34.01, option a).
+
+**Le problème.** `www.takussan.com` sert encore `master` du 2026-08-15, sans préfixe de langue
+(D-72 de l'ardoise). Tout ce que les moteurs ont indexé — `/`, `/properties/<slug>`, `/agencies/…` —
+passera, à la bascule de la phase F, par la redirection du § 3. Une 307 est temporaire : les moteurs
+gardent l'URL source et ne transfèrent pas franchement son signal à la cible.
+
+**La décision.** Un chemin localisable sans préfixe — `/` compris — rend **308 vers `/fr/<chemin>`**,
+chaîne de requête conservée, **sans `Vary`** et sans lire ni le cookie `NEXT_LOCALE` ni
+`Accept-Language`.
+
+**Pourquoi le § 3 ne s'y oppose plus.** Son objection visait une cible qui dépend du **demandeur** :
+mise en cache, une 308 aurait épinglé la langue du premier visiteur sur tous les suivants. Ici la
+cible ne dépend plus que de l'**URL source** : la mettre en cache, dans un navigateur ou chez
+Cloudflare, est exact. Le `Vary` n'a plus rien à décrire.
+
+**Ce que ça coûte.**
+
+- La négociation de langue disparaît pour une URL sans préfixe. Un visiteur anglophone ou wolophone
+  qui arrive par un ancien lien externe atterrit en français ; le commutateur de langue le ramène,
+  et l'URL gagne ensuite sur le cookie (§ 5). Le report au cookie du § 5 ne vaut plus pour ces
+  URL.
+- Le « chemin doux » des Conséquences — un lien interne sans préfixe qui « fonctionne encore et dans
+  la bonne langue » — **n'existe plus** : un tel lien enverrait un visiteur anglophone en français,
+  et son navigateur retiendrait la redirection. D'où la condition ci-dessous.
+- Le signal d'indexation des URL héritées est transféré, vers la seule version française. Les
+  versions `en` et `wo` se découvrent par les `hreflang` et le sitemap, comme aujourd'hui.
+
+**La condition, posée avant la phase F (tâche F2).** Aucun lien interne ne rend un chemin localisable
+sans préfixe : chaque lien vers la surface publique passe par `LienLocalise` ou par
+`cheminLocalise`. Ce n'est pas le cas au 2026-10-17 : les Conséquences comptent 26 fichiers
+migrés sur une cinquantaine, et un relevé par `grep` trouve une centaine de fichiers qui citent
+un chemin public, sans dire lesquels rendent un lien sans préfixe. Le compte se fait sur le HTML
+servi, puis **un test garde la règle** : il rougit si une page publique rend un `href` interne
+localisable sans préfixe. Sans ce test, la condition serait vraie le jour de la bascule et fausse
+au premier lien ajouté ensuite.
+
+**Ce qui ne change pas.** La surface non localisée du § 2, les préfixes du § 1, la préséance du
+§ 5 pour une URL qui porte sa langue, les `hreflang` et le `canonical`.
+
+**Application, à la tâche F2 du plan de la phase F** (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`) :
+`takussan-web/src/proxy.ts` (le `NextResponse.redirect(url, 307)` et son `Vary`, le commentaire qui
+motive le 307), `src/__tests__/proxy.test.ts` (dont le cas « 307 et NON 308 », qui devient « 308,
+vers `/fr`, quel que soit le cookie ou `Accept-Language` »), et le test des liens internes ci-dessus.
+Ablation attendue : remettre le 307, ou lire le cookie, rougit `proxy.test.ts` ; ajouter un lien
+`href="/properties"` dans une page publique rougit le test des liens.
