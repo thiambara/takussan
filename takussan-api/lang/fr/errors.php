@@ -406,6 +406,8 @@ return [
         'missing' => 'Aucun numéro de téléphone n\'est enregistré.',
         'resend_too_soon' => 'Un code vient de partir. Vous pourrez en demander un autre dans :seconds s.',
         'send_limit' => 'Trop de codes demandés pour ce numéro. Réessayez dans :minutes min.',
+        // P15.05 (TCK-783) — aucun fournisseur n'a accepté le SMS du code.
+        'sms_undelivered' => 'Le SMS portant votre code n\'a pas pu être envoyé. Réessayez dans une minute.',
         'send_limit_day' => 'Trop de codes demandés aujourd\'hui pour ce numéro. Réessayez dans :hours h.',
         'change_requires_proof' => 'Pour remplacer un numéro vérifié, confirmez d\'abord que vous le détenez : code reçu sur ce numéro, ou mot de passe.',
         'no_verified_number' => 'Aucun numéro vérifié n\'est enregistré sur ce compte.',
