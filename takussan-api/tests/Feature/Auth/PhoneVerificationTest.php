@@ -14,6 +14,16 @@ class PhoneVerificationTest extends TestCase
 {
     use ReadsPhoneCodes, RefreshDatabase;
 
+    /**
+     * P15.05 (TCK-783) — un code qu'aucun fournisseur n'accepte rend désormais 503. Ces tests
+     * éprouvent un envoi qui réussit : le faux routeur l'accepte, comme dans les autres classes.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeSms();
+    }
+
     public function test_verify_fails_without_a_matching_otp_in_cache(): void
     {
         $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
