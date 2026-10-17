@@ -1865,12 +1865,13 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03
-- Statut : validé — une commande qui crée les trois règles ops_*, destinataire = les super-admins, appelée par release.sh
+- Statut : fait · TCK-768
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
 - Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
 - Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `AlertRuleService::dispatchForActivity()` (`AlertRuleService.php:64-75`) → n'envoie que pour une ligne `alert_rules` active ; `grep -rln 'AlertRule\|alert_rules' database app/Console deploy docs/infra` → seule la migration `2026_05_07_000221_create_alert_rules_table.php`, aucun seeder, aucune commande, rien dans `deploy/`. L'état de la base de préproduction n'est pas mesuré : sortir du poste est interdit à ce rôle. Classement : V5, la piste touche au déploiement et à une variable d'environnement.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `EnsureOperationalAlertRulesTest` avant correctif → 4 rouges (`alerts:ensure-ops-rules` inexistante, aucune règle `alert_rules` créée) → la commande crée, pour chaque `ops_*` du catalogue sans règle, une règle courriel vers les super-admins actifs, sans réécrire une règle existante ni rien créer sans super-admin ; `docker/release.sh` l'appelle, échec toléré (`test-release-reindex.sh`, 2 vérifications neuves). Ablation : commande retirée → 4 rouges, appel retiré de `release.sh` → 1 rouge ; remis → verts.
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
