@@ -316,6 +316,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'Ce fichier est une pièce de preuve : il ne se supprime pas.',
+        'file_rejected' => 'Ce fichier ne peut pas être ajouté : vérifiez sa taille et son format.',
         'photo_unprocessable' => 'Cette image ne peut pas être traitée. Vérifiez le fichier puis réessayez.',
         'unsupported_target' => 'Cet objet ne peut pas porter de médias.',
     ],

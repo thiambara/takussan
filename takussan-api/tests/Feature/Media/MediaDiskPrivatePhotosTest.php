@@ -134,9 +134,12 @@ class MediaDiskPrivatePhotosTest extends TestCase
     public function test_generic_upload_of_a_private_collection_returns_a_signed_url(): void
     {
         Storage::fake(config('media-library.public_disk_name'));
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs($user = User::factory()->create());
 
-        $response = $this->postJson('/api/media/upload', [
+        // TCK-764 — par `POST /api/media` : `POST /api/media/upload`, sans appelant, est retiré.
+        $response = $this->postJson('/api/media', [
+            'model_type' => User::class,
+            'model_id' => $user->id,
             'file' => UploadedFile::fake()->image('papier.jpg', 900, 900),
             'collection' => 'photos',
         ])->assertCreated();
@@ -152,9 +155,12 @@ class MediaDiskPrivatePhotosTest extends TestCase
     public function test_generic_upload_of_a_public_collection_keeps_its_public_url(): void
     {
         Storage::fake(config('media-library.public_disk_name'));
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs($user = User::factory()->create());
 
-        $response = $this->postJson('/api/media/upload', [
+        // TCK-764 — par `POST /api/media` : `POST /api/media/upload`, sans appelant, est retiré.
+        $response = $this->postJson('/api/media', [
+            'model_type' => User::class,
+            'model_id' => $user->id,
             'file' => UploadedFile::fake()->image('moi.jpg', 900, 900),
             'collection' => 'avatars',
         ])->assertCreated();

@@ -316,6 +316,7 @@ return [
     ],
     'media' => [
         'evidence_locked' => 'This file is evidence: it cannot be deleted.',
+        'file_rejected' => 'This file cannot be added: check its size and format.',
         'photo_unprocessable' => 'This image cannot be processed. Check the file and try again.',
         'unsupported_target' => 'This item cannot hold media.',
     ],

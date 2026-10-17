@@ -71,7 +71,7 @@ class ConversationResource extends BaseResource
                     'user' => [
                         'id' => $user->id,
                         'full_name' => $user->full_name,
-                        'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
+                        'avatar_url' => $user->avatarUrl(),
                     ],
                 ])
                 ->values()

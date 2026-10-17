@@ -1446,7 +1446,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
-- Statut : validé — avatar réencodé à l'upload (EXIF retiré), et la conversion servie au lieu de l'original
+- Statut : fait · TCK-762
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/User.php:405`, `takussan-api/app/Http/Controllers/Api/Auth/AuthController.php:210-213`, `takussan-web/src/lib/reduire-photo.ts:10`, `takussan-api/app/Http/Resources/UserResource.php:37`
 - Constat :
@@ -1456,6 +1456,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : servir une conversion carrée réencodée et garder l'original privé, ou retirer l'EXIF à l'upload.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `User.php:404` (collection `avatar` sur le disque public), `AuthController.php:209-213` (`addMediaFromRequest('avatar')`, aucun traitement), `UserResource.php:37` (`getFirstMediaUrl('avatar')`, l'original), et les mêmes URL d'original dans `PublicAgentController.php:180`, `PublicPropertyController.php:1066`, `PropertyResource.php:411` ; test Feature temporaire (retiré) : un JPEG portant un segment EXIF avec `GPSLatitudeRef = N`, envoyé à `PUT /api/auth/profile` → 200, média sur le disque `public`, URL `/storage/1/selfie.jpg`, et `exif_read_data` du fichier stocké rend toujours `GPSLatitudeRef = "N"`. Les trois conversions (`full`, `preview`, `thumbnail`) sont produites et rien ne les sert. Le front ne réencode que l'image au-delà de 2 560 px (`reduire-photo.ts:1-22`). Classement : V3, la piste change ce qui est exposé d'une donnée personnelle, et le choix entre conversion servie et retrait de l'EXIF reste ouvert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `AuthProfileTest` avant correctif → 2 rouges : un JPEG portant `GPSLatitudeRef = N` et `Orientation = 6`, envoyé à `PUT /api/auth/profile`, est rangé avec son EXIF, et `avatar_url` vise l'original → `AvatarReencode` (décodage et réencodage GD, orientation appliquée aux pixels) et `User::avatarUrl()` (la miniature, sinon `null`), repris par les huit appelants ; ablation : contrôleur d'avant → le test EXIF rougit, `UserResource` d'avant → le test d'URL rougit, `MessagingContactResource` d'avant → la garde `AvatarServiEnMiniatureTest` rougit ; remis → verts, 75 tests des classes qui rendent un avatar verts. Les originaux déjà déposés gardent leur EXIF (hors périmètre, V4).
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
@@ -1475,16 +1476,17 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
-- Statut : validé — validation des documents ramenée à 10 Mo, FileCannotBeAdded traduit en 422
+- Statut : fait · TCK-763
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/MediaUploadRequest.php:16`, `takussan-api/app/Http/Requests/GenericMediaUploadRequest.php:19`, `takussan-api/config/media-library.php:55`
 - Constat : un fichier de 10 à 25 Mo passe la validation, puis Spatie lève `FileIsTooBig`. Aucun gestionnaire ne le traduit, et la réponse est un 500 (lu).
 - Piste : aligner les deux plafonds, et traduire `FileCannotBeAdded` en 422.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaUploadRequest.php:16` et `GenericMediaUploadRequest.php:19` (`MAX_DOCUMENT_KB = 25 * 1024`), `config/media-library.php:55` (`max_file_size` 10 Mo) ; `grep -rn 'FileIsTooBig\|FileCannotBeAdded' app bootstrap config` → vide ; test Feature temporaire (retiré) : un PDF réel de 15 Mo, collection `documents`, sur `POST /api/media` et sur `POST /api/media/upload` → **500** sur les deux, message de Spatie « has a size of 15 MB which is greater than the maximum ». Le seul appelant du front (`agencies.ts:144`) envoie un logo, pas un document. Classement : V9, aligner les plafonds demande de choisir entre baisser la validation à 10 Mo et monter le plafond global de Spatie à 25 Mo, qui vaut pour toutes les collections ; la traduction de `FileCannotBeAdded` en 422, seule, serait A1.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `MediaUploadTest` avant correctif → 2 rouges en 500 (`FileIsTooBig`) : un PDF réel de 15 Mo dans `documents`, et un PDF de 200 Ko sous un plafond de médiathèque abaissé à 100 Ko → `MAX_DOCUMENT_KB` = 10 Mo dans les deux FormRequests, et `FileCannotBeAdded` rendu en 422 `media.file_rejected` par `bootstrap/app.php` ; ablation : FormRequest d'avant → le premier rougit, `bootstrap/app.php` d'avant → le second ; remis → 12/12 verts.
 
 ### `POST /api/media/upload` : un point d'écriture mort et ouvert
 - Réf : P10.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-764 — reste : limiter les conversions de `User` aux collections affichées (`performOnCollections`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/media.php:12`, `takussan-api/app/Http/Controllers/Api/MediaController.php:70-93`
 - Constat :
@@ -1494,6 +1496,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : retirer la route ; limiter les conversions aux collections affichées (`performOnCollections`).
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `routes/api/media.php:12-14` (route `media.upload`, `throttle:30,1`) et `MediaController.php:70-93` (attache le fichier à l'appelant, collection `photos` par défaut) ; `grep -rn 'media/upload\|media.upload' takussan-web/src takussan-api/app takussan-api/routes` → aucun appelant (seul un commentaire de `User.php:403`) ; seuls `tests/Feature/Media/MediaGenericUploadTest.php` et `MediaDiskPrivatePhotosTest.php` l'appellent ; aucune lecture de `User.photos` ni de `User.documents` dans `app/` (grep). Les trois conversions sur chaque image de `User`, avatar compris, sont mesurées sous P10.05 (`generated_conversions` = `full`, `preview`, `thumbnail`), et aucune ressource ne sert une conversion d'avatar (grep `getFirstMediaUrl('avatar'` : l'original partout). La route avait été demandée par TCK-016, sans écran pour l'appeler, et `docs/features.md` ne la cite pas. Classement : A3 pour le seul retrait de la route sans appelant ; la partie « conversions » est laissée à P10.05, qui choisit ce que l'avatar sert.
+- Mesure (2026-10-17, 7ff3ee356, implementeur) : `git grep` de `media/upload`, `media.upload` et `GenericMediaUploadRequest` → aucun appelant hors des tests et d'un commentaire ; un cas de garde avant correctif → 1 rouge, la route existe et un envoi crée un média → route, `MediaController::upload()` et `GenericMediaUploadRequest` retirés, `MediaGenericUploadTest` réécrit pour garder le retrait, les deux cas de disque de `MediaDiskPrivatePhotosTest` passés sur `POST /api/media` ; ablation (les trois remis) → le même rouge ; retirés → vert.
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09

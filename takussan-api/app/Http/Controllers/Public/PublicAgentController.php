@@ -174,10 +174,10 @@ class PublicAgentController extends Controller
                 // front ne doit présenter comme « agent » que ceux qui le sont
                 // ({@see PublicProfileFacts::rolesPublics()}).
                 'public_role' => $roles[$id],
-                // `getFirstMediaUrl()` et NON `$agent->avatar_url` : cet attribut n'existe pas sur
+                // `avatarUrl()` et NON `$agent->avatar_url` : cet attribut n'existe pas sur
                 // `User` (ni colonne, ni accesseur — mesuré le 2026-08-28) et rend toujours null,
-                // y compris là où `show()` l'emploie. `PropertyResource` utilise déjà cette forme.
-                'avatar_url' => $agent->getFirstMediaUrl('avatar') ?: null,
+                // y compris là où `show()` l'emploie. La miniature, jamais l'original (TCK-762).
+                'avatar_url' => $agent->avatarUrl(),
                 'specialty' => $profil?->specialty,
                 'agency' => $agence === null ? null : [
                     'id' => $agence['id'],

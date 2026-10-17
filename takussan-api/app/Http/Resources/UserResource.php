@@ -34,7 +34,7 @@ class UserResource extends BaseResource
             'email' => $this->email,
             'phone' => $this->phone,
             'bio' => $this->bio,
-            'avatar_url' => $this->getFirstMediaUrl('avatar') ?: null,
+            'avatar_url' => $this->avatarUrl(),
             'email_verified_at' => $this->iso($this->email_verified_at),
             'phone_verified_at' => $this->iso($this->phone_verified_at),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,

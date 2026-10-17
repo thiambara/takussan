@@ -155,6 +155,56 @@ class AuthProfileTest extends TestCase
     }
 
     /**
+     * TCK-762 (P10.05) — l'avatar vit sur le disque public : réencodé à l'upload, il ne garde
+     * aucun EXIF (la position GPS d'un selfie comprise), et l'orientation est appliquée aux pixels
+     * avant que le marqueur disparaisse.
+     */
+    public function test_profile_update_strips_exif_from_the_stored_avatar(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'avatar' => ImageEnTete::jpegAvecExif(200, 100, orientation: 6),
+        ])->assertStatus(200);
+
+        $media = $user->fresh()->getFirstMedia('avatar');
+        $this->assertNotNull($media);
+        $original = Storage::disk($media->disk)->get($media->getPathRelativeToRoot());
+        $miniature = Storage::disk($media->conversions_disk)->get($media->getPathRelativeToRoot('thumbnail'));
+
+        foreach (['original' => $original, 'thumbnail' => $miniature] as $quoi => $octets) {
+            $exif = @exif_read_data('data://image/jpeg;base64,'.base64_encode((string) $octets));
+            $this->assertFalse(is_array($exif) && isset($exif['GPSLatitudeRef']), "{$quoi} : la position GPS a survécu");
+            $this->assertFalse(is_array($exif) && isset($exif['Orientation']), "{$quoi} : l'EXIF a survécu");
+        }
+
+        // Orientation 6 : 200 × 100 tourné d'un quart de tour.
+        $this->assertSame([100, 200], array_slice((array) getimagesizefromstring((string) $original), 0, 2));
+    }
+
+    /** TCK-762 (P10.05) — `avatar_url` sert la miniature carrée, jamais l'original déposé. */
+    public function test_profile_avatar_url_is_the_thumbnail_conversion(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 256, 256),
+        ])->assertStatus(200);
+
+        $media = $user->fresh()->getFirstMedia('avatar');
+        $this->assertSame($media->getUrl('thumbnail'), $response->json('avatar_url'));
+        $this->assertNotSame($media->getUrl(), $response->json('avatar_url'));
+    }
+
+    /**
      * TCK-677 (P10.02) — l'avatar a lui aussi une miniature synchrone, et il suffit d'un compte
      * pour l'envoyer : au-delà de 20 Mpx, il est refusé sur son en-tête, sans être décodé.
      */

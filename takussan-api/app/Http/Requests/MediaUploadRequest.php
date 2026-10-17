@@ -13,7 +13,9 @@ class MediaUploadRequest extends FormRequest
 
     public const MAX_PHOTO_KB = 10 * 1024;   // 10MB
 
-    public const MAX_DOCUMENT_KB = 25 * 1024; // 25MB
+    // TCK-763 (P10.07) — le plafond de la médiathèque (`media-library.max_file_size`, 10 Mo) :
+    // validé à 25 Mo, un document de 10 à 25 Mo passait ici puis Spatie le refusait en 500.
+    public const MAX_DOCUMENT_KB = 10 * 1024; // 10MB
 
     public function authorize(): bool
     {

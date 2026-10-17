@@ -101,6 +101,47 @@ class MediaUploadTest extends TestCase
             ->assertJsonValidationErrors(['file']);
     }
 
+    /**
+     * TCK-763 (P10.07) — entre 10 et 25 Mo, un document passait la validation, puis Spatie levait
+     * `FileIsTooBig` (`media-library.max_file_size` = 10 Mo) : 500. La validation suit le plafond.
+     */
+    public function test_rejects_a_document_above_the_media_library_cap(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/media', [
+            // Des octets réels : `fake()->create()` annonce une taille, mais le fichier est vide,
+            // et Spatie mesure le fichier.
+            'file' => UploadedFile::fake()->createWithContent('scan.pdf', "%PDF-1.4\n".str_repeat('0', 15 * 1024 * 1024)),
+            'collection' => 'documents',
+            'model_type' => User::class,
+            'model_id' => $user->id,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
+
+        $this->assertDatabaseCount('media', 0);
+    }
+
+    /** TCK-763 (P10.07) — un fichier que la médiathèque refuse rend 422 et un code, jamais 500. */
+    public function test_a_file_refused_by_the_media_library_is_a_422(): void
+    {
+        config(['media-library.max_file_size' => 100 * 1024]);
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/media', [
+            'file' => UploadedFile::fake()->createWithContent('contract.pdf', "%PDF-1.4\n".str_repeat('0', 200 * 1024)),
+            'collection' => 'documents',
+            'model_type' => User::class,
+            'model_id' => $user->id,
+        ])->assertStatus(422)
+            ->assertJsonPath('code', 'media.file_rejected')
+            ->assertJsonPath('message', __('errors.media.file_rejected'));
+
+        $this->assertDatabaseCount('media', 0);
+    }
+
     public function test_rejects_invalid_collection(): void
     {
         $user = User::factory()->create();

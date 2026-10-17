@@ -35,7 +35,6 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
         'Agency/StoreAgentHandoverRequest.php',
         'Api/Me/UpdateMeRequest.php',
         'AttachCustomerTagsRequest.php',
-        'GenericMediaUploadRequest.php',
         'InitiatePaymentRequest.php',
         'InventorySignRequest.php',
         'InventoryStoreRequest.php',
