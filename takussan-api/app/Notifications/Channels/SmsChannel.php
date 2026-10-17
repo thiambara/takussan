@@ -53,7 +53,8 @@ class SmsChannel
         }
         if (! PhoneNumber::isValid($phone)) {
             Log::warning('[sms-channel] invalid phone — rejected before routing', [
-                'phone' => $phone,
+                // TCK-800 (P11.10) — le suffixe seul, comme `PhoneVerificationService`.
+                'phone_suffix' => substr($phone, -4),
                 'notification' => $notification::class,
             ]);
 
