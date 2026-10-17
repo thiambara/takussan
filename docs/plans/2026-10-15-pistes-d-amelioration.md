@@ -3161,7 +3161,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : validé — rembourser d'abord les jours les plus tardifs, au prix de la tranche qui les a achetés
+- Statut : retenu · à valider — V4 : les tranches d'une Vedette prolongée ne sont écrites nulle part (ni durée ni offre par prolongation, aucun mouvement pour une tranche offerte) ; rembourser par tranche exige une table ou une colonne neuve, migration de schéma autre qu'un index, critère distinct de V1 accordé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3172,6 +3172,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
+- Mesure (2026-10-17, 464374510, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours `price_credits` et `duration_days` sur la ligne en place, `BoostLifecycle::refundableCredits()` rend `intdiv(price_credits × jours pleins, duration_days)`). Mais rien ne garde les tranches : `property_boosts` n'a qu'un `price_credits`, un `duration_days` et un `boost_product_id` (celui de la première tranche, lu `2026_10_12_500100_create_boost_tables.php:31-57`) ; `credit_movements` n'a ni durée ni offre (lu `2026_10_12_500200_create_credit_ledger_tables.php:38-50`), et une tranche offerte n'écrit aucun mouvement (`debit()` ne fait rien à prix 0, lu `BoostPurchaseService.php:187-191`). Les jours de chaque tranche ne se reconstruisent donc pas : la correction validée demande une table ou une colonne neuve, et la reprise des Vedettes déjà prolongées. Rien n'est implémenté. Classement : V4.
 
 ### Petites améliorations
 - Réf : P24.06
