@@ -1,5 +1,5 @@
 /**
- * LE GRAPHE CLIENT STATIQUE d'un module — TCK-743 (P33.02), TCK-744 (P33.03).
+ * LE GRAPHE CLIENT STATIQUE d’un module — TCK-743 (P33.02), TCK-744 (P33.03), TCK-745 (P33.06).
  *
  * Ce qu'une route fait entrer dans son graphe client est téléchargé avant le premier rendu
  * interactif. Ce module suit les imports STATIQUES depuis une entrée, comme le bundler :
@@ -49,12 +49,16 @@ function specificateurs(source: ts.SourceFile): string[] {
 const paquet = (spec: string) =>
   spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0]!;
 
-/**
- * Les paquets de `interdits` qu'atteint le graphe client de `entree`, chacun avec le chemin
- * d'imports qui l'y amène (`zod ← lib/schemas/x.ts ← components/Y.tsx ← app/page.tsx`).
- */
-export function paquetsDuGrapheClient(entree: string, interdits: readonly string[]): string[] {
-  const trouves = new Set<string>();
+interface Graphe {
+  /** Les modules du graphe client, nommés relativement à `src/`. */
+  readonly modules: ReadonlySet<string>;
+  /** Les paquets npm importés depuis le graphe client, avec le chemin d'imports qui y mène. */
+  readonly paquets: ReadonlyMap<string, readonly string[]>;
+}
+
+function grapheClient(entree: string): Graphe {
+  const modules = new Set<string>();
+  const paquets = new Map<string, string[]>();
   const vus = new Set<string>();
   const pile: Array<{ fichier: string; client: boolean; chemin: string[] }> = [
     { fichier: entree, client: false, chemin: [] },
@@ -69,14 +73,33 @@ export function paquetsDuGrapheClient(entree: string, interdits: readonly string
     if (vus.has(cle)) continue;
     vus.add(cle);
     const ici = [nommer(fichier), ...chemin];
+    if (client) modules.add(nommer(fichier));
     for (const spec of specificateurs(source)) {
       if (spec.startsWith('.') || spec.startsWith('@/')) {
         const cible = resoudreImport(spec, fichier);
         if (cible) pile.push({ fichier: cible, client, chemin: ici });
-      } else if (client && interdits.includes(paquet(spec))) {
-        trouves.add(`${paquet(spec)} ← ${ici.join(' ← ')}`);
+      } else if (client) {
+        const chemins = paquets.get(paquet(spec)) ?? [];
+        chemins.push(ici.join(' ← '));
+        paquets.set(paquet(spec), chemins);
       }
     }
   }
-  return [...trouves].sort();
+  return { modules, paquets };
+}
+
+/** Les modules (nommés relativement à `src/`) qu'une entrée fait entrer dans le graphe client. */
+export function modulesDuGrapheClient(entree: string): ReadonlySet<string> {
+  return grapheClient(entree).modules;
+}
+
+/**
+ * Les paquets de `interdits` qu'atteint le graphe client de `entree`, chacun avec le chemin
+ * d'imports qui l'y amène (`zod ← lib/schemas/x.ts ← components/Y.tsx ← app/page.tsx`).
+ */
+export function paquetsDuGrapheClient(entree: string, interdits: readonly string[]): string[] {
+  const { paquets } = grapheClient(entree);
+  return [
+    ...new Set(interdits.flatMap((nom) => (paquets.get(nom) ?? []).map((chemin) => `${nom} ← ${chemin}`))),
+  ].sort();
 }
