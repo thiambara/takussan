@@ -708,7 +708,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
 - Réf : P05.02
-- Statut : validé — rattrapage sur 3 jours au plus, un envoi par jalon, relances de facture et de loyer seulement
+- Statut : fait · TCK-739
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invoice/OverdueReminderService.php:131,256-268`, `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57,68,123`, `takussan-api/app/Jobs/Notifications/SendNotificationDigestJob.php:64`, `takussan-api/app/Jobs/SendPropertyVisitReminders.php`, `takussan-api/routes/console.php:159`
 - Constat :
@@ -722,10 +722,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne couvre un jour manqué (lu).
 - Piste : `due_date <= today − offset` avec le marqueur par jalon déjà en place, et le résumé sur `digested_at IS NULL` sans borne de 24 h.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `OverdueReminderService.php:127-131` (`in_array($daysOverdue, $offsets, true)`, correspondance exacte), `SendLeasePaymentReminders.php:57,68,123` (`whereDate('due_date', …)` exact), `SendNotificationDigestJob.php:52-66` (heure locale exactement égale à `digest_send_at`, aucune colonne `digested_at` lue), `SendPropertyVisitReminders.php:60-66` (fenêtre de ±5 min), `routes/console.php:159` (`monthlyOn(1, '08:00')`) → aucun ne rattrape une exécution manquée ; mais `TCK-092` (done), l. 170-175, écrit que « la J+3 manquée n'est pas rattrapée (hors scope V1 — comportement documenté) » : pour les factures, c'est un choix posé, pas un oubli. Classement : V7 et V8, rattraper change quelles relances partent, contre un choix écrit, sur cinq jobs distincts.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `OverdueReminderService::processOne()` (`in_array($daysOverdue, $offsets)`) et `SendLeasePaymentReminders::claim()` (`whereDate('due_date', $dueDate)`) ne relançaient qu'au jour exact : 4 tests neufs rouges (facture à J+4 et J+8, loyer J+1 rattrapé à J+2, J-3 rattrapé à J-2) → fenêtre de 3 jours par jalon, et garde par jalon sur `last_reminder_sent_at` pour les factures (le compteur seul relançait J+7 rattrapé deux jours de suite) ; ablation : 4 rouges, garde par jalon seule : 1 rouge ; correctif remis : 39 verts sur 4 classes. Digest, visites et relevé de gérance non touchés, selon la décision.
 
 ### `SendLeasePaymentReminders` réserve tout un jalon avant d'envoyer
 - Réf : P05.03
-- Statut : validé — réserver et envoyer échéance par échéance
+- Statut : fait · TCK-740
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendLeasePaymentReminders.php:57-105,115-147`
 - Constat :
@@ -734,10 +735,11 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - Aucun test ne simule un échec en cours de boucle (lu).
 - Piste : réserver et envoyer échéance par échéance, ou rendre la réservation en cas d'échec, comme `SendSavedSearchAlerts`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Jobs/SendLeasePaymentReminders.php:55-147` : `claim()` pose `reminder_<jalon>_sent_at` sur toutes les échéances du jalon (une transaction par échéance) avant toute boucle d'envoi, sans `$timeout` ni `catch` ; `NotificationService::send()` (`Services/Model/NotificationService.php:75-117`) ne capture que l'événement de diffusion, l'écriture et `notify()` peuvent lever ; `tests/Feature/Jobs/SendLeasePaymentRemindersTest.php` : 12 tests, aucun n'échoue en cours de boucle → constat confirmé. Classement : V7, réserver par échéance ou rendre la réservation fait passer la relance d'« au plus une fois » à « au moins une fois », un choix que voit le locataire.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck740_un_envoi_qui_leve_ne_prive_pas_les_echeances_suivantes` (deux échéances à J+1, `NotificationService::send()` qui lève au premier envoi, puis rejeu) → 0 relance au rejeu : la seconde échéance restait marquée sans envoi → `claim()` réserve sous verrou et rend les échéances une à une ; ablation : 1 rouge, correctif remis : 16 verts. Aucun `$timeout` ajouté.
 
 ### `account:execute-deletions` : une suppression en échec bloque toutes les suivantes
 - Réf : P05.04
-- Statut : validé — try/catch par demande, journal par SafeExceptionContext (ADR-0044), orderBy scheduled_for
+- Statut : fait · TCK-741
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:44-47`, `takussan-api/app/Services/Account/AccountDeletionService.php:406-413`
 - Constat :
@@ -745,6 +747,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - La seule trace est une ligne `failed` dans `scheduled_task_runs` (lu).
 - Piste : un `try/catch` par demande, hors transaction, avec `report()`, et `orderBy('scheduled_for')`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `takussan-api/app/Console/Commands/ExecuteScheduledAccountDeletions.php:43-50` (boucle sans `try/catch`) et `AccountDeletionService::dueForExecution()` (`AccountDeletionService.php:406-414`, sans `orderBy`) → une exception d'`executeDeletion()` arrête la commande, et les demandes suivantes, dans l'ordre que rend PostgreSQL, attendent l'heure suivante ; aucun ticket ouvert ne le traite (`TCK-080`, `TCK-600` : done). Classement : V3, le correctif touche à l'exécution des suppressions de données personnelles.
+- Mesure (2026-10-17, ec405f7a, implementeur) : avant correctif, `test_tck741_une_suppression_en_echec_ne_bloque_pas_les_suivantes` (deux demandes échues, `executeDeletion()` qui lève sur la plus ancienne) → l'exception remontait de la commande et la seconde demande restait non exécutée ; `test_tck741_les_demandes_echues_sont_rendues_par_date_prevue` → ordre de l'identifiant, pas de `scheduled_for` → `try/catch` par demande avec `Log::error` + `SafeExceptionContext::of()` (le message de l'exception absent du journal, vérifié), sortie 1 si une demande a échoué, `orderBy('scheduled_for')` ; ablation : 2 rouges, correctif remis : 8 verts sur 2 classes.
 
 ### Les notifications ne partent après le commit que grâce au driver `database`
 - Réf : P05.05
