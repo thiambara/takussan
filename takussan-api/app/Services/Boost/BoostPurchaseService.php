@@ -12,15 +12,23 @@ use App\Models\PropertyBoost;
 use App\Models\User;
 use App\Services\Credits\CreditLedger;
 use App\Services\Credits\InsufficientCredits;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-633 lot F (ADR-0061 §5) — acheter (ou offrir) un boost. Prix et durée se figent dans la ligne
  * `property_boosts`. Tout se joue dans UNE transaction, sous le verrou de l'espace puis du bien :
  * deux achats simultanés sur le même bien se sérialisent (délai de Remontée, prolongation de Vedette).
+ *
+ * TCK-822 (P24.01) — une clé d'idempotence, unique par espace sur 24 h, rend un achat rejoué sans
+ * second débit. Elle se lit et s'écrit SOUS le verrou de l'espace : deux rejeux simultanés se
+ * sérialisent, et le second lit la clé que le premier a posée.
  */
 final class BoostPurchaseService
 {
+    /** TCK-822 — la fenêtre pendant laquelle une clé d'idempotence rejoue l'achat qu'elle a fait. */
+    public const IDEMPOTENCY_TTL_HOURS = 24;
+
     public function __construct(
         private readonly CreditLedger $ledger,
         private readonly BoostSettings $settings,
@@ -29,22 +37,75 @@ final class BoostPurchaseService
 
     public function purchase(Property $property, BoostProduct $product, User $buyer): PropertyBoost
     {
+        return $this->purchaseOnce($property, $product, $buyer, null)->boost;
+    }
+
+    /**
+     * TCK-822 — acheter, ou rejouer l'achat qu'une même clé a déjà fait dans cet espace. La même clé
+     * pour un autre bien ou une autre offre est refusée (422) : elle ne désigne pas le même achat.
+     */
+    public function purchaseOnce(Property $property, BoostProduct $product, User $buyer, ?string $idempotencyKey): BoostPurchaseResult
+    {
         abort_code_unless($product->is_active, 422, 'boost.product_inactive');
         $this->assertBoostable($property);
 
         try {
-            return DB::transaction(function () use ($property, $product, $buyer): PropertyBoost {
+            return DB::transaction(function () use ($property, $product, $buyer, $idempotencyKey): BoostPurchaseResult {
                 [$agency, $locked] = $this->lock($property);
 
-                return match ($product->kind) {
+                $cacheKey = $idempotencyKey === null ? null : $this->idempotencyCacheKey($agency, $idempotencyKey);
+                if ($cacheKey !== null && ($replayed = $this->replay($cacheKey, $locked, $product)) !== null) {
+                    return new BoostPurchaseResult($replayed, true);
+                }
+
+                $boost = match ($product->kind) {
                     BoostKind::Bump => $this->bump($locked, $agency, $product, $buyer),
                     BoostKind::Featured => $this->featured($locked, $agency, $product, $buyer, false, null),
                     BoostKind::Badge => $this->badge($locked, $agency, $product, $buyer),
                 };
+
+                // Posée avant le COMMIT, sous le verrou : un rejeu qui attend le verrou la trouve. Si
+                // la transaction échoue ensuite, la clé désigne une ligne qui n'existe pas, et
+                // `replay()` l'ignore.
+                if ($cacheKey !== null) {
+                    Cache::put($cacheKey, [
+                        'boost_id' => $boost->getKey(),
+                        'property_id' => $locked->getKey(),
+                        'product_id' => $product->getKey(),
+                    ], now()->addHours(self::IDEMPOTENCY_TTL_HOURS));
+                }
+
+                return new BoostPurchaseResult($boost, false);
             });
         } catch (InsufficientCredits $e) {
             abort_code(422, 'credits.insufficient', ['missing' => $e->missing(), 'balance' => $e->balance]);
         }
+    }
+
+    private function idempotencyCacheKey(Agency $agency, string $idempotencyKey): string
+    {
+        return 'boost-purchase:'.$agency->getKey().':'.hash('sha256', $idempotencyKey);
+    }
+
+    private function replay(string $cacheKey, Property $property, BoostProduct $product): ?PropertyBoost
+    {
+        $seen = Cache::get($cacheKey);
+        if (! is_array($seen)) {
+            return null;
+        }
+
+        $boost = PropertyBoost::query()->find($seen['boost_id'] ?? null);
+        if ($boost === null) {
+            return null;
+        }
+
+        abort_code_unless(
+            (int) ($seen['property_id'] ?? 0) === (int) $property->getKey() && (int) ($seen['product_id'] ?? 0) === (int) $product->getKey(),
+            422,
+            'boost.idempotency_key_reused',
+        );
+
+        return $boost;
     }
 
     /** ADR-0061 §5 — Vedette offerte par la plateforme : prix 0, auteur, motif, aucun mouvement. */

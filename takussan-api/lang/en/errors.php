@@ -91,6 +91,7 @@ return [
     ],
     'boost' => [
         'bump_cooldown' => 'This listing was bumped less than 24 hours ago. Next bump available from :available_at.',
+        'idempotency_key_reused' => 'This purchase request was already used for another offer or listing. Reopen the purchase window.',
         'no_space' => 'This listing belongs to no workspace: it cannot be promoted.',
         'not_live' => 'This promotion has already ended.',
         'offer_featured_only' => 'Only a Featured promotion can be offered.',
