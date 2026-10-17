@@ -4244,7 +4244,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les membres d'un groupe neuf ne reçoivent aucune notification ; seuls ceux qu'on ajoute après coup sont prévenus
 - Réf : P38.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-804
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/GroupConversationService.php:43-91,146-160`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:144-160`, `takussan-web/src/components/messages/NewGroupDialog.tsx:130`
 - Constat :
@@ -4254,6 +4254,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Aucun test ne cite `ConversationInviteNotification` (mesuré : `grep -rln ConversationInviteNotification tests --include='*.php'` → rien).
 - Piste : envoyer l'invitation depuis `create()`, hors transaction, comme `addParticipants()`. Un test sur `POST /api/conversations` en groupe : chaque membre, sauf le créateur, reçoit une notification.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `GroupConversationService::create()` (attache les membres, aucune notification, aucun message système) contre `addParticipants()` (notifie hors transaction) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe créé par `POST /api/conversations` avec deux membres → 0 ligne `app_notifications` chacun, troisième membre ajouté par `POST …/participants` → 1 ; `git log 63fb933cd..7c7bd05bf` sur la messagerie → aucun commit ; aucun ticket ne le traite. Classement : A1, l'en-tête du service (l. 25) et TCK-085 (l. 121, 163) écrivent déjà que les nouveaux participants reçoivent `ConversationInviteNotification`, et le correctif réutilise la boucle d'`addParticipants()` sans choix de produit.
+- Mesure (2026-10-17, 803747565, implementeur) : reproduit avant correctif par le test neuf `GroupConversationCreationTest::test_chaque_membre_d_un_groupe_neuf_recoit_l_invitation_sauf_le_createur` (`Notification::fake()`, groupe créé par `POST /api/conversations` avec deux membres) → rouge, « notification was not sent » ; correctif : la boucle d'envoi d'`addParticipants()` extraite en `sendInvites()` et appelée par `create()` hors transaction → vert, créateur exclu, une invitation par membre, rien sur un 422 ; ablation (appel retiré de `create()`) → le test rougit seul, 30 autres verts.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
