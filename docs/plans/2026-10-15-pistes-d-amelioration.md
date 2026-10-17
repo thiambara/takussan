@@ -2550,7 +2550,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
 
 ### Un vidage qui échoue perd les compteurs de l'heure
 - Réf : P18.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-793 — reste : isoler `flush()` des autres étapes de `boosts:tick`, pour qu'une étape antérieure qui lève ne le saute plus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostStatsRecorder.php:69-90`, `takussan-api/app/Console/Commands/BoostsTick.php:23-30`
 - Constat :
@@ -2559,6 +2559,7 @@ les 304 ETag sont déjà décrits par P01.04, et ne sont pas repris ici.*
   - `flush()` vient en dernier dans le tick (lu, ligne 28). Une exception d'une étape précédente le saute tant qu'elle se répète. Les compteurs vivent 48 h (`TTL_HOURS`) : au-delà, ils sont perdus sans trace.
 - Piste : lire avec `get`, écrire, puis `forget` dans le même passage, ou `GETDEL` Redis par heure complète. Isoler `flush()` des autres étapes du tick. Un test : un `upsert` qui lève laisse les compteurs en cache pour le tick suivant.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `BoostStatsRecorder::flush()` (`Cache::pull` des deux compteurs, puis `upsert`, puis `LAST_FLUSHED_KEY`) et `BoostsTick.php:23-30` (`flush()` en dernière étape) ; test temporaire, retiré depuis : deux impressions, une heure plus tard un `flush()` dont l'`insert` dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → exception propagée, clé de cache de l'heure à `NULL`, puis `boosts:tick` normal → 0 ligne, les deux impressions sont perdues. Charge 2,55 sur 8 cœurs. Les deux autres parties ne sont pas re-mesurées par exécution : le double versement demande deux planificateurs (aucun aujourd'hui), et le saut de `flush()` quand une étape antérieure lève tient par lecture seulement. Classement : A1, l'en-tête de la classe et l'ADR-0061 § 10 écrivent que les compteurs sont versés dans `property_boost_daily_stats` ; le correctif lit chaque compteur par `get`, écrit la ligne, puis `forget` la clé après l'`upsert` réussi, sans toucher à l'ordre des étapes du tick ni au verrou entre serveurs, hors de ce classement.
+- Mesure (2026-10-17, c98fe9c5, implementeur) : reproduit avant correctif par `BoostStatsFlushFailureTest` : deux impressions et un clic, puis un `flush()` dont l'écriture dans `property_boost_daily_stats` lève (`DB::beforeExecuting`) → compteur des impressions à 0 en cache → `flush()` lit, écrit, puis retire : les compteurs restent après l'échec, et les deux ticks suivants versent 2 impressions et 1 clic une seule fois ; 7 verts sur `BoostStatsFlushFailureTest`, `BoostStatsTest` et `BoostsTickIdempotenceTest` ; ablation (`pull` restauré : 1 rouge ; retrait supprimé : 2 rouges), puis vert. Ni l'ordre des étapes du tick ni le double versement entre planificateurs ne sont touchés, hors du classement A1.
 
 ### Petites améliorations
 - Réf : P18.06
