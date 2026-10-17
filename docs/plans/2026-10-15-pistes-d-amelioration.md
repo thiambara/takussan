@@ -1879,7 +1879,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
-- Statut : validé — failed() sur les trois jobs d'argent et de bail, qui écrit une activité alertable dès le premier échec
+- Statut : fait · TCK-772
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:27,34`, `takussan-api/routes/console.php:37,43,59`
 - Constat :
@@ -1890,6 +1890,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un seuil par classe de job, nul pour l'argent et le bail ; ou un `failed()` qui écrit une activité alertable.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:27` (`FAILED_JOBS_SPIKE_THRESHOLD = 20`) et `:33-37` (fenêtre d'une heure) ; `routes/console.php:37,43,59` → les trois jobs passent par `Schedule::job` ; les trois classes `implements ShouldQueue` (`Jobs/Lease/ApplyLateFeesJob.php:22`, `Jobs/SendLeasePaymentReminders.php:43`, `Jobs/Invoice/SendOverdueRemindersJob.php:21`), aucune n'a de `failed()` (grep) ; `vendor/…/Scheduling/Schedule.php:221-222` → un `ShouldQueue` est seulement mis en file, donc `ScheduledTaskFinished` et la ligne `scheduled_task_runs` ne voient que la mise en file. Le constat tient en entier ; le précédent de préproduction n'est pas re-mesurable d'ici. Classement : V7, la piste laisse ouverts le mécanisme et la liste des jobs « d'argent et de bail », et un événement alertable neuf est un comportement visible neuf.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, `(new ApplyLateFeesJob)->failed($e)` lève `Call to undefined method` (de même pour `SendLeasePaymentReminders` et `SendOverdueRemindersJob`) : aucun des trois n'a de `failed()` → `CriticalJobFailureAlertTest` : `failed()` de chacun écrit `ops_critical_job_failed` (job, classe de l'exception, sans son message), et une règle active part en synchrone ; ablation du trait `AlertsOnFirstFailure` → 3 rouges sur 4, remis → 4 verts.
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
@@ -1956,7 +1957,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10
-- Statut : validé — statut et code du fournisseur seulement, numéro masqué, raw du DLR non journalisé
+- Statut : fait · TCK-773
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:66,95`, `OrangeMoneyDriver.php:83,114,176`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:111`
 - Constat :
@@ -1966,6 +1967,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu. Le contenu réel des corps Wave et OM est à vérifier.
 - Piste : étendre TCK-613 : statut et code du fournisseur seulement, numéro masqué.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Payments/Drivers/WaveDriver.php:66,95` et `OrangeMoneyDriver.php:83,114,176` → `'body' => $response->body()` à chaque échec ; `Notifications/Sms/Dlr/DlrReportApplier.php:108-112` → `msisdn` en clair, et `:71-75` journalise aussi `$record->raw` entier ; `grep Wave|Orange|Dlr|msisdn` dans `TCK-613` (`todo`) → aucun de ces emplacements. Le contenu réel des corps Wave et OM reste à vérifier : il faudrait une réponse du fournisseur. Classement : V3, la piste décide de ce qu'un journal garde des données personnelles, sur des pilotes de paiement qui relèvent aussi de V1.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, une réponse 400 de Wave ou d'Orange Money portant `221771234567` se retrouve au journal par `body`, et `DlrReportApplier` journalise le `msisdn` en clair (rapport sans tentative) et le `raw` entier (statut inconnu) : 4 rouges → `ProviderResponseContext` (statut et code fournisseur), numéro masqué par `WebhookPayloadRedactor::maskPhone`, `record` retiré ; `PaymentDriverErrorLeakTest` et `MtargetDlrPullingTest` : 23 verts, ablation des trois fichiers → 4 rouges.
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
@@ -1982,7 +1984,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P14.12
-- Statut : validé — `request_id`, agence et profil dans le contexte des journaux (`Log::withContext`) ; reste : la sonde payments et son seuil d'alerte
+- Statut : fait · TCK-774 — reste : la sonde payments et son seuil d'alerte
 - Gravité : 🟢 amélioration
 - Constat :
   - **Paiements et webhooks** : aucun événement alertable ne les concerne, et `SystemMetricsController.php:35-46` n'a aucun taux d'échec. Il faut aller lire `/admin/webhook-logs`. Le SMS, lui, a une sonde de taux d'échec (lu).
@@ -1991,6 +1993,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - une sonde `payments` (taux d'échec et webhooks `rejected` sur l'heure) dans `HealthcheckService` ;
   - un middleware qui pose `request_id`, le profil et l'agence actifs dans le contexte des journaux.
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `SystemMetricsController.php` (l. 35-46 sont aujourd'hui `TREND_KEYS` ; aucun taux d'échec de paiement ni de webhook) et `HealthcheckService::probe` (aucune sonde `payments`) ; `grep -rn 'Context::add\|withContext\|shareContext' app bootstrap` → rien ; `bootstrap/app.php:151-153` journalise `query_exception` avec le seul `user_id` → les deux constats tiennent. Classement : V8, la sonde et le contexte de journal font deux tickets, la sonde demande un seuil, et mettre l'agence dans chaque journal touche V3.
+- Mesure (2026-10-17, b6b91c91e, implementeur) : avant correctif, un `Log::info` écrit dans une route du groupe `api` n'a ni `request_id` ni agence ni profil dans son contexte (`Undefined array key "request_id"`, 2 rouges) → middleware `ShareRequestLogContext` après `ResolveActiveProfile` (`Log::withContext`) ; `RequestLogContextTest` : 2 verts, ablation du middleware → 2 rouges. La sonde `payments` n'est pas faite (reste du porteur).
 
 ## Angle 13 — Code mort et doublons
 

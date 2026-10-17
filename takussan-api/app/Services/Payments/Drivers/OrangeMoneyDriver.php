@@ -7,6 +7,7 @@ use App\Models\Integration;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
+use App\Support\Logging\ProviderResponseContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -80,7 +81,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
             ->post($this->baseUrl().'/orange-money-webpay/v1/webpayment', $payload);
 
         if (! $response->successful()) {
-            Log::warning('[orange-money] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('[orange-money] checkout failed', ProviderResponseContext::of($response));
             abort_code(502, 'payment.provider_unavailable');
         }
 
@@ -111,7 +112,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
             ]);
 
         if (! $response->successful()) {
-            Log::warning('[orange-money] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('[orange-money] verify failed', ProviderResponseContext::of($response));
             abort_code(502, 'payment.provider_unavailable');
         }
         $data = $response->json();
@@ -173,7 +174,7 @@ class OrangeMoneyDriver implements PaymentDriverContract
 
         $token = (string) ($response->json('access_token') ?? '');
         if (! $response->successful() || $token === '') {
-            Log::warning('[orange-money] oauth failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('[orange-money] oauth failed', ProviderResponseContext::of($response));
             abort_code(502, 'payment.provider_unavailable');
         }
 

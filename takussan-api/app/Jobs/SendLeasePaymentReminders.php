@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Jobs\Concerns\AlertsOnFirstFailure;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -44,7 +45,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SendLeasePaymentReminders implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use AlertsOnFirstFailure, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /** @var list<PaymentStatus> */
     public const OPEN_STATUSES = [PaymentStatus::Pending, PaymentStatus::PartiallyPaid, PaymentStatus::Late];

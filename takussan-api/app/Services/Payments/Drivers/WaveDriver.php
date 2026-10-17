@@ -7,6 +7,7 @@ use App\Models\Integration;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus;
+use App\Support\Logging\ProviderResponseContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -63,7 +64,7 @@ class WaveDriver implements PaymentDriverContract
             ->post($this->baseUrl().'/v1/checkout/sessions', $payload);
 
         if (! $response->successful()) {
-            Log::warning('[wave] checkout failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('[wave] checkout failed', ProviderResponseContext::of($response));
             abort_code(502, 'payment.provider_unavailable');
         }
 
@@ -92,7 +93,7 @@ class WaveDriver implements PaymentDriverContract
             ->get($this->baseUrl().'/v1/checkout/sessions/'.$externalId);
 
         if (! $response->successful()) {
-            Log::warning('[wave] verify failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('[wave] verify failed', ProviderResponseContext::of($response));
             abort_code(502, 'payment.provider_unavailable');
         }
         $data = $response->json();

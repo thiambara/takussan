@@ -360,4 +360,32 @@ class MtargetDlrPullingTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message) => str_contains($message, '[sms.mtarget.pull]'));
     }
+
+    /** TCK-773 (P14.10) — le numéro d'un rapport sans tentative est masqué au journal. */
+    public function test_an_unmatched_report_logs_a_masked_msisdn(): void
+    {
+        Log::spy();
+        $this->makeIntegration();
+        $this->fakeSequence([['ticket' => 'unknown-ticket', 'msisdn' => '221771234567', 'Status' => 3]]);
+
+        $this->artisan('sms:pull-mtarget-dlr')->assertExitCode(0);
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => str_contains($m, 'matched no attempt')
+            && ($c['msisdn'] ?? null) === '••••4567')->once();
+        Log::shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($c) => str_contains((string) json_encode($c), '221771234567'))]);
+    }
+
+    /** TCK-773 (P14.10) — un statut inconnu est journalisé sans le rapport brut. */
+    public function test_an_unknown_status_is_logged_without_the_raw_report(): void
+    {
+        Log::spy();
+        $this->makeIntegration();
+        $this->fakeSequence([['ticket' => 'any-ticket', 'msisdn' => '221771234567', 'Status' => 999]]);
+
+        $this->artisan('sms:pull-mtarget-dlr')->assertExitCode(0);
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $m, array $c = []) => str_contains($m, 'unknown delivery status code')
+            && ! array_key_exists('record', $c))->once();
+        Log::shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($c) => str_contains((string) json_encode($c), '221771234567'))]);
+    }
 }
