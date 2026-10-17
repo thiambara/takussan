@@ -1298,7 +1298,7 @@ Correct (mesuré ou lu) :
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
-- Statut : validé — openGraph par défaut dans le layout public ; image générée depuis le logo ; pas d'image par ville
+- Statut : fait · TCK-759
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
 - Constat :
@@ -1307,6 +1307,7 @@ Correct (mesuré ou lu) :
   - Sur la fiche manquent `og:url`, `og:locale`, `og:site_name` et les dimensions, et l'image vient de la conversion `preview` en 800×600 (mesuré pour `/fr` ; `og:image` d'une fiche avec photo à vérifier).
 - Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `find takussan-web/src/app -name 'opengraph-image*' -o -name 'twitter-image*'` → rien ; `(public)/page.tsx:20-23` ne rend que `alternates`, `(public)/layout.tsx:45-57` et `app/layout.tsx:57-63` aucun `openGraph` ; seules les fiches de bien, d'agence et d'agent en déclarent ; `properties/[slug]/page.tsx:115-126` pose `title`, `description`, `type` et `images` sans `url`, `locale`, `siteName` ni dimensions ; l'image vient de `main_photo_url`, soit la conversion `preview` (`PropertyResource.php:137`), `width(800)->height(600)` (`Property.php:779`) → tient. Aucune page n'a été rendue. Classement : V7, une image de partage 1200×630 et des textes par ville ou quartier sont un visuel et un texte neufs.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `find takussan-web/src/app -name 'opengraph-image*'` → rien ; `(public)/layout.tsx` ne rendait ni `openGraph` ni `twitter` ; test neuf `(public)/__tests__/apercu-de-partage.test.ts` → 5 rouges sur 5 → `openGraph` par défaut au layout (`website`, `siteName`, `og:locale` `fr_SN`/`en_US`/`wo_SN`, sans titre ni description, que Next reprend de la page) et `opengraph-image.tsx` 1200×630 rendu depuis le symbole du logo ; le test rend le PNG et lit ses dimensions. Ablation (layout et image retirés) → 5 rouges, remis → 5 verts. Aucune image par ville.
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
