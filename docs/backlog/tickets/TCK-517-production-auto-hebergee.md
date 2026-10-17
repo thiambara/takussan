@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-10-04
+updated: 2026-10-17
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -38,7 +38,9 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 
 ## Delta à produire
 
-- [ ] F1 — re-mesure, bases, clé Meilisearch et sauvegardes de production
+- [ ] F1 — re-mesure, bases, clé Meilisearch et sauvegardes de production ; seaux R2 et domaine
+  `media.takussan.com` (étape 6) ; propriété Search Console par DNS TXT et relevé de l'index
+  (étape 7) — ajoutées le 2026-10-17, pistes P34.03 et P34.01
 - [ ] F2 à F3 — Takussan : `images.yml` sur `master`, environnement `prod` avec réviseur, bascule DNS
 - ~~F4 — CheckPrint Plus~~ — **annulée le 2026-10-04** : projet arrêté, retiré du serveur et de Vercel
 - [ ] F5 — retrait de Vercel, des relevés et de la garde qui le mesuraient
@@ -49,6 +51,9 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 - [ ] AC2 — `https://www.takussan.com/` sert le commit, sans `x-vercel-id`
 - [ ] AC3 — une adresse usurpée reste refusée à travers Cloudflare
 - [ ] AC4 — TCK-332 passe `done`
+- [ ] AC5 — le sitemap servi par `www.takussan.com` compte plus de `<loc>` que de biens publiés, il
+  est soumis à la Search Console, et le relevé de J+7 est reporté ici (F3, étapes 3 et 7 ; F5,
+  étape 1 ; D-72 de l'ardoise)
 
 ## Hors périmètre
 

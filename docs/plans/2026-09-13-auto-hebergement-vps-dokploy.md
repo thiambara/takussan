@@ -3793,7 +3793,7 @@ cette clé.
 | `REDIS_HOST` / `REDIS_PASSWORD` / `REDIS_DB` / `REDIS_CACHE_DB` | `redis-cpp` / `REDIS_CPP_PASSWORD` d'A4 / `0` / `1` |
 | `QUEUE_CONNECTION` / `CACHE_STORE` / `SESSION_DRIVER` | `redis` / `redis` / `database` |
 | `APP_URL` / `FRONTEND_URL` | `https://preview.api.checkprintplus.com` / `https://preview.checkprintplus.com` |
-| `TRUSTED_PROXIES` | comme Takussan (D1) — **jamais `*`**, que `bootstrap/app.php` accepte pourtant |
+| `TRUSTED_PROXIES` | comme Takussan (D1) — **jamais `*`** : découpée par virgules, la valeur devient le tableau `['*']`, que `TrustProxies` ne reconnaît pas (seule la chaîne `'*'` l'est) ; Laravel ne croirait alors personne, sans erreur, et tous les clients prendraient l'IP de Traefik (mesuré le 2026-10-17, piste P37.06 ; la phrase disait que `bootstrap/app.php` l'« accepte ») |
 | `TELESCOPE_ENABLED` | `false` |
 | `LOG_CHANNEL` | `stderr` |
 | `APP_KEY`, `LEMON_SQUEEZY_*`, `RESEND_API_KEY`, `GOOGLE_*`, `LICENSE_*`, `MAIL_*`, `SESSION_SECURE_COOKIE` | reprises de l'export A1 (`APP_KEY` : neuve, la base repart à blanc) |
@@ -4007,6 +4007,35 @@ preuve inverse : la clé de production reçoit `403` sur `preview_sonde`, `202` 
 `takussan_prod` à `0 2 * * *` et `checkprintplus_prod` à `30 2 * * *`, préfixes `postgres/takussan_prod/`
 et `mysql/checkprintplus_prod/`, **30** exemplaires. Une sauvegarde manuelle chacune, lue dans R2.
 
+- [ ] **Étape 6 : les médias de production sur R2 (ADR-0029)**
+
+*Ajoutée le 2026-10-17 (piste P34.03) : aucune tâche F ne parlait des médias de production, alors
+que F2 a besoin de leur domaine pour construire l'image du front.* Mêmes gestes que la préproduction
+(TCK-541), avec les noms de production :
+
+- seau public `takussan-prod-media`, région `WEUR`, domaine personnalisé **`media.takussan.com`**,
+  proxifié (un seul niveau de sous-domaine, ADR-0029 § 1) ;
+- seau privé `takussan-prod-private`, sans accès public ni domaine ;
+- jeton `takussan-prod-app`, *Object Read & Write* limité à ces deux seaux. Preuve inverse : refusé
+  sur `takussan-preview-media` et sur `vps-sauvegardes` ;
+- la copie nocturne du seau privé (`sauvegarde-seau-prive`, `bootstrap.sh` § 8) gagne
+  `takussan-prod-private`, vers `vps-sauvegardes/takussan-prod-private/`.
+
+Expected : un objet sonde déposé dans `takussan-prod-media` est servi `200` par
+`https://media.takussan.com/<clé>`, puis supprimé ; la même clé déposée dans `takussan-prod-private`
+n'a aucune URL publique.
+
+- [ ] **Étape 7 : la Search Console, avant la bascule**
+
+*Ajoutée le 2026-10-17 (piste P34.01) : le porteur a décidé le 2026-10-15 de soumettre le sitemap à
+la bascule (P09.01), et la décision ne vivait que dans le fichier de pistes.*
+
+- Propriété **de domaine** `takussan.com` vérifiée par un enregistrement **DNS TXT**
+  (`google-site-verification=…`) chez Cloudflare. Ni fichier ni balise : ce que sert Vercel
+  disparaît à la bascule, l'enregistrement DNS reste.
+- Relever, **dans le ticket F**, avec la date : pages indexées, erreurs de couverture, sitemaps
+  connus. C'est le point de comparaison de F5, étape 1.
+
 ### Tâche F2 : le code de la production Takussan
 
 **Files:**
@@ -4021,8 +4050,17 @@ et `mysql/checkprintplus_prod/`, **30** exemplaires. Une sauvegarde manuelle cha
             master)
               { echo "environnement=prod"
                 echo "api_url=https://api.takussan.com"
-                echo "site_url=https://www.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
+                echo "site_url=https://www.takussan.com"
+                echo "media_url=https://media.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
 ```
+
+⚠ **Quatre sorties, jamais trois** (corrigé le 2026-10-17, piste P34.03) : le build du front passe
+`NEXT_PUBLIC_MEDIA_URL` et `takussan-web/Dockerfile` sort en `exit 1` quand elle est vide. Le domaine
+est celui de F1, étape 6 ; sans les seaux de production, ne pas poser cette valeur : les photos
+sortiraient en pleine taille (`takussan-web/CLAUDE.md`).
+
+Avant cette étape, la piste P34.02 doit être fusionnée : le sitemap est rendu à la demande, et non
+plus prérendu par ce build, qui se fait quand l'API de production ne sert encore rien.
 
 - [ ] **Étape 2 : l'environnement GitHub `prod`, avec réviseur**
 
@@ -4079,9 +4117,24 @@ encore `www.takussan.com` jusqu'à F3.)
 | `REDIS_DB` / `REDIS_CACHE_DB` | `2` / `3` |
 | `SCOUT_PREFIX` / `MEILISEARCH_KEY` | `prod_` / la clé `prod_*` de F1, étape 4 |
 | clés des fournisseurs (SMS, WhatsApp, Google…) | celles de **production** de l'export A1 (`/var/www/takussan/shared/.env`) |
+| `MEDIA_PUBLIC_DISK` / `MEDIA_PRIVATE_DISK` | `r2-media` / `r2-private` |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | le jeton `takussan-prod-app` de F1, étape 6 — jamais celui de la préproduction |
+| `R2_MEDIA_BUCKET` / `R2_PRIVATE_BUCKET` / `R2_MEDIA_URL` | `takussan-prod-media` / `takussan-prod-private` / `https://media.takussan.com` |
+| `PUBLIC_CACHE_REVALIDATE_URL` | `https://www.takussan.com/api/revalidation/fiche` — **jamais** celle de la préproduction : la production révoquerait le cache d'un autre site |
+| `PUBLIC_CACHE_REVALIDATE_SECRET` | neuf (`openssl rand -hex 32`), le même que `takussan-web-prod` |
+| réglages de TCK-720 | ceux qui valent par environnement : `CACHE_PREFIX` propre à la production (P05.09), jetons d'accusés SMS (P27.01, P36.04) |
+
+*Lignes `MEDIA_*`, `R2_*` et `PUBLIC_CACHE_*` ajoutées le 2026-10-17 (pistes P34.03, P34.04).*
 
 - Application `takussan-web-prod` : image `ghcr.io/thiambara/takussan-web:prod`, domaine
-  `www.takussan.com`, **sans** authentification basique.
+  `www.takussan.com`, **sans** authentification basique. Variables d'**exécution** (lues par le
+  serveur Next, jamais inlinées ; ajoutées le 2026-10-17, piste P34.04) :
+
+| Clé | Valeur de production |
+|---|---|
+| `PUBLIC_CACHE_REVALIDATE_SECRET` | celui de `takussan-api-prod`. Vide, le handler de révocation rend `401` à tout appel, et une fiche retirée reste servie jusqu'à la fin du cache |
+| `API_INTERNAL_URL` | `http://<conteneur api de takussan-api-prod>:8080`, **jamais `http://api:8080`** : les deux piles sont sur `dokploy-network`, et l'alias `api` y désignerait aussi la préproduction (D-71). Vérifier depuis le conteneur du front, avant de poser : `getent hosts <nom>` rend une seule adresse |
+| `VISITOR_IP_TRUSTED_HOPS` | `2` : Cloudflare puis Traefik — celle de la préproduction, à confirmer par la mesure d'ADR-0052 § 6 |
 - *Volume Backups* du volume `storage` de production : `volumes/takussan-prod/`, `0 4 * * *`, 14
   exemplaires.
 
@@ -4106,6 +4159,19 @@ bascule.**
    **dès que leur certificat existe** (les deux lignes `✓` ci-dessus), jamais avant : sans routeur,
    Traefik présente `TRAEFIK DEFAULT CERT` et le workflow rougirait chaque jour (TCK-523, relevé du
    2026-09-14 dans hebergement.md).
+6. Le sitemap décrit la production (ajouté le 2026-10-17, pistes P34.01 et P34.02) : la seconde
+   ligne `✓` prouve le commit servi, pas le contenu de `robots.txt` ni celui du sitemap.
+
+```bash
+curl -sS https://www.takussan.com/robots.txt | grep -i '^sitemap:'
+curl -sS https://www.takussan.com/sitemap.xml | grep -c '<loc>'
+curl -sS 'https://api.takussan.com/api/public/properties?per_page=1' | jq '.meta.total'
+```
+
+   Expected : `Sitemap: https://www.takussan.com/sitemap.xml`, et plus de `<loc>` que de biens
+   publiés (trois langues par fiche, plus les pages statiques, les villes et les profils). Douze
+   `<loc>` seulement, ce sont les pages statiques : le sitemap a été construit sans API, **ne pas
+   le soumettre** (étape 7).
 
 Expected : le job `deploy` vert. Pendant la minute où Traefik obtient le certificat, Cloudflare peut
 rendre `526`. **Retour arrière** : si la seconde ligne `✓` ne vient pas, remettre le CNAME relevé en
@@ -4123,12 +4189,13 @@ qu'en F5.
 
 ```bash
 curl -sS -o /dev/null -D - https://api.takussan.com/up | tr -d '\r' | grep -iE '^(HTTP|cf-ray|x-build-sha)'
-curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://takussan.com/fr/biens?page=2'
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://takussan.com/fr/properties?page=2'
 curl -sS -o /dev/null -D - https://www.takussan.com/fr | tr -d '\r' | grep -iE '^(HTTP|x-vercel-id|x-build-sha)'
 ```
 
-Expected : `200`, un `cf-ray`, le commit ; `301 https://www.takussan.com/fr/biens?page=2` ; `200`, le
-commit, **aucun** `x-vercel-id`.
+Expected : `200`, un `cf-ray`, le commit ; `301 https://www.takussan.com/fr/properties?page=2` ;
+`200`, le commit, **aucun** `x-vercel-id`. *(`/fr/biens` jusqu'au 2026-10-17 : un chemin qui
+n'existe pas, dont le 301 se vérifiait sans rien prouver de la cible — piste P34.05.)*
 
 - [ ] **Étape 5 : l'IP du client à travers Cloudflare — l'ablation de D5, sur l'hôte proxifié**
 
@@ -4144,6 +4211,13 @@ Rejouer D5, étapes 2 et 3, contre les conteneurs de `takussan-api-prod` (clé a
 `preview_properties`). Rejouer D6, étape 2, contre `takussan_prod` après sa première sauvegarde
 nocturne. Rejouer D6, étape 4 : c'est la première mesure du budget à **quatre** environnements — la
 reporter dans le relevé et dans le tableau de ce plan.
+
+- [ ] **Étape 7 : soumettre le sitemap**
+
+*Ajoutée le 2026-10-17 (piste P34.01).* Après l'étape 3, point 6, seulement. Search Console de la
+propriété `takussan.com` (F1, étape 7) → *Sitemaps* → `https://www.takussan.com/sitemap.xml`.
+Expected : état « Opération effectuée », et un nombre d'URL découvertes du même ordre que le compte
+de `<loc>` relevé à l'étape 3.
 
 ### Tâche F4 : basculer la production CheckPrint Plus
 
@@ -4212,7 +4286,10 @@ plus que Takussan.)*
 
 - [ ] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire**
 
-C'est irréversible, et c'est le chemin de retour de F3 et F4 qui disparaît. Relever d'abord
+C'est irréversible, et c'est le chemin de retour de F3 et F4 qui disparaît. Relever d'abord, dans
+le ticket F, la Search Console à J+7 (ajouté le 2026-10-17, piste P34.01) : pages indexées et
+erreurs de couverture, contre le relevé de F1, étape 7. Une chute des pages indexées ou des erreurs
+neuves en nombre se comprennent **avant** de supprimer Vercel. Relever ensuite
 `dig +short www.takussan.com www.checkprintplus.com checkprintplus.com` (adresses Cloudflare
 attendues), puis supprimer les deux projets dans le tableau de bord Vercel, et retirer l'application
 GitHub Vercel des deux dépôts (*Settings → GitHub Apps*).
