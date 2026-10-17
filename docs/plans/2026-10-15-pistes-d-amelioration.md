@@ -2964,7 +2964,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Petites améliorations
 - Réf : P22.04
-- Statut : validé — autorisations déplacées dans `authorize()`, et `bulkArchive` sort de la policy
+- Statut : fait · TCK-818 — reste : renommer `Api/Admin/UpdateIntegrationRequest` en `AdminUpdateIntegrationRequest`, que la piste propose et que la décision ne reprend pas
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
 - Constat :
@@ -2975,6 +2975,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `PropertyPolicy.php:223-231` (`bulkArchive` rend `$user !== null`), l'`authorize()` des quatre FormRequests : `MatchBankStatementLineRequest.php:12` et `UpdateBankCsvMappingRequest.php:31` (« Policy handles authorization »), `StoreBankStatementRequest.php:15` (« Policy handles fine-grained authorization ») et `StoreRoleDelegationRequest.php:14` (« Fine-grained authorization handled by policy in controller »), toutes `return true` ; `PropertyDuplicateRequest.php:19` (`$this->user() !== null`) ; `Api/UpdateIntegrationRequest.php:34` (`mayManage`) et `Api/Admin/UpdateIntegrationRequest.php:24` (`true`), deux classes de même nom court. Les commentaires diffèrent un peu de la citation, le défaut tient ; l'inversion 422/403 se lit au code et n'a pas été rejouée. Classement : V2, chaque correctif change la réponse d'une route autorisée, et le retrait de `bulkArchive` attend la capacité de P22.02, validée mais non faite.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `AuthorizationPrecedesValidationTest`, un cas par route, compte agent d'une autre agence et corps invalide : `POST …/duplicate`, `POST /api/agencies/{id}/bank-statements`, `PUT …/bank-statements/csv-mapping`, `POST /api/bank-statement-lines/{id}/match` et `POST /api/agencies/{id}/role-delegations` rendaient 422 → les cinq `authorize()` invoquent la policy du contrôleur ; 403 sans `errors` pour l'intrus, 422 pour le super-admin ; ablation → 5 rouges, remis → 40 verts ; 141 tests existants des cinq routes verts. `bulkArchive` est sorti de `PropertyPolicy` par TCK-817 (P22.02), remplacé par `bulkUpdate`.
 
 ## Angle 23 — Lectures de données personnelles sans step-up, face à `REFUSED_READS`
 
