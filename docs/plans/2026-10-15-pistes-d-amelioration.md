@@ -1966,7 +1966,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
-- Statut : validé — un failure() commun qui journalise côté serveur le nom, le message et la pile de toute erreur hors ApiError, jamais les données saisies
+- Statut : fait · TCK-775
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
 - Constat :
@@ -1975,6 +1975,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré.
 - Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/actions/notifications.ts:23-35` (`failure()` : hors `ApiError`, rend le repli sans rien écrire) et `admin-settings.ts:63-87` (`mapError()`, même chose) ; `grep -rln catch src/app/actions/*.ts` → 27 modules ; `grep -rn 'console\.' src/app/actions src/app/api` → 2 appels réels dans `actions/` (`dashboard-properties.ts:64,68`) et 9 dans `api/`, les autres occurrences étant des mots de commentaire (« console.ts ») ; `takussan-web/CLAUDE.md` ne fixe aucune convention de journalisation → le constat tient. Classement : V3, aucun critère A ne s'applique (rien n'écrit le comportement attendu) et journaliser côté serveur une erreur qui peut porter des données saisies décide de ce qui est conservé.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `erreurs-inattendues-journalisees.test.ts` avant correctif → un `TypeError` levé dans `getNotificationsAction` et un `SyntaxError` dans `createIntegrationAction` rendent le repli sans aucun `console.error`, et 27 modules `'use server'` sur 27 qui attrapent n'ont aucun journal commun (6 ont un `catch` sans nom d'erreur) → `journaliserErreurInattendue` (module, nom, message, pile ; ni arguments ni `cause`) branchée dans chaque repli et chaque `catch`. Ablation : fonction neutralisée → 2 rouges ; `notifications.ts` remis → 2 rouges ; remis → 58 verts, et 200 tests de `actions/__tests__` verts.
 
 ### Petites améliorations
 - Réf : P14.12
