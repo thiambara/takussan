@@ -4316,7 +4316,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
-- Statut : validé — repli commun aux trois chemins : prénom et nom, puis `username`, puis `—` ; l'e-mail ne sort plus jamais ; un test qui épingle les `params` d'un expéditeur sans nom ni `username`
+- Statut : fait · TCK-815
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
 - Constat :
@@ -4325,6 +4325,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `ConversationResource` pose la règle inverse pour les membres d'un fil : « le nom et l'avatar, jamais les coordonnées » (l. 43-44). La même règle vaut pour `MessagingContactResource`.
 - Piste : un repli sans coordonnée (`—`, comme TCK-588 le fait pour un expéditeur absent), commun aux trois chemins. Un test qui épingle les `params` d'un expéditeur sans nom.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `NotifyNewMessageJob` (repli `$sender->email`), `ConversationInviteNotification::displayInviter()` (repli `email`) et `PublicPropertyController::displayName()` (`username`, puis `email`) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : expéditeur sans prénom ni nom (`secret@example.test`) écrit dans le fil → `params` = `{"sender": "secret@example.test", "excerpt": "x"}` ; par la fiche, le même compte avec un `username` rend ce `username`, l'e-mail n'y sort que si `username` est vide (déduit de la ligne lue). Classement : V3, le correctif décide de ce qui est exposé au destinataire, et le repli (`—`, `username`) reste à choisir pour le chemin public.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par quatre tests neufs de `SenderNameWithoutContactTest` : un expéditeur sans nom ni `username` (`secret@example.test`) écrit dans une directe → `params.sender` = l'e-mail ; l'invitation de ce compte → `inviter_name` = l'e-mail ; `GET …/conversation` d'une annonce dont il est le propriétaire → `recipient.name` = l'e-mail ; correctif : `User::nameWithoutContact()` (prénom et nom, `username`, `—`) appelé par les trois chemins → `params` = `{"sender": "—", "excerpt": "x"}`, verts ; ablation (dernier repli remis sur l'e-mail) → les trois tests sans `username` rougissent, celui du `username` reste vert.
 
 ### Petites améliorations
 - Réf : P38.07
