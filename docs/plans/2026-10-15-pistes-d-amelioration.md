@@ -2434,7 +2434,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Rejouer le référentiel ne réaligne pas les adresses existantes
 - Réf : P17.03
-- Statut : validé — quand le chargeur renomme, réécrire le texte des adresses et réindexer ; le rattacheur traite aussi les adresses qui ont une ville et pas de quartier
+- Statut : fait · TCK-787
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Geo/GeoReferentialLoader.php:73-85,93-137`, `takussan-api/app/Services/Geo/GeoAddressAttacher.php:20-42`
 - Constat :
@@ -2443,6 +2443,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Aujourd'hui : 0 adresse de dev dont le texte égale un quartier de sa ville sans y être rattachée (mesuré, `SELECT` avec `LOWER(… COLLATE "und-x-icu")`). Le défaut ne se voit qu'à la prochaine mise à jour du jeu : à vérifier.
 - Piste : dans le chargeur, réécrire le texte des adresses et réindexer les biens quand un nom change. Dans le rattacheur, traiter aussi `geo_city_id IS NOT NULL AND geo_neighborhood_id IS NULL AND neighborhood <> ''`. Garder chaque cas par un test de `GeoReferentialSync` rejoué deux fois.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `GeoReferentialLoader.php:73-86` (ville renommée par `fill`/`save`) et `:93-137` (quartier renommé si `renamed_at` est nul, sans toucher `addresses` ni réindexer), `GeoAddressAttacher.php:20-42` (`whereNull('geo_city_id')` seulement), `GeoNeighborhoodModeration.php:47,71,100` (`reecrireAdresses`), ADR-0062 l. 76 (« Renommer ou fusionner un quartier réécrit le texte des adresses… et réindexe »). Les deux parties tiennent par lecture ; l'effet attend une mise à jour du jeu, non re-mesuré. Classement : V4, le correctif réécrit des données existantes (texte des adresses) à chaque chargement, même si ADR-0062 § 4 en décrit l'intention.
+- Mesure (2026-10-17, 0121d9360, implementeur) : reproduit par `GeoReferentialRealignementTest` (Meilisearch réel, jeu v1 modifié en répertoire temporaire, chaque chargement joué deux fois) avant correctif : quartier « Point E » renommé par le jeu → l'adresse garde « Point E » ; ville « Guédiawaye » renommée → l'adresse garde l'ancien nom ; « liberté 5 » d'une adresse déjà rattachée à Dakar → non rattachée après v2 (3 rouges) → le chargeur réécrit `neighborhood` par `save()` et `city` par une mise à jour SQL (un `save()` ferait tomber le quartier, règle 1 du canoniseur), le rattacheur rapporte aussi les adresses avec ville et sans quartier, sans proposer, et `GeoReferentialSync` réindexe les deux listes ; 4 verts, `tests/Feature/Geo/` vert (70). Ablation : réécritures retirées → 2 rouges, rattacheur remis → 1 rouge, réindexation des renommés retirée → 2 rouges ; remis → verts.
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04
