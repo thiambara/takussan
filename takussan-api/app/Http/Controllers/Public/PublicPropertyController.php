@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Domain\Notifications\NotificationCode;
-use App\Domain\Notifications\NotificationTarget;
 use App\Events\Booking\BookingRequested;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
@@ -26,6 +24,7 @@ use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
+use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -49,7 +48,6 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
-use App\Services\Model\NotificationService;
 use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
@@ -1068,7 +1066,7 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function contactMessage(ContactMessagePublicPropertyRequest $request, NotificationService $notifications, PropertyConversationResolver $resolver, string $slug): JsonResponse
+    public function contactMessage(ContactMessagePublicPropertyRequest $request, PropertyConversationResolver $resolver, string $slug): JsonResponse
     {
         $property = $this->publicPropertyForContact($slug, $resolver);
 
@@ -1084,22 +1082,37 @@ class PublicPropertyController extends Controller
 
         $conversation = $resolver->firstOrCreate($property, $user, $primaryAgent);
 
-        $message = $conversation->messages()->create([
-            'sender_id' => $user->id,
-            'content' => $data['message'],
-            'type' => MessageType::Text->value,
-        ]);
+        // TCK-814 (P38.04) — le même chemin que `ConversationController::sendMessage()` : le fil
+        // est désarchivé pour les autres participants, et la notification passe par
+        // `NotifyNewMessageJob`, qui écarte qui a mis le fil en sourdine. Un envoi direct par
+        // `NotificationService` notifiait un destinataire en sourdine et laissait le fil archivé.
+        $message = DB::transaction(function () use ($conversation, $user, $data) {
+            $message = $conversation->messages()->create([
+                'sender_id' => $user->id,
+                'content' => $data['message'],
+                'type' => MessageType::Text->value,
+            ]);
 
-        $conversation->update([
-            'last_message_id' => $message->id,
-            'last_message_preview' => mb_substr($data['message'], 0, 255),
-            'last_message_at' => now(),
-        ]);
+            $conversation->update([
+                'last_message_id' => $message->id,
+                'last_message_preview' => mb_substr($data['message'], 0, 255),
+                'last_message_at' => now(),
+            ]);
 
-        $notifications->send($primaryAgent, NotificationCode::MessageReceived, [
-            'sender' => $this->displayName($user),
-            'excerpt' => mb_strimwidth($data['message'], 0, 80, '…'),
-        ], NotificationTarget::of('conversation', $conversation->id));
+            $conversation->participants()->updateExistingPivot($user->id, [
+                'last_read_at' => now(),
+                'archived_at' => null,
+            ]);
+
+            DB::table('conversation_participants')
+                ->where('conversation_id', $conversation->id)
+                ->where('user_id', '!=', $user->id)
+                ->update(['archived_at' => null]);
+
+            return $message;
+        });
+
+        NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([
             'data' => [

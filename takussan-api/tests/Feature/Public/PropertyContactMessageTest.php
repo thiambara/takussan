@@ -10,6 +10,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -162,6 +163,49 @@ class PropertyContactMessageTest extends TestCase
 
         $this->assertNotSame($left->id, $id);
         $this->getJson("/api/conversations/{$id}/messages")->assertOk();
+    }
+
+    /** P38.04 (TCK-814) — un contact par la fiche désarchive le fil pour son destinataire, comme `sendMessage()`. */
+    public function test_un_contact_desarchive_le_fil_du_destinataire(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->published()->create(['user_id' => $owner->id]);
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson("/api/public/properties/{$property->slug}/contact-message", ['message' => 'msg1'])
+            ->assertCreated()
+            ->json('data.conversation_id');
+        Conversation::findOrFail($id)->participants()->updateExistingPivot($owner->id, ['archived_at' => now()]);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-message", ['message' => 'msg2'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('conversation_participants', [
+            'conversation_id' => $id,
+            'user_id' => $owner->id,
+            'archived_at' => null,
+        ]);
+    }
+
+    /** P38.04 (TCK-814) — un destinataire qui a mis le fil en sourdine n'est pas notifié d'un contact par la fiche. */
+    public function test_un_contact_respecte_la_sourdine_du_destinataire(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->published()->create(['user_id' => $owner->id]);
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson("/api/public/properties/{$property->slug}/contact-message", ['message' => 'msg1'])
+            ->assertCreated()
+            ->json('data.conversation_id');
+        $this->assertSame(1, DB::table('app_notifications')->where('user_id', $owner->id)->count());
+        Conversation::findOrFail($id)->participants()->updateExistingPivot($owner->id, ['is_muted' => true]);
+
+        $this->postJson("/api/public/properties/{$property->slug}/contact-message", ['message' => 'msg2'])
+            ->assertCreated();
+
+        $this->assertSame(1, DB::table('app_notifications')->where('user_id', $owner->id)->count());
     }
 
     /** @param  array<int, array<string, mixed>>  $participants */
