@@ -108,7 +108,7 @@ class AgencyProvisioningService
     }
 
     /**
-     * TCK-781 (P15.07) — un e-mail « Activez votre compte », valable 7 jours (broker
+     * TCK-781 (P15.07) — un e-mail « Activez votre compte », valable 7 jours (jeu de jetons
      * `activations`, TCK-209), et non le gabarit de réinitialisation à 60 minutes. Un échec
      * d'envoi rend 502 et annule le provisionnement (transaction englobante).
      */

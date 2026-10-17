@@ -11,8 +11,8 @@ use Illuminate\Notifications\Notification;
 
 /**
  * TCK-781 (P15.07, P13.09) — « Activez votre compte », envoyé au gérant qu'un super-admin
- * provisionne ({@see AgencyProvisioningService}). Le jeton vient du broker `activations`
- * (7 jours, TCK-209), et non du broker de réinitialisation (60 minutes) : le gérant n'a rien
+ * provisionne ({@see AgencyProvisioningService}). Le jeton vient du jeu `activations`
+ * (7 jours, TCK-209), et non de celui de la réinitialisation (60 minutes) : le gérant n'a rien
  * demandé, le gabarit « si vous n'avez pas demandé de réinitialisation… » ne lui disait rien de
  * juste.
  *

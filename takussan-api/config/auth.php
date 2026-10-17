@@ -102,7 +102,7 @@ return [
 
         // TCK-781 (P15.07) — le lien d'activation du gérant provisionné vaut 7 jours (TCK-209),
         // et non les 60 minutes d'une réinitialisation. Même table : un e-mail n'y a qu'un jeton.
-        // `PasswordResetController` ne juge un jeton par ce broker que pour un compte qui n'a
+        // `PasswordResetController` ne juge un jeton par ce jeu que pour un compte qui n'a
         // jamais choisi de mot de passe.
         'activations' => [
             'provider' => 'users',
