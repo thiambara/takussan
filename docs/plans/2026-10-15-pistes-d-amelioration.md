@@ -2262,7 +2262,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
 - Réf : P15.08
-- Statut : validé — carte montée en tête de l'accueil pour tout admin d'agence, étapes filtrées par kind ; elle reste aussi sur /app/overview/agency
+- Statut : fait · TCK-777
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
 - Constat :
@@ -2271,6 +2271,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `overview/agency/page.tsx:92-93` (seul montage de `MiseEnService`, avec son test), `overview/agency/layout.tsx:38,54-59` (non-admin redirigé, `kind !== 'standard'` → `redirect('/app')`) et `(accueil)/page.tsx:52-77` (bannière de logo, brouillons, check-list locataire, KPI ou `DashboardEmpty`, raccourcis : aucune mise en service) ; `grep -rl MiseEnService src` → 4 fichiers, tous sous `overview/agency` ou le composant. Le constat tient. TCK-589 l. 204 place la carte « en tête de `/admin` », sans trancher l'agence individuelle. Classement : V7, monter la carte sur l'accueil et filtrer ses étapes par `kind` change ce que voit l'hôte solo.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `(accueil)/__tests__/mise-en-service.test.tsx` et `MiseEnService.kind.test.tsx` avant correctif → l'accueil d'un admin `individual` ou `standard` ne monte aucune carte, et la carte d'une agence `individual` liste « premier membre » (7 étapes) → carte montée sous l'en-tête pour tout `agency_admin`, et étapes dont l'écran exige `standard` dans `PAGES_ADMIN` retirées (6 pour `individual`). Ablation : les deux fichiers remis → 4 rouges sur 6 ; remis → 6 verts, et 34 tests voisins verts.
 
 ### Premier bail : sélecteur de biens vide, sans explication
 - Réf : P15.09
