@@ -1203,12 +1203,13 @@ Sain (vérifié par l'agent) :
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
-- Statut : validé — avertissement beforeunload seulement quand le formulaire est modifié
+- Statut : fait · TCK-755
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `grep -l 'useWizardDraft\|localStorage\|sessionStorage'` sur `CreateLeaseForm.tsx`, `CustomerForm.tsx` et `PropertyForm.tsx` → rien ; `grep -rln beforeunload takussan-web/src` hors tests → `hooks/useWizardDraft.ts:264`, un **commentaire** seulement (le constat disait « aucun » : il n'y a aucun gestionnaire) → tient. Classement : V7, une reprise de brouillon ou un avertissement de départ sur trois écrans est une interaction neuve (quand proposer, quand purger), qu'aucune spec n'écrit pour ces formulaires.
+- Mesure (2026-10-17, 18c6141d, implementeur) : `grep -rn beforeunload takussan-web/src` hors tests → le seul commentaire de `useWizardDraft.ts:264` ; un `beforeunload` annulable émis après une saisie dans chacun des trois formulaires n'est pas annulé (3 tests rouges) → tient. Correctif : `useAvertissementDepart(isDirty)`, `isDirty` lu par `useFormState`. Ablation : écouteur retiré → 4 rouges ; branchement retiré de `CustomerForm` → son test rouge ; remis → 46/46 verts.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
@@ -1221,21 +1222,23 @@ Sain (vérifié par l'agent) :
 
 ### Barres d'onglets sans défilement
 - Réf : P08.08
-- Statut : validé — overflow-x-auto dans TabsList, patron de CustomerDetailTabs
+- Statut : fait · TCK-756
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `tabs.tsx:27` (`inline-flex w-fit`, aucun `overflow`) et `:87` (déclencheurs `whitespace-nowrap`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu), `CustomerDetailTabs.tsx:65` (enveloppe `overflow-x-auto`) ; largeur rendue par Chromium headless des libellés `fr` (14 px, graisse 500, padding de la primitive, **police de repli** Helvetica et non DM Sans) → **454 px** pour les cinq onglets des paiements, **394 px** pour ceux du bien, contre 328 px disponibles → la barre déborde. Que ce soit `<main>` qui défile n'a **pas** été mesuré : retenu pour le débordement seul. Classement : V7, faire défiler la primitive touche toutes les barres, et la règle « défile dans son conteneur » n'est écrite que pour les tables.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `ui/tabs.tsx:27` (`inline-flex w-fit … justify-center`, aucun `overflow`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu) → tient. Correctif dans la primitive : `max-w-full`, `justify-center-safe` (centré, un débordement perd son début), `overflow-x-auto` sur la variante `default` seule (le liseré de `line` est posé 5 px sous la liste). Test `tabs.defilement.test.tsx` ; ablation : primitive d'avant → rouge ; remise → 99/99 verts sur 18 fichiers. Non observé dans un navigateur.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-757
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `RoomEditor.tsx:140` (`<textarea>` en `text-sm`), `InviteAgentDialog.tsx:136,154,175,194` et `InviteMemberDialog.tsx:111` (`<input>` en `text-sm`, sans `text-base`) — lignes inchangées ; `ui/input.tsx:18-20` écrit la règle (« 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus ») et `ui/textarea.tsx:10` l'applique → tient. Le zoom lui-même n'a pas été observé sur un iPhone. Classement : A1, le comportement attendu est écrit dans la primitive, et le correctif aligne six champs sur elle sans choix de produit.
+- Mesure (2026-10-17, 18c6141d, implementeur) : garde de source `champs-sans-zoom-ios.test.ts` sur les trois fichiers cités → 3 rouges, exactement les six champs (`RoomEditor.tsx:137`, `InviteAgentDialog.tsx:132,150,170,190`, `InviteMemberDialog.tsx`) → tient. Correctif : `text-base md:text-sm`. Ablation : fichiers d'avant → 3 rouges ; remis → verts. Cinq autres champs du dépôt en `text-sm` seul, hors piste, sont listés dans TCK-757.
 
 ### Petites améliorations
 - Réf : P08.10
@@ -1307,7 +1310,7 @@ Correct (mesuré ou lu) :
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
-- Statut : validé — Offer avec businessFunction LeaseOut ou Sell, unitCode selon rent_period, champs hors domaine retirés de Place
+- Statut : fait · TCK-758
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -1316,6 +1319,7 @@ Correct (mesuré ou lu) :
   - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `jsonld-property.ts:80-113` : `priceSpecification` est posé dans `mainEntity`, typé par `SOUS_TYPE_SCHEMA` (`:17-33`, `Apartment`, `House`, `Room`, `Accommodation` ou `Place`), aucun `offers`, ni `contract_type` ni `rent_period` émis ; `floorSize`, `numberOfBedrooms` et `yearBuilt` sont posés aussi sur `Place` (terrain, bureau, parking), où schema.org ne les définit pas ; `priceCurrency` vaut bien `XOF` par défaut → tient. Aucun validateur de données structurées n'a été lancé. Classement : V7, choisir `businessFunction` et le `unitCode` de chaque `rent_period` n'est écrit par aucun ticket ni ADR.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `jsonld-property.ts` : `priceSpecification` toujours sur le `mainEntity`, aucun `offers`, champs de logement posés sur `Place` ; 7 tests neufs de `jsonld-property.test.ts` rouges → tient. Correctif : `offers` = `Offer` (`Sell` ou `LeaseOut`, `UnitPriceSpecification` `DAY`/`WEE`/`MON`/`ANN`), plus de prix sur le bien, `Place` sans champ de logement (`numberOfBathroomsTotal` compris). Le test « jamais `Product`/`Offer` » de TCK-335 garde désormais `Product` seul. Ablation : fichier d'avant → 8 rouges ; remis → 22/22. Aucun validateur lancé.
 
 ### Chaque fiche a trois URL au contenu principal identique
 - Réf : P09.05
