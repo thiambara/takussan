@@ -1605,7 +1605,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
-- Statut : validé — repli sur l'intégration plateforme ; scoped() au lieu de singleton()
+- Statut : fait · TCK-765
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
 - Constat :
@@ -1615,6 +1615,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `IntegrationLocator::find` (l. 18-33 : avec `agency_id`, seule l'intégration de l'agence ; cache par clé, nul compris), `SmsChannel::resolveAgencyId` (l. 102-107, lit `User::agency_id`, que `getAgencyIdAttribute` rend nul pour un multi-agences, `User.php:263-288`) et `AppServiceProvider::registerSmsServices` (`singleton(IntegrationLocator::class)`) relus ; `grep -rn 'flush()' app` → aucun appelant de `IntegrationLocator::flush()`. Le constat tient à la lecture ; l'intention (un compte SMS d'agence voulu ou non) n'est écrite nulle part, ADR-0032 l. 74 et 125 met le coût à la plateforme. Classement : V7, le repli sur la plateforme est une décision de facturation et de produit ; seul le passage à `scoped()` serait A1.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `IntegrationLocatorTest` → une agence sans intégration propre ne trouve pas celle de la plateforme (`find()` rend nul), et une intégration Orange créée après un premier envoi n'est pas vue après `forgetScopedInstances()` (`lafricamobile` au lieu d'`orange`) → `find()` retombe sur la plateforme, localisateur et ses six consommateurs en `scoped()` ; ablation : `singleton()` remis seul → 1 rouge, ancien `find()` remis seul → 1 rouge ; correctif remis : 3 verts, `tests/Feature/Services/Sms` et `Whatsapp` verts (74 tests).
 
 ### Diffusion en double, avant le commit, avec le contenu écrit au journal
 - Réf : P11.07
