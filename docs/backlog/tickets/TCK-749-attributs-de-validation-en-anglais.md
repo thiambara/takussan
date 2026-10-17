@@ -12,7 +12,7 @@ depends_on: []
 blocks: []
 spec_refs:
   features:
-    - "docs/features.md#23-notifications"
+    - "docs/features.md#28-internationalisation--préférences"
   pistes:
     - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-6--texte-affiché-par-lapi-et-i18n-frenwo"
 tags: [back, i18n, validation, pistes]
