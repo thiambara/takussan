@@ -1301,7 +1301,7 @@ Correct (mesuré ou lu) :
 
 ### Pas d'aperçu WhatsApp ou Facebook hors des fiches
 - Réf : P09.03
-- Statut : validé — openGraph par défaut dans le layout public ; image générée depuis le logo ; pas d'image par ville
+- Statut : fait · TCK-759
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/page.tsx:20-23`, `(public)/properties/(liste)/page.tsx:47`, `(public)/agencies/page.tsx:42`, `(public)/properties/[slug]/page.tsx:115-126`
 - Constat :
@@ -1310,6 +1310,7 @@ Correct (mesuré ou lu) :
   - Sur la fiche manquent `og:url`, `og:locale`, `og:site_name` et les dimensions, et l'image vient de la conversion `preview` en 800×600 (mesuré pour `/fr` ; `og:image` d'une fiche avec photo à vérifier).
 - Piste : un `opengraph-image` 1200×630, un `openGraph` par défaut dans le layout public, et une image par ville ou par quartier.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `find takussan-web/src/app -name 'opengraph-image*' -o -name 'twitter-image*'` → rien ; `(public)/page.tsx:20-23` ne rend que `alternates`, `(public)/layout.tsx:45-57` et `app/layout.tsx:57-63` aucun `openGraph` ; seules les fiches de bien, d'agence et d'agent en déclarent ; `properties/[slug]/page.tsx:115-126` pose `title`, `description`, `type` et `images` sans `url`, `locale`, `siteName` ni dimensions ; l'image vient de `main_photo_url`, soit la conversion `preview` (`PropertyResource.php:137`), `width(800)->height(600)` (`Property.php:779`) → tient. Aucune page n'a été rendue. Classement : V7, une image de partage 1200×630 et des textes par ville ou quartier sont un visuel et un texte neufs.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `find takussan-web/src/app -name 'opengraph-image*'` → rien ; `(public)/layout.tsx` ne rendait ni `openGraph` ni `twitter` ; test neuf `(public)/__tests__/apercu-de-partage.test.ts` → 5 rouges sur 5 → `openGraph` par défaut au layout (`website`, `siteName`, `og:locale` `fr_SN`/`en_US`/`wo_SN`, sans titre ni description, que Next reprend de la page) et `opengraph-image.tsx` 1200×630 rendu depuis le symbole du logo ; le test rend le PNG et lit ses dimensions. Ablation (layout et image retirés) → 5 rouges, remis → 5 verts. Aucune image par ville.
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
@@ -1355,7 +1356,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : validé — la partie code (canoniques, 404 au-delà de la dernière page, coupe des descriptions, `generateSitemaps()`, métadonnées des pages introuvables)
+- Statut : retenu · à valider — V8 : cinq correctifs indépendants, dont trois demandent chacun une décision de structure ; à découper en tickets (le V7 accordé ne couvre pas la taille)
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1371,6 +1372,7 @@ Correct (mesuré ou lu) :
   - corriger le paragraphe de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `canonique.ts:358-378` (`cheminCanoniqueDeLaListe` retire `page` ; son docblock : `page=3` → `/properties?type=villa`) ; `(public)/properties/(liste)/page.tsx` n'appelle jamais `notFound()` et ne lit pas `last_page` ; `properties/[slug]/page.tsx:98-99` : `property.description?.slice(0, 160) ?? …`, donc une chaîne vide passe le `??` et la coupe tombe au caractère ; `sitemap.ts:23-31,313` lève au-delà de 50 000 `<url>` et `generateSitemaps` n'est cité qu'en commentaire ; `properties/[slug]/not-found.tsx` n'exporte aucune métadonnée, sous `(public)/layout.tsx:56` en `index: true, follow: true` ; `takussan-web/CLAUDE.md:234` dit « sans segment `[locale]` dans l'URL » alors que les pages vivent sous `src/app/[locale]/` → tout tient en lecture ; le double `noindex`/`index, follow` rendu et les 1 011 `<loc>` n'ont pas été remesurés (application non lancée). Classement : V7, canonique par page, `notFound()` au-delà de la dernière page et contenu des titres changent ce que voient les moteurs, et la correction du document est dans un `CLAUDE.md`.
 - Mesure (2026-10-16, 55a41109, humain) : le reste documentaire est fait en session (TCK-722) : `takussan-web/CLAUDE.md` décrit le segment `[locale]` d'ADR-0026 ; reste la partie code, à l'implémenteur.
+- Mesure (2026-10-17, 0785a29d, implementeur) : les cinq constats tiennent en lecture (`cheminCanoniqueDeLaListe` retire toujours `page`, `(liste)/page.tsx` sans `notFound()`, `description?.slice(0, 160)` sur la fiche, `robots.ts:38` et `sitemap.ts` sans `generateSitemaps`, `properties/[slug]/not-found.tsx` sans métadonnée), mais le correctif dépasse M : (1) `notFound()` au-delà de `last_page` rendrait **200**, car `(liste)/loading.tsx` est une frontière de suspension au-dessus de la page, gardée par `pas-de-frontiere-de-suspension.test.ts:385-390`, et le 404 du site public ne vient que du corps de page hors de toute frontière (mesure du 2026-08-28 écrite dans `agencies/[slug]/page.tsx`) : servir un vrai 404 demande de déplacer ou retirer ce `loading.tsx` ; (2) un `not-found.tsx` de segment n'accepte ni `metadata` ni `generateMetadata` (la doc de Next 16, `not-found.md:185`, ne les ouvre qu'à `global-not-found.js`, derrière `experimental.globalNotFound`) : corriger le titre et le double `robots` passe par ce drapeau ou par le retrait du `robots` explicite du layout public, deux choix ; (3) `generateSitemaps()` sert `/sitemap/<id>.xml` et plus `/sitemap.xml` (`generate-sitemaps.md:20`), que `robots.ts:38` déclare : il faut un index écrit à la main et l'URL publique change. Restent S chacun : la canonique par page et `resumePourMeta()`. Classement : V8, à découper en tickets ; les choix (1) à (3) reviennent au porteur.
 
 ## Angle 10 — Médias : tailles, conversions, disques, nettoyage
 
@@ -1785,7 +1787,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
-- Statut : validé — deux tests : data-exports/[id]/download et account-deletion.ts
+- Statut : fait · TCK-760
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/`, `takussan-web/src/app/api/`
 - Constat :
@@ -1800,6 +1802,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré, par un script qui résout les imports.
 - Piste : commencer par le téléchargement d'export RGPD et par `account-deletion.ts`. Un test de `locale.ts` aurait attrapé le `PATCH /api/users/me` mort (angles 6 et 11).
 - Mesure (2026-10-15, 89a52efe, mesureur) : script node hors dépôt qui cherche, dans les `*.test.ts(x)` de `takussan-web/src`, un import de chaque action non remplacé par `vi.mock` → 15 actions sur 27 sans test : `account-deletion`, `agent-onboarding`, `auto-onboard`, `contact-preferences`, `invitations`, `kpis`, `locale`, `notification-preferences`, `notifications`, `onboarding`, `owner-onboarding`, `property-contacts`, `secondary-phone`, `service-provider-onboarding`, `super-admin-cooptation` ; `find src/app/api -name route.ts` → 36 handlers, et aucun `*.test.ts*` sous `data-exports/[id]/download`, `me/owner-profiles/[id]/kyc`, `admin-users`, `super-admin-properties`, `me/wizard-drafts`. Le décompte des 24 handlers n'est pas refait. La PR ouverte #421 touche `locale` et peut en couvrir une. Classement : V8, chaque test relève de A5, mais l'ensemble dépasse M et demande un découpage.
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep -rln "account-deletion\|data-exports" takussan-web/src --include='*.test.*'` → aucun test n'importe `actions/account-deletion.ts` (`AccountDeletionSection.test.tsx` le remplace par `vi.mock`) ni `api/data-exports/[id]/download/route.ts` → tient. Deux tests neufs (`download/__tests__/route.test.ts`, 7 ; `actions/__tests__/account-deletion.test.ts`, 16) → 23 verts. Ablations : `set-cookie` relayé → 1 rouge, `segmentAmont` retiré → 3, `obligations` retirées de `failure()` → 4, clé de repli d'annulation changée → 1 ; remis → 23 verts.
 
 ### Petites améliorations
 - Réf : P12.10
@@ -2197,7 +2200,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le second facteur bloque la mise en service, sans la boîte qui le résout
 - Réf : P15.04
-- Statut : validé — avecGardeDoubleFacteur branché sur les trois formulaires ; la 2FA en tête de la carte Mise en service
+- Statut : fait · TCK-761
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Support/Security/ProtectedActions.php` (`AGENCY_TWO_FACTOR`), `takussan-web/src/components/admin/InviteAgentDialog.tsx:84-100`, `takussan-web/src/components/admin-settings/IntegrationsManager.tsx:191-196`, `takussan-web/src/components/dashboard/admin/MiseEnService.tsx:37-45`
 - Constat :
@@ -2208,6 +2211,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu ; chemin du service 2FA à vérifier.
 - Piste : brancher `avecGardeDoubleFacteur` sur ces formulaires ; placer la 2FA en tête de la carte.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ProtectedActions.php:124-175` (`AGENCY_TWO_FACTOR` contient `IntegrationController@store|update|test`, `AgencyController@update`, `AgentInvitationController@__invoke`) ; `RequireTwoFactor.php:80-82` → `TwoFactorRequirement::requiredAtAgency()`, qui rend `true` pour tout titulaire d'un profil d'admin d'agence, hôte solo compris (vérifie le « chemin du service 2FA à vérifier » du constat) ; `grep DoubleFacteur` dans `InviteAgentDialog.tsx` (passe par `useApiForm`, qui ne la gère pas), `IntegrationsManager.tsx` (server actions, refus versé en erreur de champ l. 191-196) et `AgencyConfigForm.tsx` → aucun ; `MiseEnService.tsx:37-45` met `admin_two_factor` en dernier. Le constat tient. Classement : V2, la piste branche la garde de second facteur sur trois formulaires et réordonne la carte (V7).
+- Mesure (2026-10-17, 0785a29d, implementeur) : `grep DoubleFacteur` dans `InviteAgentDialog.tsx`, `IntegrationsManager.tsx` et `AgencyConfigForm.tsx` → rien, et `admin-agency.ts` ne rendait pas le `code` du refus ; tests neufs → 10 rouges (garde jamais appelée, geste non rejoué, `admin_two_factor` pas en tête) → les trois formulaires passent par `avecGardeDoubleFacteur[Action]` (enregistrement et confirmation du seuil ; création, modification, activation, test et suppression d'intégration ; invitation), `admin-agency.ts` rend le `code`, la carte met la 2FA en tête. Ablations : `garde = null` → 7 rouges, tri retiré → 1, `code` retiré → 2 ; remis → verts (192 tests des quatre dossiers).
 
 ### SMS muet : première publication et signature bloquées, sans repli
 - Réf : P15.05

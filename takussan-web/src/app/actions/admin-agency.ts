@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
+import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   confirmAgencyPayoutThreshold,
@@ -23,12 +24,20 @@ import type { Agency } from '@/types/agency';
 
 type ActionResult<T = void> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | {
+      ok: false;
+      status?: number;
+      message: string;
+      errors?: Record<string, string[]>;
+      /** TCK-761 — le refus de second facteur, que l'écran confie à `GardeDoubleFacteur` (TCK-293). */
+      code?: CodeDoubleFacteur;
+    };
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: CodeDoubleFacteur;
 }> {
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
@@ -39,10 +48,12 @@ async function mapError(e: unknown): Promise<{
   ]);
   const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
+    const code = codeDoubleFacteur(e);
     return {
       status: e.status,
       message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
+      ...(code ? { code } : {}),
     };
   }
   return { message: repli };

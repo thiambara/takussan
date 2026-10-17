@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import { inviteAgencyAgent } from '@/lib/queries/agency-invitations';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { useApiForm } from '@/hooks/useApiForm';
 import { Button } from '@/components/ui/button';
 import {
@@ -78,6 +80,9 @@ export function InviteAgentDialog({
   const t = useTranslations('admin.inviteAgent');
   const tCommon = useTranslations('common.actions');
   const { token } = useAuth();
+  // TCK-761 (P15.04) — inviter un agent exige la 2FA de l'admin (`AgentInvitationController`) :
+  // `useApiForm` ne connaît pas la garde, l'appel lui est donc confié ici.
+  const garde = useGardeDoubleFacteur();
   const schema = buildSchema(t('emailInvalid'), t('required'));
   const roleOptions = ROLE_KEYS.map((k) => ({ value: k, label: t(`roles.${k}`) }));
 
@@ -85,18 +90,22 @@ export function InviteAgentDialog({
     schema,
     defaultValues: { first_name: '', last_name: '', email: '', phone: '', role: 'agent' },
     onSubmit: async (values) =>
-      inviteAgencyAgent(
-        agencyId,
-        {
-          email: values.email,
-          role: values.role,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          // Une chaîne vide n'est pas « pas de téléphone » : la règle backend est
-          // `nullable`, pas `nullable|string|min:0`.
-          phone: values.phone?.trim() ? values.phone.trim() : null,
-        },
-        token ?? '',
+      avecGardeDoubleFacteur(
+        () =>
+          inviteAgencyAgent(
+            agencyId,
+            {
+              email: values.email,
+              role: values.role,
+              first_name: values.first_name,
+              last_name: values.last_name,
+              // Une chaîne vide n'est pas « pas de téléphone » : la règle backend est
+              // `nullable`, pas `nullable|string|min:0`.
+              phone: values.phone?.trim() ? values.phone.trim() : null,
+            },
+            token ?? '',
+          ),
+        garde,
       ),
     onSuccess: () => {
       onSuccess?.();

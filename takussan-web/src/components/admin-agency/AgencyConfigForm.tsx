@@ -37,6 +37,8 @@ import type { Agency } from '@/types/agency';
 import { reduirePhoto } from '@/lib/reduire-photo';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
+import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -119,12 +121,19 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const pendingThreshold = agency.pending_payout_threshold_change ?? null;
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isConfirming, startConfirmTransition] = useTransition();
+  // TCK-761 (P15.04) — les deux gestes de ce formulaire exigent la 2FA de l'admin
+  // (`AgencyController@update` et `@confirmPayoutThreshold`) : un refus ouvre la boîte de la coque,
+  // puis le geste est rejoué. Hors de la coque (`null`), le refus s'affiche comme avant.
+  const garde = useGardeDoubleFacteur();
 
   function confirmThreshold() {
     setConfirmError(null);
     startConfirmTransition(async () => {
       // VERIF-594 passe 2, N-5 — on confirme la valeur AFFICHÉE ; remplacée entre-temps, le serveur rend 409.
-      const result = await confirmPayoutThresholdAction(agency.id, pendingThreshold?.threshold ?? null);
+      const result = await avecGardeDoubleFacteurAction(
+        () => confirmPayoutThresholdAction(agency.id, pendingThreshold?.threshold ?? null),
+        garde,
+      );
       if (!result.ok) {
         setConfirmError(result.message);
         return;
@@ -143,7 +152,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           individual,
           initialThreshold: initialThreshold(agency),
         });
-        const result = await updateAgencyAction(agency.id, payload);
+        const result = await avecGardeDoubleFacteurAction(
+          () => updateAgencyAction(agency.id, payload),
+          garde,
+        );
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
