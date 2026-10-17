@@ -105,7 +105,7 @@ voie d'écriture (angle 13, puis 47).
 | 30 | Équipements stockés en français en base (`TagCatalog`) : traduction à l'affichage | fait |
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | fait |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
-| 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | à faire |
+| 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | fait |
 | 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
 | 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
 | 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
@@ -141,6 +141,8 @@ voie d'écriture (angle 13, puis 47).
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
 | 67 | Critères nommés des recherches sauvegardées et des liens partagés (`tags=Piscine`, `location=<quartier>`) après un renommage, une fusion ou un rejet au référentiel (`TagModeration`, `GeoNeighborhoodModeration`) : alertes muettes, filtres vides | à faire |
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
+| 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
+| 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
 
 ---
 
@@ -3699,3 +3701,86 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et `document.title` par CDP.
 - Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `PropertyAgentCard.tsx:94-112` : liens `LienLocalise` vers l'agent (`hover:underline`, sans hauteur minimale) et l'agence (`min-w-0 truncate hover:underline`) ; `invitations/accept/page.tsx:17-19` : `generateMetadata` rend `t('metaTitle')` seul (« Accepter une invitation ») et `invitations/layout.tsx` ne pose aucun `template` (`grep -rn template src/app/invitations` → 0), alors que `(public)/layout.tsx:52` pose « %s — Takussan » ; la taille des cibles n'a pas été remesurée → les deux points tiennent. Classement : V7, le titre de l'invitation est mécanique (A4), mais agrandir et souligner en permanence les liens de la carte change son dessin.
+
+## Angle 33 — Poids JS des routes publiques
+
+*Exploré le 2026-10-17 sur `pre-dev` eb6aee73, par l'explorateur, seul (aucun sous-agent). Deux
+`next build` de production (Turbopack, `takussan-web/`, charge 6 à 11 sur 8 cœurs : les temps ne
+valent rien, les octets si), l'un sur l'arbre tel quel, l'autre avec `<ChatWidget />` remplacé par
+`() => null` dans `src/app/layout.tsx` (ablation, retirée depuis). Le JS initial d'une route est
+l'union des `entryJSFiles` de son `page_client-reference-manifest.js` (racine, frontières d'erreur,
+layouts, page ; `global-error` intégré exclu) et des `rootMainFiles` de `build-manifest.json`,
+compressés en gzip niveau 9 par Node ; les polices viennent de `.next/server/next-font-manifest.json` ;
+l'attribution par paquet vient de `next experimental-analyze -o`. **Le réseau 3G n'a pas été
+simulé** : `next start` demande l'API (absente pendant le passage), et la charge RSC du document
+(dictionnaire, ADR-0022) n'est pas comptée ici. Les durées citées sont des calculs, pas des mesures.*
+
+### Quatre polices que seul `/playground` lit sont préchargées sur toutes les routes, Geist n'étant lue nulle part
+- Réf : P33.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/layout.tsx:2`, `takussan-web/src/app/layout.tsx:24-29`, `takussan-web/src/app/layout.tsx:89`, `takussan-web/src/app/[locale]/(public)/playground/playground.css:117-126`, `takussan-web/src/components/playground/TypographySwitcher.tsx:14-15`
+- Constat :
+  - Le layout racine déclare six familles `next/font/google` (Geist, Manrope, Inter, Bricolage Grotesque, DM Sans, Fraunces), toutes avec le préchargement par défaut, et pose leurs six variables sur `<html>` (lu).
+  - `globals.css:297-300` ne lit que « DM Sans » et « Bricolage Grotesque » (lu). `grep -rn "font-geist\|font-manrope\|font-inter\|font-fraunces" src` ne rend que `playground.css` et `TypographySwitcher.tsx` ; `--font-geist` n'est lue par aucun fichier (mesuré).
+  - Mesuré : `next-font-manifest.json` → les **139** routes de l'application préchargent les mêmes **7** fichiers woff2, **257 Kio**. Rapprochés des `@font-face` du CSS émis : Geist 28,6 Kio, Manrope 24,0, Inter 47,3, Fraunces 44,6 + 35,7, soit **180 Kio préchargés sans usage** hors `/playground` ; Bricolage 40,3 et DM Sans 36,1 sont les seuls utiles.
+  - Un `preload` de police part avec la priorité haute, en concurrence avec le JS et le CSS de la page. Calcul, non mesuré : à 1,6 Mbit/s, 180 Kio coûtent près d'une seconde de liaison.
+  - P18.06 est `validé` pour retirer `/playground` des environnements déployés ; ce retrait ne retire pas les déclarations du layout racine, qui resteraient alors sans aucun lecteur.
+- Piste : ne garder au layout racine que Bricolage Grotesque et DM Sans ; déclarer Manrope, Inter et Fraunces dans un layout ou une page propre à `/playground` (ou `preload: false`), retirer Geist. Garde : un test qui lit `layout.tsx` et refuse une famille dont la variable n'est lue par aucun CSS ni composant hors `playground`.
+
+### Le widget de messagerie, invisible au visiteur anonyme, met la messagerie, zod et react-hook-form dans le JS initial de toutes les pages
+- Réf : P33.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/layout.tsx:14`, `takussan-web/src/app/layout.tsx:110`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:9-11`, `takussan-web/src/components/chat-widget/ChatWidget.tsx:145`, `takussan-web/src/components/messages/ChatView.tsx:6-8`, `takussan-web/src/components/messages/ChatView.tsx:25`, `takussan-web/src/components/messages/ChatView.tsx:31`
+- Constat :
+  - `ChatWidget` est monté par le layout racine et importe statiquement `ConversationList`, `ChatView` et `PropertyDraftChatView` (lu). Il rend `null` tant qu'aucun utilisateur n'est connecté (`isVisible = Boolean(user) && …`, lu), mais son code est importé de toute façon. Seule la cartographie passe par `next/dynamic` dans tout `src/` (3 sites, mesuré par `grep -rn "dynamic(" src`).
+  - `ChatView` importe `react-hook-form`, `useResolveurValidation` (zod), `sendMessageSchema` (`lib/schemas/message.ts` → `import { z } from 'zod'`) et `VoiceNoteRecorder` (lu).
+  - Mesuré, JS initial gzip, avant → sans le widget (même arbre, deux builds) : mentions légales, CGU et confidentialité **450 → 322 Kio** (−28 %) ; accueil **470 → 407** ; index des agences et des agents **452 → 330** ; paiement par lien et partage **452 → 325-331** ; fiche agence 511 → 458 ; fiche bien 580 → 538 ; recherche 555 → 538. En brut, une page légale passe de 1 472 à 994 Kio de JS à analyser.
+  - Le morceau de zod (64,2 Kio gzip, chaîne `ZodError`) figure dans les `entryJSFiles` de `[project]/src/app/layout` (mesuré) : il est payé par toute route, `/auth/login` comprise (448 Kio).
+- Piste : charger le widget par `next/dynamic` (`ssr: false`) derrière la condition `user`, ou ne monter que le lanceur et importer le panneau à la première ouverture. Garde : un test ou une garde de build qui refuse `zod` et `react-hook-form` dans les `entryJSFiles` du layout racine (voir P33.05).
+
+### zod arrive aussi sur les pages publiques par des listes de valeurs rangées dans les modules de schémas
+- Réf : P33.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/components/property/PropertyCard.tsx:25`, `takussan-web/src/components/property/cards/NewBuildChip.tsx:4`, `takussan-web/src/components/search/FilterSidebar.tsx:16`, `takussan-web/src/lib/schemas/property.ts:1`, `takussan-web/src/lib/schemas/property.ts:14`, `takussan-web/src/lib/schemas/property.ts:64-67`
+- Constat :
+  - `PropertyCard`, `NewBuildChip` et `FilterSidebar` n'importent de `@/lib/schemas/property` que des tableaux `as const` (`propertyTypeValues`, `conditionValues`, `newBuildConditionValues`, `titleTypeValues`) pour traduire des libellés (lu) ; ce module commence par `import { z } from 'zod'` et construit ses schémas au chargement (lu).
+  - Mesuré, sur le build sans widget : la fiche bien porte encore le morceau zod de 64,2 Kio gzip dans son JS initial, alors que la page légale ne l'a plus. Que `PropertyCard` (par `PropertySimilar`) soit le seul chemin qui l'y amène est **à vérifier** : les dialogues de la fiche relus (`PropertyVisitDialog`, `PropertyReservationDialog`) n'importent ni zod ni un schéma.
+  - L'accueil, la recherche et les fiches agence et agent rendent aussi des cartes de bien ; la part de zod qui leur reste sans le widget n'a pas été isolée (à vérifier).
+- Piste : sortir les listes de valeurs dans un module sans dépendance (`lib/enums/property.ts`), que `schemas/property.ts` réimporte ; les composants d'affichage importent ce module-là. Garde : une règle `no-restricted-imports` qui interdit `@/lib/schemas/*` sous `src/components/property/` et `src/components/search/` hors formulaires.
+
+### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
+- Réf : P33.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
+- Constat :
+  - `PropertyDetailContent` est `'use client'` et importe statiquement une trentaine de blocs de la fiche, description et caractéristiques comprises, plus quatre dialogues (`PropertyVisitDialog`, `PropertyReservationDialog`, `PropertyShareDialog`, `PropertyContactMessageDialog`) et les formulaires d'avis (lu). Seule la carte est différée (`PropertyLocationMap.tsx:8`, lu).
+  - `PropertyVisitDialog` importe `Calendar` (react-day-picker) et `Popover`, `PropertyReservationDialog` importe `DatePicker` (lu). Mesuré : le morceau de react-day-picker (17,5 Kio gzip, classes `rdp-`) est dans le JS initial de la fiche ; Leaflet (43,2 Kio) ne l'est pas.
+  - Mesuré, build sans widget : la fiche ajoute **216 Kio gzip** de JS initial à ce que charge une page légale (538 contre 322), en onze morceaux, dont 64,2 de zod (P33.03), 44,8 et 27,4 qui portent les dialogues de visite et de réservation, 17,5 de react-day-picker.
+  - Calcul, non mesuré : à 1,6 Mbit/s (≈ 200 Kio/s), les 580 Kio de JS initial de la fiche demandent environ 3 s de transfert, avant analyse et sans compter les polices (P33.01) ni le document.
+- Piste : différer les dialogues par `next/dynamic` au premier `open`, puis rendre côté serveur les blocs sans interaction (description, caractéristiques, équipements, avertissement de sécurité) en ne gardant client que les îlots qui en ont besoin. Mesurer avant et après par la méthode de P33.05.
+
+### Aucune garde ne voit le poids du JS d'une route
+- Réf : P33.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
+- Constat :
+  - `grep -rln -i "budget\|gzip" scripts .github/workflows takussan-web/scripts` ne rend que `check-i18n-namespaces.mjs` (part du dictionnaire, ADR-0022) et `check-super-admin-tokens.mjs` (sans rapport) (mesuré). Next 16 n'imprime plus la colonne « First Load JS » à la fin de `next build` (mesuré : la sortie ne liste que les routes et leur mode).
+  - Les deux défauts P33.01 et P33.02 ne cassent rien et ne se voient dans aucun journal ; l'ADR-0015 chiffrait encore le JS par page en 2026-08, et rien ne l'a remesuré depuis.
+  - La mesure de ce passage tient en un script de 30 lignes sur des fichiers que `next build` produit déjà (`page_client-reference-manifest.js`, `build-manifest.json`, `next-font-manifest.json`), sans dépendance.
+- Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
+
+### Petites améliorations
+- Réf : P33.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/home/Footer.tsx:1-10`, `takussan-web/src/components/home/Footer.tsx:101-102`, `takussan-web/src/app/globals.css`
+- Constat :
+  - `Footer` est `'use client'` pour deux `useTranslations` et aucun état ni effet (lu) : il pourrait être rendu côté serveur par `getTranslations`, et sortir l'espace `footer` du dictionnaire client.
+  - Le CSS initial de toute page publique fait 268 Kio bruts, 39 Kio gzip, en deux fichiers qui bloquent le rendu (mesuré par `entryCSSFiles`) ; il porte les `@font-face` des six familles de P33.01.
+  - `@base-ui/react` pèse environ 120 Kio par module compressé dans le graphe d'une page légale (mesuré par `experimental-analyze`), surtout `floating-ui`, `combobox`, `menu` et `toast` : la barre publique (autocomplétion, menus, favoris) les charge partout. Rien à corriger en soi ; à garder en vue si la barre grossit.
+- Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
