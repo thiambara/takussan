@@ -4131,7 +4131,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les limiteurs d'authentification et les compteurs de vues comptent une IPv6 entière, pas son /64
 - Réf : P37.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : clés des limiteurs d'authentification
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:458,466,472-473,482,586-590`, `takussan-api/app/Services/Property/PropertyViewCounter.php` (`cle()`), `takussan-api/app/Services/Boost/BoostStatsRecorder.php:85`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:626-629`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:381`
 - Constat :
@@ -4141,10 +4141,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `auth-phone-send` est la seule borne par IP de l'envoi de codes SMS, `PhoneSendQuota` bornant par numéro (commentaire TCK-622, l. 474-481). Un client IPv6 qui pulvérise des numéros n'a donc aucune borne d'envoi (déduit de la clé ; à vérifier : la part de clients IPv6 réellement vus derrière Cloudflare).
   - Même écart sur les compteurs : la vue d'un bien (`property-view:<id>:<ip>`) et le clic d'un emplacement sponsorisé (`boost-click:<id>:<ip>`) dédoublonnent sur l'IP brute. Les impressions du même emplacement passent, elles, par `VisitorFingerprint::of()` (`CountBoostImpressions.php:39`) (lu).
 - Piste : une seule fonction de clé par IP (`VisitorFingerprint::network`) pour tous les limiteurs et compteurs qui lisent `$request->ip()`, y compris une signature maison pour les débits numériques des routes publiques. Un test par limiteur, sur le modèle de la mesure ci-dessus (deux adresses du même /64 → un seul seau), garde le retour.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `AppServiceProvider.php` : `auth-register`, `auth-password`, `auth-phone-send` (l. 472-473, 482), `ical-export` (l. 458) et `calendar-feed` (l. 466) toujours clés `'ip:'.$request->ip()`, seul `visitorRateLimitKey()` (l. 568-590) passe par `VisitorFingerprint::network` ; `PropertyViewCounter::cle()` (l. 49-51) et `BoostStatsRecorder::click()` (l. 83-85) sur l'IP brute ; test temporaire (retiré, charge 2,06/2,14/2,20 sur 8 cœurs) : 8 `POST /api/auth/forgot-password` depuis `2001:db8:1:2::1` à `::8` → `200` ×8, 8 depuis une même adresse → `200` ×5 puis `429` ×3 → le constat tient en entier ; la part de clients IPv6 derrière Cloudflare n'est pas mesurée. Classement : V2, changer la clé des limiteurs de l'authentification (et des débits numériques de `auth/login`) peut refuser des appelants légitimes qui partagent un /64, et la piste touche plusieurs limiteurs et compteurs à la fois.
 
 ### Les flux iCal lus par Airbnb, Booking.com et Google Agenda sont bornés par IP de la plateforme, pas par flux
 - Réf : P37.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : bornes par flux et par IP à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:455-466`, `takussan-api/routes/web.php:18-22`, `takussan-api/routes/api/calendar-feeds.php:14-16`
 - Constat :
@@ -4152,10 +4153,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le commentaire de la l. 456-457 dit l'intention : « quelques appels par heure **et par flux** ». La clé ne porte pas le flux : tous les flux qu'une même plateforme relit partagent un seau (lu).
   - ADR-0041 vise Airbnb, Booking.com et Google Agenda (l. 101). Ces services relisent les flux de tous leurs utilisateurs depuis des machines communes (à vérifier : leurs IP et leur fréquence). Au-delà de 30 flux par minute depuis une même IP, le 31ᵉ reçoit 429. Le calendrier exporté cesse alors de se mettre à jour sur l'autre plateforme, sans erreur côté Takussan, et c'est la double réservation qu'ADR-0041 veut empêcher (déduit de la clé).
 - Piste : clé par jeton (`'flux:'.hash($token)`), qui borne l'essai de jetons par flux, plus une borne large par IP contre l'énumération. Un test : 31 flux distincts depuis une même IP restent servis, 31 appels d'un même flux reçoivent un 429.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `AppServiceProvider.php:456-466` : `ical-export` et `calendar-feed` à 30/min clés `'ip:'.$request->ip()`, commentaire « par flux » l. 457 ; routes `routes/web.php:19-23` (`throttle:ical-export`) et `routes/api/calendar-feeds.php:14-17` (`throttle:calendar-feed`) → la clé ne porte pas le flux ; les IP et la fréquence réelles d'Airbnb, Booking.com et Google Agenda ne sont pas mesurées, l'effet (429 au 31ᵉ flux) reste déduit. Classement : V7, la piste fixe deux bornes neuves (par jeton, et une « borne large » par IP) dont les valeurs sont un choix sur un service que voient les plateformes tierces.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : variable d'environnement de préproduction
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :
@@ -4165,10 +4167,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `ContactLeadService` range cette même IP dans `property_contact_leads.ip` (l. 214 et 313) : chaque demande porterait l'adresse du serveur, qui n'aide plus à repérer un abus (lu ; la valeur rangée en préproduction est à vérifier).
   - D-71 dit l'effet en général (« les limiteurs par visiteur sont partagés »). Ce constat nomme les trois formulaires touchés et leurs bornes. Pour la production, voir P34.04.
 - Piste : mesurer en préproduction (`RateLimiter::attempts` de la clé, ADR-0052 § 6) ; puis poser `API_INTERNAL_URL` avant la phase F, ou envoyer ces trois formulaires du navigateur. Un test du front peut garder qu'une action serveur anonyme ne part jamais sur l'URL publique quand l'environnement déclare un chemin interne.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `takussan-web/src/lib/api.ts:15-34` (`baseServeur()` rend l'URL publique sans `API_INTERNAL_URL`), `src/app/actions/property.ts` (`'use server'`, `apiRequest` vers `visit-request` l. 120 et `contact-lead` l. 233), `AppServiceProvider.php:397-398` (`public-visit-request` 10/h, `public-contact-lead` 5/10 min par `visitorRateLimitKey`), `docs/infra/hebergement.md:84` (IP du visiteur sur ce chemin « non mesurée ») et `docs/ardoise.md:2998` (`API_INTERNAL_URL` absente) → la partie lue tient ; le seau partagé en préproduction et l'IP rangée dans `property_contact_leads.ip` ne se mesurent pas depuis le poste. Classement : V5, le correctif pose une variable d'environnement sur Dokploy, ou déplace l'envoi des formulaires vers le navigateur (V7).
 
 ### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
 - Réf : P37.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : réseau Docker et TRUSTED_PROXIES
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:82`, `deploy/takussan/compose.api.yml:19-20,82-83`, `takussan-api/bootstrap/app.php:43-53`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
 - Constat :
@@ -4177,10 +4180,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Un service voisin qui appelle l'API sur le port 8080 est donc un mandataire de confiance. Son `X-Forwarded-For` fixe l'IP que voit Laravel : il franchit la liste d'IP des webhooks (`RestrictIpMiddleware` compare `$request->ip()`, l. 35-37) et choisit son seau dans tout limiteur par IP. ADR-0052 § 5 ne parle que des clients extérieurs (« aucun client extérieur ne peut emprunter ce chemin ») (déduit de la configuration ; à vérifier sur le serveur).
   - ADR-0028 § 8 veut que Laravel ne croie que Traefik et Cloudflare. Croire le sous-réseau, c'est croire aussi tout ce qui y tourne.
 - Piste : borner la confiance aux seuls mandataires réels, par exemple un réseau dédié Traefik ↔ API (et front ↔ API pour le chemin interne), dont le sous-réseau seul entre dans `TRUSTED_PROXIES`. L'ablation de D5, rejouée depuis un service voisin, en serait la preuve.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `docs/infra/hebergement.md:82` (`10.0.1.0/24` en tête de `TRUSTED_PROXIES`, relevé du 2026-09-14), `deploy/takussan/compose.api.yml:20,83` (`dokploy-network`), `bootstrap/app.php:49-52` (`trustProxies(at:` sur la liste) et `RestrictIpMiddleware.php:35-37` (`in_array($request->ip(), …)`) → la configuration décrite tient ; la liste des services attachés à `dokploy-network` ne se relève que sur le serveur, hors du poste. Classement : V5, le correctif crée un réseau dédié dans `deploy/` et change `TRUSTED_PROXIES` sur Dokploy.
 
 ### Les plages Cloudflare sont recopiées à la main dans `traefik.yml` et dans `TRUSTED_PROXIES`, sans contrôle de fraîcheur
 - Réf : P37.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : minuteur du serveur
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:81-82`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3523`, `deploy/server/`
 - Constat :
@@ -4188,10 +4192,11 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - La seule vérification est une commande manuelle (`curl … ips-v4`, « puis comparer au fichier »). Aucun minuteur de `deploy/server/` ni aucun workflow ne la rejoue (mesuré : `grep -n -i "cloudflare.com/ips\|ips-v4"` sur `deploy/server/*.sh` et `.github/workflows/*.yml` → rien).
   - Une plage ajoutée par Cloudflare et absente de `traefik.yml` ferait effacer par Traefik l'en-tête de chaque visiteur servi par elle. Absente de `TRUSTED_PROXIES` seulement, elle ferait retenir par Laravel l'IP de la bordure Cloudflare. Dans les deux cas, ces visiteurs partageraient un seau, et les accusés d'un opérateur qui passent par `api.takussan.com` (proxifié) recevraient 403 de la liste d'IP (déduit d'ADR-0028 § 8, qui écrit ces deux effets).
 - Piste : un minuteur du serveur, à côté de `seuils.timer`, qui compare les deux listes à `https://www.cloudflare.com/ips-v4` et `ips-v6` et alerte par le canal Telegram existant. Ou une seule source pour les deux listes, écrite par ce minuteur.
+- Mesure (2026-10-17, 52f3928cd, mesureur) : `grep -rn -i "cloudflare.com/ips\|ips-v4" deploy/ .github/workflows/ scripts/` → rien ; `ls deploy/server/` → `bootstrap.sh`, `certificats.sh`, `compose.data.yml`, `journaux-traefik.sh`, `sauvegarde-seau-prive.sh`, `seuils.sh`, aucun contrôle des plages ; `docs/infra/hebergement.md:81` ne donne qu'une vérification manuelle → le constat tient. Classement : V5, la piste ajoute un minuteur sous `deploy/server/` et touche `traefik.yml` et `TRUSTED_PROXIES`.
 
 ### Petites améliorations
 - Réf : P37.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : en-têtes de confiance et refus au démarrage de TRUSTED_PROXIES
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:43-53`, `takussan-api/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php:22-27`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
 - Constat :
@@ -4199,3 +4204,4 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `RestrictIpMiddleware` compare l'IP par égalité de chaîne (`in_array(…, true)`, l. 35-37) : ni plage CIDR, ni forme canonique d'une IPv6 (`2001:db8::1` ≠ `2001:0db8::1`) (lu). Un opérateur qui annonce une plage, ou une IPv6 écrite autrement, serait refusé en 403.
   - Le plan dit que `bootstrap/app.php` « accepte pourtant » `TRUSTED_PROXIES=*` (l. 3796). En fait, le découpage par virgules en fait le tableau `['*']`, et `TrustProxies` ne reconnaît `*` que sous forme de chaîne (`$trustedIps === '*'`, l. 83) : le tableau part tel quel à Symfony, qui n'y voit aucune adresse (lu). Mesuré par `php -r` sur `Symfony\Component\HttpFoundation\Request` (`REMOTE_ADDR` 10.1.1.1, `X-Forwarded-For` 203.0.113.9) : `setTrustedProxies(['*'])` → `getClientIp()` rend `10.1.1.1` ; `['0.0.0.0/0']` → `203.0.113.9`. Posé par erreur, `*` ne croirait donc personne, sans erreur : tous les clients prendraient l'IP de Traefik. Rien ne refuse cette valeur au démarrage, et le plan décrit l'effet inverse.
 - Piste : `headers:` restreint à `FOR | PROTO` (ou `FOR | PROTO | PORT`) si l'hôte n'a pas à venir d'un mandataire, avec un test qui épingle l'hôte des URL rendues ; `IpUtils::checkIp` dans `RestrictIpMiddleware` ; refuser au démarrage un `TRUSTED_PROXIES` qui contient `*`, et corriger la phrase du plan (l. 3796).
+- Mesure (2026-10-17, 52f3928cd, mesureur) : relu `bootstrap/app.php:49-52` (`trustProxies(at: …)` sans `headers:`), `TrustProxies.php:22` (`$headers` par défaut, `X-Forwarded-Host` compris) et l. 83 (`'*'` reconnu en chaîne seulement) ; `grep -rn "forceRootUrl\|forceScheme\|trustHosts" app bootstrap config` → rien ; `DataExportResource.php:23` (`url(…)`), `KycDossierResource.php:84` (`URL::temporarySignedRoute`) ; `RestrictIpMiddleware.php:35-37` (`in_array(…, true)`) ; `php -r` sur `Symfony\Component\HttpFoundation\Request` (`REMOTE_ADDR` 10.1.1.1, `X-Forwarded-For` 203.0.113.9) : `['*']` → `10.1.1.1`, `['0.0.0.0/0']` → `203.0.113.9` ; le plan l. 3796 dit toujours « accepte pourtant » → les trois points tiennent ; le relais de `X-Forwarded-Host` par Cloudflare et Traefik n'est pas mesuré. Classement : V5, restreindre les en-têtes de confiance et refuser `*` au démarrage portent sur une variable d'environnement et la confiance des mandataires, et la liste d'IP des webhooks touche une autorisation d'opérateurs (V2) ; seule la phrase du plan relèverait de A6.
