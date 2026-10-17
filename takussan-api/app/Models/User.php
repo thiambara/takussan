@@ -427,7 +427,10 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     public function getActivitylogOptions(): LogOptions
     {
+        // TCK-803 (P19.07) — un journal nommé, comme `Auditable` nomme par classe : sans lui, les
+        // changements d'identité tombaient dans `default`, mêlés aux écritures sans nom.
         return LogOptions::defaults()
+            ->useLogName('User')
             ->logOnly([
                 'username', 'email', 'first_name', 'last_name', 'phone',
                 'status', 'preferred_language', 'timezone',
