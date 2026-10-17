@@ -1310,7 +1310,7 @@ Correct (mesuré ou lu) :
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
-- Statut : validé — Offer avec businessFunction LeaseOut ou Sell, unitCode selon rent_period, champs hors domaine retirés de Place
+- Statut : fait · TCK-758
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -1319,6 +1319,7 @@ Correct (mesuré ou lu) :
   - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `jsonld-property.ts:80-113` : `priceSpecification` est posé dans `mainEntity`, typé par `SOUS_TYPE_SCHEMA` (`:17-33`, `Apartment`, `House`, `Room`, `Accommodation` ou `Place`), aucun `offers`, ni `contract_type` ni `rent_period` émis ; `floorSize`, `numberOfBedrooms` et `yearBuilt` sont posés aussi sur `Place` (terrain, bureau, parking), où schema.org ne les définit pas ; `priceCurrency` vaut bien `XOF` par défaut → tient. Aucun validateur de données structurées n'a été lancé. Classement : V7, choisir `businessFunction` et le `unitCode` de chaque `rent_period` n'est écrit par aucun ticket ni ADR.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `jsonld-property.ts` : `priceSpecification` toujours sur le `mainEntity`, aucun `offers`, champs de logement posés sur `Place` ; 7 tests neufs de `jsonld-property.test.ts` rouges → tient. Correctif : `offers` = `Offer` (`Sell` ou `LeaseOut`, `UnitPriceSpecification` `DAY`/`WEE`/`MON`/`ANN`), plus de prix sur le bien, `Place` sans champ de logement (`numberOfBathroomsTotal` compris). Le test « jamais `Product`/`Offer` » de TCK-335 garde désormais `Product` seul. Ablation : fichier d'avant → 8 rouges ; remis → 22/22. Aucun validateur lancé.
 
 ### Chaque fiche a trois URL au contenu principal identique
 - Réf : P09.05
