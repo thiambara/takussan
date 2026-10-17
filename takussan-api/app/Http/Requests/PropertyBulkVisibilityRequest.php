@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Property;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,9 +16,10 @@ use Illuminate\Validation\Rule;
  */
 class PropertyBulkVisibilityRequest extends FormRequest
 {
+    /** TCK-817 (P22.02) — la capacité de l'action unitaire à l'agence active, avant toute validation. */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('bulkPublish', Property::class) === true;
     }
 
     public function rules(): array

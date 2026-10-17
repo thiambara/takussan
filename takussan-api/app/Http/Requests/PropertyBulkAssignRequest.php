@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Property;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -14,9 +15,10 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class PropertyBulkAssignRequest extends FormRequest
 {
+    /** TCK-817 (P22.02) — la capacité de l'action unitaire à l'agence active, avant toute validation. */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('bulkUpdate', Property::class) === true;
     }
 
     public function rules(): array
@@ -24,7 +26,7 @@ class PropertyBulkAssignRequest extends FormRequest
         return [
             'property_ids' => ['required', 'array', 'min:1', 'max:100'],
             'property_ids.*' => ['integer', 'distinct'],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'user_id' => ['required', 'integer'],
         ];
     }
 }

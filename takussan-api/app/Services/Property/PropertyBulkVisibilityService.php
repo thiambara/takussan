@@ -37,7 +37,8 @@ class PropertyBulkVisibilityService
             $property = $properties->get($id);
             $reason = match (true) {
                 $property === null => 'not_found',
-                ! $actor->can('publish', $property) => 'forbidden',
+                // TCK-817 — un bien que l'acteur ne lit pas ne se distingue pas d'un absent.
+                ! $actor->can('publish', $property) => $actor->can('view', $property) ? 'forbidden' : 'not_found',
                 ! $this->publication->canUnpublish($property) => 'invalid_status',
                 default => null,
             };

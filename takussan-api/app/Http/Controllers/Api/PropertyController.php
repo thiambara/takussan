@@ -412,8 +412,7 @@ class PropertyController extends Controller
         PropertyBulkArchiveRequest $request,
         PropertyBulkArchiveService $service,
     ): JsonResponse {
-        abort_unless($request->user()->can('bulkArchive', Property::class), 403);
-
+        // TCK-817 — l'entrée se juge dans `PropertyBulkArchiveRequest::authorize()` (`bulkUpdate`).
         $result = $service->archive(
             propertyIds: $request->input('property_ids'),
             actor: $request->user(),
@@ -451,9 +450,11 @@ class PropertyController extends Controller
         PropertyBulkAssignRequest $request,
         PropertyBulkAssignService $service,
     ): JsonResponse {
+        // TCK-817 — la cible se résout dans le service, parmi les membres de l'agence active :
+        // `User::findOrFail()` et `exists:users,id` disaient quels comptes existent.
         return $this->json($service->assign(
             $request->input('property_ids'),
-            User::findOrFail($request->integer('user_id')),
+            $request->integer('user_id'),
             $request->user(),
         ));
     }
