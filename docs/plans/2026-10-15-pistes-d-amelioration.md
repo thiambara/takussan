@@ -3102,7 +3102,7 @@ sont pas reprises.*
 
 ### Un même achat de boost rejoué est débité deux fois : deux badges identiques coûtent 20 crédits pour un seul badge
 - Réf : P24.01
-- Statut : validé — en-tête Idempotency-Key généré à l'ouverture du dialogue, unique par espace sur 24 h, rejoué en 200 avec le boost déjà écrit
+- Statut : fait · TCK-822
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:32-41`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:112-185`, `takussan-web/src/components/boost/BoostDialog.tsx:66-77,143`
 - Constat :
@@ -3113,6 +3113,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : une clé d'idempotence par ouverture du dialogue (`Idempotency-Key` ou champ `request_id`, unique par espace sur une courte fenêtre), rejouée en 200 avec le boost déjà écrit. Garde : un test qui rejoue la même clé et constate un seul débit.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` et `badge()` (aucune clé d'idempotence, `debit()` à chaque appel) ; aucun ticket ne la prévoit (`grep -il idempoten` dans `docs/backlog/tickets` croisé avec « boost » → seul TCK-633, sur l'espace automatique) ; test temporaire, retiré depuis : deux `POST /api/properties/{id}/boosts` du premier badge (10 crédits), à 30 s d'écart → 201 et 201, solde 500 → 480, lignes `ended` puis `active`. La Vedette rejouée n'est pas remesurée. Classement : V1, le correctif touche l'écriture d'un débit de crédits et ajoute une clé au contrat de l'achat, dont la forme et la fenêtre sont à choisir.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `BoostPurchaseIdempotencyTest` rejoue un badge avec la même `Idempotency-Key` à 30 s d'écart → 201 au lieu de 200, et une Vedette rejouée → 201 (deux débits) ; après, 201 puis 200 avec le même boost, un seul débit, la Vedette ni débitée ni prolongée deux fois, la même clé pour une autre offre ou un autre bien → 422 `boost.idempotency_key_reused`, et après 25 h un nouvel achat. Ablation (rejeu court-circuité) : 4 rouges sur 6 ; front, sans l'en-tête ou sans clé neuve à la réouverture, `api.test.ts` et `BoostDialog.test.tsx` rougissent.
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
