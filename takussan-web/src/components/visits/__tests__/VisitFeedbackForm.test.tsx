@@ -35,7 +35,7 @@ describe('<VisitFeedbackForm>', () => {
 
     expect(screen.getByText(/votre retour visiteur/i)).toBeInTheDocument();
     for (let n = 1; n <= 5; n++) {
-      expect(screen.getByRole('button', { name: `${n} étoiles` })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: n === 1 ? '1 étoile' : `${n} étoiles` })).toBeInTheDocument();
     }
     expect(screen.getByRole('button', { name: /envoyer/i })).toBeInTheDocument();
   });

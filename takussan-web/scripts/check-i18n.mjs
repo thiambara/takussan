@@ -54,6 +54,9 @@
  *      41 entrées cesseraient toutes de correspondre et la garde crierait, au lieu de passer au
  *      vert en n'ayant plus rien à trouver.
  *
+ *   D. **Les comptes qui s'accordent** (TCK-752) — `{count} biens` ou `document(s)` hors d'un ICU
+ *      `plural`, en `fr` et `en`. Règle et limites dans `i18n-pluriels.mjs`.
+ *
  * B ne certifie RIEN quand il est vert. Ses limites sont MESURÉES, pas supposées :
  *   · Les littéraux de gabarit interpolés (`` `Bonjour ${nom}` ``) ne sont PAS comptés. Le total
  *     est un PLANCHER, jamais un inventaire.
@@ -75,6 +78,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compteFichier } from './i18n-scan.mjs';
 import { EXCEPTIONS_JUSTIFIEES, FAMILLES, LONGUEUR_MIN_RAISON } from './i18n-exceptions.mjs';
+import { accordsManquants } from './i18n-pluriels.mjs';
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(WEB, 'src');
@@ -413,6 +417,26 @@ for (const locale of ['en', 'wo']) {
 }
 
 erreurs.push(...ecartsExceptions);
+
+// ── D. Les comptes qui s'accordent (TCK-752) — `fr` et `en`, le wolof étant en pause ──────────
+for (const locale of ['fr', 'en']) {
+  const { releves, perimees } = accordsManquants(dicos[locale], locale);
+  for (const cle of releves) {
+    erreurs.push(
+      `\`src/messages/${locale}.json\` : \`${cle}\` écrit un compte sans ICU \`plural\` `
+      + `(« ${String(dicos[locale].get(cle)).slice(0, 60)} »). À 1, il affichera « 1 biens » ou `
+      + '« 1 document(s) ». Écris `{count, plural, one {# …} other {# …}}`, ou, si le nom est '
+      + 'invariable dans cette langue, inscris la clé dans `INVARIABLES` de `scripts/i18n-pluriels.mjs`.',
+    );
+  }
+  for (const cle of perimees) {
+    erreurs.push(
+      `\`INVARIABLES.${locale}\` de \`scripts/i18n-pluriels.mjs\` nomme \`${cle}\`, qui ne porte plus `
+      + 'de compte à accorder (ou n\'existe plus). Retire la ligne : une exception qui survit à son '
+      + 'motif excuserait le prochain message fautif sous ce nom.',
+    );
+  }
+}
 
 for (const [f, compte, plafond] of monte) {
   erreurs.push(

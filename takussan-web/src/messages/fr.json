@@ -92,7 +92,7 @@
     "searchAria": "Lancer la recherche",
     "moreTypes": "Plus de types",
     "more": "Plus",
-    "propertiesCount": "{count} biens",
+    "propertiesCount": "{count, plural, one {# bien} other {# biens}}",
     "userMenuFor": "Menu utilisateur — {name}",
     "accountFallback": "Mon compte",
     "administration": "Administration",
@@ -294,9 +294,9 @@
     "loading": "Chargement…",
     "truncated": "{count}+ biens — zoomez pour affiner",
     "onMap": "{count, plural, =0 {Aucun bien sur la carte} one {# bien sur la carte} other {# biens sur la carte}}",
-    "clusterZoom": "{count} biens ici — zoomer pour les voir",
-    "clusterList": "{count} biens tout proches — voir la liste",
-    "clusterListTitle": "{count} biens tout proches"
+    "clusterZoom": "{count, plural, one {# bien ici — zoomer pour le voir} other {# biens ici — zoomer pour les voir}}",
+    "clusterList": "{count, plural, one {# bien tout proche — voir la liste} other {# biens tout proches — voir la liste}}",
+    "clusterListTitle": "{count, plural, one {# bien tout proche} other {# biens tout proches}}"
   },
   "publicContact": {
     "title": "Envoyer un message",
@@ -724,7 +724,7 @@
     },
     "detail": {
       "reviewsCount": "({count} avis)",
-      "viewsCount": "{count} vues",
+      "viewsCount": "{count, plural, one {# vue} other {# vues}}",
       "reference": "Réf. {value}",
       "featured": "Mis en avant",
       "shareAria": "Partager ce bien",
@@ -2064,7 +2064,7 @@
         "metaTitle": "Publier un bien",
         "title": "Publier un bien",
         "proposalTitle": "Proposer un bien à mon agence",
-        "quotaUsage": "{used} annonce(s) active(s) sur {limit} permises par votre offre.",
+        "quotaUsage": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit} permises par votre offre.",
         "quotaReachedTitle": "Limite d’annonces atteinte",
         "quotaReachedBody": "Vous avez {used} annonces actives sur {limit}. Archivez-en une ou changez d’offre pour en publier une nouvelle.",
         "quotaReachedUpgrade": "Voir les offres",
@@ -2196,13 +2196,13 @@
     },
     "agencyKpis": {
       "properties": "Biens",
-      "publishedHint": "{count} publiés",
+      "publishedHint": "{count, plural, one {# publié} other {# publiés}}",
       "activeLeases": "Baux actifs",
       "occupancyRate": "Taux d'occupation",
       "revenueMonth": "Revenus du mois",
       "overdue": "Impayés",
       "unpaidRate": "Taux d'impayés",
-      "rentedHint": "{count} biens loués",
+      "rentedHint": "{count, plural, one {# bien loué} other {# biens loués}}",
       "commissionHint": "Commissions : {amount}"
     },
     "agencyActivity": {
@@ -3157,7 +3157,7 @@
       },
       "attachmentRejected": "Fichier refusé.",
       "uploadFailed": "L'envoi du fichier a échoué. Réessayez.",
-      "participants": "{count} participants",
+      "participants": "{count, plural, one {# participant} other {# participants}}",
       "viewProperty": "Voir le bien",
       "groupInfoAria": "Infos du groupe",
       "loadError": "Impossible de charger les messages.",
@@ -5348,7 +5348,7 @@
     "multiAgency": {
       "welcomeAgency": "Bienvenue chez {agency}",
       "welcomeGeneric": "Une nouvelle agence vous attend",
-      "subtitle": "Vous collaborez désormais avec {count} agence(s). Votre profil, votre KYC et vos métiers sont mutualisés.",
+      "subtitle": "Vous collaborez désormais avec {count, plural, one {# agence} other {# agences}}. Votre profil, votre KYC et vos métiers sont mutualisés.",
       "status": {
         "active": "Actif",
         "paused": "En pause",
@@ -6620,7 +6620,7 @@
       "drop_description": "Relâchez pour téléverser ce fichier.",
       "upload_cta": "Téléverser un document",
       "error": "Impossible de charger les documents.",
-      "count": "{count} document(s)",
+      "count": "{count, plural, one {# document} other {# documents}}",
       "delete_error": "Suppression impossible.",
       "verified": "Vérifié",
       "versions": "Versions",
@@ -7130,7 +7130,7 @@
       "titleCustomer": "Votre retour visiteur",
       "titleAgent": "Retour agent",
       "ratingLabel": "Note (1 à 5)",
-      "starsAria": "{count} étoiles",
+      "starsAria": "{count, plural, one {# étoile} other {# étoiles}}",
       "commentLabel": "Commentaire (optionnel)",
       "placeholderCustomer": "Ce que vous avez pensé du bien…",
       "placeholderAgent": "Retour sur le déroulement de la visite…",
@@ -7275,7 +7275,7 @@
       "empty_title": "Aucun enum métier éditable",
       "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée.",
       "navLabel": "Enums éditables",
-      "valuesCount": "{count} valeurs",
+      "valuesCount": "{count, plural, one {# valeur} other {# valeurs}}",
       "addValue": "Ajouter une valeur",
       "editValue": "Modifier la valeur",
       "value": "Valeur",
@@ -7397,7 +7397,7 @@
       "batchDecision": "Décision",
       "batchDecisionPlaceholder": "Choisir une décision",
       "batchApply": "Appliquer à {count, plural, one {# élément} other {# éléments}}",
-      "batchResult": "{ok} traité(s), {failed} en échec.",
+      "batchResult": "{ok, plural, one {# traité} other {# traités}}, {failed} en échec.",
       "batchErrors": {
         "already_decided": "déjà tranché",
         "claimed_by_other": "pris en charge par un autre modérateur",
@@ -7465,7 +7465,7 @@
       "preview": "Prévisualiser",
       "subject": "Sujet",
       "body": "Corps",
-      "smsSegments": "{count} segment(s)",
+      "smsSegments": "{count, plural, one {# segment} other {# segments}}",
       "previewTitle": "Prévisualisation"
     },
     "users": {
@@ -7508,7 +7508,7 @@
       "empty_description": "Publiez une annonce pour informer les utilisateurs de la plateforme.",
       "title": "Annonces diffusées",
       "subtitle": "Broadcasts actifs, programmés ou expirés.",
-      "countBadge": "{count} annonces",
+      "countBadge": "{count, plural, one {# annonce} other {# annonces}}",
       "colTitle": "Titre",
       "colSeverity": "Sévérité",
       "colSegment": "Segment",
@@ -7607,7 +7607,7 @@
       "detailUuid": "UUID",
       "detailException": "Exception",
       "confirmRetryAllTitle": "Rejouer tous les jobs échoués",
-      "confirmRetryAllDescription": "{count} job(s) échoué(s) seront remis en file d'un seul coup. Au-delà de 500, l'API refuse le lot.",
+      "confirmRetryAllDescription": "{count, plural, one {# job échoué sera remis en file d'un seul coup.} other {# jobs échoués seront remis en file d'un seul coup.}} Au-delà de 500, l'API refuse le lot.",
       "confirmDeleteTitle": "Supprimer un job échoué",
       "confirmDeleteDescription": "{count} job échoué (#{id}) sera purgé définitivement, avec son payload et sa trace.",
       "retryError": "Le rejeu de ce job a échoué.",
@@ -7888,7 +7888,7 @@
       "integrations": {
         "title": "Intégrations tierces",
         "subtitle": "Configurez les providers de paiement, messagerie et email sans exposer les secrets.",
-        "criticalDown": "{count} intégration paiement critique en panne."
+        "criticalDown": "{count, plural, one {# intégration paiement critique en panne.} other {# intégrations paiement critiques en panne.}}"
       },
       "settings": {
         "title": "Paramètres plateforme",
@@ -8121,7 +8121,7 @@
         "review": "Examiner",
         "agencyFallback": "Agence #{id}",
         "agencyRef": "#{id}",
-        "plannedAgents": " · {count} agent(s) prévu(s)",
+        "plannedAgents": " · {count, plural, one {# agent prévu} other {# agents prévus}}",
         "userFallback": "User #{id}",
         "columns": {
           "agency": "Agence",
@@ -8146,7 +8146,7 @@
         "delay": {
           "today": "Aujourd'hui",
           "oneDay": "1 jour",
-          "days": "{count} jours"
+          "days": "{count, plural, one {# jour} other {# jours}}"
         },
         "pagination": {
           "previous": "Précédent",
@@ -9908,7 +9908,7 @@
     },
     "growth": {
       "total": "Total:",
-      "chartAria": "Évolution mensuelle — {metric}, {count} points."
+      "chartAria": "Évolution mensuelle — {metric}, {count, plural, one {# point} other {# points}}."
     },
     "funnel": {
       "conversion": "Conversion globale :",
@@ -9930,7 +9930,7 @@
         "mrr": "MRR",
         "arr": "ARR"
       },
-      "chartAria": "Évolution mensuelle du MRR, {count} points.",
+      "chartAria": "Évolution mensuelle du MRR, {count, plural, one {# point} other {# points}}.",
       "chartCaption": "MRR par mois, en XOF."
     },
     "cohorts": {
@@ -10062,7 +10062,7 @@
       "emptyHint": "Reviens bientôt — les annonces se renouvellent régulièrement.",
       "loadMoreAria": "Charger plus de biens",
       "loading": "Chargement…",
-      "loadMore": "Voir plus de biens ({count} restants)"
+      "loadMore": "Voir plus de biens ({count, plural, one {# restant} other {# restants}})"
     },
     "reviews": {
       "eyebrow": "Avis & témoignages",
@@ -10698,7 +10698,7 @@
       "prospect_match": {
         "digest": {
           "title": "Des biens correspondent à vos prospects",
-          "body": "{properties} bien(s) récent(s) ou dont le prix a changé correspondent à {prospects} de vos prospects."
+          "body": "{properties, plural, one {# bien récent ou dont le prix a changé correspond} other {# biens récents ou dont le prix a changé correspondent}} à {prospects} de vos prospects."
         }
       },
       "property": {
