@@ -1360,7 +1360,7 @@ Correct (mesuré ou lu) :
 
 ### Petites améliorations
 - Réf : P09.08
-- Statut : retenu · à valider — V8 : cinq correctifs indépendants, dont trois demandent chacun une décision de structure ; à découper en tickets (le V7 accordé ne couvre pas la taille)
+- Statut : validé — canonique propre à chaque page et `resumePourMeta()` ; au-delà de `last_page`, `robots: noindex` sur la page (le `loading.tsx` de la liste reste, le code reste 200) ; retirer `robots: index, follow` du layout public, valeur par défaut, pour lever la contradiction de la page introuvable ; reste : `generateSitemaps()`, reporté tant que le parc est loin de 16 600 biens
 - Gravité : 🟢 amélioration
 - Constat (lu ou mesuré en local) :
   - **Pagination** (`takussan-web/src/lib/canonique.ts:363`) : la canonique pointe toujours vers la page 1, et une page au-delà de `last_page` rend 200.
@@ -1596,7 +1596,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Un SMS qui échoue ne laisse ni trace ni alerte
 - Réf : P11.05
-- Statut : retenu · à valider — V4 : journaliser en base la tentative d'un SMS sans notification_id demande de rendre notification_delivery_attempts.app_notification_id nullable, une migration de schéma ; le V7 accordé ne portait que sur le choix seau séparé ou 503
+- Statut : validé — `Log::warning` quand aucun fournisseur n'est disponible ; migration qui rend `notification_delivery_attempts.app_notification_id` nullable, et tentative écrite sans notification (le `down()` supprime les lignes sans notification) ; seau séparé pour les codes critiques ; 503 lisible si rien n'est parti
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:195-201,241`, `takussan-api/app/Notifications/Channels/SmsChannel.php:75`, `takussan-api/app/Services/Lease/LeaseSignatureService.php:119-135`
 - Constat :
@@ -3728,7 +3728,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : retenu · à valider — V7 : la Piste offre deux voies (un `h2` de section, texte neuf, ou le niveau des cartes partagées), choix de structure à trancher
+- Statut : validé — pied de page en `h2`, et un `h2` `sr-only` au-dessus des grilles de résultats et de l'index des agences ; garde : `heading-order` d'axe ; en `wo`, le texte français tel quel
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3740,7 +3740,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
-- Statut : retenu · à valider — V7 : choix du libellé d'onglet de chaque page, les titres affichés (« Content de vous revoir ») ne nomment pas la page
+- Statut : validé — libellés d'onglet courts et neufs (Connexion, Inscription, Mot de passe oublié, Nouveau mot de passe, Vérification de l'e-mail) ; en `wo`, le texte français tel quel ; un test par page
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
 - Constat :
@@ -3752,7 +3752,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Petites améliorations
 - Réf : P31.07
-- Statut : retenu · à valider — V7 : taille et soulignement permanent des liens de la carte agent sont un choix de design
+- Statut : validé — `min-h-6` et soulignement permanent sur les deux liens de `PropertyAgentCard`, titre de l'invitation par le modèle commun
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
 - Constat :
@@ -3819,7 +3819,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
 - Réf : P33.04
-- Statut : retenu · à valider — V8 : rendre côté serveur les blocs de la fiche est une restructuration de `PropertyDetailContent` au-delà de M
+- Statut : validé — dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après ; reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
 - Constat :
@@ -3832,7 +3832,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : retenu · à valider — V5 et V9 : un pas de plus dans `web-ci.yml`, et un seuil de poids à décider
+- Statut : validé — `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport seul, sans seuil ni refus ; le seuil se décide plus tard sur les chiffres
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -3870,7 +3870,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les décisions SEO du porteur pour la bascule ne sont écrites ni dans TCK-517 ni dans le plan de la phase F
 - Réf : P34.01
-- Statut : retenu · à valider — V5 et V6 : tâche de bascule (DNS Cloudflare, Search Console) et 308 contraire à ADR-0026 § 3
+- Statut : retenu · à valider — V5 et V6 : tâche de bascule (DNS Cloudflare, Search Console) et 308 contraire à ADR-0026 § 3 ; porteur (2026-10-17) : traité hors agents, en session : tâche SEO de la phase F et amendement d'ADR-0026 § 3 pour la 308
 - Gravité : 🟠 risque ou dette
 - Où : `docs/backlog/tickets/TCK-517-production-auto-hebergee.md`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951-4200`, `docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md:154-168`, `takussan-web/src/proxy.ts:161`
 - Constat :
@@ -3885,7 +3885,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Le sitemap est figé au build, et le premier build de production se fait sans API
 - Réf : P34.02
-- Statut : retenu · à valider — V5 et V7 : ordre du plan de bascule, et choix entre trois options de rendu du sitemap
+- Statut : validé — sitemap rendu à la demande avec un cache de données d'une heure, et non plus prérendu au build ; reste : compter ses `<loc>` en F3 avant la soumission, hors agents dans le plan
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
 - Constat :
@@ -3898,7 +3898,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
 - Réf : P34.03
-- Statut : retenu · à valider — V5 : sortie `media_url` de production dans `images.yml` et médias de production sur R2
+- Statut : retenu · à valider — V5 : sortie `media_url` de production dans `images.yml` et médias de production sur R2 ; porteur (2026-10-17) : traité hors agents, en session : `media_url` de production en F2 et étape F1 du seau R2 de production (ADR-0029)
 - Gravité : 🟠 risque ou dette
 - Où : plan F2 étape 1 (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`, bloc `master)`), `.github/workflows/images.yml:36-44,100-103`, `takussan-web/Dockerfile:17,28`
 - Constat :
@@ -3910,7 +3910,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### F3 ne dit pas quelles variables d'exécution reçoivent le front et l'API de production
 - Réf : P34.04
-- Statut : retenu · à valider — V5 : variables d'environnement du front et de l'API de production
+- Statut : retenu · à valider — V5 : variables d'environnement du front et de l'API de production ; porteur (2026-10-17) : traité hors agents, en session : variables d'exécution de `takussan-web-prod` et clés `PUBLIC_CACHE_*` de l'API dans le plan F3
 - Gravité : 🟠 risque ou dette
 - Où : plan F3 étape 1, `docs/infra/hebergement.md:171-180`, `takussan-web/src/app/api/revalidation/fiche/route.ts:78-89`, `takussan-api/config/services.php:55-58`
 - Constat :
@@ -3923,7 +3923,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Petites améliorations
 - Réf : P34.05
-- Statut : retenu · à valider — V5 et V7 : `noindex` selon l'environnement et plan F3, en plus d'une politique `robots` à trancher
+- Statut : validé — `Disallow: /app/` et `/app$` avec un test contre les fichiers de la racine, `robots: { index: false }` sur les passages interdits, `noindex` (front et API) dès que l'origine n'est pas celle de la production ; reste : la commande de F3, hors agents en session
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
 - Constat :
@@ -3944,7 +3944,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
 - Réf : P35.01
-- Statut : retenu · à valider — V7 : maillon de quartier rendu cliquable, contre une décision écrite du 2026-08-28
+- Statut : validé — maillon de quartier cliquable vers sa canonique quand le quartier est dans le domaine indexable de sa ville, libellé sinon ; docblock et test du fil réécrits
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
 - Constat :
@@ -3959,7 +3959,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
-- Statut : retenu · à valider — V7 : liens et libellés neufs sur la page de ville, l'accueil ou le pied de page
+- Statut : validé — liens « Quartiers de <ville> » sur la page de ville et « Chercher par ville » dans le pied de page, chacun vers une canonique présente au sitemap ; en `wo`, le texte français tel quel
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/data/navigation.ts:124-139`, `takussan-web/src/components/home/Footer.tsx`, `takussan-web/src/components/property/HomepageDiscovery.tsx:162`
 - Constat :
@@ -3972,7 +3972,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
-- Statut : retenu · à valider — V7 et V4 : texte de description neuf, et colonne de présentation pour le second palier
+- Statut : validé — palier 1 : le nombre de biens du lieu dans la description ; reste : le palier 2 (colonne de présentation), plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
 - Constat :
@@ -3998,7 +3998,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Petites améliorations du maillage des facettes
 - Réf : P35.05
-- Statut : retenu · à valider — V7 : seuils de page de ville et de paires contrat × ville à trancher par le porteur
+- Statut : validé — ville du fil d'Ariane liée avec le contrat du maillon précédent ; page de ville indexable à partir de 3 biens, comme le quartier ; paires contrat × ville au sitemap à partir de 3 biens
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:70-84`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/queries/facettes.ts:81-90`
 - Constat :
@@ -4023,7 +4023,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Aucun accusé LAfricaMobile ne peut passer : l'URL signée ne couvre pas les paramètres que LAM y ajoute
 - Réf : P36.01
-- Statut : retenu · à valider — V2 : desserrer la vérification de signature d'un rappel entrant
+- Statut : validé — exclure de la vérification les paramètres ajoutés par LAM (`push_id`, `ret_id`, `to`, `status`, `text`), dans le middleware `signed` de la route comme dans le contrôleur ; tests réécrits depuis le `ret_url` réellement émis par le pilote ; reste : confirmer sur un vrai rappel de LAM
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:85,128-140`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:32,50-53`, `takussan-api/tests/Feature/Http/Webhook/LAfricaMobileSmsWebhookTest.php:44-50`
 - Constat :
@@ -4037,7 +4037,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Les accusés SMS poussés écrasent le dernier statut : un `sent` tardif ou rejoué efface un `delivered`
 - Réf : P36.02
-- Statut : retenu · à valider — V7 : le last-write du SMS est écrit délibéré (docblock, TCK-283)
+- Statut : validé — la précédence du pulling `[sent, delivered, failed]` sur les trois routes SMS poussées, dite dans le docblock de l'updater ; un test par route
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:62-73`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-70`, `OrangeSmsStatusController.php:84-97`, `MtargetSmsStatusController.php:66-82`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:96-104`, `takussan-api/app/Services/Webhooks/WebhookReplayer.php:85-87`
 - Constat :
@@ -4050,7 +4050,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Les statuts intermédiaires d'Orange et de Mtarget sont écrits comme des échecs
 - Réf : P36.03
-- Statut : retenu · à valider — V7 : la table des statuts terminaux dépend de documents de fournisseurs non lus
+- Statut : validé — n'écrire que les statuts sûrement terminaux, par une table explicite par fournisseur ; tout autre statut est ignoré avec un `Log::warning`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:84-90`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:66-69`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-61`, `takussan-api/app/Services/Admin/HealthcheckService.php:241-253`
 - Constat :
@@ -4063,7 +4063,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : retenu · à valider — V5 : une variable d'environnement par fournisseur, et l'authentification des trois routes change
+- Statut : validé — un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), repli sur la clé commune pendant la bascule ; reste : poser les trois clés dans Dokploy (porteur, TCK-720)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4075,7 +4075,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
-- Statut : retenu · à valider — V5 : une valeur de configuration neuve, et l'exigence de Meta reste à lire
+- Statut : validé — route `GET` de vérification de Meta sur le même chemin, gardée par le jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration neuve et rend `hub.challenge` ; reste : poser la clé quand WhatsApp sera branché
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
 - Constat :
@@ -4087,7 +4087,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Rien n'abonne Orange aux accusés, et l'appariement suppose un `resourceURL` dans la notification
 - Réf : P36.06
-- Statut : retenu · à valider — V7 : la piste ouvre deux options et dépend de la documentation d'Orange
+- Statut : retenu · à valider — V7 : la piste ouvre deux options et dépend de la documentation d'Orange ; porteur (2026-10-17) : plus tard, à la mise en service d'Orange, sur sa documentation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-140`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:72-80`, `docs/integrations/sms.md` (« Operational checklist »)
 - Constat :
@@ -4099,7 +4099,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Le débit de 120 par minute et par IP refuse les rafales d'accusés, sans trace au journal
 - Réf : P36.07
-- Statut : retenu · à valider — V2 : le débit freine le forçage du jeton, et la piste se tranche avec P36.04
+- Statut : validé — un limiteur nommé par fournisseur, plus large que 120 par minute, et un `Log::warning` sur chaque 429 ; le journal des webhooks reste après le débit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/sms-webhooks.php:22-33`, `takussan-api/routes/api/whatsapp-webhooks.php:16-18`, `takussan-api/config/sms.php` (`mtarget.batch_max`)
 - Constat :
@@ -4111,7 +4111,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : retenu · à valider — V5 : retirer `WHATSAPP_WEBHOOK_IPS` touche les environnements, et refuser un statut non signé touche V2
+- Statut : validé — les quatre points : retirer `WHATSAPP_WEBHOOK_IPS` et son docblock, déclarer `dlr_signature_ttl_days`, corriger le domaine de `docs/integrations/sms.md`, refuser un statut non signé dès qu'un jeton est posé quel que soit l'environnement
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4140,7 +4140,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les limiteurs d'authentification et les compteurs de vues comptent une IPv6 entière, pas son /64
 - Réf : P37.01
-- Statut : retenu · à valider — V2 : clés des limiteurs d'authentification
+- Statut : validé — une seule fonction de clé par IP, `VisitorFingerprint::network`, pour tous les limiteurs et compteurs qui lisent `$request->ip()`, débits numériques des routes publiques compris ; un test par limiteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:458,466,472-473,482,586-590`, `takussan-api/app/Services/Property/PropertyViewCounter.php` (`cle()`), `takussan-api/app/Services/Boost/BoostStatsRecorder.php:85`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:626-629`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:381`
 - Constat :
@@ -4154,7 +4154,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les flux iCal lus par Airbnb, Booking.com et Google Agenda sont bornés par IP de la plateforme, pas par flux
 - Réf : P37.02
-- Statut : retenu · à valider — V7 : bornes par flux et par IP à choisir
+- Statut : validé — 30 par minute et par flux (clé par jeton haché), plus une borne de 600 par minute et par IP
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:455-466`, `takussan-api/routes/web.php:18-22`, `takussan-api/routes/api/calendar-feeds.php:14-16`
 - Constat :
@@ -4166,7 +4166,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : retenu · à valider — V5 : variable d'environnement de préproduction
+- Statut : validé — le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :
@@ -4180,7 +4180,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
 - Réf : P37.04
-- Statut : retenu · à valider — V5 : réseau Docker et TRUSTED_PROXIES
+- Statut : retenu · à valider — V5 : réseau Docker et TRUSTED_PROXIES ; porteur (2026-10-17) : traité hors agents, dans la phase F (TCK-517) : réseau dédié Traefik ↔ API, après un relevé sur le serveur
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:82`, `deploy/takussan/compose.api.yml:19-20,82-83`, `takussan-api/bootstrap/app.php:43-53`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
 - Constat :
@@ -4193,7 +4193,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les plages Cloudflare sont recopiées à la main dans `traefik.yml` et dans `TRUSTED_PROXIES`, sans contrôle de fraîcheur
 - Réf : P37.05
-- Statut : retenu · à valider — V5 : minuteur du serveur
+- Statut : retenu · à valider — V5 : minuteur du serveur ; porteur (2026-10-17) : traité hors agents, en session : minuteur à côté de `seuils.timer` qui compare les plages et alerte par Telegram, sans rien écrire
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:81-82`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3523`, `deploy/server/`
 - Constat :
@@ -4205,7 +4205,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Petites améliorations
 - Réf : P37.06
-- Statut : retenu · à valider — V5 : en-têtes de confiance et refus au démarrage de TRUSTED_PROXIES
+- Statut : validé — `headers:` restreint à `FOR | PROTO | PORT`, `IpUtils::checkIp` dans `RestrictIpMiddleware` ; un `TRUSTED_PROXIES` qui contient `*` donne un `Log::critical` et une sonde de santé `degraded`, sans refus au démarrage ; reste : la phrase du plan, hors agents
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/bootstrap/app.php:43-53`, `takussan-api/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php:22-27`, `takussan-api/app/Http/Resources/DataExportResource.php:23`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-api/app/Http/Middleware/RestrictIpMiddleware.php:35-37`
 - Constat :
