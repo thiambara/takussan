@@ -251,6 +251,7 @@ return [
     'admin_alert' => [
         'test_message' => '[TEST] :event déclenché par test synthétique.',
         'activity_message' => ':event — acteur :actor, objet :subject',
+        'failing_suffix' => ' — sondes en échec : :probes',
     ],
 
     // TCK-588 — salutation et bouton des e-mails rendus par code (CodedNotification).

@@ -1866,12 +1866,13 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Aucune règle d'alerte n'existe par défaut
 - Réf : P14.03
-- Statut : validé — une commande qui crée les trois règles ops_*, destinataire = les super-admins, appelée par release.sh
+- Statut : fait · TCK-768
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/AlertRuleService.php:71-75`
 - Constat : une alerte `ops_*` ne part que si une ligne active existe dans `alert_rules`. Aucun seeder ni aucune commande n'en crée. Sur une production neuve, les alertes vont au journal d'audit et nulle part ailleurs (mesuré sur le dépôt ; l'état de la base de préproduction est à vérifier).
 - Piste : créer les trois règles `ops_*` dans `release.sh`, destinataire tiré de l'environnement ; le vérifier dans le runbook de la phase F.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `AlertRuleService::dispatchForActivity()` (`AlertRuleService.php:64-75`) → n'envoie que pour une ligne `alert_rules` active ; `grep -rln 'AlertRule\|alert_rules' database app/Console deploy docs/infra` → seule la migration `2026_05_07_000221_create_alert_rules_table.php`, aucun seeder, aucune commande, rien dans `deploy/`. L'état de la base de préproduction n'est pas mesuré : sortir du poste est interdit à ce rôle. Classement : V5, la piste touche au déploiement et à une variable d'environnement.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `EnsureOperationalAlertRulesTest` avant correctif → 4 rouges (`alerts:ensure-ops-rules` inexistante, aucune règle `alert_rules` créée) → la commande crée, pour chaque `ops_*` du catalogue sans règle, une règle courriel vers les super-admins actifs, sans réécrire une règle existante ni rien créer sans super-admin ; `docker/release.sh` l'appelle, échec toléré (`test-release-reindex.sh`, 2 vérifications neuves). Ablation : commande retirée → 4 rouges, appel retiré de `release.sh` → 1 rouge ; remis → verts.
 
 ### Un job d'argent qui échoue chaque nuit reste sous le seuil
 - Réf : P14.04
@@ -1889,7 +1890,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
-- Statut : validé — ré-alerter quand l'ensemble des sondes en échec ou leur niveau change ; properties.failing dans le message
+- Statut : fait · TCK-769
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
 - Constat :
@@ -1899,10 +1900,11 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:47-53` → `ops_health_degraded` vaut `status !== 'ok'`, un booléen ; `:66-74` n'écrit qu'au passage de faux à vrai, donc `degraded` → `failed` se tait ; `HealthcheckService.php:209-210` → transport `log` ⇒ sonde `mail` `degraded`, et `docs/infra/prod-drivers.json:50-52` relève `MAIL_MAILER=log` en préproduction ; `AlertRuleService.php:76-87` (le constat citait 78-82) → le message ne porte qu'`event`, `actor`, `subject`, les `properties` (dont `failing`) restent dans l'activité. Le constat tient en entier. Classement : V7, la règle de ré-alerte et un message enrichi changent ce que reçoit le destinataire, sans spec qui les fixe.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `HealthAlertRealertTest` avant correctif → 3 rouges sur 5 (`degraded` puis `failed` : 1 alerte ; une sonde de plus : 1 alerte ; message sans les sondes) → la transition de la santé porte une signature (statut global et sondes triées), et le message ajoute « sondes en échec : mail (degraded), … ». Ablation : signature retirée → 2 rouges, suffixe retiré → 1 rouge ; remis → 5 verts, et `EvaluateOperationalAlertsTest`, `OperationalAlertDeliveryTest` verts.
 
 ### Le courriel de notification n'est jamais retenté
 - Réf : P14.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-770
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`
 - Constat :
@@ -1912,6 +1914,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : ne rattraper qu'à la dernière tentative (`$this->attempts() >= $this->tries`), ou relancer et laisser `failed()` agir.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Jobs/SendRawNotificationEmailJob.php:23-48` → `$tries = 3`, `backoff [10, 60, 180]`, et un `catch (\Throwable)` sans condition ; test temporaire (Mail::raw qui lève, `handle()` appelé, retiré ensuite) → vert, aucune exception à la première tentative (`attempts() = 1`) : le job est réussi, jamais retenté (charge 2,49 sur 8 cœurs). Classement : A1, le commentaire `:38-41` du job écrit le comportement attendu (retenter par `$tries`, n'avaler qu'à la dernière tentative), et le corriger ne demande aucun choix de produit.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SendRawNotificationEmailJobTest` avant correctif → rouge à la tentative 1 sur 3 (`Mail::raw` qui lève : aucune exception ne sort, le job est réussi) → `handle()` relève tant qu'il reste une tentative, hors file `sync` où l'échec reste avalé ; 3 verts. Ablation : relance retirée → 1 rouge ; garde `SyncJob` retirée → 1 rouge (l'échec atteint l'appelant) ; remis → verts, `NotificationTest` vert.
 
 ### Aucun rapporteur d'erreurs, ni côté API ni côté front
 - Réf : P14.07
@@ -1940,12 +1943,13 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Des notifications de prospects et de visites avalées sans trace
 - Réf : P14.09
-- Statut : validé — report par SafeExceptionContext dans les six catch, jamais getMessage
+- Statut : fait · TCK-771
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lead/ContactLeadService.php:232,332,346`, `takussan-api/app/Services/Visit/VisitNotifier.php:181,214`, `takussan-api/app/Services/Messaging/GroupConversationService.php:152`
 - Constat : des `catch (\Throwable) {}` sans `report()`. Si l'agent n'est pas prévenu d'une demande venue du site public, rien n'est journalisé, même si la demande est bien enregistrée (lu).
 - Piste : `report($e)`, sans changer le caractère non bloquant.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `Services/Lead/ContactLeadService.php:232,332,346`, `Services/Visit/VisitNotifier.php:181,214`, `Services/Messaging/GroupConversationService.php:152` → six `catch (\Throwable)` vides, sans journal (`git grep 'report($e' app/Services` → 0). Le constat tient en entier. Mais `report($e)` écrit `getMessage()`, qu'`app/Support/Logging/SafeExceptionContext.php` (ADR-0044 §2) interdit : un refus SMTP y recopie l'adresse du destinataire. Classement : V3, il faut décider quoi journaliser depuis ces chemins de données de prospects, et aucun critère A ne couvre l'ajout d'un journal.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `SwallowedNotificationFailuresAreLoggedTest` avant correctif → 5 rouges sur 5 (un envoi qui lève « refus SMTP pour <adresse> » ne laisse aucune ligne de journal, sur les six `catch`) → chacun écrit un `Log::warning` à libellé fixe, l'identifiant de l'objet et `SafeExceptionContext::of($e)`, sans l'adresse, et l'action aboutit. Ablation : les trois fichiers remis → 5 rouges ; remis → 5 verts, et 41 tests voisins verts.
 
 ### Données personnelles écrites au journal, hors du périmètre de TCK-613
 - Réf : P14.10

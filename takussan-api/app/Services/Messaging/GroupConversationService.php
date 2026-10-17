@@ -9,8 +9,10 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
 use App\Notifications\ConversationInviteNotification;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -149,8 +151,12 @@ class GroupConversationService
             if ($user) {
                 try {
                     $user->notify(new ConversationInviteNotification($conversation, $actor));
-                } catch (\Throwable) {
+                } catch (\Throwable $e) {
                     // notification subsystem may be unconfigured in dev; never fail the API call.
+                    // TCK-771 — logged in the safe form of ADR-0044, never the message.
+                    Log::warning('[GroupConversationService] invite notification failed', [
+                        'conversation_id' => $conversation->id,
+                    ] + SafeExceptionContext::of($e));
                 }
             }
         }
