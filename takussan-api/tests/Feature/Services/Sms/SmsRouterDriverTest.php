@@ -150,8 +150,9 @@ class SmsRouterDriverTest extends TestCase
             'api.orange.com/oauth/*' => Http::response([
                 'access_token' => 'tok', 'expires_in' => 3600,
             ]),
-            'api.orange.com/smsmessaging/*' => Http::response(['error' => 'boom'], 500),
-            'lampush*' => Http::response(['error' => 'lam-down'], 500),
+            // TCK-766 — des refus (4xx) : un 5xx est ambigu et ne se replie plus.
+            'api.orange.com/smsmessaging/*' => Http::response(['error' => 'boom'], 400),
+            'lampush*' => Http::response(['error' => 'lam-down'], 400),
             'api-public-2.mtarget.fr/*' => Http::response([
                 'results' => [['code' => 0, 'ticket' => 'mtg-77']],
             ], 200),

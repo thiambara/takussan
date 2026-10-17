@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Sms\Drivers;
 
+use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -80,7 +81,7 @@ class MtargetSmsDriver implements SmsDriverInterface
             } catch (\Throwable $e) {
                 Log::warning('[sms.mtarget] HTTP exception', ['error' => $e->getMessage()]);
                 foreach ($chunk as $n) {
-                    $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_http_exception');
+                    $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_http_exception', AmbiguousDelivery::fromThrowable($e));
                 }
 
                 continue;
@@ -103,13 +104,14 @@ class MtargetSmsDriver implements SmsDriverInterface
                 }
             } else {
                 $reason = 'mtarget_error_'.$code;
+                $ambiguous = AmbiguousDelivery::fromStatus($response->status());
                 foreach ($chunk as $n) {
-                    $results[$n] = SmsResult::failed($n, $this->id(), $reason);
+                    $results[$n] = SmsResult::failed($n, $this->id(), $reason, $ambiguous);
                 }
             }
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $integration->markUsed();
 
         return $results;
     }

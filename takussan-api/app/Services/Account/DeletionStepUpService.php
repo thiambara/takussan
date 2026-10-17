@@ -92,6 +92,7 @@ class DeletionStepUpService
             ], $user->preferred_language ?: null), [
                 'event_type' => 'account_deletion_step_up',
                 'is_critical' => true,
+                'is_otp' => true,
                 'bypass_quiet_hours' => true,
             ]);
             // TCK-620 (ADR-0060) — le code parti par SMS revient aussi dans la réponse, hors

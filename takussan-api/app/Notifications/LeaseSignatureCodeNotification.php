@@ -66,4 +66,10 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
     {
         return true;
     }
+
+    /** TCK-766 — le code de signature doit arriver : il garde le repli sur un échec ambigu. */
+    public function isOtpSms(): bool
+    {
+        return true;
+    }
 }

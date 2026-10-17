@@ -1608,7 +1608,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le compte SMS choisi dépend du nombre d'agences du destinataire, et reste en cache dans le worker
 - Réf : P11.06
-- Statut : validé — repli sur l'intégration plateforme ; scoped() au lieu de singleton()
+- Statut : fait · TCK-765
 - Gravité : 🟠 risque ou dette (intention à vérifier)
 - Où : `takussan-api/app/Services/Notifications/Sms/IntegrationLocator.php:27-33`, `takussan-api/app/Notifications/Channels/SmsChannel.php:104`, `takussan-api/app/Providers/AppServiceProvider.php:284`
 - Constat :
@@ -1618,6 +1618,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un repli sur la plateforme, et `scoped()` à la place de `singleton()`.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `IntegrationLocator::find` (l. 18-33 : avec `agency_id`, seule l'intégration de l'agence ; cache par clé, nul compris), `SmsChannel::resolveAgencyId` (l. 102-107, lit `User::agency_id`, que `getAgencyIdAttribute` rend nul pour un multi-agences, `User.php:263-288`) et `AppServiceProvider::registerSmsServices` (`singleton(IntegrationLocator::class)`) relus ; `grep -rn 'flush()' app` → aucun appelant de `IntegrationLocator::flush()`. Le constat tient à la lecture ; l'intention (un compte SMS d'agence voulu ou non) n'est écrite nulle part, ADR-0032 l. 74 et 125 met le coût à la plateforme. Classement : V7, le repli sur la plateforme est une décision de facturation et de produit ; seul le passage à `scoped()` serait A1.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `IntegrationLocatorTest` → une agence sans intégration propre ne trouve pas celle de la plateforme (`find()` rend nul), et une intégration Orange créée après un premier envoi n'est pas vue après `forgetScopedInstances()` (`lafricamobile` au lieu d'`orange`) → `find()` retombe sur la plateforme, localisateur et ses six consommateurs en `scoped()` ; ablation : `singleton()` remis seul → 1 rouge, ancien `find()` remis seul → 1 rouge ; correctif remis : 3 verts, `tests/Feature/Services/Sms` et `Whatsapp` verts (74 tests).
 
 ### Diffusion en double, avant le commit, avec le contenu écrit au journal
 - Réf : P11.07
@@ -3368,7 +3369,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Un timeout ou une erreur 5xx après acceptation fait partir un second SMS par le fournisseur suivant
 - Réf : P27.02
-- Statut : validé — un échec ambigu (délai dépassé, 5xx) ne passe pas au fournisseur suivant ; les codes OTP gardent le repli
+- Statut : fait · TCK-766
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-105,143-150`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:78-88`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:76-87`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:175-188`, `takussan-api/app/Services/Notifications/Whatsapp/CloudApiWhatsappDriver.php:82-87`, `takussan-api/app/Notifications/Channels/WhatsappChannel.php:223`
 - Constat :
@@ -3381,10 +3382,11 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : distinguer l'échec sûr (connexion refusée, 4xx) de l'échec ambigu (délai de lecture, 5xx). Un échec ambigu ne passerait pas au fournisseur suivant pour un message non critique : statut `unknown`, réconcilié par l'accusé de réception ou le puller. Choix à faire pour les codes OTP. Un test par pilote garde le classement.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:94-105,143-150`, `SmsRouterDriver.php:175-188`, TCK-102:82 ; test temporaire (retiré) → Orange qui lève `ConnectionException` (« cURL error 28 ») : résultat `lafricamobile` `sent` ; Orange en 502 : résultat `lafricamobile` `sent`. Le doublon côté fournisseur reste non mesurable depuis le poste. Classement : V7, la piste renverse un comportement prescrit par TCK-102 (« timeout → fallback immédiat ») et laisse ouvert le traitement des OTP.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `AmbiguousSmsFailureTest` → Orange en « cURL error 28 » ou en 502, LAfricaMobile en délai dépassé et Mtarget en 503 passent tous au pilote suivant (4 rouges) → drapeau `ambiguous` sur `SmsResult` et `WhatsappResult` (délai dépassé, 5xx), la chaîne s'arrête pour le numéro sauf `is_otp` (posé par `PhoneVerificationService`, `DeletionStepUpService` et `LeaseSignatureCodeNotification`), et WhatsApp ne se replie plus en SMS sur un échec ambigu ; connexion refusée et 4xx se replient toujours ; ablation : routeur et `WhatsappChannel` remis → 6 rouges, drapeaux `is_otp` retirés → 1 rouge ; correctif remis : 366 tests verts sur `Services/Sms`, `Services/Whatsapp`, `Auth/Phone`, `AccountDeletionStepUpTest`, `LeaseSignatureTest`, `Notifications`. Quatre tests existants qui prenaient un 500 pour un refus passent en 400.
 
 ### Une exception levée après l'acceptation d'un fournisseur fait renvoyer le SMS
 - Réf : P27.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-767
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:153`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:107`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:112`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-179,239-268`, `deploy/takussan/compose.api.yml:55`
 - Constat :
@@ -3394,6 +3396,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu.
 - Piste : sortir `last_used_at` du chemin d'envoi (ou l'entourer d'un `try`), et rendre l'écriture de la tentative non bloquante pour un SMS déjà accepté (journal d'erreur, pas d'exception). Un test qui fait lever l'écriture de la tentative après un `sent` garde le retour.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `SmsRouterDriver.php:166-188,239-268` et les `forceFill(['last_used_at' …])->save()` hors `try` (`OrangeSmsDriver.php:153`, `LAfricaMobileSmsDriver.php:107`, `MtargetSmsDriver.php:112`) ; test temporaire (retiré) : `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM rendu → tentative 1 `lafricamobile` `failed` / `driver_exception_RuntimeException`, tentative 2 `mtarget` `sent` (le doublon est donc mesuré, plus déduit) ; `push_id` LAM déjà présent sur une autre notification → `UniqueConstraintViolationException` sortie du routeur. Le rejeu du job par `--tries=3` reste déduit (`compose.api.yml:54`, et non 55). Classement : A1, le routeur arrête déjà la chaîne sur un succès (`isTerminalSuccess`, l. 181-187) et le défaut viole ce contrat sans choix de produit.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `SmsAcceptedThenErrorTest` → `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM : résultat `mtarget` (renvoi) ; `push_id` LAM déjà enregistré ailleurs : `UniqueConstraintViolationException` sortie du routeur → `Integration::markUsed()` qui journalise sans lever (pilotes SMS et WhatsApp Cloud), `appendAttempt()` sous `try` ; ablation : routeur remis → 1 rouge, pilotes et modèle remis → 1 rouge ; correctif remis : 2 verts, 241 tests verts sur `Services/Sms`, `Services/Whatsapp` et 20 classes qui créent des intégrations.
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04

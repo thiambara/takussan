@@ -283,19 +283,24 @@ class AppServiceProvider extends ServiceProvider
     private function registerSmsServices(): void
     {
         // TCK-102 — register the multi-provider SMS stack. Each leaf
-        // driver is a singleton so its in-process state (Mtarget batch
+        // driver is shared (scoped) so its in-process state (Mtarget batch
         // counter, LAM ret_url cache, etc.) survives across notifications
         // dispatched in the same request. The router collects them by id.
-        $this->app->singleton(IntegrationLocator::class);
+        // TCK-765 (P11.06) — the locator caches Integration rows (null
+        // included), so it and every class holding it are `scoped()`: the
+        // queue worker forgets them between two jobs, and an Integration
+        // turned on or rotated takes effect on the next job instead of
+        // after the worker's --max-time.
+        $this->app->scoped(IntegrationLocator::class);
         $this->app->singleton(OperatorResolver::class);
         $this->app->singleton(QuietHoursGuard::class);
         $this->app->singleton(OrangeDailyCapTracker::class);
         $this->app->singleton(OrangeOAuthTokenCache::class);
         $this->app->singleton(LogSmsDriver::class);
-        $this->app->singleton(OrangeSmsDriver::class);
-        $this->app->singleton(MtargetSmsDriver::class);
-        $this->app->singleton(LAfricaMobileSmsDriver::class);
-        $this->app->singleton(SmsRouterDriver::class, function ($app): SmsRouterDriver {
+        $this->app->scoped(OrangeSmsDriver::class);
+        $this->app->scoped(MtargetSmsDriver::class);
+        $this->app->scoped(LAfricaMobileSmsDriver::class);
+        $this->app->scoped(SmsRouterDriver::class, function ($app): SmsRouterDriver {
             return new SmsRouterDriver(
                 drivers: [
                     'orange' => $app->make(OrangeSmsDriver::class),
@@ -328,7 +333,7 @@ class AppServiceProvider extends ServiceProvider
         // drivers, one conditional binding on config. `log` is the
         // default so nothing calls the operator until an env says so.
         $this->app->singleton(LogDlrPuller::class);
-        $this->app->singleton(MtargetDlrPuller::class);
+        $this->app->scoped(MtargetDlrPuller::class);
         $this->app->bind(SmsDlrPullerInterface::class, function ($app): SmsDlrPullerInterface {
             return match ((string) $app['config']->get('sms.dlr_pulling.driver', 'log')) {
                 'mtarget' => $app->make(MtargetDlrPuller::class),
@@ -344,7 +349,7 @@ class AppServiceProvider extends ServiceProvider
         // and falls back to the SMS router on ineligibility / hard failure.
         $this->app->singleton(ServiceWindow::class);
         $this->app->singleton(LogWhatsappDriver::class);
-        $this->app->singleton(CloudApiWhatsappDriver::class);
+        $this->app->scoped(CloudApiWhatsappDriver::class);
 
         // `log` in local/testing, `cloud` everywhere else.
         $this->app->bind(WhatsappDriverInterface::class, function ($app): WhatsappDriverInterface {

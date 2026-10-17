@@ -386,6 +386,7 @@ class PhoneVerificationService
         ], $locale ?: null), [
             'event_type' => 'phone_otp',
             'is_critical' => true,
+            'is_otp' => true,
             'bypass_quiet_hours' => true,
         ]);
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Sms\Drivers;
 
+use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\OperatorResolver;
 use App\Services\Notifications\Sms\OrangeOAuthTokenCache;
@@ -99,7 +100,7 @@ class OrangeSmsDriver implements SmsDriverInterface
                     ->post($url, $payload);
             } catch (\Throwable $e) {
                 Log::warning('[sms.orange] HTTP exception', ['error' => $e->getMessage()]);
-                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_http_exception');
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_http_exception', AmbiguousDelivery::fromThrowable($e));
 
                 continue;
             }
@@ -146,11 +147,11 @@ class OrangeSmsDriver implements SmsDriverInterface
                     ?? $body['requestError']['policyException']['messageId']
                     ?? $response->status()
                 );
-                $results[$recipient] = SmsResult::failed($recipient, $this->id(), "orange_error_{$errCode}");
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), "orange_error_{$errCode}", AmbiguousDelivery::fromStatus($response->status()));
             }
         }
 
-        $integration->forceFill(['last_used_at' => now()])->save();
+        $integration->markUsed();
 
         return $results;
     }

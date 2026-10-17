@@ -29,6 +29,9 @@ class SmsResult
         public readonly ?int $segmentsCount = null,
         public readonly ?\DateTimeImmutable $sentAt = null,
         public readonly ?\DateTimeImmutable $deliveredAt = null,
+        // TCK-766 — le fournisseur a pu accepter le message (délai dépassé, 5xx) :
+        // voir AmbiguousDelivery. Il décide du repli et n'est pas persisté.
+        public readonly bool $ambiguous = false,
     ) {}
 
     public static function sent(
@@ -49,7 +52,7 @@ class SmsResult
         );
     }
 
-    public static function failed(string $to, string $provider, string $reason): self
+    public static function failed(string $to, string $provider, string $reason, bool $ambiguous = false): self
     {
         return new self(
             to: $to,
@@ -57,6 +60,7 @@ class SmsResult
             status: self::STATUS_FAILED,
             failureReason: $reason,
             sentAt: new \DateTimeImmutable,
+            ambiguous: $ambiguous,
         );
     }
 
