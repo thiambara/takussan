@@ -2085,7 +2085,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Réglages d'agence : trois magasins, dont deux sans écrivain
 - Réf : P13.07
-- Statut : validé — un seul lecteur ScopedSetting::value() portant le déballage ; la devise lue sur agencies.currency seulement ; clés mortes retirées du seeder ; booking_pending_expiry_hours laissé tel quel
+- Statut : fait · TCK-778
 - Gravité : 🟠 risque ou dette — **concerne cette branche**
 - Où : `takussan-api/app/Support/ScopedSetting.php:30`, `takussan-api/app/Http/Controllers/Api/SettingController.php:37`, `takussan-api/app/Services/Booking/BookingExpirationService.php:43`, `takussan-api/app/Services/Payments/PaymentGatewayService.php:1327`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:59-66`, `takussan-api/database/seeders/System/SettingsSeeder.php:15-21`
 - Constat :
@@ -2097,6 +2097,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - Établi comment : lu, et mesuré.
 - Piste : un seul lecteur `ScopedSetting::value($key, $agencyId)` qui porte le déballage ; retirer les clés du seeder et la lecture de `settings['currency']`. Voir l'angle 47.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `ScopedSetting.php:30-40` (`agencyRow()`, lecture seule) ; `routes/api/settings.php:11` (`POST settings`) et `grep -rn "/settings"` dans `takussan-web/src` → aucun appelant de `/api/settings` ; `BookingExpirationService.php:43` et `PaymentGatewayService.php:1328-1329` lisent `agencies.settings` (`booking_pending_expiry_hours`, `currency`) que `AgencyUpdateRequest.php:59-66` ne valide pas ; `SettingsSeeder.php:15-21` : six des sept clés n'ont aucun lecteur dans `app/` ni le front (`default_timezone` n'apparaît que comme mot dans `SetLocaleMiddleware.php:52`, qui lit `user->timezone`) ; le déballage `$value['value'] ?? array_values($value)[0]` est en **quatre** copies, non cinq (`LeaseRenewalService.php:475`, `RentReviewService.php:163`, `EarlyTerminationService.php:299`, `LateFeeCalculator.php:202`), à côté de `PlatformSettingService::unwrap()` (l. 180). Le constat tient, au compte des copies près. Classement : V4, la piste retire des données semées et touche la devise lue au paiement (V1), en plusieurs correctifs (V8).
+- Mesure (2026-10-17, 8ef0d0915, implementeur) : reproduit avant correctif : le déballage en quatre copies et une variante (`OverdueReminderService::offsets`), aucune méthode `ScopedSetting::value()`, et une agence à `settings.currency = eur` et colonne `XOF` payait en `EUR` ; `SettingsSeeder` écrit huit clés, aucune lue dans `app/`, `routes/`, `config/`, `database/` ni le front → `ScopedSetting::value()` porte le déballage (type `_list` du catalogue : liste intacte), les cinq lecteurs l'appellent, `paymentCurrency()` ne lit plus `settings['currency']`, `SettingsSeeder` retiré ; `ScopedSettingReadersTest` (formes stockées, repli sur le catalogue, aucune copie restante) et `PaymentCurrencyFromAgencyColumnTest` : ablation 9 rouges sur 18, correctif remis 18 verts, 22 classes voisines vertes (237 tests).
 
 ### Routes en double et routes sans appelant
 - Réf : P13.08
