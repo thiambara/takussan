@@ -3020,6 +3020,23 @@ re-mesure, qui n'imprime que des noms :*
 ssh root@178.18.247.62 'for k in PUBLIC_CACHE_REVALIDATE_SECRET API_INTERNAL_URL VISITOR_IP_TRUSTED_HOPS PHONE_LOGIN_ENABLED; do docker exec takussan-api-preview-4iza80-api-1 sh -c "[ -n \"\${$k:-}\" ] && echo \"$k présente\" || echo \"$k absente\""; done'
 ```
 
+## 🟡 Rattachée à la phase F par décision du porteur (2026-10-15)
+
+### D-72 — Le référencement n'est pas en ligne : `www.takussan.com` sert `master` du 2026-08-15
+
+Relevé par la piste P09.01 (2026-10-15, `25820d04`) : `origin/master` est à `fefe2c87`
+(2026-08-15), sans `robots.ts` ni `sitemap.ts`, et `origin/dev` le devançait de 1 885 commits. Tout
+le travail de référencement — TCK-431 à 436 et 598 : sitemap, `robots.txt`, canoniques, `hreflang`,
+préfixe de langue d'ADR-0026 — n'existe qu'en préproduction et en local. Mesuré par la session le
+même jour sur `www.takussan.com` : `/robots.txt` et `/sitemap.xml` rendent `404`, `/fr` aussi, et
+`/` rend `200` sans canonique, `hreflang` ni `og:*`.
+
+*Décision du porteur (2026-10-15) : traité dans la phase F (TCK-517), et non avant.* Les gestes
+sont écrits dans le plan de la phase F depuis le 2026-10-17 (piste P34.01) : propriété Search
+Console par DNS TXT et relevé de l'index en F1, étape 7 ; contrôle du sitemap servi en F3, étape 3 ;
+soumission en F3, étape 7 ; relevé à J+7 en F5, étape 1. Condition de clôture : la soumission faite
+et le relevé de J+7 reporté dans le ticket F.
+
 ## Ce que cet inventaire ne couvre pas
 
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des

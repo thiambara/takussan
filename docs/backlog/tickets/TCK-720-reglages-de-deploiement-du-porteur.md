@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-17
 depends_on: []
 blocks: []
 spec_refs:
@@ -22,7 +22,7 @@ tags: [infra, dokploy, deploy, sms, media, porteur, pistes]
 ## Objectif utilisateur
 
 Que le porteur trouve au même endroit les réglages de déploiement qui restent après la validation
-des pistes du 2026-10-16. Les agents n'ont pas le droit d'y toucher (`deploy/`, Dokploy, image),
+des pistes du 2026-10-16, puis de celles du 2026-10-17. Les agents n'ont pas le droit d'y toucher (`deploy/`, Dokploy, image),
 et sans ces réglages les correctifs du code ne suffisent pas.
 
 ## Contrat de données
@@ -31,7 +31,7 @@ Aucun endpoint ni modèle. Les clés d'environnement et leur emplacement sont d�
 [`docs/infra/hebergement.md`](../../infra/hebergement.md), et les drivers déclarés dans
 [`docs/infra/prod-drivers.json`](../../infra/prod-drivers.json).
 
-Sources : pistes P27.01, P27.04, P05.09 et P10.10 de
+Sources : pistes P27.01, P27.04, P05.09, P10.10, puis P36.04 et P37.03 (2026-10-17), de
 [`docs/plans/2026-10-15-pistes-d-amelioration.md`](../../plans/2026-10-15-pistes-d-amelioration.md),
 où chaque constat est sourcé et daté.
 
@@ -67,6 +67,15 @@ où chaque constat est sourcé et daté.
   `preview` à 800 px).
 - [ ] **P10.10** — servir l'avatar par une conversion à sa taille d'affichage, plutôt que
   l'original jusqu'à 2560 px.
+- [ ] **P36.04** — une fois la piste faite par l'implémenteur (un jeton d'URL par fournisseur, repli
+  sur `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons, un par fournisseur et par environnement,
+  dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
+  de LAfricaMobile ne doit plus ouvrir la route d'Orange.
+- [ ] **P37.03** — préproduction : poser `API_INTERNAL_URL` sur `takussan-web-preview`, après la
+  mesure de D-71 (l'alias `api` doit être unique sur `dokploy-network` ; sinon le nom du
+  conteneur) et le relevé d'ADR-0052 § 6 avant et après. Sans elle, les trois formulaires anonymes
+  envoyés par action serveur (visite, contact d'un bien, contact d'un agent) partagent un seul seau
+  de débit pour tout le site.
 - [ ] Mettre chaque piste à `fait · TCK-720` dans le fichier de pistes une fois sa part faite.
 
 ## Critères d'acceptation
@@ -81,6 +90,11 @@ où chaque constat est sourcé et daté.
   `which jpegoptim` dans le conteneur), ou le bloc d'optimiseurs n'existe plus.
 - [ ] AC5 — `next build` en mode production ne déclare plus `dangerouslyAllowSVG` ni
   `dangerouslyAllowLocalIP` sans `contentSecurityPolicy`.
+- [ ] AC6 — en préproduction, un accusé posté sur la route d'Orange avec le jeton de LAfricaMobile
+  est refusé, et le jeton d'Orange l'ouvre.
+- [ ] AC7 — en préproduction, `API_INTERNAL_URL` est présente dans `takussan-web-preview`
+  (commande de D-71, qui n'imprime que des noms), et six demandes de contact anonymes venues de
+  deux visiteurs différents en dix minutes ne se refusent pas l'une l'autre.
 
 ## Hors périmètre
 

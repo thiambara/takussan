@@ -232,4 +232,36 @@ systemctl daemon-reload
 systemctl enable --now sauvegarde-seau-prive.timer
 [ -x /usr/local/sbin/sauvegarde-seau-prive ] || echo "⚠ /usr/local/sbin/sauvegarde-seau-prive absent : copier deploy/server/sauvegarde-seau-prive.sh (runbook), le timer attend."
 
+# ── 9. Plages Cloudflare de traefik.yml et de TRUSTED_PROXIES, chaque jour (P37.05) ──────
+# Les deux listes sont des copies à la main de la page de Cloudflare (relevé du 2026-09-14). Le
+# script compare et alerte sur Telegram, il n'écrit rien. Les unités attendent
+# /usr/local/sbin/plages-cloudflare — deploy/server/plages-cloudflare.sh, copié là par le runbook —
+# et lisent les secrets Telegram de /etc/default/seuils. Tant que le script manque, rien ne tourne.
+cat > /etc/systemd/system/plages-cloudflare.service <<'UNIT'
+[Unit]
+Description=Plages Cloudflare de traefik.yml et de TRUSTED_PROXIES (P37.05)
+ConditionPathExists=/usr/local/sbin/plages-cloudflare
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/plages-cloudflare
+UNIT
+cat > /etc/systemd/system/plages-cloudflare.timer <<'UNIT'
+[Unit]
+Description=Plages Cloudflare, chaque jour (P37.05)
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now plages-cloudflare.timer
+[ -x /usr/local/sbin/plages-cloudflare ] || echo "⚠ /usr/local/sbin/plages-cloudflare absent : copier deploy/server/plages-cloudflare.sh (runbook), le timer attend."
+
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."
