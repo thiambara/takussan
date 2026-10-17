@@ -5,6 +5,7 @@ namespace App\Services\Model;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceKind;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Invoice;
@@ -55,7 +56,9 @@ class InvoiceService
         $taxRate = isset($data['tax_rate'])
             ? (float) $data['tax_rate']
             : (float) ($agencyId !== null ? Agency::query()->whereKey($agencyId)->value('default_tax_rate') ?? 0 : 0);
-        $taxAmount = round($subtotal * $taxRate / 100, 2);
+        $currency = $data['currency'] ?? 'XOF';
+        // TCK-736 (P04.08) — la TVA s'arrondit à l'unité de la devise de la facture.
+        $taxAmount = Currency::roundAmount($subtotal * $taxRate / 100, $currency);
         $total = $subtotal + $taxAmount;
 
         return Invoice::create([
@@ -72,7 +75,7 @@ class InvoiceService
             'tax_rate' => $taxRate,
             'tax_amount' => $taxAmount,
             'total_amount' => $total,
-            'currency' => $data['currency'] ?? 'XOF',
+            'currency' => $currency,
             'notes' => $data['notes'] ?? null,
         ]);
     }

@@ -199,14 +199,20 @@ class PlatformPayoutService
      */
     public function breakdown(PlatformPayout $payout): array
     {
+        // TCK-736 (P04.08) — la commission s'arrondit ligne par ligne à l'unité de la devise, comme
+        // à la clôture : un `SUM` brut des commissions ne retomberait pas sur le montant figé.
+        $currency = $payout->currency;
+        $places = Currency::decimalPlacesOf($currency);
+        $aggregate = 'COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(ROUND(amount * platform_fee_pct_at_payment / 100, ?)), 0) as fees';
+
         $booking = BookingPayment::query()
             ->where('platform_payout_id', $payout->id)
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(amount * platform_fee_pct_at_payment / 100), 0) as fees')
+            ->selectRaw($aggregate, [$places])
             ->first();
 
         $lease = LeasePayment::query()
             ->where('platform_payout_id', $payout->id)
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as gross, COALESCE(SUM(amount * platform_fee_pct_at_payment / 100), 0) as fees')
+            ->selectRaw($aggregate, [$places])
             ->first();
 
         // TCK-733 (P04.05) — la pénalité encaissée avec le loyer vit dans le `metadata` du paiement,
@@ -216,13 +222,13 @@ class PlatformPayoutService
         return [
             'booking' => [
                 'count' => (int) ($booking->count ?? 0),
-                'gross' => round((float) ($booking->gross ?? 0), 2),
-                'fees' => round((float) ($booking->fees ?? 0), 2),
+                'gross' => Currency::roundAmount((float) ($booking->gross ?? 0), $currency),
+                'fees' => Currency::roundAmount((float) ($booking->fees ?? 0), $currency),
             ],
             'lease' => [
                 'count' => (int) ($lease->count ?? 0),
-                'gross' => round((float) ($lease->gross ?? 0) + (float) ($meta['late_fees_gross'] ?? 0), 2),
-                'fees' => round((float) ($lease->fees ?? 0) + (float) ($meta['late_fees_fee'] ?? 0), 2),
+                'gross' => Currency::roundAmount((float) ($lease->gross ?? 0) + (float) ($meta['late_fees_gross'] ?? 0), $currency),
+                'fees' => Currency::roundAmount((float) ($lease->fees ?? 0) + (float) ($meta['late_fees_fee'] ?? 0), $currency),
             ],
         ];
     }
@@ -280,6 +286,7 @@ class PlatformPayoutService
         abort_code_if($currencies->count() > 1, 422, 'payout.mixed_currencies');
         $currencyValue = (string) $currencies->first();
 
+        // TCK-736 (P04.08) — chaque commission s'arrondit à l'unité de la devise du reversement.
         $gross = 0.0;
         $fees = 0.0;
         $lateFeesGross = 0.0;
@@ -288,20 +295,20 @@ class PlatformPayoutService
             $pct = (float) ($row->platform_fee_pct_at_payment ?? 0);
             $amount = (float) $row->amount;
             $gross += $amount;
-            $fees += round($amount * $pct / 100, 2);
+            $fees += Currency::roundAmount($amount * $pct / 100, $currencyValue);
 
             // La pénalité réglée DANS le checkout qui a soldé le loyer est encaissée par la
             // plateforme : elle entre au brut, et la commission la frappe comme le loyer.
             $lateFee = $row instanceof LeasePayment ? $this->lateFeeSettledWith($row, $this->settledBy($row, $globalIntegrations)) : 0.0;
             if ($lateFee > 0) {
                 $lateFeesGross += $lateFee;
-                $lateFeesFee += round($lateFee * $pct / 100, 2);
+                $lateFeesFee += Currency::roundAmount($lateFee * $pct / 100, $currencyValue);
             }
         }
         $gross += $lateFeesGross;
         $fees += $lateFeesFee;
 
-        $net = round($gross - $fees, 2);
+        $net = Currency::roundAmount($gross - $fees, $currencyValue);
 
         $periodStart = $eligible->min('paid_at')
             ? Carbon::parse($eligible->min('paid_at'))->startOfDay()
@@ -313,8 +320,8 @@ class PlatformPayoutService
             'agency_id' => $agencyId,
             'period_start' => $periodStart->toDateString(),
             'period_end' => $periodEnd->toDateString(),
-            'gross_amount' => round($gross, 2),
-            'platform_fee_amount' => round($fees, 2),
+            'gross_amount' => Currency::roundAmount($gross, $currencyValue),
+            'platform_fee_amount' => Currency::roundAmount($fees, $currencyValue),
             'net_amount' => $net,
             'currency' => $currencyValue,
             'status' => PlatformPayoutStatus::Pending,
@@ -322,8 +329,8 @@ class PlatformPayoutService
             'metadata' => [
                 'booking_payments_count' => $bookingPayments->count(),
                 'lease_payments_count' => $leasePayments->count(),
-                'late_fees_gross' => round($lateFeesGross, 2),
-                'late_fees_fee' => round($lateFeesFee, 2),
+                'late_fees_gross' => Currency::roundAmount($lateFeesGross, $currencyValue),
+                'late_fees_fee' => Currency::roundAmount($lateFeesFee, $currencyValue),
             ],
         ]);
 

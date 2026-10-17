@@ -637,7 +637,7 @@ contre le code par la session.*
 
 ### Arrondis au centime sur du XOF
 - Réf : P04.08
-- Statut : validé — une seule fonction d'arrondi par devise (Currency::decimalPlacesOf) pour la facture, la commission, la caution et le reversement
+- Statut : fait · TCK-736
 - Gravité : 🟠 risque ou dette
 - Où : `InvoiceService.php:58`, `CommissionLedgerService.php:82`, `DepositRefundService.php:58`, `PlatformPayoutService.php:266` comparé à `:199`
 - Constat :
@@ -645,6 +645,7 @@ contre le code par la session.*
   - La clôture (arrondi par ligne, en PHP) et le détail (`SUM` en SQL) peuvent différer (lu).
 - Piste : une seule fonction d'arrondi par devise (`Currency::decimalPlacesOf`), appliquée partout.
 - Mesure (2026-10-15, 92e465d6, mesureur) : relu `app/Services/Model/InvoiceService.php:58` (`round($subtotal * $taxRate / 100, 2)`, le constat ne donnait pas le dossier), `CommissionLedgerService.php:82` (`floor(round($base * $share, 6)) / 100`, au centime), `DepositRefundService.php:58,85,166` (`round(…, 2)`), `PlatformPayoutService` (arrondi par ligne à 2 décimales dans `closeForAgency()`, `SUM` SQL puis `round(…, 2)` dans `breakdown()`), contre `PaymentGatewayService::roundToCurrencyUnit()` (`Currency::decimalPlacesOf`) et `PayoutCalculator::round()`. Constat confirmé ; l'exemple 118 001,18 n'est pas re-calculé par exécution. Classement : V1, calcul de montants de facture, de commission et de reversement.
+- Mesure (2026-10-17, 4bf83b81, implementeur) : avant correctif, les quatre tests neufs rendaient en XOF une TVA de 18 000,18 sur 100 001 à 18 %, une caution rendue de 300 000,40, une commission de 30 000,30 sur 100 001 à 30 % et une commission plateforme de 10 001,00 pour deux lignes de 5 000,50 → `Currency::roundAmount()` (arrondi à `decimalPlacesOf`, moitié vers le haut) dans les quatre services, plancher à l'unité de la devise pour la commission du grand livre, `ROUND` par ligne dans le détail du reversement ; ablation des services : 4 rouges, ablation du seul `ROUND` du détail : 1 rouge, correctif remis : 111 verts sur 13 classes.
 
 ### Devise forcée, et affichage sans décimales hors XOF
 - Réf : P04.09
@@ -692,7 +693,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Un verrou `withoutOverlapping` reste orphelin 24 h si le scheduler est tué au redéploiement
 - Réf : P05.01
-- Statut : validé — withoutOverlapping(N) proche de la période, sans toucher deploy/ ; reste : le stop_grace_period dans deploy/, par le porteur, avec P05.06
+- Statut : fait · TCK-737 — reste : le stop_grace_period dans deploy/, par le porteur, avec P05.06
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:65-68`, `takussan-api/routes/console.php:106,113,115,151,174`
 - Constat :
@@ -702,6 +703,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `impersonation:close-expired`, `health:probe` et `boosts:tick` durent de 12 à 25 s en dev (mesuré). Un déploiement qui tombe pendant l'une d'elles la saute donc 24 h (lu ; non observé en préproduction).
 - Piste : `->withoutOverlapping(N)` avec N proche de la période, et `stop_grace_period: 120s`.
 - Mesure (2026-10-15, 8e30c8ef, mesureur) : relu `deploy/takussan/compose.api.yml:64-67` (service `scheduler` sans `stop_grace_period`), `takussan-api/docker/entrypoint.sh` (`exec "$@"` : `schedule:work` est PID 1), `routes/console.php:106,113,115,151,174` (lignes inchangées), et le framework v13.25.0 : `ScheduleWorkCommand::listenForSignals()` piège SIGTERM et attend la fin des `schedule:run` en cours sans leur relayer le signal, `Event::ensureMutexIsReleasedOnSignal()` ne libère le verrou que si le processus enfant reçoit lui-même le signal, `expiresAt = 1440` ; `CACHE_STORE=redis` en préproduction (`prod-drivers.json`, mesuré le 2026-09-14) → le constat tient, mais seulement pour une exécution qui dépasse les 10 s de grâce : une exécution plus courte finit et rend son verrou, ce que le constat ne disait pas ; le saut de 24 h n'est pas observé. Classement : V5, la moitié du correctif est un réglage de `deploy/takussan/compose.api.yml`.
+- Mesure (2026-10-17, 4bf83b81, implementeur) : avant correctif, `ScheduleOverlapLockTest` (neuf, qui parcourt les tâches planifiées et compare `expiresAt` à la période déduite de l'expression cron) relevait 19 tâches infra-quotidiennes, de période 1 à 60 min, sous un verrou de 1 440 min → `withoutOverlapping(N)` avec N égal à la période (1, 5, 15, 60) dans `routes/console.php`, `deploy/` non touché ; ablation : 1 rouge sur les 19 tâches, correctif remis : vert, et 29 verts sur les 7 classes qui lisent le planning.
 
 ### Les jobs qui ciblent un jour ou une heure exacts ne rattrapent rien
 - Réf : P05.02
