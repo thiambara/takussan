@@ -2740,7 +2740,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
-- Statut : retenu · autonome
+- Statut : caduc — fermé par TCK-711 (P02.03) : `ResolveActiveProfile` charge le profil plateforme une fois par requête, et `isSuperAdmin()` ne réinterroge plus `platform_profiles` par ligne
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/LeaseResource.php:119-136`, `takussan-api/app/Models/Customer.php:146-149`, `takussan-api/app/Http/Resources/CustomerResource.php:83-96`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:31`, `takussan-api/app/Http/Controllers/Api/BookingController.php:25`
 - Constat :
@@ -2750,6 +2750,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel.
 - Piste : lire `isSuperAdmin()` une fois par requête dans les deux ressources, à côté du cache existant ; ou traiter P02.03.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `LeaseResource.php:118-136` (`isSuperAdmin()` l. 125, appelé avant le cache de `staffAgencyId()`), `CustomerResource.php:84-96` (cache des seules agences) et `Customer.php:146-149` (`criteriaBelongTo()` relit `isSuperAdmin()`, qui passe par `HasProfiles::activePlatformLevel()`) ; test temporaire, retiré depuis, admin d'agence, lignes dotées d'un bien avec photo, `select … from "platform_profiles"` comptées : `GET /api/leases?include=property,tenant` 7 pour 2 lignes → 27 pour 12 (2 par ligne), `GET /api/bookings?include=property,customer` 5 → 15 (1 par ligne), `GET /api/customers` 9 pour 4 fiches → 25 pour 20 (1 par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé, lignes citées inchangées. Classement : A2, la réponse ne change pas ; le correctif lit `isSuperAdmin()` une fois par requête dans `$request->attributes`, à côté des caches existants de `LeaseResource::viewerIsAgencyStaff()` et `CustomerResource::readsCriteria()` (qui court-circuite alors `criteriaBelongTo()` pour le super-admin), sans toucher au modèle `User` ni à `Gate::before` (P02.03, V2), avec un test de budget « 2 lignes = 12 lignes » sur les trois listes.
+- Mesure (2026-10-17, 803747565, implementeur) : test temporaire, retiré ensuite (admin d'agence, requêtes sur `platform_profiles` comptées, charge 2,2 sur 8 cœurs) : `GET /api/leases?include=property,tenant`, `GET /api/bookings?include=property,customer` et `GET /api/customers` → 1 requête pour 2 lignes comme pour 12 ; le `$user->load('platformProfile')` de `ResolveActiveProfile.php:69` (TCK-711, 2026-10-16) retiré à titre d'épreuve → 7 → 27, 5 → 15 et 7 → 17, les chiffres de la mesure du 2026-10-15 ; remis. Le défaut ne tient plus sur cet arbre.
 
 ### Le bien imbriqué par `include=property` charge sa photo ligne par ligne
 - Réf : P20.04
