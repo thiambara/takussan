@@ -24,6 +24,7 @@ import type {
   PaymentProviderSchema,
 } from '@/types/setting';
 import type { PaginatedResponse } from '@/types/api';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Admin settings & integrations server actions — TCK-068.
@@ -66,6 +67,7 @@ async function mapError(e: unknown): Promise<{
   errors?: Record<string, string[]>;
   code?: CodeDoubleFacteur;
 }> {
+  journaliserErreurInattendue('admin-settings', e);
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.

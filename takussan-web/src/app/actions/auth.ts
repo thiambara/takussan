@@ -8,6 +8,7 @@ import { getActiveProfileId, getOperatorActiveProfileId, getOperatorToken, getTo
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 export async function resendVerificationEmailAction(): Promise<{ ok: boolean; message?: string }> {
   const token = await getToken();
@@ -23,7 +24,8 @@ export async function resendVerificationEmailAction(): Promise<{ ok: boolean; me
     // pour être jetée à l'arrivée. Retiré — la garde de ce module refuse désormais la forme.
     await resendVerification(token);
     return { ok: true };
-  } catch {
+  } catch (err) {
+    journaliserErreurInattendue('auth', err);
     const t = await getTranslations('serverActions.auth');
     return { ok: false, message: t('resendFailed') };
   }
@@ -84,6 +86,7 @@ export async function updateProfileAction(
     revalidatePath('/app');
     return { ok: true, user };
   } catch (err) {
+    journaliserErreurInattendue('auth', err);
     const [tRacine, t] = await Promise.all([
       getTranslations(),
       getTranslations('serverActions.auth'),

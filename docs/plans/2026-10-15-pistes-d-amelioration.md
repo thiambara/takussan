@@ -1966,7 +1966,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Server actions : un bug devient « erreur réseau », sans journal
 - Réf : P14.11
-- Statut : validé — un failure() commun qui journalise côté serveur le nom, le message et la pile de toute erreur hors ApiError, jamais les données saisies
+- Statut : fait · TCK-775
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/notifications.ts:23-35`, `takussan-web/src/app/actions/admin-settings.ts:63-80`
 - Constat :
@@ -1975,6 +1975,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré.
 - Piste : un `failure()` commun qui journalise côté serveur toute erreur autre qu'une `ApiError`.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `takussan-web/src/app/actions/notifications.ts:23-35` (`failure()` : hors `ApiError`, rend le repli sans rien écrire) et `admin-settings.ts:63-87` (`mapError()`, même chose) ; `grep -rln catch src/app/actions/*.ts` → 27 modules ; `grep -rn 'console\.' src/app/actions src/app/api` → 2 appels réels dans `actions/` (`dashboard-properties.ts:64,68`) et 9 dans `api/`, les autres occurrences étant des mots de commentaire (« console.ts ») ; `takussan-web/CLAUDE.md` ne fixe aucune convention de journalisation → le constat tient. Classement : V3, aucun critère A ne s'applique (rien n'écrit le comportement attendu) et journaliser côté serveur une erreur qui peut porter des données saisies décide de ce qui est conservé.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `erreurs-inattendues-journalisees.test.ts` avant correctif → un `TypeError` levé dans `getNotificationsAction` et un `SyntaxError` dans `createIntegrationAction` rendent le repli sans aucun `console.error`, et 27 modules `'use server'` sur 27 qui attrapent n'ont aucun journal commun (6 ont un `catch` sans nom d'erreur) → `journaliserErreurInattendue` (module, nom, message, pile ; ni arguments ni `cause`) branchée dans chaque repli et chaque `catch`. Ablation : fonction neutralisée → 2 rouges ; `notifications.ts` remis → 2 rouges ; remis → 58 verts, et 200 tests de `actions/__tests__` verts.
 
 ### Petites améliorations
 - Réf : P14.12
@@ -2261,7 +2262,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La carte « Mise en service » n'atteint ni l'agence individuelle ni l'accueil
 - Réf : P15.08
-- Statut : validé — carte montée en tête de l'accueil pour tout admin d'agence, étapes filtrées par kind ; elle reste aussi sur /app/overview/agency
+- Statut : fait · TCK-777
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/overview/agency/page.tsx:93`, `takussan-web/src/app/(dashboard)/app/overview/agency/layout.tsx:38-50`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:46-75`
 - Constat :
@@ -2270,10 +2271,11 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : la monter sur l'accueil pour tout admin, avec des étapes filtrées par `kind`.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `overview/agency/page.tsx:92-93` (seul montage de `MiseEnService`, avec son test), `overview/agency/layout.tsx:38,54-59` (non-admin redirigé, `kind !== 'standard'` → `redirect('/app')`) et `(accueil)/page.tsx:52-77` (bannière de logo, brouillons, check-list locataire, KPI ou `DashboardEmpty`, raccourcis : aucune mise en service) ; `grep -rl MiseEnService src` → 4 fichiers, tous sous `overview/agency` ou le composant. Le constat tient. TCK-589 l. 204 place la carte « en tête de `/admin` », sans trancher l'agence individuelle. Classement : V7, monter la carte sur l'accueil et filtrer ses étapes par `kind` change ce que voit l'hôte solo.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `(accueil)/__tests__/mise-en-service.test.tsx` et `MiseEnService.kind.test.tsx` avant correctif → l'accueil d'un admin `individual` ou `standard` ne monte aucune carte, et la carte d'une agence `individual` liste « premier membre » (7 étapes) → carte montée sous l'en-tête pour tout `agency_admin`, et étapes dont l'écran exige `standard` dans `PAGES_ADMIN` retirées (6 pour `individual`). Ablation : les deux fichiers remis → 4 rouges sur 6 ; remis → 6 verts, et 34 tests voisins verts.
 
 ### Premier bail : sélecteur de biens vide, sans explication
 - Réf : P15.09
-- Statut : validé — biens proposés : tous sauf sold, archived et rented ; état vide avec des liens « créer un bien » et « ajouter un locataire »
+- Statut : fait · TCK-776
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/leases.ts:117`, `takussan-web/src/components/leases/CreateLeaseForm.tsx:133-170`
 - Constat :
@@ -2283,6 +2285,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : élargir le filtre (hors vendu et archivé), et un état vide avec des appels à l'action.
 - Mesure (2026-10-15, 2d25d35d, mesureur) : lu `lib/queries/leases.ts:117` (`filter: { status: 'available' }`) et `CreateLeaseForm.tsx:112,136-146` (options = biens rendus, aucun état vide ni lien) ; `StoreLeaseRequest.php:37` n'exige que `exists:properties,id`, et `LeaseService.php` ne lit aucun `PropertyStatus` (grep) ; `PropertyStatus` compte 11 cas (`draft`, `pending_review`, `published`…). Le renvoi à l'angle 13 n'est pas re-mesuré ici. Classement : V7, choisir quels statuts de bien ouvrent un bail et écrire l'état vide avec ses appels à l'action sont des choix de produit.
+- Mesure (2026-10-17, e44272cb7, implementeur) : `CreateLeaseForm.biens-proposes.test.tsx` avant correctif → `useLeasePropertyOptions` envoie `filter[status]=available`, et un sélecteur sans bien ni locataire n'affiche ni texte ni lien → `STATUTS_BIEN_POUR_UN_BAIL` (huit statuts, hors `sold`, `archived`, `rented`) et un état vide avec « Créer un bien » et « Ajouter un locataire ». Ablation : les deux fichiers remis → 2 rouges ; remis → 3 verts, et 70 tests de `components/leases` verts.
 
 ### Petites améliorations
 - Réf : P15.10

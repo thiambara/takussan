@@ -9,6 +9,7 @@ import { createTag, deleteTag, fetchTags, updateTag, type FetchTagsParams } from
 import type { TagFormPayload } from '@/lib/schemas/tag';
 import type { Tag } from '@/types/tag';
 import type { PaginatedResponse } from '@/types/api';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-650 (ADR-0055 §6) — les actions serveur de la console `/super-admin`, et elles seules.
@@ -40,6 +41,7 @@ async function mapError(e: unknown): Promise<{
   message: string;
   errors?: Record<string, string[]>;
 }> {
+  journaliserErreurInattendue('console', e);
   const [tRacine, t] = await Promise.all([
     getTranslations(),
     getTranslations('serverActions.shared'),

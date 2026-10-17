@@ -7,6 +7,7 @@ import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { PropertyDetail } from '@/types/property';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-633 (lot C) — publier par `POST /api/properties/{id}/publish`, avec l'acceptation des CGU
@@ -64,6 +65,7 @@ async function envoyer(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data: res.data };
   } catch (err) {
+    journaliserErreurInattendue('publish-property', err);
     const corps = err instanceof ApiError
       ? (err.data as { code?: unknown; missing?: unknown; contact_is_self?: unknown } | null)
       : null;

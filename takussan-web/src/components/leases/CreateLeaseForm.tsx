@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Controller, useFormState, useWatch, type Control } from 'react-hook-form';
@@ -117,6 +118,8 @@ export function CreateLeaseForm() {
   const selectedTenantId = useWatch({ control: form.control, name: 'tenant_id' });
   const properties = useMemo(() => propertiesQuery.data?.data ?? [], [propertiesQuery.data]);
   const customers = useMemo(() => customersQuery.data?.data ?? [], [customersQuery.data]);
+  const aucunBien = !propertiesQuery.isLoading && properties.length === 0;
+  const aucunLocataire = !customersQuery.isLoading && customers.length === 0;
   const selectedProperty = properties.find((p) => p.id === selectedPropertyId) ?? null;
   const selectedCustomer = customers.find((c) => c.id === selectedTenantId) ?? null;
 
@@ -174,6 +177,25 @@ export function CreateLeaseForm() {
             />
           </div>
         </div>
+        {aucunBien || aucunLocataire ? (
+          // TCK-776 (P15.09) — une liste vide se dit, et mène à ce qui la remplit.
+          <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
+            {aucunBien ? <p className="text-muted-foreground">{t('emptyProperties')}</p> : null}
+            {aucunLocataire ? <p className="text-muted-foreground">{t('emptyTenants')}</p> : null}
+            <div className="flex flex-wrap gap-3">
+              {aucunBien ? (
+                <Link href="/app/properties/new" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {t('createProperty')}
+                </Link>
+              ) : null}
+              {aucunLocataire ? (
+                <Link href="/app/customers/new" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {t('addTenant')}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
           <SummaryBlock
             label={t('selectedProperty')}

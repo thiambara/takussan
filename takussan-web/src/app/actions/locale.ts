@@ -10,6 +10,7 @@ import {
   isLocale,
   type Locale,
 } from '@/i18n/config';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Persist the user's locale choice in the `NEXT_LOCALE` cookie and revalidate
@@ -45,7 +46,8 @@ export async function setLocaleAction(locale: Locale): Promise<void> {
         token,
         body: { preferred_language: locale },
       });
-    } catch {
+    } catch (err) {
+      journaliserErreurInattendue('locale', err);
       // User lost auth, or API unreachable — cookie still wins.
     }
   }

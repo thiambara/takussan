@@ -12,6 +12,7 @@ import {
 } from '@/lib/notifications';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T> =
   | { ok: true; data: T }
@@ -21,6 +22,7 @@ type ActionResult<T> =
 type CleRepli = 'loadFailed' | 'markReadFailed' | 'markUnreadFailed' | 'markAllReadFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  journaliserErreurInattendue('notifications', err);
   const t = await getTranslations('serverActions.notifications');
   const repli = t(cleRepli);
   if (err instanceof ApiError) {

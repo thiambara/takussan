@@ -17,6 +17,7 @@ import {
 import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
 import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
 import type { Agency } from '@/types/agency';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * Admin agency-config server actions — TCK-064.
@@ -39,6 +40,7 @@ async function mapError(e: unknown): Promise<{
   errors?: Record<string, string[]>;
   code?: CodeDoubleFacteur;
 }> {
+  journaliserErreurInattendue('admin-agency', e);
   // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.

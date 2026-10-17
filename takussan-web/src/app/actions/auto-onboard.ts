@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
+import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
  * TCK-633 (lot C) — « Publier » sans assistant : `POST /api/host/individual/auto-onboard`.
@@ -41,6 +42,7 @@ export async function autoOnboardAction(primaryCity?: string | null): Promise<Re
     });
     return { ok: true, created: res.data.created };
   } catch (err) {
+    journaliserErreurInattendue('auto-onboard', err);
     const code = err instanceof ApiError ? (err.data as { code?: unknown } | null)?.code : undefined;
     if (err instanceof ApiError && err.status === 403 && code === 'onboarding.auto_space_disabled') {
       return { ok: false, reason: 'disabled' };
