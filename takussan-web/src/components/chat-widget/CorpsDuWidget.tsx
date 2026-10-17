@@ -29,6 +29,11 @@ const MD_BREAKPOINT_PX = 768;
  */
 
 /**
+ * TCK-743 (P33.02) — **le corps du widget, chargé à part.** `ChatWidget` (même dossier) le monte
+ * par `next/dynamic` et seulement pour un utilisateur connecté : ce module, la messagerie, zod et
+ * react-hook-form n'entrent plus dans le JS initial de toutes les routes. Il garde ses propres
+ * règles de visibilité par route, pour que son état survive à un passage par `/app/messages`.
+ *
  * TCK-274 — Floating messaging widget mounted once at the root layout.
  *
  * Visibility: rendered only for authenticated users, hidden on `/auth/*`,
@@ -59,7 +64,7 @@ const MD_BREAKPOINT_PX = 768;
  * the open conversation every 3 s. The shared React Query cache means the
  * `/app/messages` page sees the same data with no duplicate network traffic.
  */
-export function ChatWidget() {
+export function CorpsDuWidget() {
   const t = useTranslations('messaging.widget');
   const pathname = usePathname() ?? '/';
   const { user } = useAuth();
