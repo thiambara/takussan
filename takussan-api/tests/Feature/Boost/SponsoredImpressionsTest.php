@@ -84,6 +84,24 @@ class SponsoredImpressionsTest extends TestCase
         $this->assertSame(1, $this->impressions());
     }
 
+    /**
+     * TCK-790 (P18.03, décision du porteur) — le rendu serveur appelle l'accueil sans ville, puis le
+     * client le rappelle avec `near_city` quand il devine la ville : la rangée vedette, affichée une
+     * fois, ne compte qu'une impression.
+     */
+    public function test_l_accueil_rappele_avec_near_city_ne_compte_qu_une_fois(): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson('/api/public/properties/discovery')->assertOk();
+        $this->assertSame(1, $this->impressions(), 'témoin : l’appel sans ville compte la Vedette');
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->getJson('/api/public/properties/discovery?near_city=Dakar')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $this->property->id]);
+
+        $this->assertSame(1, $this->impressions());
+    }
+
     /** @param  array<string, string>  $headers */
     private function rechercher(string $ip, array $headers = []): TestResponse
     {

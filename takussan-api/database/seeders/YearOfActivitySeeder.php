@@ -53,6 +53,11 @@ class YearOfActivitySeeder extends Seeder
     private const PIPELINE = [
         // System
         TagSeeder::class,
+        // TCK-789 (P17.04) — AVANT tous les seeders qui écrivent des adresses : ils y tirent les
+        // quartiers de la ville choisie et son centre, et le crochet `saving` d'`Address` les
+        // rattache à l'écriture. Placé après eux (TCK-633), il ne rattachait que les noms que le
+        // faker partageait par hasard avec le jeu.
+        GeoReferentialSeeder::class,
         // Core
         AgencySeeder::class,
         UserSeeder::class,
@@ -96,9 +101,6 @@ class YearOfActivitySeeder extends Seeder
         // Post-processing (doit être en dernier)
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
-        // TCK-633 — après TOUS les seeders qui écrivent des adresses : il les rattache au
-        // référentiel (noms officiels, quartier retrouvé). Avant eux, il n'aurait rien à rattacher.
-        GeoReferentialSeeder::class,
         // PropertyMediaSeeder runs last so properties created by FilterCoverage
         // / EdgeCase get media too. The seeder iterates Property::all() and
         // skips any that already have files in the `photos` collection, so
