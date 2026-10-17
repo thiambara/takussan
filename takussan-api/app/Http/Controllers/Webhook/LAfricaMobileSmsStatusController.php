@@ -75,6 +75,7 @@ class LAfricaMobileSmsStatusController extends Controller
             hintNotificationId: $notificationId,
             failureReason: $newStatus === SmsResult::STATUS_FAILED ? $statusText : null,
             deliveredAt: $deliveredAt,
+            statusPrecedence: DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE,
         );
         if (! $updated) {
             $journal->unmatched();

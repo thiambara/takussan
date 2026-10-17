@@ -178,4 +178,24 @@ class LAfricaMobileSmsWebhookTest extends TestCase
             NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-5')->first()->status,
         );
     }
+
+    // ─── P36.02 (TCK-796) ────────────────────────────────────────
+
+    public function test_a_late_sent_does_not_regress_a_delivered_attempt(): void
+    {
+        // Précédence du pulling `[sent, delivered, failed]` : un `sent`
+        // (status=4) tardif ou rejoué n'efface ni `delivered` ni `delivered_at`.
+        $n = $this->makeNotificationWithAttempt('lam-7');
+        $retUrl = $this->retUrlEmisParLePilote($n->id);
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-7', 6))->assertOk();
+        $deliveredAt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-7')->first()->delivered_at;
+        $this->assertNotNull($deliveredAt);
+
+        $this->getJson($this->rappelDeLam($retUrl, 'lam-7', 4, 'SENT'))->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'lam-7')->first();
+        $this->assertSame(SmsResult::STATUS_DELIVERED, $attempt->status);
+        $this->assertEquals($deliveredAt, $attempt->delivered_at);
+    }
 }

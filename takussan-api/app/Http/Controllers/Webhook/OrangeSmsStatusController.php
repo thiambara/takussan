@@ -95,6 +95,7 @@ class OrangeSmsStatusController extends Controller
             newStatus: $newStatus,
             failureReason: $newStatus === SmsResult::STATUS_FAILED ? $providerStatus : null,
             deliveredAt: $deliveredAt,
+            statusPrecedence: DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE,
         );
         if (! $updated) {
             // Silent 404 — payload didn't match any tracked attempt. TCK-602 — un « non apparié »,

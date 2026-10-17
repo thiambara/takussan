@@ -15,12 +15,27 @@ use Illuminate\Support\Facades\DB;
 class DeliveryAttemptUpdater
 {
     /**
+     * P36.02 (TCK-796) — la précédence des accusés SMS, poussés comme tirés : `failed` est le rang
+     * le plus haut, puis `delivered`, puis `sent`. Un accusé de rang inférieur arrivé après (tardif,
+     * renvoyé par le fournisseur ou rejoué par `WebhookReplayer`) est ignoré. Les trois routes
+     * poussées (Orange, Mtarget, LAfricaMobile) l'appliquent comme le pulling Mtarget
+     * (`DlrReportApplier`) : jusqu'à TCK-796, elles gardaient le dernier écrit, et un `sent` tardif
+     * effaçait un `delivered` et son `delivered_at`.
+     */
+    public const SMS_STATUS_PRECEDENCE = [
+        SmsResult::STATUS_SENT,
+        SmsResult::STATUS_DELIVERED,
+        SmsResult::STATUS_FAILED,
+    ];
+
+    /**
      * @param  list<string>|null  $statusPrecedence  Optional low→high status
      *                                               ordering. When given, an incoming status whose rank is lower than the
      *                                               attempt's current status is ignored (no regression). Used by WhatsApp,
      *                                               whose DLRs progress `sent → delivered` and can arrive out of order or
-     *                                               be replayed by Meta; SMS/payment callers omit it and keep last-write
-     *                                               semantics.
+     *                                               be replayed by Meta, and by every SMS DLR path with
+     *                                               {@see self::SMS_STATUS_PRECEDENCE}; payment callers omit it and keep
+     *                                               last-write semantics.
      * @return bool true if a row was actually updated, false if the
      *              webhook payload didn't match any tracked attempt.
      */

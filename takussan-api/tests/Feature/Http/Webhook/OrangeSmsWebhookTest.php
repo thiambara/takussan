@@ -109,4 +109,31 @@ class OrangeSmsWebhookTest extends TestCase
             ->count();
         $this->assertSame(1, $deliveredCount);
     }
+
+    // ─── P36.02 (TCK-796) ────────────────────────────────────────
+
+    public function test_a_later_delivered_does_not_overwrite_a_failed_attempt(): void
+    {
+        // Précédence du pulling `[sent, delivered, failed]` : `failed` est le
+        // rang le plus haut, un accusé de rang inférieur arrivé après lui
+        // (tardif ou rejoué) ne le fait pas reculer.
+        $this->makeNotificationWithOrangeAttempt('orange-msg-p3602');
+        $dlr = fn (string $status) => [
+            'deliveryInfoNotification' => [
+                'deliveryInfo' => [
+                    'address' => 'tel:+221771111111',
+                    'deliveryStatus' => $status,
+                    'link' => 'https://api.orange.com/x/y/orange-msg-p3602',
+                ],
+            ],
+        ];
+
+        $this->postJson('/api/webhooks/sms/orange/status/tck-102-token', $dlr('DeliveryImpossible'))->assertOk();
+        $this->postJson('/api/webhooks/sms/orange/status/tck-102-token', $dlr('DeliveredToTerminal'))->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'orange-msg-p3602')->first();
+        $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
+        $this->assertSame('DeliveryImpossible', $attempt->failure_reason);
+        $this->assertNull($attempt->delivered_at);
+    }
 }

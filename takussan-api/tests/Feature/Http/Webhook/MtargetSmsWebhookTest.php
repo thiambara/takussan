@@ -190,4 +190,27 @@ class MtargetSmsWebhookTest extends TestCase
             NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-8')->first()->status,
         );
     }
+
+    // ─── P36.02 (TCK-796) ────────────────────────────────────────
+
+    public function test_a_later_delivered_does_not_overwrite_a_failed_attempt(): void
+    {
+        // Même précédence que le pulling (`DlrReportApplier`) :
+        // `[sent, delivered, failed]`, sur le même fournisseur.
+        $this->makeNotificationWithAttempt('mtg-p3602');
+        $dlr = fn (int $status, string $text) => [
+            'MsgId' => 'mtg-p3602',
+            'Status' => $status,
+            'StatusText' => $text,
+            'DestinationAdress' => '221771111111',
+        ];
+
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(5, 'ABSENT_SUBSCRIBER'))->assertOk();
+        $this->post('/api/webhooks/sms/mtarget/status/tck-102-token', $dlr(3, 'OK'))->assertOk();
+
+        $attempt = NotificationDeliveryAttempt::query()->where('provider_message_id', 'mtg-p3602')->first();
+        $this->assertSame(SmsResult::STATUS_FAILED, $attempt->status);
+        $this->assertSame('ABSENT_SUBSCRIBER', $attempt->failure_reason);
+        $this->assertNull($attempt->delivered_at);
+    }
 }

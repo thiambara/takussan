@@ -80,6 +80,7 @@ class MtargetSmsStatusController extends Controller
                 newStatus: $newStatus,
                 failureReason: $newStatus === SmsResult::STATUS_FAILED ? $statusText : null,
                 deliveredAt: $deliveredAt,
+                statusPrecedence: DeliveryAttemptUpdater::SMS_STATUS_PRECEDENCE,
             );
             if ($updated) {
                 break;
