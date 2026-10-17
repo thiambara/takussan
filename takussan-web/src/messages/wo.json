@@ -10954,7 +10954,17 @@
       "colDate": "Bés",
       "colType": "Jëf",
       "colAmount": "Kredi",
-      "colReason": "Lu tax"
+      "colReason": "Lu tax",
+      "colObject": "Objet",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": {
+          "urgent": "Badge « Urgent »",
+          "price_drop": "Badge « Baisse de prix »"
+        }
+      }
     },
     "types": {
       "grant": "May",

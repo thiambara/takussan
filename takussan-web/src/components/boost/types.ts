@@ -38,6 +38,13 @@ export interface CreditMovement {
   readonly actor_id: number | null;
   readonly reason: string | null;
   readonly created_at: string;
+  /** TCK-825 — l'objet d'une ligne de boost : le genre, la variante et le bien. `null` hors boost. */
+  readonly boost?: {
+    readonly id: number;
+    readonly kind: BoostKind;
+    readonly variant: BoostVariant | null;
+    readonly property: { readonly id: number; readonly title: string } | null;
+  } | null;
 }
 
 export interface PropertyBoost {

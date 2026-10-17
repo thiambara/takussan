@@ -10954,7 +10954,17 @@
       "colDate": "Date",
       "colType": "Operation",
       "colAmount": "Credits",
-      "colReason": "Reason"
+      "colReason": "Reason",
+      "colObject": "Item",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Bump",
+        "featured": "Featured",
+        "badge": {
+          "urgent": "“Urgent” badge",
+          "price_drop": "“Price drop” badge"
+        }
+      }
     },
     "types": {
       "grant": "Grant",

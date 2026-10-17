@@ -10954,7 +10954,17 @@
       "colDate": "Date",
       "colType": "Opération",
       "colAmount": "Crédits",
-      "colReason": "Motif"
+      "colReason": "Motif",
+      "colObject": "Objet",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": {
+          "urgent": "Badge « Urgent »",
+          "price_drop": "Badge « Baisse de prix »"
+        }
+      }
     },
     "types": {
       "grant": "Octroi",
