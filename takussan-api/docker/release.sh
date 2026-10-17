@@ -23,6 +23,11 @@ SCOUT_QUEUE=false php artisan geo:sync-referential \
 php artisan tags:sync-catalog \
   || echo "AVERTISSEMENT : tags:sync-catalog a échoué — catalogue des équipements inchangé jusqu'au prochain déploiement." >&2
 
+# TCK-768 (P14.03) — sans règle, une alerte `ops_*` ne part nulle part. Crée celles qui manquent,
+# destinées aux super-admins ; une règle existante n'est jamais réécrite. Idempotente.
+php artisan alerts:ensure-ops-rules \
+  || echo "AVERTISSEMENT : alerts:ensure-ops-rules a échoué — les alertes d'exploitation sans règle ne partent nulle part." >&2
+
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   # TCK-710 (P01.07) : un échec ARRÊTE le déploiement, et les services ne démarrent pas. Des
   # réglages périmés ne dégradent pas la recherche, ils la cassent : un attribut triable absent

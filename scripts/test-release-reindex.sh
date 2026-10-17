@@ -82,6 +82,13 @@ verifier "migration en échec : release échoue, les services ne démarrent pas"
 fabrique; jouer ECHEC_SUR=membership:reconcile
 verifier "réconciliation en échec : release continue (comme deploy.sh)" 0 "$?"
 
+# TCK-768 (P14.03) : les règles d'alerte d'exploitation sont créées à chaque déploiement ; leur
+# échec n'arrête pas le déploiement (une alerte manquante ne vaut pas des services à l'arrêt).
+fabrique; jouer SCOUT_DRIVER=collection
+verifier "règles d'alerte d'exploitation : alerts:ensure-ops-rules est joué" 1 "$(grep -c '^artisan alerts:ensure-ops-rules' "$racine/journal" || true)"
+fabrique; jouer ECHEC_SUR=alerts:ensure-ops-rules
+verifier "règles d'alerte en échec : release continue" 0 "$?"
+
 # TCK-710 (P01.07) : des réglages d'index périmés font échouer la liste publique sans mot
 # (`sort=ranked_at:desc` → invalid_search_sort). Le déploiement s'arrête au lieu de servir cela.
 fabrique; jouer ECHEC_SUR=scout:sync-index-settings
@@ -104,4 +111,4 @@ else
 fi
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s)"; exit 1; }
-echo "✓ décision de réindexation de release.sh : 13 vérifications et une ablation"
+echo "✓ décision de réindexation de release.sh : 15 vérifications et une ablation"
