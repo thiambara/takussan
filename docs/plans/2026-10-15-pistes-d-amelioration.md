@@ -2476,7 +2476,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P17.05
-- Statut : retenu · à valider — chemin fermé : retirer les deux routes impose de supprimer `tests/Feature/Api/PropertyAddressTest.php`, que la garde des agents refuse (« un test ne se supprime pas »)
+- Statut : retenu · à valider — chemin fermé : retirer les deux routes impose de supprimer `tests/Feature/Api/PropertyAddressTest.php`, que la garde des agents refuse (« un test ne se supprime pas ») ; porteur (2026-10-17) : traité hors agents, en session : retrait des deux routes, de `PropertyAddressController`, d'`UpsertPropertyAddressRequest` et de leurs tests (l'API n'a jamais servi en production, aucun client hors dépôt ne peut les appeler) ; le signal de distance à la ville choisie, plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/routes/api/properties.php:53-54`, `takussan-api/app/Http/Requests/Api/UpsertPropertyAddressRequest.php:34-46`, `takussan-api/app/Services/Geo/Senegal.php:10-24`
 - Constat :
@@ -4263,7 +4263,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
-- Statut : retenu · à valider — V3 : un contact privé lu par les membres d'un groupe ; le cas d'une directe quittée est à trancher
+- Statut : validé — `query()` du résolveur restreint aux conversations `direct` où le visiteur et le destinataire sont participants actifs (`left_at` nul) ; un groupe ou une directe quittée ne capte plus le contact, un fil neuf s'ouvre ; test : un groupe sur le bien ne capte pas le contact ; quand P38.05 sera fait, le destinataire cesse d'être un critère de recherche (ADR-0068 § 3)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
 - Constat :
@@ -4288,7 +4288,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
-- Statut : retenu · à valider — V7 : un contact par annonce doit-il percer la sourdine ?
+- Statut : validé — `contactMessage()` passe par le chemin de `sendMessage()` : désarchivage du fil pour les autres participants, puis `NotifyNewMessageJob`, qui respecte la sourdine ; un test par effet
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
 - Constat :
@@ -4300,7 +4300,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
-- Statut : retenu · à valider — V2 : retirer l'accès d'un agent à un fil qu'il lit aujourd'hui ; à qui appartient le fil d'un prospect
+- Statut : validé — ADR-0068 : sur un fil de prospect, seul le contact principal actuel du bien répond (branche de `ConversationAccess`), l'ancien répondant perd l'accès, et le fil est transmis au nouveau (résolveur, désignation, retrait de collaboration, passation) ; gardes de l'ADR, § Application
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:27-51`, `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`
 - Constat :
@@ -4312,7 +4312,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
-- Statut : retenu · à valider — V3 : l'e-mail de l'expéditeur exposé au destinataire ; le repli affiché est à choisir
+- Statut : validé — repli commun aux trois chemins : prénom et nom, puis `username`, puis `—` ; l'e-mail ne sort plus jamais ; un test qui épingle les `params` d'un expéditeur sans nom ni `username`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
 - Constat :
@@ -4324,7 +4324,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Petites améliorations
 - Réf : P38.07
-- Statut : retenu · à valider — V8 : quatre correctifs indépendants, dont un choix de produit (V7, `last_read_at`) et un code de notification neuf
+- Statut : validé — quatre correctifs : invitation par `NotificationCode` avec la cible `conversation` (en `wo`, le texte français tel quel) ; `removeParticipant` refusé sur une directe ; `index()` ne charge que les participants actifs ; une ré-invitation pose `last_read_at` à l'heure de la ré-invitation
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ConversationInviteNotification.php:73-84`, `takussan-web/src/components/notifications/NotificationRow.tsx:41`, `takussan-api/app/Policies/ConversationPolicy.php:29-37`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:38`, `takussan-api/app/Services/Messaging/GroupConversationService.php:115-134`
 - Constat :
