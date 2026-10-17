@@ -12,9 +12,13 @@ namespace App\Http\Requests;
  */
 class RequestEarlyTerminationRequest extends BaseFormRequest
 {
+    /**
+     * TCK-816 (P22.01) — l'ability que le contrôleur juge, appelée ici pour que le refus précède la
+     * validation : `true` sec rendait 422 et les noms des champs à un compte sans lien.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('requestEarlyTermination', $this->route('lease')) === true;
     }
 
     /**

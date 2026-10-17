@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Permissions;
 
+use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,9 +10,10 @@ use Illuminate\Validation\Validator;
 
 class StoreRoleDelegationRequest extends FormRequest
 {
+    /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
     {
-        return true; // Fine-grained authorization handled by policy in controller
+        return $this->user()?->can('create', [RoleDelegation::class, $this->route('agency')]) === true;
     }
 
     public function rules(): array

@@ -2916,7 +2916,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Le refus par défaut de `BaseFormRequest` est levé par 106 de ses 232 sous-classes, et une garde sur `extends FormRequest` n'en verrait aucune
 - Réf : P22.01
-- Statut : validé — les cinq routes mesurées seulement (rent, renew, deposit-refund, early-termination, PUT agencies) : authorize() délègue à la policy ; AuthorizationPrecedesValidationTest prend un cas par route ; reste : les autres FormRequests permissives (44 méthodes qui autorisent dans leur corps, 26 qui n'autorisent rien) et la garde « authorize() qui rend true sec »
+- Statut : fait · TCK-816 — reste : les autres FormRequests permissives (44 méthodes qui autorisent dans leur corps, 26 qui n'autorisent rien) et la garde « authorize() qui rend true sec »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/BaseFormRequest.php:9-12`, `takussan-api/app/Http/Requests/ReviewRentRequest.php:16`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:19`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:15`, `takussan-api/app/Http/Requests/RequestEarlyTerminationRequest.php:15`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:21`, `takussan-api/app/Http/Controllers/Api/LeaseRentController.php:27-30`
 - Constat :
@@ -2928,10 +2928,11 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : script de balayage, lecture des cinq FormRequests et contrôleurs, test temporaire.
 - Piste : voir P03.05. Déléguer à la policy dans `authorize()` pour les 44 méthodes qui autorisent déjà dans leur corps (le geste de TCK-305). La garde serait plutôt : « une sous-classe dont `authorize()` rend `true` sec doit être reçue par une route sous un middleware d'autorisation, ou figurer dans une liste d'exemptions justifiées », et `AuthorizationPrecedesValidationTest` prendrait un cas par route de bail.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `BaseFormRequest.php:9-12` (`return false;`), `authorize()` de `ReviewRentRequest`, `RenewLeaseRequest`, `RefundDepositRequest`, `RequestEarlyTerminationRequest` et `AgencyUpdateRequest` (`return true;`) ; `grep -rlE 'extends BaseFormRequest' app/Http/Requests | wc -l` → 232, et un relevé par `awk` des seules formes `return true;` / `return $this->user() !== null;` → 101 (l'explorateur en comptait 106 avec les équivalents) ; test temporaire, retiré depuis, compte `User::factory()` sans lien, corps invalide : `PATCH …/rent` → 422 (`new_rent`, `reason`), `POST …/renew` → 422, `POST …/deposit-refund` → 422, `POST …/early-termination` → 422, `PUT /api/agencies/{id}` → 422 (`email`). Constat confirmé. Classement : V2 et V8, faire passer l'autorisation avant la validation sur des dizaines de routes touche l'autorisation de chaque appelant et demande plus d'un ticket.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : test `AuthorizationPrecedesValidationTest`, un cas par route, compte agent d'une autre agence et corps invalide : `PATCH …/rent`, `POST …/renew`, `POST …/deposit-refund`, `POST …/early-termination` et `PUT /api/agencies/{id}` rendaient 422 (`new_rent`, `start_date`, `amount`, `effective_date`, `email`) → `authorize()` des cinq FormRequests délègue à l'ability du contrôleur ; 403 sans `errors` pour l'intrus, 422 pour le super-admin ; ablation (`return true;` remis) → 5 rouges, correctif remis → 30 verts.
 
 ### Les trois routes de traitement en lot sont ouvertes à tout compte connecté et disent quels identifiants de biens et de comptes existent
 - Réf : P22.02
-- Statut : validé — authorize() exige la capacité de l'action unitaire à l'agence active ; le bilan confond forbidden et not_found ; user_id jugé dans le service, parmi les membres de l'agence
+- Statut : fait · TCK-817
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:407-458`, `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/PropertyBulkAssignRequest.php`, `takussan-api/app/Http/Requests/PropertyBulkArchiveRequest.php`, `takussan-api/app/Services/Property/PropertyBulkAssignService.php:40-47`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:47-63`
 - Constat :
@@ -2946,6 +2947,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : refuser en tête de route ce qu'aucun profil de personnel ne peut faire (une capacité `properties.update` à l'agence active, dans `authorize()`), confondre `not_found` et `forbidden` dans le bilan d'un appelant qui n'est pas du personnel, et juger `user_id` dans le service plutôt que par `exists:`. Un test par route avec un compte sans agence.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyBulkAssignRequest` et `PropertyBulkArchiveRequest` (`return $this->user() !== null;`), `PropertyPolicy::bulkArchive()` l. 229-232 (`return $user !== null;`) ; test temporaire, retiré depuis, compte `User::factory()` sans agence, bien d'agence tiers et identifiant absent `987654321` : `bulk-assign` → 200, `failed` = `forbidden` pour le bien, `not_found` pour l'absent ; `user_id` absent → 422 « The selected user id is invalid » ; `bulk-visibility` → 200, même bilan ; `bulk-archive` → 200 `forbidden` pour le bien, 422 sur `property_ids.0` pour l'absent. Constat confirmé tel qu'écrit. Classement : V2, le correctif change qui peut appeler ces routes et ce que le bilan dit à l'appelant.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `PropertyBulkRoutesGateTest`, avant correctif : compte `User::factory()` sans agence → 200 sur `bulk-visibility` et `bulk-assign`, 422 sur `bulk-archive` (`property_ids.0`) ; agent d'une agence → `forbidden` pour un bien tiers, `not_found` pour un absent ; `user_id` absent → `errors.user_id` → `authorize()` invoque `PropertyPolicy::bulkUpdate()` / `bulkPublish()` (capacité à l'agence active), `exists:` retirés, bien illisible rendu `not_found`, cible cherchée parmi les membres de l'agence active (422 `user.not_in_active_agency` identique pour un absent et un compte d'une autre agence) ; ablation : tout le correctif retiré → 7 rouges, les seuls services → 2 rouges ; remis → 7 verts, et les 71 tests des trois routes verts après réécriture de ceux qui actaient l'ancien comportement.
 
 ### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
 - Réf : P22.03
@@ -2962,7 +2964,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Petites améliorations
 - Réf : P22.04
-- Statut : validé — autorisations déplacées dans `authorize()`, et `bulkArchive` sort de la policy
+- Statut : fait · TCK-818 — reste : renommer `Api/Admin/UpdateIntegrationRequest` en `AdminUpdateIntegrationRequest`, que la piste propose et que la décision ne reprend pas
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
 - Constat :
@@ -2973,6 +2975,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `PropertyPolicy.php:223-231` (`bulkArchive` rend `$user !== null`), l'`authorize()` des quatre FormRequests : `MatchBankStatementLineRequest.php:12` et `UpdateBankCsvMappingRequest.php:31` (« Policy handles authorization »), `StoreBankStatementRequest.php:15` (« Policy handles fine-grained authorization ») et `StoreRoleDelegationRequest.php:14` (« Fine-grained authorization handled by policy in controller »), toutes `return true` ; `PropertyDuplicateRequest.php:19` (`$this->user() !== null`) ; `Api/UpdateIntegrationRequest.php:34` (`mayManage`) et `Api/Admin/UpdateIntegrationRequest.php:24` (`true`), deux classes de même nom court. Les commentaires diffèrent un peu de la citation, le défaut tient ; l'inversion 422/403 se lit au code et n'a pas été rejouée. Classement : V2, chaque correctif change la réponse d'une route autorisée, et le retrait de `bulkArchive` attend la capacité de P22.02, validée mais non faite.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `AuthorizationPrecedesValidationTest`, un cas par route, compte agent d'une autre agence et corps invalide : `POST …/duplicate`, `POST /api/agencies/{id}/bank-statements`, `PUT …/bank-statements/csv-mapping`, `POST /api/bank-statement-lines/{id}/match` et `POST /api/agencies/{id}/role-delegations` rendaient 422 → les cinq `authorize()` invoquent la policy du contrôleur ; 403 sans `errors` pour l'intrus, 422 pour le super-admin ; ablation → 5 rouges, remis → 40 verts ; 141 tests existants des cinq routes verts. `bulkArchive` est sorti de `PropertyPolicy` par TCK-817 (P22.02), remplacé par `bulkUpdate`.
 
 ## Angle 23 — Lectures de données personnelles sans step-up, face à `REFUSED_READS`
 

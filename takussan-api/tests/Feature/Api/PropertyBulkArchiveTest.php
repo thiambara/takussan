@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -15,10 +16,31 @@ use Tests\TestCase;
 
 /**
  * TCK-074 — `POST /api/properties/bulk-archive`.
+ *
+ * TCK-817 — la route exige `properties.update_own` ou `properties.update_any` à l'agence active :
+ * l'acteur est un agent de `$agency`, ses biens y sont rattachés. Un compte sans agence, que ces
+ * tests prenaient jusque-là, est refusé en tête (`PropertyBulkRoutesGateTest`).
  */
 class PropertyBulkArchiveTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Agency $agency;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->agency = Agency::factory()->create();
+    }
+
+    private function membre(): User
+    {
+        $user = User::factory()->create();
+        $this->materializeRoleProfile($user, 'agent', $this->agency);
+
+        return $user;
+    }
 
     public function test_requires_auth(): void
     {
@@ -28,10 +50,11 @@ class PropertyBulkArchiveTest extends TestCase
 
     public function test_archives_authorized_properties(): void
     {
-        $owner = User::factory()->create();
+        $owner = $this->membre();
         /** @var Collection<int, Property> $props */
         $props = Property::factory()->count(3)->create([
             'user_id' => $owner->id,
+            'agency_id' => $this->agency->id,
             'status' => PropertyStatus::Available,
         ]);
 
@@ -60,9 +83,10 @@ class PropertyBulkArchiveTest extends TestCase
      */
     public function test_bulk_archive_writes_what_the_unitary_archive_writes(): void
     {
-        $owner = User::factory()->create();
+        $owner = $this->membre();
         [$unit, $bulk] = Property::factory()->count(2)->create([
             'user_id' => $owner->id,
+            'agency_id' => $this->agency->id,
             'status' => PropertyStatus::Available,
             'published_at' => now(),
         ])->all();
@@ -80,11 +104,11 @@ class PropertyBulkArchiveTest extends TestCase
 
     public function test_reports_unauthorized_in_failed_list(): void
     {
-        $me = User::factory()->create();
+        $me = $this->membre();
         $other = User::factory()->create();
 
-        $mine = Property::factory()->count(2)->create(['user_id' => $me->id]);
-        $foreign = Property::factory()->create(['user_id' => $other->id]);
+        $mine = Property::factory()->count(2)->create(['user_id' => $me->id, 'agency_id' => $this->agency->id]);
+        $foreign = Property::factory()->create(['user_id' => $other->id, 'agency_id' => Agency::factory()->create()->id]);
 
         Sanctum::actingAs($me);
 
@@ -97,7 +121,8 @@ class PropertyBulkArchiveTest extends TestCase
         $failed = $response->json('failed');
         $this->assertCount(1, $failed);
         $this->assertSame($foreign->id, $failed[0]['id']);
-        $this->assertSame('forbidden', $failed[0]['reason']);
+        // TCK-817 — le bien d'une autre agence sort en `not_found` : `forbidden` disait qu'il existe.
+        $this->assertSame('not_found', $failed[0]['reason']);
 
         // Foreign property was not mutated.
         $this->assertDatabaseMissing('properties', [
@@ -152,10 +177,11 @@ class PropertyBulkArchiveTest extends TestCase
 
     public function test_skips_already_archived_properties(): void
     {
-        $me = User::factory()->create();
-        $fresh = Property::factory()->create(['user_id' => $me->id]);
+        $me = $this->membre();
+        $fresh = Property::factory()->create(['user_id' => $me->id, 'agency_id' => $this->agency->id]);
         $old = Property::factory()->create([
             'user_id' => $me->id,
+            'agency_id' => $this->agency->id,
             'status' => PropertyStatus::Archived,
         ]);
 
@@ -172,8 +198,8 @@ class PropertyBulkArchiveTest extends TestCase
 
     public function test_bulk_archive_logs_activity(): void
     {
-        $owner = User::factory()->create();
-        $p = Property::factory()->create(['user_id' => $owner->id]);
+        $owner = $this->membre();
+        $p = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $this->agency->id]);
 
         Sanctum::actingAs($owner);
 
@@ -196,9 +222,10 @@ class PropertyBulkArchiveTest extends TestCase
         // Regression: Eloquent syncs original attributes on save, so reading
         // `getOriginal('status')` AFTER `save()` would wrongly return
         // 'archived'. The activity log must capture the prior status.
-        $owner = User::factory()->create();
+        $owner = $this->membre();
         $p = Property::factory()->create([
             'user_id' => $owner->id,
+            'agency_id' => $this->agency->id,
             'status' => PropertyStatus::Available,
         ]);
 
@@ -221,7 +248,7 @@ class PropertyBulkArchiveTest extends TestCase
 
     public function test_validates_property_ids_required(): void
     {
-        $me = User::factory()->create();
+        $me = $this->membre();
         Sanctum::actingAs($me);
 
         $this->postJson('/api/properties/bulk-archive', [])

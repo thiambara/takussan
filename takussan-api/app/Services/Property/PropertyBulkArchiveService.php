@@ -59,7 +59,8 @@ class PropertyBulkArchiveService
         $authorized = [];
         foreach ($properties as $property) {
             if (! $actor->can('update', $property)) {
-                $failed[] = ['id' => $property->id, 'reason' => 'forbidden'];
+                // TCK-817 — un bien que l'acteur ne lit pas ne se distingue pas d'un absent.
+                $failed[] = ['id' => $property->id, 'reason' => $actor->can('view', $property) ? 'forbidden' : 'not_found'];
 
                 continue;
             }
