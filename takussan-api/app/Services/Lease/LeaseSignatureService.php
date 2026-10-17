@@ -127,12 +127,15 @@ class LeaseSignatureService
             // dans la réponse. Celui d'un e-mail, jamais.
             app(OtpPreview::class)->record($code);
         }
-        $user->notify(new LeaseSignatureCodeNotification(
+        $notification = new LeaseSignatureCodeNotification(
             $code,
             (string) ($lease->reference_number ?? $lease->id),
             (int) (LeaseSignatureOtpService::CODE_TTL_SECONDS / 60),
             $channel,
-        ));
+        );
+        $user->notify($notification);
+        // TCK-799 (P11.05) — un code qui n'est pas parti ne se dit pas envoyé.
+        abort_code_if($notification->smsLeft() === false, 503, 'lease_signature.sms_not_sent');
 
         return ['channel' => $channel, 'destination' => $destination];
     }

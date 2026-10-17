@@ -18,10 +18,12 @@ use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\LeaseSignatureCodeNotification;
 use App\Services\Lease\LeaseSignatureOtpService;
+use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -393,6 +395,44 @@ class LeaseSignatureTest extends TestCase
         $this->sendCode($this->tenantUser, 'tenant')->assertStatus(202)->assertJsonPath('data.channel', 'mail');
         Notification::assertSentTo($this->tenantUser, LeaseSignatureCodeNotification::class,
             fn (LeaseSignatureCodeNotification $n, array $channels) => $channels === ['mail']);
+    }
+
+    /**
+     * TCK-799 (P11.05) — un code qui n'est pas parti se dit : 503 lisible, et non `channel: sms`.
+     * Le vrai canal remplace le faux `Notification` : c'est sa réponse qui renseigne l'envoi.
+     */
+    public function test_a_sms_code_that_did_not_leave_answers_503(): void
+    {
+        $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
+        $this->requestSignature()->assertOk();
+        $this->realNotifications();
+        $this->mock(SmsRouterDriver::class, function ($mock) {
+            $mock->shouldReceive('send')->once()->andReturn([
+                '+221771234567' => SmsResult::failed('+221771234567', 'router', 'no_provider_available'),
+            ]);
+        });
+
+        $this->sendCode($this->owner, 'landlord')->assertStatus(503)
+            ->assertJsonPath('code', 'lease_signature.sms_not_sent');
+    }
+
+    public function test_a_sms_code_that_left_answers_202(): void
+    {
+        $this->owner->forceFill(['phone' => '+221771234567', 'phone_verified_at' => now()])->save();
+        $this->requestSignature()->assertOk();
+        $this->realNotifications();
+        $this->mock(SmsRouterDriver::class, function ($mock) {
+            $mock->shouldReceive('send')->once()->andReturn([
+                '+221771234567' => SmsResult::sent('+221771234567', 'lafricamobile', 'lam-1'),
+            ]);
+        });
+
+        $this->sendCode($this->owner, 'landlord')->assertStatus(202)->assertJsonPath('data.channel', 'sms');
+    }
+
+    private function realNotifications(): void
+    {
+        Notification::swap(new ChannelManager($this->app));
     }
 
     /** TCK-620 (ADR-0060) — hors production, drapeau allumé, le code SMS revient ; celui d'un e-mail jamais. */

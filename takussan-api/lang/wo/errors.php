@@ -283,6 +283,7 @@ return [
         'not_requested' => 'Amul kontraa buñuy xaar xaatim : laaj bi lañu wara jëkk a yónne.',
         'resend_too_soon' => 'Yónne nañu kood leegi : xaaral benn simili balaa ngay laaj beneen.',
         'terms_changed' => 'Bayle bi soppiku na bi ñuy waajal kontra bi : dara fëjjul. Laajaatal xaatim bi.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
     ],
     'lease_payment' => [
