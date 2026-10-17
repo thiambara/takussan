@@ -854,4 +854,21 @@ return [
     'property_proposed' => [
         'title' => 'Property proposed by a landlord: :title',
     ],
+    // TCK-748 — texte de départ de l'éditeur de gabarits (console super-admin), une langue par
+    // fichier. Syntaxe `{{ … }}` de NotificationTemplateService, pas `:param` : ces chaînes ne
+    // passent jamais par trans() avec des paramètres.
+    'editable_templates' => [
+        'booking_confirmed' => [
+            'subject' => 'Booking confirmed',
+            'body' => 'Hello {{ user.first_name }}, your booking {{ booking.code }} is confirmed.',
+        ],
+        'payment_received' => [
+            'subject' => 'Payment received',
+            'body' => 'Hello {{ user.first_name }}, payment received: {{ payment.amount }} {{ payment.currency }}.',
+        ],
+        'maintenance_created' => [
+            'subject' => 'Maintenance request created',
+            'body' => 'Hello {{ user.first_name }}, request {{ maintenance.reference }} created for {{ property.title }}.',
+        ],
+    ],
 ];

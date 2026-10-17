@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ImageEnTete;
 use Tests\TestCase;
 
 /**
@@ -185,6 +186,25 @@ class InventoryRoomPhotosTest extends TestCase
      * @param  array<string, mixed>  $attributes
      * @return array{0: User, 1: Inventory}
      */
+    /**
+     * TCK-751 (P10.06) — une photo HEIC est refusée : GD ne la décode pas, et elle manquait en
+     * silence au PDF contractuel après être entrée dans l'empreinte figée.
+     */
+    public function test_a_heic_photo_is_refused(): void
+    {
+        [$owner, $inventory] = $this->scaffold();
+
+        Sanctum::actingAs($owner);
+        $this->post("/api/inventories/{$inventory->id}/room-photos", [
+            'room_name' => 'Kitchen',
+            'photos' => [ImageEnTete::heic('cuisine.heic')],
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['photos.0']);
+
+        $this->assertCount(0, $inventory->refresh()->getMedia('room_photos'));
+    }
+
     private function scaffold(array $attributes = [], ?User $owner = null): array
     {
         $owner ??= User::factory()->create();

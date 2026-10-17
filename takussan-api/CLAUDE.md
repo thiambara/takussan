@@ -635,7 +635,15 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
 php bin/impacted-tests.php            # affiche la sélection et la commande
 php bin/impacted-tests.php --run      # l'exécute
 php bin/impacted-tests.php --base=dev # + tout ce qui sépare HEAD de dev
+php bin/impacted-tests.php --run --parallel   # la sélection sur 4 processus (paratest)
 ```
+
+**Les tests écrits depuis la carte** (qu'elle ne connaît pas) ne sont rejoués que s'ils **citent**
+une classe de `app/` que le diff touche, quand le diff n'est fait que de classes de `app/` et de
+tests ; sinon, tous. Avant le 2026-10-17, ils l'étaient tous : sur `pre-dev`, où la carte retarde
+jusqu'à la promotion suivante, c'était la moitié de la sélection d'un lot d'agent (83 classes sur
+164 pour #539). Le filtre manque un test neuf qui couvre une classe sans la nommer : la CI joue la
+suite entière.
 
 **Pourquoi.** La suite ne contient aucun point chaud à optimiser ligne à ligne : il n'y a qu'à en
 lancer moins pour la majorité des diffs. `tests/impact-map.json` associe à chaque fichier de `app/`

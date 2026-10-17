@@ -106,7 +106,7 @@ voie d'écriture (angle 13, puis 47).
 | 31 | Passage axe ou Lighthouse au navigateur (CDP) sur les cinq parcours, pour trancher les « à vérifier » d'accessibilité | fait |
 | 32 | Taille des envois côté API et proxy (`upload_max_filesize`, `post_max_size`, proxy Dokploy) face à un lot de 20 photos | fait (couvert par l'angle 10) |
 | 33 | Poids JS par route publique sur un réseau 3G simulé (fiche bien, recherche) | fait |
-| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | à faire |
+| 34 | Plan de bascule de la phase F côté SEO : Search Console, redirections, ancien index | fait |
 | 35 | Contenu des pages de facettes : texte propre par ville ou quartier, maillage interne | à faire |
 | 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | à faire |
 | 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | à faire |
@@ -143,6 +143,7 @@ voie d'écriture (angle 13, puis 47).
 | 68 | Passage axe au navigateur des écrans connectés (`/app`, console super-admin) derrière un faux API : barre latérale, tableaux, dialogues et feuilles de `@base-ui/react` | à faire |
 | 69 | Fiche bien, recherche et accueil servis par `next start` avec l'API de dev, sous 3G simulé par CDP : LCP, TBT, octets du document RSC et ordre des préchargements | à faire |
 | 70 | Poids JS initial des écrans de `/app` (`(dashboard)`, 500 à 610 Kio gzip au build du 2026-10-17) : ce que la coque et la barre latérale chargent pour chaque écran | à faire |
+| 71 | Variables d'environnement des services de production du plan F3 (`takussan-web-prod`, `takussan-api-prod`) face au relevé de la préproduction dans `docs/infra/hebergement.md` : clés absentes, valeurs reprises de D1 | à faire |
 
 ---
 
@@ -895,7 +896,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
 
 ### L'éditeur de gabarits de notification écrit du français dans les lignes `en` et `wo`
 - Réf : P06.07
-- Statut : validé — chaque langue pré-remplie depuis lang/{locale} ; seules les langues modifiées sont persistées
+- Statut : fait · TCK-748
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Admin/NotificationTemplateService.php:58-60,96-112,152-165`
 - Constat :
@@ -903,10 +904,11 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - Le front renvoie tous les `templates` à l'enregistrement (`notification-templates.tsx:80`). La première sauvegarde écrit donc du français en `en` et `wo`, et `renderActive()` préfère ces lignes à `lang/*` (lu ; lignes en base à vérifier).
 - Piste : pré-remplir depuis `lang/{locale}/notifications.php`, et ne persister que les langues modifiées.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `NotificationTemplateService.php:157-165` : `fallbackBody()` ignore `$locale` et rend le corps français, `fallbackSubject()` (l.152-155) rend le `name` français (lu) ; `update()` l.58-70 écrit les trois langues et replie sur `templates['fr']` pour toute langue absente (lu) ; `notification-templates.tsx:80` envoie tout `templates` (lu) ; `renderActive()` l.96-113 préfère la ligne active en base, et sert deux appelants (`NewBookingNotification.php:151`, `NotificationRenderer.php:214`) ; `SELECT` sur `notification_templates` par tinker → 9 lignes, toutes `whatsapp` et traduites, aucune ligne d'un événement éditable : le défaut n'a pas encore écrit en base de dev → tient. Classement : V7, pré-remplir depuis `lang/*` et ne persister que les langues touchées change ce que l'éditeur montre et enregistre.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `NotificationTemplateTest` avant correctif → 2 rouges sur 8 : le `GET` rend en `en` le corps français (clé `lang/en` absente, `fallbackBody()` ignore `$locale`), et un `PATCH` des trois langues, `fr` seule modifiée, écrit `['fr','en','wo']` → bloc `editable_templates` dans `lang/{fr,en,wo}/notifications.php` (`wo` = texte français tel quel, wolof en pause), `update()` n'écrit plus une langue sans ligne restée égale à son texte de départ ; ablation (service d'avant remis) → les 2 mêmes rouges, ligne `fr` porteuse de `is_active=false` retirée → 1 rouge ; remis → 8/8 verts, 42 tests voisins verts.
 
 ### Noms de champs non traduits : « Le champ is active est obligatoire »
 - Réf : P06.08
-- Statut : validé — traduire en anglais les 55 attributs déjà traduits en fr
+- Statut : fait · TCK-749
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/lang/fr/validation.php` (bloc `attributes`), `takussan-api/lang/en/validation.php`
 - Constat :
@@ -914,6 +916,7 @@ ont été relus contre le code par la session ; le premier est mesuré (`route:l
   - TCK-651 l'a constaté aussi : « le champ value » pour toutes les clés du catalogue.
 - Piste : traduire les champs que les formulaires remontent, ou ne jamais afficher la prose 422 et la remplacer par un libellé du front.
 - Mesure (2026-10-15, e9f9289c, mesureur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 (mesuré) ; `is_active` absent du bloc `fr` ; tinker `Validator::make([], ['is_active'=>'required'])` en `fr` → « Le champ is active est obligatoire. », en `en` → « The is active field is required. » ; TCK-651:138 le relève aussi (« le champ value ») → tient. Classement : V7, la piste ouvre un choix entre traduire des centaines de noms de champ en trois langues et remplacer la prose 422 par des libellés du front.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `count(attributes)` dans `lang/{fr,en,wo}/validation.php` → 55, 0, 55 ; `AttributsDeValidationTraduitsTest` avant correctif → 2 rouges sur 2 (`validation.attributes` absent en `en`, « The property id field is required. ») → bloc `attributes` anglais, mêmes 55 clés dans le même ordre ; ablation (fichier d'avant remis) → les 2 mêmes rouges ; remis → vert, `MessagesDeValidationTraduitsTest` et `ValidationMessagesLocaleTest` verts.
 
 ### Journal d'audit : des descriptions brutes qui mêlent français, anglais et codes
 - Réf : P06.09
@@ -1203,12 +1206,13 @@ Sain (vérifié par l'agent) :
 
 ### Les formulaires longs hors wizard n'ont aucun brouillon
 - Réf : P08.06
-- Statut : validé — avertissement beforeunload seulement quand le formulaire est modifié
+- Statut : fait · TCK-755
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/leases/CreateLeaseForm.tsx` (11 champs), `customer-form/CustomerForm.tsx` (17), `property-form/PropertyForm.tsx` (13)
 - Constat : aucune persistance, et aucun `beforeunload` dans `src/` (mesuré).
 - Piste : `useWizardDraft` sous une clé par écran, comme `WizardReprenable`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : `grep -l 'useWizardDraft\|localStorage\|sessionStorage'` sur `CreateLeaseForm.tsx`, `CustomerForm.tsx` et `PropertyForm.tsx` → rien ; `grep -rln beforeunload takussan-web/src` hors tests → `hooks/useWizardDraft.ts:264`, un **commentaire** seulement (le constat disait « aucun » : il n'y a aucun gestionnaire) → tient. Classement : V7, une reprise de brouillon ou un avertissement de départ sur trois écrans est une interaction neuve (quand proposer, quand purger), qu'aucune spec n'écrit pour ces formulaires.
+- Mesure (2026-10-17, 18c6141d, implementeur) : `grep -rn beforeunload takussan-web/src` hors tests → le seul commentaire de `useWizardDraft.ts:264` ; un `beforeunload` annulable émis après une saisie dans chacun des trois formulaires n'est pas annulé (3 tests rouges) → tient. Correctif : `useAvertissementDepart(isDirty)`, `isDirty` lu par `useFormState`. Ablation : écouteur retiré → 4 rouges ; branchement retiré de `CustomerForm` → son test rouge ; remis → 46/46 verts.
 
 ### Des tableaux sans alternative en cartes, l'action en dernière colonne
 - Réf : P08.07
@@ -1221,21 +1225,23 @@ Sain (vérifié par l'agent) :
 
 ### Barres d'onglets sans défilement
 - Réf : P08.08
-- Statut : validé — overflow-x-auto dans TabsList, patron de CustomerDetailTabs
+- Statut : fait · TCK-756
 - Gravité : 🟠 risque ou dette (à vérifier)
 - Où : `takussan-web/src/components/ui/tabs.tsx:27,87`, `payments/PaymentsTabs.tsx:81`, `property-dashboard/PropertyDetailTabs.tsx:71`
 - Constat : 5 onglets totalisent environ 53 caractères pour 328 px, sans enveloppe `overflow-x-auto` (contrairement à `CustomerDetailTabs.tsx:65`). C'est `<main>` qui défilerait de côté, et la sonde de TCK-505 ne le voit pas (lu).
 - Piste : reprendre le patron de `CustomerDetailTabs` dans la primitive.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `tabs.tsx:27` (`inline-flex w-fit`, aucun `overflow`) et `:87` (déclencheurs `whitespace-nowrap`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu), `CustomerDetailTabs.tsx:65` (enveloppe `overflow-x-auto`) ; largeur rendue par Chromium headless des libellés `fr` (14 px, graisse 500, padding de la primitive, **police de repli** Helvetica et non DM Sans) → **454 px** pour les cinq onglets des paiements, **394 px** pour ceux du bien, contre 328 px disponibles → la barre déborde. Que ce soit `<main>` qui défile n'a **pas** été mesuré : retenu pour le débordement seul. Classement : V7, faire défiler la primitive touche toutes les barres, et la règle « défile dans son conteneur » n'est écrite que pour les tables.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `ui/tabs.tsx:27` (`inline-flex w-fit … justify-center`, aucun `overflow`), `PaymentsTabs.tsx:81` et `PropertyDetailTabs.tsx:71` (`<TabsList>` nu) → tient. Correctif dans la primitive : `max-w-full`, `justify-center-safe` (centré, un débordement perd son début), `overflow-x-auto` sur la variante `default` seule (le liseré de `line` est posé 5 px sous la liste). Test `tabs.defilement.test.tsx` ; ablation : primitive d'avant → rouge ; remise → 99/99 verts sur 18 fichiers. Non observé dans un navigateur.
 
 ### Zoom iOS sur des champs faits main en `text-sm`
 - Réf : P08.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-757
 - Gravité : 🟠 risque ou dette
 - Où : `inventory/RoomEditor.tsx:140`, `admin/InviteAgentDialog.tsx:136,154,175,194`, `admin/InviteMemberDialog.tsx:111`
 - Constat : les primitives sont saines (`text-base md:text-sm`), mais ces champs sont sous 16 px, et Safari zoome au focus (mesuré).
 - Piste : `Input`/`Textarea`, ou `text-base md:text-sm`.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `RoomEditor.tsx:140` (`<textarea>` en `text-sm`), `InviteAgentDialog.tsx:136,154,175,194` et `InviteMemberDialog.tsx:111` (`<input>` en `text-sm`, sans `text-base`) — lignes inchangées ; `ui/input.tsx:18-20` écrit la règle (« 16 px sous `md` (`text-base md:text-sm`) : iOS ne zoome pas au focus ») et `ui/textarea.tsx:10` l'applique → tient. Le zoom lui-même n'a pas été observé sur un iPhone. Classement : A1, le comportement attendu est écrit dans la primitive, et le correctif aligne six champs sur elle sans choix de produit.
+- Mesure (2026-10-17, 18c6141d, implementeur) : garde de source `champs-sans-zoom-ios.test.ts` sur les trois fichiers cités → 3 rouges, exactement les six champs (`RoomEditor.tsx:137`, `InviteAgentDialog.tsx:132,150,170,190`, `InviteMemberDialog.tsx`) → tient. Correctif : `text-base md:text-sm`. Ablation : fichiers d'avant → 3 rouges ; remis → verts. Cinq autres champs du dépôt en `text-sm` seul, hors piste, sont listés dans TCK-757.
 
 ### Petites améliorations
 - Réf : P08.10
@@ -1307,7 +1313,7 @@ Correct (mesuré ou lu) :
 
 ### JSON-LD de la fiche : prix sur le mauvais type, contrat et période absents
 - Réf : P09.04
-- Statut : validé — Offer avec businessFunction LeaseOut ou Sell, unitCode selon rent_period, champs hors domaine retirés de Place
+- Statut : fait · TCK-758
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/jsonld-property.ts:81,97,102`
 - Constat :
@@ -1316,6 +1322,7 @@ Correct (mesuré ou lu) :
   - Pour un terrain, un bureau ou un parking, `floorSize`, `numberOfBedrooms` et `yearBuilt` sont hors domaine (mesuré, lu). La devise XOF, elle, est bien présente.
 - Piste : `RealEstateListing.offers` → `Offer { price, priceCurrency, businessFunction }`, plus un `UnitPriceSpecification` `unitCode: MON` pour la location.
 - Mesure (2026-10-15, 66ed4340, mesureur) : relu `jsonld-property.ts:80-113` : `priceSpecification` est posé dans `mainEntity`, typé par `SOUS_TYPE_SCHEMA` (`:17-33`, `Apartment`, `House`, `Room`, `Accommodation` ou `Place`), aucun `offers`, ni `contract_type` ni `rent_period` émis ; `floorSize`, `numberOfBedrooms` et `yearBuilt` sont posés aussi sur `Place` (terrain, bureau, parking), où schema.org ne les définit pas ; `priceCurrency` vaut bien `XOF` par défaut → tient. Aucun validateur de données structurées n'a été lancé. Classement : V7, choisir `businessFunction` et le `unitCode` de chaque `rent_period` n'est écrit par aucun ticket ni ADR.
+- Mesure (2026-10-17, 18c6141d, implementeur) : relu `jsonld-property.ts` : `priceSpecification` toujours sur le `mainEntity`, aucun `offers`, champs de logement posés sur `Place` ; 7 tests neufs de `jsonld-property.test.ts` rouges → tient. Correctif : `offers` = `Offer` (`Sell` ou `LeaseOut`, `UnitPriceSpecification` `DAY`/`WEE`/`MON`/`ANN`), plus de prix sur le bien, `Place` sans champ de logement (`numberOfBathroomsTotal` compris). Le test « jamais `Product`/`Offer` » de TCK-335 garde désormais `Product` seul. Ablation : fichier d'avant → 8 rouges ; remis → 22/22. Aucun validateur lancé.
 
 ### Chaque fiche a trois URL au contenu principal identique
 - Réf : P09.05
@@ -1421,7 +1428,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
-- Statut : validé — médias d'un modèle supprimé en douceur purgés 90 jours après deleted_at, collections de preuve exclues
+- Statut : fait · TCK-750 — reste : la requête par média de `media:cleanup` (une lecture du modèle par ligne, sur tout le parc, chaque nuit)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1433,6 +1440,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaCleanup.php:23-60` (inchangé depuis TCK-050, `git log` : 2 commits ; `isOrphan()` fait `$type::query()->whereKey($id)->exists()`, et son commentaire dit « soft-deleted targets count as orphans (per ticket spec) », ce que TCK-050 écrit l. 96) et `routes/console.php:67` (`dailyAt('03:00')`) ; test Feature temporaire (retiré) : un `Property` avec une photo datée de 2 jours, supprimé en douceur, puis `media:cleanup` → **0** média restant, en 3 requêtes pour un média. `Lease` porte déjà `SoftDeletes` (`Lease.php:28`) : le constat dit « le jour où un bail serait supprimé en douceur », mais aucun `->delete()` de bail n'a été trouvé dans `app/` (grep), donc le chemin reste théorique pour les baux. La requête par média tient (une `exists()` par ligne, lu). Classement : V3, garder les médias d'un bien supprimé, et pour combien de temps, est un choix de conservation qui contredit la règle écrite par TCK-050.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `MediaCleanupTest` avant correctif → 2 rouges sur 7 : la photo d'un bien supprimé en douceur 89 jours plus tôt est purgée (0 média), et `signed_contract` et `room_photos` d'un bail et d'un état des lieux signé supprimés partent aussi → `isOrphan()` lit le modèle `withTrashed()`, purge après `deleted_at` + 90 jours, preuves de TCK-596 exclues ; ablation (commande d'avant remise) → les 2 mêmes rouges, exclusion des preuves retirée seule → 1 rouge ; remis → 7/7 verts.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
@@ -1449,7 +1457,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### La règle `image` seule accepte le HEIC, que la chaîne ne sait pas traiter
 - Réf : P10.06
-- Statut : validé — HEIC refusé (mimes:jpg,jpeg,png,webp) sur l'état des lieux et l'avatar
+- Statut : fait · TCK-751
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/UploadRoomPhotosInventoryRequest.php:39`, `takussan-api/app/Http/Requests/Auth/UpdateProfileRequest.php:50`, `takussan-api/app/Services/Media/PdfImageEmbedder.php:30,112`
 - Constat :
@@ -1461,6 +1469,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : `mimes:jpg,jpeg,png,webp` sur ces deux règles, ou une conversion du HEIC à l'entrée.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `UploadRoomPhotosInventoryRequest.php:39` (`required`, `image`, `max:5120`), `UpdateProfileRequest.php:50` (`nullable`, `image`, `max:2048`), `vendor/…/ValidatesAttributes.php:1533` (`heic`, `heif` dans la liste de `image`), `PdfImageEmbedder.php:30,108-116` (rend `null` hors jpeg, png, webp, gif) ; mesuré `function_exists('imagecreatefromheif')` → `false` et `gd_info()` sans prise en charge HEIF ; HEIC réel produit par `sips -s format heic` (finfo : `image/heic`), puis test Feature temporaire (retiré) : la règle de l'état des lieux **passe**, et `PUT /api/auth/profile` avec ce fichier → 200, média `image/heic` sur le disque public, `generated_conversions` vide, `avatar_url` = l'original `.heic`. L'absence au PDF de l'état des lieux est déduite de `PdfImageEmbedder::encode`, non rejouée. Classement : V7, la piste laisse ouvert le choix entre refuser le HEIC (`mimes:`) et le convertir à l'entrée, et un refus change ce qu'un utilisateur de l'API peut envoyer.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : HEIC réduit à sa boîte `ftyp` (finfo → `image/heic`, `image` passe, `mimes:jpg,jpeg,png,webp` échoue, mesuré par tinker) ; `InventoryRoomPhotosTest` et `AuthProfileTest` avant correctif → 2 rouges, 200 au lieu de 422 → `mimes:jpg,jpeg,png,webp` sur les deux règles ; ablation (FormRequests d'avant remis) → les 2 mêmes rouges ; remis → 34/34 verts, 78 tests des classes voisines verts.
 
 ### Collection `documents` : 25 Mo validés, 10 Mo acceptés par Spatie
 - Réf : P10.07
@@ -3807,3 +3816,86 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 - Piste : `Footer` en composant serveur ; refaire la mesure CSS après P33.01.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `Footer.tsx:1` (`'use client'`), `:101-103` (deux `useTranslations` et `new Date().getFullYear()`, ni état, ni effet, ni gestionnaire), ses enfants `ChoixDeLangue` et `LienLocalise` sont eux-mêmes `'use client'` et `Logo` est neutre ; `grep -rln "home/Footer'" src` → 17 importeurs, dont quatre client (`HomepageDiscovery`, `PropertiesDiscoveryPage`, `PublicFavoritesPage`, `CompareClient`) qui le garderont dans leur JS ; `footer` est dans `src/i18n/namespaces.json:152` ; la mesure CSS n'a pas été refaite, et le point `@base-ui/react` ne demande rien → seule la partie `Footer` tient comme correctif. Classement : A2, retirer `'use client'` de `Footer` (le `useTranslations` de next-intl vaut côté serveur et côté client) et régénérer `namespaces.json` par `check-i18n-namespaces.mjs` ne change aucun rendu ; le gain se limite aux pages serveur qui l'importent.
 - Mesure (2026-10-17, 36eeeb59, implementeur) : reproduit avant correctif par `Footer.serveur.test.ts`, qui trace le graphe client des 13 importeurs serveur de `Footer` (fiches bien, agence, agent et leurs `not-found`, réservation, paiement, partage, deux pages d'alertes, `PageLegale`, `IndexDeProfils`) : 13 rouges, `Footer.tsx` dans chacun → `'use client'` retiré, sans autre changement ; ablation : directive remise → les 13 rouges ; 16/16 verts, 155 tests de `components/home` verts ; `check-i18n-namespaces` conforme sans régénérer `namespaces.json` (le dérivateur ne distingue pas client et serveur, et `HomepageDiscovery`, client, lit encore `footer`).
+
+## Angle 34 — Plan de bascule de la phase F côté SEO
+
+*Exploré le 2026-10-17 sur `pre-dev` dfff1f69, par l'explorateur, seul (aucun sous-agent). Tout est
+relu dans le dépôt : TCK-517, la phase F du plan d'auto-hébergement
+(`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951` et suivantes), `images.yml`, le
+`Dockerfile` du front, `robots.ts`, `sitemap.ts`, `alternates.ts`, `proxy.ts`, et les pages de
+`origin/master` (`fefe2c87`) par `git ls-tree` et `git show`. Les deux artefacts cités viennent du
+`next build` resté dans `takussan-web/.next` (2026-10-17, 01 h 17) ; aucun des fichiers qui les
+produisent n'a changé depuis le 2026-10-16 (`git log --since`). **Rien n'a été mesuré hors du poste** :
+ni l'index Google actuel, ni la Search Console, ni le site de production. Ce que Google a gardé de
+l'ancien site reste donc inconnu. Déjà couverts, et pas repris ici : le build du 15 août en
+production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues indexables (P09.05).*
+
+### Les décisions SEO du porteur pour la bascule ne sont écrites ni dans TCK-517 ni dans le plan de la phase F
+- Réf : P34.01
+- Statut : retenu · à valider — V5 et V6 : tâche de bascule (DNS Cloudflare, Search Console) et 308 contraire à ADR-0026 § 3
+- Gravité : 🟠 risque ou dette
+- Où : `docs/backlog/tickets/TCK-517-production-auto-hebergee.md`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3951-4200`, `docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md:154-168`, `takussan-web/src/proxy.ts:161`
+- Constat :
+  - Le porteur a tranché le 2026-10-15 que P09.01 (« soumettre le sitemap à la Search Console ») et P09.07 (« 308 vers /fr ») sont « traités hors agents, dans la phase F (TCK-517) ». Ces décisions ne vivent que dans les lignes `Statut` de ce fichier (lu).
+  - `grep -rn -i "search console\|google-site-verification\|IndexNow\|bing webmaster" docs`, hors ce fichier → rien. Aucune tâche F1 à F5 ne vérifie la propriété du site, ne soumet le sitemap, ne relève l'index avant la bascule ni ne le suit après (mesuré).
+  - `grep -n 308` sur TCK-517, sur le plan et sur ADR-0026 → seule la règle inverse, ADR-0026 § 3 (« redirigent en 307, jamais en 308 »). `proxy.ts:161` répond toujours `NextResponse.redirect(url, 307)` (lu, mesuré).
+  - Le contrôle de F3 étape 3 (`attendre …/robots.txt`) prouve le commit servi, pas le contenu de `robots.txt` ni celui du sitemap (lu, `images.yml:157-160`).
+  - L'ajout à l'ardoise que demandait P09.01 n'est pas fait non plus : `grep -i "seo\|sitemap\|référencement" docs/ardoise.md` → rien (mesuré ; voir P09.01).
+  - Établi comment : lecture et `grep`. Le CLAUDE.md racine écrit qu'« une décision qui ne vit que dans un ticket clos est une décision perdue » ; une ligne `Statut` en est une autre forme.
+- Piste : ajouter à la phase F une tâche SEO, F3 étape 7 ou F6 : la propriété Search Console par enregistrement DNS TXT chez Cloudflare (il survit à la bascule, contrairement à un fichier ou à une balise servis par Vercel), un relevé de l'index et des erreurs de couverture avant F3, la soumission du sitemap après la seconde ligne `✓`, un relevé à J+7 avant F5. La redirection 308 demande d'abord un amendement d'ADR-0026 § 3. Garde possible : F3 vérifie que `robots.txt` cite le sitemap de l'origine de production et que le sitemap compte plus d'URL que les seules pages statiques.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `git log dfff1f69..18c6141d` sur TCK-517, le plan, ADR-0026, `proxy.ts`, `images.yml` et l'ardoise → aucun commit ; `grep -rni 'search console\|google-site-verification\|IndexNow\|bing webmaster' docs` hors ce fichier → rien ; `grep -n 308` sur TCK-517, le plan et ADR-0026 → seuls ADR-0026:154-168 (307, jamais 308) et deux 308 sans rapport (Mo, tâches) ; `proxy.ts:161` → `NextResponse.redirect(url, 307)` ; plan F3 étape 3 (l. 4104) n'attend que `robots.txt sert <commit>` ; `grep -ni 'seo\|sitemap\|référencement' docs/ardoise.md` → rien → le constat tient en entier. Classement : V5, la tâche ajoutée vit dans le plan de déploiement et passe par un enregistrement DNS, et V6, la 308 demande d'amender ADR-0026 § 3.
+
+### Le sitemap est figé au build, et le premier build de production se fait sans API
+- Réf : P34.02
+- Statut : retenu · à valider — V5 et V7 : ordre du plan de bascule, et choix entre trois options de rendu du sitemap
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
+- Constat :
+  - `/sitemap.xml` est prérendu au build : `prerender-manifest.json` → `"compute":"static"`, `"initialRevalidateSeconds":3600` (mesuré sur le build local). `sitemap.ts:69` déclare `revalidate = 3600`.
+  - Chaque source qui échoue est seulement journalisée (`console.error`, `sitemap.ts:178-182`), et le build passe. Le sitemap du build local compte **12 `<loc>`**, les quatre pages statiques dans les trois langues : aucun bien, aucune ville, aucun profil (mesuré : `grep -c "<loc>" .next/server/app/sitemap.xml.body`). L'état de l'API locale à 01 h 17 n'est pas connu.
+  - Le catalogue est lu par `apiFetch`, donc sur `NEXT_PUBLIC_API_URL`, l'URL publique (lu). Dans le plan, l'image `:prod` se construit en F2 étape 4, quand l'API de production ne sert encore rien : elle ne se déploie qu'en F3 (lu).
+  - L'image servie après la bascule porterait donc un sitemap de 12 URL. Il ne serait refait qu'à la première requête une heure après le démarrage du conteneur, et cette requête recevrait encore l'ancien (à vérifier sur l'image : comportement ISR de Next en `standalone`).
+- Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
+
+### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
+- Réf : P34.03
+- Statut : retenu · à valider — V5 : sortie `media_url` de production dans `images.yml` et médias de production sur R2
+- Gravité : 🟠 risque ou dette
+- Où : plan F2 étape 1 (`docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md`, bloc `master)`), `.github/workflows/images.yml:36-44,100-103`, `takussan-web/Dockerfile:17,28`
+- Constat :
+  - Le bloc que F2 ajoute au `case` d'`images.yml` écrit trois sorties (`environnement`, `api_url`, `site_url`). Le `case` actuel en écrit quatre, avec `media_url`, et le build du front passe `NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}` (lu).
+  - `Dockerfile:28` : `test -n "$NEXT_PUBLIC_MEDIA_URL" || … exit 1`. Recopié tel quel, F2 fait échouer le build de l'image `:prod` (lu ; l'échec est bruyant, pas silencieux).
+  - Aucune tâche F ne parle des médias de production (`awk 'NR>=3951' … | grep -i "media\|R2\|0029"` → une seule ligne, sur les sauvegardes). `takussan-web/CLAUDE.md` interdit de poser cette variable sans la bascule des médias de l'environnement sur R2 : sinon les photos sortent en pleine taille, sans optimiseur. Les `og:image` des fiches en dépendent (lu).
+- Piste : compléter F2 avec la `media_url` de production et une étape F1 pour le seau public et le disque de production (ADR-0029), ou dire explicitement que la production démarre sans R2. Le plan se corrige seul ; une garde qui compare les sorties de chaque branche du `case` d'`images.yml` attraperait la même faute à l'exécution.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F2 étape 1 (l. 4016-4027) : le bloc `master)` écrit `environnement`, `api_url`, `site_url`, sans `media_url` ; `images.yml:32,42` déclare et écrit `media_url` pour `preview`, `:103` passe `NEXT_PUBLIC_MEDIA_URL` au build du front ; `takussan-web/Dockerfile:28` sort en `exit 1` si elle est vide ; `awk 'NR>=3951' <plan> | grep -i 'media\|R2\|0029'` → une seule ligne, sur les sauvegardes lues dans R2 → le constat tient. Classement : V5, le correctif fixe une URL de production dans `.github/workflows/images.yml` et décide du seau de médias de production (ADR-0029).
+
+### F3 ne dit pas quelles variables d'exécution reçoivent le front et l'API de production
+- Réf : P34.04
+- Statut : retenu · à valider — V5 : variables d'environnement du front et de l'API de production
+- Gravité : 🟠 risque ou dette
+- Où : plan F3 étape 1, `docs/infra/hebergement.md:171-180`, `takussan-web/src/app/api/revalidation/fiche/route.ts:78-89`, `takussan-api/config/services.php:55-58`
+- Constat :
+  - Pour `takussan-web-prod`, F3 ne donne que l'image, le domaine et l'absence d'authentification basique. `hebergement.md:176-180` liste pour `takussan-web-preview` trois variables d'exécution : `PUBLIC_CACHE_REVALIDATE_SECRET`, `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` (lu).
+  - Secret vide, le handler de révocation rend 401 à tout appel (`route.ts:84-89`, lu). Une fiche dépubliée ou retirée reste alors servie, à un robot comme à un visiteur, jusqu'à la fin du cache de données (300 s selon `hebergement.md:174`).
+  - L'API de production prend « l'environnement de D1, à ces différences près », et la table des différences ne cite ni `PUBLIC_CACHE_REVALIDATE_URL` ni `PUBLIC_CACHE_REVALIDATE_SECRET` (lu). Recopiée de la préproduction, l'URL viserait le handler du front de préproduction, et la production révoquerait le cache de la préproduction (à vérifier : `hebergement.md:171` dit ces clés « à poser » au 2026-10-08, sans dire si elles le sont).
+  - À vérifier aussi : en préproduction, cette URL passe par l'authentification basique de Traefik, qui couvre toute l'application (`hebergement.md:183`). Le POST de l'API y recevrait 401 avant d'atteindre Next (déduit, non mesuré).
+- Piste : ajouter à F3 la table des variables d'exécution de `takussan-web-prod` et les deux clés `PUBLIC_CACHE_*` dans celle de l'API, avec l'URL de production. Pour la préproduction, mesurer un POST signé contre l'URL publique.
+- Mesure (2026-10-17, 18c6141d, mesureur) : relu le plan F3 étape 1 (l. 4067-4087) : `takussan-web-prod` n'a qu'image, domaine et « sans authentification basique », et la table de l'API ne cite aucune clé `PUBLIC_CACHE_*` ; `hebergement.md:171-180` liste les trois variables d'exécution de `takussan-web-preview` et les dit « à poser » au 2026-10-08 ; `route.ts:79-89` rend 401 si le secret est vide ; `config/services.php:55-58` lit les deux clés, vides par défaut → la partie plan tient ; le 401 de Traefik sur le POST de préproduction reste déduit, non mesuré (hors du poste). Classement : V5, ce sont des variables d'environnement de production à fixer dans le plan de bascule.
+
+### Petites améliorations
+- Réf : P34.05
+- Statut : retenu · à valider — V5 et V7 : `noindex` selon l'environnement et plan F3, en plus d'une politique `robots` à trancher
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
+- Constat :
+  - **`Disallow: /app` interdit aussi `/apple-icon.png`.** Le `robots.txt` du build porte `Disallow: /app` sans barre finale, et `apple-icon.png` est servi à la racine (mesuré dans `.next/server/app/`). La correspondance se fait par préfixe et la règle la plus longue l'emporte sur `Allow: /`. Le commentaire de `sitemap.ts:335-337` affirme pourtant qu'« aucune surface publique ne commence par l'un de ces préfixes » (lu ; l'effet sur l'icône affichée par Google est à vérifier). Aucun test ne confronte la liste aux fichiers de la racine (`grep -rln apple-icon src` → proxy et routage seulement).
+  - **`/publish` est interdit aux robots sans porter `noindex`** : `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx` et `maintenance/page.tsx` ne déclarent aucun `robots`, et la racine non plus (lu). C'est le piège que `robots.ts` décrit pour `/playground`. Sur `master`, `/publish` n'avait ni `noindex` ni `robots.txt` : une URL que Google aurait gardée n'en sortirait plus (index réel à vérifier). `/auth`, lui, portait déjà `noindex` sur `master` (`git show origin/master:…/(auth)/layout.tsx:21`).
+  - **Préproduction : une seule barrière contre l'indexation, hors du dépôt.** `robots.ts` rend `Allow: /` quel que soit l'environnement, et rien ne pose `noindex` quand `ORIGINE_SITE` diffère d'`ORIGINE_PRODUCTION` (lu). Seule l'authentification basique de Dokploy protège le front de préproduction, et `hebergement.md:211` laisse ouverte son remplacement par Cloudflare Access. Côté API, `public/robots.txt` vaut `Disallow:` (tout permis) et `/` rend la vue `welcome` en HTML, en préproduction comme en production (lu).
+  - **F3 étape 4 éprouve la redirection de l'apex sur `/fr/biens?page=2`**, un chemin qui n'existe pas : la liste est `/fr/properties` (lu). Le 301 se vérifie quand même, mais la commande suivante ne prouve rien de la cible.
+- Piste :
+  - `Disallow: /app/` et `Disallow: /app$`, ou une liste confrontée aux fichiers servis à la racine par un test ;
+  - `robots: { index: false }` sur les passages interdits ;
+  - `X-Robots-Tag: noindex` ou `Disallow: /` dès que l'origine n'est pas celle de la production, côté front et côté API ;
+  - `/fr/properties?page=2` dans la commande de F3.
+- Mesure (2026-10-17, 18c6141d, mesureur) : `.next/server/app/robots.txt.body` de cet arbre → `Disallow: /app` sans barre, et `apple-icon.png` est servi à la racine (`src/app/apple-icon.png`, `.next/server/app/apple-icon.png.body`) ; le commentaire de `src/lib/sitemap.ts:335-337` affirme toujours qu'aucune surface publique ne commence par ces préfixes ; `grep -l robots` sur `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx`, `maintenance/page.tsx` et `app/layout.tsx` → aucun (seul `(auth)/layout.tsx:34` porte `index: false`) ; `robots.ts` rend `allow: '/'` sans condition d'origine ; `takussan-api/public/robots.txt` → `Disallow:`, `routes/web.php:7-9` → vue `welcome` ; plan F3 étape 4 (l. 4126,4130) éprouve `/fr/biens?page=2` → les quatre points tiennent ; l'effet réel sur l'icône chez Google n'est pas mesuré. Classement : V5, le `noindex` dépend de l'origine déployée et le dernier point corrige le plan de bascule, et V7, `Disallow: /app/` + `/app$` et le `noindex` des passages interdits changent ce qu'on expose aux moteurs ; le seul point `/app` relèverait d'A1.

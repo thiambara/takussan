@@ -36,7 +36,7 @@ class UploadRoomPhotosInventoryRequest extends BaseFormRequest
     {
         return [
             'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['required', 'image', 'max:5120'],
+            'photos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             // TCK-596 — une photo appartient à une PIÈCE de cet état des lieux, pas à une chaîne libre.
             'room_name' => ['required', 'string', Rule::in($this->roomNames())],
         ];

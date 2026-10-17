@@ -55,15 +55,39 @@ class NotificationTemplateService
         $templates = $payload['templates'] ?? [];
         $this->validateTemplates($event, $channel, $templates);
 
+        // TCK-748 — seules les langues modifiées sont persistées. Une langue sans ligne et dont le
+        // texte reçu est encore celui de `lang/{locale}` reste sans ligne : `renderActive()` la
+        // laisse alors à la notification d'origine, au lieu d'une copie figée du texte de départ.
+        $rows = NotificationTemplate::query()
+            ->where('event', $event)
+            ->where('channel', $channel)
+            ->get()
+            ->keyBy('locale');
+        $isActive = (bool) ($payload['is_active'] ?? true);
+
         foreach (self::LOCALES as $locale) {
-            $fallback = $templates['fr'] ?? [];
-            $data = $templates[$locale] ?? $fallback;
+            $row = $rows[$locale] ?? null;
+            $data = $templates[$locale] ?? null;
+            if ($data === null) {
+                $row?->update(['is_active' => $isActive, 'updated_by_id' => $actor->id]);
+
+                continue;
+            }
+            $subject = $data['subject'] ?? null;
+            $body = (string) ($data['body'] ?? '');
+            $untouched = (string) $subject === $this->fallbackSubject($event, $channel, $locale)
+                && $body === $this->fallbackBody($event, $channel, $locale);
+            // Désactiver un gabarit jamais modifié écrit la ligne `fr`, qui porte l'état.
+            $carriesState = $locale === 'fr' && ! $isActive && $rows->isEmpty();
+            if (! $row && $untouched && ! $carriesState) {
+                continue;
+            }
             NotificationTemplate::updateOrCreate(
                 ['event' => $event, 'channel' => $channel, 'locale' => $locale],
                 [
-                    'subject' => $data['subject'] ?? ($fallback['subject'] ?? null),
-                    'body' => $data['body'] ?? ($fallback['body'] ?? ''),
-                    'is_active' => (bool) ($payload['is_active'] ?? true),
+                    'subject' => $subject,
+                    'body' => $body,
+                    'is_active' => $isActive,
                     'updated_by_id' => $actor->id,
                 ],
             );
@@ -151,16 +175,27 @@ class NotificationTemplateService
 
     private function fallbackSubject(string $event, string $channel, string $locale): string
     {
-        return $channel === 'sms' ? '' : EditableNotificationEvents::get($event)['name'];
+        if ($channel === 'sms') {
+            return '';
+        }
+
+        return $this->langText($event, 'subject', $locale);
     }
 
     private function fallbackBody(string $event, string $channel, string $locale): string
     {
-        return match ($event) {
-            'booking_confirmed' => 'Bonjour {{ user.first_name }}, votre réservation {{ booking.code }} est confirmée.',
-            'payment_received' => 'Bonjour {{ user.first_name }}, paiement reçu: {{ payment.amount }} {{ payment.currency }}.',
-            'maintenance_created' => 'Bonjour {{ user.first_name }}, demande {{ maintenance.reference }} créée pour {{ property.title }}.',
-            default => EditableNotificationEvents::get($event)['name'],
-        };
+        return $this->langText($event, 'body', $locale);
+    }
+
+    /**
+     * TCK-748 — texte de départ lu dans `lang/{locale}/notifications.php`, et non plus du français
+     * en dur pour les trois langues.
+     */
+    private function langText(string $event, string $field, string $locale): string
+    {
+        $key = "notifications.editable_templates.{$event}.{$field}";
+        $text = __($key, [], $locale);
+
+        return is_string($text) && $text !== $key ? $text : EditableNotificationEvents::get($event)['name'];
     }
 }

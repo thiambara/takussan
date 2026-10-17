@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import { useWatch } from 'react-hook-form';
+import { useFormState, useWatch } from 'react-hook-form';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
   FormTextarea,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { ApiError } from '@/lib/api';
 import {
@@ -298,6 +299,10 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
 
   const { control, formState } = form;
   const dirtyCount = Object.keys(formState.dirtyFields).length;
+  // P08.06 (TCK-755) — avertir avant de quitter la page, seulement quand le formulaire est modifié.
+  // `useFormState` et non `form.formState` lu au rendu : compilé, la lecture resterait figée (TCK-571).
+  const { isDirty } = useFormState({ control: form.control });
+  useAvertissementDepart(isDirty);
   // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `wizard/steps/StepBien.tsx`).
   // Dans les étapes du parcours, une lecture `watch()` restait figée une fois compilée. Ici, dans
   // l'HÔTE du formulaire, elle ne l'est pas aujourd'hui — mais seulement parce que la sortie du

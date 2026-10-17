@@ -23,12 +23,18 @@ function Tabs({
   )
 }
 
+/**
+ * P08.08 (TCK-756) — trop large, la liste défile dans sa propre boîte (`max-w-full` +
+ * `overflow-x-auto`) au lieu de pousser la page : cinq onglets `fr` mesurent 454 px pour 328
+ * disponibles à 360. `justify-center-safe` : centré, un contenu qui déborde perdrait son début.
+ * `line` ne défile pas : son liseré actif est posé 5 px sous la liste, et serait rogné.
+ */
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 plancher-onglets-liste group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+  "group/tabs-list inline-flex w-fit max-w-full items-center justify-center-safe rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 plancher-onglets-liste group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
   {
     variants: {
       variant: {
-        default: "bg-muted",
+        default: "bg-muted overflow-x-auto",
         line: "gap-1 bg-transparent",
       },
     },

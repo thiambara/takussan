@@ -49,7 +49,7 @@ class UpdateProfileRequest extends FormRequest
                 }
             }],
             // TCK-677 (P10.02) — miniature synchrone : au-delà de 20 Mpx, refus avant tout décodage.
-            'avatar' => ['nullable', 'image', 'max:2048', new PixelsAuPlus],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', new PixelsAuPlus],
             'avatar_remove' => ['sometimes', 'boolean'],
             // E.164 strict — leading "+", country code [1-9], 6-14 more digits.
             // Empty string is allowed and treated as "clear" in the controller.

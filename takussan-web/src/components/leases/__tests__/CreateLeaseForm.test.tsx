@@ -75,3 +75,22 @@ describe('CreateLeaseForm — les champs suivent le type et les parties (TCK-571
     expect(screen.queryByText('Aucun locataire sélectionné')).toBeNull();
   });
 });
+
+/** P08.06 (TCK-755) — quitter la page avertit seulement quand le formulaire est modifié. */
+describe('CreateLeaseForm — avertissement de départ (TCK-755)', () => {
+  const quitterLaPage = () => {
+    const evenement = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(evenement);
+    return evenement.defaultPrevented;
+  };
+
+  it("n'avertit pas sur un formulaire intact, avertit dès qu'un champ est saisi", async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CreateLeaseForm />));
+    expect(quitterLaPage()).toBe(false);
+
+    await user.type(screen.getByLabelText(/Loyer mensuel/), '5');
+
+    expect(quitterLaPage()).toBe(true);
+  });
+});

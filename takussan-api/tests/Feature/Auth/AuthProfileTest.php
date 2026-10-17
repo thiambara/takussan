@@ -176,6 +176,25 @@ class AuthProfileTest extends TestCase
         $this->assertCount(0, $user->fresh()->getMedia('avatar'));
     }
 
+    /** TCK-751 (P10.06) — un avatar HEIC est refusé : servi brut, il n'avait aucune miniature. */
+    public function test_profile_update_rejects_a_heic_avatar(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->post('/api/auth/profile', [
+            '_method' => 'PUT',
+            'first_name' => $user->first_name,
+            'avatar' => ImageEnTete::heic('selfie.heic'),
+        ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['avatar']);
+
+        $this->assertCount(0, $user->fresh()->getMedia('avatar'));
+    }
+
     public function test_profile_update_can_remove_avatar(): void
     {
         Storage::fake('public');
