@@ -30,7 +30,9 @@
  * pas, et aucun agent n'écrit `validé`, qui est la signature du porteur. Une piste `validé` ne
  * revient au porteur qu'avec une raison. Sa précision (`validé — …`) se retrouve mot pour mot dans
  * le ticket qui la passe à `fait`. Un passage de l'implémenteur fait changer de statut 4 entrées au
- * plus, et un lot de plusieurs tickets ne mêle pas l'API et le front (amendement du 2026-10-17).
+ * plus. Un lot de plusieurs tickets qui touche à la fois l'API et le front est une seule famille :
+ * ses pistes faites se relient par un angle commun ou un fichier cité en commun (amendements du
+ * 2026-10-17).
  *
  * ─── Ce qu'elle ne vérifie PAS ───────────────────────────────────────────────────────────────
  *
@@ -311,6 +313,7 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
   const permis = TRANSITIONS[role];
   const basculees = [];
   const tickets = new Set();
+  const faites = [];
   for (const [ref, e] of apres) {
     const avantE = avant.get(ref);
     if (!avantE) continue;
@@ -324,7 +327,11 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
     }
     if (champ(avantE, 'Statut')?.valeur === champ(e, 'Statut')?.valeur) continue;
     basculees.push(ref);
-    if (vers === 'fait') tickets.add(champ(e, 'Statut').valeur.match(/TCK-\d+/)?.[0]);
+    if (vers === 'fait') {
+      const tck = champ(e, 'Statut').valeur.match(/TCK-\d+/)?.[0];
+      tickets.add(tck);
+      faites.push({ ref, angle: avantE.angle, tck, fichiers: fichiersCites(avantE) });
+    }
     if (!(permis[de] ?? []).includes(vers)) {
       erreurs.push(`${ref} : « ${de} » → « ${vers} » n'est pas une transition du rôle ${role}`);
       continue;
@@ -358,19 +365,45 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
       }
     }
   }
-  // Un passage de l'implémenteur livre un lot (amendement du 2026-10-17) : au plus LOT_MAX entrées
-  // changent de statut, et un lot de plusieurs tickets ne mêle pas l'API et le front. Une piste qui
-  // touche les deux côtés part seule, ou avec les entrées de même cause qui partagent son ticket.
+  // Un passage de l'implémenteur livre un lot (amendements du 2026-10-17) : au plus LOT_MAX entrées
+  // changent de statut. Un lot qui touche l'API et le front est une seule famille : ses pistes
+  // faites se relient de proche en proche par un angle, un ticket ou un fichier cité en commun.
   if (role === 'implementeur') {
     if (basculees.length > LOT_MAX) {
       erreurs.push(`un lot compte au plus ${LOT_MAX} entrées ; ${basculees.length} ont changé de statut (${basculees.join(', ')})`);
     }
     const cotes = ['takussan-api/', 'takussan-web/'].filter((c) => touche.some((f) => f.startsWith(c)));
-    if (tickets.size > 1 && cotes.length > 1) {
-      erreurs.push(`un lot de ${tickets.size} tickets (${[...tickets].join(', ')}) ne mêle pas l'API et le front : une piste qui touche les deux part seule`);
+    if (tickets.size > 1 && cotes.length > 1 && !uneFamille(faites)) {
+      erreurs.push(`un lot qui touche l'API et le front est une seule famille ; ${faites.map((f) => f.ref).join(', ')} ne partagent ni angle, ni ticket, ni fichier cité`);
     }
   }
   return erreurs;
+}
+
+// Les fichiers qu'une entrée cite dans son `Où`, par leur seul nom : les chemins y sont tantôt
+// complets, tantôt abrégés (`PaymentGatewayService.php:606`), jamais sous la même forme.
+function fichiersCites(e) {
+  const ou = champ(e, 'Où')?.valeur ?? champ(e, 'Où et constat')?.valeur ?? '';
+  const noms = [...ou.matchAll(/`([^`]+)`/g)].map((m) => m[1].split(':')[0].split('/').pop());
+  return new Set(noms.filter((n) => /\.[a-z]{2,5}$/.test(n)));
+}
+
+/** Les pistes se relient toutes, de proche en proche, par un angle, un ticket ou un fichier cité. */
+function uneFamille(pistes) {
+  if (pistes.length < 2) return true;
+  const proches = (a, b) => a.angle === b.angle || a.tck === b.tck || [...a.fichiers].some((f) => b.fichiers.has(f));
+  const atteintes = new Set([0]);
+  for (let ajout = true; ajout; ) {
+    ajout = false;
+    for (let i = 0; i < pistes.length; i++) {
+      if (atteintes.has(i)) continue;
+      if ([...atteintes].some((j) => proches(pistes[i], pistes[j]))) {
+        atteintes.add(i);
+        ajout = true;
+      }
+    }
+  }
+  return atteintes.size === pistes.length;
 }
 
 const texteDe = (doc) => doc.texteSource;

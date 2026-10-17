@@ -1,6 +1,6 @@
 ---
 name: pistes-implementeur
-description: Agent planifié (ADR-0066). Prend un lot de 1 à 4 pistes « validé » ou « retenu · autonome » du même côté (API ou front), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
+description: Agent planifié (ADR-0066). Prend un lot de 1 à 4 pistes « validé » ou « retenu · autonome » d'une même famille (angle, fichier ou cause en commun), re-mesure chacune, puis écrit son ticket et l'implémente en TDD avec vérification par ablation ; reclasse au lieu d'implémenter si un critère V apparaît. Lancé par scripts/agents/pistes.sh.
 model: inherit
 ---
 
@@ -29,19 +29,27 @@ jamais deux pistes à moitié.
    1. les 🔴 de `node scripts/check-pistes.mjs --liste "validé"` ;
    2. les 🔴 de `--liste "retenu · autonome"` ;
    3. les 🟠 validées ;
-   4. les 🟠 autonomes.
+   4. les 🟠 autonomes ;
+   5. les 🟢 validées ;
+   6. les 🟢 autonomes.
 
    Dans chaque groupe, l'ordre du fichier. Retire ce qu'une PR ouverte cite, **tes propres PR
    comprises** : tu peux en avoir plusieurs ouvertes, qui attendent leur CI. S'il n'y a rien,
    écris `rien.txt` et arrête-toi.
 
-   **Compose le lot**, que `check-pistes --role implementeur` vérifie avant tout push :
-   - **la première entrée qui reste ouvre le lot** et en fixe le côté : l'API
-     (`takussan-api/`) ou le front (`takussan-web/`) ;
-   - **complète-le jusqu'à 4 entrées** avec les suivantes **du même côté**, dans le même ordre.
-     Celles de l'autre côté sont sautées, pas retirées : un passage suivant les prendra ;
-   - **une piste qui touche les deux côtés part seule.** Si c'est la première, le lot s'arrête à
-     elle ; sinon, saute-la ;
+   **Compose le lot par famille**, ce que `check-pistes --role implementeur` vérifie en partie
+   avant tout push. Une famille, ce sont des pistes qu'un même agent corrige en relisant les
+   mêmes fichiers : elles sont du **même angle**, ou citent **un même fichier** dans leur `Où`, ou
+   ont **la même cause**.
+   - **la première entrée qui reste ouvre le lot** et en fixe la famille ;
+   - **complète-le d'abord avec sa famille** : les entrées libres, `validé` ou
+     `retenu · autonome`, de **toute gravité**, qui sont de la même famille que l'une des pistes
+     déjà dans le lot. Une 🟢 de la famille passe avant une 🟠 d'ailleurs ;
+   - **s'il reste de la place**, complète avec les entrées suivantes dans l'ordre de choix, mais
+     seulement **du même côté** que le lot (`takussan-api/` ou `takussan-web/`) et si le lot ne
+     touche qu'un côté. Un lot qui touche l'API et le front ne prend que sa famille : la garde
+     refuse un lot des deux côtés dont les pistes ne se relient pas par un angle, un ticket ou un
+     fichier cité en commun ;
    - **4 entrées au plus changent de statut**, reclassements et caducs compris. Des entrées de
      **même cause et même correctif** partagent un ticket, mais chacune compte ;
    - **le lot est petit en taille, pas seulement en nombre** : une piste estimée M compte double,
