@@ -14,11 +14,17 @@ use Faker\Provider\Base;
  */
 class SenegalFakerProvider extends Base
 {
-    /** Quartiers de Dakar avec leurs caractéristiques de prix */
+    /**
+     * Quartiers de Dakar avec leurs caractéristiques de prix.
+     *
+     * TCK-789 (P17.04) — les noms sont ceux du référentiel (`database/data/geo/regions/sn-dk.json`),
+     * sans quoi aucune adresse semée ne s'y rattache : « Dakar-Plateau », « Grand Yoff ».
+     * « Pikine » et « Guédiawaye » sont des villes (ADR-0062 § 2), pas des quartiers de Dakar.
+     */
     protected static $neighborhoods = [
         'Almadies' => ['type' => 'residential', 'rent' => [2500000, 8000000], 'sale' => [150000000, 500000000]],
         'Mermoz' => ['type' => 'residential', 'rent' => [2000000, 6000000], 'sale' => [120000000, 350000000]],
-        'Plateau' => ['type' => 'mixed', 'rent' => [1500000, 4000000], 'sale' => [100000000, 300000000]],
+        'Dakar-Plateau' => ['type' => 'mixed', 'rent' => [1500000, 4000000], 'sale' => [100000000, 300000000]],
         'Point E' => ['type' => 'residential', 'rent' => [1800000, 5000000], 'sale' => [100000000, 280000000]],
         'Fann' => ['type' => 'residential', 'rent' => [1500000, 4500000], 'sale' => [80000000, 250000000]],
         'Ouakam' => ['type' => 'mixed', 'rent' => [1200000, 3500000], 'sale' => [70000000, 200000000]],
@@ -26,16 +32,13 @@ class SenegalFakerProvider extends Base
         'Liberté 6' => ['type' => 'residential', 'rent' => [1500000, 4000000], 'sale' => [90000000, 220000000]],
         'Sicap Baobab' => ['type' => 'residential', 'rent' => [800000, 2500000], 'sale' => [50000000, 150000000]],
         'HLM' => ['type' => 'residential', 'rent' => [500000, 1500000], 'sale' => [30000000, 100000000]],
-        'Grand-Yoff' => ['type' => 'mixed', 'rent' => [400000, 1200000], 'sale' => [25000000, 80000000]],
+        'Grand Yoff' => ['type' => 'mixed', 'rent' => [400000, 1200000], 'sale' => [25000000, 80000000]],
         'Parcelles Assainies' => ['type' => 'residential', 'rent' => [300000, 1000000], 'sale' => [20000000, 60000000]],
-        'Pikine' => ['type' => 'mixed', 'rent' => [250000, 800000], 'sale' => [15000000, 50000000]],
-        'Guédiawaye' => ['type' => 'mixed', 'rent' => [200000, 700000], 'sale' => [12000000, 40000000]],
-        'Dieuppeul' => ['type' => 'residential', 'rent' => [600000, 1800000], 'sale' => [35000000, 120000000]],
+        'Dieuppeul-Derklé' => ['type' => 'residential', 'rent' => [600000, 1800000], 'sale' => [35000000, 120000000]],
         'Amitié' => ['type' => 'residential', 'rent' => [700000, 2000000], 'sale' => [40000000, 130000000]],
         'Ngor' => ['type' => 'residential', 'rent' => [1000000, 3000000], 'sale' => [60000000, 200000000]],
-        'Hann Maristes' => ['type' => 'industrial', 'rent' => [500000, 1500000], 'sale' => [40000000, 120000000]],
+        'Hann Maristes 1' => ['type' => 'industrial', 'rent' => [500000, 1500000], 'sale' => [40000000, 120000000]],
         'Ouest Foire' => ['type' => 'commercial', 'rent' => [800000, 2500000], 'sale' => [50000000, 180000000]],
-        'Cité Keur Gorgui' => ['type' => 'residential', 'rent' => [600000, 2000000], 'sale' => [40000000, 140000000]],
     ];
 
     /**
@@ -165,10 +168,10 @@ class SenegalFakerProvider extends Base
     ];
 
     protected static $dakarNeighborhoods = [
-        'Plateau', 'Almadies', 'Mermoz', 'Sacré-Cœur', 'Fann', 'Ouakam',
+        'Dakar-Plateau', 'Almadies', 'Mermoz', 'Sacré-Cœur', 'Fann', 'Ouakam',
         'Yoff', 'Ngor', 'Point E', 'Liberté 6', 'Sicap Baobab', 'HLM',
-        'Parcelles Assainies', 'Grand-Yoff', 'Dieupeul', 'Amitié',
-        'Hann Maristes', 'Ouest Foire', 'Cité Keur Gorgui',
+        'Parcelles Assainies', 'Grand Yoff', 'Dieuppeul-Derklé', 'Amitié',
+        'Hann Maristes 1', 'Ouest Foire',
     ];
 
     protected static $cities = [

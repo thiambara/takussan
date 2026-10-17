@@ -90,7 +90,10 @@ class FilterCoverageSeeder extends Seeder
     /** @var Collection<int,int>|null ids des tags attachables, résolus une fois */
     private ?Collection $propertyTagIds = null;
 
-    public function __construct(private readonly SeedingContext $ctx) {}
+    public function __construct(
+        private readonly SeedingContext $ctx,
+        private readonly SeedGeo $geo,
+    ) {}
 
     public function run(): void
     {
@@ -237,17 +240,21 @@ class FilterCoverageSeeder extends Seeder
             'updated_at' => $createdAt,
         ], $attributes)));
 
-        // Créer une adresse
+        // TCK-789 (P17.04) — un quartier de LA ville tirée (aucun si elle n'en a pas au
+        // référentiel), et des coordonnées autour de son centre. Avant : un quartier de Dakar, une
+        // ville au hasard, la région « Dakar » et des coordonnées dakaroises.
+        $city = $this->ctx->faker()->senegaleseCity();
+        $ville = $this->geo->ville($city);
+        $quartiers = $this->geo->quartiers($ville);
         Address::create([
             'addressable_id' => $property->id,
             'addressable_type' => Property::class,
             'street' => $this->ctx->faker()->streetAddress(),
-            'neighborhood' => $this->ctx->faker()->dakarNeighborhood(),
-            'city' => $this->ctx->faker()->senegaleseCity(),
-            'region' => 'Dakar',
+            'neighborhood' => $quartiers === [] ? null : $this->ctx->faker()->randomElement($quartiers),
+            'city' => $city,
+            'region' => $ville?->region?->name ?? $city,
             'country' => 'SN',
-            'latitude' => $this->ctx->faker()->latitude(14.6, 14.8),
-            'longitude' => $this->ctx->faker()->longitude(-17.5, -17.3),
+            ...$this->geo->coordonnees($this->ctx->faker(), $ville, [12.5, 16.7, -17.5, -11.5]),
         ]);
 
         $this->attachPropertyTags($property, 1, 4);

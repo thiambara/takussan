@@ -12,7 +12,9 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Support\Search\PropertyLabels;
+use Database\Seeders\Support\SeedGeo;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\SenegalFakerProvider;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
 use Illuminate\Database\Seeder;
@@ -20,7 +22,10 @@ use Illuminate\Support\Str;
 
 class PropertySeeder extends Seeder
 {
-    public function __construct(private readonly SeedingContext $ctx) {}
+    public function __construct(
+        private readonly SeedingContext $ctx,
+        private readonly SeedGeo $geo,
+    ) {}
 
     public function run(): void
     {
@@ -62,9 +67,14 @@ class PropertySeeder extends Seeder
                 $isDakar = $this->ctx->faker()->boolean(80);
 
                 if ($isDakar) {
-                    $priceData = $this->ctx->faker()->senegalesePrice($contract);
-                    $price = $priceData['price'];
-                    $neighborhood = $priceData['neighborhood'];
+                    // TCK-789 (P17.04) — le quartier est tiré parmi ceux du référentiel qui ont
+                    // une grille de prix ; sans référentiel, l'adresse part sans quartier.
+                    $quartiers = array_values(array_intersect(
+                        SenegalFakerProvider::getNeighborhoods(),
+                        $this->geo->quartiers($this->geo->ville('Dakar')),
+                    ));
+                    $neighborhood = $quartiers === [] ? null : $this->ctx->faker()->randomElement($quartiers);
+                    $price = $this->ctx->faker()->senegalesePrice($contract, $neighborhood)['price'];
                     $city = 'Dakar';
                     $region = 'Dakar';
                 } else {
@@ -188,6 +198,7 @@ class PropertySeeder extends Seeder
                     ]);
                 });
 
+                // TCK-789 (P17.04) — autour du centre de la ville ; le cadre ne sert que sans référentiel.
                 Address::create([
                     'addressable_id' => $property->id,
                     'addressable_type' => Property::class,
@@ -196,12 +207,11 @@ class PropertySeeder extends Seeder
                     'city' => $city,
                     'region' => $region,
                     'country' => 'SN',
-                    'latitude' => $isDakar
-                        ? $this->ctx->faker()->latitude(14.6, 14.8)
-                        : $this->ctx->faker()->latitude(12.5, 16.7),
-                    'longitude' => $isDakar
-                        ? $this->ctx->faker()->longitude(-17.5, -17.3)
-                        : $this->ctx->faker()->longitude(-17.5, -11.5),
+                    ...$this->geo->coordonnees(
+                        $this->ctx->faker(),
+                        $this->geo->ville($city),
+                        $isDakar ? [14.6, 14.8, -17.5, -17.3] : [12.5, 16.7, -17.5, -11.5],
+                    ),
                 ]);
 
                 $this->ctx->registerProperty($property);
