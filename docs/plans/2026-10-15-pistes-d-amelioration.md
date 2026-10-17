@@ -1889,7 +1889,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### L'alerte de santé reste verrouillée après le premier « dégradé »
 - Réf : P14.05
-- Statut : validé — ré-alerter quand l'ensemble des sondes en échec ou leur niveau change ; properties.failing dans le message
+- Statut : fait · TCK-769
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:47`, `takussan-api/app/Services/Admin/AlertRuleService.php:78-82`
 - Constat :
@@ -1899,6 +1899,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : déclencher sur l'ensemble des sondes en échec et sur leur niveau ; inclure `properties` dans le message.
 - Mesure (2026-10-15, 28167fee, mesureur) : lu `EvaluateOperationalAlerts.php:47-53` → `ops_health_degraded` vaut `status !== 'ok'`, un booléen ; `:66-74` n'écrit qu'au passage de faux à vrai, donc `degraded` → `failed` se tait ; `HealthcheckService.php:209-210` → transport `log` ⇒ sonde `mail` `degraded`, et `docs/infra/prod-drivers.json:50-52` relève `MAIL_MAILER=log` en préproduction ; `AlertRuleService.php:76-87` (le constat citait 78-82) → le message ne porte qu'`event`, `actor`, `subject`, les `properties` (dont `failing`) restent dans l'activité. Le constat tient en entier. Classement : V7, la règle de ré-alerte et un message enrichi changent ce que reçoit le destinataire, sans spec qui les fixe.
+- Mesure (2026-10-17, 640b250a6, implementeur) : `HealthAlertRealertTest` avant correctif → 3 rouges sur 5 (`degraded` puis `failed` : 1 alerte ; une sonde de plus : 1 alerte ; message sans les sondes) → la transition de la santé porte une signature (statut global et sondes triées), et le message ajoute « sondes en échec : mail (degraded), … ». Ablation : signature retirée → 2 rouges, suffixe retiré → 1 rouge ; remis → 5 verts, et `EvaluateOperationalAlertsTest`, `OperationalAlertDeliveryTest` verts.
 
 ### Le courriel de notification n'est jamais retenté
 - Réf : P14.06
