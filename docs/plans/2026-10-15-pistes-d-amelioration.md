@@ -4004,7 +4004,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Aucun accusé LAfricaMobile ne peut passer : l'URL signée ne couvre pas les paramètres que LAM y ajoute
 - Réf : P36.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : desserrer la vérification de signature d'un rappel entrant
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:85,128-140`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:32,50-53`, `takussan-api/tests/Feature/Http/Webhook/LAfricaMobileSmsWebhookTest.php:44-50`
 - Constat :
@@ -4014,10 +4014,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Les tests existants signent l'URL **avec** `push_id` et `status` déjà dedans (lu, `LAfricaMobileSmsWebhookTest.php:44-50`) : ils éprouvent une URL que le pilote ne produit jamais, et sont verts.
   - Établi comment : lecture et mesure. Que LAM ajoute ses paramètres à l'URL plutôt que de la remplacer est la lecture des docblocks, non une capture d'un rappel réel.
 - Piste : exclure les paramètres du fournisseur de la vérification (`hasValidSignature(ignoreQuery: ['push_id', 'ret_id', 'to', 'status', 'text'])`), ou signer un chemin sans requête et vérifier à la main. Un test qui part du `ret_url` réellement émis par le pilote et y ajoute les paramètres de LAM garde le correctif ; les tests existants qui signent les paramètres de LAM sont à réécrire sur ce modèle.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) qui prend le `ret_url` produit par `LAfricaMobileSmsDriver::buildReturnUrl()` lui-même (par réflexion), sous `php artisan test`, charge 2,47 / 2,21 / 2,12 sur 8 cœurs ; relu `LAfricaMobileSmsStatusController.php:32` et la route, qui porte aussi le middleware `signed` (`routes/api/sms-webhooks.php`) ; `git log` des contrôleurs et pilotes : rien depuis TCK-727 → `ret_url` + `&push_id=lam-real&ret_id=x&to=…&status=6&text=DELIVRD` rend 403 `http.forbidden`, tentative restée `sent` ; `ret_url` nu rend 404 ; le constat tient en entier, et le correctif doit traiter le middleware `signed` de la route autant que `hasValidSignature()` du contrôleur. Classement : V2, le correctif desserre la signature qui authentifie le rappel, et que LAM ajoute ses paramètres sans remplacer l'URL reste tiré du seul docblock.
 
 ### Les accusés SMS poussés écrasent le dernier statut : un `sent` tardif ou rejoué efface un `delivered`
 - Réf : P36.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le last-write du SMS est écrit délibéré (docblock, TCK-283)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/DeliveryAttemptUpdater.php:62-73`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-70`, `OrangeSmsStatusController.php:84-97`, `MtargetSmsStatusController.php:66-82`, `takussan-api/app/Services/Notifications/Sms/Dlr/DlrReportApplier.php:96-104`, `takussan-api/app/Services/Webhooks/WebhookReplayer.php:85-87`
 - Constat :
@@ -4026,10 +4027,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Le rejeu par le super-admin (`WebhookReplayer`, TCK-602) repasse une ligne ancienne par le même `process()` (lu, l. 85-87) : rejouer un accusé `sent` ou `failed` plus vieux que le dernier appliqué fait reculer la tentative de la même façon (déduit du point précédent, à vérifier).
   - Pendant la période de recouvrement de TCK-294, Mtarget pousse et se fait tirer à la fois : les deux chemins n'appliquent pas la même règle à la même ligne (lu).
 - Piste : passer la même précédence `[sent, delivered, failed]` aux trois routes SMS poussées, ce qui aligne le push sur le pulling, et le dire dans le docblock de l'updater. Un test par route : `delivered` puis `sent` laisse `delivered` et `delivered_at`.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : LAM signé `status=6` puis `status=4`, Mtarget poussé `Status=3` puis `Status=1` ; relu `DeliveryAttemptUpdater.php:22` (« SMS/payment callers omit it and keep last-write ») → LAM : `delivered` puis `sent`, `delivered_at` remis à `NULL` ; Mtarget : `delivered` puis `failed` ; le constat tient, le point sur le rejeu (`WebhookReplayer`) n'a pas été exécuté et reste déduit. Classement : V7, la piste renverse une règle écrite comme choisie pour le SMS, au profit de la règle contraire de `DlrReportApplier`, et ce choix revient au porteur.
 
 ### Les statuts intermédiaires d'Orange et de Mtarget sont écrits comme des échecs
 - Réf : P36.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la table des statuts terminaux dépend de documents de fournisseurs non lus
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:84-90`, `takussan-api/app/Http/Controllers/Webhook/MtargetSmsStatusController.php:66-69`, `takussan-api/app/Http/Controllers/Webhook/LAfricaMobileSmsStatusController.php:57-61`, `takussan-api/app/Services/Admin/HealthcheckService.php:241-253`
 - Constat :
@@ -4038,10 +4040,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - LAM : un `status` absent ou inconnu vaut 0 et s'écrit `failed` (lu, l. 51 et 57-61).
   - La sonde de santé compte les tentatives `failed` de l'heure (lu, `HealthcheckService.php:241-253`) : un intermédiaire lu comme échec gonfle le taux, et peut passer le SMS en `degraded`.
 - Piste : ne rien écrire pour un statut non terminal (comme `DlrReportApplier`), une table explicite des statuts terminaux par fournisseur, et un `Log::warning` sur un statut inconnu au lieu d'un `failed` par défaut. Avec P36.02, un `delivered` n'est plus effacé. Un test par fournisseur sur un statut intermédiaire garde la règle.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : même test temporaire : Orange `DeliveredToNetwork`, Mtarget poussé `Status=2` et `Status=1` après `delivered` ; relu `OrangeSmsStatusController.php` (`match`, `default => failed`) et `MtargetSmsStatusController.php` (`$statusCode === 3` seul) → Orange : 200, `failed`, `failure_reason = DeliveredToNetwork` ; Mtarget : `Status=2` → `failed`, `Status=1` après `delivered` → `failed` ; le comportement tient, mais quels codes sont terminaux chez Orange Sénégal et dans le push Mtarget n'est établi par aucun document du dépôt. Classement : V7, écrire la table des statuts terminaux est un choix tant que le vocabulaire des fournisseurs n'est pas lu.
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : une variable d'environnement par fournisseur, et l'authentification des trois routes change
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4049,10 +4052,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Mesuré : le jeton des tests LAM ouvre la route Orange, et un accusé `DeliveredToTerminal` y est appliqué (200, tentative `delivered`). En production, l'allowlist d'IP d'Orange reste la seule barrière restante (lu, `RestrictIpMiddleware`) ; hors production, une allowlist vide laisse passer (lu, l. 28-33).
   - La rotation d'un jeton fuité chez LAM oblige à reconfigurer Orange et Mtarget (lu, `docs/integrations/sms.md` « Rotater en cas de compromission, mettre à jour le dashboard du provider »).
 - Piste : un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), avec repli sur la clé commune le temps de la bascule. Un test : le jeton LAM refusé sur la route Orange. Une variable d'environnement neuve est en jeu.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : jeton extrait du `ret_url` réellement produit par le pilote LAM, posté sur `/api/webhooks/sms/orange/status/{jeton}` ; relu `config/sms.php:174` et les trois contrôleurs (même `sms.webhook_url_token`) → 200, tentative Orange `delivered` ; le constat tient. Classement : V5, la piste ajoute des variables d'environnement, et elle touche aussi V2 (l'authentification de trois routes que les fournisseurs appellent).
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : une valeur de configuration neuve, et l'exigence de Meta reste à lire
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
 - Constat :
@@ -4060,10 +4064,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - `grep -rn "hub.challenge|hub_challenge|verify_token|hub.mode" app routes config` → rien (mesuré). `config/whatsapp.php:29` annonce pourtant un « webhook verify token » dans `metadata` de l'intégration ; rien ne le lit.
   - Meta exige, pour enregistrer l'URL de rappel d'une application, qu'un `GET` avec `hub.mode=subscribe`, `hub.verify_token` et `hub.challenge` rende le `challenge` (à vérifier sur la documentation de Meta). Sans lui, l'URL ne s'enregistre pas et aucun statut WhatsApp n'arrive (déduit, à vérifier).
 - Piste : une route `GET` sur le même chemin, gardée par le même jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration et rend `hub.challenge` en texte brut. Un test : bon jeton → 200 et le défi, mauvais → 403.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `php artisan route:list --path=webhooks` → seule `POST api/webhooks/whatsapp/status/{token}` ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien → aucune route `GET` et aucun lecteur du jeton de vérification ; ce que Meta exige pour enregistrer l'URL n'est pas vérifié depuis le poste. Classement : V5, le jeton de vérification est une valeur de configuration neuve à poser par environnement, et l'exigence de Meta, non lue, laisse le correctif hors de A1.
 
 ### Rien n'abonne Orange aux accusés, et l'appariement suppose un `resourceURL` dans la notification
 - Réf : P36.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste ouvre deux options et dépend de la documentation d'Orange
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:94-140`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:72-80`, `docs/integrations/sms.md` (« Operational checklist »)
 - Constat :
@@ -4071,10 +4076,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Le contrôleur prend l'identifiant dans `deliveryInfo.link`, sinon dans `callbackData` (lu, l. 72-80). Dans le vocabulaire OneAPI, `callbackData` est une valeur choisie par l'abonné ; comme le pilote n'en pose aucune, l'appariement repose sur un champ `link` dont la présence dans la notification d'Orange est à vérifier. Sinon chaque accusé finit en 404 « non apparié ».
   - La liste de mise en service parle pour Orange d'une « per-signed URL pattern … same static URL form », sans dire comment l'URL est donnée à Orange (lu).
 - Piste : établir sur la documentation d'Orange Sénégal comment l'URL est enregistrée et ce que porte la notification. Puis poser `receiptRequest` (URL et `callbackData` = identifiant de la tentative) à l'envoi, ou documenter l'abonnement manuel dans le runbook. Un test sur une charge utile réelle d'Orange garde l'appariement.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rnE "receiptRequest|notifyURL|callbackData" app` → seulement la lecture de `callbackData` dans `OrangeSmsStatusController.php:75`, son docblock et `WebhookPayloadRedactor.php:61` ; rien dans `OrangeSmsDriver` → l'envoi ne demande aucun accusé, et aucun code ne s'abonne ; que la notification d'Orange porte `deliveryInfo.link` n'est pas vérifiable depuis le poste. Classement : V7, choisir entre `receiptRequest` à l'envoi et un abonnement manuel au runbook suppose la documentation d'Orange Sénégal, que le dépôt ne porte pas.
 
 ### Le débit de 120 par minute et par IP refuse les rafales d'accusés, sans trace au journal
 - Réf : P36.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : le débit freine le forçage du jeton, et la piste se tranche avec P36.04
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/sms-webhooks.php:22-33`, `takussan-api/routes/api/whatsapp-webhooks.php:16-18`, `takussan-api/config/sms.php` (`mtarget.batch_max`)
 - Constat :
@@ -4082,10 +4088,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Un fournisseur envoie ses accusés depuis quelques IP. Mtarget accepte jusqu'à 500 numéros par appel (lu, `batch_max`), donc jusqu'à 500 accusés poussés pour un envoi ; Meta envoie un statut par message. Au-delà de 120 par minute, le reste prend 429 (déduit). Que le fournisseur réessaie après un 429 est à vérifier ; Meta réessaie sur tout non-2xx (docblock du contrôleur).
   - Le débit sert à freiner le forçage du jeton (docblock des routes), alors que l'allowlist d'IP le fait déjà en production pour les routes SMS.
 - Piste : un limiteur nommé par fournisseur, plus large, ou le journal avant le débit pour qu'un refus se voie. À trancher avec la décision sur P36.04.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : 125 accusés Orange postés de la même IP, puis compte d'`IntegrationWebhookLog` ; relu l'ordre `['throttle:120,1', 'webhook.journal:…', …]` des routes SMS et WhatsApp → 120 réponses 200 et 5 réponses 429, 120 lignes au journal, aucune à 429 : un refus ne laisse aucune trace, c'est mesuré et non plus déduit ; la conduite des fournisseurs après un 429 reste à vérifier. Classement : V2, élargir le débit ou le déplacer change la protection du jeton d'URL, et la piste propose deux options liées à P36.04.
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : retirer `WHATSAPP_WEBHOOK_IPS` touche les environnements, et refuser un statut non signé touche V2
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4094,3 +4101,4 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - `docs/integrations/sms.md:79` donne l'URL de rappel Mtarget sur `api.takussan.app`, un domaine que le dépôt n'emploie nulle part ailleurs (lu).
   - Hors production, un secret WhatsApp vide laisse passer un statut non signé dès que le jeton d'URL est posé (lu, l. 84-94). La préproduction n'a aujourd'hui aucune clé `WHATSAPP_*` (lu, `docs/infra/hebergement.md`), donc la route y répond 404.
 - Piste : retirer la clé morte et son docblock, ou la brancher ; déclarer `dlr_signature_ttl_days` dans la configuration ; corriger le domaine de la documentation ; refuser un statut non signé dès qu'un jeton est posé, quel que soit l'environnement.
+- Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rn "webhook_allowed_ips|dlr_signature_ttl_days" app config` → `whatsapp.webhook_allowed_ips` sans lecteur (`RestrictIpMiddleware` lit `sms.`), `WHATSAPP_WEBHOOK_IPS` dans `.env.example:328` et `.env.docker:353` ; `dlr_signature_ttl_days` lu par le pilote (l. 131), absent de `config/sms.php` ; `docs/integrations/sms.md:78` (et non 79) porte `api.takussan.app`, que `docs/infra/hebergement.md` n'emploie pas (`api.takussan.com`, `preview.api.takussan.com`) ; relu `WhatsappStatusController.php:84-94` (secret vide accepté hors production) → les quatre points tiennent ; le seul domaine de la documentation relèverait de A6 seul. Classement : V5, retirer la clé morte touche deux fichiers d'environnement, et le quatrième point (refuser un statut non signé hors production) touche aussi V2.
