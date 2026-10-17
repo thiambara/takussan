@@ -3383,7 +3383,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### Une exception levée après l'acceptation d'un fournisseur fait renvoyer le SMS
 - Réf : P27.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-767
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:153`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:107`, `takussan-api/app/Services/Notifications/Sms/Drivers/MtargetSmsDriver.php:112`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:166-179,239-268`, `deploy/takussan/compose.api.yml:55`
 - Constat :
@@ -3393,6 +3393,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu.
 - Piste : sortir `last_used_at` du chemin d'envoi (ou l'entourer d'un `try`), et rendre l'écriture de la tentative non bloquante pour un SMS déjà accepté (journal d'erreur, pas d'exception). Un test qui fait lever l'écriture de la tentative après un `sent` garde le retour.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `SmsRouterDriver.php:166-188,239-268` et les `forceFill(['last_used_at' …])->save()` hors `try` (`OrangeSmsDriver.php:153`, `LAfricaMobileSmsDriver.php:107`, `MtargetSmsDriver.php:112`) ; test temporaire (retiré) : `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM rendu → tentative 1 `lafricamobile` `failed` / `driver_exception_RuntimeException`, tentative 2 `mtarget` `sent` (le doublon est donc mesuré, plus déduit) ; `push_id` LAM déjà présent sur une autre notification → `UniqueConstraintViolationException` sortie du routeur. Le rejeu du job par `--tries=3` reste déduit (`compose.api.yml:54`, et non 55). Classement : A1, le routeur arrête déjà la chaîne sur un succès (`isTerminalSuccess`, l. 181-187) et le défaut viole ce contrat sans choix de produit.
+- Mesure (2026-10-17, d3380eb58, implementeur) : avant correctif, `SmsAcceptedThenErrorTest` → `Integration::saving` qui lève sur `last_used_at` après un `push_id` LAM : résultat `mtarget` (renvoi) ; `push_id` LAM déjà enregistré ailleurs : `UniqueConstraintViolationException` sortie du routeur → `Integration::markUsed()` qui journalise sans lever (pilotes SMS et WhatsApp Cloud), `appendAttempt()` sous `try` ; ablation : routeur remis → 1 rouge, pilotes et modèle remis → 1 rouge ; correctif remis : 2 verts, 241 tests verts sur `Services/Sms`, `Services/Whatsapp` et 20 classes qui créent des intégrations.
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
