@@ -35,7 +35,7 @@ class ConversationController extends Controller
         // jamais. Est non lu, pour le lecteur, tout message d'un AUTRE postérieur à son
         // `last_read_at` — hors avis système (« X a rejoint le groupe ») : on ne les attend pas.
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
-        $paginator = Conversation::with(['property', 'participants.media', 'lastMessage'])
+        $paginator = Conversation::with(['property.media', 'participants.media', 'lastMessage'])
             ->withCount(['messages as unread_count' => function ($q) use ($user) {
                 $q->where('messages.type', '!=', MessageType::System->value)
                     ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
