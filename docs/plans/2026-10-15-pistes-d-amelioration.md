@@ -1419,7 +1419,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### `media:cleanup` détruit les médias des modèles supprimés en douceur
 - Réf : P10.04
-- Statut : validé — médias d'un modèle supprimé en douceur purgés 90 jours après deleted_at, collections de preuve exclues
+- Statut : fait · TCK-750 — reste : la requête par média de `media:cleanup` (une lecture du modèle par ligne, sur tout le parc, chaque nuit)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Console/Commands/MediaCleanup.php:28-60`, `takussan-api/routes/console.php:67`, `takussan-api/app/Services/Property/PropertyModerationService.php:175`
 - Constat :
@@ -1431,6 +1431,7 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
   - Établi comment : lu.
 - Piste : traiter `withTrashed()` comme non orphelin, ou purger après `deleted_at` + délai de rétention ; exclure les collections de preuve.
 - Mesure (2026-10-15, 77c482e1, mesureur) : relu `MediaCleanup.php:23-60` (inchangé depuis TCK-050, `git log` : 2 commits ; `isOrphan()` fait `$type::query()->whereKey($id)->exists()`, et son commentaire dit « soft-deleted targets count as orphans (per ticket spec) », ce que TCK-050 écrit l. 96) et `routes/console.php:67` (`dailyAt('03:00')`) ; test Feature temporaire (retiré) : un `Property` avec une photo datée de 2 jours, supprimé en douceur, puis `media:cleanup` → **0** média restant, en 3 requêtes pour un média. `Lease` porte déjà `SoftDeletes` (`Lease.php:28`) : le constat dit « le jour où un bail serait supprimé en douceur », mais aucun `->delete()` de bail n'a été trouvé dans `app/` (grep), donc le chemin reste théorique pour les baux. La requête par média tient (une `exists()` par ligne, lu). Classement : V3, garder les médias d'un bien supprimé, et pour combien de temps, est un choix de conservation qui contredit la règle écrite par TCK-050.
+- Mesure (2026-10-17, d2f24b2c, implementeur) : `MediaCleanupTest` avant correctif → 2 rouges sur 7 : la photo d'un bien supprimé en douceur 89 jours plus tôt est purgée (0 média), et `signed_contract` et `room_photos` d'un bail et d'un état des lieux signé supprimés partent aussi → `isOrphan()` lit le modèle `withTrashed()`, purge après `deleted_at` + 90 jours, preuves de TCK-596 exclues ; ablation (commande d'avant remise) → les 2 mêmes rouges, exclusion des preuves retirée seule → 1 rouge ; remis → 7/7 verts.
 
 ### Avatars : l'original public garde l'EXIF, GPS compris
 - Réf : P10.05
