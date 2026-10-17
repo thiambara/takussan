@@ -1,6 +1,6 @@
 # ADR-0066 — Trois agents planifiés traitent le fichier de pistes : l'explorateur relève, le mesureur re-mesure et classe, l'implémenteur corrige ce qui est classé autonome ; tout passe par une PR vers `pre-dev`, vérifiée avant le push par un script et non par l'agent
 
-- **Statut** : Accepté (2026-10-15), amendé le 2026-10-17 (l'implémenteur livre par lot)
+- **Statut** : Accepté (2026-10-15), amendé deux fois le 2026-10-17 (l'implémenteur livre par lot, puis par famille)
 - **Date** : 2026-10-15
 - **Tickets** : aucun (outillage du porteur)
 
@@ -45,7 +45,7 @@ que chaque agent lit en premier : elles sont écrites une seule fois.
 |---|---|---|---|
 | `pistes-explorateur` | le tableau des angles | une section `## Angle N` ; la ligne de l'angle passe à `fait` ; 0 à 3 angles proposés | un angle |
 | `pistes-mesureur` | `--liste "à mesurer"` | `Statut` et `Mesure` des entrées traitées | 8 entrées au plus |
-| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 4 pistes du même côté, en une PR (amendement du 2026-10-17) |
+| `pistes-implementeur` | `--liste "validé"`, puis `--liste "retenu · autonome"` | un ticket par piste, le code, ses tests ; `Statut` et `Mesure` | un lot de 1 à 4 pistes d'une même famille, en une PR (amendements du 2026-10-17) |
 
 ### 2. Le format du fichier de pistes
 
@@ -283,7 +283,7 @@ les gardes du dépôt, la PR et sa CI.
 - **1 à 4 pistes**, prises dans l'ordre de gravité du § « Décisions du porteur ». La première
   entrée libre ouvre le lot et en fixe le côté (`takussan-api/` ou `takussan-web/`) ; les
   suivantes du même côté le complètent, celles de l'autre côté sont sautées.
-- **Un lot ne mêle pas l'API et le front.** Une piste qui touche les deux côtés part seule, ou
+- **Un lot ne mêle pas l'API et le front** *(remplacé le jour même par la règle de famille, ci-dessous)*. Une piste qui touche les deux côtés part seule, ou
   avec les entrées de même cause qui partagent son ticket.
 - **Chaque piste garde son ticket, son test, son ablation et ses commits**, et elle est close
   avant que la suivante commence. Une piste re-mesurée caduque ou reclassée à valider compte dans
@@ -309,6 +309,43 @@ dépasse pas l'équivalent de 4 S), qui reste une consigne de l'agent ; ni la r�
 la PR à relire est plus grosse. **Ce qui n'est pas mesuré** : le gain. Il est estimé à ×2 ou ×3,
 puisque la part fixe se paie une fois par lot. Il se relève sur le journal (pistes closes par
 heure de passage) après les premiers lots, et le plafond de 4 se rediscute sur ce chiffre.
+
+### Second amendement du 2026-10-17 — le lot se compose par famille
+
+**Relevé le même jour**, sur `pre-dev` = `4bf83b81` : 131 pistes à implémenter (74 🟠 et 30 🟢
+validées, 23 🟠 et 4 🟢 autonomes, aucune 🔴). D'après les fichiers que cite leur `Où`, 74 ne
+touchent que l'API, 21 que le front et 36 les deux. Lues une à une, elles forment environ 22
+familles de 3 à 8 pistes (index manquants, requêtes par ligne, routeur SMS, jobs planifiés,
+alertes, médias, Boost et crédits, rapprochement, PDF, autorisation, données personnelles,
+recherche, adresses, équipements, accessibilité des champs, primitives d'interface, repères de
+page…), et une douzaine de pistes isolées. Quatre paires ont la même cause (P02.11 et P19.05,
+P05.05 et P11.09, P05.08 et P14.06, P22.02 et P22.04).
+
+Deux défauts de la règle du premier amendement en sortaient :
+- **les 34 🟢 n'étaient prises par aucun passage** : l'ordre de choix s'arrêtait aux 🟠 autonomes,
+  et ce depuis l'origine de l'ADR ;
+- **les 36 pistes qui touchent les deux côtés partaient seules**, alors que plusieurs sont de la
+  même famille (crédits, médias, recherche).
+
+**Décision du porteur** :
+- **le lot se compose par famille** : la première entrée libre fixe la famille, et le lot se
+  complète d'abord avec les entrées libres de la même famille, de toute gravité ; s'il reste de
+  la place, avec les suivantes du même côté, si le lot ne touche qu'un côté ;
+- **les 🟢 entrent dans l'ordre de choix**, après les 🟠 autonomes, et complètent avant cela un
+  lot de leur famille ;
+- **un lot qui touche l'API et le front est permis s'il est une seule famille.**
+
+**Ce que la garde vérifie** : un lot de plusieurs tickets qui touche `takussan-api/` et
+`takussan-web/` doit former une seule famille, au sens mécanique : ses pistes faites se relient
+de proche en proche par un angle, un ticket ou un nom de fichier cité dans leur `Où` (le nom seul,
+car les chemins y sont tantôt complets, tantôt abrégés). Ablation sur le fichier réel, 8 cas : 5
+permis (même angle des deux côtés, fichier commun entre deux angles, chaîne de trois pistes, lot
+sans lien d'un seul côté, 4 pistes 🟠 et 🟢 d'une famille) restent verts, et 3 interdits (deux
+pistes sans lien des deux côtés, une piste sans lien ajoutée à une famille, 5 entrées) rougissent.
+La garde du premier amendement refusait 4 des 5 cas permis.
+
+**Ce qu'elle ne vérifie pas** : qu'un lot d'un seul côté soit une famille. Le remplissage par le
+côté reste permis, et la priorité donnée à la famille est une consigne de l'agent.
 
 ## Conséquences
 
