@@ -2450,7 +2450,7 @@ Les deux 🔴 ont été relus par la session dans le code :
 
 ### Les seeders écrivent des adresses que le référentiel ne peut pas rattacher, et faussent les mesures de dev
 - Réf : P17.04
-- Statut : validé — quartiers seedés tirés de geo_neighborhoods de la ville, coordonnées autour de son centre ; garde : toute adresse seedée avec un quartier est rattachée
+- Statut : fait · TCK-789
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/seeders/Support/FilterCoverageSeeder.php:241-249`, `takussan-api/database/seeders/Catalog/PropertySeeder.php:62-78,191-204`, `takussan-api/database/seeders/Support/SenegalFakerProvider.php:21-36,168-171`
 - Constat :
@@ -2466,6 +2466,7 @@ Les deux 🔴 ont été relus par la session dans le code :
   - Mesuré : 180 adresses de Dakar ont un texte de quartier sans rattachement. Les 205 « quartiers hors référentiel » de P01.02 sont donc pour l'essentiel un artefact du seed : le défaut de filtre qu'elle décrit tient, mais ses comptes ne disent rien de la production (voir P01.02).
 - Piste : tirer les quartiers seedés dans `geo_neighborhoods` de la ville choisie, et les coordonnées autour du centre de cette ville. Une garde de seed : toute adresse seedée avec un texte de quartier est rattachée.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `FilterCoverageSeeder.php:241-251` (quartier `dakarNeighborhood()`, ville `senegaleseCity()`, région `Dakar`, coordonnées 14,6-14,8 / -17,5 à -17,3), `PropertySeeder.php:62-78` et `:191-204` (hors Dakar : latitude 12,5-16,7, longitude -17,5 à -11,5), `SenegalFakerProvider.php:18-40` (`Plateau`, `Grand-Yoff`, `Dieuppeul`, `Hann Maristes`, `Pikine`, `Guédiawaye` comme quartiers de Dakar) ; aucun commit sur ces trois fichiers depuis le constat ; `SELECT` en lecture sur la base de dev (adresses de biens) → 200 adresses hors de Dakar portent un quartier, 180 adresses de Dakar ont un quartier sans `geo_neighborhood_id`, sur 826. Constat confirmé, comptes identiques. Classement : V4, le correctif change les données que les seeders écrivent (noms de quartiers, coordonnées) et la garde de seed porte sur la suite entière (`database/seeders/` est un déclencheur dur), ce qui demande un choix sur le jeu de démonstration plutôt qu'un défaut au comportement écrit.
+- Mesure (2026-10-17, fe2d19c09, implementeur) : reproduit avant correctif par `SeededAddressesAttachedTest` (référentiel chargé puis mini-pipeline Tag, Agency, User, Property, FilterCoverage ; charge 2,0 sur 8 cœurs) → `GeoReferentialSeeder` 35ᵉ du pipeline, après `PropertySeeder` (6ᵉ) ; plus de 26 quartiers semés non rattachés (« Plateau (Dakar) », « Pikine (Dakar) », « Fann (Mbour) ») ; 200 adresses à plus de 10 km du centre de leur ville (Ziguinchor 271 km, Louga 167 km) → référentiel en tête du pipeline, quartiers tirés des quartiers approuvés de la ville (`SeedGeo`), coordonnées à ±0,04° de son centre, noms du faker alignés sur le jeu ; 2 verts. Ablation : seeders remis → la garde des quartiers rouge ; ordre du pipeline remis → la garde d'ordre rouge ; remis → verts. `FilterCoverageTagsTest` et `SeedingReindexTest` verts.
 
 ### Petites améliorations
 - Réf : P17.05
