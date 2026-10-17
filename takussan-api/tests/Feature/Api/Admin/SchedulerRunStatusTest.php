@@ -9,6 +9,8 @@ use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskSkipped;
+use Illuminate\Console\Scheduling\Event as SchedulingEvent;
+use Illuminate\Console\Scheduling\EventMutex;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -301,5 +303,60 @@ class SchedulerRunStatusTest extends TestCase
         $this->getJson('/api/admin/scheduler')
             ->assertOk()
             ->assertJsonPath('data.0.last_status', 'failed');
+    }
+
+    /**
+     * TCK-801 (P19.05) — le nom d'une commande planifiée ne porte pas le binaire PHP : changer de
+     * version de PHP ou d'image ne coupe plus l'historique d'une tâche en deux.
+     */
+    public function test_the_task_name_does_not_depend_on_the_php_binary(): void
+    {
+        $mutex = $this->createStub(EventMutex::class);
+        $homebrew = new SchedulingEvent($mutex, "'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' health:probe");
+        $image = new SchedulingEvent($mutex, "'/usr/local/bin/php' 'artisan' health:probe");
+
+        $this->assertSame('health:probe', ScheduledRunRecorder::nomDe($homebrew));
+        $this->assertSame(ScheduledRunRecorder::nomDe($homebrew), ScheduledRunRecorder::nomDe($image));
+
+        // Le chemin réel : `Schedule::command()` préfixe le binaire de la machine qui planifie.
+        $planifiee = (new Schedule)->command('health:probe --force');
+        $this->assertSame('health:probe --force', ScheduledRunRecorder::nomDe($planifiee));
+
+        // Une commande système (`Schedule::exec`) et un nom posé par `->name()` ne bougent pas.
+        $this->assertSame('ls -la', ScheduledRunRecorder::nomDe((new Schedule)->exec('ls -la')));
+        $this->assertSame('tache-nommee', ScheduledRunRecorder::nomDe((new Schedule)->command('health:probe')->name('tache-nommee')));
+    }
+
+    /**
+     * TCK-801 (P19.05) — la durée moyenne se prend sur les 7 derniers jours : une régression récente
+     * se voit, au lieu de se diluer dans tout l'historique.
+     */
+    public function test_the_average_duration_covers_the_last_seven_days_only(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        foreach ([[10, 10_000], [8, 10_000], [2, 300], [0, 100]] as [$jours, $duree]) {
+            ScheduledTaskRun::query()->create([
+                'task' => 'health:probe',
+                'last_run_at' => now()->subDays($jours),
+                'duration_ms' => $duree,
+                'status' => ScheduledTaskRunStatus::Finished,
+            ]);
+        }
+        // Une tâche qui n'a tourné qu'il y a plus de 7 jours n'a pas de mesure récente : `null`.
+        ScheduledTaskRun::query()->create([
+            'task' => 'monthly-report',
+            'last_run_at' => now()->subDays(20),
+            'duration_ms' => 5_000,
+            'status' => ScheduledTaskRunStatus::Finished,
+        ]);
+
+        $this->getJson('/api/admin/scheduler')
+            ->assertOk()
+            ->assertJsonPath('data.0.task', 'health:probe')
+            ->assertJsonPath('data.0.average_duration_ms', 200)
+            ->assertJsonPath('data.1.task', 'monthly-report')
+            ->assertJsonPath('data.1.last_status', 'finished')
+            ->assertJsonPath('data.1.average_duration_ms', null);
     }
 }

@@ -177,6 +177,12 @@ Schedule::command('webhooks:prune')->dailyAt('03:45')->timezone('Africa/Dakar')-
 // du destinataire (`to`) disparaît avec la ligne. Idempotente : une suppression par date.
 Schedule::command('notifications:prune-delivery-attempts')->dailyAt('03:50')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-803 (P19.07, ADR-0044 amendement B) — un job échoué se conserve 30 jours, `payload` compris
+// (il porte le job sérialisé, donc ses données) : il se rejoue dans ce délai, ou ne se rejoue plus.
+// `queue:prune-batches` garde la durée par défaut du framework. Idempotentes : une suppression par date.
+Schedule::command('queue:prune-failed --hours=720')->dailyAt('03:55')->timezone('Africa/Dakar')->withoutOverlapping();
+Schedule::command('queue:prune-batches')->dailyAt('03:57')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-633 lot F (ADR-0061 §9) — fin des boosts échus, réconciliation (filet des écritures de masse),
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.
