@@ -456,16 +456,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $this->clientNetwork($request))));
 
         // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
-        // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
-        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$this->clientNetwork($request)));
+        // (quelques appels par heure et par flux).
+        RateLimiter::for('ical-export', fn (Request $request) => $this->feedLimits($request));
         // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
         // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
         RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $this->clientNetwork($request))));
 
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
-        // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
-        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$this->clientNetwork($request)));
+        // plus souvent.
+        RateLimiter::for('calendar-feed', fn (Request $request) => $this->feedLimits($request));
 
         // P36.07 (TCK-798) — accusés de livraison SMS et WhatsApp : un seau par fournisseur et par
         // IP. Ils arrivent en rafale depuis quelques IP (jusqu'à 500 par envoi Mtarget, un statut
@@ -608,6 +608,23 @@ class AppServiceProvider extends ServiceProvider
         // verif-597 m6 — le /64 d'une IPv6, comme l'empreinte visiteur : sinon une adresse neuve
         // du même abonné repart avec un compteur neuf.
         return 'ip:'.$this->clientNetwork($request);
+    }
+
+    /**
+     * TCK-852 (P37.02) — un flux de calendrier public : 30 par minute et PAR FLUX (le jeton, haché :
+     * il ne finit pas en clair dans le cache), plus 600 par minute et par IP contre l'énumération.
+     * Par IP seule, une plateforme tierce qui relit les flux de tous ses utilisateurs depuis une
+     * même machine recevait 429 au 31ᵉ flux de la minute, et le calendrier cessait de s'y mettre
+     * à jour.
+     *
+     * @return list<Limit>
+     */
+    private function feedLimits(Request $request): array
+    {
+        return [
+            Limit::perMinute(30)->by('flux:'.hash('sha256', (string) $request->route('token'))),
+            Limit::perMinute(600)->by('ip:'.$this->clientNetwork($request)),
+        ];
     }
 
     /**
