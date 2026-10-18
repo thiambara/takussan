@@ -87,15 +87,31 @@ class AdminGlobalSearchTest extends TestCase
         $this->assertSame(['id' => $agence->id, 'name' => 'Dakar Habitat'], $resultats[0]['agency']);
     }
 
-    /** NINEA : par l'agence (en clair), jamais par la demande de passage (chiffrée par TCK-601). */
+    /**
+     * NINEA : par l'agence (en clair), jamais par la demande de passage (chiffrée par TCK-601).
+     * P47.01 (TCK-959) — dans la colonne `agencies.ninea`, sa source depuis TCK-594 : ce test semait
+     * l'ancienne forme (`metadata.legal_info`), que plus rien n'écrit, et restait vert.
+     */
     public function test_le_ninea_se_cherche_dans_l_agence_jamais_dans_la_demande(): void
     {
-        $agence = Agency::factory()->create(['metadata' => ['legal_info' => ['ninea' => '005012345']]]);
+        $agence = Agency::factory()->create(['ninea' => '005012345']);
         AgencyUpgradeRequest::factory()->create(['ninea' => '009876543']);
         $this->agirEnOperateur(PlatformProfileLevel::Support);
 
         $this->assertSame([$agence->id], $this->ids($this->chercher('005012345'), 'agency'));
         $this->assertSame([], $this->chercher('009876543'));
+    }
+
+    /**
+     * P47.01 (TCK-959) — repli : la migration de TCK-594 laisse dans `metadata` une valeur plus
+     * longue que la colonne, non recopiée. Elle se trouve encore.
+     */
+    public function test_un_ninea_reste_dans_metadata_se_cherche_encore(): void
+    {
+        $agence = Agency::factory()->create(['ninea' => null, 'metadata' => ['legal_info' => ['ninea' => '005099999']]]);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->assertSame([$agence->id], $this->ids($this->chercher('005099999'), 'agency'));
     }
 
     public function test_cinq_resultats_au_plus_par_type_et_les_jokers_sont_litteraux(): void
