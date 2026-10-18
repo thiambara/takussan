@@ -44,9 +44,8 @@ Un compte effacé ne revient jamais, même après la restauration d'une sauvegar
 - Ce seau vit hors du serveur (R2) ; il est copié chaque nuit dans
   `vps-sauvegardes/takussan-preview-private/` par `deploy/server/sauvegarde-seau-prive.sh`
   (`rclone copy`, qui ne supprime jamais), et `vps-sauvegardes` porte depuis le 2026-10-18 un
-  verrou de rétention de 7 jours (ADR-0069 ; dit par la session qui a tranché le support — la
-  ligne « Copie du seau privé des médias » du relevé de `hebergement.md`, datée du 2026-09-22,
-  dit encore « non posée »). Ni jeton ni variable d'environnement de plus.
+  verrou de rétention de 7 jours (ADR-0069 ; posé et éprouvé le 2026-10-18 par TCK-548 :
+  effacer ou écraser un objet récent y rend `ObjectLockedByBucketPolicy`). Ni jeton ni variable d'environnement de plus.
 - Un objet **par effacement**, parce qu'un objet S3 ne s'allonge pas : un fichier journal unique
   serait un lire-réécrire concurrent.
 - Écarté : un export nocturne vers `vps-sauvegardes` (l'énoncé d'ADR-0044 § B) — il aurait demandé
