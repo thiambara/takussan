@@ -14,8 +14,9 @@ use App\Services\Notifications\Sms\PhoneNumber;
  * visiteur anonyme. Il n'a qu'un téléphone ; il ne reçoit que des messages transactionnels,
  * sur WhatsApp s'il y a consenti, sinon par SMS ({@see NotificationService::send()}).
  *
- * Sa langue est celle de son compte lié s'il en a un, sinon `fr` EXPLICITEMENT — jamais la
- * langue du processus (`app()->getLocale()`), qui est celle de l'acteur ou du worker.
+ * Sa langue est celle de son compte lié s'il en a un, sinon celle que l'agence a saisie sur sa
+ * fiche (TCK-921), sinon `fr` EXPLICITEMENT — jamais la langue du processus
+ * (`app()->getLocale()`), qui est celle de l'acteur ou du worker.
  */
 final class ContactSansCompte
 {
@@ -42,7 +43,7 @@ final class ContactSansCompte
         return new self(
             self::normalize($customer->phone),
             trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) ?: null,
-            $customer->user?->preferredLocale() ?? self::DEFAULT_LOCALE,
+            $customer->user?->preferredLocale() ?? ($customer->locale ?: self::DEFAULT_LOCALE),
             $customer->getKey(),
         );
     }
