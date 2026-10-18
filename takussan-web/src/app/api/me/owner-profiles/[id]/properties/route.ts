@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 
 /**
@@ -30,10 +31,11 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
 
   const search = req.nextUrl.search ?? '';
   const upstream = await fetch(
-    `${origineApi()}/api/me/owner-profiles/${id}/properties${search}`,
+    urlApiServeur(`/me/owner-profiles/${id}/properties${search}`),
     {
       method: 'GET',
       headers: {
+        ...(await enTetesDuRelais(req)),
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },

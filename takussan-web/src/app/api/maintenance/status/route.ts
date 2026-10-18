@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { origineApi } from '@/lib/config-publique';
+import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 
 export async function GET() {
-  const upstream = await fetch(`${origineApi()}/api/maintenance/status`, {
-    headers: { Accept: 'application/json' },
+  // TCK-894 — appel partagé, mis en cache pour tous : le chemin serveur, sans l'IP ni la langue
+  // d'un visiteur, qui entreraient dans la clé du cache de `fetch`.
+  const upstream = await fetch(urlApiServeur('/maintenance/status'), {
+    headers: { ...(await enTetesServeurAmont({ partage: true })), Accept: 'application/json' },
     next: { revalidate: 60 },
   });
   const body = await upstream.text();

@@ -163,8 +163,11 @@ export function urlApiServeur(path: string): string {
  * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
  * journal d'impersonation, pour tous les opérateurs.
  */
-export async function enTetesServeurAmont(): Promise<Record<string, string>> {
+export async function enTetesServeurAmont(options: { partage?: boolean } = {}): Promise<Record<string, string>> {
   const enTetes: Record<string, string> = { ...enTetesDuCheminInterne() };
+  // TCK-894 — un appel partagé (mis en cache pour tous) ne parle pour aucun visiteur, comme dans
+  // `apiFetch` : son IP entrerait dans la clé du cache de `fetch`.
+  if (options.partage) return enTetes;
   const visiteur = await resolveVisitorIp();
   if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
   return enTetes;

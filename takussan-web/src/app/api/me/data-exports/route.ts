@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 async function forward(request: NextRequest): Promise<NextResponse> {
   const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const headers: Record<string, string> = {
+    ...(await enTetesDuRelais(request)),
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
-  const upstream = await fetch(`${origineApi()}/api/me/data-exports${request.nextUrl.search}`, {
+  const upstream = await fetch(urlApiServeur(`/me/data-exports${request.nextUrl.search}`), {
     method: request.method,
     headers,
   });

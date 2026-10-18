@@ -17,6 +17,18 @@ export type OptionsRelais = {
 const EN_TETES_DE_REPONSE = ['content-type', 'content-disposition', 'cache-control'] as const;
 
 /**
+ * TCK-894 (P41.02) — les en-têtes que tout relais propre à un visiteur envoie à l'API : ceux du
+ * chemin serveur (`enTetesServeurAmont` : chemin interne, IP du visiteur) et la langue du
+ * navigateur. Sans elle, le `fetch` de Node pose `accept-language: *`, que l'API ne retient pas.
+ */
+export async function enTetesDuRelais(request: Request): Promise<Record<string, string>> {
+  const enTetes = await enTetesServeurAmont();
+  const langue = request.headers.get('accept-language');
+  if (langue) enTetes['Accept-Language'] = langue;
+  return enTetes;
+}
+
+/**
  * TCK-893 (P41.03) — le relais BFF commun : la requête du navigateur vers l'API, et sa réponse.
  *
  * Six relais réécrivaient chacun ce `forward()`, et chacun divergeait (corps lu en texte, en-têtes de
@@ -37,15 +49,13 @@ export async function relayerVersApi(
   options: OptionsRelais = {},
 ): Promise<NextResponse> {
   const enTetes: Record<string, string> = {
-    ...(await enTetesServeurAmont()),
+    ...(await enTetesDuRelais(request)),
     Accept: (options.accepteDeLaRequete ? request.headers.get('accept') : null) ?? 'application/json',
     ...options.enTetes,
   };
   if (options.jeton) enTetes.Authorization = `Bearer ${options.jeton}`;
   const contentType = request.headers.get('content-type');
   if (contentType) enTetes['Content-Type'] = contentType;
-  const langue = request.headers.get('accept-language');
-  if (langue) enTetes['Accept-Language'] = langue;
 
   const init: RequestInit = { ...options.init, method: request.method, headers: enTetes };
   if (!['GET', 'HEAD'].includes(request.method)) {

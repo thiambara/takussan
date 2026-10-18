@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 const ALLOWED_ENTITIES = new Set([
   'payments',
@@ -36,14 +37,14 @@ export async function GET(
     return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
-  const upstream = new URL(`${origineApi()}/api/export/${entity}`);
+  const upstream = new URL(urlApiServeur(`/export/${entity}`));
   for (const key of FORWARD_PARAMS) {
     const v = request.nextUrl.searchParams.get(key);
     if (v !== null && v !== '') upstream.searchParams.set(key, v);
   }
 
   const res = await fetch(upstream, {
-    headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
+    headers: { ...(await enTetesDuRelais(request)), Authorization: `Bearer ${token}`, Accept: '*/*' },
   });
 
   const headers = new Headers();
