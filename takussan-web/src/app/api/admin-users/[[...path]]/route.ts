@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jetonEspaceApplicatif } from '@/lib/impersonation';
+import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { origineApi } from '@/lib/config-publique';
 import { statutSansCorps } from '@/lib/statut-sans-corps';
@@ -25,6 +25,9 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
   };
+  // TCK-849 (P03.07) — sans l'indice, un admin de plusieurs agences reçoit 403 de `/api/users`.
+  const activeProfileId = profilActifEspaceApplicatif(request.cookies);
+  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
   const contentType = request.headers.get('content-type');
   if (contentType) headers['Content-Type'] = contentType;
 
