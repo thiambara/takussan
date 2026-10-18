@@ -55,7 +55,6 @@ beforeEach(() => {
   vi.mocked(getMeAction).mockResolvedValue({ id: 7, roles: ['customer'], preferences: { city: 'Dakar', search_intent: 'rent' } } as never);
   vi.mocked(rechercherBiensPublics).mockResolvedValue({
     data: [{ id: 5, slug: 'studio-plateau', title: 'Studio Plateau', price: 150000, currency: 'XOF' }],
-    facets: {},
     meta: { current_page: 1, last_page: 1, per_page: 4, total: 1 },
   } as never);
 });

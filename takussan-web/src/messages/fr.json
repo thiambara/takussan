@@ -4362,6 +4362,7 @@
       "vide_description": "Retirez un seul critère : les autres restent en place.",
       "vide_description_sans_critere": "Il y a sûrement un bien pour vous : repartez d'une recherche vierge.",
       "vide_criteres_aria": "Retirer un critère",
+      "vide_suggestions": "Essayez plutôt",
       "empty_cta": "Effacer tous les filtres",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",

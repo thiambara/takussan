@@ -33,7 +33,7 @@ beforeEach(() => {
   urls.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
   reponses = {
-    '/public/properties/search': { data: [BIEN], facets: {}, meta: { total: 1 } },
+    '/public/properties/search': { data: [BIEN], meta: { total: 1 } },
   };
 });
 

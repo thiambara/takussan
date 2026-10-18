@@ -255,16 +255,17 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
-- Statut : validé — retirer les facettes
+- Statut : fait · TCK-910
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:76,97,152`
 - Constat : `neighborhood`, `bedrooms` et `type` sont demandées à Meilisearch à chaque requête. Le front ne lit `facets` nulle part : seule la déclaration de type `types/search.ts:608` le mentionne.
 - Piste : les retirer, ou les afficher (« Mermoz (43) ») en facettes disjonctives.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `PropertySearchService.php:76` (`FACETS = ['neighborhood', 'bedrooms', 'type']`), `:97` et `:152` ; `grep -rn facets takussan-web/src` hors tests → seules `types/search.ts:580,608` (déclaration) ; la clé `facets` est au contrat de `GET /api/public/properties/search` (ADR-0024 l. 101-112) et assertée par `PropertySearchServiceTest.php:70-81` → le constat tient : facettes calculées, jamais lues. Classement : V7, la piste offre deux voies (retrait de la clé, ou facettes visibles) et choisir entre elles est un choix de produit ; le coût côté Meilisearch n'est pas mesuré.
+- Mesure (2026-10-18, f41284c32, implementeur) : avant correctif, `PropertySearchService.php:77,98,265` demandait encore `facets` au moteur (nominal et élargi) et `grep -rn facets takussan-web/src` hors tests ne rendait que la déclaration de type ; les 3 tests d'absence (`PropertySearchServiceTest`, `PropertySearchTest`, `RechercheConjonctiveTest`, sous `all` et `widened`) rouges → facettes retirées de la requête et de la réponse, type `Facets` retiré du front ; ablation (service de `pre-dev` remis) → 3 rouges, correctif remis → verts.
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
 - Réf : P01.09
-- Statut : validé — des suggestions dans l'état vide
+- Statut : fait · TCK-911
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:125`, `takussan-api/app/Models/Property.php:321-338`
 - Constat :
@@ -272,6 +273,7 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
   - Fonctionnent bien (mesuré) : la recherche par référence (`NSRKO42K`, `pr-nsrko42k`) et l'accent dans la requête (`Guediawaye` trouve `Guédiawaye`).
 - Piste : en cas de zéro résultat, proposer les suggestions de `SuggestService` dans `SearchEmpty`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PropertySearchService.php:125` (`totalHits === 0 && count($useful) >= 2` : le repli exige toujours deux termes utiles), `SuggestService.php:157` (`dakr -> rien`, `oneTypo = 5` documenté) et `SearchEmpty.tsx` (aucun appel à `SuggestService`, aucune suggestion) ; `git log -S` et `grep` dans les tickets → aucun commit ni ticket ne l'a traité (TCK-558, `done`, ne propose pas de suggestion). Le rendu « `ker` → 0 » n'a pas été rejoué sur l'index (clé Meilisearch dans le `.env`, non lue) : il repose sur le seuil de 2 termes et le `oneTypo` lus. Classement : V7, afficher des suggestions dans l'état vide est un comportement visible neuf, au texte et à la mise en page à décider.
+- Mesure (2026-10-18, f41284c32, implementeur) : avant correctif, `SearchEmpty.tsx` n'appelait ni `useSuggest` ni `SuggestService`, et `SearchEmpty.suggestions.test.tsx` rougissait sur 5 cas sur 8 → bloc « Essayez plutôt » (au plus 6 villes, quartiers et types de `/api/search/suggest`, en liens qui remplacent `q` et gardent les autres critères), rendu seulement à zéro résultat sur un terme ; ablation (`SearchEmpty.tsx` de `pre-dev`) → 5 rouges, remis → 8 verts. `ker` reste sans suggestion : `SuggestService` est en préfixe et sans faute sous cinq lettres.
 
 ### La carte charge toutes les photos, et les coordonnées ne sont pas indexées
 - Réf : P01.10
