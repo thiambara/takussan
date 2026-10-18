@@ -1793,7 +1793,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La policy du registre RGPD n'est jamais exécutée
 - Réf : P12.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-897
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PrivacyRequestPolicy.php:18,23,28,33`
 - Constat :
@@ -1803,6 +1803,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré.
 - Piste : un test unitaire de la policy par méthode.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `PrivacyRequestPolicy.php:16-34` (quatre `return false`), appelée par `PrivacyRequestController.php:31,81` et `Store/UpdatePrivacyRequestRequest::authorize()` ; clover CI du run 38700039987 (`dev`, 53b3d2ee, aucun commit depuis sur la policy) → lignes 18, 23, 28, 33 à `count=0` ; `grep -rl PrivacyRequestPolicy tests` → seule `tests/impact-map.json`. Le constat tient : le super-admin passe par `Gate::before` et tout autre appelant est arrêté par le middleware `super-admin` avant la policy. Classement : A5, un test unitaire par méthode (refus pour un non-super-admin, accord du super-admin par `Gate::before`) sans toucher à l'autorisation.
+- Mesure (2026-10-18, 69aa075d, implementeur) : les quatre `return false` de `PrivacyRequestPolicy.php` passés à `true` → `PrivacyRequestRegistryTest` reste vert (7/7), le constat tient. Test neuf `tests/Unit/Policies/PrivacyRequestPolicyTest.php` (trois rôles hors plateforme refusés en direct et par la Gate, super-admin accordé par `Gate::before`) → 7 verts ; ablation méthode par méthode, chaque `return false` passé à `true` → 6 rouges sur 7 ; remis → 7 verts.
 
 ### Le code de signature de bail envoyé par e-mail n'est jamais rendu
 - Réf : P12.08
