@@ -28,7 +28,7 @@ export function StepPhotos({
 
   return (
     <>
-      <MediaDropzone onChange={onChange} files={files} onRemove={onRemove} maxFiles={MAX_PHOTOS} />
+      <MediaDropzone onChange={onChange} files={files} onRemove={onRemove} maxFiles={MAX_PHOTOS} camera />
       <p className="text-xs text-muted-foreground">
         {t('photosCounter', { count: files.length, max: MAX_PHOTOS })}
       </p>

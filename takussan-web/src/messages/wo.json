@@ -9882,7 +9882,8 @@
     "dropzone_hint_short": "walla bësal — {size} la ëpp, ba {max} fiise.",
     "cover": "Nataal bu njëkk",
     "delete_photo_aria": "Far nataal bii",
-    "remove_file_aria": "Jële {name}"
+    "remove_file_aria": "Jële {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {

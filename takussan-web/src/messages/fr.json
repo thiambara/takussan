@@ -9882,7 +9882,8 @@
     "dropzone_hint_short": "ou cliquez — {size} max, jusqu'à {max} fichiers.",
     "cover": "Couverture",
     "delete_photo_aria": "Supprimer cette photo",
-    "remove_file_aria": "Retirer {name}"
+    "remove_file_aria": "Retirer {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {
