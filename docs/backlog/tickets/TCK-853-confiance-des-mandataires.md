@@ -31,7 +31,7 @@ reconnaît pas : posé par erreur, il ne croit personne, sans erreur.
 
 ## Décision du porteur
 
-`headers:` restreint à `FOR | PROTO | PORT`, `IpUtils::checkIp` dans `RestrictIpMiddleware` ; un `TRUSTED_PROXIES` qui contient `*` donne un `Log::critical` et une sonde de santé `degraded`, sans refus au démarrage
+`headers:` restreint à `FOR | PROTO | PORT`, `IpUtils::checkIp` dans `RestrictIpMiddleware` ; un `TRUSTED_PROXIES` qui contient `*` donne un `Log::critical` et une sonde de santé `degraded`, sans refus au démarrage ; reste : la phrase du plan, hors agents
 
 ## Reste à faire
 
