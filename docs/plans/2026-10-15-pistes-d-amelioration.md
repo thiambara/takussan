@@ -4842,7 +4842,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
-- Statut : retenu · à valider — V8 : garde transversale front ↔ API, deux voies dont l'une passe par la CI (V5)
+- Statut : validé — la garde côté API : un test PHPUnit qui lit `Route::getRoutes()` et les littéraux de `../takussan-web/src`, réécrit les relais BFF par une table tirée des route handlers, échoue sur tout chemin ou verbe sans route et sur un `[...path]` neuf que la table ne couvre pas ; preuve de non-vacuité par `PATCH /api/users/me` réintroduit ; reste : OpenAPI (spec générée, client typé), chantier à part ouvert par un ADR si le porteur le décide
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
 - Constat :
