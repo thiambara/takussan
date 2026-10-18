@@ -1,7 +1,7 @@
 ---
 id: TCK-930
 title: "La base se restaure à l'instant près : WAL-G archive les journaux dans takussan-wal, et la restauration à un instant choisi est mesurée"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -51,18 +51,31 @@ restaure à un instant choisi, sur une instance vierge, et la copie se lit.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'épreuve sort en 0 sur l'image construite, en local et en CI ; sans l'instant
-      visé (ablation), elle sort en 1 en lisant « apres,avant ».
-- [ ] **AC2** — La base de préproduction tourne sur l'image `sha-` : `pg_stat_archiver` compte des
-      segments archivés et aucun échec, et ces segments sont lus dans `takussan-wal`.
-- [ ] **AC3** — Une sauvegarde de base existe dans `takussan-wal` (`wal-g backup-list`), les
-      deux timers sont actifs, et `wal-g.sh etat` ne signale rien.
-- [ ] **AC4** — Restauration à un instant choisi, depuis R2 seul, sur une instance vierge
+- [x] **AC1** — L'épreuve sort en 0 sur l'image construite, en local et en CI ; sans l'instant
+      visé (ablation), elle sort en 1 en lisant « apres,avant ». *Mesuré : notes ci-dessous ; en CI,
+      `image-postgres.yml` vert sur les PR #656 et #658, étape 0 (TLS) comprise.*
+- [x] **AC2** — La base de préproduction tourne sur l'image `sha-` : `pg_stat_archiver` compte des
+      segments archivés et aucun échec, et ces segments sont lus dans `takussan-wal`. *Mesuré le
+      2026-10-18, image `sha-60c0a5f1ef780108b0d12c769c2fc0e34713f665` : 11 segments, 0 échec,
+      dernier `00000001000000000000003E` — celui que la restauration d'AC4 a relu depuis R2.*
+- [x] **AC3** — Une sauvegarde de base existe dans `takussan-wal` (`wal-g backup-list`), les
+      deux timers sont actifs, et `wal-g.sh etat` ne signale rien. *Mesuré le 2026-10-18 : première
+      sauvegarde de base en 7 s (`2026-10-18T19:39:45Z`, 1 gardée), élagage sorti en 0 ;
+      `wal-g-veille.timer` (`*:0/15`) et `wal-g-base.timer` (dimanche 03:30) actifs ; `etat` → aucun
+      signal.*
+- [x] **AC4** — Restauration à un instant choisi, depuis R2 seul, sur une instance vierge
       (ADR-0028 § 7, ADR-0069 § 5) : une ligne écrite avant l'instant visé est présente, une ligne
       écrite après est absente, les comptes de lignes sont relevés, et
-      `backup:verify-encryption` sort en 0 sur la copie (1 avec `--cle-fausse`).
-- [ ] **AC5** — La veille alerte au franchissement et se tait ensuite (`BASE_MAX_J=0`, `ENVOI=0`),
-      puis rend un retour à la normale.
+      `backup:verify-encryption` sort en 0 sur la copie (1 avec `--cle-fausse`). *Mesuré le
+      2026-10-18 : instant visé `2026-10-18 19:40:42.484200+00`, une ligne témoin avant, une après ;
+      instance vierge reconstruite depuis `takussan-wal` seul, promue en 19 s ; la copie porte
+      `avant` seul ; comptes identiques à la base vivante (116 tables, 315 users, 861 biens, 3 532
+      médias) ; 39 valeurs chiffrées dans 20 colonnes, toutes déchiffrées → sortie 0 ; avec
+      `--cle-fausse`, 39 sur 39 refusées → sortie 1. Conteneur, volume et table témoin retirés.*
+- [x] **AC5** — La veille alerte au franchissement et se tait ensuite (`BASE_MAX_J=0`, `ENVOI=0`),
+      puis rend un retour à la normale. *Mesuré le 2026-10-18 : `BASE_MAX_J=0` → `⚠ … 0 jours ou
+      plus` ; rejouée → rien (marqueur) ; sans `BASE_MAX_J` → `✓ … retour à la normale` ; rejouée →
+      rien.*
 
 ## Hors périmètre
 
@@ -71,10 +84,6 @@ restaure à un instant choisi, sur une instance vierge, et la copie se lit.
 - Le chiffrement côté client des archives (`WALG_LIBSODIUM_KEY`) : les dumps de Dokploy ne le sont
   pas non plus, et une clé de plus à garder hors du serveur se décide à part.
 - Retirer le `pg_dump` nocturne : il reste, copie logique lisible sans WAL-G (ADR-0069 § 5).
-
-## Reste sur dev
-
-Le code est livré ; restent la bascule du serveur et les mesures AC2 à AC5, en session.
 
 ## Notes d'implémentation
 
