@@ -57,6 +57,7 @@ prestataire et ce que `metadata` porte au-delà du brouillon ne sortent plus.
       `ServiceProviderProfileController::index()` avec `$this->paginated()`.
 - [x] `TenantOnboardingPendingController` par `$this->paginated()`.
 - [x] `LeaseResource` ôte `renewed_from`, `renewals` et `renewals_count` restés `MissingValue`.
+- [x] `ServiceProviderDirectoryResource` rend ses dates par `iso()` / `calendarDate()` (ADR-0018).
 - [x] Tests : `ServiceProviderDirectoryProjectionTest`, `LeaseResourceUnloadedRelationsTest`, un
       test ajouté à `TenantOnboardingChecklistTest` ; l'assertion de `IncludedUserProjectionTest`
       qui épinglait le paginateur brut suit l'enveloppe canonique.
@@ -69,6 +70,7 @@ prestataire et ce que `metadata` porte au-delà du brouillon ne sortent plus.
 - [x] AC3 — La file d'onboarding rend `data` et `meta` (`total`, `per_page`, `current_page`,
       `last_page`), et rien d'autre à la racine.
 - [x] AC4 — Le détail du bail ne rend aucune des trois clés de renouvellement, et rend `property`.
+- [x] AC5 — Les dates du carnet sortent sous les formes d'ADR-0018 (`created_at` en `+00:00`).
 
 ## Hors périmètre
 
@@ -83,6 +85,11 @@ prestataire et ce que `metadata` porte au-delà du brouillon ne sortent plus.
   racine `current_page`/`links`… sans `meta`, `renewed_from` présent.
 - **Ablation** : chacun des trois fichiers rendu à sa forme d'avant rougit ses seuls tests (2, 1,
   1) ; remis → 24 verts.
+- Piège : la ressource neuve entre dans `DateInventoryByValueTest`, qui l'exige inscrite à
+  `ResourceInventory::MODELES_EXPLICITES` et voit alors les dates brutes de la ligne
+  (`…T12:34:56.000000Z`, déjà rendues avant, mais invisibles sans ressource). Elles passent par
+  `iso()` / `calendarDate()` selon le cast (ADR-0018) ; `renewals_count` sort de
+  `CLES_JAMAIS_ATTEINTES`, la clé n'étant plus émise.
 - `IncludedUserProjectionTest` (TCK-693) assertait `current_page` à la racine : sa phrase « la
   forme du paginateur brut ne change pas » valait pour TCK-693. Assertion changée, pas retirée.
 - Le front lit déjà cette réponse en `PaginatedResponse`, `meta` obligatoire : rien à y changer.
