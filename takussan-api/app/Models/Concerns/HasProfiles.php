@@ -228,7 +228,9 @@ trait HasProfiles
      *
      * **Coût mesuré** (AC6) : `customer` est gratuit — c'est le plancher, aucune
      * requête. `tenant` ajoute UN `exists()` (une jointure `customers ⋈ leases`,
-     * les deux colonnes portant un index), soit 7 requêtes de profil au lieu
+     * sur `leases_tenant_id_index` et `customers_user_id_index` — ce dernier
+     * posé seulement par TCK-862 : jusque-là, la jointure relisait toute la
+     * table `customers`), soit 7 requêtes de profil au lieu
      * de 6 sur le chemin de `/api/auth/me`.
      *
      * @return Collection<int,string>
