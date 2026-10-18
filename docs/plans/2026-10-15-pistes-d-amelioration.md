@@ -4546,7 +4546,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### Petites améliorations
 - Réf : P41.03
-- Statut : validé — une fonction `relayerVersApi()` dans `src/lib/` (corps en octets, `null` sur 204/205/304, `content-type`, `content-disposition`, `cache-control`, `accept-language`, en-têtes serveur), appelée par les six relais ; le compte et la liste de `takussan-web/CLAUDE.md` sont corrigés en session le 2026-10-18
+- Statut : fait · TCK-893
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
 - Constat :
@@ -4556,6 +4556,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
 - Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-18, a2dc95960, mesureur) : même test vitest temporaire, retiré → corps `ff 80 00 41` envoyé à `admin-users` part en `ef bf bd ef bf bd 00 41` (`request.text()` toujours l. 32, et `super-admin-properties` l. 31, `announcements` l. 22) ; `feature-flags/me` et `maintenance/status` rendent un JSON amont en `text/plain;charset=UTF-8` ; `find src/app/api -name route.ts | wc -l` → 36 alors que `takussan-web/CLAUDE.md` dit toujours « 31 route handlers » (l. 72) ; les six `forward()` divergents sont relus. Les quatre parties tiennent. Classement : V5, la `Piste` réunit les relais dans une fonction qui pose aussi les en-têtes serveur et `accept-language` de P41.02, donc le même chemin interne ; prises seules, la lecture en octets et le `content-type` (A1, précédent TCK-601) et le compte du document (A6) seraient autonomes.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : test neuf `src/app/api/__tests__/relais-commun.test.ts`, `API_INTERNAL_URL` posée, requête `POST` multipart aux octets `ff 80 00 41` avec `accept-language: en` et un `x-forwarded-for` à trois entrées → avant correctif, 5 rouges sur 6 (`super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` joignent `origineApi()`), `impersonation/proxy` vert ; `relayerVersApi()` (`src/lib/relais-api.ts`) appelée par les six relais → 6 verts (octets intacts, langue, `X-Forwarded-For` du visiteur, `X-Forwarded-Host`, `content-type`, `content-disposition` et `cache-control` rendus) ; ablation (les six relais remis) → les 5 mêmes rouges. `src/app/api` et `api-relais-impersonation` : 14 fichiers, 166 verts. `takussan-web/CLAUDE.md` n'est pas touché (corrigé en session par le porteur).
 
 ## Angle 42 — Sauvegardes PostgreSQL : existence, rétention, restauration
 
