@@ -7,8 +7,9 @@
     // the source of truth for which currency we settled on at issuance time;
     // we fall back to the agency's current currency, then XOF for safety.
     $currency = $invoice->currency ?? $agency?->currency ?? 'XOF';
+    // TCK-835 (P26.05) — sans lignes, la désignation de l'objet facturé, et « Prestation » en dernier.
     $lines = $lines ?? [[
-        'label' => 'Prestation',
+        'label' => $invoice->designation() ?? 'Prestation',
         'qty' => 1,
         'unit_price' => $invoice->subtotal,
         'total' => $invoice->subtotal,
