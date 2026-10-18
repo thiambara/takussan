@@ -10,6 +10,7 @@ use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
@@ -42,6 +43,13 @@ use Illuminate\Support\Facades\Log;
 class CodedNotification extends Notification implements ShouldBeEncrypted, ShouldQueue, SupportsSms, SupportsWhatsapp
 {
     use Queueable;
+
+    /**
+     * TCK-842 (P27.04) — le job n'est pas tué en cours de chaîne SMS : budget de la chaîne
+     * ({@see SmsTimeBudget}), plus un appel WhatsApp qui se replie en SMS, plus une marge ;
+     * sous le `retry_after` des files (90 s).
+     */
+    public $timeout = SmsTimeBudget::CHAIN_SECONDS + 20;
 
     /**
      * @param  array<string, mixed>  $params  paramètres bruts

@@ -10,6 +10,7 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -28,6 +29,8 @@ use Illuminate\Support\Facades\Log;
  *   nonetheless handle the upstream `429` / quota error code by
  *   returning {@see SmsResult::deferred()} so the router routes to
  *   the next driver in the chain.
+ * - TCK-842 (P27.04) — every call (OAuth lock, token, send, resend) is
+ *   bounded by the time left in the chain budget ({@see SmsTimeBudget}).
  */
 class OrangeSmsDriver implements SmsDriverInterface
 {
@@ -64,7 +67,7 @@ class OrangeSmsDriver implements SmsDriverInterface
             ?? $creds['sender_name']
             ?? '');
 
-        $token = $this->getToken($integration->id, $creds);
+        $token = $this->getToken($integration->id, $creds, $context);
         if ($token === null) {
             return $this->failAll($recipients, 'orange_oauth_failed');
         }
@@ -92,11 +95,16 @@ class OrangeSmsDriver implements SmsDriverInterface
             if ($senderName !== '') {
                 $payload['outboundSMSMessageRequest']['senderName'] = $senderName;
             }
+            if (SmsTimeBudget::exhausted($context)) {
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_time_budget_exhausted');
+
+                continue;
+            }
             try {
                 $response = $this->http
                     ->withToken($token)
                     ->acceptJson()
-                    ->timeout(10)
+                    ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->post($url, $payload);
             } catch (\Throwable $e) {
                 Log::warning('[sms.orange] HTTP exception', ['error' => $e->getMessage()]);
@@ -109,16 +117,21 @@ class OrangeSmsDriver implements SmsDriverInterface
                 // OAuth lock — if a peer worker already refreshed, we use
                 // their token; only the first 401 in the window actually
                 // triggers a new `/oauth/v3/token` round-trip.
-                $token = $this->refreshTokenIfStale($integration->id, $token, $creds);
+                $token = $this->refreshTokenIfStale($integration->id, $token, $creds, $context);
                 if ($token === null) {
                     $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_oauth_failed');
+
+                    continue;
+                }
+                if (SmsTimeBudget::exhausted($context)) {
+                    $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_time_budget_exhausted');
 
                     continue;
                 }
                 $response = $this->http
                     ->withToken($token)
                     ->acceptJson()
-                    ->timeout(10)
+                    ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->post($url, $payload);
             }
             if ($response->status() === 429) {
@@ -158,8 +171,9 @@ class OrangeSmsDriver implements SmsDriverInterface
 
     /**
      * @param  array<string,mixed>  $creds
+     * @param  array<string,mixed>  $context
      */
-    private function getToken(int $integrationId, array $creds): ?string
+    private function getToken(int $integrationId, array $creds, array $context): ?string
     {
         $cached = $this->tokenCache->get($integrationId);
         if ($cached !== null) {
@@ -169,7 +183,7 @@ class OrangeSmsDriver implements SmsDriverInterface
         // Single-flight refresh: under burst load (N queue workers waking
         // at the same minute) only one process should hit Orange's
         // `/oauth/v3/token`, the rest must read the freshly cached token.
-        return $this->withOAuthLock($integrationId, function () use ($integrationId, $creds): ?string {
+        return $this->withOAuthLock($integrationId, $context, function () use ($integrationId, $creds, $context): ?string {
             // Double-check: another worker may have refreshed while we
             // were waiting for the lock.
             $cached = $this->tokenCache->get($integrationId);
@@ -177,7 +191,7 @@ class OrangeSmsDriver implements SmsDriverInterface
                 return $cached;
             }
 
-            return $this->refreshToken($integrationId, $creds);
+            return $this->refreshToken($integrationId, $creds, $context);
         });
     }
 
@@ -188,17 +202,18 @@ class OrangeSmsDriver implements SmsDriverInterface
      * just used (or is empty) do we actually call `/oauth/v3/token`.
      *
      * @param  array<string,mixed>  $creds
+     * @param  array<string,mixed>  $context
      */
-    private function refreshTokenIfStale(int $integrationId, string $previousToken, array $creds): ?string
+    private function refreshTokenIfStale(int $integrationId, string $previousToken, array $creds, array $context): ?string
     {
-        return $this->withOAuthLock($integrationId, function () use ($integrationId, $previousToken, $creds): ?string {
+        return $this->withOAuthLock($integrationId, $context, function () use ($integrationId, $previousToken, $creds, $context): ?string {
             $cached = $this->tokenCache->get($integrationId);
             if ($cached !== null && $cached !== $previousToken) {
                 return $cached;
             }
             $this->tokenCache->forget($integrationId);
 
-            return $this->refreshToken($integrationId, $creds);
+            return $this->refreshToken($integrationId, $creds, $context);
         });
     }
 
@@ -210,15 +225,16 @@ class OrangeSmsDriver implements SmsDriverInterface
      *
      * @template T
      *
+     * @param  array<string,mixed>  $context
      * @param  \Closure(): T  $callback
      * @return T
      */
-    private function withOAuthLock(int $integrationId, \Closure $callback)
+    private function withOAuthLock(int $integrationId, array $context, \Closure $callback)
     {
         $key = "sms:orange:oauth:{$integrationId}";
         $lock = Cache::lock($key, 10);
         try {
-            return $lock->block(5, $callback);
+            return $lock->block((int) max(0, floor(SmsTimeBudget::httpTimeout($context, 5))), $callback);
         } catch (LockTimeoutException $e) {
             Log::warning('[sms.orange] OAuth lock timeout', ['key' => $key]);
 
@@ -231,19 +247,20 @@ class OrangeSmsDriver implements SmsDriverInterface
      * cache. Caller MUST hold the OAuth lock for {@see $integrationId}.
      *
      * @param  array<string,mixed>  $creds
+     * @param  array<string,mixed>  $context
      */
-    private function refreshToken(int $integrationId, array $creds): ?string
+    private function refreshToken(int $integrationId, array $creds, array $context): ?string
     {
         $clientId = (string) ($creds['client_id'] ?? '');
         $clientSecret = (string) ($creds['client_secret'] ?? '');
-        if ($clientId === '' || $clientSecret === '') {
+        if ($clientId === '' || $clientSecret === '' || SmsTimeBudget::exhausted($context)) {
             return null;
         }
         try {
             $response = $this->http
                 ->asForm()
                 ->withBasicAuth($clientId, $clientSecret)
-                ->timeout(10)
+                ->timeout(SmsTimeBudget::httpTimeout($context))
                 ->post(
                     (string) $this->config->get('sms.orange.oauth_token_url'),
                     ['grant_type' => 'client_credentials'],
