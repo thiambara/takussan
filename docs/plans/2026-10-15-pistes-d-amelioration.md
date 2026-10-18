@@ -3633,7 +3633,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
-- Statut : validé — refuser en 422 la fusion dont la source est un équipement du catalogue ; pas de trace de fusion
+- Statut : fait · TCK-846
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
 - Constat :
@@ -3643,6 +3643,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Aucun test ne fusionne puis resynchronise (lu, `TagCatalogTest.php`, cinq tests).
 - Piste : refuser en 422 la fusion d'une source du catalogue (`in_array($src->name, TagCatalog::EQUIPEMENTS)`), ou garder une trace de la fusion que `synchroniser()` respecte, comme pour un refus. Garder par un test : fusionner puis synchroniser.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagModeration::fusionner()` (aucune exclusion du catalogue, la source est supprimée) et `TagCatalog::assurer()` (recrée tout nom absent) ; test temporaire retiré : catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200, source supprimée ; `synchroniser()` rejoué → `Ventilateurs` recréé sous l'id 82 (ancien 71), approuvé, 0 bien ; le constat tient. Classement : V7, la piste propose deux comportements de modération (422 sur une source du catalogue, ou trace respectée par la synchronisation), et la trace demanderait un stockage neuf (V4).
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogFusionTest`, avant correctif, catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200 au lieu de 422, et une proposition `VENTILATEURS` de même (2 rouges) ; correctif, 422 `tags.catalog_merge_forbidden` dans `TagModeration::fusionner()` quand `TagCatalog::estUnEquipement()` → la source et sa liaison restent, `synchroniser()` rejoué garde une seule ligne `Ventilateurs` au même identifiant, une proposition se fusionne toujours dans `Climatisation` (3 verts) ; ablation (garde retirée) → 2 rouges, remise → 3 verts et `TagModerationTest` 9 verts.
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
