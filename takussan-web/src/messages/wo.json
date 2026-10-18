@@ -1025,6 +1025,8 @@
       "phone": "Telefon",
       "occupation": "Liggéey",
       "occupationPlaceholder": "Jàngalekat, jaaykat, ak yeneen",
+      "locale": "Langue des messages",
+      "localeDefault": "Par défaut (français)",
       "crmSection": "Toppatoo CRM",
       "pipelineStage": "Étape pipeline bi",
       "status": "Nekkin",
@@ -9751,6 +9753,7 @@
     "customer": {
       "occupationTooLong": "Liggéey bi dafa gudd lool.",
       "idTypeInvalid": "Xeetu kayit bu baaxul.",
+      "localeInvalid": "Langue invalide.",
       "idNumberTooLong": "Nomboro bi dafa gudd lool.",
       "emailOrPhone": "Joxal lu mu néew benn email walla benn telefon.",
       "idNumberRequired": "Nomboro bi fàww la su ñu tànnee xeetu kayit.",

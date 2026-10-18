@@ -46,6 +46,8 @@ export interface CustomerDetail extends CustomerListItem {
   user_id: number | null;
   metadata: Record<string, unknown> | null;
   agency_id?: number | null;
+  /** TCK-921 — la langue des messages du client sans compte ; `null` : `fr`. */
+  locale?: 'fr' | 'en' | 'wo' | null;
   /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). */
   seeking_contract_type?: 'sale' | 'rent' | null;
   budget_min?: string | null;
