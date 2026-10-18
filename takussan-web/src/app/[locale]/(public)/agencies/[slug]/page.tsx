@@ -14,6 +14,7 @@ import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import { alternatesPubliques } from '@/lib/alternates';
+import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { isLocale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdAgence } from '@/lib/jsonld-profil';
@@ -75,15 +76,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       : t('metaSummary', { count: agency.portfolio_count })
     : null;
   const title = t('metaTitle', { name: agency.name });
+  // TCK-915 (P09.08) — la description résumée au mot, et une description vide prend le résumé.
+  const description = resumePourMeta(agency.description) ?? summary ?? undefined;
   return {
     title,
-    description: agency.description ?? summary ?? undefined,
+    description,
     // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
     // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
     alternates: alternatesPubliques(`/agencies/${slug}`, locale),
     openGraph: {
       title,
-      description: agency.description ?? summary ?? undefined,
+      description,
       images: agency.logo_url ? [agency.logo_url] : undefined,
     },
   };

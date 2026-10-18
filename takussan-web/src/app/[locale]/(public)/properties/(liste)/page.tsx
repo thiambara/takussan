@@ -7,8 +7,9 @@ import { PropertiesSkeleton } from './loading';
 import { alternatesPubliques } from '@/lib/alternates';
 import {
   type DomainesDeFacette,
-  cheminCanoniqueDeLaListe,
+  cheminCanoniqueDeLaPage,
   filtresCanoniques,
+  pageDemandee,
   versParametres,
 } from '@/lib/canonique';
 import { compteDuLieu, domainesDeLaListe } from '@/lib/queries/facettes';
@@ -48,7 +49,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   const brut = await getLocale();
   const locale = isLocale(brut) ? brut : 'fr';
-  const chemin = cheminCanoniqueDeLaListe(params, domaines);
+  // TCK-915 (P09.08) — chaque page est canonique d'elle-même : `?type=villa&page=3` déclare
+  // `?type=villa&page=3`, plus la page 1.
+  const chemin = cheminCanoniqueDeLaPage(params, domaines);
 
   // TCK-675 (P09.02) — une combinaison de facettes valides prise une à une peut ne désigner aucun
   // bien : `?type=factory&contract_type=rent&city=Dakar` rendait 200, « Usine à louer à Dakar » et
@@ -60,18 +63,22 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     locale,
   );
   const vide = resultat !== null && resultat.meta.total === 0;
+  // TCK-915 (P09.08) — au-delà de la dernière page, la liste est vide sans que le filtre le soit.
+  // Décision du porteur : `noindex` sur la page, le code reste 200 et le `loading.tsx` reste.
+  const auDela = resultat !== null && pageDemandee(params) > resultat.meta.last_page;
 
   return {
     title,
     description,
     // ⚠️ Canonique ET `hreflang` dérivent du même chemin CANONIQUE, pas de l'URL demandée : sur
     // `?type=villa&page=3&sort=-created_at&per_page=48`, les quatre déclarations désignent
-    // `/‹langue›/properties?type=villa`. Deux signaux qui se contredisent font ignorer le groupe
+    // `/‹langue›/properties?type=villa&page=3` (TCK-915). Deux signaux qui se contredisent font ignorer le groupe
     // entier — cf. `alternatesPubliques`.
     alternates: alternatesPubliques(chemin, locale),
     // `follow` reste vrai : les liens de la page (filtres, autres facettes) mènent à des pages
-    // réelles. Omettre la clé laisse hériter du layout, qui déclare `index, follow`.
-    ...(vide ? { robots: { index: false, follow: true } } : {}),
+    // réelles. Omettre la clé laisse la valeur par défaut, `index, follow` (TCK-915 a retiré la
+    // déclaration explicite du layout).
+    ...(vide || auDela ? { robots: { index: false, follow: true } } : {}),
   };
 }
 

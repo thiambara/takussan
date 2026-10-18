@@ -9,6 +9,7 @@ import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { alternatesPubliques } from '@/lib/alternates';
+import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { hrefDeLaVille, hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
@@ -98,8 +99,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // rendait littéralement « null » quand ils l'étaient, et TCK-292 a reproduit le défaut à
   // l'identique plutôt que de le réparer en passant. **Il est réparé ici** : un repli qui n'a pas
   // de lieu à donner n'en invente pas, il n'en met pas.
+  // TCK-915 (P09.08) — coupée au mot, et une description vide prend le repli.
   const description =
-    property.description?.slice(0, 160) ??
+    resumePourMeta(property.description) ??
     tMeta('descriptionFallback', {
       type: property.type_label,
       quarter: property.location.quarter ?? '',

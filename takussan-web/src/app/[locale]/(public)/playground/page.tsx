@@ -25,8 +25,8 @@ import { PlaygroundClient } from './PlaygroundClient';
  *
  * Reste le `noindex`, qui est de toute façon le mécanisme JUSTE : il dit au moteur ce qu'il en est
  * de cette page, au lieu de la cacher. Il couvre les trois URL d'un coup (`/fr/playground`,
- * `/en/playground`, `/wo/playground`), il écrase le `robots: { index: true, follow: true }` du
- * layout du groupe — la métadonnée d'une page l'emporte champ par champ sur celle de son layout —
+ * `/en/playground`, `/wo/playground`), il écrase `robots: { index: true, follow: true }`, la
+ * valeur par défaut — le layout du groupe ne la déclare plus depuis TCK-915 —
  * et il est ÉPROUVABLE depuis le fichier, ce que l'AC exige explicitement.
  *
  * ⚠️ `/playground` n'est PAS interdit dans `robots.txt`, et c'est délibéré : un moteur qui a

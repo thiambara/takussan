@@ -180,3 +180,23 @@ describe("fiche d'agence — l'introuvable et l'indisponible", () => {
     expect(meta.title).toContain('Dakar Immo');
   });
 });
+
+describe('TCK-915 — la description d’agence résumée pour la méta', () => {
+  it('une description longue est coupée au mot, à l’écran comme au partage', async () => {
+    const description = 'Belle villa lumineuse avec piscine et jardin arboré, proche de la plage et des commerces, ' .repeat(4);
+    getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: { ...agence(), description } });
+    const meta = await generateMetadata({ params: params() });
+    expect(String(meta.description).length).toBeLessThanOrEqual(160);
+    expect(String(meta.description).endsWith('…')).toBe(true);
+    // Coupé au mot : le corps est un début du texte, et le texte continue par un blanc ou une ponctuation.
+    const corps = String(meta.description).slice(0, -1);
+    expect(description.startsWith(corps)).toBe(true);
+    expect(description[corps.length]).toMatch(/[\s,;:.!?]/);
+    expect(meta.openGraph?.description).toBe(meta.description);
+  });
+
+  it('une description vide prend le résumé', async () => {
+    getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: { ...agence(), description: '' } });
+    expect((await generateMetadata({ params: params() })).description).not.toBe('');
+  });
+});
