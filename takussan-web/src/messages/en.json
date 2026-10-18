@@ -529,7 +529,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Sign in — Takussan"
+      "default": "Sign in — Takussan",
+      "titles": {
+        "login": "Sign in",
+        "register": "Sign up",
+        "forgotPassword": "Forgot password",
+        "resetPassword": "New password",
+        "verifyEmail": "Email verification"
+      }
     },
     "layout": {
       "visualAlt": "Contemporary villa in Senegal",
