@@ -255,12 +255,13 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### Les facettes sont calculées à chaque recherche, et personne ne les lit
 - Réf : P01.08
-- Statut : validé — retirer les facettes
+- Statut : fait · TCK-910
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:76,97,152`
 - Constat : `neighborhood`, `bedrooms` et `type` sont demandées à Meilisearch à chaque requête. Le front ne lit `facets` nulle part : seule la déclaration de type `types/search.ts:608` le mentionne.
 - Piste : les retirer, ou les afficher (« Mermoz (43) ») en facettes disjonctives.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `PropertySearchService.php:76` (`FACETS = ['neighborhood', 'bedrooms', 'type']`), `:97` et `:152` ; `grep -rn facets takussan-web/src` hors tests → seules `types/search.ts:580,608` (déclaration) ; la clé `facets` est au contrat de `GET /api/public/properties/search` (ADR-0024 l. 101-112) et assertée par `PropertySearchServiceTest.php:70-81` → le constat tient : facettes calculées, jamais lues. Classement : V7, la piste offre deux voies (retrait de la clé, ou facettes visibles) et choisir entre elles est un choix de produit ; le coût côté Meilisearch n'est pas mesuré.
+- Mesure (2026-10-18, f41284c32, implementeur) : avant correctif, `PropertySearchService.php:77,98,265` demandait encore `facets` au moteur (nominal et élargi) et `grep -rn facets takussan-web/src` hors tests ne rendait que la déclaration de type ; les 3 tests d'absence (`PropertySearchServiceTest`, `PropertySearchTest`, `RechercheConjonctiveTest`, sous `all` et `widened`) rouges → facettes retirées de la requête et de la réponse, type `Facets` retiré du front ; ablation (service de `pre-dev` remis) → 3 rouges, correctif remis → verts.
 
 ### Une recherche d'un seul mot sans résultat n'a aucun repli
 - Réf : P01.09
