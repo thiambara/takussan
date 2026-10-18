@@ -17,7 +17,7 @@ export default function NotFound() {
     <>
       <Navbar />
       <NavbarSpacer />
-      <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+      <main className="max-w-3xl mx-auto px-4 py-24 text-center">
         <h1 className="text-3xl font-bold text-foreground mb-3">{t('title')}</h1>
         <p className="text-muted-foreground mb-8">{t('body')}</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -34,7 +34,7 @@ export default function NotFound() {
             {t('startSearch')}
           </LienLocalise>
         </div>
-      </div>
+      </main>
       <Footer />
     </>
   );

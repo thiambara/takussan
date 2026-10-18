@@ -175,7 +175,7 @@ export default async function PropertyDetailPage({ params }: Props) {
         <>
           <Navbar />
           <NavbarSpacer />
-          {await bienRetire(etat)}
+          <main>{await bienRetire(etat)}</main>
           <Footer />
         </>
       );
@@ -219,7 +219,8 @@ export default async function PropertyDetailPage({ params }: Props) {
     <>
       <Navbar />
       <NavbarSpacer />
-      {corps}
+      {/* TCK-895 (P31.02) — le repère du contenu, posé ici et non dans `PropertyDetailContent`. */}
+      <main>{corps}</main>
       <Footer />
     </>
   );
