@@ -144,9 +144,12 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
                 />
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">
+                  {/* TCK-946 — le compte est le titre de la grille : sans `h2`, le `<h1>` de
+                      l'index menait droit au `<h3>` de la première carte (axe, `heading-order`).
+                      Même texte, même apparence. */}
+                  <h2 className="text-sm text-muted-foreground">
                     {t('count', { count: resultat.total })}
-                  </p>
+                  </h2>
 
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {resultat.profils.map((profil) => (

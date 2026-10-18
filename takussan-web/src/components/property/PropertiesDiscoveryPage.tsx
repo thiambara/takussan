@@ -565,6 +565,11 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                 */}
                 {enCours && !(loading && properties.length === 0) ? <ActualisationDesResultats /> : null}
 
+                {/* TCK-946 — le titre de la grille, pour le seul arbre d'accessibilité : sans lui, le
+                    `<h1>` de la liste menait droit au `<h3>` de la première carte (axe,
+                    `heading-order`). Le compte et le titre visibles sont déjà sur la ligne du haut. */}
+                <h2 className="sr-only">{t('heading')}</h2>
+
                 {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
                   id={ID_DES_RESULTATS}
