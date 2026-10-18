@@ -3647,7 +3647,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
-- Statut : validé — réserver les slugs du catalogue : suffixe d'office pour une proposition, et synchroniser() reprend le slug exact à une proposition non approuvée qui le détient
+- Statut : fait · TCK-847
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
 - Constat :
@@ -3657,6 +3657,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Le test du front calcule le slug à partir du nom (`slugDuCatalogue`) ; il ne voit pas le slug réellement écrit en base (lu, l. 58-62).
 - Piste : réserver les slugs du catalogue. `slugLibre()` refuserait à une proposition un slug calculé depuis `TagCatalog::EQUIPEMENTS` (suffixe d'office), et `synchroniser()` reprendrait le slug exact s'il est détenu par une proposition. Garder par le test ci-dessus, inversé.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagCatalog::slugLibre()` (suffixe `-n` au premier slug pris) et `TagProposals::proposer()` (même `slugLibre()`) ; test temporaire retiré : proposition `Forage !` en attente, slug `forage`, puis `synchroniser()` → `Forage !|forage|pending ; Forage|forage-2|approved` ; le constat tient, l'affichage en anglais est déduit de `libelleEquipement()` (lu, `libelle-equipement.ts:31-34`), non rejoué. Classement : V4, que `synchroniser()` reprenne le slug détenu par une proposition réécrit des lignes existantes, et le suffixe d'office change le slug qu'une proposition reçoit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogSlugReserveTest`, avant correctif, proposition `Forage !` → slug `forage`, et `Forage !` en attente et `Fibre optique.` refusée détenant `forage` et `fibre-optique` → `synchroniser()` donne `forage-2` et `fibre-optique-2` au catalogue (2 rouges) ; correctif, `TagCatalog::slugLibre(…, horsCatalogue: true)` pour une proposition et reprise du slug exact à un détenteur non approuvé dans `assurer()` → le catalogue a `forage` et `fibre-optique`, les propositions un slug suffixé, une proposition du nom même garde `forage` et une proposition approuvée garde le sien (4 verts) ; ablation de chaque règle → 1 rouge chacune, remises → 4 verts et `tests/Feature/Tags` 72 verts.
 
 ### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
 - Réf : P30.04
