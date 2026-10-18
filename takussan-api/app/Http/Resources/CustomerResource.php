@@ -38,6 +38,8 @@ class CustomerResource extends BaseResource
             ] : []),
             'status' => $this->status?->value,
             'pipeline_stage' => $this->pipeline_stage?->value,
+            // TCK-921 — la langue des messages du client sans compte, saisie par l'agence.
+            'locale' => $this->locale,
             'agency_id' => $this->agency_id,
             'user_id' => $this->user_id,
             'added_by_id' => $this->added_by_id,

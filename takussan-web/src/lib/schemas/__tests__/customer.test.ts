@@ -110,3 +110,16 @@ describe('customerNoteSchema', () => {
     );
   });
 });
+
+describe('locale — TCK-921', () => {
+  it('rejects a language the API does not accept', () => {
+    const result = customerFormSchema.safeParse({ ...baseValues, email: 'a@b.co', locale: 'de' });
+    expect(result.success).toBe(false);
+  });
+
+  it('sends the chosen language, and null for the default', () => {
+    expect(normaliseCustomerForm({ ...baseValues, email: 'a@b.co', locale: 'en' }).locale).toBe('en');
+    expect(normaliseCustomerForm({ ...baseValues, email: 'a@b.co', locale: 'default' }).locale).toBeNull();
+    expect(normaliseCustomerForm({ ...baseValues, email: 'a@b.co', locale: '' }).locale).toBeNull();
+  });
+});

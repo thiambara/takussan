@@ -2781,6 +2781,8 @@
       "phone": "Phone",
       "occupation": "Occupation",
       "occupationPlaceholder": "Teacher, shopkeeper, etc.",
+      "locale": "Message language",
+      "localeDefault": "Default (French)",
       "crmSection": "CRM tracking",
       "pipelineStage": "Pipeline stage",
       "status": "Status",
@@ -9751,6 +9753,7 @@
     "customer": {
       "occupationTooLong": "The occupation is too long.",
       "idTypeInvalid": "Invalid ID type.",
+      "localeInvalid": "Invalid language.",
       "idNumberTooLong": "The number is too long.",
       "emailOrPhone": "Provide at least an email address or a phone number.",
       "idNumberRequired": "The number is required once an ID type is selected.",

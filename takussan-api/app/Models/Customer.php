@@ -61,6 +61,8 @@ class Customer extends AbstractModel
         // TCK-591 — critères de recherche du prospect.
         'seeking_contract_type', 'budget_min', 'budget_max',
         'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+        // TCK-921 — la langue des messages du client sans compte (`ContactSansCompte::fromCustomer()`).
+        'locale',
     ];
 
     protected $casts = [
@@ -108,6 +110,7 @@ class Customer extends AbstractModel
         'status', 'pipeline_stage', 'metadata',
         'seeking_contract_type', 'budget_min', 'budget_max',
         'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+        'locale',
         'created_at', 'updated_at',
     ];
 

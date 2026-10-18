@@ -2752,6 +2752,8 @@
       "phone": "Téléphone",
       "occupation": "Profession",
       "occupationPlaceholder": "Enseignant, commerçant, etc.",
+      "locale": "Langue des messages",
+      "localeDefault": "Par défaut (français)",
       "crmSection": "Suivi CRM",
       "pipelineStage": "Étape du pipeline",
       "status": "Statut",
@@ -9751,6 +9753,7 @@
     "customer": {
       "occupationTooLong": "La profession est trop longue.",
       "idTypeInvalid": "Type de pièce invalide.",
+      "localeInvalid": "Langue invalide.",
       "idNumberTooLong": "Le numéro est trop long.",
       "emailOrPhone": "Renseignez au moins un e-mail ou un téléphone.",
       "idNumberRequired": "Numéro requis lorsqu’un type de pièce est sélectionné.",
