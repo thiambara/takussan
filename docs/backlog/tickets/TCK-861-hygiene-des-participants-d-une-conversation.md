@@ -1,7 +1,7 @@
 ---
 id: TCK-861
 title: "Invitation à un groupe par code et cible, directe qu'on ne quitte pas, liste sans anciens membres, ré-invitation lue"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: M
@@ -95,4 +95,12 @@ ne montre plus d'anciens membres ; un membre ré-invité ne trouve pas son absen
 
 ## Notes d'implémentation
 
-(à compléter)
+- Reproduit avant correctif : les 4 cas de `ConversationParticipantsHygieneTest` rougissent
+  (`code` nul ; `DELETE` sur une directe → 200 ; l'ancien membre dans `participants` ;
+  `unread_count` = 1).
+- Ablation, un correctif à la fois, chaque fois un seul rouge, le bon : garde de type retirée de
+  la policy ; `participants.media` sans filtre dans `index()` ; `last_read_at` retiré de la
+  ré-invitation ; cible retirée de l'envoi. Remis → 4 verts.
+- La ligne de la cloche s'écrit désormais toujours, comme pour `message.received` :
+  `NotificationService::send()` ne consulte pas l'interrupteur `inapp`, que l'ancienne classe
+  consultait. L'e-mail et le broadcast suivent toujours `message_received`.
