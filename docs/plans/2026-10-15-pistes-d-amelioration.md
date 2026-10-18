@@ -4527,7 +4527,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Petites améliorations
 - Réf : P39.06
-- Statut : validé — les deux points : le `metadata` d'un événement rangé sous son entrée de `gateway_events`, et un `failed` ignoré sur une transaction `settled_by`
+- Statut : fait · TCK-961
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:546-552`, `:577`
 - Constat :
@@ -4535,6 +4535,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Un `failed` reçu sur la transaction qui a soldé l'échéance pose encore `gateway.last_failed_at` (mesuré : 200, échéance `paid`, `last_failed_at` posé). Sans effet trouvé aujourd'hui, `openCheckout` ne servant qu'à un payable ouvert (lu).
 - Piste : ranger le `metadata` d'un événement sous son entrée de `gateway_events` plutôt qu'à la racine ; ignorer un `failed` sur une transaction `settled_by`.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : après `paid`, un `checkout.session.payment_failed` sur la transaction `settled_by` → 200, échéance `paid`, `gateway.last_failed_at` posé, `metadata.event = checkout.session.payment_failed` ; après un remboursement, `metadata.event = checkout.session.refunded`. Classement : V1, déplacer le `metadata` d'un événement change la trace d'un règlement que l'argent suit.
+- Mesure (2026-10-18, c448786fc, implementeur) : reproduit avant correctif par `PaymentEventTraceTest` (`LeaseDueFixture`, vrai webhook Wave signé) : échéance soldée par `spy_txn_1`, puis `checkout.session.payment_failed` sur `spy_txn_1` → `metadata.event` à la racine, `gateway.last_failed_at` posé sur l'échéance `paid` ; après un remboursement, `metadata.event` à la racine. Correctif : le `metadata` d'un événement sur son entrée de `gateway_events` (plus de fusion à la racine), un `failed` sur la transaction `settled_by` ignoré → 4 verts, plus `LemonSqueezyEventListenerTest` qui lit les frais sur l'entrée (5 verts) ; ablation (service remis à `pre-dev`) → 4 rouges, correctif remis → 9 verts.
 
 ### Ce qu'un paiement repassé à `refunded` laisse en aval n'est pas défait
 - Réf : P39.07
