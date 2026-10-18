@@ -21,6 +21,7 @@ use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
 use App\Support\Logging\SafeExceptionContext;
+use App\Support\TrustedProxyList;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,10 +49,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // `TRUSTED_PROXIES` env var as a comma-separated list of IPs/CIDRs
         // (e.g. `10.0.0.0/8,::1`). Defaults to loopback only — production must
         // pin it to the actual proxy address(es) before XFF can be honoured.
-        $middleware->trustProxies(at: array_values(array_filter(array_map(
-            'trim',
-            explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1')),
-        ))));
+        //
+        // TCK-853 (P37.06) — de ces mandataires, Laravel ne croit que l'IP, le schéma et le port :
+        // `X-Forwarded-Host` et `-Prefix` changeraient l'hôte des URL que l'API rend (`url()`,
+        // routes signées). `*` n'y vaut PAS « tous » : voir `TrustedProxyList`.
+        $middleware->trustProxies(
+            at: TrustedProxyList::fromEnvironment(),
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT,
+        );
 
         // TCK-574 — l'écriture d'un brouillon d'assistant échappe au trim et à la conversion
         // `''` → `null` : son `data` est opaque, et la reprise doit rendre la saisie telle

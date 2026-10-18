@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -32,8 +33,9 @@ class RestrictIpMiddleware
 
             return $next($request);
         }
-        $ip = (string) $request->ip();
-        if (! in_array($ip, $allowed, true)) {
+        // TCK-853 (P37.06) — plages CIDR et IPv6 sous n'importe quelle écriture : l'égalité de
+        // chaîne refusait `2001:0db8::1` pour `2001:db8::1`, et toute plage annoncée.
+        if (! IpUtils::checkIp((string) $request->ip(), $allowed)) {
             abort_code(403, 'webhook.ip_not_allowed');
         }
 
