@@ -56,7 +56,14 @@ import { PropertyVirtualTour } from './components/PropertyVirtualTour';
  * maintenant en prop. La directive, elle, est indispensable : galerie, lightbox, favoris et cinq
  * dialogues sont de l'état local.
  */
-export function PropertyDetailContent({ property }: { readonly property: PropertyDetail }) {
+export function PropertyDetailContent({
+  property,
+  hrefQuartier,
+}: {
+  readonly property: PropertyDetail;
+  /** TCK-839 — cf. `PropertyBreadcrumb`. */
+  readonly hrefQuartier?: string;
+}) {
   const favorite = useFavorite(property.id, null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -141,7 +148,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
       */}
       <div className="animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
-          <PropertyBreadcrumb property={property} />
+          <PropertyBreadcrumb property={property} hrefQuartier={hrefQuartier} />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">

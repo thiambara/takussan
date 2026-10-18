@@ -1781,7 +1781,9 @@
       "creditNoteTitle": "Avoir {reference}",
       "credits": "Dafay neenal factuur bi n° {id}",
       "creditNotes": "Avoir yi ñu génne ci factuur bii",
-      "actionFailed": "Jëf ji ci factuur bi antuwul."
+      "actionFailed": "Jëf ji ci factuur bi antuwul.",
+      "invoicePdf": "PDF de la facture",
+      "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
       "title": "Waajal reversement",
@@ -9423,7 +9425,8 @@
       "titleCity": "{subject} ci {city}",
       "subjectAny": "Kër yi",
       "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi.",
-      "titleQuarter": "{subject} ci {quarter}, {city}"
+      "titleQuarter": "{subject} ci {quarter}, {city}",
+      "descriptionWithCount": "{title} sur Takussan, parmi {count, plural, one {# bien publié} other {# biens publiés}} à {place} : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
     },
     "compare": {
       "title": "Méengal kër yi",

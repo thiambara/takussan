@@ -3364,7 +3364,7 @@ forcée »).*
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
-- Statut : validé — un bouton de téléchargement du PDF dans `InvoiceDetailDialog`
+- Statut : fait · TCK-837
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
 - Constat :
@@ -3375,6 +3375,7 @@ forcée »).*
   - Établi comment : lu et mesuré par recherche.
 - Piste : un bouton de téléchargement dans `InvoiceDetailDialog`, par `BoutonTelechargement` comme la quittance. Un test du composant qui vérifie le chemin `/api/invoices/{id}/pdf`.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `routes/api/invoices.php:16-17` (route `invoices.pdf` présente) ; `grep -rn "invoices/" takussan-web/src` → détail, envoi, paiement, annulation seulement (`lib/queries/payments.ts:167-212`) ; `grep -n -i 'pdf|telecharg|download' InvoiceDetailDialog.tsx` → rien ; `grep -rn 'attachData|->attach(|Attachment::' app` → une seule ligne, un `attach()` de relation (`PropertyConversationResolver.php:92`) ; `docs/features.md:367` et `:598` promettent le PDF des factures, et `TCK-063` (done) laisse non cochée « bouton télécharger PDF si dispo » (`:62`). Classement : V7, un comportement visible neuf, même attendu par un ticket : son emplacement et son public (qui voit la modale, qui passe `InvoicePolicy::view`) restent à décider.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `grep -rn "invoices/" takussan-web/src` → aucun appelant de `/pdf`, et `InvoiceDetailDialog.pdf.test.tsx` rougit (aucun bouton « PDF de la facture ») ; `InvoiceDetailDialog` porte un `BoutonTelechargement` vers `/api/invoices/{id}/pdf` (`facture-…pdf`, `avoir-…pdf` pour un avoir), la route passant par la même `InvoicePolicy::view` que le détail → 2 verts ; ablation du composant → 2 rouges.
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
@@ -3988,7 +3989,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
 - Réf : P35.01
-- Statut : validé — maillon de quartier cliquable vers sa canonique quand le quartier est dans le domaine indexable de sa ville, libellé sinon ; docblock et test du fil réécrits
+- Statut : fait · TCK-839
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
 - Constat :
@@ -4000,6 +4001,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture et `grep` ; le rendu HTTP d'une fiche du quartier n'a pas été rejoué.
 - Piste : rendre le maillon de quartier cliquable vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est dans le domaine indexable de sa ville, et le laisser en libellé sinon. Le fil doit alors recevoir le domaine des quartiers, que la fiche ne charge pas aujourd'hui. Corriger le docblock, et faire passer le test de « jamais `location=` » à « `location=` seulement si le quartier est indexable, et l'`item` est alors canonique de lui-même ».
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:42-64,86-89` (quartier sans `href`, docblock motivé par l'exclusion de `location`) contre `canonique.ts:270` (`CLES_CANONIQUES` porte `location`) et `canonique.ts:305-307,341-345` (quartier retenu s'il est dans le domaine de sa ville) ; `sitemap.ts:96-120` annonce ces quartiers et `construireSitemap` (`lib/sitemap.ts:306-319`) ne dédoublonne rien ; `grep -rn "location=" src` hors tests → docblocks, `canonique.ts`, `facettes.ts`, `lib/sitemap.ts` et seule `rechercheDuQuartier` de `bien-retire.tsx:32-38` ; `npx vitest run src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` → 10 verts, dont celui qui fige `not.toContain('location=')` ; aucun commit ni ticket ouvert ne l'a traité → le constat tient ; le compte de 20 quartiers indexables n'a pas été repris. Classement : V7, rendre le maillon cliquable renverse une décision de produit écrite le 2026-08-28 et ajoute à la fiche le chargement du domaine des quartiers ; seule la correction du docblock relèverait d'A6.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `fil-d-ariane.ts` pose le quartier sans `href` et `jsonld-fil-d-ariane.test.tsx` fige `not.toContain('location=')` (relu) ; les trois tests neufs rougissent (`hrefDuQuartier` absent). `hrefDuQuartier` (module serveur `fil-d-ariane-quartier.ts`, pour garder zod hors du graphe client de la fiche) rend `cheminCanoniqueDeLaListe({ city, location })` si la canonique retient le quartier, et la page le passe au fil affiché et au `BreadcrumbList` → quartier indexable lié vers `/fr/properties?city=Dakar&location=Ngor` (canonique de lui-même, graphie du catalogue), hors domaine ou domaine `null` : libellé ; 11 verts, et 363 verts sur le fil, `(public)`, `alternates` et `canonique` ; ablation du `href` → 1 rouge, du filtre → 2 rouges.
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
@@ -4016,7 +4018,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
-- Statut : validé — palier 1 : le nombre de biens du lieu dans la description ; reste : le palier 2 (colonne de présentation), plus tard
+- Statut : fait · TCK-841 — reste : le palier 2 (colonne de présentation), plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
 - Constat :
@@ -4026,6 +4028,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture. L'effet sur l'indexation (pages jugées en double) n'est pas mesurable sur le poste.
 - Piste : deux paliers. Sans texte neuf rédigé à la main : glisser le compte dans la description (« 198 biens à Dakar… »), en le prenant au domaine déjà en cache. Avec texte rédigé : une colonne de présentation par ville et par quartier, saisie depuis la console du référentiel et traduite en `fr`/`en`, rendue sous le `<h1>`. Le second palier demande une migration et un texte métier neuf.
 - Mesure (2026-10-17, c9ee68400, mesureur) : `node -e` sur `messages/fr.json` → `meta.propertiesFiltered` ne porte que `titleContract`, `titleCity`, `titleQuarter`, `subjectAny` et `description`, gabarits sans compte ; `titre-de-la-liste.ts` les compose par le seul nom du lieu ; seule la migration `2026_10_12_400000` crée ou modifie les tables `geo_*`, sans colonne de texte → le constat tient. Classement : V7, le premier palier est déjà un texte de description neuf, et V4, le second demande une migration et un texte métier rédigé.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `meta.propertiesFiltered` sans compte (relu) et les tests neufs de `titre-de-la-liste.test.ts`, `facettes.test.ts` et `metadata.test.ts` rougissent (`compteDuLieu` absent, description sans chiffre) → `compteDuLieu` lit le compte au domaine en cache (mêmes URL que `villesAvecComptes` et `quartiersDeLaVille`), et la description d'une page de lieu passe par `descriptionWithCount` : « Villa à louer à Dakar sur Takussan, parmi 198 biens publiés à Dakar : … », « … 4 biens publiés à Ngor, Dakar … », sans compte la description d'avant ; 297 verts sur `(public)` et les deux modules ; ablation de la page → 1 rouge, de la branche du compte → 4 rouges. En `wo`, la clé neuve porte le texte français.
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
@@ -4214,7 +4217,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : validé — le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+- Statut : fait · TCK-838 — reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :
@@ -4225,6 +4228,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - D-71 dit l'effet en général (« les limiteurs par visiteur sont partagés »). Ce constat nomme les trois formulaires touchés et leurs bornes. Pour la production, voir P34.04.
 - Piste : mesurer en préproduction (`RateLimiter::attempts` de la clé, ADR-0052 § 6) ; puis poser `API_INTERNAL_URL` avant la phase F, ou envoyer ces trois formulaires du navigateur. Un test du front peut garder qu'une action serveur anonyme ne part jamais sur l'URL publique quand l'environnement déclare un chemin interne.
 - Mesure (2026-10-17, 52f3928cd, mesureur) : relu `takussan-web/src/lib/api.ts:15-34` (`baseServeur()` rend l'URL publique sans `API_INTERNAL_URL`), `src/app/actions/property.ts` (`'use server'`, `apiRequest` vers `visit-request` l. 120 et `contact-lead` l. 233), `AppServiceProvider.php:397-398` (`public-visit-request` 10/h, `public-contact-lead` 5/10 min par `visitorRateLimitKey`), `docs/infra/hebergement.md:84` (IP du visiteur sur ce chemin « non mesurée ») et `docs/ardoise.md:2998` (`API_INTERNAL_URL` absente) → la partie lue tient ; le seau partagé en préproduction et l'IP rangée dans `property_contact_leads.ip` ne se mesurent pas depuis le poste. Classement : V5, le correctif pose une variable d'environnement sur Dokploy, ou déplace l'envoi des formulaires vers le navigateur (V7).
+- Mesure (2026-10-18, 41f289014, implementeur) : avant ajout, `grep -rln API_INTERNAL_URL takussan-web/src` → seul `api.ip-du-visiteur.test.ts` garde le chemin interne, sur `apiRequest('/api/test')`, aucune des trois actions ; `property.chemin-interne.test.ts` (environnement `node`, `API_INTERNAL_URL` posée, sans jeton) : `submitVisitRequest`, `submitContactLead` et `submitAgentContactLead` partent sur `http://api:8080/api/public/…`, jamais sur `origineApi()`, avec l'IP du visiteur → 3 verts dès l'écriture (le défaut est l'absence de clé en préproduction, pas le code) ; ablation de la lecture d'`API_INTERNAL_URL` dans `baseServeur()` → 3 rouges.
 
 ### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
 - Réf : P37.04
