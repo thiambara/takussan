@@ -1,7 +1,7 @@
 ---
 id: TCK-918
 title: "Les notifications in-app lues sont purgées après 6 mois, et la politique le dit"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -69,7 +69,7 @@ de confidentialité l'écrit.
   (`NotificationController`). Mesuré par le mesureur : `is_read` et `read_at` ne divergent sur
   aucune ligne.
 - Les 6 mois courent depuis `read_at` : une notification ancienne lue hier vit encore 6 mois.
-- Heure de la purge : 04:00 (Africa/Dakar), après les autres purges de nuit (03:45 à 03:57).
+- Heure de la purge : 04:05 (Africa/Dakar), après les autres purges de nuit (03:45 à 03:57) et les deux tâches de 04:00.
 - La purge supprime la ligne, elle ne l'anonymise pas : la notification n'a pas d'autre usage
   une fois lue (le résumé quotidien ne lit que les non lues, `DigestBuilderService.php:30`).
 
@@ -81,3 +81,11 @@ de confidentialité l'écrit.
 - La colonne redondante `is_read`, que lisent encore les deux résumés.
 
 ## Notes d'implémentation
+
+- Ablation API : la suppression remplacée par un `count()` et la ligne de planification retirée →
+  2 rouges (la notification lue il y a 6 mois et 1 jour existe encore, l'événement planifié est
+  introuvable) ; remis → 2 verts. Le cas « non lue créée il y a 2 ans » rougirait sur une purge
+  par `created_at`.
+- Ablation front : `privacy.ts` d'avant le changement → le test de durée rougit ; remis → vert.
+- Deux tâches tournent déjà à 04:00 (UTC, sans fuseau) : la purge part à 04:05, Africa/Dakar
+  étant à UTC+0.
