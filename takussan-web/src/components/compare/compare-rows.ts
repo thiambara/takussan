@@ -60,11 +60,13 @@ function amenityNames(tags: PropertyTag[] | undefined, libelle: LibelleDEquipeme
     .sort((a, b) => a.localeCompare(b));
 }
 
-function otherTagNames(tags: PropertyTag[] | undefined): string[] {
+// TCK-924 — même traducteur, même tri que les équipements : un `feature` du catalogue que
+// `tags:sync-catalog` n'a pas encore converti se lit dans la langue de l'écran.
+function otherTagNames(tags: PropertyTag[] | undefined, libelle: LibelleDEquipement): string[] {
   if (!tags) return [];
   return tags
     .filter((tag) => tag.type !== 'amenity')
-    .map((tag) => tag.name)
+    .map(libelle)
     .sort((a, b) => a.localeCompare(b));
 }
 
@@ -124,7 +126,7 @@ export function buildCell(
     case 'amenities':
       return amenityNames(property.tags, libelleEquipement);
     case 'tags':
-      return otherTagNames(property.tags);
+      return otherTagNames(property.tags, libelleEquipement);
     default:
       return null;
   }
