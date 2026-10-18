@@ -55,7 +55,8 @@ est déballée ; une IPv6 devient `<préfixe>::/64`).
 - [x] `AppServiceProvider` : une clé par IP unique (`clientNetwork()`), employée par tous les limiteurs
       nommés qui lisent `$request->ip()`, et par `visitorRateLimitKey()`.
 - [x] `App\Http\Middleware\ThrottleRequestsByNetwork` : `ThrottleRequests` dont la signature
-      d'un appelant sans compte prend le /64 ; alias `throttle` dans `bootstrap/app.php`.
+      d'un appelant sans compte prend le /64 ; liée à `ThrottleRequests` dans le conteneur
+      (`AppServiceProvider::register()`).
 - [x] `PropertyViewCounter::cle()` et `BoostStatsRecorder::click()` : le /64.
 - [x] Tests : `tests/Feature/RateLimiting/IpRateLimitKeyTest.php` (un cas par limiteur nommé, le
       parcours `forgot-password`, le débit numérique de `auth/login`, la vue d'un bien) et
@@ -83,9 +84,12 @@ est déballée ; une IPv6 devient `<préfixe>::/64`).
 - Reproduit avant correctif : 15 limiteurs nommés sur 23 donnaient deux clés à deux adresses du
   même /64 (les 8 qui passaient déjà par `visitorRateLimitKey()` étaient verts) ; six
   `forgot-password` et six `login` depuis un même /64 → aucun 429 ; vues et clics → 6 au lieu de 4.
-- Ablation : correctif retiré (provider, compteurs, alias) → 19 rouges ; l'alias `throttle` seul
-  retiré → seul le débit numérique rougit. Les limiteurs nommés ne passent pas par
+- Ablation : correctif retiré (provider, compteurs, liaison) → 19 rouges ; la liaison seule
+  retirée → seul le débit numérique rougit. Les limiteurs nommés ne passent pas par
   `resolveRequestSignature()` : leur clé est celle du `Limit`.
 - Le préfixe des clés ne change pas (`ip:`, `emetteur:`, `user:`…), seule la partie IP.
-- `ThrottleRequestsByNetwork` remplace l'alias `throttle` ; la priorité des middlewares suit,
-  `SortedMiddleware` lisant les classes parentes.
+- Piège : un premier essai remplaçait l'alias `throttle` ; il a fait rougir 18 tests de verrou de
+  connexion, qui éteignent le débit par `withoutMiddleware(ThrottleRequests::class)` — le
+  framework remplace alors l'entrée du conteneur de cette classe, que l'alias ne consultait plus.
+  La sous-classe est donc liée à `ThrottleRequests` dans le conteneur : l'alias et la priorité
+  des middlewares ne changent pas, et `withoutMiddleware` l'éteint toujours.
