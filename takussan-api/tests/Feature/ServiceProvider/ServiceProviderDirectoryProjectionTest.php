@@ -44,6 +44,7 @@ class ServiceProviderDirectoryProjectionTest extends TestCase
         $this->assertSame('awa@example.sn', $row['metadata']['email']);
         $this->assertSame([['day' => 'monday']], $row['metadata']['availability']);
         $this->assertArrayNotHasKey('insurance_policy_id', $row);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $row['created_at'], 'ADR-0018');
     }
 
     public function test_le_numero_de_police_ne_sort_ni_demande_ni_par_defaut(): void

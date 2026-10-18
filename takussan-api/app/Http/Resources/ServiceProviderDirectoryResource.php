@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
  * P21.06 (TCK-904) — une ligne du carnet des prestataires d'une agence.
  *
  * Les colonnes demandées par `fields[service_provider_profiles]`, le `User` inclus par sa
- * projection fixe (TCK-693), et deux retraits : `insurance_policy_id` ne sort jamais, et de
+ * projection fixe (TCK-693), les dates sous les deux formes d'ADR-0018, et deux retraits : `insurance_policy_id` ne sort jamais, et de
  * `metadata` ne sortent que les sous-clés que le front lit (`ServiceProvidersList.tsx`,
  * `MaintenanceAssignmentBlock.tsx`) — nom, e-mail, métiers, zones et disponibilités du brouillon.
  *
@@ -28,6 +28,15 @@ class ServiceProviderDirectoryResource extends BaseResource
 
         if (array_key_exists('metadata', $data) && is_array($data['metadata'])) {
             $data['metadata'] = array_intersect_key($data['metadata'], array_flip(self::METADATA_KEYS));
+        }
+
+        // ADR-0018 — la ligne sérialisée par Eloquent rend ses dates en `…T12:34:56.000000Z` : chacune
+        // repasse par la forme de son cast, `active_until` en date de calendrier, le reste en instant.
+        foreach (['active_until' => 'calendar', 'created_at' => 'iso', 'updated_at' => 'iso', 'deleted_at' => 'iso'] as $key => $form) {
+            if (array_key_exists($key, $data)) {
+                $value = $this->resource->{$key};
+                $data[$key] = $form === 'calendar' ? $this->calendarDate($value) : $this->iso($value);
+            }
         }
 
         return $data;
