@@ -49,7 +49,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     alternates: alternatesPubliques(cheminCanoniqueDesProfils(BASE, params, ville), locale),
     // Une facette qui ne désigne rien n'est pas une page à indexer. `follow` reste vrai : les
     // liens qu'elle porte — le filtre, la pagination — mènent, eux, à des pages réelles.
-    // Omettre la clé laisse hériter du layout, qui déclare `index, follow`.
+    // Omettre la clé laisse la valeur par défaut, `index, follow` (le layout ne déclare plus
+    // `robots` depuis TCK-915).
     ...(facette.indexable ? {} : { robots: { index: false, follow: true } }),
   };
 }

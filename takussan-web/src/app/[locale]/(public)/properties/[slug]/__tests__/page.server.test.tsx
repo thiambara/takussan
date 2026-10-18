@@ -238,6 +238,23 @@ describe('fiche de bien — rendu serveur', () => {
 
     expect(String(meta.description)).not.toContain('null');
   });
+  it('TCK-915 — une description vide prend le repli, une longue est coupée au mot', async () => {
+    getPropertyMock.mockResolvedValue({ etat: 'trouve', bien: bien({ description: '' }) });
+    const vide = await generateMetadata({ params: params() });
+    expect(String(vide.description)).not.toBe('');
+    expect(String(vide.description)).toContain('Studio');
+
+    const longue = 'Belle villa lumineuse avec piscine et jardin arboré, proche de la plage et des commerces, ' .repeat(4);
+    getPropertyMock.mockResolvedValue({ etat: 'trouve', bien: bien({ description: longue }) });
+    const meta = await generateMetadata({ params: params() });
+    expect(String(meta.description).length).toBeLessThanOrEqual(160);
+    expect(String(meta.description)).toMatch(/ [^ ]+…$/);
+    // Coupé au mot : le corps est un début du texte, et le texte continue par un blanc ou une ponctuation.
+    const corps = String(meta.description).slice(0, -1);
+    expect(longue.startsWith(corps)).toBe(true);
+    expect(longue[corps.length]).toMatch(/[\s,;:.!?]/);
+  });
+
   /**
    * D3 de TCK-461 — **la canonique lue là où elle est PRODUITE, pas là où elle est calculée.**
    *

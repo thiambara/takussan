@@ -713,6 +713,7 @@
       "empty": "Pas encore de biens dans cette sélection."
     },
     "discovery": {
+      "neighbourhoodsOf": "Quartiers de {city}",
       "viewSwitchAria": "Vue des résultats",
       "viewList": "Liste",
       "viewMap": "Carte",

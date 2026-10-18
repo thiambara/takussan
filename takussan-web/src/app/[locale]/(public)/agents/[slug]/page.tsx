@@ -13,6 +13,7 @@ import { BoutonRetour } from '@/components/shared/BoutonRetour';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { alternatesPubliques } from '@/lib/alternates';
+import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { isLocale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdAgent } from '@/lib/jsonld-profil';
@@ -52,15 +53,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     agent.public_role === 'agent'
       ? t('metaTitle', { name: agent.full_name })
       : t('metaTitleOwner', { name: agent.full_name });
+  // TCK-915 (P09.08) — la bio résumée au mot, et une bio vide prend le résumé.
+  const description = resumePourMeta(agent.bio) ?? summary;
   return {
     title,
-    description: agent.bio ?? summary,
+    description,
     // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
     // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
     alternates: alternatesPubliques(`/agents/${slug}`, locale),
     openGraph: {
       title,
-      description: agent.bio ?? summary,
+      description,
       images: agent.avatar_url ? [agent.avatar_url] : undefined,
     },
   };
