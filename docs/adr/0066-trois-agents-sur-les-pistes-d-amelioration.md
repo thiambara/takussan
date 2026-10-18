@@ -108,7 +108,9 @@ d'un critère A et ne touche aucun critère V.
 **A — autonome possible** :
 
 - **A1** — Défaut dont le comportement attendu est **déjà écrit** : spec, ADR accepté, ticket,
-  test, ou contrat du code appelant. Corriger ne demande aucun choix de produit.
+  test, ou contrat du code appelant. Corriger ne demande aucun choix de produit. *Depuis le
+  2026-10-18* : une piste V7 dont la seule option est déjà écrite dans une spec ou un ADR accepté
+  relève de A1.
 - **A2** — Performance sans changement de résultat : N+1, chargement anticipé, index (migration
   **neuve** d'ajout d'index, avec son `down()`).
 - **A3** — Code mort mesuré sans appelant des deux côtés (front et API), retrait compris d'une
@@ -132,7 +134,9 @@ d'un critère A et ne touche aucun critère V.
 - **V6** — Décision structurelle (elle demande un ADR), ou dépendance ajoutée ou retirée.
 - **V7** — Choix de produit : comportement visible neuf, texte métier neuf, retrait d'une fonction
   visible, design.
-- **V8** — Estimation au-delà de M, ou plus d'un ticket.
+- ~~**V8** — Estimation au-delà de M, ou plus d'un ticket.~~ *Levé le 2026-10-18* : la taille ne
+  fait plus soumettre une piste au porteur. L'implémenteur découpe en tickets, dans la borne de
+  son lot (amendement du 2026-10-17).
 - **V9** — Seuil d'une garde (couverture, budgets, plafonds) ou instructions et gardes des agents.
 
 Le mesureur cite le critère dans sa ligne `Mesure` (« Classement : A2, … »). L'implémenteur
@@ -407,6 +411,56 @@ le modèle » : le code ne le faisait pas.
    du mesureur, l'implémenteur part. Les cadences restent, en filet.
 3. **L'explorateur passe à 60 min.** Son passage dure 7 min : aucun chevauchement. Il restait 38
    angles sur 83, soit 5 jours à 180 min, 2 jours à 60.
+
+## Amendement du 2026-10-18 (bis) — le porteur délègue une partie de ses validations
+
+**Constat du porteur** : plus de 98 % des recommandations que la session lui soumettait étaient
+suivies telles quelles ; le 2026-10-18, 21 sur 21. Mesuré au même moment : 41 pistes
+« à valider » pour 2 « autonome ». Le porteur était devenu le goulot de la chaîne, sur des
+décisions qu'il ne faisait que confirmer.
+
+**Décision du porteur** :
+
+1. **Un quatrième rôle planifié, `delegue`** (`.agent/agents/pistes/delegue.md`). Il ne fait
+   qu'une chose : relire jusqu'à 6 entrées `retenu · à valider` et, pour chacune, soit écrire
+   `validé (délégué) — <décision>`, soit laisser le statut et écrire une `Recommandation : …`.
+   Pour l'implémenteur, `validé (délégué)` vaut `validé`. Le délégué n'écrit que le fichier de
+   pistes, comme le mesureur. Il est planifié toutes les 30 min, relancé dès qu'une PR du mesureur
+   est fusionnée, et il relance l'implémenteur quand la sienne l'est. Budget 5 USD, 30 min.
+   **Il ne lance pas de modèle** quand `--a-deleguer` ne rend rien.
+2. **Catégories déléguées** : V4 additif, V6 réversible et sans ADR, V7 mineur et réversible, V8.
+   **Restent au porteur quoi qu'il arrive** : V1 (argent), V2 (authentification), V3 (données
+   personnelles), V5 (infrastructure, production, secrets) et V9 (bornes des agents : un agent ne
+   s'accorde pas ce qui le borne). Restent aussi au porteur : une entrée qu'il a déjà tranchée
+   (`porteur (date) : …`, « plus tard » compris) et un `chemin fermé`.
+3. **La garde le tient, pas la consigne.** `check-pistes --role delegue` refuse le push si un
+   critère réservé apparaît dans le statut **ou dans une ligne `Mesure` du mesureur**, si la
+   mesure du délégué ne déclare pas ses critères (`Délégation : V7, …`) ou en déclare un réservé,
+   et si la signature n'est pas `validé (délégué) — <décision de 10 caractères au moins>`. Éprouvé
+   par un banc de 15 cas, et par ablation de chacune des cinq protections : chacune retirée fait
+   accepter un cas qui doit être refusé. **Ce que la garde ne voit pas** : qu'un V4 est additif,
+   qu'un V7 est mineur. Le délégué en juge, et le doute recommande au lieu de valider.
+4. **Le porteur garde la main** :
+   - `~/.takussan-agents/outils/pistes.sh releve [jours]` liste ce que le délégué a validé ou
+     recommandé (`check-pistes --delegations`) ;
+   - une validation déléguée se reprend d'une ligne, en rendant le statut à
+     `retenu · à valider — porteur (date) : …` (ou par un retour en arrière, si elle est déjà
+     `fait`) ;
+   - **un désaveu retire toute la catégorie**, sans autre réglage : une ligne
+     `- Mesure (…, humain) : désaveu de la délégation V7 — …` sur n'importe quelle entrée, et la
+     garde ne délègue plus V7.
+5. **V8 est levé, et A1 s'élargit** (§ 3) : la taille ne soumet plus une piste, et une piste V7
+   dont l'option est déjà écrite dans une spec ou un ADR relève de A1. **Une dépendance de
+   développement ne passe pas en A**, contrairement à ce qui avait été proposé : l'implémenteur ne
+   touche ni `package.json` ni `composer.json` (§ 4). L'ouvrir demanderait une garde qui ne laisse
+   passer que `devDependencies` et `require-dev`, et qui ne sait rien du fichier de verrou. Ces
+   pistes restent « en session ».
+
+**Ce qui change dans le risque** : la lecture du porteur était le seul regard extérieur à la
+chaîne. Désormais, le même modèle propose, mesure, valide puis implémente, et ses erreurs se
+répètent au lieu de se compenser. La réponse est double : les catégories où une erreur coûte cher
+restent hors délégation, garde à l'appui, et chaque délégation laisse une trace datée et
+réversible. Le relevé n'a de valeur que s'il est lu.
 
 ## Conséquences
 

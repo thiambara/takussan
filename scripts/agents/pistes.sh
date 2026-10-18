@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Orchestration des trois agents des pistes — ADR-0066 § 4.
+# Orchestration des agents des pistes — ADR-0066 § 4 (le délégué : amendement du 2026-10-18).
 #
 # L'agent PROPOSE (des commits dans son arbre, un titre et un corps de PR dans son dossier de
 # sortie) ; ce script VÉRIFIE (périmètre du rôle, gardes) puis PUBLIE (push, PR vers `pre-dev`).
@@ -7,7 +7,8 @@
 #
 # Usage, depuis le dépôt :
 #   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
-#   scripts/agents/pistes.sh planifier X Y Z      # launchd : explorateur toutes les X min, mesureur Y, implémenteur Z
+#   scripts/agents/pistes.sh planifier X Y Z [W]  # launchd : explorateur toutes les X min, mesureur Y,
+#                                                 # implémenteur Z, délégué W (30 par défaut)
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
@@ -16,6 +17,7 @@
 #       # PISTES_BASE_REF=<ref> il part d'une autre base que origin/pre-dev
 #   ~/.takussan-agents/outils/pistes.sh fusionner   # fusionne les PR vertes (launchd, toutes les 10 min)
 #   ~/.takussan-agents/outils/pistes.sh etat
+#   ~/.takussan-agents/outils/pistes.sh releve [jours]   # ce que le délégué a tranché (7 jours par défaut)
 #   ~/.takussan-agents/outils/pistes.sh pause | reprendre
 #
 # Compatible bash 3.2 : launchd lance /bin/bash, celui de macOS.
@@ -25,7 +27,7 @@ set -euo pipefail
 export LC_NUMERIC=C
 
 BASE="${PISTES_BASE:-$HOME/.takussan-agents}"
-ROLES="explorateur mesureur implementeur"
+ROLES="explorateur mesureur implementeur delegue"
 LAUNCHD=com.takussan.agents
 
 die() {
@@ -37,8 +39,8 @@ info() { printf '%s  %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 valider_role() {
   case "${1:-}" in
-    explorateur | mesureur | implementeur) ;;
-    *) die "rôle inconnu « ${1:-} » (explorateur, mesureur, implementeur)" ;;
+    explorateur | mesureur | implementeur | delegue) ;;
+    *) die "rôle inconnu « ${1:-} » (explorateur, mesureur, implementeur, delegue)" ;;
   esac
 }
 
@@ -48,6 +50,10 @@ charger_config() {
   . "$BASE/machine.env"
   # shellcheck source=/dev/null
   . "$BASE/config.env"
+  # Le délégué est venu après la création de config.env, qui n'est jamais réécrit : ses réglages
+  # ont un défaut ici, qu'une ligne de config.env remplace.
+  BUDGET_DELEGUE="${BUDGET_DELEGUE:-5}"
+  DUREE_DELEGUE="${DUREE_DELEGUE:-1800}"
 }
 
 # Valeur d'une variable de config propre au rôle : par_role BUDGET mesureur → $BUDGET_MESUREUR.
@@ -123,10 +129,12 @@ FUSION=manuelle
 BUDGET_EXPLORATEUR=8
 BUDGET_MESUREUR=8
 BUDGET_IMPLEMENTEUR=45
+BUDGET_DELEGUE=5
 # Durée maximale d'un passage (secondes) ; à l'échéance, tout le groupe de processus est tué.
 DUREE_EXPLORATEUR=2700
 DUREE_MESUREUR=2700
 DUREE_IMPLEMENTEUR=9000
+DUREE_DELEGUE=1800
 # Au-delà de cette charge (moyenne à 5 min), aucun passage ne démarre. Vide = 1,5 × nombre de cœurs.
 CHARGE_MAX=
 # Réparations successives d'une même PR avant abandon (le porteur prend la main).
@@ -145,6 +153,7 @@ CONFIG
     gh label create agent:explorateur --color 1d76db --description "PR de l'agent explorateur (ADR-0066)" --force > /dev/null
     gh label create agent:mesureur --color 5319e7 --description "PR de l'agent mesureur (ADR-0066)" --force > /dev/null
     gh label create agent:implementeur --color b60205 --description "PR de l'agent implémenteur (ADR-0066)" --force > /dev/null
+    gh label create agent:delegue --color fbca04 --description "PR du délégué du porteur (ADR-0066, amendement du 2026-10-18)" --force > /dev/null
     gh label create agents:synchro --color c5def5 --description "Synchronisation dev → pre-dev (ADR-0066)" --force > /dev/null
   ); fi
 
@@ -191,8 +200,9 @@ PLIST
 
 planifier() {
   charger_config
-  [ $# -eq 3 ] || die "usage : planifier <x> <y> <z>  (minutes : explorateur, mesureur, implementeur)"
+  [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier <x> <y> <z> [w]  (minutes : explorateur, mesureur, implementeur, délégué)"
   local minutes role
+  set -- "$@" 30
   for role in $ROLES; do
     minutes="$1"
     shift
@@ -319,19 +329,42 @@ fusionner() {
 
 # Le travail d'un rôle fusionné, l'agent qui le reçoit part tout de suite au lieu d'attendre sa
 # cadence (amendement d'ADR-0066 du 2026-10-18) : l'explorateur écrit des « à mesurer », le
-# mesureur des « autonome » et des « à valider ». Les cadences restent, en filet. `kickstart` sans
-# `-k` ne touche pas un passage en cours ; un job non planifié ne part pas, sans erreur.
+# mesureur des « autonome » et des « à valider », le délégué des « validé (délégué) ». Les cadences
+# restent, en filet. `kickstart` sans `-k` ne touche pas un passage en cours ; un job non planifié
+# ne part pas, sans erreur.
 relancer_suivant() {
-  local suivant
+  local suivants suivant
   case "$1" in
-    agents/explorateur/*) suivant=mesureur ;;
-    agents/mesureur/*) suivant=implementeur ;;
+    agents/explorateur/*) suivants=mesureur ;;
+    agents/mesureur/*) suivants="implementeur delegue" ;;
+    agents/delegue/*) suivants=implementeur ;;
     *) return 0 ;;
   esac
-  if launchctl kickstart "gui/$(id -u)/$LAUNCHD.$suivant" > /dev/null 2>&1; then
-    info "$suivant relancé"
-    printf '%s\tfusionneur\t-\trelance\t-\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$suivant" >> "$BASE/journal.tsv"
-  fi
+  for suivant in $suivants; do
+    if launchctl kickstart "gui/$(id -u)/$LAUNCHD.$suivant" > /dev/null 2>&1; then
+      info "$suivant relancé"
+      printf '%s\tfusionneur\t-\trelance\t-\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$suivant" >> "$BASE/journal.tsv"
+    fi
+  done
+}
+
+# Le relevé du porteur : ce que le délégué a tranché ou recommandé, lu sur origin/pre-dev. Une
+# validation déléguée se reprend d'une ligne (« - Statut : » rendu au porteur) ; un désaveu
+# (« - Mesure (…, humain) : désaveu de la délégation V7 — … ») lui retire toute la catégorie.
+releve() {
+  charger_config
+  local jours="${1:-7}" depuis racine
+  case "$jours" in '' | *[!0-9]*) die "« $jours » n'est pas un nombre de jours" ;; esac
+  depuis="$(date -v-"${jours}"d '+%Y-%m-%d')"
+  racine="$(mktemp -d)"
+  git -C "$CLONE" fetch --quiet origin pre-dev
+  git -C "$CLONE" archive origin/pre-dev scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+    docs/backlog/tickets | tar -x -C "$racine"
+  racine="$(cd "$racine" && pwd -P)"
+  echo "Délégations depuis le $depuis (origin/pre-dev) :"
+  CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --delegations \
+    | awk -F '\t' -v d="$depuis" 'NF == 1 || $1 >= d'
+  rm -rf "$racine"
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -662,6 +695,7 @@ travail_disponible() {
   case "$ROLE" in
     explorateur) liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --angles-a-faire)" || return 0 ;;
     mesureur) liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "à mesurer")" || return 0 ;;
+    delegue) liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --a-deleguer)" || return 0 ;;
     implementeur)
       liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "validé" \
         && CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "retenu · autonome")" || return 0
@@ -811,8 +845,9 @@ case "${1:-}" in
     lancer "${2:-}"
     ;;
   etat) etat ;;
+  releve) releve "${2:-}" ;;
   fusionner) fusionner ;;
   pause) mkdir -p "$BASE" && touch "$BASE/PAUSE" && info "pause : aucun passage ne démarre (« reprendre » pour lever)" ;;
   reprendre) rm -f "$BASE/PAUSE" && info "reprise" ;;
-  *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

@@ -27,12 +27,14 @@
  * après chaque passage d'agent, AVANT tout push, contre la base de fusion avec `pre-dev`. Il
  * vérifie les fichiers touchés et les transitions de statut faites, au regard du rôle. Un agent ne
  * s'accorde pas ce que son rôle n'a pas : l'explorateur ne classe pas, le mesureur n'implémente
- * pas, et aucun agent n'écrit `validé`, qui est la signature du porteur. Une piste `validé` ne
+ * pas, et aucun agent n'écrit `validé` seul, qui est la signature du porteur. Une piste `validé` ne
  * revient au porteur qu'avec une raison. Sa précision (`validé — …`) se retrouve mot pour mot dans
  * le ticket qui la passe à `fait`. Un passage de l'implémenteur fait changer de statut 4 entrées au
  * plus. Un lot de plusieurs tickets qui touche à la fois l'API et le front est une seule famille :
  * ses pistes faites se relient par un angle commun ou un fichier cité en commun (amendements du
- * 2026-10-17).
+ * 2026-10-17). Le délégué (amendement du 2026-10-18) n'écrit que `validé (délégué) — …`, et
+ * seulement sur une entrée que le porteur n'a pas encore tranchée, dont TOUS les critères V sont
+ * délégables : jamais V1, V2, V3, V5 ni V9, ni une catégorie que le porteur a désavouée.
  *
  * ─── Ce qu'elle ne vérifie PAS ───────────────────────────────────────────────────────────────
  *
@@ -46,6 +48,8 @@
  *   node scripts/check-pistes.mjs --liste "à mesurer"     # entrées dont le statut commence ainsi
  *   node scripts/check-pistes.mjs --angles-a-faire        # angles encore à explorer, dans l'ordre
  *   node scripts/check-pistes.mjs --restes                # ce qui reste des validations partielles
+ *   node scripts/check-pistes.mjs --a-deleguer            # « à valider » que le délégué peut prendre
+ *   node scripts/check-pistes.mjs --delegations           # validations et recommandations du délégué
  *   node scripts/check-pistes.mjs --role mesureur --base origin/pre-dev
  */
 import { execFileSync } from 'node:child_process';
@@ -66,15 +70,17 @@ const STATUTS = [
   { nom: 'caduc', motif: /^caduc( — .{10,})?$/ },
   { nom: 'retenu · autonome', motif: /^retenu · autonome$/ },
   { nom: 'retenu · à valider', motif: /^retenu · à valider( — .{10,})?$/ },
-  { nom: 'validé', motif: /^validé( — .+)?$/ },
+  // `validé (délégué) — …` : la même signature, écrite par le délégué, avec sa décision.
+  { nom: 'validé', motif: /^validé( — .+| \(délégué\) — .{10,})?$/ },
   { nom: 'refusé', motif: /^refusé( — .+)?$/ },
   { nom: 'fait', motif: /^fait · TCK-\d{3,}( — reste : .{10,})?$/ },
 ];
 
-const ROLES = ['explorateur', 'mesureur', 'implementeur'];
+const ROLES = ['explorateur', 'mesureur', 'implementeur', 'delegue'];
 
-// Ce que chaque rôle a le droit de faire d'un statut. `validé` et `refusé` n'apparaissent comme
-// cible nulle part : seul le porteur les écrit, sur `pre-dev`, hors de tout agent.
+// Ce que chaque rôle a le droit de faire d'un statut. `refusé` n'est une cible nulle part, et
+// `validé` ne l'est que du délégué, sous la forme `validé (délégué) — …` et dans les bornes de
+// `verifierDelegation` : le reste du temps, seul le porteur les écrit, sur `pre-dev`.
 const TRANSITIONS = {
   explorateur: {},
   mesureur: { 'à mesurer': ['caduc', 'retenu · autonome', 'retenu · à valider'] },
@@ -82,7 +88,19 @@ const TRANSITIONS = {
     'retenu · autonome': ['fait', 'caduc', 'retenu · à valider'],
     validé: ['fait', 'caduc', 'retenu · à valider'],
   },
+  delegue: { 'retenu · à valider': ['validé'] },
 };
+
+// Le délégué (amendement d'ADR-0066 du 2026-10-18) tranche à la place du porteur les seules
+// catégories qu'il lui a confiées. Les autres lui restent quoi qu'il arrive : l'argent (V1),
+// l'authentification (V2), les données personnelles (V3), l'infrastructure et la production (V5),
+// et les bornes des agents eux-mêmes (V9) — un agent ne s'accorde pas ce qui le borne.
+const DELEGABLES = ['V4', 'V6', 'V7', 'V8'];
+// Un désaveu du porteur retire sa catégorie au délégué, sans autre réglage : une ligne
+// `- Mesure (…, humain) : désaveu de la délégation V7 — …`, sur n'importe quelle entrée.
+const DESAVEU = /désaveu de la délégation ((?:V\d(?:, | et )?)+)/;
+// Entrées qu'un passage du délégué peut faire changer de statut.
+const DELEGATION_MAX = 6;
 
 // Chemins que l'implémenteur ne touche jamais. Tout y relève d'une décision du porteur : la CI,
 // le déploiement, les instructions et gardes des agents eux-mêmes, les specs (que
@@ -120,7 +138,7 @@ const MIGRATIONS = /^takussan-api\/database\/migrations\//;
 // 2026-10-17) : un lot de 4 pistes au plus, reclassements et caducs compris.
 const LOT_MAX = 4;
 
-const MESURE = /^- Mesure \((\d{4}-\d{2}-\d{2}), ([0-9a-f]{7,40}), (explorateur|mesureur|implementeur|humain)\) : (.+)$/;
+const MESURE = /^- Mesure \((\d{4}-\d{2}-\d{2}), ([0-9a-f]{7,40}), (explorateur|mesureur|implementeur|delegue|humain)\) : (.+)$/;
 
 /** Découpe le fichier en en-tête, tableau des angles, sections et entrées. */
 export function analyser(texte) {
@@ -192,6 +210,40 @@ export const statutDe = (e) => {
   return STATUTS.find((s) => s.motif.test(v))?.nom ?? null;
 };
 const refDe = (e) => champ(e, 'Réf')?.valeur ?? '';
+const codesV = (texte) => new Set([...texte.matchAll(/\bV(\d)\b/g)].map((m) => `V${m[1]}`));
+
+/** Les catégories que le porteur confie au délégué, moins celles qu'il lui a retirées. */
+export function delegables(doc) {
+  const retirees = new Set();
+  for (const e of doc.entrees) {
+    for (const x of e.mesures) {
+      if (x.m?.[3] !== 'humain') continue;
+      const d = x.m[4].match(DESAVEU);
+      if (d) for (const c of codesV(d[1])) retirees.add(c);
+    }
+  }
+  return DELEGABLES.filter((c) => !retirees.has(c));
+}
+
+/**
+ * Le délégué peut-il trancher cette entrée ? Elle est « à valider », le porteur ne l'a pas déjà
+ * tranchée (« porteur (date) : … », y compris « plus tard »), elle n'attend pas un chemin fermé aux
+ * agents, le délégué ne l'a pas déjà vue, et TOUS les critères V qu'elle cite — dans son statut et
+ * dans les classements du mesureur — sont délégables. Une entrée sans critère V lisible est un
+ * doute : elle reste au porteur. Rend la raison du refus, ou null.
+ */
+export function refusDeDelegation(e, permises) {
+  const statut = champ(e, 'Statut')?.valeur ?? '';
+  if (statutDe(e) !== 'retenu · à valider') return `statut « ${statut} »`;
+  if (/porteur \(/.test(statut)) return 'déjà tranchée par le porteur';
+  if (/chemin fermé/.test(statut)) return 'chemin fermé : revient au porteur, en session';
+  if (e.mesures.some((x) => x.m?.[3] === 'delegue')) return 'déjà vue par le délégué';
+  const codes = codesV([statut, ...e.mesures.filter((x) => x.m?.[3] === 'mesureur').map((x) => x.m[4])].join(' '));
+  if (!codes.size) return 'aucun critère V lisible';
+  const reserves = [...codes].filter((c) => !permises.includes(c));
+  if (reserves.length) return `${reserves.join(', ')} réservé(s) au porteur`;
+  return null;
+}
 
 /** La garde de forme : renvoie la liste des erreurs. */
 export function verifierForme(doc, { racine = ROOT } = {}) {
@@ -323,7 +375,12 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
     const vers = statutDe(e);
     const nouvelles = e.mesures.slice(anciennes.length);
     if (nouvelles.length && de === vers && champ(avantE, 'Statut')?.valeur === champ(e, 'Statut')?.valeur) {
-      erreurs.push(`${ref} : mesure ajoutée sans changement de statut`);
+      // Le délégué qui ne tranche pas laisse sa recommandation au porteur, sans changer le statut.
+      const recommande = role === 'delegue' && nouvelles.every((x) => x.m?.[3] === 'delegue' && /Recommandation : .{20,}/.test(x.m[4]));
+      if (!recommande) erreurs.push(`${ref} : mesure ajoutée sans changement de statut`);
+      else if (refusDeDelegation(avantE, ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9']) !== null) {
+        erreurs.push(`${ref} : le délégué ne recommande que sur une entrée « à valider » que le porteur n'a pas tranchée`);
+      } else basculees.push(ref);
     }
     if (champ(avantE, 'Statut')?.valeur === champ(e, 'Statut')?.valeur) continue;
     basculees.push(ref);
@@ -341,10 +398,24 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
     if (vers.startsWith('retenu') && role === 'mesureur' && !miennes.some((x) => /Classement : .{20,}/.test(x.m[4]))) {
       erreurs.push(`${ref} : un classement « ${vers} » dit pourquoi (« Classement : … », 20 caractères au moins)`);
     }
+    if (role === 'delegue') {
+      const permises = delegables(base);
+      const refus = refusDeDelegation(avantE, permises);
+      if (refus) erreurs.push(`${ref} : le délégué ne tranche pas cette entrée (${refus})`);
+      if (!/^validé \(délégué\) — /.test(champ(e, 'Statut').valeur)) {
+        erreurs.push(`${ref} : le délégué signe « validé (délégué) — <décision> », jamais « validé » seul`);
+      }
+      // Sa relecture a pu trouver un critère que le mesureur n'avait pas vu : il le déclare, et
+      // la délégation tombe s'il n'est pas délégable.
+      const declares = codesV(miennes.map((x) => x.m[4].match(/Délégation : (.+)$/)?.[1] ?? '').join(' '));
+      if (!declares.size) erreurs.push(`${ref} : la mesure du délégué déclare ses critères (« Délégation : V7, <pourquoi> »)`);
+      const horsDelegation = [...declares].filter((c) => !permises.includes(c));
+      if (horsDelegation.length) erreurs.push(`${ref} : ${horsDelegation.join(', ')} réservé(s) au porteur`);
+    }
     // Une piste `validé` porte la décision du porteur : elle ne lui revient pas sans raison, et sa
     // précision (`validé — …`) arrive mot pour mot dans le ticket qui l'implémente.
     if (de === 'validé') {
-      const accord = champ(avantE, 'Statut').valeur.match(/^validé — (.+)$/)?.[1];
+      const accord = champ(avantE, 'Statut').valeur.match(/^validé(?: \(délégué\))? — (.+)$/)?.[1];
       if (vers === 'retenu · à valider' && !champ(e, 'Statut').valeur.includes(' — ')) {
         erreurs.push(`${ref} : une piste validée ne revient au porteur qu'avec sa raison (« retenu · à valider — … »)`);
       }
@@ -368,6 +439,9 @@ export function verifierRole(role, base, tete, fichiers, { racine = ROOT } = {})
   // Un passage de l'implémenteur livre un lot (amendements du 2026-10-17) : au plus LOT_MAX entrées
   // changent de statut. Un lot qui touche l'API et le front est une seule famille : ses pistes
   // faites se relient de proche en proche par un angle, un ticket ou un fichier cité en commun.
+  if (role === 'delegue' && basculees.length > DELEGATION_MAX) {
+    erreurs.push(`un passage du délégué tranche au plus ${DELEGATION_MAX} entrées ; ${basculees.length} touchées (${basculees.join(', ')})`);
+  }
   if (role === 'implementeur') {
     if (basculees.length > LOT_MAX) {
       erreurs.push(`un lot compte au plus ${LOT_MAX} entrées ; ${basculees.length} ont changé de statut (${basculees.join(', ')})`);
@@ -456,10 +530,29 @@ function principal(argv) {
     for (const e of tete.entrees) {
       const s = champ(e, 'Statut')?.valeur ?? '';
       const fait = s.match(/^fait · (TCK-\d+) — reste : (.+)$/);
-      const valide = s.match(/^validé — .* ; reste : (.+)$/);
+      const valide = s.match(/^validé(?: \(délégué\))? — .* ; reste : (.+)$/);
       if (fait) console.log(`${refDe(e)}\t${fait[1]}\t${fait[2]}`);
       else if (valide) console.log(`${refDe(e)}\tpas encore fait\t${valide[1]}`);
     }
+  }
+  if (argv.includes('--a-deleguer')) {
+    const permises = delegables(tete);
+    for (const e of tete.entrees) {
+      if (refusDeDelegation(e, permises) === null) console.log(`${refDe(e)}\t${(champ(e, 'Gravité')?.valeur ?? '').slice(0, 2)}\tl. ${e.ligne}\t${champ(e, 'Statut').valeur}\t${e.titre}`);
+    }
+  }
+  if (argv.includes('--delegations')) {
+    // Le relevé du porteur : ce que le délégué a tranché ou recommandé, le plus récent d'abord.
+    const lignes = [];
+    for (const e of tete.entrees) {
+      for (const x of e.mesures) {
+        if (x.m?.[3] !== 'delegue') continue;
+        const quoi = /Recommandation : /.test(x.m[4]) ? 'recommandé' : 'validé';
+        lignes.push(`${x.m[1]}\t${refDe(e)}\t${quoi}\t${champ(e, 'Statut')?.valeur ?? ''}\t${e.titre}`);
+      }
+    }
+    for (const l of lignes.sort().reverse()) console.log(l);
+    console.log(`catégories délégables : ${delegables(tete).join(', ') || 'aucune'}`);
   }
   if (argv.includes('--angles-a-faire')) {
     for (const a of tete.tableau.values()) if (a.etat === 'à faire') console.log(`${a.num}\t${a.sujet}`);
@@ -494,7 +587,7 @@ function principal(argv) {
     console.error(`\n${erreurs.length} erreur(s) — forme et protocole : docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md`);
     return 1;
   }
-  if (liste === null && !argv.includes('--angles-a-faire') && !argv.includes('--restes')) {
+  if (liste === null && !['--angles-a-faire', '--restes', '--a-deleguer', '--delegations'].some((o) => argv.includes(o))) {
     console.log(`✓ ${FICHIER} : ${tete.entrees.length} entrées bien formées${role ? `, périmètre du rôle ${role} tenu` : ''}`);
   }
   return 0;
