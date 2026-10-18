@@ -3748,7 +3748,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
 - Réf : P31.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-895
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/page.tsx:170-211`, `[slug]/not-found.tsx:16-38`, `[slug]/bien-retire.tsx:52`, `[slug]/PropertyDetailContent.tsx:134`
 - Constat :
@@ -3758,6 +3758,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et parcours au Tab par CDP, code relu.
 - Piste : envelopper le corps des quatre états dans `<main>` (dans `page.tsx` et `not-found.tsx`, pas dans `PropertyDetailContent`, pour ne pas en rendre deux). Garde : un test qui rend chaque `page.tsx` publique et `not-found.tsx` et compte exactement un `main`, ou une garde statique sur les pages qui montent `Navbar`.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `[slug]/page.tsx` : branche retirée (l. 172-178) et rendu final (l. 205-211) en `<>` `Navbar`/`NavbarSpacer`/corps/`Footer` sans `<main>`, `bienIndisponible()` rend un `div` (l. 152) ; `not-found.tsx:20` un `div` ; `bien-retire.tsx:53` un `div` ; `PropertyDetailContent.tsx:134` un `div` ; `grep -n "<main"` sur le dossier `[slug]` et sur `(public)/layout.tsx` et `app/layout.tsx` → 0 ligne ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, repère `<main>` ajouté autour du corps des quatre états, sans rendu visuel ni texte neuf, avec un test qui compte un seul `main`.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rn "<main"` sur `[slug]/` → 0 ligne, inchangé ; quatre tests neufs qui comptent les `main` du rendu (trouvé, indisponible, retiré dans `page.server.test.tsx`, introuvable dans `not-found.repere-main.test.tsx`) → avant correctif, 4 rouges (0 `main`) ; `<main>` autour du corps dans `page.tsx` (deux rendus) et à la place du `div` de contenu de `not-found.tsx` → un seul `main` par état, qui contient le `h1` et ni la barre ni le pied, 24 verts ; ablation → les 4 mêmes rouges. Tests voisins de la surface publique (`(public)/__tests__`, `src/test/__tests__`) : 16 fichiers, 202 verts. axe non rejoué.
 
 ### Les pages d'authentification n'ont pas de repère `<main>`
 - Réf : P31.03
