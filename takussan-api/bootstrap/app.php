@@ -17,6 +17,7 @@ use App\Http\Middleware\ResolveActiveProfile;
 use App\Http\Middleware\RestrictIpMiddleware;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Middleware\ShareRequestLogContext;
+use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
 use App\Support\Logging\SafeExceptionContext;
@@ -106,6 +107,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform-can' => EnsurePlatformAbility::class,
             // TCK-708 (P01.04) — les impressions sponsorisées, comptées une fois la réponse connue.
             'boost.impressions' => CountBoostImpressions::class,
+            // TCK-851 (P37.01) — un débit numérique compte le /64 d'une IPv6, pas l'adresse.
+            'throttle' => ThrottleRequestsByNetwork::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -415,7 +415,7 @@ class AppServiceProvider extends ServiceProvider
         // sur la fiche choisie (la priorité de `planForCustomer`). La clé `fiche:<id>` seule se
         // contournait en alternant le numéro et des fiches portant ce même numéro.
         RateLimiter::for('visit-planning', function (Request $request) {
-            $limites = [Limit::perHour(30)->by('emetteur:'.($request->user()?->id ?? $request->ip()))];
+            $limites = [Limit::perHour(30)->by('emetteur:'.($request->user()?->id ?? $this->clientNetwork($request)))];
 
             $telephone = TelephoneSaisi::normaliser($request->input('visitor_phone'));
             if ((! is_string($telephone) || $telephone === '') && is_numeric($request->input('customer_id'))) {
@@ -447,25 +447,25 @@ class AppServiceProvider extends ServiceProvider
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
         RateLimiter::for('lease-signature-code', function (Request $request) {
-            $key = 'user:'.($request->user()?->id ?? $request->ip());
+            $key = 'user:'.($request->user()?->id ?? $this->clientNetwork($request));
 
             // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
             return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
         });
         // La saisie du code : le verrou à 5 essais faux est dans le service ; ceci borne les requêtes.
-        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('lease-signature', fn (Request $request) => Limit::perMinute(10)->by('user:'.($request->user()?->id ?? $this->clientNetwork($request))));
 
         // TCK-596 (ADR-0041 §4) — le flux iCal d'un bien, lu par les plateformes tierces
         // (quelques appels par heure et par flux). Par IP : l'appelant n'a pas de compte.
-        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        RateLimiter::for('ical-export', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$this->clientNetwork($request)));
         // VERIF-596 m4 (ADR-0041 §5) — l'enregistrement d'un flux importé déclenche une résolution DNS
         // et un appel sortant : par utilisateur, 10 par heure, quel que soit le bien.
-        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $request->ip())));
+        RateLimiter::for('calendar-feed-create', fn (Request $request) => Limit::perHour(10)->by('user:'.($request->user()?->id ?? $this->clientNetwork($request))));
 
         // TCK-591 (ADR-0034) — le flux iCalendar est public (le secret est dans l'URL) : une
         // application d'agenda l'interroge toutes les quelques heures, un essai de jetons beaucoup
         // plus souvent. Par IP, puisqu'il n'y a pas d'utilisateur authentifié.
-        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$request->ip()));
+        RateLimiter::for('calendar-feed', fn (Request $request) => Limit::perMinute(30)->by('ip:'.$this->clientNetwork($request)));
 
         // P36.07 (TCK-798) — accusés de livraison SMS et WhatsApp : un seau par fournisseur et par
         // IP. Ils arrivent en rafale depuis quelques IP (jusqu'à 500 par envoi Mtarget, un statut
@@ -475,7 +475,7 @@ class AppServiceProvider extends ServiceProvider
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
         foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
-                ->by('ip:'.$request->ip())
+                ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {
                     Log::warning('[webhook] débit dépassé, accusé refusé en 429', [
                         'limiter' => $limiter,
@@ -491,8 +491,8 @@ class AppServiceProvider extends ServiceProvider
         // `/login` is already throttled inline; these mirror it to stop
         // account-creation spam, reset-email bombing, user enumeration and
         // reset-token brute force. Keyed by IP (no authenticated user yet).
-        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
-        RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$this->clientNetwork($request)));
 
         // TCK-589 (ADR-0033 §6) — entrée par téléphone. L'envoi d'un code coûte un SMS
         // et vise un numéro : borné par NUMÉRO (3/15 min, 5/24 h — le plafond Orange
@@ -501,7 +501,7 @@ class AppServiceProvider extends ServiceProvider
         // TCK-622 — la borne PAR NUMÉRO a quitté ce limiteur pour `PhoneSendQuota` : jugée avant le
         // contrôleur, elle comptait les requêtes et non les codes envoyés. Reste la borne par IP,
         // sur toutes les requêtes : elle borne la pulvérisation de numéros, pas un parcours.
-        RateLimiter::for('auth-phone-send', fn (Request $request) => Limit::perHour(20)->by('ip:'.$request->ip()));
+        RateLimiter::for('auth-phone-send', fn (Request $request) => Limit::perHour(20)->by('ip:'.$this->clientNetwork($request)));
         // Vérification adverse M1 (c) — sous la MOITIÉ du seuil du verrou
         // (`LoginLock::MAX_FAILURES`) par fenêtre de 15 min : deux fenêtres contiguës
         // tiennent dans une même fenêtre de verrou, et leur somme reste sous le seuil. À 10,
@@ -513,7 +513,7 @@ class AppServiceProvider extends ServiceProvider
         // n'être encore que l'identifiant.
         RateLimiter::for('invitations-send', function (Request $request): array {
             $limits = [Limit::perHour(self::INVITATIONS_PER_INVITER_PER_HOUR)
-                ->by('inviter:'.($request->user()?->getAuthIdentifier() ?? $request->ip()))];
+                ->by('inviter:'.($request->user()?->getAuthIdentifier() ?? $this->clientNetwork($request)))];
 
             $bound = $request->route('invitation');
             if ($bound !== null) {
@@ -546,7 +546,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('account-deletion-step-up', function (Request $request) {
             $key = $request->user() !== null
                 ? 'user:'.$request->user()->id
-                : 'ip:'.$request->ip();
+                : 'ip:'.$this->clientNetwork($request);
 
             // Deux clés distinctes : deux limites de même clé partageraient un seul compteur.
             return [Limit::perMinute(3)->by('min:'.$key), Limit::perHour(10)->by('hour:'.$key)];
@@ -607,9 +607,18 @@ class AppServiceProvider extends ServiceProvider
 
         // verif-597 m6 — le /64 d'une IPv6, comme l'empreinte visiteur : sinon une adresse neuve
         // du même abonné repart avec un compteur neuf.
-        $ip = $request->ip();
+        return 'ip:'.$this->clientNetwork($request);
+    }
 
-        return 'ip:'.($ip === null ? '' : VisitorFingerprint::network($ip));
+    /**
+     * TCK-851 (P37.01) — LA clé par IP de tout limiteur : l'IPv4 entière, le /64 d'une IPv6
+     * (`VisitorFingerprint::network`). Un abonné IPv6 dispose d'un /64 entier : sur l'adresse
+     * complète, chaque adresse neuve repartait avec un seau neuf. Les débits numériques
+     * (`throttle:N,M`) prennent la même clé par `ThrottleRequestsByNetwork`.
+     */
+    private function clientNetwork(Request $request): string
+    {
+        return VisitorFingerprint::network((string) $request->ip());
     }
 
     private function bootObservers(): void
