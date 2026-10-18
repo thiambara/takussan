@@ -30,7 +30,7 @@ Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-fr
 |---|---|
 | `www.takussan.com`, `takussan.com` | aucun enregistrement `A` ni `CNAME` (`dig +short A www.takussan.com`, puis `CNAME`) ; zone servie par Cloudflare |
 | dernier déploiement de Vercel | `vercel[bot]`, `Preview`, 2026-10-15T13:32:26Z (`gh api 'repos/thiambara/takussan/deployments?per_page=3'`) |
-| environnements GitHub de Vercel | `Production` supprimé le 2026-10-18 ; ses déploiements restent dans l'historique. `Preview` attend AC6 de TCK-832 |
+| environnements GitHub de Vercel | `Production` et `Preview` supprimés le 2026-10-18 (le second par AC6 de TCK-832) ; leurs déploiements restent dans l'historique. `gh api repos/thiambara/takussan/environments -q .total_count` → `0` |
 | application GitHub Vercel sur le dépôt | *non mesuré* : le jeton de `gh` ne liste pas les installations. À vérifier dans *Settings → GitHub Apps* |
 
 ⚠ **`next.config.ts` porte encore une condition pour Vercel** : `output: 'standalone'`, dont l'image a
@@ -124,7 +124,8 @@ Projets Dokploy :
     crée sur la table de F3, jamais par `environment.duplicate`, qui recopierait les secrets de la
     préproduction.
 
-**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub,
+**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub
+(le dernier, `Preview`, est supprimé le 2026-10-18),
 seulement des secrets et variables de **dépôt**, préfixés par l'environnement Dokploy, de quoi
 déclencher et prouver, rien de la configuration des services :
 
