@@ -24,9 +24,12 @@ class BusinessEnumService
     }
 
     /**
+     * @param  bool  $withUsage  false pour la lecture publique (`/api/enums/{key}`, anonyme) : le
+     *                           compte porte sur toute la table, brouillons et biens privés compris
+     *                           (P28.02, TCK-844). La console super-admin le garde.
      * @return array<string,mixed>
      */
-    public function get(string $key, bool $activeOnly = false): array
+    public function get(string $key, bool $activeOnly = false, bool $withUsage = true): array
     {
         $this->ensureEditable($key);
         $definition = EditableBusinessEnums::get($key);
@@ -36,21 +39,21 @@ class BusinessEnumService
             $values = $values->where('is_active', true);
         }
 
-        // Single grouped COUNT for the whole enum instead of one query per
-        // value (the previous N×values fan-out across large tables).
-        $usageCounts = $this->usageCounts($key, $values->pluck('value')->all());
+        if ($withUsage) {
+            // Single grouped COUNT for the whole enum instead of one query per
+            // value (the previous N×values fan-out across large tables).
+            $usageCounts = $this->usageCounts($key, $values->pluck('value')->all());
+            $values = $values->map(fn (array $value) => [
+                ...$value,
+                'usage_count' => $usageCounts[$value['value']] ?? 0,
+            ]);
+        }
 
         return [
             'key' => $key,
             'name' => $definition['name'],
             'description' => $definition['description'],
-            'values' => $values
-                ->map(fn (array $value) => [
-                    ...$value,
-                    'usage_count' => $usageCounts[$value['value']] ?? 0,
-                ])
-                ->values()
-                ->all(),
+            'values' => $values->values()->all(),
         ];
     }
 

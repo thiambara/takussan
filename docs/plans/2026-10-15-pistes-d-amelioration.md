@@ -3527,7 +3527,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
-- Statut : validé — retirer `usage_count` de la lecture publique ; la route reste
+- Statut : fait · TCK-844
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
 - Constat :
@@ -3538,6 +3538,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
 - Mesure (2026-10-16, af610be5, mesureur) : `php artisan route:list --path=api/enums -v` → groupe `api` et `SetCacheHeaders:public;max_age=300;etag` seuls, ni `auth` ni limiteur ; relu `BusinessEnumService.php:50` (`usage_count`) et `:213-231` (`usageCounts`, `whereIn` sur toute la table, sans filtre de visibilité) ; test temporaire retiré, un `villa` publié et deux passés en `draft`, `GET /api/enums/property_type` anonyme → 200, `max-age=300, public`, `usage_count: 3` pour `villa` contre 1 bien `public()`, même md5 en `fr` et `en` ; `grep -rn enums takussan-web/src` → seuls les chemins `/api/super-admin/enums/…` et des libellés, aucun appelant de la route publique hors `BusinessEnumTest.php:27` ; le constat tient. Classement : V7, la piste propose deux correctifs (retirer `usage_count` de la lecture publique, ou retirer la route) et renvoie à l'angle 66 sur qui doit lire ces valeurs, ce qui est un choix de produit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `BusinessEnumTest::test_public_read_does_not_expose_usage_count_and_admin_keeps_it`, avant correctif, un `villa` publié et deux en brouillon → `GET /api/enums/property_type` anonyme 200 avec `usage_count` sur chaque valeur (rouge) ; correctif `withUsage: false` sur la lecture publique de `BusinessEnumService::get()` → aucune valeur ne porte `usage_count`, la console super-admin rend toujours `usage_count: 3` pour `villa` (vert) ; ablation (paramètre retiré du contrôleur public) → rouge, remis → `BusinessEnumTest` 7 verts. La route reste.
 
 ## Angle 29 — Langue des destinataires sans compte
 
@@ -3575,7 +3576,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
-- Statut : validé — `fr` (`DEFAULT_LOCALE`), puis la langue de la fiche client une fois P29.03 faite
+- Statut : fait · TCK-845 — reste : la langue de la fiche client une fois P29.03 faite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
 - Constat :
@@ -3586,6 +3587,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu. L'envoi effectif dans la langue de l'agent n'a pas été rejoué (à vérifier).
 - Piste : sur la route de l'agent, enregistrer `ContactSansCompte::DEFAULT_LOCALE` à défaut de compte, comme `fromCustomer()`, ou la langue de la fiche client si P29.03 en crée une. Garder par un test : visite créée sous `Accept-Language: en` pour un client sans compte → `locale` = `fr`.
 - Mesure (2026-10-16, b14cd410, mesureur) : relu `PropertyVisitController.php:190` (`'locale' => $visitor?->preferredLocale() ?? app()->getLocale()` dans `planForCustomer`) et `ContactSansCompte.php:38-47`, `:57-67` ; test temporaire retiré, agent de l'agence, `POST /api/property-visits` avec une fiche client sans compte sous `Accept-Language: en` → 201, `property_visits.locale = en`, `ContactSansCompte::fromVisit()` → `en`, `fromCustomer()` de la même fiche → `fr` ; l'envoi SMS lui-même n'a pas été rejoué, mais il prend la langue de `fromVisit()` (lu) ; le constat tient. Classement : V7, la piste propose deux langues cibles (`fr` explicite, ou celle d'une fiche client que P29.03 créerait), et une langue négociée par l'agent peut être un choix voulu.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `PropertyVisitNotificationTest::test_l_agent_planifie_sous_sa_langue_le_client_sans_compte_garde_le_francais`, avant correctif, agent sous `Accept-Language: en`, `POST /api/property-visits` pour une fiche sans compte puis pour un prospect sans fiche → `property_visits.locale = en` (rouge) ; correctif, repli de `planForCustomer` sur `ContactSansCompte::DEFAULT_LOCALE` → `fr` pour les deux visites et les deux `VisitConfirmed` partent en `fr` (vert) ; ablation (repli remis sur `app()->getLocale()`) → rouge, remis → `PropertyVisitNotificationTest` 12 verts et `PropertyVisitTest` 8 verts. La langue de la fiche client attend P29.03.
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
@@ -3634,7 +3636,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
-- Statut : validé — refuser en 422 la fusion dont la source est un équipement du catalogue ; pas de trace de fusion
+- Statut : fait · TCK-846
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
 - Constat :
@@ -3644,10 +3646,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Aucun test ne fusionne puis resynchronise (lu, `TagCatalogTest.php`, cinq tests).
 - Piste : refuser en 422 la fusion d'une source du catalogue (`in_array($src->name, TagCatalog::EQUIPEMENTS)`), ou garder une trace de la fusion que `synchroniser()` respecte, comme pour un refus. Garder par un test : fusionner puis synchroniser.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagModeration::fusionner()` (aucune exclusion du catalogue, la source est supprimée) et `TagCatalog::assurer()` (recrée tout nom absent) ; test temporaire retiré : catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200, source supprimée ; `synchroniser()` rejoué → `Ventilateurs` recréé sous l'id 82 (ancien 71), approuvé, 0 bien ; le constat tient. Classement : V7, la piste propose deux comportements de modération (422 sur une source du catalogue, ou trace respectée par la synchronisation), et la trace demanderait un stockage neuf (V4).
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogFusionTest`, avant correctif, catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200 au lieu de 422, et une proposition `VENTILATEURS` de même (2 rouges) ; correctif, 422 `tags.catalog_merge_forbidden` dans `TagModeration::fusionner()` quand `TagCatalog::estUnEquipement()` → la source et sa liaison restent, `synchroniser()` rejoué garde une seule ligne `Ventilateurs` au même identifiant, une proposition se fusionne toujours dans `Climatisation` (3 verts) ; ablation (garde retirée) → 2 rouges, remise → 3 verts et `TagModerationTest` 9 verts.
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
-- Statut : validé — réserver les slugs du catalogue : suffixe d'office pour une proposition, et synchroniser() reprend le slug exact à une proposition non approuvée qui le détient
+- Statut : fait · TCK-847
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
 - Constat :
@@ -3657,6 +3660,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Le test du front calcule le slug à partir du nom (`slugDuCatalogue`) ; il ne voit pas le slug réellement écrit en base (lu, l. 58-62).
 - Piste : réserver les slugs du catalogue. `slugLibre()` refuserait à une proposition un slug calculé depuis `TagCatalog::EQUIPEMENTS` (suffixe d'office), et `synchroniser()` reprendrait le slug exact s'il est détenu par une proposition. Garder par le test ci-dessus, inversé.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagCatalog::slugLibre()` (suffixe `-n` au premier slug pris) et `TagProposals::proposer()` (même `slugLibre()`) ; test temporaire retiré : proposition `Forage !` en attente, slug `forage`, puis `synchroniser()` → `Forage !|forage|pending ; Forage|forage-2|approved` ; le constat tient, l'affichage en anglais est déduit de `libelleEquipement()` (lu, `libelle-equipement.ts:31-34`), non rejoué. Classement : V4, que `synchroniser()` reprenne le slug détenu par une proposition réécrit des lignes existantes, et le suffixe d'office change le slug qu'une proposition reçoit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogSlugReserveTest`, avant correctif, proposition `Forage !` → slug `forage`, et `Forage !` en attente et `Fibre optique.` refusée détenant `forage` et `fibre-optique` → `synchroniser()` donne `forage-2` et `fibre-optique-2` au catalogue (2 rouges) ; correctif, `TagCatalog::slugLibre(…, horsCatalogue: true)` pour une proposition et reprise du slug exact à un détenteur non approuvé dans `assurer()` → le catalogue a `forage` et `fibre-optique`, les propositions un slug suffixé, une proposition du nom même garde `forage` et une proposition approuvée garde le sien (4 verts) ; ablation de chaque règle → 1 rouge chacune, remises → 4 verts et `tests/Feature/Tags` 72 verts.
 
 ### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
 - Réf : P30.04
@@ -4487,7 +4491,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### La console super-admin rend une erreur 500 quand l'API répond 204 : la suppression d'un bien, d'une règle d'alerte et la remise d'une prise de modération sont faites, mais affichées en échec
 - Réf : P41.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/super-admin/[...path]/route.ts:48-56`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:34-40`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:35-41`, `takussan-web/src/app/api/announcements/[...path]/route.ts:25-31`, `takussan-web/src/app/api/impersonation/proxy/[...path]/route.ts:49`
 - Constat :
@@ -4501,10 +4505,11 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Le test du relais `super-admin` (`super-admin/[...path]/__tests__/route.test.ts`) n'éprouve que des réponses 200 (lu).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : rendre `null` comme corps quand le statut amont est 204, 205 ou 304, comme le fait déjà `agencies`, dans les cinq relais. Garde : un test par relais qui renvoie un 204 amont et attend un 204, et mieux, une seule fonction de relais partagée (voir P41.03) que les cinq appellent.
+- Mesure (2026-10-18, a2dc95960, mesureur) : relu les cinq relais (`super-admin` l. 49-56, `super-admin-properties` l. 35-40, `admin-users` l. 36-41, `announcements` l. 26-31, `impersonation/proxy` l. 49), inchangés : ils construisent `new NextResponse(<corps lu>, { status: upstream.status })` ; `agencies` (l. 34-35) seul rend `null` sur 204/205/304 ; test vitest temporaire, retiré (charge 2,64 sur 8 cœurs), `fetch` remplacé par `new Response(null, { status: 204 })` → les cinq lèvent `Response constructor: Invalid response status code 204`, `agencies` rend 204 ; côté API, `ModerationQueueController.php:80`, `AlertRuleController.php:41` et `PropertyController.php:243` répondent toujours 204, et `super-admin.ts:560,974` attendent toujours `res.status === 204` ; aucun commit ni ticket ne l'a traité (`git log` des relais, `grep` des tickets). Le 500 vu du navigateur reste déduit, non mesuré sur `next start`. Classement : A1, le comportement attendu est écrit par les appelants (`if (res.status === 204) return null`) et par le relais `agencies`, le correctif (corps `null` sur 204/205/304 dans les cinq relais, un test 204 par relais) ne demande aucun choix de produit.
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : chemin interne de l'API (`API_INTERNAL_URL`) pour 22 relais
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
 - Constat :
@@ -4513,10 +4518,11 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Ils n'envoient pas non plus `Accept-Language`. Le `fetch` de Node pose alors `accept-language: *` (mesuré : serveur `http` local qui imprime les en-têtes reçus → `"accept-language":"*"`), que `negotiateFromHeader` ne retient pas : la langue retombe sur `preferred_language`, puis sur le défaut de l'API (lu, `SetLocaleMiddleware.php:33-41`, `:105`). Or `messageCorpsErreurBff` affiche le `message` de Laravel en le tenant pour « déjà localisé (`Accept-Language`) » (`api.ts:545`, lu) : `KycUploader.tsx:122` l'utilise sur `POST /api/agencies/{id}/kyc/documents`, qui passe par le relais `agencies`. Un utilisateur en `/en` dont `preferred_language` vaut `fr` y lirait donc le refus de validation en français (déduit ; à vérifier sur un 422 réel).
   - Établi comment : lu, plus les deux mesures ci-dessus.
 - Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
+- Mesure (2026-10-18, a2dc95960, mesureur) : `grep -rln "origineApi()" src/app/api | wc -l` → 22, inchangé ; même test vitest temporaire, retiré, requête entrante portant `accept-language: en` → `agencies`, `super-admin`, `super-admin-properties`, `admin-users` et `announcements` appellent `http://localhost:8002/api/…` sans `accept-language` ni `x-forwarded-for`, seul `impersonation/proxy` relaie `en` ; lu `SetLocaleMiddleware.php:33-41,76-80` : sans en-tête retenu, la langue retombe sur `preferred_language`. La perte de langue est donc établie ; l'effet sur un 422 réel et l'IP vue par l'API une fois `API_INTERNAL_URL` posée restent déduits. Classement : V5, le correctif fait passer 22 relais sur le chemin interne de l'API (`API_INTERNAL_URL`, Traefik), une question de déploiement que le porteur tranche.
 
 ### Petites améliorations
 - Réf : P41.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : relais commun qui porte le chemin interne de P41.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
 - Constat :
@@ -4525,3 +4531,4 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - **Six copies du même `forward()`.** `super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` et `impersonation/proxy` réécrivent chacun le relais, et chacun diverge (corps en octets ou en texte, en-têtes de réponse relayés, 204, profil actif) : P41.01, P41.02 et le profil actif d'`admin-users` sont trois effets de cette divergence (lu).
   - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
 - Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
+- Mesure (2026-10-18, a2dc95960, mesureur) : même test vitest temporaire, retiré → corps `ff 80 00 41` envoyé à `admin-users` part en `ef bf bd ef bf bd 00 41` (`request.text()` toujours l. 32, et `super-admin-properties` l. 31, `announcements` l. 22) ; `feature-flags/me` et `maintenance/status` rendent un JSON amont en `text/plain;charset=UTF-8` ; `find src/app/api -name route.ts | wc -l` → 36 alors que `takussan-web/CLAUDE.md` dit toujours « 31 route handlers » (l. 72) ; les six `forward()` divergents sont relus. Les quatre parties tiennent. Classement : V5, la `Piste` réunit les relais dans une fonction qui pose aussi les en-têtes serveur et `accept-language` de P41.02, donc le même chemin interne ; prises seules, la lecture en octets et le `content-type` (A1, précédent TCK-601) et le compte du document (A6) seraient autonomes.

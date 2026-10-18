@@ -92,4 +92,25 @@ class BusinessEnumTest extends TestCase
         $this->assertNotNull($setting);
         $this->assertTrue(Activity::query()->where('event', 'super_admin_enum_value_updated')->exists());
     }
+
+    /**
+     * P28.02 (TCK-844) : la lecture publique `/api/enums/{key}` ne porte pas `usage_count`, compté
+     * sur toute la table `properties`, brouillons et biens d'autres agences compris. La console
+     * super-admin le garde : elle s'en sert avant de désactiver une valeur.
+     */
+    public function test_public_read_does_not_expose_usage_count_and_admin_keeps_it(): void
+    {
+        Property::factory()->published()->create(['type' => PropertyType::Villa]);
+        Property::factory()->draft()->count(2)->create(['type' => PropertyType::Villa]);
+
+        $public = $this->getJson('/api/enums/property_type')->assertOk()->json('data.values');
+        $this->assertNotEmpty($public);
+        foreach ($public as $value) {
+            $this->assertArrayNotHasKey('usage_count', $value, "valeur {$value['value']}");
+        }
+
+        $this->actingAsRole('super_admin');
+        $admin = collect($this->getJson('/api/admin/enums/property_type')->assertOk()->json('data.values'));
+        $this->assertSame(3, $admin->firstWhere('value', 'villa')['usage_count']);
+    }
 }

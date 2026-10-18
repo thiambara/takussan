@@ -59,16 +59,38 @@ final class TagCatalog
         return in_array(CaseInsensitive::fold($nom), array_map(CaseInsensitive::fold(...), self::EQUIPEMENTS), true);
     }
 
-    /** Un slug libre : `tags.slug` est unique tous types confondus. */
-    public static function slugLibre(string $nom): string
+    /**
+     * Un slug libre : `tags.slug` est unique tous types confondus.
+     *
+     * TCK-847 (P30.03) — `$horsCatalogue` : le slug d'une PROPOSITION. Le front traduit un nom du
+     * catalogue par son slug ; une proposition dont le slug serait celui d'un nom du catalogue sans
+     * porter ce nom (« Forage ! », « Fibre optique. ») reçoit d'office un suffixe, pour que
+     * l'équipement du catalogue garde le sien.
+     */
+    public static function slugLibre(string $nom, bool $horsCatalogue = false): string
     {
-        $base = Str::limit(Str::slug($nom), 90, '') ?: 'etiquette';
-        $slug = $base;
-        for ($n = 2; Tag::query()->where('slug', $slug)->exists(); $n++) {
-            $slug = $base.'-'.$n;
+        $base = self::slugDe($nom);
+        $reserve = $horsCatalogue
+            && in_array($base, array_map(self::slugDe(...), self::noms()), true)
+            && ! in_array(CaseInsensitive::fold($nom), array_map(CaseInsensitive::fold(...), self::noms()), true);
+        $n = $reserve ? 2 : 1;
+        $slug = $reserve ? $base.'-2' : $base;
+        while (Tag::query()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.++$n;
         }
 
         return $slug;
+    }
+
+    private static function slugDe(string $nom): string
+    {
+        return Str::limit(Str::slug($nom), 90, '') ?: 'etiquette';
+    }
+
+    /** @return list<string> */
+    private static function noms(): array
+    {
+        return [...self::EQUIPEMENTS, ...self::CRM];
     }
 
     private function assurer(string $nom, TagType $type): void
@@ -76,6 +98,14 @@ final class TagCatalog
         $tag = Tag::query()->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])->first();
 
         if ($tag === null) {
+            // TCK-847 (P30.03) — le slug exact, repris à une proposition NON APPROUVÉE qui le
+            // détiendrait (créée avant la réservation, ou avant que le catalogue n'ajoute ce nom).
+            $detenteur = Tag::query()->where('slug', self::slugDe($nom))
+                ->where('status', '!=', ReferentialStatus::Approved->value)
+                ->lockForUpdate()
+                ->first();
+            $detenteur?->forceFill(['slug' => self::slugLibre($detenteur->name, horsCatalogue: true)])->save();
+
             Tag::query()->create([
                 'name' => $nom,
                 'slug' => self::slugLibre($nom),

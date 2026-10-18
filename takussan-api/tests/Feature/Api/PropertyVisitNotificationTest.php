@@ -211,6 +211,36 @@ class PropertyVisitNotificationTest extends ApiTestCase
     }
 
     /**
+     * P29.02 (TCK-845) — l'agent planifie sous sa langue (`en`) pour un client sans compte, avec ou
+     * sans fiche : la visite enregistre `fr` (`ContactSansCompte::DEFAULT_LOCALE`), comme
+     * `fromCustomer()` pour ses relances de loyer, et la confirmation part en `fr`. La langue
+     * négociée de l'agent n'est pas celle du client.
+     */
+    public function test_l_agent_planifie_sous_sa_langue_le_client_sans_compte_garde_le_francais(): void
+    {
+        $fiche = $this->ficheClient($this->x, null, ['phone' => '+221776543210', 'email' => null]);
+
+        Sanctum::actingAs($this->agent);
+        $avecFiche = $this->withHeader('Accept-Language', 'en')->postJson('/api/property-visits', [
+            'property_id' => $this->bien->id,
+            'customer_id' => $fiche->id,
+            'scheduled_at' => $this->creneau(heure: 8),
+        ])->assertCreated()->json('data.id');
+        $sansFiche = $this->withHeader('Accept-Language', 'en')->postJson('/api/property-visits', [
+            'property_id' => $this->bien->id,
+            'visitor_name' => 'Moussa Fall',
+            'visitor_phone' => '+221787654321',
+            'scheduled_at' => $this->creneau(heure: 10),
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('fr', PropertyVisit::query()->findOrFail($avecFiche)->locale);
+        $this->assertSame('fr', PropertyVisit::query()->findOrFail($sansFiche)->locale);
+        $locales = self::envoisALaDemande(NotificationCode::VisitConfirmed)
+            ->map(fn (array $envoi) => $envoi[0]->locale)->all();
+        $this->assertSame(['fr', 'fr'], $locales);
+    }
+
+    /**
      * Relevé de TCK-588 : un numéro saisi au format national n'était jamais joint. Saisi ainsi sur
      * le site, il est enregistré en E.164, et la confirmation de l'agence part vers ce numéro.
      */
