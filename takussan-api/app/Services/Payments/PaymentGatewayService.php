@@ -468,15 +468,22 @@ class PaymentGatewayService
                 // doublon. VERIF-596 passe 5 (M-E) — de même sur une échéance ANNULÉE par un
                 // renouvellement (checkout ouvert avant, confirmé après) : elle n'est plus due,
                 // l'encaissement est à rembourser, et la matrice refuserait `cancelled → paid`.
-                if ($current === PaymentStatus::Paid || $current === PaymentStatus::Cancelled) {
+                // TCK-872 (P39.02) — de même sur un payable REMBOURSÉ (second checkout resté
+                // ouvert, payé après le remboursement du premier) : la matrice refuse
+                // `refunded → paid`, et le 422 annulait toute trace de l'encaissement.
+                if (in_array($current, [PaymentStatus::Paid, PaymentStatus::Cancelled, PaymentStatus::Refunded], true)) {
                     // Rien n'a soldé une échéance annulée : seul un doublon déjà marqué pour CE
-                    // règlement (rejeu) n'est pas recompté.
-                    $counted = $current === PaymentStatus::Paid
-                        ? $this->isSettledBy($existingMeta, $transactionId)
-                        : in_array($transactionId, array_column(
-                            is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
-                            'transaction_id',
-                        ), true);
+                    // règlement (rejeu) n'est pas recompté. Une échéance remboursée a été soldée :
+                    // le règlement remboursé, rejoué (vérification forcée), n'est pas un doublon.
+                    $marked = in_array($transactionId, array_column(
+                        is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
+                        'transaction_id',
+                    ), true);
+                    $counted = match ($current) {
+                        PaymentStatus::Paid => $this->isSettledBy($existingMeta, $transactionId),
+                        PaymentStatus::Refunded => $marked || $this->isSettledBy($existingMeta, $transactionId),
+                        default => $marked,
+                    };
                     if (! $counted) {
                         $existingMeta['gateway_duplicate_payment'] = array_merge(
                             is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
