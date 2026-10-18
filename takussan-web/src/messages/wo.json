@@ -4964,6 +4964,7 @@
       "empty": "Amul kër ci tànneef bii ba tey."
     },
     "discovery": {
+      "neighbourhoodsOf": "Quartiers de {city}",
       "viewSwitchAria": "Wonewu njeexital yi",
       "viewList": "Limu",
       "viewMap": "Kart",

@@ -742,6 +742,7 @@
       "empty": "No properties in this selection yet."
     },
     "discovery": {
+      "neighbourhoodsOf": "Neighbourhoods in {city}",
       "viewSwitchAria": "Results view",
       "viewList": "List",
       "viewMap": "Map",

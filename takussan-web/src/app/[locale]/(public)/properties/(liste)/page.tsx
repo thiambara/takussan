@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { getLocale } from 'next-intl/server';
 import { PropertiesDiscoveryPage } from '@/components/property/PropertiesDiscoveryPage';
+import { QuartiersDeLaVille } from '@/components/property/QuartiersDeLaVille';
 
 import { PropertiesSkeleton } from './loading';
 import { alternatesPubliques } from '@/lib/alternates';
@@ -13,6 +14,7 @@ import {
   versParametres,
 } from '@/lib/canonique';
 import { compteDuLieu, domainesDeLaListe } from '@/lib/queries/facettes';
+import { liensDesQuartiers } from '@/lib/liens-de-lieu';
 import { rechercherBiensPublics } from '@/lib/queries/public-search';
 import {
   clefDeRecherche,
@@ -164,6 +166,12 @@ export default async function Page({ searchParams }: Props) {
   const domainesDuTitre: DomainesDeFacette = await domainesDeLaListe(parametres);
   const { title } = await titreEtDescription(parametres, domainesDuTitre);
 
+  // TCK-916 (P35.02) — sur une page de ville (la canonique retient une ville, pas de quartier),
+  // les liens vers ses pages de quartier indexables, celles du sitemap.
+  const retenus = filtresCanoniques(parametres, domainesDuTitre);
+  const ville = retenus.has('location') ? undefined : retenus.get('city');
+  const liensDeQuartiers = ville ? await liensDesQuartiers(ville, domainesDuTitre.villes) : [];
+
   return (
     // `fallback` n'était PAS passé (TCK-335, étape 6) : un `<Suspense>` sans repli ne montre
     // rien pendant la suspension. `PropertiesDiscoveryPage` lit `useSearchParams`, donc son
@@ -172,6 +180,11 @@ export default async function Page({ searchParams }: Props) {
     <Suspense fallback={<PropertiesSkeleton />}>
       <PropertiesDiscoveryPage
         titre={title}
+        liensDeLieu={
+          ville && liensDeQuartiers.length > 0 ? (
+            <QuartiersDeLaVille ville={ville} liens={liensDeQuartiers} />
+          ) : null
+        }
         graine={
           // `null` sur panne — y compris un 422. L'arbitrage d'erreur est déjà pris, et mieux,
           // par `PropertiesDiscoveryPage` : cf. `rechercherBiensPublics`.

@@ -230,9 +230,15 @@ export type ProprietesDeLaListe = {
   readonly titre?: string;
   /** Ce que le rendu serveur a déjà obtenu, et pour quelle requête. `null` = rien à semer. */
   readonly graine?: GraineDeRecherche | null;
+  /**
+   * TCK-916 (P35.02) — les liens de lieu construits par la page serveur (« Quartiers de
+   * <ville> »), rendus à la fin de `<main>`. Ils arrivent tout faits : leur domaine vient du cache
+   * de données du serveur, comme celui du sitemap.
+   */
+  readonly liensDeLieu?: React.ReactNode;
 };
 
-export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLaListe = {}) {
+export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = null }: ProprietesDeLaListe = {}) {
   const t = useTranslations('search.results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<View>('list');
@@ -637,6 +643,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 )}
               </>
             )}
+            {liensDeLieu}
           </main>
         </div>
       </div>
