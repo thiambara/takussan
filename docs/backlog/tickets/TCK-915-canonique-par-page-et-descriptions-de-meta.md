@@ -1,7 +1,7 @@
 ---
 id: TCK-915
 title: "Liste publique : canonique propre à chaque page, noindex au-delà de la dernière, descriptions de méta coupées au mot"
-status: doing
+status: done
 phase: P2
 family: applicatif
 estimate: M
@@ -83,4 +83,11 @@ Hypothèses (mode sans humain) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : correctifs retirés ensemble (`robots` remis au layout, `page` ôtée avant la canonique
+  et `auDela` retiré, `resumePourMeta` ramenée à `slice(0, max)`) → 20 rouges sur 6 fichiers ;
+  remis → 100 verts, et 421 verts sur `(public)`, `canonique`, `sitemap-couverture` et le fil.
+- Trois tests de `metadata.test.ts` figeaient l'ancienne canonique sans `page` (TCK-433 AC1, les
+  `hreflang`, le quartier en page 2) : ils suivent la décision du porteur.
+- `sitemap-couverture.test.ts` lit le docblock de `playground/page.tsx`, qui doit citer
+  `robots: { index: true, follow: true }` : la phrase reste, réécrite pour dire que c'est la
+  valeur par défaut et non plus celle du layout.
