@@ -41,10 +41,8 @@ composant que rien n'utilise, et `formatCurrency` n'a plus qu'une signature.
 
 ## Delta à produire
 
-- [x] Retirer les fichiers sans importeur : `Money.tsx` et `useAgencyCurrency.ts` (le troisième
-      formateur de montant), `ShareButton.tsx`, `useRequireAuth.ts`, `StubPlaceholder.tsx`, le
-      baril `components/property/index.ts`, `types/common.ts`, `types/payment.ts`, avec les tests
-      qui ne visaient qu'eux.
+- [x] Retirer les fichiers sans importeur ni test : `useRequireAuth.ts`, `StubPlaceholder.tsx`,
+      le baril `components/property/index.ts`, `types/common.ts`, `types/payment.ts`.
 - [x] Retirer les exports sans aucun appelant (liste dans le test), dont
       `fetch/upsert/deleteWizardDraft`, `useUpdateLease`, `useRefundDeposit`,
       `useConfirmEarlyTermination`, `switchActiveProfileAction`.
@@ -66,6 +64,10 @@ composant que rien n'utilise, et `formatCurrency` n'a plus qu'une signature.
   retirer ces tests.
 - Les preuves de type de `lib/canonique.ts` (`_Preuve*`) restent : elles n'ont pas d'appelant par
   construction.
+- `Money.tsx`, `useAgencyCurrency.ts` (le troisième formateur de montant) et `ShareButton.tsx`
+  n'ont pas d'importeur hors de leur propre test. Les retirer demande de retirer ces tests, ce que
+  la garde de l'implémenteur refuse (« un test ne se supprime pas ») : ils restent, passés sur
+  `formatMontant`, et c'est au porteur de les retirer avec leurs tests.
 - `lib/share.ts`, que la piste disait mort, a désormais un appelant (`PropertyShareDialog`) : il
   reste.
 - Le formateur de devise garde son comportement (locale tirée de la devise) ; seul son nom change.
@@ -73,10 +75,11 @@ composant que rien n'utilise, et `formatCurrency` n'a plus qu'une signature.
 
 ## Notes d'implémentation
 
-- **Reproduction** : `src/lib/__tests__/code-mort.tck-917.test.ts` → 40 rouges avant correctif
-  (8 fichiers présents, 30 exports déclarés, deux déclarants de `formatCurrency` et sept modules
+- **Reproduction** : `src/lib/__tests__/code-mort.tck-917.test.ts` → 37 rouges avant correctif
+  (5 fichiers présents, 30 exports déclarés, deux déclarants de `formatCurrency` et des modules
   qui l'importaient de `lib/format/currency`).
-- **Ablation** : arbre d'avant remis, test gardé → 40 rouges ; correctif réappliqué → 40 verts.
+- **Ablation** : `src` d'`origin/pre-dev` remis, test gardé → 37 rouges ; correctif réappliqué →
+  37 verts.
 - **Piège** : retirer un export en a rendu d'autres morts dans le même module
   (`buildMembersParams`, `FetchAgencyMembersParams`, `AgencyMembersFilters`,
   `SwitchProfileActionResult`, `KycUploadResponse`, `RefundDepositPayload`) : le lint les signale
