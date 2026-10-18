@@ -4365,7 +4365,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Petites améliorations
 - Réf : P38.07
-- Statut : validé — quatre correctifs : invitation par `NotificationCode` avec la cible `conversation` (en `wo`, le texte français tel quel) ; `removeParticipant` refusé sur une directe ; `index()` ne charge que les participants actifs ; une ré-invitation pose `last_read_at` à l'heure de la ré-invitation
+- Statut : fait · TCK-861
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ConversationInviteNotification.php:73-84`, `takussan-web/src/components/notifications/NotificationRow.tsx:41`, `takussan-api/app/Policies/ConversationPolicy.php:29-37`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:38`, `takussan-api/app/Services/Messaging/GroupConversationService.php:115-134`
 - Constat :
@@ -4375,6 +4375,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Une ré-invitation (l. 115-134) remet `left_at` et `archived_at` à nul, mais garde l'ancien `last_read_at`. Tout ce qui a été écrit pendant l'absence compte alors comme non lu (déduit, à vérifier).
 - Piste : faire passer l'invitation par `NotificationCode`, avec la cible `conversation`. Refuser `removeParticipant` sur une directe. Filtrer `left_at` dans le chargement de `index()`. Décider du `last_read_at` d'une ré-invitation.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : invitation → ligne `code: null, target: null, title: "Invitation à un groupe : G"` ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend le membre parti d'un groupe avec son `left_at` ; ré-invitation après un message écrit pendant l'absence → `unread_count` = 1 pour le ré-invité (le point « à vérifier » tient). Lu côté front : seul un groupe ouvre `ConversationInfoSheet` (`ChatView.tsx`, `isGroup && !isWidget`), donc aucun écran n'offre de quitter une directe. Classement : V8, quatre correctifs sans lien qui font plus d'un ticket, et le `last_read_at` d'une ré-invitation est un choix de produit (V7).
+- Mesure (2026-10-18, 7433fdbcc, implementeur) : reproduit avant correctif par les quatre tests de `ConversationParticipantsHygieneTest` : invitation → `code` nul ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend l'ancien membre dans `participants` ; ré-invitation → `unread_count` = 1. Correctif : code `message.group_invite` avec la cible `conversation` (textes fr, en, et en `wo` le français tel quel ; `ConversationInviteNotification` retirée), policy limitée aux groupes, participants actifs dans `index()`, `last_read_at` posé à la ré-invitation → 4 verts ; ablation, un correctif à la fois → un seul rouge chaque fois, le bon.
 
 ## Angle 39 — Webhooks de paiement `refund` et `failed` sur un paiement déjà soldé
 
