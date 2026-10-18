@@ -4421,7 +4421,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un encaissement en ligne sur un payable `refunded` est refusé en 422, à chaque relivraison, et n'est signalé à personne
 - Réf : P39.02
-- Statut : validé — `refunded` est traité comme `cancelled` dans la garde du double encaissement : doublon marqué, agence prévenue, réponse 200 ; test : le scénario mesuré
+- Statut : fait · TCK-872
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:471`, `:493-496`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96,151`
 - Constat :
@@ -4431,6 +4431,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Établi comment : lu, puis mesuré.
 - Piste : traiter `refunded` comme `cancelled` dans la garde de la l. 471 (doublon marqué, agence prévenue, 200). Garde : le scénario mesuré en test.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : échéance soldée par `spy_txn_1` puis remboursée, `spy_txn_2` payé → 422 `payment.status_transition_invalid`, 0 entrée `gateway_duplicate_payment`, 0 notification `payment.duplicate` ; rejeu → 422 encore. La politique de relivraison du fournisseur reste non établie. Classement : V1, traiter un encaissement sur un payable remboursé touche l'écriture d'un paiement.
+- Mesure (2026-10-18, 7ffdfbb0d, implementeur) : reproduit avant correctif par `PaymentWebhookRefundTest` : échéance soldée par `spy_txn_1`, remboursée, puis `spy_txn_2` payé → 422 ; la vérification forcée du règlement remboursé → 422 aussi. Correctif : `refunded` dans la garde du double encaissement → 200, échéance `refunded`, une entrée de doublon, une notification `payment.duplicate`, rejeu sans effet ; le règlement remboursé rejoué n'est pas recompté (`isSettledBy`). Ablation : service remis à l'état de TCK-871 → les 2 rouges ; garde strictement « comme `cancelled` » → la vérification forcée marque un faux doublon (1 rouge) ; correctif remis → 5 verts.
 
 ### Un remboursement reçu par webhook n'écrit pas `refund_amount` : l'acompte remboursé compte encore comme encaissé, et la tâche de remboursement reste ouverte
 - Réf : P39.03
