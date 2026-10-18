@@ -4066,7 +4066,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-908
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:226-253`, `takussan-web/src/lib/queries/facettes.ts:63-71`, `takussan-web/src/app/sitemap.ts:99-109`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:41-42,85-91,96-115`
 - Constat :
@@ -4076,6 +4076,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Mesuré sur la base de dev : 504 villes au référentiel, 0 adresse publique sans `geo_city_id`, une seule graphie par ville. Le défaut n'y est donc **pas** observable (à vérifier sur la préproduction et la production).
 - Piste : grouper `cities()` comme `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), ce qui rend une entrée par ville, comptée une fois. Un test d'API avec deux graphies de la même ville garde la règle. Côté front, ne pas écraser une graphie déjà présente dans la `Map`.
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `PublicPropertyController::cities()` (`groupBy('addresses.city')` brut) contre `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), `facettes.ts:66-70` et `sitemap.ts:99` (`Map` en minuscules, le dernier `set` gagne) ; test temporaire retiré (quatre biens publics, « Zzvillex » ×3 et « ZZVILLEX » ×1, ville hors référentiel), `php artisan test` (charge 2,4 sur 8 cœurs) → `cities()` rend `[{Zzvillex,3},{ZZVILLEX,1}]`, donc le front retiendrait « ZZVILLEX » ; `construireSitemap` ne dédoublonne pas ; base de dev par `SELECT` → 826 adresses de biens, 10 graphies, 10 en minuscules, 0 sans `geo_city_id` : non observable en dev. Classement : A1, le repli de casse de la ville est le contrat écrit de l'appelant (`facettes.ts`, « `?city=dakar` et `?city=Dakar` désignent la même page ») et de son jumeau `neighborhoods()`, et le correctif ne demande aucun choix de produit.
+- Mesure (2026-10-18, bc1f55227, implementeur) : avant correctif, test neuf de `PropertyCitiesTest` (biens publics « Zzvillé » ×3 et « ZZVILLÉ » ×1, ville hors référentiel) → `cities()` rend deux entrées `{Zzvillé,3}` et `{ZZVILLÉ,1}` ; côté front, `[{Saly,40},{SALY,2}]` → `villesDuCatalogue` retient « SALY » et le sitemap pousse `?city=SALY` deux fois (deux tests neufs rouges). `cities()` groupe par `CaseInsensitive::sql` et rend `mode()` (une entrée `{Zzvillé,4}`), la `Map` du front et la source du sitemap gardent la première graphie lue → 11 verts sur `PropertyCitiesTest`, 26 avec les tests de `neighborhoods()` et des chemins publics, 46 sur `facettes` et `sitemap.route` ; ablation des trois correctifs → 1 rouge API, 2 rouges front.
 
 ### Petites améliorations du maillage des facettes
 - Réf : P35.05
