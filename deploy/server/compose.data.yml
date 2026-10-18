@@ -1,5 +1,9 @@
-# Données partagées du serveur (ADR-0028 §6) : Meilisearch et un Redis par projet — Takussan
-# seul depuis le 2026-10-04, date à laquelle `redis-cpp` est parti avec CheckPrint Plus.
+# Données partagées du serveur (ADR-0028 §6) : Meilisearch, et lui seul depuis le 2026-10-18.
+# Redis n'est plus partagé : chaque environnement porte le sien dans sa pile d'API
+# (deploy/takussan/compose.api.yml, ADR-0069 § 4, TCK-880). `redis-takussan` mêlait le cache et les
+# sessions de la préproduction et de la production ; `redis-cpp` était parti le 2026-10-04 avec
+# CheckPrint Plus. Le volume `serveur-donnees-qomjjz_redis-takussan` reste sur le disque une semaine
+# après le retrait (décision du porteur, É4), puis se supprime avec son accord.
 #
 # PostgreSQL n'y est PAS : c'est un service Database de Dokploy, pour la sauvegarde vers R2
 # et la restauration intégrées. Ce fichier ne porte que ce qui se
@@ -26,21 +30,8 @@ services:
     networks:
       - dokploy-network
 
-  # volatile-lru : seules les clés À DURÉE DE VIE sont évincées. Le cache en porte une ; un
-  # verrou ou un compteur sans durée n'est jamais évincé en silence.
-  redis-takussan:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-lru --requirepass ${REDIS_TAKUSSAN_PASSWORD:?REDIS_TAKUSSAN_PASSWORD manquant}
-    volumes:
-      - redis-takussan:/data
-    mem_limit: 192m
-    networks:
-      - dokploy-network
-
 volumes:
   meili:
-  redis-takussan:
 
 networks:
   dokploy-network:

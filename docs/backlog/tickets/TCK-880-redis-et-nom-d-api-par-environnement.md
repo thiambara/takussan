@@ -78,13 +78,19 @@ nom d'hôte désigne toujours un seul service.
       retiré, `http://api:` dans un `.env.example`, service `redis` retiré).
 - [x] **AC2** — `smoke-api.sh pile` passe, et rougit sur ses trois ablations (alias retiré, `redis`
       aussi sur `dokploy-network`, `REDIS_HOST` ôté du compose).
-- [ ] **AC3** — Sur le serveur, après le déploiement de `preview` : `X-Build-Sha` rend le commit
+- [x] **AC3** — Sur le serveur, après le déploiement de `preview` : `X-Build-Sha` rend le commit
       promu ; une clé de cache écrite par l'API se lit dans le Redis de la pile
       (`takussan-api-preview-4iza80-redis-1`) et **pas** dans `redis-takussan` ; depuis un
       conteneur de `dokploy-network`, `redis` et le conteneur Redis de la pile ne répondent pas, et
       `takussan-api-preview` rend `/up` à 200.
 - [ ] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
       `donnees` ; la préproduction répond toujours (AC3 rejoué).
+
+## Reste sur dev
+
+Le code est sur `dev` depuis la PR #630 (2026-10-18), et AC3 est mesuré (notes). Il ne reste
+qu'AC4 : `redis-takussan` quitte `compose.data.yml` par la PR qui porte cette ligne, puis le Compose
+`donnees` se redéploie depuis `preview` (déploiement manuel, `autoDeploy` coupé).
 
 ## Hors périmètre
 
@@ -95,6 +101,17 @@ nom d'hôte désigne toujours un seul service.
 - P05.09 (`CACHE_PREFIX` par environnement) n'a plus d'objet : chaque environnement a son Redis.
 
 ## Notes d'implémentation
+
+- **AC3, mesuré le 2026-10-18 sur le serveur**, après le déploiement de `b2804272` (`images.yml`
+  vert) : `/up` public → `200`, `X-Build-Sha` = `b280427281868f745696e7b871c9d80ba799997c` ;
+  `REDIS_HOST` vu par `api`, `worker`, `worker-media` et `scheduler` → `redis` ; une clé
+  `Cache::put` → 1 dans `takussan-api-preview-4iza80-redis-1` (base 1), 0 dans `redis-takussan` ;
+  depuis `dokploy-network`, `redis` et `takussan-api-preview-4iza80-redis-1` → « Could not
+  connect » ; `takussan-api-preview:8080/up` → `200`. Avant la bascule, la même sonde rendait 1
+  dans `redis-takussan`, 0 dans la pile, et `000` sous l'alias : elle sépare les deux états.
+  ⚠ `api:8080` répond **encore** depuis `dokploy-network` : Compose donne toujours au service son
+  nom sur chaque réseau. C'est pourquoi la garde refuse toute URL vers l'hôte `api` — le nom reste,
+  personne ne doit le viser.
 
 - **Mesures du 2026-10-18 sur le poste** (images reconstruites depuis la branche) :
   - garde : témoin vert ; les six ablations rougissent, chacune sur son message ;

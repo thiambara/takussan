@@ -32,7 +32,7 @@
           "etat": "mesure",
           "date": "2026-09-14",
           "commande": "compose.one → env (Dokploy)",
-          "note": "Redis = conteneur `redis-takussan` de deploy/server/compose.data.yml, joint par le nom sur dokploy-network."
+          "note": "Redis = service `redis` de la pile d'API (deploy/takussan/compose.api.yml), sur le seul réseau `interne` de la pile, depuis le 2026-10-18 (TCK-880) ; jusque-là, `redis-takussan` de deploy/server/compose.data.yml, partagé sur dokploy-network."
         },
         "SESSION_DRIVER": {
           "valeur": "redis",
