@@ -1,7 +1,7 @@
 ---
 id: TCK-844
 title: "Le dépôt oublie Vercel : relevé, garde, replis NEXT_PUBLIC_* et conditions de build devenus du code mort"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -73,7 +73,7 @@ Repris de F5, étape 2, et complété par l'inventaire du 2026-10-18
 - [x] AC2 — `node scripts/check-front-env-keys.mjs` est vert, et rougit toujours par ablation sur
       une `NEXT_PUBLIC_*` ajoutée au `Dockerfile`, à `images.yml`, puis à `web-ci.yml`.
 - [x] AC3 — `deploy/takussan/smoke-web.sh` est vert, sans `TAKUSSAN_LOADER_MEDIA` dans l'image.
-- [ ] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test` et tous les `npm run check:*` sont
+- [x] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test` et tous les `npm run check:*` sont
       verts ; `php artisan test` sur les tests CORS.
 - [x] AC5 — `node scripts/check-doc-links.mjs` est vert après la suppression du relevé.
 
@@ -108,5 +108,13 @@ Repris de F5, étape 2, et complété par l'inventaire du 2026-10-18
   `image-loader.ts`, un `ARG NEXT_PUBLIC_SITE_URL` dans le `Dockerfile`, une `NEXT_PUBLIC_API_URL`
   dans les `build-args` d'`images.yml`, `SITE_URL` renommée dans `.env.example`, une lecture de
   `VERCEL_URL` dans le module (garde).
-- **Non joué en local** : la suite de l'API. Le changement de `config/cors.php` (le motif
-  `*.vercel.app` retiré, aucune origine par motif) est rejoué par la CI.
+- **Le CORS change de forme, et deux tests ne voyaient plus leur cible.** Sans motif, l'API
+  n'admet qu'une origine et la pose telle quelle, sans `Vary: Origin` (fruitcake/php-cors,
+  `isSingleOriginAllowed`) — juste en HTTP. `SearchSuggestTest` et `CataloguePublicCacheTest`, qui
+  gardent qu'un `Vary` S'AJOUTE sans chasser `Origin`, configurent désormais deux origines. Rouges
+  sur la première CI de la PR #600, verts ensuite.
+- `SavedSearchTest::test_alert_channels_suit_la_preference_et_la_frequence` rougissait sur la même
+  CI, sans lien : deux alertes nées dans la même seconde, comparées dans l'ordre de la liste. Triées
+  par nom.
+- **Suite de l'API** : verte sur la CI de la PR #600 (run `39091331547`, `lint-and-test` avec le cliquet
+  de couverture).
