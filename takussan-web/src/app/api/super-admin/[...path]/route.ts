@@ -2,8 +2,7 @@ import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { cheminReserveAuxRouteHandlers } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { NextRequest, NextResponse } from 'next/server';
-import { origineApi } from '@/lib/config-publique';
-import { statutSansCorps } from '@/lib/statut-sans-corps';
+import { relayerVersApi } from '@/lib/relais-api';
 
 /**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
@@ -24,37 +23,12 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const search = request.nextUrl.search;
-  const url = `${origineApi()}/api/admin/${chemin}${search}`;
-
-  const headers: Record<string, string> = {
-    Accept: request.headers.get('accept') ?? 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-  const contentType = request.headers.get('content-type');
-  if (contentType) headers['Content-Type'] = contentType;
-
-  const init: RequestInit = {
-    method: request.method,
-    headers,
-  };
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    // TCK-601 — les OCTETS, pas `text()` : la preuve de réponse du registre des droits est le
-    // premier envoi multipart de la console, et `text()` décode le corps en UTF-8 — un PDF ou une
-    // photo en ressortait corrompu (chaque séquence invalide remplacée par U+FFFD), sous la même
-    // limite `boundary` que l'en-tête `Content-Type` recopié plus haut. Sans effet sur le JSON.
-    init.body = await request.arrayBuffer();
-  }
-
-  const upstream = await fetch(url, init);
-  const data = statutSansCorps(upstream.status) ? null : await upstream.arrayBuffer();
-  const responseHeaders: HeadersInit = {};
-  for (const name of ['content-type', 'content-disposition', 'cache-control']) {
-    const value = upstream.headers.get(name);
-    if (value) responseHeaders[name] = value;
-  }
-
-  return new NextResponse(data, { status: upstream.status, headers: responseHeaders });
+  // TCK-601 — le corps part en OCTETS (la preuve de réponse du registre des droits est un envoi
+  // multipart) ; TCK-893 — le relais commun s'en charge, comme du 204 et des en-têtes de réponse.
+  return relayerVersApi(request, `/admin/${chemin}${request.nextUrl.search}`, {
+    jeton: token,
+    accepteDeLaRequete: true,
+  });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

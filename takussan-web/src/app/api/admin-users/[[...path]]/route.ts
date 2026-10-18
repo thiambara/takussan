@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
-import { statutSansCorps } from '@/lib/statut-sans-corps';
+import { relayerVersApi } from '@/lib/relais-api';
 
 /**
  * TCK-133 — Same-origin proxy for the agency_admin users view. Forwards
@@ -19,30 +18,12 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const suffix = chemin !== '' ? `/${chemin}` : '';
-  const url = `${origineApi()}/api/users${suffix}${request.nextUrl.search}`;
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
   // TCK-849 (P03.07) — sans l'indice, un admin de plusieurs agences reçoit 403 de `/api/users`.
+  const enTetes: Record<string, string> = {};
   const activeProfileId = profilActifEspaceApplicatif(request.cookies);
-  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
-  const contentType = request.headers.get('content-type');
-  if (contentType) headers['Content-Type'] = contentType;
+  if (activeProfileId) enTetes['X-Active-Profile-Hint'] = activeProfileId;
 
-  const init: RequestInit = { method: request.method, headers };
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    init.body = await request.text();
-  }
-
-  const upstream = await fetch(url, init);
-  const data = statutSansCorps(upstream.status) ? null : await upstream.text();
-  const responseHeaders: HeadersInit = {};
-  const upstreamCt = upstream.headers.get('content-type');
-  if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;
-
-  return new NextResponse(data, { status: upstream.status, headers: responseHeaders });
+  return relayerVersApi(request, `/users${suffix}${request.nextUrl.search}`, { jeton: token, enTetes });
 }
 
 type Ctx = { params: Promise<{ path?: string[] }> };
