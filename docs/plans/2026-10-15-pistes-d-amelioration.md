@@ -4609,7 +4609,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### Le critère de restauration ne compte que les lignes : il passe avec une `APP_KEY` fausse, et n'a pas été rejoué depuis les colonnes chiffrées
 - Réf : P42.03
-- Statut : retenu · à valider — V5 : critère de restauration et restauration à rejouer sur le serveur ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : critère de restauration qui relit un échantillon de chaque colonne chiffrée, et restauration de la préproduction rejouée sur le schéma courant
+- Statut : fait · TCK-882
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md:149-154`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3724-3747`, `:4248`, `docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md:152-154`, `docs/infra/hebergement.md:112`
 - Constat :
@@ -4618,6 +4618,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
   - L'étape 6 du plan F3 fait rejouer D6, étape 2, contre `takussan_prod` « après sa première sauvegarde nocturne » (lu, l. 4248) : une base de production neuve, donc presque vide, jugée par le même critère.
 - Piste : ajouter un contrôle de lecture au critère de D6, et à celui d'ADR-0069 § 5. Sur la copie, avec l'`APP_KEY` de l'environnement, une commande relit un échantillon de chaque colonne chiffrée sans `DecryptException`. Rejouer la restauration de la préproduction sur le schéma courant, et dater le relevé.
 - Mesure (2026-10-18, d7d176d4c, mesureur) : lu `adr/0028-…:149-154` (« comptes de lignes de la copie comparés à l'original »), plan D6 l. 3734-3747 (`count(*)` par table puis `diff`), `adr/0069-…:152-154` (comptes et dernière ligne écrite), plan F3 l. 4248 (D6 rejouée contre `takussan_prod` neuve) : aucun ne relit une colonne chiffrée ; `ls database/migrations | awk -F_ '$1$2$3>="20260914"' | wc -l` → 88, dont 21 `Schema::create` (inchangé) ; `hebergement.md:112` porte toujours la seule restauration à blanc, du 2026-09-14, et aucun ticket n'en date une plus récente (`grep -rln "restauration à blanc" docs/backlog/tickets` → TCK-510, 515, 541, 548). Le constat tient. Classement : V5, la piste amende le critère de deux ADR et demande une restauration jouée sur la préproduction, hors du poste.
+- Mesure (2026-10-18, 6bd4778db, humain) : fait en session (porteur, hors agents). `backup:verify-encryption` relit un échantillon de chaque colonne `encrypted*` (TCK-882). Le critère de déchiffrement est écrit dans ADR-0028 § 7, ADR-0069 § 5, le runbook d'`hebergement.md` et le plan (D6, étape 2 ; F3, étape 6). La restauration de la préproduction est rejouée sur le serveur, sur le schéma courant : sauvegarde du 2026-10-18 à 03:00, 116 tables sur 116, sortie 0 sur 39 valeurs chiffrées dans 20 colonnes, sortie 1 sous `--cle-fausse`.
 
 ### Rien n'alerte si la sauvegarde nocturne de la base cesse, et l'alerte d'échec de Dokploy n'a jamais été éprouvée pour une base
 - Réf : P42.04
