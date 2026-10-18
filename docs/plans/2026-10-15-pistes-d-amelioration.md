@@ -117,7 +117,7 @@ voie d'écriture (angle 13, puis 47).
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | fait |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | fait |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | fait |
-| 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | à faire |
+| 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | fait |
 | 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | à faire |
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | à faire |
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | à faire |
@@ -152,6 +152,7 @@ voie d'écriture (angle 13, puis 47).
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
+| 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
 
 ---
 
@@ -4812,3 +4813,55 @@ poste.*
   - `poweredByHeader: false`.
   - Un `X-Request-Id` tiré par requête dans `apiRequest`, côté serveur, et écrit dans les `console.error` du front.
 - Mesure (2026-10-18, bc1f55227, mesureur) : relu `Dockerfile:39-40` ; `/usr/bin/time -l node -e "<commande de la sonde>"` sur le poste (macOS, cible absente) → 59 293 696 octets de RSS au maximum, 0,36 s ; `grep poweredByHeader takussan-web/next.config.ts` → rien, le `server.js` standalone (build du 2026-10-15) porte `"poweredByHeader":true` ; `grep -rIn -i x-request-id takussan-web/src` → rien, `ShareRequestLogContext.php:25-29` reprend bien un `X-Request-Id` sûr (TCK-774, côté API seulement) ; le journal sur dix lignes n'a pas été re-mesuré. Les trois premiers points tiennent. Classement : V5, la sonde passe par le `HEALTHCHECK` de l'image déployée, et l'entrée mêle trois correctifs sans lien, dont le format des journaux du front, qui demande un choix (V8 pour l'ensemble).
+
+## Angle 45 — Contrat front ↔ API : chemins, verbes, clés de réponse
+
+*Exploré le 2026-10-18 sur `pre-dev` 955796904, par l'explorateur. Les chemins et les verbes ont été
+mesurés par l'explorateur lui-même : `php artisan route:list --json` (688 routes, 679 sous `api/`)
+confronté à un balayage des littéraux de `takussan-web/src` (1 252 fichiers `.ts`/`.tsx`, tests
+exclus), avec deux scripts jetables gardés hors du dépôt. Le balayage réécrit les relais BFF à joker
+vers leur amont (`/api/super-admin/*` → `/api/admin/*`, `/api/admin-users` → `/api/users`,
+`/api/super-admin-properties` → `/api/properties`, `/api/impersonation/proxy/*` → `/api/*`), et
+les segments d'action dynamiques ont été dépliés à la main depuis leurs unions de types. Les clés
+de réponse viennent d'un sous-agent (34 couples comparés) ; les deux constats retenus ont été
+relus par l'explorateur. Les champs écartés par `validated()` n'ont **pas** été relevés : le
+sous-agent chargé de cette partie a été arrêté avant son rapport, faute de budget.*
+
+### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
+- Réf : P45.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
+- Constat :
+  - Les quatre routes absentes relevées par les angles 6 et 13 (`PATCH /api/users/me`, `generate-schedule`, pièces jointes de la messagerie, documents de la fiche client) sont corrigées. Chacune est gardée par un test propre à son fichier, aucune par une garde de famille (lu : `ChatView.test.tsx`, `CustomerDocumentsPanel.test.tsx`, mesures de P13.0x).
+  - Mesuré, chemins : tout littéral `/api/…` de `src/`, plus le premier argument d'`apiFetch`, confronté à `route:list` et aux route handlers de `src/app/api` → 32 littéraux sans route. Relus un à un : 30 sont des commentaires ou des segments entièrement dynamiques, et les 2 restants se résolvent à la main (`KycUploader.tsx:112` → les trois handlers `kyc/upload` du BFF ; `ProfileServiceProviderSection.tsx:146` → `PATCH api/me/profiles/{sp_profile}/{trades,availability}`). Les actions dynamiques des relais (`super-admin.ts:212,323,415,435,535`, `team-suspension.ts:26`) ont toutes leur route une fois les unions dépliées. La table `RESSOURCES_DE_DETAIL` (`ressource-de-detail.ts:68-75`) vise 8 ressources qui ont toutes leur `GET api/<ressource>/{id}`. **Aucun chemin absent aujourd'hui.**
+  - Mesuré, verbes : 321 appels dont le chemin résout vers une route → 13 écarts signalés. 12 sont des faux positifs du balayage (route handler BFF au même chemin, `_method=PUT` dans un `FormData`, verbe pris dans l'appel suivant). Le seul réel est P45.02.
+  - Ce qui rend une garde délicate, et qu'elle doit traiter : (1) les relais à joker cachent l'amont (un balayage naïf déclare juste tout `/api/super-admin/*`) ; (2) `apiFetch` préfixe `/api`, pas `apiRequest` ni `useApiQuery` ; (3) les segments d'action passés en variable ; (4) un même littéral `/api/me/…` peut viser le BFF depuis le navigateur ou Laravel depuis le serveur.
+  - Établi comment : mesuré (commandes ci-dessus), et lu pour chaque cas résolu à la main.
+- Piste :
+  - Écrire la garde côté API, là où PHP tourne : un test PHPUnit qui lit `Route::getRoutes()` et les littéraux de `../takussan-web/src`, réécrit les relais BFF par une table tirée des route handlers, et échoue sur tout chemin ou verbe sans route. Il doit aussi échouer si la table de relais ne couvre pas un `[...path]` neuf.
+  - Autre voie : un instantané `route:list --json` régénéré par `api-ci` (comme `tests/impact-map.json`) et lu par une garde Node de `repo-ci`. Elle coûte un fichier versionné qui peut vieillir.
+  - Preuve de non-vacuité : réintroduire `PATCH /api/users/me` dans `locale.ts` doit faire rougir la garde.
+
+### `useUpdateLease` envoie `PUT` sur `api/leases/{lease}`, qui n'accepte que `PATCH` ; le hook n'a aucun appelant
+- Réf : P45.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/queries/leases.ts:280-291`, `takussan-api/routes/api/leases.php:18`
+- Constat :
+  - Le hook déclare `{ path: cheminApi\`/api/leases/${id}\`, method: 'PUT' }` (lu, `leases.ts:282`). La route est `Route::patch('leases/{lease}', …)` seule (lu, `leases.php:18` ; mesuré, `route:list` → `GET|HEAD` et `PATCH`). Un appel rendrait 405 (déduit, à vérifier).
+  - `grep -rn "useUpdateLease\b" takussan-web/src` → la seule définition, aucun appelant (mesuré).
+- Piste : retirer le hook (A3), ou passer en `PATCH` s'il doit servir. La garde de P45.01 l'aurait attrapé.
+
+### Petites améliorations : types de réponse faux sans lecteur, clé divergente sur une route sans appelant, commentaires de chemins périmés
+- Réf : P45.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/lib/queries/conversations.ts:481-482`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:81-82`, `takussan-web/src/lib/queries/super-admin.ts:542-552`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:104-107`, `takussan-api/app/Http/Controllers/Api/DashboardController.php:82-134`, `takussan-web/src/app/(dashboard)/layout.tsx:17-20`
+- Constat :
+  - `useUpdateParticipantRole` type sa réponse `ApiResponse<{ user_id; role }>` (lu, `conversations.ts:482`). Le contrôleur rend `data` = une `ConversationResource` entière (lu, `ConversationParticipantController.php:81-82`). L'appelant (`ConversationInfoSheet.tsx:176-178`, sous-agent) ne lit aucune clé du résultat : sans effet visible aujourd'hui.
+  - `archiveProperties` type `failed: number`, alors que `PropertyBulkArchiveService` rend `failed` en tableau `[{id, reason}]` (sous-agent, à vérifier). Le résultat n'est pas lu (`SuperAdminPropertiesTable.tsx:128`, sous-agent).
+  - `GET api/dashboard/stats` rend `active_leases` pour quatre profils et `active_lease` pour le locataire (lu, `DashboardController.php:82,96,110,123` contre `:134`). Aucun appelant dans `takussan-web/src` (sous-agent, à vérifier).
+  - Le docblock de `(dashboard)/layout.tsx:19` dit que `getMeAction()` frappe `/api/users/me`, une route qui n'existe pas (mesuré, `route:list`). Le chemin réel se lit dans `actions/auth.ts`.
+  - Établi comment : lu pour les lignes citées ; ce qui vient du sous-agent est marqué.
+- Piste : aligner les deux types sur la réponse réelle, unifier la clé du tableau de bord (ou retirer la route si elle reste sans appelant, voir l'angle 13), et corriger le docblock (A6).
