@@ -141,7 +141,15 @@ class TimestampDayRangeTest extends ApiTestCase
         DB::statement('SET LOCAL enable_seqscan = off');
         $plan = collect(DB::select('EXPLAIN '.$requete[0], $requete[1]))->pluck('QUERY PLAN')->implode("\n");
 
-        $this->assertStringContainsString('property_visits_scheduled_at_status_index', $plan);
-        $this->assertMatchesRegularExpression('/Index Cond: .*scheduled_at >=/', $plan, $plan);
+        // L'index n'est pas nommé : sur une table vide, les deux index qui portent `scheduled_at`
+        // (`scheduled_at_status`, `property_id_scheduled_at`) coûtent pareil, et le moteur prend
+        // l'un ou l'autre d'une exécution à l'autre (CI rouge du 2026-10-18, #622). Ce que TCK-864
+        // garantit, c'est que la borne est une CONDITION D'INDEX sur `property_visits` : un
+        // `whereDate()` la rejetterait en `Filter`, sur `(scheduled_at)::date`.
+        $this->assertMatchesRegularExpression(
+            '/Scan using property_visits_\w+ on property_visits[^\n]*\n\s+Index Cond: [^\n]*scheduled_at >=/',
+            $plan,
+            $plan,
+        );
     }
 }
