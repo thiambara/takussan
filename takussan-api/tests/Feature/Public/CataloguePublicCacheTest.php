@@ -264,8 +264,14 @@ class CataloguePublicCacheTest extends ApiTestCase
     {
         $this->bienPublie();
 
+        // Le CORS n'ajoute `Vary: Origin` que s'il RENVOIE l'origine reçue — plusieurs origines
+        // admises, ou un motif. Une origine seule est posée telle quelle, sans `Vary` (fruitcake/php-cors,
+        // `isSingleOriginAllowed`) : c'est le cas réel depuis TCK-844, qui a retiré le motif `*.vercel.app`.
+        // Deux origines, pour que le défaut gardé ici — un `Vary` qui ÉCRASE au lieu d'ajouter — reste visible.
+        config(['cors.allowed_origins' => ['http://localhost:3000', 'https://autre-front.test']]);
+
         $reponse = $this->getJson('/api/public/properties/discovery?per_row=3', [
-            'Origin' => config('cors.allowed_origins')[0] ?? 'http://localhost:3000',
+            'Origin' => 'http://localhost:3000',
         ])->assertOk();
 
         $vary = array_map('trim', explode(',', (string) $reponse->headers->get('Vary')));

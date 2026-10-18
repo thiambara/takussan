@@ -65,7 +65,7 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
 l'environnement GitHub `Production` est supprimé.
 
-- F5, étape 1 est faite, hors de son ordre ; F5, étape 2 devient TCK-842 ; TCK-516 est `obsolete`.
+- F5, étape 1 est faite, hors de son ordre ; F5, étape 2 devient TCK-844 ; TCK-516 est `obsolete`.
 - **Il n'y a plus de site public**, et plus de retour arrière vers Vercel : F3 devient une mise en
   service, pas une bascule. F2 et F3 sont réécrites par l'étape 6 d'ADR-0069.
 - AC2 garde son sens (le commit servi) ; « sans `x-vercel-id` » ne peut plus échouer.

@@ -110,7 +110,7 @@ Trois faits rendent la troisième décision possible :
   passe par Vercel (phase F, F5). D'ici là, la lecture de `NEXT_PUBLIC_*` reste un repli pour le seul
   build de Vercel, et disparaît avec lui. *Note du 2026-10-18 : Vercel est supprimé depuis le
   2026-10-15, avant la phase F ; ce repli, le loader conditionnel et la branche `VERCEL_ENV` sont du
-  code mort, retiré par TCK-842.*
+  code mort, retiré par TCK-844.*
 - **La production sert l'image que la préproduction a servie.** Chaque image est étiquetée
   `sha-<commit>` et `tree-<arbre>`, l'arbre étant celui du commit, comme la clé d'ADR-0063.
   Au push sur `master`, l'image dont l'arbre égale celui de `master` est **réétiquetée** `production`.

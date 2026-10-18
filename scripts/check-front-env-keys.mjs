@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Garde du CONFINEMENT de la configuration du front (ADR-0069 § 3 ; TCK-431, TCK-831, TCK-842).
+ * Garde du CONFINEMENT de la configuration du front (ADR-0069 § 3 ; TCK-431, TCK-831, TCK-844).
  *
  * L'image du front ne porte aucun environnement : l'origine de l'API, celle du site et celle des
  * médias se lisent à l'exécution (`API_URL`, `SITE_URL`, `MEDIA_URL`), par un module unique,
@@ -8,7 +8,7 @@
  *
  * · toute lecture de `process.env.NEXT_PUBLIC_*` dans `takussan-web/src` ou `next.config.ts`. Next
  *   la substitue À LA COMPILATION : une clé absente du build ne casse rien, elle devient `undefined`
- *   dans le JavaScript livré, et l'image redeviendrait propre à un environnement. Depuis TCK-842,
+ *   dans le JavaScript livré, et l'image redeviendrait propre à un environnement. Depuis TCK-844,
  *   le front n'en lit plus aucune ;
  * · une lecture de l'une des trois clés d'exécution HORS de ce module ;
  * · toute `NEXT_PUBLIC_*` dans le Dockerfile, ou passée par un workflow qui le construit ;

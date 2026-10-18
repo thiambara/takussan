@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * TCK-540, TCK-842 — le loader de Cloudflare se branche pour tout `next build` (`NODE_ENV=production`,
+ * TCK-540, TCK-844 — le loader de Cloudflare se branche pour tout `next build` (`NODE_ENV=production`,
  * posée par Next avant de lire sa configuration), jamais sous `next dev`.
  *
  * L'image Docker est le seul build qui serve : un build sans loader y ferait encoder chaque photo

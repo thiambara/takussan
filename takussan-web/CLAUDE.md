@@ -333,7 +333,7 @@ npm run test
   `window.__TAKUSSAN_CONFIG__` dans `<head>`. Tout ce qui y passe est public :
   `scripts/check-front-env-keys.mjs` ferme la liste des clés.
 - `.env.example` (et le `.env.local` que `./dev.sh` en tire) pointe `API_URL` sur
-  `http://127.0.0.1:8002`. Un `.env.local` antérieur à TCK-842 porte encore les anciens noms
+  `http://127.0.0.1:8002`. Un `.env.local` antérieur à TCK-844 porte encore les anciens noms
   `NEXT_PUBLIC_*`, que plus rien ne lit : `./dev.sh` le signale.
 - `robots.txt` et `sitemap.xml` sont rendus à la demande, pour lire l'origine à l'exécution ; les
   données du sitemap sont en cache une heure (P34.02).
