@@ -1,7 +1,7 @@
 ---
 id: TCK-896
 title: "Pages d'authentification : un repère <main> sur le panneau du formulaire"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -50,4 +50,7 @@ réinitialisation.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Reproduction** : `layout.repere-main.test.tsx` → rouge, `0` élément `main`.
+- **Ablation** : `layout.tsx` remis → le même rouge ; remis → `src/app/(auth)`, 42 verts.
+- Le `main` couvre tout le panneau du formulaire, retour et bannière mobile compris, comme le
+  décrit la `Piste` (l. 97) ; seul le panneau visuel du bureau reste hors du repère.
