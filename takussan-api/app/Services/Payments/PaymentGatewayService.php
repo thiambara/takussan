@@ -566,6 +566,12 @@ class PaymentGatewayService
                     // d'un checkout de l'historique (abandonné, puis expiré chez le fournisseur) se
                     // trace sur SON entrée : écrit dans `last_failed_at`, il fermait le checkout
                     // vivant, et le clic suivant en ouvrait un troisième.
+                    // TCK-961 (P39.06) — l'échec de la transaction qui a SOLDÉ l'échéance ne dit
+                    // rien d'un checkout ouvert : il est ignoré, et ne reste que dans `gateway_events`.
+                    $settledByIt = $transactionId !== null && ($gateway['settled_by'] ?? null) === $transactionId;
+                    if ($settledByIt) {
+                        break;
+                    }
                     if ($transactionId === null || $transactionId === ($gateway['transaction_id'] ?? null)) {
                         $gateway['last_failed_at'] = now()->toIso8601String();
                     } elseif (is_array($gateway['transactions'] ?? null)) {
@@ -634,7 +640,10 @@ class PaymentGatewayService
             $existingMeta = $this->applyPendingRefund($payment, $existingMeta, $transactionId);
         }
 
-        $payment->metadata = array_merge($existingMeta, $metadata);
+        // TCK-961 (P39.06) — le `metadata` de l'événement n'est plus fusionné à la racine : un `failed`
+        // ou un `refunded` reçu après le `paid` y remplaçait `amount`, `currency` et `event`, et la
+        // trace du règlement se perdait. Il est rangé sous l'entrée de l'événement (`markAsProcessed`).
+        $payment->metadata = $existingMeta;
         $payment->save();
 
         // TCK-873 (P39.03) — un acompte remboursé par le fournisseur clôt la tâche de remboursement,
@@ -1277,6 +1286,7 @@ class PaymentGatewayService
             'transaction_id' => $event->transactionId,
             'type' => $event->type,
             'received_at' => now()->toIso8601String(),
+            'metadata' => $event->metadata,
         ];
         $meta['gateway_events'] = $log;
         $payment->metadata = $meta;
