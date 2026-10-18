@@ -811,7 +811,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : retenu · à valider — chemin fermé : retirer `SendDailyNotificationDigest` supprime `tests/Feature/Notifications/NotificationDigestTest.php`, et la garde de l'implémenteur refuse toute suppression de test ; porteur (2026-10-18) : traité hors agents, en session : retrait du code mort (`SendDailyNotificationDigest` et son test, l'appelant mort de `SendRawNotificationEmailJob`), réclamation par `UPDATE … WHERE` dans `boosts:tick`, clé posée avant l'envoi et `SafeExceptionContext::of($e)` dans `SendProspectMatchDigest`
+- Statut : fait · TCK-941
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -821,6 +821,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 - Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `SendRawNotificationEmailJob.php:42-48` (`catch (\Throwable)` → `report()`, sans relance : `$tries` et `backoff()` sont inopérants) ; `grep -rn` dans `app/` : le job n'est dispatché que par `NotificationService::sendEmail()` (l. 207), appelé par `notify()` (l. 173), elle-même appelée seulement par `notifyMany()` (l. 199) — aucun appelant de `notify`/`notifyMany` dans `app/`, seuls `tests/Support/ProseLitteraleScanner.php` et sa fixture les nomment, ce qui lève le « à vérifier » ; `SendDailyNotificationDigest` absent de `routes/console.php` et de tout dispatch (seul `NotificationDigestTest` l'instancie) ; `BoostLifecycle.php:204-218` : `pause()`/`resume()` font `forceFill()->save()` sur le modèle chargé, quand `end()` (l. 221) réclame par `UPDATE … WHERE status IN`, donc le docblock de `BoostsTick.php:11-16` reste inexact pour elles ; `SendProspectMatchDigest.php:93-99` appelle `send()` puis seulement `?->update(['data' => … 'digest_date' …])`, et l. 76-80 journalise `'message' => $e->getMessage()` alors que `App\Support\Logging\SafeExceptionContext` existe → les trois points tiennent. Classement : V7, retirer ou planifier le résumé quotidien est un choix de produit, et réclamer `pause()`/`resume()` touche la durée de boosts payés (V1).
 - Mesure (2026-10-18, 12be5f485, implementeur) : les trois écarts tiennent. `SendDailyNotificationDigest` n'est ni planifié ni dispatché (le résumé vivant est `SendNotificationDigestJob`) ; le `$tries` de `SendRawNotificationEmailJob` est opérant depuis TCK-770. Reproduit par des tests écrits pour la piste : un boost clos entre la lecture de `reconcile()` et sa pause repasse `paused`, une reprise rejouée l'allonge d'un jour ; un envoi de `SendProspectMatchDigest` qui échoue puis un rejeu laissent deux notifications, et le journal porte le message de l'exception. Les deux correctifs (`UPDATE … WHERE status` dans `pause()`/`resume()`, clé d'idempotence écrite à la création de la ligne par un `$data` facultatif de `NotificationService::send()`, `SafeExceptionContext::of($e)`) sont verts, ablation rouge. Le retrait du résumé quotidien supprime son test, ce que `check-pistes --role implementeur` refuse (« un test ne se supprime pas ») : rien n'est publié, le correctif entier est gardé hors du dépôt, dans le rapport du passage (`P05.08-TCK-903-non-publie.patch`). Classement : chemin fermé, le retrait d'un test revient au porteur ; les deux autres écarts pourraient partir seuls si la décision est scindée.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : code mort retiré (`SendDailyNotificationDigest`, `SendRawNotificationEmailJob`, `DailyNotificationDigest`, `NotificationService::notify()`/`notifyMany()`, avec leurs tests) ; `pause()`/`resume()` de `boosts:tick` réclamés par `UPDATE … WHERE` sur le statut ET la valeur lue (`ends_at`, `remaining_seconds` : cas ABA trouvé par la vérification adverse) ; clé posée avant l'envoi et `SafeExceptionContext::of($e)` dans `SendProspectMatchDigest`. Ablations rouges, vérification adverse acceptée.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
@@ -3077,6 +3078,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 - Mesure (2026-10-15, eee06c10, mesureur) : relu les migrations `2026_04_17_160006` (l. 21) et `2026_04_17_160007` (l. 18, 21) : `id_number` et `monthly_income` en `string` et `decimal` clairs ; `grep -n encrypted` sur `Customer.php` et `Guarantor.php` → rien ; `CustomerResource.php:20` et `GuarantorController.php:93,96` les rendent en clair ; aucun ticket ne traite leur chiffrement (`grep` dans `docs/backlog/tickets`). Le scénario sous impersonation n'est pas rejoué : la lecture du code est inchangée, et le test de P23.02 rend `id_number` en clair à un autre lecteur. Classement : V4, la piste chiffre deux colonnes par migration, avec un ADR (V6) sur ce qui est exposé (V3).
 - Mesure (2026-10-16, 55a41109, humain) : ADR-0044 amendé en session (TCK-723) : `customers.id_number` et `guarantors.id_number` suivent le § 1 (cast `encrypted`, masqués par défaut, lecture claire dédiée sous step-up et journalisée) ; le porteur a tranché ses deux questions (points 6 et 7 : revenu mensuel de la caution et du bailleur compris, valeur claire pour l'admin d'agence seul). L'application reste à faire.
 - Mesure (2026-10-17, 11118c160, implementeur) : relu l'amendement A d'ADR-0044 (§ 1 à 7 et « Application ») : `customers.id_number` et `guarantors.id_number` passent en `text` chiffré, `guarantors.monthly_income` et `owner_profiles.monthly_income` (`decimal(14,2)`, migrations `2026_04_17_160007:21` et `2026_05_02_000001:20`) aussi, chacune par une migration qui chiffre l'existant et dont le `down()` déchiffre, aller-retour testé ; deux routes `…/{id}/sensitive` neuves (client, caution), avec `viewSensitive`, `ProtectedActions::STEP_UP` et `PersonalDataAccessLogger` ; `id_number` hors de `Customer::$queryFields`, masques dans `CustomerResource` et `GuarantorController::format` ; le front lit `id_number` et `monthly_income` dans 9 fichiers (`grep -rln` sous `takussan-web/src` : types, schémas, `CustomerForm`, `GuarantorSection`). Le défaut tient. Classement : V8, à découper par le porteur, par exemple pièce du locataire et de la caution, puis revenus, puis le front.
+- Mesure (2026-10-18, ab982dbcc, humain) : en session : ADR-0070 écrit (application de l'amendement A d'ADR-0044, TCK-723) et ses tickets TCK-953 à TCK-956 (todo, chaînés) ; le code reste à faire.
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
@@ -3201,7 +3203,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : retenu · à valider — chemin fermé : docs/models-spec.md (la table des tranches demande un modèle neuf, que `scripts/check-models-spec.mjs` exige dans la spec, fermée à l'implémenteur) ; porteur (2026-10-18) : traité hors agents, en session : remboursement par tranche datée (les jours restants les plus tardifs, au prix de la tranche qui les a achetés), le modèle dans `models-spec.md`, tests « offerte puis achetée » et « achetée puis offerte »
+- Statut : fait · TCK-942
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3214,6 +3216,7 @@ sont pas reprises.*
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
 - Mesure (2026-10-17, 464374510, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours `price_credits` et `duration_days` sur la ligne en place, `BoostLifecycle::refundableCredits()` rend `intdiv(price_credits × jours pleins, duration_days)`). Mais rien ne garde les tranches : `property_boosts` n'a qu'un `price_credits`, un `duration_days` et un `boost_product_id` (celui de la première tranche, lu `2026_10_12_500100_create_boost_tables.php:31-57`) ; `credit_movements` n'a ni durée ni offre (lu `2026_10_12_500200_create_credit_ledger_tables.php:38-50`), et une tranche offerte n'écrit aucun mouvement (`debit()` ne fait rien à prix 0, lu `BoostPurchaseService.php:187-191`). Les jours de chaque tranche ne se reconstruisent donc pas : la correction validée demande une table ou une colonne neuve, et la reprise des Vedettes déjà prolongées. Rien n'est implémenté. Classement : V4.
 - Mesure (2026-10-18, b39ddb637, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours prix et durée sur la ligne en place ; `BoostLifecycle::refundableCredits()` l. 139-152 rend `intdiv(price_credits × jours pleins, duration_days)`). La règle de l'amendement du 2026-10-18 d'ADR-0061 demande de garder les tranches dans une table neuve, donc un modèle Eloquent neuf sous `app/Models/` ; `scripts/check-models-spec.mjs` refuse tout modèle de premier niveau absent de `docs/models-spec.md` (lu, l. 66-90), et la spec est fermée à l'implémenteur. La tenir hors modèle (`DB::table`) contournerait la garde. Rien n'est implémenté. Classement : chemin fermé, `docs/models-spec.md` ; le porteur peut écrire la section du modèle des tranches (ou l'ajouter dans la même PR) avant de rendre la piste.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : table `property_boost_tranches` (les mouvements de crédits ne portent ni durée ni offre), remboursement des jours les plus tardifs au prix de leur tranche : le cas mesuré rend 20 crédits au lieu de 6 ; un boost sans tranche se rembourse comme avant ; amendement d'ADR-0061 complété. Ablations rouges, vérification adverse acceptée.
 
 ### Petites améliorations
 - Réf : P24.06
@@ -3816,7 +3819,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : retenu · à valider — chemin fermé : `takussan-web/package.json` ; la garde `heading-order` d'axe que nomme la précision demande `axe-core` en dépendance déclarée (V6), critère autre que le V7 accordé, qui portait sur les titres ; porteur (2026-10-18) : traité hors agents, en session : `h2` du pied de page et au-dessus des grilles, et `axe-core` en dépendance de dev pour la règle `heading-order`
+- Statut : fait · TCK-946
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3826,6 +3829,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 - Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `Footer.tsx:183` et `:216` (`h4`), `h3` dans `PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65` et `ProfileCard.tsx:93`, `h1` dans `IndexDeProfils.tsx:109` ; les cartes sont montées aussi par `ApercuAnnonce.tsx`, `PropertyRow.tsx` et `PortfolioTabs.tsx`, où leur niveau dépend d'autres titres ; axe non rejoué → tient. Classement : V7, le pied de page en `h2` est mécanique, mais l'ordre des titres des cartes demande soit un titre de section neuf (texte), soit un niveau de carte qui vaut pour tous ses conteneurs.
 - Mesure (2026-10-18, a5ed738b4, implementeur) : `Footer.tsx:187` et `:220` toujours en `h4` → tient ; `grep axe takussan-web/package.json` → 0 ligne, et `npm ls axe-core` → seulement `eslint-config-next › eslint-plugin-jsx-a11y › axe-core@4.13.0`, transitif. Aucun test du front n'importe axe. La garde que fixe la précision (`heading-order` d'axe dans le test de rendu) passe donc par l'ajout d'`axe-core` (ou d'un `vitest-axe`) à `package.json`, chemin fermé à l'implémenteur (V6, dépendance ajoutée) ; l'importer sans le déclarer en ferait une dépendance de fait. Les titres eux-mêmes restent mécaniques. Non implémenté. Classement : chemin fermé, à trancher par le porteur (ajouter la dépendance, ou une garde maison de l'ordre des titres).
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `h2` au pied de page, `h2` `sr-only` au-dessus de la grille de recherche, compte de l'index des agences en `h2` ; `axe-core` 4.13.0 en dépendance de dev, règle `heading-order` sur les trois pages. Ablations rouges, vérification adverse acceptée.
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
@@ -3924,7 +3928,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : retenu · à valider — chemin fermé : `.github/workflows/web-ci.yml`, la décision branche le script après le build de `web-ci` ; porteur (2026-10-18) : traité hors agents, en session : `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport sans seuil, qui refuse `zod` dans le layout racine
+- Statut : fait · TCK-947
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -3934,6 +3938,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 - Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
 - Mesure (2026-10-17, ec405f7a, mesureur) : `grep -rlin 'budget\|gzip' scripts .github/workflows takussan-web/scripts` → `check-super-admin-tokens.mjs`, `check-i18n-namespaces.mjs` et `scripts/agents/pistes.sh` (sans rapport) ; `ls takussan-web/scripts | grep -i poids` → vide ; aucun commit ne cite `poids-des-routes` hors l'angle 33 → aucune garde ne voit le poids des routes, le constat tient. Classement : V5, le script ne sert que branché après le build de `.github/workflows/web-ci.yml`, et V9, son refus de `zod` au layout racine est un seuil de garde neuf.
 - Mesure (2026-10-18, 955796904, implementeur) : `ls takussan-web/scripts | grep -i poids` → vide, et `git log origin/pre-dev --grep=poids-des-routes` → aucun commit : le constat tient ; la décision du porteur branche le script après le build de `web-ci` (`.github/workflows/web-ci.yml:120`), chemin fermé à l'implémenteur (V5). Le script seul, sans branchement, ne servirait pas : la piste revient au porteur.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `takussan-web/scripts/poids-des-routes.mjs` branché après le build de `web-ci` : 18 routes mesurées, sortie 1 seulement si `zod` est dans le layout racine, 2 si la sortie du build manque ou est illisible ; mesuré par la session sur un build complet (sortie 0).
 
 ### Petites améliorations
 - Réf : P33.06
@@ -4172,7 +4177,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où les trois clés neuves doivent se déclarer (`check-webhook-env-keys`) ; porteur (2026-10-18) : traité hors agents, en session : un jeton par fournisseur, avec repli sur la clé commune le temps de la bascule
+- Statut : fait · TCK-943
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4182,10 +4187,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 - Piste : un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), avec repli sur la clé commune le temps de la bascule. Un test : le jeton LAM refusé sur la route Orange. Une variable d'environnement neuve est en jeu.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : jeton extrait du `ret_url` réellement produit par le pilote LAM, posté sur `/api/webhooks/sms/orange/status/{jeton}` ; relu `config/sms.php:174` et les trois contrôleurs (même `sms.webhook_url_token`) → 200, tentative Orange `delivered` ; le constat tient. Classement : V5, la piste ajoute des variables d'environnement, et elle touche aussi V2 (l'authentification de trois routes que les fournisseurs appellent).
 - Mesure (2026-10-18, e673632a0, implementeur) : `grep -rn webhook_url_token app config` → les trois contrôleurs SMS et le pilote LAM lisent toujours la même `sms.webhook_url_token` (`OrangeSmsStatusController.php:68`, `MtargetSmsStatusController.php:55`, `LAfricaMobileSmsStatusController.php:51`, `LAfricaMobileSmsDriver.php:137`) : le défaut tient. Trois jetons par fournisseur, c'est trois `env('SMS_WEBHOOK_URL_TOKEN_…', '')` dans `config/sms.php`, que `scripts/check-webhook-env-keys.mjs` exige déclarées dans `.env.example` et `.env.docker` (lu, sa recherche `env('X', '')` sur `config/sms.php`) ; ces deux fichiers sont fermés à l'implémenteur. Le V5 accordé porte sur les variables, pas sur le chemin : la piste revient au porteur, non implémentée.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : un jeton d'URL par fournisseur SMS (`SMS_ORANGE_…`, `SMS_MTARGET_…`, `SMS_LAM_WEBHOOK_URL_TOKEN`), repli sur `SMS_WEBHOOK_URL_TOKEN` quand le jeton propre est vide, chaque URL de retour portant le sien. Ablations rouges, vérification adverse refusée puis corrigée (état cible testé). Les clés sont à poser dans Dokploy (TCK-720).
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où la valeur de configuration neuve doit se déclarer (`check-webhook-env-keys`) ; porteur (2026-10-18) : traité hors agents, en session : la route `GET` de vérification d'abonnement de Meta, gardée par le jeton d'URL
+- Statut : fait · TCK-944
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
 - Constat :
@@ -4195,6 +4201,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 - Piste : une route `GET` sur le même chemin, gardée par le même jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration et rend `hub.challenge` en texte brut. Un test : bon jeton → 200 et le défi, mauvais → 403.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : `php artisan route:list --path=webhooks` → seule `POST api/webhooks/whatsapp/status/{token}` ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien → aucune route `GET` et aucun lecteur du jeton de vérification ; ce que Meta exige pour enregistrer l'URL n'est pas vérifié depuis le poste. Classement : V5, le jeton de vérification est une valeur de configuration neuve à poser par environnement, et l'exigence de Meta, non lue, laisse le correctif hors de A1.
 - Mesure (2026-10-18, e673632a0, implementeur) : `php artisan route:list --path=webhooks/whatsapp` → `POST api/webhooks/whatsapp/status/{token}` seule ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien : le défaut tient. La valeur neuve est un secret par environnement, donc un `env('…', '')` dans `config/whatsapp.php`, que `scripts/check-webhook-env-keys.mjs` exige déclaré dans `.env.example` et `.env.docker`, fermés à l'implémenteur. Le V5 accordé porte sur la valeur, pas sur le chemin : la piste revient au porteur, non implémentée.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `GET` de vérification d'abonnement de Meta sur le chemin du webhook, `hub.verify_token` comparé en temps constant à `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `hub.challenge` en `text/plain` ; 403 sinon. Ablations rouges, vérification adverse refusée puis corrigée (code d'erreur traduit). La clé est à poser dans Dokploy (TCK-720).
 
 ### Rien n'abonne Orange aux accusés, et l'appariement suppose un `resourceURL` dans la notification
 - Réf : P36.06
@@ -4223,7 +4230,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, d'où le premier des quatre points retire `WHATSAPP_WEBHOOK_IPS` ; porteur (2026-10-18) : traité hors agents, en session : `WHATSAPP_WEBHOOK_IPS` retirée, et les trois autres points de la piste
+- Statut : fait · TCK-945
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4250,6 +4257,7 @@ Aucun sous-agent. Une mesure par un test temporaire (retiré) sous `php artisan 
 chaîne) et prouvée sur `preview.api` par l'ablation D5 : elle n'est pas reprise ici. Rien n'a été
 mesuré hors du poste (Traefik, Cloudflare, réseau `dokploy-network`). Le débit des webhooks d'accusés
 est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.*
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `WHATSAPP_WEBHOOK_IPS` retirée, `dlr_signature_ttl_days` déclaré, domaine de la documentation corrigé, statut non signé refusé dès qu'un jeton est posé, quel que soit l'environnement. Ablations rouges, vérification adverse acceptée après correction du groupe.
 
 ### Les limiteurs d'authentification et les compteurs de vues comptent une IPv6 entière, pas son /64
 - Réf : P37.01
@@ -4755,7 +4763,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Le conteneur `worker` a la même limite (256 Mo) que `memory_limit` : un job gourmand est tué par le noyau avant l'erreur PHP, sans journal
 - Réf : P43.04
-- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/compose.api.yml` ; porteur (2026-10-18) : traité hors agents, en session : relever le RSS du worker au repos et sous un job lourd, puis `mem_limit` au-dessus de `memory_limit` plus cette marge
+- Statut : fait · TCK-951
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:105-109`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4776,10 +4784,11 @@ Les mesures « standalone » ont été prises en lançant `.next/standalone/serv
 dernier commit de `robots.ts` et de `public-discovery.ts`, et il tourne sous macOS, pas dans l'image.
 Rien n'a été mesuré sur la préproduction : la configuration de Traefik et de Dokploy est hors du
 poste.*
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : RSS relevé en préproduction (52 MiB au repos sous un conteneur de 256 Mo pour `memory_limit` 256M) ; `mem_limit` du worker relevé au-dessus de `memory_limit` plus la marge, calcul en commentaire de `compose.api.yml`. Prend effet au prochain déploiement.
 
 ### La sonde de santé et la preuve de déploiement du front ne passent jamais par l'API : un front qui ne la joint pas est déclaré sain, et le déploiement est vert
 - Réf : P44.01
-- Statut : retenu · à valider — V5 : la preuve vit dans `images.yml` et `smoke-web.sh`, et la place de la sonde est laissée au porteur ; porteur (2026-10-18) : traité hors agents, en session : une route du front qui joint l'API, lue par la preuve d'`images.yml` et par `smoke-web.sh` (étape « API injoignable »), hors du `HEALTHCHECK`
+- Statut : fait · TCK-948 — reste : le relevé de la preuve d'`images.yml` sur `/api/sante` au premier déploiement de `preview`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/src/app/robots.ts:32-45`, `.github/workflows/images.yml:185-189`, `takussan-web/docker/demarrer.mjs:17-48`, `takussan-web/src/lib/api.ts:19-27`, `takussan-web/src/lib/queries/public-discovery.ts:66-70`
 - Constat :
@@ -4794,10 +4803,11 @@ poste.*
   - La garder hors du `HEALTHCHECK` : sinon une panne de l'API arrêterait aussi le front. Ce choix revient au porteur.
   - Ajouter à `smoke-web.sh` une étape « `API_INTERNAL_URL` injoignable », qui doit faire rougir la preuve.
 - Mesure (2026-10-18, bc1f55227, mesureur) : relu `takussan-web/Dockerfile:39-40` (`HEALTHCHECK` sur `/robots.txt`), `robots.ts:34-46` (seule `origineSite()`, aucun appel d'API), `images.yml:185-189` (`attendre "$API_URL/up"` puis `attendre "$SITE_URL/robots.txt"`), `demarrer.mjs:17` (`API_URL`, `SITE_URL`, `MEDIA_URL`, forme seule, rien n'est joint), `api.ts:19-26` (`API_INTERNAL_URL` prise dès qu'elle est posée), `public-discovery.ts:66-70` (la panne rend `null`) ; `ls takussan-web/src/app/api` → aucune route de santé ; `git log -S` et `grep` des tickets → rien qui la traite ; le comportement API éteinte n'a pas été rejoué (la garde refuse le lancement du standalone), il reste celui de l'explorateur. Le constat tient tel qu'écrit. Classement : V5, la Piste passe par `.github/workflows/images.yml` et `deploy/takussan/smoke-web.sh`, et place la sonde hors du `HEALTHCHECK` par un choix que l'entrée renvoie elle-même au porteur.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : route `/api/sante` (200 si `/up` répond 200, 503 sinon, sans suivre les redirections, délai de 3 s), lue par la preuve d'`images.yml` et par `smoke-web.sh`, hors du `HEALTHCHECK`. `smoke-web.sh` mesuré par la session (sortie 0 : 200 avec l'API, 503 sans). Vérification adverse refusée puis corrigée (redirection et délai éprouvés contre un vrai serveur).
 
 ### Le serveur Next ferme ses connexions inactives au bout de 5 s, derrière un Traefik qui les garde plus longtemps : 502 intermittents possibles
 - Réf : P44.02
-- Statut : retenu · à valider — V5 : variable d'environnement de l'image ou réglage de Traefik ; porteur (2026-10-18) : traité hors agents, en session : `KEEP_ALIVE_TIMEOUT` au-dessus du délai d'inactivité de Traefik dans l'image, vérifié par `smoke-web.sh`
+- Statut : fait · TCK-949
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:31`, `takussan-web/node_modules/next/dist/server/lib/start-server.js:248-249`, `.next/standalone/server.js` (lecture de `KEEP_ALIVE_TIMEOUT`)
 - Constat :
@@ -4810,10 +4820,11 @@ poste.*
   - Poser `KEEP_ALIVE_TIMEOUT` au-dessus du délai d'inactivité de Traefik dans l'`ENV` du runtime, ou réduire `idleConnTimeout` côté Traefik.
   - Faire vérifier par `smoke-web.sh` l'en-tête `Keep-Alive: timeout=` de la réponse.
 - Mesure (2026-10-18, bc1f55227, mesureur) : relu `start-server.js:248-249` (`keepAliveTimeout` posé seulement s'il est fourni), le `server.js` standalone (`parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)`) et `Dockerfile:31` (pas de `KEEP_ALIVE_TIMEOUT`) ; `grep -rIn KEEP_ALIVE_TIMEOUT` hors `node_modules`, `.next`, `vendor` et ce fichier → rien ; `node -e` sous v24.18.0 → `keepAliveTimeout` 5000 ; `grep -rIn 'idleConnTimeout\|serversTransport' deploy` → rien. L'en-tête `Keep-Alive: timeout=5` n'a pas été re-mesuré (standalone non lancé), et le 502 reste non observé : la partie qui tient est l'écart de configuration, pas la panne. Classement : V5, le correctif est une variable d'environnement de l'image déployée ou un réglage de Traefik, à confronter à la valeur effective du serveur.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `ENV KEEP_ALIVE_TIMEOUT=100000` dans l'image (Traefik : 90 s par défaut) ; `smoke-web.sh` mesuré par la session : « Keep-Alive: timeout=100 » ; ablation : la même image à 5 000 ms annonce `timeout=5`, refusé.
 
 ### Petites améliorations
 - Réf : P44.03
-- Statut : retenu · à valider — V5 : sonde du conteneur déployé, et trois correctifs sans lien (V8) ; porteur (2026-10-18) : traité hors agents, en session : `poweredByHeader: false` et un `X-Request-Id` par requête ; la sonde sans Node, mesurée à part
+- Statut : fait · TCK-950 — reste : la sonde du conteneur sans Node, mesurée à part
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/next.config.ts`, `takussan-web/src/lib/api.ts`, `takussan-api/app/Http/Middleware/ShareRequestLogContext.php:25-29`
 - Constat :
@@ -4839,6 +4850,7 @@ les segments d'action dynamiques ont été dépliés à la main depuis leurs uni
 de réponse viennent d'un sous-agent (34 couples comparés) ; les deux constats retenus ont été
 relus par l'explorateur. Les champs écartés par `validated()` n'ont **pas** été relevés : le
 sous-agent chargé de cette partie a été arrêté avant son rapport, faute de budget.*
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `poweredByHeader: false` (mesuré : « aucun X-Powered-By » dans `smoke-web.sh`) et `X-Request-Id` tiré par requête côté serveur dans `apiRequest`, envoyé à l'API et écrit dans les `console.error`. Vérification adverse acceptée.
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
@@ -4871,7 +4883,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations : types de réponse faux sans lecteur, clé divergente sur une route sans appelant, commentaires de chemins périmés
 - Réf : P45.03
-- Statut : retenu · à valider — V8 : quatre correctifs sans lien, dont un choix entre unifier la clé et retirer la route ; porteur (2026-10-18) : traité hors agents, en session : types alignés sur la réponse réelle, retrait de `GET /api/dashboard/stats` s'il reste sans appelant, docblock corrigé
+- Statut : fait · TCK-952
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations.ts:481-482`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:81-82`, `takussan-web/src/lib/queries/super-admin.ts:542-552`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:104-107`, `takussan-api/app/Http/Controllers/Api/DashboardController.php:82-134`, `takussan-web/src/app/(dashboard)/layout.tsx:17-20`
 - Constat :
@@ -4888,10 +4900,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 *Exploré le 2026-10-18 sur `pre-dev` 1011b4c6f, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Les routes viennent de `php artisan route:list`. Les comportements viennent d'un test temporaire (`tests/Feature/TmpAngle46/SondeAngle46Test.php`, base de test PostgreSQL, charge 4,74 sur 8 cœurs), retiré avant la fin. Les effets en aval (tableaux de bord, relevés) sont lus, pas exécutés.*
 
 *Ce qui a été confronté : `POST /api/payments` (`PaymentController::store`) contre `POST /api/leases/{id}/payments`, `POST /api/lease-payments/{id}/mark-paid`, `POST /api/bookings/{id}/payments` et `POST /api/leases/{id}/deposit-refund`. Depuis TCK-681, le front n'appelle plus aucune des deux voies de création d'échéance : il règle par `mark-paid`. Les deux créations n'ont donc que des appelants d'API. `POST /api/payments` n'a toujours aucun appelant (voir P13.05, dont le correctif a gardé la route).*
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : types alignés sur la réponse réelle (prouvé par exécution après la vérification adverse : `PATCH …/participants` rendait des `{}`, corrigé par `resolve()`), `GET /api/dashboard/stats` retiré faute d'appelant, docblock corrigé ; TCK-619 mis à jour.
 
 ### `POST /api/payments` laisse un agent sans `payments.record` et un bailleur suspendu enregistrer un loyer payé
 - Réf : P46.01
-- Statut : retenu · à valider — V2 : autorisation de `POST /api/payments`, à fermer par retrait de la route ou par délégation aux policies ; porteur (2026-10-18) : traité hors agents, en session : retrait de `POST /api/payments`, qui n'a aucun appelant, et de son test ; ferme aussi P46.02 et P46.03
+- Statut : fait · TCK-940
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73,86-91,388-421`, `takussan-api/app/Policies/LeasePolicy.php:116-127`, `takussan-api/app/Policies/BasePolicy.php:131-140`, `takussan-api/app/Services/Booking/BookingMoneyAccess.php:29-75`
 - Constat :
@@ -4906,10 +4919,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - à défaut, faire juger ses deux branches par `can('recordPayment', $lease)` et par `BookingMoneyAccess::canRecordAsCollector`.
   - Garde : ajouter la ligne `payments.record — /api/payments` au fournisseur de `BranchedCapabilitiesTest`, et un cas « bailleur suspendu » sur les deux branches.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `PaymentController.php:73-91` et `:388-421`, inchangés depuis 1011b4c6f (`git log 1011b4c6f..HEAD -- takussan-api/app` vide), et `LeasePolicy::recordPayment` (`:116-127`, `landlordWrites` puis `payments.record`) ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : agent au rôle système moins `payments.record` → 403 sur `POST /api/leases/{id}/payments`, **201 `paid`** sur `POST /api/payments` ; bailleur à `OwnerProfile` `blocked` → 403 sur la voie imbriquée du bail et de la réservation, **201 `paid`** sur `/api/payments` pour les deux branches. Le constat tient en entier. Classement : V2 et V1, une autorisation et l'écriture d'un loyer payé ; le choix entre retirer la route et déléguer ses branches revient au porteur.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : `POST /api/payments` retiré (aucun appelant), avec `PaymentStoreRequest`, `PaymentRegistrationTest` et deux exemptions mortes de `check-controller-authorization.mjs` ; ferme P46.02 et P46.03. TCK-607 et TCK-608 mis à jour. Vérification adverse : retrait accepté.
 
 ### `POST /api/payments` écrit une restitution de caution payée sans reversement, que les tableaux de bord déduisent des cautions détenues
 - Réf : P46.02
-- Statut : retenu · à valider — V1 : restitution de caution payée écrite hors reversement ; porteur (2026-10-18) : traité hors agents, en session : fermée par le retrait de `POST /api/payments` (P46.01)
+- Statut : fait · TCK-940
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/PaymentStoreRequest.php:30,44`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:86-91`, `takussan-api/app/Services/Model/LeasePaymentService.php:51-58`, `takussan-api/app/Services/Lease/DepositRefundService.php:85-100`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:281-293`, `takussan-api/app/Services/Reporting/AgingBalanceService.php:103-112`
 - Constat :
@@ -4924,10 +4938,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - à défaut, refuser `deposit_refund` et les statuts autres que `pending`/`paid` à la création, comme `mark-paid` les refuse.
   - Garde : un test « restitution payée sans reversement » refusée sur toute voie de création.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `PaymentStoreRequest.php:30` (`status` tout sauf `cancelled`) et `PaymentController.php:86-91` ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : le bailleur poste `payment_type=deposit_refund`, `status=paid` → **201 `paid`**, 0 `payouts` créé, `deposit_refunded_amount` du bail reste `NULL` ; `status=refunded` → 201 `refunded`. L'effet sur `depositsHeld` est lu, non rendu. Classement : V1, écriture d'une restitution de caution et calcul des cautions détenues.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : fermée par le retrait de `POST /api/payments` (P46.01).
 
 ### Un loyer payé par `POST /api/payments` ne prévient personne et contourne les gardes de `mark-paid`
 - Réf : P46.03
-- Statut : retenu · à valider — V1 : règlement d'un loyer hors des gardes de `mark-paid` ; porteur (2026-10-18) : traité hors agents, en session : fermée par le retrait de `POST /api/payments` (P46.01)
+- Statut : fait · TCK-940
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73-98`, `takussan-api/app/Services/Model/LeasePaymentService.php:23-35,40-118`
 - Constat :
@@ -4940,6 +4955,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - le retrait de la route ferme le cas ;
   - à défaut, n'accepter que `pending` à la création, pour tout le monde, comme la voie imbriquée depuis TCK-681 : un loyer reçu se règle par `mark-paid`.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `LeasePaymentService.php:23-35` (`create`, sans verrou ni notification) contre `:40-118` (`markPaid`) ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : `POST /api/payments` `status=paid` par le bailleur → 201, 0 ligne ajoutée à `app_notifications` ; `mark-paid` d'une échéance `pending` du même bail → 200, 2 lignes. Le doublon de période dans les relevés n'a pas été mesuré. Classement : V1, règlement d'un loyer ; n'accepter que `pending` change ce que le personnel peut déclarer aujourd'hui.
+- Mesure (2026-10-18, ab982dbcc, humain) : fait en session : fermée par le retrait de `POST /api/payments` (P46.01).
 
 ### Une seule ligne de paiement avant l'activation supprime tout l'échéancier, et le locataire peut la poser
 - Réf : P46.04
