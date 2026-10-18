@@ -55,7 +55,9 @@ jamais deux pistes à moitié.
    - **le lot est petit en taille, pas seulement en nombre** : une piste estimée M compte double,
      et le lot s'arrête là où il dépasserait l'équivalent de 4 S. Dans le doute, un lot plus court.
 
-   **Une entrée `validé` porte la décision du porteur.**
+   **Une entrée `validé` porte la décision du porteur.** `validé (délégué) — …` aussi : le délégué
+   l'a prise en son nom (amendement d'ADR-0066 du 2026-10-18), et tout ce qui suit s'y applique de
+   même. Recopie-la dans le ticket sous « Décision du porteur (déléguée) ».
    - **Le critère V que cite le dernier classement de l'entrée est accordé.** C'est pour lui
      qu'elle a été soumise au porteur : il ne justifie plus de reclassement.
    - **La précision après `validé — …` fait foi.** Elle tranche le choix que le critère réservait
