@@ -1,7 +1,7 @@
 ---
 id: TCK-891
 title: "`transaction_id` des échéances et des paiements de réservation porte un index"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -53,13 +53,13 @@ Un webhook de paiement retrouve son échéance ou son acompte sans relire toute 
 
 ## Delta à produire
 
-- [ ] Migration `2026_10_18_080000_index_payments_on_transaction_id`.
-- [ ] Test : `tests/Feature/Database/PaymentTransactionIdIndexTest.php`.
+- [x] Migration `2026_10_18_080000_index_payments_on_transaction_id`.
+- [x] Test : `tests/Feature/Database/PaymentTransactionIdIndexTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Les deux index existent, sur la seule colonne `transaction_id`.
-- [ ] AC2 — La recherche d'un payable par `transaction_id` emprunte l'index (`EXPLAIN`, balayage
+- [x] AC1 — Les deux index existent, sur la seule colonne `transaction_id`.
+- [x] AC2 — La recherche d'un payable par `transaction_id` emprunte l'index (`EXPLAIN`, balayage
   séquentiel interdit, table de test minuscule).
 
 ## Hypothèses
@@ -72,3 +72,8 @@ Un webhook de paiement retrouve son échéance ou son acompte sans relire toute 
 - Le repli `whereJsonContains('metadata->gateway->transactions', …)`, qu'un index B-tree ne sert pas.
 
 ## Notes d'implémentation
+
+- Ablation : migration retirée de `database/migrations/` → 4 rouges (index absents, `EXPLAIN` sans
+  index) ; remise → 4 verts.
+- Le `down()` n'est joué par aucun test ici ; le job `migrations-pgsql` de la CI le rejoue (migration
+  au-dessus de la borne TCK-278).
