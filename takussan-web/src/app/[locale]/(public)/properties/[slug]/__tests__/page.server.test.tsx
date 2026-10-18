@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import type { PropertyDetail } from '@/types/property';
 import type { EtatPublicDuBien, ResultatFichePublique } from '@/lib/queries/public-property';
 
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { LOCALES_INDEXABLES } from '@/i18n/routing';
 
 import Page, { generateMetadata } from '../page';
@@ -246,7 +246,7 @@ describe('fiche de bien — rendu serveur', () => {
    * `page.tsx` ne faisait rougir personne — les deux extrémités de la chaîne étaient tenues, le
    * maillon central non.
    *
-   * ⚠ Rien n'est écrit en dur ici : l'origine vient de `ORIGINE_SITE`, la langue de la locale que
+   * ⚠ Rien n'est écrit en dur ici : l'origine vient de `origineSite()`, la langue de la locale que
    * `getLocale` sert au-dessus, le slug de `params()`, et l'ensemble des `hreflang` de
    * `LOCALES_INDEXABLES`. Une valeur recopiée serait vraie le jour où on l'écrit.
    */
@@ -258,7 +258,7 @@ describe('fiche de bien — rendu serveur', () => {
     const alternates = meta.alternates;
 
     expect(alternates, 'la page ne déclare AUCUN alternates : ni canonique, ni hreflang').toBeDefined();
-    expect(alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties/${slug}`);
+    expect(alternates!.canonical).toBe(`${origineSite()}/fr/properties/${slug}`);
 
     const languages = alternates!.languages ?? {};
     // Plancher de non-vacuité DÉRIVÉ : les langues indexables, plus `x-default`.
@@ -266,7 +266,7 @@ describe('fiche de bien — rendu serveur', () => {
       [...LOCALES_INDEXABLES, 'x-default'].sort(),
     );
     for (const locale of LOCALES_INDEXABLES) {
-      expect(languages[locale]).toBe(`${ORIGINE_SITE}/${locale}/properties/${slug}`);
+      expect(languages[locale]).toBe(`${origineSite()}/${locale}/properties/${slug}`);
     }
   });
   /*

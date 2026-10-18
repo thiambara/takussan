@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
+import { origineApi } from '@/lib/config-publique';
 
 
 /**
@@ -10,9 +11,6 @@ import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
  * Forwards the GET (with query string for spatie/laravel-query-builder)
  * to the Laravel backend with the user's bearer token.
  */
-
-const API_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
 type Params = Promise<{ id: string }>;
 
@@ -32,7 +30,7 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
 
   const search = req.nextUrl.search ?? '';
   const upstream = await fetch(
-    `${API_URL}/api/me/owner-profiles/${id}/properties${search}`,
+    `${origineApi()}/api/me/owner-profiles/${id}/properties${search}`,
     {
       method: 'GET',
       headers: {

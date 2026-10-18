@@ -3109,7 +3109,7 @@ sont pas reprises.*
 
 ### Un même achat de boost rejoué est débité deux fois : deux badges identiques coûtent 20 crédits pour un seul badge
 - Réf : P24.01
-- Statut : validé — en-tête Idempotency-Key généré à l'ouverture du dialogue, unique par espace sur 24 h, rejoué en 200 avec le boost déjà écrit
+- Statut : fait · TCK-822
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:32-41`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:112-185`, `takussan-web/src/components/boost/BoostDialog.tsx:66-77,143`
 - Constat :
@@ -3120,6 +3120,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : une clé d'idempotence par ouverture du dialogue (`Idempotency-Key` ou champ `request_id`, unique par espace sur une courte fenêtre), rejouée en 200 avec le boost déjà écrit. Garde : un test qui rejoue la même clé et constate un seul débit.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` et `badge()` (aucune clé d'idempotence, `debit()` à chaque appel) ; aucun ticket ne la prévoit (`grep -il idempoten` dans `docs/backlog/tickets` croisé avec « boost » → seul TCK-633, sur l'espace automatique) ; test temporaire, retiré depuis : deux `POST /api/properties/{id}/boosts` du premier badge (10 crédits), à 30 s d'écart → 201 et 201, solde 500 → 480, lignes `ended` puis `active`. La Vedette rejouée n'est pas remesurée. Classement : V1, le correctif touche l'écriture d'un débit de crédits et ajoute une clé au contrat de l'achat, dont la forme et la fenêtre sont à choisir.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `BoostPurchaseIdempotencyTest` rejoue un badge avec la même `Idempotency-Key` à 30 s d'écart → 201 au lieu de 200, et une Vedette rejouée → 201 (deux débits) ; après, 201 puis 200 avec le même boost, un seul débit, la Vedette ni débitée ni prolongée deux fois, la même clé pour une autre offre ou un autre bien → 422 `boost.idempotency_key_reused`, et après 25 h un nouvel achat. Ablation (rejeu court-circuité) : 4 rouges sur 6 ; front, sans l'en-tête ou sans clé neuve à la réouverture, `api.test.ts` et `BoostDialog.test.tsx` rougissent.
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
@@ -3150,7 +3151,7 @@ sont pas reprises.*
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04
-- Statut : validé — contrôles « bien public » et « offre active » déplacés sous le verrou, sur la ligne verrouillée ; 422 sans débit
+- Statut : fait · TCK-823
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:30-48,63-77,79-110`
 - Constat :
@@ -3160,10 +3161,11 @@ sont pas reprises.*
   - Établi comment : lu.
 - Piste : déplacer les deux contrôles sous le verrou, sur la ligne verrouillée (`Property::query()->public()->whereKey(…)` après `lock()`). Garde : un test qui dépublie le bien par `DB::beforeExecuting` entre le contrôle et le verrou, et attend 422 sans débit.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` : `abort_code_unless($product->is_active, …)` et `assertBoostable()` avant `DB::transaction` et `lock()`, rien de re-vérifié sous le verrou ; le point « à vérifier » l'est par test temporaire, retiré depuis : `DB::beforeExecuting` passe le bien à `rented` juste avant le `FOR UPDATE` sur `agencies` → `POST` d'une Vedette 7 jours 201, boost `active`, solde 500 → 480, bien `rented`. Classement : V1, le correctif touche le chemin qui débite les crédits, et le doute entre A1 et V1 classe à valider.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `BoostPurchaseUnderLockTest` passe le bien à `rented` (puis l'offre à inactive) par `DB::beforeExecuting` juste avant le `FOR UPDATE` sur `agencies` → 201 et débit dans les deux cas ; après, 422 `boost.property_not_public` et `boost.product_inactive`, solde 500 inchangé, aucune ligne de boost, et l'achat sans changement reste 201. Ablation (service d'avant) : les 2 cas rougissent ; remis, verts, avec les 94 tests de `tests/Feature/Boost`.
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : validé — rembourser d'abord les jours les plus tardifs, au prix de la tranche qui les a achetés
+- Statut : retenu · à valider — V4 : les tranches d'une Vedette prolongée ne sont écrites nulle part (ni durée ni offre par prolongation, aucun mouvement pour une tranche offerte) ; rembourser par tranche exige une table ou une colonne neuve, migration de schéma autre qu'un index, critère distinct de V1 accordé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3174,10 +3176,11 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
+- Mesure (2026-10-17, 464374510, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours `price_credits` et `duration_days` sur la ligne en place, `BoostLifecycle::refundableCredits()` rend `intdiv(price_credits × jours pleins, duration_days)`). Mais rien ne garde les tranches : `property_boosts` n'a qu'un `price_credits`, un `duration_days` et un `boost_product_id` (celui de la première tranche, lu `2026_10_12_500100_create_boost_tables.php:31-57`) ; `credit_movements` n'a ni durée ni offre (lu `2026_10_12_500200_create_credit_ledger_tables.php:38-50`), et une tranche offerte n'écrit aucun mouvement (`debit()` ne fait rien à prix 0, lu `BoostPurchaseService.php:187-191`). Les jours de chaque tranche ne se reconstruisent donc pas : la correction validée demande une table ou une colonne neuve, et la reprise des Vedettes déjà prolongées. Rien n'est implémenté. Classement : V4.
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : validé — selon la piste
+- Statut : fait · TCK-826 — reste : le message du délai de Remontée (`:hours` et date formatée), que la parité des placeholders oblige à porter aussi dans le texte `wo` existant, en pause
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3186,6 +3189,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `lang/{fr,en,wo}/errors.php:93` (« 24 heures » en dur dans les trois langues), `BoostPurchaseService.php:80-89` (délai = `bumpCooldownHours()`, `available_at` en `toIso8601String()`), `grep -rn bump_cooldown takussan-web/src` → seules des clés `bump_cooldown_hours` du réglage dans `messages/*.json`, aucune pour le code d'erreur ; `CreditLedger.php:218-229` (`applyRefund` passe par `grant()` avec l'expiration du lot d'origine, sans `expiry_notice_sent_at`) et `CreditExpiryNotifier.php:27,35` (sélectionne les lots `whereNull('expiry_notice_sent_at')`). Lignes à peine décalées, les deux défauts tiennent ; le second préavis se lit au code, il n'a pas été rejoué. Classement : V1, la piste touche l'écriture d'un lot de crédits remboursés, et le message demande un texte neuf dans trois langues (V7).
+- Mesure (2026-10-17, 464374510, implementeur) : préavis reproduit avant correctif par `RefundLotExpiryNoticeTest` (lot de bienvenue à J+20, Vedette 15 jours à J+10, préavis à J+14, bien loué) → le lot `refund` naît sans `expiry_notice_sent_at` et le passage suivant envoie un second préavis (`1` au lieu de `0`) ; correctif : `CreditLedger::applyRefund()` reporte l'`expiry_notice_sent_at` du lot d'origine sur le lot remboursé → 2/2 verts, 127 verts sur `tests/Feature/Boost` et `tests/Feature/Credits` ; ablation (`applyRefund()` d'origine) → le même rouge, le témoin « lot d'origine pas encore prévenu » reste vert. Message du délai de Remontée non fait : `LangGroupParityTest` exige les mêmes placeholders en `fr`, `en` et `wo`, et `:hours` réécrirait le texte `wo` existant (`lang/wo/errors.php:93`), en pause.
 
 ## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
 
@@ -3262,7 +3266,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : validé — à égalité entre deux encaissements, aucune suggestion
+- Statut : fait · TCK-827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3272,10 +3276,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:144-176` (ambiguïté jugée seulement `if ($bestScore === 60)`, `>` strict à `:149`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, deux loyers de 150 000 de deux baux de la même agence payés le même jour, crédit de 150 000 à J+1 → `LeasePayment conf=70` (le premier), à J+5 → `null`. Classement : V7, étendre l'ambiguïté aux paliers 70 et 80 change ce que voit l'agence (suggestion retirée, à apparier à la main), et la règle de départage (ambiguïté ou critère de plus) est un choix de produit.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationAmbiguityTest` → deux loyers de 150 000 à égalité rendent une suggestion au premier candidat aux paliers 70 (même jour, crédit à J+1), 80 (même payeur, crédit à J+5) et 95 (même référence) : 3 rouges ; correctif : `scoreCandidates()` compte les candidats au meilleur score et ne suggère rien à partir de deux → 4/4 verts, 117 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation (`scoreCandidates()` d'origine) → les 3 mêmes rouges, le témoin « un seul au meilleur score, un autre à 60 » reste vert.
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : validé — le montant attendu inclut la pénalité réglée le même jour ; reste : rendre rapprochable une pénalité réglée seule
+- Statut : fait · TCK-833 — reste : rendre rapprochable une pénalité réglée seule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3286,10 +3291,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `LateFeeSettlement.php:47-56` (pose `late_fee_paid_at` et `late_fee_payment_method`, rien d'autre) et `ReconciliationManager.php:123-134` (un-pour-un) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence sans encaissement en ligne de la pénalité, loyer puis pénalité marqués réglés par virement → crédit de 157 500 : `null` ; crédit de 7 500 : `null` ; témoin à 150 000 : `LeasePayment conf=70`. Classement : V1, la piste elle-même demande un choix de modèle comptable (montant attendu pénalité comprise, ou pénalité rapprochable seule).
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `ReconciliationLateFeeSameDayTest` avant correctif (load 9,63/9,49/7,07 sur 8 cœurs) : loyer de 150 000 payé par virement et pénalité de 7 500 réglée le même jour → crédit de 157 500 `unmatched` ; `LeasePayment::scopeWhereExpectedAmountNear()` ajoute hors ligne `late_fee_amount` quand `late_fee_paid_at` et `paid_at` tombent le même jour → `suggested` sur l'échéance, et la recherche manuelle à 157 500 la rend ; témoins verts (pénalité un autre jour : `unmatched` ; sans pénalité : 150 000 suggéré). Ablation : branche hors ligne ramenée à `amount`, le cas du même jour rougit, remis vert ; `BankReconciliationTest` et `PaymentSearchTest` verts (29 tests).
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : validé — journaliser le statut et l'écart de montant à la confirmation ; reste : les autres points, un par un
+- Statut : fait · TCK-828 — reste : les autres points, un par un
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3300,6 +3306,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationConfirmationAuditTest` → une ligne de 7 500 se confirme sur une échéance `pending` de 150 000 et l'activité `matched` ne porte ni statut ni montant (3 rouges, clé `payment_status` absente) ; correctif : `payment_status`, `expected_amount` et `amount_gap` ajoutés à l'activité, montant attendu d'une échéance par `LeasePayment::expectedBankAmount()` (la règle du scope de TCK-715) → 3/3 verts, 120 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation : `confirmMatch()` d'origine → 3 rouges, `expectedBankAmount()` réduit à `amount` → 1 rouge (échéance soldée en ligne, écart de 7 500). Comportement inchangé : aucun refus ajouté.
 
 ## Angle 26 — PDF : quittances, contrats, factures
 
@@ -3345,7 +3352,7 @@ forcée »).*
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
-- Statut : validé — « du … au … » dès que la période dépasse un mois, après la fusion de #453
+- Statut : fait · TCK-834
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
 - Constat :
@@ -3355,10 +3362,11 @@ forcée »).*
   - La base de dev porte 4 baux trimestriels et 4 annuels (mesuré).
 - Piste : imprimer « du … au … » à partir de `period_start` et `period_end` dès que la période dépasse un mois. Le test de quittance porte une échéance trimestrielle.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `rent.blade.php:10-13,53-57` (période = `period_start->translatedFormat('F Y')`) ; `grep -rn period_end resources/views/pdf` → seul `statements/owner.blade.php:19` ; `SELECT` sur `lease_payments` `rent` → 0 échéance sur 3 368 de plus de 32 jours, et `leases` : 4 `quarterly`, 4 `yearly`, 568 `monthly` ; `tinker` en lecture, rendu de `pdf.receipts.rent` avec une échéance non enregistrée du 2027-01-01 au 2027-03-31 → « Période January 2027 ». Le défaut ne se voit qu'une fois la PR #453 fusionnée : aujourd'hui aucune échéance ne couvre plus d'un mois. Classement : V7, la forme de la période imprimée sur une attestation de paiement est un texte d'acte neuf, et dépend de P04.01, encore ouverte.
+- Mesure (2026-10-18, b9850853, implementeur) : #453 (P04.01) fusionnée le 2026-10-16 ; reproduit par `QuittancePeriodeTest` avant correctif : échéance du 2027-01-01 au 2027-03-31 → « Janvier 2027 », sans « du … au … ». `rent.blade.php` imprime « du 1 janvier 2027 au 31 mars 2027 » quand `period_end` dépasse `period_start + 1 mois − 1 jour` ; une échéance d'un mois, même du 15 au 14, garde « Octobre 2026 ». Ablation : condition à `false`, les cas trimestriel et annuel rougissent, remis verts ; tests voisins des quittances verts (28 tests).
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
-- Statut : validé — un bouton de téléchargement du PDF dans `InvoiceDetailDialog`
+- Statut : fait · TCK-837
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
 - Constat :
@@ -3369,10 +3377,11 @@ forcée »).*
   - Établi comment : lu et mesuré par recherche.
 - Piste : un bouton de téléchargement dans `InvoiceDetailDialog`, par `BoutonTelechargement` comme la quittance. Un test du composant qui vérifie le chemin `/api/invoices/{id}/pdf`.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `routes/api/invoices.php:16-17` (route `invoices.pdf` présente) ; `grep -rn "invoices/" takussan-web/src` → détail, envoi, paiement, annulation seulement (`lib/queries/payments.ts:167-212`) ; `grep -n -i 'pdf|telecharg|download' InvoiceDetailDialog.tsx` → rien ; `grep -rn 'attachData|->attach(|Attachment::' app` → une seule ligne, un `attach()` de relation (`PropertyConversationResolver.php:92`) ; `docs/features.md:367` et `:598` promettent le PDF des factures, et `TCK-063` (done) laisse non cochée « bouton télécharger PDF si dispo » (`:62`). Classement : V7, un comportement visible neuf, même attendu par un ticket : son emplacement et son public (qui voit la modale, qui passe `InvoicePolicy::view`) restent à décider.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `grep -rn "invoices/" takussan-web/src` → aucun appelant de `/pdf`, et `InvoiceDetailDialog.pdf.test.tsx` rougit (aucun bouton « PDF de la facture ») ; `InvoiceDetailDialog` porte un `BoutonTelechargement` vers `/api/invoices/{id}/pdf` (`facture-…pdf`, `avoir-…pdf` pour un avoir), la route passant par la même `InvoicePolicy::view` que le détail → 2 verts ; ablation du composant → 2 rouges.
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
-- Statut : validé — désignation prise dans l'objet facturé (`invoiceable`), repli sur une clé `metadata`
+- Statut : fait · TCK-835 — reste : une désignation propre à chaque créateur (indemnité de résiliation, retenue sur caution) quand l'objet facturé est un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
 - Constat :
@@ -3381,10 +3390,11 @@ forcée »).*
   - La table `invoices` n'a ni lignes ni désignation (migration lue) : seule la note dit l'objet.
 - Piste : à défaut de lignes, prendre la désignation dans l'objet facturé (`invoiceable`) ou dans une clé de `metadata` posée par le créateur, au lieu de « Prestation ». Un test par créateur qui lise la désignation rendue.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `DocumentPdfController.php:64-80` (aucun `lines` passé), `default.blade.php:10-15` (repli « Prestation × 1 »), `EarlyTerminationService.php:338-356` et `DepositRefundService.php:105-124` (objet porté par `notes` seulement) ; colonnes d'`invoices` lues par `Schema::getColumnListing` en `tinker` → ni lignes ni désignation (`notes`, `metadata` seuls) ; rendu de P26.02 → « Prestation 1 100 025 F CFA ». Classement : V7, la piste laisse le choix entre `invoiceable` et une clé de `metadata`, et le libellé imprimé sur une facture est un texte métier.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `FactureDesignationTest` avant correctif : factures sur un bail, sur une réservation, et sans objet avec `metadata.designation` → toutes « Prestation ». `Invoice::designation()` (objet facturé, même supprimé, puis `metadata.designation`) alimente la ligne par défaut du gabarit : « Bail LS-2027-0042 — Villa Almadies », « Réservation BK-0007 — Studio Plateau », « Frais de dossier » ; sans l'un ni l'autre, « Prestation ». Ablation : ligne ramenée à « Prestation », 4 cas sur 5 rougissent, remis verts ; `InvoicePdfTest` et `InvoiceLegalMentionsTest` verts. L'indemnité de résiliation et la retenue sur caution, émises sur le bail, impriment « Bail … » : leur libellé propre reste en `notes`.
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
-- Statut : validé — nombres et dates au format français ; reste : libellés des enums (après P06.03) et montant par échéance au contrat
+- Statut : fait · TCK-836 — reste : libellés des enums (après P06.03) et montant par échéance au contrat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
 - Constat :
@@ -3395,6 +3405,7 @@ forcée »).*
   - **Nom de fichier** : un avoir se télécharge en `facture-….pdf` (lu).
 - Piste : des libellés pour les enums imprimés (par la décision de P06.03 sur la langue), `number_format` à la française, des dates formatées, et le montant par échéance au contrat. À trier ligne par ligne.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : rendus de P26.01 et P26.02 → « Méthode bank_transfer », « Statut sent » ; `PaymentReceiptPdf.php:54` passe `payment_type?->value` brut au reçu de réservation (`booking.blade.php:48`) ; `tinker` : `rtrim(rtrim(number_format(18.5, 2), '0'), '.')` → « 18.5 » ; `owner.blade.php:19` imprime `period_start` et `period_end`, posés par `toDateString()` (`OwnerStatementService.php:68`) ; `contract.blade.php:90-107` : « Loyer mensuel » toujours, prix de vente à côté pour un `sale` ; `DocumentPdfController.php:78` : `facture-…` pour un avoir. Les cinq parties tiennent. Classement : V7, chaque partie est un texte d'acte neuf, et la piste les renvoie elle-même à la décision de P06.03 et à un tri ligne par ligne.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `GabaritsPdfFormatFrancaisTest` avant correctif : taux de 18,5 % → « TVA (18.5%) » ; relevé d'octobre 2026 → « 2026-10-01 — 2026-10-31 » et reversement « 2026-10-15 ». Taux par `number_format(…, 2, ',', ' ')` → « TVA (18,5%) » (18 % reste « TVA (18%) ») ; période et reversements du relevé en `d/m/Y` → « 01/10/2026 — 31/10/2026 », « 15/10/2026 ». Ablation : gabarits rendus à `pre-dev`, les cas du taux décimal et du relevé rougissent, remis verts ; tests voisins des PDF verts. Le nom de fichier `facture-…` d'un avoir, ni nombre ni date, n'est pas touché.
 
 ## Angle 27 — Routeur SMS : double envoi sur un timeout suivi d'un repli
 
@@ -3916,7 +3927,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Le sitemap est figé au build, et le premier build de production se fait sans API
 - Réf : P34.02
-- Statut : validé — sitemap rendu à la demande avec un cache de données d'une heure, et non plus prérendu au build ; reste : compter ses `<loc>` en F3 avant la soumission, hors agents dans le plan
+- Statut : fait · TCK-831
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
 - Constat :
@@ -3927,6 +3938,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 - Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
 - Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
 - Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 3 point 6 compte les `<loc>` contre `meta.total` de la liste publique avant toute soumission, et F2 étape 1 exige que la piste soit fusionnée avant le build `:prod`.
+- Mesure (2026-10-18, 92d8361e, humain) : fait avec l'étape 2 d'ADR-0069 (TCK-831), qui l'exigeait : l'origine du site se lit désormais à l'exécution. `sitemap.ts` et `robots.ts` sont en `dynamic = 'force-dynamic'`, et les appels du sitemap portent `next: { revalidate: 3600 }` (`FRAICHEUR_SITEMAP`, `sitemap-catalogue.ts` et `listerProfilsPublics` en mode partagé ; `facettes.ts` l'avait déjà). Build sans `NEXT_PUBLIC_*` : `prerender-manifest.json` ne prérend plus que `/_global-error`, `/apple-icon.png`, `/favicon.ico`, `/icon.svg`, `/manifest.webmanifest` ; `/robots.txt` et `/sitemap.xml` sont `ƒ` (mesuré). `force-dynamic` ne prive pas ces appels du cache : Next ne force `no-store` que sur un `fetch` sans réglage (`patch-fetch.js`, `noFetchConfigAndForceDynamic`, lu). Le comptage des `<loc>` reste en F3.
 
 ### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
 - Réf : P34.03
@@ -3979,7 +3991,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
 - Réf : P35.01
-- Statut : validé — maillon de quartier cliquable vers sa canonique quand le quartier est dans le domaine indexable de sa ville, libellé sinon ; docblock et test du fil réécrits
+- Statut : fait · TCK-839
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
 - Constat :
@@ -3991,6 +4003,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture et `grep` ; le rendu HTTP d'une fiche du quartier n'a pas été rejoué.
 - Piste : rendre le maillon de quartier cliquable vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est dans le domaine indexable de sa ville, et le laisser en libellé sinon. Le fil doit alors recevoir le domaine des quartiers, que la fiche ne charge pas aujourd'hui. Corriger le docblock, et faire passer le test de « jamais `location=` » à « `location=` seulement si le quartier est indexable, et l'`item` est alors canonique de lui-même ».
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:42-64,86-89` (quartier sans `href`, docblock motivé par l'exclusion de `location`) contre `canonique.ts:270` (`CLES_CANONIQUES` porte `location`) et `canonique.ts:305-307,341-345` (quartier retenu s'il est dans le domaine de sa ville) ; `sitemap.ts:96-120` annonce ces quartiers et `construireSitemap` (`lib/sitemap.ts:306-319`) ne dédoublonne rien ; `grep -rn "location=" src` hors tests → docblocks, `canonique.ts`, `facettes.ts`, `lib/sitemap.ts` et seule `rechercheDuQuartier` de `bien-retire.tsx:32-38` ; `npx vitest run src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` → 10 verts, dont celui qui fige `not.toContain('location=')` ; aucun commit ni ticket ouvert ne l'a traité → le constat tient ; le compte de 20 quartiers indexables n'a pas été repris. Classement : V7, rendre le maillon cliquable renverse une décision de produit écrite le 2026-08-28 et ajoute à la fiche le chargement du domaine des quartiers ; seule la correction du docblock relèverait d'A6.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `fil-d-ariane.ts` pose le quartier sans `href` et `jsonld-fil-d-ariane.test.tsx` fige `not.toContain('location=')` (relu) ; les trois tests neufs rougissent (`hrefDuQuartier` absent). `hrefDuQuartier` (module serveur `fil-d-ariane-quartier.ts`, pour garder zod hors du graphe client de la fiche) rend `cheminCanoniqueDeLaListe({ city, location })` si la canonique retient le quartier, et la page le passe au fil affiché et au `BreadcrumbList` → quartier indexable lié vers `/fr/properties?city=Dakar&location=Ngor` (canonique de lui-même, graphie du catalogue), hors domaine ou domaine `null` : libellé ; 11 verts, et 363 verts sur le fil, `(public)`, `alternates` et `canonique` ; ablation du `href` → 1 rouge, du filtre → 2 rouges.
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
@@ -4007,7 +4020,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
-- Statut : validé — palier 1 : le nombre de biens du lieu dans la description ; reste : le palier 2 (colonne de présentation), plus tard
+- Statut : fait · TCK-841 — reste : le palier 2 (colonne de présentation), plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
 - Constat :
@@ -4017,6 +4030,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture. L'effet sur l'indexation (pages jugées en double) n'est pas mesurable sur le poste.
 - Piste : deux paliers. Sans texte neuf rédigé à la main : glisser le compte dans la description (« 198 biens à Dakar… »), en le prenant au domaine déjà en cache. Avec texte rédigé : une colonne de présentation par ville et par quartier, saisie depuis la console du référentiel et traduite en `fr`/`en`, rendue sous le `<h1>`. Le second palier demande une migration et un texte métier neuf.
 - Mesure (2026-10-17, c9ee68400, mesureur) : `node -e` sur `messages/fr.json` → `meta.propertiesFiltered` ne porte que `titleContract`, `titleCity`, `titleQuarter`, `subjectAny` et `description`, gabarits sans compte ; `titre-de-la-liste.ts` les compose par le seul nom du lieu ; seule la migration `2026_10_12_400000` crée ou modifie les tables `geo_*`, sans colonne de texte → le constat tient. Classement : V7, le premier palier est déjà un texte de description neuf, et V4, le second demande une migration et un texte métier rédigé.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `meta.propertiesFiltered` sans compte (relu) et les tests neufs de `titre-de-la-liste.test.ts`, `facettes.test.ts` et `metadata.test.ts` rougissent (`compteDuLieu` absent, description sans chiffre) → `compteDuLieu` lit le compte au domaine en cache (mêmes URL que `villesAvecComptes` et `quartiersDeLaVille`), et la description d'une page de lieu passe par `descriptionWithCount` : « Villa à louer à Dakar sur Takussan, parmi 198 biens publiés à Dakar : … », « … 4 biens publiés à Ngor, Dakar … », sans compte la description d'avant ; 297 verts sur `(public)` et les deux modules ; ablation de la page → 1 rouge, de la branche du compte → 4 rouges. En `wo`, la clé neuve porte le texte français.
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
@@ -4205,7 +4219,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : validé — le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+- Statut : fait · TCK-838 — reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :
@@ -4216,6 +4230,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - D-71 dit l'effet en général (« les limiteurs par visiteur sont partagés »). Ce constat nomme les trois formulaires touchés et leurs bornes. Pour la production, voir P34.04.
 - Piste : mesurer en préproduction (`RateLimiter::attempts` de la clé, ADR-0052 § 6) ; puis poser `API_INTERNAL_URL` avant la phase F, ou envoyer ces trois formulaires du navigateur. Un test du front peut garder qu'une action serveur anonyme ne part jamais sur l'URL publique quand l'environnement déclare un chemin interne.
 - Mesure (2026-10-17, 52f3928cd, mesureur) : relu `takussan-web/src/lib/api.ts:15-34` (`baseServeur()` rend l'URL publique sans `API_INTERNAL_URL`), `src/app/actions/property.ts` (`'use server'`, `apiRequest` vers `visit-request` l. 120 et `contact-lead` l. 233), `AppServiceProvider.php:397-398` (`public-visit-request` 10/h, `public-contact-lead` 5/10 min par `visitorRateLimitKey`), `docs/infra/hebergement.md:84` (IP du visiteur sur ce chemin « non mesurée ») et `docs/ardoise.md:2998` (`API_INTERNAL_URL` absente) → la partie lue tient ; le seau partagé en préproduction et l'IP rangée dans `property_contact_leads.ip` ne se mesurent pas depuis le poste. Classement : V5, le correctif pose une variable d'environnement sur Dokploy, ou déplace l'envoi des formulaires vers le navigateur (V7).
+- Mesure (2026-10-18, 41f289014, implementeur) : avant ajout, `grep -rln API_INTERNAL_URL takussan-web/src` → seul `api.ip-du-visiteur.test.ts` garde le chemin interne, sur `apiRequest('/api/test')`, aucune des trois actions ; `property.chemin-interne.test.ts` (environnement `node`, `API_INTERNAL_URL` posée, sans jeton) : `submitVisitRequest`, `submitContactLead` et `submitAgentContactLead` partent sur `http://api:8080/api/public/…`, jamais sur `origineApi()`, avec l'IP du visiteur → 3 verts dès l'écriture (le défaut est l'absence de clé en préproduction, pas le code) ; ablation de la lecture d'`API_INTERNAL_URL` dans `baseServeur()` → 3 rouges.
 
 ### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
 - Réf : P37.04

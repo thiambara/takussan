@@ -154,6 +154,32 @@ export async function villesAvecComptes(): Promise<readonly { readonly value: st
 }
 
 /**
+ * TCK-841 (P35.03) — le nombre de biens publics d'une ville, ou d'un quartier dans SA ville, pour la
+ * description d'une page de lieu. Pris aux domaines déjà en cache : mêmes URL et mêmes options que
+ * `villesAvecComptes` et `quartiersDeLaVille`, donc les mêmes entrées du cache de données, sans
+ * aller-retour de plus.
+ *
+ * `undefined` quand le lieu n'y est pas ou que le domaine est indisponible : la description se
+ * passe alors du compte, elle ne fait pas échouer la page.
+ */
+export async function compteDuLieu(ville: string, quartier?: string): Promise<number | undefined> {
+  try {
+    if (quartier) {
+      const reponse = await apiFetch<ReponseQuartiers>(
+        cheminApi`/public/properties/neighborhoods?city=${encodeURIComponent(ville)}`,
+        { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,
+        { locale: DEFAULT_LOCALE, partage: true },
+      );
+      return reponse.data.find((q) => q.value && replie(q.value) === replie(quartier))?.count;
+    }
+    const villes = await villesAvecComptes();
+    return villes.find((v) => replie(v.value) === replie(ville))?.count;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Les domaines des QUATRE facettes de la liste pour une requête donnée — TCK-598.
  *
  * Le domaine des quartiers n'est demandé que si l'URL porte un quartier ET une ville du catalogue :

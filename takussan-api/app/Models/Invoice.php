@@ -111,6 +111,33 @@ class Invoice extends AbstractModel
         return $this->morphTo();
     }
 
+    /**
+     * TCK-835 (P26.05) — ce que la facture imprime en « Désignation » quand elle n'a pas de lignes :
+     * l'objet facturé (le bail ou la réservation, avec son bien), à défaut la clé
+     * `metadata.designation` posée par le créateur, sinon `null` (le gabarit écrit « Prestation »).
+     * L'objet se lit même supprimé : la facture survit à son bail. Texte d'acte, donc en français
+     * (TCK-672).
+     */
+    public function designation(): ?string
+    {
+        $object = in_array($this->invoiceable_type, [Lease::class, Booking::class], true) && $this->invoiceable_id !== null
+            ? $this->invoiceable_type::withTrashed()->with('property:id,title')->find($this->invoiceable_id)
+            : null;
+
+        if ($object !== null) {
+            $label = $object instanceof Lease
+                ? 'Bail '.($object->reference_number ?? 'LS-'.$object->id)
+                : 'Réservation '.($object->reference_number ?? 'n° '.$object->id);
+            $title = trim((string) ($object->property?->title ?? ''));
+
+            return $title !== '' ? "{$label} — {$title}" : $label;
+        }
+
+        $designation = is_array($this->metadata) ? ($this->metadata['designation'] ?? null) : null;
+
+        return is_string($designation) && trim($designation) !== '' ? trim($designation) : null;
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

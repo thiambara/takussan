@@ -34,9 +34,16 @@ export function useBoostProducts(enabled = true) {
   });
 }
 
-export function useBuyBoost(propertyId: number) {
+/**
+ * TCK-822 (P24.01) — `cleIdempotence` part dans l'en-tête `Idempotency-Key` : l'API rejoue en 200,
+ * sans second débit, un achat déjà fait avec la même clé (réponse perdue, puis « Confirmer » de nouveau).
+ */
+export function useBuyBoost(propertyId: number, cleIdempotence: string) {
   return useApiMutation<BuyBoostResponse, { readonly product_id: number }>(
     { path: cheminApi`/api/properties/${propertyId}/boosts`, method: 'POST' },
-    { invalidate: [[...CLE_CREDITS], ['properties']] },
+    {
+      invalidate: [[...CLE_CREDITS], ['properties']],
+      request: { headers: { 'Idempotency-Key': cleIdempotence } },
+    },
   );
 }

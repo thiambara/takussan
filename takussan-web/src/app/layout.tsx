@@ -3,7 +3,8 @@ import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
+import { scriptDeConfigPublique } from '@/lib/config-publique';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { AuthProvider } from '@/context/AuthContext';
@@ -57,7 +58,7 @@ const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans', weight:
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta.home');
   return {
-    metadataBase: new URL(ORIGINE_SITE),
+    metadataBase: new URL(origineSite()),
     title: t('title'),
     description: t('description'),
   };
@@ -89,6 +90,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} className={`${bricolage.variable} ${dmSans.variable}`}>
+      <head>
+        {/* ADR-0069 § 3 — l'origine de l'API et celle des médias, lues à l'exécution par le
+            serveur et transmises au navigateur AVANT tout bundle : un script en ligne s'exécute
+            pendant l'analyse du document, les bundles de Next sont différés. Le seul lecteur est
+            `src/lib/config-publique.ts`. Rien de secret : cf. son en-tête. */}
+        <script id="config-publique" dangerouslySetInnerHTML={{ __html: scriptDeConfigPublique() }} />
+      </head>
       <body className="font-sans antialiased">
         <IntlProviderRacine locale={locale} messages={messages}>
           <QueryProvider>

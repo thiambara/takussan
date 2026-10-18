@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  compteDuLieu,
   domainesDeLaListe,
   FRAICHEUR_DOMAINE_VILLES,
   quartiersDeLaVille,
@@ -272,5 +273,28 @@ describe('domainesDeLaListe — le domaine des quartiers ne se paie que s’il s
     expect(appels.find((u) => u.includes('/neighborhoods'))).toContain('city=Dakar');
     expect(domaines.quartiers!.get('mermoz')).toBe('Mermoz');
     expect(domaines.villes!.get('dakar')).toBe('Dakar');
+  });
+});
+
+describe('TCK-841 (P35.03) — compteDuLieu, le nombre de biens publics d’une ville ou d’un quartier', () => {
+  it('la ville : son compte au domaine des villes, casse repliée', async () => {
+    servir(reponse([{ value: 'Dakar', count: 198 }, { value: 'Thiès', count: 7 }]));
+    expect(await compteDuLieu('dakar')).toBe(198);
+    expect(appels[0]).toContain('/public/properties/cities');
+  });
+
+  it('le quartier : son compte au domaine des quartiers de SA ville, par le même appel que le domaine', async () => {
+    servir(reponse([{ value: 'Mermoz', count: 12 }, { value: 'Ngor', count: 4 }]));
+    expect(await compteDuLieu('Dakar', 'ngor')).toBe(4);
+    expect(appels[0]).toContain('/public/properties/neighborhoods?city=Dakar');
+  });
+
+  it('un lieu absent, ou une panne : aucun compte, et rien n’est levé', async () => {
+    servir(reponse([{ value: 'Dakar', count: 198 }]));
+    expect(await compteDuLieu('Saly')).toBeUndefined();
+
+    vi.unstubAllGlobals();
+    servir({}, { ok: false });
+    expect(await compteDuLieu('Dakar')).toBeUndefined();
   });
 });

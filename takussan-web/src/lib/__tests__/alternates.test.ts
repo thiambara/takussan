@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { ORIGINE_SITE, alternatesLangues } from '../alternates';
+import { origineSite, alternatesLangues } from '../alternates';
 import { LOCALES } from '@/i18n/config';
 import { estCheminLocalisable } from '@/i18n/routing';
 import { PAGES_STATIQUES_INDEXABLES, ROUTES_DYNAMIQUES_PUBLIQUES } from '../sitemap';
@@ -65,15 +65,15 @@ describe('alternatesLangues', () => {
 
   it('donne à chaque langue SON URL, distincte des autres', () => {
     const { languages } = alternatesLangues('/properties/mon-slug');
-    expect(languages!.fr).toBe(`${ORIGINE_SITE}/fr/properties/mon-slug`);
-    expect(languages!.en).toBe(`${ORIGINE_SITE}/en/properties/mon-slug`);
-    expect(languages!.wo).toBe(`${ORIGINE_SITE}/wo/properties/mon-slug`);
+    expect(languages!.fr).toBe(`${origineSite()}/fr/properties/mon-slug`);
+    expect(languages!.en).toBe(`${origineSite()}/en/properties/mon-slug`);
+    expect(languages!.wo).toBe(`${origineSite()}/wo/properties/mon-slug`);
     expect(new Set(LOCALES.map((l) => languages![l])).size).toBe(3);
   });
 
   it('x-default pointe vers le français', () => {
     const { languages } = alternatesLangues('/');
-    expect(languages!['x-default']).toBe(`${ORIGINE_SITE}/fr`);
+    expect(languages!['x-default']).toBe(`${origineSite()}/fr`);
   });
 
   it('rend des URL ABSOLUES — sans `metadataBase`, Next replierait sur localhost', () => {
@@ -85,7 +85,7 @@ describe('alternatesLangues', () => {
 
   it('l’accueil ne produit pas de double barre', () => {
     const { languages } = alternatesLangues('/');
-    expect(languages!.en).toBe(`${ORIGINE_SITE}/en`);
+    expect(languages!.en).toBe(`${origineSite()}/en`);
     expect(String(languages!.en)).not.toContain('//en');
   });
 

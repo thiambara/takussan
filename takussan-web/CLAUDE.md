@@ -27,9 +27,10 @@ typage ni dans le lint ne l'empêche.
 `fetch('/api/agencies/1')` atteint le **route handler Next** `src/app/api/agencies/[[...path]]/route.ts` ;
 `apiRequest('/api/agencies/1')` atteint **Laravel** directement. Même chaîne, deux destinations.
 
-`src/lib/api.ts:4-9` définit `API_URL` et `API_BASE` — mais **n'exporte ni l'une ni l'autre**. Résultat
-mesuré : **23 fichiers** relisent `process.env.NEXT_PUBLIC_API_URL` et redéclarent chacun la
-normalisation `.replace(/\/api$/, '')`.
+L'origine de l'API se lit par **`origineApi()`** (`src/lib/config-publique.ts`, ADR-0069 § 3), sans
+le suffixe `/api` : c'est le seul lecteur, et `scripts/check-front-env-keys.mjs` refuse toute lecture
+de `process.env.NEXT_PUBLIC_API_URL` ailleurs. Avant lui, 25 fichiers redéclaraient chacun la
+normalisation `.replace(/\/api$/, '')` dans une constante de module.
 
 ## Couche réseau
 
@@ -314,20 +315,37 @@ npm run test
 
 ## Environnement
 
-Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `NODE_ENV` (9).
-L'image de déploiement exige en outre **`NEXT_PUBLIC_SITE_URL`**, l'origine canonique
-(`src/lib/alternates.ts`) : sans elle, une préproduction retomberait en silence sur l'origine de
-production (ADR-0028 §3).
-`.env.example` et `.env.local` pointent sur `http://127.0.0.1:8002`.
+**Trois valeurs changent d'un environnement à l'autre, et un seul module les lit :
+`src/lib/config-publique.ts`** ([ADR-0069](../docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md) § 3) —
+`origineApi()`, `origineSite()`, `origineMedia()`. Des fonctions, jamais des constantes de module.
+
+| Valeur | Dans l'image (exécution, Dokploy) | Repli (build : Vercel, `next dev`) |
+|---|---|---|
+| origine de l'API | `API_URL` | `NEXT_PUBLIC_API_URL` |
+| origine du site (canoniques, sitemap) | `SITE_URL` | `NEXT_PUBLIC_SITE_URL` |
+| origine du seau de médias | `MEDIA_URL` | `NEXT_PUBLIC_MEDIA_URL` |
+
+- **L'image n'en porte aucune** : une `NEXT_PUBLIC_*` est inlinée à la compilation, même dans le
+  code serveur, et referait une image par environnement. Le conteneur **refuse de démarrer** sans
+  les trois clés d'exécution bien formées (`docker/demarrer.mjs`, origine seule) : sans `SITE_URL`,
+  une préproduction déclarerait ses pages canoniques en production.
+- **Le navigateur** reçoit l'API et les médias du layout racine, qui écrit
+  `window.__TAKUSSAN_CONFIG__` dans `<head>`. Tout ce qui y passe est public :
+  `scripts/check-front-env-keys.mjs` ferme la liste des clés.
+- Le repli `NEXT_PUBLIC_*` disparaît avec Vercel (phase F, F5). `.env.example` et `.env.local`
+  pointent sur `http://127.0.0.1:8002`.
+- `robots.txt` et `sitemap.xml` sont rendus à la demande, pour lire l'origine à l'exécution ; les
+  données du sitemap sont en cache une heure (P34.02).
 
 **`NEXT_PUBLIC_MEDIA_URL`** — l'origine du seau public de médias (`https://media-preview.takussan.com`,
 puis `https://media.takussan.com`), [ADR-0029](../docs/adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).
-Posée au build, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
+Dans l'image (`TAKUSSAN_LOADER_MEDIA=1`, posée par le `Dockerfile`), ou posée au build hors de
+l'image, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
 image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`) — **sauf une
 conversion de photo de bien en WebP, rendue telle quelle** (TCK-585, amendement d'ADR-0029) —, et
 **l'optimiseur de Next ne tourne plus**. Vide — développement, et production Vercel jusqu'à la
-phase F —, le loader n'est pas branché et l'optimiseur reste. L'image Docker refuse de se construire
-sans elle. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
+phase F —, le loader n'est pas branché et l'optimiseur reste. Le conteneur refuse de démarrer sans
+`MEDIA_URL`. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
 les photos de l'API sortent en pleine taille, sans optimiseur. ⚠ Le loader arrondit les largeurs à
 six paliers (`LARGEURS_MEDIA`) et ignore la `quality` d'un composant : Transformations facture la
 transformation unique, 5 000 par mois gratuites.
@@ -354,12 +372,12 @@ déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler
 ## Déploiement — ce dossier EST en production, et publiquement
 
 > ⚠️ **[ADR-0028](../docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) (2026-09-13)
-> ramène ce déploiement DANS le dépôt, par étapes.** Le front devient une image par environnement
-> — le `Dockerfile` de ce dossier, `output: 'standalone'` dans `next.config.ts` — construite par
-> `.github/workflows/images.yml` et servie par Dokploy. `NEXT_PUBLIC_API_URL` **et**
-> `NEXT_PUBLIC_SITE_URL` sont inlinées à la compilation : le `Dockerfile` refuse de construire sans
-> l'une ou l'autre, et `scripts/check-front-env-keys.mjs` garde qu'elles figurent en `ARG` et dans
-> le workflow. La preuve d'un déploiement est l'en-tête `X-Build-Sha`, posé par `next.config.ts`.
+> ramène ce déploiement DANS le dépôt, par étapes.** Le front devient une image **par commit**
+> (ADR-0069 § 3) — le `Dockerfile` de ce dossier, `output: 'standalone'` dans `next.config.ts` —
+> construite par `.github/workflows/images.yml` et servie par Dokploy, qui lui pose `API_URL`,
+> `SITE_URL` et `MEDIA_URL` à l'exécution (§ Environnement). Le conteneur refuse de démarrer sans
+> elles, et `scripts/check-front-env-keys.mjs` garde qu'aucune `NEXT_PUBLIC_*` n'entre dans le
+> `Dockerfile` ni dans le workflow. La preuve d'un déploiement est l'en-tête `X-Build-Sha`, posé par `next.config.ts`.
 > Runbook : [`docs/infra/hebergement.md`](../docs/infra/hebergement.md) ; test local de l'image :
 > `deploy/takussan/smoke-web.sh`.
 >

@@ -1,5 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/config';
+import { FRAICHEUR_SITEMAP } from '@/lib/queries/sitemap-catalogue';
 
 /**
  * Les deux INDEX PUBLICS de profils — TCK-436.
@@ -159,12 +160,13 @@ export async function listerProfilsPublics(
   locale: Locale,
   perPage: number = TAILLE_DE_PAGE,
   // TCK-598 — vrai seulement pour le sitemap ({@link listerSlugsDeProfils}) : l'index rendu pour un
-  // visiteur transmet son IP, la pagination du sitemap (route revalidée) n'en transmet aucune.
+  // visiteur transmet son IP, la pagination du sitemap (en cache de données, P34.02) n'en
+  // transmet aucune.
   partage: boolean = false,
 ): Promise<PageDeProfils> {
   const reponse = await apiFetch<ReponseApi>(
     `${RESSOURCES_DE_PROFIL[ressource].api}?${requeteDIndex(criteres, perPage)}`,
-    undefined,
+    partage ? ({ next: { revalidate: FRAICHEUR_SITEMAP } } as RequestInit) : undefined,
     { locale, partage },
   );
 

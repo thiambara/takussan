@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import type { BienDuSitemap } from '@/lib/queries/sitemap-catalogue';
 
 /**
@@ -84,9 +84,9 @@ describe('/sitemap.xml', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
-    expect(urls).toContain(`${ORIGINE_SITE}/en/properties/${BIEN.slug}`);
-    expect(urls).toContain(`${ORIGINE_SITE}/wo/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/fr/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/en/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/wo/properties/${BIEN.slug}`);
   });
 
   it('porte aussi l’accueil et la liste, préfixés', async () => {
@@ -94,8 +94,8 @@ describe('/sitemap.xml', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr`);
-    expect(urls).toContain(`${ORIGINE_SITE}/en/properties`);
+    expect(urls).toContain(`${origineSite()}/fr`);
+    expect(urls).toContain(`${origineSite()}/en/properties`);
   });
 
   it('reporte `updated_at` en `lastModified`', async () => {
@@ -141,8 +141,8 @@ describe('/sitemap.xml', () => {
 
       const urls = (await jouerSitemap()).map((e) => e.url);
 
-      expect(urls).toContain(`${ORIGINE_SITE}/fr`);
-      expect(urls).toContain(`${ORIGINE_SITE}/fr/properties`);
+      expect(urls).toContain(`${origineSite()}/fr`);
+      expect(urls).toContain(`${origineSite()}/fr/properties`);
       expect(urls.some((u) => u.includes('/properties/'))).toBe(false);
       journal.mockRestore();
     });
@@ -173,11 +173,11 @@ describe('/sitemap.xml', () => {
 
       const urls = (await jouerSitemap()).map((e) => e.url);
 
-      expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
-      expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies/sahel-homes`);
+      expect(urls).toContain(`${origineSite()}/fr/properties/${BIEN.slug}`);
+      expect(urls).toContain(`${origineSite()}/fr/agencies/sahel-homes`);
       expect(urls.some((u) => u.includes('/agents/'))).toBe(false);
       // …et l'index `/agents` LUI-MÊME reste là : c'est une page statique, pas une fiche.
-      expect(urls).toContain(`${ORIGINE_SITE}/fr/agents`);
+      expect(urls).toContain(`${origineSite()}/fr/agents`);
 
       expect(journal).toHaveBeenCalledTimes(1);
       expect(String(journal.mock.calls[0]![0])).toContain('agents');
@@ -206,10 +206,10 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     const urls = (await jouerSitemap()).map((e) => e.url);
 
     for (const langue of ['fr', 'en', 'wo']) {
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agencies`);
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agents`);
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agencies/sahel-homes`);
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agents/awa-diop`);
+      expect(urls).toContain(`${origineSite()}/${langue}/agencies`);
+      expect(urls).toContain(`${origineSite()}/${langue}/agents`);
+      expect(urls).toContain(`${origineSite()}/${langue}/agencies/sahel-homes`);
+      expect(urls).toContain(`${origineSite()}/${langue}/agents/awa-diop`);
     }
   });
 
@@ -223,7 +223,7 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
 
     expect(urls.some((u) => /\/(agencies|agents)\/[^/]/.test(u))).toBe(false);
     // Les deux INDEX restent, eux : ils existent indépendamment de leur contenu.
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies`);
+    expect(urls).toContain(`${origineSite()}/fr/agencies`);
   });
 
   it('encode le slug — un `&` dans un `username` rendrait le XML entier invalide', async () => {
@@ -233,7 +233,7 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/awa%26diop`);
+    expect(urls).toContain(`${origineSite()}/fr/agents/awa%26diop`);
     expect(urls.some((u) => u.includes('/agents/awa&diop'))).toBe(false);
   });
 
@@ -259,8 +259,8 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/owner.agency1`);
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/amadou.diallo`);
+    expect(urls).toContain(`${origineSite()}/fr/agents/owner.agency1`);
+    expect(urls).toContain(`${origineSite()}/fr/agents/amadou.diallo`);
     expect(journal).not.toHaveBeenCalled();
     journal.mockRestore();
   });
@@ -277,12 +277,12 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     // Le fichier existe encore — c'est la moitié qui manquait.
     expect(urls.length).toBeGreaterThan(0);
     // …et les DEUX autres sources sont intactes.
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies/sahel-homes`);
-    expect(urls).toContain(`${ORIGINE_SITE}/fr`);
+    expect(urls).toContain(`${origineSite()}/fr/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/fr/agencies/sahel-homes`);
+    expect(urls).toContain(`${origineSite()}/fr`);
     // …et l'agent au slug sain de la MÊME source est là, lui aussi : on écarte la page fautive,
     // pas la source.
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/awa-diop`);
+    expect(urls).toContain(`${origineSite()}/fr/agents/awa-diop`);
     // Aucune des quatre URL fautives n'entre.
     for (const slug of SLUGS_QUI_CASSENT) {
       expect(urls.some((u) => u.includes(slug)), slug).toBe(false);
@@ -340,7 +340,7 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/fr/properties/${BIEN.slug}`);
     expect(urls.some((u) => u.includes('villa-dakar.png'))).toBe(false);
     expect(String(journal.mock.calls[0]![0])).toContain('catalogue');
     journal.mockRestore();
@@ -365,9 +365,9 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     const fiche = (await jouerSitemap()).find((e) => e.url.endsWith('/en/agents/awa-diop'))!;
 
     expect(fiche.alternates?.languages).toMatchObject({
-      fr: `${ORIGINE_SITE}/fr/agents/awa-diop`,
-      en: `${ORIGINE_SITE}/en/agents/awa-diop`,
-      wo: `${ORIGINE_SITE}/wo/agents/awa-diop`,
+      fr: `${origineSite()}/fr/agents/awa-diop`,
+      en: `${origineSite()}/en/agents/awa-diop`,
+      wo: `${origineSite()}/wo/agents/awa-diop`,
     });
   });
 });
@@ -401,9 +401,9 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
     const urls = (await jouerSitemap()).map((e) => e.url);
 
     for (const langue of ['fr', 'en', 'wo']) {
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Dakar`);
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Dakar&amp;location=Mermoz`);
-      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/properties?city=Thi%C3%A8s`);
+      expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Dakar`);
+      expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Dakar&amp;location=Mermoz`);
+      expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Thi%C3%A8s`);
     }
     // Aucun `&` nu : un seul suffit à rendre le fichier ENTIER invalide.
     expect(urls.filter((u) => /&(?!amp;)/.test(u))).toEqual([]);
@@ -424,9 +424,9 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
     const document = new DOMParser().parseFromString(xml, 'application/xml');
     expect(document.getElementsByTagName('parsererror')).toHaveLength(0);
     const locs = [...document.getElementsByTagName('loc')].map((n) => n.textContent);
-    expect(locs).toContain(`${ORIGINE_SITE}/fr/properties?city=Dakar&location=Mermoz`);
+    expect(locs).toContain(`${origineSite()}/fr/properties?city=Dakar&location=Mermoz`);
     const hrefs = [...document.getElementsByTagName('xhtml:link')].map((n) => n.getAttribute('href'));
-    expect(hrefs).toContain(`${ORIGINE_SITE}/en/properties?city=Dakar&location=Mermoz`);
+    expect(hrefs).toContain(`${origineSite()}/en/properties?city=Dakar&location=Mermoz`);
   });
 
   it('une panne du domaine des villes est écrite, et n’emporte pas les autres sources', async () => {
@@ -436,7 +436,7 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
 
     const urls = (await jouerSitemap()).map((e) => e.url);
 
-    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${origineSite()}/fr/properties/${BIEN.slug}`);
     expect(urls.some((u) => u.includes('?city='))).toBe(false);
     expect(journal).toHaveBeenCalledTimes(1);
     expect(String(journal.mock.calls[0]![0])).toContain('quartiers-et-villes');

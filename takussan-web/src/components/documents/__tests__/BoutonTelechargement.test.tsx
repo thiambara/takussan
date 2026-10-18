@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import { BoutonTelechargement } from '../BoutonTelechargement';
+import { origineApi } from '@/lib/config-publique';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'jeton-593' }),
@@ -49,7 +50,7 @@ describe('BoutonTelechargement', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const attendu = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
+    const attendu = origineApi();
     expect(url).toBe(`${attendu}/api/leases/7/contract/pdf`);
     expect(url).toMatch(/^https?:\/\//);
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jeton-593');

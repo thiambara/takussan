@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,7 +12,7 @@ export async function GET(request: NextRequest, ctx: Ctx): Promise<NextResponse>
   const id = segmentAmont((await ctx.params).id);
   if (id === null) return reponseSegmentInvalide();
 
-  const upstream = await fetch(`${API_URL}/api/data-exports/${id}/download`, {
+  const upstream = await fetch(`${origineApi()}/api/data-exports/${id}/download`, {
     headers: {
       Accept: 'application/zip,application/json',
       Authorization: `Bearer ${token}`,

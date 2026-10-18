@@ -91,6 +91,7 @@ return [
     ],
     'boost' => [
         'bump_cooldown' => 'Ce bien a été remonté il y a moins de 24 heures. Nouvelle remontée possible à partir du :available_at.',
+        'idempotency_key_reused' => 'Cette demande d’achat a déjà servi pour une autre offre ou un autre bien. Rouvrez la fenêtre d’achat.',
         'no_space' => 'Ce bien n’est rattaché à aucun espace : il ne peut pas être mis en avant.',
         'not_live' => 'Cette mise en avant est déjà terminée.',
         'offer_featured_only' => 'Seule une Vedette peut être offerte.',

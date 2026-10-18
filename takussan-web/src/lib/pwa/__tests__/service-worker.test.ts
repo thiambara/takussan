@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import fr from '@/messages/fr.json';
 import en from '@/messages/en.json';
 import wo from '@/messages/wo.json';
-import { scriptDuServiceWorker, urlApiDepuisEnv } from '../service-worker';
+import { scriptDuServiceWorker } from '../service-worker';
 
 /**
  * TCK-598 (contrainte 14, ADR-0052 §4) — le script ENGENDRÉ est exécuté dans un bac à sable
@@ -185,11 +185,6 @@ describe('service worker — ce qui entre', () => {
 
     sw.reseau.mockRejectedValue(new TypeError('hors ligne'));
     expect(await (await sw.intercepter(requete(BY_IDS)))!.json()).toEqual({ data: [{ id: 1 }] });
-  });
-
-  it('l\'URL de l\'API suit NEXT_PUBLIC_API_URL, suffixe /api compris', () => {
-    expect(urlApiDepuisEnv('https://api.takussan.com/api')).toBe('https://api.takussan.com');
-    expect(urlApiDepuisEnv(undefined)).toBe('http://localhost:8002');
   });
 });
 

@@ -15,11 +15,11 @@ use Illuminate\Support\Collection;
 /**
  * Deterministic heuristic matcher for bank statement line reconciliation.
  *
- * Scores candidates by 4 rules (highest wins):
+ * Scores candidates by 4 rules (highest wins; two candidates tied at the best score → no suggestion):
  *   95 — exact amount + exact reference
  *   80 — exact amount + counterparty similarity ≥ 0.85
  *   70 — exact amount + date within ±2 days
- *   60 — exact amount only (closest date, unless ambiguous)
+ *   60 — exact amount only
  */
 class ReconciliationMatcher
 {
@@ -153,6 +153,7 @@ class ReconciliationMatcher
     {
         $best = null;
         $bestScore = 0;
+        $tied = 0;
 
         foreach ($candidates as $candidate) {
             $score = $this->scoreCandidate($candidate, $line);
@@ -160,18 +161,16 @@ class ReconciliationMatcher
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $best = $candidate;
+                $tied = 1;
+            } elseif ($score === $bestScore) {
+                $tied++;
             }
         }
 
-        // Score 60: check for ambiguity (multiple candidates at same score)
-        if ($bestScore === 60) {
-            $sameScoreCount = $candidates->filter(
-                fn ($c) => $this->scoreCandidate($c, $line) === 60
-            )->count();
-
-            if ($sameScoreCount >= 2) {
-                return null; // Ambiguous — don't suggest
-            }
+        // TCK-827 (P25.05) — deux candidats au meilleur score, à quelque palier que ce soit : la
+        // ligne est ambiguë, rien n'est suggéré. Le premier rencontré n'est pas un critère.
+        if ($tied >= 2) {
+            return null;
         }
 
         if ($best === null || $bestScore < 60) {

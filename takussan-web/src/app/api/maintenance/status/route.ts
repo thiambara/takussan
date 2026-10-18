@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 export async function GET() {
-  const upstream = await fetch(`${API_URL}/api/maintenance/status`, {
+  const upstream = await fetch(`${origineApi()}/api/maintenance/status`, {
     headers: { Accept: 'application/json' },
     next: { revalidate: 60 },
   });

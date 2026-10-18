@@ -7,8 +7,9 @@
     // the source of truth for which currency we settled on at issuance time;
     // we fall back to the agency's current currency, then XOF for safety.
     $currency = $invoice->currency ?? $agency?->currency ?? 'XOF';
+    // TCK-835 (P26.05) — sans lignes, la désignation de l'objet facturé, et « Prestation » en dernier.
     $lines = $lines ?? [[
-        'label' => 'Prestation',
+        'label' => $invoice->designation() ?? 'Prestation',
         'qty' => 1,
         'unit_price' => $invoice->subtotal,
         'total' => $invoice->subtotal,
@@ -103,13 +104,14 @@
             @endforeach
         </tbody>
         <tfoot>
+            {{-- TCK-836 (P26.06) — le taux au format français : « 18,5 », jamais « 18.5 ». --}}
             <tr>
                 <td colspan="3" class="right">Sous-total</td>
                 <td class="right amount">@currency($invoice->subtotal, $currency)</td>
             </tr>
             @if ((float) ($invoice->tax_amount ?? 0) > 0)
             <tr>
-                <td colspan="3" class="right">TVA ({{ rtrim(rtrim(number_format((float) $invoice->tax_rate, 2), '0'), '.') }}%)</td>
+                <td colspan="3" class="right">TVA ({{ rtrim(rtrim(number_format((float) $invoice->tax_rate, 2, ',', ' '), '0'), ',') }}%)</td>
                 <td class="right amount">@currency($invoice->tax_amount, $currency)</td>
             </tr>
             @endif

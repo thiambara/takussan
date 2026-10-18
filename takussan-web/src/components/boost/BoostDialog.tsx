@@ -33,14 +33,23 @@ export interface BoostDialogProps {
  * TCK-633 lot F (ADR-0061 §5, AC14) — choisir une mise en avant. Le solde et le montant manquant
  * sont dits AVANT la confirmation ; il n'y a pas de bouton d'achat de crédits (phase 2, §11).
  */
+/** TCK-822 — une clé par ouverture du dialogue ; l'offre choisie la complète (cf. `cleAchat`). */
+function nouvelleOuverture(): string {
+  return globalThis.crypto.randomUUID();
+}
+
 export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: BoostDialogProps) {
   const t = useTranslations('boost');
   const router = useRouter();
   const messageErreur = useMessageErreurApi();
   const credits = useCredits(open);
   const offres = useBoostProducts(open);
-  const achat = useBuyBoost(propertyId);
   const [choix, setChoix] = useState<number | null>(null);
+  const [ouverture, setOuverture] = useState(nouvelleOuverture);
+  // TCK-822 (P24.01) : la clé naît à l'ouverture et reste la même tant que le dialogue est ouvert,
+  // si bien qu'un « Confirmer » repris après une réponse perdue ne débite pas deux fois. Elle porte
+  // l'offre : choisir une autre offre est un autre achat, que l'API refuserait sous la même clé.
+  const achat = useBuyBoost(propertyId, `${ouverture}-${choix ?? 0}`);
   const [fait, setFait] = useState(false);
 
   const solde = credits.data?.data.balance ?? 0;
@@ -80,6 +89,7 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
     if (!ouvert) {
       setChoix(null);
       setFait(false);
+      setOuverture(nouvelleOuverture());
       achat.reset();
     }
     onOpenChange(ouvert);

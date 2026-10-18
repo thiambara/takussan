@@ -215,7 +215,11 @@ final class CreditLedger
         return new RefundPlan($refunded, $expired, $shares);
     }
 
-    /** Écrit un lot `refund` par part du plan, chacun avec l'expiration de son lot d'origine. */
+    /**
+     * Écrit un lot `refund` par part du plan, chacun avec l'expiration de son lot d'origine. Quand
+     * ce lot d'origine a déjà reçu son préavis, le lot remboursé le reprend : même échéance, donc
+     * pas de second préavis pour la même date (TCK-826, P24.06).
+     */
     public function applyRefund(PropertyBoost $boost, RefundPlan $plan, ?User $actor = null, ?string $reason = null): void
     {
         if ($plan->shares === []) {
@@ -223,8 +227,15 @@ final class CreditLedger
         }
         $agency = Agency::withTrashed()->findOrFail($boost->agency_id);
         DB::transaction(function () use ($agency, $boost, $plan, $actor, $reason): void {
+            $prevenus = CreditLot::query()
+                ->whereIn('id', array_column($plan->shares, 'lot_id'))
+                ->whereNotNull('expiry_notice_sent_at')
+                ->pluck('expiry_notice_sent_at', 'id');
             foreach ($plan->shares as $share) {
-                $this->grant($agency, CreditLotOrigin::Refund, $share['amount'], $share['expires_at'], $actor, $reason, $boost);
+                $lot = $this->grant($agency, CreditLotOrigin::Refund, $share['amount'], $share['expires_at'], $actor, $reason, $boost);
+                if ($share['expires_at'] !== null && isset($prevenus[$share['lot_id']])) {
+                    $lot->forceFill(['expiry_notice_sent_at' => $prevenus[$share['lot_id']]])->save();
+                }
             }
         });
     }

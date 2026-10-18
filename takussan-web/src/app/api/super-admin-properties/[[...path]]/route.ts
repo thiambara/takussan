@@ -1,10 +1,7 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-132 — Same-origin proxy for the super-admin properties view. Forwards
@@ -20,7 +17,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const suffix = chemin !== '' ? `/${chemin}` : '';
-  const url = `${API_URL}/api/properties${suffix}${request.nextUrl.search}`;
+  const url = `${origineApi()}/api/properties${suffix}${request.nextUrl.search}`;
 
   const headers: Record<string, string> = {
     Accept: 'application/json',

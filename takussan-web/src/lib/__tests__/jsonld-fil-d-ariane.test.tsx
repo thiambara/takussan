@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { PropertyBreadcrumb } from '@/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb';
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
+import { hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
 import { scriptJsonLd } from '@/lib/jsonld';
 import {
   type DomainesDeFacette,
@@ -80,7 +81,7 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
 
 type ListItem = { '@type': string; position: number; name: string; item?: string };
 
-function balise(p: PropertyDetail, locale: 'fr' | 'en' | 'wo' = 'fr') {
+function balise(p: PropertyDetail, locale: 'fr' | 'en' | 'wo' = 'fr', hrefQuartier?: string) {
   // Le traducteur SERVEUR est une fonction `(cle) => string` ; le dictionnaire réel est chargé
   // pour que les libellés comparés soient ceux que l'écran rend.
   const t = (cle: string) => {
@@ -92,7 +93,7 @@ function balise(p: PropertyDetail, locale: 'fr' | 'en' | 'wo' = 'fr') {
       );
     return typeof valeur === 'string' ? valeur : cle;
   };
-  return jsonLdFilDAriane(maillonsDeFiche(p, t), locale).itemListElement as ListItem[];
+  return jsonLdFilDAriane(maillonsDeFiche(p, t, hrefQuartier), locale).itemListElement as ListItem[];
 }
 
 describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
@@ -124,51 +125,67 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
       .map((i) => i.item)
       .filter((i): i is string => i !== undefined);
 
-    expect(items).toEqual(hrefs.map((h) => `${ORIGINE_SITE}${h}`));
+    expect(items).toEqual(hrefs.map((h) => `${origineSite()}${h}`));
     // Et ces href-là portent bien la langue : `LienLocalise` la pose au rendu.
     for (const href of hrefs) expect(href, href!).toMatch(/^\/fr(\/|\?|$)/);
   });
 
-  it('le QUARTIER est un libellé des deux côtés — ni `<a>`, ni `item`', () => {
-    /*
-     * ⚠ Il pointait `/properties?location=<quartier>`, or `location` est l'une des dix-sept clés
-     * ÉCARTÉES par TCK-433 : cette URL rend `<link rel="canonical" href="…/properties">`. Le
-     * balisage affirmait donc un `item` que la page pointée désavoue aussitôt — deux tickets du
-     * même lot qui se contredisaient.
-     */
+  /**
+   * TCK-839 (P35.01) — le quartier redevient cliquable, mais SEULEMENT vers sa page canonique.
+   *
+   * Le retrait du 2026-08-28 tenait à ce que `location` était une clé écartée : `?location=…`
+   * rendait la canonique de `/properties`. TCK-598 l'a fait entrer dans `CLES_CANONIQUES` : un
+   * quartier qui atteint `SEUIL_QUARTIER_INDEXABLE` biens dans SA ville a sa page, que le sitemap
+   * annonce. Le lien se pose donc pour ce quartier-là, et pour lui seul.
+   */
+  function domainesAvecQuartiers(quartiers: ReadonlyMap<string, string> | null): DomainesDeFacette {
+    return {
+      ...domainesStatiques(),
+      villes: new Map([['dakar', 'Dakar']]),
+      quartiers,
+    };
+  }
+
+  it('un quartier HORS du domaine indexable de sa ville reste un libellé des deux côtés', () => {
     const p = bien();
-    render(withIntl(<PropertyBreadcrumb property={p} />));
+    const href = hrefDuQuartier(p, domainesAvecQuartiers(new Map([['mermoz', 'Mermoz']])));
+    expect(href).toBeUndefined();
+    render(withIntl(<PropertyBreadcrumb property={p} hrefQuartier={href} />));
 
     const nav = screen.getByRole('navigation');
     expect([...nav.querySelectorAll('a')].map((a) => a.textContent?.trim())).not.toContain('Ngor');
     expect(nav.textContent).toContain('Ngor');
     expect(nav.innerHTML).not.toContain('location=');
 
-    const dernier = balise(p).at(-1)!;
+    const dernier = balise(p, 'fr', href).at(-1)!;
     expect(dernier.name).toBe('Ngor');
     expect(dernier).not.toHaveProperty('item');
-    expect(JSON.stringify(balise(p))).not.toContain('location=');
   });
 
-  it('TOUT `item` du fil est une URL CANONIQUE d’elle-même', () => {
-    // L'invariant que le retrait du lien de quartier rend vrai — et le seul qui interdise
-    // qu'un maillon futur pointe de nouveau une URL non canonique.
-    const p = bien();
-    const domaines: DomainesDeFacette = {
-      ...domainesStatiques(),
-      // La ville vient du bien, qui est public : elle appartient au domaine par construction.
-      villes: new Map([[p.location.city!.toLocaleLowerCase('fr'), p.location.city!]]),
-    };
+  it('domaine inconnaissable, ou bien sans ville : aucun lien de quartier', () => {
+    expect(hrefDuQuartier(bien(), domainesAvecQuartiers(null))).toBeUndefined();
+    expect(hrefDuQuartier(bien(), { ...domainesStatiques(), villes: null, quartiers: new Map([['ngor', 'Ngor']]) })).toBeUndefined();
+    expect(
+      hrefDuQuartier(bien({ location: { ...bien().location, city: null } }), domainesAvecQuartiers(new Map([['ngor', 'Ngor']]))),
+    ).toBeUndefined();
+  });
 
-    for (const item of balise(p).map((i) => i.item).filter(Boolean) as string[]) {
-      const chemin = item.slice(ORIGINE_SITE.length).replace(/^\/(fr|en|wo)/, '');
-      if (chemin === '' || chemin === '/') continue; // l'accueil n'est pas une page de liste
-      const [, requete = ''] = chemin.split('?');
-      expect(
-        `/properties?${requete}`.replace(/\?$/, ''),
-        `le maillon « ${item} » n'est pas canonique de lui-même`,
-      ).toBe(cheminCanoniqueDeLaListe(new URLSearchParams(requete), domaines));
-    }
+  it('un quartier INDEXABLE est cliquable vers sa canonique, à l’écran comme au balisage', () => {
+    // La graphie du bien n'est pas celle du catalogue : le lien prend la canonique.
+    const p = bien({ location: { ...bien().location, city: 'dakar', quarter: 'NGOR' } });
+    const domaines = domainesAvecQuartiers(new Map([['ngor', 'Ngor']]));
+    const href = hrefDuQuartier(p, domaines);
+    expect(href).toBe('/properties?city=Dakar&location=Ngor');
+
+    render(withIntl(<PropertyBreadcrumb property={p} hrefQuartier={href} />));
+    const lien = [...screen.getByRole('navigation').querySelectorAll('a')].at(-1)!;
+    expect(lien.textContent?.trim()).toBe('NGOR');
+    expect(lien.getAttribute('href')).toBe('/fr/properties?city=Dakar&location=Ngor');
+
+    const dernier = balise(p, 'fr', href).at(-1)!;
+    expect(dernier.item).toBe(`${origineSite()}/fr/properties?city=Dakar&location=Ngor`);
+    // Canonique d'elle-même : la page pointée ne la désavoue pas.
+    expect(cheminCanoniqueDeLaListe(new URLSearchParams(href!.split('?')[1]), domaines)).toBe(href);
   });
 
   it('le fil suit la ville et le quartier réellement rendus', () => {
@@ -193,7 +210,7 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
 
     expect(screen.getByText('Acheter')).toBeTruthy();
     expect(balise(p)[1]!.name).toBe('Acheter');
-    expect(balise(p)[1]!.item).toBe(`${ORIGINE_SITE}/fr/properties?contract_type=sale`);
+    expect(balise(p)[1]!.item).toBe(`${origineSite()}/fr/properties?contract_type=sale`);
   });
 
   it('les `position` commencent à 1 et se suivent, maillon non cliquable compris', () => {
@@ -202,8 +219,8 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
   });
 
   it('la langue de l’URL suit celle de la page', () => {
-    expect(balise(bien(), 'wo')[0]!.item).toBe(`${ORIGINE_SITE}/wo`);
-    expect(balise(bien(), 'en')[2]!.item).toBe(`${ORIGINE_SITE}/en/properties?city=Dakar`);
+    expect(balise(bien(), 'wo')[0]!.item).toBe(`${origineSite()}/wo`);
+    expect(balise(bien(), 'en')[2]!.item).toBe(`${origineSite()}/en/properties?city=Dakar`);
   });
 
   it('aucune URL relative — un `item` relatif serait résolu contre le document', () => {

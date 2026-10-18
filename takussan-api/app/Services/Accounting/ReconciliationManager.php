@@ -144,6 +144,7 @@ class ReconciliationManager
             return $locked;
         });
 
+        $expected = $this->expectedAmount($payment);
         activity('BankStatementLine')
             ->causedBy($caller)
             ->performedOn($line)
@@ -151,6 +152,11 @@ class ReconciliationManager
                 'payment_type' => get_class($payment),
                 'payment_id' => $payment->id,
                 'match_confidence' => $line->match_confidence,
+                // TCK-828 (P25.07) — ce que la confirmation ne refuse pas, elle le laisse lire :
+                // le statut de l'encaissement et l'écart entre la ligne et le montant attendu.
+                'payment_status' => $payment->status instanceof \BackedEnum ? $payment->status->value : $payment->status,
+                'expected_amount' => $expected,
+                'amount_gap' => round((float) $line->amount - $expected, 2),
             ])
             ->event('matched')
             ->log('matched');
@@ -158,6 +164,17 @@ class ReconciliationManager
         $this->events->dispatch(new BankStatementLineMatched($line));
 
         return $line;
+    }
+
+    /** Le montant que la ligne devrait porter, colonne par colonne comme le matcher la compare. */
+    private function expectedAmount(Model $payment): float
+    {
+        return match (true) {
+            $payment instanceof LeasePayment => $payment->expectedBankAmount(),
+            $payment instanceof Invoice => (float) $payment->total_amount,
+            $payment instanceof Payout => (float) $payment->net_amount,
+            default => (float) $payment->amount,
+        };
     }
 
     /**

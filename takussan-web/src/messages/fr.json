@@ -336,7 +336,8 @@
       "titleCity": "{subject} à {city}",
       "subjectAny": "Biens immobiliers",
       "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier.",
-      "titleQuarter": "{subject} à {quarter}, {city}"
+      "titleQuarter": "{subject} à {quarter}, {city}",
+      "descriptionWithCount": "{title} sur Takussan, parmi {count, plural, one {# bien publié} other {# biens publiés}} à {place} : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
     },
     "compare": {
       "title": "Comparer des biens",
@@ -3506,7 +3507,9 @@
       "creditNoteTitle": "Avoir {reference}",
       "credits": "Annule la facture n° {id}",
       "creditNotes": "Avoirs émis sur cette facture",
-      "actionFailed": "L'action sur la facture a échoué."
+      "actionFailed": "L'action sur la facture a échoué.",
+      "invoicePdf": "PDF de la facture",
+      "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
       "title": "Préparer un reversement",
