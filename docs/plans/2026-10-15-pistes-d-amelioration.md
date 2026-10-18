@@ -540,12 +540,13 @@ Ce qui tient (lu) :
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
-- Statut : validé — le proxy admin-users transmet le profil actif
+- Statut : fait · TCK-849
 - Gravité : 🟢 à vérifier
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
 - Piste : relayer l'indice de profil comme les fetchers serveur (`RequestOptions` de `src/lib/api.ts`).
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `admin-users/[[...path]]/route.ts:26-29` (seuls `Accept`, `Authorization` et `Content-Type` relayés), `lib/queries/admin-users.ts:64` (le navigateur passe par ce relais), `ResolveActiveProfile.php:101-140` (sans indice ni cookie, auto-bascule seulement si une seule agence) et `UserAdminController.php:16-22` ; test temporaire, retiré depuis, admin de deux agences sur `GET /api/users` → **403** sans indice, **200** avec `X-Active-Profile-Hint: agency_admin:<id>` ; admin d'une seule agence → 200. Le constat « à vérifier » est vérifié côté API. Classement : V2, le correctif change le profil, donc l'agence, sous lequel l'API juge chaque appel de la console d'équipe.
+- Mesure (2026-10-18, 8cd8c878e, implementeur) : relu `admin-users/[[...path]]/route.ts:23-28`, toujours `Accept`, `Authorization` et `Content-Type` seuls ; test neuf `admin-users/[[...path]]/__tests__/route.test.ts` → avant correctif, l'indice manque avec le cookie `active_profile_id` (rouge) ; `X-Active-Profile-Hint` posé par `profilActifEspaceApplicatif`, comme `agencies` → 3 verts, dont l'absence d'indice sans cookie et pendant une impersonation ; ablation → le même rouge. Le 200 côté API pour un admin de deux agences avec l'indice est celui mesuré le 2026-10-15, non rejoué.
 
 ## Angle 4 — Argent : montants, devises, arrondis, factures, paiements
 
