@@ -75,7 +75,10 @@ provider error dashboards stay accurate.
 - Batch up to **500 numbers per call** via comma-separated `msisdn`.
 - Sender ID ≤ 11 alphanum (numeric refused on Orange/Expresso SN).
 - DLR is configured at the **account level** in the Mtarget dashboard
-  — set it to `https://api.takussan.app/api/webhooks/sms/mtarget/status/<token>`.
+  — set it to `https://api.takussan.com/api/webhooks/sms/mtarget/status/<token>`
+  (préproduction : `https://preview.api.takussan.com/…`), où `<token>` est le
+  jeton de Mtarget (`SMS_MTARGET_WEBHOOK_URL_TOKEN`, sinon la clé commune —
+  P36.04, TCK-943).
 - `allowunicode=true` is sent automatically when the message contains
   non-ASCII chars.
 - Negative codes (-1 … -15) are mapped to `mtarget_error_<code>` in
@@ -96,8 +99,14 @@ provider error dashboards stay accurate.
 Aucun provider n'expose de signature HMAC. La sécurité repose sur :
 
 1. **Path obscur signé** — `/api/webhooks/sms/{provider}/status/{token}`
-   où `{token}` est `config('sms.webhook_url_token')`. Rotater en cas
-   de compromission, mettre à jour le dashboard du provider.
+   où `{token}` est le jeton **du fournisseur**
+   (`config('sms.webhook_url_tokens.{provider}')` : `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
+   `SMS_MTARGET_WEBHOOK_URL_TOKEN`, `SMS_LAM_WEBHOOK_URL_TOKEN`), sinon la clé
+   commune `SMS_WEBHOOK_URL_TOKEN`, gardée le temps de la bascule (P36.04,
+   TCK-943). Posé, le jeton d'un fournisseur est le seul accepté sur sa route :
+   celui que LAM reçoit dans chaque `ret_url` n'ouvre ni Orange ni Mtarget.
+   Rotater en cas de compromission, mettre à jour le dashboard **de ce seul**
+   provider.
 2. **IP allowlist** — `RestrictIpMiddleware` (alias `restrict.ip:{provider}`)
    lit `config('sms.webhook_allowed_ips.{provider}')`. Vide en
    production ⇒ **403 fail-closed** (durci par TCK-102). Vide en
@@ -128,7 +137,8 @@ choisi par l'intégrateur. Conséquence opérationnelle :
   middleware `restrict.ip:mtarget` renvoie `403` si la liste est vide
   en environnement `production`.
 - **Risque résiduel.** Un attaquant disposant à la fois (a) du token
-  de path — placé dans `SMS_WEBHOOK_URL_TOKEN`, jamais loggé — et (b)
+  de path — placé dans `SMS_MTARGET_WEBHOOK_URL_TOKEN` (sinon
+  `SMS_WEBHOOK_URL_TOKEN`), jamais loggé — et (b)
   d'une IP usurpée dans le range Mtarget pourrait forger un DLR. Cas
   ramené à un mauvais `provider_message_id` ⇒ 404, et même un match
   réussi ne ferait que basculer une entrée `sent` en `delivered` sur
@@ -195,8 +205,10 @@ gets populated automatically.
 
 ## Operational checklist
 
-- [ ] Set `SMS_WEBHOOK_URL_TOKEN` to a fresh
-      `Str::random(40)` per env. Rotate on compromise.
+- [ ] Set `SMS_ORANGE_WEBHOOK_URL_TOKEN`, `SMS_MTARGET_WEBHOOK_URL_TOKEN`
+      and `SMS_LAM_WEBHOOK_URL_TOKEN` to three distinct fresh
+      `Str::random(40)` per env (P36.04, TCK-943). Rotate on compromise.
+      `SMS_WEBHOOK_URL_TOKEN` is only the fallback while they are unset.
 - [ ] For each agency, create the relevant `Integration` rows
       (`sms_orange`, `sms_mtarget`, `sms_lafricamobile`) with
       encrypted credentials.

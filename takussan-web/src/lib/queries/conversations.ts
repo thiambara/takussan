@@ -479,7 +479,8 @@ export type UpdateParticipantPayload = {
 };
 
 export function useUpdateParticipantRole(conversationId: number) {
-  return useApiMutation<ApiResponse<{ user_id: number; role: 'member' | 'admin' }>, UpdateParticipantPayload>(
+  // TCK-952 — l'API rend la conversation entière (`ConversationResource`), pas le participant.
+  return useApiMutation<ApiResponse<Conversation>, UpdateParticipantPayload>(
     {
       path: ({ user_id }) =>
         cheminApi`/api/conversations/${conversationId}/participants/${user_id}`,

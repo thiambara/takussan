@@ -598,6 +598,7 @@ return [
         'signature_missing' => 'Signature manquante.',
         'signature_not_configured' => 'La vérification de signature n\'est pas configurée.',
         'transaction_id_missing' => 'Identifiant de transaction manquant.',
+        'verify_token_invalid' => 'Jeton de vérification d\'abonnement invalide.',
     ],
     'wizard_draft' => [
         'not_found' => 'Aucun brouillon.',

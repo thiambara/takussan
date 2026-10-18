@@ -3,17 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
-use App\Http\Requests\PaymentStoreRequest;
-use App\Http\Resources\BookingPaymentResource;
-use App\Http\Resources\LeasePaymentResource;
-use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\PaymentStatus;
-use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
-use App\Services\Model\BookingPaymentService;
-use App\Services\Model\LeasePaymentService;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,82 +14,16 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Validation\ValidationException;
 
 /**
- * Unified payment endpoints:
- *   - POST /api/payments        → route a payment to BookingPayment or LeasePayment.
- *   - GET  /api/payments/history → consolidated history across both sources.
+ * GET /api/payments/history — consolidated history across BookingPayment and LeasePayment.
+ *
+ * TCK-940 (P46.01) — `POST /api/payments`, le routeur unifié, est retiré : un paiement se crée par
+ * les voies imbriquées du bail et de la réservation, sous leurs policies.
  */
 class PaymentController extends Controller
 {
-    public function __construct(
-        protected BookingPaymentService $bookingPayments,
-        protected LeasePaymentService $leasePayments,
-        protected PaymentGatewayService $gateway,
-    ) {}
-
-    public function store(PaymentStoreRequest $request): JsonResponse
-    {
-        $data = $request->validated();
-        $user = $request->user();
-
-        if ($data['payable_type'] === 'booking') {
-            /** @var Booking|null $booking */
-            $booking = Booking::find($data['payable_id']);
-            abort_code_unless($booking, 404, 'booking.not_found');
-            $staff = $this->authorizeBookingManage($user, $booking);
-            $this->refusePaidAtFromPayer($staff, $data);
-
-            $payment = $this->bookingPayments->create($booking, $user, [
-                'amount' => $data['amount'],
-                'payment_type' => $data['payment_type'],
-                'payment_method' => $data['payment_method'] ?? null,
-                // TCK-684 (P13.05) — le client ne déclare qu'une intention : `pending`, toujours.
-                'status' => $staff ? ($data['status'] ?? null) : PaymentStatus::Pending->value,
-                'paid_at' => $data['paid_at'] ?? null,
-                'transaction_id' => $data['transaction_id'] ?? null,
-                'notes' => $data['notes'] ?? null,
-            ]);
-
-            return $this->json([
-                'data' => BookingPaymentResource::make($payment->refresh())->toArray($request) + [
-                    'source' => 'booking',
-                ],
-            ], 201);
-        }
-
-        // Lease
-        /** @var Lease|null $lease */
-        $lease = Lease::find($data['payable_id']);
-        abort_code_unless($lease, 404, 'lease.not_found');
-        $staff = $this->authorizeLeaseManage($user, $lease);
-        $this->refusePaidAtFromPayer($staff, $data);
-
-        $leaseData = [
-            'amount' => $data['amount'],
-            'payment_type' => $data['payment_type'],
-            'payment_method' => $data['payment_method'] ?? null,
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-            'due_date' => $data['due_date'] ?? null,
-            'paid_at' => $data['paid_at'] ?? null,
-            'transaction_id' => $data['transaction_id'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ];
-        // Le personnel peut déclarer l'état (payé à réception, partiel…) ; le locataire reste en
-        // `pending` (TCK-684, P13.05) : il ne passe ni par `markPaid` ni par ses gardes.
-        if ($staff && ! empty($data['status'])) {
-            $leaseData['status'] = $data['status'];
-        }
-        $payment = $this->leasePayments->create($lease, $user, $leaseData);
-
-        return $this->json([
-            'data' => LeasePaymentResource::make($payment->refresh())->toArray($request) + [
-                'source' => 'lease',
-            ],
-        ], 201);
-    }
+    public function __construct(protected PaymentGatewayService $gateway) {}
 
     /**
      * Consolidated payment history across BookingPayments and LeasePayments.
@@ -358,65 +285,5 @@ class PaymentController extends Controller
         return $desc
             ? $rows->sortByDesc($field)->values()
             : $rows->sortBy($field)->values();
-    }
-
-    /**
-     * TCK-684 (P13.05) — `paid_at` n'appartient qu'au personnel : le payeur qui l'envoie reçoit un
-     * 422 et rien n'est écrit, au lieu d'un paiement daté qu'il aurait déclaré lui-même.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    protected function refusePaidAtFromPayer(bool $staff, array $data): void
-    {
-        if ($staff || ($data['paid_at'] ?? null) === null) {
-            return;
-        }
-
-        $attribute = trans()->has('validation.attributes.paid_at')
-            ? (string) __('validation.attributes.paid_at')
-            : 'paid at';
-
-        throw ValidationException::withMessages([
-            'paid_at' => [__('validation.prohibited', ['attribute' => $attribute])],
-        ]);
-    }
-
-    /**
-     * Rend `true` pour le personnel (super-admin, propriétaire du bien, agence de la réservation),
-     * `false` pour le seul client de la réservation ; 403 pour tout autre.
-     */
-    protected function authorizeBookingManage($user, Booking $booking): bool
-    {
-        $property = $booking->property;
-        $customer = $booking->customer;
-        $staff = $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            // TCK-587 — le personnel de l'agence, plus tout membre (ADR-0031).
-            || ($booking->agency_id !== null && $user->staffAgencyId() === (int) $booking->agency_id);
-        // TCK-172 — the customer themselves can create their own pending payment
-        // (deposit / balance) so the gateway checkout flow can be initiated.
-        $payer = $customer && $customer->user_id === $user->id;
-
-        abort_unless($staff || $payer, 403);
-
-        return $staff;
-    }
-
-    /**
-     * Rend `true` pour le personnel (super-admin, bailleur, agence du bail), `false` pour le seul
-     * locataire du bail ; 403 pour tout autre.
-     */
-    protected function authorizeLeaseManage($user, Lease $lease): bool
-    {
-        $tenant = $lease->tenant;
-        $staff = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($lease->agency_id !== null && $user->staffAgencyId() === (int) $lease->agency_id);
-        // TCK-172 — tenant can create their own pending lease payment.
-        $payer = $tenant && $tenant->user_id === $user->id;
-
-        abort_unless($staff || $payer, 403);
-
-        return $staff;
     }
 }

@@ -302,6 +302,9 @@ bornées :
 98. [AgencyAdminProfile](#98-agencyadminprofile-) ✅ (TCK-271, TCK-279)
 99. [NotificationPreference](#99-notificationpreference-) ✅ (TCK-070, TCK-588)
 
+#### Crédits d'espace et boost — tranches d'une Vedette 🆕 (TCK-942, ADR-0061 amendement du 2026-10-18)
+100. [PropertyBoostTranche](#100-propertyboosttranche-) 🆕
+
 ### Enums
 
 - [Enums](#enums-1)
@@ -4258,9 +4261,10 @@ DISTINCT`** — sans lui, deux Remontées à variante nulle passeraient l'unicit
 **Description :** Un boost acheté ou offert sur un bien ([ADR-0061 §5, §8](adr/0061-credits-d-espace-et-boost-des-annonces.md)).
 Écrit par `App\Services\Boost\*` seul. Règles : une Remontée au plus par bien et par délai réglé,
 jamais remboursée ; une Vedette ne se cumule pas — en racheter une **prolonge** la fin (prix et durée
-cumulés) ; un Badge actif par bien, un nouveau remplace l'ancien sans remboursement. Le boost **suit
+cumulés sur la ligne, et une [tranche](#100-propertyboosttranche-) de plus) ; un Badge actif par bien, un nouveau remplace l'ancien sans remboursement. Le boost **suit
 la vie du bien** : bien hors surface publique → `paused` avec ses secondes restantes, puis reprise ;
-bien loué, vendu ou supprimé par l'annonceur → `refunded` au prorata des jours pleins restants ;
+bien loué, vendu ou supprimé par l'annonceur → `refunded` au prorata des jours pleins restants,
+**tranche par tranche** pour une Vedette prolongée (TCK-942) ;
 retiré par la modération → `ended` sans remboursement. Une mise en avant gratuite du super-admin est
 une **Vedette offerte** (`offered`, prix 0, aucun mouvement de crédit).
 
@@ -4272,7 +4276,7 @@ une **Vedette offerte** (`offered`, prix 0, aucun mouvement de crédit).
 | boost_product_id | FK boost_products | oui | null | `property_boosts_product_fk`, `nullOnDelete` |
 | kind | string(20) | | | `BoostKind` |
 | variant | string(20) | oui | null | `BoostBadge` |
-| price_credits | unsignedInteger | | | **Figé** à l'achat (cumulé par une prolongation) |
+| price_credits | unsignedInteger | | | **Figé** à l'achat (cumulé par une prolongation ; le prix de chaque achat ou offre est dans ses [tranches](#100-propertyboosttranche-)) |
 | duration_days | unsignedSmallInteger | | | **Figée** à l'achat |
 | starts_at | timestamp | | | |
 | ends_at | timestamp | oui | null | `null` pendant une pause (la durée est alors dans `remaining_seconds`). Une Remontée, instantanée, naît **close** : `ends_at = ended_at = starts_at`, statut `ended`, `duration_days = 0` |
@@ -4297,7 +4301,8 @@ TCK-639 — piège PostgreSQL n°8), `property_boosts_product_idx (boost_product
 (cancelled_by_id)`.
 
 **Relations :** `property()` → belongsTo Property (`withTrashed`) ; `agency()` → belongsTo Agency ;
-`product()` → belongsTo BoostProduct ; `dailyStats()` → hasMany PropertyBoostDailyStat.
+`product()` → belongsTo BoostProduct ; `dailyStats()` → hasMany PropertyBoostDailyStat ;
+`tranches()` → hasMany [PropertyBoostTranche](#100-propertyboosttranche-), par `position` (TCK-942).
 Inverse : `Property::boosts()`.
 
 ---
@@ -4514,6 +4519,40 @@ coexiste avec les colonnes globales de `users` (`notifications_*_enabled`, `emai
 > `NotificationChannel` (`app`, `email`, `sms`, `push`, `whatsapp`). Sans effet aujourd'hui : la
 > colonne n'est pas castée et aucune ligne `inapp` n'est persistée. Il en aurait un dès qu'un code
 > comparerait les deux vocabulaires. Relevé par la passe 011 de `/sync-specs`, à trancher par ticket.
+
+---
+
+### 100. PropertyBoostTranche 🆕
+
+**Table :** `property_boost_tranches` (migration `2026_10_18_210000`, TCK-942)
+**Modèle :** `App\Models\PropertyBoostTranche` (`AbstractModel`) — écrit par
+`App\Services\Boost\BoostPurchaseService` seul, lu par `BoostLifecycle::refundableCredits()`.
+**Description :** Un achat ou une offre d'une Vedette, avec son prix figé et sa durée
+([ADR-0061, amendement du 2026-10-18](adr/0061-credits-d-espace-et-boost-des-annonces.md#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405)).
+Une Vedette en naît avec une tranche ; une prolongation en ajoute une au rang suivant, et la ligne
+[PropertyBoost](#93-propertyboost-) garde le cumul. **Au remboursement, les jours pleins restants
+sont pris en partant du dernier rang**, chacun au prix de sa tranche (`prix × jours rendus / durée`,
+arrondi à l'entier inférieur) : une tranche offerte ne rend rien. **Reprise** : un boost sans
+tranche — Badge, Vedette prolongée avant TCK-942, Vedette convertie par `LegacyFeaturedConversion` —
+est sa propre tranche unique, au prix et à la durée de sa ligne ; s'il est prolongé, cette tranche de
+reprise est écrite d'abord, et la somme des tranches reste celle de la ligne. Aucune tranche n'est
+écrite pour une Remontée ni un Badge, qui ne se prolongent pas.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| property_boost_id | FK property_boosts | | | `property_boost_tranches_boost_fk`, `cascadeOnDelete` |
+| position | unsignedSmallInteger | | | Rang dans l'ordre d'achat, à partir de 1 |
+| price_credits | unsignedInteger | | | Prix **figé** de cet achat ; 0 pour une offre |
+| duration_days | unsignedSmallInteger | | | Durée de cet achat ou de cette offre |
+| offered | boolean | | false | Offerte par le super-admin |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `property_boost_tranches_boost_position_unique (property_boost_id,
+position)`, qui sert aussi d'index à la clé étrangère ; CHECK `property_boost_tranches_values_check
+(position >= 1 AND price_credits >= 0 AND duration_days > 0)`.
+
+**Relations :** `boost()` → belongsTo PropertyBoost. Inverse : `PropertyBoost::tranches()`.
 
 ---
 
@@ -5030,6 +5069,7 @@ Toute requête authentifiée résout un **profil actif** parmi les profils du us
 | geo_neighborhoods | `(geo_city_id, LOWER(name COLLATE "und-x-icu"))` | unique partiel | `status <> 'rejected' AND merged_into_id IS NULL` 🆕 (TCK-633) |
 | boost_products | `(kind, variant, duration_days)` | unique composé | `NULLS NOT DISTINCT` 🆕 (TCK-633) |
 | property_boost_daily_stats | `(property_boost_id, date)` | unique composé | toujours 🆕 (TCK-633) |
+| property_boost_tranches | `(property_boost_id, position)` | unique composé | toujours 🆕 (TCK-942) |
 | credit_welcome_grants | `phone_hash` ; `agency_id` | unique | toujours (`agency_id` : plusieurs `NULL` admis) 🆕 (TCK-633) |
 
 ---

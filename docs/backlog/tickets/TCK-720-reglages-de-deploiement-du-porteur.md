@@ -67,10 +67,13 @@ où chaque constat est sourcé et daté.
   `preview` à 800 px).
 - [ ] **P10.10** — servir l'avatar par une conversion à sa taille d'affichage, plutôt que
   l'original jusqu'à 2560 px.
-- [ ] **P36.04** — une fois la piste faite par l'implémenteur (un jeton d'URL par fournisseur, repli
-  sur `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons, un par fournisseur et par environnement,
-  dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
+- [ ] **P36.04** — piste faite en session par TCK-943 (un jeton d'URL par fournisseur, repli sur
+  `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
+  `SMS_MTARGET_WEBHOOK_URL_TOKEN` et `SMS_LAM_WEBHOOK_URL_TOKEN`, un par environnement, dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
   de LAfricaMobile ne doit plus ouvrir la route d'Orange.
+- [ ] **P36.05** — fait par TCK-944 : poser `WHATSAPP_WEBHOOK_VERIFY_TOKEN` dans Dokploy, de même
+  valeur que le *Verify token* de l'application Meta, puis enregistrer le webhook chez Meta : la
+  vérification `GET` doit rendre le défi.
 - [ ] **P37.03** — préproduction : poser `API_INTERNAL_URL` sur `takussan-web-preview`, après la
   mesure de D-71 (l'alias `api` doit être unique sur `dokploy-network` ; sinon le nom du
   conteneur) et le relevé d'ADR-0052 § 6 avant et après. Sans elle, les trois formulaires anonymes

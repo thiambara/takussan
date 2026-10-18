@@ -12,6 +12,7 @@ use App\Models\UserCustomerRelationship;
 use App\Services\Crm\ProspectMatcher;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\NotificationService;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,7 +39,8 @@ use Throwable;
  * **Jamais vide** : sans correspondance, personne n'est notifié.
  *
  * **Idempotent par jour** : un destinataire qui a déjà son récapitulatif du jour (`data.kind` +
- * `data.digest_date`) n'en reçoit pas un second, si le job est rejoué.
+ * `data.digest_date`) n'en reçoit pas un second, si le job est rejoué — y compris quand le premier
+ * envoi a échoué : la clé est écrite avant lui (P05.08, TCK-941).
  */
 class SendProspectMatchDigest implements ShouldQueue
 {
@@ -75,11 +77,8 @@ class SendProspectMatchDigest implements ShouldQueue
                         $entry['pairs'][] = ['property_id' => $property->id, 'customer_id' => $customer->id];
                     });
             } catch (Throwable $e) {
-                Log::error('prospect_match_digest.failed', [
-                    'property_id' => $property->id,
-                    'exception' => $e::class,
-                    'message' => $e->getMessage(),
-                ]);
+                // P05.08 (TCK-941) — jamais `getMessage()` : il peut porter une saisie (TCK-601).
+                Log::error('prospect_match_digest.failed', ['property_id' => $property->id] + SafeExceptionContext::of($e));
             }
         });
 
@@ -93,13 +92,17 @@ class SendProspectMatchDigest implements ShouldQueue
 
             // TCK-588 (ADR-0032) — un code, rendu dans la langue du référent ; `data` garde la clé
             // d'idempotence du jour et le détail des correspondances, sans aucun texte.
-            $notifications->send($user, NotificationCode::ProspectMatchDigest, $params)?->update(['data' => [
+            // P05.08 (TCK-941) — la clé est posée à la création de la ligne, AVANT l'envoi. Un envoi
+            // qui échoue après elle n'est pas rejoué : le récapitulatif du jour est perdu plutôt
+            // que reçu deux fois. Posée après l'envoi, un échec en route la laissait absente et le
+            // rejeu renvoyait.
+            $notifications->send($user, NotificationCode::ProspectMatchDigest, $params, data: [
                 'kind' => self::KIND,
                 'digest_date' => $today,
                 'properties_count' => $params['properties'],
                 'prospects_count' => $params['prospects'],
                 'matches' => array_slice($entry['pairs'], 0, self::MAX_PAIRS_IN_DATA),
-            ]]);
+            ]);
         }
     }
 

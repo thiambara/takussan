@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/api';
 import type { PlatformLevel } from '@/lib/platform-abilities';
+import type { BulkFailure } from '@/types/agent-crm';
 import type {
   AdminAgenciesResponse,
   AdminAgencyDetailResponse,
@@ -539,17 +540,20 @@ export async function postPropertyAction(
   return jsonOrThrow<unknown>(res);
 }
 
+/** TCK-952 — `failed` est la liste des refus `{ id, reason }` de `PropertyBulkArchiveService`. */
+type ArchivageEnMasse = { archived: number; failed: BulkFailure[]; archived_ids: number[] };
+
 export async function archiveProperties(
   propertyIds: number[],
   reason?: string,
-): Promise<{ archived: number; failed: number; archived_ids: number[] }> {
+): Promise<ArchivageEnMasse> {
   const res = await fetch('/api/super-admin-properties/bulk-archive', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ property_ids: propertyIds, reason }),
   });
-  return jsonOrThrow<{ archived: number; failed: number; archived_ids: number[] }>(res);
+  return jsonOrThrow<ArchivageEnMasse>(res);
 }
 
 export async function deleteProperty(propertyId: number): Promise<unknown> {

@@ -6,9 +6,8 @@ use App\Http\Controllers\Api\Webhooks\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
-    // Unified payment router — creates BookingPayment or LeasePayment
-    // depending on payable_type ('booking' | 'lease').
-    Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+    // TCK-940 (P46.01) — plus de `POST payments` : un paiement se crée par les voies imbriquées
+    // (`leases/{id}/payments`, `bookings/{id}/payments`) et se règle par `mark-paid`.
 
     // Consolidated history across BookingPayment + LeasePayment with
     // entity_type / entity_id / status / date filters.

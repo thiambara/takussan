@@ -102,11 +102,29 @@ services:
 
   # Deux workers, les files qu'écrivait scripts/server-setup.sh (retiré par ADR-0028) :
   # notifications-urgent passe devant default, et le média lourd ne retarde pas une notification.
+  #
+  # ── `mem_limit` des deux workers : 384m, AU-DESSUS de `memory_limit` (TCK-951, P43.04) ──────────
+  #
+  # `memory_limit = 256M` (docker/php.ini) ne borne que le tas de PHP. Le processus porte en plus son
+  # binaire, ses extensions et son allocateur. Mesuré le 2026-10-18 dans l'image (`:local`, PHP
+  # 8.4.26), Laravel amorcé comme par `artisan` : RSS 62 Mio pour 32 Mio de tas au repos, et un pic
+  # de RSS (`VmHWM`) de 288 Mio quand le tas atteint 256 Mio, trois fois sur trois. La marge hors tas
+  # vaut donc 32 Mio. Relevé sur la préproduction le même jour : `worker` 52 Mio au repos,
+  # `worker-media` 48 Mio.
+  #
+  #   256 (memory_limit) + 32 (marge mesurée) = 288 Mio au pic d'un job qui épuise son tas
+  #   384 − 288 = 96 Mio pour ce que PHP ne compte pas : le résultat d'une requête que libpq garde
+  #   entier en mémoire avant que PDO le copie (un `cursor()` sur PostgreSQL), les tampons de curl.
+  #
+  # Avec `mem_limit: 256m`, le noyau tuait le worker par SIGKILL avant l'erreur PHP : ni
+  # « Allowed memory size » au journal, ni `failed()`, et le job était rejoué. Avec 384m, c'est
+  # l'erreur de PHP qui joue, et elle se lit. Le script de la mesure est dans TCK-951.
+  # ⚠ Monter `memory_limit` sans monter ces deux limites rouvre le défaut.
   worker:
     <<: [*api, *apres-release]
     command: php artisan queue:work --queue=notifications-urgent,default --sleep=3 --tries=3 --max-time=3600
     stop_grace_period: 60s
-    mem_limit: 256m
+    mem_limit: 384m
 
   worker-media:
     <<: [*api, *apres-release]

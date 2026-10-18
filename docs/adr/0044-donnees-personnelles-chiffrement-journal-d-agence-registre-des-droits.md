@@ -4,6 +4,7 @@
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
 - **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
+- **Précisé par [ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) (2026-10-18)** : l'application de l'amendement A — périmètre, migrations, masques, lectures claires et leurs lecteurs, exports, contrat du front.
 - **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
 ## Contexte

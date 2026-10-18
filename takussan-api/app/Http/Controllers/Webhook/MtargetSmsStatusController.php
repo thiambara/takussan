@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\Dlr\MtargetTicketMatcher;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Notifications\Sms\SmsWebhookUrlToken;
 use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,8 +53,8 @@ class MtargetSmsStatusController extends Controller
         if (! config('sms.mtarget.webhook_enabled', true)) {
             abort(404);
         }
-        $token = (string) config('sms.webhook_url_token', '');
-        if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
+        // P36.04 (TCK-943) — le jeton propre au fournisseur, sinon la clé commune.
+        if (! SmsWebhookUrlToken::accepts('mtarget', (string) $request->route('token'), config())) {
             abort(404);
         }
         // TCK-602 — l'IP (`restrict.ip`, en amont) et le jeton ont passé.

@@ -166,15 +166,19 @@ jobs:
             git fetch -q --depth=1 origin "$1" 2>/dev/null || return 1
             [ "$(git rev-parse "$1^{tree}")" = "$ARBRE" ]
           }
+          # TCK-948 (P44.01) — le code HTTP compte aussi : `/api/sante` porte `X-Build-Sha` même
+          # quand le front ne joint pas l'API (503). Seul un 200 du bon arbre prouve le déploiement.
           attendre() {
-            local url=$1 sha=""
+            local url=$1 sha="" code="" reponse
             shift
             for _ in $(seq "${ESSAIS:-60}"); do
-              sha=$(curl -sS -o /dev/null -D - "$@" "$url" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-build-sha"{print $2}')
-              if [ -n "$sha" ] && meme_arbre "$sha"; then echo "✓ $url sert $sha (arbre $ARBRE)"; return 0; fi
+              reponse=$(curl -sS -o /dev/null -D - -w '%{http_code}' "$@" "$url" | tr -d '\r' || true)
+              code=$(tail -1 <<<"$reponse")
+              sha=$(awk -F': ' 'tolower($1)=="x-build-sha"{print $2}' <<<"$reponse")
+              if [ "$code" = 200 ] && [ -n "$sha" ] && meme_arbre "$sha"; then echo "✓ $url sert $sha (arbre $ARBRE)"; return 0; fi
               sleep 10
             done
-            echo "::error::$url sert « ${sha:-rien} », dont l'arbre n'est pas $ARBRE ($GITHUB_SHA)"
+            echo "::error::$url rend ${code:-rien} et sert « ${sha:-rien} » : attendu 200 et l'arbre $ARBRE ($GITHUB_SHA)"
             return 1
           }
           if [ -z "$API_URL" ] || [ -z "$SITE_URL" ]; then
@@ -182,8 +186,13 @@ jobs:
             exit 1
           fi
           attendre "$API_URL/up"
-          if [ -n "$BASIC_AUTH" ]; then
-            attendre "$SITE_URL/robots.txt" -u "$BASIC_AUTH"
-          else
-            attendre "$SITE_URL/robots.txt"
-          fi
+          # `/robots.txt` ne joint rien ; `/api/sante` joint l'API par le chemin des lectures serveur
+          # (`API_INTERNAL_URL`, sinon `API_URL`) et rend 503 si elle ne répond pas (TCK-948). Elle
+          # n'est PAS le HEALTHCHECK de l'image : une panne de l'API n'arrête pas le front.
+          for chemin in robots.txt api/sante; do
+            if [ -n "$BASIC_AUTH" ]; then
+              attendre "$SITE_URL/$chemin" -u "$BASIC_AUTH"
+            else
+              attendre "$SITE_URL/$chemin"
+            fi
+          done

@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -43,6 +43,9 @@ lecteurs. Mais rien n'écrit la part versée : la règle est juste et inerte.
    (`grep -rln paid_amount app` : lecteurs seuls — `HasPaymentAttributes`, `CollectedPayments`,
    `LateFeeCalculator`, ressources). `PaymentStoreRequest` (`app/Http/Requests/PaymentStoreRequest.php:30`)
    accepte `status: partially_paid` sans part : la ligne naît `paid_amount = 0`, reste dû = montant.
+   *(2026-10-18 : `PaymentStoreRequest` est retiré avec `POST /api/payments` par TCK-940 ; la voie
+   imbriquée, `StoreLeasePaymentRequest`, ne reçoit pas de `status`. Ce point est à re-mesurer
+   avant d'implémenter : il ne reste peut-être aucune voie qui crée une `partially_paid`.)*
 2. **Une `partially_paid` ne se solde pas.** `LeasePaymentService::markPaid`
    (`app/Services/Model/LeasePaymentService.php:60-64`) n'accepte que `pending` et `late` → 422
    `lease_payment.cannot_mark_paid` (règle de 93b4c90c, 2026-04-17). Une échéance créée

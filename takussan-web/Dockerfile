@@ -29,6 +29,13 @@ RUN npm run build
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# TCK-949 (P44.02) — le serveur garde une connexion inactive PLUS longtemps que Traefik devant lui.
+# Traefik (v3.6.7 sur le serveur, sans `serversTransport` dans /etc/dokploy/traefik/traefik.yml)
+# garde ses connexions amont inactives 90 s (`forwardingTimeouts.idleConnTimeout`, défaut de la
+# documentation 3.6) ; Node les fermait à 5 s. Le mandataire pouvait alors réutiliser une connexion
+# que Node venait de fermer : 502. Millisecondes (`server.keepAliveTimeout`, lu par le `server.js`
+# standalone). La réponse annonce `Keep-Alive: timeout=100`, et smoke-web.sh le vérifie.
+ENV KEEP_ALIVE_TIMEOUT=100000
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public

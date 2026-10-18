@@ -10,6 +10,7 @@ use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
 use App\Services\Notifications\Sms\SmsTimeBudget;
+use App\Services\Notifications\Sms\SmsWebhookUrlToken;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
@@ -66,8 +67,8 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
         $notificationId = $context['notification_id'] ?? null;
         // TCK-727 (P27.01) — sans jeton, la route signée ne se construit pas
         // (segment `{token}` exigé) : on perd l'accusé de réception, pas le SMS.
-        if ($notificationId && (string) $this->config->get('sms.webhook_url_token', '') === '') {
-            Log::warning('[sms.lam] SMS_WEBHOOK_URL_TOKEN absent : envoi sans accusé de réception', [
+        if ($notificationId && SmsWebhookUrlToken::for('lafricamobile', $this->config) === '') {
+            Log::warning('[sms.lam] SMS_LAM_WEBHOOK_URL_TOKEN et SMS_WEBHOOK_URL_TOKEN absents : envoi sans accusé de réception', [
                 'notification_id' => (int) $notificationId,
             ]);
             $notificationId = null;
@@ -134,7 +135,8 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
      */
     private function buildReturnUrl(int $notificationId): string
     {
-        $token = (string) $this->config->get('sms.webhook_url_token', '');
+        // P36.04 (TCK-943) — le jeton de LAM, jamais celui d'un autre fournisseur.
+        $token = SmsWebhookUrlToken::for('lafricamobile', $this->config);
         $ttlDays = (int) $this->config->get('sms.lafricamobile.dlr_signature_ttl_days', 7);
 
         return URL::temporarySignedRoute(
