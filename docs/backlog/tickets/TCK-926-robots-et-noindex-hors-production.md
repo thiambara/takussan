@@ -1,7 +1,7 @@
 ---
 id: TCK-926
 title: "robots.txt ancré, noindex des passages interdits et de tout ce qui n'est pas la production"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -57,24 +57,42 @@ explorable.
 
 ## Delta à produire
 
-- [ ] `CHEMINS_INTERDITS_AUX_ROBOTS` : `/<segment>/` et `/<segment>$` au lieu de `/<segment>`.
-- [ ] Test : aucune règle `Disallow` ne frappe un fichier servi à la racine (`src/app`, `public`).
-- [ ] `robots: { index: false, follow: false }` sur les layouts des passages interdits
-  (`maintenance/layout.tsx` neuf : la page est un composant client).
-- [ ] Proxy : `X-Robots-Tag: noindex, nofollow` quand `origineSite()` n'est pas
+- [x] `CHEMINS_INTERDITS_AUX_ROBOTS` : `/<segment>/` et `/<segment>$` au lieu de `/<segment>`.
+- [x] Test : aucune règle `Disallow` ne frappe un fichier servi à la racine (`src/app`, `public`).
+- [x] `robots: { index: false, follow: false }` sur les layouts des passages interdits
+  (l'écran de maintenance, composant client, passe dans `EcranDeMaintenance.tsx`, rendu par une
+  page serveur qui porte la métadonnée).
+- [x] Proxy : `X-Robots-Tag: noindex, nofollow` quand `origineSite()` n'est pas
   `ORIGINE_PRODUCTION`.
-- [ ] API : middleware global `X-Robots-Tag: noindex, nofollow` quand l'origine d'`APP_URL`
+- [x] API : middleware global `X-Robots-Tag: noindex, nofollow` quand l'origine d'`APP_URL`
   n'est pas celle de l'API de production.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `/apple-icon.png`, `/icon.svg`, `/favicon.ico` ne sont frappés par aucune règle ;
+- [x] AC1 — `/apple-icon.png`, `/icon.svg`, `/favicon.ico` ne sont frappés par aucune règle ;
   `/app`, `/app/x`, `/publish` le restent ; `/appartements` ne l'est pas.
-- [ ] AC2 — Les layouts de `/publish`, `/onboarding`, `/invitations`, `/maintenance` et
-  `/super-admin` déclarent `robots: { index: false, follow: false }`.
-- [ ] AC3 — `SITE_URL` d'une préproduction → le proxy pose `X-Robots-Tag` ; sans `SITE_URL` ou
+- [x] AC2 — Les layouts de `/publish`, `/onboarding`, `/invitations` et `/super-admin`, et la page
+  `/maintenance`, déclarent `robots: { index: false, follow: false }`.
+- [x] AC3 — `SITE_URL` d'une préproduction → le proxy pose `X-Robots-Tag` ; sans `SITE_URL` ou
   sur l'origine de production → il ne le pose pas.
-- [ ] AC4 — API, `APP_URL` d'une préproduction → `X-Robots-Tag` sur `/` et sur une route `api/` ;
+- [x] AC4 — API, `APP_URL` d'une préproduction → `X-Robots-Tag` sur `/` et sur une route `api/` ;
   `APP_URL` de production → absent.
 
 ## Notes d'implémentation
+
+- Avant correctif : `sitemap.test.ts` 2 rouges (`/apple-icon.png` frappé par `/app`, sosie
+  `/appartements` aussi) ; `noindex-des-passages-interdits.test.ts` 5 rouges (`robots` absent) ;
+  `proxy.noindex.test.ts` 5 rouges (aucun `X-Robots-Tag` hors production) ;
+  `AddRobotsTagOutsideProductionTest` 3 rouges (`/`, une route `api/`, une route absente).
+- Ablations : règles remises en `/<segment>` → 2 rouges ; `metadata` vidée sur `/publish` → 1
+  rouge ; condition du proxy neutralisée → 5 rouges ; `append` du middleware retiré de
+  `bootstrap/app.php` → 3 rouges. Tout remis → verts.
+- `robots.test.ts` attendait `/app` littéral dans la liste : réécrit sur les deux règles ancrées.
+  Le test des fichiers de la racine juge par la correspondance d'un moteur (préfixe, `*`, `$`),
+  pas par appartenance à la liste.
+- `maintenance/page.tsx` était un composant client. Un `layout.tsx` neuf pour sa métadonnée
+  rougissait `check:i18n-namespaces` (toute frontière de rendu doit servir son dictionnaire) :
+  l'écran est déplacé tel quel dans `EcranDeMaintenance.tsx`, et la page devient serveur.
+- `bootstrap/app.php` est un déclencheur dur d'`impacted-tests` : la sélection vaut la suite
+  entière, laissée à la CI.
+
