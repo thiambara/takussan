@@ -12,6 +12,9 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Lease\LateFeeCalculator;
+use App\Services\Payments\Dto\PaymentEvent;
+use App\Services\Payments\Dto\WebhookAuthority;
+use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
@@ -144,14 +147,11 @@ class PaymentWebhookTest extends TestCase
     public function test_paid_payment_is_not_regressed_to_pending_on_late_event(): void
     {
         $payment = $this->arrangePending(status: PaymentStatus::Paid);
-        $payload = ['type' => 'checkout.session.pending', 'data' => ['id' => $payment->transaction_id]];
-        $body = json_encode($payload);
-        $sig = $this->signWave($body, $this->secret);
-
-        $this->call('POST', $this->pendingWebhookUri(), $payload, [], [], [
-            'CONTENT_TYPE' => 'application/json',
-            'HTTP_WAVE_SIGNATURE' => $sig,
-        ], $body)->assertOk();
+        // TCK-890 (P39.05) — Wave ne documente aucun événement `pending` : un nom hors de sa table
+        // est ignoré par le pilote. L'événement `pending` est donc appliqué au service directement.
+        app(PaymentGatewayService::class)->applyEventToMatchingPayment(new PaymentEvent(
+            'wave', PaymentEvent::TYPE_PENDING, (string) $payment->transaction_id, [], WebhookAuthority::of($this->pendingIntegration),
+        ));
 
         $payment->refresh();
         $this->assertSame(PaymentStatus::Paid, $payment->status, 'paid → pending must be blocked.');

@@ -157,10 +157,14 @@ class PropertyMediaController extends Controller
 
         $data = $request->validated();
 
+        // TCK-892 (P10.09) — sans toucher `updated_at` : `version_urls` en fait le `?v=` de chaque
+        // URL, et déplacer une photo en changeait l'URL sans changer le fichier (défaut de cache).
         $mediaCollection = $property->getMedia('photos');
-        foreach ($data['order'] as $position => $mediaId) {
-            $mediaCollection->firstWhere('id', $mediaId)?->update(['order_column' => $position + 1]);
-        }
+        Media::withoutTimestamps(function () use ($data, $mediaCollection): void {
+            foreach ($data['order'] as $position => $mediaId) {
+                $mediaCollection->firstWhere('id', $mediaId)?->update(['order_column' => $position + 1]);
+            }
+        });
 
         return $this->json(['message' => 'reordered']);
     }

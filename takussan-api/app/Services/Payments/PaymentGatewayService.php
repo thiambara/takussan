@@ -316,6 +316,12 @@ class PaymentGatewayService
         $journal->authenticated($integration);
         $journal->annotate(['external_id' => $event->transactionId, 'event_type' => $event->type]);
 
+        // TCK-890 (P39.05) — un événement ignoré n'est rapproché d'aucun payable : il n'est pas
+        // un « non apparié ».
+        if ($event->type === PaymentEvent::TYPE_IGNORED) {
+            return $event;
+        }
+
         $journal->annotate(['matched_count' => $this->applyEventToMatchingPayment($event)]);
 
         return $event;
@@ -395,6 +401,10 @@ class PaymentGatewayService
      */
     public function applyEventToMatchingPayment(PaymentEvent $event): int
     {
+        if ($event->type === PaymentEvent::TYPE_IGNORED) {
+            return 0;
+        }
+
         return DB::transaction(function () use ($event): int {
             $candidates = $this->paymentsForEvent($event);
 
@@ -587,6 +597,28 @@ class PaymentGatewayService
                     if ($this->hasColumn($payment, 'refund_amount')) {
                         $payment->refund_amount = $this->reportedRefundAmount($payment, $metadata);
                     }
+                } elseif (! $this->isMarkedDuplicate($existingMeta, $transactionId)
+                    && ! (in_array($current, [PaymentStatus::Paid, PaymentStatus::Refunded], true) && $this->isSettledBy($existingMeta, $transactionId))) {
+                    // TCK-889 (P39.04) — un remboursement reçu AVANT le paiement de sa transaction
+                    // (Wave : « Events may arrive out of order ») ne trouve rien à rembourser. Marqué
+                    // traité sans effet, il était perdu : le `paid` suivant soldait le payable, et sa
+                    // relivraison était dédupliquée. Il attend ce `paid`, qui l'applique.
+                    $gateway = is_array($existingMeta['gateway'] ?? null) ? $existingMeta['gateway'] : [];
+                    $gateway['pending_refund'] = array_merge(
+                        is_array($gateway['pending_refund'] ?? null) ? $gateway['pending_refund'] : [],
+                        [[
+                            'transaction_id' => $transactionId,
+                            'amount' => $metadata['amount'] ?? null,
+                            'currency' => $metadata['currency'] ?? null,
+                            'at' => now()->toIso8601String(),
+                        ]],
+                    );
+                    $existingMeta['gateway'] = $gateway;
+                    Log::warning('payment_webhook_refund_before_paid', [
+                        'payable' => $payment::class,
+                        'payable_id' => $payment->getKey(),
+                        'transaction_id' => $transactionId,
+                    ]);
                 } else {
                     $existingMeta = $this->markDuplicateRefunded($existingMeta, $transactionId);
                 }
@@ -598,12 +630,16 @@ class PaymentGatewayService
                 }
         }
 
+        if ($providerStatus === PaymentDriverStatus::SUCCESS) {
+            $existingMeta = $this->applyPendingRefund($payment, $existingMeta, $transactionId);
+        }
+
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
 
         // TCK-873 (P39.03) — un acompte remboursé par le fournisseur clôt la tâche de remboursement,
         // comme le geste manuel.
-        if ($payment instanceof BookingPayment && $current === PaymentStatus::Paid && $this->currentPaymentStatus($payment) === PaymentStatus::Refunded) {
+        if ($payment instanceof BookingPayment && $current !== PaymentStatus::Refunded && $this->currentPaymentStatus($payment) === PaymentStatus::Refunded) {
             $payment->loadMissing('booking');
             if ($payment->booking !== null) {
                 app(BookingRefundTaskService::class)->closeIfSettled($payment->booking);
@@ -1091,6 +1127,53 @@ class PaymentGatewayService
         }
 
         return min((float) $reported, $amount);
+    }
+
+    /**
+     * TCK-889 (P39.04) — applique au `paid` de CETTE transaction le remboursement reçu avant lui.
+     * S'il a soldé le payable, celui-ci est d'abord enregistré `paid`, puis remboursé par la même
+     * écriture qu'un remboursement reçu dans l'ordre : la matrice des transitions et l'observateur
+     * des frais de plateforme voient la même suite d'états. S'il est un double encaissement, son
+     * entrée est notée remboursée.
+     *
+     * @param  array<string,mixed>  $meta
+     * @return array<string,mixed>
+     */
+    protected function applyPendingRefund(Model $payment, array $meta, ?string $transactionId): array
+    {
+        $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
+        $pending = is_array($gateway['pending_refund'] ?? null) ? $gateway['pending_refund'] : [];
+        $refund = null;
+        foreach ($pending as $i => $entry) {
+            if ($transactionId !== null && ($entry['transaction_id'] ?? null) === $transactionId) {
+                $refund = $entry;
+                unset($pending[$i]);
+            }
+        }
+        if ($refund === null) {
+            return $meta;
+        }
+
+        if ($pending === []) {
+            unset($gateway['pending_refund']);
+        } else {
+            $gateway['pending_refund'] = array_values($pending);
+        }
+        $meta['gateway'] = $gateway;
+
+        if ($this->isMarkedDuplicate($meta, $transactionId)) {
+            return $this->markDuplicateRefunded($meta, $transactionId);
+        }
+
+        if ($this->currentPaymentStatus($payment) === PaymentStatus::Paid && ($gateway['settled_by'] ?? null) === $transactionId) {
+            $payment->save();
+            $this->writeStatus($payment, PaymentStatus::Refunded);
+            if ($this->hasColumn($payment, 'refund_amount')) {
+                $payment->refund_amount = $this->reportedRefundAmount($payment, $refund);
+            }
+        }
+
+        return $meta;
     }
 
     /**

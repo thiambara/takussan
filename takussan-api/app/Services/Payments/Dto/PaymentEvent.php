@@ -19,6 +19,9 @@ final class PaymentEvent
 
     public const TYPE_REFUNDED = 'refunded';
 
+    /** TCK-890 (P39.05) — un événement authentifié qui n'agit sur aucun payable. */
+    public const TYPE_IGNORED = 'ignored';
+
     /**
      * @param  array<string,mixed>  $metadata
      */

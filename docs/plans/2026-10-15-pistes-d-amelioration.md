@@ -688,7 +688,7 @@ contre le code par la session.*
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
 - Réf : P04.11
-- Statut : validé — l'index sur la référence fournisseur ; reste : terminer ou retirer le paiement partiel
+- Statut : fait · TCK-891 — reste : terminer ou retirer le paiement partiel
 - Gravité : 🟢 amélioration
 - Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
 - Constat :
@@ -697,6 +697,7 @@ contre le code par la session.*
   - Rien n'écrit `metadata.paid_amount` : le statut `partially_paid` n'a pas de montant (lu).
 - Piste : un index sur `transaction_id`, et terminer ou retirer le paiement partiel.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu les migrations `create_lease_payments_table.php:27` et `create_booking_payments_table.php:26` (`transaction_id` sans index), `PaymentGatewayService.php:716-729` (`where('transaction_id', …)` puis `whereJsonContains('metadata->gateway->transactions', …)`) et `HasPaymentAttributes.php:205-235` ; `grep paid_amount app/` → lu et validé, jamais écrit ; tinker en lecture, `pg_indexes` → aucun index sur `transaction_id` pour les deux tables (seul `invoices` en a un). Les deux faits tiennent. Classement : V1, terminer ou retirer le paiement partiel touche l'écriture d'un montant reçu ; l'index seul relèverait d'A2.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PaymentTransactionIdIndexTest` : `Schema::getIndexes` → aucun index sur `transaction_id` pour `lease_payments` ni `booking_payments`. Correctif : migration neuve `2026_10_18_080000_index_payments_on_transaction_id` (avec `down()`) → index présents, `EXPLAIN` de `where('transaction_id', …)` les emprunte (balayage séquentiel interdit) → 4 verts ; ablation (migration retirée) → 4 rouges. Le paiement partiel reste au porteur.
 
 **Ce qui tient** (lu) :
 - la conversion ×100 est faite une seule fois, puis re-divisée par Wave et Orange Money (`PaymentGatewayService.php:215`, `WaveDriver.php:48`, `OrangeMoneyDriver.php:55`) ;
@@ -1520,12 +1521,13 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-892
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:122`, `takussan-api/config/media-library.php:160`
 - Constat : `update(['order_column'])` touche `updated_at`, or `version_urls` construit `?v=<updated_at>`. Chaque déplacement crée donc un défaut de cache, et de nouvelles transformations Cloudflare pour ce qui passe encore par elles (lu).
 - Piste : mettre à jour `order_column` sans toucher aux horodatages, ou versionner sur un champ dédié.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `PropertyMediaController.php:122` (`->update(['order_column' => …])`) et `config/media-library.php:160` (`version_urls`) relus ; `BaseUrlGenerator` de spatie suffixe `?v=<updated_at>` ; test temporaire retiré : deux photos téléversées, horloge avancée de 5 min, `PUT /api/properties/{id}/media/reorder` → l'URL de la première passe de `/storage/1/a.jpg?v=1792087464` à `?v=1792087765`, fichier inchangé. Le constat tient. Classement : A2, poser `order_column` sans toucher `updated_at` ne change ni le contenu ni l'ordre rendus, seulement la stabilité du cache ; aucun choix de produit.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PropertyMediaTest::test_reordering_keeps_the_photo_urls` (deux photos téléversées, horloge avancée de 5 min, `PUT …/media/reorder`, URL relues par `GET …/media`) → l'URL `thumbnail` de la première change. Correctif : `order_column` écrit sous `Media::withoutTimestamps()` → URL inchangées, ordre nouveau, 13 verts ; ablation (contrôleur remis à `pre-dev`) → 1 rouge.
 
 ### Petites améliorations
 - Réf : P10.10
@@ -4456,7 +4458,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un webhook `refunded` arrivé avant le `paid` de la même transaction est avalé, et le payable finit `paid`
 - Réf : P39.04
-- Statut : validé — un `refunded` reçu avant le `paid` de la même transaction est gardé en attente sur le payable (`gateway.pending_refund`, avec un `Log::warning`) et appliqué au `paid` de cette transaction ; test : le scénario mesuré (Wave écrit « Events may arrive out of order », docs.wave.com/webhook, relu le 2026-10-18)
+- Statut : fait · TCK-889
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:1074-1101`
 - Constat :
@@ -4465,10 +4467,11 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Que Wave ou Orange Money livrent un jour dans le désordre n'est pas établi (à vérifier, aucune documentation des fournisseurs dans le dépôt).
 - Piste : ne marquer un `refunded` traité que s'il a été appliqué (ou le garder en attente sur le payable et l'appliquer au `paid` suivant). Garde : le scénario mesuré en test.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : `checkout.session.refunded` reçu avant le `paid` → 200, échéance restée `late`, `gateway_events = [refunded]` ; puis `paid` → `paid` ; relivraison du `refunded` → toujours `paid` (dédupliquée). L'ordre réel de livraison des fournisseurs reste non établi. Classement : V1, le correctif décide du statut d'un paiement, et garder un remboursement en attente est un choix (V7).
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PaymentWebhookRefundTest` (remboursement par `applyEventToMatchingPayment()` sous l'autorité de l'intégration Wave, paiement par le vrai webhook signé) : `refunded` de `spy_txn_1` reçu avant son `paid` → aucune attente, puis échéance `paid` ; `refunded` du doublon `spy_txn_2` reçu avant son `paid` → entrée de doublon sans `refunded_at`. Correctif : attente `gateway.pending_refund` avec `Log::warning`, appliquée au `paid` de la transaction → échéance `refunded`, `refund_amount = 150000`, `paid_amount = 0`, attente vidée ; doublon noté remboursé, loyer `paid` → 10 verts ; ablation (service remis à `pre-dev`) → 2 rouges.
 
 ### L'ordre des motifs de `WaveDriver` range en `paid` tout événement qui contient `completed`, remboursement compris
 - Réf : P39.05
-- Statut : validé — une table explicite des événements Wave, relevée le 2026-10-18 sur docs.wave.com/webhook : `checkout.session.completed` → payé, `checkout.session.payment_failed` → échec, `test.test_event` → 200 sans effet ; `merchant.payment_received`, `b2b.payment_received`, `b2b.payment_failed` et tout nom inconnu sont journalisés et ignorés ; la page ne documente aucun événement de remboursement ; un test par nom
+- Statut : fait · TCK-890
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:122-127`, `takussan-api/tests/Feature/Api/LemonSqueezyEventListenerTest.php:97`
 - Constat :
@@ -4476,6 +4479,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Aucun test n'envoie un remboursement Wave ou Orange Money : le seul test de remboursement est celui de Lemon Squeezy (mesuré : `grep -rln "TYPE_REFUNDED\|session.refunded\|'refunded'" tests` → hors `LemonSqueezyEventListenerTest`, des tests de crédits, de cautions, d'export et du remboursement manuel d'acompte, aucun qui poste un webhook Wave ou Orange Money).
 - Piste : une table explicite des événements Wave (nom exact → type), un événement inconnu journalisé et ignoré plutôt que deviné. Garde : un test par nom d'événement, dont le remboursement.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : relu `WaveDriver::handleWebhook` (bloc `match (true)` des `str_contains`, désormais l. 122-127 inchangées) : `completed`/`succeeded` testés avant `refund` ; aucun test ne poste de remboursement Wave ou Orange Money (`grep` de l'explorateur non contredit). La liste réelle des événements Wave reste absente du dépôt. Classement : V1, la table des événements décide de ce qui solde un paiement, et elle demande la documentation du fournisseur.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par un test temporaire (vrai pilote Wave signé, échéance ouverte, retiré ensuite) : `refund.completed` → 200, type `paid`, échéance `paid` ; `checkout.session.refunded` → `refunded`, `merchant.payment_received` → `pending`, `b2b.payment_failed` → `failed`. Correctif : table explicite dans `WaveDriver`, `PaymentEvent::TYPE_IGNORED` non rapproché → `WaveWebhookEventTableTest`, un cas par nom (8 verts) ; ablation (`WaveDriver` remis à `pre-dev`) → 6 rouges sur 8. `PaymentWebhookTest` envoyait `checkout.session.pending`, nom non documenté : il applique désormais l'événement `pending` au service.
 
 ### Petites améliorations
 - Réf : P39.06
