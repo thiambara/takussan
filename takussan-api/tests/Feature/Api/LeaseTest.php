@@ -199,4 +199,42 @@ class LeaseTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['payment_day']);
     }
+
+    /**
+     * P46.04 (TCK-957) — une ligne ne se pose pas sur un bail qui n'est pas actif. Posée sur un
+     * brouillon, elle tenait lieu d'échéancier à l'activation : le bail n'avait plus aucun loyer.
+     */
+    public function test_create_lease_payment_refuses_a_lease_that_is_not_active(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->create(['landlord_id' => $landlord->id, 'status' => LeaseStatus::Draft->value]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/payments", [
+            'amount' => 800000,
+            'payment_type' => 'deposit',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-01-31',
+        ])->assertUnprocessable()
+            ->assertJsonPath('code', 'lease_payment.lease_not_active');
+
+        $this->assertSame(0, $lease->payments()->count());
+    }
+
+    /** P46.04 (TCK-957) — le préavis court encore le loyer (`LeaseStatus::Terminating`). */
+    public function test_create_lease_payment_accepts_a_lease_under_notice(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->create(['landlord_id' => $landlord->id, 'status' => LeaseStatus::Terminating->value]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/payments", [
+            'amount' => 50000,
+            'payment_type' => 'charges',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-01-31',
+        ])->assertCreated();
+    }
 }
