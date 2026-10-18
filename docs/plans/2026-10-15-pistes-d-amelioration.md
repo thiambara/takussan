@@ -4345,7 +4345,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
-- Statut : validé — ADR-0068 : sur un fil de prospect, seul le contact principal actuel du bien répond (branche de `ConversationAccess`), l'ancien répondant perd l'accès, et le fil est transmis au nouveau (résolveur, désignation, retrait de collaboration, passation) ; gardes de l'ADR, § Application
+- Statut : retenu · à valider — V8 : le correctif dépasse M et fait plus d'un ticket ; le critère accordé est V2 (retirer l'accès de l'ancien répondant), V8 est la taille : branche SQL de `constrainListing` et `participatingQuery` (la règle du contact principal juge l'éligibilité en PHP, `isStaffAt`), filtre de `NotifyNewMessageJob`, transmission sous verrou dans le résolveur, trois appelants et le 422 de `POST /api/conversations` ; découpage proposé : (1) branche d'accès, (2) transmission par le résolveur, (3) transmission par les trois chemins d'écriture
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:27-51`, `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`
 - Constat :
@@ -4354,6 +4354,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Aucune règle écrite ne dit qui garde un fil de prospect après la fin d'une collaboration ou le départ d'un agent (à vérifier dans `docs/features.md` § 1.7 et ADR-0053).
 - Piste : décider à qui appartient le fil d'un prospect : à l'agence, et suit-il le contact principal ? Puis l'appliquer dans `ConversationAccess`, comme TCK-592 l'a fait pour les fils d'intervention, avec un test « collaboration retirée → 403 ».
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `ConversationAccess::allows()` : participation active et branche intervention seulement ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : contact reçu par l'agent collaborateur, ligne `property_collaborators` supprimée → l'agent lit (`GET …/messages` 200) et écrit (`POST` 201), la relance du visiteur ouvre un fil neuf (conversation 9 au lieu de 8). Classement : V2, le correctif retire une autorisation dont l'agent se sert aujourd'hui, et dépend d'une règle d'appartenance du fil que rien n'écrit.
+- Mesure (2026-10-18, 7433fdbcc, implementeur) : relu sur l'arbre : `ConversationAccess::allows()` ne juge toujours que la participation active et la branche intervention (`ConversationAccess.php:28-41`), et `PropertyConversationResolver::query()` exige encore le destinataire du moment comme participant actif (l. 113-119) : le défaut tient. Relu ce que demande ADR-0068 : la branche doit aussi entrer dans `constrainListing()` et `participatingQuery()` (liste, recherche de messages, export, correspondants), donc s'écrire en SQL alors que `PrimaryPropertyContact` juge l'éligibilité en PHP (`PersonnelDeLAgence::estPersonnel`, une requête par agent) ; s'y ajoutent `NotifyNewMessageJob` (qui ne filtre que la branche intervention, l. 49), la transmission sous verrou, ses trois appelants (`PrimaryAgentDesignator`, `PropertyCollaboratorController`, `AgentHandoverService`) et le 422 de `POST /api/conversations`. Classement : V8, au-delà de M ; aucun code écrit.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
@@ -4370,7 +4371,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Petites améliorations
 - Réf : P38.07
-- Statut : validé — quatre correctifs : invitation par `NotificationCode` avec la cible `conversation` (en `wo`, le texte français tel quel) ; `removeParticipant` refusé sur une directe ; `index()` ne charge que les participants actifs ; une ré-invitation pose `last_read_at` à l'heure de la ré-invitation
+- Statut : fait · TCK-861
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/ConversationInviteNotification.php:73-84`, `takussan-web/src/components/notifications/NotificationRow.tsx:41`, `takussan-api/app/Policies/ConversationPolicy.php:29-37`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:38`, `takussan-api/app/Services/Messaging/GroupConversationService.php:115-134`
 - Constat :
@@ -4380,6 +4381,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Une ré-invitation (l. 115-134) remet `left_at` et `archived_at` à nul, mais garde l'ancien `last_read_at`. Tout ce qui a été écrit pendant l'absence compte alors comme non lu (déduit, à vérifier).
 - Piste : faire passer l'invitation par `NotificationCode`, avec la cible `conversation`. Refuser `removeParticipant` sur une directe. Filtrer `left_at` dans le chargement de `index()`. Décider du `last_read_at` d'une ré-invitation.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : invitation → ligne `code: null, target: null, title: "Invitation à un groupe : G"` ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend le membre parti d'un groupe avec son `left_at` ; ré-invitation après un message écrit pendant l'absence → `unread_count` = 1 pour le ré-invité (le point « à vérifier » tient). Lu côté front : seul un groupe ouvre `ConversationInfoSheet` (`ChatView.tsx`, `isGroup && !isWidget`), donc aucun écran n'offre de quitter une directe. Classement : V8, quatre correctifs sans lien qui font plus d'un ticket, et le `last_read_at` d'une ré-invitation est un choix de produit (V7).
+- Mesure (2026-10-18, 7433fdbcc, implementeur) : reproduit avant correctif par les quatre tests de `ConversationParticipantsHygieneTest` : invitation → `code` nul ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend l'ancien membre dans `participants` ; ré-invitation → `unread_count` = 1. Correctif : code `message.group_invite` avec la cible `conversation` (textes fr, en, et en `wo` le français tel quel ; `ConversationInviteNotification` retirée), policy limitée aux groupes, participants actifs dans `index()`, `last_read_at` posé à la ré-invitation → 4 verts ; ablation, un correctif à la fois → un seul rouge chaque fois, le bon.
 
 ## Angle 39 — Webhooks de paiement `refund` et `failed` sur un paiement déjà soldé
 

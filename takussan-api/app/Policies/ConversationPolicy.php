@@ -26,6 +26,12 @@ class ConversationPolicy
 
     public function removeParticipant(User $user, Conversation $conversation, User $target): bool
     {
+        // TCK-861 (P38.07) — seul un groupe se quitte : une directe « quittée » restait ouverte à
+        // l'autre partie, qui y écrivait sans que le parti en soit jamais notifié.
+        if ($conversation->type !== ConversationType::Group) {
+            return false;
+        }
+
         // Self-leave is allowed for any active participant.
         if ($user->id === $target->id) {
             return $this->isActiveParticipant($user, $conversation);

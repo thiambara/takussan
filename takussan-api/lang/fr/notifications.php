@@ -149,12 +149,6 @@ return [
         'contact' => 'Pour toute question, contactez notre service client.',
     ],
 
-    'conversation_invite' => [
-        'subject' => 'Invitation à un groupe : :subject',
-        'greeting' => 'Bonjour,',
-        'intro' => ':inviter vous a ajouté au groupe « :subject ».',
-    ],
-
     'lease_deposit_refunded' => [
         'subject' => 'Remboursement de la caution — bail :reference',
         'greeting' => 'Bonjour,',
@@ -456,6 +450,12 @@ return [
                 'title' => 'Nouveau message de :sender',
                 'body' => ':sender : :excerpt',
                 'sms' => 'Takussan : nouveau message de :sender.',
+            ],
+            // TCK-861 (P38.07) — l'invitation à un groupe, ouverte depuis la cloche.
+            'group_invite' => [
+                'title' => 'Invitation à un groupe : :subject',
+                'body' => ':inviter vous a ajouté au groupe « :subject ».',
+                'sms' => 'Takussan : :inviter vous a ajouté au groupe « :subject ».',
             ],
         ],
         'lead' => [

@@ -10517,6 +10517,10 @@
         "received": {
           "title": "Nouveau message de {sender}",
           "body": "{sender} : {excerpt}"
+        },
+        "group_invite": {
+          "title": "Invitation à un groupe : {subject}",
+          "body": "{inviter} vous a ajouté au groupe « {subject} »."
         }
       },
       "lead": {
