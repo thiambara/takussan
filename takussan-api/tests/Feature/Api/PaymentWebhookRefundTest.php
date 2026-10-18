@@ -2,10 +2,20 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Agency;
 use App\Models\AppNotification;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Customer;
+use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\TaskStatus;
 use App\Models\Integration;
+use App\Models\Property;
+use App\Models\Task;
 use App\Models\User;
+use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
@@ -158,5 +168,93 @@ class PaymentWebhookRefundTest extends TestCase
         $payment = $ctx['payment']->refresh();
         $this->assertSame(PaymentStatus::Refunded, $payment->status);
         $this->assertArrayNotHasKey('gateway_duplicate_payment', $payment->metadata);
+    }
+
+    // ── P39.03 (TCK-873) ────────────────────────────────────────────────────────────────────────
+
+    /** Un acompte de 50 000 réglé en ligne, sur une réservation de l'agence de l'intégration Wave. */
+    private function paidDepositOnline(): BookingPayment
+    {
+        $agency = Agency::factory()->create(['currency' => Currency::XOF]);
+        $property = Property::factory()->create(['agency_id' => $agency->id]);
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'customer_id' => Customer::factory()->create()->id,
+            'agency_id' => $agency->id,
+            'currency' => Currency::XOF,
+        ]);
+        $payment = BookingPayment::factory()->create([
+            'booking_id' => $booking->id,
+            'amount' => 50_000,
+            'currency' => Currency::XOF,
+            'status' => PaymentStatus::Pending,
+            'transaction_id' => 'cs_deposit_1',
+            'payment_type' => BookingPaymentType::Deposit,
+            'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => 'cs_deposit_1']],
+        ]);
+        Integration::factory()->create([
+            'agency_id' => $agency->id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'wave_key', 'webhook_secret' => $this->waveSecret],
+        ]);
+
+        $this->waveWebhook('cs_deposit_1', 50_000)->assertOk();
+        $this->assertSame(PaymentStatus::Paid, $payment->refresh()->status);
+
+        return $payment;
+    }
+
+    public function test_le_remboursement_d_un_acompte_ecrit_le_montant_et_clot_la_tache(): void
+    {
+        $payment = $this->paidDepositOnline();
+        $task = app(BookingRefundTaskService::class)->openFor($payment->booking);
+        $this->assertInstanceOf(Task::class, $task);
+        $this->assertSame(TaskStatus::Open, $task->status);
+
+        $this->refundEvent('cs_deposit_1', 50_000);
+
+        $payment->refresh();
+        $this->assertSame(PaymentStatus::Refunded, $payment->status);
+        $this->assertEquals(50_000, $payment->refund_amount);
+        $this->assertEquals(0, $payment->paid_amount);
+        $this->assertSame(TaskStatus::Done, $task->refresh()->status);
+    }
+
+    public function test_le_remboursement_d_une_echeance_ecrit_le_montant_rembourse(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+
+        $this->refundEvent('spy_txn_1', 40_000);
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Refunded, $payment->status);
+        $this->assertEquals(40_000, $payment->refund_amount);
+        $this->assertEquals(110_000, $payment->paid_amount);
+    }
+
+    public function test_le_montant_rembourse_est_plafonne_et_vaut_le_montant_entier_a_defaut(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+        $this->refundEvent('spy_txn_1', 400_000);
+        $this->assertEquals(150_000, $ctx['payment']->refresh()->refund_amount);
+
+        $other = $this->leaseDue();
+        $other['payment']->update([
+            'status' => PaymentStatus::Paid,
+            'transaction_id' => 'cs_sans_montant',
+            'metadata' => ['gateway' => ['provider' => 'wave', 'transaction_id' => 'cs_sans_montant', 'settled_by' => 'cs_sans_montant']],
+        ]);
+        $this->refundEvent('cs_sans_montant');
+        $this->assertEquals(150_000, $other['payment']->refresh()->refund_amount);
+        $this->assertEquals(0, $other['payment']->paid_amount);
     }
 }

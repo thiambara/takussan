@@ -21,6 +21,7 @@ use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
@@ -580,6 +581,12 @@ class PaymentGatewayService
                     && $this->isSettledBy($existingMeta, $transactionId)
                     && ! $this->isMarkedDuplicate($existingMeta, $transactionId)) {
                     $this->writeStatus($payment, PaymentStatus::Refunded);
+                    // TCK-873 (P39.03) — la même écriture que le geste manuel
+                    // (`BookingPaymentService::refund`) : sans `refund_amount`, le payable remboursé
+                    // comptait son montant entier comme reçu (`paid_amount`).
+                    if ($this->hasColumn($payment, 'refund_amount')) {
+                        $payment->refund_amount = $this->reportedRefundAmount($payment, $metadata);
+                    }
                 } else {
                     $existingMeta = $this->markDuplicateRefunded($existingMeta, $transactionId);
                 }
@@ -593,6 +600,15 @@ class PaymentGatewayService
 
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
+
+        // TCK-873 (P39.03) — un acompte remboursé par le fournisseur clôt la tâche de remboursement,
+        // comme le geste manuel.
+        if ($payment instanceof BookingPayment && $current === PaymentStatus::Paid && $this->currentPaymentStatus($payment) === PaymentStatus::Refunded) {
+            $payment->loadMissing('booking');
+            if ($payment->booking !== null) {
+                app(BookingRefundTaskService::class)->closeIfSettled($payment->booking);
+            }
+        }
 
         // TCK-602 (ADR-0051 §2) — UNE quittance par échéance : l'événement part à la seule
         // transition vers `paid` (webhook, rejeu ou `verify()`), jamais sur un événement rejoué
@@ -1052,6 +1068,29 @@ class PaymentGatewayService
         }
 
         return false;
+    }
+
+    /**
+     * TCK-873 (P39.03) — le montant remboursé que rapporte le pilote, plafonné au montant du
+     * payable ; le montant entier à défaut. Un montant rapporté dans une autre devise que celle du
+     * payable n'est pas comparable (Lemon Squeezy rapporte en USD) : le montant entier, aussi.
+     *
+     * @param  array<string,mixed>  $metadata
+     */
+    protected function reportedRefundAmount(Model $payment, array $metadata): float
+    {
+        $amount = (float) $payment->amount;
+        $reported = $metadata['amount'] ?? null;
+        $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
+
+        if (! is_numeric($reported) || (float) $reported <= 0) {
+            return $amount;
+        }
+        if ($reportedCurrency !== null && $reportedCurrency !== strtoupper($this->paymentCurrency($payment))) {
+            return $amount;
+        }
+
+        return min((float) $reported, $amount);
     }
 
     /**
