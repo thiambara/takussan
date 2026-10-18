@@ -3388,7 +3388,9 @@
         "amount": "Amount",
         "status": "Status",
         "actions": "Actions",
-        "open": "Open"
+        "open": "Open",
+        "caption": "Invoices",
+        "openLabel": "Open invoice {reference}"
       }
     },
     "payouts": {
@@ -3402,7 +3404,9 @@
         "net": "Net",
         "status": "Status",
         "actions": "Actions",
-        "open": "Open"
+        "open": "Open",
+        "caption": "Payouts",
+        "openLabel": "Open payout {reference}"
       }
     },
     "history": {
@@ -3443,7 +3447,8 @@
           "lease": "Lease"
         },
         "entityLease": "Lease #{id}",
-        "entityBooking": "Booking #{id}"
+        "entityBooking": "Booking #{id}",
+        "caption": "Payment history"
       }
     },
     "status": {
@@ -9548,7 +9553,8 @@
         "net": "Net",
         "status": "Status",
         "paidOn": "Paid on",
-        "emptyForAgency": "No platform payout received yet."
+        "emptyForAgency": "No platform payout received yet.",
+        "caption": "Platform payouts"
       },
       "close": {
         "title": "Close a period",

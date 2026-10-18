@@ -3359,7 +3359,9 @@
         "amount": "Montant",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Factures",
+        "openLabel": "Ouvrir la facture {reference}"
       }
     },
     "payouts": {
@@ -3373,7 +3375,9 @@
         "net": "Net",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Reversements",
+        "openLabel": "Ouvrir le reversement {reference}"
       }
     },
     "history": {
@@ -3414,7 +3418,8 @@
           "lease": "Bail"
         },
         "entityLease": "Bail #{id}",
-        "entityBooking": "Réservation #{id}"
+        "entityBooking": "Réservation #{id}",
+        "caption": "Historique des paiements"
       }
     },
     "status": {
@@ -9548,7 +9553,8 @@
         "net": "Net",
         "status": "Statut",
         "paidOn": "Versé le",
-        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment."
+        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
+        "caption": "Reversements de la plateforme"
       },
       "close": {
         "title": "Clôturer une période",
