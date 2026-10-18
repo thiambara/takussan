@@ -4487,7 +4487,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### La console super-admin rend une erreur 500 quand l'API répond 204 : la suppression d'un bien, d'une règle d'alerte et la remise d'une prise de modération sont faites, mais affichées en échec
 - Réf : P41.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/super-admin/[...path]/route.ts:48-56`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:34-40`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:35-41`, `takussan-web/src/app/api/announcements/[...path]/route.ts:25-31`, `takussan-web/src/app/api/impersonation/proxy/[...path]/route.ts:49`
 - Constat :
@@ -4501,10 +4501,11 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Le test du relais `super-admin` (`super-admin/[...path]/__tests__/route.test.ts`) n'éprouve que des réponses 200 (lu).
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : rendre `null` comme corps quand le statut amont est 204, 205 ou 304, comme le fait déjà `agencies`, dans les cinq relais. Garde : un test par relais qui renvoie un 204 amont et attend un 204, et mieux, une seule fonction de relais partagée (voir P41.03) que les cinq appellent.
+- Mesure (2026-10-18, a2dc95960, mesureur) : relu les cinq relais (`super-admin` l. 49-56, `super-admin-properties` l. 35-40, `admin-users` l. 36-41, `announcements` l. 26-31, `impersonation/proxy` l. 49), inchangés : ils construisent `new NextResponse(<corps lu>, { status: upstream.status })` ; `agencies` (l. 34-35) seul rend `null` sur 204/205/304 ; test vitest temporaire, retiré (charge 2,64 sur 8 cœurs), `fetch` remplacé par `new Response(null, { status: 204 })` → les cinq lèvent `Response constructor: Invalid response status code 204`, `agencies` rend 204 ; côté API, `ModerationQueueController.php:80`, `AlertRuleController.php:41` et `PropertyController.php:243` répondent toujours 204, et `super-admin.ts:560,974` attendent toujours `res.status === 204` ; aucun commit ni ticket ne l'a traité (`git log` des relais, `grep` des tickets). Le 500 vu du navigateur reste déduit, non mesuré sur `next start`. Classement : A1, le comportement attendu est écrit par les appelants (`if (res.status === 204) return null`) et par le relais `agencies`, le correctif (corps `null` sur 204/205/304 dans les cinq relais, un test 204 par relais) ne demande aucun choix de produit.
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : chemin interne de l'API (`API_INTERNAL_URL`) pour 22 relais
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
 - Constat :
@@ -4513,10 +4514,11 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Ils n'envoient pas non plus `Accept-Language`. Le `fetch` de Node pose alors `accept-language: *` (mesuré : serveur `http` local qui imprime les en-têtes reçus → `"accept-language":"*"`), que `negotiateFromHeader` ne retient pas : la langue retombe sur `preferred_language`, puis sur le défaut de l'API (lu, `SetLocaleMiddleware.php:33-41`, `:105`). Or `messageCorpsErreurBff` affiche le `message` de Laravel en le tenant pour « déjà localisé (`Accept-Language`) » (`api.ts:545`, lu) : `KycUploader.tsx:122` l'utilise sur `POST /api/agencies/{id}/kyc/documents`, qui passe par le relais `agencies`. Un utilisateur en `/en` dont `preferred_language` vaut `fr` y lirait donc le refus de validation en français (déduit ; à vérifier sur un 422 réel).
   - Établi comment : lu, plus les deux mesures ci-dessus.
 - Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
+- Mesure (2026-10-18, a2dc95960, mesureur) : `grep -rln "origineApi()" src/app/api | wc -l` → 22, inchangé ; même test vitest temporaire, retiré, requête entrante portant `accept-language: en` → `agencies`, `super-admin`, `super-admin-properties`, `admin-users` et `announcements` appellent `http://localhost:8002/api/…` sans `accept-language` ni `x-forwarded-for`, seul `impersonation/proxy` relaie `en` ; lu `SetLocaleMiddleware.php:33-41,76-80` : sans en-tête retenu, la langue retombe sur `preferred_language`. La perte de langue est donc établie ; l'effet sur un 422 réel et l'IP vue par l'API une fois `API_INTERNAL_URL` posée restent déduits. Classement : V5, le correctif fait passer 22 relais sur le chemin interne de l'API (`API_INTERNAL_URL`, Traefik), une question de déploiement que le porteur tranche.
 
 ### Petites améliorations
 - Réf : P41.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : relais commun qui porte le chemin interne de P41.02
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
 - Constat :
@@ -4525,3 +4527,4 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - **Six copies du même `forward()`.** `super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` et `impersonation/proxy` réécrivent chacun le relais, et chacun diverge (corps en octets ou en texte, en-têtes de réponse relayés, 204, profil actif) : P41.01, P41.02 et le profil actif d'`admin-users` sont trois effets de cette divergence (lu).
   - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
 - Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
+- Mesure (2026-10-18, a2dc95960, mesureur) : même test vitest temporaire, retiré → corps `ff 80 00 41` envoyé à `admin-users` part en `ef bf bd ef bf bd 00 41` (`request.text()` toujours l. 32, et `super-admin-properties` l. 31, `announcements` l. 22) ; `feature-flags/me` et `maintenance/status` rendent un JSON amont en `text/plain;charset=UTF-8` ; `find src/app/api -name route.ts | wc -l` → 36 alors que `takussan-web/CLAUDE.md` dit toujours « 31 route handlers » (l. 72) ; les six `forward()` divergents sont relus. Les quatre parties tiennent. Classement : V5, la `Piste` réunit les relais dans une fonction qui pose aussi les en-têtes serveur et `accept-language` de P41.02, donc le même chemin interne ; prises seules, la lecture en octets et le `content-type` (A1, précédent TCK-601) et le compte du document (A6) seraient autonomes.
