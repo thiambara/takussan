@@ -88,6 +88,19 @@ Le code est livré ; restent la bascule du serveur et les mesures AC2 à AC5, en
   refusé à l'écrasement, et l'archivage resterait bloqué sur lui. Avec ce réglage, WAL-G constate
   que l'objet existe à l'identique et rend 0 — vérifié le 2026-10-18 sur l'image : renvoi
   identique → `already archived with equal content, skipping`, sortie 0 ; contenu différent → sortie 1.
+- **Première bascule (2026-10-18, 19:16 Z), archivage bloqué** : l'image de base ne porte aucune
+  autorité de certification (`/etc/ssl/certs/ca-certificates.crt` absent). WAL-G joint R2 en TLS,
+  échoue sur `x509: certificate signed by unknown authority`, et **retente en silence** : le
+  premier `wal-push` est resté pendu, `pg_stat_archiver` à 0 archivé et 0 échec, aucune ligne
+  d'erreur au journal. La cause n'est sortie qu'avec `WALG_S3_MAX_RETRIES=0`. Écartés en chemin, par
+  mesure : le réseau (même blocage sur `bridge`, depuis le poste aussi, en IPv4 forcé), les
+  identifiants (rclone liste le seau avec le même jeton), `GetBucketVersioning`, HTTP/2, ML-KEM, et
+  WAL-G 3.0.8. La base n'a rien perdu : PostgreSQL garde un segment tant que son archivage n'a pas
+  réussi.
+  Correctif : `ca-certificates` (épinglé) dans l'image, et une étape 0 de l'épreuve qui fait
+  vérifier par WAL-G le certificat d'un point d'accès S3 public — **ablation** : sur l'image
+  d'avant, l'épreuve sort en 1 sur `x509` ; sur la nouvelle, `InvalidAccessKeyId`, puis le
+  reste vert. *Une épreuve qui archive dans un dossier local ne prouve rien du transport.*
 - **La veille ne juge pas l'âge du dernier segment** : une base inactive n'en produit aucun, et
   `archive_timeout` ne ferme un segment que s'il a reçu des écritures. Elle juge
   `pg_stat_archiver` (un échec plus récent que le dernier succès) et l'âge de la dernière

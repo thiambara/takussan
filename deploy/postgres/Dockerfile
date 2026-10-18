@@ -19,6 +19,15 @@ FROM pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1
 ARG WALG_VERSION=v3.0.9
 ARG WALG_SHA256=d6795c663894d836ba20840bffe8970aed81bbe25d3151bd4951f6f9c362def9
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Les autorités de certification : l'image de base n'en porte AUCUNE (`/etc/ssl/certs` vide), et
+# WAL-G ne joint R2 qu'en TLS. Sans elles, chaque envoi échoue sur
+# `x509: certificate signed by unknown authority`, que WAL-G retente en silence sans fin — c'est ce
+# qui a bloqué l'archivage à la première bascule, le 2026-10-18. L'épreuve le garde désormais.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates=20250419~deb12u1 \
+ && rm -rf /var/lib/apt/lists/*
+
 ADD https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/wal-g-pg-22.04-amd64 /usr/local/bin/wal-g
 RUN echo "${WALG_SHA256}  /usr/local/bin/wal-g" | sha256sum -c - \
  && chmod 0755 /usr/local/bin/wal-g \

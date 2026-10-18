@@ -6,6 +6,7 @@
 #   deploy/postgres/epreuve.sh <image>
 #
 # Déroulé, dans des conteneurs et des volumes jetables nommés `epreuve-walg-<pid>-*` :
+#   0. WAL-G vérifie un certificat TLS public (les autorités sont dans l'image) ;
 #   1. une base A démarre sur l'image, avec son archivage ;
 #   2. pgvector se crée (l'image n'a rien perdu de l'officielle) ;
 #   3. une sauvegarde de base (`backup-push`), une ligne « avant », l'INSTANT VISÉ, une ligne
@@ -40,6 +41,21 @@ attendre_pret() {
   done
   echouer "$1 ne répond pas" "$1"
 }
+
+echo "── 0. TLS : WAL-G vérifie un certificat public"
+# L'archive locale de cette épreuve ne passe pas par TLS : sans ce contrôle, une image sans
+# autorités de certification y est verte et n'archive rien sur R2 (TCK-930, 2026-10-18). Un point
+# d'accès S3 public et de faux identifiants : avec les autorités, R2 ou S3 répond une erreur
+# d'accès ; sans elles, la requête meurt sur `x509`.
+tls=$(docker run --rm -e WALG_S3_PREFIX=s3://takussan-epreuve-tls -e AWS_ACCESS_KEY_ID=epreuve \
+  -e AWS_SECRET_ACCESS_KEY=epreuve -e AWS_REGION=us-east-1 -e WALG_S3_MAX_RETRIES=0 \
+  -e AWS_ENDPOINT=https://s3.amazonaws.com --entrypoint wal-g "$IMAGE" st ls 2>&1 || true)
+if grep -qiE 'x509|certificate' <<<"$tls"; then
+  echo "✗ TLS : $(grep -iE 'x509|certificate' <<<"$tls" | head -1 | cut -c1-200)" >&2; exit 1
+fi
+grep -qiE 'InvalidAccessKeyId|AccessDenied|status code: 40[0-9]|NoSuchBucket' <<<"$tls" \
+  || { echo "✗ TLS : réponse inattendue du point d'accès public : $(tail -1 <<<"$tls" | cut -c1-200)" >&2; exit 1; }
+echo "   certificat vérifié ($(grep -oiE 'InvalidAccessKeyId|AccessDenied|NoSuchBucket|status code: 40[0-9]' <<<"$tls" | head -1))"
 
 docker volume create "$ARCHIVE" >/dev/null
 docker volume create "$DONNEES_B" >/dev/null
