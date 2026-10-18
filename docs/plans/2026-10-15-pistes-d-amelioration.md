@@ -4111,7 +4111,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : validé — un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), repli sur la clé commune pendant la bascule ; reste : poser les trois clés dans Dokploy (porteur, TCK-720)
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où les trois clés neuves doivent se déclarer (`check-webhook-env-keys`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4120,6 +4120,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - La rotation d'un jeton fuité chez LAM oblige à reconfigurer Orange et Mtarget (lu, `docs/integrations/sms.md` « Rotater en cas de compromission, mettre à jour le dashboard du provider »).
 - Piste : un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), avec repli sur la clé commune le temps de la bascule. Un test : le jeton LAM refusé sur la route Orange. Une variable d'environnement neuve est en jeu.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : jeton extrait du `ret_url` réellement produit par le pilote LAM, posté sur `/api/webhooks/sms/orange/status/{jeton}` ; relu `config/sms.php:174` et les trois contrôleurs (même `sms.webhook_url_token`) → 200, tentative Orange `delivered` ; le constat tient. Classement : V5, la piste ajoute des variables d'environnement, et elle touche aussi V2 (l'authentification de trois routes que les fournisseurs appellent).
+- Mesure (2026-10-18, e673632a0, implementeur) : `grep -rn webhook_url_token app config` → les trois contrôleurs SMS et le pilote LAM lisent toujours la même `sms.webhook_url_token` (`OrangeSmsStatusController.php:68`, `MtargetSmsStatusController.php:55`, `LAfricaMobileSmsStatusController.php:51`, `LAfricaMobileSmsDriver.php:137`) : le défaut tient. Trois jetons par fournisseur, c'est trois `env('SMS_WEBHOOK_URL_TOKEN_…', '')` dans `config/sms.php`, que `scripts/check-webhook-env-keys.mjs` exige déclarées dans `.env.example` et `.env.docker` (lu, sa recherche `env('X', '')` sur `config/sms.php`) ; ces deux fichiers sont fermés à l'implémenteur. Le V5 accordé porte sur les variables, pas sur le chemin : la piste revient au porteur, non implémentée.
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
