@@ -1057,6 +1057,13 @@
       "removeAria": "Dindi tag bi {tag}",
       "inputLabel": "Yokk tag ci kiliyaan bi",
       "filterAria": "Xool kiliyaan yi am tag {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Prospect chaud",
+      "etranger": "Étranger",
+      "famille": "Famille",
+      "etudiant": "Étudiant"
     }
   },
   "agentCrm": {

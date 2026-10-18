@@ -2784,6 +2784,13 @@
       "removeAria": "Retirer le tag {tag}",
       "inputLabel": "Ajouter un tag au client",
       "filterAria": "Voir les clients tagués {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Prospect chaud",
+      "etranger": "Étranger",
+      "famille": "Famille",
+      "etudiant": "Étudiant"
     }
   },
   "agentCrm": {

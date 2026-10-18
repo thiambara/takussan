@@ -16,6 +16,13 @@ import type { TagStatus } from '@/types/tag';
  */
 export const ESPACE_DU_CATALOGUE = 'property.amenityCatalog';
 
+/**
+ * TCK-922 (P30.06) — les étiquettes CRM du catalogue (`TagCatalog::CRM`) se traduisent de même,
+ * par la même fonction, sous cet espace-ci. Une étiquette saisie par l'agence porte un slug suffixé
+ * (`CustomerTagController::store`) : elle n'a pas de clé, et s'affiche telle quelle.
+ */
+export const ESPACE_DES_ETIQUETTES_CRM = 'crm.tagCatalog';
+
 export interface EquipementAffichable {
   readonly name: string;
   readonly slug?: string | null;
