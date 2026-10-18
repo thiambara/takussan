@@ -19,6 +19,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
@@ -187,7 +188,9 @@ class PropertyVisitController extends Controller
             'notes' => $data['notes'] ?? null,
             'source' => $data['source'] ?? null,
             'medium' => $data['medium'] ?? null,
-            'locale' => $visitor?->preferredLocale() ?? app()->getLocale(),
+            // P29.02 (TCK-845) — la langue négociée ici est celle de l'AGENT : un client sans compte
+            // reçoit `fr`, comme ses relances de loyer (`ContactSansCompte::fromCustomer()`).
+            'locale' => $visitor?->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE,
             'type' => $data['type'] ?? VisitType::InPerson->value,
         ]);
 
