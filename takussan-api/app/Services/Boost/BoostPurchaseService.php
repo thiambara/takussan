@@ -9,6 +9,7 @@ use App\Models\Enums\BoostStatus;
 use App\Models\Enums\CreditMovementType;
 use App\Models\Property;
 use App\Models\PropertyBoost;
+use App\Models\PropertyBoostTranche;
 use App\Models\User;
 use App\Services\Credits\CreditLedger;
 use App\Services\Credits\InsufficientCredits;
@@ -213,6 +214,13 @@ final class BoostPurchaseService
             // ADR-0061 §5 : pas de cumul — on PROLONGE la Vedette en place. Une Vedette échue que le
             // tick n'a pas encore close est encore `active` : la prolongation part alors de
             // MAINTENANT, jamais d'une fin déjà passée (le temps écoulé serait payé et non servi).
+            // TCK-942 : la ligne garde le cumul ; le remboursement lit les tranches.
+            if (! $current->tranches()->exists()) {
+                // Reprise : une Vedette née sans tranche devient d'abord sa tranche unique, pour que
+                // la somme des tranches reste celle de la ligne.
+                $this->addTranche($current, $current->price_credits, $current->duration_days, $current->offered);
+            }
+            $this->addTranche($current, $price, $product->duration_days, $offered);
             $seconds = $product->duration_days * 86400;
             $from = $current->ends_at !== null && $current->ends_at->isFuture() ? $current->ends_at->copy() : now();
             $current->forceFill([
@@ -238,12 +246,29 @@ final class BoostPurchaseService
                 'offer_reason' => $reason,
                 'purchased_by_id' => $actor->getKey(),
             ]);
+            $this->addTranche($boost, $price, $product->duration_days, $offered);
         }
 
         $this->debit($agency, $price, $boost, $actor);
         $this->lifecycle->project($property);
 
         return $boost;
+    }
+
+    /**
+     * TCK-942 (amendement du 2026-10-18 d'ADR-0061) — une tranche au rang suivant. Sous le verrou de
+     * la ligne du boost (`featured()` la tient) : deux prolongations ne prennent pas le même rang.
+     */
+    private function addTranche(PropertyBoost $boost, int $price, int $days, bool $offered): void
+    {
+        $last = (int) PropertyBoostTranche::query()->where('property_boost_id', $boost->getKey())->max('position');
+        PropertyBoostTranche::query()->create([
+            'property_boost_id' => $boost->getKey(),
+            'position' => $last + 1,
+            'price_credits' => $price,
+            'duration_days' => $days,
+            'offered' => $offered,
+        ]);
     }
 
     private function badge(Property $property, Agency $agency, BoostProduct $product, User $buyer): PropertyBoost

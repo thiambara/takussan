@@ -17,8 +17,13 @@ use App\Models\Enums\RelationshipType;
 use App\Models\Property;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Crm\ProspectMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Tests\ApiTestCase;
 
 /**
@@ -137,5 +142,54 @@ class SendProspectMatchDigestTest extends ApiTestCase
         dispatch_sync(new SendProspectMatchDigest);
 
         $this->assertSame($this->creator->id, AppNotification::query()->sole()->user_id);
+    }
+
+    /**
+     * TCK-941 (P05.08) — la clé d'idempotence du jour est posée AVANT l'envoi : un envoi qui
+     * échoue en cours de route ne fait pas partir un second récapitulatif au rejeu. Le compromis
+     * est voulu : ce récapitulatif-là est perdu pour la journée, plutôt que d'être reçu deux fois.
+     */
+    public function test_a_send_failing_mid_way_is_not_sent_again_on_retry(): void
+    {
+        $this->property();
+        $echoue = false;
+        Event::listen(NotificationSending::class, function () use (&$echoue) {
+            if (! $echoue) {
+                $echoue = true;
+                throw new RuntimeException('transport en panne');
+            }
+        });
+
+        try {
+            dispatch_sync(new SendProspectMatchDigest);
+            $this->fail('le premier passage devait échouer à l\'envoi');
+        } catch (RuntimeException $e) {
+            $this->assertSame('transport en panne', $e->getMessage());
+        }
+        dispatch_sync(new SendProspectMatchDigest);
+
+        $notification = AppNotification::query()->sole();
+        $this->assertSame(now()->toDateString(), $notification->data['digest_date'] ?? null);
+        $this->assertSame(SendProspectMatchDigest::KIND, $notification->data['kind'] ?? null);
+    }
+
+    /** TCK-941 (P05.08) — l'échec d'un bien se journalise sans le message de l'exception (TCK-601). */
+    public function test_a_failing_property_is_logged_without_the_exception_message(): void
+    {
+        $property = $this->property();
+        $this->mock(ProspectMatcher::class, function ($mock) {
+            $mock->shouldReceive('customersFor')->andThrow(new RuntimeException('awa.diop@example.sn'));
+        });
+        Log::spy();
+
+        dispatch_sync(new SendProspectMatchDigest);
+
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $event, array $context) use ($property) {
+            return $event === 'prospect_match_digest.failed'
+                && $context['property_id'] === $property->id
+                && $context['exception'] === RuntimeException::class
+                && ! str_contains(json_encode($context), 'awa.diop');
+        });
+        $this->assertSame(0, AppNotification::query()->count());
     }
 }
