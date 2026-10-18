@@ -148,7 +148,10 @@ class YearOfActivitySeeder extends Seeder
             if (method_exists($seeder, 'setCommand') && $this->command) {
                 $seeder->setCommand($this->command);
             }
-            DB::transaction(fn () => $seeder->run());
+            // `__invoke()`, jamais `run()` en direct : il résout par le conteneur les arguments de
+            // `run()` (GeoReferentialSeeder reçoit GeoReferentialSync). Appelé en direct, il mourait
+            // en ArgumentCountError, et le seed de toute préproduction avec lui (TCK-881).
+            DB::transaction(fn () => $seeder->__invoke());
         }
 
         $this->reindexSearchableModels();
