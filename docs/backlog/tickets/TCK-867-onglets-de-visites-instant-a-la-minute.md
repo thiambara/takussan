@@ -29,7 +29,7 @@ n'est jamais réutilisé.
 
 ## Décision du porteur
 
-arrondir `nowIso` à la minute
+arrondir `nowIso` à la minute ; reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
 
 ## Reste à faire
 
