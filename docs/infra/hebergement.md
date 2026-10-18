@@ -208,7 +208,8 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
 - `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
-  `API_INTERNAL_URL` (`http://api:8080`, le service `api` sur `dokploy-network`) et
+  `API_INTERNAL_URL` (`http://takussan-api-preview:8080`, l'alias de l'API de préproduction sur
+  `dokploy-network` : jamais l'hôte `api`, que chaque pile y déclare — ADR-0069 § 4, TCK-880) et
   `VISITOR_IP_TRUSTED_HOPS` (`2` : Cloudflare puis Traefik — inféré, à confirmer par la mesure
   ci-dessus). Sur Vercel (`www`, jusqu'au 2026-10-15), `VISITOR_IP_TRUSTED_HOPS=1` et pas
   d'`API_INTERNAL_URL`.
