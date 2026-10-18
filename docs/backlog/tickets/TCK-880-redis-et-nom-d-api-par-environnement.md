@@ -1,7 +1,7 @@
 ---
 id: TCK-880
 title: "Un Redis et un nom d'API par environnement : Redis dans la pile d'API, alias ${API_ALIAS}, retrait de redis-takussan"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -83,14 +83,8 @@ nom d'hôte désigne toujours un seul service.
       (`takussan-api-preview-4iza80-redis-1`) et **pas** dans `redis-takussan` ; depuis un
       conteneur de `dokploy-network`, `redis` et le conteneur Redis de la pile ne répondent pas, et
       `takussan-api-preview` rend `/up` à 200.
-- [ ] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
+- [x] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
       `donnees` ; la préproduction répond toujours (AC3 rejoué).
-
-## Reste sur dev
-
-Le code est sur `dev` depuis la PR #630 (2026-10-18), et AC3 est mesuré (notes). Il ne reste
-qu'AC4 : `redis-takussan` quitte `compose.data.yml` par la PR qui porte cette ligne, puis le Compose
-`donnees` se redéploie depuis `preview` (déploiement manuel, `autoDeploy` coupé).
 
 ## Hors périmètre
 
@@ -112,6 +106,14 @@ qu'AC4 : `redis-takussan` quitte `compose.data.yml` par la PR qui porte cette li
   ⚠ `api:8080` répond **encore** depuis `dokploy-network` : Compose donne toujours au service son
   nom sur chaque réseau. C'est pourquoi la garde refuse toute URL vers l'hôte `api` — le nom reste,
   personne ne doit le viser.
+- **AC4, mesuré le 2026-10-18** : #634 promue sur `preview` (#635, `images.yml` vert, `6bd4778d`).
+  Clés `REDIS_TAKUSSAN_PASSWORD` et `REDIS_CPP_PASSWORD` retirées de l'onglet du Compose `donnees`
+  (relu : `MEILI_MASTER_KEY` seule), puis `compose.deploy` → `done`. Il ne tourne plus que
+  `serveur-donnees-qomjjz-meilisearch-1` (non recréé, `/health` → `available`). Aucun conteneur
+  orphelin. Le volume `serveur-donnees-qomjjz_redis-takussan` reste sur le disque jusqu'au
+  2026-10-25 au moins (É4), et sa suppression attend l'accord du porteur. AC3 rejoué ensuite :
+  `/up` → `200` (`6bd4778d`), clé de cache dans la pile, `redis-takussan` absent, Redis de la pile
+  injoignable depuis `dokploy-network`, alias → `200`, recherche publique → `200`.
 
 - **Mesures du 2026-10-18 sur le poste** (images reconstruites depuis la branche) :
   - garde : témoin vert ; les six ablations rougissent, chacune sur son message ;
