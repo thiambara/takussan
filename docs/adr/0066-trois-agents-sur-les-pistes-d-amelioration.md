@@ -378,6 +378,36 @@ règle « hors de `app/`, on garde tout » retirée en rougit 1.
 HTTP qui passe par la route d'un contrôleur modifié) n'est plus rejoué avant la PR. La CI joue la
 suite entière ; `impacted-tests` reste une boucle de retour, pas une garde.
 
+## Amendement du 2026-10-18 — pas de modèle pour une liste vide, les rôles s'enchaînent
+
+**Constat** (journal `~/.takussan-agents/journal.tsv`, du 2026-10-17 au 2026-10-18) :
+
+| Rôle | Cadence | Passages | Utiles | Vides | Passage utile (médiane) |
+|---|---|---|---|---|---|
+| explorateur | 180 min | 15 | 15 | 0 | 7 min |
+| mesureur | 30 min | 89 | 14 | 74 (21,3 USD) | 3 min |
+| implémenteur | 5 min | 117 | 61 | 37 (12,5 USD) | 28 min |
+
+La chaîne était affamée en amont : l'explorateur, seul rôle sans passage vide, ne travaillait que
+7 min sur 180, tandis que les deux autres lançaient le modèle pour lire une liste vide. La
+décision Q2 ci-dessus écrivait déjà qu'un passage « qui n'a rien à faire, s'arrête avant de lancer
+le modèle » : le code ne le faisait pas.
+
+**Décision du porteur** :
+
+1. **Rien à faire, rien à payer.** `pistes.sh lancer` lit lui-même, sur `BASE_REF`, la liste du rôle
+   (`--angles-a-faire`, `--liste "à mesurer"`, `--liste "validé"` et `--liste "retenu · autonome"`)
+   et s'arrête en `rien` si elle est vide. Pour l'implémenteur, une piste citée par une PR ouverte
+   est prise : une liste où toutes le sont est vide aussi. **Le doute fait partir le modèle** :
+   une lecture qui échoue, ou une garde qui n'a pas prouvé (`--report`) qu'elle a lu le fichier.
+   Payé en l'écrivant : sous un chemin `/var`, la garde ne s'exécutait pas et rendait une liste
+   vide, ce qui aurait arrêté le rôle pour toujours.
+2. **Les rôles s'enchaînent.** Quand une PR de l'explorateur est fusionnée (par le fusionneur ou par
+   l'explorateur lui-même), le mesureur part aussitôt (`launchctl kickstart`) ; quand c'est une PR
+   du mesureur, l'implémenteur part. Les cadences restent, en filet.
+3. **L'explorateur passe à 60 min.** Son passage dure 7 min : aucun chevauchement. Il restait 38
+   angles sur 83, soit 5 jours à 180 min, 2 jours à 60.
+
 ## Conséquences
 
 - **Ce que ça rend possible** :

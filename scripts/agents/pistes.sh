@@ -313,7 +313,25 @@ fusionner() {
     fi
     info "#$num fusionnée dans pre-dev ($tete)"
     printf '%s\tfusionneur\t-\tfusionne\t%s\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$num" "$tete" >> "$BASE/journal.tsv"
+    relancer_suivant "$tete"
   done
+}
+
+# Le travail d'un rôle fusionné, l'agent qui le reçoit part tout de suite au lieu d'attendre sa
+# cadence (amendement d'ADR-0066 du 2026-10-18) : l'explorateur écrit des « à mesurer », le
+# mesureur des « autonome » et des « à valider ». Les cadences restent, en filet. `kickstart` sans
+# `-k` ne touche pas un passage en cours ; un job non planifié ne part pas, sans erreur.
+relancer_suivant() {
+  local suivant
+  case "$1" in
+    agents/explorateur/*) suivant=mesureur ;;
+    agents/mesureur/*) suivant=implementeur ;;
+    *) return 0 ;;
+  esac
+  if launchctl kickstart "gui/$(id -u)/$LAUNCHD.$suivant" > /dev/null 2>&1; then
+    info "$suivant relancé"
+    printf '%s\tfusionneur\t-\trelance\t-\t-\t-\t-\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$suivant" >> "$BASE/journal.tsv"
+  fi
 }
 
 # ─── état ─────────────────────────────────────────────────────────────────────────────────────
@@ -553,6 +571,7 @@ etat_des_pr() {
         # Le fusionneur a pu passer entre-temps ; un refus (mergeable pas encore recalculé) attend.
         if [ "$(GH_REPO="$GH_REPO" gh pr view "$num" --json state --jq .state)" = MERGED ]; then
           info "PR #$num fusionnée dans pre-dev"
+          relancer_suivant "$tete"
           fusionnees=1
           continue
         fi
@@ -622,6 +641,45 @@ reconcilier_index() {
   info "PR #$num : index du backlog réconcilié avec $BASE_REF, sans modèle"
 }
 
+# 2 bis. Un passage neuf sans rien à prendre s'arrête AVANT le modèle (amendement d'ADR-0066 du
+# 2026-10-18). Mesuré du 2026-10-17 au 2026-10-18 : 74 passages vides du mesureur et 37 de
+# l'implémenteur, chacun lançant le modèle pour lire une liste vide, 34 USD en deux jours. La liste
+# se lit ici sur la version de BASE_REF du fichier de pistes et de sa garde. Pour l'implémenteur,
+# une piste que cite une PR ouverte est prise : une liste où toutes le sont est vide aussi. Le doute
+# (une lecture qui échoue) laisse partir le modèle, qui sait trancher.
+travail_disponible() {
+  local racine liste corps refs pris ref reste=0
+  # La garde, le fichier et les tickets : la garde sort en 1 si un `fait · TCK-NNN` ne trouve pas
+  # son ticket, et le doute laisserait partir le modèle à chaque passage. Chemin RÉEL : la garde ne
+  # s'exécute que si son chemin d'appel est le sien (`/var` → `/private/var` sous macOS), et sinon
+  # sort en 0 sans rien écrire — une liste vide qui arrêterait le rôle pour toujours. D'où aussi la
+  # preuve, par `--report`, qu'elle a lu le fichier.
+  mkdir -p "$sortie/base"
+  racine="$(cd "$sortie/base" && pwd -P)"
+  git -C "$CLONE" archive "$BASE_REF" scripts/check-pistes.mjs docs/plans/2026-10-15-pistes-d-amelioration.md \
+    docs/backlog/tickets | tar -x -C "$racine" || return 0
+  CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --report | grep -q ' entrées, ' || return 0
+  case "$ROLE" in
+    explorateur) liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --angles-a-faire)" || return 0 ;;
+    mesureur) liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "à mesurer")" || return 0 ;;
+    implementeur)
+      liste="$(CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "validé" \
+        && CHECK_PISTES_RACINE="$racine" node "$racine/scripts/check-pistes.mjs" --liste "retenu · autonome")" || return 0
+      corps="$(GH_REPO="$GH_REPO" gh pr list --base pre-dev --state open --json title,body \
+        --jq '.[] | "\(.title) \(.body // "")"')" || return 0
+      pris="$(printf '%s\n' "$corps" | grep -oE 'P[0-9]+\.[0-9]+' | sort -u || true)"
+      refs="$(printf '%s\n' "$liste" | cut -f1 | grep -E '^P[0-9]+\.[0-9]+$' || true)"
+      for ref in $refs; do
+        if ! printf '%s\n' "$pris" | grep -qxF "$ref"; then reste=$((reste + 1)); fi
+      done
+      if [ -n "$refs" ] && [ "$reste" -eq 0 ]; then
+        fin rien "sans modèle : $(printf '%s\n' "$refs" | wc -l | tr -d ' ') piste(s) à prendre, toutes citées par une PR ouverte"
+      fi
+      ;;
+  esac
+  if [ -z "$liste" ]; then fin rien "sans modèle : rien à prendre sur $BASE_REF"; fi
+}
+
 lancer() {
   ROLE="$1"
   valider_role "$ROLE"
@@ -661,6 +719,7 @@ lancer() {
   if [ "$MODE" = nouveau ]; then
     branche="agents/$ROLE/$horo"
     depart="$BASE_REF"
+    travail_disponible
   fi
 
   # 3. L'arbre du rôle.
