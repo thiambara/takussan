@@ -4080,7 +4080,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Petites améliorations du maillage des facettes
 - Réf : P35.05
-- Statut : validé — ville du fil d'Ariane liée avec le contrat du maillon précédent ; page de ville indexable à partir de 3 biens, comme le quartier ; paires contrat × ville au sitemap à partir de 3 biens
+- Statut : fait · TCK-909
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:70-84`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/queries/facettes.ts:81-90`
 - Constat :
@@ -4089,6 +4089,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Le seuil de 3 biens ne vaut que pour le quartier (lu, `facettes.ts:81-90`). Une ville d'un seul bien public est canonique et entre au sitemap (lu, `sitemap.ts:102-109`), c'est la page mince que le seuil évite au quartier. Dans la base de dev, la plus petite ville publique en compte 3 (mesuré, `cities()` par tinker) : aucune n'est concernée aujourd'hui.
 - Piste : lien de la ville du fil vers `?contract_type=<contrat>&city=<ville>`, la canonique du palier affiché, et l'égalité DOM ⇔ JSON-LD tient puisque les deux dérivent de `maillonsDeFiche`. Paires contrat × ville au sitemap pour les villes au-dessus d'un seuil. Même seuil, ou un seuil propre, pour la page de ville. Le choix des seuils revient au porteur.
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:80-84` (ville du fil vers `/properties?city=…`, sans le contrat du maillon précédent), `sitemap.ts:96-120` (villes et quartiers seuls, aucune paire contrat × ville), `facettes.ts:81-90` (`SEUIL_QUARTIER_INDEXABLE` ne vaut que pour le quartier) ; aucun commit ni ticket ouvert → les trois points tiennent ; le compte de la plus petite ville de dev n'a pas été repris. Classement : V7, la piste remet elle-même le choix des seuils au porteur, et le lien du fil change une cible visible.
+- Mesure (2026-10-18, bc1f55227, implementeur) : avant correctif, `maillonsDeFiche` lie la ville vers `/properties?city=…` sans contrat, `villesDuCatalogue` admet toute ville (aucun seuil), `sitemap.ts` annonce Thiès à 2 biens et aucune paire contrat × ville, `cities()` ne sert aucun compte par contrat (relu ; 1 test API et 6 tests front neufs rouges). Correctif : `cities()` sert `contracts` (compte par contrat, zéro compris), `SEUIL_VILLE_INDEXABLE = 3` borne le domaine des villes, le sitemap écarte les villes sous le seuil et annonce les paires dont le contrat l'atteint, `hrefDeLaVille` donne au maillon de ville la canonique `?contract_type=…&city=…` ou un libellé hors domaine → 12 verts sur `PropertyCitiesTest`, 27 avec les chemins publics et les quartiers, 487 sur `(public)`, `facettes`, `sitemap`, `canonique` et le fil ; ablation → 1 rouge API, 6 rouges front.
 
 ## Angle 36 — Webhooks de statut SMS et WhatsApp
 
