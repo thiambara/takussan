@@ -5062,7 +5062,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `metadata.legal_info` reste exposé et décrit comme la source, alors qu'il n'est plus écrit
 - Réf : P47.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-960 — reste : l'exposition de `metadata.legal_info` par `AgencyResource` et son type front (V3), et le retrait des données restantes (V4)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyKindFlipService.php:37-44,95-116`, `takussan-api/app/Http/Resources/AgencyResource.php:61-67`, `takussan-web/src/types/agency.ts:17-30,82`
 - Constat :
@@ -5071,6 +5071,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu.
 - Piste : corriger le docblock, et retirer la branche `legal_info` du flip. Le retrait des données restantes est une décision de schéma, à prendre à part.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AgencyKindFlipService.php:37-44` (docblock « for now everything below lives in `metadata.legal_info` »), l. 92-116 et `AgencyResource.php:60-67` ; `grep -rn legal_info takussan-web/src` → seul `types/agency.ts`. Constat inexact sur la ligne : le `continue` de la l. 108 est atteint à chaque champ ; c'est la branche des l. 111-113, qui écrit `legal_info`, qui ne l'est jamais (les quatre `LEGAL_FIELDS` ont une colonne dans `COLUMN_OF`). `metadata.legal_info` est encore lu l. 103, comme valeur choisie avant la migration. Classement : A6, corriger le docblock pour dire que les quatre champs s'écrivent en colonne et retirer la branche inatteignable, sans changer ce que rend le flip ; l'exposition par `AgencyResource` et le retrait des données (V3, V4) restent hors de ce classement.
+- Mesure (2026-10-18, e735ac81e, implementeur) : relu `AgencyKindFlipService.php` (branche `legal_info` après le `continue`, jamais atteinte) → docblock de `LEGAL_FIELDS` et commentaire d'`AgencyResource` corrigés, branche et réécriture de `metadata.legal_info` retirées ; code mort, donc pas de rouge avant correctif : la garde neuve `test_every_legal_field_has_its_column` rougit quand on ajoute un champ sans colonne, verte retiré ; `AgencyKindFlipTest` 8 verts, `legal_info` intact après le flip.
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07
