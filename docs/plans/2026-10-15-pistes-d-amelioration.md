@@ -4715,7 +4715,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Un relevé bancaire de 10 Mo, accepté par la validation, tue le job en erreur fatale de mémoire, et le relevé reste `processing` à vie
 - Réf : P43.01
-- Statut : validé — un `failed()` qui passe le relevé à `failed` s'il est encore `processing`, et l'insertion des lignes par paquets au fil du générateur, dans la transaction ; la taille acceptée (10 Mo) ne baisse pas
+- Statut : fait · TCK-932
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:23,71-90,127-143`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:22,61-63`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:36-39`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4727,6 +4727,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Établi comment : boucle du job recopiée hors base, `memory_get_peak_usage(true)`, puis `-d memory_limit=256M` ; les fichiers de mesure sont restés dans `/tmp`, hors du dépôt.
 - Piste : un `failed()` qui passe le relevé à `failed` s'il est encore `processing`. Insérer par paquets au fil du générateur, dans la transaction, au lieu de tout accumuler. Ou borner la taille du fichier sous le seuil mesuré. Test : un `failed()` appelé sur un relevé `processing` le rend `failed`, et le ré-import du même fichier passe.
 - Mesure (2026-10-18, f7873dbab, mesureur) : relu `ParseBankStatementJob.php` (accumulation de `$lines` et `$dates` l. 65-90, passage à `failed` seulement dans le `catch` l. 127-143, aucun `failed()`), `StoreBankStatementRequest.php:22` (`max:10240`) et `:61-63`, `BankStatementController.php:36-39`, `docker/php.ini:3` (256M) ; `git log` : aucun commit sur ces fichiers depuis 91998f351 ; boucle du job rejouée sur `CsvDriver` hors base (agence non persistée), CSV générés dans `/tmp` → 10 Mo (95 909 lignes) : pic 720 Mo sans limite, et `Allowed memory size of 268435456 bytes exhausted` sous `-d memory_limit=256M` ; 3 Mo (27 600 lignes) : pic 202 Mo. Le relevé passe par `worker-media` (`compose.api.yml:113`, `mem_limit: 384m`), où l'erreur fatale de PHP arrive avant le noyau (RSS de 283 Mio à l'épuisement, mesuré en P43.04). Le constat tient en entier ; la durée d'un gros relevé face aux 60 s du worker n'est pas mesurée. Classement : V7, la Piste laisse le choix entre trois voies, dont une borne de taille que l'agence verrait, et l'insertion par paquets réécrit l'écriture des montants (V1) ; le `failed()` seul, qui tient la promesse TCK-593 écrite l. 137, relèverait de A1 si le porteur le valide à part.
+- Mesure (2026-10-18, 68efc4e88, implementeur) : reproduit par `LargeBankStatementParseTest` avant correctif : 30 000 lignes analysées → 217 Mo de surcroît de mémoire (`memory_reset_peak_usage`), et `failed()` absent (3 rouges) → lignes insérées par paquets de 500 dans la transaction, `failed()` qui passe un relevé `processing` à `failed` ; 3,1 Mo, ré-import du même fichier en 202, 4 verts. Ablation : tout accumulé (`PAQUET = PHP_INT_MAX`) → 1 rouge ; `failed()` neutralisé → 1 rouge.
 
 ### `MatchBankStatementJob` n'a ni `$timeout` ni `failed()`, et fait plusieurs requêtes par ligne : un gros relevé n'est rapproché qu'en partie, sans trace pour l'agence
 - Réf : P43.02
