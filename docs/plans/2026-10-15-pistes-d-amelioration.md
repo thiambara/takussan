@@ -3107,7 +3107,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Petites améliorations
 - Réf : P23.06
-- Statut : validé — la garde d'impersonation sur les GET, après P23.05
+- Statut : fait · TCK-920 — reste : le correctif des fuites que la garde déclare dans `FUITES_TOLEREES` : `GET /api/dashboard/tenant` liste les pièces des profils de la cible sous impersonation, et `deposit-refund` et `notifications` rendent des URL signées de 30 min, plus longues que la session de 15 min (le numéro de pièce du client relève de P23.03)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Middleware/EnforceImpersonationReadOnly.php:15-25,37-43`, `docs/adr/0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md`
 - Constat :
@@ -3118,6 +3118,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 - Piste : une garde qui ouvre une session d'impersonation sur une cible garnie (pièce de profil, fiche client avec pièce, notification à pièces jointes) et balaie les `GET` de `route:list`. Elle échoue sur toute réponse 200 qui porte un champ `signature=`, `token`, `file_url` vers une pièce, ou `id_number`. Corriger l'ADR pour qu'il écrive le code réellement émis.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `EnforceImpersonationReadOnly.php:14-45` (docblock l. 19 : `impersonation.read_only` ; relevé des lectures GET l. 21-24 sans `documents`, `customers` ni `notifications` ; consigne « Rien d'autre ne l'attrape » l. 37-43) et l. 84 (`abort_code(403, 'impersonation.read_only')`), contre `docs/adr/0055-…md:64` (`impersonation_read_only`). Lignes citées inchangées, constat confirmé. Classement : V2, la garde balaie les lectures sous impersonation et rougit sur P23.01 et P23.05, validées mais non faites ; seule la correction de l'ADR (A6) serait autonome.
 - Mesure (2026-10-16, 55a41109, humain) : la correction de l'ADR est faite en session (TCK-723) : ADR-0055 § 3 écrit `impersonation.read_only`, le code émis ; reste la garde, à l'implémenteur.
+- Mesure (2026-10-18, e9d4abe2f, implementeur) : sonde temporaire, retirée depuis, session ouverte par `POST /api/admin/users/{id}/impersonate` sur une admin d'agence garnie (pièce de profil, fiche client avec numéro de pièce, retenue sur caution avec photo et notification), 286 routes `GET /api/*` dont 100 rendent 200 : le numéro de pièce sort par `customers`, `leases` et `bookings` (liste et fiche, P23.03), la pièce de profil par `dashboard/tenant`, des URL signées de 30 min par `leases/{lease}/deposit-refund` et `notifications` ; aucun `token`. Garde `ImpersonationReadSweepTest` : ces fuites déclarées dans `FUITES_TOLEREES`, 3 verts. Ablation : `excludingProfilePieces()` retiré de `DocumentController::index` → rouge (`api/documents` : pièce de profil et URL signée) ; une fuite tolérée retirée de la liste → rouge ; une route qui ne fuit pas ajoutée → rouge ; un paramètre retiré de `PARAMETRES_NON_REMPLIS` → rouge ; remis → verts.
 
 ## Angle 24 — Crédits et Boost : idempotence des achats, remboursements, ce que voit l'espace
 
