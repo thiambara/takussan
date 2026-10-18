@@ -5,11 +5,13 @@ namespace App\Services\Admin;
 use App\Jobs\RecordQueueHeartbeat;
 use App\Models\Property;
 use App\Services\Media\Cdn\CdnProviderContract;
+use App\Support\TrustedProxyList;
 use GuzzleHttp\Client as HttpClient;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Meilisearch\Client as MeilisearchClient;
 use Meilisearch\Exceptions\ApiException;
@@ -139,6 +141,7 @@ class HealthcheckService
             'workers' => $this->check(fn (): array => $this->workers()),
             'cdn' => $this->check(fn (): array => $this->cdn()),
             'scheduler' => $this->check(fn (): array => $this->scheduler()),
+            'proxies' => $this->check(fn (): array => $this->proxies()),
         ];
 
         $snapshot = [
@@ -384,6 +387,25 @@ class HealthcheckService
         }
 
         return $this->cdn->healthCheck() ? ['value' => 'ok'] : ['status' => 'degraded', 'value' => 'degraded'];
+    }
+
+    /**
+     * TCK-853 (P37.06) — `TRUSTED_PROXIES` qui contient `*` ne croit PERSONNE (`TrustedProxyList`) :
+     * tous les clients prennent l'IP du mandataire, et partagent un seau dans chaque limiteur.
+     * Rien ne le refuse au démarrage (décision du porteur) : la sonde le dit, et le journal le crie
+     * à chaque passage de `health:probe`.
+     *
+     * @return array<string,mixed>
+     */
+    private function proxies(): array
+    {
+        if (! TrustedProxyList::hasWildcard(TrustedProxyList::fromEnvironment())) {
+            return [];
+        }
+
+        Log::critical('[health] TRUSTED_PROXIES contient `*`, qui ne croit aucun mandataire : tous les clients prennent l’IP du mandataire.');
+
+        return ['status' => 'degraded', 'reason' => 'wildcard_trusts_nobody'];
     }
 
     /**

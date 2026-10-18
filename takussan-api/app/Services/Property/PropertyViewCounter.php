@@ -3,6 +3,7 @@
 namespace App\Services\Property;
 
 use App\Models\Property;
+use App\Support\VisitorFingerprint;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\RateLimiter;
  * constructeur de BASE (`toBase()`) écrit la colonne et rien d'autre.
  *
  * Déduplication : 3 vues par (bien, IP) et par heure, comme avant, sous UNE clé commune aux deux
- * routes.
+ * routes. TCK-851 (P37.01) : l'IP d'une IPv6 est son /64 (`VisitorFingerprint::network`).
  */
 class PropertyViewCounter
 {
@@ -48,6 +49,6 @@ class PropertyViewCounter
 
     public static function cle(Property $property, string $ip): string
     {
-        return 'property-view:'.$property->getKey().':'.$ip;
+        return 'property-view:'.$property->getKey().':'.VisitorFingerprint::network($ip);
     }
 }
