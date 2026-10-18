@@ -3008,7 +3008,7 @@ Re-mesuré le 2026-10-12 dans les conteneurs servis (`takussan-api-preview-4iza8
 | Clé | API | Front | Effet de l'absence (défauts de `config/`, relus) |
 |---|---|---|---|
 | `PUBLIC_CACHE_REVALIDATE_URL` / `_SECRET` | absentes | absente | aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s (ADR-0052) |
-| `API_INTERNAL_URL` | — | absente | le serveur Next appelle l'API par son URL publique, comme avant 598 |
+| `API_INTERNAL_URL` | — | **présente depuis le 2026-10-18** (`http://takussan-api-preview:8080`) | — ; absente, le serveur Next appelait l'API par son URL publique |
 | `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
 | `SEARCH_ALERTS_WHATSAPP_ENABLED` | absente | — | faux : voulu tant que le gabarit Meta n'est pas approuvé |
 | `SMS_LOG_FALLBACK` | absente | — | faux : voulu, jamais hors développement |
@@ -3024,6 +3024,11 @@ TCK-598, ADR-0052 ». `VISITOR_IP_TRUSTED_HOPS=2` y est **inféré**, pas mesur�
 `API_INTERNAL_URL` visait l'hôte `api`, que chaque pile déclare sur `dokploy-network` ; depuis
 TCK-880 (ADR-0069 § 4), la valeur est `http://takussan-api-preview:8080`, un alias propre à
 l'environnement. À mesurer avant de poser.
+
+**Re-mesuré le 2026-10-18** (même commande, et la même sur `takussan-web-preview`) : seule
+`API_INTERNAL_URL` a changé — posée sur le front, conteneur redéployé, l'API jointe par ce nom
+(`/up` → `200`). Le relevé d'IP d'ADR-0052 § 6 « avant » n'a pas été fait ; « après » se fait
+avec le porteur, depuis deux réseaux, en posant `VISITOR_IP_TRUSTED_HOPS` (TCK-720, AC7).
 
 *Décision du porteur : la préproduction reste sur ces défauts pour l'instant, et il reprend la main
 sur les variables de la production. Condition de réouverture : la pose des clés dans Dokploy, avec

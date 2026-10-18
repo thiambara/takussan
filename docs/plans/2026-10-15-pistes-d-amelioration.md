@@ -4280,7 +4280,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : fait · TCK-838 — reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+- Statut : fait · TCK-838 — reste : `VISITOR_IP_TRUSTED_HOPS` et le relevé d'IP d'ADR-0052 § 6, avec le porteur (TCK-720 ; `API_INTERNAL_URL` posée en préproduction le 2026-10-18)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :

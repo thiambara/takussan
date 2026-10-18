@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-17
+updated: 2026-10-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -76,6 +76,10 @@ où chaque constat est sourcé et daté.
   conteneur) et le relevé d'ADR-0052 § 6 avant et après. Sans elle, les trois formulaires anonymes
   envoyés par action serveur (visite, contact d'un bien, contact d'un agent) partagent un seul seau
   de débit pour tout le site.
+  *2026-10-18 : `API_INTERNAL_URL` posée par le porteur, le front redéployé en session et mesuré
+  (le conteneur la lit, `/up` → `200` par `http://takussan-api-preview:8080`). Le relevé « avant »
+  n'a pas été fait. Restent `VISITOR_IP_TRUSTED_HOPS=2` et le relevé « après », depuis deux
+  réseaux, à faire avec la session.*
 - [ ] Mettre chaque piste à `fait · TCK-720` dans le fichier de pistes une fois sa part faite.
 
 ## Critères d'acceptation
