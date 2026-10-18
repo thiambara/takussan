@@ -4854,10 +4854,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `useUpdateLease` envoie `PUT` sur `api/leases/{lease}`, qui n'accepte que `PATCH` ; le hook n'a aucun appelant
 - Réf : P45.02
-- Statut : retenu · autonome
+- Statut : caduc — le hook a été retiré par TCK-917 (PR #647, fusionnée dans pre-dev le 2026-10-18)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/leases.ts:280-291`, `takussan-api/routes/api/leases.php:18`
 - Constat :
+- Mesure (2026-10-18, 1011b4c6f, implementeur) : `grep -rn 'useUpdateLease\b' takussan-web/src` → une seule occurrence, la liste de `src/lib/__tests__/code-mort.tck-917.test.ts:38`, qui garde son absence ; `leases.ts` ne le déclare plus (retiré par TCK-917, #647 fusionnée). Le défaut n'existe plus, rien à implémenter.
   - Le hook déclare `{ path: cheminApi\`/api/leases/${id}\`, method: 'PUT' }` (lu, `leases.ts:282`). La route est `Route::patch('leases/{lease}', …)` seule (lu, `leases.php:18` ; mesuré, `route:list` → `GET|HEAD` et `PATCH`). Un appel rendrait 405 (déduit, à vérifier).
   - `grep -rn "useUpdateLease\b" takussan-web/src` → la seule définition, aucun appelant (mesuré).
 - Piste : retirer le hook (A3), ou passer en `PATCH` s'il doit servir. La garde de P45.01 l'aurait attrapé.
