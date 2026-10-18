@@ -403,8 +403,11 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
     for (const langue of ['fr', 'en', 'wo']) {
       expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Dakar`);
       expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Dakar&amp;location=Mermoz`);
-      expect(urls).toContain(`${origineSite()}/${langue}/properties?city=Thi%C3%A8s`);
     }
+    // P35.05 — Thiès (2 biens) est sous le seuil de la page de ville : ni elle, ni la page nue
+    // qu'elle deviendrait n'y sont ajoutées.
+    expect(urls.some((u) => u.includes('Thi%C3%A8s'))).toBe(false);
+    expect(urls.filter((u) => u === `${origineSite()}/fr/properties`)).toHaveLength(1);
     // Aucun `&` nu : un seul suffit à rendre le fichier ENTIER invalide.
     expect(urls.filter((u) => /&(?!amp;)/.test(u))).toEqual([]);
   });
@@ -421,6 +424,20 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
     expect(urls.filter((u) => /\/fr\/properties\?city=saly$/i.test(u))).toEqual([
       `${origineSite()}/fr/properties?city=Saly`,
     ]);
+  });
+
+  it('P35.05 — les paires contrat × ville à partir de 3 biens du contrat, sous leur canonique', async () => {
+    facettes.villesAvecComptes.mockResolvedValue([
+      { value: 'Dakar', count: 12, contracts: { sale: 9, rent: 3 } },
+      { value: 'Saly', count: 4, contracts: { sale: 2, rent: 2 } },
+    ]);
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${origineSite()}/fr/properties?contract_type=sale&amp;city=Dakar`);
+    expect(urls).toContain(`${origineSite()}/en/properties?contract_type=rent&amp;city=Dakar`);
+    expect(urls).toContain(`${origineSite()}/fr/properties?city=Saly`);
+    expect(urls.some((u) => u.includes('contract_type=') && u.includes('Saly'))).toBe(false);
   });
 
   it('une ville sous le seuil ne coûte aucun appel et n’a aucun quartier', async () => {

@@ -24,3 +24,24 @@ export function hrefDuQuartier(
   const [, requete = ''] = chemin.split('?');
   return new URLSearchParams(requete).has('location') ? chemin : undefined;
 }
+
+/**
+ * P35.05 — le chemin du maillon de VILLE : la canonique contrat × ville (« Louer › Dakar » mène aux
+ * locations de Dakar), ou `null` si la ville n'y est pas retenue — sous `SEUIL_VILLE_INDEXABLE`,
+ * ou domaine inconnaissable. Même règle que le quartier : pas de lien que la page pointée
+ * désavouerait. `undefined` pour un bien sans ville (pas de maillon).
+ */
+export function hrefDeLaVille(
+  property: PropertyDetail,
+  domaines: DomainesDeFacette,
+): string | null | undefined {
+  const { city } = property.location;
+  if (!city) return undefined;
+
+  const chemin = cheminCanoniqueDeLaListe(
+    new URLSearchParams({ contract_type: property.contract_type, city }),
+    domaines,
+  );
+  const [, requete = ''] = chemin.split('?');
+  return new URLSearchParams(requete).has('city') ? chemin : null;
+}

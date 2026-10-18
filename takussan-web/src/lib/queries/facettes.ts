@@ -2,6 +2,7 @@ import { apiFetch } from '@/lib/api';
 import { type DomainesDeFacette, domainesStatiques } from '@/lib/canonique';
 import { DEFAULT_LOCALE } from '@/i18n/config';
 import { cheminApi } from '@/lib/chemin-api';
+import type { ContractType } from '@/types/property';
 
 /**
  * Le DOMAINE de la facette `city` — TCK-433, passe 2.
@@ -21,10 +22,28 @@ import { cheminApi } from '@/lib/chemin-api';
  * c'est une intention.*
  */
 
+/** P35.05 — le compte de la ville par contrat ; l'API sert les deux, zéro compris. */
+export type ComptesParContrat = Readonly<Partial<Record<ContractType, number>>>;
+
+type VilleAvecCompte = {
+  readonly value: string;
+  readonly count: number;
+  readonly contracts?: ComptesParContrat;
+};
+
 type ReponseVilles = {
-  readonly data: readonly { readonly value: string; readonly count: number }[];
+  readonly data: readonly VilleAvecCompte[];
   readonly meta: { readonly truncated: boolean };
 };
+
+/**
+ * P35.05 — le SEUIL d'une page de ville, décidé par le porteur « comme le quartier » : une ville
+ * n'est canonique d'une page (et n'entre au sitemap) qu'à partir de ce nombre de biens publics.
+ * En dessous, `?city=…` se replie sur la page nue : une page indexable pour un ou deux biens est
+ * la page mince que le seuil du quartier évite déjà. Le même seuil vaut pour la paire contrat ×
+ * ville au sitemap, compté sur les biens du contrat.
+ */
+export const SEUIL_VILLE_INDEXABLE = 3;
 
 /**
  * Fraîcheur du domaine. Une ville entre ou sort du catalogue au rythme des annonces, pas des
@@ -67,9 +86,9 @@ export async function villesDuCatalogue(): Promise<Map<string, string> | null> {
     // sans cette table, ils produiraient deux canoniques. P35.04 : la PREMIÈRE graphie lue gagne,
     // l'API triant par compte décroissant ; le dernier `set` retenait la moins fréquente.
     const domaine = new Map<string, string>();
-    for (const { value } of reponse.data) {
+    for (const { value, count } of reponse.data) {
       const cle = value?.toLocaleLowerCase('fr');
-      if (cle && !domaine.has(cle)) domaine.set(cle, value);
+      if (cle && !domaine.has(cle) && count >= SEUIL_VILLE_INDEXABLE) domaine.set(cle, value);
     }
     return domaine;
   } catch (err) {
@@ -143,7 +162,7 @@ export async function quartiersDeLaVille(ville: string): Promise<Map<string, str
  * {@link SEUIL_QUARTIER_INDEXABLE} biens ne peut pas avoir de quartier indexable, et ne coûte donc
  * pas d'appel de plus. Même URL et mêmes options que `villesDuCatalogue` : une seule entrée de cache.
  */
-export async function villesAvecComptes(): Promise<readonly { readonly value: string; readonly count: number }[]> {
+export async function villesAvecComptes(): Promise<readonly VilleAvecCompte[]> {
   const reponse = await apiFetch<ReponseVilles>(
     '/public/properties/cities',
     { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit,

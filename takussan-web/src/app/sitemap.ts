@@ -1,7 +1,14 @@
 import type { MetadataRoute } from 'next';
 
 import { cheminCanoniqueDeLaListe, domainesStatiques } from '@/lib/canonique';
-import { quartiersDeLaVille, replie, SEUIL_QUARTIER_INDEXABLE, villesAvecComptes } from '@/lib/queries/facettes';
+import { contractTypeValues } from '@/lib/enums/property';
+import {
+  quartiersDeLaVille,
+  replie,
+  SEUIL_QUARTIER_INDEXABLE,
+  SEUIL_VILLE_INDEXABLE,
+  villesAvecComptes,
+} from '@/lib/queries/facettes';
 import { listerBiensDuSitemap } from '@/lib/queries/sitemap-catalogue';
 import {
   RESSOURCES_DE_PROFIL,
@@ -110,13 +117,16 @@ const SOURCES: readonly SourceDeSitemap[] = [
       // P35.04 — une entrée par ville repliée, la première lue (la plus fréquente : l'API trie par
       // compte décroissant). Le dernier `set` gagnait, et chaque variante de casse poussait le même
       // chemin canonique une fois de plus.
+      // P35.05 — et seulement les villes qui atteignent `SEUIL_VILLE_INDEXABLE` : en dessous, leur
+      // canonique est la page nue, déjà annoncée.
       const villes = (await villesAvecComptes()).filter(
-        (v, i, toutes) => toutes.findIndex((w) => replie(w.value) === replie(v.value)) === i,
+        (v, i, toutes) =>
+          toutes.findIndex((w) => replie(w.value) === replie(v.value)) === i && v.count >= SEUIL_VILLE_INDEXABLE,
       );
       const domaineDesVilles = new Map(villes.map((v) => [replie(v.value), v.value]));
       const pages: PageIndexable[] = [];
 
-      for (const { value: ville, count } of villes) {
+      for (const { value: ville, count, contracts } of villes) {
         const quartiers = count >= SEUIL_QUARTIER_INDEXABLE ? await quartiersDeLaVille(ville) : null;
         const domaines = { ...domainesStatiques(), villes: domaineDesVilles, quartiers };
 
@@ -125,6 +135,16 @@ const SOURCES: readonly SourceDeSitemap[] = [
           changeFrequency: 'daily',
           priority: 0.6,
         });
+        // P35.05 — la paire contrat × ville (« à louer à Dakar »), à partir du même seuil compté
+        // sur les biens du contrat.
+        for (const contrat of contractTypeValues) {
+          if ((contracts?.[contrat] ?? 0) < SEUIL_VILLE_INDEXABLE) continue;
+          pages.push({
+            chemin: cheminCanoniqueDeLaListe(new URLSearchParams({ contract_type: contrat, city: ville }), domaines),
+            changeFrequency: 'daily',
+            priority: 0.5,
+          });
+        }
         for (const quartier of quartiers?.values() ?? []) {
           pages.push({
             chemin: cheminCanoniqueDeLaListe(new URLSearchParams({ city: ville, location: quartier }), domaines),
