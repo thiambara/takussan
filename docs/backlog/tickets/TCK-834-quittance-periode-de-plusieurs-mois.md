@@ -67,7 +67,7 @@ La quittance d'une échéance trimestrielle ou annuelle dit toute la période qu
 
 - Les reçus des autres types d'échéance (caution, pénalité, charges) passent par le même gabarit et
   suivent la même règle ; aucun autre gabarit n'est touché.
-- Les autres écarts des gabarits PDF : TCK de P26.06.
+- Les autres écarts des gabarits PDF : TCK-836 (P26.06).
 
 ## Notes d'implémentation
 
