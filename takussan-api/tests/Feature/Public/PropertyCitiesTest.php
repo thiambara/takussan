@@ -4,6 +4,7 @@ namespace Tests\Feature\Public;
 
 use App\Models\Address;
 use App\Models\Customer;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +55,7 @@ class PropertyCitiesTest extends TestCase
 
         $this->assertSame(
             [['value' => 'Dakar', 'count' => 2], ['value' => 'Thiès', 'count' => 1]],
-            $response->json('data'),
+            collect($response->json('data'))->map(fn ($v) => ['value' => $v['value'], 'count' => $v['count']])->all(),
         );
     }
 
@@ -223,6 +224,28 @@ class PropertyCitiesTest extends TestCase
 
         $this->assertSame(
             [['value' => 'Zzvillé', 'count' => 4], ['value' => 'Thiès', 'count' => 1]],
+            collect($this->getJson('/api/public/properties/cities')->assertOk()->json('data'))
+                ->map(fn ($v) => ['value' => $v['value'], 'count' => $v['count']])->all(),
+        );
+    }
+
+    /**
+     * P35.05 — le compte de chaque ville PAR CONTRAT, pour que le sitemap n'annonce une paire
+     * contrat × ville (« à louer à Dakar ») qu'à partir de 3 biens. Toujours les deux contrats,
+     * zéro compris : le front n'a pas à deviner une clé absente.
+     */
+    public function test_each_city_carries_its_count_per_contract(): void
+    {
+        $this->bienA('Dakar', ['contract_type' => ContractType::Rent]);
+        $this->bienA('Dakar', ['contract_type' => ContractType::Rent]);
+        $this->bienA('Dakar', ['contract_type' => ContractType::Sale]);
+        $this->bienA('Thiès', ['contract_type' => ContractType::Sale]);
+
+        $this->assertSame(
+            [
+                ['value' => 'Dakar', 'count' => 3, 'contracts' => ['sale' => 1, 'rent' => 2]],
+                ['value' => 'Thiès', 'count' => 1, 'contracts' => ['sale' => 1, 'rent' => 0]],
+            ],
             $this->getJson('/api/public/properties/cities')->assertOk()->json('data'),
         );
     }

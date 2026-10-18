@@ -29,6 +29,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
@@ -243,12 +244,26 @@ class PublicPropertyController extends Controller
             ->get([
                 DB::raw('mode() WITHIN GROUP (ORDER BY addresses.city) as valeur'),
                 DB::raw('count(*) as compte'),
+                // P35.05 — le compte par contrat : le sitemap n'annonce une paire contrat × ville
+                // qu'à partir de 3 biens. Les valeurs viennent de l'enum, jamais de la requête.
+                ...array_map(
+                    fn (ContractType $contrat) => DB::raw(
+                        "count(*) FILTER (WHERE properties.contract_type = '{$contrat->value}') as compte_{$contrat->value}"
+                    ),
+                    ContractType::cases(),
+                ),
             ]);
 
         $tronque = $lignes->count() > self::citiesMax();
 
         $data = $lignes->take(self::citiesMax())
-            ->map(fn ($l) => ['value' => (string) $l->valeur, 'count' => (int) $l->compte])
+            ->map(fn ($l) => [
+                'value' => (string) $l->valeur,
+                'count' => (int) $l->compte,
+                'contracts' => collect(ContractType::cases())
+                    ->mapWithKeys(fn (ContractType $contrat) => [$contrat->value => (int) $l->{'compte_'.$contrat->value}])
+                    ->all(),
+            ])
             ->values()
             ->all();
 

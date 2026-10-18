@@ -117,7 +117,7 @@ class AgencySuspensionPublicPathsTest extends TestCase
         }
 
         $attendu = $visible ? 2 : 1;
-        $this->assertSame([['value' => 'Dakar', 'count' => $attendu]], $this->getJson('/api/public/properties/cities')->json('data'));
+        $this->assertSame([['value' => 'Dakar', 'count' => $attendu]], collect($this->getJson('/api/public/properties/cities')->json('data'))->map(fn ($v) => ['value' => $v['value'], 'count' => $v['count']])->all());
         $this->assertSame([['value' => 'Mermoz', 'count' => $attendu]], $this->getJson('/api/public/properties/neighborhoods?city=Dakar')->json('data'));
     }
 
