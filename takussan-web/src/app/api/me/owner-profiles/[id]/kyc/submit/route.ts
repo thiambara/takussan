@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 
 /**
@@ -14,7 +15,7 @@ import { origineApi } from '@/lib/config-publique';
 
 type Params = Promise<{ id: string }>;
 
-export async function POST(_req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
+export async function POST(req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const cookieStore = await cookies();
   const token = jetonEspaceApplicatif(cookieStore);
   if (!token) {
@@ -28,9 +29,10 @@ export async function POST(_req: NextRequest, ctx: { params: Params }): Promise<
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
-  const upstream = await fetch(`${origineApi()}/api/me/owner-profiles/${id}/kyc/submit`, {
+  const upstream = await fetch(urlApiServeur(`/me/owner-profiles/${id}/kyc/submit`), {
     method: 'POST',
     headers: {
+      ...(await enTetesDuRelais(req)),
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },

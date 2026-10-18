@@ -1,7 +1,7 @@
 ---
 id: TCK-882
 title: "Une restauration se juge aussi à ce qu'elle se lit : backup:verify-encryption, et la restauration de la préproduction rejouée"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -48,9 +48,11 @@ l'environnement.
 - [x] **AC1** — `tests/Feature/Console/BackupVerifyEncryptionTest.php` (4 cas : clé juste, clé
       fausse, valeur abîmée, base vide) passe ; il rougit sur deux ablations (déchiffrement
       retiré → 2 échecs ; casts `encrypted` ignorés → 4 échecs).
-- [ ] **AC2** — Sur le serveur, la copie de la dernière sauvegarde : comptes égaux à l'original
+- [x] **AC2** — Sur le serveur, la copie de la dernière sauvegarde : comptes égaux à l'original
       aux tables vivantes près (nommées), `backup:verify-encryption` → `0` avec la clé de la
       préproduction, `1` avec `--cle-fausse` ; relevé daté dans `hebergement.md`.
+      Mesuré le 2026-10-18 (relevé « Restauration à blanc, lue ») : sortie 0, 39 valeurs dans 20
+      colonnes ; `--cle-fausse` → sortie 1, 39 sur 39 illisibles.
 
 ## Hors périmètre
 

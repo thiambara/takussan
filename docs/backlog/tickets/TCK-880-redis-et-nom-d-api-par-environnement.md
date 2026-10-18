@@ -1,7 +1,7 @@
 ---
 id: TCK-880
 title: "Un Redis et un nom d'API par environnement : Redis dans la pile d'API, alias ${API_ALIAS}, retrait de redis-takussan"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -78,12 +78,12 @@ nom d'hôte désigne toujours un seul service.
       retiré, `http://api:` dans un `.env.example`, service `redis` retiré).
 - [x] **AC2** — `smoke-api.sh pile` passe, et rougit sur ses trois ablations (alias retiré, `redis`
       aussi sur `dokploy-network`, `REDIS_HOST` ôté du compose).
-- [ ] **AC3** — Sur le serveur, après le déploiement de `preview` : `X-Build-Sha` rend le commit
+- [x] **AC3** — Sur le serveur, après le déploiement de `preview` : `X-Build-Sha` rend le commit
       promu ; une clé de cache écrite par l'API se lit dans le Redis de la pile
       (`takussan-api-preview-4iza80-redis-1`) et **pas** dans `redis-takussan` ; depuis un
       conteneur de `dokploy-network`, `redis` et le conteneur Redis de la pile ne répondent pas, et
       `takussan-api-preview` rend `/up` à 200.
-- [ ] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
+- [x] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
       `donnees` ; la préproduction répond toujours (AC3 rejoué).
 
 ## Hors périmètre
@@ -95,6 +95,25 @@ nom d'hôte désigne toujours un seul service.
 - P05.09 (`CACHE_PREFIX` par environnement) n'a plus d'objet : chaque environnement a son Redis.
 
 ## Notes d'implémentation
+
+- **AC3, mesuré le 2026-10-18 sur le serveur**, après le déploiement de `b2804272` (`images.yml`
+  vert) : `/up` public → `200`, `X-Build-Sha` = `b280427281868f745696e7b871c9d80ba799997c` ;
+  `REDIS_HOST` vu par `api`, `worker`, `worker-media` et `scheduler` → `redis` ; une clé
+  `Cache::put` → 1 dans `takussan-api-preview-4iza80-redis-1` (base 1), 0 dans `redis-takussan` ;
+  depuis `dokploy-network`, `redis` et `takussan-api-preview-4iza80-redis-1` → « Could not
+  connect » ; `takussan-api-preview:8080/up` → `200`. Avant la bascule, la même sonde rendait 1
+  dans `redis-takussan`, 0 dans la pile, et `000` sous l'alias : elle sépare les deux états.
+  ⚠ `api:8080` répond **encore** depuis `dokploy-network` : Compose donne toujours au service son
+  nom sur chaque réseau. C'est pourquoi la garde refuse toute URL vers l'hôte `api` — le nom reste,
+  personne ne doit le viser.
+- **AC4, mesuré le 2026-10-18** : #634 promue sur `preview` (#635, `images.yml` vert, `6bd4778d`).
+  Clés `REDIS_TAKUSSAN_PASSWORD` et `REDIS_CPP_PASSWORD` retirées de l'onglet du Compose `donnees`
+  (relu : `MEILI_MASTER_KEY` seule), puis `compose.deploy` → `done`. Il ne tourne plus que
+  `serveur-donnees-qomjjz-meilisearch-1` (non recréé, `/health` → `available`). Aucun conteneur
+  orphelin. Le volume `serveur-donnees-qomjjz_redis-takussan` reste sur le disque jusqu'au
+  2026-10-25 au moins (É4), et sa suppression attend l'accord du porteur. AC3 rejoué ensuite :
+  `/up` → `200` (`6bd4778d`), clé de cache dans la pile, `redis-takussan` absent, Redis de la pile
+  injoignable depuis `dokploy-network`, alias → `200`, recherche publique → `200`.
 
 - **Mesures du 2026-10-18 sur le poste** (images reconstruites depuis la branche) :
   - garde : témoin vert ; les six ablations rougissent, chacune sur son message ;

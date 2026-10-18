@@ -1,6 +1,7 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 /**
  * Same-origin proxy for the super-admin users search (TCK-145). Forwards to
@@ -13,8 +14,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const search = request.nextUrl.search;
-  const upstream = await fetch(`${origineApi()}/api/admin/users${search}`, {
+  const upstream = await fetch(urlApiServeur(`/admin/users${search}`), {
     headers: {
+      ...(await enTetesDuRelais(request)),
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
     },

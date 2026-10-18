@@ -3746,6 +3746,20 @@ Expected : `✓ restauration identique, N tables` — aucune écriture n'a lieu 
 repos entre la sauvegarde et le comptage ; si `diff` montre un écart, le noter et recommencer
 préproduction arrêtée. **Ce diff vide est la condition de la mise en production** (ADR-0028 §7).
 
+**Et la copie doit se LIRE** (ADR-0028 § 7 amendé le 2026-10-18, TCK-882). Des comptes égaux sous une
+`APP_KEY` fausse sont une restauration ratée. La commande se lance dans le conteneur `api` de
+l'environnement, sur une connexion qui vise la copie, jointe à `dokploy-network`. Elle sort en `0`
+avec la clé de l'environnement, et en `1` avec `--cle-fausse`. Joué le 2026-10-18 sur la
+préproduction : relevé « Restauration à blanc, lue » d'`hebergement.md`.
+
+```bash
+php artisan backup:verify-encryption --connexion=<copie>               # → 0
+php artisan backup:verify-encryption --connexion=<copie> --cle-fausse  # → 1
+```
+
+Une base neuve sans aucune valeur chiffrée sort en `2`, « rien n'a été vérifié » : la commande ne
+peut alors pas prouver la clé.
+
 - [ ] **Étape 3 : restaurer le volume de médias à blanc**
 
 Depuis Dokploy, restaurer la dernière sauvegarde du volume vers un volume **neuf**
@@ -4247,7 +4261,9 @@ l'en-tête qu'il a forgé. Remettre ensuite la valeur de production.
 
 Rejouer D5, étapes 2 et 3, contre les conteneurs de `takussan-api-prod` (clé attendue : `403` sur
 `preview_properties`). Rejouer D6, étape 2, contre `takussan_prod` après sa première sauvegarde
-nocturne. Rejouer D6, étape 4 : c'est la première mesure du budget à **quatre** environnements — la
+nocturne, **déchiffrement compris** (`backup:verify-encryption`). Sur une base neuve, la commande
+sort en `2` tant qu'aucune valeur chiffrée n'existe : la rejouer après la première écriture d'une
+colonne chiffrée. Rejouer D6, étape 4 : c'est la première mesure du budget à **quatre** environnements — la
 reporter dans le relevé et dans le tableau de ce plan.
 
 - [ ] **Étape 7 : soumettre le sitemap**

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { effacerLaSession } from '@/lib/impersonation-serveur';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-import { statutSansCorps } from '@/lib/statut-sans-corps';
+import { relayerVersApi } from '@/lib/relais-api';
 
 /**
  * TCK-600 (ADR-0055 §6) — le relais same-origin de l'espace applicatif pendant une session.
@@ -25,31 +24,13 @@ async function relayer(request: NextRequest, segments: string[]): Promise<NextRe
     return reponse;
   }
 
-  const enTetes: Record<string, string> = {
-    ...(await enTetesServeurAmont()),
-    Accept: request.headers.get('accept') ?? 'application/json',
-    Authorization: `Bearer ${jeton}`,
-  };
-  for (const nom of ['content-type', 'accept-language']) {
-    const valeur = request.headers.get(nom);
-    if (valeur) enTetes[nom] = valeur;
-  }
-
-  const init: RequestInit = { method: request.method, headers: enTetes, cache: 'no-store' };
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    init.body = await request.arrayBuffer();
-  }
-
-  const amont = await fetch(urlApiServeur(`/${chemin}${request.nextUrl.search}`), init);
-  const enTetesReponse: Record<string, string> = {};
-  for (const nom of ['content-type', 'content-disposition', 'cache-control']) {
-    const valeur = amont.headers.get(nom);
-    if (valeur) enTetesReponse[nom] = valeur;
-  }
-
-  const reponse = new NextResponse(statutSansCorps(amont.status) ? null : await amont.arrayBuffer(), { status: amont.status, headers: enTetesReponse });
+  const reponse = await relayerVersApi(request, `/${chemin}${request.nextUrl.search}`, {
+    jeton,
+    accepteDeLaRequete: true,
+    init: { cache: 'no-store' },
+  });
   // 401 : la session est échue, fermée, ou l'opérateur n'est plus `super_admin` — le jeton est mort.
-  if (amont.status === 401) effacerLaSession(reponse);
+  if (reponse.status === 401) effacerLaSession(reponse);
   return reponse;
 }
 

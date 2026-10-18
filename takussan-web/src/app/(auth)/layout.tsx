@@ -94,7 +94,8 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           Un formulaire plus haut que la fenêtre (l'inscription, de 1024 à 1180 px de large) commence
           au rembourrage du panneau : à 40 px, son titre passait SOUS le retour (revue du
           2026-09-23, « Dellu » imprimé sur « Sos sa kont »). 96 px laissent 20 px d'air. */}
-      <div className="relative flex items-center justify-center p-6 md:p-10 lg:pt-24 bg-background">
+      {/* TCK-896 (P31.03) — le repère du contenu : le panneau du formulaire, sans le panneau visuel. */}
+      <main className="relative flex items-center justify-center p-6 md:p-10 lg:pt-24 bg-background">
         {/* TCK-568 — un retour vers la page quittée (la recherche, typiquement) : le logo seul
             menait à l'accueil. Discret à côté du formulaire dès `lg`.
             Sur la bannière mobile, blanc SUR UN VOILE : posé nu sur la photo, le texte de 14 px
@@ -125,7 +126,7 @@ function AuthPanneau({ children }: { children: ReactNode }) {
         <div className="w-full max-w-md animate-fade-in-up lg:mt-0 mt-[22vh] relative z-10">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
