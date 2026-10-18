@@ -361,12 +361,13 @@ Déjà sain (mesuré ou lu) :
 
 ### `whereDate()` sur un horodatage empêche l'usage de l'index
 - Réf : P02.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-864
 - Gravité : 🟠 risque ou dette
 - Où : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:453-460`
 - Constat : `scheduled_at::date >= …` force un Seq Scan. Écrite en plage, la même borne passe par l'index `property_visits_scheduled_at_status_index` (mesuré). Sur une colonne `date`, le cast ne coûte rien.
 - Piste : des plages `>= début du jour`, `< lendemain`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : relu par `grep whereDate` : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:456,459` (les lignes citées `453-460` ont glissé à `456,459`, et `:281` porte un `whereDate` sur `due_date`) ; `information_schema` → `property_visits.scheduled_at` est un `timestamp without time zone`, `config/app.php:70` et `SHOW timezone` valent UTC ; `EXPLAIN` avec `enable_seqscan=off` sur la base de dev → `scheduled_at::date >= … AND <= …` reste un `Seq Scan`, la même borne en plage `>= '2026-10-01' AND < '2026-11-01'` passe par `Bitmap Index Scan on property_visits_scheduled_at_status_index`. Classement : A2, sur une colonne horodatée sans fuseau la plage `[début du jour, lendemain)` rend exactement les mêmes lignes que le cast, sans choix de produit ; les colonnes de type `date` (`start_date`, `end_date`, `due_date`) restent hors du correctif.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `TimestampDayRangeTest` capte des `"scheduled_at"::date`, `"due_at"::date`, `"created_at"::date` et `"paid_at"::date` sur les six routes couvertes (calendrier, tableau de bord agent, liste des biens, historique des paiements, exports des biens et des clients), et le plan des visites du calendrier n'a pas `scheduled_at` dans son `Index Cond` → `App\Support\DayRange` (`[début du jour, lendemain)`) aux cinq sites ; 10 verts ; ablation : correctif retiré, 7 rouges (les 3 tests de bornes restent verts : ils gardent l'équivalence) ; `after()` ramené à `start()`, les 3 tests de bornes rougissent ; colonnes `date` laissées en `whereDate()`.
 
 ### Export synchrone jusqu'à 50 000 modèles complets
 - Réf : P02.07
