@@ -4216,7 +4216,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Les flux iCal lus par Airbnb, Booking.com et Google Agenda sont bornés par IP de la plateforme, pas par flux
 - Réf : P37.02
-- Statut : validé — 30 par minute et par flux (clé par jeton haché), plus une borne de 600 par minute et par IP
+- Statut : fait · TCK-852
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Providers/AppServiceProvider.php:455-466`, `takussan-api/routes/web.php:18-22`, `takussan-api/routes/api/calendar-feeds.php:14-16`
 - Constat :
@@ -4225,6 +4225,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - ADR-0041 vise Airbnb, Booking.com et Google Agenda (l. 101). Ces services relisent les flux de tous leurs utilisateurs depuis des machines communes (à vérifier : leurs IP et leur fréquence). Au-delà de 30 flux par minute depuis une même IP, le 31ᵉ reçoit 429. Le calendrier exporté cesse alors de se mettre à jour sur l'autre plateforme, sans erreur côté Takussan, et c'est la double réservation qu'ADR-0041 veut empêcher (déduit de la clé).
 - Piste : clé par jeton (`'flux:'.hash($token)`), qui borne l'essai de jetons par flux, plus une borne large par IP contre l'énumération. Un test : 31 flux distincts depuis une même IP restent servis, 31 appels d'un même flux reçoivent un 429.
 - Mesure (2026-10-17, 52f3928cd, mesureur) : relu `AppServiceProvider.php:456-466` : `ical-export` et `calendar-feed` à 30/min clés `'ip:'.$request->ip()`, commentaire « par flux » l. 457 ; routes `routes/web.php:19-23` (`throttle:ical-export`) et `routes/api/calendar-feeds.php:14-17` (`throttle:calendar-feed`) → la clé ne porte pas le flux ; les IP et la fréquence réelles d'Airbnb, Booking.com et Google Agenda ne sont pas mesurées, l'effet (429 au 31ᵉ flux) reste déduit. Classement : V7, la piste fixe deux bornes neuves (par jeton, et une « borne large » par IP) dont les valeurs sont un choix sur un service que voient les plateformes tierces.
+- Mesure (2026-10-18, 7433fdbcc, implementeur) : avant correctif, `CalendarFeedThrottleTest` : 31 GET de flux distincts (`/ical/<jeton>.ics` et `/api/calendar-feed/<jeton>.ics`) depuis une même IP → le 31ᵉ reçoit 429 sur les deux routes → correctif : `feedLimits()`, 30/min par `flux:<sha256 du jeton>` et 600/min par IP (clé de TCK-851) → 6 verts ; ablation (clé `ip:` seule remise) → 4 rouges, le 429 au 31ᵉ appel d'un même flux restant vert des deux côtés.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
