@@ -33,7 +33,7 @@ demande la décision.
 
 ## Décision du porteur
 
-6 mois pour les notifications lues, ajouté à TCK-537
+6 mois pour les notifications lues, ajouté à TCK-537 ; reste : l'index, posé sur une mesure de volume
 
 ## Reste à faire
 
