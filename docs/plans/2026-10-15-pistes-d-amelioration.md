@@ -4744,7 +4744,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Le battement d'une file passe derrière son arriéré : un worker vivant et occupé est déclaré `failed`, et `ops_queue_stalled` part
 - Réf : P43.03
-- Statut : validé — mesurer la vie du worker hors de la file (événements `Looping` ou `JobProcessed` écrits dans le cache) : un arriéré devant le battement ne fait plus déclarer `failed` un worker actif
+- Statut : fait · TCK-934
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/RecordQueueHeartbeat.php:15-35`, `takussan-api/routes/console.php:115-117`, `takussan-api/app/Services/Admin/HealthcheckService.php:41-49,304-334,342-358`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:39-44`
 - Constat :
@@ -4754,6 +4754,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Pendant une panne, un battement s'ajoute chaque minute, et rien ne les déduplique : aucun job n'est `ShouldBeUnique` (lu, `grep -rn ShouldBeUnique app` → rien). Le volume reste petit (déduit).
 - Piste : mesurer la vie du worker hors de la file, par exemple sur les événements `Looping` ou `JobProcessed` du worker, écrits dans le cache. Ou garder le battement en file, et ne déclarer `failed` que si la sonde `queue` n'explique pas le retard. Test : un arriéré de N jobs devant le battement, worker actif → `workers` n'est pas `failed`.
 - Mesure (2026-10-18, f7873dbab, mesureur) : relu `RecordQueueHeartbeat.php:15-35` (job ordinaire, mis sur la file qu'il surveille), `console.php:115-117`, `DatabaseQueue.php:464` (`orderBy('id', 'asc')`), `HealthcheckService.php:41-49` (`queue` `degraded` à 600 s, `workers` `failed` à 300 s) et `:342-358`, `EvaluateOperationalAlerts.php:41` ; `grep -rn ShouldBeUnique app` → rien. Le constat tient, avec une nuance : `ops_queue_stalled` part aussi dès que `queue` n'est pas `ok`, donc l'arriéré seul la lève à 600 s, et le battement ne l'avance que de 300 s ; la sonde `workers` rend bien `failed` pour un worker occupé (lu, non exécuté). Classement : V7, la Piste propose deux définitions de la vie d'un worker, et le choix change le sens d'une sonde et d'une alerte de la console plateforme.
+- Mesure (2026-10-18, 68efc4e88, implementeur) : reproduit par `WorkerHeartbeatOutsideQueueTest` avant correctif : 50 jobs `media` en attente depuis 400 s, un job dépilé par un worker → `workers.queues.media` `failed` ; un tour de boucle de `media,reconciliation` → les deux `failed` → écouteur `RecordWorkerHeartbeat` sur `Looping` et `JobProcessed` (hors `sync`), qui écrit le battement dans le cache ; `ok`, 4 verts. Ablation : écriture du `Looping` retirée → 1 rouge ; celle du `JobProcessed` → 1 rouge ; garde `sync` neutralisée → 1 rouge.
 
 ### Le conteneur `worker` a la même limite (256 Mo) que `memory_limit` : un job gourmand est tué par le noyau avant l'erreur PHP, sans journal
 - Réf : P43.04
