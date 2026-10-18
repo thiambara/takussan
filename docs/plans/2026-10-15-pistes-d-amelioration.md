@@ -2696,7 +2696,7 @@ ajoutent que des faits neufs.*
 
 ### `app_notifications` : aucune durée de rétention, et l'index `(user_id, is_read)` ne sert aucune lecture
 - Réf : P19.06
-- Statut : validé — 6 mois pour les notifications lues, ajouté à TCK-537 ; reste : l'index, posé sur une mesure de volume
+- Statut : fait · TCK-918 — reste : l'index, posé sur une mesure de volume
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/NotificationController.php:20-31`, `takussan-api/database/migrations/2026_04_17_160032_create_app_notifications_table.php:13,26`, `takussan-web/src/content/legal/privacy.ts:121-134`
 - Constat :
@@ -2705,6 +2705,7 @@ ajoutent que des faits neufs.*
   - `is_read` et `read_at` disent la même chose : mesuré, 4 069 lignes `false`/`null` et 6 202 `true`/non nul, aucune divergence. Seuls les deux résumés lisent encore `is_read` (lu, `SendDailyNotificationDigest.php:40`, `DigestBuilderService.php:30`).
 - Piste : une durée pour les notifications lues (par exemple 6 mois), écrite dans la politique ; un index `(user_id, created_at DESC, id DESC)`, avec une condition partielle `WHERE read_at IS NULL` pour le compteur, posé sur mesure d'un volume réel.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `NotificationController.php:17-31` (liste et compteur filtrent sur `read_at`, triés `created_at` puis `id`), la migration de création (index `(user_id, is_read)`, l. 26), `routes/console.php` (aucune purge d'`app_notifications`) et `privacy.ts:121-140` (§ 6 sans ligne pour les notifications) ; `is_read` lu seulement par `SendDailyNotificationDigest.php:40` et `DigestBuilderService.php:30` ; en lecture sur la base de dev, `SELECT` → 10 271 lignes depuis le 2025-07-24, 6 202 lues, 0 ligne où `is_read` diverge de `read_at`, et `EXPLAIN` de la liste non lue de l'utilisateur le plus chargé → `Bitmap Index Scan` sur `app_notifications_user_id_digested_at_index`, `Filter: (read_at IS NULL)`, puis `Sort` sur `created_at DESC, id DESC`. Constat confirmé. Classement : V3, la piste fixe ce qui est conservé et combien de temps, et l'écrit dans la politique de confidentialité ; l'index seul (A2) attend, selon la piste elle-même, un volume réel.
+- Mesure (2026-10-18, a52fe6ded, implementeur) : avant correctif, `routes/console.php` ne purgeait pas `app_notifications` et `privacy.ts` § 6 ne donnait aucune durée aux notifications → `PruneReadNotificationsCommandTest` (lue il y a 6 mois et 1 jour supprimée avec sa tentative d'envoi, lue il y a 5 mois et non lue de 2 ans gardées, planification quotidienne) et un test de `textes.test.ts` (durée en français et en anglais), rouges ; correctif : commande `notifications:prune-read` sur `read_at`, planifiée à 04:05, ligne ajoutée à la politique et au contrat de données de TCK-537 ; ablation : suppression et planification retirées → 2 rouges, texte retiré → 1 rouge ; remis → verts.
 
 ### Petites améliorations
 - Réf : P19.07

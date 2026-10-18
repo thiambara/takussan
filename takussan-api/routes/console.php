@@ -183,6 +183,10 @@ Schedule::command('notifications:prune-delivery-attempts')->dailyAt('03:50')->ti
 Schedule::command('queue:prune-failed --hours=720')->dailyAt('03:55')->timezone('Africa/Dakar')->withoutOverlapping();
 Schedule::command('queue:prune-batches')->dailyAt('03:57')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-918 (P19.06) — une notification in-app lue se conserve 6 mois après sa lecture, puis
+// disparaît avec ses tentatives d'envoi. Idempotente : une suppression par date.
+Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-633 lot F (ADR-0061 §9) — fin des boosts échus, réconciliation (filet des écritures de masse),
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.
