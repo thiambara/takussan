@@ -14,6 +14,7 @@ import { BookingTunnel } from '@/components/bookings/BookingTunnel';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * La coque du site public autour du tunnel. La page n'en avait aucune : ni marque, ni
@@ -25,7 +26,7 @@ function Coque({ children }: { readonly children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <NavbarSpacer />
-      <main className="flex-1">{children}</main>
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">{children}</main>
       <Footer />
     </div>
   );

@@ -10,6 +10,7 @@ import { TexteJuridique } from '@/components/legal/TexteJuridique';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/config';
 import { contenuLegal } from '@/lib/legal-content';
 import { DOCUMENTS_LEGAUX, ROUTES_LEGALES, type DocumentLegal } from '@/lib/legal-routes';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 async function localeCourante(): Promise<Locale> {
   const brut = await getLocale();
@@ -54,7 +55,7 @@ export async function PageLegale({ document }: PageLegaleProps) {
       <Navbar />
       <NavbarSpacer />
 
-      <main className="mx-auto max-w-3xl px-4 pb-24 pt-10 sm:px-6 md:px-8">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-3xl px-4 pb-24 pt-10 sm:px-6 md:px-8 focus:outline-none">
         <header className="mb-8 border-b border-border pb-8">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {t('eyebrow')}

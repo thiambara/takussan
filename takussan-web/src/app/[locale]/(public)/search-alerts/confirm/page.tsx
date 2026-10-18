@@ -5,6 +5,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { SearchAlertLinkAction } from '@/components/search-alerts/SearchAlertLinkAction';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * `/[locale]/search-alerts/confirm?token=…` — TCK-599 (ADR-0050 §4) : le lien de confirmation
@@ -38,7 +39,7 @@ export default async function SearchAlertConfirmPage({
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <NavbarSpacer />
-      <main className="flex-1">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">
         <div className="mx-auto max-w-lg px-4 py-12">
           <h1 className="mb-6 text-center font-display text-2xl font-bold tracking-tight text-balance text-foreground">
             {t('title')}

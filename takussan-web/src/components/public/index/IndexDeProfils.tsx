@@ -17,6 +17,7 @@ import {
 import { ProfileCard } from './ProfileCard';
 import { ProfileFilters } from './ProfileFilters';
 import { ProfilePagination } from './ProfilePagination';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 type Props = {
   readonly ressource: RessourceDeProfil;
@@ -93,7 +94,7 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
       <Navbar />
       <NavbarSpacer />
 
-      <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-10 sm:px-6 md:px-12">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-[1200px] px-4 pb-24 pt-10 sm:px-6 md:px-12 focus:outline-none">
         <header className="relative mb-10">
           {/* Le même watermark bogolan que les fiches de TCK-276 : l'index et la fiche
               appartiennent au même monde visuel. */}
