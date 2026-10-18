@@ -3163,7 +3163,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : validé — rembourser d'abord les jours les plus tardifs, au prix de la tranche qui les a achetés
+- Statut : retenu · à valider — V4 : les tranches d'une Vedette prolongée ne sont écrites nulle part (ni durée ni offre par prolongation, aucun mouvement pour une tranche offerte) ; rembourser par tranche exige une table ou une colonne neuve, migration de schéma autre qu'un index, critère distinct de V1 accordé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3174,10 +3174,11 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
+- Mesure (2026-10-17, 464374510, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours `price_credits` et `duration_days` sur la ligne en place, `BoostLifecycle::refundableCredits()` rend `intdiv(price_credits × jours pleins, duration_days)`). Mais rien ne garde les tranches : `property_boosts` n'a qu'un `price_credits`, un `duration_days` et un `boost_product_id` (celui de la première tranche, lu `2026_10_12_500100_create_boost_tables.php:31-57`) ; `credit_movements` n'a ni durée ni offre (lu `2026_10_12_500200_create_credit_ledger_tables.php:38-50`), et une tranche offerte n'écrit aucun mouvement (`debit()` ne fait rien à prix 0, lu `BoostPurchaseService.php:187-191`). Les jours de chaque tranche ne se reconstruisent donc pas : la correction validée demande une table ou une colonne neuve, et la reprise des Vedettes déjà prolongées. Rien n'est implémenté. Classement : V4.
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : validé — selon la piste
+- Statut : fait · TCK-826 — reste : le message du délai de Remontée (`:hours` et date formatée), que la parité des placeholders oblige à porter aussi dans le texte `wo` existant, en pause
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3186,6 +3187,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `lang/{fr,en,wo}/errors.php:93` (« 24 heures » en dur dans les trois langues), `BoostPurchaseService.php:80-89` (délai = `bumpCooldownHours()`, `available_at` en `toIso8601String()`), `grep -rn bump_cooldown takussan-web/src` → seules des clés `bump_cooldown_hours` du réglage dans `messages/*.json`, aucune pour le code d'erreur ; `CreditLedger.php:218-229` (`applyRefund` passe par `grant()` avec l'expiration du lot d'origine, sans `expiry_notice_sent_at`) et `CreditExpiryNotifier.php:27,35` (sélectionne les lots `whereNull('expiry_notice_sent_at')`). Lignes à peine décalées, les deux défauts tiennent ; le second préavis se lit au code, il n'a pas été rejoué. Classement : V1, la piste touche l'écriture d'un lot de crédits remboursés, et le message demande un texte neuf dans trois langues (V7).
+- Mesure (2026-10-17, 464374510, implementeur) : préavis reproduit avant correctif par `RefundLotExpiryNoticeTest` (lot de bienvenue à J+20, Vedette 15 jours à J+10, préavis à J+14, bien loué) → le lot `refund` naît sans `expiry_notice_sent_at` et le passage suivant envoie un second préavis (`1` au lieu de `0`) ; correctif : `CreditLedger::applyRefund()` reporte l'`expiry_notice_sent_at` du lot d'origine sur le lot remboursé → 2/2 verts, 127 verts sur `tests/Feature/Boost` et `tests/Feature/Credits` ; ablation (`applyRefund()` d'origine) → le même rouge, le témoin « lot d'origine pas encore prévenu » reste vert. Message du délai de Remontée non fait : `LangGroupParityTest` exige les mêmes placeholders en `fr`, `en` et `wo`, et `:hours` réécrirait le texte `wo` existant (`lang/wo/errors.php:93`), en pause.
 
 ## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
 
@@ -3262,7 +3264,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : validé — à égalité entre deux encaissements, aucune suggestion
+- Statut : fait · TCK-827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3272,6 +3274,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:144-176` (ambiguïté jugée seulement `if ($bestScore === 60)`, `>` strict à `:149`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, deux loyers de 150 000 de deux baux de la même agence payés le même jour, crédit de 150 000 à J+1 → `LeasePayment conf=70` (le premier), à J+5 → `null`. Classement : V7, étendre l'ambiguïté aux paliers 70 et 80 change ce que voit l'agence (suggestion retirée, à apparier à la main), et la règle de départage (ambiguïté ou critère de plus) est un choix de produit.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationAmbiguityTest` → deux loyers de 150 000 à égalité rendent une suggestion au premier candidat aux paliers 70 (même jour, crédit à J+1), 80 (même payeur, crédit à J+5) et 95 (même référence) : 3 rouges ; correctif : `scoreCandidates()` compte les candidats au meilleur score et ne suggère rien à partir de deux → 4/4 verts, 117 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation (`scoreCandidates()` d'origine) → les 3 mêmes rouges, le témoin « un seul au meilleur score, un autre à 60 » reste vert.
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
@@ -3289,7 +3292,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : validé — journaliser le statut et l'écart de montant à la confirmation ; reste : les autres points, un par un
+- Statut : fait · TCK-828 — reste : les autres points, un par un
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3300,6 +3303,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationConfirmationAuditTest` → une ligne de 7 500 se confirme sur une échéance `pending` de 150 000 et l'activité `matched` ne porte ni statut ni montant (3 rouges, clé `payment_status` absente) ; correctif : `payment_status`, `expected_amount` et `amount_gap` ajoutés à l'activité, montant attendu d'une échéance par `LeasePayment::expectedBankAmount()` (la règle du scope de TCK-715) → 3/3 verts, 120 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation : `confirmMatch()` d'origine → 3 rouges, `expectedBankAmount()` réduit à `amount` → 1 rouge (échéance soldée en ligne, écart de 7 500). Comportement inchangé : aucun refus ajouté.
 
 ## Angle 26 — PDF : quittances, contrats, factures
 
