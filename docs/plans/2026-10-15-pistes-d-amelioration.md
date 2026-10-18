@@ -4044,7 +4044,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
-- Statut : validé — liens « Quartiers de <ville> » sur la page de ville et « Chercher par ville » dans le pied de page, chacun vers une canonique présente au sitemap ; en `wo`, le texte français tel quel
+- Statut : fait · TCK-916 — reste : « Chercher par ville » dans le pied de page, qui demande de passer les villes à `Footer` par ses vingt appelants (dont six composants client) ou de le monter dans le layout public
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx`, `takussan-web/src/data/navigation.ts:124-139`, `takussan-web/src/components/home/Footer.tsx`, `takussan-web/src/components/property/HomepageDiscovery.tsx:162`
 - Constat :
@@ -4054,6 +4054,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Les pages de ville ne sont donc atteintes que par le sitemap, par la ville du fil d'Ariane des fiches (lu, `fil-d-ariane.ts:80-84`) et peut-être par ce lien de l'accueil. Celles de quartier, par le sitemap seul (voir P35.01).
 - Piste : une liste de liens « Quartiers de Dakar » sur la page d'une ville, tirée du domaine indexable que `quartiersDeLaVille` sert déjà en cache, et une rangée « Chercher par ville » sur l'accueil ou dans le pied de page, tirée de `villesAvecComptes`. Un test vérifierait que chaque lien rendu est le chemin canonique d'une page présente au sitemap. Choix de produit : emplacement et libellés neufs.
 - Mesure (2026-10-17, c9ee68400, mesureur) : `grep -n href` sur `PropertiesDiscoveryPage.tsx` et `components/search/*.tsx` → seuls les liens de `Pagination.tsx`, `SearchAutocomplete.tsx:158` navigue par `router.push` ; `data/navigation.ts:122-140` (pied de page) ne lie aucune ville ; `HomepageDiscovery.tsx:162` lie la seule ville « près de vous » ; aucun commit ni ticket ouvert → le constat tient ; la présence de ce lien dans le HTML servi n'est pas mesurée. Classement : V7, emplacement et libellés neufs visibles, que la piste dit elle-même choix de produit.
+- Mesure (2026-10-18, fbe06731d, implementeur) : avant correctif, la page `?city=Dakar` ne passait aucun lien de lieu à la liste (`grep href` de `PropertiesDiscoveryPage.tsx` : la seule `Pagination`), et les deux tests du câblage rougissaient. `liensDesQuartiers` tire les quartiers de `quartiersDeLaVille`, le domaine du sitemap, et `cheminCanoniqueDeLaListe` en fait le chemin ; `QuartiersDeLaVille` les rend en `<a href>` sous « Quartiers de <ville> », à la fin de `<main>`, sur toute liste dont la canonique retient une ville sans quartier ; un test confronte chaque lien à la sortie de `app/sitemap.ts` avec les mêmes doublures. Ablation → 4 rouges, remis → 475 verts. Le pied de page n'est pas fait : `Footer` est synchrone et monté par une vingtaine d'appelants, dont six composants client.
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
