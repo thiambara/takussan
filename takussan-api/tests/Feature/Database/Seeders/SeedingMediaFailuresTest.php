@@ -5,10 +5,14 @@ namespace Tests\Feature\Database\Seeders;
 use App\Models\Property;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\YearOfActivitySeeder;
+use Illuminate\Console\Command;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use ReflectionMethod;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 /**
@@ -148,10 +152,17 @@ class SeedingMediaFailuresTest extends TestCase
 
     public function test_le_seeder_ne_dit_rien_quand_aucun_telechargement_n_a_ete_tente(): void
     {
-        // Le chemin nominal (SEED_DOWNLOAD_MEDIA=false) reste silencieux.
-        $this->reportMediaDownloads(new SeedingContext);
+        // Le chemin nominal (SEED_DOWNLOAD_MEDIA=false) reste silencieux. TCK-899 (P12.10) : la
+        // sortie de la commande est captée, sans quoi le seeder écrivait dans le vide (`command`
+        // nul) et ce test restait vert quoi qu'il imprime.
+        $sortie = new BufferedOutput;
+        $commande = new Command;
+        $commande->setOutput(new OutputStyle(new ArrayInput([]), $sortie));
+        $seeder = app(YearOfActivitySeeder::class)->setCommand($commande);
 
-        $this->assertTrue(true);
+        (new ReflectionMethod(YearOfActivitySeeder::class, 'reportMediaDownloads'))->invoke($seeder, new SeedingContext);
+
+        $this->assertSame('', $sortie->fetch());
     }
 
     /**
