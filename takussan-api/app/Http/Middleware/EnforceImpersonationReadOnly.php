@@ -38,8 +38,13 @@ class EnforceImpersonationReadOnly
      * CONSIGNE (verif-600 m-D) : toute route GET qui rend un SECRET DURABLE — un jeton, une URL
      * secrète, une graine, un lien qui ouvre sans session — ou une PIÈCE D'IDENTITÉ entre ici, le
      * jour où elle est créée.
-     * Rien d'autre ne l'attrape : une lecture neuve qui rend un secret ne casse aucun test, et la
-     * session repart avec ce qu'elle a lu bien après ses 15 minutes (ADR-0055 §3).
+     * La session repart avec ce qu'elle a lu bien après ses 15 minutes (ADR-0055 §3).
+     *
+     * TCK-920 (P23.06) — `tests/Feature/Admin/Platform/ImpersonationReadSweepTest` lit chaque route
+     * GET dont il sait remplir les paramètres, sous une session ouverte sur une cible garnie, et
+     * rougit sur un numéro de pièce, une pièce de profil, un `token` ou une URL signée qui survit à
+     * la session. Il ne voit ni les routes à paramètre non rempli, ni un secret sans ces marqueurs
+     * (codes de secours, QR) : la consigne reste la première garde.
      */
     public const REFUSED_READS = [
         'api/admin',
