@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\MissingValue;
 
 class LeaseResource extends BaseResource
 {
@@ -107,6 +108,14 @@ class LeaseResource extends BaseResource
 
         if (! $this->viewerIsAgencyStaff($request)) {
             unset($data['commission_amount']);
+        }
+
+        // P21.06 (TCK-904) — le détail appelle `toArray()` directement, qui ne filtre pas les
+        // `MissingValue` : une relation de renouvellement non chargée sortait en `{}`.
+        foreach (['renewed_from', 'renewals', 'renewals_count'] as $key) {
+            if ($data[$key] instanceof MissingValue) {
+                unset($data[$key]);
+            }
         }
 
         return $data;
