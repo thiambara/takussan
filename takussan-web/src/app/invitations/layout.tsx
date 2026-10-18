@@ -19,7 +19,12 @@ import { messagesPour } from '@/i18n/messages';
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta.home');
-  return { title: { template: '%s — Takussan', default: t('title') } };
+  // TCK-926 (P34.05) — interdit aux robots, et `noindex` en plus : `Disallow` empêche
+  // l'exploration, pas l'indexation d'une URL liée de l'extérieur.
+  return {
+    title: { template: '%s — Takussan', default: t('title') },
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function InvitationsLayout({ children }: { children: ReactNode }) {
