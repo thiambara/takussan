@@ -3124,7 +3124,7 @@ sont pas reprises.*
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
-- Statut : validé — lire GET …/boosts à l'ouverture et dire, pour l'offre choisie, le remplacement sans remboursement, la prolongation ou le délai de Remontée
+- Statut : fait · TCK-824
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/boost/BoostDialog.tsx:29-55`, `takussan-web/src/components/boost/api.ts:12-31`, `takussan-api/routes/api/credits.php:14`, `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:18-30`
 - Constat :
@@ -3133,10 +3133,11 @@ sont pas reprises.*
   - Établi comment : lu, et `grep`.
 - Piste : lire `GET …/boosts` à l'ouverture du dialogue et dire, pour l'offre choisie, ce qui arrivera (« remplace le badge “Urgent” actif jusqu'au … », « prolonge la Vedette jusqu'au … », « Remontée possible à partir de … »). Garde : un test du dialogue qui monte un badge actif et attend l'avertissement.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostDialog.tsx:38-39` (seuls `useCredits` et `useBoostProducts`) ; `grep -rn "/boosts" takussan-web/src` → seul le `POST` de `components/boost/api.ts:28`, plus les routes `/super-admin/boosts` et `/api/super-admin/boosts`, sans rapport avec la lecture `GET /api/properties/{property}/boosts`, qui n'a toujours aucun appelant. Classement : V7, la piste ajoute un comportement visible et des textes métier neufs (« remplace le badge… », « prolonge la Vedette… »).
+- Mesure (2026-10-17, 464374510, implementeur) : `grep -rn '/boosts' takussan-web/src` → seul le `POST` de `components/boost/api.ts`, la lecture n'a toujours aucun appelant ; `PropertyBoostReadAheadTest` rouge avant correctif (`bump_available_at` absent), 6 cas neufs de `BoostDialog.test.tsx` rouges (5) avant correctif → après : la lecture rend la fin du délai de Remontée (même date que le refus 422), le dialogue lit `GET …/boosts` à l'ouverture et dit le remplacement sans remboursement, la prolongation (date, ou jours si en pause) ou le délai ; ablation : effet retiré → 4 rouges, `bump_available_at` à `null` → 1 rouge ; 3 + 10 verts.
 
 ### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
 - Réf : P24.03
-- Statut : validé — colonne « Objet » dans le journal : le bien et l'offre d'une dépense ou d'un remboursement de boost
+- Statut : fait · TCK-825
 - Gravité : 🟠 risque ou dette
 - Où : `docs/features.md:428`, `takussan-web/src/components/boost/CreditsPanel.tsx:21-24`, `takussan-api/app/Http/Resources/Credits/CreditMovementResource.php:12-22`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:187-191`
 - Constat :
@@ -3146,6 +3147,7 @@ sont pas reprises.*
   - Établi comment : lu.
 - Piste : soit rendre le bien et l'offre dans le journal (relation `propertyBoost.property` chargée, colonne « Objet »), soit corriger `features.md` pour dire ce que la page montre. Garde : un test de `CreditsPanel` sur une ligne de dépense rattachée à un boost.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `docs/features.md:428` (« page « Crédits » (solde, lots, historique, boosts) ») ; `CreditsPanel.tsx:22-24` : colonnes type, montant, motif (`m.reason ?? '—'`), aucune occurrence de « boost » ; `BoostPurchaseService::debit()` appelle `spend(…, $boost, $actor)` sans motif (l. 187-191). Classement : V7, la piste laisse le choix entre une colonne visible neuve et le retrait d'une fonction annoncée par la spec.
+- Mesure (2026-10-17, 464374510, implementeur) : relu `CreditMovementResource` (seul `property_boost_id`) et `CreditsPanel` (date, type, montant, motif) ; `CreditMovementObjectTest` et le cas neuf de `CreditsPanel.test.tsx` rouges avant correctif → après : `GET /api/credits` rend `boost` (genre, variante, bien) pour la dépense et le remboursement d'un boost, `null` pour un octroi, et la colonne « Objet » les affiche ; ablation : colonne retirée → rouge, chargement anticipé retiré → rouge.
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04

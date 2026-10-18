@@ -10912,7 +10912,18 @@
       "cancel": "Annuler",
       "confirm": "Confirmer",
       "done": "C’est fait : la mise en avant est active.",
-      "failed": "La mise en avant n’a pas pu être enregistrée."
+      "failed": "La mise en avant n’a pas pu être enregistrée.",
+      "effect": {
+        "replacesBadge": "Ce badge remplace le badge « {badge} » actif jusqu’au {date}, sans remboursement.",
+        "replacesPausedBadge": "Ce badge remplace le badge « {badge} » en pause, sans remboursement.",
+        "extendsFeatured": "Prolonge la Vedette en cours jusqu’au {date}.",
+        "extendsPausedFeatured": "Prolonge de {days, plural, one {# jour} other {# jours}} la Vedette en pause.",
+        "bumpCooldown": "Remontée possible à partir du {date}.",
+        "badges": {
+          "urgent": "Urgent",
+          "price_drop": "Baisse de prix"
+        }
+      }
     },
     "marks": {
       "featured": "En vedette",
@@ -10946,7 +10957,17 @@
       "colDate": "Date",
       "colType": "Opération",
       "colAmount": "Crédits",
-      "colReason": "Motif"
+      "colReason": "Motif",
+      "colObject": "Objet",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": {
+          "urgent": "Badge « Urgent »",
+          "price_drop": "Badge « Baisse de prix »"
+        }
+      }
     },
     "types": {
       "grant": "Octroi",

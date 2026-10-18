@@ -10912,7 +10912,18 @@
       "cancel": "Cancel",
       "confirm": "Confirm",
       "done": "Done: the promotion is live.",
-      "failed": "The promotion could not be saved."
+      "failed": "The promotion could not be saved.",
+      "effect": {
+        "replacesBadge": "This badge replaces the active “{badge}” badge, due to run until {date}, with no refund.",
+        "replacesPausedBadge": "This badge replaces the paused “{badge}” badge, with no refund.",
+        "extendsFeatured": "Extends the current Featured until {date}.",
+        "extendsPausedFeatured": "Extends the paused Featured by {days, plural, one {# day} other {# days}}.",
+        "bumpCooldown": "Bump available from {date}.",
+        "badges": {
+          "urgent": "Urgent",
+          "price_drop": "Price drop"
+        }
+      }
     },
     "marks": {
       "featured": "Featured",
@@ -10946,7 +10957,17 @@
       "colDate": "Date",
       "colType": "Operation",
       "colAmount": "Credits",
-      "colReason": "Reason"
+      "colReason": "Reason",
+      "colObject": "Item",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Bump",
+        "featured": "Featured",
+        "badge": {
+          "urgent": "“Urgent” badge",
+          "price_drop": "“Price drop” badge"
+        }
+      }
     },
     "types": {
       "grant": "Grant",
