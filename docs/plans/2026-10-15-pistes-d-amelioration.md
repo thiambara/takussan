@@ -3278,7 +3278,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : validé — le montant attendu inclut la pénalité réglée le même jour ; reste : rendre rapprochable une pénalité réglée seule
+- Statut : fait · TCK-833 — reste : rendre rapprochable une pénalité réglée seule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3289,6 +3289,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `LateFeeSettlement.php:47-56` (pose `late_fee_paid_at` et `late_fee_payment_method`, rien d'autre) et `ReconciliationManager.php:123-134` (un-pour-un) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence sans encaissement en ligne de la pénalité, loyer puis pénalité marqués réglés par virement → crédit de 157 500 : `null` ; crédit de 7 500 : `null` ; témoin à 150 000 : `LeasePayment conf=70`. Classement : V1, la piste elle-même demande un choix de modèle comptable (montant attendu pénalité comprise, ou pénalité rapprochable seule).
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `ReconciliationLateFeeSameDayTest` avant correctif (load 9,63/9,49/7,07 sur 8 cœurs) : loyer de 150 000 payé par virement et pénalité de 7 500 réglée le même jour → crédit de 157 500 `unmatched` ; `LeasePayment::scopeWhereExpectedAmountNear()` ajoute hors ligne `late_fee_amount` quand `late_fee_paid_at` et `paid_at` tombent le même jour → `suggested` sur l'échéance, et la recherche manuelle à 157 500 la rend ; témoins verts (pénalité un autre jour : `unmatched` ; sans pénalité : 150 000 suggéré). Ablation : branche hors ligne ramenée à `amount`, le cas du même jour rougit, remis vert ; `BankReconciliationTest` et `PaymentSearchTest` verts (29 tests).
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
@@ -3349,7 +3350,7 @@ forcée »).*
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
-- Statut : validé — « du … au … » dès que la période dépasse un mois, après la fusion de #453
+- Statut : fait · TCK-834
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
 - Constat :
@@ -3359,6 +3360,7 @@ forcée »).*
   - La base de dev porte 4 baux trimestriels et 4 annuels (mesuré).
 - Piste : imprimer « du … au … » à partir de `period_start` et `period_end` dès que la période dépasse un mois. Le test de quittance porte une échéance trimestrielle.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `rent.blade.php:10-13,53-57` (période = `period_start->translatedFormat('F Y')`) ; `grep -rn period_end resources/views/pdf` → seul `statements/owner.blade.php:19` ; `SELECT` sur `lease_payments` `rent` → 0 échéance sur 3 368 de plus de 32 jours, et `leases` : 4 `quarterly`, 4 `yearly`, 568 `monthly` ; `tinker` en lecture, rendu de `pdf.receipts.rent` avec une échéance non enregistrée du 2027-01-01 au 2027-03-31 → « Période January 2027 ». Le défaut ne se voit qu'une fois la PR #453 fusionnée : aujourd'hui aucune échéance ne couvre plus d'un mois. Classement : V7, la forme de la période imprimée sur une attestation de paiement est un texte d'acte neuf, et dépend de P04.01, encore ouverte.
+- Mesure (2026-10-18, b9850853, implementeur) : #453 (P04.01) fusionnée le 2026-10-16 ; reproduit par `QuittancePeriodeTest` avant correctif : échéance du 2027-01-01 au 2027-03-31 → « Janvier 2027 », sans « du … au … ». `rent.blade.php` imprime « du 1 janvier 2027 au 31 mars 2027 » quand `period_end` dépasse `period_start + 1 mois − 1 jour` ; une échéance d'un mois, même du 15 au 14, garde « Octobre 2026 ». Ablation : condition à `false`, les cas trimestriel et annuel rougissent, remis verts ; tests voisins des quittances verts (28 tests).
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
@@ -3376,7 +3378,7 @@ forcée »).*
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
-- Statut : validé — désignation prise dans l'objet facturé (`invoiceable`), repli sur une clé `metadata`
+- Statut : fait · TCK-835 — reste : une désignation propre à chaque créateur (indemnité de résiliation, retenue sur caution) quand l'objet facturé est un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
 - Constat :
@@ -3385,10 +3387,11 @@ forcée »).*
   - La table `invoices` n'a ni lignes ni désignation (migration lue) : seule la note dit l'objet.
 - Piste : à défaut de lignes, prendre la désignation dans l'objet facturé (`invoiceable`) ou dans une clé de `metadata` posée par le créateur, au lieu de « Prestation ». Un test par créateur qui lise la désignation rendue.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `DocumentPdfController.php:64-80` (aucun `lines` passé), `default.blade.php:10-15` (repli « Prestation × 1 »), `EarlyTerminationService.php:338-356` et `DepositRefundService.php:105-124` (objet porté par `notes` seulement) ; colonnes d'`invoices` lues par `Schema::getColumnListing` en `tinker` → ni lignes ni désignation (`notes`, `metadata` seuls) ; rendu de P26.02 → « Prestation 1 100 025 F CFA ». Classement : V7, la piste laisse le choix entre `invoiceable` et une clé de `metadata`, et le libellé imprimé sur une facture est un texte métier.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `FactureDesignationTest` avant correctif : factures sur un bail, sur une réservation, et sans objet avec `metadata.designation` → toutes « Prestation ». `Invoice::designation()` (objet facturé, même supprimé, puis `metadata.designation`) alimente la ligne par défaut du gabarit : « Bail LS-2027-0042 — Villa Almadies », « Réservation BK-0007 — Studio Plateau », « Frais de dossier » ; sans l'un ni l'autre, « Prestation ». Ablation : ligne ramenée à « Prestation », 4 cas sur 5 rougissent, remis verts ; `InvoicePdfTest` et `InvoiceLegalMentionsTest` verts. L'indemnité de résiliation et la retenue sur caution, émises sur le bail, impriment « Bail … » : leur libellé propre reste en `notes`.
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
-- Statut : validé — nombres et dates au format français ; reste : libellés des enums (après P06.03) et montant par échéance au contrat
+- Statut : fait · TCK-836 — reste : libellés des enums (après P06.03) et montant par échéance au contrat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
 - Constat :
@@ -3399,6 +3402,7 @@ forcée »).*
   - **Nom de fichier** : un avoir se télécharge en `facture-….pdf` (lu).
 - Piste : des libellés pour les enums imprimés (par la décision de P06.03 sur la langue), `number_format` à la française, des dates formatées, et le montant par échéance au contrat. À trier ligne par ligne.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : rendus de P26.01 et P26.02 → « Méthode bank_transfer », « Statut sent » ; `PaymentReceiptPdf.php:54` passe `payment_type?->value` brut au reçu de réservation (`booking.blade.php:48`) ; `tinker` : `rtrim(rtrim(number_format(18.5, 2), '0'), '.')` → « 18.5 » ; `owner.blade.php:19` imprime `period_start` et `period_end`, posés par `toDateString()` (`OwnerStatementService.php:68`) ; `contract.blade.php:90-107` : « Loyer mensuel » toujours, prix de vente à côté pour un `sale` ; `DocumentPdfController.php:78` : `facture-…` pour un avoir. Les cinq parties tiennent. Classement : V7, chaque partie est un texte d'acte neuf, et la piste les renvoie elle-même à la décision de P06.03 et à un tri ligne par ligne.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `GabaritsPdfFormatFrancaisTest` avant correctif : taux de 18,5 % → « TVA (18.5%) » ; relevé d'octobre 2026 → « 2026-10-01 — 2026-10-31 » et reversement « 2026-10-15 ». Taux par `number_format(…, 2, ',', ' ')` → « TVA (18,5%) » (18 % reste « TVA (18%) ») ; période et reversements du relevé en `d/m/Y` → « 01/10/2026 — 31/10/2026 », « 15/10/2026 ». Ablation : gabarits rendus à `pre-dev`, les cas du taux décimal et du relevé rougissent, remis verts ; tests voisins des PDF verts. Le nom de fichier `facture-…` d'un avoir, ni nombre ni date, n'est pas touché.
 
 ## Angle 27 — Routeur SMS : double envoi sur un timeout suivi d'un repli
 

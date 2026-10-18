@@ -11,6 +11,13 @@
     $periodLabel = null;
     if ($payment->period_start) {
         $periodLabel = $payment->period_start->translatedFormat('F Y');
+        // TCK-834 (P26.03) — une échéance trimestrielle ou annuelle couvre plusieurs mois (TCK-667) :
+        // son mois de départ ne dit pas ce qu'elle acquitte.
+        $oneMonthEnd = $payment->period_start->copy()->addMonthNoOverflow()->subDay();
+        if ($payment->period_end && $payment->period_end->gt($oneMonthEnd)) {
+            $periodLabel = 'du '.$payment->period_start->translatedFormat('j F Y')
+                .' au '.$payment->period_end->translatedFormat('j F Y');
+        }
     }
     // TCK-593 — une quittance n'est délivrée que pour un loyer acquitté (`DocumentPdfController`
     // rend 422 sinon) : elle est datée du RÈGLEMENT, jamais de l'échéance.
