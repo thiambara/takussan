@@ -3762,7 +3762,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Les pages d'authentification n'ont pas de repère `<main>`
 - Réf : P31.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-896
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/layout.tsx:58-138`
 - Constat :
@@ -3771,6 +3771,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe, code relu.
 - Piste : `<main>` sur le panneau du formulaire (l. 97), le panneau visuel restant hors du repère. Même garde que P31.02.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx` : le panneau du formulaire est un `div` (l. 97) et le formulaire est dans `div.w-full.max-w-md` (l. 125) ; `grep -rn "<main" "src/app/(auth)"` → 0 ligne, tests compris ; les cinq `page.tsx` de `(auth)/auth/` n'en rendent pas ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, le `div` du panneau devient `<main>` sans changement visuel ni texte neuf.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rn "<main" "src/app/(auth)"` → 0 ligne, inchangé ; test neuf `src/app/(auth)/__tests__/layout.repere-main.test.tsx`, qui rend le layout et compte les `main` → avant correctif, rouge (0 `main`) ; le `div` du panneau du formulaire devient `<main>`, classes gardées → un seul `main`, qui contient la page et pas le `h2` du panneau visuel ; ablation → le même rouge. `src/app/(auth)` : 42 verts. axe non rejoué.
 
 ### Aucun lien d'évitement hors de la console super-admin
 - Réf : P31.04
