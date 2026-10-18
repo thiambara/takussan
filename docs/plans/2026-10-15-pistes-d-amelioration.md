@@ -5064,7 +5064,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `POST /api/settings` pose une ligne d'agence hors des règles du catalogue
 - Réf : P47.04
-- Statut : retenu · à valider — V1 : bornes des pénalités et plafonds de révision de loyer
+- Statut : validé — une ligne d'agence de `POST /api/settings` est validée par les `rules` et l'`item_rules` de sa clé au catalogue, et une clé hors catalogue est refusée en 422 (`GenericSettingsCatalogueBypassTest::test_la_portee_agence_reste_ouverte` change d'attendu, sans être supprimé) ; les lecteurs (`resolveMaxPct`, `resolvePenaltyMonths`, plafond des pénalités) bornent aussi aux limites du catalogue, pour qu'une valeur déjà écrite hors borne retombe sur la borne (porteur, 2026-10-18)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:38-70`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:30-37`, `takussan-api/app/Domain/Settings/EditablePlatformSettings.php:91-116`, `takussan-api/app/Services/Lease/RentReviewService.php:207-216`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:293-302`
 - Constat :
@@ -5080,7 +5080,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `GET /api/settings` rend les réglages globaux de la plateforme à tout membre d'une agence
 - Réf : P47.05
-- Statut : retenu · à valider — V2 : restreindre une lecture qu'un membre d'agence peut faire aujourd'hui
+- Statut : validé — `GET /api/settings` réservé, hors super-admin, à l'admin de l'agence, qui n'y lit que les lignes de son agence, jamais les lignes `global` (les réglages publics passent par `publicSettings()`) ; un test : un agent et un bailleur reçoivent 403, un admin d'agence ne lit aucune ligne `global` (porteur, 2026-10-18)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:16-35`, `takussan-api/app/Services/Admin/PlatformSettingService.php:45-49`
 - Constat :
@@ -5108,7 +5108,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07
-- Statut : retenu · à valider — V7 : retirer une donnée de l'assistant ou lui donner un lecteur est un choix de produit
+- Statut : validé — ne plus écrire `primary_city`, `primary_property_type`, `onboarding_source` ni `payment.preferred_provider` dans `agencies.settings`, et ne plus les rendre dans `AgencyResource` ; l'assistant peut garder ses champs sans les enregistrer (porteur, 2026-10-18) ; reste : la purge des valeurs déjà enregistrées
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:248-266`, `takussan-api/app/Http/Resources/AgencyResource.php:60`
 - Constat :
