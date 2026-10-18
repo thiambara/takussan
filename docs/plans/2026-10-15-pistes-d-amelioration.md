@@ -2895,7 +2895,7 @@ n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : retenu · à valider — V7 : retirer `metadata` du carnet, comme le dit la précision, efface du carnet et du choix d'assignation le nom, l'e-mail, les métiers et les disponibilités d'un prestataire en brouillon, que le front lit dans `metadata` ; c'est un comportement visible, autre que le V3 accordé (ce qui est exposé), et le garder demande de choisir les sous-clés à projeter
+- Statut : validé — la ressource du carnet des prestataires ne sort de `metadata` que les sous-clés que le front lit (`ServiceProvidersList.tsx`, `MaintenanceAssignmentBlock.tsx` : nom, e-mail, métiers, zones et disponibilités du brouillon), et jamais `insurance_policy_id` ; `tenant-onboarding-pending` passe par `$this->paginated()` ; les clés non chargées de `LeaseResource` sont ôtées comme `commission_amount`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -3167,7 +3167,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : retenu · à valider — V4 : les tranches d'une Vedette prolongée ne sont écrites nulle part (ni durée ni offre par prolongation, aucun mouvement pour une tranche offerte) ; rembourser par tranche exige une table ou une colonne neuve, migration de schéma autre qu'un index, critère distinct de V1 accordé
+- Statut : validé — une table des tranches d'une Vedette (prix, durée, offerte ou achetée, dans l'ordre d'achat) ; le remboursement rend les jours pleins restants en partant des plus tardifs, au prix de la tranche qui les a achetés ; une Vedette déjà prolongée devient une tranche unique ; règle écrite par l'amendement du 2026-10-18 d'ADR-0061 § 8 ; tests « offerte puis achetée » et « achetée puis offerte »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -4345,7 +4345,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
-- Statut : retenu · à valider — V8 : le correctif dépasse M et fait plus d'un ticket ; le critère accordé est V2 (retirer l'accès de l'ancien répondant), V8 est la taille : branche SQL de `constrainListing` et `participatingQuery` (la règle du contact principal juge l'éligibilité en PHP, `isStaffAt`), filtre de `NotifyNewMessageJob`, transmission sous verrou dans le résolveur, trois appelants et le 422 de `POST /api/conversations` ; découpage proposé : (1) branche d'accès, (2) transmission par le résolveur, (3) transmission par les trois chemins d'écriture
+- Statut : validé — ADR-0068, découpé en trois tickets, dans cet ordre : (1) la branche d'accès (`ConversationAccess`, `constrainListing()`, `participatingQuery()`, filtre de `NotifyNewMessageJob`) ; (2) la transmission du fil sous verrou par le résolveur ; (3) la transmission par `PrimaryAgentDesignator`, `PropertyCollaboratorController` et `AgentHandoverService`, et le 422 de `POST /api/conversations`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/ConversationAccess.php:27-51`, `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`
 - Constat :
@@ -4400,7 +4400,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Rembourser le doublon d'un loyer, comme la notification le demande, passe le loyer à `refunded`
 - Réf : P39.01
-- Statut : retenu · à valider — V1 : écriture du statut d'un paiement
+- Statut : validé — la branche `REFUNDED` ne passe à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon le remboursement est noté (`refunded_at`) sur l'entrée `gateway_duplicate_payment` de la transaction ; tests : les deux scénarios mesurés et le témoin
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:471-492`, `:1012-1038`, `:1308`
 - Constat :
@@ -4414,7 +4414,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un encaissement en ligne sur un payable `refunded` est refusé en 422, à chaque relivraison, et n'est signalé à personne
 - Réf : P39.02
-- Statut : retenu · à valider — V1 : encaissement d'un paiement
+- Statut : validé — `refunded` est traité comme `cancelled` dans la garde du double encaissement : doublon marqué, agence prévenue, réponse 200 ; test : le scénario mesuré
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:471`, `:493-496`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96,151`
 - Constat :
@@ -4427,7 +4427,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un remboursement reçu par webhook n'écrit pas `refund_amount` : l'acompte remboursé compte encore comme encaissé, et la tâche de remboursement reste ouverte
 - Réf : P39.03
-- Statut : retenu · à valider — V1 : montant remboursé
+- Statut : validé — le webhook de remboursement passe par la même écriture que le geste manuel : `refund_amount` depuis le montant rapporté par le pilote (le montant entier à défaut), plafonné à `amount`, et `closeIfSettled` pour un acompte ; colonne `refund_amount` neuve sur `lease_payments`, avec son `down()` ; tests : l'acompte (statut, `paid_amount`, tâche) et l'échéance
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:231-234`, `takussan-api/app/Services/Model/BookingPaymentService.php:78-90`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:75-86`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:221-225`
 - Constat :
@@ -4441,7 +4441,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un webhook `refunded` arrivé avant le `paid` de la même transaction est avalé, et le payable finit `paid`
 - Réf : P39.04
-- Statut : retenu · à valider — V1 : statut d'un paiement
+- Statut : validé — un `refunded` reçu avant le `paid` de la même transaction est gardé en attente sur le payable (`gateway.pending_refund`, avec un `Log::warning`) et appliqué au `paid` de cette transaction ; test : le scénario mesuré (Wave écrit « Events may arrive out of order », docs.wave.com/webhook, relu le 2026-10-18)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:1074-1101`
 - Constat :
@@ -4453,7 +4453,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### L'ordre des motifs de `WaveDriver` range en `paid` tout événement qui contient `completed`, remboursement compris
 - Réf : P39.05
-- Statut : retenu · à valider — V1 : classement des événements de paiement
+- Statut : validé — une table explicite des événements Wave, relevée le 2026-10-18 sur docs.wave.com/webhook : `checkout.session.completed` → payé, `checkout.session.payment_failed` → échec, `test.test_event` → 200 sans effet ; `merchant.payment_received`, `b2b.payment_received`, `b2b.payment_failed` et tout nom inconnu sont journalisés et ignorés ; la page ne documente aucun événement de remboursement ; un test par nom
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:122-127`, `takussan-api/tests/Feature/Api/LemonSqueezyEventListenerTest.php:97`
 - Constat :
@@ -4475,7 +4475,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Ce qu'un paiement repassé à `refunded` laisse en aval n'est pas défait
 - Réf : P39.07
-- Statut : retenu · à valider — V7 : interdire, signaler ou compenser
+- Statut : retenu · à valider — V7 : interdire, signaler ou compenser ; porteur (2026-10-18) : plus tard, après l'angle 76 qui relève ces effets un par un
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:583-585`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:249-268`
 - Constat :
@@ -4518,7 +4518,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
-- Statut : retenu · à valider — V5 : chemin interne de l'API (`API_INTERNAL_URL`) pour 22 relais
+- Statut : validé — les 22 relais passent par `urlApiServeur()` et `enTetesServeurAmont()` et relaient `accept-language` du navigateur ; une garde statique refuse `origineApi()` sous `src/app/api/` ; `API_INTERNAL_URL` reste à poser par le porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
 - Constat :
@@ -4531,7 +4531,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### Petites améliorations
 - Réf : P41.03
-- Statut : retenu · à valider — V5 : relais commun qui porte le chemin interne de P41.02
+- Statut : validé — une fonction `relayerVersApi()` dans `src/lib/` (corps en octets, `null` sur 204/205/304, `content-type`, `content-disposition`, `cache-control`, `accept-language`, en-têtes serveur), appelée par les six relais ; le compte et la liste de `takussan-web/CLAUDE.md` sont corrigés en session le 2026-10-18
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
 - Constat :
@@ -4556,7 +4556,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### L'ardoise dit le dump pré-déploiement documenté, mais le seul guide qui l'imposait est supprimé et `release.sh` migre sans dump
 - Réf : P42.01
-- Statut : retenu · à valider — V5 : consigne ou sauvegarde avant migration dans la chaîne de déploiement
+- Statut : retenu · à valider — V5 : consigne ou sauvegarde avant migration dans la chaîne de déploiement ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : la consigne avant une migration irréversible dans `hebergement.md`, la marche arrière par restauration à un instant donné, et le renvoi de D-05bis corrigé
 - Gravité : 🔴 défaut avéré
 - Où : `docs/ardoise.md:341-359`, `takussan-api/docker/release.sh:9`, `docs/infra/hebergement.md:287-295`, `takussan-api/database/migrations/2026_05_18_120000_drop_spatie_permission_tables.php:52`
 - Constat :
@@ -4570,7 +4570,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### `APP_KEY` n'a aucune consigne de sauvegarde hors de l'hébergeur, alors qu'une restauration sans elle perd les colonnes chiffrées
 - Réf : P42.02
-- Statut : retenu · à valider — V5 : garde d'un secret d'environnement hors de Dokploy
+- Statut : retenu · à valider — V5 : garde d'un secret d'environnement hors de Dokploy ; porteur (2026-10-18) : traité hors agents, en session : empreinte tronquée de chaque `APP_KEY` dans le relevé d'`hebergement.md` et étape du plan F3 qui range la clé de production ; la clé de chaque environnement est rangée par le porteur dans son gestionnaire de mots de passe
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:48-51`, `:162-164`, `docs/infra/hebergement.md:156`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4151`
 - Constat :
@@ -4584,7 +4584,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### Le critère de restauration ne compte que les lignes : il passe avec une `APP_KEY` fausse, et n'a pas été rejoué depuis les colonnes chiffrées
 - Réf : P42.03
-- Statut : retenu · à valider — V5 : critère de restauration et restauration à rejouer sur le serveur
+- Statut : retenu · à valider — V5 : critère de restauration et restauration à rejouer sur le serveur ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : critère de restauration qui relit un échantillon de chaque colonne chiffrée, et restauration de la préproduction rejouée sur le schéma courant
 - Gravité : 🟠 risque ou dette
 - Où : `docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md:149-154`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3724-3747`, `:4248`, `docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md:152-154`, `docs/infra/hebergement.md:112`
 - Constat :
@@ -4596,7 +4596,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### Rien n'alerte si la sauvegarde nocturne de la base cesse, et l'alerte d'échec de Dokploy n'a jamais été éprouvée pour une base
 - Réf : P42.04
-- Statut : retenu · à valider — V5 : minuteur neuf sous `deploy/server/`
+- Statut : retenu · à valider — V5 : minuteur neuf sous `deploy/server/` ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : contrôle de fraîcheur des sauvegardes à côté de `seuils.sh`, éprouvé par ablation
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/server/seuils.sh:27-41`, `docs/infra/hebergement.md:96`, `:98`, `:108`
 - Constat :
@@ -4608,7 +4608,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### La procédure de restauration s'arrête au chargement : ni réimport de la recherche, ni file `database` rejouée, ni jetons révoqués
 - Réf : P42.05
-- Statut : retenu · à valider — V5 : procédure d'exploitation après restauration (V2 pour la révocation des jetons)
+- Statut : retenu · à valider — V5 : procédure d'exploitation après restauration (V2 pour la révocation des jetons) ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : section « Après une restauration » : marqueur de recherche supprimé puis réimport, file `jobs` relue avant les workers, révocation de tous les jetons et Redis de l'environnement vidé
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:287-295`, `takussan-api/docker/release.sh:42-46`, `deploy/takussan/compose.api.yml:18`, `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION`, `SESSION_DRIVER`)
 - Constat :
@@ -4621,7 +4621,7 @@ restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de r�
 
 ### Une restauration ressuscite les comptes effacés depuis le dump, et aucun document ne dit combien de temps une donnée effacée survit dans les sauvegardes
 - Réf : P42.06
-- Statut : retenu · à valider — V3 : durée de survie d'une donnée effacée dans les sauvegardes
+- Statut : retenu · à valider — V3 : durée de survie d'une donnée effacée dans les sauvegardes ; porteur (2026-10-18) : traité hors agents, en session, avec l'étape 5 d'ADR-0069 (WAL-G) : amendement d'ADR-0044 : une donnée effacée survit dans les sauvegardes le temps de leur rétention, les effacements se rejouent après une restauration depuis une liste tenue hors de la base, et la sauvegarde du volume `storage` sort du plan F3
 - Gravité : 🟠 risque ou dette
 - Où : `docs/infra/hebergement.md:107`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4020-4023`, `:4175-4176`, `takussan-api/database/migrations/2026_10_08_601400_create_privacy_requests_table.php:21`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:45`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:26`
 - Constat :

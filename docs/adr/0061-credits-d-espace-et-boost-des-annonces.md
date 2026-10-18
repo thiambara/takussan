@@ -3,6 +3,9 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-12
 - **Tickets** : [TCK-633](../backlog/tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md)
+- **Amendement du 2026-10-18** (piste P24.05) : le remboursement d'une Vedette prolongée rend les
+  jours restants tranche par tranche, en partant des plus tardifs. Voir
+  [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405).
 
 ## Contexte
 
@@ -167,6 +170,8 @@ les autres annonces. Les places réservées en sont la version **bornée** : X p
   avec ce qui restait.
 - **Le bien est loué, vendu, ou supprimé par l'annonceur** : le boost est `refunded` ; les jours
   pleins restants sont rendus au prorata du prix figé, en un lot `refund` par lot d'origine (§4).
+  Pour une Vedette prolongée, le prorata se calcule **tranche par tranche**
+  ([§ Amendement du 2026-10-18](#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405)).
 - **Le bien est retiré par la modération** (verrou plateforme, décision de signalement « masquer » ou
   « retirer ») : le boost est `ended` **sans** remboursement — les crédits ne paient pas une annonce
   frauduleuse. Le super-admin peut rembourser à la main.
@@ -217,3 +222,33 @@ heure, même tirage ; toutes les vedettes servies sur un cycle), des places rés
 seulement, ordre organique, pas de doublon avec les emplacements ni plus bas, badge, X = 0 inerte), de la pause et du remboursement au
 prorata, et de l'idempotence de `boosts:tick` ; et la mise à jour de `docs/models-spec.md` pour les
 six tables.
+
+## Amendement du 2026-10-18 — le remboursement d'une Vedette prolongée (P24.05)
+
+Décision du porteur du 2026-10-18, sur la piste P24.05 du
+[fichier de pistes](../plans/2026-10-15-pistes-d-amelioration.md). **Cet amendement ne change aucun
+code** : l'implémenteur des pistes l'applique dans un ticket.
+
+**Ce qui était faux.** Une prolongation additionne prix et durée sur la même ligne, et le
+remboursement du § 8 rend `prix cumulé × jours pleins restants / durée cumulée`. Le prix est ainsi
+étalé sur toute la durée, alors que les jours payés sont au bout. Mesuré le 2026-10-15 : une
+Vedette offerte de 30 jours, puis une Vedette de 7 jours achetée 20 crédits, ne rend que 6 crédits
+quand le bien est loué au 25ᵉ jour, alors que les 7 jours payés restent entiers. Le cas inverse
+(achetée, puis offerte) rend plus que les jours payés restants.
+
+**La règle.**
+
+- Chaque achat ou offre d'une Vedette est une **tranche** : son prix figé, sa durée, et son rang
+  dans l'ordre d'achat. Une prolongation ajoute une tranche ; elle ne réécrit pas la première.
+- Au remboursement, les jours pleins restants sont pris **en partant des plus tardifs** : la
+  dernière tranche d'abord, puis la précédente. Chaque jour rendu l'est **au prix de la tranche
+  qui l'a acheté** (`prix de la tranche × jours rendus de la tranche / durée de la tranche`, arrondi
+  à l'entier inférieur, comme aujourd'hui). Une tranche offerte ne rend rien.
+- Le reste du § 8 ne change pas : un lot `refund` par lot d'origine, aucun remboursement sur
+  décision de modération, ni Remontée ni Badge.
+- **Reprise** : une Vedette déjà prolongée devient une tranche unique, au prix et à la durée
+  cumulés. Aucune donnée de production n'existe : l'API n'a jamais servi en production.
+
+**Gardes** : un test « offerte puis achetée » (les jours payés restants sont rendus en entier) et un
+test « achetée puis offerte » (seuls les jours payés restants sont rendus).
+
