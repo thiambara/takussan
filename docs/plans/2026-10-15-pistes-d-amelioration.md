@@ -390,12 +390,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Fiche client : les notes sont chargées deux fois
 - Réf : P02.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-866
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/customers.ts:114`, `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:87-91`
 - Constat : `include=notes` sérialise toutes les notes, puis la page les redemande paginées (lu).
 - Piste : retirer `notes` de l'`include`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `customers.ts:108-121` (`include: ['notes','documents','tags']`), `CustomerResource.php:30` (`'notes' => $this->notes` : la colonne `notes` n'est pas dans `DASHBOARD_CUSTOMER_DETAIL_FIELDS`, c'est donc la relation qui est rendue), `customers/[id]/page.tsx:87-91` ; `grep` de `.notes` dans `takussan-web/src` → aucun lecteur de `customer.notes` sur la fiche ni dans `CustomerDetailSheet.tsx`, qui charge ses notes à part ; test temporaire, retiré depuis, client à 30 notes → `GET /api/customers/{id}` avec les champs et l'`include` du front rend `data.notes` à 30 éléments, et `GET /api/customers/{id}/notes` rend 20 notes, `meta.total` 30. Classement : A2, retirer `notes` de l'`include` de `fetchDashboardCustomer` ne change rien à l'écran puisque rien ne lit ce champ.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `fiche-client-sans-notes.tck-866.test.ts` relève `include` = `documents,notes,tags` sur `GET /api/customers/{id}` ; la page et `CustomerDetailSheet` lisent toujours les notes par `fetchCustomerNotes` (lu) → `notes` retiré de l'`include`, vert, 16 tests de la fiche et du pipeline verts ; ablation : `customers.ts` remis à l'état d'avant → rouge, remis → vert.
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
