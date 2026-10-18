@@ -330,7 +330,7 @@ Déjà sain (mesuré ou lu) :
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
 - Réf : P02.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-862 — reste : les 109 autres clés étrangères sans index, une par une sur `EXPLAIN`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasProfiles.php:281-291`, avec un docblock faux en `:221-223`
 - Constat :
@@ -344,6 +344,7 @@ Déjà sain (mesuré ou lu) :
     - `inventories.property_id` et `.tenant_id`.
 - Piste : `customers.user_id` d'abord, puis les autres une par une, sur `EXPLAIN` (piège PostgreSQL n° 8).
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `HasProfiles.php:281-292` (`hasActiveTenantLease()` inchangé) et `:222-225` (le docblock dit encore « les deux colonnes portant un index ») ; `SELECT indexdef FROM pg_indexes` sur la base de dev, migrée jusqu'à `2026_10_14_120100` → `customers` n'a aucun index sur `user_id` (`leases_tenant_id_index` existe) ; `EXPLAIN` de la jointure `customers ⋈ leases` filtrée sur `customers.user_id` → `Seq Scan on customers` ; requête sur `pg_constraint`/`pg_index` → 252 FK, dont 110 sans index qui commence par elles ; aucun ticket ni commit ne pose cet index (`grep` du backlog, `git log -S customers_user_id`). Classement : A2 pour la seule partie `customers.user_id` (migration neuve d'index avec son `down()`, et le docblock de `:222-225` ramené à ce que fait le schéma, A6) ; les 109 autres FK ne sont pas couvertes par ce classement, elles relèvent d'un `EXPLAIN` chacune et de plus d'un ticket.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `CustomersUserIdIndexTest` rougit : aucun index `customers_user_id_index`, et la requête de `tenantLeases()` filtrée sur les statuts actifs ne lit pas `customers` par un index sous `enable_seqscan = off` → migration neuve `customers(user_id)` avec son `down()`, docblock de `profileTypes()` ramené au schéma ; 2 verts ; ablation : migration retirée, 2 rouges ; remise, verts.
 
 ### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
 - Réf : P02.05
