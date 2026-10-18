@@ -4,8 +4,11 @@ namespace App\Services\Messaging;
 
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Enums\ConversationType;
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -22,6 +25,12 @@ use Illuminate\Database\Eloquent\Builder;
  * `conversation_participants` (recherche de messages, export des données, correspondants du
  * sélecteur de contacts) passe par {@see self::participatingQuery()} ; la recherche rendait le
  * texte et l'URL signée des notes vocales d'un fil que la fiche refusait.
+ *
+ * TCK-886 (P38.05, ADR-0068 § 2) — troisième branche, le **fil de prospect** : une directe qui
+ * porte un `property_id`. Le prospect (`created_by`) y garde l'accès d'un participant ; tout autre
+ * participant ne l'a que s'il est le contact principal ACTUEL du bien
+ * ({@see PrimaryPropertyContact::for()}). Un agent retiré du bien, bloqué ou sorti de l'agence
+ * perdait la collaboration mais gardait le fil, numéro du prospect compris.
  */
 class ConversationAccess
 {
@@ -37,7 +46,35 @@ class ConversationAccess
             ->wherePivotNull('left_at')
             ->exists();
 
-        return $isParticipant && $this->maintenanceAllows($user, $conversation);
+        return $isParticipant && $this->branchesAllow($user, $conversation);
+    }
+
+    /**
+     * Les branches propres à un type de fil, sans la participation : ce que filtre aussi
+     * `NotifyNewMessageJob`, dont les destinataires sont déjà des participants actifs.
+     */
+    public function branchesAllow(User $user, Conversation $conversation): bool
+    {
+        return $this->maintenanceAllows($user, $conversation)
+            && $this->prospectAllows($user, $conversation);
+    }
+
+    /** La branche « fil de prospect » seule : vrai pour tout fil qui n'en est pas un. */
+    public function prospectAllows(User $user, Conversation $conversation): bool
+    {
+        if (! self::isProspectThread($conversation) || (int) $conversation->created_by === (int) $user->id) {
+            return true;
+        }
+
+        $property = Property::withTrashed()->with(PrimaryPropertyContact::eagerLoads())->find($conversation->property_id);
+
+        return $property !== null && PrimaryPropertyContact::for($property)?->id === $user->id;
+    }
+
+    /** ADR-0068 § 1 — une directe rattachée à un bien. */
+    public static function isProspectThread(Conversation $conversation): bool
+    {
+        return $conversation->type === ConversationType::Direct && $conversation->property_id !== null;
     }
 
     /** La branche « intervention » seule : vrai pour tout fil qui n'en porte pas. */
@@ -65,9 +102,51 @@ class ConversationAccess
             return $query;
         }
 
-        return $query->where(fn (Builder $q) => $q
+        $query->where(fn (Builder $q) => $q
             ->whereNull('conversations.maintenance_request_id')
             ->orWhereIn('conversations.maintenance_request_id', MaintenanceRequest::query()->visibleTo($user)->select('maintenance_requests.id')));
+
+        // TCK-886 — la branche « fil de prospect ». La règle du contact principal se juge en PHP
+        // (`PrimaryPropertyContact`, une requête par agent examiné) : elle ne s'écrit pas en SQL.
+        // On la juge donc sur les seuls biens des fils de prospect où `$user` répond, puis on
+        // remet la liste des biens qu'il sert encore dans la requête.
+        $answered = $this->answeredPropertyIds($user);
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('conversations.type', '!=', ConversationType::Direct->value)
+            ->orWhereNull('conversations.property_id')
+            ->orWhere('conversations.created_by', $user->id)
+            ->orWhereIn('conversations.property_id', $answered));
+    }
+
+    /**
+     * Les biens dont `$user` est le contact principal, parmi ceux des fils de prospect où il est
+     * participant sans en être le prospect.
+     *
+     * @return list<int>
+     */
+    private function answeredPropertyIds(User $user): array
+    {
+        $propertyIds = Conversation::query()
+            ->where('type', ConversationType::Direct->value)
+            ->whereNotNull('property_id')
+            ->where('created_by', '!=', $user->id)
+            ->whereIn('id', ConversationParticipant::query()->where('user_id', $user->id)->select('conversation_id'))
+            ->distinct()
+            ->pluck('property_id');
+
+        if ($propertyIds->isEmpty()) {
+            return [];
+        }
+
+        return Property::withTrashed()
+            ->with(PrimaryPropertyContact::eagerLoads())
+            ->whereKey($propertyIds->all())
+            ->get()
+            ->filter(fn (Property $property) => PrimaryPropertyContact::for($property)?->id === $user->id)
+            ->map(fn (Property $property) => (int) $property->id)
+            ->values()
+            ->all();
     }
 
     /**
