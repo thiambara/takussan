@@ -606,6 +606,29 @@ describe('accessibilité du <nav>', () => {
       expect(entree.querySelector('.sr-only')).toHaveTextContent('Réservé aux comptes pro');
     }
   });
+
+  /**
+   * TCK-843 — un `sr-only` est `position: absolute`. Sans ancêtre positionné, son bloc conteneur
+   * est la fenêtre : ni l'`overflow-y-auto` du `<nav>` ni l'`overflow-hidden` de la coque ne le
+   * coupent, et, posé à sa place statique en bas de la liste, il allongeait le DOCUMENT — toute
+   * la coque de `/app` défilait arrivée en bas de la page. jsdom ne mesure rien : on garde la
+   * cause, le `<nav>` qui défile est positionné.
+   */
+  it('le <nav> qui défile contient les éléments absolus de la barre (TCK-843)', () => {
+    pathname = '/app';
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <AppSidebar user={userWith(['agency_admin'])} agencyIsStandard={false} />
+        </QueryClientProvider>,
+      ),
+    );
+    const nav = screen.getByRole('navigation', { name: 'Navigation du tableau de bord' });
+    expect(nav.className).toContain('overflow-y-auto');
+    expect(nav.className.split(/\s+/)).toContain('relative');
+    expect(nav.querySelectorAll('.sr-only').length).toBeGreaterThan(0);
+  });
 });
 
 /**
