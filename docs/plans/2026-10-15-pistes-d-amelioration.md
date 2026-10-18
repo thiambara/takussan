@@ -1080,16 +1080,17 @@ Sain (vérifié par l'agent) :
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-868
 - Gravité : 🟠 risque ou dette
 - Où : `PropertyVisitDialog.tsx:263,270,276,283`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440`, `PropertyReviews.tsx:281`, `leases/CreateLeaseForm.tsx:347,359`, `leases/DepositRefundModal.tsx:182,215`
 - Constat : 13 contrôles sur 49 qui portent `aria-invalid` n'ont pas de `aria-describedby`, et 48 `<p class="text-destructive">` n'ont pas de `role`. Les `Form*` sont bien câblés (mesuré).
 - Piste : migrer ces champs vers `FormInput`/`FormError`.
 - Mesure (2026-10-15, ccabd662, mesureur) : `grep -c aria-invalid` / `aria-describedby` par fichier de `src/` : `PropertyVisitDialog.tsx` 2/0 (le `aria-invalid` est aujourd'hui l.268,281, ses erreurs `<p className="text-xs text-destructive">` l.270,283, sans `id` ni `role`), `CreateLeaseForm.tsx` 1/0 (`SelectTrigger` l.347, erreur l.359), `InviteAgentDialog.tsx` 8/0, `InviteOwnerSheet.tsx` 5/0, `InviteServiceProviderSheet.tsx` 4/0, `KpiConfigList.tsx` 1/0 ; `DepositRefundModal.tsx:182,215`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440` et `PropertyReviews.tsx:281` portent toujours un `<p className="… text-destructive">` sans `role` ; sur une ligne, 56 `<p … text-destructive>` sans `role=` contre 144 avec (comptage grossier) ; les `Form*` relient bien leur erreur (1/1 partout) → tient. Classement : A4, attributs ARIA sans texte neuf : donner un `id` à chaque `<p>` d'erreur de champ, le citer par `aria-describedby` sur le contrôle `aria-invalid`, et poser `role="alert"` sur ces erreurs et sur les erreurs de formulaire citées, ou passer les champs par `FormInput`/`FormError`, sans changer le rendu.
+- Mesure (2026-10-18, d7c4e417, implementeur) : avant correctif, `src/test/__tests__/erreurs-de-champ-reliees.test.ts` → 18 contrôles `aria-invalid` sans `aria-describedby` hors `ui/` (`PropertyVisitDialog` 2, `KpiConfigList` 1, `InviteAgentDialog` 4, `CreateLeaseForm` 1 + son `Controller`, `InviteOwnerSheet` 5, `InviteServiceProviderSheet` 4), et des `<p text-destructive>` sans `role` dans 8 des 10 fichiers relevés ; dans la boîte de visite, l'erreur du téléphone n'était ni `alert` ni dans la description du champ → `aria-describedby` vers un `id` d'erreur posé quand l'erreur s'affiche, `role="alert"` sur les erreurs, sans texte ni rendu neufs (`DepositRefundModal` reste sans `aria-invalid`, qui rougirait sa bordure) ; ablation (sources d'avant) → 10 rouges sur 19, correctif remis → verts, et 694 tests verts sur les dossiers touchés.
 
 ### Des champs nommés par le seul placeholder
 - Réf : P07.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-869 — reste : les autres champs nommés par leur seul placeholder, hors des quatre fichiers relus (le compte de 21 du constat n'a pas été refait)
 - Gravité : 🟠 risque ou dette
 - Où : `search/FilterSidebar.tsx:161,172,183`, `PropertyContactMessageDialog.tsx:89`, `PropertyReviewForm.tsx:94,102`, `PropertyPagination.tsx:113`
 - Constat :
@@ -1097,6 +1098,7 @@ Sain (vérifié par l'agent) :
   - Le sélecteur de taille de page (un `SelectTrigger`, donc un `<button role="combobox">`) est sans nom, dans 8 listes (mesuré).
 - Piste : `aria-labelledby` vers le titre de section, et un `aria-label` sur le sélecteur de taille de page.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `FilterSidebar.tsx:126-185` : `RangeInputs` rend deux `<Input type="number">` (l.161-180) nommés par leur seul `placeholder` (`t('min')`/`t('max')`, `t('minArea')`…), réutilisé pour le budget (l.683) et la surface (l.744) sous un `<Section title>` ; `PropertyContactMessageDialog.tsx:89-95` (`Textarea` sans `aria-label` ni `<label>`) ; `PropertyReviewForm.tsx:94-109` (`Input` et `Textarea` nommés par `placeholder`) ; `property-dashboard/PropertyPagination.tsx:113` : `SelectTrigger` sans `aria-label` ; 9 fichiers combinent `pageSize`/`perPage` et `SelectTrigger` (non recomptés un à un) ; le compte de 21 champs n'a pas été refait → tient pour les exemples relus. Classement : A4, attributs ARIA par des textes existants : `aria-labelledby` vers le titre de `Section` (et la borne), `aria-label` des clés déjà traduites (`messagePlaceholder`, `titlePlaceholder`, `perPagePlaceholder` présent en fr/en/wo) sur les champs et le sélecteur de taille de page, sans texte neuf.
+- Mesure (2026-10-18, d7c4e417, implementeur) : avant correctif, quatre cas neufs rouges : les bornes du budget de `FilterSidebar` n'ont pas de nom « Budget (FCFA) Min/Max » (seul le placeholder), le titre et le commentaire de `PropertyReviewForm` et le message du contact authentifié n'ont pas d'`aria-label`, et le `SelectTrigger` de `PropertyPagination` n'est pas un `combobox` nommé ; des 14 fichiers qui combinent taille de page et `SelectTrigger`, seul `PropertyPagination` reste sans nom (les « 8 listes » ne tiennent plus) → `aria-labelledby` titre de section + borne (`hidden`), `aria-label` des placeholders, `aria-label` « Résultats par page » (`search.toolbar.perPageAria`, clé existante) ; ablation (sources d'avant) → 4 rouges, correctif remis → verts ; 493 tests verts sur 497 dans `search`, `property-dashboard` et la fiche publique, les 4 rouges dans 3 fichiers non touchés (`PropertyActions.*.tck-633`, `PropertyListFilters.mobile.tck-644`) sous une charge de 8,4 sur 8 cœurs, verts rejoués seuls avec et sans le correctif.
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
@@ -1125,12 +1127,13 @@ Sain (vérifié par l'agent) :
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11
-- Statut : retenu · autonome
+- Statut : fait · TCK-870
 - Gravité : 🟠 risque ou dette (AAA, mais la charte en fait une règle)
 - Où : `ui/sheet.tsx:104-110`, `ui/dialog.tsx:58`, `ui/popover.tsx`, `ui/select.tsx`, `property/cards/PropertyRow.tsx:184`
 - Constat : `slide-in` et `zoom-in` de tw-animate-css ignorent `prefers-reduced-motion`, aucun `motion-reduce:` n'apparaît, et `scrollBy({behavior:'smooth'})` n'est pas conditionné (mesuré).
 - Piste : `motion-reduce:animate-none` dans les primitives.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `ui/sheet.tsx:100-110` (`slide-in-from-*`), `ui/dialog.tsx:35,58`, `ui/popover.tsx:62-63` (`zoom-in-95`, `slide-in-from-*`), `ui/select.tsx:97` ; `grep motion-reduce` → aucun dans ces quatre primitives (le constat « aucun `motion-reduce:` » est inexact : `button.tsx:31`, `ChatWidget.tsx`, `SelecteurDeTransaction.tsx`, `WizardReprenable.tsx` en portent) ; `grep reduced-motion node_modules/tw-animate-css/dist/tw-animate.css` → 0 ; les deux blocs `@media (prefers-reduced-motion)` de `globals.css:533,606` ne nomment que des `.animate-*` et `.wizard-*` maison ; `PropertyRow.tsx:184` : `scrollBy({ …, behavior: 'smooth' })` non conditionné → tient. Classement : A4 et A1, `docs/design-guidelines.md:365-369` écrit déjà que toute animation se neutralise sous mouvement réduit : poser `motion-reduce:animate-none` sur les contenus et fonds de `sheet`, `dialog`, `popover` et `select`, et `behavior: 'auto'` quand `matchMedia('(prefers-reduced-motion: reduce)')` répond.
+- Mesure (2026-10-18, d7c4e417, implementeur) : relu `ui/sheet.tsx`, `dialog.tsx`, `popover.tsx`, `select.tsx` (et `dropdown-menu.tsx`, `tooltip.tsx`) : `data-open:animate-in`/`data-closed:animate-out` sans neutralisation, et `PropertyRow.tsx:194` en `behavior: 'smooth'` → tient ; compilé avec `tailwindcss` + `tw-animate-css` + `shadcn/tailwind.css` : `motion-reduce:animate-none` (proposé par la mesure du 2026-10-15) sort AVANT `data-open:animate-in`, à spécificité égale (`:where(…)`), donc perdrait ; `motion-reduce:data-open:animate-none` sort après → posé sur chaque animation d'état des six primitives, avec son pendant `data-closed` ; la rangée passe en `behavior: 'instant'` sous `(prefers-reduced-motion: reduce)` (`'auto'` reprendrait le `scroll-smooth` du CSS) et prend `motion-reduce:scroll-auto` ; `src/components/ui/__tests__/mouvement-reduit.test.tsx` : ablation (sources d'avant) → 7 rouges sur 29, correctif remis → verts ; 846 tests verts sur 852 dans `ui`, `property*` et `src/test`, les 6 rouges dans les 3 fichiers `PropertyActions.*.tck-633` et `PropertyListFilters.mobile.tck-644`, non touchés, qui rougissent aussi sur `pre-dev` seul sous une charge de 10 sur 8 cœurs.
 
 ### Le lint d'accessibilité est presque éteint
 - Réf : P07.12

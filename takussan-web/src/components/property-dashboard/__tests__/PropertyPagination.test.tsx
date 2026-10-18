@@ -82,4 +82,10 @@ describe('<PropertyPagination>', () => {
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('TCK-869 — le sélecteur de taille de page porte un nom', () => {
+    render(withIntl(<PropertyPagination meta={meta()} />));
+
+    expect(screen.getByRole('combobox', { name: 'Résultats par page' })).toBeInTheDocument();
+  });
 });

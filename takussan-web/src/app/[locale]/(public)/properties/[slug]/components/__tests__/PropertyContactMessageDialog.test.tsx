@@ -89,4 +89,12 @@ describe("<PropertyContactMessageDialog>", () => {
 
     expect(screen.getByText(/transmises à l'agent du bien/)).toBeInTheDocument();
   });
+
+  it("TCK-869 — le champ du repli authentifié est nommé, pas seulement par son placeholder", () => {
+    useAuthMock.mockReturnValue({ user: { id: 1 } });
+    monter();
+
+    const champ = screen.getByRole("textbox");
+    expect(champ).toHaveAttribute("aria-label", champ.getAttribute("placeholder"));
+  });
 });

@@ -29,7 +29,7 @@ function SheetOverlay({
     <DialogPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-scrim/30 duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-50 bg-scrim/30 duration-200 data-open:animate-in motion-reduce:data-open:animate-none data-open:fade-in-0 data-closed:animate-out motion-reduce:data-closed:animate-none data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -97,7 +97,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col bg-card shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)] outline-none duration-200 data-open:animate-in data-closed:animate-out",
+          "fixed z-50 flex flex-col bg-card shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)] outline-none duration-200 data-open:animate-in motion-reduce:data-open:animate-none data-closed:animate-out motion-reduce:data-closed:animate-none",
           (side === "left" || side === "right") && "inset-y-0 h-full w-72",
           (side === "top" || side === "bottom") && "inset-x-0 w-full max-h-[90vh]",
           side === "left" &&

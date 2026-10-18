@@ -19,11 +19,18 @@ import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+/**
+ * TCK-869 (P07.08) — l'`id` du titre de la section, pour que les champs qu'elle contient se
+ * nomment par lui (`aria-labelledby`) plutôt que par leur seul placeholder.
+ */
+const TitreDeSection = React.createContext<string | undefined>(undefined);
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const idTitre = React.useId();
   return (
     <div className="py-4 border-b border-border/70 last:border-0">
-      <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
-      {children}
+      <h3 id={idTitre} className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
+      <TitreDeSection.Provider value={idTitre}>{children}</TitreDeSection.Provider>
     </div>
   );
 }
@@ -143,6 +150,11 @@ function RangeInputs({
   onChangeMax: (v: string) => void;
   onCommit: () => void;
 }) {
+  const idTitre = React.useContext(TitreDeSection);
+  const idMin = React.useId();
+  const idMax = React.useId();
+  const nomme = (idBorne: string) => (idTitre ? `${idTitre} ${idBorne}` : undefined);
+
   const surTouche = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -153,6 +165,12 @@ function RangeInputs({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
+        <span id={idMin} hidden>
+          {placeholderMin}
+        </span>
+        <span id={idMax} hidden>
+          {placeholderMax}
+        </span>
         {/*
           `min={0}` — TCK-335. Les règles du serveur sont `numeric|min:0` : une valeur
           négative rend 422, donc « 0 bien trouvé ». Le défaut existait déjà sur le prix
@@ -163,6 +181,7 @@ function RangeInputs({
           type="number"
           min={0}
           placeholder={placeholderMin}
+          aria-labelledby={nomme(idMin)}
           value={valueMin}
           onChange={(e) => onChangeMin(e.target.value)}
           onBlur={onCommit}
@@ -174,6 +193,7 @@ function RangeInputs({
           type="number"
           min={0}
           placeholder={placeholderMax}
+          aria-labelledby={nomme(idMax)}
           value={valueMax}
           onChange={(e) => onChangeMax(e.target.value)}
           onBlur={onCommit}

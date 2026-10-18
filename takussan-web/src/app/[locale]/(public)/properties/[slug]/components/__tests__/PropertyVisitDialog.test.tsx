@@ -142,6 +142,21 @@ describe('<PropertyVisitDialog> — TCK-590', () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
+  it('TCK-868 — l’erreur du téléphone décrit le champ et s’annonce', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(withIntl(<PropertyVisitDialog slug="villa-almadies" open onOpenChange={() => {}} />));
+
+    await choisirLe12Novembre(user);
+    await user.click(await screen.findByRole('button', { name: '10:00' }));
+    await user.type(screen.getByLabelText('Votre nom'), 'Awa Diop');
+    await user.click(screen.getByRole('button', { name: /demander la visite/i }));
+
+    const message = 'Indiquez un numéro où l’agent peut vous joindre.';
+    expect(await screen.findByText(message)).toHaveAttribute('role', 'alert');
+    expect(screen.getByLabelText('Téléphone')).toHaveAccessibleDescription(expect.stringContaining(message));
+    expect(screen.getByLabelText('Votre nom')).not.toHaveAttribute('aria-describedby');
+  });
+
   it('la source d’arrivée retenue part avec la demande', async () => {
     window.sessionStorage.setItem('takussan.arrivee', JSON.stringify({ source: 'whatsapp', medium: 'share' }));
     authUser = { id: 5 };
