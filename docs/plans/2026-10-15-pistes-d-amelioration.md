@@ -1084,7 +1084,7 @@ Sain (vérifié par l'agent) :
 
 ### Des champs nommés par le seul placeholder
 - Réf : P07.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-869 — reste : les autres champs nommés par leur seul placeholder, hors des quatre fichiers relus (le compte de 21 du constat n'a pas été refait)
 - Gravité : 🟠 risque ou dette
 - Où : `search/FilterSidebar.tsx:161,172,183`, `PropertyContactMessageDialog.tsx:89`, `PropertyReviewForm.tsx:94,102`, `PropertyPagination.tsx:113`
 - Constat :
@@ -1092,6 +1092,7 @@ Sain (vérifié par l'agent) :
   - Le sélecteur de taille de page (un `SelectTrigger`, donc un `<button role="combobox">`) est sans nom, dans 8 listes (mesuré).
 - Piste : `aria-labelledby` vers le titre de section, et un `aria-label` sur le sélecteur de taille de page.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `FilterSidebar.tsx:126-185` : `RangeInputs` rend deux `<Input type="number">` (l.161-180) nommés par leur seul `placeholder` (`t('min')`/`t('max')`, `t('minArea')`…), réutilisé pour le budget (l.683) et la surface (l.744) sous un `<Section title>` ; `PropertyContactMessageDialog.tsx:89-95` (`Textarea` sans `aria-label` ni `<label>`) ; `PropertyReviewForm.tsx:94-109` (`Input` et `Textarea` nommés par `placeholder`) ; `property-dashboard/PropertyPagination.tsx:113` : `SelectTrigger` sans `aria-label` ; 9 fichiers combinent `pageSize`/`perPage` et `SelectTrigger` (non recomptés un à un) ; le compte de 21 champs n'a pas été refait → tient pour les exemples relus. Classement : A4, attributs ARIA par des textes existants : `aria-labelledby` vers le titre de `Section` (et la borne), `aria-label` des clés déjà traduites (`messagePlaceholder`, `titlePlaceholder`, `perPagePlaceholder` présent en fr/en/wo) sur les champs et le sélecteur de taille de page, sans texte neuf.
+- Mesure (2026-10-18, d7c4e417, implementeur) : avant correctif, quatre cas neufs rouges : les bornes du budget de `FilterSidebar` n'ont pas de nom « Budget (FCFA) Min/Max » (seul le placeholder), le titre et le commentaire de `PropertyReviewForm` et le message du contact authentifié n'ont pas d'`aria-label`, et le `SelectTrigger` de `PropertyPagination` n'est pas un `combobox` nommé ; des 14 fichiers qui combinent taille de page et `SelectTrigger`, seul `PropertyPagination` reste sans nom (les « 8 listes » ne tiennent plus) → `aria-labelledby` titre de section + borne (`hidden`), `aria-label` des placeholders, `aria-label` « Résultats par page » (`search.toolbar.perPageAria`, clé existante) ; ablation (sources d'avant) → 4 rouges, correctif remis → verts ; 493 tests verts sur 497 dans `search`, `property-dashboard` et la fiche publique, les 4 rouges dans 3 fichiers non touchés (`PropertyActions.*.tck-633`, `PropertyListFilters.mobile.tck-644`) sous une charge de 8,4 sur 8 cœurs, verts rejoués seuls avec et sans le correctif.
 
 ### Anneau de focus à 50 % (2,08:1) et bordure des champs à 1,26:1
 - Réf : P07.09
