@@ -598,6 +598,7 @@ return [
         'signature_missing' => 'Missing signature.',
         'signature_not_configured' => 'Signature verification is not configured.',
         'transaction_id_missing' => 'Missing transaction identifier.',
+        'verify_token_invalid' => 'Invalid subscription verify token.',
     ],
     'wizard_draft' => [
         'not_found' => 'No draft.',

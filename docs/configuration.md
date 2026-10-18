@@ -350,7 +350,10 @@ LARAVEL_PDF_DRIVER=cloudflare   # cloudflare | browsershot | gotenberg | dompdf
 SMS_DEFAULT_DRIVER=router
 SMS_RATE_LIMIT_PER_USER_HOUR=5
 SMS_QUIET_HOURS_ENABLED=true     # 22h-06h Africa/Dakar (sauf 2FA)
-SMS_WEBHOOK_URL_TOKEN=           # `php artisan tinker` → Str::random(40)
+SMS_WEBHOOK_URL_TOKEN=           # repli commun, le temps de la bascule (P36.04, TCK-943)
+SMS_ORANGE_WEBHOOK_URL_TOKEN=    # un jeton par fournisseur : `php artisan tinker` → Str::random(40)
+SMS_MTARGET_WEBHOOK_URL_TOKEN=
+SMS_LAM_WEBHOOK_URL_TOKEN=
 
 # IP whitelists (CSV) pour callbacks DLR
 SMS_ORANGE_WEBHOOK_IPS=
@@ -555,8 +558,9 @@ npm run build
 #### g) SMS multi-provider (TCK-102)
 - Comptes : Orange API SN (api.orange.com), mTarget, lAfricaMobile
 - Ajouter chaque provider activé dans la table `integrations` (par agence) — pas dans `.env`
-- Générer le webhook token : `php artisan tinker` → `Str::random(40)` → `SMS_WEBHOOK_URL_TOKEN`
-- Configurer côté provider l'URL de callback `https://api.takussan.com/webhooks/sms/{provider}/{token}`
+- Générer un jeton par fournisseur : `php artisan tinker` → `Str::random(40)` → `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
+  `SMS_MTARGET_WEBHOOK_URL_TOKEN`, `SMS_LAM_WEBHOOK_URL_TOKEN` (P36.04, TCK-943 ; `SMS_WEBHOOK_URL_TOKEN` n'est que le repli)
+- Configurer côté provider l'URL de callback `https://api.takussan.com/api/webhooks/sms/{provider}/status/{token}`, avec SON jeton
 - Renseigner les IP whitelists `SMS_*_WEBHOOK_IPS` (CSV)
 
 #### h) Mail (prod)

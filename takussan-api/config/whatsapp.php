@@ -53,15 +53,19 @@ return [
 
     /**
      * Meta app secret used to verify the `X-Hub-Signature-256` header on
-     * inbound status webhooks. When empty, signature verification is
-     * skipped (local/testing only). (TCK-283)
+     * inbound status webhooks. (TCK-283) P36.08 (TCK-945) — vide, tout statut
+     * est refusé (403), quel que soit l'environnement : le jeton d'URL seul
+     * n'authentifie pas. Pas d'allowlist d'IP : les IP de sortie de Meta ne se
+     * listent pas, la signature est le contrôle.
      */
     'webhook_app_secret' => env('WHATSAPP_WEBHOOK_APP_SECRET', ''),
 
     /**
-     * Optional IP allowlist for the inbound DLR webhook. Empty disables
-     * filtering (local/testing). Comma-separated env value. (TCK-283)
+     * P36.05 (TCK-944) — le « Verify token » saisi dans la configuration du
+     * webhook de l'application Meta. Meta le renvoie en `hub.verify_token` sur
+     * le `GET` de vérification d'abonnement, qui rend `hub.challenge` s'il est
+     * égal. Vide → la vérification est refusée (403), l'URL ne s'enregistre pas.
      */
-    'webhook_allowed_ips' => array_filter(explode(',', (string) env('WHATSAPP_WEBHOOK_IPS', ''))),
+    'webhook_verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN', ''),
 
 ];

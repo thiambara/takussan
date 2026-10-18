@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use App\Services\Notifications\Sms\DeliveryAttemptUpdater;
 use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Notifications\Sms\SmsWebhookUrlToken;
 use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,8 @@ use Illuminate\Support\Facades\Log;
  * Auth model — CE QUI EST RÉELLEMENT EN PLACE (mesuré le 2026-08-15,
  * cf. ardoise D-49) :
  *
- *   1. un jeton aléatoire dans l'URL (`config('sms.webhook_url_token')`),
+ *   1. un jeton aléatoire dans l'URL (`sms.webhook_url_tokens.orange`, sinon la clé commune
+ *      `sms.webhook_url_token` — P36.04, TCK-943),
  *      comparé par `hash_equals` ci-dessous — échec fermé : jeton vide → 404 ;
  *   2. une allowlist d'IP, via le middleware `restrict.ip:orange` déclaré
  *      dans `routes/api/sms-webhooks.php` — échec fermé : liste vide → 403.
@@ -65,8 +67,8 @@ class OrangeSmsStatusController extends Controller
 
     public function __invoke(Request $request, DeliveryAttemptUpdater $updater, WebhookJournal $journal): JsonResponse
     {
-        $token = (string) config('sms.webhook_url_token', '');
-        if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
+        // P36.04 (TCK-943) — le jeton propre au fournisseur, sinon la clé commune.
+        if (! SmsWebhookUrlToken::accepts('orange', (string) $request->route('token'), config())) {
             abort(404);
         }
         // TCK-602 — l'IP (`restrict.ip`, en amont) et le jeton ont passé.

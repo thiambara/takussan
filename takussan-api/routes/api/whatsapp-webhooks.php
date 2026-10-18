@@ -17,4 +17,10 @@ Route::prefix('webhooks/whatsapp')->group(function (): void {
     Route::post('status/{token}', WhatsappStatusController::class)
         ->middleware(['throttle:webhook-whatsapp', 'webhook.journal:whatsapp,whatsapp_cloud'])
         ->name('whatsapp.webhook.status');
+
+    // P36.05 (TCK-944) — la vérification d'abonnement de Meta, sur le même chemin. Hors du journal
+    // des webhooks : ce n'est pas un accusé, et sa requête porte le jeton de vérification.
+    Route::get('status/{token}', [WhatsappStatusController::class, 'verify'])
+        ->middleware('throttle:webhook-whatsapp')
+        ->name('whatsapp.webhook.verify');
 });

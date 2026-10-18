@@ -598,6 +598,7 @@ return [
         'signature_missing' => 'Signature bi amul.',
         'signature_not_configured' => 'Dëggal signature bi configurerouñu ko.',
         'transaction_id_missing' => 'Identifiant transaction bi amul.',
+        'verify_token_invalid' => 'Jeton de vérification d\'abonnement invalide.',
     ],
     'wizard_draft' => [
         'not_found' => 'Amul benn brouillon.',

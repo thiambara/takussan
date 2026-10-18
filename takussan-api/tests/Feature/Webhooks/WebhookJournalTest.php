@@ -231,7 +231,12 @@ class WebhookJournalTest extends TestCase
         $this->orangeAttempt('orange-tok-602');
         $this->postJson('/api/webhooks/sms/orange/status/sms-url-token-602', $this->orangeDlr('orange-tok-602'))->assertOk();
         $this->postJson('/api/webhooks/sms/mtarget/status/sms-url-token-602', ['MsgId' => 'm-602', 'Status' => '3'])->assertNotFound();
-        $this->postJson('/api/webhooks/whatsapp/status/wa-url-token-602', ['entry' => []])->assertOk();
+        // P36.08 (TCK-945) — un statut WhatsApp non signé est refusé : celui-ci est signé.
+        config()->set('whatsapp.webhook_app_secret', 'wa-app-secret-602');
+        $this->call('POST', '/api/webhooks/whatsapp/status/wa-url-token-602', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', '{"entry":[]}', 'wa-app-secret-602'),
+        ], '{"entry":[]}')->assertOk();
         $this->postJson('/api/webhooks/whatsapp/status/mauvais-wa-602', ['entry' => []])->assertNotFound();
 
         $notification = AppNotification::factory()->create(['user_id' => User::factory()->create()->id]);
