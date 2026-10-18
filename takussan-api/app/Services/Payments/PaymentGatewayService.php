@@ -563,8 +563,18 @@ class PaymentGatewayService
                 }
                 break;
             case PaymentDriverStatus::REFUNDED:
-                if ($current === PaymentStatus::Paid) {
+                // TCK-871 (P39.01) — seul le remboursement du règlement qui a SOLDÉ le payable le
+                // rembourse. Celui d'un double encaissement (second checkout, checkout payé après
+                // des espèces), que la notification `payment.duplicate` demande, se note sur son
+                // entrée : il passait le loyer encaissé à `refunded`. `isSettledBy` seul ne suffit
+                // pas : son repli sur `gateway_events` reconnaît aussi le `paid` journalisé du
+                // doublon.
+                if ($current === PaymentStatus::Paid
+                    && $this->isSettledBy($existingMeta, $transactionId)
+                    && ! $this->isMarkedDuplicate($existingMeta, $transactionId)) {
                     $this->writeStatus($payment, PaymentStatus::Refunded);
+                } else {
+                    $existingMeta = $this->markDuplicateRefunded($existingMeta, $transactionId);
                 }
                 break;
             case PaymentDriverStatus::PENDING:
@@ -1035,6 +1045,48 @@ class PaymentGatewayService
         }
 
         return false;
+    }
+
+    /**
+     * TCK-871 (P39.01) — CETTE transaction est-elle marquée comme double encaissement du payable ?
+     * La part de pénalité encaissée deux fois (`kind = late_fee`) ne compte pas : elle est marquée
+     * sur la transaction qui a soldé le loyer.
+     *
+     * @param  array<string,mixed>  $meta
+     */
+    protected function isMarkedDuplicate(array $meta, ?string $transactionId): bool
+    {
+        foreach (is_array($meta['gateway_duplicate_payment'] ?? null) ? $meta['gateway_duplicate_payment'] : [] as $entry) {
+            if (($entry['transaction_id'] ?? null) === $transactionId && ($entry['kind'] ?? 'payment') !== 'late_fee') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * TCK-871 (P39.01) — note le remboursement sur l'entrée `gateway_duplicate_payment` de CETTE
+     * transaction (hors part de pénalité). Sans entrée, rien n'est écrit : l'événement reste dans `gateway_events`.
+     *
+     * @param  array<string,mixed>  $meta
+     * @return array<string,mixed>
+     */
+    protected function markDuplicateRefunded(array $meta, ?string $transactionId): array
+    {
+        if ($transactionId === null || ! is_array($meta['gateway_duplicate_payment'] ?? null)) {
+            return $meta;
+        }
+
+        foreach ($meta['gateway_duplicate_payment'] as $i => $entry) {
+            if (($entry['transaction_id'] ?? null) === $transactionId
+                && ($entry['kind'] ?? 'payment') !== 'late_fee'
+                && ! isset($entry['refunded_at'])) {
+                $meta['gateway_duplicate_payment'][$i]['refunded_at'] = now()->toIso8601String();
+            }
+        }
+
+        return $meta;
     }
 
     /**
