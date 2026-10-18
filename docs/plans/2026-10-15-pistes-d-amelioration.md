@@ -2749,7 +2749,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des demandes d'intervention fait six requêtes par ligne
 - Réf : P20.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-900
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:71,77,237-253`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:264-283`, `takussan-api/app/Models/User.php:299`
 - Constat :
@@ -2759,6 +2759,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture de la ressource et de la politique.
 - Piste : calculer `isPrincipal` une fois par ligne et le réutiliser dans `seesQuote`, et lire `staffAgencyId()` une fois par requête comme les deux ressources voisines ; test de budget sur la liste.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `MaintenanceRequestResource.php:71,77,237-253` (`seesQuote()` et `isPrincipal()` appellent chacun `MaintenanceRequestPolicy::isPrincipalFor()`), `MaintenanceRequestPolicy.php:264-283` (`isSuperAdmin()` puis `staffAgencyId()`), `User.php:299-302` (résolveur, sans cache) ; test temporaire, retiré depuis, `GET /api/maintenance-requests?include=property&fields[properties]=…&per_page=20` en admin d'agence → 36 requêtes pour 2 lignes, 96 pour 12 (6 par ligne : `agent_profiles`, `agency_admin_profiles`, `platform_profiles`, deux de chaque). Charge 3,45 sur 8 cœurs. Constat confirmé. Classement : A2, la réponse ne change pas ; le correctif calcule `isPrincipal` une fois par ligne et le réutilise dans `seesQuote`, et lit `staffAgencyId()` une fois par requête dans `$request->attributes` comme `LeaseResource.php` et `CustomerResource.php`, avec un test de budget de requêtes sur la liste ; la relecture de `isSuperAdmin()` par ligne relève de P20.03.
+- Mesure (2026-10-18, 69aa075d, implementeur) : test de garde `MaintenanceRequestListQueryBudgetTest` (`GET /api/maintenance-requests?include=property…` en admin d'agence) avant correctif → 19 requêtes de profil pour 2 lignes, 59 pour 12 (4 par ligne depuis TCK-711), rouge. Correctif : `isPrincipal` une fois par ligne, réutilisé par `seesQuote`, et l'agence du personnel lue une fois par requête dans `$request->attributes` par un fournisseur passé à `isPrincipalFor()` → même compte à 2 et à 12 lignes, vert. Ablations : ressource d'origine → rouge (19/59) ; sans le cache par requête → rouge (15/35) ; remis → vert. 368 tests des classes de maintenance et de celles qui citent la route, la ressource ou la policy → verts.
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
