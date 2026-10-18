@@ -400,12 +400,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
-- Statut : validé — arrondir `nowIso` à la minute ; reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
+- Statut : fait · TCK-867 — reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
 - Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
 - Piste : `enabled` réservé à l'onglet actif, et `nowIso` arrondi à la minute.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `VisitsList.tsx:37-69` (cinq `useVisits`, `nowIso = useMemo(() => new Date().toISOString(), [])`, recalculé à chaque montage, dans les paramètres donc la clé) et l. 88-93 : chaque onglet affiche `query.data.meta.total` en badge, et la requête « Non attribuées » part aussi pour qui n'est pas du personnel. Le constat tient, mais il omet que les quatre requêtes inactives nourrissent les compteurs visibles. Classement : V7, réserver `enabled` à l'onglet actif retire ou change les compteurs affichés, un choix d'interface ; seul l'arrondi de `nowIso` relèverait d'A2.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `VisitsList.cle-a-la-minute.tck-867.test.tsx` (horloge simulée) relève deux instants distincts, à la milliseconde, pour deux montages dans la même minute, donc deux jeux de clés `visitsQueryKeys.list(params)` → `nowIso` arrondi à la minute vers le bas, un seul instant `…10:15:00.000Z`, vert, 37 tests de `components/visits` verts ; ablation : `VisitsList.tsx` remis à l'état d'avant → rouge, remis → vert.
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
