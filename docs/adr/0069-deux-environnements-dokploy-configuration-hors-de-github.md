@@ -151,7 +151,8 @@ Trois faits rendent la troisième décision possible :
   serveur compromis ne peut plus effacer ses propres sauvegardes de la semaine.
 - **ADR-0028 § 7 s'applique à WAL-G avant la mise en production.** Il faut une restauration à un
   instant choisi, sur une instance vierge, mesurée : comptes de lignes, et la dernière ligne écrite
-  avant l'instant visé est présente.
+  avant l'instant visé est présente. *Depuis le 2026-10-18 (P42.03, ADR-0028 § 7 amendé), la copie
+  doit aussi se lire : `backup:verify-encryption` sort en `0` avec l'`APP_KEY` de l'environnement.*
 
 ## Conséquences
 

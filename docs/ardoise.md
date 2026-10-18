@@ -338,8 +338,14 @@ le DDL qu'on éprouve.
 > **la suite de tests n'exécute aucun `down()`**. Le `down()` est le code le moins exécuté du dépôt,
 > et le seul dont on ait besoin le jour où un déploiement tourne mal.
 
-### D-05bis — Aucun chemin de rollback au-delà du cutover RBAC ✅ *documenté le 2026-08-12*
+### D-05bis — Aucun chemin de rollback au-delà du cutover RBAC ✅ *documenté le 2026-08-12, re-documenté le 2026-10-18*
 
+> ⚠ **Le guide qui portait cet encadré, `docs/infra/deploy-preview.html`, a été supprimé le
+> 2026-09-13** (9f6f6620a, TCK-514), sans que sa consigne passe dans `hebergement.md` : pendant
+> cinq semaines, « documenté » renvoyait à un fichier absent (piste P42.01). La consigne vit
+> désormais dans [`hebergement.md`](infra/hebergement.md), runbook, « Avant une migration
+> irréversible » (TCK-883).
+>
 > **Documenté** (la contrainte, elle, ne se corrige pas) : le guide de déploiement porte un
 > encadré en tête de sa section Rollback. Il dit ce que le rollback ne peut PAS annuler — il
 > restaure le code, jamais le schéma — et impose le dump pré-déploiement comme seule marche
