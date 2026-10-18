@@ -1796,7 +1796,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### La policy du registre RGPD n'est jamais exécutée
 - Réf : P12.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-897
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/PrivacyRequestPolicy.php:18,23,28,33`
 - Constat :
@@ -1806,15 +1806,17 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : mesuré.
 - Piste : un test unitaire de la policy par méthode.
 - Mesure (2026-10-15, 89a52efe, mesureur) : lu `PrivacyRequestPolicy.php:16-34` (quatre `return false`), appelée par `PrivacyRequestController.php:31,81` et `Store/UpdatePrivacyRequestRequest::authorize()` ; clover CI du run 38700039987 (`dev`, 53b3d2ee, aucun commit depuis sur la policy) → lignes 18, 23, 28, 33 à `count=0` ; `grep -rl PrivacyRequestPolicy tests` → seule `tests/impact-map.json`. Le constat tient : le super-admin passe par `Gate::before` et tout autre appelant est arrêté par le middleware `super-admin` avant la policy. Classement : A5, un test unitaire par méthode (refus pour un non-super-admin, accord du super-admin par `Gate::before`) sans toucher à l'autorisation.
+- Mesure (2026-10-18, 69aa075d, implementeur) : les quatre `return false` de `PrivacyRequestPolicy.php` passés à `true` → `PrivacyRequestRegistryTest` reste vert (7/7), le constat tient. Test neuf `tests/Unit/Policies/PrivacyRequestPolicyTest.php` (trois rôles hors plateforme refusés en direct et par la Gate, super-admin accordé par `Gate::before`) → 7 verts ; ablation méthode par méthode, chaque `return false` passé à `true` → 6 rouges sur 7 ; remis → 7 verts.
 
 ### Le code de signature de bail envoyé par e-mail n'est jamais rendu
 - Réf : P12.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-898
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:41-48`
 - Constat : `toMail` est à 0 dans le clover CI, alors que le code OTP n'existe que là. Les tests figent la notification sans la rendre (mesuré).
 - Piste : rendre le mail et asserter qu'il contient le code.
 - Mesure (2026-10-15, 89a52efe, mesureur) : clover CI du run 38700039987 (`dev`, 53b3d2ee ; fichier inchangé depuis) → `LeaseSignatureCodeNotification::toMail` à `count=0` (lignes 41-48), `toSms` à 1 ; lu `toMail()` (`LeaseSignatureCodeNotification.php:39-49`) : le code n'y paraît qu'en `->line('**'.$code.'**')` ; les deux tests qui la citent (`LeaseSignatureTest.php`, `MobileClassEventsTest.php`) n'appellent pas `toMail`. Classement : A5, ajouter un test qui rend le mail et y cherche le code, sans changer le code de production.
+- Mesure (2026-10-18, 69aa075d, implementeur) : `grep toMail` sur les trois tests qui citent `LeaseSignatureCodeNotification` (`LeaseSignatureTest`, `MobileClassEventsTest`, `AmbiguousSmsFailureTest`) → aucun appel, le constat tient. Test neuf `tests/Unit/Notifications/LeaseSignatureCodeNotificationTest.php` (`via` = `mail`, mail rendu avec le code, la référence en objet et en corps, la phrase de validité, aucune clé brute) → vert ; ablation, la ligne du code retirée de `toMail()` → rouge, la ligne de validité retirée → rouge ; remis → vert.
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
@@ -1837,7 +1839,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P12.10
-- Statut : retenu · autonome
+- Statut : fait · TCK-899 — reste : le `assertTrue(true)` de `tests/Unit/ExampleTest.php` (test d'exemple du squelette, sans code à garder) et les assertions sur les arguments des six mocks front, à nommer
 - Gravité : 🟢 amélioration
 - Constat (mesuré) :
   - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
@@ -1850,6 +1852,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
 - Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
 - Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rn 'assertTrue(true)' tests` → 3 (`ExampleTest.php:14`, `SeedingMediaFailuresTest.php:154`, `DigestBuilderServiceTest.php:131`) ; lu `SponsoredImpressionsTest.php:38` (lit la clé de l'heure `now()` après deux recherches) et `MaintenanceStructuredQuoteTest.php:93` (compare à `now()->addDays(10)->toDateString()`), `grep -c 'freezeTime\|travelTo'` → 0 dans les deux fichiers ; la carte d'impact a été régénérée le 2026-10-15 (`3a2c9108`, sur `53b3d2ee`) et il lui manque encore 15 classes dont `RentalSettingsCatalogueTest`, surtout des gardes qui ne couvrent pas `app/` : partie non retenue ; l'exemple front `MaintenanceScheduler.test.tsx:70` est inexact (l. 67-68 vérifient déjà l'argument `mode`) et les six tests ne sont pas nommés : partie non re-mesurée. Retenu : le temps figé dans les deux tests et les trois `assertTrue(true)`. Classement : A5, rendre déterministes et effectifs des tests existants, sans seuil ni choix de produit.
+- Mesure (2026-10-18, 69aa075d, implementeur) : `SponsoredImpressionsTest` fige déjà l'heure (`travelTo`, ajouté par TCK-708, `fb66ad627`), partie caduque ; `MaintenanceStructuredQuoteTest` sans temps figé et les trois `assertTrue(true)` tiennent. Correctifs de test : `freezeTime()` dans `test_amount_is_computed_from_the_lines`, sortie du seeder captée et vide, aucune requête pour `markDigested(collect())` → 27 verts sur les trois classes. Horloge accélérée d'un jour par appel (mesure seule, non commitée) : sans `freezeTime()` → rouge (`2026-12-23` contre `2027-02-12`), avec → vert ; ablation de la garde `$attempted === 0` du seeder → rouge, de la garde `empty($ids)` de `markDigested()` → rouge ; remis → vert.
 
 ## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
 
@@ -2749,7 +2752,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des demandes d'intervention fait six requêtes par ligne
 - Réf : P20.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-900
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/MaintenanceRequestResource.php:71,77,237-253`, `takussan-api/app/Policies/MaintenanceRequestPolicy.php:264-283`, `takussan-api/app/Models/User.php:299`
 - Constat :
@@ -2759,6 +2762,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture de la ressource et de la politique.
 - Piste : calculer `isPrincipal` une fois par ligne et le réutiliser dans `seesQuote`, et lire `staffAgencyId()` une fois par requête comme les deux ressources voisines ; test de budget sur la liste.
 - Mesure (2026-10-15, d62e3290, mesureur) : relu `MaintenanceRequestResource.php:71,77,237-253` (`seesQuote()` et `isPrincipal()` appellent chacun `MaintenanceRequestPolicy::isPrincipalFor()`), `MaintenanceRequestPolicy.php:264-283` (`isSuperAdmin()` puis `staffAgencyId()`), `User.php:299-302` (résolveur, sans cache) ; test temporaire, retiré depuis, `GET /api/maintenance-requests?include=property&fields[properties]=…&per_page=20` en admin d'agence → 36 requêtes pour 2 lignes, 96 pour 12 (6 par ligne : `agent_profiles`, `agency_admin_profiles`, `platform_profiles`, deux de chaque). Charge 3,45 sur 8 cœurs. Constat confirmé. Classement : A2, la réponse ne change pas ; le correctif calcule `isPrincipal` une fois par ligne et le réutilise dans `seesQuote`, et lit `staffAgencyId()` une fois par requête dans `$request->attributes` comme `LeaseResource.php` et `CustomerResource.php`, avec un test de budget de requêtes sur la liste ; la relecture de `isSuperAdmin()` par ligne relève de P20.03.
+- Mesure (2026-10-18, 69aa075d, implementeur) : test de garde `MaintenanceRequestListQueryBudgetTest` (`GET /api/maintenance-requests?include=property…` en admin d'agence) avant correctif → 19 requêtes de profil pour 2 lignes, 59 pour 12 (4 par ligne depuis TCK-711), rouge. Correctif : `isPrincipal` une fois par ligne, réutilisé par `seesQuote`, et l'agence du personnel lue une fois par requête dans `$request->attributes` par un fournisseur passé à `isPrincipalFor()` → même compte à 2 et à 12 lignes, vert. Ablations : ressource d'origine → rouge (19/59) ; sans le cache par requête → rouge (15/35) ; remis → vert. 368 tests des classes de maintenance et de celles qui citent la route, la ressource ou la policy → verts.
 
 ### `isSuperAdmin()` est relu à chaque ligne des baux, des clients et des réservations
 - Réf : P20.03
