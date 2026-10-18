@@ -1151,12 +1151,13 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : validé — libellés contextuels et captions en fr/en ; en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16)
+- Statut : fait · TCK-912
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
 - Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : `grep -c caption` → 0 dans `payments/InvoicesTable.tsx`, `payments/PayoutsTable.tsx`, `payments/PaymentsHistoryTable.tsx` et `billing/PayoutTable.tsx`, qui rendent un `<table>` nu (`PayoutsTable.tsx:67`, `PaymentsHistoryTable.tsx:84`, `PayoutTable.tsx:106`) ; `InvoicesTable.tsx:99-106` et `PayoutsTable.tsx:116` rendent `tTable('open')` (« Ouvrir », `messages/fr.json:1779`) sans libellé propre à la ligne ; `PropertyReviewForm.tsx:69,80` pose `role="radiogroup"`/`role="radio"` sans aucun `onKeyDown` ni gestion des flèches ; `console/DataTable.tsx:61-65` impose bien `caption` → tout tient. Classement : V7, chaque caption et chaque libellé contextuel est un texte neuf à écrire dans les trois langues, et passer par `DataTable` refond quatre tableaux.
+- Mesure (2026-10-18, f41284c32, implementeur) : reproduit avant correctif : `payments/__tests__/tableaux-nommes.tck-912.test.tsx` → 6 rouges sur 6 (aucun des quatre `<table>` n'a de nom accessible, aucun bouton « Ouvrir la facture/le reversement <réf> ») → `<caption className="sr-only">` sur les quatre tableaux et `aria-label` contextuel sur les boutons des factures et reversements, clés fr/en, `wo` en français ; ablation (composants d'avant, clés gardées) → 6 rouges, correctif remis → 6 verts, 100 verts dans `payments/__tests__` et `billing/__tests__`. La navigation aux flèches des `role="radio"` de `PropertyReviewForm.tsx`, hors `Piste`, n'est pas faite.
 
 ## Angle 8 — Parcours sur téléphone
 
@@ -1268,7 +1269,7 @@ Sain (vérifié par l'agent) :
 
 ### Petites améliorations
 - Réf : P08.10
-- Statut : validé — selon la piste
+- Statut : fait · TCK-913 — reste : les squelettes de chargement des fiches publiques de bien, d'agence et d'agent, qu'un `loading.tsx` sous `[slug]` servirait en soft-404 (200, TCK-335) : une autre forme est à choisir
 - Gravité : 🟢 amélioration
 - Où et constat (lu ou mesuré) :
   - `leases/GuarantorSection.tsx:81-84,188-192` : téléphone du garant sans `type="tel"` ni lien `tel:` ;
@@ -1278,6 +1279,7 @@ Sain (vérifié par l'agent) :
   - `capture` absent de l'état des lieux et des photos du bien (`InventoryDetail.tsx:263`, `StepPhotos.tsx:31`).
 - Piste : `PhoneInput`, `FormAmountInput`, `90dvh` dans la primitive, des squelettes de chargement, et un second bouton « Prendre une photo » avec `capture="environment"`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `GuarantorSection.tsx:81-84` (téléphone affiché en texte, sans lien `tel:`) et l. 188-192 (`FormInput` `name="phone"` sans `type`) ; `CreateLeaseForm.tsx:229,239,249,273` : `type="number"` sans `inputMode` ; `ui/sheet.tsx:102` `max-h-[90vh]` contre `PropertyListFilters.tsx:395` `max-h-[88dvh]` ; `ls` de `(public)/properties/[slug]`, `(public)/agencies/[slug]`, `(public)/agents/[slug]` → aucun `loading.tsx` (seul `properties/(liste)/loading.tsx` existe) ; `InventoryDetail.tsx:263` et `StepPhotos.tsx:31` passent par `MediaDropzone` sans `capture`, que seuls trois composants de `maintenance/` posent → les cinq points tiennent. Classement : V7, le second bouton photo et les squelettes sont du comportement visible et du design neufs ; `type="tel"`, `inputMode` et `dvh`, pris seuls, relèveraient de A4.
+- Mesure (2026-10-18, f41284c32, implementeur) : les cinq points tiennent (`GuarantorSection.tsx:86` texte nu et `FormInput` sans `type`, `CreateLeaseForm.tsx` en `type="number"` sans `inputMode`, `ui/sheet.tsx:102` en `90vh`, aucun `loading.tsx` sous les trois `[slug]`, `MediaDropzone` sans `capture`) ; `saisie-mobile.tck-913.test.tsx` et `prendre-une-photo.tck-913.test.tsx` → 8 rouges sur 9 → lien `tel:` et `PhoneInput` pour le garant, `FormAmountInput` pour loyer, prix et caution, `inputMode="numeric"` au jour de paiement, `90dvh` dans la primitive, prop `camera` de `MediaDropzone` (« Prendre une photo », `capture="environment"`) sur les photos du bien et de l'état des lieux ; ablation (composants d'avant) → 8 rouges, remis → 9 verts, 603 verts dans les dossiers voisins. Les squelettes ne sont pas faits : un `loading.tsx` sous `[slug]` rendrait `notFound()` en 200 (en-tête de `properties/(liste)/loading.tsx`, TCK-335).
 
 ## Angle 9 — Pages publiques : SEO et partage
 
@@ -3700,7 +3702,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### 26 équipements du catalogue sur 35 s'affichent avec l'icône générique
 - Réf : P30.05
-- Statut : validé — clés d'icônes alignées sur les slugs du catalogue, icône Lucide la plus proche, revue à la PR ; un test rougit sur un slug du catalogue sans icône
+- Statut : fait · TCK-914
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:23-60`, `.../PropertyAmenities.tsx:19`
 - Constat :
@@ -3709,6 +3711,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Une partie des clés ne correspond à aucun slug du catalogue : `cuisine`, `securite`, `salle_sport`, `buanderie`, `internet`, `meuble` (lu).
 - Piste : clés d'icônes alignées sur les slugs du catalogue, et un test qui rougit sur un slug du catalogue sans icône (même lecture du fichier PHP que `libelle-equipement.test.ts`). Le choix des icônes est un choix de design.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `PropertyAmenities.tsx:19` (`tag.icon ?? tag.slug`) et `amenity-icons.ts` ; `SELECT type, status, count(*), count(icon) FROM tags GROUP BY 1,2` en lecture sur la base de développement → 0 icône sur 41 lignes ; script `node` des slugs de `TagCatalog::EQUIPEMENTS` face aux clés de `AMENITY_ICONS` → 9 sur 35 ont une icône (`piscine, climatisation, ascenseur, parking, garage, terrasse, jardin, wifi, tv`), 26 retombent sur `Building2` ; le constat tient. Classement : V7, aligner les clés demande de choisir 26 icônes.
+- Mesure (2026-10-18, f41284c32, implementeur) : reproduit avant correctif : `amenity-icons.tck-914.test.ts` lit `TagCatalog::EQUIPEMENTS` → 26 slugs sur 35 retombent sur `Building2` (les mêmes que la mesure du 2026-10-16), et les clés hors catalogue font rougir le 27e test → `AMENITY_ICONS` indexé par les 35 slugs, une icône Lucide chacun ; ablation (fichier d'avant) → 27 rouges, remis → 37 verts, 170 verts sous `properties/[slug]`.
 
 ### Petites améliorations
 - Réf : P30.06

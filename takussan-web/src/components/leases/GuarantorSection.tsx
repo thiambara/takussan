@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Controller } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
@@ -11,11 +12,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
+  FormError,
   FormInput,
   FormSelect,
   FormTextarea,
   FormGlobalError,
 } from '@/components/forms';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useCreateGuarantor, useLeaseGuarantors } from '@/lib/queries/leases';
 import { guarantorSchema, type GuarantorFormValues } from '@/lib/schemas/lease';
@@ -83,7 +86,15 @@ export function GuarantorSection({
                 {guarantor.phone && (
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('phone')}</dt>
-                    <dd className="text-foreground">{guarantor.phone}</dd>
+                    <dd className="text-foreground">
+                      {/* TCK-913 — un appui appelle le garant, depuis la fiche du bail. */}
+                      <a
+                        href={`tel:${guarantor.phone.replace(/\s+/g, '')}`}
+                        className="underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {guarantor.phone}
+                      </a>
+                    </dd>
                   </div>
                 )}
                 {guarantor.email && (
@@ -184,10 +195,28 @@ function GuarantorDialog({
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormInput<GuarantorFormValues>
+            {/* TCK-913 — `PhoneInput` : clavier téléphonique, indicatif en préfixe, valeur E.164. */}
+            <Controller
               control={form.control}
               name="phone"
-              label={t('phone')}
+              render={({ field, fieldState }) => (
+                <div className="w-full">
+                  <label htmlFor="field-phone" className="mb-1.5 block text-sm font-medium">
+                    {t('phone')}
+                  </label>
+                  <PhoneInput
+                    id="field-phone"
+                    name={field.name}
+                    value={field.value ?? ''}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    aria-invalid={fieldState.error ? true : undefined}
+                    aria-describedby={fieldState.error ? 'field-phone-error' : undefined}
+                  />
+                  <FormError id="field-phone-error">{fieldState.error?.message}</FormError>
+                </div>
+              )}
             />
             <FormInput<GuarantorFormValues>
               control={form.control}

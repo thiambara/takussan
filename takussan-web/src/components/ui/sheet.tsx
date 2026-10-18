@@ -99,7 +99,7 @@ function SheetContent({
         className={cn(
           "fixed z-50 flex flex-col bg-card shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)] outline-none duration-200 data-open:animate-in motion-reduce:data-open:animate-none data-closed:animate-out motion-reduce:data-closed:animate-none",
           (side === "left" || side === "right") && "inset-y-0 h-full w-72",
-          (side === "top" || side === "bottom") && "inset-x-0 w-full max-h-[90vh]",
+          (side === "top" || side === "bottom") && "inset-x-0 w-full max-h-[90dvh]",
           side === "left" &&
             "left-0 data-open:slide-in-from-left data-closed:slide-out-to-left",
           side === "right" &&
