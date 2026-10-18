@@ -4,7 +4,7 @@ import { KeyRound, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
-import { formatCurrency } from '@/lib/format/currency';
+import { formatMontant } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
 
@@ -35,7 +35,7 @@ interface PropertyMobileBottomBarProps {
 
 // TCK-078 — shared formatter.
 function formatPrice(price: number, currency: string | null): string {
-  return formatCurrency(price, currency ?? 'XOF');
+  return formatMontant(price, currency ?? 'XOF');
 }
 
 export function PropertyMobileBottomBar({

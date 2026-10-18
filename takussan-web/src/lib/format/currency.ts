@@ -1,5 +1,5 @@
 /**
- * TCK-084 — multi-currency-aware `formatCurrency` helper.
+ * TCK-084 — multi-currency-aware `formatMontant` helper.
  *
  * Builds on the TCK-078 single-callsite helper: callers still pass `(amount,
  * currency)` and get back a localised string. The difference is that the
@@ -16,8 +16,12 @@
  * "F CFA") that drift from the spec contract. Instead we format the number
  * in `decimal` style and append the symbol from {@link CURRENCY_METADATA}.
  *
- * The `Money` component and the Blade `@currency` directive both share this
- * exact contract — keep them in sync if you tweak any rule below.
+ * The Blade `@currency` directive shares this exact contract — keep them in
+ * sync if you tweak any rule below.
+ *
+ * TCK-917 — s'appelait `formatCurrency`, comme celui de `lib/format.ts`, dont le second argument
+ * est une LANGUE et non une devise. `formatCurrency(prix, 'fr')` importé d'ici retombait sans bruit
+ * sur XOF : les deux noms ne se confondent plus.
  */
 
 const DEFAULT_CURRENCY: CurrencyCode = 'XOF';
@@ -65,12 +69,12 @@ function getMetadata(currency: CurrencyCode | string): CurrencyMetadata {
  * `undefined`, or `NaN` so callers can drop the result straight into JSX.
  *
  * @example
- *   formatCurrency(150_000)          // "150 000 F CFA"
- *   formatCurrency(150_000.5, 'EUR') // "150 000,50 €"
- *   formatCurrency(150_000, 'USD')   // "$150,000.00"
- *   formatCurrency(null, 'EUR')      // ""
+ *   formatMontant(150_000)          // "150 000 F CFA"
+ *   formatMontant(150_000.5, 'EUR') // "150 000,50 €"
+ *   formatMontant(150_000, 'USD')   // "$150,000.00"
+ *   formatMontant(null, 'EUR')      // ""
  */
-export function formatCurrency(
+export function formatMontant(
   amount: number | null | undefined,
   currency: CurrencyCode | string = DEFAULT_CURRENCY,
   options: FormatCurrencyOptions = {},

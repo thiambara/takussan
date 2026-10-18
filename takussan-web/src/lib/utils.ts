@@ -1,16 +1,16 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { formatCurrency } from "./format/currency"
+import { formatMontant } from "./format/currency"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 // TCK-078 — delegate to the single currency helper. New call sites should
-// import `formatCurrency` from `@/lib/format/currency` directly; this
+// import `formatMontant` from `@/lib/format/currency` directly; this
 // wrapper stays for source-compat with existing imports.
 export function formatPrice(amount: number, currency = 'XOF', locale = 'fr-SN'): string {
-  return formatCurrency(amount, currency, { locale });
+  return formatMontant(amount, currency, { locale });
 }
 
 export function formatDate(date: string | Date, locale = 'fr-SN'): string {

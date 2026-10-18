@@ -7,7 +7,6 @@
  * the fields you explicitly requested when consuming these types.
  */
 
-import type { PaginatedResponse } from './api';
 import type { Tag } from './tag';
 
 export type IdType = 'id_card' | 'passport' | 'driving_license';
@@ -92,5 +91,3 @@ export interface CustomerRelationship {
   /** Rendu par `GET /api/customers/{id}/relationships` ; le référent se nomme par lui (TCK-591). */
   user?: { id: number; name: string; email: string | null } | null;
 }
-
-export type PaginatedCustomers = PaginatedResponse<CustomerListItem>;

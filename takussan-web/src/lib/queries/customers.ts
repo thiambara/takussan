@@ -235,8 +235,6 @@ export async function fetchCrmTags(
 
 /** Client-side upload guard per TCK-042 (10MB, images + PDF). */
 export const CUSTOMER_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
-export const CUSTOMER_DOCUMENT_ACCEPT =
-  'image/jpeg,image/png,image/webp,image/gif,application/pdf';
 
 /**
  * Motif de refus d'un document client — un JETON, pas un libellé (TCK-292).

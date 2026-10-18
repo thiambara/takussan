@@ -1,15 +1,10 @@
-import { apiRequest, buildQueryString } from '@/lib/api';
-import type {
-  PaginatedResponse,
-  ApiResponse,
-  SpatieQueryParams,
-} from '@/types/api';
+import { apiRequest } from '@/lib/api';
+import type { ApiResponse } from '@/types/api';
 import type { User } from '@/types/user';
-import { cheminApi, requete } from '@/lib/chemin-api';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
- * Agency member queries — TCK-065. All reads use spatie query params
- * (fields[], filter[], include, sort). Mutations target the canonical
+ * Agency member mutations — TCK-065. They target the canonical
  * `/api/agencies/{id}/members` routes.
  */
 
@@ -24,49 +19,6 @@ export const AGENCY_MEMBER_FIELDS = [
 ] as const;
 
 export type AgencyMemberRole = 'agent' | 'agency_admin';
-
-export interface AgencyMembersFilters {
-  readonly role?: AgencyMemberRole;
-  readonly search?: string;
-}
-
-export interface FetchAgencyMembersParams {
-  readonly page?: number;
-  readonly perPage?: number;
-  readonly sort?: string;
-  readonly filters?: AgencyMembersFilters;
-}
-
-function buildMembersParams({
-  page,
-  perPage,
-  sort,
-  filters,
-}: FetchAgencyMembersParams): SpatieQueryParams {
-  const filter: Record<string, string> = {};
-  if (filters?.role) filter.role = filters.role;
-  if (filters?.search) filter.search = filters.search;
-
-  return {
-    fields: { users: AGENCY_MEMBER_FIELDS },
-    filter,
-    sort: sort ?? '-created_at',
-    page: page ?? 1,
-    per_page: perPage ?? 20,
-  };
-}
-
-export async function fetchAgencyMembers(
-  agencyId: number,
-  token: string,
-  params: FetchAgencyMembersParams = {},
-): Promise<PaginatedResponse<User>> {
-  const qs = buildQueryString(buildMembersParams(params));
-  return apiRequest<PaginatedResponse<User>>(
-    cheminApi`/api/agencies/${agencyId}/members${requete(qs)}`,
-    { token },
-  );
-}
 
 export interface AddAgencyMemberPayload {
   readonly email?: string;
@@ -91,22 +43,6 @@ export async function addAgencyMember(
     {
       method: 'POST',
       body: payload,
-      token,
-    },
-  );
-}
-
-export async function updateAgencyMemberRole(
-  agencyId: number,
-  userId: number,
-  role: AgencyMemberRole,
-  token: string,
-): Promise<ApiResponse<{ user_id: number; role: string; roles: string[] }>> {
-  return apiRequest(
-    cheminApi`/api/agencies/${agencyId}/members/${userId}/role`,
-    {
-      method: 'PUT',
-      body: { role },
       token,
     },
   );

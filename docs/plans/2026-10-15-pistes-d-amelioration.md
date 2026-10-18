@@ -2171,7 +2171,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
 
 ### Petites améliorations
 - Réf : P13.10
-- Statut : validé — fichiers et exports morts côté front, et un seul `formatCurrency` ; reste : le retrait des colonnes en base et le rapport des clés i18n inutilisées
+- Statut : fait · TCK-917 — reste : le retrait des colonnes en base et le rapport des clés i18n inutilisées
 - Gravité : 🟢 amélioration
 - Constat (mesuré par un script de résolution d'imports, tests exclus, sauf mention) :
   - **Fichiers front morts** : 8, dont :
@@ -2195,6 +2195,7 @@ L'angle a trouvé des **fonctions cassées par un contrat rompu** plus que du co
   - **Clés i18n** : environ 202 feuilles sur 8 032 ont un nom absent du code, une partie dynamique. Aucune garde ne les voit.
 - Piste : supprimer après relecture des cinq ou six éléments qui touchent un parcours ; un seul `formatCurrency` ; documenter ou retirer les colonnes ; un rapport des clés i18n inutilisées (pas encore un cliquet).
 - Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rlw` hors tests dans `takussan-web/src` → `Money.tsx` sans importeur ; `ShareButton`, `deleteWizardDraft`, `useUpdateLease`, `useRefundDeposit`, `useConfirmEarlyTermination`, `switchActiveProfileAction` présents dans leur seul fichier de définition, `useRequireAuth` en plus dans un commentaire d'`AuthContext.tsx:63` ; `formatCurrency` défini deux fois (`lib/format.ts:158`, `lib/format/currency.ts:73`) ; `PhoneRule` citée par le seul commentaire de `ResendPhoneVerificationRequest.php:42`, qui l'écarte délibérément ; `acceptForAuthenticatedUser`, `filterChannels`, `effectiveLimitsForAgency` et l'enum `UserRole` (`app/Models/Enums/UserRole.php`) présents dans un seul fichier d'`app` ; les sept colonnes ne figurent que dans leur modèle → tient sur ce qui a été re-mesuré ; les normalisations de téléphone, `formatRelativeDate` et les clés i18n n'ont pas été re-mesurées. Classement : V4 et V8, retirer des colonnes change le schéma, et l'ensemble fait plusieurs tickets.
+- Mesure (2026-10-18, 955796904, implementeur) : reproduit avant correctif par un résolveur d'imports temporaire (tests exclus) : 8 fichiers sans importeur (`Money.tsx`, `useAgencyCurrency.ts`, `ShareButton.tsx`, `useRequireAuth.ts`, `StubPlaceholder.tsx`, `components/property/index.ts`, `types/common.ts`, `types/payment.ts`), 30 exports sans appelant ni test, dont ceux du constat ; `lib/share.ts` a désormais un appelant (`PropertyShareDialog`) et reste ; `formatCurrency` déclaré dans `lib/format.ts` et `lib/format/currency.ts` → les cinq fichiers sans test et les 30 exports retirés, le second formateur renommé `formatMontant` ; `Money`, `useAgencyCurrency` et `ShareButton` restent, faute de pouvoir retirer leurs tests (garde de l'implémenteur) : au porteur de les retirer ; `code-mort.tck-917.test.ts` 37 rouges avant, ablation (`src` d'origine, test gardé) → 37 rouges, remis → 37 verts ; 49 fichiers de tests des modules touchés verts (351 tests). Les exports que seuls des tests importent restent ; `useConfirmEarlyTermination` était le seul appelant front de `early-termination/confirm`.
 
 ## Angle 15 — Parcours d'une agence neuve
 
@@ -3915,7 +3916,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : validé — `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport seul, sans seuil ni refus ; le seuil se décide plus tard sur les chiffres
+- Statut : retenu · à valider — chemin fermé : `.github/workflows/web-ci.yml`, la décision branche le script après le build de `web-ci`
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -3924,6 +3925,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - La mesure de ce passage tient en un script de 30 lignes sur des fichiers que `next build` produit déjà (`page_client-reference-manifest.js`, `build-manifest.json`, `next-font-manifest.json`), sans dépendance.
 - Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
 - Mesure (2026-10-17, ec405f7a, mesureur) : `grep -rlin 'budget\|gzip' scripts .github/workflows takussan-web/scripts` → `check-super-admin-tokens.mjs`, `check-i18n-namespaces.mjs` et `scripts/agents/pistes.sh` (sans rapport) ; `ls takussan-web/scripts | grep -i poids` → vide ; aucun commit ne cite `poids-des-routes` hors l'angle 33 → aucune garde ne voit le poids des routes, le constat tient. Classement : V5, le script ne sert que branché après le build de `.github/workflows/web-ci.yml`, et V9, son refus de `zod` au layout racine est un seuil de garde neuf.
+- Mesure (2026-10-18, 955796904, implementeur) : `ls takussan-web/scripts | grep -i poids` → vide, et `git log origin/pre-dev --grep=poids-des-routes` → aucun commit : le constat tient ; la décision du porteur branche le script après le build de `web-ci` (`.github/workflows/web-ci.yml:120`), chemin fermé à l'implémenteur (V5). Le script seul, sans branchement, ne servirait pas : la piste revient au porteur.
 
 ### Petites améliorations
 - Réf : P33.06

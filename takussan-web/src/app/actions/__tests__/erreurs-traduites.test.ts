@@ -47,21 +47,15 @@ import { attendTexteAffichable } from '@/test/cles-brutes';
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 
 const fetchMyProfilesMock = vi.fn();
-const patchActiveProfileMock = vi.fn();
 vi.mock('@/lib/profiles', () => ({
-  ACTIVE_PROFILE_COOKIE: 'active_profile',
   fetchMyProfiles: (...a: unknown[]) => fetchMyProfilesMock(...a),
-  patchActiveProfile: (...a: unknown[]) => patchActiveProfileMock(...a),
 }));
 // TCK-600 (O1) — `getMyProfilesAction` lit le profil actif de l'espace applicatif, jamais le cookie
 // de l'opérateur.
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton-de-test', getActiveProfileId: async () => undefined }));
-vi.mock('next/headers', () => ({
-  cookies: async () => ({ get: () => undefined, set: () => {} }),
-}));
 
 import { ApiError } from '@/lib/api';
-import { getMyProfilesAction, switchActiveProfileAction } from '@/app/actions/profiles';
+import { getMyProfilesAction } from '@/app/actions/profiles';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -186,14 +180,5 @@ describe('getMyProfilesAction rend du français, jamais une clé', () => {
     const r = (await getMyProfilesAction()) as Echec;
     attendTexteAffichable(r.message, 'getMyProfilesAction');
     expect(r.message).toBe(attendu);
-  });
-});
-
-describe('switchActiveProfileAction — même chemin, autre action', () => {
-  it('un 401 sentinelle ne renvoie pas la clé', async () => {
-    patchActiveProfileMock.mockRejectedValue(new ApiError(401, { message: 'Unauthenticated.' }));
-    const r = (await switchActiveProfileAction('agent:5')) as Echec;
-    attendTexteAffichable(r.message, 'switchActiveProfileAction');
-    expect(r.message).toBe('Votre session a expiré. Reconnectez-vous.');
   });
 });

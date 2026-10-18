@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import {
   CURRENCY_METADATA,
   currencySymbol,
-  formatCurrency,
+  formatMontant,
   type CurrencyCode,
   type FormatCurrencyOptions,
 } from '@/lib/format/currency';
@@ -67,7 +67,7 @@ export function useAgencyCurrency(
   const formatter = useMemo(
     () =>
       (amount: number | null | undefined, options?: FormatCurrencyOptions) =>
-        formatCurrency(amount, currency, options),
+        formatMontant(amount, currency, options),
     [currency],
   );
 

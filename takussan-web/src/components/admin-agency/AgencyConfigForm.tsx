@@ -17,7 +17,7 @@ import {
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
-import { CURRENCY_METADATA, formatCurrency, type CurrencyCode } from '@/lib/format/currency';
+import { CURRENCY_METADATA, formatMontant, type CurrencyCode } from '@/lib/format/currency';
 import { useTranslations } from 'next-intl';
 import {
   agencyFormSchema,
@@ -391,7 +391,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               placeholder={tCurrency('placeholder')}
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {tCurrency('preview', { example: formatCurrency(100_000, selectedCurrency) })}
+              {tCurrency('preview', { example: formatMontant(100_000, selectedCurrency) })}
             </p>
             {currencyChanged ? (
               <p
@@ -494,7 +494,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
                     {pendingThreshold.threshold == null
                       ? tMoney('thresholdPendingOff')
                       : tMoney('thresholdPendingRaise', {
-                          threshold: formatCurrency(pendingThreshold.threshold, originalCurrency),
+                          threshold: formatMontant(pendingThreshold.threshold, originalCurrency),
                         })}
                   </p>
                   {user != null && pendingThreshold.requested_by_id === user.id ? (

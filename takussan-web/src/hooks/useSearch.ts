@@ -9,7 +9,6 @@ import {
 } from '@/lib/recherche-publique';
 import {
   CLES_DE_RECHERCHE,
-  CLES_DE_CONTROLE,
   SEARCH_FILTER_KEYS,
   agregateurDe,
   definitionDe,
@@ -94,14 +93,6 @@ export function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
 }
 
 // ─── Count active filters (excluding sort, page) ────────────────────────────
-
-/**
- * TCK-340 — dérivé de la table, plus écrit à la main.
- *
- * `SearchToolbar` en tenait une copie mot pour mot (`HIDDEN_FROM_TAGS`) : deux listes qui doivent
- * TOUJOURS coïncider, puisqu'un filtre compté sans puce est un filtre qu'on ne peut pas retirer.
- */
-export const IGNORED_KEYS: readonly CleDeRechercheNom[] = CLES_DE_CONTROLE;
 
 export function countActiveFilters(filters: SearchFilters): number {
   return (Object.keys(filters) as CleDeRechercheNom[])

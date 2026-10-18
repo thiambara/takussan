@@ -61,7 +61,7 @@ export function PayoutStatusPill({ status }: { status: PlatformPayoutStatus }) {
  * un écran est un graphe de rendu.*
  *
  * Le `try/catch` d'origine gardait `Intl.NumberFormat({ style: 'currency' })` contre un code de
- * devise inconnu. Il disparaît avec lui : `formatCurrency` de `@/lib/format/currency` ne jette pas —
+ * devise inconnu. Il disparaît avec lui : `formatMontant` de `@/lib/format/currency` ne jette pas —
  * un code hors enum retombe sur les métadonnées XOF.
  *
  * Les décimales sont celles de la devise du reversement, et non plus 0 imposé (TCK-738).

@@ -120,8 +120,6 @@ export const PAYMENT_METHOD_VALUES = [
   'card',
 ] as const;
 
-export type PaymentMethod = (typeof PAYMENT_METHOD_VALUES)[number];
-
 /*
  * TCK-594 (ADR-0039 §1) — `computePayoutNet` et `commissionFromRate` ont été SUPPRIMÉS : le brut, la
  * commission et le net d'un reversement se calculent côté serveur, depuis les pièces citées et le

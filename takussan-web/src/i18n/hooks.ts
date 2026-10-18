@@ -26,35 +26,6 @@ export function useFormatDate() {
   );
 }
 
-/**
- * Format a number using the active locale (space as thousands separator for
- * French/Wolof, comma for English — both driven by the ICU locale rules).
- *
- * Pass `{ currency: 'XOF' }` to format as a currency. Defaults to decimal.
- */
-export function useFormatNumber() {
-  const formatter = useFormatter();
-  return useCallback(
-    (
-      value: number | null | undefined,
-      options?: { currency?: string; maximumFractionDigits?: number },
-    ) => {
-      if (value === null || value === undefined || Number.isNaN(value)) return '';
-      if (options?.currency) {
-        return formatter.number(value, {
-          style: 'currency',
-          currency: options.currency,
-          maximumFractionDigits: options.maximumFractionDigits ?? 0,
-        });
-      }
-      return formatter.number(value, {
-        maximumFractionDigits: options?.maximumFractionDigits ?? 0,
-      });
-    },
-    [formatter],
-  );
-}
-
 export function useCurrentLocale(): Locale {
   return useLocale() as Locale;
 }

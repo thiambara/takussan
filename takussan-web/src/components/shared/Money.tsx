@@ -2,7 +2,7 @@
 
 import { useAgencyCurrency } from '@/hooks/useAgencyCurrency';
 import {
-  formatCurrency,
+  formatMontant,
   type CurrencyCode,
   type FormatCurrencyOptions,
 } from '@/lib/format/currency';
@@ -58,7 +58,7 @@ export function Money(props: MoneyProps) {
 
   // Explicit currency path — short-circuit so we do not even mount the hook.
   if ('currency' in props && props.currency) {
-    const formatted = formatCurrency(value, props.currency, options);
+    const formatted = formatMontant(value, props.currency, options);
     return (
       <span className={className}>
         {formatted}

@@ -15,7 +15,7 @@
 'use client';
 
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useMemo } from 'react';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
@@ -149,15 +149,6 @@ export function useUpdateFavoriteNotesMutation() {
     },
     { invalidate: [favoritesQueryKeys.all] },
   );
-}
-
-/**
- * Imperative helper — prime the favorites cache (used by the detail page
- * after the SSR pass already knows whether the user favorited a property).
- */
-export function useInvalidateFavorites() {
-  const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: favoritesQueryKeys.all });
 }
 
 // ─── Public lookup by IDs (used by the anonymous favorites popover) ─────
