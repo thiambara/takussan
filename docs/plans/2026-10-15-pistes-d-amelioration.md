@@ -4466,7 +4466,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### L'ordre des motifs de `WaveDriver` range en `paid` tout événement qui contient `completed`, remboursement compris
 - Réf : P39.05
-- Statut : validé — une table explicite des événements Wave, relevée le 2026-10-18 sur docs.wave.com/webhook : `checkout.session.completed` → payé, `checkout.session.payment_failed` → échec, `test.test_event` → 200 sans effet ; `merchant.payment_received`, `b2b.payment_received`, `b2b.payment_failed` et tout nom inconnu sont journalisés et ignorés ; la page ne documente aucun événement de remboursement ; un test par nom
+- Statut : fait · TCK-890
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:122-127`, `takussan-api/tests/Feature/Api/LemonSqueezyEventListenerTest.php:97`
 - Constat :
@@ -4474,6 +4474,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Aucun test n'envoie un remboursement Wave ou Orange Money : le seul test de remboursement est celui de Lemon Squeezy (mesuré : `grep -rln "TYPE_REFUNDED\|session.refunded\|'refunded'" tests` → hors `LemonSqueezyEventListenerTest`, des tests de crédits, de cautions, d'export et du remboursement manuel d'acompte, aucun qui poste un webhook Wave ou Orange Money).
 - Piste : une table explicite des événements Wave (nom exact → type), un événement inconnu journalisé et ignoré plutôt que deviné. Garde : un test par nom d'événement, dont le remboursement.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : relu `WaveDriver::handleWebhook` (bloc `match (true)` des `str_contains`, désormais l. 122-127 inchangées) : `completed`/`succeeded` testés avant `refund` ; aucun test ne poste de remboursement Wave ou Orange Money (`grep` de l'explorateur non contredit). La liste réelle des événements Wave reste absente du dépôt. Classement : V1, la table des événements décide de ce qui solde un paiement, et elle demande la documentation du fournisseur.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par un test temporaire (vrai pilote Wave signé, échéance ouverte, retiré ensuite) : `refund.completed` → 200, type `paid`, échéance `paid` ; `checkout.session.refunded` → `refunded`, `merchant.payment_received` → `pending`, `b2b.payment_failed` → `failed`. Correctif : table explicite dans `WaveDriver`, `PaymentEvent::TYPE_IGNORED` non rapproché → `WaveWebhookEventTableTest`, un cas par nom (8 verts) ; ablation (`WaveDriver` remis à `pre-dev`) → 6 rouges sur 8. `PaymentWebhookTest` envoyait `checkout.session.pending`, nom non documenté : il applique désormais l'événement `pending` au service.
 
 ### Petites améliorations
 - Réf : P39.06
