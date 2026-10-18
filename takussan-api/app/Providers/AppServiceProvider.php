@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\Payments\DisbursementDriverContract;
+use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Listeners\Admin\DispatchAlerts;
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity as AuditActivity;
@@ -134,6 +135,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -162,6 +164,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerCurrencyFormatter();
+        // TCK-851 (P37.01) — un débit numérique (`throttle:N,M`) compte le /64 d'une IPv6. Liaison
+        // dans le conteneur, et non alias : `withoutMiddleware(ThrottleRequests::class)` des tests
+        // remplace cette même entrée, et continue d'éteindre le débit.
+        $this->app->bind(ThrottleRequests::class, ThrottleRequestsByNetwork::class);
         $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
