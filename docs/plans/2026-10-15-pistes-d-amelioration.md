@@ -1807,12 +1807,13 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le code de signature de bail envoyé par e-mail n'est jamais rendu
 - Réf : P12.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-898
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseSignatureCodeNotification.php:41-48`
 - Constat : `toMail` est à 0 dans le clover CI, alors que le code OTP n'existe que là. Les tests figent la notification sans la rendre (mesuré).
 - Piste : rendre le mail et asserter qu'il contient le code.
 - Mesure (2026-10-15, 89a52efe, mesureur) : clover CI du run 38700039987 (`dev`, 53b3d2ee ; fichier inchangé depuis) → `LeaseSignatureCodeNotification::toMail` à `count=0` (lignes 41-48), `toSms` à 1 ; lu `toMail()` (`LeaseSignatureCodeNotification.php:39-49`) : le code n'y paraît qu'en `->line('**'.$code.'**')` ; les deux tests qui la citent (`LeaseSignatureTest.php`, `MobileClassEventsTest.php`) n'appellent pas `toMail`. Classement : A5, ajouter un test qui rend le mail et y cherche le code, sans changer le code de production.
+- Mesure (2026-10-18, 69aa075d, implementeur) : `grep toMail` sur les trois tests qui citent `LeaseSignatureCodeNotification` (`LeaseSignatureTest`, `MobileClassEventsTest`, `AmbiguousSmsFailureTest`) → aucun appel, le constat tient. Test neuf `tests/Unit/Notifications/LeaseSignatureCodeNotificationTest.php` (`via` = `mail`, mail rendu avec le code, la référence en objet et en corps, la phrase de validité, aucune clé brute) → vert ; ablation, la ligne du code retirée de `toMail()` → rouge, la ligne de validité retirée → rouge ; remis → vert.
 
 ### Côté front, la plupart des server actions et des handlers BFF n'ont aucun test
 - Réf : P12.09
