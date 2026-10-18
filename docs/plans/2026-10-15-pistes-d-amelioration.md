@@ -380,12 +380,13 @@ Déjà sain (mesuré ou lu) :
 
 ### La liste pro des biens fait six requêtes HTTP, dont deux en série
 - Réf : P02.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-865 — reste : l'endpoint de compteurs unique en `COUNT(*) FILTER (WHERE …)`, qui ajoute une surface d'API
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:97-125,210-229`
 - Constat : la liste plus cinq `countProperties` (`per_page=1`), dont « vendus » suivi de « loués » en `.then` (lu).
 - Piste : un seul endpoint de compteurs en `COUNT(*) FILTER (WHERE …)`, comme `DashboardAgencyService.php:42-52`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `properties/(liste)/page.tsx:97-125` : `Promise.all` de la liste et de quatre membres, dont le compte « vendus » suivi par `.then` du compte « loués », et `countProperties` en `:210`. Classement : A2, lancer « loués » comme membre propre du `Promise.all` retire la requête en série sans changer aucun chiffre ; l'endpoint de compteurs proposé par la piste ajoute une surface d'API dont le périmètre doit reproduire celui de l'index, et n'est pas couvert par ce classement.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `compteurs-en-parallele.tck-865.test.tsx` (réponses de `fetchDashboardProperties` retenues) relève 5 requêtes lancées au lieu de 6, « loués » attendant la réponse de « vendus » → « loués » membre propre du `Promise.all`, 6 requêtes lancées avant toute réponse et tuile « Vendus / loués » = somme des deux totaux, vert ; ablation : page remise à l'état d'avant → rouge (5 au lieu de 6), remise → vert.
 
 ### Fiche client : les notes sont chargées deux fois
 - Réf : P02.09
