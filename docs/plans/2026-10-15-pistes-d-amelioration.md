@@ -1836,7 +1836,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Petites améliorations
 - Réf : P12.10
-- Statut : retenu · autonome
+- Statut : fait · TCK-899 — reste : le `assertTrue(true)` de `tests/Unit/ExampleTest.php` (test d'exemple du squelette, sans code à garder) et les assertions sur les arguments des six mocks front, à nommer
 - Gravité : 🟢 amélioration
 - Constat (mesuré) :
   - **Carte d'impact** (`takussan-api/tests/impact-map.json`) : générée le 2026-10-13 sur `a34d46d9`, avec 806 classes. Il lui manque 18 classes de test, dont `RentalSettingsCatalogueTest` et 5 autres ajoutées le 14 et le 15, que `impacted-tests` ne sélectionnera pas avant la régénération nocturne.
@@ -1849,6 +1849,7 @@ Les trois 🔴 ont été relus par la session dans le code :
     - `SystemMessagesTest` a son `orderBy('id')` depuis `ca0a0f93`.
 - Piste : `freezeTime()` sur ces tests ; des assertions sur les arguments.
 - Mesure (2026-10-16, b775f8f6, mesureur) : `grep -rn 'assertTrue(true)' tests` → 3 (`ExampleTest.php:14`, `SeedingMediaFailuresTest.php:154`, `DigestBuilderServiceTest.php:131`) ; lu `SponsoredImpressionsTest.php:38` (lit la clé de l'heure `now()` après deux recherches) et `MaintenanceStructuredQuoteTest.php:93` (compare à `now()->addDays(10)->toDateString()`), `grep -c 'freezeTime\|travelTo'` → 0 dans les deux fichiers ; la carte d'impact a été régénérée le 2026-10-15 (`3a2c9108`, sur `53b3d2ee`) et il lui manque encore 15 classes dont `RentalSettingsCatalogueTest`, surtout des gardes qui ne couvrent pas `app/` : partie non retenue ; l'exemple front `MaintenanceScheduler.test.tsx:70` est inexact (l. 67-68 vérifient déjà l'argument `mode`) et les six tests ne sont pas nommés : partie non re-mesurée. Retenu : le temps figé dans les deux tests et les trois `assertTrue(true)`. Classement : A5, rendre déterministes et effectifs des tests existants, sans seuil ni choix de produit.
+- Mesure (2026-10-18, 69aa075d, implementeur) : `SponsoredImpressionsTest` fige déjà l'heure (`travelTo`, ajouté par TCK-708, `fb66ad627`), partie caduque ; `MaintenanceStructuredQuoteTest` sans temps figé et les trois `assertTrue(true)` tiennent. Correctifs de test : `freezeTime()` dans `test_amount_is_computed_from_the_lines`, sortie du seeder captée et vide, aucune requête pour `markDigested(collect())` → 27 verts sur les trois classes. Horloge accélérée d'un jour par appel (mesure seule, non commitée) : sans `freezeTime()` → rouge (`2026-12-23` contre `2027-02-12`), avec → vert ; ablation de la garde `$attempted === 0` du seeder → rouge, de la garde `empty($ids)` de `markDigested()` → rouge ; remis → vert.
 
 ## Angle 14 — Observabilité : ce qu'on ne verrait pas en production
 
