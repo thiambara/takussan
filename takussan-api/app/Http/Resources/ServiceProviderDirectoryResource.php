@@ -32,11 +32,13 @@ class ServiceProviderDirectoryResource extends BaseResource
 
         // ADR-0018 — la ligne sérialisée par Eloquent rend ses dates en `…T12:34:56.000000Z` : chacune
         // repasse par la forme de son cast, `active_until` en date de calendrier, le reste en instant.
-        foreach (['active_until' => 'calendar', 'created_at' => 'iso', 'updated_at' => 'iso', 'deleted_at' => 'iso'] as $key => $form) {
-            if (array_key_exists($key, $data)) {
-                $value = $this->resource->{$key};
-                $data[$key] = $form === 'calendar' ? $this->calendarDate($value) : $this->iso($value);
+        foreach (['created_at', 'updated_at', 'deleted_at'] as $instant) {
+            if (array_key_exists($instant, $data)) {
+                $data[$instant] = $this->iso($this->resource->{$instant});
             }
+        }
+        if (array_key_exists('active_until', $data)) {
+            $data['active_until'] = $this->calendarDate($this->resource->active_until);
         }
 
         return $data;
