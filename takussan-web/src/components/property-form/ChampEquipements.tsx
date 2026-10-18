@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { ComboboxMultiple, replierPourIdentite, type OptionDeListe } from '@/components/ui/combobox';
@@ -41,6 +41,7 @@ export function ChampEquipements({
 }) {
   const t = useTranslations('property.form.amenities');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  const locale = useLocale();
   const { control, setValue } = form;
   const [idsSuivis, nomsSuivis] = useWatch({ control, name: ['tag_ids', 'tag_names'] });
   const ids = (idsSuivis ?? []) as number[];
@@ -54,7 +55,11 @@ export function ChampEquipements({
   const connus = new Map<number, Tag>();
   for (const tag of [...attaches, ...tags]) connus.set(tag.id, tag);
 
-  const options = tags.filter((tag) => tag.status !== 'rejected').map(enOption);
+  // TCK-923 — triées sur le libellé AFFICHÉ : l'API ordonne par le nom français.
+  const options = tags
+    .filter((tag) => tag.status !== 'rejected')
+    .map(enOption)
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
   const valeurs: OptionDeListe[] = [
     ...ids.flatMap((id) => {
       const tag = connus.get(id);

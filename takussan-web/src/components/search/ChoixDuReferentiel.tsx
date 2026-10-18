@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 
 import {
@@ -259,6 +259,7 @@ export function ChoixDeQuartier({ ville, region, valeur, onChange }: ChoixDeQuar
 export function ChoixDEquipements({ valeurs, onChange }: ChoixDEquipementsProps) {
   const t = useTranslations('search.filters');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  const locale = useLocale();
   const equipements = useEquipementsApprouves();
   const catalogue = equipements.data?.data ?? [];
   const noms = catalogue.map((equipement) => equipement.name);
@@ -267,7 +268,10 @@ export function ChoixDEquipements({ valeurs, onChange }: ChoixDEquipementsProps)
     label: libelleEquipementParNom(nom, tCatalogue, catalogue),
   });
   // Un équipement de l'URL que le catalogue ignore reste une puce, donc retirable.
-  const options = [...valeurs.filter((v) => !noms.includes(v)), ...noms].map(optionDe);
+  // TCK-923 — triées sur le libellé AFFICHÉ : l'API ordonne par le nom français.
+  const options = [...valeurs.filter((v) => !noms.includes(v)), ...noms]
+    .map(optionDe)
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
 
   return (
     <ComboboxMultiple
