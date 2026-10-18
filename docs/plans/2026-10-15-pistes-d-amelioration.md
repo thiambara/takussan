@@ -4981,7 +4981,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### La recherche globale du super-admin ne trouve plus une agence par son NINEA
 - Réf : P47.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:124`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:95-116`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:94-99`, `takussan-api/database/migrations/2026_10_07_200500_add_payout_settings_and_legal_columns_to_agencies_table.php:50-57`, `takussan-api/tests/Feature/Admin/Platform/AdminGlobalSearchTest.php:91-98`
 - Constat :
@@ -4992,10 +4992,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le test existant reste vert parce qu'il sème l'ancienne forme (`metadata.legal_info.ninea`, l. 93).
   - Établi comment : lu, et mesuré.
 - Piste : chercher sur la colonne `agencies.ninea`, avec un repli sur `metadata.legal_info` tant que des lignes d'avant la migration peuvent exister. Changer le test pour qu'il sème la colonne, et vérifier par ablation qu'il rougit sur la requête actuelle.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AdminGlobalSearchService.php:124` (`metadata->'legal_info'->>'ninea'`), `AgencyKindFlipService.php:96-99` (écrit la colonne puis `continue`), `AgencyUpdateRequest.php:94` (règle `ninea`) et `AdminGlobalSearchTest.php:93` (sème `metadata.legal_info`) ; `git log 33535e36a..HEAD -- takussan-api/app` → aucun commit ; test temporaire `tests/Feature/TmpMesureur/SondeP47Test.php` (base de test PostgreSQL, charge 1,67 sur 8 cœurs), retiré : `Agency::factory()->create(['ninea' => '005012345'])` puis `GET /api/admin/search?q=005012345` en opérateur support → `data: []`. Classement : A1, TCK-600 veut le NINEA cherchable « par l'agence » et TCK-594 fait de la colonne `agencies.ninea` la source : chercher la colonne, avec repli sur `metadata.legal_info`, ne demande aucun choix.
 
 ### L'écran de configuration d'agence enregistre le fuseau horaire, et l'API le jette
 - Réf : P47.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : garder ou retirer le champ fuseau horaire est un choix de produit
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/agency.ts:152-160`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:57-77,405-410`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63-73`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:109-116`
 - Constat :
@@ -5008,10 +5009,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré.
   - Relève aussi de l'angle 80, qui n'est pas encore exploré.
 - Piste : retirer le champ fuseau horaire de l'écran, ou lui donner une colonne, une règle et un lecteur : ce choix est un choix de produit. Dans les deux cas, retirer les miroirs `settings.currency` et `settings.default_commission_rate` de l'envoi et de la lecture du formulaire. Garde possible : un test du schéma front qui confronte les clés de `settings` envoyées à celles que `AgencyUpdateRequest::rules()` déclare.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `agency.ts:152-161` (envoi de `settings.timezone`, `currency`, `default_commission_rate`), `AgencyConfigForm.tsx:57-77,405-410` et `AgencyUpdateRequest.php:67-73` (cinq clés de `settings` seulement) ; même test temporaire, retiré : `PATCH /api/agencies/{id}` en admin principal avec ces trois clés → 200, `agencies.settings` = `{"require_team_two_factor":false,"late_fee_online_collection":false}`, les trois perdues. Constat inexact sur un point : le formulaire lit la colonne `currency` avant le miroir (l. 62-65) ; seul `default_commission_rate` est lu avant la colonne. Classement : V7, la piste elle-même renvoie au porteur le sort du champ (le retirer, ou lui donner colonne, règle et lecteur, V4).
 
 ### Deux réglages de `agencies.settings` sont lus, mais rien ne peut les écrire
 - Réf : P47.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ouvrir les deux réglages ou figer leur défaut est un choix de produit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Booking/BookingExpirationService.php:40-57`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:22-40`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63-73`
 - Constat :
@@ -5022,10 +5024,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Toutes les agences ont donc le défaut, et le code présente comme réglables deux comportements qui ne le sont pas.
   - Établi comment : lu, et mesuré.
 - Piste : soit ouvrir les deux clés (règle dans `AgencyUpdateRequest`, puis un champ d'écran : choix de produit), soit retirer leur lecture et garder le défaut en constante. Un test qui énumère les clés de `agencies.settings` lues par `app/` et les confronte aux règles d'`AgencyUpdateRequest` empêcherait le retour.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `BookingExpirationService.php:40-56` et `TenantOnboardingService.php:22-40` (deux lecteurs), `AgencyUpdateRequest.php:67-73` (aucune règle pour ces clés) ; `grep -rn` dans `app` et `takussan-web/src` → hors des deux lecteurs, un docblock (`Agency.php:106`) et un commentaire de test (`BookingTunnel.echeance.test.tsx:15`) ; même test temporaire, retiré : `PATCH /api/agencies/{id}` avec `booking_pending_expiry_hours: 0` et `tenant_onboarding_enabled: false` → 200, aucune des deux écrite. Classement : V7, ouvrir un réglage visible ou le retirer change le produit, la piste le dit.
 
 ### `POST /api/settings` pose une ligne d'agence hors des règles du catalogue
 - Réf : P47.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : bornes des pénalités et plafonds de révision de loyer
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:38-70`, `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php:30-37`, `takussan-api/app/Domain/Settings/EditablePlatformSettings.php:91-116`, `takussan-api/app/Services/Lease/RentReviewService.php:207-216`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:293-302`
 - Constat :
@@ -5037,10 +5040,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Aucun écran n'appelle cette route : seul un appel direct à l'API y mène (ADR-0065, « Conséquences »). Elle passe par le second facteur (`ProtectedActions` liste `SettingController`).
   - Établi comment : lu, et mesuré.
 - Piste : valider une ligne d'agence par les `rules` et l'`item_rules` de sa clé au catalogue, et refuser une clé qui n'est pas au catalogue (`rentals`). C'est la règle qu'ADR-0065 pose pour la portée globale, étendue à l'agence : elle touche des montants et des pénalités. Un test par clé : borne dépassée → 422.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `StoreSettingRequest.php:30-37` (ni catalogue, ni type, ni borne) et `SettingController.php:38-70` ; même test temporaire, retiré : en admin d'agence, `POST /api/settings` portée `agency` avec `lease.rent_review_max_pct=500`, `late_fees.cap_percent=1000`, `lease.early_termination_penalty_months=99`, `invoice.reminder_offsets_days="abc"` → 201 chacun ; puis `RentReviewService::resolveMaxPct($agence->id)` → 500 et `EarlyTerminationService::resolvePenaltyMonths($agence->id)` → 99. Classement : V1, les valeurs bornées règlent une pénalité de retard, une pénalité de résiliation et une hausse de loyer ; refuser une clé hors catalogue retire aussi une écriture ouverte aujourd'hui (`GenericSettingsCatalogueBypassTest::test_la_portee_agence_reste_ouverte`).
 
 ### `GET /api/settings` rend les réglages globaux de la plateforme à tout membre d'une agence
 - Réf : P47.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : restreindre une lecture qu'un membre d'agence peut faire aujourd'hui
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:16-35`, `takussan-api/app/Services/Admin/PlatformSettingService.php:45-49`
 - Constat :
@@ -5051,10 +5055,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Aucun appelant front de `GET /api/settings` (`grep` dans `takussan-web/src`).
   - Établi comment : lu, et mesuré.
 - Piste : réserver la liste aux admins de l'agence et ne rendre que leurs lignes d'agence, ou retirer la lecture, puisque rien ne l'appelle. Un test : un agent ne lit aucune ligne `global`.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `SettingController.php:16-35` (`orWhere('scope', Global)`, aucune capacité jugée) ; même test temporaire, retiré : ligne globale `boost.sponsored_slots_per_page` posée, puis `GET /api/settings` en agent → 200 `[["boost.sponsored_slots_per_page","global"]]`, en bailleur (`owner`) → 200, même ligne ; `grep` de `/api/settings` dans `takussan-web/src` → aucun appelant. Classement : V2, la piste resserre une autorisation (ou retire la route) et choisit qui lit quoi ; sans appelant front, rien ne dit qu'aucun client légitime ne l'emploie.
 
 ### `metadata.legal_info` reste exposé et décrit comme la source, alors qu'il n'est plus écrit
 - Réf : P47.06
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyKindFlipService.php:37-44,95-116`, `takussan-api/app/Http/Resources/AgencyResource.php:61-67`, `takussan-web/src/types/agency.ts:17-30,82`
 - Constat :
@@ -5062,10 +5067,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - La l. 116 réécrit `metadata.legal_info` tel quel. `AgencyResource` le rend en `metadata`, et le front le type (`types/agency.ts:17-30`) : deux copies des mentions légales circulent, l'ancienne figée (lu).
   - Établi comment : lu.
 - Piste : corriger le docblock, et retirer la branche `legal_info` du flip. Le retrait des données restantes est une décision de schéma, à prendre à part.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AgencyKindFlipService.php:37-44` (docblock « for now everything below lives in `metadata.legal_info` »), l. 92-116 et `AgencyResource.php:60-67` ; `grep -rn legal_info takussan-web/src` → seul `types/agency.ts`. Constat inexact sur la ligne : le `continue` de la l. 108 est atteint à chaque champ ; c'est la branche des l. 111-113, qui écrit `legal_info`, qui ne l'est jamais (les quatre `LEGAL_FIELDS` ont une colonne dans `COLUMN_OF`). `metadata.legal_info` est encore lu l. 103, comme valeur choisie avant la migration. Classement : A6, corriger le docblock pour dire que les quatre champs s'écrivent en colonne et retirer la branche inatteignable, sans changer ce que rend le flip ; l'exposition par `AgencyResource` et le retrait des données (V3, V4) restent hors de ce classement.
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer une donnée de l'assistant ou lui donner un lecteur est un choix de produit
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:248-266`, `takussan-api/app/Http/Resources/AgencyResource.php:60`
 - Constat :
@@ -5075,10 +5081,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - `AgencyResource` rend `settings` brut : ces clés sortent à chaque lecture de l'agence.
   - Établi comment : lu.
 - Piste : retirer les écritures sans lecteur, ou nommer leur lecteur. Si `onboarding_source` doit servir à la console, le lire par une colonne ou un accesseur.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `HostIndividualOnboardingService.php:35-41,245-266` (écriture de `primary_city`, `primary_property_type`, `onboarding_source`, `payment.preferred_provider`) ; `grep -rn` de ces clés dans `takussan-api/app` et `takussan-web/src` → seulement les deux FormRequest de l'assistant, `HostAutoOnboardController.php:34` et le formulaire `HostIndividualWizard.tsx` : aucun lecteur dans `agencies.settings` ; `grep` de `settings.payment` et `preferred_provider` côté encaissement → rien. Classement : V7, le commentaire attribue un usage à `onboarding_source` (TCK-263) et à la préférence de paiement : les retirer ou les lire tranche une intention produit, et touche des données conservées (V3).
 
 ### Petites améliorations
 - Réf : P47.08
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la liste des clés à porter dépend des choix de P47.02 et P47.03
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Agency.php:105-112`, `takussan-api/app/Services/Booking/BookingExpirationService.php:42-55`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:37`, `takussan-api/app/Services/Media/AgencyWatermarkContext.php:79-93`, `takussan-api/app/Services/Media/WatermarkRequirement.php:90`
 - Constat :
@@ -5091,3 +5098,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le docblock de `normaliseAgencyForm` (`takussan-web/src/lib/schemas/agency.ts:140`) décrit le miroir `settings.default_commission_rate` comme un « spec alignment » que l'API ne garde plus (lu, voir P47.02).
   - Établi comment : lu.
 - Piste : un accesseur `Agency::setting(string $clé)` qui porte les défauts et le type des clés validées par `AgencyUpdateRequest`, et une liste unique de ces clés que lisent la règle et l'accesseur.
+- Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu les cinq lecteurs cités (`Agency.php:109-112`, `BookingExpirationService.php:40-56`, `TenantOnboardingService.php:37-40`, `AgencyWatermarkContext.php:79-93`, `WatermarkRequirement.php:83-93`) et `agency.ts:137-141` (docblock « spec alignment ») : tous tiennent. Constat imprécis sur un point : `WatermarkRequirement` ne recode pas sa coercition, il décode la ligne brute et délègue à `AgencyWatermarkContext::isEnabledInSettings()`. Classement : V7, l'accesseur commun et la liste unique ne se dessinent qu'une fois tranché le sort de `timezone`, `booking_pending_expiry_hours` et `tenant_onboarding_enabled` ; seul le docblock du front relèverait d'A6.
