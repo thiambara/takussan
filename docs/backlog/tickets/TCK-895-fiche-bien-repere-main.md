@@ -56,5 +56,3 @@ Un visiteur au lecteur d'écran saute directement au contenu de la fiche, quel q
 - **Reproduction** : 4 tests neufs (trouvé, indisponible, retiré dans `page.server.test.tsx` ;
   introuvable dans `not-found.repere-main.test.tsx`) → 4 rouges, `0` élément `main`.
 - **Ablation** : `page.tsx` et `not-found.tsx` remis → les 4 mêmes rouges ; remis → 24 verts.
-- Le `fetch failed` imprimé par `page.server.test.tsx` (domaine des villes) précède ce ticket : il
-  vient de `domainesDeLaListe`, non simulé dans ce test.
