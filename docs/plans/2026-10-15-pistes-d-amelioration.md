@@ -4018,7 +4018,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Petites améliorations
 - Réf : P34.05
-- Statut : validé — `Disallow: /app/` et `/app$` avec un test contre les fichiers de la racine, `robots: { index: false }` sur les passages interdits, `noindex` (front et API) dès que l'origine n'est pas celle de la production ; reste : la commande de F3, hors agents en session
+- Statut : fait · TCK-926 — reste : la commande de F3, hors agents en session
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/sitemap.ts:333-341`, `takussan-web/src/app/robots.ts`, `takussan-web/src/app/publish/layout.tsx`, `takussan-api/public/robots.txt`, `takussan-api/routes/web.php`, plan F3 étape 4
 - Constat :
@@ -4033,6 +4033,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - `/fr/properties?page=2` dans la commande de F3.
 - Mesure (2026-10-17, 18c6141d, mesureur) : `.next/server/app/robots.txt.body` de cet arbre → `Disallow: /app` sans barre, et `apple-icon.png` est servi à la racine (`src/app/apple-icon.png`, `.next/server/app/apple-icon.png.body`) ; le commentaire de `src/lib/sitemap.ts:335-337` affirme toujours qu'aucune surface publique ne commence par ces préfixes ; `grep -l robots` sur `publish/layout.tsx`, `onboarding/layout.tsx`, `invitations/layout.tsx`, `maintenance/page.tsx` et `app/layout.tsx` → aucun (seul `(auth)/layout.tsx:34` porte `index: false`) ; `robots.ts` rend `allow: '/'` sans condition d'origine ; `takussan-api/public/robots.txt` → `Disallow:`, `routes/web.php:7-9` → vue `welcome` ; plan F3 étape 4 (l. 4126,4130) éprouve `/fr/biens?page=2` → les quatre points tiennent ; l'effet réel sur l'icône chez Google n'est pas mesuré. Classement : V5, le `noindex` dépend de l'origine déployée et le dernier point corrige le plan de bascule, et V7, `Disallow: /app/` + `/app$` et le `noindex` des passages interdits changent ce qu'on expose aux moteurs ; le seul point `/app` relèverait d'A1.
 - Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 4 éprouve `/fr/properties?page=2`.
+- Mesure (2026-10-18, 1011b4c6f, implementeur) : avant correctif, `sitemap.test.ts` confronte les règles aux fichiers servis à la racine (`src/app`, `public/`, lus sur le disque) par la correspondance d'un moteur (préfixe, `*`, `$`) → `/apple-icon.png` frappé par `/app`, et le sosie `/appartements` aussi ; 5 passages sans `robots` (`/publish`, `/onboarding`, `/invitations`, `/maintenance`, `/super-admin`) ; ni le proxy ni l'API ne posent d'en-tête hors production (5 + 3 rouges). Correctif : `/<segment>/` et `/<segment>$`, `robots: { index: false, follow: false }` sur les cinq, `X-Robots-Tag: noindex, nofollow` par le proxy quand `origineSite()` n'est pas `ORIGINE_PRODUCTION` et par un middleware global de l'API quand l'origine d'`APP_URL` n'est pas celle de l'API de production (F3). Ablations : règles sans barre → 2 rouges, métadonnée de `/publish` retirée → 1, condition du proxy neutralisée → 5, middleware désenregistré → 3 ; tout remis → verts.
 
 ## Angle 35 — Pages de facettes : texte propre et maillage interne
 
@@ -4858,11 +4859,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/leases.ts:280-291`, `takussan-api/routes/api/leases.php:18`
 - Constat :
-- Mesure (2026-10-18, 1011b4c6f, implementeur) : `grep -rn 'useUpdateLease\b' takussan-web/src` → une seule occurrence, la liste de `src/lib/__tests__/code-mort.tck-917.test.ts:38`, qui garde son absence ; `leases.ts` ne le déclare plus (retiré par TCK-917, #647 fusionnée). Le défaut n'existe plus, rien à implémenter.
   - Le hook déclare `{ path: cheminApi\`/api/leases/${id}\`, method: 'PUT' }` (lu, `leases.ts:282`). La route est `Route::patch('leases/{lease}', …)` seule (lu, `leases.php:18` ; mesuré, `route:list` → `GET|HEAD` et `PATCH`). Un appel rendrait 405 (déduit, à vérifier).
   - `grep -rn "useUpdateLease\b" takussan-web/src` → la seule définition, aucun appelant (mesuré).
 - Piste : retirer le hook (A3), ou passer en `PATCH` s'il doit servir. La garde de P45.01 l'aurait attrapé.
 - Mesure (2026-10-18, 5ab3231f9, mesureur) : relu `leases.ts:280-282` (`method: 'PUT'`) et `leases.php:18` (`Route::patch` seule) ; `route:list --path=api/leases --json` → `api/leases/{lease}` en `GET|HEAD` et `PATCH` ; `tinker` en lecture, `getRoutes()->match(Request::create('/api/leases/1','PUT'))` → `MethodNotAllowedHttpException` 405, en `PATCH` → `leases.update` ; `grep -rn 'useUpdateLease\b' takussan-web` (`.ts`/`.tsx`, hors `node_modules`) → la seule définition. Le 405 est vérifié et le hook est sans appelant. Note : la PR #647 (TCK-917, P13.10), ouverte, retire déjà ce hook ; l'entrée deviendra caduque à sa fusion. Classement : A3, code mort côté front sans appelant mesuré ; le correctif est le retrait du hook, la route `PATCH` gardant ses appelants.
+- Mesure (2026-10-18, 1011b4c6f, implementeur) : `grep -rn 'useUpdateLease\b' takussan-web/src` → une seule occurrence, la liste de `src/lib/__tests__/code-mort.tck-917.test.ts:38`, qui garde son absence ; `leases.ts` ne le déclare plus (retiré par TCK-917, #647 fusionnée). Le défaut n'existe plus, rien à implémenter.
 
 ### Petites améliorations : types de réponse faux sans lecteur, clé divergente sur une route sans appelant, commentaires de chemins périmés
 - Réf : P45.03
