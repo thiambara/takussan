@@ -364,8 +364,11 @@ export const EXCEPTIONS_JUSTIFIEES = [
   //
   // Suivi jusqu'au rendu avant d'écrire ces entrées : les six occurrences sont toutes des
   // arguments de `new Error(...)`, et les tests d'ablation les éprouvent par `toThrow(/…/)`.
-  { fichier: 'src/lib/alternates.ts', motif: /^schéma compris — par exemple/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
-  { fichier: 'src/lib/alternates.ts', motif: /^que ses pages canoniques sont celles de la production/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  // TCK-831 (ADR-0069 § 3) — la résolution de l'origine a quitté `alternates.ts` pour
+  // `config-publique.ts` ; ses messages d'erreur la suivent, et nomment la clé à corriger.
+  { fichier: 'src/lib/config-publique.ts', motif: /^SITE_URL \(NEXT_PUBLIC_SITE_URL sous Vercel\)$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/config-publique.ts', motif: /^schéma compris — par exemple/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/config-publique.ts', motif: /^que ses pages canoniques sont celles de la production/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^Une URL relative dans un <loc>/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^generateSitemaps\(\) plutôt que tronquer/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },

@@ -88,7 +88,9 @@ class Lease extends AbstractModel implements HasMedia
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'monthly_rent'];
 
-    protected static array $requestLoadable = ['property', 'landlord', 'tenant', 'agency', 'agent', 'guarantor', 'renewedFrom', 'renewals', 'onboardingChecklist'];
+    // TCK-807 (P21.05) — seules les relations que `LeaseResource` émet : un `include=` accepté puis
+    // absent de la réponse se lit comme une relation vide. `RequestLoadableEmittedTest` le garde.
+    protected static array $requestLoadable = ['property', 'tenant', 'renewedFrom', 'renewals'];
 
     protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents', 'renewals'];
 

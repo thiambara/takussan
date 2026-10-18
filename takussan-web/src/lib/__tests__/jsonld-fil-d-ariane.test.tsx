@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { PropertyBreadcrumb } from '@/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb';
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { scriptJsonLd } from '@/lib/jsonld';
 import {
@@ -124,7 +124,7 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
       .map((i) => i.item)
       .filter((i): i is string => i !== undefined);
 
-    expect(items).toEqual(hrefs.map((h) => `${ORIGINE_SITE}${h}`));
+    expect(items).toEqual(hrefs.map((h) => `${origineSite()}${h}`));
     // Et ces href-là portent bien la langue : `LienLocalise` la pose au rendu.
     for (const href of hrefs) expect(href, href!).toMatch(/^\/fr(\/|\?|$)/);
   });
@@ -161,7 +161,7 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
     };
 
     for (const item of balise(p).map((i) => i.item).filter(Boolean) as string[]) {
-      const chemin = item.slice(ORIGINE_SITE.length).replace(/^\/(fr|en|wo)/, '');
+      const chemin = item.slice(origineSite().length).replace(/^\/(fr|en|wo)/, '');
       if (chemin === '' || chemin === '/') continue; // l'accueil n'est pas une page de liste
       const [, requete = ''] = chemin.split('?');
       expect(
@@ -193,7 +193,7 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
 
     expect(screen.getByText('Acheter')).toBeTruthy();
     expect(balise(p)[1]!.name).toBe('Acheter');
-    expect(balise(p)[1]!.item).toBe(`${ORIGINE_SITE}/fr/properties?contract_type=sale`);
+    expect(balise(p)[1]!.item).toBe(`${origineSite()}/fr/properties?contract_type=sale`);
   });
 
   it('les `position` commencent à 1 et se suivent, maillon non cliquable compris', () => {
@@ -202,8 +202,8 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
   });
 
   it('la langue de l’URL suit celle de la page', () => {
-    expect(balise(bien(), 'wo')[0]!.item).toBe(`${ORIGINE_SITE}/wo`);
-    expect(balise(bien(), 'en')[2]!.item).toBe(`${ORIGINE_SITE}/en/properties?city=Dakar`);
+    expect(balise(bien(), 'wo')[0]!.item).toBe(`${origineSite()}/wo`);
+    expect(balise(bien(), 'en')[2]!.item).toBe(`${origineSite()}/en/properties?city=Dakar`);
   });
 
   it('aucune URL relative — un `item` relatif serait résolu contre le document', () => {

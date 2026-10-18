@@ -121,6 +121,21 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     }
 
     /**
+     * TCK-828 (P25.07) — le montant attendu sur le compte de l'agence, pour CETTE ligne : la même
+     * règle que `scopeWhereExpectedAmountNear()`, lue en PHP. Le montant figé ne vaut que pour une
+     * échéance soldée en ligne ; sinon, `amount`.
+     */
+    public function expectedBankAmount(): float
+    {
+        $settledBy = $this->metadata['gateway']['settled_by'] ?? null;
+        if ($settledBy !== null && $settledBy !== PaymentGatewayService::SETTLED_MANUALLY) {
+            return (float) ($this->metadata['gateway_expected_amount'] ?? $this->amount);
+        }
+
+        return (float) $this->amount;
+    }
+
+    /**
      * TCK-715 (P25.01, P25.02) — le montant attendu sur le compte de l'agence, à `$tolerance` près.
      * Une seule expression, partagée par le matcher (`ReconciliationMatcher`) et la recherche
      * manuelle (`PaymentSearchService`).
@@ -129,18 +144,26 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
      * comprise quand l'agence l'encaisse en ligne, TCK-593) ne se lit que si l'échéance a été
      * soldée EN LIGNE : `metadata.gateway.settled_by` porte alors l'identifiant de la transaction.
      * Un règlement manuel y pose `manual` (`PaymentGatewayService::markManualSettlement`), et le
-     * montant figé d'un checkout abandonné ne dit plus rien de l'argent reçu : `amount`.
+     * montant figé d'un checkout abandonné ne dit plus rien de l'argent reçu : `amount`, plus la
+     * pénalité quand elle a été réglée le même jour que le loyer (TCK-833).
      */
     public function scopeWhereExpectedAmountNear(Builder $query, float $amount, float $tolerance): Builder
     {
         $metadata = $query->qualifyColumn('metadata');
         $settledBy = "({$metadata}->'gateway'->>'settled_by')";
         $rowAmount = $query->qualifyColumn('amount');
+        // TCK-833 (P25.06) — hors ligne, une pénalité réglée LE MÊME JOUR que le loyer arrive dans
+        // le même virement : elle entre dans le montant attendu. Réglée un autre jour, non.
+        $lateFee = $query->qualifyColumn('late_fee_amount');
+        $lateFeePaidAt = $query->qualifyColumn('late_fee_paid_at');
+        $paidAt = $query->qualifyColumn('paid_at');
+        $offline = "{$rowAmount} + CASE WHEN {$lateFeePaidAt} IS NOT NULL AND {$paidAt} IS NOT NULL "
+            ."AND {$lateFeePaidAt}::date = {$paidAt}::date THEN COALESCE({$lateFee}, 0) ELSE 0 END";
 
         return $query->whereRaw(
             "ABS(CASE WHEN {$settledBy} IS NOT NULL AND {$settledBy} <> ? "
             ."THEN COALESCE(({$metadata}->>'gateway_expected_amount')::numeric, {$rowAmount}) "
-            ."ELSE {$rowAmount} END - ?) < ?",
+            ."ELSE {$offline} END - ?) < ?",
             [PaymentGatewayService::SETTLED_MANUALLY, $amount, $tolerance],
         );
     }

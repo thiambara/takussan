@@ -23,7 +23,8 @@ class PayoutController extends Controller
     {
         $user = $request->user();
 
-        $base = Payout::query()->with(['landlord', 'payoutMethod:id,masked_identifier']);
+        // TCK-807 (P21.05) — `landlord` n'est pas émis par `PayoutResource` : il n'est plus chargé.
+        $base = Payout::query()->with(['payoutMethod:id,masked_identifier']);
 
         if (! $user->isSuperAdmin()) {
             $base->where(function ($q) use ($user) {
@@ -63,7 +64,7 @@ class PayoutController extends Controller
 
         return $this->json([
             // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
-            'data' => PayoutResource::make($payout->load(['landlord', 'issuer', 'payoutMethod:id,masked_identifier']))->toArray($request),
+            'data' => PayoutResource::make($payout->load(['issuer', 'payoutMethod:id,masked_identifier']))->toArray($request),
         ]);
     }
 

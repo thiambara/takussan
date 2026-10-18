@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Accounting;
 
+use App\Models\BankStatement;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
@@ -26,9 +27,10 @@ class UpdateBankCsvMappingRequest extends FormRequest
         return $request->isMethod('PUT') && $request->is('api/agencies/*/bank-statements/csv-mapping');
     }
 
+    /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
     {
-        return true; // Policy handles authorization
+        return $this->user()?->can('create', [BankStatement::class, $this->route('agency')]) === true;
     }
 
     /** Les champs dont le blanc n'a pas de sens : noms de colonnes et format de date. */

@@ -243,6 +243,24 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
+     * TCK-815 (P38.06) — le nom d'un compte montré à un autre compte (expéditeur d'un message,
+     * inviteur d'un groupe, destinataire d'un contact d'annonce) : prénom et nom, puis
+     * `username`, puis « — ». **Jamais l'adresse e-mail** : c'est une coordonnée, et la règle de
+     * `ConversationResource` (le nom et l'avatar, jamais les coordonnées) vaut pour ces chemins.
+     */
+    public function nameWithoutContact(): string
+    {
+        $full = trim(($this->first_name ?? '').' '.($this->last_name ?? ''));
+        if ($full !== '') {
+            return $full;
+        }
+
+        $username = trim((string) ($this->username ?? ''));
+
+        return $username !== '' ? $username : '—';
+    }
+
+    /**
      * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
      * Le mot de passe, les secrets 2FA, `metadata` et les jetons ne partent
      * JAMAIS vers Meilisearch : l'index est un second magasin, hors de la base.

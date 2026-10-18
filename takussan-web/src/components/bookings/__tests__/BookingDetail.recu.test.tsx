@@ -13,6 +13,7 @@ import fr from '@/messages/fr.json';
 import { BookingDetail } from '../BookingDetail';
 import { useBooking } from '@/lib/queries/bookings';
 import { ToastProvider } from '@/components/ui/toast';
+import { origineApi } from '@/lib/config-publique';
 
 vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: false, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({
@@ -90,7 +91,7 @@ describe('BookingDetail — reçu d’acompte (TCK-593 AC1)', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const origine = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
+    const origine = origineApi();
     expect(url).toBe(`${origine}/api/booking-payments/44/receipt`);
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jeton-client');
   });

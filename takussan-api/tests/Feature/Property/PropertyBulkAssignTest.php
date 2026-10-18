@@ -135,7 +135,10 @@ class PropertyBulkAssignTest extends ApiTestCase
         $this->assertSame($coProprietaire->id, $this->contactDe($this->q));
     }
 
-    /** Cloisonnement — un bien d'une autre agence dans le lot : `forbidden`, aucun effet ; le reste passe. */
+    /**
+     * Cloisonnement — un bien d'une autre agence dans le lot : aucun effet ; le reste passe. Depuis
+     * TCK-817, il sort en `not_found`, comme un identifiant absent : `forbidden` disait qu'il existe.
+     */
     public function test_un_bien_d_une_autre_agence_est_refuse_sans_effet(): void
     {
         $ailleurs = $this->agence();
@@ -146,7 +149,7 @@ class PropertyBulkAssignTest extends ApiTestCase
         $this->lot([$leurBien->id, $this->p->id, 999999], $this->y)->assertOk()
             ->assertJsonPath('updated_ids', [$this->p->id])
             ->assertJsonPath('failed', [
-                ['id' => $leurBien->id, 'reason' => 'forbidden'],
+                ['id' => $leurBien->id, 'reason' => 'not_found'],
                 ['id' => 999999, 'reason' => 'not_found'],
             ]);
 
@@ -155,7 +158,7 @@ class PropertyBulkAssignTest extends ApiTestCase
 
         // Un agent de l'autre agence ne réattribue pas nos biens.
         $this->lot([$this->p->id], $leurAgent, $leurAgent)->assertOk()
-            ->assertJsonPath('failed', [['id' => $this->p->id, 'reason' => 'forbidden']]);
+            ->assertJsonPath('failed', [['id' => $this->p->id, 'reason' => 'not_found']]);
     }
 
     /** Une cible déjà responsable : `unchanged`, pas un refus, aucune écriture. */
@@ -169,14 +172,17 @@ class PropertyBulkAssignTest extends ApiTestCase
         $this->assertSame(0, Activity::query()->where('event', ResponsibleAgentAssigner::EVENT)->count());
     }
 
-    /** Le lot est borné (1 à 100) et la cible doit exister. */
+    /**
+     * Le lot est borné (1 à 100) et la cible doit exister. TCK-817 — une cible absente rend la
+     * réponse d'une cible hors de l'agence, et non plus une erreur de validation sur `user_id`.
+     */
     public function test_le_lot_est_borne_et_valide(): void
     {
         $this->lot([], $this->y)->assertStatus(422)->assertJsonValidationErrors(['property_ids']);
         $this->lot(range(1, 101), $this->y)->assertStatus(422)->assertJsonValidationErrors(['property_ids']);
         $this->actingAsApi($this->admin)
             ->postJson('/api/properties/bulk-assign', ['property_ids' => [$this->p->id], 'user_id' => 999999])
-            ->assertStatus(422)->assertJsonValidationErrors(['user_id']);
+            ->assertStatus(422)->assertJsonPath('code', 'user.not_in_active_agency')->assertJsonMissingPath('errors');
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/properties/bulk-assign', ['property_ids' => [$this->p->id], 'user_id' => $this->y->id])
             ->assertUnauthorized();
@@ -227,7 +233,12 @@ class PropertyBulkAssignTest extends ApiTestCase
         $particulier = User::factory()->create();
         $libre = $this->bienDe(null, $particulier);
 
-        $this->lot([$libre->id], $this->y, $particulier)->assertOk()
+        // TCK-817 — le particulier sans agence active n'entre plus dans la route : c'est un
+        // super-admin, sans agence lui non plus, qui atteint la règle de cible.
+        $this->lot([$libre->id], $particulier, $particulier)->assertForbidden();
+        $superAdmin = $this->apiActingAsRole('super_admin');
+
+        $this->lot([$libre->id], $this->y, $superAdmin)->assertOk()
             ->assertJsonPath('updated', 0)
             ->assertJsonPath('failed', [['id' => $libre->id, 'reason' => 'invalid_target']]);
         $this->assertDatabaseMissing('property_collaborators', ['property_id' => $libre->id]);

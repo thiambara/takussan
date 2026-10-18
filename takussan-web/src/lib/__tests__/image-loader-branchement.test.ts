@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * TCK-540 — le loader ne se branche QUE si `NEXT_PUBLIC_MEDIA_URL` est posée au build.
+ * TCK-540 — le loader ne se branche QUE si `NEXT_PUBLIC_MEDIA_URL` est posée au build, ou dans
+ * l'image Docker (`TAKUSSAN_LOADER_MEDIA=1`, ADR-0069 § 3).
  *
  * `loader: 'custom'` désactive l'optimiseur de Next partout, Vercel compris. Vercel construit la
  * production sans la variable jusqu'à la phase F : un branchement inconditionnel y servirait chaque
@@ -20,9 +21,18 @@ afterEach(() => {
 describe('next.config.ts — branchement du loader', () => {
   it('sans NEXT_PUBLIC_MEDIA_URL (dev, Vercel) : l’optimiseur de Next reste', async () => {
     vi.stubEnv('NEXT_PUBLIC_MEDIA_URL', '');
+    vi.stubEnv('TAKUSSAN_LOADER_MEDIA', '');
     const config = await chargerConfig();
     expect(config.images?.loader).toBeUndefined();
     expect(config.images?.loaderFile).toBeUndefined();
+  });
+
+  it('dans l’image Docker (TAKUSSAN_LOADER_MEDIA=1), branché sans la variable : l’origine se lit à l’exécution', async () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_URL', '');
+    vi.stubEnv('TAKUSSAN_LOADER_MEDIA', '1');
+    const config = await chargerConfig();
+    expect(config.images?.loader).toBe('custom');
+    expect(config.images?.loaderFile).toBe('./src/lib/image-loader.ts');
   });
 
   it('avec : le loader de Cloudflare remplace l’optimiseur', async () => {

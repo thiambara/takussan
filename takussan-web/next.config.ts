@@ -4,7 +4,9 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /**
- * `NEXT_PUBLIC_MEDIA_URL` — l'origine du seau public de médias (ADR-0029 §1), ou vide.
+ * `NEXT_PUBLIC_MEDIA_URL` — l'origine du seau public de médias (ADR-0029 §1), ou vide. Ne sert
+ * plus qu'au build HORS conteneur (Vercel, `next dev`) : l'image lit `MEDIA_URL` à l'exécution, et
+ * `docker/demarrer.mjs` la valide au démarrage (ADR-0069 § 3).
  *
  * Validée ICI, au build, et non dans le loader : le loader compare `url.origin` à cette valeur, et
  * une barre finale ou un chemin l'y rendraient fausse sans rien casser — chaque photo repasserait
@@ -26,6 +28,13 @@ function origineMedia(valeur: string | undefined): string | undefined {
 }
 
 const MEDIA_URL = origineMedia(process.env.NEXT_PUBLIC_MEDIA_URL);
+
+/**
+ * Le loader de Cloudflare est-il branché ? Dans l'image Docker, TOUJOURS : le `Dockerfile` pose
+ * `TAKUSSAN_LOADER_MEDIA=1` au build, et l'origine du seau ne se connaît qu'à l'exécution
+ * (`MEDIA_URL`, ADR-0069 § 3). Hors de l'image, seulement si `NEXT_PUBLIC_MEDIA_URL` est posée.
+ */
+const LOADER_MEDIA = MEDIA_URL !== undefined || process.env.TAKUSSAN_LOADER_MEDIA === '1';
 
 const nextConfig: NextConfig = {
   // ── `output: 'standalone'` — ADR-0028 §3 ─────────────────────────────────────────────────────
@@ -90,8 +99,8 @@ const nextConfig: NextConfig = {
   images: {
     // ── Le loader de Cloudflare Transformations — ADR-0029 §4, TCK-540 ──────────
     //
-    // Quand `NEXT_PUBLIC_MEDIA_URL` est posée au build (l'image Docker : images.yml la passe),
-    // `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute image du seau public devient
+    // Dans l'image Docker (`TAKUSSAN_LOADER_MEDIA=1`, posée par le `Dockerfile`), ou quand
+    // `NEXT_PUBLIC_MEDIA_URL` est posée au build, `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute image du seau public devient
     // `<media>/cdn-cgi/image/width=…,quality=75,format=auto,onerror=redirect/<chemin>?v=…` — sauf une
     // conversion de photo en WebP, servie telle quelle, sans rien facturer (TCK-585). Le
     // conteneur du front (512 Mio) n'encode plus d'AVIF, et le cache des images vit chez
@@ -103,13 +112,14 @@ const nextConfig: NextConfig = {
     // qui tourne. Or Vercel construit encore la production (`master`) jusqu'à la phase F, sans
     // `NEXT_PUBLIC_MEDIA_URL`, et son API sert ses médias depuis son propre disque : un loader
     // inconditionnel y rendrait chaque photo en JPEG pleine taille, sans AVIF ni redimensionnement.
-    // Sans la variable — Vercel, `next dev` —, rien ne change : l'optimiseur et tout ce qui suit.
+    // Sans la variable ni le drapeau — Vercel, `next dev` —, rien ne change : l'optimiseur et tout
+    // ce qui suit. Le drapeau disparaît avec Vercel (F5) : le loader deviendra inconditionnel.
     //
     // ⚠ Quand le loader est branché, TOUT ce qui suit dans ce bloc (formats, `deviceSizes`,
     // `remotePatterns`, durée de cache) ne concerne plus que l'optimiseur absent — sauf
     // `deviceSizes` et `imageSizes`, qui fixent encore les largeurs du `srcset` que le loader
     // arrondit ensuite.
-    ...(MEDIA_URL ? { loader: 'custom' as const, loaderFile: './src/lib/image-loader.ts' } : {}),
+    ...(LOADER_MEDIA ? { loader: 'custom' as const, loaderFile: './src/lib/image-loader.ts' } : {}),
 
     // ── Formats — AVIF EN PREMIER, puis WebP ────────────────────────────────────
     //

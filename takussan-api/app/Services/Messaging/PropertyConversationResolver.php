@@ -102,12 +102,19 @@ class PropertyConversationResolver
      * La clause partagée. Elle vit ici, en un seul endroit, parce que `findExisting` et
      * `firstOrCreate` qui divergeraient produiraient exactement le défaut décrit en tête de
      * classe : on ouvre un fil, on écrit dans un autre.
+     *
+     * TCK-813 (P38.02) — seule une **directe** dont les deux participations sont **actives**
+     * (`left_at` nul) reçoit le contact. Sans ce filtre, un groupe ouvert sur le bien captait un
+     * message écrit depuis un formulaire privé, et le montrait à tous ses membres, même quand
+     * l'expéditeur l'avait quitté (il recevait alors 403 sur le fil où on l'envoyait). Un groupe
+     * ou une directe quittée ne capte plus rien : un fil neuf s'ouvre.
      */
     private function query(Property $property, User $user, User $recipient): Builder
     {
         return Conversation::query()
             ->where('property_id', $property->id)
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $recipient->id));
+            ->where('type', ConversationType::Direct->value)
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id)->whereNull('conversation_participants.left_at'))
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $recipient->id)->whereNull('conversation_participants.left_at'));
     }
 }

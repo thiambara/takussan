@@ -1,9 +1,6 @@
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * Same-origin proxy for the super-admin users search (TCK-145). Forwards to
@@ -16,7 +13,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const search = request.nextUrl.search;
-  const upstream = await fetch(`${API_URL}/api/admin/users${search}`, {
+  const upstream = await fetch(`${origineApi()}/api/admin/users${search}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,

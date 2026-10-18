@@ -95,11 +95,7 @@ class ConversationInviteNotification extends Notification implements ShouldQueue
 
     protected function displayInviter(): string
     {
-        if (! $this->inviter) {
-            return '—';
-        }
-        $full = trim(($this->inviter->first_name ?? '').' '.($this->inviter->last_name ?? ''));
-
-        return $full !== '' ? $full : ($this->inviter->email ?? '—');
+        // TCK-815 — prénom et nom, puis `username`, puis « — » ; jamais l'e-mail.
+        return $this->inviter?->nameWithoutContact() ?? '—';
     }
 }

@@ -78,6 +78,29 @@ class CustomerIndexQueryBudgetTest extends ApiTestCase
         $this->assertSame(0, $this->lecturesDeNotes(12));
     }
 
+    /**
+     * TCK-808 (P23.02) — les champs réservés au lecteur de la fiche ne coûtent rien à une liste qui
+     * ne les lit pas : `CustomerResource` ne relit pas `agency_id` et `added_by_id` de chaque ligne
+     * que `fields[customers]` en a privée.
+     */
+    public function test_la_liste_ne_relit_aucune_fiche_pour_juger_ses_champs_reserves(): void
+    {
+        $lecturesDeFiches = function (int $attendus): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->assertCount($attendus, $this->getJson(self::LISTE_DU_FRONT)->assertOk()->json('data'));
+            $requetes = DB::getQueryLog();
+            DB::disableQueryLog();
+
+            return count(array_filter($requetes, fn (array $q) => str_contains($q['query'], 'from "customers"')));
+        };
+
+        $this->clients(2);
+        $deux = $lecturesDeFiches(2);
+        $this->clients(10);
+        $this->assertSame($deux, $lecturesDeFiches(12));
+    }
+
     public function test_la_liste_ne_rend_pas_les_notes_qu_on_ne_lui_a_pas_demandees(): void
     {
         $this->clients(1);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import robots from '../robots';
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { estCheminLocalisable } from '@/i18n/routing';
 
 /**
@@ -18,7 +18,7 @@ describe('robots.txt', () => {
   it('déclare une directive Sitemap ABSOLUE', () => {
     // Un `Sitemap:` relatif n'est pas suivi. AC1 en dépend : sans cette ligne, le sitemap n'a
     // aucun chemin d'entrée depuis un moteur.
-    expect(sortie.sitemap).toBe(`${ORIGINE_SITE}/sitemap.xml`);
+    expect(sortie.sitemap).toBe(`${origineSite()}/sitemap.xml`);
     expect(String(sortie.sitemap)).toMatch(/^https?:\/\//);
   });
 
@@ -82,7 +82,7 @@ describe('robots.txt', () => {
       const { proxy } = await import('@/proxy');
       const { NextRequest } = await import('next/server');
       for (const chemin of ['/sitemap.xml', '/robots.txt']) {
-        const reponse = proxy(new NextRequest(new URL(`${ORIGINE_SITE}${chemin}`)));
+        const reponse = proxy(new NextRequest(new URL(`${origineSite()}${chemin}`)));
         expect(reponse.status, chemin).toBe(200);
         expect(reponse.headers.get('location'), chemin).toBeNull();
       }

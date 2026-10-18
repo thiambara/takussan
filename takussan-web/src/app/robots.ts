@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { CHEMINS_INTERDITS_AUX_ROBOTS } from '@/lib/sitemap';
 
 /**
@@ -24,6 +24,13 @@ import { CHEMINS_INTERDITS_AUX_ROBOTS } from '@/lib/sitemap';
  * SOUSTRAITS explicitement — `_next` et `_vercel`, qui portent le CSS et le JS : un moteur qui ne
  * peut pas les charger juge une page sans style et sans contenu.
  */
+/**
+ * ⚠ Rendu à la demande, et non au build : `Sitemap:` porte l'origine du site, qui se lit à
+ * l'EXÉCUTION (`SITE_URL`, ADR-0069 § 3). Prérendu, ce fichier citerait le sitemap de l'origine de
+ * la machine de build — `www.takussan.com`, le défaut — depuis la préproduction.
+ */
+export const dynamic = 'force-dynamic';
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -33,8 +40,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [...CHEMINS_INTERDITS_AUX_ROBOTS],
       },
     ],
-    // Absolu, sur l'origine résolue une seule fois par `src/lib/alternates.ts`. Un `Sitemap:`
-    // relatif n'est pas suivi.
-    sitemap: `${ORIGINE_SITE}/sitemap.xml`,
+    // Absolu, sur l'origine que décide `src/lib/config-publique.ts`. Un `Sitemap:` relatif n'est
+    // pas suivi.
+    sitemap: `${origineSite()}/sitemap.xml`,
   };
 }

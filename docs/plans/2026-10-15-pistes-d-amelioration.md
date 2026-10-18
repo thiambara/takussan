@@ -111,8 +111,8 @@ voie d'écriture (angle 13, puis 47).
 | 36 | Webhooks de statut SMS et WhatsApp : jeton dans l'URL, signature, rejeu ; puller DLR Mtarget | fait |
 | 37 | `TRUSTED_PROXIES` derrière Traefik : les limiteurs par IP (`auth-phone-send`…) voient-ils le vrai client ? | fait |
 | 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | fait |
-| 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | à faire |
-| 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | à faire |
+| 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | fait |
+| 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | fait (couvert par l'angle 12) |
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
@@ -148,6 +148,7 @@ voie d'écriture (angle 13, puis 47).
 | 73 | URL signées absolues (`hasValidSignature`, `temporarySignedRoute`, `media.private.show`) derrière Traefik : schéma et hôte vus par l'API face à `APP_URL`, signature refusée en préproduction ? | à faire |
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
+| 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
 
 ---
 
@@ -2877,7 +2878,7 @@ n'est pas repris ici.*
 
 ### Des `include=` acceptés, chargés en base, puis jamais émis
 - Réf : P21.05
-- Statut : validé — retirer de $requestLoadable ce qu'aucune ressource n'émet, guarantor compris une fois P21.04 faite ; une garde neuve confronte $requestLoadable aux whenLoaded
+- Statut : fait · TCK-807 — reste : les écarts que la garde exempte sur quatorze autres modèles (Agency, AgencyUpgradeRequest, Customer, Document, Inventory, Invitation, Invoice, KycDossier, MaintenanceRequest, OwnerProfile, PrivacyRequest, Property, ServiceProviderBill, User), à retirer ou à émettre un par un
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Lease.php:91`, `takussan-api/app/Http/Resources/LeaseResource.php:76-79`, `takussan-api/app/Models/Payout.php:65`, `takussan-api/app/Http/Resources/PayoutResource.php:12-55`, `takussan-api/app/Http/Controllers/Api/PayoutController.php:66`, `takussan-api/app/Models/Booking.php:48`
 - Constat :
@@ -2888,10 +2889,11 @@ n'est pas repris ici.*
   - Établi comment : lu. Le coût en requêtes n'est pas mesuré.
 - Piste : retirer de `$requestLoadable` ce qu'aucune ressource n'émet, ou l'émettre par une projection. Une garde qui confronte `$requestLoadable` aux clés `whenLoaded()` de la ressource du modèle.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `Lease::$requestLoadable` (l. 91 : `landlord`, `agency`, `agent`, `guarantor`, `onboardingChecklist` sans clé dans `LeaseResource`, qui n'émet que `property`, `tenant`, `renewed_from`, `renewals`, `signatures`), `Payout::$requestLoadable` (l. 65, seul `issuer` est projeté par `PayoutResource.php:26`), `Booking::$requestLoadable` (l. 48, `agency` non émis par `BookingResource`), `PayoutController::show` l. 66 (`load(['landlord', …])`, non émis) ; le front demande `include: ['property', 'guarantor', 'payments']` (`leases.ts:184`, lu). Constat confirmé par lecture ; le coût en requêtes n'a pas été mesuré. Classement : V7, retirer `guarantor` de `$requestLoadable` ferait refuser l'appel actuel du front, et émettre `landlord` ou `agency` décide d'une donnée exposée (V3) : c'est un choix, que P21.04 attend aussi.
+- Mesure (2026-10-17, 6cc7d7fa2, implementeur) : avant correctif, `IncludeNonEmisRefuseTest` (owner de l'agence, un bail, un reversement, une réservation) → les 12 `include=` non émis (`landlord`, `agency`, `agent`, `guarantor`, `onboardingChecklist` sur `/api/leases`, `lease`, `booking`, `agency`, `landlord`, `approver`, `processor` sur `/api/payouts`, `agency` sur `/api/bookings`) rendent 200 ; la garde neuve `RequestLoadableEmittedTest` nomme `Booking`, `Lease`, `Payout` → retirés de `$requestLoadable`, `landlord` n'est plus chargé par `PayoutController`, 15 verts ; ablation (`app/` revenu à `pre-dev`) → 13 rouges, correctif remis → 15 verts. La garde exempte, comptés, les écarts de quatorze autres modèles.
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : validé — pagination et ressources du carnet des prestataires, sans `metadata`
+- Statut : retenu · à valider — V7 : retirer `metadata` du carnet, comme le dit la précision, efface du carnet et du choix d'assignation le nom, l'e-mail, les métiers et les disponibilités d'un prestataire en brouillon, que le front lit dans `metadata` ; c'est un comportement visible, autre que le V3 accordé (ce qui est exposé), et le garder demande de choisir les sous-clés à projeter
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -2901,6 +2903,7 @@ n'est pas repris ici.*
   - Établi comment : mesuré par test temporaire, et lu.
 - Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `TenantOnboardingPendingController.php:68-70` (`$this->json($page)` sur le paginateur brut), `ServiceProviderProfileController.php:46-49` (`'data' => $paginator->items()`, sans ressource), `ServiceProviderProfile.php:29-31,58-63` (`metadata` et `insurance_policy_id` dans `$fillable` et `$queryFields` ; `metadata` porte l'email du brouillon, l. 140-150) et `LeaseResource.php:78-80` ; `tinker` en lecture, `LeaseResource::make(Lease::first())->toArray(request())` → `renewals`, `renewals_count` et `renewed_from` présents, valant chacun un `MissingValue` (rendu `{}` par `json_encode`, le constat écrit `[]`). Les trois parties tiennent. Classement : V3, la ressource du carnet décide de ce qui est exposé d'un profil de prestataire, `metadata` compris ; l'enveloppe (`$this->paginated()`, A1 par TCK-304) et les clés de `LeaseResource` (A1) seraient autonomes seules.
+- Mesure (2026-10-17, 6cc7d7fa2, implementeur) : relu `ServiceProviderProfileController.php:47-52` (lignes `service_provider_profiles` brutes, `meta` déjà par `paginationMeta`) et `TenantOnboardingPendingController.php:70` (`$this->json($page)` sur le paginateur, constat tenu) ; côté front, `SERVICE_PROVIDER_PROFILE_FIELDS` demande `metadata` (`service-providers.ts:29`), lu par `ServiceProvidersList.tsx:132,151,244,274` (métiers, zones, nom et e-mail du brouillon, relance de l'invitation par e-mail) et `MaintenanceAssignmentBlock.tsx:163-171` (nom, e-mail, `metadata.availability` du contrôle « travaille ce jour-là ») ; `metadata` porte l'e-mail et le nom du brouillon (`ServiceProviderProfile.php:139-150`). Classement : V7, voir le statut ; l'enveloppe de `tenant-onboarding-pending` (A1, TCK-304) et les clés absentes de `LeaseResource` (A1) restent autonomes seules.
 
 ## Angle 22 — FormRequests sans autorisation propre, et règles d'autorisation dans les services
 
@@ -2913,7 +2916,7 @@ Ce qui tient (lu ou mesuré) :
 
 ### Le refus par défaut de `BaseFormRequest` est levé par 106 de ses 232 sous-classes, et une garde sur `extends FormRequest` n'en verrait aucune
 - Réf : P22.01
-- Statut : validé — les cinq routes mesurées seulement (rent, renew, deposit-refund, early-termination, PUT agencies) : authorize() délègue à la policy ; AuthorizationPrecedesValidationTest prend un cas par route ; reste : les autres FormRequests permissives (44 méthodes qui autorisent dans leur corps, 26 qui n'autorisent rien) et la garde « authorize() qui rend true sec »
+- Statut : fait · TCK-816 — reste : les autres FormRequests permissives (44 méthodes qui autorisent dans leur corps, 26 qui n'autorisent rien) et la garde « authorize() qui rend true sec »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/BaseFormRequest.php:9-12`, `takussan-api/app/Http/Requests/ReviewRentRequest.php:16`, `takussan-api/app/Http/Requests/RenewLeaseRequest.php:19`, `takussan-api/app/Http/Requests/RefundDepositRequest.php:15`, `takussan-api/app/Http/Requests/RequestEarlyTerminationRequest.php:15`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:21`, `takussan-api/app/Http/Controllers/Api/LeaseRentController.php:27-30`
 - Constat :
@@ -2925,10 +2928,11 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : script de balayage, lecture des cinq FormRequests et contrôleurs, test temporaire.
 - Piste : voir P03.05. Déléguer à la policy dans `authorize()` pour les 44 méthodes qui autorisent déjà dans leur corps (le geste de TCK-305). La garde serait plutôt : « une sous-classe dont `authorize()` rend `true` sec doit être reçue par une route sous un middleware d'autorisation, ou figurer dans une liste d'exemptions justifiées », et `AuthorizationPrecedesValidationTest` prendrait un cas par route de bail.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `BaseFormRequest.php:9-12` (`return false;`), `authorize()` de `ReviewRentRequest`, `RenewLeaseRequest`, `RefundDepositRequest`, `RequestEarlyTerminationRequest` et `AgencyUpdateRequest` (`return true;`) ; `grep -rlE 'extends BaseFormRequest' app/Http/Requests | wc -l` → 232, et un relevé par `awk` des seules formes `return true;` / `return $this->user() !== null;` → 101 (l'explorateur en comptait 106 avec les équivalents) ; test temporaire, retiré depuis, compte `User::factory()` sans lien, corps invalide : `PATCH …/rent` → 422 (`new_rent`, `reason`), `POST …/renew` → 422, `POST …/deposit-refund` → 422, `POST …/early-termination` → 422, `PUT /api/agencies/{id}` → 422 (`email`). Constat confirmé. Classement : V2 et V8, faire passer l'autorisation avant la validation sur des dizaines de routes touche l'autorisation de chaque appelant et demande plus d'un ticket.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : test `AuthorizationPrecedesValidationTest`, un cas par route, compte agent d'une autre agence et corps invalide : `PATCH …/rent`, `POST …/renew`, `POST …/deposit-refund`, `POST …/early-termination` et `PUT /api/agencies/{id}` rendaient 422 (`new_rent`, `start_date`, `amount`, `effective_date`, `email`) → `authorize()` des cinq FormRequests délègue à l'ability du contrôleur ; 403 sans `errors` pour l'intrus, 422 pour le super-admin ; ablation (`return true;` remis) → 5 rouges, correctif remis → 30 verts.
 
 ### Les trois routes de traitement en lot sont ouvertes à tout compte connecté et disent quels identifiants de biens et de comptes existent
 - Réf : P22.02
-- Statut : validé — authorize() exige la capacité de l'action unitaire à l'agence active ; le bilan confond forbidden et not_found ; user_id jugé dans le service, parmi les membres de l'agence
+- Statut : fait · TCK-817
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:407-458`, `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/PropertyBulkAssignRequest.php`, `takussan-api/app/Http/Requests/PropertyBulkArchiveRequest.php`, `takussan-api/app/Services/Property/PropertyBulkAssignService.php:40-47`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:47-63`
 - Constat :
@@ -2943,10 +2947,11 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : refuser en tête de route ce qu'aucun profil de personnel ne peut faire (une capacité `properties.update` à l'agence active, dans `authorize()`), confondre `not_found` et `forbidden` dans le bilan d'un appelant qui n'est pas du personnel, et juger `user_id` dans le service plutôt que par `exists:`. Un test par route avec un compte sans agence.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `PropertyBulkAssignRequest` et `PropertyBulkArchiveRequest` (`return $this->user() !== null;`), `PropertyPolicy::bulkArchive()` l. 229-232 (`return $user !== null;`) ; test temporaire, retiré depuis, compte `User::factory()` sans agence, bien d'agence tiers et identifiant absent `987654321` : `bulk-assign` → 200, `failed` = `forbidden` pour le bien, `not_found` pour l'absent ; `user_id` absent → 422 « The selected user id is invalid » ; `bulk-visibility` → 200, même bilan ; `bulk-archive` → 200 `forbidden` pour le bien, 422 sur `property_ids.0` pour l'absent. Constat confirmé tel qu'écrit. Classement : V2, le correctif change qui peut appeler ces routes et ce que le bilan dit à l'appelant.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `PropertyBulkRoutesGateTest`, avant correctif : compte `User::factory()` sans agence → 200 sur `bulk-visibility` et `bulk-assign`, 422 sur `bulk-archive` (`property_ids.0`) ; agent d'une agence → `forbidden` pour un bien tiers, `not_found` pour un absent ; `user_id` absent → `errors.user_id` → `authorize()` invoque `PropertyPolicy::bulkUpdate()` / `bulkPublish()` (capacité à l'agence active), `exists:` retirés, bien illisible rendu `not_found`, cible cherchée parmi les membres de l'agence active (422 `user.not_in_active_agency` identique pour un absent et un compte d'une autre agence) ; ablation : tout le correctif retiré → 7 rouges, les seuls services → 2 rouges ; remis → 7 verts, et les 71 tests des trois routes verts après réécriture de ceux qui actaient l'ancien comportement.
 
 ### Des règles d'autorisation vivent dans les services, recopiées de la policy, hors de portée de `check-controller-authorization.mjs`
 - Réf : P22.03
-- Statut : validé — les trois services d'invitation appellent la policy au lieu de leur copie ; reste : la règle de facture jugée deux fois (StoreInvoiceRequest et InvoiceService), les autres règles des services, et la garde étendue à app/Services
+- Statut : fait · TCK-819 — reste : la règle de facture jugée deux fois (StoreInvoiceRequest et InvoiceService), les autres règles des services, et la garde étendue à app/Services
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Invitation/AgentInvitationService.php:222-242`, `takussan-api/app/Policies/AgentProfilePolicy.php:71-95`, `takussan-api/app/Services/Invitation/OwnerInvitationService.php:153-169`, `takussan-api/app/Services/Invitation/ServiceProviderInvitationService.php:213-228`, `takussan-api/app/Services/Model/InvoiceService.php:34-42`, `takussan-api/app/Http/Requests/Api/StoreInvoiceRequest.php`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Services/Model/BookingService.php:60-102`, `scripts/check-controller-authorization.mjs:1-60`
 - Constat :
@@ -2956,10 +2961,11 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et grep.
 - Piste : ramener chaque règle de service dans la policy de l'action et faire appeler la policy par le service quand il est aussi appelé hors HTTP ; étendre la garde à `app/Services/` avec une liste d'exemptions justifiées (règles métier qui ne sont pas des autorisations : verrou de suspension, seuil d'approbation des reversements).
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `AgentInvitationService::assertInviterCanManageTeam()` l. 222-243 et `AgentProfilePolicy::canManageTeamIn()` l. 71-92 : la copie n'est plus mot pour mot, la policy refuse d'abord par `AgencyKindGuard::canFormTeam()`, que le service ne regarde pas (les deux copies ont déjà divergé) ; `InvoiceService::create()` l. 34-42 juge « personnel de l'agence du client, ou client sans agence ajouté par soi » quand `StoreInvoiceRequest::authorize()` l. 28-31 passe par `can('create', Invoice::class)`, soit `Capability::InvoicesCreate` (`InvoicePolicy.php:26-29`) ; `scripts/check-controller-authorization.mjs:59` ne balaie que `app/Http/Controllers`. Constat confirmé, précisé sur la copie. Classement : V2 et V8, réunir chaque règle dans sa policy change l'autorisation d'appelants légitimes sur plusieurs domaines ; seule l'extension de la garde serait A5.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `InvitationServicesFollowPolicyTest` fixe la décision de la policy par `Gate::before` : refusée, un admin d'agence passait quand même les trois invitations, la suspension et le retrait d'un agent ; accordée, un compte sans profil recevait 403 des trois services (6 rouges) → les trois services appellent la policy par `Gate::forUser()->denies()` (`invite`, `suspend`, `delete`), même 403 et même message ; `assertAgencyCanInvite()` reste en tête ; 7 verts, ablation (services d'origine) → 6 rouges, correctif remis → 7 verts ; 166 verts sur les invitations, l'équipe, la suspension et les rôles.
 
 ### Petites améliorations
 - Réf : P22.04
-- Statut : validé — autorisations déplacées dans `authorize()`, et `bulkArchive` sort de la policy
+- Statut : fait · TCK-818 — reste : renommer `Api/Admin/UpdateIntegrationRequest` en `AdminUpdateIntegrationRequest`, que la piste propose et que la décision ne reprend pas
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Policies/PropertyPolicy.php:223-231`, `takussan-api/app/Http/Requests/Accounting/MatchBankStatementLineRequest.php`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php`, `takussan-api/app/Http/Requests/Accounting/UpdateBankCsvMappingRequest.php`, `takussan-api/app/Http/Requests/Permissions/StoreRoleDelegationRequest.php`, `takussan-api/app/Http/Requests/Api/UpdateIntegrationRequest.php`, `takussan-api/app/Http/Requests/Api/Admin/UpdateIntegrationRequest.php`
 - Constat :
@@ -2970,6 +2976,7 @@ Ce qui tient (lu ou mesuré) :
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `bulkArchive` de la policy au profit d'une capacité réelle (voir P22.02) ; déléguer dans `authorize()` pour les quatre FormRequests commentées et pour `PropertyDuplicateRequest` ; renommer la classe d'`Api/Admin/` (`AdminUpdateIntegrationRequest`).
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `PropertyPolicy.php:223-231` (`bulkArchive` rend `$user !== null`), l'`authorize()` des quatre FormRequests : `MatchBankStatementLineRequest.php:12` et `UpdateBankCsvMappingRequest.php:31` (« Policy handles authorization »), `StoreBankStatementRequest.php:15` (« Policy handles fine-grained authorization ») et `StoreRoleDelegationRequest.php:14` (« Fine-grained authorization handled by policy in controller »), toutes `return true` ; `PropertyDuplicateRequest.php:19` (`$this->user() !== null`) ; `Api/UpdateIntegrationRequest.php:34` (`mayManage`) et `Api/Admin/UpdateIntegrationRequest.php:24` (`true`), deux classes de même nom court. Les commentaires diffèrent un peu de la citation, le défaut tient ; l'inversion 422/403 se lit au code et n'a pas été rejouée. Classement : V2, chaque correctif change la réponse d'une route autorisée, et le retrait de `bulkArchive` attend la capacité de P22.02, validée mais non faite.
+- Mesure (2026-10-17, ae4b0c3c0, implementeur) : `AuthorizationPrecedesValidationTest`, un cas par route, compte agent d'une autre agence et corps invalide : `POST …/duplicate`, `POST /api/agencies/{id}/bank-statements`, `PUT …/bank-statements/csv-mapping`, `POST /api/bank-statement-lines/{id}/match` et `POST /api/agencies/{id}/role-delegations` rendaient 422 → les cinq `authorize()` invoquent la policy du contrôleur ; 403 sans `errors` pour l'intrus, 422 pour le super-admin ; ablation → 5 rouges, remis → 40 verts ; 141 tests existants des cinq routes verts. `bulkArchive` est sorti de `PropertyPolicy` par TCK-817 (P22.02), remplacé par `bulkUpdate`.
 
 ## Angle 23 — Lectures de données personnelles sans step-up, face à `REFUSED_READS`
 
@@ -3005,7 +3012,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### Le bailleur lit la pièce d'identité et le contact d'urgence de son locataire par le bail et la réservation, alors que la fiche client lui est refusée
 - Réf : P23.02
-- Statut : validé — id_type, id_number, emergency_contact_*, notes et metadata réservés au lecteur qu'admet CustomerPolicy::view, même forme que readsCriteria()
+- Statut : fait · TCK-808
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/CustomerResource.php:19-27`, `takussan-api/app/Http/Resources/LeaseResource.php:77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:69`, `takussan-api/app/Http/Resources/BookingResource.php:44`, `takussan-api/app/Http/Controllers/Api/BookingController.php:63`, `takussan-api/app/Policies/CustomerPolicy.php:8-14`
 - Constat :
@@ -3017,10 +3024,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu, et test temporaire.
 - Piste : réserver `id_type`, `id_number`, `emergency_contact_*`, `notes` et `metadata` au lecteur que `CustomerPolicy::view` admet, par la même forme que `readsCriteria()`. Étendre `CustomerScopeTest::test_search_criteria_are_rendered_to_agency_staff_only` à ces champs.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `CustomerResource.php:19-30` (`id_type`, `id_number`, `emergency_contact_*`, `metadata`, `notes` hors de `readsCriteria()`), `LeaseController.php:69` et `BookingController.php:63` (chargent `tenant` et `customer` sans `include=`), `CustomerPolicy::view` ; aucun commit sur ces fichiers depuis le 2026-10-14 ; test temporaire, retiré depuis (charge 5,75 sur 8 cœurs) : bailleur membre `owner` d'une agence, locataire ajouté par un agent avec `id_number = SN-998877` → `GET /api/customers/{id}` 403, `GET /api/leases/{id}` 200 avec `tenant.id_number` et `tenant.emergency_contact_phone`, `GET /api/leases?include=tenant` 200 avec `tenant.id_number`. La voie de la réservation n'est pas rejouée, `BookingResource.php:44` rendant le même `CustomerResource` (lu). Classement : V3, le correctif décide ce qui est exposé de la pièce d'identité d'un locataire à son bailleur, et ce que le bailleur doit voir n'est écrit nulle part.
+- Mesure (2026-10-17, 6cc7d7fa2, implementeur) : avant correctif, `CustomerScopeTest::test_identity_contact_notes_and_metadata_are_rendered_to_the_customer_reader_only` (bailleur `owner` de l'agence, locataire ajouté par un agent, `id_number = SN-998877`) → `GET /api/customers/{id}` 403, puis `GET /api/leases/{id}` rend `tenant.id_type` : rouge → `CustomerResource` étale les six champs sous `CustomerPolicy::view`, mémorisée par requête et par couple (agence, auteur) ; le bailleur ne les lit plus par le bail, la liste `include=tenant` ni la réservation, l'agent auteur les lit par la fiche et le bail ; 7 verts, ablation (ressource d'origine) → 1 rouge, correctif remis → 7 verts ; 146 verts sur six classes voisines (baux, réservations, clients, isolation du bailleur) ; `impacted-tests` a rougi 2 tests (fiche lue sans `agency_id` ni `added_by_id` par `fields[customers]`, et `notes` non atteinte par `DateInventoryByValueTest`) → les deux colonnes relues pour la fiche quand un champ réservé a été lu, et un sujet dont l'appelant est l'auteur ; la liste du CRM du front ne relit aucune fiche (test neuf de budget, ablation → 1 rouge).
 
 ### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
 - Réf : P23.03
-- Statut : validé — selon l'amendement du 2026-10-16 d'ADR-0044 (TCK-723) : `customers.id_number`, `guarantors.id_number`, et le revenu mensuel de la caution et du bailleur, chiffrés et masqués par défaut ; valeur claire par une lecture dédiée sous step-up et journalisée, pour l'admin d'agence seul
+- Statut : retenu · à valider — V8 : le correctif dépasse M et demande plus d'un ticket (quatre colonnes chiffrées par migration réversible, deux lectures dédiées sous step-up et journalisées, le contrat du front), critère distinct de V3, V4 et V6 accordés
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
 - Constat :
@@ -3033,10 +3041,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 - Piste : étendre ADR-0044 §1 aux deux colonnes : chiffrement par migration réversible, forme masquée par défaut, valeur claire par une lecture dédiée sous step-up et journalisée, comme `owners/{id}/sensitive`. C'est un choix de produit et de schéma, à poser par ADR. À défaut, au moins la masquer dans les listes et sous impersonation.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu les migrations `2026_04_17_160006` (l. 21) et `2026_04_17_160007` (l. 18, 21) : `id_number` et `monthly_income` en `string` et `decimal` clairs ; `grep -n encrypted` sur `Customer.php` et `Guarantor.php` → rien ; `CustomerResource.php:20` et `GuarantorController.php:93,96` les rendent en clair ; aucun ticket ne traite leur chiffrement (`grep` dans `docs/backlog/tickets`). Le scénario sous impersonation n'est pas rejoué : la lecture du code est inchangée, et le test de P23.02 rend `id_number` en clair à un autre lecteur. Classement : V4, la piste chiffre deux colonnes par migration, avec un ADR (V6) sur ce qui est exposé (V3).
 - Mesure (2026-10-16, 55a41109, humain) : ADR-0044 amendé en session (TCK-723) : `customers.id_number` et `guarantors.id_number` suivent le § 1 (cast `encrypted`, masqués par défaut, lecture claire dédiée sous step-up et journalisée) ; le porteur a tranché ses deux questions (points 6 et 7 : revenu mensuel de la caution et du bailleur compris, valeur claire pour l'admin d'agence seul). L'application reste à faire.
+- Mesure (2026-10-17, 11118c160, implementeur) : relu l'amendement A d'ADR-0044 (§ 1 à 7 et « Application ») : `customers.id_number` et `guarantors.id_number` passent en `text` chiffré, `guarantors.monthly_income` et `owner_profiles.monthly_income` (`decimal(14,2)`, migrations `2026_04_17_160007:21` et `2026_05_02_000001:20`) aussi, chacune par une migration qui chiffre l'existant et dont le `down()` déchiffre, aller-retour testé ; deux routes `…/{id}/sensitive` neuves (client, caution), avec `viewSensitive`, `ProtectedActions::STEP_UP` et `PersonalDataAccessLogger` ; `id_number` hors de `Customer::$queryFields`, masques dans `CustomerResource` et `GuarantorController::format` ; le front lit `id_number` et `monthly_income` dans 9 fichiers (`grep -rln` sous `takussan-web/src` : types, schémas, `CustomerForm`, `GuarantorSection`). Le défaut tient. Classement : V8, à découper par le porteur, par exemple pièce du locataire et de la caution, puis revenus, puis le front.
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
-- Statut : validé — index filtré par uploaded_by pour tous, super-admin compris, si aucun écran de la console ne l'appelle ; lecture d'une pièce par un profil plateforme journalisée par PersonalDataAccessLogger
+- Statut : fait · TCK-820 — reste : `GET /api/search/documents` garde l'exemption du super-admin (`DocumentSearchService.php:22`) et lui rend encore les documents de toute la plateforme
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`, `takussan-api/app/Models/Document.php:36`, `takussan-api/app/Policies/DocumentPolicy.php:38`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:37,46`
 - Constat :
@@ -3047,10 +3056,11 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu et grep.
 - Piste : journaliser par `PersonalDataAccessLogger` toute lecture par un profil plateforme d'un `Document` de type pièce dont il n'est pas le téléverseur, ou retirer le pouvoir global de `index` au profit d'une voie de console. Garde : un test qui vérifie la ligne de journal.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `DocumentController::index` (filtre `uploaded_by` hors super-admin seulement), `Document.php:36` (`type` filtrable), `DocumentPolicy.php:38` ; le point « à vérifier » est vérifié par test temporaire, retiré depuis : une `id_card` avec fichier, téléversée par un autre compte, puis super-admin (`operateur()` avec step-up) → `GET /api/documents?filter[type]=id_card` 200, 1 document, `file_url` signée ; `GET /api/documents/{id}` 200 ; `GET <file_url>` 302 ; 0 ligne `PersonalDataAccess` dans `activity_log`. Classement : V3, la piste propose deux voies (journaliser, ou retirer le pouvoir de `index`, ce qui touche aussi V2), un choix sur la consultation des pièces d'identité.
+- Mesure (2026-10-17, 11118c160, implementeur) : condition de la décision vérifiée, aucun écran de la console n'appelle `GET /api/documents` (seule `DocumentsLibrary`, sous `/app/documents`) ; avant correctif, `DocumentPieceAccessTest` : la liste `filter[type]=id_card` du super-admin contenait la pièce d'un autre compte, et `GET /api/documents/{id}` comme le téléchargement d'une version ne laissaient aucune ligne `PersonalDataAccess` (3 rouges) → filtre `uploaded_by` pour tous, `PersonalDataAccessLogger::recordPlatformPieceRead()` (surface `document_piece`, pièce de `PIECE_TYPES` lue par un profil plateforme qui ne l'a pas téléversée) appelée par `show` et `download` ; 4 verts, ablation (contrôleurs d'origine) → 3 rouges, correctif remis → 4 verts ; 78 verts sur dix classes voisines.
 
 ### Des URL signées de 7 jours vers des pièces privées sont rangées dans `app_notifications.data`, et relues par `GET /api/notifications`
 - Réf : P23.05
-- Statut : validé — ne ranger que les identifiants des médias et signer à la lecture après autorisation ; l'URL longue reste pour le courriel
+- Statut : fait · TCK-821
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Notifications/LeaseDepositRefundNotification.php:35,94-104,123-136`, `takussan-api/app/Notifications/Channels/AppDatabaseChannel.php:155-189`, `takussan-api/app/Http/Resources/AppNotificationResource.php:46`
 - Constat :
@@ -3062,6 +3072,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
   - Établi comment : lu.
 - Piste : ne ranger en base que les identifiants des médias, et signer à la lecture, dans `AppNotificationResource` ou un point de lecture dédié, après autorisation. Garder l'URL longue pour le seul courriel. Garde : un test qui vérifie qu'aucune `data` de notification écrite ne contient `signature=`.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `LeaseDepositRefundNotification.php:35,103,129-131` et `AppNotificationResource.php:46` (`data` rendu tel quel) ; `EnforceImpersonationReadOnly` ne cite pas `api/notifications` (grep) ; les trois points « à vérifier » le sont par test temporaire, retiré depuis : remboursement de caution avec une photo → 1 ligne `app_notifications` dont `data` contient `signature=` ; session d'impersonation sur le locataire → `GET /api/notifications` 200, corps avec `signature=` ; l'URL relue sans session → 302 ; la même au huitième jour (`travel(8)->days()`) → 403. Classement : V3, le correctif change ce qui est conservé dans `app_notifications` et la forme de `data` relue par le front.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `DepositRefundAttachmentLinksTest` : la ligne `app_notifications` d'un remboursement avec une photo contenait `signature=`, et `GET /api/notifications` rendait l'URL de 7 jours au lieu d'une URL courte (3 rouges) → `toArray()` ne range que `{id, name}`, `AppNotificationResource` signe à la lecture par `LeaseDepositRefundNotification::attachmentsAtRead()` (30 min, `LeasePolicy::view` sur le bail, pièce de sa collection, `null` sinon), le courriel garde ses 7 jours ; 4 verts, ablation (notification et ressource d'origine) → 3 rouges, correctif remis → 4 verts ; `PrivateMediaAccessTest` lit désormais le lien long dans le courriel ; 62 verts sur huit classes voisines.
 
 ### Petites améliorations
 - Réf : P23.06
@@ -3098,7 +3109,7 @@ sont pas reprises.*
 
 ### Un même achat de boost rejoué est débité deux fois : deux badges identiques coûtent 20 crédits pour un seul badge
 - Réf : P24.01
-- Statut : validé — en-tête Idempotency-Key généré à l'ouverture du dialogue, unique par espace sur 24 h, rejoué en 200 avec le boost déjà écrit
+- Statut : fait · TCK-822
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:32-41`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:112-185`, `takussan-web/src/components/boost/BoostDialog.tsx:66-77,143`
 - Constat :
@@ -3109,6 +3120,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : une clé d'idempotence par ouverture du dialogue (`Idempotency-Key` ou champ `request_id`, unique par espace sur une courte fenêtre), rejouée en 200 avec le boost déjà écrit. Garde : un test qui rejoue la même clé et constate un seul débit.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` et `badge()` (aucune clé d'idempotence, `debit()` à chaque appel) ; aucun ticket ne la prévoit (`grep -il idempoten` dans `docs/backlog/tickets` croisé avec « boost » → seul TCK-633, sur l'espace automatique) ; test temporaire, retiré depuis : deux `POST /api/properties/{id}/boosts` du premier badge (10 crédits), à 30 s d'écart → 201 et 201, solde 500 → 480, lignes `ended` puis `active`. La Vedette rejouée n'est pas remesurée. Classement : V1, le correctif touche l'écriture d'un débit de crédits et ajoute une clé au contrat de l'achat, dont la forme et la fenêtre sont à choisir.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `BoostPurchaseIdempotencyTest` rejoue un badge avec la même `Idempotency-Key` à 30 s d'écart → 201 au lieu de 200, et une Vedette rejouée → 201 (deux débits) ; après, 201 puis 200 avec le même boost, un seul débit, la Vedette ni débitée ni prolongée deux fois, la même clé pour une autre offre ou un autre bien → 422 `boost.idempotency_key_reused`, et après 25 h un nouvel achat. Ablation (rejeu court-circuité) : 4 rouges sur 6 ; front, sans l'en-tête ou sans clé neuve à la réouverture, `api.test.ts` et `BoostDialog.test.tsx` rougissent.
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
@@ -3137,7 +3149,7 @@ sont pas reprises.*
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04
-- Statut : validé — contrôles « bien public » et « offre active » déplacés sous le verrou, sur la ligne verrouillée ; 422 sans débit
+- Statut : fait · TCK-823
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:30-48,63-77,79-110`
 - Constat :
@@ -3147,10 +3159,11 @@ sont pas reprises.*
   - Établi comment : lu.
 - Piste : déplacer les deux contrôles sous le verrou, sur la ligne verrouillée (`Property::query()->public()->whereKey(…)` après `lock()`). Garde : un test qui dépublie le bien par `DB::beforeExecuting` entre le contrôle et le verrou, et attend 422 sans débit.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostPurchaseService::purchase` : `abort_code_unless($product->is_active, …)` et `assertBoostable()` avant `DB::transaction` et `lock()`, rien de re-vérifié sous le verrou ; le point « à vérifier » l'est par test temporaire, retiré depuis : `DB::beforeExecuting` passe le bien à `rented` juste avant le `FOR UPDATE` sur `agencies` → `POST` d'une Vedette 7 jours 201, boost `active`, solde 500 → 480, bien `rented`. Classement : V1, le correctif touche le chemin qui débite les crédits, et le doute entre A1 et V1 classe à valider.
+- Mesure (2026-10-17, 11118c160, implementeur) : avant correctif, `BoostPurchaseUnderLockTest` passe le bien à `rented` (puis l'offre à inactive) par `DB::beforeExecuting` juste avant le `FOR UPDATE` sur `agencies` → 201 et débit dans les deux cas ; après, 422 `boost.property_not_public` et `boost.product_inactive`, solde 500 inchangé, aucune ligne de boost, et l'achat sans changement reste 201. Ablation (service d'avant) : les 2 cas rougissent ; remis, verts, avec les 94 tests de `tests/Feature/Boost`.
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : validé — rembourser d'abord les jours les plus tardifs, au prix de la tranche qui les a achetés
+- Statut : retenu · à valider — V4 : les tranches d'une Vedette prolongée ne sont écrites nulle part (ni durée ni offre par prolongation, aucun mouvement pour une tranche offerte) ; rembourser par tranche exige une table ou une colonne neuve, migration de schéma autre qu'un index, critère distinct de V1 accordé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3161,10 +3174,11 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : rendre les jours restants en commençant par les plus tardifs, au prix de la tranche qui les a achetés (garder les tranches de prolongation, ou les mouvements `spend` datés), ou trancher dans l'ADR que le prorata sur le cumul est voulu. Garde : un test « offerte puis achetée » et « achetée puis offerte ».
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `BoostPurchaseService.php:127-131` (prolongation : `price_credits + $price`, `duration_days + …` sur la même ligne) et `BoostLifecycle.php:139-152` (`intdiv(price_credits × jours pleins, duration_days)`), inchangés depuis 6548b29c ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, `refundableCredits()` sur une Vedette active prix 20 / durée 37 → 6 crédits à 12 jours restants, 3 à 7 jours, 19 à 36 jours → le constat tient dans les deux sens : « offerte (30 j) puis achetée (7 j, 20) » rend 6 sur les 20 payés alors que les 7 jours payés restent ; « achetée puis offerte » à 36 jours restants rend 19, plus que les ≈17 des 6 jours payés restants (le cas « à vérifier » du constat est donc établi). Classement : V1, la règle de remboursement d'un montant de crédits est à trancher (tranches datées ou prorata cumulé assumé dans ADR-0061 § 8).
+- Mesure (2026-10-17, 464374510, implementeur) : le défaut tient en lecture (`BoostPurchaseService.php:127-131` cumule toujours `price_credits` et `duration_days` sur la ligne en place, `BoostLifecycle::refundableCredits()` rend `intdiv(price_credits × jours pleins, duration_days)`). Mais rien ne garde les tranches : `property_boosts` n'a qu'un `price_credits`, un `duration_days` et un `boost_product_id` (celui de la première tranche, lu `2026_10_12_500100_create_boost_tables.php:31-57`) ; `credit_movements` n'a ni durée ni offre (lu `2026_10_12_500200_create_credit_ledger_tables.php:38-50`), et une tranche offerte n'écrit aucun mouvement (`debit()` ne fait rien à prix 0, lu `BoostPurchaseService.php:187-191`). Les jours de chaque tranche ne se reconstruisent donc pas : la correction validée demande une table ou une colonne neuve, et la reprise des Vedettes déjà prolongées. Rien n'est implémenté. Classement : V4.
 
 ### Petites améliorations
 - Réf : P24.06
-- Statut : validé — selon la piste
+- Statut : fait · TCK-826 — reste : le message du délai de Remontée (`:hours` et date formatée), que la parité des placeholders oblige à porter aussi dans le texte `wo` existant, en pause
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/lang/fr/errors.php:93`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:81-89`, `takussan-api/app/Services/Credits/CreditExpiryNotifier.php:26-44`, `takussan-api/app/Services/Credits/CreditLedger.php:219-229`
 - Constat :
@@ -3173,6 +3187,7 @@ sont pas reprises.*
   - Établi comment : lu, et test temporaire.
 - Piste : délai et date passés en paramètres (`:hours`, date formatée), ou une clé `errors.api` côté front qui formate `params.available_at` ; pour le préavis, poser `expiry_notice_sent_at` du lot `refund` quand son lot d'origine a déjà été prévenu. Garde : un test par cas.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `lang/{fr,en,wo}/errors.php:93` (« 24 heures » en dur dans les trois langues), `BoostPurchaseService.php:80-89` (délai = `bumpCooldownHours()`, `available_at` en `toIso8601String()`), `grep -rn bump_cooldown takussan-web/src` → seules des clés `bump_cooldown_hours` du réglage dans `messages/*.json`, aucune pour le code d'erreur ; `CreditLedger.php:218-229` (`applyRefund` passe par `grant()` avec l'expiration du lot d'origine, sans `expiry_notice_sent_at`) et `CreditExpiryNotifier.php:27,35` (sélectionne les lots `whereNull('expiry_notice_sent_at')`). Lignes à peine décalées, les deux défauts tiennent ; le second préavis se lit au code, il n'a pas été rejoué. Classement : V1, la piste touche l'écriture d'un lot de crédits remboursés, et le message demande un texte neuf dans trois langues (V7).
+- Mesure (2026-10-17, 464374510, implementeur) : préavis reproduit avant correctif par `RefundLotExpiryNoticeTest` (lot de bienvenue à J+20, Vedette 15 jours à J+10, préavis à J+14, bien loué) → le lot `refund` naît sans `expiry_notice_sent_at` et le passage suivant envoie un second préavis (`1` au lieu de `0`) ; correctif : `CreditLedger::applyRefund()` reporte l'`expiry_notice_sent_at` du lot d'origine sur le lot remboursé → 2/2 verts, 127 verts sur `tests/Feature/Boost` et `tests/Feature/Credits` ; ablation (`applyRefund()` d'origine) → le même rouge, le témoin « lot d'origine pas encore prévenu » reste vert. Message du délai de Remontée non fait : `LangGroupParityTest` exige les mêmes placeholders en `fr`, `en` et `wo`, et `:hours` réécrirait le texte `wo` existant (`lang/wo/errors.php:93`), en pause.
 
 ## Angle 25 — Rapprochement bancaire quand une pénalité est incluse dans l'encaissement
 
@@ -3249,7 +3264,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### À montant égal, deux encaissements du même jour : le matcher en choisit un au hasard, avec 70 de confiance
 - Réf : P25.05
-- Statut : validé — à égalité entre deux encaissements, aucune suggestion
+- Statut : fait · TCK-827
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:144-176`
 - Constat :
@@ -3259,10 +3274,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : juger l'ambiguïté à chaque palier (deux candidats au meilleur score, et aucune ne suggère). Garde : un test à 70 et un à 80.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `ReconciliationMatcher.php:144-176` (ambiguïté jugée seulement `if ($bestScore === 60)`, `>` strict à `:149`) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, deux loyers de 150 000 de deux baux de la même agence payés le même jour, crédit de 150 000 à J+1 → `LeasePayment conf=70` (le premier), à J+5 → `null`. Classement : V7, étendre l'ambiguïté aux paliers 70 et 80 change ce que voit l'agence (suggestion retirée, à apparier à la main), et la règle de départage (ambiguïté ou critère de plus) est un choix de produit.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationAmbiguityTest` → deux loyers de 150 000 à égalité rendent une suggestion au premier candidat aux paliers 70 (même jour, crédit à J+1), 80 (même payeur, crédit à J+5) et 95 (même référence) : 3 rouges ; correctif : `scoreCandidates()` compte les candidats au meilleur score et ne suggère rien à partir de deux → 4/4 verts, 117 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation (`scoreCandidates()` d'origine) → les 3 mêmes rouges, le témoin « un seul au meilleur score, un autre à 60 » reste vert.
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : validé — le montant attendu inclut la pénalité réglée le même jour ; reste : rendre rapprochable une pénalité réglée seule
+- Statut : fait · TCK-833 — reste : rendre rapprochable une pénalité réglée seule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3273,10 +3289,11 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `LateFeeSettlement.php:47-56` (pose `late_fee_paid_at` et `late_fee_payment_method`, rien d'autre) et `ReconciliationManager.php:123-134` (un-pour-un) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence sans encaissement en ligne de la pénalité, loyer puis pénalité marqués réglés par virement → crédit de 157 500 : `null` ; crédit de 7 500 : `null` ; témoin à 150 000 : `LeasePayment conf=70`. Classement : V1, la piste elle-même demande un choix de modèle comptable (montant attendu pénalité comprise, ou pénalité rapprochable seule).
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `ReconciliationLateFeeSameDayTest` avant correctif (load 9,63/9,49/7,07 sur 8 cœurs) : loyer de 150 000 payé par virement et pénalité de 7 500 réglée le même jour → crédit de 157 500 `unmatched` ; `LeasePayment::scopeWhereExpectedAmountNear()` ajoute hors ligne `late_fee_amount` quand `late_fee_paid_at` et `paid_at` tombent le même jour → `suggested` sur l'échéance, et la recherche manuelle à 157 500 la rend ; témoins verts (pénalité un autre jour : `unmatched` ; sans pénalité : 150 000 suggéré). Ablation : branche hors ligne ramenée à `amount`, le cas du même jour rougit, remis vert ; `BankReconciliationTest` et `PaymentSearchTest` verts (29 tests).
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
-- Statut : validé — journaliser le statut et l'écart de montant à la confirmation ; reste : les autres points, un par un
+- Statut : fait · TCK-828 — reste : les autres points, un par un
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:95`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:39-97`, `takussan-api/app/Services/Accounting/PaymentSearchService.php:75-84`, `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:30-49`
 - Constat :
@@ -3287,6 +3304,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu.
 - Piste : à trancher entrée par entrée. Le statut et l'écart de montant à la confirmation peuvent au moins être journalisés (`withProperties`) sans changer le comportement.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `ReconciliationMatcher.php:94-95` (fenêtre sur `issue_date` pour une facture, `paid_at` pour le reste), les colonnes de date d'`invoices` lues par `SELECT` sur `information_schema` en dev (`issue_date`, `due_date`, `last_reminder_sent_at`, `bank_reconciled_at` : aucune date d'encaissement), `ReconciliationManager.php:39-97` (gardes de statut du relevé, d'agence, de sens, de reversement `Completed`, de devise et de doublon ; ni montant ni statut d'une `LeasePayment`), `PaymentSearchService.php:75-84` (filtre `bank_reconciled_at` et cautions rendues, sans statut) et `MatchBankStatementJob.php:30-49` (aucun retrait des paiements déjà suggérés). Les quatre parties tiennent ; la facture réglée à 30 jours se déduit du code, elle n'a pas été rejouée sur données. Classement : V1, chaque partie touche l'écriture d'un rapprochement de paiement, et la piste renvoie elle-même le choix au porteur.
+- Mesure (2026-10-17, 464374510, implementeur) : reproduit avant correctif par `ReconciliationConfirmationAuditTest` → une ligne de 7 500 se confirme sur une échéance `pending` de 150 000 et l'activité `matched` ne porte ni statut ni montant (3 rouges, clé `payment_status` absente) ; correctif : `payment_status`, `expected_amount` et `amount_gap` ajoutés à l'activité, montant attendu d'une échéance par `LeasePayment::expectedBankAmount()` (la règle du scope de TCK-715) → 3/3 verts, 120 verts sur `tests/Feature/Api/Accounting` et les deux classes de reversement ; ablation : `confirmMatch()` d'origine → 3 rouges, `expectedBankAmount()` réduit à `amount` → 1 rouge (échéance soldée en ligne, écart de 7 500). Comportement inchangé : aucun refus ajouté.
 
 ## Angle 26 — PDF : quittances, contrats, factures
 
@@ -3332,7 +3350,7 @@ forcée »).*
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
-- Statut : validé — « du … au … » dès que la période dépasse un mois, après la fusion de #453
+- Statut : fait · TCK-834
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
 - Constat :
@@ -3342,6 +3360,7 @@ forcée »).*
   - La base de dev porte 4 baux trimestriels et 4 annuels (mesuré).
 - Piste : imprimer « du … au … » à partir de `period_start` et `period_end` dès que la période dépasse un mois. Le test de quittance porte une échéance trimestrielle.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `rent.blade.php:10-13,53-57` (période = `period_start->translatedFormat('F Y')`) ; `grep -rn period_end resources/views/pdf` → seul `statements/owner.blade.php:19` ; `SELECT` sur `lease_payments` `rent` → 0 échéance sur 3 368 de plus de 32 jours, et `leases` : 4 `quarterly`, 4 `yearly`, 568 `monthly` ; `tinker` en lecture, rendu de `pdf.receipts.rent` avec une échéance non enregistrée du 2027-01-01 au 2027-03-31 → « Période January 2027 ». Le défaut ne se voit qu'une fois la PR #453 fusionnée : aujourd'hui aucune échéance ne couvre plus d'un mois. Classement : V7, la forme de la période imprimée sur une attestation de paiement est un texte d'acte neuf, et dépend de P04.01, encore ouverte.
+- Mesure (2026-10-18, b9850853, implementeur) : #453 (P04.01) fusionnée le 2026-10-16 ; reproduit par `QuittancePeriodeTest` avant correctif : échéance du 2027-01-01 au 2027-03-31 → « Janvier 2027 », sans « du … au … ». `rent.blade.php` imprime « du 1 janvier 2027 au 31 mars 2027 » quand `period_end` dépasse `period_start + 1 mois − 1 jour` ; une échéance d'un mois, même du 15 au 14, garde « Octobre 2026 ». Ablation : condition à `false`, les cas trimestriel et annuel rougissent, remis verts ; tests voisins des quittances verts (28 tests).
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
@@ -3359,7 +3378,7 @@ forcée »).*
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
-- Statut : validé — désignation prise dans l'objet facturé (`invoiceable`), repli sur une clé `metadata`
+- Statut : fait · TCK-835 — reste : une désignation propre à chaque créateur (indemnité de résiliation, retenue sur caution) quand l'objet facturé est un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
 - Constat :
@@ -3368,10 +3387,11 @@ forcée »).*
   - La table `invoices` n'a ni lignes ni désignation (migration lue) : seule la note dit l'objet.
 - Piste : à défaut de lignes, prendre la désignation dans l'objet facturé (`invoiceable`) ou dans une clé de `metadata` posée par le créateur, au lieu de « Prestation ». Un test par créateur qui lise la désignation rendue.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `DocumentPdfController.php:64-80` (aucun `lines` passé), `default.blade.php:10-15` (repli « Prestation × 1 »), `EarlyTerminationService.php:338-356` et `DepositRefundService.php:105-124` (objet porté par `notes` seulement) ; colonnes d'`invoices` lues par `Schema::getColumnListing` en `tinker` → ni lignes ni désignation (`notes`, `metadata` seuls) ; rendu de P26.02 → « Prestation 1 100 025 F CFA ». Classement : V7, la piste laisse le choix entre `invoiceable` et une clé de `metadata`, et le libellé imprimé sur une facture est un texte métier.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `FactureDesignationTest` avant correctif : factures sur un bail, sur une réservation, et sans objet avec `metadata.designation` → toutes « Prestation ». `Invoice::designation()` (objet facturé, même supprimé, puis `metadata.designation`) alimente la ligne par défaut du gabarit : « Bail LS-2027-0042 — Villa Almadies », « Réservation BK-0007 — Studio Plateau », « Frais de dossier » ; sans l'un ni l'autre, « Prestation ». Ablation : ligne ramenée à « Prestation », 4 cas sur 5 rougissent, remis verts ; `InvoicePdfTest` et `InvoiceLegalMentionsTest` verts. L'indemnité de résiliation et la retenue sur caution, émises sur le bail, impriment « Bail … » : leur libellé propre reste en `notes`.
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
-- Statut : validé — nombres et dates au format français ; reste : libellés des enums (après P06.03) et montant par échéance au contrat
+- Statut : fait · TCK-836 — reste : libellés des enums (après P06.03) et montant par échéance au contrat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
 - Constat :
@@ -3382,6 +3402,7 @@ forcée »).*
   - **Nom de fichier** : un avoir se télécharge en `facture-….pdf` (lu).
 - Piste : des libellés pour les enums imprimés (par la décision de P06.03 sur la langue), `number_format` à la française, des dates formatées, et le montant par échéance au contrat. À trier ligne par ligne.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : rendus de P26.01 et P26.02 → « Méthode bank_transfer », « Statut sent » ; `PaymentReceiptPdf.php:54` passe `payment_type?->value` brut au reçu de réservation (`booking.blade.php:48`) ; `tinker` : `rtrim(rtrim(number_format(18.5, 2), '0'), '.')` → « 18.5 » ; `owner.blade.php:19` imprime `period_start` et `period_end`, posés par `toDateString()` (`OwnerStatementService.php:68`) ; `contract.blade.php:90-107` : « Loyer mensuel » toujours, prix de vente à côté pour un `sale` ; `DocumentPdfController.php:78` : `facture-…` pour un avoir. Les cinq parties tiennent. Classement : V7, chaque partie est un texte d'acte neuf, et la piste les renvoie elle-même à la décision de P06.03 et à un tri ligne par ligne.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `GabaritsPdfFormatFrancaisTest` avant correctif : taux de 18,5 % → « TVA (18.5%) » ; relevé d'octobre 2026 → « 2026-10-01 — 2026-10-31 » et reversement « 2026-10-15 ». Taux par `number_format(…, 2, ',', ' ')` → « TVA (18,5%) » (18 % reste « TVA (18%) ») ; période et reversements du relevé en `d/m/Y` → « 01/10/2026 — 31/10/2026 », « 15/10/2026 ». Ablation : gabarits rendus à `pre-dev`, les cas du taux décimal et du relevé rougissent, remis verts ; tests voisins des PDF verts. Le nom de fichier `facture-…` d'un avoir, ni nombre ni date, n'est pas touché.
 
 ## Angle 27 — Routeur SMS : double envoi sur un timeout suivi d'un repli
 
@@ -3903,7 +3924,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Le sitemap est figé au build, et le premier build de production se fait sans API
 - Réf : P34.02
-- Statut : validé — sitemap rendu à la demande avec un cache de données d'une heure, et non plus prérendu au build ; reste : compter ses `<loc>` en F3 avant la soumission, hors agents dans le plan
+- Statut : fait · TCK-831
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
 - Constat :
@@ -3914,6 +3935,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 - Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
 - Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
 - Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 3 point 6 compte les `<loc>` contre `meta.total` de la liste publique avant toute soumission, et F2 étape 1 exige que la piste soit fusionnée avant le build `:prod`.
+- Mesure (2026-10-18, 92d8361e, humain) : fait avec l'étape 2 d'ADR-0069 (TCK-831), qui l'exigeait : l'origine du site se lit désormais à l'exécution. `sitemap.ts` et `robots.ts` sont en `dynamic = 'force-dynamic'`, et les appels du sitemap portent `next: { revalidate: 3600 }` (`FRAICHEUR_SITEMAP`, `sitemap-catalogue.ts` et `listerProfilsPublics` en mode partagé ; `facettes.ts` l'avait déjà). Build sans `NEXT_PUBLIC_*` : `prerender-manifest.json` ne prérend plus que `/_global-error`, `/apple-icon.png`, `/favicon.ico`, `/icon.svg`, `/manifest.webmanifest` ; `/robots.txt` et `/sitemap.xml` sont `ƒ` (mesuré). `force-dynamic` ne prive pas ces appels du cache : Next ne force `no-store` que sur un `fetch` sans réglage (`patch-fetch.js`, `noFetchConfigAndForceDynamic`, lu). Le comptage des `<loc>` reste en F3.
 
 ### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
 - Réf : P34.03
@@ -4264,7 +4286,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Le message de contact d'une annonce peut atterrir dans un groupe, même un groupe que l'expéditeur a quitté
 - Réf : P38.02
-- Statut : validé — `query()` du résolveur restreint aux conversations `direct` où le visiteur et le destinataire sont participants actifs (`left_at` nul) ; un groupe ou une directe quittée ne capte plus le contact, un fil neuf s'ouvre ; test : un groupe sur le bien ne capte pas le contact ; quand P38.05 sera fait, le destinataire cesse d'être un critère de recherche (ADR-0068 § 3)
+- Statut : fait · TCK-813
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Messaging/PropertyConversationResolver.php:65-112`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1071-1113`
 - Constat :
@@ -4273,6 +4295,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le même chemin, quand le visiteur est encore membre du groupe, montre à tout le groupe un message écrit depuis un formulaire de contact privé (déduit de la même requête, non mesuré séparément).
 - Piste : restreindre `query()` aux conversations `direct` dont les deux participations sont actives (`left_at` nul). Un test : un groupe sur le bien ne capte pas le contact, et un fil neuf s'ouvre.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `PropertyConversationResolver::query()` : ni `type = direct` ni `left_at` ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : groupe sur le bien (propriétaire admin, tiers, visiteur qui l'a quitté), puis `POST /api/public/properties/{slug}/contact-message` du visiteur → la réponse rend l'identifiant du groupe (type `group`), et `GET …/messages` du visiteur sur ce fil → 403. Constat confirmé tel qu'écrit. Classement : V3, le correctif change ce qui est exposé à des tiers, et restreindre aux participations actives décide aussi du sort d'une directe quittée (fil neuf ou reprise), qui est un choix de produit.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (un groupe sur le bien réunissant propriétaire, visiteur et tiers ; une directe que le visiteur a quittée) → rouges, le contact rendait l'identifiant du groupe et de la directe quittée ; correctif : `query()` filtre `type = direct` et `left_at` nul sur les deux participations → verts, un fil direct neuf s'ouvre ; ablation clause par clause : sans `type`, le test du groupe rougit seul, sans `left_at`, celui de la directe quittée rougit seul ; 42 tests des quatre classes du contact verts.
 
 ### Un premier message joint à la création d'une conversation ne déclenche aucune notification
 - Réf : P38.03
@@ -4289,7 +4312,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### `contactMessage()` ignore la sourdine et l'archivage que `sendMessage()` respecte
 - Réf : P38.04
-- Statut : validé — `contactMessage()` passe par le chemin de `sendMessage()` : désarchivage du fil pour les autres participants, puis `NotifyNewMessageJob`, qui respecte la sourdine ; un test par effet
+- Statut : fait · TCK-814
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1087-1102`, `takussan-api/app/Http/Controllers/Api/ConversationController.php:307-322`, `takussan-api/app/Jobs/NotifyNewMessageJob.php:42-47`
 - Constat :
@@ -4298,6 +4321,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Le docblock de `toggleMute()` dit que les notifications respectent ce drapeau (`ConversationController.php:191-195`).
 - Piste : faire passer `contactMessage()` par le même chemin d'envoi que `sendMessage()` (désarchivage, puis `NotifyNewMessageJob`). Choisir avant si un contact par annonce doit percer la sourdine.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `contactMessage()` : ni désarchivage, ni passage par `NotifyNewMessageJob`, `NotificationService::send()` direct ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : le destinataire passe le fil en sourdine et l'archive, deuxième contact par la fiche → notifications 1 → 2, `archived_at` toujours non nul. Classement : V7, la piste elle-même demande de choisir si un contact d'annonce perce la sourdine avant d'aligner les deux chemins.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par deux tests neufs de `PropertyContactMessageTest` (`QUEUE_CONNECTION=sync`) : le destinataire archive le fil puis reçoit un second contact → `archived_at` toujours non nul ; il le met en sourdine → notifications 1 → 2 ; correctif : `contactMessage()` reprend les écritures de `sendMessage()` en transaction (désarchivage des autres participants) puis dispatche `NotifyNewMessageJob` → verts ; ablation : sans le désarchivage, le premier rougit seul, avec l'envoi direct par `NotificationService` à la place du job, le second rougit seul.
 
 ### Un collaborateur retiré du bien garde la lecture et l'écriture du fil d'un prospect ; la relance du prospect ouvre un second fil
 - Réf : P38.05
@@ -4313,7 +4337,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### L'adresse e-mail de l'expéditeur sert de nom dans les notifications de message et d'invitation
 - Réf : P38.06
-- Statut : validé — repli commun aux trois chemins : prénom et nom, puis `username`, puis `—` ; l'e-mail ne sort plus jamais ; un test qui épingle les `params` d'un expéditeur sans nom ni `username`
+- Statut : fait · TCK-815
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/NotifyNewMessageJob.php:58-60`, `takussan-api/app/Notifications/ConversationInviteNotification.php:96-104`, `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:1130-1133`, `takussan-api/app/Http/Resources/ConversationResource.php:43-44`
 - Constat :
@@ -4322,6 +4346,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - `ConversationResource` pose la règle inverse pour les membres d'un fil : « le nom et l'avatar, jamais les coordonnées » (l. 43-44). La même règle vaut pour `MessagingContactResource`.
 - Piste : un repli sans coordonnée (`—`, comme TCK-588 le fait pour un expéditeur absent), commun aux trois chemins. Un test qui épingle les `params` d'un expéditeur sans nom.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : relu `NotifyNewMessageJob` (repli `$sender->email`), `ConversationInviteNotification::displayInviter()` (repli `email`) et `PublicPropertyController::displayName()` (`username`, puis `email`) ; test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : expéditeur sans prénom ni nom (`secret@example.test`) écrit dans le fil → `params` = `{"sender": "secret@example.test", "excerpt": "x"}` ; par la fiche, le même compte avec un `username` rend ce `username`, l'e-mail n'y sort que si `username` est vide (déduit de la ligne lue). Classement : V3, le correctif décide de ce qui est exposé au destinataire, et le repli (`—`, `username`) reste à choisir pour le chemin public.
+- Mesure (2026-10-17, 8949e4ede, implementeur) : reproduit avant correctif par quatre tests neufs de `SenderNameWithoutContactTest` : un expéditeur sans nom ni `username` (`secret@example.test`) écrit dans une directe → `params.sender` = l'e-mail ; l'invitation de ce compte → `inviter_name` = l'e-mail ; `GET …/conversation` d'une annonce dont il est le propriétaire → `recipient.name` = l'e-mail ; correctif : `User::nameWithoutContact()` (prénom et nom, `username`, `—`) appelé par les trois chemins → `params` = `{"sender": "—", "excerpt": "x"}`, verts ; ablation (dernier repli remis sur l'e-mail) → les trois tests sans `username` rougissent, celui du `username` reste vert.
 
 ### Petites améliorations
 - Réf : P38.07
@@ -4335,3 +4360,105 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - Une ré-invitation (l. 115-134) remet `left_at` et `archived_at` à nul, mais garde l'ancien `last_read_at`. Tout ce qui a été écrit pendant l'absence compte alors comme non lu (déduit, à vérifier).
 - Piste : faire passer l'invitation par `NotificationCode`, avec la cible `conversation`. Refuser `removeParticipant` sur une directe. Filtrer `left_at` dans le chargement de `index()`. Décider du `last_read_at` d'une ré-invitation.
 - Mesure (2026-10-17, 7c7bd05bf, mesureur) : test temporaire `TmpMesureurP38Test` (charge 2,68 sur 8 cœurs, `QUEUE_CONNECTION=sync`), retiré ensuite : invitation → ligne `code: null, target: null, title: "Invitation à un groupe : G"` ; `DELETE …/participants/{soi}` sur une directe → 200 ; `GET /api/conversations` rend le membre parti d'un groupe avec son `left_at` ; ré-invitation après un message écrit pendant l'absence → `unread_count` = 1 pour le ré-invité (le point « à vérifier » tient). Lu côté front : seul un groupe ouvre `ConversationInfoSheet` (`ChatView.tsx`, `isGroup && !isWidget`), donc aucun écran n'offre de quitter une directe. Classement : V8, quatre correctifs sans lien qui font plus d'un ticket, et le `last_read_at` d'une ré-invitation est un choix de produit (V7).
+
+## Angle 39 — Webhooks de paiement `refund` et `failed` sur un paiement déjà soldé
+
+*Exploré le 2026-10-17 sur `pre-dev` 0cbbf5371, par l'explorateur. Relu par l'explorateur lui-même :
+`PaymentGatewayService::applyEventToMatchingPayment`, `applyStatusToPayment`, `paymentsForEvent`,
+`isSettledBy`, `isAlreadyProcessed`, `writeStatus`, `isPayable` ; `HasPaymentAttributes` (matrice
+des transitions, `paid_amount`) ; `handleWebhook()` de `WaveDriver` et `OrangeMoneyDriver` ;
+`BookingPaymentService::refund`, `BookingRefundTaskService::closeIfSettled` ; `PlatformPayoutService`
+(sélection des lignes). Mesuré par un test temporaire `tests/Feature/Tmp/ExplorateurTmpTest.php`
+(retiré), sur le `LeaseDueFixture` et le vrai pilote Wave signé, charge 2,24 / 2,61 / 2,55 puis
+2,54 / 2,62 / 2,55 sur 8 cœurs. Aucun sous-agent. Limite : le nom réel des événements de
+remboursement de Wave et d'Orange Money n'est écrit nulle part dans le dépôt ; les mesures envoient
+`checkout.session.refunded`, que `WaveDriver` range en `refunded`. La fenêtre de temps de la
+signature Wave est déjà l'objet de P12.04 : ce passage n'y ajoute que ses effets (P39.01 à P39.04
+sont atteignables par un webhook légitime, sans rejeu).*
+
+### Rembourser le doublon d'un loyer, comme la notification le demande, passe le loyer à `refunded`
+- Réf : P39.01
+- Statut : retenu · à valider — V1 : écriture du statut d'un paiement
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:471-492`, `:1012-1038`, `:1308`
+- Constat :
+  - La branche `REFUNDED` passe à `refunded` tout payable `paid` qu'apparie la transaction, sans regarder si c'est elle qui l'a soldé (lu, l. 565-569). La branche `SUCCESS`, elle, distingue le règlement (`isSettledBy`) du double encaissement, qu'elle marque et signale « pour rembourser » (lu, l. 471-492).
+  - Mesuré, test temporaire : deux checkouts Wave sur la même échéance, `spy_txn_1` puis `spy_txn_2` payés → `paid`, `settled_by = spy_txn_1`, doublon `spy_txn_2` marqué. Webhook `checkout.session.refunded` sur `spy_txn_2` → 200, échéance `refunded`.
+  - Même chose après des espèces : `mark-paid` (`settled_by = manual`), puis le checkout encore ouvert payé (doublon marqué), puis son remboursement → échéance `refunded` (mesuré).
+  - L'échéance n'est alors plus payable : `isPayable` → `false`, `POST …/initiate` → 409 `payment.not_payable` (mesuré). Le loyer encaissé par `spy_txn_1` ou en espèces disparaît des circuits qui lisent `paid` (reversements, `PayoutCalculator`, tableaux de bord : lu, filtres `status = paid`).
+  - Établi comment : lu, puis mesuré de bout en bout sur `/api/webhooks/payments/wave/{token}`.
+- Piste : dans la branche `REFUNDED`, ne passer à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon tracer le remboursement sur l'entrée de `gateway_duplicate_payment` de cette transaction (`refunded_at`). Garde : les deux scénarios ci-dessus en test de bout en bout, plus le témoin (remboursement de la transaction qui a soldé → `refunded`).
+- Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite ; code relu par son contenu, inchangé (`git log 0cbbf5371..HEAD` sur `app/Services/Payments` vide ; branche `REFUNDED` toujours sans `isSettledBy`) : `spy_txn_1` puis `spy_txn_2` payés → `paid`, `settled_by = spy_txn_1`, 1 doublon ; `checkout.session.refunded` sur `spy_txn_2` → 200, échéance `refunded`, `paid_amount = 150000`, `isPayable` → false, `POST …/initiate` → 409 `payment.not_payable`. Scénario espèces non rejoué (même branche). Classement : V1, le correctif écrit le statut d'un paiement et la trace du remboursement d'un doublon.
+
+### Un encaissement en ligne sur un payable `refunded` est refusé en 422, à chaque relivraison, et n'est signalé à personne
+- Réf : P39.02
+- Statut : retenu · à valider — V1 : encaissement d'un paiement
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:471`, `:493-496`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96,151`
+- Constat :
+  - La garde du double encaissement ne couvre que `paid` et `cancelled` (lu, l. 471). Sur un payable `refunded`, la branche `SUCCESS` tente `writeStatus(Paid)`, que la matrice refuse (`refunded` est terminal, lu `HasPaymentAttributes.php:94-96`).
+  - Mesuré : échéance soldée par `spy_txn_1`, remboursée, puis `spy_txn_2` (second checkout resté ouvert) payé → 422 `payment.status_transition_invalid`. La transaction est annulée : aucune entrée `gateway_duplicate_payment`, aucun `gateway_events` pour `spy_txn_2`, 0 notification `payment.duplicate`. Le journal des webhooks note `rejected`. Le rejeu rend encore 422.
+  - L'argent du second checkout est donc reçu sans trace sur le payable, et le fournisseur se voit refuser son webhook (relivraisons, selon sa politique : à vérifier).
+  - Établi comment : lu, puis mesuré.
+- Piste : traiter `refunded` comme `cancelled` dans la garde de la l. 471 (doublon marqué, agence prévenue, 200). Garde : le scénario mesuré en test.
+- Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : échéance soldée par `spy_txn_1` puis remboursée, `spy_txn_2` payé → 422 `payment.status_transition_invalid`, 0 entrée `gateway_duplicate_payment`, 0 notification `payment.duplicate` ; rejeu → 422 encore. La politique de relivraison du fournisseur reste non établie. Classement : V1, traiter un encaissement sur un payable remboursé touche l'écriture d'un paiement.
+
+### Un remboursement reçu par webhook n'écrit pas `refund_amount` : l'acompte remboursé compte encore comme encaissé, et la tâche de remboursement reste ouverte
+- Réf : P39.03
+- Statut : retenu · à valider — V1 : montant remboursé
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:231-234`, `takussan-api/app/Services/Model/BookingPaymentService.php:78-90`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:75-86`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:221-225`
+- Constat :
+  - Pour `refunded`, `paid_amount` vaut `amount − refund_amount` (lu, l. 231-234). Le webhook écrit le statut seul ; le geste manuel `BookingPaymentService::refund` écrit `refund_amount` et appelle `closeIfSettled` (lu, l. 78-90).
+  - Mesuré : acompte de 50 000 soldé par webhook Wave, tâche `booking_refund` ouverte par `openFor`, puis webhook de remboursement → `refunded`, `refund_amount = null`, `paid_amount = 50000`, `remaining_amount = 0`, tâche toujours `open`.
+  - Même lecture sur l'échéance de P39.01 : `refunded` avec `paid_amount = 150000` (mesuré). `lease_payments` n'a pas de colonne `refund_amount` (lu, seule `create_booking_payments_table.php:23` la crée) : une échéance `refunded` compte toujours son montant entier comme reçu.
+  - Les totaux de l'historique des paiements somment `paid_amount` (lu, `PaymentController.php:223`) : un remboursement par webhook n'y retire rien (déduit, à vérifier sur l'écran).
+  - Le montant du remboursement, partiel ou total, n'est lu dans aucun pilote : Wave et Orange Money rendent `amount` comme pour un paiement, Lemon Squeezy ne lit pas `refunded_amount` (lu). Un remboursement partiel passe donc le payable entier à `refunded` (déduit, à vérifier).
+- Piste : faire passer le webhook de remboursement par la même écriture que le geste manuel (`refund_amount` depuis le montant rapporté, plafonné à `amount` ; `closeIfSettled` pour un acompte). Pour l'échéance, décider de la colonne ou du `metadata` qui porte le remboursé. Garde : le scénario acompte en test (statut, `paid_amount`, tâche).
+- Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : échéance remboursée par webhook → `refunded`, aucune colonne `refund_amount` sur `lease_payments`, `paid_amount = 150000` ; acompte `BookingPayment` `paid` de 50 000 passé par la branche `REFUNDED` d'`applyStatusToPayment` (appelée directement) → `refunded`, `refund_amount = null`, `paid_amount = 50000`, `remaining = 0`. Lu : la branche n'appelle pas `closeIfSettled` (tâche non rejouée de bout en bout). Le point écran de l'historique et le remboursement partiel restent « à vérifier ». Classement : V1, écrire un montant remboursé ; la colonne de l'échéance est en plus V4.
+
+### Un webhook `refunded` arrivé avant le `paid` de la même transaction est avalé, et le payable finit `paid`
+- Réf : P39.04
+- Statut : retenu · à valider — V1 : statut d'un paiement
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:1074-1101`
+- Constat :
+  - Mesuré : checkout `spy_txn_1` ouvert, webhook `refunded` reçu d'abord → 200, rien ne change, l'événement est marqué traité ; puis `paid` → échéance `paid`.
+  - L'événement `refunded` étant déjà dans `gateway_events`, sa relivraison ne le rejoue pas (lu, `isAlreadyProcessed`) : le remboursement est perdu pour de bon.
+  - Que Wave ou Orange Money livrent un jour dans le désordre n'est pas établi (à vérifier, aucune documentation des fournisseurs dans le dépôt).
+- Piste : ne marquer un `refunded` traité que s'il a été appliqué (ou le garder en attente sur le payable et l'appliquer au `paid` suivant). Garde : le scénario mesuré en test.
+- Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : `checkout.session.refunded` reçu avant le `paid` → 200, échéance restée `late`, `gateway_events = [refunded]` ; puis `paid` → `paid` ; relivraison du `refunded` → toujours `paid` (dédupliquée). L'ordre réel de livraison des fournisseurs reste non établi. Classement : V1, le correctif décide du statut d'un paiement, et garder un remboursement en attente est un choix (V7).
+
+### L'ordre des motifs de `WaveDriver` range en `paid` tout événement qui contient `completed`, remboursement compris
+- Réf : P39.05
+- Statut : retenu · à valider — V1 : classement des événements de paiement
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/Drivers/WaveDriver.php:122-127`, `takussan-api/tests/Feature/Api/LemonSqueezyEventListenerTest.php:97`
+- Constat :
+  - Le type se déduit par `str_contains`, `completed`/`succeeded` d'abord, `refund` en dernier (lu, l. 122-127). Un nom d'événement du genre `refund.completed` serait un `paid` : sur un payable déjà `paid`, il ne ferait rien ; sur un payable ouvert, il le solderait (déduit, à vérifier contre la liste réelle des événements Wave, absente du dépôt).
+  - Aucun test n'envoie un remboursement Wave ou Orange Money : le seul test de remboursement est celui de Lemon Squeezy (mesuré : `grep -rln "TYPE_REFUNDED\|session.refunded\|'refunded'" tests` → hors `LemonSqueezyEventListenerTest`, des tests de crédits, de cautions, d'export et du remboursement manuel d'acompte, aucun qui poste un webhook Wave ou Orange Money).
+- Piste : une table explicite des événements Wave (nom exact → type), un événement inconnu journalisé et ignoré plutôt que deviné. Garde : un test par nom d'événement, dont le remboursement.
+- Mesure (2026-10-17, 8949e4ede, mesureur) : relu `WaveDriver::handleWebhook` (bloc `match (true)` des `str_contains`, désormais l. 122-127 inchangées) : `completed`/`succeeded` testés avant `refund` ; aucun test ne poste de remboursement Wave ou Orange Money (`grep` de l'explorateur non contredit). La liste réelle des événements Wave reste absente du dépôt. Classement : V1, la table des événements décide de ce qui solde un paiement, et elle demande la documentation du fournisseur.
+
+### Petites améliorations
+- Réf : P39.06
+- Statut : retenu · à valider — V1 : métadonnées d'un paiement
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:546-552`, `:577`
+- Constat :
+  - Le `metadata` de chaque événement est fusionné à la racine du payable (lu, l. 577) : un `refunded` ou un `failed` reçu après le `paid` remplace `amount`, `currency` et `event` (mesuré : après le `failed`, `metadata.event = checkout.session.payment_failed` sur une échéance `paid`). Aucun lecteur de ces clés sur le payable n'a été trouvé (`grep` dans `app/`) : seule la trace du règlement se perd.
+  - Un `failed` reçu sur la transaction qui a soldé l'échéance pose encore `gateway.last_failed_at` (mesuré : 200, échéance `paid`, `last_failed_at` posé). Sans effet trouvé aujourd'hui, `openCheckout` ne servant qu'à un payable ouvert (lu).
+- Piste : ranger le `metadata` d'un événement sous son entrée de `gateway_events` plutôt qu'à la racine ; ignorer un `failed` sur une transaction `settled_by`.
+- Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : après `paid`, un `checkout.session.payment_failed` sur la transaction `settled_by` → 200, échéance `paid`, `gateway.last_failed_at` posé, `metadata.event = checkout.session.payment_failed` ; après un remboursement, `metadata.event = checkout.session.refunded`. Classement : V1, déplacer le `metadata` d'un événement change la trace d'un règlement que l'argent suit.
+
+### Ce qu'un paiement repassé à `refunded` laisse en aval n'est pas défait
+- Réf : P39.07
+- Statut : retenu · à valider — V7 : interdire, signaler ou compenser
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:583-585`, `takussan-api/app/Services/Billing/PlatformPayoutService.php:249-268`
+- Constat :
+  - La quittance part à la transition vers `paid` (`LeasePaymentSettledOnline`, lu l. 583-585) ; rien n'écoute la transition vers `refunded` (lu : aucun événement dans la branche `REFUNDED`).
+  - La clôture d'un reversement de la plateforme prend les lignes `paid` sans `platform_payout_id` (lu, l. 249-268). Une ligne déjà reversée puis remboursée garde son `platform_payout_id` et son montant dans le reversement clos (déduit, à vérifier).
+  - Combiné à P39.01, un loyer bien encaissé peut ainsi sortir des circuits tout en restant quittancé.
+- Piste : relever ces effets un par un (angle 76 proposé) avant de choisir entre interdire, signaler ou compenser.
+- Mesure (2026-10-17, 8949e4ede, mesureur) : lu : la branche `REFUNDED` d'`applyStatusToPayment` n'émet aucun événement, seul `LeasePaymentSettledOnline` part (transition vers `paid`) ; `platform_payout_id` n'est remis à nul que par l'annulation d'un reversement (`PlatformPayoutService.php:178-181`), jamais par un remboursement ; la sélection de clôture (`whereNull('platform_payout_id')`, statut `paid`) est inchangée. Que la ligne remboursée reste comptée dans le reversement clos est lu, non mesuré. Classement : V7 et V1, la piste elle-même demande un choix entre interdire, signaler ou compenser.
