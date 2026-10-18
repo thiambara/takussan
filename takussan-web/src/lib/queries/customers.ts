@@ -116,7 +116,9 @@ export async function fetchDashboardCustomer(
 ): Promise<CustomerDetail> {
   const qs = buildQueryString({
     fields: { customers: DASHBOARD_CUSTOMER_DETAIL_FIELDS },
-    include: ['notes', 'documents', 'tags'],
+    // TCK-866 (P02.09) — pas `notes` : la fiche et le panneau du pipeline les lisent paginées par
+    // `fetchCustomerNotes`, et rien ne lisait les notes sérialisées ici une seconde fois.
+    include: ['documents', 'tags'],
   });
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
     cheminApi`/api/customers/${customerId}${requete(qs)}`,

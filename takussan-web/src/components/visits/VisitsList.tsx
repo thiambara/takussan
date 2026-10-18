@@ -34,7 +34,13 @@ export function VisitsList() {
   const personnel = user ? isAgent(user.roles) || isAdmin(user.roles) : false;
   const [tab, setTab] = useState<TabKey>('requested');
 
-  const nowIso = useMemo(() => new Date().toISOString(), []);
+  // TCK-867 (P02.10) — arrondi à la minute (vers le bas) : l'instant entre dans la clé de cache
+  // des cinq `useVisits`, et à la milliseconde chaque montage en faisait cinq clés neuves.
+  const nowIso = useMemo(() => {
+    const maintenant = new Date();
+    maintenant.setUTCSeconds(0, 0);
+    return maintenant.toISOString();
+  }, []);
 
   const unassigned = useVisits({
     status: 'scheduled',

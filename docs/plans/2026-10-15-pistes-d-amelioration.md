@@ -380,30 +380,33 @@ Déjà sain (mesuré ou lu) :
 
 ### La liste pro des biens fait six requêtes HTTP, dont deux en série
 - Réf : P02.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-865 — reste : l'endpoint de compteurs unique en `COUNT(*) FILTER (WHERE …)`, qui ajoute une surface d'API
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:97-125,210-229`
 - Constat : la liste plus cinq `countProperties` (`per_page=1`), dont « vendus » suivi de « loués » en `.then` (lu).
 - Piste : un seul endpoint de compteurs en `COUNT(*) FILTER (WHERE …)`, comme `DashboardAgencyService.php:42-52`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `properties/(liste)/page.tsx:97-125` : `Promise.all` de la liste et de quatre membres, dont le compte « vendus » suivi par `.then` du compte « loués », et `countProperties` en `:210`. Classement : A2, lancer « loués » comme membre propre du `Promise.all` retire la requête en série sans changer aucun chiffre ; l'endpoint de compteurs proposé par la piste ajoute une surface d'API dont le périmètre doit reproduire celui de l'index, et n'est pas couvert par ce classement.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `compteurs-en-parallele.tck-865.test.tsx` (réponses de `fetchDashboardProperties` retenues) relève 5 requêtes lancées au lieu de 6, « loués » attendant la réponse de « vendus » → « loués » membre propre du `Promise.all`, 6 requêtes lancées avant toute réponse et tuile « Vendus / loués » = somme des deux totaux, vert ; ablation : page remise à l'état d'avant → rouge (5 au lieu de 6), remise → vert.
 
 ### Fiche client : les notes sont chargées deux fois
 - Réf : P02.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-866
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/queries/customers.ts:114`, `takussan-api/app/Http/Resources/CustomerResource.php:30`, `takussan-web/src/app/(dashboard)/app/customers/[id]/page.tsx:87-91`
 - Constat : `include=notes` sérialise toutes les notes, puis la page les redemande paginées (lu).
 - Piste : retirer `notes` de l'`include`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `customers.ts:108-121` (`include: ['notes','documents','tags']`), `CustomerResource.php:30` (`'notes' => $this->notes` : la colonne `notes` n'est pas dans `DASHBOARD_CUSTOMER_DETAIL_FIELDS`, c'est donc la relation qui est rendue), `customers/[id]/page.tsx:87-91` ; `grep` de `.notes` dans `takussan-web/src` → aucun lecteur de `customer.notes` sur la fiche ni dans `CustomerDetailSheet.tsx`, qui charge ses notes à part ; test temporaire, retiré depuis, client à 30 notes → `GET /api/customers/{id}` avec les champs et l'`include` du front rend `data.notes` à 30 éléments, et `GET /api/customers/{id}/notes` rend 20 notes, `meta.total` 30. Classement : A2, retirer `notes` de l'`include` de `fetchDashboardCustomer` ne change rien à l'écran puisque rien ne lit ce champ.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `fiche-client-sans-notes.tck-866.test.ts` relève `include` = `documents,notes,tags` sur `GET /api/customers/{id}` ; la page et `CustomerDetailSheet` lisent toujours les notes par `fetchCustomerNotes` (lu) → `notes` retiré de l'`include`, vert, 16 tests de la fiche et du pipeline verts ; ablation : `customers.ts` remis à l'état d'avant → rouge, remis → vert.
 
 ### Onglets de visites : cinq requêtes au montage, et un cache jamais réutilisé
 - Réf : P02.10
-- Statut : validé — arrondir `nowIso` à la minute ; reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
+- Statut : fait · TCK-867 — reste : `enabled` limité à l'onglet actif, qui ferait perdre les compteurs
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/visits/VisitsList.tsx:37-71`
 - Constat : un `useVisits` est lancé par onglet. `nowIso` entre dans la `queryKey` et change à chaque montage (lu).
 - Piste : `enabled` réservé à l'onglet actif, et `nowIso` arrondi à la minute.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `VisitsList.tsx:37-69` (cinq `useVisits`, `nowIso = useMemo(() => new Date().toISOString(), [])`, recalculé à chaque montage, dans les paramètres donc la clé) et l. 88-93 : chaque onglet affiche `query.data.meta.total` en badge, et la requête « Non attribuées » part aussi pour qui n'est pas du personnel. Le constat tient, mais il omet que les quatre requêtes inactives nourrissent les compteurs visibles. Classement : V7, réserver `enabled` à l'onglet actif retire ou change les compteurs affichés, un choix d'interface ; seul l'arrondi de `nowIso` relèverait d'A2.
+- Mesure (2026-10-18, d7c4e4178, implementeur) : avant correctif, `VisitsList.cle-a-la-minute.tck-867.test.tsx` (horloge simulée) relève deux instants distincts, à la milliseconde, pour deux montages dans la même minute, donc deux jeux de clés `visitsQueryKeys.list(params)` → `nowIso` arrondi à la minute vers le bas, un seul instant `…10:15:00.000Z`, vert, 37 tests de `components/visits` verts ; ablation : `VisitsList.tsx` remis à l'état d'avant → rouge, remis → vert.
 
 ### `scheduled_task_runs` grossit sans purge
 - Réf : P02.11
