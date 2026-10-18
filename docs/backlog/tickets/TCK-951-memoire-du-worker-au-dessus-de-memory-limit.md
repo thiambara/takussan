@@ -4,7 +4,7 @@ title: "Les workers ont 384 Mo, au-dessus de `memory_limit` plus le RSS hors tas
 status: done
 phase: P2
 family: technique
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-18
 updated: 2026-10-18

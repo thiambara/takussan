@@ -4,7 +4,7 @@ title: "Le serveur du front garde ses connexions inactives 100 s, au-dessus des 
 status: done
 phase: P2
 family: technique
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-18
 updated: 2026-10-18
