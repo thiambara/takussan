@@ -4,7 +4,7 @@ title: "Le sr-only de l'entrée verrouillée allonge le document : la coque de /
 status: done
 phase: P2
 family: bug
-estimate: XS
+estimate: S
 wave: null
 created: 2026-10-18
 updated: 2026-10-18
