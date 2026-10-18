@@ -148,7 +148,9 @@ class LeaseController extends Controller
 
     public function generateSchedule(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorize('update', $lease);
+        // P46.05 (TCK-958) — écrire l'échéancier, c'est écrire des échéances de loyer : la règle de
+        // la création d'une ligne (`payments.record` pour le personnel), et non celle de `update`.
+        $this->authorize('recordPayment', $lease);
         $count = $this->leases->generateSchedule($lease);
 
         return $this->json(['data' => ['payments_created' => $count]]);
