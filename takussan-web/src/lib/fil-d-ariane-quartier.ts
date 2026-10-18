@@ -39,7 +39,8 @@ export function hrefDeLaVille(
   if (!city) return undefined;
 
   const chemin = cheminCanoniqueDeLaListe(
-    new URLSearchParams({ contract_type: property.contract_type, city }),
+    // Le contrat du maillon précédent, à la même règle que lui : `rent`, sinon `sale`.
+    new URLSearchParams({ contract_type: property.contract_type === 'rent' ? 'rent' : 'sale', city }),
     domaines,
   );
   const [, requete = ''] = chemin.split('?');
