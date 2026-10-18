@@ -30,7 +30,7 @@ module du dialogue de réservation : l'importer suffit à tirer tout le dialogue
 
 ## Décision du porteur
 
-dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après
+dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après ; reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
 
 ## Reste à faire
 
