@@ -3275,7 +3275,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
 
 ### Une pénalité réglée hors ligne n'a rien à quoi se rapprocher
 - Réf : P25.06
-- Statut : validé — le montant attendu inclut la pénalité réglée le même jour ; reste : rendre rapprochable une pénalité réglée seule
+- Statut : fait · TCK-833 — reste : rendre rapprochable une pénalité réglée seule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Lease/LateFeeSettlement.php:47-56`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30`, `takussan-api/app/Services/Accounting/ReconciliationManager.php:123-134`
 - Constat :
@@ -3286,6 +3286,7 @@ relevé réel (D-67), et ce que le front affiche d'une suggestion.*
   - Établi comment : lu, puis test temporaire.
 - Piste : décider si le montant attendu d'une échéance soldée hors ligne inclut la pénalité réglée le même jour, et si une pénalité réglée seule devient un objet rapprochable. C'est un choix de modèle comptable ; la garde suit le choix.
 - Mesure (2026-10-15, fda326cd, mesureur) : relu `LateFeeSettlement.php:47-56` (pose `late_fee_paid_at` et `late_fee_payment_method`, rien d'autre) et `ReconciliationManager.php:123-134` (un-pour-un) ; test temporaire `tests/Feature/Tmp/MesureurTmpTest.php` (retiré), load 3,50/3,54/3,31 sur 8 cœurs, agence sans encaissement en ligne de la pénalité, loyer puis pénalité marqués réglés par virement → crédit de 157 500 : `null` ; crédit de 7 500 : `null` ; témoin à 150 000 : `LeasePayment conf=70`. Classement : V1, la piste elle-même demande un choix de modèle comptable (montant attendu pénalité comprise, ou pénalité rapprochable seule).
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `ReconciliationLateFeeSameDayTest` avant correctif (load 9,63/9,49/7,07 sur 8 cœurs) : loyer de 150 000 payé par virement et pénalité de 7 500 réglée le même jour → crédit de 157 500 `unmatched` ; `LeasePayment::scopeWhereExpectedAmountNear()` ajoute hors ligne `late_fee_amount` quand `late_fee_paid_at` et `paid_at` tombent le même jour → `suggested` sur l'échéance, et la recherche manuelle à 157 500 la rend ; témoins verts (pénalité un autre jour : `unmatched` ; sans pénalité : 150 000 suggéré). Ablation : branche hors ligne ramenée à `amount`, le cas du même jour rougit, remis vert ; `BankReconciliationTest` et `PaymentSearchTest` verts (29 tests).
 
 ### Petites améliorations du rapprochement
 - Réf : P25.07
