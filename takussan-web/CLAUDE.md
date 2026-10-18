@@ -69,13 +69,15 @@ fieldsets tenable.
 
 ## Route handlers BFF
 
-**31 route handlers** dans `src/app/api/` servent de BFF same-origin : ils lisent le cookie httpOnly
+Les route handlers de `src/app/api/` (36 le 2026-10-18 : `find src/app/api -name route.ts | wc -l`)
+servent de BFF same-origin : ils lisent le cookie httpOnly
 et forwardent vers Laravel avec un Bearer. **Fichier exemplaire :
 `src/app/api/super-admin/[...path]/route.ts:16-47`.**
 
 Namespaces couverts : `auth/{me,logout,set-token,session-expired}`, `me/*` (17 routes),
 `agencies/[[...path]]`, `admin-users/[[...path]]`, `super-admin/[...path]`, `announcements`,
-`data-exports`, `export/[entity]`, `feature-flags/me`, `maintenance/status`.
+`data-exports`, `export/[entity]`, `feature-flags/me`, `maintenance/status`, `impersonation/*`,
+`revalidation/fiche`.
 
 ## Auth & permissions
 
