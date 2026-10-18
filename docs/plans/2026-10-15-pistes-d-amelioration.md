@@ -116,7 +116,7 @@ voie d'écriture (angle 13, puis 47).
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | fait |
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | fait |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | fait |
-| 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
+| 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | fait |
 | 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | à faire |
 | 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | à faire |
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | à faire |
@@ -151,6 +151,7 @@ voie d'écriture (angle 13, puis 47).
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
 | 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
+| 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
 
 ---
 
@@ -4730,3 +4731,62 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Jamais éprouvé : aucun relevé du RSS d'un worker en préproduction.
 - Piste : relever le RSS d'un worker au repos et sous un job lourd (`docker stats`), puis fixer `mem_limit` au-dessus de `memory_limit` plus cette marge. Ou passer au worker un `memory_limit` sous la limite du conteneur (`php -d memory_limit=…`).
 - Mesure (2026-10-18, f7873dbab, mesureur) : relu `compose.api.yml:105-109` (`worker`, `mem_limit: 256m` l. 109) et `:111-115` (`worker-media`, 384m), `docker/php.ini:3` (`memory_limit = 256M`) ; mesuré en local (macOS, hors conteneur) par `/usr/bin/time -l` : un processus PHP qui épuise `memory_limit=256M` culmine à 296 452 096 octets de RSS (283 Mio), un `php -r` vide à 25 Mio. Le RSS dépasse donc 256 Mio avant l'erreur PHP sur ce poste ; dans l'image et sous `mem_limit`, rien n'est éprouvé. Classement : V5, la Piste change la limite mémoire d'un conteneur déployé.
+
+## Angle 44 — Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next
+
+*Exploré le 2026-10-18 sur `pre-dev` a5ed738b4, par l'explorateur. Tout a été relu par l'explorateur
+lui-même, sans sous-agent : `takussan-web/Dockerfile`, `docker/demarrer.mjs`, `next.config.ts`,
+`src/app/robots.ts`, les `console.*` de `src/`, `.github/workflows/images.yml`,
+`deploy/takussan/smoke-web.sh`, `docs/infra/hebergement.md`, et `start-server.js` de Next 16.3.1.
+Les mesures « standalone » ont été prises en lançant `.next/standalone/server.js` sur le poste
+(port 3998, origines fictives, API éteinte). Ce build date du 2026-10-17, 01:17 : il est antérieur au
+dernier commit de `robots.ts` et de `public-discovery.ts`, et il tourne sous macOS, pas dans l'image.
+Rien n'a été mesuré sur la préproduction : la configuration de Traefik et de Dokploy est hors du
+poste.*
+
+### La sonde de santé et la preuve de déploiement du front ne passent jamais par l'API : un front qui ne la joint pas est déclaré sain, et le déploiement est vert
+- Réf : P44.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/Dockerfile:39-40`, `takussan-web/src/app/robots.ts:32-45`, `.github/workflows/images.yml:185-189`, `takussan-web/docker/demarrer.mjs:17-48`, `takussan-web/src/lib/api.ts:19-27`, `takussan-web/src/lib/queries/public-discovery.ts:66-70`
+- Constat :
+  - Le `HEALTHCHECK` de l'image interroge `/robots.txt` (lu, `Dockerfile:39-40`). `robots.ts` ne lit que l'origine du site (`origineSite()`), et aucun appel d'API (lu, l. 32-45).
+  - La preuve d'`images.yml` lit `X-Build-Sha` sur cette même URL, `$SITE_URL/robots.txt` (lu, l. 185-189).
+  - `demarrer.mjs` vérifie la forme de trois origines : `API_URL`, `SITE_URL` et `MEDIA_URL` (lu, l. 17). Il ne lit pas `API_INTERNAL_URL`, la base que prend le serveur dès qu'elle est posée (lu, `api.ts:19-27`), et il ne joint rien.
+  - Mesuré sur le standalone, API éteinte : `/robots.txt` → 200, `/fr` → 200. Le journal porte deux `console.error`, `[accueil] découverte indisponible` et `[liste publique]` (`ECONNREFUSED`). La page d'accueil avale la panne (lu, `public-discovery.ts:66-70`).
+  - Conséquence : si `API_INTERNAL_URL` vise un hôte injoignable, ou un autre environnement, le conteneur est sain, Swarm bascule le trafic (`start-first`, ADR-0069) et `images.yml` passe au vert. Les pages publiques rendent alors « indisponible » ou des listes vides (déduit, à vérifier sur la préproduction). Cela peut arriver quand le porteur posera la clé (TCK-720, voir P37.03), ou avec l'ancien alias `api`, partagé entre piles sur `dokploy-network` (TCK-880).
+  - Établi comment : lu ; mesuré pour le comportement API éteinte.
+- Piste :
+  - Ajouter une route serveur du front qui joint `apiUrl()` + `/up` et rend son code, puis la faire lire par la preuve d'`images.yml`, en plus de `robots.txt`.
+  - La garder hors du `HEALTHCHECK` : sinon une panne de l'API arrêterait aussi le front. Ce choix revient au porteur.
+  - Ajouter à `smoke-web.sh` une étape « `API_INTERNAL_URL` injoignable », qui doit faire rougir la preuve.
+
+### Le serveur Next ferme ses connexions inactives au bout de 5 s, derrière un Traefik qui les garde plus longtemps : 502 intermittents possibles
+- Réf : P44.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/Dockerfile:31`, `takussan-web/node_modules/next/dist/server/lib/start-server.js:248-249`, `.next/standalone/server.js` (lecture de `KEEP_ALIVE_TIMEOUT`)
+- Constat :
+  - Le `server.js` standalone lit `KEEP_ALIVE_TIMEOUT`, et Next ne modifie `server.keepAliveTimeout` que si cette variable est posée (lu, `start-server.js:248-249`).
+  - Elle n'est posée nulle part : `grep -rIn KEEP_ALIVE_TIMEOUT` sur le dépôt, hors `node_modules`, `.next` et `vendor` → rien (mesuré). La ligne `ENV` du runtime ne la pose pas (lu, `Dockerfile:31`).
+  - Node 24 garde 5000 ms par défaut (mesuré : `http.createServer().keepAliveTimeout` → `5000`). Le standalone répond `Keep-Alive: timeout=5` (mesuré : `curl -D -` sur `/robots.txt` et `/fr`).
+  - Traefik garde ses connexions amont inactives 90 s par défaut (`serversTransport`, `idleConnTimeout`). Aucune surcharge n'apparaît dans `deploy/server/` (`grep idleConnTimeout` → rien). La valeur effective du serveur est à vérifier.
+  - Quand l'amont ferme plus tôt que le mandataire, celui-ci peut réutiliser une connexion déjà fermée, et la requête finit en 502. Ce cas est connu pour Node derrière un répartiteur, mais il n'est pas observé ici (à vérifier : `DownstreamStatus` 502 du routeur du front dans l'accessLog de Traefik, TCK-518).
+- Piste :
+  - Poser `KEEP_ALIVE_TIMEOUT` au-dessus du délai d'inactivité de Traefik dans l'`ENV` du runtime, ou réduire `idleConnTimeout` côté Traefik.
+  - Faire vérifier par `smoke-web.sh` l'en-tête `Keep-Alive: timeout=` de la réponse.
+
+### Petites améliorations
+- Réf : P44.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/Dockerfile:39-40`, `takussan-web/next.config.ts`, `takussan-web/src/lib/api.ts`, `takussan-api/app/Http/Middleware/ShareRequestLogContext.php:25-29`
+- Constat :
+  - **La sonde lance un Node entier toutes les 15 s.** Mesuré sur le poste (macOS ; le même relevé reste à faire dans l'image Linux) : `/usr/bin/time -l node -e "<commande de la sonde>"` → 58,8 Mo de RSS au maximum, 0,5 s. Le conteneur est plafonné à 512 Mio, avec un pic mesuré à 327 Mio (lu, `hebergement.md:21`). Que l'`exec` de la sonde compte dans le plafond du conteneur est à vérifier.
+  - **`X-Powered-By: Next.js` est émis.** Mesuré : `curl -D -` sur `/fr` du standalone. `next.config.ts` ne pose pas `poweredByHeader: false` (lu), et le `server.js` généré porte `"poweredByHeader":true` (lu).
+  - **Aucun identifiant de requête ne relie le front à l'API.** L'API reprend un `X-Request-Id` entrant (lu, `ShareRequestLogContext.php:25-29`, P14.12), mais le front n'en envoie aucun (`grep -rIn -i x-request-id takussan-web/src` → rien). Une ligne `[fiche publique] … : ` du journal Next ne se relie donc à aucune ligne de l'API.
+  - **Une erreur s'écrit sur une dizaine de lignes.** Le journal Next n'a ni niveau ni format structuré : un `console.error` d'`ECONNREFUSED` → 10 lignes (mesuré sur le standalone). Le pilote `json-file` en fait 10 entrées distinctes. Le constat de P14.08 sur l'API, des journaux perdus au remplacement du conteneur, vaut sans doute aussi pour l'Application du front (déduit, à vérifier).
+- Piste :
+  - Une sonde sans Node (un binaire statique, ou la commande de Swarm de Dokploy), ou au moins la mesure du coût dans l'image.
+  - `poweredByHeader: false`.
+  - Un `X-Request-Id` tiré par requête dans `apiRequest`, côté serveur, et écrit dans les `console.error` du front.
