@@ -1,7 +1,7 @@
 ---
 id: TCK-893
 title: "Relais BFF : une seule fonction relayerVersApi() pour les six relais"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -66,4 +66,10 @@ langue de l'utilisateur, quel que soit le relais traversé.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Reproduction** : `relais-commun.test.ts` avant correctif → 5 rouges sur 6 (`super-admin`,
+  `agencies`, `admin-users`, `super-admin-properties`, `announcements` joignent `origineApi()` au
+  lieu du chemin serveur) ; `impersonation/proxy`, déjà sur `urlApiServeur`, passait.
+- **Ablation** : les six relais remis à leur état d'avant → les 5 mêmes rouges ; remis → 6 verts.
+- `Accept` reste par relais (`accepteDeLaRequete`) : `super-admin` et `impersonation/proxy`
+  relayaient celui de la requête, les quatre autres posaient `application/json`. Aucun autre en-tête
+  de la requête n'est relayé : l'impersonation ne doit transmettre ni profil actif ni cookie.
