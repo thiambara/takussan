@@ -83,16 +83,21 @@ class ConversationTest extends TestCase
         $agency = $this->mettreEnContact($me, $other);
         $property = Property::factory()->create(['title' => 'Villa Almadies', 'agency_id' => $agency->id]);
 
+        // TCK-888 (ADR-0068 § 1) — une directe rattachée à un bien est un fil de prospect, que le
+        // seul résolveur écrit : `POST /api/conversations` la refuse. Le fil est posé ici tel que
+        // le résolveur l'écrit (le prospect en `created_by`).
         Sanctum::actingAs($me);
         $this->postJson('/api/conversations', [
-            'subject' => null,
             'property_id' => $property->id,
             'participants' => [$other->id],
-            'initial_message' => 'Bonjour',
-        ])->assertCreated()
-            ->assertJsonPath('data.subject', null)
-            ->assertJsonPath('data.property.id', $property->id)
-            ->assertJsonPath('data.property.title', 'Villa Almadies');
+        ])->assertUnprocessable()->assertJsonValidationErrors(['property_id']);
+
+        $conversation = Conversation::create([
+            'type' => ConversationType::Direct->value,
+            'created_by' => $me->id,
+            'property_id' => $property->id,
+        ]);
+        $conversation->participants()->attach([$me->id => ['joined_at' => now()], $other->id => ['joined_at' => now()]]);
 
         $this->getJson('/api/conversations')
             ->assertOk()

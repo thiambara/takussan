@@ -45,8 +45,9 @@ class NotifyNewMessageJob implements ShouldQueue
             ->wherePivotNull('left_at')
             ->get()
             // TCK-592 (verif-592, B2) — l'aperçu du message ne part pas à qui n'a plus accès au fil
-            // (prestataire en pause, en fin de collaboration, suspendu).
-            ->filter(fn ($recipient) => app(ConversationAccess::class)->maintenanceAllows($recipient, $message->conversation))
+            // (prestataire en pause, en fin de collaboration, suspendu). TCK-886 (ADR-0068) — ni
+            // à l'ancien répondant d'un fil de prospect, qui n'est plus le contact principal.
+            ->filter(fn ($recipient) => app(ConversationAccess::class)->branchesAllow($recipient, $message->conversation))
             ->values();
 
         if ($recipients->isEmpty()) {
