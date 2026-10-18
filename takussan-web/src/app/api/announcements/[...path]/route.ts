@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { origineApi } from '@/lib/config-publique';
+import { statutSansCorps } from '@/lib/statut-sans-corps';
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const chemin = cheminAmont(segments);
@@ -23,7 +24,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   }
 
   const upstream = await fetch(url, init);
-  const body = await upstream.text();
+  const body = statutSansCorps(upstream.status) ? null : await upstream.text();
   const responseHeaders: HeadersInit = {};
   const upstreamCt = upstream.headers.get('content-type');
   if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;

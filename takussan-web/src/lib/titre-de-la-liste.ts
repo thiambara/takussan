@@ -51,6 +51,8 @@ import { type DomainesDeFacette, filtresCanoniques } from '@/lib/canonique';
 export async function titreEtDescription(
   params: URLSearchParams,
   domaines: DomainesDeFacette,
+  /** TCK-841 (P35.03) — le nombre de biens publics du lieu retenu (`compteDuLieu`), s'il est connu. */
+  compteDuLieu?: number,
 ): Promise<{ title: string; description: string }> {
   const tBase = await getTranslations('meta.properties');
   const retenus = filtresCanoniques(params, domaines);
@@ -100,6 +102,20 @@ export async function titreEtDescription(
   // TCK-598 — un quartier n'est retenu qu'avec sa ville : le gabarit les nomme tous les deux.
   if (ville && quartier) titre = t('titleQuarter', { subject: titre, quarter: quartier, city: ville });
   else if (ville) titre = t('titleCity', { subject: titre, city: ville });
+
+  // TCK-841 (P35.03) — palier 1 : le seul texte propre à une page de lieu est son compte de biens,
+  // pris au domaine en cache. Il compte tout le lieu, pas la seule sélection du titre : d'où
+  // « parmi », qui ne fait pas passer 198 biens de Dakar pour 198 villas à louer.
+  if (ville && compteDuLieu !== undefined) {
+    return {
+      title: titre,
+      description: t('descriptionWithCount', {
+        title: titre,
+        count: compteDuLieu,
+        place: quartier ? `${quartier}, ${ville}` : ville,
+      }),
+    };
+  }
 
   return { title: titre, description: t('description', { title: titre }) };
 }

@@ -18,11 +18,9 @@ ARG BUILD_SHA=inconnu
 # bundle, et l'image redeviendrait propre à un environnement. scripts/check-front-env-keys.mjs le
 # refuse.
 #
-# TAKUSSAN_LOADER_MEDIA branche le loader de Cloudflare Transformations (next.config.ts,
-# ADR-0029 §4) sans connaître l'origine du seau, qui se lit à l'exécution. Sans lui, chaque image
-# repasserait par l'optimiseur du conteneur (512 Mio), encodée en AVIF sur le CPU du VPS.
+# Le loader de Cloudflare Transformations est branché par `next build` lui-même (next.config.ts,
+# ADR-0029 §4) : l'origine du seau se lit à l'exécution.
 ENV BUILD_SHA=${BUILD_SHA} \
-    TAKUSSAN_LOADER_MEDIA=1 \
     NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

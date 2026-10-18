@@ -12,9 +12,15 @@ import type { PropertyDetail } from '@/types/property';
  * produit deux fils qui se ressemblent, et qui divergeraient au premier changement. Ce composant
  * ne décide donc plus QUOI afficher, seulement COMMENT.
  */
-export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
+interface PropertyBreadcrumbProps {
+  readonly property: PropertyDetail;
+  /** TCK-839 — le chemin canonique du quartier, calculé par la page (`hrefDuQuartier`), s'il est indexable. */
+  readonly hrefQuartier?: string;
+}
+
+export function PropertyBreadcrumb({ property, hrefQuartier }: PropertyBreadcrumbProps) {
   const t = useTranslations('property.detail');
-  const crumbs = maillonsDeFiche(property, t);
+  const crumbs = maillonsDeFiche(property, t, hrefQuartier);
 
   return (
     <nav aria-label={t('breadcrumbAria')} className="flex items-center gap-1 text-sm text-muted-foreground">

@@ -21,6 +21,7 @@ use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\NotificationRenderer;
@@ -468,15 +469,22 @@ class PaymentGatewayService
                 // doublon. VERIF-596 passe 5 (M-E) — de même sur une échéance ANNULÉE par un
                 // renouvellement (checkout ouvert avant, confirmé après) : elle n'est plus due,
                 // l'encaissement est à rembourser, et la matrice refuserait `cancelled → paid`.
-                if ($current === PaymentStatus::Paid || $current === PaymentStatus::Cancelled) {
+                // TCK-872 (P39.02) — de même sur un payable REMBOURSÉ (second checkout resté
+                // ouvert, payé après le remboursement du premier) : la matrice refuse
+                // `refunded → paid`, et le 422 annulait toute trace de l'encaissement.
+                if (in_array($current, [PaymentStatus::Paid, PaymentStatus::Cancelled, PaymentStatus::Refunded], true)) {
                     // Rien n'a soldé une échéance annulée : seul un doublon déjà marqué pour CE
-                    // règlement (rejeu) n'est pas recompté.
-                    $counted = $current === PaymentStatus::Paid
-                        ? $this->isSettledBy($existingMeta, $transactionId)
-                        : in_array($transactionId, array_column(
-                            is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
-                            'transaction_id',
-                        ), true);
+                    // règlement (rejeu) n'est pas recompté. Une échéance remboursée a été soldée :
+                    // le règlement remboursé, rejoué (vérification forcée), n'est pas un doublon.
+                    $marked = in_array($transactionId, array_column(
+                        is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
+                        'transaction_id',
+                    ), true);
+                    $counted = match ($current) {
+                        PaymentStatus::Paid => $this->isSettledBy($existingMeta, $transactionId),
+                        PaymentStatus::Refunded => $marked || $this->isSettledBy($existingMeta, $transactionId),
+                        default => $marked,
+                    };
                     if (! $counted) {
                         $existingMeta['gateway_duplicate_payment'] = array_merge(
                             is_array($existingMeta['gateway_duplicate_payment'] ?? null) ? $existingMeta['gateway_duplicate_payment'] : [],
@@ -563,8 +571,24 @@ class PaymentGatewayService
                 }
                 break;
             case PaymentDriverStatus::REFUNDED:
-                if ($current === PaymentStatus::Paid) {
+                // TCK-871 (P39.01) — seul le remboursement du règlement qui a SOLDÉ le payable le
+                // rembourse. Celui d'un double encaissement (second checkout, checkout payé après
+                // des espèces), que la notification `payment.duplicate` demande, se note sur son
+                // entrée : il passait le loyer encaissé à `refunded`. `isSettledBy` seul ne suffit
+                // pas : son repli sur `gateway_events` reconnaît aussi le `paid` journalisé du
+                // doublon.
+                if ($current === PaymentStatus::Paid
+                    && $this->isSettledBy($existingMeta, $transactionId)
+                    && ! $this->isMarkedDuplicate($existingMeta, $transactionId)) {
                     $this->writeStatus($payment, PaymentStatus::Refunded);
+                    // TCK-873 (P39.03) — la même écriture que le geste manuel
+                    // (`BookingPaymentService::refund`) : sans `refund_amount`, le payable remboursé
+                    // comptait son montant entier comme reçu (`paid_amount`).
+                    if ($this->hasColumn($payment, 'refund_amount')) {
+                        $payment->refund_amount = $this->reportedRefundAmount($payment, $metadata);
+                    }
+                } else {
+                    $existingMeta = $this->markDuplicateRefunded($existingMeta, $transactionId);
                 }
                 break;
             case PaymentDriverStatus::PENDING:
@@ -576,6 +600,15 @@ class PaymentGatewayService
 
         $payment->metadata = array_merge($existingMeta, $metadata);
         $payment->save();
+
+        // TCK-873 (P39.03) — un acompte remboursé par le fournisseur clôt la tâche de remboursement,
+        // comme le geste manuel.
+        if ($payment instanceof BookingPayment && $current === PaymentStatus::Paid && $this->currentPaymentStatus($payment) === PaymentStatus::Refunded) {
+            $payment->loadMissing('booking');
+            if ($payment->booking !== null) {
+                app(BookingRefundTaskService::class)->closeIfSettled($payment->booking);
+            }
+        }
 
         // TCK-602 (ADR-0051 §2) — UNE quittance par échéance : l'événement part à la seule
         // transition vers `paid` (webhook, rejeu ou `verify()`), jamais sur un événement rejoué
@@ -1035,6 +1068,71 @@ class PaymentGatewayService
         }
 
         return false;
+    }
+
+    /**
+     * TCK-873 (P39.03) — le montant remboursé que rapporte le pilote, plafonné au montant du
+     * payable ; le montant entier à défaut. Un montant rapporté dans une autre devise que celle du
+     * payable n'est pas comparable (Lemon Squeezy rapporte en USD) : le montant entier, aussi.
+     *
+     * @param  array<string,mixed>  $metadata
+     */
+    protected function reportedRefundAmount(Model $payment, array $metadata): float
+    {
+        $amount = (float) $payment->amount;
+        $reported = $metadata['amount'] ?? null;
+        $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
+
+        if (! is_numeric($reported) || (float) $reported <= 0) {
+            return $amount;
+        }
+        if ($reportedCurrency !== null && $reportedCurrency !== strtoupper($this->paymentCurrency($payment))) {
+            return $amount;
+        }
+
+        return min((float) $reported, $amount);
+    }
+
+    /**
+     * TCK-871 (P39.01) — CETTE transaction est-elle marquée comme double encaissement du payable ?
+     * La part de pénalité encaissée deux fois (`kind = late_fee`) ne compte pas : elle est marquée
+     * sur la transaction qui a soldé le loyer.
+     *
+     * @param  array<string,mixed>  $meta
+     */
+    protected function isMarkedDuplicate(array $meta, ?string $transactionId): bool
+    {
+        foreach (is_array($meta['gateway_duplicate_payment'] ?? null) ? $meta['gateway_duplicate_payment'] : [] as $entry) {
+            if (($entry['transaction_id'] ?? null) === $transactionId && ($entry['kind'] ?? 'payment') !== 'late_fee') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * TCK-871 (P39.01) — note le remboursement sur l'entrée `gateway_duplicate_payment` de CETTE
+     * transaction (hors part de pénalité). Sans entrée, rien n'est écrit : l'événement reste dans `gateway_events`.
+     *
+     * @param  array<string,mixed>  $meta
+     * @return array<string,mixed>
+     */
+    protected function markDuplicateRefunded(array $meta, ?string $transactionId): array
+    {
+        if ($transactionId === null || ! is_array($meta['gateway_duplicate_payment'] ?? null)) {
+            return $meta;
+        }
+
+        foreach ($meta['gateway_duplicate_payment'] as $i => $entry) {
+            if (($entry['transaction_id'] ?? null) === $transactionId
+                && ($entry['kind'] ?? 'payment') !== 'late_fee'
+                && ! isset($entry['refunded_at'])) {
+                $meta['gateway_duplicate_payment'][$i]['refunded_at'] = now()->toIso8601String();
+            }
+        }
+
+        return $meta;
     }
 
     /**

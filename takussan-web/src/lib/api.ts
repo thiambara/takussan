@@ -13,7 +13,7 @@ const SUPPORTED_LOCALES = new Set(['fr', 'en', 'wo']);
  * (`dokploy-network` sur preview), dont le sous-réseau est dans `TRUSTED_PROXIES` : c'est le seul
  * chemin sur lequel Laravel honore le `X-Forwarded-For` que le serveur transmet. Par l'URL publique,
  * l'appel traverse Traefik, qui efface tout `X-Forwarded-For` ne venant pas de Cloudflare.
- * Absente (développement, CI, Vercel aujourd'hui), on garde l'URL publique. Dans le navigateur,
+ * Absente (développement, CI), on garde l'URL publique. Dans le navigateur,
  * toujours l'URL publique : la clé n'y existe pas.
  */
 function baseServeur(): string | undefined {
@@ -570,7 +570,7 @@ export function messageCorpsErreurBff(
 /**
  * TCK-598 (ADR-0052 §5) — le nombre de mandataires de confiance devant le serveur Next, qui ont
  * chacun AJOUTÉ une entrée à droite de `X-Forwarded-For`. Clé serveur `VISITOR_IP_TRUSTED_HOPS`,
- * défaut 1 (Vercel remplace l'en-tête par l'IP du client) ; 2 sur preview (Cloudflare, puis
+ * défaut 1 (un seul mandataire) ; 2 sur preview (Cloudflare, puis
  * Traefik). Une valeur illisible retombe sur 1.
  */
 export function sautsDeConfiance(): number {

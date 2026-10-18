@@ -18,13 +18,11 @@
  * ⚠ **Des fonctions, jamais des constantes de module.** Une constante est évaluée là où le module
  * est importé la première fois — au build, pour une route prérendue —, et elle y fige la valeur de
  * la machine de build. Le conteneur refuse de démarrer sans les trois valeurs
- * (`docker/demarrer.mjs`) ; ce module, lui, ne refuse rien : il sert aussi `next dev`, les tests
- * et Vercel.
+ * (`docker/demarrer.mjs`) ; ce module, lui, ne refuse rien : il sert aussi `next dev` et les tests,
+ * qui lisent les MÊMES clés dans `.env.local` (ou retombent sur les défauts de développement).
  *
- * ⚠ **Le repli `NEXT_PUBLIC_*` ne vaut que pour Vercel et le développement**, et disparaît avec
- * Vercel (phase F, F5). Il s'écrit en accès LITTÉRAL (`process.env.NEXT_PUBLIC_API_URL`) : Next ne
- * substitue que cette forme exacte. `scripts/check-front-env-keys.mjs` refuse toute lecture de ces
- * trois clés hors de ce module et de `next.config.ts`.
+ * ⚠ **Aucune `NEXT_PUBLIC_*` pour ces trois valeurs** : Next l'inlinerait au build.
+ * `scripts/check-front-env-keys.mjs` refuse toute lecture de ces clés hors de ce module.
  *
  * ⚠ **Rien de secret ne passe par ici.** Tout ce que rend {@link configPubliqueDuNavigateur} est
  * écrit en clair dans chaque page servie. Le type est fermé pour cette raison : une clé de plus
@@ -35,9 +33,8 @@
 const API_PAR_DEFAUT = 'http://localhost:8002';
 
 /**
- * L'origine MESURÉE de la production : `https://www.takussan.com/` rend 200, `https://takussan.com/`
- * rend 307 vers `www` (CLAUDE.md § Workflow git, relevé du 2026-08-20 dans
- * `docs/infra/frontend-deploiement.json`).
+ * L'origine de la production (`https://takussan.com/` y redirige), que la phase F met en service
+ * (TCK-517). Le conteneur ne l'atteint jamais : il exige `SITE_URL`.
  *
  * ⚠ Sans barre finale. Elle est ajoutée par les concaténations, jamais par la valeur.
  */
@@ -47,7 +44,7 @@ export const ORIGINE_PRODUCTION = 'https://www.takussan.com';
 export type ConfigPublique = {
   /** L'origine publique de l'API, sans le suffixe `/api`. */
   readonly apiUrl: string;
-  /** L'origine du seau public de médias, ou `''` quand il n'y en a pas (développement, Vercel). */
+  /** L'origine du seau public de médias, ou `''` quand il n'y en a pas (développement). */
   readonly mediaUrl: string;
 };
 
@@ -77,8 +74,8 @@ function sansSuffixeApi(valeur: string): string {
  */
 export function origineApi(): string {
   const valeur = dansLeNavigateur()
-    ? nonVide(window.__TAKUSSAN_CONFIG__?.apiUrl) ?? nonVide(process.env.NEXT_PUBLIC_API_URL)
-    : nonVide(process.env.API_URL) ?? nonVide(process.env.NEXT_PUBLIC_API_URL);
+    ? nonVide(window.__TAKUSSAN_CONFIG__?.apiUrl)
+    : nonVide(process.env.API_URL);
   return valeur ? sansSuffixeApi(valeur) : API_PAR_DEFAUT;
 }
 
@@ -86,13 +83,12 @@ export function origineApi(): string {
  * L'origine du seau public de médias (ADR-0029 § 1), ou `undefined`.
  *
  * Rendue telle quelle : le loader la compare à `url.origin`, et la validation de sa forme
- * appartient au démarrage du conteneur (`docker/demarrer.mjs`) et au build hors conteneur
- * (`next.config.ts`).
+ * appartient au démarrage du conteneur (`docker/demarrer.mjs`).
  */
 export function origineMedia(): string | undefined {
   return dansLeNavigateur()
-    ? nonVide(window.__TAKUSSAN_CONFIG__?.mediaUrl) ?? nonVide(process.env.NEXT_PUBLIC_MEDIA_URL)
-    : nonVide(process.env.MEDIA_URL) ?? nonVide(process.env.NEXT_PUBLIC_MEDIA_URL);
+    ? nonVide(window.__TAKUSSAN_CONFIG__?.mediaUrl)
+    : nonVide(process.env.MEDIA_URL);
 }
 
 /**
@@ -100,12 +96,10 @@ export function origineMedia(): string | undefined {
  */
 export type SourcesOrigineSite = {
   readonly siteUrl?: string | undefined;
-  readonly vercelEnv?: string | undefined;
-  readonly vercelUrl?: string | undefined;
 };
 
 /** Le nom que portent les messages d'erreur : celui que le lecteur du rouge doit corriger. */
-const VARIABLE_SITE = 'SITE_URL (NEXT_PUBLIC_SITE_URL sous Vercel)';
+const VARIABLE_SITE = 'SITE_URL';
 
 /**
  * Normalise une valeur d'environnement en ORIGINE — schéma + hôte + port, rien d'autre.
@@ -130,7 +124,7 @@ function normaliserOrigine(valeur: string, variable: string): string {
   } catch {
     throw new Error(
       `${variable} = « ${valeur} » n'est pas une URL absolue. Attendu : une ORIGINE complète, ` +
-        `schéma compris — par exemple « https://www.takussan.com » ou « https://mon-preview.vercel.app ».`,
+        `schéma compris — par exemple « https://www.takussan.com » ou « https://preview.takussan.com ».`,
     );
   }
 
@@ -153,60 +147,19 @@ function normaliserOrigine(valeur: string, variable: string): string {
 /**
  * L'origine publique du site — le seul endroit du dépôt qui la décide.
  *
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- * TROIS SOURCES, DANS CET ORDRE, ET LA DEUXIÈME EST CELLE QUI MANQUAIT
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- *
- * 1. `SITE_URL` (ou `NEXT_PUBLIC_SITE_URL`, sous Vercel) — le choix explicite, il gagne toujours.
- * 2. **Une prévisualisation Vercel sert son PROPRE hôte.** Sans cette branche, le défaut de
- *    production s'appliquait aux 212 déploiements « Preview » relevés le 2026-08-20
- *    (`docs/infra/frontend-deploiement.json`) : chaque prévisualisation émettait des `hreflang`,
- *    un `canonical` et un sitemap pointant `https://www.takussan.com`. Le défaut ne se voit sur
- *    aucune page — il ne se voit que chez le moteur, qui reçoit d'une URL de test l'affirmation
- *    « la version canonique de cette page est en production ».
- * 3. {@link ORIGINE_PRODUCTION}, le relevé.
- *
- * ⚠️ **Hors production ET sans hôte connaissable, on ÉCHOUE au lieu de deviner.** C'est le seul
- * cas où une origine par défaut serait à coup sûr fausse : on sait qu'on n'est pas en production,
- * et on ne sait pas où on est. Le message nomme la variable, qui est le remède. Le conteneur, lui,
- * ne démarre pas sans `SITE_URL` : il n'atteint jamais le défaut.
- *
- * ⚠ **`VERCEL_ENV` / `VERCEL_URL` NUES, pas leurs jumelles `NEXT_PUBLIC_VERCEL_*`.** Les jumelles
- * n'existent que si le projet Vercel expose ses variables système — un réglage du tableau de bord
- * que ce dépôt ne peut pas lire (`docs/infra/frontend-deploiement.json`, champ `non_mesure`). Les
- * nues, elles, sont posées par la plateforme sans condition, côté serveur — et seul le serveur
- * appelle {@link origineSite} : les canoniques, les `hreflang`, le sitemap et `robots.txt`.
+ * `SITE_URL` gagne toujours ; sans elle, {@link ORIGINE_PRODUCTION}. Le défaut ne sert que
+ * `next dev` et les tests : le conteneur ne démarre pas sans `SITE_URL` (`docker/demarrer.mjs`),
+ * parce qu'une préproduction qui retomberait sur ce défaut déclarerait ses pages canoniques en
+ * production (ADR-0026).
  */
 export function resoudreOrigineSite(sources: SourcesOrigineSite): string {
   const explicite = sources.siteUrl?.trim();
-  if (explicite) return normaliserOrigine(explicite, VARIABLE_SITE);
-
-  const environnement = sources.vercelEnv?.trim();
-  if (environnement && environnement !== 'production') {
-    const hote = sources.vercelUrl?.trim();
-    if (!hote) {
-      throw new Error(
-        `Environnement Vercel « ${environnement} » sans hôte connaissable : ni ${VARIABLE_SITE}, ` +
-          `ni VERCEL_URL. Replier sur ${ORIGINE_PRODUCTION} ferait déclarer à cette prévisualisation ` +
-          `que ses pages canoniques sont celles de la production. Déclarer NEXT_PUBLIC_SITE_URL.`,
-      );
-    }
-    // `VERCEL_URL` est un HÔTE nu (`takussan-git-dev-x.vercel.app`), sans schéma — mesuré dans la
-    // documentation Vercel et vrai des deux jumelles. Une valeur déjà schématisée est acceptée
-    // telle quelle plutôt que doublement préfixée.
-    return normaliserOrigine(hote.includes('://') ? hote : `https://${hote}`, 'VERCEL_URL');
-  }
-
-  return ORIGINE_PRODUCTION;
+  return explicite ? normaliserOrigine(explicite, VARIABLE_SITE) : ORIGINE_PRODUCTION;
 }
 
 /** L'origine publique du site, lue à l'appel. Serveur seulement — cf. {@link resoudreOrigineSite}. */
 export function origineSite(): string {
-  return resoudreOrigineSite({
-    siteUrl: nonVide(process.env.SITE_URL) ?? process.env.NEXT_PUBLIC_SITE_URL,
-    vercelEnv: process.env.VERCEL_ENV,
-    vercelUrl: process.env.VERCEL_URL,
-  });
+  return resoudreOrigineSite({ siteUrl: process.env.SITE_URL });
 }
 
 /** Ce que le layout racine transmet au navigateur. Serveur seulement. */

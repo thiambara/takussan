@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 38
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-18
 depends_on: []
 blocks: [TCK-288]
 spec_refs:
@@ -177,6 +177,14 @@ l'exposition doit donc être arrêtée *avant*.
 > dans TCK-288, hors du périmètre de ce ticket.
 
 ## Notes d'implémentation
+
+**2026-10-18 — le défaut a changé de forme, il n'a pas disparu.** Vercel est supprimé : dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; au
+2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
+l'environnement GitHub `Production` est supprimé.
+Il n'y a plus de page publique dont les appels meurent en silence : il n'y a plus de page du tout.
+Le ticket reste ouvert parce que son objectif — une application qui répond sur
+`www.takussan.com` — se réalise avec la production (TCK-517, AC4). AC4 et AC5 ci-dessus visent
+le relevé de Vercel, devenu historique : ils se relisent contre `docs/infra/hebergement.md`.
 
 - **2026-09-14, 22:42 Z (TCK-523)** — le mode de panne a changé, pas l'effet. Le serveur qui rendait
   le 404 n'existe plus (ADR-0028) ; `api.takussan.com` pointe sur le nouveau VPS en DNS seul, sans

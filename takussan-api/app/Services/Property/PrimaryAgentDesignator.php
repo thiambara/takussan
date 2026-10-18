@@ -8,6 +8,7 @@ use App\Models\Enums\CollaboratorRole;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
+use App\Services\Messaging\PropertyConversationResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -42,9 +43,11 @@ final class PrimaryAgentDesignator
 {
     public const EVENT = 'property.primary_agent_designated';
 
+    public function __construct(private readonly PropertyConversationResolver $conversations) {}
+
     public function designate(Property $property, PropertyCollaborator $collaborator, ?User $actor): PrimaryAgentDesignation
     {
-        return DB::transaction(function () use ($property, $collaborator, $actor): PrimaryAgentDesignation {
+        $designation = DB::transaction(function () use ($property, $collaborator, $actor): PrimaryAgentDesignation {
             $property = Property::withTrashed()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
             $property->load(PrimaryPropertyContact::eagerLoads());
 
@@ -111,5 +114,14 @@ final class PrimaryAgentDesignator
                 true,
             );
         });
+
+        // TCK-888 (ADR-0068 § 3) — les fils de prospect suivent le nouveau contact principal, après
+        // la transaction (ou celle de l'appelant).
+        if ($designation->changed) {
+            $propertyId = (int) $property->getKey();
+            DB::afterCommit(fn () => $this->conversations->transmitForProperty($propertyId));
+        }
+
+        return $designation;
     }
 }

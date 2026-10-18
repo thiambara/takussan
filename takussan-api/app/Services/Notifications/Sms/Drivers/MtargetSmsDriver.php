@@ -9,6 +9,7 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
@@ -72,10 +73,18 @@ class MtargetSmsDriver implements SmsDriverInterface
             if (! empty($creds['service_id'])) {
                 $payload['serviceid'] = $creds['service_id'];
             }
+            // TCK-842 (P27.04) — le budget de la chaîne est épuisé : rien n'est envoyé.
+            if (SmsTimeBudget::exhausted($context)) {
+                foreach ($chunk as $n) {
+                    $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_time_budget_exhausted');
+                }
+
+                continue;
+            }
 
             try {
                 $response = $this->http->asForm()
-                    ->timeout(10)
+                    ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->post($url, $payload);
             } catch (\Throwable $e) {
                 Log::warning('[sms.mtarget] HTTP exception', ['error' => $e->getMessage()]);

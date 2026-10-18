@@ -73,6 +73,9 @@ vi.mock('@/lib/queries/facettes', async () => {
           : null,
     }),
     FRAICHEUR_DOMAINE_VILLES: 3600,
+    // TCK-841 (P35.03) — le compte du lieu, pris au domaine : 198 biens à Dakar, 4 à Mermoz.
+    compteDuLieu: async (ville: string, quartier?: string) =>
+      ville === 'Dakar' ? (quartier === 'Mermoz' ? 4 : quartier ? undefined : 198) : undefined,
   };
 });
 
@@ -217,6 +220,18 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
     const meta = await metadonnee({ type: 'villa', city: 'Dakar' });
     expect(meta.description).not.toBe(fr.meta.properties.description);
     expect(meta.description).toContain(meta.title as string);
+  });
+
+  it('TCK-841 (P35.03) — une page de ville ou de quartier dit le nombre de biens du lieu', async () => {
+    const ville = await metadonnee({ type: 'villa', city: 'dakar' });
+    expect(ville.description).toContain('198 biens publiés à Dakar');
+    expect(ville.description).toContain(ville.title as string);
+
+    const quartier = await metadonnee({ city: 'Dakar', location: 'mermoz' });
+    expect(quartier.description).toContain('4 biens publiés à Mermoz, Dakar');
+
+    // Un lieu hors domaine n'est pas retenu : ni compte, ni lieu.
+    expect((await metadonnee({ city: 'Inventée' })).description).not.toMatch(/biens publiés/);
   });
 
   it('un type MULTIPLE retombe sur le titre générique — il n’est pas canonique', async () => {

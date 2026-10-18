@@ -17,10 +17,20 @@ export function CreditsPanel() {
   const credits = useCredits(true, page);
   const donnees = credits.data;
 
+  // TCK-825 (P24.03) — une dépense ou un remboursement de boost dit le bien et l'offre.
+  const objet = (m: CreditMovement) => {
+    if (!m.boost) return '—';
+    const offre = m.boost.kind === 'badge'
+      ? t(`movements.offers.badge.${m.boost.variant ?? 'urgent'}`)
+      : t(`movements.offers.${m.boost.kind}`);
+    return m.boost.property ? t('movements.object', { offer: offre, property: m.boost.property.title }) : offre;
+  };
+
   const colonnes: DataTableColumn<CreditMovement>[] = [
     { id: 'date', header: t('movements.colDate'), cell: (m) => f.dateTime(m.created_at) },
     { id: 'type', header: t('movements.colType'), cell: (m) => t(`types.${m.type}`) },
     { id: 'amount', header: t('movements.colAmount'), align: 'end', cell: (m) => <span className="tabular-nums">{m.amount > 0 ? `+${m.amount}` : String(m.amount)}</span> },
+    { id: 'object', header: t('movements.colObject'), cell: objet },
     { id: 'reason', header: t('movements.colReason'), cell: (m) => m.reason ?? '—' },
   ];
 

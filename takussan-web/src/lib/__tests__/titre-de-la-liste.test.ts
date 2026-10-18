@@ -160,3 +160,36 @@ describe('TCK-432 — le cas nominal n’a pas bougé (TCK-433 · AC3)', () => {
     );
   });
 });
+
+describe('TCK-841 (P35.03) — palier 1 : le nombre de biens du lieu dans la description', () => {
+  const quartiers: DomainesDeFacette = { ...DOMAINES, quartiers: new Map([['ngor', 'Ngor']]) };
+
+  it('une page de ville dit combien de biens le lieu compte', async () => {
+    const { title, description } = await titreEtDescription(
+      new URLSearchParams('type=villa&contract_type=rent&city=Dakar'),
+      DOMAINES,
+      198,
+    );
+    expect(title).toBe('Villa à louer à Dakar');
+    expect(description).toContain('198 biens publiés à Dakar');
+    expect(description.startsWith('Villa à louer à Dakar sur Takussan')).toBe(true);
+  });
+
+  it('une page de quartier nomme le quartier et sa ville', async () => {
+    const { description } = await titreEtDescription(new URLSearchParams('city=Dakar&location=Ngor'), quartiers, 4);
+    expect(description).toContain('4 biens publiés à Ngor, Dakar');
+  });
+
+  it('le singulier, et l’anglais', async () => {
+    expect((await titreEtDescription(new URLSearchParams('city=Dakar'), DOMAINES, 1)).description).toContain('1 bien publié à Dakar');
+    localeCourante = 'en';
+    expect((await titreEtDescription(new URLSearchParams('city=Dakar'), DOMAINES, 198)).description).toContain('198 listings in Dakar');
+  });
+
+  it('sans compte, ou sans lieu retenu : la description d’avant', async () => {
+    expect((await titreEtDescription(new URLSearchParams('city=Dakar'), DOMAINES)).description).toBe(
+      fr.meta.propertiesFiltered.description.replace('{title}', 'Biens immobiliers à Dakar'),
+    );
+    expect((await titreEtDescription(new URLSearchParams('type=villa'), DOMAINES, 198)).description).not.toContain('198');
+  });
+});

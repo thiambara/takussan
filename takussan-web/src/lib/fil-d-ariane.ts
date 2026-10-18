@@ -39,33 +39,30 @@ export type TraducteurDeFil = (cle: string) => string;
  * dans les deux consommateurs à la fois.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
- * ⚠️ LE QUARTIER N'EST PAS CLIQUABLE, ET C'EST UNE DÉCISION DU 2026-08-28
+ * LE QUARTIER N'EST CLIQUABLE QUE VERS SA PAGE CANONIQUE (TCK-839, P35.01)
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Il l'était, vers `/properties?location=<quartier>`. Or `location` est l'une des **dix-sept clés
- * ÉCARTÉES** par la règle de canonicité de TCK-433 : cette URL rend
- * `<link rel="canonical" href="…/properties">`. Le fil d'Ariane affirmait donc au moteur, en
- * `BreadcrumbList`, un `item` que la page pointée désavoue aussitôt — deux tickets du même lot qui
- * se contredisaient.
+ * Du 2026-08-28 à TCK-839, il ne l'était jamais : `location` était alors une clé ÉCARTÉE par la
+ * règle de canonicité de TCK-433, et `/properties?location=<quartier>` rendait
+ * `<link rel="canonical" href="…/properties">`. Le fil aurait affirmé au moteur un `item` que la
+ * page pointée désavoue.
  *
- * Les trois issues étaient : faire entrer `location` dans les clés canoniques (impossible sans
- * rouvrir un espace non borné — les quartiers ne s'énumèrent pas), faire pointer le seul balisage
- * vers la canonique du palier au-dessus (cela romprait l'égalité DOM ⇔ JSON-LD de l'AC1), ou
- * retirer le lien.
+ * TCK-598 a fait entrer `location` dans `CLES_CANONIQUES` : un quartier qui atteint
+ * `SEUIL_QUARTIER_INDEXABLE` biens dans SA ville a sa page canonique, que le sitemap annonce. Le
+ * maillon pointe donc vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est
+ * dans le domaine indexable de sa ville (`hrefDuQuartier`, calculé côté serveur par la page),
+ * et reste un libellé sinon — la forme idiomatique d'un dernier maillon. Le lien est posé ou retiré
+ * des DEUX côtés à la fois (écran et `BreadcrumbList`), ce qui garde l'égalité de l'AC1.
  *
- * **Le lien est retiré des DEUX côtés à la fois**, ce qui garde l'égalité intacte : le quartier
- * reste affiché comme dernier maillon, en simple libellé — la forme idiomatique d'un fil d'Ariane,
- * dont le dernier niveau désigne l'endroit où l'on est. `PropertyBreadcrumb` sait déjà rendre un
- * maillon sans `href`, et `jsonLdFilDAriane` sait déjà omettre son `item`.
- *
- * **Invariant qui en découle, et qu'un test vérifie** : tout `item` du fil est une URL CANONIQUE
- * d'elle-même. `/` l'est ; `contract_type` vaut `rent` ou `sale`, tous deux dans le domaine ; la
- * ville vient du bien lui-même, qui est public, donc elle appartient au domaine du catalogue par
- * construction.
+ * **Invariant, qu'un test vérifie** : tout `item` du fil est une URL CANONIQUE d'elle-même. `/`
+ * l'est ; `contract_type` vaut `rent` ou `sale`, tous deux dans le domaine ; la ville vient du bien
+ * lui-même, qui est public, donc elle appartient au domaine du catalogue par construction ; le
+ * quartier n'a de lien que si la canonique le retient.
  */
 export function maillonsDeFiche(
   property: PropertyDetail,
   t: TraducteurDeFil,
+  hrefQuartier?: string,
 ): readonly MaillonDuFil[] {
   const estLocation = property.contract_type === 'rent';
 
@@ -85,8 +82,12 @@ export function maillonsDeFiche(
   }
 
   if (property.location.quarter) {
-    // Sans `href` — cf. l'en-tête. `/properties?location=…` n'est pas canonique d'elle-même.
-    maillons.push({ libelle: property.location.quarter });
+    // `href` seulement pour un quartier indexable de sa ville — cf. l'en-tête.
+    maillons.push(
+      hrefQuartier
+        ? { libelle: property.location.quarter, href: hrefQuartier }
+        : { libelle: property.location.quarter },
+    );
   }
 
   return maillons;

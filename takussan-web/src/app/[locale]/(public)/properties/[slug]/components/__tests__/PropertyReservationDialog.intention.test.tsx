@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import type { PropertyDetail } from '@/types/property';
-import { PropertyReservationDialog, useIntentionDeReservation } from '../PropertyReservationDialog';
+import { PropertyReservationDialog } from '../PropertyReservationDialog';
+import { useIntentionDeReservation } from '../useIntentionDeReservation';
 
 /**
  * TCK-589 — le visiteur sans compte n'a plus qu'une porte : « Se connecter » ET « Créer un

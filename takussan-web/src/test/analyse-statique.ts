@@ -74,11 +74,16 @@ export function resoudreImport(specificateur: string, depuis: string): string | 
 
 const RE_IMPORT = /(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g;
 
+/** `import('…')`, donc `next/dynamic` : un composant différé est rendu quand même (TCK-850). */
+const RE_IMPORT_DIFFERE = /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
+
 /**
  * La CLÔTURE D'IMPORT d'un ensemble d'entrées : tout ce qu'elles atteignent, transitivement.
  *
  * C'est une SUR-approximation du rendu — un fichier importé n'est pas forcément monté — et c'est
  * le bon sens de l'erreur pour une garde : elle mesure plus que ce qui s'affiche, jamais moins.
+ * Les imports différés (`import('…')`, `next/dynamic`) sont suivis : un dialogue chargé à
+ * l'ouverture s'affiche aussi, et le perdre ferait mesurer MOINS que le rendu.
  */
 export function clotureDImport(entrees: readonly string[]): string[] {
   const vus = new Set<string>();
@@ -88,8 +93,7 @@ export function clotureDImport(entrees: readonly string[]): string[] {
     if (vus.has(fichier)) continue;
     vus.add(fichier);
     const texte = readFileSync(fichier, 'utf8');
-    RE_IMPORT.lastIndex = 0;
-    for (const m of texte.matchAll(RE_IMPORT)) {
+    for (const m of [...texte.matchAll(RE_IMPORT), ...texte.matchAll(RE_IMPORT_DIFFERE)]) {
       const cible = resoudreImport(m[1]!, fichier);
       if (cible && !vus.has(cible)) file.push(cible);
     }

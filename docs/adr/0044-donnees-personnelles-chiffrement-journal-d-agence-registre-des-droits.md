@@ -3,6 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
+- **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
 - **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
 ## Contexte
@@ -290,3 +291,49 @@ La planification est faite par l'implémenteur des pistes (P19.07), hors de TCK-
 `SanitizingFailedJobProvider` (« Écarté (ADR-0044) : une purge périodique ») est à reprendre avec
 elle. La politique de confidentialité (`privacy.ts` §6) ne cite pas les jobs échoués : qu'elle doive
 le faire relève de TCK-537.
+
+## Amendement du 2026-10-18 — les sauvegardes gardent ce que la base a effacé (TCK-883)
+
+Décisions du porteur du 2026-10-18, sur les pistes P42.02 et P42.06 du
+[fichier de pistes](../plans/2026-10-15-pistes-d-amelioration.md).
+
+### A. Combien de temps une donnée effacée survit
+
+L'anonymisation et l'effacement (les demandes de droits du § 4) agissent sur la base. Les sauvegardes, elles, gardent l'état
+d'avant : **une donnée effacée survit dans les sauvegardes le temps de leur rétention**, puis
+disparaît avec la plus ancienne d'entre elles. Aujourd'hui (relevé de
+[`hebergement.md`](../infra/hebergement.md)) :
+
+- préproduction : 14 sauvegardes nocturnes, donc **14 jours** ;
+- production (plan F3) : 30 sauvegardes nocturnes, donc **30 jours** ; avec WAL-G
+  ([ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md) § 5), 14 jours de
+  journaux en plus de la sauvegarde de base la plus ancienne qu'ils supposent.
+
+Ce délai est écrit ici pour qu'il puisse être dit à un utilisateur ; le texte public qui l'annonce
+relève de TCK-537.
+
+### B. Une restauration rejoue les effacements postérieurs à la sauvegarde
+
+Restaurer une sauvegarde antérieure à un effacement rendrait le compte en clair, et effacerait en
+même temps la trace (`account_deletion_requests`, `privacy_requests`) qui permettrait de le
+retrouver. **La liste des effacements se tient donc aussi hors de la base**, et la procédure
+« Après une restauration » de `hebergement.md` rejoue ceux qui sont postérieurs à l'instant
+restauré. La forme de cette liste hors base (export nocturne des identifiants effacés vers le seau
+des sauvegardes) est l'objet de [TCK-885](../backlog/tickets/TCK-885-liste-des-effacements-hors-de-la-base.md) ;
+d'ici là, la procédure dit de relever les effacements dans la base courante **avant** de restaurer.
+
+### C. La clé se garde hors du serveur
+
+`APP_KEY` chiffre les colonnes du § 1 : une restauration sans la clé de la même époque est une
+restauration ratée. Chaque environnement range sa clé **hors du serveur** (gestionnaire de mots de
+passe du porteur), et le relevé de `hebergement.md` porte son **empreinte** (12 premiers caractères
+du `sha256`), qui se compare sans afficher la clé. Le plan F3 range la clé de production avant le
+premier déploiement.
+
+### D. Le volume `storage` de production ne se sauvegarde plus
+
+Depuis ADR-0029, les médias sont sur R2 et le volume `storage` ne porte plus que des fichiers
+temporaires, dont les archives d'export RGPD que `PurgeExpiredDataExports` supprime. Sa sauvegarde
+les aurait gardées 14 jours de plus que leur purge. La préproduction l'a désactivée le 2026-09-22 ;
+le plan F3 ne la crée plus pour la production.
+

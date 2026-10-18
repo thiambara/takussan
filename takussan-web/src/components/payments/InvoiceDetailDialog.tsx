@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
@@ -207,6 +208,13 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                   availableProviders={providers}
                 />
               ) : null}
+              {/* TCK-837 (P26.04) — la route PDF passe par la même règle que ce détail (`InvoicePolicy::view`). */}
+              <BoutonTelechargement
+                chemin={`/api/invoices/${invoice.id}/pdf`}
+                nomFichier={`${isCreditNote ? 'avoir' : 'facture'}-${invoice.reference_number ?? invoice.id}.pdf`}
+              >
+                {t(isCreditNote ? 'creditNotePdf' : 'invoicePdf')}
+              </BoutonTelechargement>
               <Button variant="ghost" type="button" onClick={onClose}>
                 {t('close')}
               </Button>

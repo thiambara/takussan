@@ -213,6 +213,13 @@ if [ ! -f "$WEB/.env.local" ] && [ -f "$WEB/.env.example" ]; then
     ko "takussan-web/.env.local absent — le front retomberait sur son défaut codé en dur."
   fi
 fi
+# TCK-860 : le front ne lit plus NEXT_PUBLIC_API_URL, _SITE_URL ni _MEDIA_URL, mais API_URL,
+# SITE_URL et MEDIA_URL (src/lib/config-publique.ts). Un `.env.local` antérieur garde les anciens
+# noms, que plus rien ne lit : le front retomberait en silence sur ses défauts.
+if [ -f "$WEB/.env.local" ] && grep -qE '^NEXT_PUBLIC_(API|SITE|MEDIA)_URL=' "$WEB/.env.local"; then
+  avert "takussan-web/.env.local déclare encore NEXT_PUBLIC_API_URL/_SITE_URL/_MEDIA_URL, ignorées depuis TCK-860 :"
+  avert "les renommer en API_URL, SITE_URL, MEDIA_URL (cf. takussan-web/.env.example)."
+fi
 
 
 # ───────────────────────────────────────────────────────────── quel backing store ?
@@ -770,9 +777,9 @@ fi
 # ───────────────────────────────────────────────────────────── API + file + scheduler
 API_PORT="$(port_libre 8002)"
 if [ "$API_PORT" != "8002" ]; then
-  # 8002 est codé en dur côté front (`NEXT_PUBLIC_API_URL`) : un décalage silencieux
+  # 8002 est codé en dur côté front (`API_URL`) : un décalage silencieux
   # donnerait un front qui ne parle à rien. On le dit, fort.
-  avert "port 8002 occupé → API sur $API_PORT. Le front pointe NEXT_PUBLIC_API_URL sur 8002 :"
+  avert "port 8002 occupé → API sur $API_PORT. Le front pointe API_URL sur 8002 :"
   avert "règle takussan-web/.env.local ou libère 8002, sinon le front ne joindra pas l'API."
 fi
 
@@ -876,7 +883,7 @@ cd "$WEB"
 # Quand le serveur Next s'arrête seul (plantage, erreur fatale), `php artisan serve`,
 # `queue:work` et `schedule:work` survivraient alors, re-parentés à init — et le `./dev.sh`
 # suivant trouverait 8002 occupé, basculerait l'API sur 8003, et le front (dont
-# NEXT_PUBLIC_API_URL est codé sur 8002) parlerait au serveur orphelin périmé.
+# API_URL est codé sur 8002) parlerait au serveur orphelin périmé.
 #
 # Ctrl-C fonctionnait malgré `exec` parce que SIGINT frappe le groupe de processus entier —
 # pas grâce au trap. La sortie propre du serveur, elle, n'était couverte par rien.

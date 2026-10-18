@@ -191,7 +191,10 @@ export function PropertyRow({
     const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
     const pas = first ? first.offsetWidth + gap : el.clientWidth;
     const parEcran = Math.max(1, Math.floor((el.clientWidth + gap) / pas));
-    el.scrollBy({ left: pas * parEcran * direction, behavior: 'smooth' });
+    // TCK-870 — sous mouvement réduit, la rangée saute sans glisser. `'auto'` ne suffirait pas :
+    // il reprend le `scroll-behavior` du CSS, que `scroll-smooth` met à `smooth`.
+    const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollBy({ left: pas * parEcran * direction, behavior: reduit ? 'instant' : 'smooth' });
   }
 
   const Card = spec.Card;
@@ -261,7 +264,7 @@ export function PropertyRow({
         <ArriveeSponsorisee value={emplacementSponsorise}>
           <div
             ref={scrollerRef}
-            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
+            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth motion-reduce:scroll-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
           >
             {loading
               ? Array.from({ length: spec.disposition === 'deux-lignes' ? 10 : 7 }).map((_, i) => (

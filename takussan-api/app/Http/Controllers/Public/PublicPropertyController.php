@@ -1040,7 +1040,7 @@ class PublicPropertyController extends Controller
         return $this->json([
             'data' => [
                 'conversation_id' => $canMessage
-                    ? $resolver->findExisting($property, $user, $recipient)?->id
+                    ? $resolver->findExisting($property, $user)?->id
                     : null,
                 'can_message' => $canMessage,
                 'property' => [

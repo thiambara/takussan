@@ -22,13 +22,20 @@
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 | `api.takussan.com` — **le nom que le front public appelle** | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Depuis `www.takussan.com`, l'appel **échoue sur la poignée de main TLS**, plus sur un 404 : même effet pour l'utilisateur (TCK-332, D-04). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
 
-La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
-Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [relevé](frontend-deploiement.md)).
+La production s'ajoute à ce tableau en phase F du plan. **D'ici là, il n'y a pas de site public** :
+Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md)),
+a été supprimé avant la bascule.
 
-⚠ **Tant que Vercel construit une branche, `next.config.ts` doit rester constructible par Vercel.**
-`output: 'standalone'`, dont l'image a besoin, casse l'adaptateur de Vercel (`ENOENT …
-.next/next-server.js.nft.json`, mesuré le 2026-09-13) : il n'est donc actif que hors de Vercel
-(`VERCEL=1` au build). La condition tombe en phase F, quand plus aucune branche ne passe par Vercel.
+| Constat | Relevé le 2026-10-18 |
+|---|---|
+| `www.takussan.com`, `takussan.com` | aucun enregistrement `A` ni `CNAME` (`dig +short A www.takussan.com`, puis `CNAME`) ; zone servie par Cloudflare |
+| dernier déploiement de Vercel | `vercel[bot]`, `Preview`, 2026-10-15T13:32:26Z (`gh api 'repos/thiambara/takussan/deployments?per_page=3'`) |
+| environnements GitHub de Vercel | `Production` et `Preview` supprimés le 2026-10-18 (le second par AC6 de TCK-832) ; leurs déploiements restent dans l'historique. `gh api repos/thiambara/takussan/environments -q .total_count` → `0` |
+| application GitHub Vercel sur le dépôt | *non mesuré* : le jeton de `gh` ne liste pas les installations. À vérifier dans *Settings → GitHub Apps* |
+
+Le code, les gardes et les textes légaux ne citent plus Vercel depuis TCK-860 : plus de repli
+`NEXT_PUBLIC_*`, `output: 'standalone'` et le loader de Cloudflare inconditionnels au build, plus
+de `@vercel/analytics`, plus d'origine `*.vercel.app` admise par le CORS de l'API.
 
 ## Ce que le dépôt porte
 
@@ -98,11 +105,13 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Médias de la préproduction Takussan | **Sur R2 depuis le 2026-09-22 (TCK-541, ADR-0029)** : `takussan-preview-private` 3 444 objets, 201,4 Mo (originaux des photos) ; `takussan-preview-media` 10 660 objets, 483,1 Mo (conversions, 81 avatars, 4 logos). `media:move-disk public --to-declared` : 3 529 médias, 14 104 fichiers, 0 échec ; `local --to-declared` : 0. Les 3 529 répertoires de `storage/app/public` supprimés ensuite (une ancienne URL d'original → `403`). Reste au volume : `seed-media-cache` (209 Mo, le cache de téléchargement du seed, régénérable). Avant : 948 Mo dans le volume (2026-09-14) | 2026-09-22 | liste des deux seaux (SigV4, jeton `takussan-preview-app`) ; `media:move-disk public --to-declared --dry-run` → `would move 0` |
 | Destination des sauvegardes | seau R2 `vps-sauvegardes` (Cloudflare, région `auto`), jeton limité au seau : liste `200`, liste des seaux `403` ; *Test Connection* réussi | 2026-09-14 | `destination.testConnection` |
 | Sauvegardes planifiées | `takussan_preview` `0 3 * * *`, 14 exemplaires ; volume `takussan-api-preview-4iza80_storage` `0 4 * * *`, 7 — ramené à 1 le 2026-09-21, **désactivé le 2026-09-22** (TCK-541) : les médias n'y sont plus ; sa dernière archive (2026-09-22, 04:00, 902 Mo) reste dans `vps-sauvegardes` comme point de retour d'avant la bascule. Une manuelle de chaque, **lue dans R2** : 1 729 580 o, 27 683 o (après `ProductionSeeder`), 945 797 120 o | 2026-09-14 | liste du seau (ci-dessous), pas la liste de Dokploy |
+| Fraîcheur des sauvegardes de base | `fraicheur-sauvegardes.timer`, à 06:00 et 18:00 (heure du serveur, CEST) → `/usr/local/sbin/fraicheur-sauvegardes` (`deploy/server/fraicheur-sauvegardes.sh`, TCK-884, P42.04) : relit dans R2 la dernière sauvegarde de `takussan_preview` (lecture seule, jeton des sauvegardes) ; alerte Telegram par franchissement si elle a plus de 26 h, pèse moins de 1 Mo ou moins de la moitié de la précédente. **Installé le 2026-10-18, 06:42 UTC** (`sha256` identique au dépôt, `1984b61e…`). `--etat` → `2026-10-18 03:00:06 UTC (3 h), 3086349 o` ; un préfixe inexistant → « aucune sauvegarde lisible ». **Ablation jouée, timer arrêté, `ENVOI=0`** (rien n'est parti sur Telegram) : `AGE_MAX_H=1` → une alerte, marqueur posé ; rejouée → silence ; sans la variable → un retour, marqueur retiré ; rejouée → silence ; `TAILLE_MIN_O=999999999` → alerte, puis retour ; aucun marqueur restant. Les sauvegardes du 2026-10-05 au 2026-10-18 pèsent de 2,0 à 3,1 Mo, une par nuit à 03:00 UTC | 2026-10-18 | `fraicheur-sauvegardes --etat` ; `systemctl list-timers fraicheur-sauvegardes.timer` ; `journalctl -u fraicheur-sauvegardes.service` |
 | Copie du seau privé des médias | `sauvegarde-seau-prive.timer`, chaque nuit à 02:30 → `/usr/local/sbin/sauvegarde-seau-prive` (`deploy/server/sauvegarde-seau-prive.sh`, TCK-541) : `rclone copy` (jamais `sync` : un objet supprimé du seau reste dans la sauvegarde) de `takussan-preview-private` vers `vps-sauvegardes/takussan-preview-private/`, côté serveur. Premier passage : 3 444 objets, 201,4 Mo ; second : `There was nothing to transfer`, 3 444 vérifiés en 1 min 16 s. **Restauration à blanc** : `1082/f4e7dd7a….jpg` relu des deux côtés, même md5 (`6a36948f…`, 42 694 o). **Échec forcé** (`SOURCE=takussan-seau-inexistant`) : code 1, erreur au journal, **alerte reçue sur Telegram** (confirmé par le porteur). Jeton `takussan-preview-backup` (lecture du seau privé, écriture dans `vps-sauvegardes`), limité à l'IP du VPS (`178.18.247.62`, *Client IP Address Filtering*) le 2026-09-22 : refusé (`AccessDenied`) depuis le poste, accepté depuis le serveur. Il garde l'écriture sur le seau privé — un jeton de compte R2 n'a qu'UN type de permission pour tous ses seaux, « lecture ici, écriture là » est impossible (relevé par le porteur) — et c'est sans effet : le jeton de l'application, sur le même VPS, a déjà cette écriture, et `rclone copy` ne l'utilise pas. Le risque qui reste est l'inverse : un VPS compromis peut effacer `vps-sauvegardes` ; la parade est une règle de rétention (*Bucket Lock*) sur ce seau, non posée. Secrets dans `/etc/default/sauvegarde-seau-prive` (600), unités posées par `bootstrap.sh` § 8. Le seau public n'est pas copié : conversions régénérables depuis le privé, avatars et logos seulement | 2026-09-22 | `systemctl list-timers sauvegarde-seau-prive.timer` ; `journalctl -u sauvegarde-seau-prive -o cat` ; `sauvegarde-seau-prive --essai` |
 | File de la préproduction et délai de reprise | `QUEUE_CONNECTION=database` ; `DB_QUEUE_RETRY_AFTER` **non posée** dans Dokploy, donc `retry_after` = 90 s (défaut de `config/queue.php`), relu dans le conteneur. **Strictement au-dessus du `$timeout` de 75 s** de `RegenerateAgencyWatermarksJob` et `RegeneratePhotoConversionsJob` (TCK-539, V5-1) : à reposer au-dessus de 75 s si on pose un jour la clé | 2026-09-22 | `php artisan tinker` : `config('queue.default')`, `config('queue.connections.database.retry_after')` |
 | Sauvegarde de la configuration de Dokploy | `web-server`, `30 4 * * *`, 7 exemplaires ; une manuelle lue dans R2 : `…/dokploy/webserver-backup-<date>.zip`, 94 409 314 o | 2026-09-14 | `backup.manualBackupWebServer` |
 | Clés des objets dans R2 | Dokploy fait **précéder** le préfixe déclaré du nom interne du service : `serveur-postgres-egr6ii/postgres/takussan_preview/<date>.sql.gz`, `takussan-api-preview-4iza80_api/volumes/takussan-preview/…tar`, `backup-parse-multi-byte-card-vlwhry/dokploy/…zip`. Une liste filtrée sur le seul préfixe déclaré ne trouve **rien** | 2026-09-14 | `GET …/vps-sauvegardes?list-type=2` (SigV4) |
 | Restauration à blanc | PostgreSQL : diff des comptes **vide**, 92 tables, 86 927 lignes (préproduction arrêtée) ; volume de médias : 17 629 fichiers, **même** `sha256` | 2026-09-14 | plan, tâche D6, étapes 2 et 3 ; ticket TCK-515 |
+| `APP_KEY` hors du serveur | préproduction : empreinte **`e3227fc80eb0`** (12 premiers caractères du `sha256`). Une copie hors du VPS existe, avec la **même** empreinte : le fichier de secrets du poste du porteur. À ranger dans son gestionnaire de mots de passe (décision du 2026-10-18, ADR-0044 amendement C, P42.02). Production : clé créée et rangée en F3, avant le premier déploiement | 2026-10-18 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printf %s "$APP_KEY" \| sha256sum \| cut -c1-12'` — n'imprime qu'une empreinte |
 
 Projets Dokploy :
 
@@ -116,7 +125,8 @@ Projets Dokploy :
     crée sur la table de F3, jamais par `environment.duplicate`, qui recopierait les secrets de la
     préproduction.
 
-**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub,
+**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub
+(le dernier, `Preview`, est supprimé le 2026-10-18),
 seulement des secrets et variables de **dépôt**, préfixés par l'environnement Dokploy, de quoi
 déclencher et prouver, rien de la configuration des services :
 
@@ -200,9 +210,11 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
 - `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
-  `API_INTERNAL_URL` (`http://api:8080`, le service `api` sur `dokploy-network`) et
+  `API_INTERNAL_URL` (`http://takussan-api-preview:8080`, l'alias de l'API de préproduction sur
+  `dokploy-network` : jamais l'hôte `api`, que chaque pile y déclare — ADR-0069 § 4, TCK-880) et
   `VISITOR_IP_TRUSTED_HOPS` (`2` : Cloudflare puis Traefik — inféré, à confirmer par la mesure
-  ci-dessus). Sur Vercel (`www`), `VISITOR_IP_TRUSTED_HOPS=1` et pas d'`API_INTERNAL_URL`.
+  ci-dessus). Sur Vercel (`www`, jusqu'au 2026-10-15), `VISITOR_IP_TRUSTED_HOPS=1` et pas
+  d'`API_INTERNAL_URL`.
 
 **`takussan-web-preview`** (Application) : depuis ADR-0069 § 3, l'image ne porte plus rien de
 l'environnement, et le conteneur **refuse de démarrer** sans trois variables d'exécution, origines
@@ -275,15 +287,55 @@ docker compose -p "$(basename "$(dirname "$(dirname "$(dirname "$PWD")")")")" -f
 Le chemin et le nom de projet Compose sont ceux relevés en D4 ; si Dokploy les range autrement,
 c'est le relevé qui fait foi, et cette commande se corrige ici.
 
+**Avant une migration irréversible** (piste P42.01, TCK-883). Une migration dont le `down()` ne
+rend pas les données (colonne ou table supprimée, valeurs réécrites, `down()` qui lève) ne part sur
+`preview` — et demain sur `master` — qu'après une sauvegarde **manuelle** de la base : Dokploy →
+service Database → Backups → *Run manual backup*, puis l'objet **relu dans R2**, sous le préfixe
+réel (`serveur-postgres-…/postgres/<base>/`, voir le relevé), de taille non nulle. `release.sh`
+migre sans sauvegarde préalable, et la sauvegarde nocturne peut avoir 24 h : c'est la seule marche
+arrière tant que WAL-G n'archive pas les journaux (ADR-0069 § 5). Une fois WAL-G en service : noter
+l'heure UTC de la fusion de la PR de promotion ; la marche arrière est la restauration à cet instant.
+Les migrations d'une promotion se lisent dans son diff : `git diff --stat origin/preview...origin/dev -- takussan-api/database/migrations`.
+
 **Restaurer une base** : Dokploy → service Database → Backups → *Restore*, depuis R2. La restauration
 à blanc (plan, tâche D6, étape 2) a été jouée **hors** Dokploy, sur le poste, le 2026-09-14 ; ses
-comptes sont dans TCK-515. Deux pièges payés ce jour-là :
+comptes sont dans TCK-515. **Depuis le 2026-10-18, la copie doit aussi se lire** (ADR-0028 § 7
+amendé, TCK-882) : `php artisan backup:verify-encryption --connexion=<copie>`, lancé avec l'`APP_KEY`
+de l'environnement, sort en `0` ; avec `--cle-fausse`, en `1`. Des comptes justes sous une clé
+fausse sont une restauration ratée : chaque colonne chiffrée est perdue. Deux pièges payés le
+2026-09-14 :
 
 - la sauvegarde PostgreSQL s'appelle `.sql.gz` mais contient une archive **custom**
   (`pg_dump -Fc | gzip`) : `gunzip | psql` ne charge rien, et ne l'écrit pas. `gunzip`, puis
   `pg_restore --no-owner --no-acl`. Celle de MySQL est bien du SQL compressé ;
 - une préproduction « au repos » écrit (`jobs`, `scheduled_task_runs`) : pour comparer, on l'arrête
   (hors base) avant la sauvegarde, et on la redémarre après le comptage.
+
+**Après une restauration** (piste P42.05, TCK-883). Une restauration rend la base, pas ce qui vit
+autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussan-api-preview-4iza80`) :
+
+1. **Avant** de restaurer : arrêter `worker`, `worker-media` et `scheduler`
+   (`docker stop <pile>-worker-1 <pile>-worker-media-1 <pile>-scheduler-1`), et relever les
+   effacements de compte postérieurs à l'instant restauré
+   (`SELECT user_id, executed_at FROM account_deletion_requests WHERE executed_at > '<instant>'`) :
+   la restauration effacera cette trace (ADR-0044, amendement du 2026-10-18).
+2. **La file** : les jobs en attente à l'instant restauré sont dans la copie, et seraient rejoués
+   (SMS, courriels déjà partis). `SELECT queue, count(*) FROM jobs GROUP BY 1`, puis
+   `DELETE FROM jobs` sauf décision contraire : les tâches planifiées se reposent d'elles-mêmes, et
+   une conversion de média perdue se régénère (`media:regenerate-property-conversions`).
+3. **Les jetons et les sessions** : un jeton révoqué après l'instant restauré redevient valide.
+   `DELETE FROM personal_access_tokens`, puis vider le Redis **de la pile**
+   (`docker exec <pile>-redis-1 redis-cli FLUSHALL`) : sessions, cache et verrous. Tout le monde se
+   reconnecte. Depuis TCK-880, ce Redis n'appartient qu'à cet environnement.
+4. **La recherche** : le marqueur `storage/app/private/.search-shape-importee` vit dans le volume,
+   que la restauration ne touche pas ; `release` ne réimporterait rien. Le supprimer
+   (`docker exec <pile>-api-1 rm storage/app/private/.search-shape-importee`), puis rejouer
+   `release` (commande du runbook) : il réimporte tous les index.
+5. **Les effacements** : `php artisan account:execute-deletions` rejoue d'elle-même ceux dont la
+   demande est dans la copie (elle y est encore « à exécuter », `executed_at` nul et
+   `scheduled_for` passé). Une demande **créée** après l'instant restauré n'est pas dans la copie :
+   la rejouer depuis le relevé du point 1, avant de rouvrir.
+6. Redémarrer `worker`, `worker-media` et `scheduler`.
 
 **Restaurer un média** (depuis le 2026-09-22) : un original ou une pièce privée se relit dans
 `vps-sauvegardes/takussan-preview-private/<id>/<fichier>` et se remet à la même clé dans
@@ -378,6 +430,17 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
     `ips-v4` et `ips-v6` copiés et une ligne ajoutée) doit alerter une fois, se taire au second
     passage, et `plages-cloudflare` sans la variable doit annoncer le retour. Éprouvé en local le
     2026-10-17 sur des listes et un conteneur factices.
+
+11. La fraîcheur des sauvegardes (P42.04, TCK-884) — `bootstrap.sh` § 10 pose les unités, qui
+    attendent le script :
+    `scp deploy/server/fraicheur-sauvegardes.sh root@178.18.247.62:/usr/local/sbin/fraicheur-sauvegardes`.
+    Sur un serveur préparé avant ce § 10, le § 10 seul se rejoue :
+    `awk '/^# ── 10\./,/^echo "✓ serveur préparé/' deploy/server/bootstrap.sh | sed '$d' | ssh root@178.18.247.62 bash`.
+    Il lit le jeton des sauvegardes de `/etc/default/sauvegarde-seau-prive` et Telegram de
+    `/etc/default/seuils`. Preuve : `fraicheur-sauvegardes --etat` rend la dernière sauvegarde de
+    chaque base, son âge et sa taille ; puis l'ablation, timer arrêté : `AGE_MAX_H=1
+    fraicheur-sauvegardes` alerte une fois, se tait au second passage, et `fraicheur-sauvegardes`
+    sans la variable annonce le retour, puis se tait.
 
 ⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
 `~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau

@@ -38,6 +38,13 @@ export interface CreditMovement {
   readonly actor_id: number | null;
   readonly reason: string | null;
   readonly created_at: string;
+  /** TCK-825 — l'objet d'une ligne de boost : le genre, la variante et le bien. `null` hors boost. */
+  readonly boost?: {
+    readonly id: number;
+    readonly kind: BoostKind;
+    readonly variant: BoostVariant | null;
+    readonly property: { readonly id: number; readonly title: string } | null;
+  } | null;
 }
 
 export interface PropertyBoost {
@@ -65,6 +72,12 @@ export interface CreditsResponse {
   readonly data: { readonly balance: number; readonly lots: readonly CreditLot[] };
   readonly movements: readonly CreditMovement[];
   readonly meta: PaginationMeta;
+}
+
+/** TCK-824 — `GET /api/properties/{id}/boosts` : `bump_available_at` est `null` hors délai de Remontée. */
+export interface PropertyBoostsResponse {
+  readonly data: readonly PropertyBoost[];
+  readonly bump_available_at: string | null;
 }
 
 export interface BuyBoostResponse {

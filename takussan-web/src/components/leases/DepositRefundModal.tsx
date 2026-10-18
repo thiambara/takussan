@@ -172,6 +172,7 @@ export function DepositRefundModal({
               type="number"
               min={1}
               step="any"
+              aria-describedby={errors.amount?.message ? 'deposit-refund-amount-error' : undefined}
               {...register('amount', { valueAsNumber: true })}
             />
             <p className="text-xs text-muted-foreground">
@@ -181,7 +182,9 @@ export function DepositRefundModal({
               })}
             </p>
             {errors.amount?.message && (
-              <p className="text-xs text-destructive">{errors.amount.message}</p>
+              <p id="deposit-refund-amount-error" role="alert" className="text-xs text-destructive">
+                {errors.amount.message}
+              </p>
             )}
           </div>
 
@@ -211,10 +214,13 @@ export function DepositRefundModal({
               id="deposit-refund-reason"
               rows={3}
               placeholder={t('modal.reason_placeholder')}
+              aria-describedby={errors.reason?.message ? 'deposit-refund-reason-error' : undefined}
               {...register('reason')}
             />
             {errors.reason?.message && (
-              <p className="text-xs text-destructive">{errors.reason.message}</p>
+              <p id="deposit-refund-reason-error" role="alert" className="text-xs text-destructive">
+                {errors.reason.message}
+              </p>
             )}
           </div>
 

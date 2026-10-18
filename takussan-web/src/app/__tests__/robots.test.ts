@@ -47,9 +47,8 @@ describe('robots.txt', () => {
     },
   );
 
-  it('n’interdit ni /_next ni /_vercel — un moteur doit charger le CSS et le JS', () => {
+  it('n’interdit pas /_next — un moteur doit charger le CSS et le JS', () => {
     expect(interdits).not.toContain('/_next');
-    expect(interdits).not.toContain('/_vercel');
   });
 
   it('n’interdit AUCUN chemin public, préfixé de langue ou non', () => {

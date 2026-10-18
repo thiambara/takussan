@@ -8,21 +8,44 @@
 #
 # Le domaine n'est pas ici : Dokploy pose les labels Traefik du service `api` (port 8080) depuis
 # son onglet Domains. `container_name` est interdit : Dokploy nomme les conteneurs.
+#
+# ── DEUX RÉSEAUX (ADR-0069 § 4, TCK-880) ─────────────────────────────────────────────────────────
+#
+# `dokploy-network`, partagé par toutes les piles du serveur : Traefik, PostgreSQL, Meilisearch, et
+# le front, qui joint l'API sous `${API_ALIAS}` (`takussan-api-preview`, `takussan-api-production`)
+# — JAMAIS sous `api`, que Compose donne à chaque service de chaque pile sur chaque réseau : avec
+# deux environnements, `api` désignerait les deux API. scripts/check-reseau-par-environnement.mjs
+# refuse une URL vers l'hôte `api` dans la configuration et la documentation de déploiement.
+#
+# `interne`, propre à la pile : son Redis n'est que là, sans port publié, avec le mot de passe de
+# l'environnement (`REDIS_PASSWORD`). Aucun conteneur d'un autre environnement ne peut le joindre ;
+# le Redis partagé `redis-takussan` mêlait cache et sessions de la préproduction et de la production.
+# `REDIS_HOST` et `REDIS_PORT` sont écrits ICI, et non dans l'onglet Environment : ce sont des faits
+# de la pile, pas des réglages, et `environment` l'emporte sur `env_file`. Une valeur restée dans
+# Dokploy est donc sans effet — smoke-api.sh le prouve avec une valeur fausse dans son `.env`.
 
 x-api: &api
   image: ghcr.io/thiambara/takussan-api:${IMAGE_TAG:?IMAGE_TAG manquant}
   pull_policy: always
   env_file: .env
+  environment:
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
   restart: unless-stopped
   volumes:
     - storage:/app/storage/app
   networks:
     - dokploy-network
+    - interne
 
+# ⚠ Une clé présente dans DEUX ancres fusionnées garde la valeur de la PREMIÈRE (`<<: [*api, …]`) :
+# `depends_on` ne vit donc que dans celle-ci, jamais dans `x-api`.
 x-apres-release: &apres-release
   depends_on:
     release:
       condition: service_completed_successfully
+    redis:
+      condition: service_healthy
 
 services:
   # Migrations, réconciliation des rôles, Meilisearch. Les autres services attendent son SUCCÈS
@@ -37,9 +60,38 @@ services:
     restart: "no"
     entrypoint: ["/app/docker/release.sh"]
     mem_limit: 512m
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Le cache et les sessions de CET environnement. volatile-lru : seules les clés À DURÉE DE VIE
+  # sont évincées ; un verrou ou un compteur sans durée ne l'est jamais en silence. Même image et
+  # mêmes réglages que l'ancien `redis-takussan` (deploy/server/compose.data.yml). 128 Mo : celui-ci
+# servait le cache et les sessions de la préproduction avec 1,65 Mo (pic 1,73 Mo, mesuré le 2026-10-18).
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-lru --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD manquant}
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD manquant}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis:/data
+    mem_limit: 192m
+    networks:
+      - interne
 
   api:
     <<: [*api, *apres-release]
+    networks:
+      dokploy-network:
+        aliases:
+          - ${API_ALIAS:?API_ALIAS manquant — takussan-api-preview ou takussan-api-production}
+      interne:
     mem_limit: 384m
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
@@ -75,10 +127,15 @@ services:
     restart: "no"
     entrypoint: ["/app/docker/seed.sh"]
     mem_limit: 768m
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   storage:
+  redis:
 
 networks:
   dokploy-network:
     external: true
+  interne:

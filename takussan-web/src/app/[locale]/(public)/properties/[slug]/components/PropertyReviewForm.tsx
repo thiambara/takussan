@@ -94,6 +94,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       <Input
         type="text"
         placeholder={t('titlePlaceholder')}
+        aria-label={t('titlePlaceholder')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={120}
@@ -101,6 +102,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       <div className="space-y-1">
         <Textarea
           placeholder={t('contentPlaceholder', { min: REVIEW_CONTENT_MIN })}
+          aria-label={t('contentPlaceholder', { min: REVIEW_CONTENT_MIN })}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={3}

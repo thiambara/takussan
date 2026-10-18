@@ -372,7 +372,12 @@ function EntitySelect({
               label: option.label,
             }))}
           >
-            <SelectTrigger id={id} className="w-full" aria-invalid={Boolean(fieldState.error) || undefined}>
+            <SelectTrigger
+              id={id}
+              className="w-full"
+              aria-invalid={Boolean(fieldState.error) || undefined}
+              aria-describedby={fieldState.error ? `${id}-error` : undefined}
+            >
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
@@ -384,7 +389,9 @@ function EntitySelect({
             </SelectContent>
           </Select>
           {fieldState.error ? (
-            <p className="mt-1 text-xs text-destructive">{fieldState.error.message}</p>
+            <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-destructive">
+              {fieldState.error.message}
+            </p>
           ) : null}
         </div>
       )}

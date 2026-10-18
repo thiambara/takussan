@@ -11,6 +11,8 @@ import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { alternatesPubliques } from '@/lib/alternates';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
+import { hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
+import { domainesDeLaListe } from '@/lib/queries/facettes';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 
@@ -180,6 +182,17 @@ export default async function PropertyDetailPage({ params }: Props) {
     }
   }
 
+  // TCK-839 (P35.01) — le maillon de quartier pointe vers sa page canonique s'il est indexable dans
+  // sa ville. Domaines PARTAGÉS, en cache de données (une heure) : aucun appel propre au visiteur.
+  const lieu = resultat.etat === 'trouve' ? resultat.bien.location : null;
+  const hrefQuartier =
+    resultat.etat === 'trouve' && lieu?.city && lieu.quarter
+      ? hrefDuQuartier(
+          resultat.bien,
+          await domainesDeLaListe(new URLSearchParams({ city: lieu.city, location: lieu.quarter })),
+        )
+      : undefined;
+
   const corps =
     resultat.etat !== 'trouve' ? (
       await bienIndisponible()
@@ -193,11 +206,11 @@ export default async function PropertyDetailPage({ params }: Props) {
         */}
         <DonneesStructurees
           donnees={jsonLdFilDAriane(
-            maillonsDeFiche(resultat.bien, await getTranslations('property.detail')),
+            maillonsDeFiche(resultat.bien, await getTranslations('property.detail'), hrefQuartier),
             locale,
           )}
         />
-        <PropertyDetailContent property={resultat.bien} />
+        <PropertyDetailContent property={resultat.bien} hrefQuartier={hrefQuartier} />
         <CompteurDeVue slug={resultat.bien.slug} />
       </>
     );

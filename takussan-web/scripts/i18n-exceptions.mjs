@@ -281,7 +281,7 @@ export const EXCEPTIONS_JUSTIFIEES = [
   // ── NOM-PROPRE ────────────────────────────────────────────────────────────────────────────────
   {
     fichier: 'src/content/legal/editeur.ts',
-    motif: /^(Contabo GmbH|Vercel Inc\.|Aschauer Straße 32a, 81549 München|440 N Barranca Avenue #4133, Covina, CA 91723|101 Townsend Street, San Francisco, CA 94107)$/,
+    motif: /^(Contabo GmbH|Aschauer Straße 32a, 81549 München|101 Townsend Street, San Francisco, CA 94107)$/,
     famille: 'NOM-PROPRE',
     raison:
       "Dénominations sociales et adresses postales des hébergeurs, interpolées dans les mentions "
@@ -366,9 +366,7 @@ export const EXCEPTIONS_JUSTIFIEES = [
   // arguments de `new Error(...)`, et les tests d'ablation les éprouvent par `toThrow(/…/)`.
   // TCK-831 (ADR-0069 § 3) — la résolution de l'origine a quitté `alternates.ts` pour
   // `config-publique.ts` ; ses messages d'erreur la suivent, et nomment la clé à corriger.
-  { fichier: 'src/lib/config-publique.ts', motif: /^SITE_URL \(NEXT_PUBLIC_SITE_URL sous Vercel\)$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/config-publique.ts', motif: /^schéma compris — par exemple/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
-  { fichier: 'src/lib/config-publique.ts', motif: /^que ses pages canoniques sont celles de la production/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^Une URL relative dans un <loc>/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^generateSitemaps\(\) plutôt que tronquer/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },

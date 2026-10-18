@@ -5,10 +5,8 @@ import { ORIGINE_PRODUCTION, resoudreOrigineSite } from '../alternates';
 /**
  * TCK-431 · AC5 — **l'hôte ne se devine pas, et son absence est bruyante.**
  *
- * Le contrat de la fonction est éprouvé sur ses ARGUMENTS : c'est pourquoi `resoudreOrigineSite`
- * prend un objet — sans elle, la branche « prévisualisation Vercel » ne serait éprouvable qu'en
- * redéployant. La lecture de l'environnement par `origineSite()` est éprouvée dans
- * `config-publique.test.ts`.
+ * Le contrat de la fonction est éprouvé sur ses ARGUMENTS. La lecture de l'environnement par
+ * `origineSite()` est éprouvée dans `config-publique.test.ts`.
  */
 describe('resoudreOrigineSite', () => {
   it('sans rien, rend l’origine MESURÉE de la production', () => {
@@ -16,14 +14,8 @@ describe('resoudreOrigineSite', () => {
     expect(ORIGINE_PRODUCTION).toBe('https://www.takussan.com');
   });
 
-  it('NEXT_PUBLIC_SITE_URL gagne sur tout le reste', () => {
-    expect(
-      resoudreOrigineSite({
-        siteUrl: 'https://staging.takussan.test',
-        vercelEnv: 'preview',
-        vercelUrl: 'ignore.vercel.app',
-      }),
-    ).toBe('https://staging.takussan.test');
+  it('SITE_URL gagne sur le défaut', () => {
+    expect(resoudreOrigineSite({ siteUrl: 'https://staging.takussan.test' })).toBe('https://staging.takussan.test');
   });
 
   it('retire la barre finale plutôt que de produire une double barre', () => {
@@ -31,51 +23,19 @@ describe('resoudreOrigineSite', () => {
   });
 
   it('traite une valeur vide ou blanche comme ABSENTE', () => {
-    // Le cas réel : `NEXT_PUBLIC_SITE_URL=` dans `.env.example`. Une chaîne vide qui l'emporterait
+    // Le cas réel : `SITE_URL=` dans `.env.example`. Une chaîne vide qui l'emporterait
     // sur le défaut ferait sortir des URL commençant par « /fr », c'est-à-dire relatives.
     expect(resoudreOrigineSite({ siteUrl: '' })).toBe(ORIGINE_PRODUCTION);
     expect(resoudreOrigineSite({ siteUrl: '   ' })).toBe(ORIGINE_PRODUCTION);
   });
 
-  describe('prévisualisation Vercel — le défaut de production y serait FAUX', () => {
-    it('sert son propre hôte, schéma ajouté', () => {
-      expect(resoudreOrigineSite({ vercelEnv: 'preview', vercelUrl: 'takussan-git-dev-x.vercel.app' })).toBe(
-        'https://takussan-git-dev-x.vercel.app',
-      );
-    });
-
-    it('n’ajoute pas un second schéma à une valeur déjà schématisée', () => {
-      expect(resoudreOrigineSite({ vercelEnv: 'preview', vercelUrl: 'https://deja.vercel.app' })).toBe(
-        'https://deja.vercel.app',
-      );
-    });
-
-    it('en environnement `production`, garde le relevé et non l’hôte technique du déploiement', () => {
-      // `VERCEL_URL` vaut aussi quelque chose en Production — l'hôte `*.vercel.app` du
-      // déploiement, pas le domaine servi. S'en servir remplacerait `www.takussan.com` par un
-      // alias technique dans TOUS les canonicals du site.
-      expect(resoudreOrigineSite({ vercelEnv: 'production', vercelUrl: 'takussan-abc.vercel.app' })).toBe(
-        ORIGINE_PRODUCTION,
-      );
-    });
-
-    it('hors production ET sans hôte, ÉCHOUE en nommant la variable', () => {
-      expect(() => resoudreOrigineSite({ vercelEnv: 'preview' })).toThrow(/NEXT_PUBLIC_SITE_URL/);
-      // Et le message dit POURQUOI on n'a pas replié — c'est ce qui distingue un rouge utile
-      // d'un rouge à contourner.
-      expect(() => resoudreOrigineSite({ vercelEnv: 'preview' })).toThrow(/production/);
-    });
-  });
-
   describe('une valeur malformée ÉCHOUE plutôt que de produire des URL plausibles et fausses', () => {
     it('refuse une valeur sans schéma', () => {
-      expect(() => resoudreOrigineSite({ siteUrl: 'www.takussan.com' })).toThrow(
-        /NEXT_PUBLIC_SITE_URL/,
-      );
+      expect(() => resoudreOrigineSite({ siteUrl: 'www.takussan.com' })).toThrow(/SITE_URL/);
     });
 
     it('refuse la chaîne « undefined », qu’un `.env` mal rempli produit littéralement', () => {
-      expect(() => resoudreOrigineSite({ siteUrl: 'undefined' })).toThrow(/NEXT_PUBLIC_SITE_URL/);
+      expect(() => resoudreOrigineSite({ siteUrl: 'undefined' })).toThrow(/SITE_URL/);
     });
 
     it('refuse un schéma non servi', () => {

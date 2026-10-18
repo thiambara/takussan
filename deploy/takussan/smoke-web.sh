@@ -72,7 +72,7 @@ for langue in fr en wo; do
 done
 ok "/fr, /en, /wo à 200"
 
-# Le loader de Cloudflare est branché (TAKUSSAN_LOADER_MEDIA, ADR-0029 §4) : l'optimiseur de Next
+# Le loader de Cloudflare est branché (tout `next build`, ADR-0029 §4) : l'optimiseur de Next
 # ne tourne plus dans le conteneur, et `/_next/image` n'est plus servi. Un 200 ici voudrait dire
 # que chaque photo repasse par le CPU du VPS. (Ce contrôle attendait de l'AVIF jusqu'au
 # 2026-10-18 : faux depuis TCK-540, qui branchait déjà le loader dans l'image de fumée.)

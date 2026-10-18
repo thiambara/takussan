@@ -2,13 +2,15 @@
 
 namespace App\Services\Messaging;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
-use App\Notifications\ConversationInviteNotification;
+use App\Services\Model\NotificationService;
 use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,7 @@ use Illuminate\Validation\ValidationException;
  *  - Atomically grow / shrink / re-role the participant set.
  *  - Always emit a system message describing the change.
  *  - Refuse to leave the group adminless ("last admin" guard).
- *  - Send a `ConversationInviteNotification` to fresh participants.
+ *  - Send the `message.group_invite` notification to fresh participants (TCK-861).
  *
  * The controller (`ConversationController`, `ConversationParticipantController`)
  * is responsible for HTTP concerns (auth, validation, response shape) and
@@ -143,6 +145,9 @@ class GroupConversationService
                             'joined_at' => now(),
                             'left_at' => null,
                             'archived_at' => null,
+                            // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
+                            // « non lu » : le ré-invité n'était pas là pour le lire.
+                            'last_read_at' => now(),
                         ]);
                 } else {
                     $conversation->participants()->attach($uid, [
@@ -166,18 +171,28 @@ class GroupConversationService
     }
 
     /**
-     * Send a `ConversationInviteNotification` to each freshly-attached user.
+     * Send the `message.group_invite` notification to each freshly-attached user.
      * Called out of the transaction, so a pre-commit failure doesn't stop the participant write.
+     *
+     * TCK-861 (P38.07) — par code et cible (ADR-0032) : la cloche ouvre le groupe, et le titre se
+     * rend dans la langue du destinataire. L'ancienne classe n'écrivait ni l'un ni l'autre.
      *
      * @param  list<int>  $userIds
      */
     private function sendInvites(Conversation $conversation, User $actor, array $userIds): void
     {
+        $notifications = app(NotificationService::class);
+        $params = [
+            // TCK-815 — prénom et nom, puis `username`, puis « — » ; jamais l'e-mail.
+            'inviter' => $actor->nameWithoutContact(),
+            'subject' => $conversation->subject ?? '#'.$conversation->id,
+        ];
+
         foreach ($userIds as $uid) {
             $user = User::find($uid);
             if ($user) {
                 try {
-                    $user->notify(new ConversationInviteNotification($conversation, $actor));
+                    $notifications->send($user, NotificationCode::MessageGroupInvite, $params, NotificationTarget::of('conversation', $conversation->id));
                 } catch (\Throwable $e) {
                     // notification subsystem may be unconfigured in dev; never fail the API call.
                     // TCK-771 — logged in the safe form of ADR-0044, never the message.

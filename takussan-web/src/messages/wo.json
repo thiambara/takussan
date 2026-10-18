@@ -1781,7 +1781,9 @@
       "creditNoteTitle": "Avoir {reference}",
       "credits": "Dafay neenal factuur bi n° {id}",
       "creditNotes": "Avoir yi ñu génne ci factuur bii",
-      "actionFailed": "Jëf ji ci factuur bi antuwul."
+      "actionFailed": "Jëf ji ci factuur bi antuwul.",
+      "invoicePdf": "PDF de la facture",
+      "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
       "title": "Waajal reversement",
@@ -9423,7 +9425,8 @@
       "titleCity": "{subject} ci {city}",
       "subjectAny": "Kër yi",
       "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi.",
-      "titleQuarter": "{subject} ci {quarter}, {city}"
+      "titleQuarter": "{subject} ci {quarter}, {city}",
+      "descriptionWithCount": "{title} sur Takussan, parmi {count, plural, one {# bien publié} other {# biens publiés}} à {place} : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
     },
     "compare": {
       "title": "Méengal kër yi",
@@ -10514,6 +10517,10 @@
         "received": {
           "title": "Bataaxal bu bees bu {sender}",
           "body": "{sender} : {excerpt}"
+        },
+        "group_invite": {
+          "title": "Invitation à un groupe : {subject}",
+          "body": "{inviter} vous a ajouté au groupe « {subject} »."
         }
       },
       "lead": {
@@ -10909,7 +10916,18 @@
       "cancel": "Neenal",
       "confirm": "Dëggal",
       "done": "Def nañu ko : yokk gis-gis bi dox na.",
-      "failed": "Mënuñu denc yokk gis-gis bi."
+      "failed": "Mënuñu denc yokk gis-gis bi.",
+      "effect": {
+        "replacesBadge": "Ce badge remplace le badge « {badge} » actif jusqu’au {date}, sans remboursement.",
+        "replacesPausedBadge": "Ce badge remplace le badge « {badge} » en pause, sans remboursement.",
+        "extendsFeatured": "Prolonge la Vedette en cours jusqu’au {date}.",
+        "extendsPausedFeatured": "Prolonge de {days, plural, one {# jour} other {# jours}} la Vedette en pause.",
+        "bumpCooldown": "Remontée possible à partir du {date}.",
+        "badges": {
+          "urgent": "Urgent",
+          "price_drop": "Baisse de prix"
+        }
+      }
     },
     "marks": {
       "featured": "Vedette",
@@ -10943,7 +10961,17 @@
       "colDate": "Bés",
       "colType": "Jëf",
       "colAmount": "Kredi",
-      "colReason": "Lu tax"
+      "colReason": "Lu tax",
+      "colObject": "Objet",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Remontée",
+        "featured": "Vedette",
+        "badge": {
+          "urgent": "Badge « Urgent »",
+          "price_drop": "Badge « Baisse de prix »"
+        }
+      }
     },
     "types": {
       "grant": "May",

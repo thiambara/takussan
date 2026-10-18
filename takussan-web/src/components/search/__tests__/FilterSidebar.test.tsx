@@ -184,3 +184,12 @@ describe('<FilterSidebar> — aucune section « Mots-clés »', () => {
     expect(screen.queryByRole('button', { name: /Effacer la recherche/ })).not.toBeInTheDocument();
   });
 });
+
+describe('<FilterSidebar> — bornes nommées (TCK-869)', () => {
+  it('chaque borne numérique est nommée par le titre de sa section et sa borne', () => {
+    monte();
+
+    expect(screen.getByRole('spinbutton', { name: 'Budget (FCFA) Min' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Budget (FCFA) Max' })).toBeInTheDocument();
+  });
+});

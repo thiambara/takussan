@@ -336,7 +336,8 @@
       "titleCity": "{subject} in {city}",
       "subjectAny": "Properties",
       "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood.",
-      "titleQuarter": "{subject} in {quarter}, {city}"
+      "titleQuarter": "{subject} in {quarter}, {city}",
+      "descriptionWithCount": "{title} on Takussan, among {count, plural, one {# listing} other {# listings}} in {place}: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
     },
     "compare": {
       "title": "Compare properties",
@@ -3535,7 +3536,9 @@
       "creditNoteTitle": "Credit note {reference}",
       "credits": "Cancels invoice #{id}",
       "creditNotes": "Credit notes issued against this invoice",
-      "actionFailed": "The invoice action failed."
+      "actionFailed": "The invoice action failed.",
+      "invoicePdf": "Invoice PDF",
+      "creditNotePdf": "Credit note PDF"
     },
     "payoutDialog": {
       "title": "Prepare a payout",
@@ -10514,6 +10517,10 @@
         "received": {
           "title": "New message from {sender}",
           "body": "{sender}: {excerpt}"
+        },
+        "group_invite": {
+          "title": "Group invite: {subject}",
+          "body": "{inviter} has added you to the group \"{subject}\"."
         }
       },
       "lead": {
@@ -10909,7 +10916,18 @@
       "cancel": "Cancel",
       "confirm": "Confirm",
       "done": "Done: the promotion is live.",
-      "failed": "The promotion could not be saved."
+      "failed": "The promotion could not be saved.",
+      "effect": {
+        "replacesBadge": "This badge replaces the active “{badge}” badge, due to run until {date}, with no refund.",
+        "replacesPausedBadge": "This badge replaces the paused “{badge}” badge, with no refund.",
+        "extendsFeatured": "Extends the current Featured until {date}.",
+        "extendsPausedFeatured": "Extends the paused Featured by {days, plural, one {# day} other {# days}}.",
+        "bumpCooldown": "Bump available from {date}.",
+        "badges": {
+          "urgent": "Urgent",
+          "price_drop": "Price drop"
+        }
+      }
     },
     "marks": {
       "featured": "Featured",
@@ -10943,7 +10961,17 @@
       "colDate": "Date",
       "colType": "Operation",
       "colAmount": "Credits",
-      "colReason": "Reason"
+      "colReason": "Reason",
+      "colObject": "Item",
+      "object": "{offer} — {property}",
+      "offers": {
+        "bump": "Bump",
+        "featured": "Featured",
+        "badge": {
+          "urgent": "“Urgent” badge",
+          "price_drop": "“Price drop” badge"
+        }
+      }
     },
     "types": {
       "grant": "Grant",

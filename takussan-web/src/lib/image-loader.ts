@@ -13,10 +13,9 @@ import { origineMedia } from '@/lib/config-publique';
  * n'encode plus rien, et le cache vit chez Cloudflare au lieu de repartir à zéro à chaque
  * déploiement du conteneur.
  *
- * Branché par `next.config.ts` dans l'image Docker (`TAKUSSAN_LOADER_MEDIA=1`, ADR-0069 § 3), ou
- * quand `NEXT_PUBLIC_MEDIA_URL` est posée au build ; sinon (développement, production Vercel
- * jusqu'à la phase F), l'optimiseur de Next reste en place. Le raisonnement est dans le bloc
- * `images` de `next.config.ts`.
+ * Branché par `next.config.ts` pour tout `next build`, donc dans l'image Docker (ADR-0069 § 3) ;
+ * sous `next dev`, l'optimiseur de Next reste en place. Le raisonnement est dans le bloc `images`
+ * de `next.config.ts`.
  */
 
 /**

@@ -112,6 +112,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
               onChange={(e) => setLabel(e.target.value)}
               placeholder={t('labelPlaceholder')}
               aria-invalid={error !== null && !label ? true : undefined}
+              aria-describedby={error !== null && !label ? 'kpi-form-error' : undefined}
             />
           </div>
           <div className="space-y-1.5">
@@ -137,7 +138,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
           </Button>
         </form>
         {error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p id="kpi-form-error" role="alert" className="text-sm text-destructive">
             {error}
           </p>
         ) : null}

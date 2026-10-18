@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import {
   Dialog,
@@ -23,8 +23,6 @@ import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import {
   cheminIntentionReservation,
-  lireIntentionReservation,
-  sansIntentionReservation,
   type IntentionReservation,
 } from '@/lib/property/intention-reservation';
 import { useTranslations } from 'next-intl';
@@ -42,33 +40,6 @@ interface PropertyReservationDialogProps {
    * ou une inscription : elle pré-remplit les dates du formulaire de réservation.
    */
   intention?: IntentionReservation | null;
-}
-
-/**
- * TCK-589 — rouvre la boîte quand la fiche est atteinte par `?action=reserver` (retour de connexion
- * ou d'inscription), et rend les dates rapportées. `pret` attend la fin du chargement de la
- * session : ouverte trop tôt, la boîte afficherait « Connectez-vous » au compte qui vient de le
- * faire. L'intention est retirée de l'URL une fois lue — un rechargement ne rouvre rien.
- */
-export function useIntentionDeReservation(
-  pret: boolean,
-  ouvrir: () => void,
-): IntentionReservation | null {
-  const [intention, setIntention] = useState<IntentionReservation | null>(null);
-
-  useEffect(() => {
-    if (!pret) return;
-    const lue = lireIntentionReservation(window.location.search);
-    if (!lue) return;
-    window.history.replaceState(window.history.state, '', sansIntentionReservation(window.location.href));
-    // L'URL n'existe qu'au client : la lire au rendu ferait diverger l'hydratation. Lecture unique
-    // d'un système extérieur, après montage — le cas que la règle laisse passer en esprit.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIntention(lue);
-    ouvrir();
-  }, [pret, ouvrir]);
-
-  return intention;
 }
 
 function formatPrice(price: number, currency: string | null): string {
@@ -437,7 +408,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             {' '}{t('offerForm.termsAfter')}
           </span>
         </label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t('cancel')}

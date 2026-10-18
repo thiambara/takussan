@@ -35,7 +35,7 @@ function TooltipContent({
           data-slot="tooltip-content"
           className={cn(
             "max-w-64 origin-(--transform-origin) rounded-lg bg-foreground px-3 py-2 text-xs leading-snug text-background shadow-md",
-            "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "data-open:animate-in motion-reduce:data-open:animate-none data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out motion-reduce:data-closed:animate-none data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}

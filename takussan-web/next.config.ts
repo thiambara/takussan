@@ -4,37 +4,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /**
- * `NEXT_PUBLIC_MEDIA_URL` — l'origine du seau public de médias (ADR-0029 §1), ou vide. Ne sert
- * plus qu'au build HORS conteneur (Vercel, `next dev`) : l'image lit `MEDIA_URL` à l'exécution, et
- * `docker/demarrer.mjs` la valide au démarrage (ADR-0069 § 3).
- *
- * Validée ICI, au build, et non dans le loader : le loader compare `url.origin` à cette valeur, et
- * une barre finale ou un chemin l'y rendraient fausse sans rien casser — chaque photo repasserait
- * en silence par l'hôte source. Une valeur mal formée arrête donc la compilation.
+ * Le loader de Cloudflare est-il branché ? Pour tout `next build` — l'image Docker est le seul build
+ * qui serve —, et jamais sous `next dev`, où l'optimiseur de Next reste (ADR-0069 § 3). L'origine
+ * du seau ne se connaît qu'à l'exécution (`MEDIA_URL`), et `docker/demarrer.mjs` la valide au
+ * démarrage. `next build` pose `NODE_ENV=production` avant de lire ce fichier.
  */
-function origineMedia(valeur: string | undefined): string | undefined {
-  if (!valeur) return undefined;
-  let origine: string | undefined;
-  try {
-    origine = new URL(valeur).origin;
-  } catch {}
-  if (origine !== valeur) {
-    throw new Error(
-      `NEXT_PUBLIC_MEDIA_URL = « ${valeur} » : attendu une ORIGINE seule, sans barre finale ni chemin ` +
-        `— par exemple « https://media-preview.takussan.com » (ADR-0029).`,
-    );
-  }
-  return origine;
-}
-
-const MEDIA_URL = origineMedia(process.env.NEXT_PUBLIC_MEDIA_URL);
-
-/**
- * Le loader de Cloudflare est-il branché ? Dans l'image Docker, TOUJOURS : le `Dockerfile` pose
- * `TAKUSSAN_LOADER_MEDIA=1` au build, et l'origine du seau ne se connaît qu'à l'exécution
- * (`MEDIA_URL`, ADR-0069 § 3). Hors de l'image, seulement si `NEXT_PUBLIC_MEDIA_URL` est posée.
- */
-const LOADER_MEDIA = MEDIA_URL !== undefined || process.env.TAKUSSAN_LOADER_MEDIA === '1';
+const LOADER_MEDIA = process.env.NODE_ENV === 'production';
 
 const nextConfig: NextConfig = {
   // ── `output: 'standalone'` — ADR-0028 §3 ─────────────────────────────────────────────────────
@@ -42,12 +17,7 @@ const nextConfig: NextConfig = {
   // `next build` produit `.next/standalone/server.js` et n'y copie que les modules que le serveur
   // importe réellement. L'image (takussan-web/Dockerfile) ne porte ni `node_modules` entier ni les
   // dépendances de dev. Sans effet sur `next dev`.
-  //
-  // ⚠ PAS sous Vercel, qui construit encore la production jusqu'à la phase F du plan : son
-  // adaptateur (`onBuildComplete`) lit `.next/next-server.js.nft.json`, que le mode standalone ne
-  // produit pas — mesuré, le build Vercel de la PR #264 meurt sur `ENOENT … next-server.js.nft.json`
-  // après une compilation réussie. Vercel pose `VERCEL=1` au build ; l'image ne le pose pas.
-  output: process.env.VERCEL ? undefined : 'standalone',
+  output: 'standalone',
   // React Compiler — ACTIVÉ, décision ADR-0015 (TCK-318). Mesuré sur ce dépôt : 870/870
   // composants compilés sans un seul abandon, +3,6 à +6,1 % de JS gzippé par page, et un
   // re-rendu de grille de 200 cartes qui passe de ~35 ms à ~1,5 ms. Exige
@@ -70,7 +40,7 @@ const nextConfig: NextConfig = {
   // → `false` sur `127.0.0.1`, `true` sur `localhost`, même serveur, même instant.
   //
   // Et le dépôt oriente vers l'hôte fautif : `dev.sh` annonce `127.0.0.1` pour l'API, Meilisearch,
-  // PostgreSQL et Redis, et `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002`. Un outil
+  // PostgreSQL et Redis, et `.env.example` livre `API_URL=http://127.0.0.1:8002`. Un outil
   // end-to-end, qui vise `127.0.0.1` par défaut, y tombe aussi.
   //
   // La liste est délibérément limitée à la BOUCLE LOCALE — pas d'IP de LAN, pas de `*`. Élargir
@@ -99,26 +69,19 @@ const nextConfig: NextConfig = {
   images: {
     // ── Le loader de Cloudflare Transformations — ADR-0029 §4, TCK-540 ──────────
     //
-    // Dans l'image Docker (`TAKUSSAN_LOADER_MEDIA=1`, posée par le `Dockerfile`), ou quand
-    // `NEXT_PUBLIC_MEDIA_URL` est posée au build, `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute image du seau public devient
+    // Dans tout build (`LOADER_MEDIA`), `src/lib/image-loader.ts` remplace l'optimiseur de Next : toute image du seau public devient
     // `<media>/cdn-cgi/image/width=…,quality=75,format=auto,onerror=redirect/<chemin>?v=…` — sauf une
     // conversion de photo en WebP, servie telle quelle, sans rien facturer (TCK-585). Le
     // conteneur du front (512 Mio) n'encode plus d'AVIF, et le cache des images vit chez
     // Cloudflare au lieu de repartir à zéro à chaque déploiement. Le jeu de largeurs et la
     // qualité unique, et pourquoi (facturation par transformation unique), sont dans ce fichier.
     //
-    // ⚠ BRANCHÉ CONDITIONNELLEMENT, et c'est délibéré. `loader: 'custom'` désactive l'optimiseur
-    // PARTOUT — Vercel compris : `/_next/image` n'est plus appelé, le loader est la seule chose
-    // qui tourne. Or Vercel construit encore la production (`master`) jusqu'à la phase F, sans
-    // `NEXT_PUBLIC_MEDIA_URL`, et son API sert ses médias depuis son propre disque : un loader
-    // inconditionnel y rendrait chaque photo en JPEG pleine taille, sans AVIF ni redimensionnement.
-    // Sans la variable ni le drapeau — Vercel, `next dev` —, rien ne change : l'optimiseur et tout
-    // ce qui suit. Le drapeau disparaît avec Vercel (F5) : le loader deviendra inconditionnel.
+    // `loader: 'custom'` désactive l'optimiseur : `/_next/image` rend 404 dans l'image. Sous
+    // `next dev`, le loader n'est pas branché et l'optimiseur sert les images de l'API locale.
     //
-    // ⚠ Quand le loader est branché, TOUT ce qui suit dans ce bloc (formats, `deviceSizes`,
-    // `remotePatterns`, durée de cache) ne concerne plus que l'optimiseur absent — sauf
-    // `deviceSizes` et `imageSizes`, qui fixent encore les largeurs du `srcset` que le loader
-    // arrondit ensuite.
+    // ⚠ TOUT ce qui suit dans ce bloc (formats, `remotePatterns`, durée de cache) ne concerne donc
+    // plus que l'optimiseur de `next dev` — sauf `deviceSizes` et `imageSizes`, qui fixent encore
+    // les largeurs du `srcset` que le loader arrondit ensuite.
     ...(LOADER_MEDIA ? { loader: 'custom' as const, loaderFile: './src/lib/image-loader.ts' } : {}),
 
     // ── Formats — AVIF EN PREMIER, puis WebP ────────────────────────────────────
@@ -186,9 +149,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'preview.api.takussan.com' },
       { protocol: 'https', hostname: 'api.takussan.com' },
-      // Les seaux publics de médias (ADR-0029 §1). Sans effet quand le loader est branché ; utile à
-      // l'optimiseur de Vercel si l'API de production sert un jour ses médias depuis R2 avant la
-      // phase F.
+      // Les seaux publics de médias (ADR-0029 §1) : pour `next dev` pointé sur une API distante.
       { protocol: 'https', hostname: 'media-preview.takussan.com' },
       { protocol: 'https', hostname: 'media.takussan.com' },
       { protocol: 'http', hostname: '127.0.0.1', port: '8002' },

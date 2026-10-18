@@ -530,6 +530,7 @@ return [
         'two_factor_already_disabled' => 'La double authentification est déjà désactivée.',
     ],
     'tags' => [
+        'catalog_merge_forbidden' => 'Un équipement du catalogue ne se fusionne pas : seules les propositions se fusionnent.',
         'catalog_rename_forbidden' => 'Un équipement du catalogue ne se renomme pas : seules les propositions se renomment.',
         'merge_into_self' => 'Un équipement ne se fusionne pas avec lui-même.',
         'merge_target_invalid' => 'La cible doit être un équipement approuvé ou en attente.',

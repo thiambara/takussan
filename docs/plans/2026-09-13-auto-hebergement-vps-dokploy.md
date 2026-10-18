@@ -3954,6 +3954,21 @@ git commit -m "build(web): Vercel ne construit plus que master ; les préproduct
 fusion vers `master` et chaque bascule DNS de cette phase est une **action sortante** : elle se fait
 sur sa demande explicite, au moment où il la donne.
 
+> ⚠️ **2026-10-18 — Vercel est supprimé AVANT cette phase, et l'ordre ci-dessous ne tient plus.**
+> Dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; `www.takussan.com` et
+> `takussan.com` sans enregistrement DNS ; environnement GitHub `Production` supprimé. Ce qui en
+> découle :
+>
+> - **F5, étape 1 est faite** par le porteur, hors de son ordre. Ses relevés préalables (Search
+>   Console à J+7, `dig`) n'ont pas été pris ; le retrait de l'application GitHub Vercel n'est pas
+>   mesuré (`hebergement.md`).
+> - **Il n'y a plus de retour arrière vers Vercel** : toute étape de F1 à F3 qui en parle — le CNAME
+>   Vercel de `www`, le retour arrière par le tableau de bord, le retrait de `@vercel/analytics` à
+>   l'étape 3 — est caduque. **F3 n'est plus une bascule mais une mise en service.** F2 et F3 sont
+>   réécrites par l'étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md).
+> - **F5, étape 2** (le dépôt oublie Vercel) n'a pas attendu F3 : faite par TCK-860. L'étape 3 attend
+>   toujours la production, puisqu'elle solde D-04 et D-10 sur sa mesure.
+
 ### Tâche F1 : re-mesurer, puis préparer les données de production
 
 - [ ] **Étape 1 : les prémisses ont-elles bougé ?**
@@ -4133,7 +4148,7 @@ encore `www.takussan.com` jusqu'à F3.)
 | Clé | Valeur de production |
 |---|---|
 | `IMAGE_TAG` | `prod` |
-| `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction |
+| `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
 | `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com` |
 | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | `takussan_prod` / `takussan_prod` / F1, étape 2 |
 | `REDIS_DB` / `REDIS_CACHE_DB` | `2` / `3` |
@@ -4157,8 +4172,9 @@ encore `www.takussan.com` jusqu'à F3.)
 | `PUBLIC_CACHE_REVALIDATE_SECRET` | celui de `takussan-api-prod`. Vide, le handler de révocation rend `401` à tout appel, et une fiche retirée reste servie jusqu'à la fin du cache |
 | `API_INTERNAL_URL` | `http://<conteneur api de takussan-api-prod>:8080`, **jamais `http://api:8080`** : les deux piles sont sur `dokploy-network`, et l'alias `api` y désignerait aussi la préproduction (D-71). Vérifier depuis le conteneur du front, avant de poser : `getent hosts <nom>` rend une seule adresse |
 | `VISITOR_IP_TRUSTED_HOPS` | `2` : Cloudflare puis Traefik — celle de la préproduction, à confirmer par la mesure d'ADR-0052 § 6 |
-- *Volume Backups* du volume `storage` de production : `volumes/takussan-prod/`, `0 4 * * *`, 14
-  exemplaires.
+- ~~*Volume Backups* du volume `storage` de production~~ : **retirée le 2026-10-18** (ADR-0044,
+  amendement D, P42.06). Les médias sont sur R2 ; le volume ne porte plus que des fichiers
+  temporaires, dont les exports RGPD, qu'une sauvegarde aurait gardés après leur purge.
 
 - [ ] **Étape 2 : l'environnement GitHub `prod` reçoit ses identifiants**
 
@@ -4306,7 +4322,7 @@ Au moins **7 jours** après F3, sans retour arrière entre-temps. *(F4 annulée 
 Vercel de CheckPrint Plus a déjà été supprimé par le porteur le même jour : tout ce qui suit ne vise
 plus que Takussan.)*
 
-- [ ] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire**
+- [x] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire** *(faite avant F3 : dernier déploiement le 2026-10-15, constat du 2026-10-18 en tête de phase F)*
 
 C'est irréversible, et c'est le chemin de retour de F3 et F4 qui disparaît. Relever d'abord, dans
 le ticket F, la Search Console à J+7 (ajouté le 2026-10-17, piste P34.01) : pages indexées et
@@ -4316,7 +4332,7 @@ neuves en nombre se comprennent **avant** de supprimer Vercel. Relever ensuite
 attendues), puis supprimer les deux projets dans le tableau de bord Vercel, et retirer l'application
 GitHub Vercel des deux dépôts (*Settings → GitHub Apps*).
 
-- [ ] **Étape 2 : le dépôt Takussan oublie Vercel**
+- [x] **Étape 2 : le dépôt Takussan oublie Vercel** *(faite par TCK-860, le 2026-10-18)*
 
 ```bash
 git rm .github/workflows/front-deploy-map.yml docs/infra/frontend-deploiement.md docs/infra/frontend-deploiement.json takussan-web/vercel.json
