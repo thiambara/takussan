@@ -20,6 +20,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\DayRange;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +112,8 @@ class DashboardAgentService
 
         $tasksToday = Task::where('assigned_to_id', $agent->id)
             ->whereIn('status', [TaskStatus::Open, TaskStatus::InProgress])
-            ->whereDate('due_at', today())
+            ->where('due_at', '>=', DayRange::start(today()))
+            ->where('due_at', '<', DayRange::after(today()))
             ->count();
 
         $taskList = Task::where('assigned_to_id', $agent->id)
@@ -137,7 +139,8 @@ class DashboardAgentService
             ->all();
 
         $visitsToday = PropertyVisit::where('agent_id', $agent->id)
-            ->whereDate('scheduled_at', today())
+            ->where('scheduled_at', '>=', DayRange::start(today()))
+            ->where('scheduled_at', '<', DayRange::after(today()))
             ->whereNotIn('status', [VisitStatus::Cancelled->value, VisitStatus::NoShow->value])
             ->with(['property:id,title', 'customer:id,first_name,last_name'])
             ->orderBy('scheduled_at')

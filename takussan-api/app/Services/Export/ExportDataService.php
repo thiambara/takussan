@@ -14,6 +14,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Reporting\AgingBalanceService;
+use App\Support\DayRange;
 use Illuminate\Support\Carbon;
 
 /**
@@ -475,10 +476,10 @@ class ExportDataService
     protected function applyRangeFilter($query, string $column, ?string $from, ?string $to): void
     {
         if ($from) {
-            $query->whereDate($column, '>=', $from);
+            $query->where($column, '>=', DayRange::start($from));
         }
         if ($to) {
-            $query->whereDate($column, '<=', $to);
+            $query->where($column, '<', DayRange::after($to));
         }
     }
 

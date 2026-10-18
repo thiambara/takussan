@@ -331,7 +331,7 @@ Déjà sain (mesuré ou lu) :
 
 ### 110 clés étrangères sur 252 sans index, dont une sur le chemin de `/api/auth/me`
 - Réf : P02.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-862 — reste : les 109 autres clés étrangères sans index, une par une sur `EXPLAIN`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasProfiles.php:281-291`, avec un docblock faux en `:221-223`
 - Constat :
@@ -345,6 +345,7 @@ Déjà sain (mesuré ou lu) :
     - `inventories.property_id` et `.tenant_id`.
 - Piste : `customers.user_id` d'abord, puis les autres une par une, sur `EXPLAIN` (piège PostgreSQL n° 8).
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : lu `HasProfiles.php:281-292` (`hasActiveTenantLease()` inchangé) et `:222-225` (le docblock dit encore « les deux colonnes portant un index ») ; `SELECT indexdef FROM pg_indexes` sur la base de dev, migrée jusqu'à `2026_10_14_120100` → `customers` n'a aucun index sur `user_id` (`leases_tenant_id_index` existe) ; `EXPLAIN` de la jointure `customers ⋈ leases` filtrée sur `customers.user_id` → `Seq Scan on customers` ; requête sur `pg_constraint`/`pg_index` → 252 FK, dont 110 sans index qui commence par elles ; aucun ticket ni commit ne pose cet index (`grep` du backlog, `git log -S customers_user_id`). Classement : A2 pour la seule partie `customers.user_id` (migration neuve d'index avec son `down()`, et le docblock de `:222-225` ramené à ce que fait le schéma, A6) ; les 109 autres FK ne sont pas couvertes par ce classement, elles relèvent d'un `EXPLAIN` chacune et de plus d'un ticket.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `CustomersUserIdIndexTest` rougit : aucun index `customers_user_id_index`, et la requête de `tenantLeases()` filtrée sur les statuts actifs ne lit pas `customers` par un index sous `enable_seqscan = off` → migration neuve `customers(user_id)` avec son `down()`, docblock de `profileTypes()` ramené au schéma ; 2 verts ; ablation : migration retirée, 2 rouges ; remise, verts.
 
 ### `TagController` recompte ce que `withCount` a compté ; le tri des tags CRM pourrait être rejeté
 - Réf : P02.05
@@ -361,12 +362,13 @@ Déjà sain (mesuré ou lu) :
 
 ### `whereDate()` sur un horodatage empêche l'usage de l'index
 - Réf : P02.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-864
 - Gravité : 🟠 risque ou dette
 - Où : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:453-460`
 - Constat : `scheduled_at::date >= …` force un Seq Scan. Écrite en plage, la même borne passe par l'index `property_visits_scheduled_at_status_index` (mesuré). Sur une colonne `date`, le cast ne coûte rien.
 - Piste : des plages `>= début du jour`, `< lendemain`.
 - Mesure (2026-10-15, 8ebb0cc3, mesureur) : relu par `grep whereDate` : `CalendarEventCollector.php:195-196,362-363`, `DashboardAgentService.php:114,140`, `Property.php:651,657`, `PaymentController.php:168-180`, `ExportDataService.php:456,459` (les lignes citées `453-460` ont glissé à `456,459`, et `:281` porte un `whereDate` sur `due_date`) ; `information_schema` → `property_visits.scheduled_at` est un `timestamp without time zone`, `config/app.php:70` et `SHOW timezone` valent UTC ; `EXPLAIN` avec `enable_seqscan=off` sur la base de dev → `scheduled_at::date >= … AND <= …` reste un `Seq Scan`, la même borne en plage `>= '2026-10-01' AND < '2026-11-01'` passe par `Bitmap Index Scan on property_visits_scheduled_at_status_index`. Classement : A2, sur une colonne horodatée sans fuseau la plage `[début du jour, lendemain)` rend exactement les mêmes lignes que le cast, sans choix de produit ; les colonnes de type `date` (`start_date`, `end_date`, `due_date`) restent hors du correctif.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `TimestampDayRangeTest` capte des `"scheduled_at"::date`, `"due_at"::date`, `"created_at"::date` et `"paid_at"::date` sur les six routes couvertes (calendrier, tableau de bord agent, liste des biens, historique des paiements, exports des biens et des clients), et le plan des visites du calendrier n'a pas `scheduled_at` dans son `Index Cond` → `App\Support\DayRange` (`[début du jour, lendemain)`) aux cinq sites ; 10 verts ; ablation : correctif retiré, 7 rouges (les 3 tests de bornes restent verts : ils gardent l'équivalence) ; `after()` ramené à `start()`, les 3 tests de bornes rougissent ; colonnes `date` laissées en `whereDate()`.
 
 ### Export synchrone jusqu'à 50 000 modèles complets
 - Réf : P02.07
@@ -420,12 +422,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
-- Statut : retenu · autonome
+- Statut : fait · TCK-863
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:156`
 - Constat : `ORDER BY ranked_at DESC NULLS LAST, id DESC` force un Sort : l'index `ranked_at` est en ASC (mesuré).
 - Piste : un index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:156-157` (`orderByRaw('ranked_at DESC NULLS LAST')->orderByDesc('id')`, la ligne n'a pas bougé) et la migration `2026_10_12_500300` (`properties_ranked_at_idx` en ASC) ; tinker en lecture, `EXPLAIN ANALYZE` de la requête de `index()` (scope `public()`, `limit 20`) → `Bitmap Heap Scan` puis `Sort` top-N sur `ranked_at DESC NULLS LAST, id DESC`, 9,2 ms pour 842 biens. Classement : A2, une migration neuve d'ajout d'index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`, avec son `down()`, ne change pas le résultat.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `PublicCatalogueRankedOrderIndexTest` rougit : la requête émise par `GET /api/public/properties`, rejouée sous `EXPLAIN` avec `enable_seqscan = off`, porte `Sort Key: properties.ranked_at DESC NULLS LAST, properties.id DESC` → migration neuve de l'index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test` avec son `down()` ; plan par l'index, sans `Sort`, 2 verts ; ablation : migration retirée, 2 rouges ; remise, verts ; `RankedOrderTest` et `PropertyListTest` verts.
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13

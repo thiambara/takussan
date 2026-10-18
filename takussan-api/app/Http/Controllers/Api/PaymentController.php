@@ -15,6 +15,7 @@ use App\Models\Property;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Payments\PaymentGatewayService;
+use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -170,19 +171,19 @@ class PaymentController extends Controller
         if (! empty($filters['date_from'])) {
             $from = $filters['date_from'];
             $bookingQuery->where(function ($q) use ($from): void {
-                $q->whereDate('paid_at', '>=', $from)->orWhereDate('created_at', '>=', $from);
+                $q->where('paid_at', '>=', DayRange::start($from))->orWhere('created_at', '>=', DayRange::start($from));
             });
             $leaseQuery->where(function ($q) use ($from): void {
-                $q->whereDate('paid_at', '>=', $from)->orWhereDate('period_start', '>=', $from);
+                $q->where('paid_at', '>=', DayRange::start($from))->orWhereDate('period_start', '>=', $from);
             });
         }
         if (! empty($filters['date_to'])) {
             $to = $filters['date_to'];
             $bookingQuery->where(function ($q) use ($to): void {
-                $q->whereDate('paid_at', '<=', $to)->orWhereDate('created_at', '<=', $to);
+                $q->where('paid_at', '<', DayRange::after($to))->orWhere('created_at', '<', DayRange::after($to));
             });
             $leaseQuery->where(function ($q) use ($to): void {
-                $q->whereDate('paid_at', '<=', $to)->orWhereDate('period_start', '<=', $to);
+                $q->where('paid_at', '<', DayRange::after($to))->orWhereDate('period_start', '<=', $to);
             });
         }
 

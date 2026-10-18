@@ -18,6 +18,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -192,8 +193,8 @@ class CalendarEventCollector
     {
         $query = PropertyVisit::query()
             ->whereIn('status', [VisitStatus::Scheduled, VisitStatus::Confirmed])
-            ->whereDate('scheduled_at', '>=', $start)
-            ->whereDate('scheduled_at', '<=', $end);
+            ->where('scheduled_at', '>=', DayRange::start($start))
+            ->where('scheduled_at', '<', DayRange::after($end));
         $restrict($query);
         if ($mine) {
             $query->where('agent_id', $userId);
@@ -359,8 +360,8 @@ class CalendarEventCollector
 
         $query = MaintenanceRequest::query()
             ->whereNotNull('scheduled_at')
-            ->whereDate('scheduled_at', '>=', $start)
-            ->whereDate('scheduled_at', '<=', $end)
+            ->where('scheduled_at', '>=', DayRange::start($start))
+            ->where('scheduled_at', '<', DayRange::after($end))
             ->whereNotIn('status', [
                 MaintenanceStatus::Completed->value,
                 MaintenanceStatus::Closed->value,
