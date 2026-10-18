@@ -34,6 +34,11 @@ class CustomersUserIdIndexTest extends TestCase
         $user = User::factory()->create();
         Customer::factory()->count(30)->create();
         Customer::factory()->create(['user_id' => $user->id]);
+        // Le moteur choisit l'index d'après les statistiques de la table, pas d'après son contenu :
+        // si la table a été analysée vide (autovacuum, entre deux tests), `customers_pkey` et
+        // `customers_user_id_index` coûtent pareil et il prend l'un ou l'autre (CI rouge du
+        // 2026-10-18, #643). Analysée avec ses 31 lignes, `user_id = ?` devient le seul plan sélectif.
+        DB::statement('ANALYZE customers');
 
         $sql = $user->tenantLeases()
             ->whereIn('leases.status', User::ACTIVE_TENANT_LEASE_STATUSES)
