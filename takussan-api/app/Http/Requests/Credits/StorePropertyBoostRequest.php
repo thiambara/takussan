@@ -24,4 +24,12 @@ class StorePropertyBoostRequest extends BaseFormRequest
             'product_id' => ['required', 'integer', 'exists:boost_products,id'],
         ];
     }
+
+    /** TCK-822 (P24.01) — l'en-tête `Idempotency-Key`, que le dialogue d'achat génère à son ouverture. */
+    public function idempotencyKey(): ?string
+    {
+        $key = $this->header('Idempotency-Key');
+
+        return is_string($key) && trim($key) !== '' ? trim($key) : null;
+    }
 }

@@ -45,7 +45,8 @@ class Booking extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
 
-    protected static array $requestLoadable = ['property', 'customer', 'agency'];
+    // TCK-807 (P21.05) — `agency` n'est pas émis par `BookingResource`. `RequestLoadableEmittedTest` le garde.
+    protected static array $requestLoadable = ['property', 'customer'];
 
     protected static array $requestCountable = ['payments'];
 

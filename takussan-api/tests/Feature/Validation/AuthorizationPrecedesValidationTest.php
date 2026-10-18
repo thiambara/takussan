@@ -3,6 +3,8 @@
 namespace Tests\Feature\Validation;
 
 use App\Models\Agency;
+use App\Models\BankStatement;
+use App\Models\BankStatementLine;
 use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -18,6 +20,7 @@ use App\Models\SavedSearch;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 
 /**
@@ -137,6 +140,128 @@ class AuthorizationPrecedesValidationTest extends ApiTestCase
 
         $this->postJson("/api/leases/{$lease->id}/terminate", ['reason' => ['pas', 'une', 'chaîne']])
             ->assertStatus(403);
+    }
+
+    /**
+     * TCK-816 (P22.01) — les quatre voisines de `/terminate` sur le même bail, et la mise à jour
+     * d'une agence, avaient un `authorize()` qui rendait `true` sec : un compte sans lien recevait
+     * 422 et les noms des champs (`new_rent`, `reason`, `amount`, `effective_date`, `email`). Un
+     * cas par route, puisque chacune a son propre FormRequest.
+     *
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>, 3: list<string>}>
+     */
+    public static function routesDeBailEtDAgence(): array
+    {
+        return [
+            'révision du loyer' => ['patch', '/api/leases/{lease}/rent', ['new_rent' => 'cher'], ['new_rent', 'reason']],
+            'renouvellement' => ['post', '/api/leases/{lease}/renew', ['start_date' => 'demain', 'end_date' => 'jamais'], ['start_date', 'end_date']],
+            'restitution du dépôt' => ['post', '/api/leases/{lease}/deposit-refund', ['amount' => 'tout'], ['amount']],
+            'résiliation anticipée' => ['post', '/api/leases/{lease}/early-termination', ['effective_date' => 'hier'], ['effective_date']],
+            'mise à jour d\'agence' => ['put', '/api/agencies/{agency}', ['email' => 'pas-une-adresse'], ['email']],
+        ];
+    }
+
+    private function cheminDe(string $gabarit): string
+    {
+        $lease = Lease::factory()->create(['agency_id' => $this->agency->id]);
+
+        return strtr($gabarit, ['{lease}' => (string) $lease->id, '{agency}' => (string) $this->agency->id]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesDeBailEtDAgence')]
+    public function test_lease_and_agency_writes_deny_before_they_validate(string $verbe, string $gabarit, array $corps, array $champs): void
+    {
+        $chemin = $this->cheminDe($gabarit);
+        $this->intrus();
+
+        $this->json(strtoupper($verbe), $chemin, $corps)
+            ->assertStatus(403)
+            ->assertJsonMissingPath('errors');
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesDeBailEtDAgence')]
+    public function test_lease_and_agency_writes_still_validate_for_an_authorized_caller(string $verbe, string $gabarit, array $corps, array $champs): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $chemin = $this->cheminDe($gabarit);
+
+        $this->json(strtoupper($verbe), $chemin, $corps)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($champs);
+    }
+
+    /**
+     * TCK-818 (P22.04) — quatre FormRequests portaient `return true; // Policy handles authorization`,
+     * et `PropertyDuplicateRequest` rendait `$this->user() !== null` : la policy, appelée dans le
+     * corps du contrôleur, venait après la validation.
+     *
+     * @return array<string, array{0: string, 1: array<string, mixed>, 2: list<string>}>
+     */
+    public static function routesAutoriseesDansLeCorps(): array
+    {
+        return [
+            'duplication d\'un bien' => ['/api/properties/{property}/duplicate', ['title_suffix' => str_repeat('x', 60)], ['title_suffix']],
+            'import d\'un relevé' => ['/api/agencies/{agency}/bank-statements', [], ['file']],
+            'correspondance CSV' => ['/api/agencies/{agency}/bank-statements/csv-mapping', ['has_header' => 'peut-être'], ['has_header']],
+            'rapprochement d\'une ligne' => ['/api/bank-statement-lines/{line}/match', ['payment_type' => 'inconnu'], ['payment_type', 'payment_id']],
+            'délégation de rôle' => ['/api/agencies/{agency}/role-delegations', [], ['user_id', 'ends_at']],
+        ];
+    }
+
+    private function cheminAutoriseDansLeCorps(string $gabarit): string
+    {
+        $property = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $statement = BankStatement::factory()->create(['agency_id' => $this->agency->id]);
+        $line = BankStatementLine::factory()->create(['bank_statement_id' => $statement->id]);
+
+        return strtr($gabarit, [
+            '{property}' => (string) $property->id,
+            '{agency}' => (string) $this->agency->id,
+            '{line}' => (string) $line->id,
+        ]);
+    }
+
+    private function verbeDe(string $chemin): string
+    {
+        return str_ends_with($chemin, '/csv-mapping') ? 'PUT' : 'POST';
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesAutoriseesDansLeCorps')]
+    public function test_policy_called_in_the_body_now_denies_before_it_validates(string $gabarit, array $corps, array $champs): void
+    {
+        $chemin = $this->cheminAutoriseDansLeCorps($gabarit);
+        $this->intrus();
+
+        $this->json($this->verbeDe($chemin), $chemin, $corps)
+            ->assertStatus(403)
+            ->assertJsonMissingPath('errors');
+    }
+
+    /**
+     * @param  array<string, mixed>  $corps
+     * @param  list<string>  $champs
+     */
+    #[DataProvider('routesAutoriseesDansLeCorps')]
+    public function test_policy_called_in_the_body_still_validates_for_an_authorized_caller(string $gabarit, array $corps, array $champs): void
+    {
+        $this->apiActingAsRole('super_admin');
+        $chemin = $this->cheminAutoriseDansLeCorps($gabarit);
+
+        $this->json($this->verbeDe($chemin), $chemin, $corps)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors($champs);
     }
 
     public function test_payout_mark_failed_denies_before_it_validates(): void

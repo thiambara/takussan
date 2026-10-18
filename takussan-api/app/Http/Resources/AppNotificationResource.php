@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\AppNotification;
+use App\Notifications\LeaseDepositRefundNotification;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Http\Request;
 
@@ -43,7 +44,7 @@ class AppNotificationResource extends BaseResource
             'target' => $want('target') ? NotificationTarget::forRow($this->resource)?->toArray() : null,
             'title' => $want('title') ? $this->rendered($code, 'title', $request) ?? $this->title : null,
             'body' => $want('body') ? $this->rendered($code, 'body', $request) ?? $this->body : null,
-            'data' => $this->data,
+            'data' => $want('data') ? $this->dataAtRead($request) : null,
             'is_read' => (bool) $this->is_read,
             'read_at' => $this->iso($this->read_at),
             'sent_at' => $this->iso($this->sent_at),
@@ -67,6 +68,22 @@ class AppNotificationResource extends BaseResource
         $fields = array_values(array_intersect(self::FIELDS, array_map('trim', explode(',', $raw))));
 
         return array_values(array_unique(['id', ...$fields]));
+    }
+
+    /**
+     * TCK-821 (P23.05) — `data` tel qu'écrit, sauf les pièces d'une retenue sur caution, rangées
+     * sans URL et signées ici, pour ce lecteur et après l'autorisation du bail.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function dataAtRead(Request $request): ?array
+    {
+        $data = $this->data;
+        if (! is_array($data) || ! array_key_exists('attachments', $data) || ! array_key_exists('lease_id', $data)) {
+            return $data;
+        }
+
+        return [...$data, 'attachments' => LeaseDepositRefundNotification::attachmentsAtRead($data, $request->user())];
     }
 
     private function rendered(?NotificationCode $code, string $surface, Request $request): ?string

@@ -91,6 +91,7 @@ return [
     ],
     'boost' => [
         'bump_cooldown' => 'Kër gii yékkati nañu ko des na 24 waxtu. Mën ngeen ko yékkati ci :available_at.',
+        'idempotency_key_reused' => 'Cette demande d’achat a déjà servi pour une autre offre ou un autre bien. Rouvrez la fenêtre d’achat.',
         'no_space' => 'Kër gii bokkul ci benn bérab : mënuñu ko yokk gis-gis.',
         'not_live' => 'Yokk gis-gis gii jeex na.',
         'offer_featured_only' => 'Vedette rekk lañu mën a may.',

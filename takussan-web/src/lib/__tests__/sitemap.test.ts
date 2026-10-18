@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ORIGINE_SITE } from '../alternates';
+import { origineSite } from '../alternates';
 import {
   CHEMINS_INTERDITS_AUX_ROBOTS,
   LIMITE_URL_PAR_SITEMAP,
@@ -22,9 +22,9 @@ describe('entreesLocalisees — TCK-431 · AC1', () => {
     const entrees = entreesLocalisees({ chemin: '/properties/villa-dakar' });
     expect(entrees).toHaveLength(LOCALES.length);
     expect(urls(entrees)).toEqual([
-      `${ORIGINE_SITE}/fr/properties/villa-dakar`,
-      `${ORIGINE_SITE}/en/properties/villa-dakar`,
-      `${ORIGINE_SITE}/wo/properties/villa-dakar`,
+      `${origineSite()}/fr/properties/villa-dakar`,
+      `${origineSite()}/en/properties/villa-dakar`,
+      `${origineSite()}/wo/properties/villa-dakar`,
     ]);
   });
 
@@ -45,15 +45,15 @@ describe('entreesLocalisees — TCK-431 · AC1', () => {
     for (const url of toutes) {
       // `/properties` nu rend 307 : une URL non préfixée dans un sitemap est une redirection
       // annoncée comme canonique.
-      expect(url, url).toMatch(new RegExp(`^${ORIGINE_SITE}/(fr|en|wo)(/|$)`));
+      expect(url, url).toMatch(new RegExp(`^${origineSite()}/(fr|en|wo)(/|$)`));
     }
   });
 
   it('l’accueil ne produit pas de double barre', () => {
     expect(urls(entreesLocalisees({ chemin: '/' }))).toEqual([
-      `${ORIGINE_SITE}/fr`,
-      `${ORIGINE_SITE}/en`,
-      `${ORIGINE_SITE}/wo`,
+      `${origineSite()}/fr`,
+      `${origineSite()}/en`,
+      `${origineSite()}/wo`,
     ]);
   });
 
@@ -102,7 +102,7 @@ describe('cheminDeFiche — un slug hostile ne casse pas le XML', () => {
 describe('construireSitemap — TCK-598 : le `&` d’une requête échappé pour le XML', () => {
   it('échappe `&` dans `url` ET dans chaque alternative de langue', () => {
     const [entree] = construireSitemap([{ chemin: '/properties?city=Dakar&location=Mermoz' }]);
-    expect(entree!.url).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar&amp;location=Mermoz`);
+    expect(entree!.url).toBe(`${origineSite()}/fr/properties?city=Dakar&amp;location=Mermoz`);
     for (const href of Object.values(entree!.alternates!.languages as Record<string, string>)) {
       expect(href).toContain('?city=Dakar&amp;location=Mermoz');
     }
@@ -111,7 +111,7 @@ describe('construireSitemap — TCK-598 : le `&` d’une requête échappé pour
 
 describe('absolu — TCK-431 · AC5', () => {
   it('préfixe l’origine', () => {
-    expect(absolu('/fr/properties/x')).toBe(`${ORIGINE_SITE}/fr/properties/x`);
+    expect(absolu('/fr/properties/x')).toBe(`${origineSite()}/fr/properties/x`);
   });
 
   it('refuse un chemin relatif', () => {

@@ -4,15 +4,16 @@ namespace App\Services\Invitation;
 
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
-use App\Models\Enums\Capability;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Policies\AgentProfilePolicy;
 use App\Services\Agency\AgencyMemberRemovalService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -64,7 +65,7 @@ class AgentInvitationService
     public function invite(Agency $agency, User $inviter, array $data): Invitation
     {
         $this->assertAgencyCanInvite($agency);
-        $this->assertInviterCanManageTeam($inviter, $agency);
+        $this->assertInviterCanManageTeam($inviter, 'invite', [AgentProfile::class, $agency]);
 
         // TCK-589 — e-mail facultatif quand un numéro est donné (drapeau
         // `auth.phone_login.enabled`) : l'invitation part alors par SMS.
@@ -136,7 +137,7 @@ class AgentInvitationService
         $agency = $profile->agency;
         if ($agency !== null) {
             $this->assertAgencyCanInvite($agency);
-            $this->assertInviterCanManageTeam($actor, $agency);
+            $this->assertInviterCanManageTeam($actor, 'suspend', $profile);
         }
 
         $newStatus = $active
@@ -171,7 +172,7 @@ class AgentInvitationService
         $agency = $profile->agency;
         if ($agency !== null) {
             $this->assertAgencyCanInvite($agency);
-            $this->assertInviterCanManageTeam($actor, $agency);
+            $this->assertInviterCanManageTeam($actor, 'delete', $profile);
         }
 
         // TCK-591 §8 — un membre rattaché à un compte se retire par LE chemin de retrait (gardes,
@@ -214,30 +215,19 @@ class AgentInvitationService
     }
 
     /**
-     * Throws 403 unless the actor holds `manage_team` *in the agency
-     * team context*. Mirrors the OwnerInvitationService probe so a user
-     * with the permission elsewhere doesn't accidentally pass on a
-     * different agency.
+     * Throws 403 unless {@see AgentProfilePolicy} grants `$ability` — `invite` on the agency,
+     * `suspend` or `delete` on the profile.
+     *
+     * TCK-819 (P22.03) — la règle était recopiée ici, et la copie avait déjà divergé de la policy
+     * (qui refuse d'abord par `AgencyKindGuard`). Le service appelle désormais la policy, par la
+     * Gate : le super-admin passe par `Gate::before`, comme partout ailleurs. Seule la FORME reste
+     * propre au service : un 403 avec son message, là où la policy rend un booléen.
+     *
+     * @param  mixed  $arguments  le second argument de `Gate::allows()`
      */
-    protected function assertInviterCanManageTeam(User $actor, Agency $agency): void
+    protected function assertInviterCanManageTeam(User $actor, string $ability, mixed $arguments): void
     {
-        if (method_exists($actor, 'isSuperAdmin') && $actor->isSuperAdmin()) {
-            return;
-        }
-
-        // TCK-278 — Profile-based check (cf. policy).
-        // TCK-395 — la moitié « délégation » de ce test passait par
-        // `hasActiveAgencyDelegation($id, 'agency_admin')` : un simple test de
-        // CHAÎNE, qui accordait l'agency_admin PLEIN quel que soit ce que le
-        // délégant détenait lui-même. `canActAt()` consulte désormais les
-        // délégations (branche `delegationAllows`) et les BORNE par les
-        // capacités propres du délégant. Le geste reste le même ; ce qui
-        // change est qu'il passe enfin par le pivot `agency_role_capabilities`,
-        // comme tout le reste depuis TCK-315.
-        $allowed = $actor->isAgencyAdminAt((int) $agency->id)
-            || $actor->canActAt(Capability::TeamInvite, $agency);
-
-        if (! $allowed) {
+        if (Gate::forUser($actor)->denies($ability, $arguments)) {
             throw new HttpException(403, __('team.invite.errors.permission_denied'));
         }
     }

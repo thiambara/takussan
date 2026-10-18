@@ -10,13 +10,19 @@
     ], static fn ($value): bool => is_string($value) && trim($value) !== '');
 @endphp
 
+@php
+    // TCK-836 (P26.06) — les dates du relevé en jour/mois/année, plus en ISO brut. Le reversement
+    // est daté en UTC, comme l'était sa sous-chaîne ISO.
+    $frDate = static fn (string $value): string => \Illuminate\Support\Carbon::parse($value)->utc()->format('d/m/Y');
+@endphp
+
 @section('content')
     <h1>{{ __($statement['annual'] ? 'money_out.statement.annual_title' : 'money_out.statement.title') }}</h1>
 
     <table class="kv">
         <tr><th>{{ __('money_out.statement.agency') }}</th><td>{{ $agency?->legal_name ?: $statement['agency']['name'] }}</td></tr>
         <tr><th>{{ __('money_out.statement.landlord') }}</th><td>{{ $statement['landlord']['name'] }}</td></tr>
-        <tr><th>{{ __('money_out.statement.period') }}</th><td>{{ $statement['period_start'] }} — {{ $statement['period_end'] }}</td></tr>
+        <tr><th>{{ __('money_out.statement.period') }}</th><td>{{ $frDate($statement['period_start']) }} — {{ $frDate($statement['period_end']) }}</td></tr>
     </table>
 
     <table class="data">
@@ -65,7 +71,7 @@
                 @foreach ($statement['payouts'] as $payout)
                     <tr>
                         <td>{{ $payout['reference_number'] }}@if ($payout['transaction_id']) ({{ $payout['transaction_id'] }})@endif</td>
-                        <td>{{ $payout['processed_at'] ? substr($payout['processed_at'], 0, 10) : '—' }}</td>
+                        <td>{{ $payout['processed_at'] ? $frDate($payout['processed_at']) : '—' }}</td>
                         <td class="right amount">@currency($payout['net_amount'], $currency)</td>
                     </tr>
                 @endforeach

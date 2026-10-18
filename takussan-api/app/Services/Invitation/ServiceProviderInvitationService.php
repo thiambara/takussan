@@ -4,7 +4,6 @@ namespace App\Services\Invitation;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
-use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
@@ -12,8 +11,10 @@ use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -200,30 +201,15 @@ class ServiceProviderInvitationService
     }
 
     /**
-     * Throws 403 unless the inviter holds `invite_service_provider` *in
-     * the agency team context*. Mirror la sonde Owner/Agent pour qu'un
-     * user ayant la permission ailleurs ne passe pas accidentellement.
-     */
-    /**
-     * TCK-278 — Profile-based check (plus de spatie `setPermissionsTeamId` +
-     * `hasPermissionTo`). Autorisé pour un `AgencyAdminProfile` actif sur
-     * l'agence ou pour un user bénéficiant d'une `RoleDelegation` active
-     * `agency_admin` (TCK-108).
+     * Throws 403 unless {@see ServiceProviderProfilePolicy::invite()} grants the invitation in this agency.
+     *
+     * TCK-819 (P22.03) — la règle était recopiée ici depuis la policy ; le service appelle
+     * désormais la policy, par la Gate (le super-admin passe par `Gate::before`). Seule la FORME
+     * reste propre au service : un 403 avec son message, là où la policy rend un booléen.
      */
     protected function assertInviterCanInvite(User $inviter, Agency $agency): void
     {
-        if (method_exists($inviter, 'isSuperAdmin') && $inviter->isSuperAdmin()) {
-            return;
-        }
-
-        // TCK-395 — voir `MembershipCapabilityResolver::delegationAllows()` : la
-        // délégation passe désormais par le pivot et est bornée par les
-        // capacités propres du délégant, au lieu d'accorder l'agency_admin
-        // plein sur un simple test de chaîne.
-        $allowed = $inviter->isAgencyAdminAt((int) $agency->id)
-            || $inviter->canActAt(Capability::TeamInvite, $agency);
-
-        if (! $allowed) {
+        if (Gate::forUser($inviter)->denies('invite', [ServiceProviderProfile::class, $agency])) {
             throw new HttpException(403, __('service_providers.invite.errors.permission_denied'));
         }
     }

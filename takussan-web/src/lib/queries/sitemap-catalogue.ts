@@ -43,6 +43,13 @@ type ReponseSitemap = {
 export const TAILLE_DE_PAGE_SITEMAP = 1000;
 
 /**
+ * P34.02 — la durée de cache des DONNÉES du sitemap, en secondes. La route est rendue à chaque
+ * requête (`src/app/sitemap.ts`) ; ce sont ses appels à l'API qui sont partagés une heure, comme
+ * l'était le sitemap prérendu.
+ */
+export const FRAICHEUR_SITEMAP = 3600;
+
+/**
  * Garde-fou anti-emballement, **volontairement au-DESSUS de la limite du protocole**.
  *
  * 64 pages = 64 000 fiches, soit 192 000 `<url>` : bien plus que les 50 000 que
@@ -68,11 +75,11 @@ export async function listerBiensDuSitemap(): Promise<readonly BienDuSitemap[]> 
   do {
     const reponse = await apiFetch<ReponseSitemap>(
       cheminApi`/public/properties/sitemap?page=${page}&per_page=${TAILLE_DE_PAGE_SITEMAP}`,
-      undefined,
+      { next: { revalidate: FRAICHEUR_SITEMAP } } as RequestInit,
       // Le catalogue du sitemap ne porte aucun libellé traduit — `slug` et `updated_at` sont les
       // mêmes dans les trois langues. La locale est passée quand même : `apiFetch` la devine
-      // sinon depuis `document.cookie`, qui n'existe pas côté serveur. TCK-598 — PARTAGÉ : la route
-      // du sitemap est revalidée, elle ne lit aucun en-tête entrant et ne parle pour aucun visiteur.
+      // sinon depuis `document.cookie`, qui n'existe pas côté serveur. TCK-598 — PARTAGÉ : l'appel est
+      // en cache de données, il ne lit aucun en-tête entrant et ne parle pour aucun visiteur.
       { locale: DEFAULT_LOCALE, partage: true },
     );
 

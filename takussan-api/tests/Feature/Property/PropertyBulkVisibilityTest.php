@@ -64,11 +64,13 @@ class PropertyBulkVisibilityTest extends ApiTestCase
         $response = $this->send()->assertOk()->assertJsonPath('updated', 3);
 
         $this->assertEqualsCanonicalizing($this->publicIds, $response->json('updated_ids'));
+        // TCK-817 — le bien d'une autre agence sort en `not_found`, comme un identifiant absent :
+        // `forbidden` disait qu'il existe.
         $this->assertEqualsCanonicalizing(
-            ['forbidden', 'invalid_status', 'not_found'],
+            ['invalid_status', 'not_found', 'not_found'],
             collect($response->json('failed'))->pluck('reason')->all(),
         );
-        $this->assertSame('forbidden', collect($response->json('failed'))->firstWhere('id', $this->foreignId)['reason']);
+        $this->assertSame('not_found', collect($response->json('failed'))->firstWhere('id', $this->foreignId)['reason']);
         $this->assertSame(3, Property::query()->whereIn('id', $this->publicIds)->where('visibility', 'private')->count());
         // verif-591 M3 — ce que l'unitaire écrit : brouillon, date de publication effacée.
         $this->assertSame(3, Property::query()->whereIn('id', $this->publicIds)
@@ -104,7 +106,8 @@ class PropertyBulkVisibilityTest extends ApiTestCase
 
     /**
      * TCK-587 — changer la visibilité est un geste `publish` : un bailleur l'est refusé sur son
-     * propre bien par `PUT …/visibility`, il l'est donc aussi en lot.
+     * propre bien par `PUT …/visibility`, il l'est donc aussi en lot — en tête depuis TCK-817 : sans
+     * `properties.publish` à l'agence active, la route refuse avant tout bilan.
      */
     public function test_a_landlord_cannot_unpublish_his_own_property_in_bulk(): void
     {
@@ -122,7 +125,7 @@ class PropertyBulkVisibilityTest extends ApiTestCase
         $this->actingAsApi($landlord)->apiPost('/api/properties/bulk-visibility', [
             'property_ids' => [$own->id],
             'visibility' => 'private',
-        ])->assertOk()->assertJsonPath('updated', 0)->assertJsonPath('failed.0.reason', 'forbidden');
+        ])->assertForbidden();
 
         $this->assertSame('public', $own->fresh()->visibility->value);
     }

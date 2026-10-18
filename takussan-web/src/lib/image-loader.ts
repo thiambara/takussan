@@ -2,18 +2,21 @@
 
 import type { ImageLoaderProps } from 'next/image';
 
+import { origineMedia } from '@/lib/config-publique';
+
 /**
  * Le `loaderFile` de `next/image` — ADR-0029 §4, TCK-540.
  *
- * Toute image du seau public (`NEXT_PUBLIC_MEDIA_URL`) est servie par Cloudflare Transformations :
+ * Toute image du seau public (`MEDIA_URL`, `origineMedia()`) est servie par Cloudflare Transformations :
  * `<media>/cdn-cgi/image/width=…,quality=…,format=auto,onerror=redirect/<chemin+requête>` — SAUF une
  * conversion de photo de bien en WebP, rendue telle quelle (TCK-585, `CONVERSION_DE_PHOTO_WEBP`). Le VPS
  * n'encode plus rien, et le cache vit chez Cloudflare au lieu de repartir à zéro à chaque
  * déploiement du conteneur.
  *
- * Branché par `next.config.ts` SEULEMENT quand `NEXT_PUBLIC_MEDIA_URL` est posée au build : sans
- * elle (développement, production Vercel jusqu'à la phase F), l'optimiseur de Next reste en place.
- * Le raisonnement est dans le bloc `images` de `next.config.ts`.
+ * Branché par `next.config.ts` dans l'image Docker (`TAKUSSAN_LOADER_MEDIA=1`, ADR-0069 § 3), ou
+ * quand `NEXT_PUBLIC_MEDIA_URL` est posée au build ; sinon (développement, production Vercel
+ * jusqu'à la phase F), l'optimiseur de Next reste en place. Le raisonnement est dans le bloc
+ * `images` de `next.config.ts`.
  */
 
 /**
@@ -117,5 +120,5 @@ export function construireUrlImage({ src, width, quality }: ImageLoaderProps, me
 }
 
 export default function imageLoader(props: ImageLoaderProps): string {
-  return construireUrlImage(props, process.env.NEXT_PUBLIC_MEDIA_URL);
+  return construireUrlImage(props, origineMedia());
 }

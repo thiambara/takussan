@@ -1,11 +1,32 @@
 # Construit les images, les pousse sur GHCR, déclenche Dokploy, puis PROUVE ce qui est servi
-# (ADR-0028 §2, §3, §10). Le serveur ne construit rien : il tire ce que ce workflow pousse.
+# (ADR-0028 §2, §10 ; ADR-0069 §2, §3). Le serveur ne construit rien : il tire ce que ce workflow
+# pousse.
 #
-# Une image d'API par commit (elle sert tous les environnements) ; une image de front par
-# environnement (NEXT_PUBLIC_* est inliné à la compilation).
+# ── UNE IMAGE PAR COMMIT, ÉTIQUETÉE PAR SON ARBRE (ADR-0069 §3) ─────────────────────────────────
 #
-# Le déploiement n'est vert que lorsque l'URL PUBLIQUE rend le commit poussé dans `X-Build-Sha`.
-# Un appel à Dokploy qui répond 200 ne dit rien de ce qui tourne — c'est D-04 et ADR-0017.
+# Le front lit sa configuration à l'exécution (API_URL, SITE_URL, MEDIA_URL, posées dans Dokploy) :
+# aucune image ne porte d'environnement. Chacune reçoit trois étiquettes :
+#
+#   sha-<commit>      le commit qui l'a demandée — ne se déplace jamais ;
+#   tree-<arbre>      l'arbre de ce commit (`git rev-parse HEAD^{tree}`), comme la clé d'ADR-0063 ;
+#   <environnement>   ce que Dokploy tire (`preview`) — se déplace à chaque déploiement.
+#
+# Une image dont l'arbre existe déjà n'est PAS reconstruite : elle est réétiquetée sur le registre
+# (`imagetools create`). La promotion `dev → preview → master` ne change pas l'arbre ; la production
+# servira donc l'image que la préproduction a servie. Revenir en arrière : réétiqueter un `sha-`
+# précédent sur l'environnement, puis redéployer.
+#
+# ── GITHUB NE PORTE AUCUN ENVIRONNEMENT (ADR-0069 §2) ───────────────────────────────────────────
+#
+# La branche choisit la cible ; la configuration vit dans Dokploy. Il ne reste ici que de quoi
+# déclencher et prouver, en secrets et variables de DÉPÔT (disponibles sur un dépôt privé gratuit),
+# préfixés par l'environnement : `PREVIEW_…`. Le front se déclenche par son webhook Dokploy, limité
+# à ce service ; l'API, par la clé d'API, son webhook exigeant une charge utile de push GitHub
+# (mesuré le 2026-10-18 : « Branch Not Match » sans elle).
+#
+# Le déploiement n'est vert que lorsque l'URL PUBLIQUE rend, dans `X-Build-Sha`, ce commit — ou un
+# commit de MÊME ARBRE, celui qui a construit l'image réétiquetée. Un appel à Dokploy qui répond 200
+# ne dit rien de ce qui tourne — c'est D-04 et ADR-0017.
 name: Images et déploiement
 
 on:
@@ -27,132 +48,139 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environnement: ${{ steps.c.outputs.environnement }}
-      api_url: ${{ steps.c.outputs.api_url }}
-      site_url: ${{ steps.c.outputs.site_url }}
-      media_url: ${{ steps.c.outputs.media_url }}
+      prefixe: ${{ steps.c.outputs.prefixe }}
+      arbre: ${{ steps.c.outputs.arbre }}
     steps:
+      - uses: actions/checkout@v7
       - id: c
+        # La branche choisit l'environnement, et rien d'autre : ni URL, ni identifiant (ADR-0069 §2).
         run: |
           case "$GITHUB_REF_NAME" in
-            preview)
-              { echo "environnement=preview"
-                echo "api_url=https://preview.api.takussan.com"
-                echo "site_url=https://preview.takussan.com"
-                echo "media_url=https://media-preview.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
-            *)
-              echo "::error::aucun environnement pour la branche $GITHUB_REF_NAME"; exit 1 ;;
+            preview) { echo "environnement=preview"; echo "prefixe=PREVIEW"; } >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::aucun environnement pour la branche $GITHUB_REF_NAME"; exit 1 ;;
           esac
+          echo "arbre=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
 
-  api:
-    name: Image de l'API
+  image:
+    name: Image ${{ matrix.nom }}
     needs: cible
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { nom: api, depot: takussan-api, contexte: takussan-api, cible: runtime, suffixe: '', cache: api, ecrire_cache: true }
+          - { nom: api-seed, depot: takussan-api, contexte: takussan-api, cible: seed, suffixe: '-seed', cache: api, ecrire_cache: false }
+          - { nom: web, depot: takussan-web, contexte: takussan-web, cible: '', suffixe: '', cache: web, ecrire_cache: true }
+    env:
+      IMAGE: ghcr.io/thiambara/${{ matrix.depot }}
+      ARBRE: ${{ needs.cible.outputs.arbre }}
+      ENVIRONNEMENT: ${{ needs.cible.outputs.environnement }}
+      SUFFIXE: ${{ matrix.suffixe }}
     steps:
-      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
-        with:
-          context: takussan-api
-          target: runtime
-          push: true
-          build-args: |
-            BUILD_SHA=${{ github.sha }}
-          tags: |
-            ghcr.io/thiambara/takussan-api:sha-${{ github.sha }}
-            ghcr.io/thiambara/takussan-api:${{ needs.cible.outputs.environnement }}
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-      - uses: docker/build-push-action@v7
-        with:
-          context: takussan-api
-          target: seed
-          push: true
-          build-args: |
-            BUILD_SHA=${{ github.sha }}
-          tags: |
-            ghcr.io/thiambara/takussan-api:sha-${{ github.sha }}-seed
-            ghcr.io/thiambara/takussan-api:${{ needs.cible.outputs.environnement }}-seed
-          cache-from: type=gha,scope=api
 
-  web:
-    name: Image du front
-    needs: cible
-    runs-on: ubuntu-latest
-    steps:
+      - name: L'arbre a-t-il déjà son image ?
+        id: existe
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:tree-$ARBRE$SUFFIXE" >/dev/null 2>&1; then
+            echo "✓ $IMAGE:tree-$ARBRE$SUFFIXE existe : réétiquetée, pas reconstruite"
+            echo "oui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "· aucune image pour l'arbre $ARBRE : construction"
+            echo "oui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Réétiqueter l'image de cet arbre
+        if: steps.existe.outputs.oui == 'true'
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:sha-$GITHUB_SHA$SUFFIXE" \
+            -t "$IMAGE:$ENVIRONNEMENT$SUFFIXE" \
+            "$IMAGE:tree-$ARBRE$SUFFIXE"
+
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+        if: steps.existe.outputs.oui != 'true'
+      - name: Construire
+        if: steps.existe.outputs.oui != 'true'
+        uses: docker/build-push-action@v7
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
-        with:
-          context: takussan-web
+          context: ${{ matrix.contexte }}
+          target: ${{ matrix.cible }}
           push: true
-          # Chaque NEXT_PUBLIC_* lue par le front doit figurer ici ET en ARG du Dockerfile :
-          # scripts/check-front-env-keys.mjs le vérifie.
+          # AUCUNE NEXT_PUBLIC_* pour le front : elle serait inlinée, et l'image ne servirait qu'un
+          # environnement (ADR-0069 §3). scripts/check-front-env-keys.mjs le vérifie.
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ needs.cible.outputs.api_url }}
-            NEXT_PUBLIC_SITE_URL=${{ needs.cible.outputs.site_url }}
-            NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}
             BUILD_SHA=${{ github.sha }}
           tags: |
-            ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}-sha-${{ github.sha }}
-            ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}
-          cache-from: type=gha,scope=web-${{ needs.cible.outputs.environnement }}
-          cache-to: type=gha,mode=max,scope=web-${{ needs.cible.outputs.environnement }}
+            ${{ env.IMAGE }}:sha-${{ github.sha }}${{ matrix.suffixe }}
+            ${{ env.IMAGE }}:tree-${{ needs.cible.outputs.arbre }}${{ matrix.suffixe }}
+            ${{ env.IMAGE }}:${{ needs.cible.outputs.environnement }}${{ matrix.suffixe }}
+          cache-from: type=gha,scope=${{ matrix.cache }}
+          cache-to: ${{ matrix.ecrire_cache && format('type=gha,mode=max,scope={0}', matrix.cache) || '' }}
 
   deploy:
     name: Déploiement et preuve
-    needs: [cible, api, web]
+    needs: [cible, image]
     runs-on: ubuntu-latest
-    environment: ${{ needs.cible.outputs.environnement }}
     steps:
       - name: Déclencher Dokploy
         id: declencher
         env:
           DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
-          COMPOSE_ID: ${{ vars.DOKPLOY_API_COMPOSE_ID }}
-          WEB_ID: ${{ vars.DOKPLOY_WEB_APPLICATION_ID }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          COMPOSE_ID: ${{ vars[format('{0}_DOKPLOY_API_COMPOSE_ID', needs.cible.outputs.prefixe)] }}
+          WEB_WEBHOOK: ${{ secrets[format('{0}_DOKPLOY_WEB_WEBHOOK', needs.cible.outputs.prefixe)] }}
         run: |
-          if [ -z "$DOKPLOY_URL" ] || [ -z "$COMPOSE_ID" ] || [ -z "$WEB_ID" ] || [ -z "$DOKPLOY_API_KEY" ]; then
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ] || [ -z "$COMPOSE_ID" ] || [ -z "$WEB_WEBHOOK" ]; then
             echo "::notice::Dokploy n'est pas raccordé à « ${{ needs.cible.outputs.environnement }} » : images poussées, rien déployé."
             echo "raccorde=non" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          appeler() {
-            curl -fsS -X POST "$DOKPLOY_URL/api/$1" -H "x-api-key: $DOKPLOY_API_KEY" \
-              -H 'Content-Type: application/json' -d "$2" >/dev/null
-          }
-          appeler compose.deploy "{\"composeId\":\"$COMPOSE_ID\"}"
-          appeler application.deploy "{\"applicationId\":\"$WEB_ID\"}"
+          curl -fsS -X POST "$DOKPLOY_URL/api/compose.deploy" -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H 'Content-Type: application/json' -d "{\"composeId\":\"$COMPOSE_ID\"}" >/dev/null
+          # Le webhook ne déploie QUE ce service ; sans charge utile, il tire l'image de Dokploy.
+          curl -fsS -X POST "$WEB_WEBHOOK" -H 'Content-Type: application/json' -d '{}' >/dev/null
           echo "raccorde=oui" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.declencher.outputs.raccorde == 'oui'
 
       - name: Prouver ce qui est servi
         if: steps.declencher.outputs.raccorde == 'oui'
         env:
-          API_URL: ${{ needs.cible.outputs.api_url }}
-          SITE_URL: ${{ needs.cible.outputs.site_url }}
-          BASIC_AUTH: ${{ secrets.PREVIEW_BASIC_AUTH }}
+          ARBRE: ${{ needs.cible.outputs.arbre }}
+          API_URL: ${{ vars[format('{0}_API_URL', needs.cible.outputs.prefixe)] }}
+          SITE_URL: ${{ vars[format('{0}_SITE_URL', needs.cible.outputs.prefixe)] }}
+          BASIC_AUTH: ${{ secrets[format('{0}_BASIC_AUTH', needs.cible.outputs.prefixe)] }}
         run: |
+          # Un commit servi vaut ce commit s'il a le même arbre : c'est le cas d'une image
+          # réétiquetée, construite par un commit précédent au contenu identique.
+          meme_arbre() {
+            [ "$1" = "$GITHUB_SHA" ] && return 0
+            git fetch -q --depth=1 origin "$1" 2>/dev/null || return 1
+            [ "$(git rev-parse "$1^{tree}")" = "$ARBRE" ]
+          }
           attendre() {
             local url=$1 sha=""
             shift
             for _ in $(seq "${ESSAIS:-60}"); do
               sha=$(curl -sS -o /dev/null -D - "$@" "$url" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-build-sha"{print $2}')
-              if [ "$sha" = "$GITHUB_SHA" ]; then echo "✓ $url sert $GITHUB_SHA"; return 0; fi
+              if [ -n "$sha" ] && meme_arbre "$sha"; then echo "✓ $url sert $sha (arbre $ARBRE)"; return 0; fi
               sleep 10
             done
-            echo "::error::$url sert « ${sha:-rien} » au lieu de $GITHUB_SHA"
+            echo "::error::$url sert « ${sha:-rien} », dont l'arbre n'est pas $ARBRE ($GITHUB_SHA)"
             return 1
           }
+          if [ -z "$API_URL" ] || [ -z "$SITE_URL" ]; then
+            echo "::error::variables ${{ needs.cible.outputs.prefixe }}_API_URL / _SITE_URL absentes : rien à prouver"
+            exit 1
+          fi
           attendre "$API_URL/up"
           if [ -n "$BASIC_AUTH" ]; then
             attendre "$SITE_URL/robots.txt" -u "$BASIC_AUTH"

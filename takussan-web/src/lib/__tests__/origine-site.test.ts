@@ -5,10 +5,10 @@ import { ORIGINE_PRODUCTION, resoudreOrigineSite } from '../alternates';
 /**
  * TCK-431 · AC5 — **l'hôte ne se devine pas, et son absence est bruyante.**
  *
- * Le contrat de la fonction est éprouvé sur ses ARGUMENTS et non sur `process.env` : muter
- * l'environnement de vitest ne changerait rien, `ORIGINE_SITE` étant résolue une fois à l'import
- * du module. C'est précisément pourquoi `resoudreOrigineSite` prend un objet — sans elle, la
- * branche « prévisualisation Vercel » ne serait éprouvable qu'en redéployant.
+ * Le contrat de la fonction est éprouvé sur ses ARGUMENTS : c'est pourquoi `resoudreOrigineSite`
+ * prend un objet — sans elle, la branche « prévisualisation Vercel » ne serait éprouvable qu'en
+ * redéployant. La lecture de l'environnement par `origineSite()` est éprouvée dans
+ * `config-publique.test.ts`.
  */
 describe('resoudreOrigineSite', () => {
   it('sans rien, rend l’origine MESURÉE de la production', () => {

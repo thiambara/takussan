@@ -12,15 +12,19 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-084 — typed validator for the `PATCH /api/agencies/{id}` payload.
  *
- * Authorisation lives in {@see AgencyController::update()} — the form request
- * only validates shape. Adding the rules here lets us exercise the multi-
+ * The rule lives in `AgencyPolicy::update`; `authorize()` calls it so the refusal
+ * precedes validation (TCK-816). Adding the rules here lets us exercise the multi-
  * currency contract under unit tests without spinning the full HTTP stack.
  */
 class AgencyUpdateRequest extends BaseFormRequest
 {
+    /**
+     * TCK-816 (P22.01) — l'ability que le contrôleur juge, appelée ici pour que le refus précède la
+     * validation : `true` sec rendait 422 et les noms des champs à un compte sans lien.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('update', $this->route('agency')) === true;
     }
 
     /**

@@ -3,6 +3,9 @@
 namespace App\Services\Property;
 
 use App\Exceptions\ApiError;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +32,9 @@ class PropertyBulkAssignService
      * @param  int[]  $propertyIds
      * @return array{updated: int, updated_ids: int[], unchanged: int, unchanged_ids: int[], failed: list<array{id: int, reason: string}>}
      */
-    public function assign(array $propertyIds, User $target, User $actor): array
+    public function assign(array $propertyIds, User|int $target, User $actor): array
     {
+        $target = $target instanceof User ? $target : $this->cible($target, $actor);
         $propertyIds = array_values(array_unique(array_map('intval', $propertyIds)));
         $properties = Property::query()->whereIn('id', $propertyIds)->get()->keyBy('id');
 
@@ -40,7 +44,8 @@ class PropertyBulkAssignService
             $property = $properties->get($id);
             $reason = match (true) {
                 $property === null => 'not_found',
-                ! $actor->can('update', $property) => 'forbidden',
+                // TCK-817 — un bien que l'acteur ne lit pas ne se distingue pas d'un absent.
+                ! $actor->can('update', $property) => $actor->can('view', $property) ? 'forbidden' : 'not_found',
                 default => null,
             };
             $reason === null ? $authorized[$id] = $property : $failed[] = ['id' => $id, 'reason' => $reason];
@@ -74,5 +79,30 @@ class PropertyBulkAssignService
             'unchanged_ids' => $unchangedIds,
             'failed' => $failed,
         ];
+    }
+
+    /**
+     * TCK-817 (P22.02) — la cible se cherche parmi les MEMBRES de l'agence active (un profil de
+     * bailleur, d'agent ou d'admin d'agence, de tout statut) : un compte absent et un compte d'une
+     * autre agence rendent la même réponse. `exists:users,id` puis `User::findOrFail()` disaient
+     * lesquels existent. La règle de ligne ({@see ResponsibleAgentAssigner::cibleAdmise()}, le
+     * personnel ACTIF) juge ensuite, bien par bien. Le super-admin, qui lit déjà tous les comptes,
+     * désigne tout compte existant, comme avant.
+     */
+    private function cible(int $userId, User $actor): User
+    {
+        $target = User::query()->find($userId);
+        $agencyId = $actor->agency_id === null ? null : (int) $actor->agency_id;
+
+        $membre = fn (User $user): bool => $agencyId !== null && (
+            $user->hasProfileAt($agencyId, OwnerProfile::class)
+            || $user->hasProfileAt($agencyId, AgentProfile::class)
+            || $user->hasProfileAt($agencyId, AgencyAdminProfile::class)
+        );
+        $admise = $target !== null && ($actor->isSuperAdmin() || $membre($target));
+
+        abort_code_unless($admise, 422, 'user.not_in_active_agency');
+
+        return $target;
     }
 }

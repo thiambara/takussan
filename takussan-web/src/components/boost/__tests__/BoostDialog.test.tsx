@@ -72,4 +72,26 @@ describe('BoostDialog (TCK-633 lot F)', () => {
     expect(vi.mocked(useCredits)).toHaveBeenCalledWith(false);
     expect(vi.mocked(useBoostProducts)).toHaveBeenCalledWith(false);
   });
+
+  it('TCK-822 : une clé d’idempotence par ouverture et par offre, stable tant que le dialogue reste ouvert', async () => {
+    etat(100);
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const vue = render(withIntl(<BoostDialog propertyId={47} propertyTitle="Studio" open onOpenChange={onOpenChange} />));
+    const cle = () => vi.mocked(useBuyBoost).mock.calls.at(-1)?.[1];
+
+    await user.click(screen.getByRole('button', { name: /Vedette 7 jours/ }));
+    const premiere = cle();
+    expect(premiere).toEqual(expect.stringMatching(/\S{8,}/));
+    vue.rerender(withIntl(<BoostDialog propertyId={47} propertyTitle="Studio" open onOpenChange={onOpenChange} />));
+    expect(cle()).toBe(premiere);
+
+    await user.click(screen.getByRole('button', { name: /Remontée/ }));
+    expect(cle()).not.toBe(premiere);
+
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    vue.rerender(withIntl(<BoostDialog propertyId={47} propertyTitle="Studio" open onOpenChange={onOpenChange} />));
+    await user.click(screen.getByRole('button', { name: /Vedette 7 jours/ }));
+    expect(cle()).not.toBe(premiere);
+  });
 });

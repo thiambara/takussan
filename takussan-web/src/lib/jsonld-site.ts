@@ -1,6 +1,6 @@
 import type { Locale } from '@/i18n/config';
 
-import { ORIGINE_SITE } from './alternates';
+import { origineSite } from './alternates';
 import { type NoeudJsonLd, urlAbsolue } from './jsonld';
 
 /**
@@ -30,7 +30,7 @@ export function jsonLdOrganisation(locale: Locale): NoeudJsonLd {
     '@type': 'Organization',
     // `@id` STABLE et sans langue : c'est la MÊME organisation sur `/fr`, `/en` et `/wo`. Le
     // préfixer par la langue en déclarerait trois.
-    '@id': `${ORIGINE_SITE}/#organisation`,
+    '@id': `${origineSite()}/#organisation`,
     name: NOM_DU_SITE,
     url: urlAbsolue('/', locale),
   };
@@ -46,7 +46,7 @@ export function jsonLdSiteWeb(locale: Locale): NoeudJsonLd {
     name: NOM_DU_SITE,
     url: urlAbsolue('/', locale),
     inLanguage: locale,
-    publisher: { '@id': `${ORIGINE_SITE}/#organisation` },
+    publisher: { '@id': `${origineSite()}/#organisation` },
     // La recherche du site. La cible est une URL RÉELLE : `/properties?q=…` est exactement ce
     // que `SEARCH_FILTER_KEYS.q` lit (`src/types/search.ts`). Déclarer une action que le site ne
     // sert pas serait la même faute que déclarer une note inexistante.

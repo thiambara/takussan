@@ -12,7 +12,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * TCK-074 — authorization for custom property actions (duplicate, bulk-archive).
+ * TCK-074 — authorization for custom property actions (duplicate, bulk routes).
  *
  * ⚠ **TCK-306 — le CRUD standard n'est plus « handled inline ».** Ce docblock disait
  * « Standard CRUD remains handled inline in `PropertyController` via `authorizeAccess` /
@@ -221,13 +221,21 @@ class PropertyPolicy extends BasePolicy
     }
 
     /**
-     * Bulk-archive is granted when the user is authenticated; per-property
-     * authorization is delegated to the service which evaluates each id
-     * through the `update` policy.
+     * TCK-817 (P22.02) — entrer dans `bulk-archive` ou `bulk-assign` : `properties.update_own` ou
+     * `properties.update_any` à l'agence ACTIVE, les deux capacités dont `update` juge chaque ligne.
+     * Le service juge ensuite bien par bien. `bulkArchive()` rendait `$user !== null`, toujours vrai :
+     * tout compte connecté entrait, et le bilan lui disait quels biens existent.
      */
-    public function bulkArchive(User $user): bool
+    public function bulkUpdate(User $user): bool
     {
-        return $user !== null;
+        return $user->agency_id !== null
+            && ($user->can(Capability::PropertiesUpdateOwn->value) || $user->can(Capability::PropertiesUpdateAny->value));
+    }
+
+    /** TCK-817 (P22.02) — entrer dans `bulk-visibility` : `properties.publish` à l'agence active. */
+    public function bulkPublish(User $user): bool
+    {
+        return $user->agency_id !== null && $user->can(Capability::PropertiesPublish->value);
     }
 
     /**

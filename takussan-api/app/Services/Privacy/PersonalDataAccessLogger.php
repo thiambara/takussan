@@ -2,6 +2,7 @@
 
 namespace App\Services\Privacy;
 
+use App\Models\Document;
 use App\Models\User;
 use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
@@ -43,8 +44,28 @@ class PersonalDataAccessLogger
 
     public const SURFACE_AGENCY_UPGRADE_REQUEST = 'agency_upgrade_request';
 
+    /** TCK-820 (P23.04) — une pièce (`Document::PIECE_TYPES`) lue par un profil plateforme. */
+    public const SURFACE_DOCUMENT_PIECE = 'document_piece';
+
     /** Réservée à TCK-600 : la recherche globale de la console trace ce qu'elle rend. */
     public const SURFACE_GLOBAL_SEARCH = 'global_search';
+
+    /**
+     * TCK-820 (P23.04) — la lecture d'une pièce (`id_card`, `rib`, `ninea`) par un profil
+     * plateforme qui ne l'a pas téléversée. `DocumentPolicy::view()` ouvre tout document au
+     * super-admin, hors de la console et de ses journaux : la trace est ce qui reste de la règle
+     * des dossiers KYC (`SURFACE_KYC_DOCUMENT`). À appeler APRÈS l'autorisation.
+     */
+    public function recordPlatformPieceRead(User $viewer, Document $document): void
+    {
+        if (! $document->isPiece()
+            || (int) $document->uploaded_by === (int) $viewer->getKey()
+            || ! $viewer->hasActivePlatformProfile()) {
+            return;
+        }
+
+        $this->record($viewer, $document, self::SURFACE_DOCUMENT_PIECE);
+    }
 
     public function record(User $viewer, Model $subject, string $surface): void
     {
