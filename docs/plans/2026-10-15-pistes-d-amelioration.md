@@ -3387,7 +3387,7 @@ forcée »).*
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
-- Statut : validé — nombres et dates au format français ; reste : libellés des enums (après P06.03) et montant par échéance au contrat
+- Statut : fait · TCK-836 — reste : libellés des enums (après P06.03) et montant par échéance au contrat
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:81`, `takussan-api/resources/views/pdf/invoices/default.blade.php:61,112`, `takussan-api/resources/views/pdf/receipts/booking.blade.php:48`, `takussan-api/resources/views/pdf/statements/owner.blade.php:19`, `takussan-api/resources/views/pdf/leases/contract.blade.php:90-107`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:78`
 - Constat :
@@ -3398,6 +3398,7 @@ forcée »).*
   - **Nom de fichier** : un avoir se télécharge en `facture-….pdf` (lu).
 - Piste : des libellés pour les enums imprimés (par la décision de P06.03 sur la langue), `number_format` à la française, des dates formatées, et le montant par échéance au contrat. À trier ligne par ligne.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : rendus de P26.01 et P26.02 → « Méthode bank_transfer », « Statut sent » ; `PaymentReceiptPdf.php:54` passe `payment_type?->value` brut au reçu de réservation (`booking.blade.php:48`) ; `tinker` : `rtrim(rtrim(number_format(18.5, 2), '0'), '.')` → « 18.5 » ; `owner.blade.php:19` imprime `period_start` et `period_end`, posés par `toDateString()` (`OwnerStatementService.php:68`) ; `contract.blade.php:90-107` : « Loyer mensuel » toujours, prix de vente à côté pour un `sale` ; `DocumentPdfController.php:78` : `facture-…` pour un avoir. Les cinq parties tiennent. Classement : V7, chaque partie est un texte d'acte neuf, et la piste les renvoie elle-même à la décision de P06.03 et à un tri ligne par ligne.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `GabaritsPdfFormatFrancaisTest` avant correctif : taux de 18,5 % → « TVA (18.5%) » ; relevé d'octobre 2026 → « 2026-10-01 — 2026-10-31 » et reversement « 2026-10-15 ». Taux par `number_format(…, 2, ',', ' ')` → « TVA (18,5%) » (18 % reste « TVA (18%) ») ; période et reversements du relevé en `d/m/Y` → « 01/10/2026 — 31/10/2026 », « 15/10/2026 ». Ablation : gabarits rendus à `pre-dev`, les cas du taux décimal et du relevé rougissent, remis verts ; tests voisins des PDF verts. Le nom de fichier `facture-…` d'un avoir, ni nombre ni date, n'est pas touché.
 
 ## Angle 27 — Routeur SMS : double envoi sur un timeout suivi d'un repli
 
