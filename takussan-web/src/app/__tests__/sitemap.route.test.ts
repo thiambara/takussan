@@ -409,6 +409,20 @@ describe('TCK-598 · AC11 — villes et quartiers au sitemap', () => {
     expect(urls.filter((u) => /&(?!amp;)/.test(u))).toEqual([]);
   });
 
+  it('P35.04 — deux graphies d’une même ville : une seule page, sous la graphie la plus fréquente', async () => {
+    facettes.villesAvecComptes.mockResolvedValue([
+      { value: 'Saly', count: 40 },
+      { value: 'SALY', count: 2 },
+    ]);
+    facettes.quartiersDeLaVille.mockResolvedValue(new Map());
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls.filter((u) => /\/fr\/properties\?city=saly$/i.test(u))).toEqual([
+      `${origineSite()}/fr/properties?city=Saly`,
+    ]);
+  });
+
   it('une ville sous le seuil ne coûte aucun appel et n’a aucun quartier', async () => {
     const urls = (await jouerSitemap()).map((e) => e.url);
 

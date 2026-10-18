@@ -59,6 +59,16 @@ afterEach(() => {
 });
 
 describe('villesDuCatalogue — réponse normale', () => {
+  it('P35.04 — deux graphies d’une même ville : la plus fréquente, servie la première, est gardée', async () => {
+    // L'API trie par compte décroissant. Une `Map` qui laisse le dernier `set` gagner retenait
+    // « SALY » (2) comme graphie canonique de la page, au lieu de « Saly » (40).
+    servir(reponse([{ value: 'Saly', count: 40 }, { value: 'SALY', count: 2 }]));
+
+    const domaine = await villesDuCatalogue();
+
+    expect(domaine!.get('saly')).toBe('Saly');
+  });
+
   it('rend une Map peuplée, sans rien journaliser', async () => {
     servir(reponse([{ value: 'Dakar', count: 199 }, { value: 'Thiès', count: 7 }]));
 

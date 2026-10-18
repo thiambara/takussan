@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { cheminCanoniqueDeLaListe, domainesStatiques } from '@/lib/canonique';
-import { quartiersDeLaVille, SEUIL_QUARTIER_INDEXABLE, villesAvecComptes } from '@/lib/queries/facettes';
+import { quartiersDeLaVille, replie, SEUIL_QUARTIER_INDEXABLE, villesAvecComptes } from '@/lib/queries/facettes';
 import { listerBiensDuSitemap } from '@/lib/queries/sitemap-catalogue';
 import {
   RESSOURCES_DE_PROFIL,
@@ -107,8 +107,13 @@ const SOURCES: readonly SourceDeSitemap[] = [
   {
     nom: 'quartiers-et-villes',
     pages: async () => {
-      const villes = await villesAvecComptes();
-      const domaineDesVilles = new Map(villes.map((v) => [v.value.trim().toLocaleLowerCase('fr'), v.value]));
+      // P35.04 — une entrée par ville repliée, la première lue (la plus fréquente : l'API trie par
+      // compte décroissant). Le dernier `set` gagnait, et chaque variante de casse poussait le même
+      // chemin canonique une fois de plus.
+      const villes = (await villesAvecComptes()).filter(
+        (v, i, toutes) => toutes.findIndex((w) => replie(w.value) === replie(v.value)) === i,
+      );
+      const domaineDesVilles = new Map(villes.map((v) => [replie(v.value), v.value]));
       const pages: PageIndexable[] = [];
 
       for (const { value: ville, count } of villes) {

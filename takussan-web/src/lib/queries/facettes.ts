@@ -64,10 +64,12 @@ export async function villesDuCatalogue(): Promise<Map<string, string> | null> {
     }
 
     // Repli de casse → valeur canonique. `?city=dakar` et `?city=Dakar` désignent la même page ;
-    // sans cette table, ils produiraient deux canoniques.
+    // sans cette table, ils produiraient deux canoniques. P35.04 : la PREMIÈRE graphie lue gagne,
+    // l'API triant par compte décroissant ; le dernier `set` retenait la moins fréquente.
     const domaine = new Map<string, string>();
     for (const { value } of reponse.data) {
-      if (value) domaine.set(value.toLocaleLowerCase('fr'), value);
+      const cle = value?.toLocaleLowerCase('fr');
+      if (cle && !domaine.has(cle)) domaine.set(cle, value);
     }
     return domaine;
   } catch (err) {
