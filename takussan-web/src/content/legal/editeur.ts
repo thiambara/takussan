@@ -15,8 +15,7 @@
  *
  * Les hébergeurs sont RELEVÉS, pas supposés : `docs/infra/hebergement.md` et ADR-0028 (API et
  * front conteneurisés sur un VPS Contabo sous Dokploy, sauvegardes sur Cloudflare R2, trafic web
- * derrière Cloudflare) ; `docs/infra/frontend-deploiement.md` (site public servi par Vercel jusqu'à
- * la phase F du plan). À relire à chaque changement d'hébergement.
+ * derrière Cloudflare). À relire à chaque changement d'hébergement.
  */
 
 /** L'ouverture d'un marqueur « à compléter ». Neutre : le libellé est écrit dans chaque gabarit. */
@@ -52,10 +51,6 @@ export const HEBERGEURS = {
     nom: 'Contabo GmbH',
     adresse: 'Aschauer Straße 32a, 81549 München',
   },
-  siteVercel: {
-    nom: 'Vercel Inc.',
-    adresse: '440 N Barranca Avenue #4133, Covina, CA 91723',
-  },
   reseau: {
     nom: 'Cloudflare, Inc.',
     adresse: '101 Townsend Street, San Francisco, CA 94107',
@@ -64,6 +59,6 @@ export const HEBERGEURS = {
 
 /** La date de la version en vigueur des trois documents — à changer à chaque révision. */
 export const VERSION_DOCUMENTS = {
-  date: '17 septembre 2026',
-  dateEn: 'September 17, 2026',
+  date: '18 octobre 2026',
+  dateEn: 'October 18, 2026',
 } as const;

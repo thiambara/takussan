@@ -155,7 +155,7 @@ export function absolu(chemin: string): string {
   const url = `${origineSite()}${chemin}`;
   if (!/^https?:\/\/[^/]+\//.test(url) || url.includes('undefined')) {
     throw new Error(
-      `URL de sitemap non absolue ou incomplète : « ${url} ». Vérifier SITE_URL (NEXT_PUBLIC_SITE_URL sous Vercel).`,
+      `URL de sitemap non absolue ou incomplète : « ${url} ». Vérifier SITE_URL.`,
     );
   }
 
@@ -327,7 +327,7 @@ export function construireSitemap(pages: readonly PageIndexable[]): MetadataRout
  * {@link SEGMENTS_NON_LOCALISES} par SOUSTRACTION explicite plutôt que par recopie : la liste des
  * surfaces internes vit à un seul endroit (`src/i18n/routing.ts`), et l'exception est nommée.
  */
-export const SEGMENTS_SERVIS_AUX_ROBOTS: readonly string[] = ['_next', '_vercel'];
+export const SEGMENTS_SERVIS_AUX_ROBOTS: readonly string[] = ['_next'];
 
 /**
  * Ce que `robots.txt` interdit — dérivé de {@link SEGMENTS_NON_LOCALISES}, jamais recopié.

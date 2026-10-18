@@ -18,6 +18,7 @@ use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
+use App\Support\DayRange;
 use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
@@ -654,13 +655,13 @@ class Property extends AbstractModel implements HasMedia
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->whereDate('created_at', '>=', (string) $value);
+                $q->where('created_at', '>=', DayRange::start((string) $value));
             }
         });
 
         $filters[] = AllowedFilter::callback('created_to', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
-                $q->whereDate('created_at', '<=', (string) $value);
+                $q->where('created_at', '<', DayRange::after((string) $value));
             }
         });
 

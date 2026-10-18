@@ -12,6 +12,6 @@ class PublicBusinessEnumController extends Controller
 
     public function show(string $key): JsonResponse
     {
-        return $this->json(['data' => $this->service->get($key, activeOnly: true)]);
+        return $this->json(['data' => $this->service->get($key, activeOnly: true, withUsage: false)]);
     }
 }

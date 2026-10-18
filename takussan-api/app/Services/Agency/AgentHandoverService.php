@@ -10,6 +10,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\ResponsibleAgentAssigner;
 use Illuminate\Support\Facades\DB;
 
@@ -49,6 +50,7 @@ class AgentHandoverService
         private readonly AgentPortfolio $portfolio,
         private readonly AgencyMemberRemovalService $removal,
         private readonly ResponsibleAgentAssigner $assigner,
+        private readonly PropertyConversationResolver $conversations,
     ) {}
 
     /** Les catégories qui touchent un bien, et dont les biens se verrouillent avant toute ligne. */
@@ -77,6 +79,13 @@ class AgentHandoverService
             $unassigned = [];
 
             $locked = $this->lockProperties($agency, $member, $successors);
+            // TCK-888 (ADR-0068 § 3) — les fils de prospect des biens touchés suivent leur contact
+            // principal, une fois la passation validée.
+            DB::afterCommit(function () use ($locked) {
+                foreach ($locked as $propertyId) {
+                    $this->conversations->transmitForProperty($propertyId);
+                }
+            });
 
             foreach (AgentPortfolio::TRANSFERABLE as $category) {
                 $successor = $successors[$category] ?? null;

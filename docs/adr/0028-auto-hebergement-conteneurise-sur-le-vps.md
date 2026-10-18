@@ -87,7 +87,7 @@ L'image d'API ne porte aucun environnement : toute sa configuration arrive par l
 conteneur, au démarrage. La même image sert la préproduction et la production.
 
 Le front ne le peut pas : `NEXT_PUBLIC_*` est **inliné à la compilation**
-(`docs/infra/frontend-deploiement.md`). Une image de front ne sert donc qu'un environnement, et son
+(le relevé `frontend-deploiement.md` (retiré par TCK-860)). Une image de front ne sert donc qu'un environnement, et son
 Dockerfile **refuse de construire** sans `NEXT_PUBLIC_API_URL` et `NEXT_PUBLIC_SITE_URL`.
 
 Ce refus porte hors de Vercel la protection d'[ADR-0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md).
@@ -152,6 +152,12 @@ Chaque base est sauvegardée chaque nuit vers Cloudflare R2, et les volumes de m
 **Une restauration complète à blanc, mesurée** — les comptes de lignes de la copie comparés à
 l'original — conditionne la mise en production. *Une sauvegarde jamais restaurée n'est pas une
 sauvegarde : c'est une hypothèse.*
+
+*Amendé le 2026-10-18 (piste P42.03, [TCK-882](../backlog/tickets/TCK-882-restauration-jugee-a-ce-qu-elle-se-lit.md)) :*
+**une restauration se juge aussi à ce qu'elle se lit.** Des comptes justes passent sous une
+`APP_KEY` fausse, alors que chaque colonne chiffrée (ADR-0044) est alors perdue. Le critère exige
+donc en plus que `php artisan backup:verify-encryption`, lancé sur la copie avec la clé de
+l'environnement, sorte en `0` — et en `1` avec `--cle-fausse`, son ablation.
 
 ### 8. Cloudflare devant, sauf pour les hôtes de second niveau
 

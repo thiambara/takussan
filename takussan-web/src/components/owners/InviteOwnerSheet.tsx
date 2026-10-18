@@ -177,9 +177,10 @@ export function InviteOwnerSheet({
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
               aria-invalid={!!fieldError('email')}
+              aria-describedby={fieldError('email') ? 'invite-owner-email-error' : undefined}
             />
             {fieldError('email') ? (
-              <p className="text-xs text-destructive">{fieldError('email')}</p>
+              <p id="invite-owner-email-error" role="alert" className="text-xs text-destructive">{fieldError('email')}</p>
             ) : null}
           </div>
 
@@ -192,9 +193,10 @@ export function InviteOwnerSheet({
                 value={form.first_name}
                 onChange={(e) => update('first_name', e.target.value)}
                 aria-invalid={!!fieldError('first_name')}
+                aria-describedby={fieldError('first_name') ? 'invite-owner-first-error' : undefined}
               />
               {fieldError('first_name') ? (
-                <p className="text-xs text-destructive">{fieldError('first_name')}</p>
+                <p id="invite-owner-first-error" role="alert" className="text-xs text-destructive">{fieldError('first_name')}</p>
               ) : null}
             </div>
             <div className="space-y-1.5">
@@ -205,9 +207,10 @@ export function InviteOwnerSheet({
                 value={form.last_name}
                 onChange={(e) => update('last_name', e.target.value)}
                 aria-invalid={!!fieldError('last_name')}
+                aria-describedby={fieldError('last_name') ? 'invite-owner-last-error' : undefined}
               />
               {fieldError('last_name') ? (
-                <p className="text-xs text-destructive">{fieldError('last_name')}</p>
+                <p id="invite-owner-last-error" role="alert" className="text-xs text-destructive">{fieldError('last_name')}</p>
               ) : null}
             </div>
           </div>
@@ -222,9 +225,10 @@ export function InviteOwnerSheet({
               onChange={(e) => update('phone', e.target.value)}
               placeholder="+221 77 000 00 00"
               aria-invalid={!!fieldError('phone')}
+              aria-describedby={fieldError('phone') ? 'invite-owner-phone-error' : undefined}
             />
             {fieldError('phone') ? (
-              <p className="text-xs text-destructive">{fieldError('phone')}</p>
+              <p id="invite-owner-phone-error" role="alert" className="text-xs text-destructive">{fieldError('phone')}</p>
             ) : null}
           </div>
 
@@ -267,9 +271,10 @@ export function InviteOwnerSheet({
                 value={form.company_name}
                 onChange={(e) => update('company_name', e.target.value)}
                 aria-invalid={!!fieldError('company_name')}
+                aria-describedby={fieldError('company_name') ? 'invite-owner-company-error' : undefined}
               />
               {fieldError('company_name') ? (
-                <p className="text-xs text-destructive">
+                <p id="invite-owner-company-error" role="alert" className="text-xs text-destructive">
                   {fieldError('company_name')}
                 </p>
               ) : null}

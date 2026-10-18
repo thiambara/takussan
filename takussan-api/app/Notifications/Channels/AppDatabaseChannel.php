@@ -11,7 +11,6 @@ use App\Notifications\AgencyUpgradeRejectedNotification;
 use App\Notifications\AgencyUpgradeRequestSubmittedNotification;
 use App\Notifications\AgentTenantInventoryReminderNotification;
 use App\Notifications\BookingExpiredNotification;
-use App\Notifications\ConversationInviteNotification;
 use App\Notifications\InvoiceOverdueReminderNotification;
 use App\Notifications\LeaseDepositRefundNotification;
 use App\Notifications\LeaseEarlyTerminationNotification;
@@ -102,7 +101,6 @@ class AppDatabaseChannel
         AgencyUpgradeRequestSubmittedNotification::class => NotificationType::System,
         AgentTenantInventoryReminderNotification::class => NotificationType::Lease,
         BookingExpiredNotification::class => NotificationType::Booking,
-        ConversationInviteNotification::class => NotificationType::Message,
         InvoiceOverdueReminderNotification::class => NotificationType::Payment,
         LeaseDepositRefundNotification::class => NotificationType::Lease,
         LeaseEarlyTerminationNotification::class => NotificationType::Lease,

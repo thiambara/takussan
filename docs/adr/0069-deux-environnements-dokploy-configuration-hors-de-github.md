@@ -108,7 +108,9 @@ Trois faits rendent la troisième décision possible :
   (ADR-0026) : elle ne sert rien du tout.
 - **Le loader de Cloudflare Transformations devient inconditionnel** dès que plus aucune branche ne
   passe par Vercel (phase F, F5). D'ici là, la lecture de `NEXT_PUBLIC_*` reste un repli pour le seul
-  build de Vercel, et disparaît avec lui.
+  build de Vercel, et disparaît avec lui. *Note du 2026-10-18 : Vercel est supprimé depuis le
+  2026-10-15, avant la phase F ; ce repli, le loader conditionnel et la branche `VERCEL_ENV` sont du
+  code mort, retiré par TCK-860.*
 - **La production sert l'image que la préproduction a servie.** Chaque image est étiquetée
   `sha-<commit>` et `tree-<arbre>`, l'arbre étant celui du commit, comme la clé d'ADR-0063.
   Au push sur `master`, l'image dont l'arbre égale celui de `master` est **réétiquetée** `production`.
@@ -149,7 +151,8 @@ Trois faits rendent la troisième décision possible :
   serveur compromis ne peut plus effacer ses propres sauvegardes de la semaine.
 - **ADR-0028 § 7 s'applique à WAL-G avant la mise en production.** Il faut une restauration à un
   instant choisi, sur une instance vierge, mesurée : comptes de lignes, et la dernière ligne écrite
-  avant l'instant visé est présente.
+  avant l'instant visé est présente. *Depuis le 2026-10-18 (P42.03, ADR-0028 § 7 amendé), la copie
+  doit aussi se lire : `backup:verify-encryption` sort en `0` avec l'`APP_KEY` de l'environnement.*
 
 ## Conséquences
 

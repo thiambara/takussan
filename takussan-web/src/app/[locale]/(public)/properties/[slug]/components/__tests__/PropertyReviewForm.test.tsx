@@ -84,4 +84,13 @@ describe('<PropertyReviewForm>', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(serverMessage);
   });
+
+  it('TCK-869 — le titre et le commentaire sont nommés, pas seulement par leur placeholder', () => {
+    render(withIntl(<PropertyReviewForm onSubmit={submit} />));
+
+    for (const champ of screen.getAllByRole('textbox')) {
+      expect(champ).toHaveAttribute('aria-label', champ.getAttribute('placeholder'));
+    }
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+  });
 });

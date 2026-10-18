@@ -74,7 +74,6 @@ export const SEGMENTS_NON_LOCALISES: readonly string[] = [
   // Servis par la plateforme, pas par `src/app` : la garde dérivée ne peut pas les voir, et ne
   // cherche pas à les voir.
   '_next',
-  '_vercel',
 ];
 
 /**

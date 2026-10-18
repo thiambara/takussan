@@ -92,8 +92,9 @@ function AuthenticatedDialog({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('messagePlaceholder')}
+            aria-label={t('messagePlaceholder')}
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}

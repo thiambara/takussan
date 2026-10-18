@@ -120,6 +120,19 @@ class YearOfActivitySeeder extends Seeder
      */
     private const MEDIA_FAILURE_RATIO_THRESHOLD = 0.10;
 
+    /**
+     * Seeders joués HORS de la transaction par seeder (TCK-881).
+     *
+     * Chaque média attaché ouvre des sous-transactions, et PostgreSQL garde le verrou de chacune
+     * jusqu'à la validation de la transaction englobante : mesuré le 2026-10-18, trois verrous de
+     * plus par photo. Sur ~850 biens à 2-6 photos, la transaction unique franchit les 6 400 places
+     * de la table des verrous (`max_locks_per_transaction` 64 × 100 connexions) : `out of shared
+     * memory`, avalé par `SeedingContext::downloadMedia()`, puis `25P02` sur la requête suivante
+     * — après 46 minutes de seed. PropertyMediaSeeder est idempotent (il saute un bien qui a déjà
+     * ses photos) : sans transaction, un échec garde ce qui est fait, et le rejouer reprend.
+     */
+    private const HORS_TRANSACTION = [PropertyMediaSeeder::class];
+
     private SeedingConfig $config;
 
     /** Scout driver captured before it's disabled for seeding, restored on reindex. */
@@ -148,7 +161,12 @@ class YearOfActivitySeeder extends Seeder
             if (method_exists($seeder, 'setCommand') && $this->command) {
                 $seeder->setCommand($this->command);
             }
-            DB::transaction(fn () => $seeder->run());
+            // `__invoke()`, jamais `run()` en direct : il résout par le conteneur les arguments de
+            // `run()` (GeoReferentialSeeder reçoit GeoReferentialSync). Appelé en direct, il mourait
+            // en ArgumentCountError, et le seed de toute préproduction avec lui (TCK-881).
+            in_array($class, self::HORS_TRANSACTION, true)
+                ? $seeder->__invoke()
+                : DB::transaction(fn () => $seeder->__invoke());
         }
 
         $this->reindexSearchableModels();

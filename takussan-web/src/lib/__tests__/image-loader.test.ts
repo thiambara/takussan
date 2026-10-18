@@ -5,8 +5,8 @@ import { LARGEURS_MEDIA, QUALITE_MEDIA, arrondirLargeur, construireUrlImage } fr
 /**
  * TCK-540 — le loader de Cloudflare Transformations (ADR-0029 §4).
  *
- * Éprouvé sur `construireUrlImage` et non sur l'export par défaut : `NEXT_PUBLIC_MEDIA_URL` est
- * inlinée au build, et muter `process.env` dans vitest n'éprouverait pas ce que le bundle livre.
+ * Éprouvé sur `construireUrlImage` et non sur l'export par défaut : l'origine du seau vient de la
+ * configuration que le layout écrit dans la page (`origineMedia()`), pas de `process.env`.
  */
 const MEDIA = 'https://media-preview.takussan.com';
 const PHOTO = `${MEDIA}/42/conversions/photo-preview.jpg?v=1758441600`;
@@ -95,7 +95,7 @@ describe('construireUrlImage — conversion de photo en WebP', () => {
 });
 
 describe('construireUrlImage — tout le reste passe sans casser', () => {
-  it('NEXT_PUBLIC_MEDIA_URL vide : l’URL de l’API ressort intacte (hors fragment)', () => {
+  it('MEDIA_URL vide : l’URL de l’API ressort intacte (hors fragment)', () => {
     const api = 'http://127.0.0.1:8002/storage/42/conversions/photo-preview.jpg?v=1';
     const rendue = construireUrlImage({ src: api, width: 640 }, '');
     expect(rendue).toBe(`${api}#w=640`);

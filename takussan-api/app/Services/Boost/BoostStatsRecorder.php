@@ -7,6 +7,7 @@ use App\Models\Enums\BoostStatus;
 use App\Models\Property;
 use App\Models\PropertyBoost;
 use App\Services\Property\PropertyViewCounter;
+use App\Support\VisitorFingerprint;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -85,10 +86,11 @@ final class BoostStatsRecorder
     /**
      * TCK-794 (P18.06, décision du porteur) — au plus trois clics par bien, par IP et par heure,
      * comme les vues de fiche : derrière un NAT d'opérateur, plusieurs visiteurs partagent une IP.
+     * TCK-851 (P37.01) — l'IP d'une IPv6 est son /64.
      */
     public function click(Property $property, string $ip): void
     {
-        if (RateLimiter::hit('boost-click:'.$property->getKey().':'.$ip, PropertyViewCounter::FENETRE_SECONDES) > PropertyViewCounter::MAX_PAR_HEURE) {
+        if (RateLimiter::hit('boost-click:'.$property->getKey().':'.VisitorFingerprint::network($ip), PropertyViewCounter::FENETRE_SECONDES) > PropertyViewCounter::MAX_PAR_HEURE) {
             return;
         }
         foreach ($this->liveFeaturedBoosts([(int) $property->getKey()]) as $boostId) {

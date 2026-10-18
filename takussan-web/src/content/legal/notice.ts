@@ -33,7 +33,6 @@ Le site ${EDITEUR.site} et la plateforme ${EDITEUR.marque} sont édités par :
 # Hébergement
 
 - **${HEBERGEURS.serveurs.nom}**, ${HEBERGEURS.serveurs.adresse}, Allemagne — serveurs de l’application, de la base de données et des fichiers.
-- **${HEBERGEURS.siteVercel.nom}**, ${HEBERGEURS.siteVercel.adresse}, États-Unis — diffusion du site public.
 - **${HEBERGEURS.reseau.nom}**, ${HEBERGEURS.reseau.adresse}, États-Unis — réseau de diffusion, protection contre les attaques et stockage des sauvegardes chiffrées.
 
 # Nature du service
@@ -87,7 +86,6 @@ The ${EDITEUR.site} website and the ${EDITEUR.marque} platform are published by:
 # Hosting
 
 - **${HEBERGEURS.serveurs.nom}**, ${HEBERGEURS.serveurs.adresse}, Germany — application, database and file servers.
-- **${HEBERGEURS.siteVercel.nom}**, ${HEBERGEURS.siteVercel.adresse}, United States — delivery of the public website.
 - **${HEBERGEURS.reseau.nom}**, ${HEBERGEURS.reseau.adresse}, United States — content delivery, attack protection and storage of encrypted backups.
 
 # Nature of the service

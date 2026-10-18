@@ -1,7 +1,7 @@
 ---
 id: TCK-832
 title: "images.yml : une image par commit étiquetée par son arbre, sans environnement GitHub"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -81,11 +81,11 @@ que la préproduction a servie. Et le déploiement ne dépend plus d'aucun envir
 - [x] AC4 — `node scripts/check-workflows-sans-environnement.mjs` est vert, et rougit par ablation
       sur un `environment: preview` ajouté au job `deploy`, puis sur une URL ajoutée au `case`.
       `actionlint` passe sur `images.yml`.
-- [ ] AC5 — Premier push sur `preview` avec ce workflow : les trois images sont construites avec
+- [x] AC5 — Premier push sur `preview` avec ce workflow : les trois images sont construites avec
       leurs trois étiquettes, la preuve passe sur l'API et sur le front, et le journal ne porte pas
       la notice « pas raccordé ». Puis un `workflow_dispatch` sur le même commit réétiquette au
       lieu de reconstruire, et passe la preuve.
-- [ ] AC6 — Les secrets et variables de l'environnement GitHub `Preview` sont retirés une fois AC5
+- [x] AC6 — Les secrets et variables de l'environnement GitHub `Preview` sont retirés une fois AC5
       vert, et l'environnement est supprimé.
 
 ## Hors périmètre
@@ -106,3 +106,19 @@ que la préproduction a servie. Et le déploiement ne dépend plus d'aucun envir
 - **Vercel recrée ses environnements GitHub** (`Preview`, `Production`) à chaque déploiement, jusqu'à
   F5. Supprimer `Preview` en retire les secrets : c'est ce qui compte pour un dépôt privé. La garde
   `front-deploy-map.yml` compte les déploiements « Production » de Vercel.
+- **AC5, mesuré le 2026-10-18** sur `7f5a528ef` (promotion #601, arbre `132b9db4`) :
+  - run `39086785912` (push) : « aucune image pour l'arbre : construction » pour les trois images,
+    puis `✓ https://preview.api.takussan.com/up sert 7f5a528ef…` et
+    `✓ https://preview.takussan.com/robots.txt sert 7f5a528ef…`. La notice « pas raccordé »
+    n'apparaît que dans la source du script, jamais émise. Les sept étiquettes existent
+    (`imagetools inspect`), et `/fr` porte `{"apiUrl":"https://preview.api.takussan.com",
+    "mediaUrl":"https://media-preview.takussan.com"}` sans aucune `NEXT_PUBLIC` : le conteneur de
+    TCK-831 démarre sur ses variables d'exécution ;
+  - run `39087164334` (`workflow_dispatch`, même commit) : « existe : réétiquetée, pas
+    reconstruite » pour les trois images, jobs d'image en 11 à 18 s (contre environ 4 min pour une
+    construction), et la même preuve.
+- **AC6, le 2026-10-18** : l'environnement `Preview` portait `DOKPLOY_API_KEY`,
+  `PREVIEW_BASIC_AUTH` (secrets), `DOKPLOY_URL`, `DOKPLOY_API_COMPOSE_ID` et
+  `DOKPLOY_WEB_APPLICATION_ID` (variables). Aucun workflow de `preview` ni de `pre-dev` ne déclarait
+  plus `environment:`. Supprimé (`DELETE …/environments/Preview`) ; le dépôt compte 0 environnement,
+  et ses sept secrets et variables restent. `Production` avait été supprimé le même jour.

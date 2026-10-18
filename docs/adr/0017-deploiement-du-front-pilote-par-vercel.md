@@ -1,6 +1,6 @@
 # ADR-0017 — Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde, il ne le double pas
 
-- **Statut** : Remplacé par [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) — **effectif à la bascule du front de production** (phase F du plan d'ADR-0028). D'ici là, cet ADR décrit toujours ce qui sert `www.takussan.com`.
+- **Statut** : Remplacé par [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) — **caduc depuis le 2026-10-15** : Vercel a été supprimé (dernier déploiement le 2026-10-15 à 13:32 Z) **avant** la bascule du front de production, et au 2026-10-18 `www.takussan.com` n'a plus d'enregistrement DNS. Cet ADR ne décrit plus rien de ce qui est servi ; il reste le récit de la décision.
 - **Date** : 2026-08-20
 - **Tickets** : TCK-299 (décision et mise en œuvre), TCK-288 / dette D-04 (le déploiement de l'API, hors périmètre mais convoqué par la mesure ci-dessous)
 
@@ -109,7 +109,7 @@ Concrètement :
 1. `docs/infra/frontend-deploiement.json` est la **source unique** du mapping branche →
    environnement, des domaines et des variables de build. Aucun autre document ne recopie ces
    valeurs — même patron que `docs/infra/prod-drivers.json` (TCK-300) et `versions.json` (TCK-298).
-2. `docs/infra/frontend-deploiement.md` est la prose : le raisonnement, les commandes de re-mesure,
+2. le relevé `frontend-deploiement.md` (retiré par TCK-860) est la prose : le raisonnement, les commandes de re-mesure,
    et ce qui n'est **pas** mesurable depuis le dépôt.
 3. `.github/workflows/front-deploy-map.yml` **vérifie** ce relevé contre l'API GitHub à chaque PR
    touchant le front ou le relevé, plus une fois par semaine. Il ne déploie rien et ne détient
@@ -174,5 +174,5 @@ copie du réglage Vercel, c'est-à-dire à créer la deuxième source de vérit�
 
 ## Voir aussi
 
-- [`docs/infra/frontend-deploiement.md`](../infra/frontend-deploiement.md) — le relevé en prose et les commandes de re-mesure
+- le relevé `frontend-deploiement.md` (retiré par TCK-860) — le relevé en prose et les commandes de re-mesure
 - [ADR-0001](0001-monorepo-laravel-nextjs.md) — le monorepo, dont ce déploiement asymétrique est une conséquence directe

@@ -9,6 +9,7 @@ use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
@@ -84,9 +85,15 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
             if ($notificationId) {
                 $payload['ret_url'] = $this->buildReturnUrl((int) $notificationId);
             }
+            // TCK-842 (P27.04) — le budget de la chaîne est épuisé : rien n'est envoyé.
+            if (SmsTimeBudget::exhausted($context)) {
+                $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'lam_time_budget_exhausted');
+
+                continue;
+            }
             try {
                 $response = $this->http
-                    ->timeout(10)
+                    ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->acceptJson()
                     ->post($url, $payload);
             } catch (\Throwable $e) {

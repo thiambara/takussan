@@ -1,13 +1,13 @@
 ---
 id: TCK-333
 title: "L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front"
-status: todo
+status: obsolete
 phase: P3
 family: technique
 estimate: S
 wave: 38
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-18
 depends_on: [TCK-299]
 blocks: []
 spec_refs:
@@ -130,4 +130,8 @@ variables.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Obsolète le 2026-10-18, sans implémentation.** Vercel est supprimé : dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; au
+2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
+l'environnement GitHub `Production` est supprimé.
+L'intégration Git que ce ticket voulait filtrer n'existe plus ; la CI du front a ses propres
+filtres de chemins (`web-ci.yml`).

@@ -3,6 +3,7 @@ import { cheminReserveAuxRouteHandlers } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { NextRequest, NextResponse } from 'next/server';
 import { origineApi } from '@/lib/config-publique';
+import { statutSansCorps } from '@/lib/statut-sans-corps';
 
 /**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
@@ -46,7 +47,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   }
 
   const upstream = await fetch(url, init);
-  const data = await upstream.arrayBuffer();
+  const data = statutSansCorps(upstream.status) ? null : await upstream.arrayBuffer();
   const responseHeaders: HeadersInit = {};
   for (const name of ['content-type', 'content-disposition', 'cache-control']) {
     const value = upstream.headers.get(name);

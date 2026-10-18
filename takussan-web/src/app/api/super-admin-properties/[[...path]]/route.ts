@@ -2,6 +2,7 @@ import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
 import { origineApi } from '@/lib/config-publique';
+import { statutSansCorps } from '@/lib/statut-sans-corps';
 
 /**
  * TCK-132 — Same-origin proxy for the super-admin properties view. Forwards
@@ -32,7 +33,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   }
 
   const upstream = await fetch(url, init);
-  const data = await upstream.text();
+  const data = statutSansCorps(upstream.status) ? null : await upstream.text();
   const responseHeaders: HeadersInit = {};
   const upstreamCt = upstream.headers.get('content-type');
   if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;

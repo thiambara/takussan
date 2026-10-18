@@ -96,8 +96,9 @@ export default async function Page({
       : undefined;
 
   // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
-  // only pull `meta.total` — keeps the dashboard snappy.
-  const [response, totalCount, publishedCount, soldRentedCount, archivedCount] =
+  // only pull `meta.total` — keeps the dashboard snappy. TCK-865 (P02.08) : « vendus » et
+  // « loués » partent chacun de leur côté ; « loués » attendait la réponse de « vendus ».
+  const [response, totalCount, publishedCount, soldCount, rentedCount, archivedCount] =
     await Promise.all([
       fetchDashboardProperties(token, {
         page,
@@ -113,12 +114,10 @@ export default async function Page({
       countProperties(token, {
         user_id: filters.user_id,
         filter: { status: 'sold' },
-      }).then(async (sold) => {
-        const rented = await countProperties(token, {
-          user_id: filters.user_id,
-          filter: { status: 'rented' },
-        });
-        return sold + rented;
+      }),
+      countProperties(token, {
+        user_id: filters.user_id,
+        filter: { status: 'rented' },
       }),
       countProperties(token, {
         user_id: filters.user_id,
@@ -153,7 +152,7 @@ export default async function Page({
     },
     {
       label: t('soldRented'),
-      value: soldRentedCount,
+      value: soldCount + rentedCount,
       href: '/app/properties?status=sold',
       tone: 'success' as const,
       active: currentStatus === 'sold' || currentStatus === 'rented',

@@ -338,8 +338,14 @@ le DDL qu'on éprouve.
 > **la suite de tests n'exécute aucun `down()`**. Le `down()` est le code le moins exécuté du dépôt,
 > et le seul dont on ait besoin le jour où un déploiement tourne mal.
 
-### D-05bis — Aucun chemin de rollback au-delà du cutover RBAC ✅ *documenté le 2026-08-12*
+### D-05bis — Aucun chemin de rollback au-delà du cutover RBAC ✅ *documenté le 2026-08-12, re-documenté le 2026-10-18*
 
+> ⚠ **Le guide qui portait cet encadré, `docs/infra/deploy-preview.html`, a été supprimé le
+> 2026-09-13** (9f6f6620a, TCK-514), sans que sa consigne passe dans `hebergement.md` : pendant
+> cinq semaines, « documenté » renvoyait à un fichier absent (piste P42.01). La consigne vit
+> désormais dans [`hebergement.md`](infra/hebergement.md), runbook, « Avant une migration
+> irréversible » (TCK-883).
+>
 > **Documenté** (la contrainte, elle, ne se corrige pas) : le guide de déploiement porte un
 > encadré en tête de sa section Rollback. Il dit ce que le rollback ne peut PAS annuler — il
 > restaure le code, jamais le schéma — et impose le dump pré-déploiement comme seule marche
@@ -747,6 +753,13 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 > décision du porteur). Jusque-là, `www.takussan.com` reste servi par Vercel et le relevé ci-dessous
 > reste vrai pour `master`. TCK-333 devient sans objet le jour où l'intégration Vercel est coupée.
 
+> **2026-10-18 — Vercel est supprimé, AVANT la phase F.** Dernier déploiement de `vercel[bot]` le
+> 2026-10-15 à 13:32 Z ; `www.takussan.com` et `takussan.com` sans enregistrement DNS ; environnement
+> GitHub `Production` supprimé. L'extériorité que cette entrée décrit n'existe plus, et TCK-333 et
+> TCK-516 sont `obsolete`. **Ce n'est pas une résolution** : il n'y a plus de front public du tout.
+> D-10 se ferme avec la phase F (TCK-517), quand `images.yml` déploiera et prouvera la production ;
+> le relevé ci-dessous est historique.
+
 > **Relecture du 2026-08-20 : « ✅ soldé » tout court était trop généreux, et c'est exactement le
 > défaut que ce fichier existe pour empêcher.** TCK-299 n'a pas ramené le déploiement du front dans
 > le dépôt — il a établi *qui* le fait, l'a **décidé** en ADR, en a écrit le relevé et l'a gardé.
@@ -784,8 +797,8 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 >
 > Soldé par [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) (la décision : Vercel
 > garde le déploiement, le dépôt le relève et le garde),
-> [`docs/infra/frontend-deploiement.md`](infra/frontend-deploiement.md) + son relevé JSON, et
-> `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien).
+> le relevé `frontend-deploiement.md` + son relevé JSON, et
+> `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien) — tous trois retirés par TCK-860.
 
 **❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md).**
 Le front de production est en ligne, **public**, et son bundle porte
@@ -2996,7 +3009,7 @@ Re-mesuré le 2026-10-12 dans les conteneurs servis (`takussan-api-preview-4iza8
 |---|---|---|---|
 | `PUBLIC_CACHE_REVALIDATE_URL` / `_SECRET` | absentes | absente | aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s (ADR-0052) |
 | `API_INTERNAL_URL` | — | absente | le serveur Next appelle l'API par son URL publique, comme avant 598 |
-| `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 (Vercel) : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
+| `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
 | `SEARCH_ALERTS_WHATSAPP_ENABLED` | absente | — | faux : voulu tant que le gabarit Meta n'est pas approuvé |
 | `SMS_LOG_FALLBACK` | absente | — | faux : voulu, jamais hors développement |
 | `PHONE_LOGIN_ENABLED` | **présente** | — | `config:show auth.phone_login` → **`enabled true`** |
@@ -3008,8 +3021,9 @@ mesuré » : en préproduction, un code de vérification ne peut pas partir aujo
 
 Les valeurs attendues sont écrites dans `docs/infra/hebergement.md`, « À poser par le porteur —
 TCK-598, ADR-0052 ». `VISITOR_IP_TRUSTED_HOPS=2` y est **inféré**, pas mesuré, et
-`API_INTERNAL_URL=http://api:8080` suppose que l'alias `api` est unique sur `dokploy-network`, qui
-porte d'autres projets. À mesurer avant de poser.
+`API_INTERNAL_URL` visait l'hôte `api`, que chaque pile déclare sur `dokploy-network` ; depuis
+TCK-880 (ADR-0069 § 4), la valeur est `http://takussan-api-preview:8080`, un alias propre à
+l'environnement. À mesurer avant de poser.
 
 *Décision du porteur : la préproduction reste sur ces défauts pour l'instant, et il reprend la main
 sur les variables de la production. Condition de réouverture : la pose des clés dans Dokploy, avec

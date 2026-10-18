@@ -121,4 +121,19 @@ class BoostStatsTest extends TestCase
 
         $this->assertSame(1, (int) DB::table('property_boost_daily_stats')->value('clicks'));
     }
+
+    /** TCK-851 (P37.01) — le plafond de clics se compte par /64 d'une IPv6, comme les vues. */
+    public function test_les_clics_se_comptent_par_64_d_une_ipv6(): void
+    {
+        $recorder = app(BoostStatsRecorder::class);
+        foreach (range(1, 5) as $i) {
+            $recorder->click($this->property, '2001:db8:1:2::'.$i);
+        }
+        $recorder->click($this->property, '2001:db8:1:3::1');
+
+        $this->travel(1)->hours();
+        $this->artisan('boosts:tick')->assertSuccessful();
+
+        $this->assertSame(4, (int) DB::table('property_boost_daily_stats')->value('clicks'), 'trois pour le /64, un pour l’autre');
+    }
 }

@@ -9,6 +9,12 @@
 #   docker build --build-arg BUILD_SHA=smoke --target seed -t ghcr.io/thiambara/takussan-api:local-seed takussan-api
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# ⚠ Aucune variable COMPOSE_* hérité : sur un fichier compose ILLISIBLE, `docker compose -p X down -v`
+# ignore `-p` et vise le projet de COMPOSE_PROJECT_NAME (Compose v2.35.1, reproduit le 2026-10-18 sur
+# un projet factice, témoin compris). Lancé avec COMPOSE_PROJECT_NAME=takussan pour réutiliser les
+# services de développement, une ablation qui rendait compose.api.yml illisible a supprimé leurs
+# conteneurs ET leurs volumes (base locale, index, Redis) — TCK-880.
+unset COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_PROFILES
 
 IMAGE=ghcr.io/thiambara/takussan-api
 TAG=${TAG:-local}   # surchargé par une ablation, pour ne jamais tester l'image réelle à sa place
@@ -61,6 +67,9 @@ verifier_image() {
 
 PROJET=takussan-smoke
 COMPOSE=(docker compose -p "$PROJET" -f deploy/takussan/compose.api.yml)
+# Les services de développement (docker-compose.yml) : leur projet est NOMMÉ, pour qu'un smoke lancé
+# depuis un worktree réutilise ceux du dépôt au lieu d'en créer de seconds sur les mêmes ports.
+DEV=(docker compose -p "${PROJET_DEV:-takussan}" -f docker-compose.yml)
 ENV_LOCAL=deploy/takussan/.env
 MARQUE='# généré par smoke-api.sh — jetable'
 
@@ -82,16 +91,33 @@ preparer_pile() {
   if [ -f "$ENV_LOCAL" ] && ! head -1 "$ENV_LOCAL" | grep -qxF "$MARQUE"; then
     echec "$ENV_LOCAL existe et n'a pas été généré par ce script : refus de l'écraser"
   fi
-  { echo "$MARQUE"; cat deploy/takussan/.env.smoke.example; echo "APP_KEY=base64:$(openssl rand -base64 32)"; } > "$ENV_LOCAL"
+  {
+    echo "$MARQUE"
+    cat deploy/takussan/.env.smoke.example
+    echo "APP_KEY=base64:$(openssl rand -base64 32)"
+    echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
+  } > "$ENV_LOCAL"
   docker network inspect dokploy-network >/dev/null 2>&1 || docker network create dokploy-network >/dev/null
-  docker compose up -d --wait postgres meilisearch redis
-  docker compose exec -T postgres psql -U takussan -d postgres -q \
+  # Pas de Redis ici : la pile porte le sien (ADR-0069 § 4).
+  # --no-recreate : depuis un worktree, le fichier diffère de celui qui a créé les conteneurs du dépôt
+  # (chemins des montages), et Compose les RECRÉERAIT, en coupant ce qui tourne dessus.
+  "${DEV[@]}" up -d --wait --no-recreate postgres meilisearch
+  "${DEV[@]}" exec -T postgres psql -U takussan -d postgres -q \
     -c 'DROP DATABASE IF EXISTS takussan_smoke' \
     -c "CREATE DATABASE takussan_smoke ENCODING 'UTF8' LOCALE 'C' TEMPLATE template0"
 }
 
 nettoyer_pile() {
-  "${COMPOSE[@]}" --profile seed down -v --remove-orphans >/dev/null 2>&1 || true
+  # `down -v` SEULEMENT sur un fichier lisible (voir l'en-tête) ; sinon, par l'étiquette du projet,
+  # qui ne peut désigner que lui.
+  if "${COMPOSE[@]}" config -q >/dev/null 2>&1; then
+    "${COMPOSE[@]}" --profile seed down -v --remove-orphans >/dev/null 2>&1 || true
+  else
+    echo "⚠ compose.api.yml illisible : nettoyage par l'étiquette com.docker.compose.project=$PROJET" >&2
+    docker ps -aq --filter "label=com.docker.compose.project=$PROJET" | xargs -r docker rm -f >/dev/null 2>&1 || true
+    docker volume ls -q --filter "label=com.docker.compose.project=$PROJET" | xargs -r docker volume rm >/dev/null 2>&1 || true
+    docker network ls -q --filter "label=com.docker.compose.project=$PROJET" | xargs -r docker network rm >/dev/null 2>&1 || true
+  fi
   rm -f "$ENV_LOCAL" "$ENV_LOCAL.sain"
 }
 
@@ -135,6 +161,32 @@ verifier_release_en_echec() {
   ok "remise en état : release repasse, api saine"
 }
 
+# ADR-0069 § 4 : le front joint l'API sous l'alias de SON environnement, et le Redis de la pile
+# n'est joignable que de la pile. Chaque contrôle a son ablation (TCK-880) : l'alias retiré rougit
+# le premier, `redis` posé aussi sur dokploy-network le deuxième, `REDIS_HOST` ôté du compose le
+# troisième (le `.env` vise alors le Redis de développement).
+verifier_reseaux() {
+  local alias sortie cle
+  alias=$(sed -n 's/^API_ALIAS=//p' "$ENV_LOCAL")
+  [ "$(sonde -o /dev/null -w '%{http_code}' "http://$alias:8080/up")" = 200 ] \
+    || echec "l'API ne répond pas sous son alias $alias sur dokploy-network"
+  ok "l'API répond sous l'alias $alias"
+
+  for hote in redis "$PROJET-redis-1"; do
+    sortie=$(docker run --rm --network dokploy-network redis:8-alpine redis-cli -h "$hote" -p 6379 ping 2>&1 || true)
+    grep -qE 'PONG|NOAUTH|WRONGPASS' <<<"$sortie" \
+      && echec "le Redis de la pile répond sur dokploy-network sous « $hote » : $sortie"
+  done
+  ok "le Redis de la pile est injoignable depuis dokploy-network"
+
+  cle="sonde-tck-870-$RANDOM"
+  [ "$(tinker "Cache::put('$cle', 'ok', 60); echo Cache::get('$cle');" | tr -d '[:space:]')" = ok ] \
+    || echec "le cache n'écrit pas"
+  [ "$("${COMPOSE[@]}" exec -T redis redis-cli -n 1 --scan --pattern "*$cle" | grep -c .)" = 1 ] \
+    || echec "la clé de cache n'est pas dans le Redis de la pile"
+  ok "le cache écrit dans le Redis de la pile"
+}
+
 verifier_pile() {
   local api="http://$PROJET-api-1:8080" css n q
   trap nettoyer_pile EXIT
@@ -167,6 +219,8 @@ verifier_pile() {
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "/up ne rend pas 200"
   grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" || echec "X-Build-Sha absent ou faux"
   ok "/up à 200, X-Build-Sha: smoke"
+
+  verifier_reseaux
 
   # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
   # SÉRIALISABLE : une closure écrite dans tinker ne l'est pas (laravel/serializable-closure relit

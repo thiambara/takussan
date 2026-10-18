@@ -496,6 +496,22 @@ describe('surface publique — contraste sur un périmètre dérivé (TCK-458)',
     expect(sousLeSeuil(conformes)).toEqual([]);
   });
 
+  it('la clôture suit un composant DIFFÉRÉ par next/dynamic (TCK-850)', () => {
+    const racine = mkdtempSync(join(tmpdir(), 'contraste-differe-'));
+    writeFileSync(join(racine, 'Differe.tsx'), `
+      export function Differe() {
+        return <span className="bg-muted text-border">un libellé quelconque</span>;
+      }
+    `);
+    writeFileSync(join(racine, 'page.tsx'), `
+      import dynamic from 'next/dynamic';
+      const Differe = dynamic(() => import('./Differe').then((m) => m.Differe));
+      export default function Page() { return <Differe />; }
+    `);
+    const cloture = clotureDImport([join(racine, 'page.tsx')]);
+    expect(cloture, 'la clôture perd le composant différé').toHaveLength(2);
+  });
+
   it('les deux trous déclarés sont COMPTÉS, et le compte est un cliquet à deux sens', () => {
     const { horsJetons, encresInverses } = couplesDesFichiers(SURFACE, JETONS_CLAIR, false);
     const fichiers = new Set(horsJetons.map((h) => h.split(':')[0]));

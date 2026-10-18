@@ -11,6 +11,7 @@ use App\Notifications\Concerns\SupportsSms;
 use App\Notifications\Concerns\SupportsWhatsapp;
 use App\Services\Admin\NotificationTemplateService;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,6 +31,13 @@ use Illuminate\Notifications\Notification;
 class NewBookingNotification extends Notification implements ShouldQueue, SupportsSms, SupportsWhatsapp
 {
     use Queueable;
+
+    /**
+     * TCK-842 (P27.04) — le job n'est pas tué en cours de chaîne SMS : budget de la chaîne
+     * ({@see SmsTimeBudget}), plus un appel WhatsApp qui se replie en SMS, plus une marge ;
+     * sous le `retry_after` des files (90 s).
+     */
+    public $timeout = SmsTimeBudget::CHAIN_SECONDS + 20;
 
     /**
      * @param  int|null  $appNotificationId  The {@see AppNotification}

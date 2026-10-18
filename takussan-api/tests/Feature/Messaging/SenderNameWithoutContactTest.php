@@ -6,9 +6,10 @@ use App\Models\AppNotification;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\ParticipantRole;
 use App\Models\Property;
 use App\Models\User;
-use App\Notifications\ConversationInviteNotification;
+use App\Services\Messaging\GroupConversationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -16,7 +17,7 @@ use Tests\TestCase;
 /**
  * P38.06 (TCK-815) — le nom d'un expéditeur, d'un inviteur ou d'un destinataire de contact ne
  * se replie jamais sur son adresse e-mail : prénom et nom, puis `username`, puis « — ». Les trois
- * chemins (`NotifyNewMessageJob`, `ConversationInviteNotification`, la lecture publique du fil
+ * chemins (`NotifyNewMessageJob`, l'invitation à un groupe, la lecture publique du fil
  * d'une annonce) suivent le même repli, `User::nameWithoutContact()`.
  */
 class SenderNameWithoutContactTest extends TestCase
@@ -77,12 +78,20 @@ class SenderNameWithoutContactTest extends TestCase
     {
         $inviter = $this->nameless();
         $invitee = User::factory()->create();
-        $conversation = $this->directBetween($inviter, $invitee);
+        $groupe = Conversation::create([
+            'type' => ConversationType::Group->value,
+            'status' => ConversationStatus::Active->value,
+            'subject' => 'G',
+            'created_by' => $inviter->id,
+        ]);
+        $groupe->participants()->attach($inviter->id, ['role' => ParticipantRole::Admin->value, 'joined_at' => now()]);
 
-        $payload = (new ConversationInviteNotification($conversation, $inviter))->toArray($invitee);
+        // TCK-861 — l'invitation part par le code `message.group_invite`.
+        app(GroupConversationService::class)->addParticipants($groupe, $inviter, [$invitee->id]);
 
-        $this->assertSame('—', $payload['inviter_name']);
-        $this->assertStringNotContainsString('secret@example.test', json_encode($payload));
+        $ligne = AppNotification::query()->where('user_id', $invitee->id)->sole();
+        $this->assertSame('—', $ligne->params['inviter']);
+        $this->assertStringNotContainsString('secret@example.test', json_encode([$ligne->params, $ligne->title, $ligne->body]));
     }
 
     public function test_le_destinataire_d_un_contact_d_annonce_sans_nom_ni_username_ne_porte_pas_son_e_mail(): void

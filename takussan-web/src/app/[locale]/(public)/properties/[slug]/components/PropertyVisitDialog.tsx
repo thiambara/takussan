@@ -266,8 +266,13 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="name"
                   aria-invalid={erreurs.name ? true : undefined}
+                  aria-describedby={erreurs.name ? 'visit-name-error' : undefined}
                 />
-                {erreurs.name && <p className="text-xs text-destructive">{erreurs.name}</p>}
+                {erreurs.name && (
+                  <p id="visit-name-error" role="alert" className="text-xs text-destructive">
+                    {erreurs.name}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="visit-phone" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -279,8 +284,13 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   onValueChange={setPhone}
                   autoComplete="tel"
                   aria-invalid={erreurs.phone ? true : undefined}
+                  aria-describedby={erreurs.phone ? 'visit-phone-error' : undefined}
                 />
-                {erreurs.phone && <p className="text-xs text-destructive">{erreurs.phone}</p>}
+                {erreurs.phone && (
+                  <p id="visit-phone-error" role="alert" className="text-xs text-destructive">
+                    {erreurs.phone}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <label htmlFor="visit-email" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

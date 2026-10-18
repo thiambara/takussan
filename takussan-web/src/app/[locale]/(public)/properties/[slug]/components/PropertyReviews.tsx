@@ -284,7 +284,7 @@ export function PropertyReviews({
       )}
 
       {loading && <p className="text-sm text-muted-foreground">{t('loading')}</p>}
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {data && data.data.length > 0 && (
         <ul className="space-y-4">
           {data.data.map((r) => (

@@ -9,6 +9,7 @@ use App\Http\Requests\Api\UpdatePropertyCollaboratorRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
+use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\PrimaryAgentDesignator;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,7 @@ class PropertyCollaboratorController extends Controller
         return $this->json($this->collaboratorsPayload($property, $request->user()));
     }
 
-    public function store(StorePropertyCollaboratorRequest $request, Property $property): JsonResponse
+    public function store(StorePropertyCollaboratorRequest $request, Property $property, PropertyConversationResolver $conversations): JsonResponse
     {
 
         $data = $request->validated();
@@ -57,11 +58,13 @@ class PropertyCollaboratorController extends Controller
                 'invited_at' => now(),
             ]));
         });
+        // TCK-888 (ADR-0068 § 3) — un premier agent remplace le titulaire comme contact principal.
+        $conversations->transmitForProperty($property->id);
 
         return $this->json(['data' => $collaborator->load('user')], 201);
     }
 
-    public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
+    public function update(UpdatePropertyCollaboratorRequest $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
     {
         abort_if($collaborator->property_id !== $property->id, 404);
 
@@ -82,16 +85,20 @@ class PropertyCollaboratorController extends Controller
 
             return $collaborator;
         });
+        // TCK-888 (ADR-0068 § 3) — un changement de rôle peut déplacer le contact principal.
+        $conversations->transmitForProperty($property->id);
 
         return $this->json(['data' => $collaborator->refresh()->load('user')]);
     }
 
-    public function destroy(Request $request, Property $property, PropertyCollaborator $collaborator): JsonResponse
+    public function destroy(Request $request, Property $property, PropertyCollaborator $collaborator, PropertyConversationResolver $conversations): JsonResponse
     {
         $this->authorize('update', $property);
         abort_if($collaborator->property_id !== $property->id, 404);
 
         DB::transaction(fn () => $this->relireSousLeVerrouDuBien($property, $collaborator)->delete());
+        // TCK-888 (ADR-0068 § 3) — le fil du prospect passe au contact principal suivant.
+        $conversations->transmitForProperty($property->id);
 
         return $this->json(null, 204);
     }
