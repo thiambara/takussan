@@ -1,7 +1,7 @@
 ---
 id: TCK-894
 title: "Relais BFF : chemin serveur, IP et langue du visiteur sur tous les relais"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -76,4 +76,11 @@ que celle du serveur Next.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Reproduction** : `relais-chemin-serveur.test.ts` avant correctif → 32 rouges sur 53 : les 16
+  `route.ts` qui appelaient `origineApi()` (garde statique), les 15 relais qui joignaient
+  `http://localhost:8002` au lieu d'`API_INTERNAL_URL`, et `maintenance/status`.
+- **Ablation** : `src/app/api` et `src/lib` remis à leur état d'avant → les 32 mêmes rouges ;
+  remis → 59 verts (avec `relais-commun.test.ts`).
+- `enTetesServeurAmont()` prend une option `partage`, pour `maintenance/status` (voir Hypothèse).
+- Les corps et les réponses des quinze relais ne changent pas : seuls l'URL et les en-têtes envoyés
+  changent. Les trois envois KYC gardent leur corps en flux (`duplex: 'half'`).
