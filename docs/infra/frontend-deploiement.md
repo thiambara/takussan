@@ -1,5 +1,11 @@
 # Déploiement du frontend — quelle branche sert quel environnement
 
+> ⚠️ **HISTORIQUE depuis le 2026-10-15 : Vercel est supprimé.** Son dernier déploiement
+> (`vercel[bot]`) date du 2026-10-15 à 13:32 Z ; au 2026-10-18, `www.takussan.com` et `takussan.com`
+> n'ont aucun enregistrement DNS, et l'environnement GitHub `Production` est supprimé. Plus rien de
+> ce qui suit n'est servi. Ce qui sert aujourd'hui : [`hebergement.md`](hebergement.md). Ce document,
+> son relevé JSON et la garde `front-deploy-map.yml` sont retirés par TCK-842 (plan, F5, étape 2).
+
 > **Source unique des valeurs** : [`frontend-deploiement.json`](frontend-deploiement.json).
 > Ce document-ci porte le raisonnement, les commandes et les limites ; il ne recopie pas le relevé,
 > il l'explique. **Décision** : [ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md).

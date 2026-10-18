@@ -747,6 +747,13 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 > décision du porteur). Jusque-là, `www.takussan.com` reste servi par Vercel et le relevé ci-dessous
 > reste vrai pour `master`. TCK-333 devient sans objet le jour où l'intégration Vercel est coupée.
 
+> **2026-10-18 — Vercel est supprimé, AVANT la phase F.** Dernier déploiement de `vercel[bot]` le
+> 2026-10-15 à 13:32 Z ; `www.takussan.com` et `takussan.com` sans enregistrement DNS ; environnement
+> GitHub `Production` supprimé. L'extériorité que cette entrée décrit n'existe plus, et TCK-333 et
+> TCK-516 sont `obsolete`. **Ce n'est pas une résolution** : il n'y a plus de front public du tout.
+> D-10 se ferme avec la phase F (TCK-517), quand `images.yml` déploiera et prouvera la production ;
+> le relevé ci-dessous est historique.
+
 > **Relecture du 2026-08-20 : « ✅ soldé » tout court était trop généreux, et c'est exactement le
 > défaut que ce fichier existe pour empêcher.** TCK-299 n'a pas ramené le déploiement du front dans
 > le dépôt — il a établi *qui* le fait, l'a **décidé** en ADR, en a écrit le relevé et l'a gardé.

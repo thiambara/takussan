@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-10-17
+updated: 2026-10-18
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -61,4 +61,13 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-10-18 — Vercel est supprimé avant ce ticket.** Vercel est supprimé : dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; au
+2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
+l'environnement GitHub `Production` est supprimé.
+
+- F5, étape 1 est faite, hors de son ordre ; F5, étape 2 devient TCK-842 ; TCK-516 est `obsolete`.
+- **Il n'y a plus de site public**, et plus de retour arrière vers Vercel : F3 devient une mise en
+  service, pas une bascule. F2 et F3 sont réécrites par l'étape 6 d'ADR-0069.
+- AC2 garde son sens (le commit servi) ; « sans `x-vercel-id` » ne peut plus échouer.
+- AC5 : le relevé Search Console de J+7 n'a plus de référence d'avant bascule (F1, étape 7), le
+  site ayant disparu de l'index pendant l'interruption.

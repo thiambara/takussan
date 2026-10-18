@@ -319,7 +319,7 @@ npm run test
 `src/lib/config-publique.ts`** ([ADR-0069](../docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md) § 3) —
 `origineApi()`, `origineSite()`, `origineMedia()`. Des fonctions, jamais des constantes de module.
 
-| Valeur | Dans l'image (exécution, Dokploy) | Repli (build : Vercel, `next dev`) |
+| Valeur | Dans l'image (exécution, Dokploy) | Repli (build hors de l'image : `next dev`) |
 |---|---|---|
 | origine de l'API | `API_URL` | `NEXT_PUBLIC_API_URL` |
 | origine du site (canoniques, sitemap) | `SITE_URL` | `NEXT_PUBLIC_SITE_URL` |
@@ -332,8 +332,9 @@ npm run test
 - **Le navigateur** reçoit l'API et les médias du layout racine, qui écrit
   `window.__TAKUSSAN_CONFIG__` dans `<head>`. Tout ce qui y passe est public :
   `scripts/check-front-env-keys.mjs` ferme la liste des clés.
-- Le repli `NEXT_PUBLIC_*` disparaît avec Vercel (phase F, F5). `.env.example` et `.env.local`
-  pointent sur `http://127.0.0.1:8002`.
+- Le repli `NEXT_PUBLIC_*` servait au build de Vercel, supprimé le 2026-10-15 ; il ne sert plus
+  qu'à `next dev`, et son retrait est TCK-842. `.env.example` et `.env.local` pointent sur
+  `http://127.0.0.1:8002`.
 - `robots.txt` et `sitemap.xml` sont rendus à la demande, pour lire l'origine à l'exécution ; les
   données du sitemap sont en cache une heure (P34.02).
 
@@ -343,8 +344,7 @@ Dans l'image (`TAKUSSAN_LOADER_MEDIA=1`, posée par le `Dockerfile`), ou posée 
 l'image, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
 image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`) — **sauf une
 conversion de photo de bien en WebP, rendue telle quelle** (TCK-585, amendement d'ADR-0029) —, et
-**l'optimiseur de Next ne tourne plus**. Vide — développement, et production Vercel jusqu'à la
-phase F —, le loader n'est pas branché et l'optimiseur reste. Le conteneur refuse de démarrer sans
+**l'optimiseur de Next ne tourne plus**. Vide — développement —, le loader n'est pas branché et l'optimiseur reste. Le conteneur refuse de démarrer sans
 `MEDIA_URL`. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
 les photos de l'API sortent en pleine taille, sans optimiseur. ⚠ Le loader arrondit les largeurs à
 six paliers (`LARGEURS_MEDIA`) et ignore la `quality` d'un composant : Transformations facture la
@@ -369,7 +369,7 @@ transformation unique, 5 000 par mois gratuites.
 déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler-active.md)) et
 `allowedDevOrigins` (ci-dessus).
 
-## Déploiement — ce dossier EST en production, et publiquement
+## Déploiement — ce dossier n'est plus en production (Vercel supprimé le 2026-10-15)
 
 > ⚠️ **[ADR-0028](../docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) (2026-09-13)
 > ramène ce déploiement DANS le dépôt, par étapes.** Le front devient une image **par commit**
@@ -382,36 +382,28 @@ déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler
 > `deploy/takussan/smoke-web.sh`.
 >
 > Jusqu'à ADR-0028, **aucun workflow de ce dépôt ne déployait ce dossier, et pourtant il l'était** —
-> par l'intégration Git du projet Vercel `thiambaras-projects/takussan`, qui sert encore `master`.
+> par l'intégration Git du projet Vercel `thiambaras-projects/takussan`, qui servait `master`.
 > *Une absence dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le dépôt ne le
 > fait pas.*
 
-| Branche | Environnement | Servi par | Ce qu'on atteint | Public ? |
-|---|---|---|---|---|
-| `master` | **Production** | Vercel, **jusqu'à la phase F** d'ADR-0028 (TCK-517) | `www.takussan.com` (200 au 2026-08-20 ; `takussan.com` y redirige en 307) | **oui** |
-| `preview` | Préproduction | Dokploy, image `takussan-web:preview`, dès TCK-515 | `preview.takussan.com` | *non mesuré* |
-| `dev`, toute PR | Preview | Vercel, jusqu'à TCK-516 | une URL par déploiement | non — SSO Vercel |
+| Branche | Environnement | Servi par | Ce qu'on atteint |
+|---|---|---|---|
+| `preview` | Préproduction | Dokploy, image `takussan-web:preview` | `preview.takussan.com`, derrière une authentification Basic |
+| `master` | Production | **rien** jusqu'à la phase F d'ADR-0028 (TCK-517) | **rien** : `www.takussan.com` et `takussan.com` sans DNS au 2026-10-18 |
+| `dev`, toute PR | — | aucun déploiement ; la CI construit l'image sans la pousser | — |
 
-**Ce que cela change concrètement pour qui travaille ici : un merge vers `master` met CE code en
-ligne, devant des utilisateurs.** Ce n'est pas un rangement de branche, c'est une action sortante.
+**Vercel a été supprimé avant la bascule de la production** : son dernier déploiement
+(`vercel[bot]`, environnement `Preview`) date du 2026-10-15 à 13:32 Z, et l'environnement GitHub
+`Production` qu'il entretenait est supprimé depuis le 2026-10-18. Un merge vers `master` ne met donc
+rien en ligne aujourd'hui ; il redeviendra une action sortante quand `images.yml` saura déployer la
+production (phase F).
 
-⚠️ **Et la production appelle une API qui n'existe pas.** Le bundle servi par `www.takussan.com`
-porte `NEXT_PUBLIC_API_URL = https://api.takussan.com`, hôte qui rend **404** au 2026-08-20 (là où
-`preview.api.takussan.com/up` rend 200). Mesuré dans le bundle lui-même — la valeur est inlinée à
-la compilation, elle se lit sans accès à Vercel :
-
-```js
-let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
-```
-
-→ [TCK-332](../docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md), ardoise D-04
-et D-10.
-
-**Source unique du relevé** : [`docs/infra/frontend-deploiement.json`](../docs/infra/frontend-deploiement.json)
-— ne pas recopier ces valeurs ailleurs. La prose et les commandes de re-mesure :
-[`frontend-deploiement.md`](../docs/infra/frontend-deploiement.md). La décision :
-[ADR-0017](../docs/adr/0017-deploiement-du-front-pilote-par-vercel.md). La garde :
-`.github/workflows/front-deploy-map.yml`, qui vérifie et ne déploie rien.
+Jusqu'au 2026-10-15, la production Vercel appelait une API qui n'existait pas :
+`NEXT_PUBLIC_API_URL = https://api.takussan.com`, inliné dans son bundle, hôte sans service
+derrière (TCK-332, ardoise D-04 et D-10). Le relevé de cette époque —
+[`docs/infra/frontend-deploiement.json`](../docs/infra/frontend-deploiement.json) et sa prose — est
+**historique** ; la garde `.github/workflows/front-deploy-map.yml` le relit encore, et son retrait
+est TCK-842. La décision d'alors : [ADR-0017](../docs/adr/0017-deploiement-du-front-pilote-par-vercel.md).
 
 ## À ne pas croire
 

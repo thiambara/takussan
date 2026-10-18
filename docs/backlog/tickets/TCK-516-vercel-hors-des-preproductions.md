@@ -1,13 +1,13 @@
 ---
 id: TCK-516
 title: "Vercel ne construit plus que master : les préproductions ne passent plus par lui"
-status: todo
+status: obsolete
 phase: P3
 family: technique
 estimate: S
 wave: 64
 created: 2026-09-13
-updated: 2026-10-04
+updated: 2026-10-18
 depends_on: [TCK-515]
 blocks: [TCK-517]
 spec_refs:
@@ -51,4 +51,8 @@ Relevé à tenir : `docs/infra/frontend-deploiement.json`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Obsolète le 2026-10-18, sans implémentation.** Vercel est supprimé : dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; au
+2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
+l'environnement GitHub `Production` est supprimé.
+Vercel ne construit plus aucune branche, préproductions comprises. Ce qu'il en reste dans le
+dépôt est TCK-842.
