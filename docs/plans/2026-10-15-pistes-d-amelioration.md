@@ -275,12 +275,13 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### La carte charge toutes les photos, et les coordonnées ne sont pas indexées
 - Réf : P01.10
-- Statut : retenu · autonome
+- Statut : fait · TCK-902 — reste : l'index `(latitude, longitude)` sur `addresses`, à poser si une mesure de la carte montre une lenteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:521`, `takussan-api/app/Http/Resources/PropertyMapGeoJsonResource.php:49`
 - Constat : `with('media')` charge toutes les photos de jusqu'à 501 biens pour n'en lire qu'une. `addresses` n'a aucun index sur `latitude`/`longitude` (mesuré, `pg_indexes`).
 - Piste : charger la seule première photo, et ajouter un index `(latitude, longitude)` si la carte grossit.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:521` (`->with('address', 'media')`, limite `MAP_MAX_RESULTS + 1` l. 554) et `PropertyMapGeoJsonResource.php:49` (seul `getFirstMedia('photos')` est lu) ; tinker en lecture, `pg_indexes` sur `addresses` → trois index (`addressable`, `geo_city_id`, `geo_neighborhood_id`), aucun sur `latitude`/`longitude`, et aucune migration de l'arbre n'en pose. Les deux faits tiennent ; l'index n'est justifié par aucune mesure de lenteur (842 biens en dev), seule la partie photo est retenue comme correctif. Classement : A2, restreindre le chargement anticipé à la première photo de la collection `photos` ne change pas la vignette rendue.
+- Mesure (2026-10-18, 12be5f485, implementeur) : reproduit avant correctif par `PropertyMapPhotoLoadTest` (deux biens publics à trois photos, la troisième mise en tête de galerie, médias hydratés comptés) → 6 médias pour 2 biens ; correctif : `media` chargé sous contrainte dans `map()` (`photos`, tri `order_column` puis `id`, `limit(1)` par bien) → 2, vignette inchangée ; ablation → 6, rouge ; variante sans le tri `order_column` → vignette fausse, rouge ; remis → vert ; 107 tests qui appellent la carte, verts.
 
 ## Angle 2 — Performances des requêtes
 
@@ -804,7 +805,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : validé — retirer le résumé quotidien jamais planifié, et corriger les deux autres écarts
+- Statut : retenu · à valider — chemin fermé : retirer `SendDailyNotificationDigest` supprime `tests/Feature/Notifications/NotificationDigestTest.php`, et la garde de l'implémenteur refuse toute suppression de test
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -813,6 +814,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
   - `SendProspectMatchDigest` envoie avant de poser sa clé d'idempotence, et journalise `$e->getMessage()`, ce que TCK-601 interdit (lu).
 - Piste : supprimer le code mort, réclamer par `UPDATE … WHERE`, et passer par `SafeExceptionContext::of($e)`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : lu `SendRawNotificationEmailJob.php:42-48` (`catch (\Throwable)` → `report()`, sans relance : `$tries` et `backoff()` sont inopérants) ; `grep -rn` dans `app/` : le job n'est dispatché que par `NotificationService::sendEmail()` (l. 207), appelé par `notify()` (l. 173), elle-même appelée seulement par `notifyMany()` (l. 199) — aucun appelant de `notify`/`notifyMany` dans `app/`, seuls `tests/Support/ProseLitteraleScanner.php` et sa fixture les nomment, ce qui lève le « à vérifier » ; `SendDailyNotificationDigest` absent de `routes/console.php` et de tout dispatch (seul `NotificationDigestTest` l'instancie) ; `BoostLifecycle.php:204-218` : `pause()`/`resume()` font `forceFill()->save()` sur le modèle chargé, quand `end()` (l. 221) réclame par `UPDATE … WHERE status IN`, donc le docblock de `BoostsTick.php:11-16` reste inexact pour elles ; `SendProspectMatchDigest.php:93-99` appelle `send()` puis seulement `?->update(['data' => … 'digest_date' …])`, et l. 76-80 journalise `'message' => $e->getMessage()` alors que `App\Support\Logging\SafeExceptionContext` existe → les trois points tiennent. Classement : V7, retirer ou planifier le résumé quotidien est un choix de produit, et réclamer `pause()`/`resume()` touche la durée de boosts payés (V1).
+- Mesure (2026-10-18, 12be5f485, implementeur) : les trois écarts tiennent. `SendDailyNotificationDigest` n'est ni planifié ni dispatché (le résumé vivant est `SendNotificationDigestJob`) ; le `$tries` de `SendRawNotificationEmailJob` est opérant depuis TCK-770. Reproduit par des tests écrits pour la piste : un boost clos entre la lecture de `reconcile()` et sa pause repasse `paused`, une reprise rejouée l'allonge d'un jour ; un envoi de `SendProspectMatchDigest` qui échoue puis un rejeu laissent deux notifications, et le journal porte le message de l'exception. Les deux correctifs (`UPDATE … WHERE status` dans `pause()`/`resume()`, clé d'idempotence écrite à la création de la ligne par un `$data` facultatif de `NotificationService::send()`, `SafeExceptionContext::of($e)`) sont verts, ablation rouge. Le retrait du résumé quotidien supprime son test, ce que `check-pistes --role implementeur` refuse (« un test ne se supprime pas ») : rien n'est publié, le correctif entier est gardé hors du dépôt, dans le rapport du passage (`P05.08-TCK-903-non-publie.patch`). Classement : chemin fermé, le retrait d'un test revient au porteur ; les deux autres écarts pourraient partir seuls si la décision est scindée.
 
 ### `onOneServer` et le fuseau horaire : pas de défaut aujourd'hui, un piège pour la production
 - Réf : P05.09
@@ -2788,7 +2790,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
 - Réf : P20.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-901
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/DocumentResource.php:16-18`, `takussan-api/app/Models/Document.php:84-91`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`
 - Constat :
@@ -2797,6 +2799,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture.
 - Piste : précharger `media` dans `index()`, et faire lire à `activeVersion()` la relation chargée quand elle l'est ; corriger le commentaire ; test de budget.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `DocumentResource.php:16-19` (le commentaire « if the collection is loaded » est toujours là), `Document.php:84-91` (`activeVersion()` interroge `media` à chaque appel, son docblock dit le faire exprès « to avoid Spatie's in-memory collection cache ») et `DocumentController::index` l. 35-49 (`buildQuery` sans `with('media')`) ; test temporaire, retiré depuis, documents avec un fichier : `GET /api/documents` 14 requêtes pour 2 → 34 pour 12, dont `media` 4 → 24 (deux par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2 et A6, réponse inchangée ; le correctif précharge `media` dans `index()`, fait choisir la version active dans la ressource sur la relation chargée quand elle l'est, en laissant `activeVersion()` interroger la table pour les chemins d'écriture qui l'appellent, corrige le commentaire, et garde par un test de budget.
+- Mesure (2026-10-18, 12be5f485, implementeur) : reproduit avant correctif par `DocumentIndexQueryBudgetTest` (champs du front, chaque document avec un fichier et deux versions, requêtes sur `media` comptées) → 4 pour 2 documents, 24 pour 12 ; correctif : `with('media')` dans `index()`, version active choisie sur la relation chargée dans la ressource (`activeVersion()` garde sa requête pour les chemins d'écriture), commentaire corrigé → constant, fichier et version active rendus, restauration suivie ; ablation : tout retiré → 4 → 24, ressource seule → 3 → 13, `with('media')` seul → 2 → 12 ; remis → vert.
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
@@ -2908,7 +2911,7 @@ n'est pas repris ici.*
 
 ### Petites améliorations
 - Réf : P21.06
-- Statut : validé — la ressource du carnet des prestataires ne sort de `metadata` que les sous-clés que le front lit (`ServiceProvidersList.tsx`, `MaintenanceAssignmentBlock.tsx` : nom, e-mail, métiers, zones et disponibilités du brouillon), et jamais `insurance_policy_id` ; `tenant-onboarding-pending` passe par `$this->paginated()` ; les clés non chargées de `LeaseResource` sont ôtées comme `commission_amount`
+- Statut : fait · TCK-904
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:70`, `takussan-api/app/Http/Controllers/Api/ServiceProviderProfileController.php:46-49`, `takussan-api/app/Http/Resources/LeaseResource.php:78-80`
 - Constat :
@@ -2919,6 +2922,7 @@ n'est pas repris ici.*
 - Piste : `$this->paginated()` et une ressource pour les deux listes ; ôter les clés absentes de `LeaseResource`, comme il le fait déjà pour `commission_amount`.
 - Mesure (2026-10-16, 1efd784a, mesureur) : relu `TenantOnboardingPendingController.php:68-70` (`$this->json($page)` sur le paginateur brut), `ServiceProviderProfileController.php:46-49` (`'data' => $paginator->items()`, sans ressource), `ServiceProviderProfile.php:29-31,58-63` (`metadata` et `insurance_policy_id` dans `$fillable` et `$queryFields` ; `metadata` porte l'email du brouillon, l. 140-150) et `LeaseResource.php:78-80` ; `tinker` en lecture, `LeaseResource::make(Lease::first())->toArray(request())` → `renewals`, `renewals_count` et `renewed_from` présents, valant chacun un `MissingValue` (rendu `{}` par `json_encode`, le constat écrit `[]`). Les trois parties tiennent. Classement : V3, la ressource du carnet décide de ce qui est exposé d'un profil de prestataire, `metadata` compris ; l'enveloppe (`$this->paginated()`, A1 par TCK-304) et les clés de `LeaseResource` (A1) seraient autonomes seules.
 - Mesure (2026-10-17, 6cc7d7fa2, implementeur) : relu `ServiceProviderProfileController.php:47-52` (lignes `service_provider_profiles` brutes, `meta` déjà par `paginationMeta`) et `TenantOnboardingPendingController.php:70` (`$this->json($page)` sur le paginateur, constat tenu) ; côté front, `SERVICE_PROVIDER_PROFILE_FIELDS` demande `metadata` (`service-providers.ts:29`), lu par `ServiceProvidersList.tsx:132,151,244,274` (métiers, zones, nom et e-mail du brouillon, relance de l'invitation par e-mail) et `MaintenanceAssignmentBlock.tsx:163-171` (nom, e-mail, `metadata.availability` du contrôle « travaille ce jour-là ») ; `metadata` porte l'e-mail et le nom du brouillon (`ServiceProviderProfile.php:139-150`). Classement : V7, voir le statut ; l'enveloppe de `tenant-onboarding-pending` (A1, TCK-304) et les clés absentes de `LeaseResource` (A1) restent autonomes seules.
+- Mesure (2026-10-18, 12be5f485, implementeur) : reproduit avant correctif par quatre tests : le carnet (champs du front) rend `metadata` entier (`phone`, une note interne) et `insurance_policy_id`, par défaut comme demandé par `fields[…]` ; `tenant-onboarding-pending` rend `current_page`, `links`… sans `meta` ; `GET /api/leases/{id}` rend `renewed_from`. Correctif : `ServiceProviderDirectoryResource` (six sous-clés de `metadata`, jamais `insurance_policy_id`), `$this->paginated()` pour les deux listes, les trois clés de renouvellement ôtées quand elles restent `MissingValue` → verts ; ablation de chaque fichier → ses seuls tests rouges (2, 1, 1) ; remis → verts. L'assertion de `IncludedUserProjectionTest` sur le paginateur brut suit l'enveloppe canonique ; `tests/Feature/ServiceProvider`, les tests de `/api/leases/` et `IncludedUserProjectionTest` : 535 verts.
 
 ## Angle 22 — FormRequests sans autorisation propre, et règles d'autorisation dans les services
 

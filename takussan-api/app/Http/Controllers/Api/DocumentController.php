@@ -53,8 +53,11 @@ class DocumentController extends Controller
         // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
         $query = Document::buildQuery($base, $request);
 
+        // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
+        // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
             ->defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))
+            ->with('media')
             ->paginate();
 
         return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));

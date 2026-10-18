@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\IncludedUserResource;
+use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Profiles\ServiceProviderProfile;
@@ -47,10 +48,8 @@ class ServiceProviderProfileController extends Controller
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
         IncludedUserResource::preload($paginator->items());
 
-        return $this->json([
-            'data' => array_map(IncludedUserResource::inParent(...), $paginator->items()),
-            'meta' => $this->paginationMeta($paginator),
-        ]);
+        // P21.06 (TCK-904) — ni `insurance_policy_id`, ni les sous-clés de `metadata` qu'aucun écran ne lit.
+        return $this->paginated($paginator, ServiceProviderDirectoryResource::collection($paginator)->toArray($request));
     }
 
     /**

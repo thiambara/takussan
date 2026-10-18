@@ -336,6 +336,24 @@ class TenantOnboardingChecklistTest extends TestCase
         $this->assertNotContains($recentChecklist->id, $ids);
     }
 
+    /** TCK-904 (P21.06) — l'enveloppe canonique de TCK-304, et non le paginateur Laravel brut. */
+    public function test_pending_endpoint_answers_the_canonical_pagination_envelope(): void
+    {
+        $agency = Agency::factory()->create();
+        $member = User::factory()->withAgentProfile($agency)->create();
+        $this->makeChecklist($agency)->forceFill(['created_at' => now()->subDays(10)])->save();
+
+        $json = $this->actingAs($member)
+            ->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending")
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(['data', 'meta'], array_keys($json));
+        $this->assertSame(['total', 'per_page', 'current_page', 'last_page'], array_keys($json['meta']));
+        $this->assertSame(1, $json['meta']['total']);
+        $this->assertCount(1, $json['data']);
+    }
+
     public function test_pending_endpoint_forbids_unrelated_agency_member(): void
     {
         $agency = Agency::factory()->create();

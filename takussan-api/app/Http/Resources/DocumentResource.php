@@ -15,8 +15,12 @@ class DocumentResource extends BaseResource
         /** @var Document $this */
         $file = $this->getFirstMedia('file');
 
-        // Active version from the `versions` collection (if the collection is loaded).
-        $activeVersion = $this->activeVersion();
+        // Version active de la collection `versions`. P20.05 (TCK-901) — sur la relation `media`
+        // quand la liste l'a chargée ; sinon `activeVersion()`, qui interroge la table.
+        $activeVersion = $this->relationLoaded('media')
+            ? $this->getMedia(DocumentVersionService::COLLECTION)
+                ->first(fn ($m) => (bool) $m->getCustomProperty('is_active', false))
+            : $this->activeVersion();
 
         $includes = array_filter(array_map('trim', explode(',', (string) $request->query('include', ''))));
         $includeVersions = in_array('versions', $includes, true);
