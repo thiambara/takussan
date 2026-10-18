@@ -3777,7 +3777,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Aucun lien d'évitement hors de la console super-admin
 - Réf : P31.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-905
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/SuperAdminShell.tsx:83-91,102-107`, `takussan-web/src/components/layout/AppShell.tsx:120`, `takussan-web/src/components/home/Navbar.tsx`
 - Constat :
@@ -3787,6 +3787,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : parcours au Tab par CDP, code relu.
 - Piste : le même lien en tête de `Navbar` (ou du layout public) et d'`AppShell`, vers un `<main id tabIndex={-1}>`, avec le libellé déplacé vers un espace commun (`common`), sans texte neuf. Le test d'AC3 de `SuperAdminShell` sert de modèle.
 - Mesure (2026-10-16, 979edb0f, mesureur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → seuls `SuperAdminShell.tsx:88-90`, son test `SuperAdminShell.a11y.test.tsx:111` et la clé `nav.superAdmin.skipToContent` des dictionnaires (`fr.json:190`, `en.json:190`) ; `AppShell.tsx:120` rend `<main className=…>` sans `id` ni `tabIndex` ; `Navbar.tsx` n'a pas de lien d'évitement ; le parcours au Tab n'a pas été rejoué → tient. Classement : A4, le motif (lien `sr-only` révélé au focus vers un `<main id tabIndex={-1}>`) et son libellé existent déjà en trois langues, il se recopie dans la barre publique et `AppShell` avec la clé déplacée vers un espace commun, sans texte neuf.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → toujours le seul `SuperAdminShell` ; `Navbar.lien-evitement.test.tsx` et `AppShell.lien-evitement.test.tsx` → 5 rouges avant correctif (aucun lien dans la `Navbar` ni dans `AppShell`, 21 `<main>` de pages qui montent la barre sans cible) ; `LienEvitement` partagé, cible `contenu-principal` posée avec `tabIndex={-1}` sur ces 21 `<main>` et sur celui d'`AppShell`, clé déplacée en `common.skipToContent`, textes inchangés → 5 verts ; ablation → les 5 mêmes rouges. `vitest related` : 52 fichiers, 401 verts. Parcours au Tab non rejoué au navigateur.
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
