@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
-import { ComboboxMultiple, replierPourIdentite, type OptionDeListe } from '@/components/ui/combobox';
+import { ComboboxMultiple, replierPourIdentite, replierPourRecherche, type OptionDeListe } from '@/components/ui/combobox';
 import { ESPACE_DU_CATALOGUE, libelleEquipement } from '@/lib/libelle-equipement';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
@@ -94,6 +94,14 @@ export function ChampEquipements({
         creation={{
           libelle: (nom) => t('create', { name: nom }),
           surCreation: (nom) => {
+            // TCK-925 — un nom égal, au repli près (casse, accents, tirets, apostrophes), au libellé
+            // AFFICHÉ d'un équipement est cet équipement : le serveur ne replie que sur les noms
+            // français, et « tumble-dryer » y devenait une proposition, doublon de « Sèche-linge ».
+            const connu = options.find((o) => replierPourRecherche(o.label) === replierPourRecherche(nom));
+            if (connu) {
+              if (!ids.includes(Number(connu.value))) setValue('tag_ids', [...ids, Number(connu.value)], { shouldDirty: true });
+              return;
+            }
             // Un nom déjà retenu (à la casse près) ne se double pas.
             if (noms.some((n) => replierPourIdentite(n) === replierPourIdentite(nom))) return;
             setValue('tag_names', [...noms, nom], { shouldDirty: true });
