@@ -4406,7 +4406,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Rembourser le doublon d'un loyer, comme la notification le demande, passe le loyer à `refunded`
 - Réf : P39.01
-- Statut : validé — la branche `REFUNDED` ne passe à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon le remboursement est noté (`refunded_at`) sur l'entrée `gateway_duplicate_payment` de la transaction ; tests : les deux scénarios mesurés et le témoin
+- Statut : fait · TCK-871
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:471-492`, `:1012-1038`, `:1308`
 - Constat :
@@ -4417,6 +4417,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Établi comment : lu, puis mesuré de bout en bout sur `/api/webhooks/payments/wave/{token}`.
 - Piste : dans la branche `REFUNDED`, ne passer à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon tracer le remboursement sur l'entrée de `gateway_duplicate_payment` de cette transaction (`refunded_at`). Garde : les deux scénarios ci-dessus en test de bout en bout, plus le témoin (remboursement de la transaction qui a soldé → `refunded`).
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite ; code relu par son contenu, inchangé (`git log 0cbbf5371..HEAD` sur `app/Services/Payments` vide ; branche `REFUNDED` toujours sans `isSettledBy`) : `spy_txn_1` puis `spy_txn_2` payés → `paid`, `settled_by = spy_txn_1`, 1 doublon ; `checkout.session.refunded` sur `spy_txn_2` → 200, échéance `refunded`, `paid_amount = 150000`, `isPayable` → false, `POST …/initiate` → 409 `payment.not_payable`. Scénario espèces non rejoué (même branche). Classement : V1, le correctif écrit le statut d'un paiement et la trace du remboursement d'un doublon.
+- Mesure (2026-10-18, 7ffdfbb0d, implementeur) : reproduit avant correctif par `tests/Feature/Api/PaymentWebhookRefundTest.php` (remboursement appliqué par `applyEventToMatchingPayment()` sous l'autorité de l'intégration Wave, paiements par le vrai webhook signé) : second checkout remboursé → échéance `refunded` ; checkout payé après des espèces, remboursé → `refunded` ; témoin vert. Correctif : `refunded` seulement si `isSettledBy` et si la transaction n'est pas marquée doublon (le repli de `isSettledBy` sur `gateway_events` reconnaît aussi le `paid` du doublon : avec `isSettledBy` seul, les deux scénarios restaient rouges) ; sinon `refunded_at` sur l'entrée du doublon → 3 verts ; ablation (service remis à `pre-dev`) → 2 rouges, témoin vert.
 
 ### Un encaissement en ligne sur un payable `refunded` est refusé en 422, à chaque relivraison, et n'est signalé à personne
 - Réf : P39.02
