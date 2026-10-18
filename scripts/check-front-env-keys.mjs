@@ -84,12 +84,20 @@ const SOURCES = [join(WEB, 'src'), join(WEB, 'next.config.ts')];
 const ENV_EXEMPLE = join(WEB, '.env.example');
 const RELEVE = join(ROOT, 'docs', 'infra', 'frontend-deploiement.json');
 /**
- * ADR-0069 § 3 — les deux sommets qui CONSTRUISENT l'image. Ils ne doivent porter AUCUNE
- * `NEXT_PUBLIC_*` : une valeur passée là serait inlinée, et l'image servirait un seul
- * environnement.
+ * ADR-0069 § 3 — ce qui CONSTRUIT l'image : le Dockerfile, et TOUT workflow qui le construit
+ * (`context: takussan-web` — images.yml, le build de contrôle de web-ci.yml). Aucune
+ * `NEXT_PUBLIC_*` n'y passe : une valeur passée là serait inlinée, et l'image servirait un seul
+ * environnement. La liste des workflows se dérive : un build de plus est gardé sans qu'on y pense.
  */
 const DOCKERFILE = join(WEB, 'Dockerfile');
-const WORKFLOW = join(ROOT, '.github', 'workflows', 'images.yml');
+const WORKFLOWS_DIR = join(ROOT, '.github', 'workflows');
+const WORKFLOW = join(WORKFLOWS_DIR, 'images.yml');
+const WORKFLOWS_DU_FRONT = existsSync(WORKFLOWS_DIR)
+  ? readdirSync(WORKFLOWS_DIR)
+      .filter((f) => /\.ya?ml$/.test(f))
+      .map((f) => join(WORKFLOWS_DIR, f))
+      .filter((f) => /^\s*context:\s*takussan-web\s*$/m.test(readFileSync(f, 'utf8')))
+  : [];
 
 /** Le seul module qui lit la configuration publique, et `next.config.ts` (build de Vercel). */
 const LECTEUR = join(WEB, 'src', 'lib', 'config-publique.ts');
@@ -227,7 +235,14 @@ function mentionsDansLaConstruction(chemin) {
       [...ligne.matchAll(/\b(NEXT_PUBLIC_[A-Za-z0-9_]+)\b/g)].map((m) => `${m[1]} : ${relative(ROOT, chemin)}:${n}`),
     );
 }
-const dansLaConstruction = [...mentionsDansLaConstruction(DOCKERFILE), ...mentionsDansLaConstruction(WORKFLOW)];
+if (!WORKFLOWS_DU_FRONT.includes(WORKFLOW)) {
+  console.error(
+    `✗ ${relative(ROOT, WORKFLOW)} ne construit plus le front (\`context: takussan-web\`) : la ` +
+      `dérivation des workflows de construction ne trouve plus sa cible.`,
+  );
+  process.exit(1);
+}
+const dansLaConstruction = [DOCKERFILE, ...WORKFLOWS_DU_FRONT].flatMap(mentionsDansLaConstruction);
 
 const sourceDuModule = readFileSync(LECTEUR, 'utf8');
 const lectureshorsListe = [...new Set([...sourceDuModule.matchAll(/process\.env\.([A-Za-z0-9_]+)/g)].map((m) => m[1]))].filter(
@@ -292,7 +307,7 @@ if (erreurs.length === 0) {
   console.log(
     `✓ variables de build du front : ${lues.size} clé(s) NEXT_PUBLIC_* lue(s), toutes déclarées ` +
       `dans .env.example et relevées dans frontend-deploiement.json ; lues par le seul ` +
-      `config-publique.ts (et next.config.ts) ; aucune dans le Dockerfile ni dans images.yml ; ` +
+      `config-publique.ts (et next.config.ts) ; aucune dans le Dockerfile ni dans les ${WORKFLOWS_DU_FRONT.length} workflow(s) qui le construisent ; ` +
       `configuration du navigateur fermée sur [${CONFIG_DU_NAVIGATEUR.join(', ')}].`,
   );
   process.exit(0);

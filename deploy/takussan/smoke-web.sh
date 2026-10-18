@@ -72,9 +72,13 @@ for langue in fr en wo; do
 done
 ok "/fr, /en, /wo à 200"
 
-grep -qix 'content-type: image/avif' \
-  <<<"$(entetes -H 'Accept: image/avif' "http://127.0.0.1:$PORT/_next/image?url=https%3A%2F%2Fplacehold.co%2F600x400.png&w=640&q=75")" || echec "l'optimiseur ne sert pas d'AVIF : sharp manque à l'image standalone"
-ok "optimiseur d'images en AVIF"
+# Le loader de Cloudflare est branché (TAKUSSAN_LOADER_MEDIA, ADR-0029 §4) : l'optimiseur de Next
+# ne tourne plus dans le conteneur, et `/_next/image` n'est plus servi. Un 200 ici voudrait dire
+# que chaque photo repasse par le CPU du VPS. (Ce contrôle attendait de l'AVIF jusqu'au
+# 2026-10-18 : faux depuis TCK-540, qui branchait déjà le loader dans l'image de fumée.)
+code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/_next/image?url=https%3A%2F%2Fplacehold.co%2F600x400.png&w=640&q=75")
+[ "$code" = 404 ] || echec "/_next/image rend $code au lieu de 404 : le loader de Cloudflare n'est pas branché"
+ok "loader de Cloudflare branché, optimiseur absent"
 
 docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' "$NOM"
 
