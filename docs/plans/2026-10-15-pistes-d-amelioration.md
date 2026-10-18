@@ -3374,7 +3374,7 @@ forcée »).*
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
-- Statut : validé — désignation prise dans l'objet facturé (`invoiceable`), repli sur une clé `metadata`
+- Statut : fait · TCK-835 — reste : une désignation propre à chaque créateur (indemnité de résiliation, retenue sur caution) quand l'objet facturé est un bail
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/invoices/default.blade.php:10-15`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:72-79`, `takussan-api/app/Services/Lease/EarlyTerminationService.php:338-356`, `takussan-api/app/Services/Lease/DepositRefundService.php:105-124`
 - Constat :
@@ -3383,6 +3383,7 @@ forcée »).*
   - La table `invoices` n'a ni lignes ni désignation (migration lue) : seule la note dit l'objet.
 - Piste : à défaut de lignes, prendre la désignation dans l'objet facturé (`invoiceable`) ou dans une clé de `metadata` posée par le créateur, au lieu de « Prestation ». Un test par créateur qui lise la désignation rendue.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `DocumentPdfController.php:64-80` (aucun `lines` passé), `default.blade.php:10-15` (repli « Prestation × 1 »), `EarlyTerminationService.php:338-356` et `DepositRefundService.php:105-124` (objet porté par `notes` seulement) ; colonnes d'`invoices` lues par `Schema::getColumnListing` en `tinker` → ni lignes ni désignation (`notes`, `metadata` seuls) ; rendu de P26.02 → « Prestation 1 100 025 F CFA ». Classement : V7, la piste laisse le choix entre `invoiceable` et une clé de `metadata`, et le libellé imprimé sur une facture est un texte métier.
+- Mesure (2026-10-18, b9850853, implementeur) : reproduit par `FactureDesignationTest` avant correctif : factures sur un bail, sur une réservation, et sans objet avec `metadata.designation` → toutes « Prestation ». `Invoice::designation()` (objet facturé, même supprimé, puis `metadata.designation`) alimente la ligne par défaut du gabarit : « Bail LS-2027-0042 — Villa Almadies », « Réservation BK-0007 — Studio Plateau », « Frais de dossier » ; sans l'un ni l'autre, « Prestation ». Ablation : ligne ramenée à « Prestation », 4 cas sur 5 rougissent, remis verts ; `InvoicePdfTest` et `InvoiceLegalMentionsTest` verts. L'indemnité de résiliation et la retenue sur caution, émises sur le bail, impriment « Bail … » : leur libellé propre reste en `notes`.
 
 ### Petites améliorations des gabarits PDF
 - Réf : P26.06
