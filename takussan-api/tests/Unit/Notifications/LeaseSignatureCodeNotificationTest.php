@@ -27,12 +27,14 @@ class LeaseSignatureCodeNotificationTest extends TestCase
         $this->assertSame(['mail'], $notification->via($user));
 
         $mail = $notification->toMail($user);
-        $html = (string) $mail->render();
+        // Le texte se compare décodé : selon l'environnement, le rendu Markdown du mail échappe
+        // l'apostrophe en `&#039;` ou la laisse brute (mesuré : brute en CI, échappée en local).
+        $html = html_entity_decode((string) $mail->render(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         $this->assertStringContainsString('BAIL-2026-0042', $mail->subject);
         $this->assertStringContainsString('482913', $html);
         $this->assertStringContainsString('BAIL-2026-0042', $html);
-        $this->assertStringContainsString(e(__('notifications.lease_signature_code.expires', ['minutes' => 37])), $html);
+        $this->assertStringContainsString(__('notifications.lease_signature_code.expires', ['minutes' => 37]), $html);
         $this->assertStringNotContainsString('notifications.lease_signature_code', $mail->subject.$html);
     }
 }
