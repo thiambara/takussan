@@ -52,6 +52,14 @@ l'environnement.
       aux tables vivantes près (nommées), `backup:verify-encryption` → `0` avec la clé de la
       préproduction, `1` avec `--cle-fausse` ; relevé daté dans `hebergement.md`.
 
+## Reste sur dev
+
+La commande est sur `dev` depuis la PR #630 (2026-10-18). Il ne reste que AC2, le rejeu sur le
+serveur, qui attend l'image de préproduction qui la porte. La restauration à blanc elle-même est
+déjà jouée le 2026-10-18 : dump de 03:00, 3 086 349 o, restauré en 11 s sans erreur, 116 tables
+sur 116. Seules trois tables vivantes diffèrent par leur compte : `jobs`, `scheduled_task_runs`,
+`property_boost_daily_stats`.
+
 ## Hors périmètre
 
 - WAL-G et la restauration à un instant choisi : étape 5 d'ADR-0069, ticket à part.
