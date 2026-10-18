@@ -63,3 +63,7 @@ de celle du mot de passe oublié.
   remises → `src/app/(auth)`, 48 verts.
 - Hypothèse : traductions anglaises « Sign in », « Sign up », « Forgot password », « New
   password », « Email verification », sur le modèle des libellés anglais existants.
+- **Piège** : un `layout.tsx` est une frontière de dictionnaire pour `check:i18n-namespaces`, qui
+  exige alors `messagesPour`. Les layouts de segment rendent exactement `<>{children}</>` et
+  n'appellent aucune API de traduction eux-mêmes (le titre passe par `titre-d-onglet.ts`) : la garde
+  les tient pour transparents (exemption de TCK-426), et ils héritent du dictionnaire de `(auth)`.
