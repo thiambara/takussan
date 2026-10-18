@@ -2787,7 +2787,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### La liste des documents fait deux requêtes de médias par ligne, et un commentaire dit le contraire
 - Réf : P20.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-901
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/DocumentResource.php:16-18`, `takussan-api/app/Models/Document.php:84-91`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:35-49`
 - Constat :
@@ -2796,6 +2796,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 - Établi comment : test temporaire avec pile d'appel, relecture.
 - Piste : précharger `media` dans `index()`, et faire lire à `activeVersion()` la relation chargée quand elle l'est ; corriger le commentaire ; test de budget.
 - Mesure (2026-10-15, f30bd1cb, mesureur) : relu `DocumentResource.php:16-19` (le commentaire « if the collection is loaded » est toujours là), `Document.php:84-91` (`activeVersion()` interroge `media` à chaque appel, son docblock dit le faire exprès « to avoid Spatie's in-memory collection cache ») et `DocumentController::index` l. 35-49 (`buildQuery` sans `with('media')`) ; test temporaire, retiré depuis, documents avec un fichier : `GET /api/documents` 14 requêtes pour 2 → 34 pour 12, dont `media` 4 → 24 (deux par ligne). Charge 2,02 sur 8 cœurs. Constat confirmé. Classement : A2 et A6, réponse inchangée ; le correctif précharge `media` dans `index()`, fait choisir la version active dans la ressource sur la relation chargée quand elle l'est, en laissant `activeVersion()` interroger la table pour les chemins d'écriture qui l'appellent, corrige le commentaire, et garde par un test de budget.
+- Mesure (2026-10-18, 12be5f485, implementeur) : reproduit avant correctif par `DocumentIndexQueryBudgetTest` (champs du front, chaque document avec un fichier et deux versions, requêtes sur `media` comptées) → 4 pour 2 documents, 24 pour 12 ; correctif : `with('media')` dans `index()`, version active choisie sur la relation chargée dans la ressource (`activeVersion()` garde sa requête pour les chemins d'écriture), commentaire corrigé → constant, fichier et version active rendus, restauration suivie ; ablation : tout retiré → 4 → 24, ressource seule → 3 → 13, `with('media')` seul → 2 → 12 ; remis → vert.
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
