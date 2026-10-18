@@ -109,7 +109,7 @@ Concrètement :
 1. `docs/infra/frontend-deploiement.json` est la **source unique** du mapping branche →
    environnement, des domaines et des variables de build. Aucun autre document ne recopie ces
    valeurs — même patron que `docs/infra/prod-drivers.json` (TCK-300) et `versions.json` (TCK-298).
-2. le relevé `frontend-deploiement.md` (retiré par TCK-844) est la prose : le raisonnement, les commandes de re-mesure,
+2. le relevé `frontend-deploiement.md` (retiré par TCK-860) est la prose : le raisonnement, les commandes de re-mesure,
    et ce qui n'est **pas** mesurable depuis le dépôt.
 3. `.github/workflows/front-deploy-map.yml` **vérifie** ce relevé contre l'API GitHub à chaque PR
    touchant le front ou le relevé, plus une fois par semaine. Il ne déploie rien et ne détient
@@ -174,5 +174,5 @@ copie du réglage Vercel, c'est-à-dire à créer la deuxième source de vérit�
 
 ## Voir aussi
 
-- le relevé `frontend-deploiement.md` (retiré par TCK-844) — le relevé en prose et les commandes de re-mesure
+- le relevé `frontend-deploiement.md` (retiré par TCK-860) — le relevé en prose et les commandes de re-mesure
 - [ADR-0001](0001-monorepo-laravel-nextjs.md) — le monorepo, dont ce déploiement asymétrique est une conséquence directe

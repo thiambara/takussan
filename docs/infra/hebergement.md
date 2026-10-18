@@ -33,7 +33,7 @@ a été supprimé avant la bascule.
 | environnements GitHub de Vercel | `Production` et `Preview` supprimés le 2026-10-18 (le second par AC6 de TCK-832) ; leurs déploiements restent dans l'historique. `gh api repos/thiambara/takussan/environments -q .total_count` → `0` |
 | application GitHub Vercel sur le dépôt | *non mesuré* : le jeton de `gh` ne liste pas les installations. À vérifier dans *Settings → GitHub Apps* |
 
-Le code, les gardes et les textes légaux ne citent plus Vercel depuis TCK-844 : plus de repli
+Le code, les gardes et les textes légaux ne citent plus Vercel depuis TCK-860 : plus de repli
 `NEXT_PUBLIC_*`, `output: 'standalone'` et le loader de Cloudflare inconditionnels au build, plus
 de `@vercel/analytics`, plus d'origine `*.vercel.app` admise par le CORS de l'API.
 

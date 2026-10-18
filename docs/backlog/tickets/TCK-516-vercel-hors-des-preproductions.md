@@ -55,4 +55,4 @@ Relevé à tenir : `docs/infra/frontend-deploiement.json`.
 2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et
 l'environnement GitHub `Production` est supprimé.
 Vercel ne construit plus aucune branche, préproductions comprises. Ce qu'il en reste dans le
-dépôt est TCK-844.
+dépôt est TCK-860.

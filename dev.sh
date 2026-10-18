@@ -213,11 +213,11 @@ if [ ! -f "$WEB/.env.local" ] && [ -f "$WEB/.env.example" ]; then
     ko "takussan-web/.env.local absent — le front retomberait sur son défaut codé en dur."
   fi
 fi
-# TCK-844 : le front ne lit plus NEXT_PUBLIC_API_URL, _SITE_URL ni _MEDIA_URL, mais API_URL,
+# TCK-860 : le front ne lit plus NEXT_PUBLIC_API_URL, _SITE_URL ni _MEDIA_URL, mais API_URL,
 # SITE_URL et MEDIA_URL (src/lib/config-publique.ts). Un `.env.local` antérieur garde les anciens
 # noms, que plus rien ne lit : le front retomberait en silence sur ses défauts.
 if [ -f "$WEB/.env.local" ] && grep -qE '^NEXT_PUBLIC_(API|SITE|MEDIA)_URL=' "$WEB/.env.local"; then
-  avert "takussan-web/.env.local déclare encore NEXT_PUBLIC_API_URL/_SITE_URL/_MEDIA_URL, ignorées depuis TCK-844 :"
+  avert "takussan-web/.env.local déclare encore NEXT_PUBLIC_API_URL/_SITE_URL/_MEDIA_URL, ignorées depuis TCK-860 :"
   avert "les renommer en API_URL, SITE_URL, MEDIA_URL (cf. takussan-web/.env.example)."
 fi
 

@@ -3966,7 +3966,7 @@ sur sa demande explicite, au moment où il la donne.
 >   Vercel de `www`, le retour arrière par le tableau de bord, le retrait de `@vercel/analytics` à
 >   l'étape 3 — est caduque. **F3 n'est plus une bascule mais une mise en service.** F2 et F3 sont
 >   réécrites par l'étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md).
-> - **F5, étape 2** (le dépôt oublie Vercel) n'a pas attendu F3 : faite par TCK-844. L'étape 3 attend
+> - **F5, étape 2** (le dépôt oublie Vercel) n'a pas attendu F3 : faite par TCK-860. L'étape 3 attend
 >   toujours la production, puisqu'elle solde D-04 et D-10 sur sa mesure.
 
 ### Tâche F1 : re-mesurer, puis préparer les données de production
@@ -4331,7 +4331,7 @@ neuves en nombre se comprennent **avant** de supprimer Vercel. Relever ensuite
 attendues), puis supprimer les deux projets dans le tableau de bord Vercel, et retirer l'application
 GitHub Vercel des deux dépôts (*Settings → GitHub Apps*).
 
-- [x] **Étape 2 : le dépôt Takussan oublie Vercel** *(faite par TCK-844, le 2026-10-18)*
+- [x] **Étape 2 : le dépôt Takussan oublie Vercel** *(faite par TCK-860, le 2026-10-18)*
 
 ```bash
 git rm .github/workflows/front-deploy-map.yml docs/infra/frontend-deploiement.md docs/infra/frontend-deploiement.json takussan-web/vercel.json

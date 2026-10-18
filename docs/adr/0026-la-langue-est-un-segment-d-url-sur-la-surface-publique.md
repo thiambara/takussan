@@ -248,10 +248,10 @@ lien qui ne porte pas la langue coûte un aller-retour, jamais la mauvaise langu
   | Vercel, environnement *Preview* | `NEXT_PUBLIC_SITE_URL = https://$VERCEL_URL` (ou l'URL de la preview) |
   | Vercel, environnement *Production* | `NEXT_PUBLIC_SITE_URL = https://www.takussan.com` — explicite plutôt que par défaut |
   | `takussan-web/.env.example` | la clé y est déclarée |
-  | `docs/infra/frontend-deploiement.json` (retiré par TCK-844) | la clé y est relevée, `valeur_production_mesuree: null` |
+  | `docs/infra/frontend-deploiement.json` (retiré par TCK-860) | la clé y est relevée, `valeur_production_mesuree: null` |
 
   **Ce qui est gardé, et ce qui ne l'est pas.** La garde est
-  `.github/workflows/front-deploy-map.yml` (retiré par TCK-844) : elle
+  `.github/workflows/front-deploy-map.yml` (retiré par TCK-860) : elle
   exige que toute `NEXT_PUBLIC_*` **lue par le code** soit *déclarée* dans
   `takussan-web/.env.example` **et** *relevée* dans `docs/infra/frontend-deploiement.json`. Elle
   garde donc que la clé est **déclarée**. **Aucune garde de ce dépôt ne peut vérifier qu'elle est
