@@ -36,6 +36,9 @@ vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
 // TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
 // sans `QueryClientProvider`.
 vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
+// TCK-911 — l'état vide interroge les suggestions par React Query, sans provider ici : aucune
+// suggestion, ce que ce fichier n'éprouve pas (`SearchEmpty.suggestions.test.tsx` le fait).
+vi.mock('@/hooks/useSuggest', () => ({ useSuggest: () => ({ data: undefined, isLoading: false, isFetching: false }) }));
 // La VRAIE `SaveSearchButton` est rendue — l'AC4 la vise. Seule sa mutation est remplacée.
 vi.mock('@/lib/queries/saved-searches', () => ({
   useCreateSavedSearchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
