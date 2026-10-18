@@ -25,6 +25,7 @@ class CreditController extends Controller
         $lots = CreditLot::query()->where('agency_id', $agency->getKey())->spendable()->inConsumptionOrder()->get();
         $movements = CreditMovement::query()
             ->where('agency_id', $agency->getKey())
+            ->with(['boost:id,property_id,kind,variant', 'boost.property:id,title'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(min(100, max(1, (int) $request->input('per_page', 20))));

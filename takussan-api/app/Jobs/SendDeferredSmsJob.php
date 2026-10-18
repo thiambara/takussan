@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\Notifications\Sms\SmsRouterDriver;
+use App\Services\Notifications\Sms\SmsTimeBudget;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -22,6 +23,12 @@ use Illuminate\Foundation\Queue\Queueable;
 class SendDeferredSmsJob implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+
+    /**
+     * TCK-842 (P27.04) — le job n'est pas tué en cours de chaîne SMS : budget de la chaîne
+     * ({@see SmsTimeBudget}), plus une marge ; sous le `retry_after` des files (90 s).
+     */
+    public $timeout = SmsTimeBudget::CHAIN_SECONDS + 20;
 
     /**
      * @param  list<string>  $to

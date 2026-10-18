@@ -113,7 +113,7 @@ voie d'écriture (angle 13, puis 47).
 | 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | fait |
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | fait |
 | 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | fait (couvert par l'angle 12) |
-| 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
+| 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | fait |
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
@@ -3124,7 +3124,7 @@ sont pas reprises.*
 
 ### Le dialogue d'achat ne dit rien du boost déjà actif, et `GET /api/properties/{property}/boosts` n'a aucun appelant
 - Réf : P24.02
-- Statut : validé — lire GET …/boosts à l'ouverture et dire, pour l'offre choisie, le remplacement sans remboursement, la prolongation ou le délai de Remontée
+- Statut : fait · TCK-824
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/boost/BoostDialog.tsx:29-55`, `takussan-web/src/components/boost/api.ts:12-31`, `takussan-api/routes/api/credits.php:14`, `takussan-api/app/Http/Controllers/Api/Credits/PropertyBoostController.php:18-30`
 - Constat :
@@ -3133,10 +3133,11 @@ sont pas reprises.*
   - Établi comment : lu, et `grep`.
 - Piste : lire `GET …/boosts` à l'ouverture du dialogue et dire, pour l'offre choisie, ce qui arrivera (« remplace le badge “Urgent” actif jusqu'au … », « prolonge la Vedette jusqu'au … », « Remontée possible à partir de … »). Garde : un test du dialogue qui monte un badge actif et attend l'avertissement.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `BoostDialog.tsx:38-39` (seuls `useCredits` et `useBoostProducts`) ; `grep -rn "/boosts" takussan-web/src` → seul le `POST` de `components/boost/api.ts:28`, plus les routes `/super-admin/boosts` et `/api/super-admin/boosts`, sans rapport avec la lecture `GET /api/properties/{property}/boosts`, qui n'a toujours aucun appelant. Classement : V7, la piste ajoute un comportement visible et des textes métier neufs (« remplace le badge… », « prolonge la Vedette… »).
+- Mesure (2026-10-17, 464374510, implementeur) : `grep -rn '/boosts' takussan-web/src` → seul le `POST` de `components/boost/api.ts`, la lecture n'a toujours aucun appelant ; `PropertyBoostReadAheadTest` rouge avant correctif (`bump_available_at` absent), 6 cas neufs de `BoostDialog.test.tsx` rouges (5) avant correctif → après : la lecture rend la fin du délai de Remontée (même date que le refus 422), le dialogue lit `GET …/boosts` à l'ouverture et dit le remplacement sans remboursement, la prolongation (date, ou jours si en pause) ou le délai ; ablation : effet retiré → 4 rouges, `bump_available_at` à `null` → 1 rouge ; 3 + 10 verts.
 
 ### La page « Crédits » ne montre aucun boost, et une dépense n'y dit ni le bien ni l'offre
 - Réf : P24.03
-- Statut : validé — colonne « Objet » dans le journal : le bien et l'offre d'une dépense ou d'un remboursement de boost
+- Statut : fait · TCK-825
 - Gravité : 🟠 risque ou dette
 - Où : `docs/features.md:428`, `takussan-web/src/components/boost/CreditsPanel.tsx:21-24`, `takussan-api/app/Http/Resources/Credits/CreditMovementResource.php:12-22`, `takussan-api/app/Services/Boost/BoostPurchaseService.php:187-191`
 - Constat :
@@ -3146,6 +3147,7 @@ sont pas reprises.*
   - Établi comment : lu.
 - Piste : soit rendre le bien et l'offre dans le journal (relation `propertyBoost.property` chargée, colonne « Objet »), soit corriger `features.md` pour dire ce que la page montre. Garde : un test de `CreditsPanel` sur une ligne de dépense rattachée à un boost.
 - Mesure (2026-10-15, eee06c10, mesureur) : relu `docs/features.md:428` (« page « Crédits » (solde, lots, historique, boosts) ») ; `CreditsPanel.tsx:22-24` : colonnes type, montant, motif (`m.reason ?? '—'`), aucune occurrence de « boost » ; `BoostPurchaseService::debit()` appelle `spend(…, $boost, $actor)` sans motif (l. 187-191). Classement : V7, la piste laisse le choix entre une colonne visible neuve et le retrait d'une fonction annoncée par la spec.
+- Mesure (2026-10-17, 464374510, implementeur) : relu `CreditMovementResource` (seul `property_boost_id`) et `CreditsPanel` (date, type, montant, motif) ; `CreditMovementObjectTest` et le cas neuf de `CreditsPanel.test.tsx` rouges avant correctif → après : `GET /api/credits` rend `boost` (genre, variante, bien) pour la dépense et le remboursement d'un boost, `null` pour un octroi, et la colonne « Objet » les affiche ; ablation : colonne retirée → rouge, chargement anticipé retiré → rouge.
 
 ### Le contrôle « bien public » et « offre active » se fait avant le verrou : un achat peut passer sur un bien que l'on vient de dépublier
 - Réf : P24.04
@@ -3364,7 +3366,7 @@ forcée »).*
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
-- Statut : validé — un bouton de téléchargement du PDF dans `InvoiceDetailDialog`
+- Statut : fait · TCK-837
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
 - Constat :
@@ -3375,6 +3377,7 @@ forcée »).*
   - Établi comment : lu et mesuré par recherche.
 - Piste : un bouton de téléchargement dans `InvoiceDetailDialog`, par `BoutonTelechargement` comme la quittance. Un test du composant qui vérifie le chemin `/api/invoices/{id}/pdf`.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `routes/api/invoices.php:16-17` (route `invoices.pdf` présente) ; `grep -rn "invoices/" takussan-web/src` → détail, envoi, paiement, annulation seulement (`lib/queries/payments.ts:167-212`) ; `grep -n -i 'pdf|telecharg|download' InvoiceDetailDialog.tsx` → rien ; `grep -rn 'attachData|->attach(|Attachment::' app` → une seule ligne, un `attach()` de relation (`PropertyConversationResolver.php:92`) ; `docs/features.md:367` et `:598` promettent le PDF des factures, et `TCK-063` (done) laisse non cochée « bouton télécharger PDF si dispo » (`:62`). Classement : V7, un comportement visible neuf, même attendu par un ticket : son emplacement et son public (qui voit la modale, qui passe `InvoicePolicy::view`) restent à décider.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `grep -rn "invoices/" takussan-web/src` → aucun appelant de `/pdf`, et `InvoiceDetailDialog.pdf.test.tsx` rougit (aucun bouton « PDF de la facture ») ; `InvoiceDetailDialog` porte un `BoutonTelechargement` vers `/api/invoices/{id}/pdf` (`facture-…pdf`, `avoir-…pdf` pour un avoir), la route passant par la même `InvoicePolicy::view` que le détail → 2 verts ; ablation du composant → 2 rouges.
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
@@ -3464,7 +3467,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
-- Statut : validé — borner la durée totale de la chaîne dans le code et poser `$timeout` sur le job ; reste : le délai du worker, au déploiement (porteur)
+- Statut : fait · TCK-842 — reste : le délai du worker, au déploiement (porteur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:66,98,111,120,215-225,245`, `takussan-api/config/sms.php` (`fallback_chains`), `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:383`
 - Constat :
@@ -3474,6 +3477,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu, somme des délais déduite.
 - Piste : borner la durée totale de la chaîne (budget de temps partagé entre pilotes), et poser `$timeout` sur les notifications SMS au-dessus de ce budget. Le délai du worker est une affaire de déploiement.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:98,120,218-220,245` (`timeout(10)` par appel, verrou 10 s attendu 5 s), `config/sms.php` (`orange` → `orange, lafricamobile, mtarget`), `compose.api.yml:54` (`queue:work … --tries=3`, sans `--timeout`, ligne 54 et non 55), `grep` sur `CodedNotification.php` → ni `$timeout` ni `$tries` ; `PhoneVerificationService.php:383` envoie l'OTP de façon synchrone. Somme des délais et mise à mort du job non mesurées. Classement : V5, le délai du worker est dans `deploy/`, et le budget partagé est un choix de conception.
+- Mesure (2026-10-18, e673632a0, implementeur) : `SmsChainTimeBudgetTest`, code à usage unique sur un numéro Orange, chaque appel consommant tout son délai (horloge avancée par le faux HTTP) → avant correctif, jeton, envoi en 401, jeton, renvoi en 400, LAM en délai dépassé, Mtarget : 6 appels de 10 s, 60 s, et aucun job SMS ne déclare `$timeout` (2 rouges) → `SmsTimeBudget` (30 s par traversée), aucun pilote ni appel lancé sans temps, chaque appel borné au temps restant, `$timeout = 50` sur `CodedNotification`, `NewBookingNotification` et `SendDeferredSmsJob` : la chaîne finit à 30 s en `time_budget_exhausted` ; ablation : `app/` remis → 2 rouges, pilotes seuls remis → 1 rouge (40 s) ; correctif remis : 3 verts, 295 tests verts sur `Services/Sms`, `Services/Whatsapp` et `tests/Unit/Services`.
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
@@ -3988,7 +3992,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Les pages de quartier annoncées au sitemap ne reçoivent aucun lien du HTML, et le fil d'Ariane refuse ce lien pour une raison que TCK-598 a levée
 - Réf : P35.01
-- Statut : validé — maillon de quartier cliquable vers sa canonique quand le quartier est dans le domaine indexable de sa ville, libellé sinon ; docblock et test du fil réécrits
+- Statut : fait · TCK-839
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:42-64,86-89`, `takussan-web/src/lib/canonique.ts:270,305-307,341-345`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/__tests__/jsonld-fil-d-ariane.test.tsx:120-150`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/bien-retire.tsx:32-38`
 - Constat :
@@ -4000,6 +4004,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture et `grep` ; le rendu HTTP d'une fiche du quartier n'a pas été rejoué.
 - Piste : rendre le maillon de quartier cliquable vers `cheminCanoniqueDeLaListe({ city, location })` quand ce quartier est dans le domaine indexable de sa ville, et le laisser en libellé sinon. Le fil doit alors recevoir le domaine des quartiers, que la fiche ne charge pas aujourd'hui. Corriger le docblock, et faire passer le test de « jamais `location=` » à « `location=` seulement si le quartier est indexable, et l'`item` est alors canonique de lui-même ».
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:42-64,86-89` (quartier sans `href`, docblock motivé par l'exclusion de `location`) contre `canonique.ts:270` (`CLES_CANONIQUES` porte `location`) et `canonique.ts:305-307,341-345` (quartier retenu s'il est dans le domaine de sa ville) ; `sitemap.ts:96-120` annonce ces quartiers et `construireSitemap` (`lib/sitemap.ts:306-319`) ne dédoublonne rien ; `grep -rn "location=" src` hors tests → docblocks, `canonique.ts`, `facettes.ts`, `lib/sitemap.ts` et seule `rechercheDuQuartier` de `bien-retire.tsx:32-38` ; `npx vitest run src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` → 10 verts, dont celui qui fige `not.toContain('location=')` ; aucun commit ni ticket ouvert ne l'a traité → le constat tient ; le compte de 20 quartiers indexables n'a pas été repris. Classement : V7, rendre le maillon cliquable renverse une décision de produit écrite le 2026-08-28 et ajoute à la fiche le chargement du domaine des quartiers ; seule la correction du docblock relèverait d'A6.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `fil-d-ariane.ts` pose le quartier sans `href` et `jsonld-fil-d-ariane.test.tsx` fige `not.toContain('location=')` (relu) ; les trois tests neufs rougissent (`hrefDuQuartier` absent). `hrefDuQuartier` (module serveur `fil-d-ariane-quartier.ts`, pour garder zod hors du graphe client de la fiche) rend `cheminCanoniqueDeLaListe({ city, location })` si la canonique retient le quartier, et la page le passe au fil affiché et au `BreadcrumbList` → quartier indexable lié vers `/fr/properties?city=Dakar&location=Ngor` (canonique de lui-même, graphie du catalogue), hors domaine ou domaine `null` : libellé ; 11 verts, et 363 verts sur le fil, `(public)`, `alternates` et `canonique` ; ablation du `href` → 1 rouge, du filtre → 2 rouges.
 
 ### Une page de ville ne lie ni ses quartiers, ni les autres villes, et aucune page publique ne présente les villes
 - Réf : P35.02
@@ -4016,7 +4021,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Aucune page de ville ou de quartier ne porte de texte propre : `<title>`, `<h1>` et description sortent d'un seul gabarit
 - Réf : P35.03
-- Statut : validé — palier 1 : le nombre de biens du lieu dans la description ; reste : le palier 2 (colonne de présentation), plus tard
+- Statut : fait · TCK-841 — reste : le palier 2 (colonne de présentation), plus tard
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/titre-de-la-liste.ts:58-104`, `takussan-web/src/messages/fr.json` (`meta.propertiesFiltered`), `takussan-api/database/migrations/2026_10_12_400000_create_geo_referential_tables.php:29-79`
 - Constat :
@@ -4026,6 +4031,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Établi comment : lecture. L'effet sur l'indexation (pages jugées en double) n'est pas mesurable sur le poste.
 - Piste : deux paliers. Sans texte neuf rédigé à la main : glisser le compte dans la description (« 198 biens à Dakar… »), en le prenant au domaine déjà en cache. Avec texte rédigé : une colonne de présentation par ville et par quartier, saisie depuis la console du référentiel et traduite en `fr`/`en`, rendue sous le `<h1>`. Le second palier demande une migration et un texte métier neuf.
 - Mesure (2026-10-17, c9ee68400, mesureur) : `node -e` sur `messages/fr.json` → `meta.propertiesFiltered` ne porte que `titleContract`, `titleCity`, `titleQuarter`, `subjectAny` et `description`, gabarits sans compte ; `titre-de-la-liste.ts` les compose par le seul nom du lieu ; seule la migration `2026_10_12_400000` crée ou modifie les tables `geo_*`, sans colonne de texte → le constat tient. Classement : V7, le premier palier est déjà un texte de description neuf, et V4, le second demande une migration et un texte métier rédigé.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `meta.propertiesFiltered` sans compte (relu) et les tests neufs de `titre-de-la-liste.test.ts`, `facettes.test.ts` et `metadata.test.ts` rougissent (`compteDuLieu` absent, description sans chiffre) → `compteDuLieu` lit le compte au domaine en cache (mêmes URL que `villesAvecComptes` et `quartiersDeLaVille`), et la description d'une page de lieu passe par `descriptionWithCount` : « Villa à louer à Dakar sur Takussan, parmi 198 biens publiés à Dakar : … », « … 4 biens publiés à Ngor, Dakar … », sans compte la description d'avant ; 297 verts sur `(public)` et les deux modules ; ablation de la page → 1 rouge, de la branche du compte → 4 rouges. En `wo`, la clé neuve porte le texte français.
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
@@ -4110,7 +4116,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : validé — un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), repli sur la clé commune pendant la bascule ; reste : poser les trois clés dans Dokploy (porteur, TCK-720)
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où les trois clés neuves doivent se déclarer (`check-webhook-env-keys`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4119,10 +4125,11 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - La rotation d'un jeton fuité chez LAM oblige à reconfigurer Orange et Mtarget (lu, `docs/integrations/sms.md` « Rotater en cas de compromission, mettre à jour le dashboard du provider »).
 - Piste : un jeton par fournisseur (`sms.webhook_url_tokens.{orange,mtarget,lafricamobile}`), avec repli sur la clé commune le temps de la bascule. Un test : le jeton LAM refusé sur la route Orange. Une variable d'environnement neuve est en jeu.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : test temporaire (retiré) : jeton extrait du `ret_url` réellement produit par le pilote LAM, posté sur `/api/webhooks/sms/orange/status/{jeton}` ; relu `config/sms.php:174` et les trois contrôleurs (même `sms.webhook_url_token`) → 200, tentative Orange `delivered` ; le constat tient. Classement : V5, la piste ajoute des variables d'environnement, et elle touche aussi V2 (l'authentification de trois routes que les fournisseurs appellent).
+- Mesure (2026-10-18, e673632a0, implementeur) : `grep -rn webhook_url_token app config` → les trois contrôleurs SMS et le pilote LAM lisent toujours la même `sms.webhook_url_token` (`OrangeSmsStatusController.php:68`, `MtargetSmsStatusController.php:55`, `LAfricaMobileSmsStatusController.php:51`, `LAfricaMobileSmsDriver.php:137`) : le défaut tient. Trois jetons par fournisseur, c'est trois `env('SMS_WEBHOOK_URL_TOKEN_…', '')` dans `config/sms.php`, que `scripts/check-webhook-env-keys.mjs` exige déclarées dans `.env.example` et `.env.docker` (lu, sa recherche `env('X', '')` sur `config/sms.php`) ; ces deux fichiers sont fermés à l'implémenteur. Le V5 accordé porte sur les variables, pas sur le chemin : la piste revient au porteur, non implémentée.
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
-- Statut : validé — route `GET` de vérification de Meta sur le même chemin, gardée par le jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration neuve et rend `hub.challenge` ; reste : poser la clé quand WhatsApp sera branché
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où la valeur de configuration neuve doit se déclarer (`check-webhook-env-keys`)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
 - Constat :
@@ -4131,6 +4138,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Meta exige, pour enregistrer l'URL de rappel d'une application, qu'un `GET` avec `hub.mode=subscribe`, `hub.verify_token` et `hub.challenge` rende le `challenge` (à vérifier sur la documentation de Meta). Sans lui, l'URL ne s'enregistre pas et aucun statut WhatsApp n'arrive (déduit, à vérifier).
 - Piste : une route `GET` sur le même chemin, gardée par le même jeton d'URL, qui compare `hub.verify_token` à une valeur de configuration et rend `hub.challenge` en texte brut. Un test : bon jeton → 200 et le défi, mauvais → 403.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : `php artisan route:list --path=webhooks` → seule `POST api/webhooks/whatsapp/status/{token}` ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien → aucune route `GET` et aucun lecteur du jeton de vérification ; ce que Meta exige pour enregistrer l'URL n'est pas vérifié depuis le poste. Classement : V5, le jeton de vérification est une valeur de configuration neuve à poser par environnement, et l'exigence de Meta, non lue, laisse le correctif hors de A1.
+- Mesure (2026-10-18, e673632a0, implementeur) : `php artisan route:list --path=webhooks/whatsapp` → `POST api/webhooks/whatsapp/status/{token}` seule ; `grep -rnE "hub.challenge|hub_challenge|verify_token|hub\.mode" app routes config` → rien : le défaut tient. La valeur neuve est un secret par environnement, donc un `env('…', '')` dans `config/whatsapp.php`, que `scripts/check-webhook-env-keys.mjs` exige déclaré dans `.env.example` et `.env.docker`, fermés à l'implémenteur. Le V5 accordé porte sur la valeur, pas sur le chemin : la piste revient au porteur, non implémentée.
 
 ### Rien n'abonne Orange aux accusés, et l'appariement suppose un `resourceURL` dans la notification
 - Réf : P36.06
@@ -4159,7 +4167,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : validé — les quatre points : retirer `WHATSAPP_WEBHOOK_IPS` et son docblock, déclarer `dlr_signature_ttl_days`, corriger le domaine de `docs/integrations/sms.md`, refuser un statut non signé dès qu'un jeton est posé quel que soit l'environnement
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, d'où le premier des quatre points retire `WHATSAPP_WEBHOOK_IPS`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4169,6 +4177,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Hors production, un secret WhatsApp vide laisse passer un statut non signé dès que le jeton d'URL est posé (lu, l. 84-94). La préproduction n'a aujourd'hui aucune clé `WHATSAPP_*` (lu, `docs/infra/hebergement.md`), donc la route y répond 404.
 - Piste : retirer la clé morte et son docblock, ou la brancher ; déclarer `dlr_signature_ttl_days` dans la configuration ; corriger le domaine de la documentation ; refuser un statut non signé dès qu'un jeton est posé, quel que soit l'environnement.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rn "webhook_allowed_ips|dlr_signature_ttl_days" app config` → `whatsapp.webhook_allowed_ips` sans lecteur (`RestrictIpMiddleware` lit `sms.`), `WHATSAPP_WEBHOOK_IPS` dans `.env.example:328` et `.env.docker:353` ; `dlr_signature_ttl_days` lu par le pilote (l. 131), absent de `config/sms.php` ; `docs/integrations/sms.md:78` (et non 79) porte `api.takussan.app`, que `docs/infra/hebergement.md` n'emploie pas (`api.takussan.com`, `preview.api.takussan.com`) ; relu `WhatsappStatusController.php:84-94` (secret vide accepté hors production) → les quatre points tiennent ; le seul domaine de la documentation relèverait de A6 seul. Classement : V5, retirer la clé morte touche deux fichiers d'environnement, et le quatrième point (refuser un statut non signé hors production) touche aussi V2.
+- Mesure (2026-10-18, e673632a0, implementeur) : `grep -rn "webhook_allowed_ips|WHATSAPP_WEBHOOK_IPS" app config .env.example .env.docker` → `config/whatsapp.php:65` sans lecteur (`RestrictIpMiddleware` lit `sms.`), clé aux lignes 328 et 353 des deux fichiers d'environnement ; `dlr_signature_ttl_days` lu par `LAfricaMobileSmsDriver.php:138`, absent de `config/` ; `docs/integrations/sms.md:78` porte toujours `api.takussan.app` ; `WhatsappStatusController.php:86-93` accepte un statut non signé hors production : les quatre points tiennent. Le premier retire une clé de `.env.example` et `.env.docker`, fermés à l'implémenteur, et la décision porte sur les quatre ensemble : la piste revient au porteur, non implémentée, plutôt que livrée aux trois quarts.
 
 ## Angle 37 — `TRUSTED_PROXIES` derrière Traefik et clés des limiteurs par IP
 
@@ -4214,7 +4223,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
 
 ### Tant que `API_INTERNAL_URL` n'est pas posée, les formulaires anonymes envoyés par action serveur partagent un seau pour tout le site
 - Réf : P37.03
-- Statut : validé — le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+- Statut : fait · TCK-838 — reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/actions/property.ts:120,233,263`, `takussan-web/src/lib/api.ts:23-30,672-677`, `takussan-api/app/Providers/AppServiceProvider.php` (`public-contact-lead`, `public-visit-request`), `takussan-api/app/Services/Lead/ContactLeadService.php:214,313`
 - Constat :
@@ -4225,6 +4234,7 @@ est traité par P36.07 ; le schéma et l'hôte des URL signées, par l'angle 73.
   - D-71 dit l'effet en général (« les limiteurs par visiteur sont partagés »). Ce constat nomme les trois formulaires touchés et leurs bornes. Pour la production, voir P34.04.
 - Piste : mesurer en préproduction (`RateLimiter::attempts` de la clé, ADR-0052 § 6) ; puis poser `API_INTERNAL_URL` avant la phase F, ou envoyer ces trois formulaires du navigateur. Un test du front peut garder qu'une action serveur anonyme ne part jamais sur l'URL publique quand l'environnement déclare un chemin interne.
 - Mesure (2026-10-17, 52f3928cd, mesureur) : relu `takussan-web/src/lib/api.ts:15-34` (`baseServeur()` rend l'URL publique sans `API_INTERNAL_URL`), `src/app/actions/property.ts` (`'use server'`, `apiRequest` vers `visit-request` l. 120 et `contact-lead` l. 233), `AppServiceProvider.php:397-398` (`public-visit-request` 10/h, `public-contact-lead` 5/10 min par `visitorRateLimitKey`), `docs/infra/hebergement.md:84` (IP du visiteur sur ce chemin « non mesurée ») et `docs/ardoise.md:2998` (`API_INTERNAL_URL` absente) → la partie lue tient ; le seau partagé en préproduction et l'IP rangée dans `property_contact_leads.ip` ne se mesurent pas depuis le poste. Classement : V5, le correctif pose une variable d'environnement sur Dokploy, ou déplace l'envoi des formulaires vers le navigateur (V7).
+- Mesure (2026-10-18, 41f289014, implementeur) : avant ajout, `grep -rln API_INTERNAL_URL takussan-web/src` → seul `api.ip-du-visiteur.test.ts` garde le chemin interne, sur `apiRequest('/api/test')`, aucune des trois actions ; `property.chemin-interne.test.ts` (environnement `node`, `API_INTERNAL_URL` posée, sans jeton) : `submitVisitRequest`, `submitContactLead` et `submitAgentContactLead` partent sur `http://api:8080/api/public/…`, jamais sur `origineApi()`, avec l'IP du visiteur → 3 verts dès l'écriture (le défaut est l'absence de clé en préproduction, pas le code) ; ablation de la lecture d'`API_INTERNAL_URL` dans `baseServeur()` → 3 rouges.
 
 ### `TRUSTED_PROXIES` croit tout `dokploy-network`, que Traefik partage avec d'autres services
 - Réf : P37.04
@@ -4462,3 +4472,56 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Combiné à P39.01, un loyer bien encaissé peut ainsi sortir des circuits tout en restant quittancé.
 - Piste : relever ces effets un par un (angle 76 proposé) avant de choisir entre interdire, signaler ou compenser.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : lu : la branche `REFUNDED` d'`applyStatusToPayment` n'émet aucun événement, seul `LeasePaymentSettledOnline` part (transition vers `paid`) ; `platform_payout_id` n'est remis à nul que par l'annulation d'un reversement (`PlatformPayoutService.php:178-181`), jamais par un remboursement ; la sélection de clôture (`whereNull('platform_payout_id')`, statut `paid`) est inchangée. Que la ligne remboursée reste comptée dans le reversement clos est lu, non mesuré. Classement : V7 et V1, la piste elle-même demande un choix entre interdire, signaler ou compenser.
+
+## Angle 41 — Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés
+
+*Exploré le 2026-10-18 sur `pre-dev` 51fe0cfa4, par l'explorateur. Relu par l'explorateur lui-même :
+les 36 `route.ts` de `takussan-web/src/app/api/`, `apiRequest` et `enTetesServeurAmont`
+(`src/lib/api.ts`), `origineApi()`, `ResolveActiveProfile` et `SetLocaleMiddleware` côté API, et
+les appelants de la console (`src/lib/queries/super-admin.ts`). Aucun sous-agent. Mesures par un
+test vitest temporaire, retiré depuis (charge `vm.loadavg` 2,42 sur 8 cœurs), qui appelle chaque
+relais avec un `fetch` remplacé ; l'API réelle n'a pas été jointe par le BFF. Le profil actif du
+relais `admin-users` est déjà P03.07 (« Le proxy `admin-users` ne relaie pas le profil actif »,
+`validé`) : il n'est pas repris. L'export RGPD (`data-exports/[id]/download`) et `export/[entity]`
+relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-595).*
+
+### La console super-admin rend une erreur 500 quand l'API répond 204 : la suppression d'un bien, d'une règle d'alerte et la remise d'une prise de modération sont faites, mais affichées en échec
+- Réf : P41.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/api/super-admin/[...path]/route.ts:48-56`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:34-40`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:35-41`, `takussan-web/src/app/api/announcements/[...path]/route.ts:25-31`, `takussan-web/src/app/api/impersonation/proxy/[...path]/route.ts:49`
+- Constat :
+  - Ces relais lisent le corps amont (`arrayBuffer()` ou `text()`) puis construisent `new NextResponse(corps, { status: upstream.status })`. Un corps non nul, même vide, avec un statut 204 fait lever le constructeur (mesuré : `node -e "new Response('', {status: 204})"` et la même chose avec `NextResponse` → `TypeError: Response constructor: Invalid response status code 204` ; `null` passe).
+  - Test temporaire, `fetch` remplacé par `new Response(null, { status: 204 })` (mesuré) : `super-admin` DELETE, `super-admin-properties` DELETE, `admin-users` DELETE, `announcements` POST et `impersonation/proxy` DELETE lèvent tous `Invalid response status code 204` ; seul `agencies` rend 204, parce qu'il traite à part 204, 205 et 304 (`agencies/[[...path]]/route.ts:34-36`, lu).
+  - Trois routes de l'API répondent 204 et sont appelées par ces relais (lu) :
+    - `DELETE /api/admin/moderation/{id}/claim` (`ModerationQueueController.php:80`, `assertNoContent()` dans `ModerationQueueConcurrencyTest.php:125`), appelée par `releaseModerationItem` (`super-admin.ts:687-696`) ;
+    - `DELETE /api/admin/alert-rules/{id}` (`AlertRuleController.php:41`), appelée par `deleteAlertRule` (`super-admin.ts:972-976`) ;
+    - `DELETE /api/properties/{id}` (`PropertyController.php:243`, `assertNoContent()` dans `PropertyCrudTest.php:353`), appelée par `deleteProperty` (`super-admin.ts:555-561`) via `super-admin-properties`.
+  - Les appelants attendent bien un 204 (`if (res.status === 204) return null`, `super-admin.ts:559` et `:974` ; commentaire « L'API répond 204, sans corps », `:686`). Le handler qui lève, Next rend un 500 : la mutation passe en `onError` (`SuperAdminPropertiesTable.tsx:132-136`, `moderation.tsx:441-451`), la liste n'est pas rafraîchie et l'erreur s'affiche alors que l'écriture est faite. Le 500 vu du navigateur est déduit du comportement de Next sur un handler qui lève (à vérifier sur un `next start`).
+  - Le test du relais `super-admin` (`super-admin/[...path]/__tests__/route.test.ts`) n'éprouve que des réponses 200 (lu).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : rendre `null` comme corps quand le statut amont est 204, 205 ou 304, comme le fait déjà `agencies`, dans les cinq relais. Garde : un test par relais qui renvoie un 204 amont et attend un 204, et mieux, une seule fonction de relais partagée (voir P41.03) que les cinq appellent.
+
+### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
+- Réf : P41.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
+- Constat :
+  - `grep -rln "origineApi()" src/app/api` → 22 handlers (mesuré). Ils bâtissent l'URL sur `origineApi()`, l'origine **publique** côté serveur (`config-publique.ts:78-83`, lu), et non sur `apiUrl()`/`urlApiServeur()`, qui préfèrent `API_INTERNAL_URL` (`api.ts:20-27`, lu). Seul `impersonation/proxy` passe par `urlApiServeur` et `enTetesServeurAmont`.
+  - Ils n'envoient donc ni `X-Forwarded-For` du visiteur, ni les en-têtes du chemin interne, que `apiRequest` pose de lui-même (`api.ts:690-695`, lu). Le jour où `API_INTERNAL_URL` sera posée, ces relais continueront de traverser Traefik et compteront tous les utilisateurs sous l'IP du serveur Next (déduit ; à vérifier). Aujourd'hui les limiteurs des routes qu'ils servent sont par utilisateur (`invitations-send`, `throttle:10,1` des KYC, lu `AppServiceProvider.php:514-535`) : l'effet visible est l'IP des journaux, pas un refus.
+  - Ils n'envoient pas non plus `Accept-Language`. Le `fetch` de Node pose alors `accept-language: *` (mesuré : serveur `http` local qui imprime les en-têtes reçus → `"accept-language":"*"`), que `negotiateFromHeader` ne retient pas : la langue retombe sur `preferred_language`, puis sur le défaut de l'API (lu, `SetLocaleMiddleware.php:33-41`, `:105`). Or `messageCorpsErreurBff` affiche le `message` de Laravel en le tenant pour « déjà localisé (`Accept-Language`) » (`api.ts:545`, lu) : `KycUploader.tsx:122` l'utilise sur `POST /api/agencies/{id}/kyc/documents`, qui passe par le relais `agencies`. Un utilisateur en `/en` dont `preferred_language` vaut `fr` y lirait donc le refus de validation en français (déduit ; à vérifier sur un 422 réel).
+  - Établi comment : lu, plus les deux mesures ci-dessus.
+- Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
+
+### Petites améliorations
+- Réf : P41.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
+- Constat :
+  - **Corps lus en texte.** Trois relais relaient le corps de la requête par `request.text()`, le défaut que TCK-601 a corrigé dans `super-admin` (`super-admin/[...path]/route.ts:41-45`, lu). Mesuré par le test temporaire : un corps `multipart` de quatre octets `ff 80 00 41` envoyé à `admin-users` part à l'API en `ef bf bd ef bf bd 00 41` (U+FFFD deux fois). Aucun appelant n'y envoie de fichier aujourd'hui (lu : `admin-users.ts:65,82`, `super-admin.ts:525-561`, `announcements.ts:14-21`, tous en JSON) : le défaut est latent.
+  - **Type de contenu perdu.** `feature-flags/me` et `maintenance/status` ne relaient que `cache-control` : le JSON sort en `text/plain;charset=UTF-8`, le type par défaut d'un corps texte (lu ; les appelants `FeatureFlagProvider.tsx:16`, `MaintenanceBanner.tsx:15` font `res.json()`, donc sans effet visible aujourd'hui).
+  - **Six copies du même `forward()`.** `super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` et `impersonation/proxy` réécrivent chacun le relais, et chacun diverge (corps en octets ou en texte, en-têtes de réponse relayés, 204, profil actif) : P41.01, P41.02 et le profil actif d'`admin-users` sont trois effets de cette divergence (lu).
+  - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
+- Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
