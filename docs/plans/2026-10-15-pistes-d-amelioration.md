@@ -2814,7 +2814,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
 
 ### Aucune garde générale contre la requête par ligne
 - Réf : P20.06
-- Statut : validé — la garde générale, après P20.02 à P20.05
+- Statut : fait · TCK-919
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Providers/AppServiceProvider.php`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`
 - Constat :
@@ -2823,6 +2823,7 @@ de bord, les membres d'agence et les signalements d'avis ont déjà leur budget 
   - Une interdiction du chargement paresseux en test attraperait P20.01 et P20.04, et le média de P20.05 ; elle ne verrait pas les requêtes directes (`isSuperAdmin()`, `activeVersion()`, `staffAgencyId()`) (déduit, à vérifier).
 - Piste : un test paramétré « 2 lignes = 12 lignes » sur les listes pro appelées par le front (baux, clients, réservations, demandes d'intervention, documents, conversations), sur le modèle de `PropertyIndexQueryBudgetTest::test_ac15…` ; et, à mesurer d'abord, `Model::preventLazyLoading()` dans `Tests\TestCase`.
 - Mesure (2026-10-16, 1efd784a, mesureur) : `grep -rn "preventLazyLoading\|shouldBeStrict" app tests bootstrap` → aucun résultat ; ajout temporaire de `Model::preventLazyLoading()` dans `Tests\TestCase::setUp()`, retiré depuis, charge 1,99 puis 2,94 sur 8 cœurs : `tests/Feature/Crm` et `tests/Feature/Property` → 135 verts, puis `CustomerTest`, `DocumentTest`, `ConversationTest`, `CustomerTagsTest`, `PerPageQueryParameterTest` et `BookingResponseDeadlineTest` → 57 verts, aucune exception de chargement paresseux, alors que P20.01, P20.04 et P20.05 sont ouvertes : Laravel ne lève que sur un modèle chargé avec d'autres, et ces tests ne créent pas la forme fautive (plusieurs lignes, avec notes ou photo). Le « déduit, à vérifier » est donc infirmé pour les tests existants : l'interdiction seule n'attrape rien sans un test à plusieurs lignes par liste. Classement : V8, chacune des cinq pistes P20.01 à P20.05, `retenu · autonome`, porte déjà son test de budget ; le test paramétré les recouvre, rougit tant qu'elles ne sont pas faites, et l'interdiction globale n'a pas de valeur mesurée.
+- Mesure (2026-10-18, e9d4abe2f, implementeur) : `grep` de `tests/` → aucune garde sur le total des requêtes des listes pro, seulement des comptes par table, liste par liste. Garde `ProListQueryBudgetTest` (6 listes avec les `fields[]` et `include=` du front, lignes garnies, admin d'agence, appel d'amorce non compté) → verte sur cet arbre, P20.01 à P20.05 étant fermées. Ablation : `property.media` retiré des baux, réservations et conversations et `with('media')` des documents → 4 rouges (25 → 35, 24 → 34, 23 → 33, 10 → 20) ; TCK-900 annulé → interventions 29 → 69 ; garde de colonne `notes` de TCK-705 retirée → clients 23 → 33 ; remis → 6 verts. `preventLazyLoading()` non repris, sans valeur mesurée le 2026-10-16.
 
 ## Angle 21 — Données personnelles d'un `User` sorties par `include=`
 
