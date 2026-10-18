@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { ORIGINE_SITE } from '../alternates';
+import { origineSite } from '../alternates';
 import { scriptJsonLd } from '../jsonld';
 import { type AgencePubliee, type AgentPublie, jsonLdAgence, jsonLdAgent } from '../jsonld-profil';
 import { jsonLdOrganisation, jsonLdSiteWeb } from '../jsonld-site';
@@ -130,7 +130,7 @@ describe('TCK-573 — un propriétaire n’est jamais balisé comme agent immobi
     // Ce qu'une `Person` peut porter et que la page affiche reste émis.
     expect(noeud).toMatchObject({
       name: 'Property Owner',
-      url: `${ORIGINE_SITE}/fr/agents/owner.agency4`,
+      url: `${origineSite()}/fr/agents/owner.agency4`,
       telephone: AGENT.phone,
       address: { '@type': 'PostalAddress', addressLocality: 'Dakar' },
     });
@@ -274,18 +274,18 @@ describe('TCK-435 · AC4 — du JSON valide, `</script>` compris', () => {
 
 describe('les URL des profils', () => {
   it('sont absolues et préfixées de la langue servie', () => {
-    expect(jsonLdAgence(AGENCE, 'en').url).toBe(`${ORIGINE_SITE}/en/agencies/immo-dakar`);
-    expect(jsonLdAgent(AGENT, 'wo').url).toBe(`${ORIGINE_SITE}/wo/agents/awa-diop`);
+    expect(jsonLdAgence(AGENCE, 'en').url).toBe(`${origineSite()}/en/agencies/immo-dakar`);
+    expect(jsonLdAgent(AGENT, 'wo').url).toBe(`${origineSite()}/wo/agents/awa-diop`);
   });
 
   it('l’`@id` est l’URL de la page — donc distinct par langue', () => {
-    expect(jsonLdAgence(AGENCE, 'fr')['@id']).toBe(`${ORIGINE_SITE}/fr/agencies/immo-dakar`);
+    expect(jsonLdAgence(AGENCE, 'fr')['@id']).toBe(`${origineSite()}/fr/agencies/immo-dakar`);
     expect(jsonLdAgence(AGENCE, 'en')['@id']).not.toBe(jsonLdAgence(AGENCE, 'fr')['@id']);
   });
 
   it('l’agence parente d’un agent est liée par son URL, pas par son nom seul', () => {
     const parent = jsonLdAgent(AGENT, 'fr').parentOrganization as Record<string, unknown>;
-    expect(parent.url).toBe(`${ORIGINE_SITE}/fr/agencies/immo-dakar`);
+    expect(parent.url).toBe(`${origineSite()}/fr/agencies/immo-dakar`);
   });
 });
 
@@ -371,7 +371,7 @@ describe('TCK-435 · AC5 — Organization et WebSite, une seule fois par page', 
   it('la recherche déclarée pointe une URL que le site sert RÉELLEMENT', () => {
     const action = jsonLdSiteWeb('en').potentialAction as Record<string, unknown>;
     const cible = action.target as Record<string, unknown>;
-    expect(cible.urlTemplate).toBe(`${ORIGINE_SITE}/en/properties?q={search_term_string}`);
+    expect(cible.urlTemplate).toBe(`${origineSite()}/en/properties?q={search_term_string}`);
   });
 
   it('n’invente ni logo ni compte social — aucun n’existe dans le dépôt', () => {

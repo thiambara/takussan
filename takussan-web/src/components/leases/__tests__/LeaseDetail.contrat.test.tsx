@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import { LeaseDetail } from '../LeaseDetail';
+import { origineApi } from '@/lib/config-publique';
 
 vi.mock('@/lib/queries/leases', () => {
   const mutation = () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false });
@@ -81,7 +82,7 @@ describe('LeaseDetail — contrat PDF (TCK-593 AC1)', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const origine = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
+    const origine = origineApi();
     expect(url).toBe(`${origine}/api/leases/7/contract/pdf`);
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jeton-locataire');
   });

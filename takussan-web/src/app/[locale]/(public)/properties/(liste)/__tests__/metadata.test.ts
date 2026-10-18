@@ -4,7 +4,7 @@ import { createTranslator } from 'next-intl';
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
-import { ORIGINE_SITE } from '@/lib/alternates';
+import { origineSite } from '@/lib/alternates';
 import { TIMEZONE, type Locale } from '@/i18n/config';
 import { clefDeRecherche, parametresDeRecherche } from '@/lib/recherche-publique';
 import type { SearchResult } from '@/types/search';
@@ -135,7 +135,7 @@ describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
     });
 
     // Elle ne recopie PAS l'URL demandée : ni `page`, ni `sort`, ni `per_page`.
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?type=villa`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa`);
     expect(String(meta.alternates!.canonical)).not.toContain('page=');
     expect(String(meta.alternates!.canonical)).not.toContain('sort=');
     expect(String(meta.alternates!.canonical)).not.toContain('per_page=');
@@ -143,25 +143,25 @@ describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
 
   it('la page nue est canonique d’elle-même', async () => {
     const meta = await metadonnee({});
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties`);
   });
 
   it('un filtre écarté ne crée pas d’URL indexable', async () => {
     const meta = await metadonnee({ price_min: '45000', q: 'villa piscine' });
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties`);
   });
 
   it('la canonique suit la langue servie', async () => {
     const meta = await metadonnee({ city: 'Dakar' }, 'wo');
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/wo/properties?city=Dakar`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/wo/properties?city=Dakar`);
   });
 
   it('les hreflang désignent la MÊME URL canonique, dans les trois langues', async () => {
     const meta = await metadonnee({ type: 'villa', page: '9' });
     const { languages } = meta.alternates!;
-    expect(languages!.fr).toBe(`${ORIGINE_SITE}/fr/properties?type=villa`);
-    expect(languages!.en).toBe(`${ORIGINE_SITE}/en/properties?type=villa`);
-    expect(languages!.wo).toBe(`${ORIGINE_SITE}/wo/properties?type=villa`);
+    expect(languages!.fr).toBe(`${origineSite()}/fr/properties?type=villa`);
+    expect(languages!.en).toBe(`${origineSite()}/en/properties?type=villa`);
+    expect(languages!.wo).toBe(`${origineSite()}/wo/properties?type=villa`);
   });
 });
 
@@ -222,7 +222,7 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
   it('un type MULTIPLE retombe sur le titre générique — il n’est pas canonique', async () => {
     const meta = await metadonnee({ type: 'villa,house' });
     expect(meta.title).toBe(fr.meta.properties.title);
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties`);
   });
 
   describe('une valeur HORS DOMAINE ne fuit pas dans ce qui est servi — passe 2', () => {
@@ -262,7 +262,7 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
       { city: 'Zzzinventee' },
     ])('%o : la canonique se replie sur la page nue', async (requete) => {
       const meta = await metadonnee(requete);
-      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+      expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties`);
     });
 
     it('le titre redevient le générique, pas un titre à moitié dérivé', async () => {
@@ -272,13 +272,13 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
     it('une facette VALIDE reste intacte à côté d’une invalide', async () => {
       // Le contrôle d'ablation : sans lui, une règle qui replierait TOUT passerait le bloc entier.
       const meta = await metadonnee({ type: 'villa', city: 'Zzzinventee' });
-      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?type=villa`);
+      expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa`);
       expect(meta.title).toContain('Villa');
     });
 
     it('la casse d’une ville valide se replie sur celle du catalogue', async () => {
       const meta = await metadonnee({ city: 'DAKAR' });
-      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar`);
+      expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?city=Dakar`);
       expect(meta.title).toContain('Dakar');
       expect(meta.title).not.toContain('DAKAR');
     });
@@ -295,19 +295,19 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
 describe('TCK-598 · AC11 — le quartier dans la canonique et le titre', () => {
   it('`?city=Dakar&location=Inventé` a pour canonique `?city=Dakar`', async () => {
     const meta = await metadonnee({ city: 'Dakar', location: 'Inventé' });
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?city=Dakar`);
     expect(meta.title).not.toContain('Inventé');
   });
 
   it('un quartier du domaine est canonique de lui-même, casse du catalogue', async () => {
     const meta = await metadonnee({ city: 'dakar', location: 'MERMOZ', page: '2' });
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar&location=Mermoz`);
-    expect(meta.alternates!.languages!.wo).toBe(`${ORIGINE_SITE}/wo/properties?city=Dakar&location=Mermoz`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?city=Dakar&location=Mermoz`);
+    expect(meta.alternates!.languages!.wo).toBe(`${origineSite()}/wo/properties?city=Dakar&location=Mermoz`);
   });
 
   it('un quartier sans ville ne crée pas d’URL indexable', async () => {
     const meta = await metadonnee({ location: 'Mermoz' });
-    expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties`);
   });
 
   it.each<[Locale, string]>([

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-133 — Same-origin proxy for the agency_admin users view. Forwards
@@ -21,7 +18,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const suffix = chemin !== '' ? `/${chemin}` : '';
-  const url = `${API_URL}/api/users${suffix}${request.nextUrl.search}`;
+  const url = `${origineApi()}/api/users${suffix}${request.nextUrl.search}`;
 
   const headers: Record<string, string> = {
     Accept: 'application/json',

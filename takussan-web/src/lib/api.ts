@@ -1,13 +1,9 @@
 import type { SpatieQueryParams } from '@/types/api';
+import { origineApi } from '@/lib/config-publique';
 import { cheminParLeRelais, relaisImpersonationActif } from '@/lib/impersonation';
 
-// Base URL without /api suffix — used by apiRequest (which includes /api in its paths)
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
-
-// API base with /api suffix — used by apiFetch
-const API_BASE = `${API_URL}/api`;
+// L'origine publique de l'API, sans `/api`, se lit à l'appel (`origineApi()`, ADR-0069 § 3) :
+// une constante de module figerait la valeur du premier import.
 const SUPPORTED_LOCALES = new Set(['fr', 'en', 'wo']);
 
 /**
@@ -27,19 +23,19 @@ function baseServeur(): string | undefined {
 }
 
 function apiUrl(): string {
-  return baseServeur() ?? API_URL;
+  return baseServeur() ?? origineApi();
 }
 
 /**
  * Sur le chemin interne, l'API ne connaît pas son nom public : les URL qu'elle fabrique depuis la
  * requête (`route()`, le lien d'un document publié) désigneraient l'hôte interne. Ces trois en-têtes,
- * dérivés de `NEXT_PUBLIC_API_URL`, sont **identiques pour tous les visiteurs** : ils ne fragmentent
+ * dérivés de l'origine publique de l'API (`origineApi()`), sont **identiques pour tous les visiteurs** : ils ne fragmentent
  * aucun cache de données. Laravel les croit parce que l'appel vient d'un mandataire de confiance.
  */
 function enTetesDuCheminInterne(): Record<string, string> {
   if (baseServeur() === undefined) return {};
   try {
-    const publique = new URL(API_URL);
+    const publique = new URL(origineApi());
     const proto = publique.protocol.replace(/:$/, '');
     return {
       'X-Forwarded-Host': publique.hostname,
@@ -149,7 +145,7 @@ export async function apiFetch<T>(
  * ajouté, comme dans `apiFetch`.
  */
 export function urlApiPublique(path: string): string {
-  return `${API_BASE}${path}`;
+  return `${origineApi()}/api${path}`;
 }
 
 /**

@@ -44,10 +44,7 @@ import {
   type AuditLogFilters,
   type ActivityLogEntry,
 } from '@/lib/queries/audit-logs';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '')
-  : 'http://localhost:8002';
+import { origineApi } from '@/lib/config-publique';
 
 /**
  * Les événements que le filtre propose ET dont la pastille porte un libellé (`admin.audit.events.*`).
@@ -257,7 +254,7 @@ export function AuditTrail() {
         search: search || undefined,
       };
 
-      const url = buildExportUrl(API_URL, format, exportFilters);
+      const url = buildExportUrl(origineApi(), format, exportFilters);
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ORIGINE_SITE, alternatesPubliques } from '../alternates';
+import { origineSite, alternatesPubliques } from '../alternates';
 
 /**
  * TCK-433 · AC4 — **`metadataBase` est posé, et une image OG RELATIVE en sort absolue.**
@@ -10,7 +10,7 @@ import { ORIGINE_SITE, alternatesPubliques } from '../alternates';
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
  * L'AC exige que l'épreuve porte sur une valeur **relative**, « pas sur la valeur absolue que
- * l'API rend aujourd'hui ». Assérer `metadata.metadataBase === new URL(ORIGINE_SITE)` ne
+ * l'API rend aujourd'hui ». Assérer `metadata.metadataBase === new URL(origineSite())` ne
  * cocherait que la moitié : ça dit que la clé est là, pas ce qu'elle FAIT.
  *
  * `resolveUrl` est la fonction que Next applique lui-même à `openGraph.images` et
@@ -66,28 +66,28 @@ describe('metadataBase', () => {
     const metadata = await generateMetadata();
 
     expect(metadata.metadataBase).toBeInstanceOf(URL);
-    expect((metadata.metadataBase as URL).origin).toBe(ORIGINE_SITE);
+    expect((metadata.metadataBase as URL).origin).toBe(origineSite());
     vi.doUnmock('next-intl/server');
   }, 60_000);
 
   it('une image OG RELATIVE devient absolue sur l’origine du site', () => {
     // Le cas réel visé : le jour où l'API rend un `logo_url` en `/storage/…` au lieu d'une URL
     // complète. Sans `metadataBase`, la carte sociale se casserait en silence.
-    const resolue = resolveUrl('/storage/logos/immo-dakar.png', new URL(ORIGINE_SITE));
-    expect(String(resolue)).toBe(`${ORIGINE_SITE}/storage/logos/immo-dakar.png`);
+    const resolue = resolveUrl('/storage/logos/immo-dakar.png', new URL(origineSite()));
+    expect(String(resolue)).toBe(`${origineSite()}/storage/logos/immo-dakar.png`);
   });
 
   it('sans `metadataBase`, la MÊME image relative ne devient PAS absolue', () => {
     // L'ablation, écrite dans le test : c'est ce qui prouve que la clé porte l'effet.
     const sansBase = resolveUrl('/storage/logos/immo-dakar.png', null);
-    expect(String(sansBase)).not.toBe(`${ORIGINE_SITE}/storage/logos/immo-dakar.png`);
+    expect(String(sansBase)).not.toBe(`${origineSite()}/storage/logos/immo-dakar.png`);
   });
 
   it('une image DÉJÀ absolue traverse `metadataBase` sans être réécrite', () => {
     // Les trois pages de détail rendent aujourd'hui des URL absolues servies par l'API ; poser
     // `metadataBase` ne doit rien leur changer.
     const absolue = 'https://media.takussan.test/photos/1.jpg';
-    expect(String(resolveUrl(absolue, new URL(ORIGINE_SITE)))).toBe(absolue);
+    expect(String(resolveUrl(absolue, new URL(origineSite())))).toBe(absolue);
   });
 });
 
@@ -96,10 +96,10 @@ describe('alternatesPubliques — canonique ET hreflang, dérivés du même chem
     // Depuis TCK-434, `/properties/x` rend 307 : une canonique non préfixée désignerait une
     // redirection comme version de référence.
     expect(alternatesPubliques('/properties/x', 'en').canonical).toBe(
-      `${ORIGINE_SITE}/en/properties/x`,
+      `${origineSite()}/en/properties/x`,
     );
     expect(alternatesPubliques('/properties/x', 'wo').canonical).toBe(
-      `${ORIGINE_SITE}/wo/properties/x`,
+      `${origineSite()}/wo/properties/x`,
     );
   });
 
@@ -121,8 +121,8 @@ describe('alternatesPubliques — canonique ET hreflang, dérivés du même chem
     // `estCheminLocalisable` ne regarde l'extension que du dernier segment : un `?` n'en est pas
     // une. C'est ce qui permet à la liste de passer sa canonique filtrée telle quelle.
     const { canonical, languages } = alternatesPubliques('/properties?type=villa', 'fr');
-    expect(canonical).toBe(`${ORIGINE_SITE}/fr/properties?type=villa`);
-    expect(languages!.en).toBe(`${ORIGINE_SITE}/en/properties?type=villa`);
+    expect(canonical).toBe(`${origineSite()}/fr/properties?type=villa`);
+    expect(languages!.en).toBe(`${origineSite()}/en/properties?type=villa`);
   });
 
   it('refuse une surface non localisée, comme `alternatesLangues`', () => {

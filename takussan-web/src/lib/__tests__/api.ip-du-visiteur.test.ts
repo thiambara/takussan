@@ -30,6 +30,7 @@ import { listerProfilsPublics, listerSlugsDeProfils } from '../queries/public-pr
 import { villesDuCatalogue } from '../queries/facettes';
 import { listerBiensDuSitemap } from '../queries/sitemap-catalogue';
 import { FRAICHEUR_FICHE_SECONDES, getProperty } from '../queries/public-property';
+import { origineApi } from '@/lib/config-publique';
 
 const headersMock = vi.mocked(headers);
 
@@ -214,7 +215,7 @@ describe('ADR-0052 §5 — le serveur joint l’API par son adresse interne', ()
     expect(parFetch!.url).toBe('http://api:8080/api/public/test');
     expect(parRequest!.url).toBe('http://api:8080/api/test');
     for (const { entetes } of [parFetch!, parRequest!]) {
-      expect(entetes['X-Forwarded-Host']).toBe(new URL(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').hostname);
+      expect(entetes['X-Forwarded-Host']).toBe(new URL(origineApi()).hostname);
       expect(entetes['X-Forwarded-Proto']).toMatch(/^https?$/);
       expect(entetes['X-Forwarded-Port']).toMatch(/^\d+$/);
     }

@@ -40,14 +40,26 @@ import {
  * ticketée, du côté de l'infrastructure qu'aucun commit de ce dépôt ne peut corriger.
  *
  * Le sitemap sort alors avec ses seules pages statiques, et l'échec est ÉCRIT dans le journal du
- * build. C'est la seule dégradation admise ici, et elle est bornée à cette panne-là : une origine
+ * serveur. C'est la seule dégradation admise ici, et elle est bornée à cette panne-là : une origine
  * absente ou malformée, un chemin non localisable, un dépassement de la limite de 50 000 URL font
  * tous échouer bruyamment (`src/lib/alternates.ts`, `src/lib/sitemap.ts`).
  *
- * ⚠ `revalidate` plutôt qu'un rendu statique : le catalogue bouge sans que le dépôt change, et un
- * sitemap figé au dernier déploiement vieillit exactement à la vitesse du catalogue.
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * RENDU À LA DEMANDE, DONNÉES EN CACHE UNE HEURE — P34.02, ADR-0069 § 3
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Il était PRÉRENDU au build (`revalidate = 3600`) : mesuré, le build local sortait un sitemap de
+ * **12 `<loc>`**, les seules pages statiques, l'API ne répondant pas à la machine de build. Une
+ * image de production construite avant que son API serve aurait porté ce sitemap-là, refait au
+ * mieux une heure après le démarrage. Et l'origine du site se lit désormais à l'EXÉCUTION
+ * (`SITE_URL`) : un rendu au build l'aurait figée à celle de la machine de build.
+ *
+ * Il est donc rendu à chaque requête, et ce sont ses DONNÉES qui sont en cache une heure : chaque
+ * appel à l'API porte `next: { revalidate: 3600 }` (`listerBiensDuSitemap`, `listerSlugsDeProfils`,
+ * et `facettes.ts` déjà). `force-dynamic` ne les en prive pas : Next ne force `no-store` que sur un
+ * `fetch` SANS réglage de cache (`patch-fetch.js`, `noFetchConfigAndForceDynamic`).
  */
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 /**
  * Les sources d'URL, dans l'ordre du fichier produit — le point d'extension nommé par TCK-431.

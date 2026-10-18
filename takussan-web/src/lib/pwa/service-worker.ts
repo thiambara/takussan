@@ -38,7 +38,7 @@ export interface TextesHorsLigne {
 export interface ConfigServiceWorker {
   /** Version du déploiement : entre dans le nom des caches. */
   readonly version: string;
-  /** `NEXT_PUBLIC_API_URL` normalisée, sans le suffixe `/api` (comme `lib/api.ts`). */
+  /** L'origine publique de l'API, sans le suffixe `/api` (`origineApi()`, `lib/config-publique.ts`). */
   readonly urlApi: string;
   /** Les textes de la page hors ligne, par langue. `fr` sert de repli. */
   readonly textes: Readonly<Record<string, TextesHorsLigne>>;
@@ -46,11 +46,6 @@ export interface ConfigServiceWorker {
 
 /** Préfixe commun des caches : `activate` ne supprime que les siens, jamais ceux d'autrui. */
 export const PREFIXE_CACHES = 'takussan-';
-
-/** La même normalisation que `src/lib/api.ts`, sans l'importer (il tire `next/headers`). */
-export function urlApiDepuisEnv(valeur: string | undefined): string {
-  return valeur ? valeur.replace(/\/api$/, '') : 'http://localhost:8002';
-}
 
 /** Une valeur JS littérale, sûre dans un `<script>` comme dans un script de worker. */
 function litteral(valeur: unknown): string {

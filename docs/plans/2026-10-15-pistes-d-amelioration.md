@@ -3916,7 +3916,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### Le sitemap est figé au build, et le premier build de production se fait sans API
 - Réf : P34.02
-- Statut : validé — sitemap rendu à la demande avec un cache de données d'une heure, et non plus prérendu au build ; reste : compter ses `<loc>` en F3 avant la soumission, hors agents dans le plan
+- Statut : fait · TCK-831
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/sitemap.ts:69,150-183`, `takussan-web/src/lib/queries/sitemap-catalogue.ts`, plan F2 étape 4 et F3 étape 3
 - Constat :
@@ -3927,6 +3927,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 - Piste : en F3, avant de soumettre le sitemap, compter ses `<loc>` contre le nombre de biens publiés. Ou ne pas prérendre le sitemap au build (`dynamic = 'force-dynamic'` avec un cache de données, ou un build qui échoue si la source `catalogue` est vide en production). Un test de `sitemap.ts` peut garder la règle choisie.
 - Mesure (2026-10-17, 18c6141d, mesureur) : relu `sitemap.ts` : `revalidate = 3600` est aujourd'hui à la l. 50 (non 69), la boucle des sources et son `catch` qui journalise sans échouer aux l. 151-185 ; `sitemap-catalogue.ts:1,69` lit par `apiFetch` ; le build de cet arbre (`.next`, 2026-10-15 17 h 30) donne `"compute":"static"` pour `/sitemap.xml` dans `prerender-manifest.json` et `grep -c '<loc>' .next/server/app/sitemap.xml.body` → 12 ; plan F2 étape 4 construit `:prod` avant F3, qui déploie l'API → le constat tient ; le comportement ISR en `standalone` (premier visiteur servi périmé) n'est pas mesuré. Classement : V5, le contrôle porte sur l'ordre et les étapes du plan de bascule, et V7, la `Piste` laisse le choix entre un comptage en F3, `force-dynamic` et un build qui échoue.
 - Mesure (2026-10-17, 4e394b92, humain) : le reste hors agents est fait : F3 étape 3 point 6 compte les `<loc>` contre `meta.total` de la liste publique avant toute soumission, et F2 étape 1 exige que la piste soit fusionnée avant le build `:prod`.
+- Mesure (2026-10-18, 92d8361e, humain) : fait avec l'étape 2 d'ADR-0069 (TCK-831), qui l'exigeait : l'origine du site se lit désormais à l'exécution. `sitemap.ts` et `robots.ts` sont en `dynamic = 'force-dynamic'`, et les appels du sitemap portent `next: { revalidate: 3600 }` (`FRAICHEUR_SITEMAP`, `sitemap-catalogue.ts` et `listerProfilsPublics` en mode partagé ; `facettes.ts` l'avait déjà). Build sans `NEXT_PUBLIC_*` : `prerender-manifest.json` ne prérend plus que `/_global-error`, `/apple-icon.png`, `/favicon.ico`, `/icon.svg`, `/manifest.webmanifest` ; `/robots.txt` et `/sitemap.xml` sont `ƒ` (mesuré). `force-dynamic` ne prive pas ces appels du cache : Next ne force `no-store` que sur un `fetch` sans réglage (`patch-fetch.js`, `noFetchConfigAndForceDynamic`, lu). Le comptage des `<loc>` reste en F3.
 
 ### Le plan F2 ne pose pas `media_url` pour `master`, que le `Dockerfile` exige
 - Réf : P34.03

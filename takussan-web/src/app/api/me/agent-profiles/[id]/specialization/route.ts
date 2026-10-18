@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
+import { origineApi } from '@/lib/config-publique';
 
 
 /**
@@ -10,9 +11,6 @@ import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
  * Forwards the JSON PATCH to the Laravel backend with the user's bearer
  * token. Used by the wizard step 3.
  */
-
-const API_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8002').replace(/\/api$/, '');
 
 type Params = Promise<{ id: string }>;
 
@@ -31,7 +29,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }): Promise<
   }
 
   const body = await req.text();
-  const upstream = await fetch(`${API_URL}/api/me/agent-profiles/${id}/specialization`, {
+  const upstream = await fetch(`${origineApi()}/api/me/agent-profiles/${id}/specialization`, {
     method: 'PATCH',
     body,
     headers: {
