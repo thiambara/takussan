@@ -37,6 +37,26 @@ class WaveDriver implements PaymentDriverContract
 
     public const PROVIDER = 'wave';
 
+    /**
+     * TCK-890 (P39.05) — les seuls événements Wave qui agissent sur un payable.
+     *
+     * @var array<string, string>
+     */
+    public const EVENTS = [
+        'checkout.session.completed' => PaymentEvent::TYPE_PAID,
+        'checkout.session.payment_failed' => PaymentEvent::TYPE_FAILED,
+    ];
+
+    /** L'événement d'essai du tableau de bord Wave : 200, sans effet ni trace. */
+    public const TEST_EVENT = 'test.test_event';
+
+    /**
+     * Documentés par Wave, sans lien avec un checkout : journalisés et ignorés, comme un nom inconnu.
+     *
+     * @var list<string>
+     */
+    public const IGNORED_EVENTS = ['merchant.payment_received', 'b2b.payment_received', 'b2b.payment_failed'];
+
     public function __construct(protected Integration $integration) {}
 
     public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
@@ -115,16 +135,28 @@ class WaveDriver implements PaymentDriverContract
 
         $payload = $request->all();
         $eventType = (string) ($payload['type'] ?? '');
-        $session = $payload['data'] ?? [];
+        $session = is_array($payload['data'] ?? null) ? $payload['data'] : [];
         $transactionId = (string) ($session['id'] ?? '');
-        abort_code_if($transactionId === '', 422, 'webhook.transaction_id_missing');
 
-        $type = match (true) {
-            str_contains($eventType, 'completed'), str_contains($eventType, 'succeeded') => PaymentEvent::TYPE_PAID,
-            str_contains($eventType, 'failed') => PaymentEvent::TYPE_FAILED,
-            str_contains($eventType, 'refund') => PaymentEvent::TYPE_REFUNDED,
-            default => PaymentEvent::TYPE_PENDING,
-        };
+        // TCK-890 (P39.05) — la table des événements, nom pour nom, relevée le 2026-10-18 sur
+        // docs.wave.com/webhook. Le type se devinait par `str_contains` : un `refund.completed`
+        // aurait soldé un payable ouvert. La page ne documente aucun événement de remboursement.
+        $type = self::EVENTS[$eventType] ?? null;
+        if ($type === null) {
+            $documented = in_array($eventType, self::IGNORED_EVENTS, true);
+            if ($eventType !== self::TEST_EVENT) {
+                Log::log($documented ? 'info' : 'warning', '[wave] webhook event ignored', [
+                    'integration_id' => $this->integration->getKey(),
+                    'event' => $eventType,
+                    'documented' => $documented,
+                    'transaction_id' => $transactionId,
+                ]);
+            }
+
+            return new PaymentEvent(self::PROVIDER, PaymentEvent::TYPE_IGNORED, $transactionId, ['event' => $eventType]);
+        }
+
+        abort_code_if($transactionId === '', 422, 'webhook.transaction_id_missing');
 
         return new PaymentEvent(self::PROVIDER, $type, $transactionId, [
             'amount' => $session['amount'] ?? null,

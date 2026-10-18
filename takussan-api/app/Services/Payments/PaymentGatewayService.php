@@ -316,6 +316,12 @@ class PaymentGatewayService
         $journal->authenticated($integration);
         $journal->annotate(['external_id' => $event->transactionId, 'event_type' => $event->type]);
 
+        // TCK-890 (P39.05) — un événement ignoré n'est rapproché d'aucun payable : il n'est pas
+        // un « non apparié ».
+        if ($event->type === PaymentEvent::TYPE_IGNORED) {
+            return $event;
+        }
+
         $journal->annotate(['matched_count' => $this->applyEventToMatchingPayment($event)]);
 
         return $event;
@@ -395,6 +401,10 @@ class PaymentGatewayService
      */
     public function applyEventToMatchingPayment(PaymentEvent $event): int
     {
+        if ($event->type === PaymentEvent::TYPE_IGNORED) {
+            return 0;
+        }
+
         return DB::transaction(function () use ($event): int {
             $candidates = $this->paymentsForEvent($event);
 
