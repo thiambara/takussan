@@ -4533,7 +4533,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
-- Statut : validé — les 22 relais passent par `urlApiServeur()` et `enTetesServeurAmont()` et relaient `accept-language` du navigateur ; une garde statique refuse `origineApi()` sous `src/app/api/` ; `API_INTERNAL_URL` reste à poser par le porteur
+- Statut : fait · TCK-894
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
 - Constat :
@@ -4543,6 +4543,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Établi comment : lu, plus les deux mesures ci-dessus.
 - Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
 - Mesure (2026-10-18, a2dc95960, mesureur) : `grep -rln "origineApi()" src/app/api | wc -l` → 22, inchangé ; même test vitest temporaire, retiré, requête entrante portant `accept-language: en` → `agencies`, `super-admin`, `super-admin-properties`, `admin-users` et `announcements` appellent `http://localhost:8002/api/…` sans `accept-language` ni `x-forwarded-for`, seul `impersonation/proxy` relaie `en` ; lu `SetLocaleMiddleware.php:33-41,76-80` : sans en-tête retenu, la langue retombe sur `preferred_language`. La perte de langue est donc établie ; l'effet sur un 422 réel et l'IP vue par l'API une fois `API_INTERNAL_URL` posée restent déduits. Classement : V5, le correctif fait passer 22 relais sur le chemin interne de l'API (`API_INTERNAL_URL`, Traefik), une question de déploiement que le porteur tranche.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rln "origineApi()" src/app/api` → 22 fichiers, dont un test : 21 relais, six passés par `relayerVersApi()` avec TCK-893 (P41.03), quinze restants. Test neuf `src/app/api/__tests__/relais-chemin-serveur.test.ts`, `API_INTERNAL_URL` posée, requête avec `accept-language: en` et un `x-forwarded-for` à trois entrées → avant correctif, 32 rouges sur 53 (garde statique sur les 16 `route.ts`, les 15 relais joignent `http://localhost:8002` sans langue ni IP, `maintenance/status`) ; quinze relais sur `urlApiServeur()` et `enTetesDuRelais()` → 53 verts ; ablation → les 32 mêmes rouges. `maintenance/status`, mis en cache 60 s par `fetch` dont Next met les en-têtes dans la clé (lu, `incremental-cache/index.js:283-296`), envoie les en-têtes du chemin interne sans l'IP ni la langue du visiteur (`enTetesServeurAmont({ partage: true })`, comme `apiFetch`) ; sa réponse ne porte aucun texte traduit. `API_INTERNAL_URL` n'est posée nulle part par ce ticket.
 
 ### Petites améliorations
 - Réf : P41.03
