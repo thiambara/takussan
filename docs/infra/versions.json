@@ -50,8 +50,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "docker exec <conteneur redis de deploy/server/compose.data.yml> redis-server --version",
-        "pourquoi": "Depuis ADR-0028 (2026-09-13), Redis est un conteneur épinglé dans `deploy/server/compose.data.yml`, une instance par projet. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. Avant, rien dans le dépôt ne provisionnait Redis côté serveur, alors que `.env.example` livrait `CACHE_STORE=redis`."
+        "commande": "docker exec <conteneur redis de la pile d'API, deploy/takussan/compose.api.yml> redis-server --version",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), Redis est un conteneur épinglé ; depuis le 2026-10-18 (TCK-880), un par environnement, dans la pile d'API `deploy/takussan/compose.api.yml`, et non plus dans `deploy/server/compose.data.yml`. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. Avant, rien dans le dépôt ne provisionnait Redis côté serveur, alors que `.env.example` livrait `CACHE_STORE=redis`."
       }
     },
     "mailpit": {
