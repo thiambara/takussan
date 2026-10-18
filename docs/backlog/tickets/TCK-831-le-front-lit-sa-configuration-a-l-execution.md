@@ -1,7 +1,7 @@
 ---
 id: TCK-831
 title: "Le front lit sa configuration à l'exécution : une image par commit, refusée au démarrage sans API_URL, SITE_URL et MEDIA_URL"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -69,22 +69,24 @@ fausses.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `config-publique.test.ts` : une valeur posée APRÈS l'import change ce que rendent
+- [x] AC1 — `config-publique.test.ts` : une valeur posée APRÈS l'import change ce que rendent
       `origineApi()`, `origineSite()` et `origineMedia()`. Éprouvé par ablation : une constante de
       module dans `origineApi()` rougit 5 tests.
-- [ ] AC2 — `demarrer.test.ts` rejoue `docker/demarrer.mjs` à côté d'un faux `server.js` : il
+- [x] AC2 — `demarrer.test.ts` rejoue `docker/demarrer.mjs` à côté d'un faux `server.js` : il
       démarre avec les trois origines, et sort en 1 sans démarrer, en nommant chaque clé fautive,
       pour une clé absente, blanche, avec barre finale, chemin, sans schéma ou en `ftp:`. Éprouvé
       par ablation : sans `process.exit(1)`, 9 tests rougissent ; sans le contrôle d'origine, 2.
-- [ ] AC3 — `node scripts/check-front-env-keys.mjs` est vert, et rougit, par ablation, sur chacun
+- [x] AC3 — `node scripts/check-front-env-keys.mjs` est vert, et rougit, par ablation, sur chacun
       de : un composant client qui lit `process.env.NEXT_PUBLIC_API_URL`, un fichier qui lit
-      `process.env.API_URL`, un `ARG NEXT_PUBLIC_SITE_URL` dans le `Dockerfile`, une clé de plus dans
-      `ConfigPublique`, une variable de plus lue par le module.
-- [ ] AC4 — `npm run build` : `/robots.txt` et `/sitemap.xml` ne sont plus prérendus.
-- [ ] AC5 — `deploy/takussan/smoke-web.sh` est vert : image sans `NEXT_PUBLIC_*`, démarrage refusé
+      `process.env.API_URL`, un `ARG NEXT_PUBLIC_SITE_URL` dans le `Dockerfile`, une
+      `NEXT_PUBLIC_*` dans les `build-args` de `web-ci.yml`, une clé de plus dans `ConfigPublique`,
+      une variable de plus lue par le module.
+- [x] AC4 — `npm run build` : `/robots.txt` et `/sitemap.xml` ne sont plus prérendus.
+- [x] AC5 — `deploy/takussan/smoke-web.sh` est vert : image sans `NEXT_PUBLIC_*`, démarrage refusé
       sans `SITE_URL` par sa garde, `robots.txt` sur l'origine posée, configuration écrite dans
-      `/fr`, puis la même image sur `https://www.takussan.com`.
-- [ ] AC6 — `npm run lint`, `npx tsc --noEmit` et `npm run test` sont verts.
+      `/fr`, loader de Cloudflare branché (`/_next/image` en 404 ; 200 par ablation, image
+      construite sans `TAKUSSAN_LOADER_MEDIA`), puis la même image sur `https://www.takussan.com`.
+- [x] AC6 — `npm run lint`, `npx tsc --noEmit` et `npm run test` sont verts.
 
 ## Hors périmètre
 
@@ -96,3 +98,20 @@ fausses.
 - Compter les `<loc>` du sitemap avant sa soumission : plan F3, hors agents (P34.02).
 
 ## Notes d'implémentation
+
+- **Mesuré le 2026-10-18.** `npm run lint` 0 erreur, `npx tsc --noEmit` propre, `npm run test`
+  790 fichiers et 6 695 tests verts. Build dans les conditions de l'image (aucune `NEXT_PUBLIC_*`,
+  `TAKUSSAN_LOADER_MEDIA=1`) : `/robots.txt` et `/sitemap.xml` en `ƒ`, `prerender-manifest.json`
+  ne garde que les icônes, le manifeste, `/favicon.ico` et `/_global-error`.
+- **Le script de configuration s'écrit en ligne dans `<head>`**, pas par `next/script` : un script
+  en ligne s'exécute pendant l'analyse du document, avant les bundles différés de Next. Toutes les
+  lectures sont paresseuses ; aucune n'a lieu à l'évaluation d'un module.
+- **`origineSite()` remplace la constante `ORIGINE_SITE`** dans ses 5 importateurs et 10 fichiers de
+  test. `alternates.ts` réexporte `resoudreOrigineSite` et `ORIGINE_PRODUCTION`, qui déménagent dans
+  `config-publique.ts`. Les messages d'erreur nomment `SITE_URL (NEXT_PUBLIC_SITE_URL sous Vercel)`.
+- **Deux défauts trouvés en chemin.** Le build de contrôle de `web-ci.yml` passait lui aussi trois
+  `NEXT_PUBLIC_*` factices, que la garde ne voyait pas : elle ne lisait qu'`images.yml`. Elle dérive
+  désormais la liste de tout workflow `context: takussan-web`. Et `smoke-web.sh` attendait de l'AVIF
+  sur `/_next/image` : faux depuis TCK-540 (2026-09-21), qui branchait déjà le loader dans l'image
+  de fumée — Next ne sert plus cet endpoint quand `loader: 'custom'` (404 mesuré).
+- `urlApiDepuisEnv()` (`lib/pwa/service-worker.ts`) disparaît : `/sw.js` lit `origineApi()`.
