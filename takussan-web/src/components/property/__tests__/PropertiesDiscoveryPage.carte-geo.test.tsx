@@ -38,7 +38,6 @@ beforeEach(() => {
   mockApiFetch.mockReset();
   mockApiFetch.mockResolvedValue({
     data: [],
-    facets: {},
     meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 },
   });
   filtresRecus.length = 0;

@@ -505,10 +505,11 @@ class RechercheConjonctiveTest extends TestCase
             ->assertOk()
             ->assertJsonStructure([
                 'data',
-                'facets' => ['locations', 'bedrooms', 'types'],
                 'meta' => ['total', 'per_page', 'current_page', 'last_page'],
                 'search' => ['strategy', 'terms_unmatched', 'widened_total'],
             ])
+            // TCK-910 (P01.08) — ni facettes sous le repli élargi.
+            ->assertJsonMissingPath('facets')
             ->assertJsonPath('search.strategy', 'widened')
             ->assertJsonPath('search.terms_unmatched', ['Mbour'])
             ->assertJsonPath('search.widened_total', 4)

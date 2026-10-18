@@ -19,7 +19,6 @@ import {
 function reponse(partiel: Partial<SearchResult>): SearchResult {
   return {
     data: [],
-    facets: { locations: {}, bedrooms: {}, types: {} },
     meta: { current_page: 1, last_page: 1, per_page: 30, total: 0 },
     ...partiel,
   } as SearchResult;

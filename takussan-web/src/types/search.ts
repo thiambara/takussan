@@ -575,18 +575,12 @@ export function puceDeChaqueFiltreActif(
   return puces;
 }
 
-export interface Facets {
-  locations: Record<string, number>;
-  bedrooms: Record<string, number>;
-  types: Record<string, number>;
-}
-
 /**
  * Les deux régimes de la recherche publique — {@link file://../../../docs/adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md ADR-0024}.
  *
  * - `all` : régime nominal, un bien ne sort que s'il porte TOUS les termes utiles.
  * - `widened` : la conjonction a rendu 0, la requête a été rejouée en relâchant des termes.
- *   `data`, `facets` et `meta` décrivent alors le résultat ÉLARGI — c'est-à-dire des biens qui
+ *   `data` et `meta` décrivent alors le résultat ÉLARGI — c'est-à-dire des biens qui
  *   ne répondent pas à la demande écrite.
  */
 export type RegimeDeRecherche = 'all' | 'widened';
@@ -614,7 +608,6 @@ export interface BlocDeRecherche {
 
 export interface SearchResult {
   data: import('./property').PropertyListItem[];
-  facets: Facets;
   meta: {
     current_page: number;
     last_page: number;

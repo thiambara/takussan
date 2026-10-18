@@ -79,7 +79,6 @@ vi.mock('next-intl/server', () => ({
 
 const RESULTAT: SearchResult = {
   data: [{ id: 1, slug: 'un-bien-Ab12', title: 'Un bien' } as PropertyListItem],
-  facets: {},
   meta: { current_page: 1, last_page: 1, per_page: 30, total: 1 },
 } as SearchResult;
 

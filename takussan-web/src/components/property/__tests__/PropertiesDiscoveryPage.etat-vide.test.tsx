@@ -45,7 +45,6 @@ import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
 
 const REPONSE_VIDE = {
   data: [],
-  facets: {},
   meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 },
 };
 
@@ -191,7 +190,6 @@ describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide 
   it('page au-delà de la dernière (le total n’est pas nul) : aucune puce, une seule sauvegarde', async () => {
     mockApiFetch.mockResolvedValue({
       data: [],
-      facets: {},
       meta: { total: 180, per_page: 30, current_page: 50, last_page: 6 },
     });
     const vide = await monteAZero('contract_type=rent&page=50');

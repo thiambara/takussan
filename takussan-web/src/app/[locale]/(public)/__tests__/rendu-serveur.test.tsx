@@ -170,7 +170,6 @@ const APPART = bien(3, 'Kalimba Turquoise à Pikine', 'kalimba-turquoise-a-pikin
 
 const RESULTAT_VILLA = {
   data: [VILLA_A, VILLA_B],
-  facets: {},
   meta: { current_page: 1, last_page: 1, per_page: 30, total: 2 },
 };
 
