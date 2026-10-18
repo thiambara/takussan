@@ -1074,12 +1074,13 @@ Sain (vérifié par l'agent) :
 
 ### Des erreurs de champ ni reliées ni annoncées hors des `Form*`
 - Réf : P07.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-868
 - Gravité : 🟠 risque ou dette
 - Où : `PropertyVisitDialog.tsx:263,270,276,283`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440`, `PropertyReviews.tsx:281`, `leases/CreateLeaseForm.tsx:347,359`, `leases/DepositRefundModal.tsx:182,215`
 - Constat : 13 contrôles sur 49 qui portent `aria-invalid` n'ont pas de `aria-describedby`, et 48 `<p class="text-destructive">` n'ont pas de `role`. Les `Form*` sont bien câblés (mesuré).
 - Piste : migrer ces champs vers `FormInput`/`FormError`.
 - Mesure (2026-10-15, ccabd662, mesureur) : `grep -c aria-invalid` / `aria-describedby` par fichier de `src/` : `PropertyVisitDialog.tsx` 2/0 (le `aria-invalid` est aujourd'hui l.268,281, ses erreurs `<p className="text-xs text-destructive">` l.270,283, sans `id` ni `role`), `CreateLeaseForm.tsx` 1/0 (`SelectTrigger` l.347, erreur l.359), `InviteAgentDialog.tsx` 8/0, `InviteOwnerSheet.tsx` 5/0, `InviteServiceProviderSheet.tsx` 4/0, `KpiConfigList.tsx` 1/0 ; `DepositRefundModal.tsx:182,215`, `PropertyContactMessageDialog.tsx:96`, `PropertyReservationDialog.tsx:440` et `PropertyReviews.tsx:281` portent toujours un `<p className="… text-destructive">` sans `role` ; sur une ligne, 56 `<p … text-destructive>` sans `role=` contre 144 avec (comptage grossier) ; les `Form*` relient bien leur erreur (1/1 partout) → tient. Classement : A4, attributs ARIA sans texte neuf : donner un `id` à chaque `<p>` d'erreur de champ, le citer par `aria-describedby` sur le contrôle `aria-invalid`, et poser `role="alert"` sur ces erreurs et sur les erreurs de formulaire citées, ou passer les champs par `FormInput`/`FormError`, sans changer le rendu.
+- Mesure (2026-10-18, d7c4e417, implementeur) : avant correctif, `src/test/__tests__/erreurs-de-champ-reliees.test.ts` → 18 contrôles `aria-invalid` sans `aria-describedby` hors `ui/` (`PropertyVisitDialog` 2, `KpiConfigList` 1, `InviteAgentDialog` 4, `CreateLeaseForm` 1 + son `Controller`, `InviteOwnerSheet` 5, `InviteServiceProviderSheet` 4), et des `<p text-destructive>` sans `role` dans 8 des 10 fichiers relevés ; dans la boîte de visite, l'erreur du téléphone n'était ni `alert` ni dans la description du champ → `aria-describedby` vers un `id` d'erreur posé quand l'erreur s'affiche, `role="alert"` sur les erreurs, sans texte ni rendu neufs (`DepositRefundModal` reste sans `aria-invalid`, qui rougirait sa bordure) ; ablation (sources d'avant) → 10 rouges sur 19, correctif remis → verts, et 694 tests verts sur les dossiers touchés.
 
 ### Des champs nommés par le seul placeholder
 - Réf : P07.08
