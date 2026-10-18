@@ -1520,12 +1520,13 @@ Les deux 🔴 ont été relus par la session dans le code : le `catch` de `Prope
 
 ### Réordonner les photos change leurs URL
 - Réf : P10.09
-- Statut : retenu · autonome
+- Statut : fait · TCK-892
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyMediaController.php:122`, `takussan-api/config/media-library.php:160`
 - Constat : `update(['order_column'])` touche `updated_at`, or `version_urls` construit `?v=<updated_at>`. Chaque déplacement crée donc un défaut de cache, et de nouvelles transformations Cloudflare pour ce qui passe encore par elles (lu).
 - Piste : mettre à jour `order_column` sans toucher aux horodatages, ou versionner sur un champ dédié.
 - Mesure (2026-10-15, 4e9acdd7, mesureur) : `PropertyMediaController.php:122` (`->update(['order_column' => …])`) et `config/media-library.php:160` (`version_urls`) relus ; `BaseUrlGenerator` de spatie suffixe `?v=<updated_at>` ; test temporaire retiré : deux photos téléversées, horloge avancée de 5 min, `PUT /api/properties/{id}/media/reorder` → l'URL de la première passe de `/storage/1/a.jpg?v=1792087464` à `?v=1792087765`, fichier inchangé. Le constat tient. Classement : A2, poser `order_column` sans toucher `updated_at` ne change ni le contenu ni l'ordre rendus, seulement la stabilité du cache ; aucun choix de produit.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PropertyMediaTest::test_reordering_keeps_the_photo_urls` (deux photos téléversées, horloge avancée de 5 min, `PUT …/media/reorder`, URL relues par `GET …/media`) → l'URL `thumbnail` de la première change. Correctif : `order_column` écrit sous `Media::withoutTimestamps()` → URL inchangées, ordre nouveau, 13 verts ; ablation (contrôleur remis à `pre-dev`) → 1 rouge.
 
 ### Petites améliorations
 - Réf : P10.10
