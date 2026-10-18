@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 
 /**
@@ -29,10 +30,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Params }): Promise<
   }
 
   const body = await req.text();
-  const upstream = await fetch(`${origineApi()}/api/me/agent-profiles/${id}/specialization`, {
+  const upstream = await fetch(urlApiServeur(`/me/agent-profiles/${id}/specialization`), {
     method: 'PATCH',
     body,
     headers: {
+      ...(await enTetesDuRelais(req)),
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
       'Content-Type': 'application/json',

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 export async function GET(request: NextRequest) {
   const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ data: {} });
-  const upstream = await fetch(`${origineApi()}/api/feature-flags/me`, {
-    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+  const upstream = await fetch(urlApiServeur('/feature-flags/me'), {
+    headers: { ...(await enTetesDuRelais(request)), Accept: 'application/json', Authorization: `Bearer ${token}` },
   });
   const body = await upstream.text();
   const headers: HeadersInit = {};

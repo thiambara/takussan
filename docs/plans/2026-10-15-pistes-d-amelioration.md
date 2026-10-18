@@ -3750,7 +3750,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### La fiche d'un bien n'a aucun repère `<main>`, dans aucun de ses quatre états
 - Réf : P31.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-895
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/page.tsx:170-211`, `[slug]/not-found.tsx:16-38`, `[slug]/bien-retire.tsx:52`, `[slug]/PropertyDetailContent.tsx:134`
 - Constat :
@@ -3760,10 +3760,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et parcours au Tab par CDP, code relu.
 - Piste : envelopper le corps des quatre états dans `<main>` (dans `page.tsx` et `not-found.tsx`, pas dans `PropertyDetailContent`, pour ne pas en rendre deux). Garde : un test qui rend chaque `page.tsx` publique et `not-found.tsx` et compte exactement un `main`, ou une garde statique sur les pages qui montent `Navbar`.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `[slug]/page.tsx` : branche retirée (l. 172-178) et rendu final (l. 205-211) en `<>` `Navbar`/`NavbarSpacer`/corps/`Footer` sans `<main>`, `bienIndisponible()` rend un `div` (l. 152) ; `not-found.tsx:20` un `div` ; `bien-retire.tsx:53` un `div` ; `PropertyDetailContent.tsx:134` un `div` ; `grep -n "<main"` sur le dossier `[slug]` et sur `(public)/layout.tsx` et `app/layout.tsx` → 0 ligne ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, repère `<main>` ajouté autour du corps des quatre états, sans rendu visuel ni texte neuf, avec un test qui compte un seul `main`.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rn "<main"` sur `[slug]/` → 0 ligne, inchangé ; quatre tests neufs qui comptent les `main` du rendu (trouvé, indisponible, retiré dans `page.server.test.tsx`, introuvable dans `not-found.repere-main.test.tsx`) → avant correctif, 4 rouges (0 `main`) ; `<main>` autour du corps dans `page.tsx` (deux rendus) et à la place du `div` de contenu de `not-found.tsx` → un seul `main` par état, qui contient le `h1` et ni la barre ni le pied, 24 verts ; ablation → les 4 mêmes rouges. Tests voisins de la surface publique (`(public)/__tests__`, `src/test/__tests__`) : 16 fichiers, 202 verts. axe non rejoué.
 
 ### Les pages d'authentification n'ont pas de repère `<main>`
 - Réf : P31.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-896
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(auth)/layout.tsx:58-138`
 - Constat :
@@ -3772,6 +3773,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe, code relu.
 - Piste : `<main>` sur le panneau du formulaire (l. 97), le panneau visuel restant hors du repère. Même garde que P31.02.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx` : le panneau du formulaire est un `div` (l. 97) et le formulaire est dans `div.w-full.max-w-md` (l. 125) ; `grep -rn "<main" "src/app/(auth)"` → 0 ligne, tests compris ; les cinq `page.tsx` de `(auth)/auth/` n'en rendent pas ; aucun commit sur `takussan-web` depuis 7abe36d ; axe non rejoué → tient. Classement : A4, le `div` du panneau devient `<main>` sans changement visuel ni texte neuf.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rn "<main" "src/app/(auth)"` → 0 ligne, inchangé ; test neuf `src/app/(auth)/__tests__/layout.repere-main.test.tsx`, qui rend le layout et compte les `main` → avant correctif, rouge (0 `main`) ; le `div` du panneau du formulaire devient `<main>`, classes gardées → un seul `main`, qui contient la page et pas le `h2` du panneau visuel ; ablation → le même rouge. `src/app/(auth)` : 42 verts. axe non rejoué.
 
 ### Aucun lien d'évitement hors de la console super-admin
 - Réf : P31.04
@@ -4537,7 +4539,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
-- Statut : validé — les 22 relais passent par `urlApiServeur()` et `enTetesServeurAmont()` et relaient `accept-language` du navigateur ; une garde statique refuse `origineApi()` sous `src/app/api/` ; `API_INTERNAL_URL` reste à poser par le porteur
+- Statut : fait · TCK-894
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
 - Constat :
@@ -4547,10 +4549,11 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Établi comment : lu, plus les deux mesures ci-dessus.
 - Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
 - Mesure (2026-10-18, a2dc95960, mesureur) : `grep -rln "origineApi()" src/app/api | wc -l` → 22, inchangé ; même test vitest temporaire, retiré, requête entrante portant `accept-language: en` → `agencies`, `super-admin`, `super-admin-properties`, `admin-users` et `announcements` appellent `http://localhost:8002/api/…` sans `accept-language` ni `x-forwarded-for`, seul `impersonation/proxy` relaie `en` ; lu `SetLocaleMiddleware.php:33-41,76-80` : sans en-tête retenu, la langue retombe sur `preferred_language`. La perte de langue est donc établie ; l'effet sur un 422 réel et l'IP vue par l'API une fois `API_INTERNAL_URL` posée restent déduits. Classement : V5, le correctif fait passer 22 relais sur le chemin interne de l'API (`API_INTERNAL_URL`, Traefik), une question de déploiement que le porteur tranche.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : `grep -rln "origineApi()" src/app/api` → 22 fichiers, dont un test : 21 relais, six passés par `relayerVersApi()` avec TCK-893 (P41.03), quinze restants. Test neuf `src/app/api/__tests__/relais-chemin-serveur.test.ts`, `API_INTERNAL_URL` posée, requête avec `accept-language: en` et un `x-forwarded-for` à trois entrées → avant correctif, 32 rouges sur 53 (garde statique sur les 16 `route.ts`, les 15 relais joignent `http://localhost:8002` sans langue ni IP, `maintenance/status`) ; quinze relais sur `urlApiServeur()` et `enTetesDuRelais()` → 53 verts ; ablation → les 32 mêmes rouges. `maintenance/status`, mis en cache 60 s par `fetch` dont Next met les en-têtes dans la clé (lu, `incremental-cache/index.js:283-296`), envoie les en-têtes du chemin interne sans l'IP ni la langue du visiteur (`enTetesServeurAmont({ partage: true })`, comme `apiFetch`) ; sa réponse ne porte aucun texte traduit. `API_INTERNAL_URL` n'est posée nulle part par ce ticket.
 
 ### Petites améliorations
 - Réf : P41.03
-- Statut : validé — une fonction `relayerVersApi()` dans `src/lib/` (corps en octets, `null` sur 204/205/304, `content-type`, `content-disposition`, `cache-control`, `accept-language`, en-têtes serveur), appelée par les six relais ; le compte et la liste de `takussan-web/CLAUDE.md` sont corrigés en session le 2026-10-18
+- Statut : fait · TCK-893
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
 - Constat :
@@ -4560,6 +4563,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
 - Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-18, a2dc95960, mesureur) : même test vitest temporaire, retiré → corps `ff 80 00 41` envoyé à `admin-users` part en `ef bf bd ef bf bd 00 41` (`request.text()` toujours l. 32, et `super-admin-properties` l. 31, `announcements` l. 22) ; `feature-flags/me` et `maintenance/status` rendent un JSON amont en `text/plain;charset=UTF-8` ; `find src/app/api -name route.ts | wc -l` → 36 alors que `takussan-web/CLAUDE.md` dit toujours « 31 route handlers » (l. 72) ; les six `forward()` divergents sont relus. Les quatre parties tiennent. Classement : V5, la `Piste` réunit les relais dans une fonction qui pose aussi les en-têtes serveur et `accept-language` de P41.02, donc le même chemin interne ; prises seules, la lecture en octets et le `content-type` (A1, précédent TCK-601) et le compte du document (A6) seraient autonomes.
+- Mesure (2026-10-18, ebb6e1ca8, implementeur) : test neuf `src/app/api/__tests__/relais-commun.test.ts`, `API_INTERNAL_URL` posée, requête `POST` multipart aux octets `ff 80 00 41` avec `accept-language: en` et un `x-forwarded-for` à trois entrées → avant correctif, 5 rouges sur 6 (`super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` joignent `origineApi()`), `impersonation/proxy` vert ; `relayerVersApi()` (`src/lib/relais-api.ts`) appelée par les six relais → 6 verts (octets intacts, langue, `X-Forwarded-For` du visiteur, `X-Forwarded-Host`, `content-type`, `content-disposition` et `cache-control` rendus) ; ablation (les six relais remis) → les 5 mêmes rouges. `src/app/api` et `api-relais-impersonation` : 14 fichiers, 166 verts. `takussan-web/CLAUDE.md` n'est pas touché (corrigé en session par le porteur).
 
 ## Angle 42 — Sauvegardes PostgreSQL : existence, rétention, restauration
 
