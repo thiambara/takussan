@@ -121,7 +121,11 @@ class AdminGlobalSearchService
             ->concat($this->bookingPayments(BookingPayment::query()->where(fn (Builder $w) => $w->whereIn('reference_number', $forms)->orWhereIn('transaction_id', $forms))))
             ->concat($this->leasePayments(LeasePayment::query()->where(fn (Builder $w) => $w->whereIn('reference_number', $forms)->orWhereIn('transaction_id', $forms))))
             ->concat($this->payouts(Payout::query()->where(fn (Builder $w) => $w->whereIn('reference_number', $forms)->orWhereIn('transaction_id', $forms))))
-            ->concat($this->agencies(Agency::query()->whereRaw("metadata->'legal_info'->>'ninea' = ?", [$ninea])));
+            // P47.01 (TCK-959) — la colonne `agencies.ninea` est la source depuis TCK-594 ; `metadata`
+            // ne garde que ce que sa migration n'a pas recopié (une valeur plus longue que la colonne).
+            ->concat($this->agencies(Agency::query()->where(fn (Builder $w) => $w
+                ->where('ninea', $ninea)
+                ->orWhereRaw("metadata->'legal_info'->>'ninea' = ?", [$ninea]))));
     }
 
     /** @return Collection<int,array<string,mixed>> */

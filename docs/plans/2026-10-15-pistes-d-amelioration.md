@@ -4962,7 +4962,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une seule ligne de paiement avant l'activation supprime tout l'échéancier, et le locataire peut la poser
 - Réf : P46.04
-- Statut : validé — `scheduleUnderLock` ne compte que les échéances de loyer qu'il émet (`payment_type=rent` hors annulées), et la création d'une ligne est refusée sur un bail qui n'est pas actif
+- Statut : fait · TCK-957
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:163-198`, `takussan-api/app/Jobs/GenerateLeasePaymentSchedule.php:23`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:409-421`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-46`
 - Constat :
@@ -4976,10 +4976,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - et refuser la création d'une ligne sur un bail qui n'est pas actif, ou fermer la voie du payeur (P46.01).
   - Garde : un test de `GenerateLeasePaymentScheduleTest` avec une caution préexistante.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `LeaseService.php:187-198` (`$lease->payments()->count()`, toutes lignes) ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : bail `draft` de 12 mois à 100 000, caution `pending` posée par la voie imbriquée → 201, puis `activate()` → 0 échéance de loyer, 1 ligne au total, et `POST /api/leases/{id}/payments/generate-schedule` → 422 « The payment schedule has already been generated. » ; témoin sans caution → 12 échéances ; le locataire d'un bail `pending_signature` poste `amount=1` sur `/api/payments` → 201 `pending`, et après `completeActivation()` le bail n'a qu'une ligne de loyer, à 1,00. Note : la route est `leases/{lease}/payments/generate-schedule` (`routes/api/leases.php:33`). Classement : V1, ce que compte l'échéancier et l'état de bail qui autorise une ligne sont des choix sur l'argent.
+- Mesure (2026-10-18, e735ac81e, implementeur) : avant correctif, `GenerateLeasePaymentScheduleTest` rougit sur une caution `pending` préexistante (0 échéance contre celles du bail témoin) et sur un loyer `cancelled` (`lease.schedule_exists`), et `LeaseTest` sur un brouillon (`POST /api/leases/{id}/payments` → 201) → `scheduleUnderLock` ne compte que les loyers non annulés, `LeasePaymentController::store` rend 422 `lease_payment.lease_not_active` hors `active` et `terminating` ; ablation des deux correctifs → les 3 mêmes rouges, remis → verts. `POST /api/payments` laissé à son retrait par TCK-940 (PR #666).
 
 ### Petites améliorations
 - Réf : P46.05
-- Statut : validé — refuser `deposit_refund` et `amount=0` à la création imbriquée, et juger `generate-schedule` par `recordPayment` (`payments.record`) ; reste : les helpers de `/api/payments`, route retirée en session avec P46.01
+- Statut : fait · TCK-958 — reste : les helpers de `/api/payments`, route retirée en session avec P46.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:40-43`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:149-155`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:388-421`
 - Constat :
@@ -4993,6 +4994,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - décider la capacité de `generate-schedule` ;
   - si la route `/api/payments` survit, déléguer ses helpers à `LeasePolicy::recordPayment` et à `BookingMoneyAccess`.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `StoreLeasePaymentRequest.php:41` (`min:0`), `LeaseController.php:149-152` (`authorize('update')`), `BookingMoneyAccess.php:45,76` (`isStaffAt`, `agency_id ?? property.agency_id`) contre `PaymentController.php:388-421` ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : `POST /api/leases/{id}/payments` `deposit_refund`, `amount=0` → 201 `pending` ; agent sans `payments.record` → `generate-schedule` 200, `payments_created: 12`. `grep` de `generate-schedule` dans TCK-587 → rien : l'intention n'est écrite nulle part. Classement : V1 et V8, trois correctifs sans lien, dont une décision de capacité sur l'écriture d'échéances.
+- Mesure (2026-10-18, e735ac81e, implementeur) : avant correctif, `LeasePaymentNestedCreationRulesTest` rougit 3 fois (`deposit_refund` → 201, `amount=0` → 201, agent sans `payments.record` → `generate-schedule` 200) → `amount` en `gt:0`, `payment_type` sans `deposit_refund`, `generate-schedule` jugé par `recordPayment` ; ablation → les 3 mêmes rouges, remis → verts ; les cinq autres types restent acceptés.
 
 ## Angle 47 — Réglages d'agence : trois magasins, un seul lecteur ?
 
@@ -5000,7 +5002,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### La recherche globale du super-admin ne trouve plus une agence par son NINEA
 - Réf : P47.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-959
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:124`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:95-116`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:94-99`, `takussan-api/database/migrations/2026_10_07_200500_add_payout_settings_and_legal_columns_to_agencies_table.php:50-57`, `takussan-api/tests/Feature/Admin/Platform/AdminGlobalSearchTest.php:91-98`
 - Constat :
@@ -5012,6 +5014,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré.
 - Piste : chercher sur la colonne `agencies.ninea`, avec un repli sur `metadata.legal_info` tant que des lignes d'avant la migration peuvent exister. Changer le test pour qu'il sème la colonne, et vérifier par ablation qu'il rougit sur la requête actuelle.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AdminGlobalSearchService.php:124` (`metadata->'legal_info'->>'ninea'`), `AgencyKindFlipService.php:96-99` (écrit la colonne puis `continue`), `AgencyUpdateRequest.php:94` (règle `ninea`) et `AdminGlobalSearchTest.php:93` (sème `metadata.legal_info`) ; `git log 33535e36a..HEAD -- takussan-api/app` → aucun commit ; test temporaire `tests/Feature/TmpMesureur/SondeP47Test.php` (base de test PostgreSQL, charge 1,67 sur 8 cœurs), retiré : `Agency::factory()->create(['ninea' => '005012345'])` puis `GET /api/admin/search?q=005012345` en opérateur support → `data: []`. Classement : A1, TCK-600 veut le NINEA cherchable « par l'agence » et TCK-594 fait de la colonne `agencies.ninea` la source : chercher la colonne, avec repli sur `metadata.legal_info`, ne demande aucun choix.
+- Mesure (2026-10-18, e735ac81e, implementeur) : `AdminGlobalSearchTest` réécrit pour semer `agencies.ninea` rougit avant correctif (`[]`) → `byToken` cherche la colonne, ou `metadata->'legal_info'->>'ninea'` en repli ; ablation du correctif → ce rouge, du repli seul → le test neuf du repli rougit ; remis → 11 verts.
 
 ### L'écran de configuration d'agence enregistre le fuseau horaire, et l'API le jette
 - Réf : P47.02
@@ -5080,7 +5083,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `metadata.legal_info` reste exposé et décrit comme la source, alors qu'il n'est plus écrit
 - Réf : P47.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-960 — reste : l'exposition de `metadata.legal_info` par `AgencyResource` et son type front (V3), et le retrait des données restantes (V4)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyKindFlipService.php:37-44,95-116`, `takussan-api/app/Http/Resources/AgencyResource.php:61-67`, `takussan-web/src/types/agency.ts:17-30,82`
 - Constat :
@@ -5089,6 +5092,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu.
 - Piste : corriger le docblock, et retirer la branche `legal_info` du flip. Le retrait des données restantes est une décision de schéma, à prendre à part.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AgencyKindFlipService.php:37-44` (docblock « for now everything below lives in `metadata.legal_info` »), l. 92-116 et `AgencyResource.php:60-67` ; `grep -rn legal_info takussan-web/src` → seul `types/agency.ts`. Constat inexact sur la ligne : le `continue` de la l. 108 est atteint à chaque champ ; c'est la branche des l. 111-113, qui écrit `legal_info`, qui ne l'est jamais (les quatre `LEGAL_FIELDS` ont une colonne dans `COLUMN_OF`). `metadata.legal_info` est encore lu l. 103, comme valeur choisie avant la migration. Classement : A6, corriger le docblock pour dire que les quatre champs s'écrivent en colonne et retirer la branche inatteignable, sans changer ce que rend le flip ; l'exposition par `AgencyResource` et le retrait des données (V3, V4) restent hors de ce classement.
+- Mesure (2026-10-18, e735ac81e, implementeur) : relu `AgencyKindFlipService.php` (branche `legal_info` après le `continue`, jamais atteinte) → docblock de `LEGAL_FIELDS` et commentaire d'`AgencyResource` corrigés, branche et réécriture de `metadata.legal_info` retirées ; code mort, donc pas de rouge avant correctif : la garde neuve `test_every_legal_field_has_its_column` rougit quand on ajoute un champ sans colonne, verte retiré ; `AgencyKindFlipTest` 8 verts, `legal_info` intact après le flip.
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07

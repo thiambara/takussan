@@ -3,8 +3,10 @@
 namespace Tests\Feature\Jobs;
 
 use App\Jobs\GenerateLeasePaymentSchedule;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentFrequency;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Model\LeaseService;
@@ -194,5 +196,57 @@ class GenerateLeasePaymentScheduleTest extends TestCase
             ['2026-07-01', '2026-09-30', 300000.0],
             ['2026-10-01', '2026-10-31', 100000.0],
         ], $this->scheduleOf(PaymentFrequency::Quarterly, '2026-10-31'));
+    }
+
+    /**
+     * P46.04 (TCK-957) — l'échéancier ne compte que les échéances de loyer qu'il émet. Il comptait
+     * toutes les lignes du bail : une caution saisie avant l'activation faisait taire la tâche
+     * (0 échéance de loyer) et refuser le bouton manuel par `lease.schedule_exists`.
+     */
+    public function test_a_deposit_line_does_not_count_as_an_existing_schedule(): void
+    {
+        $lease = $this->activeLease();
+        LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'payment_type' => LeasePaymentType::Deposit,
+            'status' => PaymentStatus::Pending,
+        ]);
+
+        $witness = app(LeaseService::class)->generateSchedule($this->activeLease());
+        $created = app(LeaseService::class)->generateScheduleIfMissing($lease);
+
+        $this->assertGreaterThan(0, $witness);
+        $this->assertSame($witness, $created);
+        $this->assertSame($witness, $lease->payments()->where('payment_type', LeasePaymentType::Rent->value)->count());
+    }
+
+    /** P46.04 (TCK-957) — une échéance de loyer annulée (par un renouvellement) n'est plus due. */
+    public function test_a_cancelled_rent_line_does_not_count_as_an_existing_schedule(): void
+    {
+        $lease = $this->activeLease();
+        LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'payment_type' => LeasePaymentType::Rent,
+            'status' => PaymentStatus::Cancelled,
+        ]);
+
+        $witness = app(LeaseService::class)->generateSchedule($this->activeLease());
+
+        $this->assertGreaterThan(0, $witness);
+        $this->assertSame($witness, app(LeaseService::class)->generateSchedule($lease));
+    }
+
+    /** P46.04 (TCK-957) — une échéance de loyer due bloque toujours une seconde génération. */
+    public function test_a_live_rent_line_still_counts_as_an_existing_schedule(): void
+    {
+        $lease = $this->activeLease();
+        LeasePayment::factory()->create([
+            'lease_id' => $lease->id,
+            'payment_type' => LeasePaymentType::Rent,
+            'status' => PaymentStatus::Pending,
+        ]);
+
+        $this->assertSame(0, app(LeaseService::class)->generateScheduleIfMissing($lease));
+        $this->assertSame(1, $lease->payments()->count());
     }
 }
