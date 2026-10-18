@@ -3346,7 +3346,7 @@ forcée »).*
 
 ### Une quittance trimestrielle ou annuelle n'imprimera que le premier mois de sa période
 - Réf : P26.03
-- Statut : validé — « du … au … » dès que la période dépasse un mois, après la fusion de #453
+- Statut : fait · TCK-834
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/resources/views/pdf/receipts/rent.blade.php:10-13,53-57`
 - Constat :
@@ -3356,6 +3356,7 @@ forcée »).*
   - La base de dev porte 4 baux trimestriels et 4 annuels (mesuré).
 - Piste : imprimer « du … au … » à partir de `period_start` et `period_end` dès que la période dépasse un mois. Le test de quittance porte une échéance trimestrielle.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `rent.blade.php:10-13,53-57` (période = `period_start->translatedFormat('F Y')`) ; `grep -rn period_end resources/views/pdf` → seul `statements/owner.blade.php:19` ; `SELECT` sur `lease_payments` `rent` → 0 échéance sur 3 368 de plus de 32 jours, et `leases` : 4 `quarterly`, 4 `yearly`, 568 `monthly` ; `tinker` en lecture, rendu de `pdf.receipts.rent` avec une échéance non enregistrée du 2027-01-01 au 2027-03-31 → « Période January 2027 ». Le défaut ne se voit qu'une fois la PR #453 fusionnée : aujourd'hui aucune échéance ne couvre plus d'un mois. Classement : V7, la forme de la période imprimée sur une attestation de paiement est un texte d'acte neuf, et dépend de P04.01, encore ouverte.
+- Mesure (2026-10-18, b9850853, implementeur) : #453 (P04.01) fusionnée le 2026-10-16 ; reproduit par `QuittancePeriodeTest` avant correctif : échéance du 2027-01-01 au 2027-03-31 → « Janvier 2027 », sans « du … au … ». `rent.blade.php` imprime « du 1 janvier 2027 au 31 mars 2027 » quand `period_end` dépasse `period_start + 1 mois − 1 jour` ; une échéance d'un mois, même du 15 au 14, garde « Octobre 2026 ». Ablation : condition à `false`, les cas trimestriel et annuel rougissent, remis verts ; tests voisins des quittances verts (28 tests).
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
