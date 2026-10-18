@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { origineSite } from '../alternates';
@@ -144,30 +147,80 @@ describe('construireSitemap', () => {
   });
 });
 
+/**
+ * Ce qu'un moteur fait d'une règle `Disallow` (RFC 9309 § 2.2.2, et l'extension `$` que Google et
+ * Bing lisent) : correspondance par PRÉFIXE, `*` pour toute suite, `$` pour la fin du chemin.
+ * `Allow: /` ne pèse rien contre une règle interdite qui frappe : la plus longue l'emporte.
+ */
+function regleFrappe(regle: string, chemin: string): boolean {
+  const ancree = regle.endsWith('$');
+  const corps = (ancree ? regle.slice(0, -1) : regle)
+    .split('*')
+    .map((morceau) => morceau.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return new RegExp(`^${corps}${ancree ? '$' : ''}`).test(chemin);
+}
+
+const estInterdit = (chemin: string) =>
+  CHEMINS_INTERDITS_AUX_ROBOTS.some((regle) => regleFrappe(regle, chemin));
+
+/**
+ * TCK-926 (P34.05) — les fichiers servis à la RACINE du site, relevés sur le disque et non écrits
+ * à la main : les fichiers de `public/`, les fichiers de métadonnées de `src/app` (`apple-icon.png`,
+ * `favicon.ico`, `icon.svg`), et les routes de fichier (`robots.ts` → `/robots.txt`…).
+ */
+function fichiersServisALaRacine(): string[] {
+  const racine = path.resolve(__dirname, '../../..');
+  const deApp = fs
+    .readdirSync(path.join(racine, 'src/app'), { withFileTypes: true })
+    .flatMap((entree) => {
+      const route = ROUTES_DE_FICHIER[entree.name];
+      if (route) return [route];
+      if (entree.isDirectory()) return /\.[a-z]+$/.test(entree.name) ? [`/${entree.name}`] : [];
+      return /\.(?:png|ico|svg|jpg|jpeg|webp|txt|xml)$/.test(entree.name) ? [`/${entree.name}`] : [];
+    });
+  const dePublic = fs.readdirSync(path.join(racine, 'public')).map((nom) => `/${nom}`);
+  return [...deApp, ...dePublic];
+}
+
+const ROUTES_DE_FICHIER: Record<string, string> = {
+  'robots.ts': '/robots.txt',
+  'sitemap.ts': '/sitemap.xml',
+  'manifest.ts': '/manifest.webmanifest',
+};
+
 describe('CHEMINS_INTERDITS_AUX_ROBOTS — TCK-431 · AC2', () => {
-  it('interdit les quatre surfaces que l’AC nomme', () => {
+  it('interdit les quatre surfaces que l’AC nomme, elles et ce qu’elles contiennent', () => {
     // L'AC exige que le test échoue si l'une des quatre disparaissait : elles sont nommées une par
     // une, pas comptées.
-    for (const chemin of ['/app', '/admin', '/super-admin', '/api']) {
-      expect(CHEMINS_INTERDITS_AUX_ROBOTS, chemin).toContain(chemin);
+    for (const segment of ['/app', '/admin', '/super-admin', '/api']) {
+      expect(estInterdit(segment), segment).toBe(true);
+      expect(estInterdit(`${segment}/x`), `${segment}/x`).toBe(true);
     }
   });
 
-  it('interdit aussi les trois autres surfaces internes', () => {
-    for (const chemin of ['/auth', '/onboarding', '/publish']) {
-      expect(CHEMINS_INTERDITS_AUX_ROBOTS, chemin).toContain(chemin);
+  it('interdit aussi les autres surfaces internes', () => {
+    for (const chemin of ['/auth', '/auth/login', '/onboarding', '/publish', '/invitations/accept', '/maintenance']) {
+      expect(estInterdit(chemin), chemin).toBe(true);
     }
   });
 
   it('n’interdit PAS `/_next` — le CSS et le JS du site', () => {
     // Un moteur qui ne peut charger ni la feuille de style ni le JS rend la page nue et juge ce
     // qu'il voit. C'est la soustraction explicite de `SEGMENTS_SERVIS_AUX_ROBOTS`.
-    expect(CHEMINS_INTERDITS_AUX_ROBOTS).not.toContain('/_next');
+    expect(estInterdit('/_next/static/css/app.css')).toBe(false);
   });
 
-  it('n’interdit aucune surface publique', () => {
-    for (const chemin of ['/fr', '/properties', '/agencies', '/agents', '/playground']) {
-      expect(CHEMINS_INTERDITS_AUX_ROBOTS, chemin).not.toContain(chemin);
+  it('n’interdit aucune surface publique, ni un sosie de préfixe', () => {
+    for (const chemin of ['/fr', '/properties', '/agencies', '/agents', '/playground', '/appartements', '/apiary']) {
+      expect(estInterdit(chemin), chemin).toBe(false);
     }
+  });
+
+  it('TCK-926 — n’interdit aucun fichier servi à la racine (`/apple-icon.png` sous `Disallow: /app`)', () => {
+    const fichiers = fichiersServisALaRacine();
+    // Non vide, et l'icône Apple dedans : sinon le test passerait sur une liste vide.
+    expect(fichiers).toContain('/apple-icon.png');
+    expect(fichiers.filter(estInterdit)).toEqual([]);
   });
 });

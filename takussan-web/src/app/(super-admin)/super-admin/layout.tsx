@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getMeOperateurAction } from '@/app/actions/auth';
 import { getOperatorToken } from '@/lib/session';
@@ -9,6 +10,12 @@ import { messagesPour } from '@/i18n/messages';
 import { configurationDoubleFacteurExigee } from '@/lib/double-facteur';
 import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
 
+
+/**
+ * TCK-926 (P34.05) — interdit aux robots (`CHEMINS_INTERDITS_AUX_ROBOTS`), et `noindex` en plus :
+ * `Disallow` empêche l'exploration, pas l'indexation d'une URL liée de l'extérieur.
+ */
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /**
  * Super-admin layout (TCK-145). Server-side guard, before children render — no client flash of

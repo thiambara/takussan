@@ -1,3 +1,4 @@
+import { ORIGINE_PRODUCTION, origineSite } from '@/lib/config-publique';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { destinationInterne } from '@/lib/redirection-interne';
 import { LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME } from '@/i18n/config';
@@ -50,6 +51,20 @@ export const ENTETE_LOCALE_NEXT_INTL = 'X-NEXT-INTL-LOCALE';
  * quels — trois surfaces sur lesquelles ce fichier n'a rien à faire.
  */
 export function proxy(request: NextRequest): NextResponse {
+  const reponse = router(request);
+  if (origineSite() !== ORIGINE_PRODUCTION) reponse.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  return reponse;
+}
+
+/**
+ * TCK-926 (P34.05) — {@link proxy} ajoute `X-Robots-Tag: noindex, nofollow` à tout ce que rend
+ * cette fonction quand l'origine du site n'est pas celle de la production : la préproduction
+ * n'avait, contre l'indexation, que l'authentification basique de Dokploy, hors du dépôt. Un
+ * en-tête, et non `Disallow: /` dans `robots.ts` : un moteur qui ne peut pas charger une page ne
+ * lit jamais son `noindex`. ⚠ Le `matcher` exclut `/api`, `/_next` et les fichiers : l'en-tête ne
+ * couvre que les pages et leurs redirections.
+ */
+function router(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
