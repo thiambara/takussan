@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
   // importe réellement. L'image (takussan-web/Dockerfile) ne porte ni `node_modules` entier ni les
   // dépendances de dev. Sans effet sur `next dev`.
   output: 'standalone',
+  // TCK-950 (P44.03) — pas de `X-Powered-By: Next.js` : il annonçait la pile à chaque réponse
+  // (mesuré sur le standalone), sans rien apporter à personne. `smoke-web.sh` le vérifie sur l'image.
+  poweredByHeader: false,
   // React Compiler — ACTIVÉ, décision ADR-0015 (TCK-318). Mesuré sur ce dépôt : 870/870
   // composants compilés sans un seul abandon, +3,6 à +6,1 % de JS gzippé par page, et un
   // re-rendu de grille de 200 cartes qui passe de ~35 ms à ~1,5 ms. Exige
