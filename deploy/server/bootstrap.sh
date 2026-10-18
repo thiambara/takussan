@@ -264,4 +264,37 @@ systemctl daemon-reload
 systemctl enable --now plages-cloudflare.timer
 [ -x /usr/local/sbin/plages-cloudflare ] || echo "⚠ /usr/local/sbin/plages-cloudflare absent : copier deploy/server/plages-cloudflare.sh (runbook), le timer attend."
 
+# ── 10. Fraîcheur des sauvegardes de base, deux fois par jour (P42.04, TCK-884) ─────────────
+# Dokploy notifie l'échec d'une sauvegarde, jamais son absence. Le script relit la dernière
+# sauvegarde de chaque base dans R2 (lecture seule, jeton des sauvegardes de
+# /etc/default/sauvegarde-seau-prive) et alerte sur Telegram (/etc/default/seuils). Les unités
+# attendent /usr/local/sbin/fraicheur-sauvegardes — deploy/server/fraicheur-sauvegardes.sh, copié
+# là par le runbook. Tant que le script manque, rien ne tourne.
+cat > /etc/systemd/system/fraicheur-sauvegardes.service <<'UNIT'
+[Unit]
+Description=Fraîcheur des sauvegardes de base dans R2 (P42.04)
+ConditionPathExists=/usr/local/sbin/fraicheur-sauvegardes
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fraicheur-sauvegardes
+UNIT
+cat > /etc/systemd/system/fraicheur-sauvegardes.timer <<'UNIT'
+[Unit]
+Description=Fraîcheur des sauvegardes de base, à 06:00 et 18:00 (P42.04)
+
+[Timer]
+OnCalendar=*-*-* 06,18:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now fraicheur-sauvegardes.timer
+[ -x /usr/local/sbin/fraicheur-sauvegardes ] || echo "⚠ /usr/local/sbin/fraicheur-sauvegardes absent : copier deploy/server/fraicheur-sauvegardes.sh (runbook), le timer attend."
+
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."

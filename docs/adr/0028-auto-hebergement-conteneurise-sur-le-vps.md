@@ -153,6 +153,12 @@ Chaque base est sauvegardée chaque nuit vers Cloudflare R2, et les volumes de m
 l'original — conditionne la mise en production. *Une sauvegarde jamais restaurée n'est pas une
 sauvegarde : c'est une hypothèse.*
 
+*Amendé le 2026-10-18 (piste P42.03, [TCK-882](../backlog/tickets/TCK-882-restauration-jugee-a-ce-qu-elle-se-lit.md)) :*
+**une restauration se juge aussi à ce qu'elle se lit.** Des comptes justes passent sous une
+`APP_KEY` fausse, alors que chaque colonne chiffrée (ADR-0044) est alors perdue. Le critère exige
+donc en plus que `php artisan backup:verify-encryption`, lancé sur la copie avec la clé de
+l'environnement, sorte en `0` — et en `1` avec `--cle-fausse`, son ablation.
+
 ### 8. Cloudflare devant, sauf pour les hôtes de second niveau
 
 Les deux domaines sont déjà chez Cloudflare. Les hôtes de premier niveau (apex, `www`, `api`,

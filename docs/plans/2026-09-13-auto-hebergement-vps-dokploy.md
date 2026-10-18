@@ -4148,7 +4148,7 @@ encore `www.takussan.com` jusqu'à F3.)
 | Clé | Valeur de production |
 |---|---|
 | `IMAGE_TAG` | `prod` |
-| `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction |
+| `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
 | `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com` |
 | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | `takussan_prod` / `takussan_prod` / F1, étape 2 |
 | `REDIS_DB` / `REDIS_CACHE_DB` | `2` / `3` |
@@ -4172,8 +4172,9 @@ encore `www.takussan.com` jusqu'à F3.)
 | `PUBLIC_CACHE_REVALIDATE_SECRET` | celui de `takussan-api-prod`. Vide, le handler de révocation rend `401` à tout appel, et une fiche retirée reste servie jusqu'à la fin du cache |
 | `API_INTERNAL_URL` | `http://<conteneur api de takussan-api-prod>:8080`, **jamais `http://api:8080`** : les deux piles sont sur `dokploy-network`, et l'alias `api` y désignerait aussi la préproduction (D-71). Vérifier depuis le conteneur du front, avant de poser : `getent hosts <nom>` rend une seule adresse |
 | `VISITOR_IP_TRUSTED_HOPS` | `2` : Cloudflare puis Traefik — celle de la préproduction, à confirmer par la mesure d'ADR-0052 § 6 |
-- *Volume Backups* du volume `storage` de production : `volumes/takussan-prod/`, `0 4 * * *`, 14
-  exemplaires.
+- ~~*Volume Backups* du volume `storage` de production~~ : **retirée le 2026-10-18** (ADR-0044,
+  amendement D, P42.06). Les médias sont sur R2 ; le volume ne porte plus que des fichiers
+  temporaires, dont les exports RGPD, qu'une sauvegarde aurait gardés après leur purge.
 
 - [ ] **Étape 2 : l'environnement GitHub `prod` reçoit ses identifiants**
 
