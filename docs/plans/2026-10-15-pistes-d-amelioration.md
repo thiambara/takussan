@@ -4829,7 +4829,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : garde transversale front ↔ API, deux voies dont l'une passe par la CI (V5)
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
 - Constat :
@@ -4842,20 +4842,22 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Écrire la garde côté API, là où PHP tourne : un test PHPUnit qui lit `Route::getRoutes()` et les littéraux de `../takussan-web/src`, réécrit les relais BFF par une table tirée des route handlers, et échoue sur tout chemin ou verbe sans route. Il doit aussi échouer si la table de relais ne couvre pas un `[...path]` neuf.
   - Autre voie : un instantané `route:list --json` régénéré par `api-ci` (comme `tests/impact-map.json`) et lu par une garde Node de `repo-ci`. Elle coûte un fichier versionné qui peut vieillir.
   - Preuve de non-vacuité : réintroduire `PATCH /api/users/me` dans `locale.ts` doit faire rougir la garde.
+- Mesure (2026-10-18, 5ab3231f9, mesureur) : `grep -ln 'route:list\|getRoutes\|routes/api' scripts/check-*.mjs` → 3 gardes sur 52, aucune ne lit les appels du front (`check-pro-routes.mjs` confronte les cadenas de la barre latérale, `check-cache-headers-auth.mjs` et `check-auth-controller-namespace.mjs` les seules routes) ; `grep -rln 'getRoutes()' takussan-api/tests` → 13 tests, aucun ne lit `takussan-web/src` ; `check-cache-headers-auth.mjs:178-181` confirme un job `guards` sans PHP ; `locale.ts:22` porte le correctif TCK-655 de `/api/users/me`. L'absence de garde tient ; le balayage complet « aucun chemin absent » n'a pas été rejoué, seul P45.02 a été re-mesuré. Classement : V8, la garde doit déplier relais BFF, préfixe d'`apiFetch` et segments dynamiques, au-delà de M, et la seconde voie (instantané régénéré par `api-ci`) touche `.github/` (V5).
 
 ### `useUpdateLease` envoie `PUT` sur `api/leases/{lease}`, qui n'accepte que `PATCH` ; le hook n'a aucun appelant
 - Réf : P45.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/leases.ts:280-291`, `takussan-api/routes/api/leases.php:18`
 - Constat :
   - Le hook déclare `{ path: cheminApi\`/api/leases/${id}\`, method: 'PUT' }` (lu, `leases.ts:282`). La route est `Route::patch('leases/{lease}', …)` seule (lu, `leases.php:18` ; mesuré, `route:list` → `GET|HEAD` et `PATCH`). Un appel rendrait 405 (déduit, à vérifier).
   - `grep -rn "useUpdateLease\b" takussan-web/src` → la seule définition, aucun appelant (mesuré).
 - Piste : retirer le hook (A3), ou passer en `PATCH` s'il doit servir. La garde de P45.01 l'aurait attrapé.
+- Mesure (2026-10-18, 5ab3231f9, mesureur) : relu `leases.ts:280-282` (`method: 'PUT'`) et `leases.php:18` (`Route::patch` seule) ; `route:list --path=api/leases --json` → `api/leases/{lease}` en `GET|HEAD` et `PATCH` ; `tinker` en lecture, `getRoutes()->match(Request::create('/api/leases/1','PUT'))` → `MethodNotAllowedHttpException` 405, en `PATCH` → `leases.update` ; `grep -rn 'useUpdateLease\b' takussan-web` (`.ts`/`.tsx`, hors `node_modules`) → la seule définition. Le 405 est vérifié et le hook est sans appelant. Note : la PR #647 (TCK-917, P13.10), ouverte, retire déjà ce hook ; l'entrée deviendra caduque à sa fusion. Classement : A3, code mort côté front sans appelant mesuré ; le correctif est le retrait du hook, la route `PATCH` gardant ses appelants.
 
 ### Petites améliorations : types de réponse faux sans lecteur, clé divergente sur une route sans appelant, commentaires de chemins périmés
 - Réf : P45.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V8 : quatre correctifs sans lien, dont un choix entre unifier la clé et retirer la route
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations.ts:481-482`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:81-82`, `takussan-web/src/lib/queries/super-admin.ts:542-552`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:104-107`, `takussan-api/app/Http/Controllers/Api/DashboardController.php:82-134`, `takussan-web/src/app/(dashboard)/layout.tsx:17-20`
 - Constat :
@@ -4865,3 +4867,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le docblock de `(dashboard)/layout.tsx:19` dit que `getMeAction()` frappe `/api/users/me`, une route qui n'existe pas (mesuré, `route:list`). Le chemin réel se lit dans `actions/auth.ts`.
   - Établi comment : lu pour les lignes citées ; ce qui vient du sous-agent est marqué.
 - Piste : aligner les deux types sur la réponse réelle, unifier la clé du tableau de bord (ou retirer la route si elle reste sans appelant, voir l'angle 13), et corriger le docblock (A6).
+- Mesure (2026-10-18, 5ab3231f9, mesureur) : relu `conversations.ts:481-482` (`ApiResponse<{ user_id; role }>`) contre `ConversationParticipantController.php:81-83` (`ConversationResource`) et `ConversationInfoSheet.tsx:176-179` (seuls `mutate` et `isPending` lus) ; `super-admin.ts:542-552` type `failed: number`, `PropertyBulkArchiveService.php:38,51-69,106` et `PropertyController::bulkArchive` rendent un tableau `{id, reason}`, `SuperAdminPropertiesTable.tsx:128-129` ne lit pas le résultat (vérifié) ; `DashboardController.php:82,96,110,123` `active_leases` contre `:134` `active_lease`, `grep -rn 'api/dashboard' takussan-web/src` → aucun appel à `dashboard/stats` (vérifié) ; `(dashboard)/layout.tsx:19` cite `/api/users/me`, `route:list --path=users/me` → aucune route, le chemin réel est `/api/auth/me` (`lib/auth.ts:99`, via `getMe`). Les quatre points tiennent. Classement : V8, quatre correctifs sans lien dans deux bases, et la clé du tableau de bord demande de choisir entre unifier et retirer la route (A3 seulement si on retire).
