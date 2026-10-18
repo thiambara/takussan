@@ -4409,7 +4409,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Rembourser le doublon d'un loyer, comme la notification le demande, passe le loyer à `refunded`
 - Réf : P39.01
-- Statut : validé — la branche `REFUNDED` ne passe à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon le remboursement est noté (`refunded_at`) sur l'entrée `gateway_duplicate_payment` de la transaction ; tests : les deux scénarios mesurés et le témoin
+- Statut : fait · TCK-871
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:471-492`, `:1012-1038`, `:1308`
 - Constat :
@@ -4420,10 +4420,11 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Établi comment : lu, puis mesuré de bout en bout sur `/api/webhooks/payments/wave/{token}`.
 - Piste : dans la branche `REFUNDED`, ne passer à `refunded` que si `isSettledBy($existingMeta, $transactionId)` ; sinon tracer le remboursement sur l'entrée de `gateway_duplicate_payment` de cette transaction (`refunded_at`). Garde : les deux scénarios ci-dessus en test de bout en bout, plus le témoin (remboursement de la transaction qui a soldé → `refunded`).
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite ; code relu par son contenu, inchangé (`git log 0cbbf5371..HEAD` sur `app/Services/Payments` vide ; branche `REFUNDED` toujours sans `isSettledBy`) : `spy_txn_1` puis `spy_txn_2` payés → `paid`, `settled_by = spy_txn_1`, 1 doublon ; `checkout.session.refunded` sur `spy_txn_2` → 200, échéance `refunded`, `paid_amount = 150000`, `isPayable` → false, `POST …/initiate` → 409 `payment.not_payable`. Scénario espèces non rejoué (même branche). Classement : V1, le correctif écrit le statut d'un paiement et la trace du remboursement d'un doublon.
+- Mesure (2026-10-18, 7ffdfbb0d, implementeur) : reproduit avant correctif par `tests/Feature/Api/PaymentWebhookRefundTest.php` (remboursement appliqué par `applyEventToMatchingPayment()` sous l'autorité de l'intégration Wave, paiements par le vrai webhook signé) : second checkout remboursé → échéance `refunded` ; checkout payé après des espèces, remboursé → `refunded` ; témoin vert. Correctif : `refunded` seulement si `isSettledBy` et si la transaction n'est pas marquée doublon (le repli de `isSettledBy` sur `gateway_events` reconnaît aussi le `paid` du doublon : avec `isSettledBy` seul, les deux scénarios restaient rouges) ; sinon `refunded_at` sur l'entrée du doublon → 3 verts ; ablation (service remis à `pre-dev`) → 2 rouges, témoin vert.
 
 ### Un encaissement en ligne sur un payable `refunded` est refusé en 422, à chaque relivraison, et n'est signalé à personne
 - Réf : P39.02
-- Statut : validé — `refunded` est traité comme `cancelled` dans la garde du double encaissement : doublon marqué, agence prévenue, réponse 200 ; test : le scénario mesuré
+- Statut : fait · TCK-872
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:471`, `:493-496`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:94-96,151`
 - Constat :
@@ -4433,10 +4434,11 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Établi comment : lu, puis mesuré.
 - Piste : traiter `refunded` comme `cancelled` dans la garde de la l. 471 (doublon marqué, agence prévenue, 200). Garde : le scénario mesuré en test.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : échéance soldée par `spy_txn_1` puis remboursée, `spy_txn_2` payé → 422 `payment.status_transition_invalid`, 0 entrée `gateway_duplicate_payment`, 0 notification `payment.duplicate` ; rejeu → 422 encore. La politique de relivraison du fournisseur reste non établie. Classement : V1, traiter un encaissement sur un payable remboursé touche l'écriture d'un paiement.
+- Mesure (2026-10-18, 7ffdfbb0d, implementeur) : reproduit avant correctif par `PaymentWebhookRefundTest` : échéance soldée par `spy_txn_1`, remboursée, puis `spy_txn_2` payé → 422 ; la vérification forcée du règlement remboursé → 422 aussi. Correctif : `refunded` dans la garde du double encaissement → 200, échéance `refunded`, une entrée de doublon, une notification `payment.duplicate`, rejeu sans effet ; le règlement remboursé rejoué n'est pas recompté (`isSettledBy`). Ablation : service remis à l'état de TCK-871 → les 2 rouges ; garde strictement « comme `cancelled` » → la vérification forcée marque un faux doublon (1 rouge) ; correctif remis → 5 verts.
 
 ### Un remboursement reçu par webhook n'écrit pas `refund_amount` : l'acompte remboursé compte encore comme encaissé, et la tâche de remboursement reste ouverte
 - Réf : P39.03
-- Statut : validé — le webhook de remboursement passe par la même écriture que le geste manuel : `refund_amount` depuis le montant rapporté par le pilote (le montant entier à défaut), plafonné à `amount`, et `closeIfSettled` pour un acompte ; colonne `refund_amount` neuve sur `lease_payments`, avec son `down()` ; tests : l'acompte (statut, `paid_amount`, tâche) et l'échéance
+- Statut : fait · TCK-873
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:231-234`, `takussan-api/app/Services/Model/BookingPaymentService.php:78-90`, `takussan-api/app/Services/Booking/BookingRefundTaskService.php:75-86`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:221-225`
 - Constat :
@@ -4447,6 +4449,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Le montant du remboursement, partiel ou total, n'est lu dans aucun pilote : Wave et Orange Money rendent `amount` comme pour un paiement, Lemon Squeezy ne lit pas `refunded_amount` (lu). Un remboursement partiel passe donc le payable entier à `refunded` (déduit, à vérifier).
 - Piste : faire passer le webhook de remboursement par la même écriture que le geste manuel (`refund_amount` depuis le montant rapporté, plafonné à `amount` ; `closeIfSettled` pour un acompte). Pour l'échéance, décider de la colonne ou du `metadata` qui porte le remboursé. Garde : le scénario acompte en test (statut, `paid_amount`, tâche).
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : échéance remboursée par webhook → `refunded`, aucune colonne `refund_amount` sur `lease_payments`, `paid_amount = 150000` ; acompte `BookingPayment` `paid` de 50 000 passé par la branche `REFUNDED` d'`applyStatusToPayment` (appelée directement) → `refunded`, `refund_amount = null`, `paid_amount = 50000`, `remaining = 0`. Lu : la branche n'appelle pas `closeIfSettled` (tâche non rejouée de bout en bout). Le point écran de l'historique et le remboursement partiel restent « à vérifier ». Classement : V1, écrire un montant remboursé ; la colonne de l'échéance est en plus V4.
+- Mesure (2026-10-18, 7ffdfbb0d, implementeur) : reproduit avant correctif par `PaymentWebhookRefundTest` : acompte de 50 000 soldé par webhook Wave puis remboursé → `refund_amount` nul (tâche `booking_refund` ouverte) ; échéance remboursée → `refund_amount` nul. Correctif : migration neuve `2026_10_18_070000_add_refund_amount_to_lease_payments` (avec `down()`), `refund_amount` = montant rapporté plafonné à `amount` (entier à défaut, ou dans une autre devise), `closeIfSettled` après le `save()` → acompte `paid_amount = 0` et tâche `done`, échéance remboursée de 40 000 → `paid_amount = 110000`, plafond et montant absent → 150 000 ; ablation : service remis à l'état de TCK-872 → 3 rouges ; clôture seule retirée → 1 rouge ; correctif remis → 8 verts.
 
 ### Un webhook `refunded` arrivé avant le `paid` de la même transaction est avalé, et le payable finit `paid`
 - Réf : P39.04
