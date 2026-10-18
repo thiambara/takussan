@@ -794,7 +794,10 @@ export function AppSidebar({
           <Logo nom={tCommon('appName')} />
         </Link>
       </div>
-      <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
+      {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
+          c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
+          allongeaient le document — la coque entière de `/app` défilait. */}
+      <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
         {groups.map((group, index) => {
           const labelKey = SECTION_LABEL_KEYS[group.section];
           // TCK-649 — la section d'agence d'un admin `individual` s'appelle « Mon espace », comme
