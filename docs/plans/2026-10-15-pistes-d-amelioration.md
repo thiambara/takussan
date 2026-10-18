@@ -118,7 +118,7 @@ voie d'écriture (angle 13, puis 47).
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | fait |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | fait |
 | 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | fait |
-| 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | à faire |
+| 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | fait |
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | à faire |
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | à faire |
 | 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | à faire |
@@ -153,6 +153,8 @@ voie d'écriture (angle 13, puis 47).
 | 78 | Pic mémoire des jobs qui accumulent tout en tableau avant d'écrire (export RGPD `DataExportBuilder`, exports de rapports `GenerateReportExport`, relevés OFX) face à `memory_limit = 256M` et aux `mem_limit` des workers | à faire |
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | à faire |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | à faire |
+| 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
+| 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
 
 ---
 
@@ -4876,3 +4878,90 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu pour les lignes citées ; ce qui vient du sous-agent est marqué.
 - Piste : aligner les deux types sur la réponse réelle, unifier la clé du tableau de bord (ou retirer la route si elle reste sans appelant, voir l'angle 13), et corriger le docblock (A6).
 - Mesure (2026-10-18, 5ab3231f9, mesureur) : relu `conversations.ts:481-482` (`ApiResponse<{ user_id; role }>`) contre `ConversationParticipantController.php:81-83` (`ConversationResource`) et `ConversationInfoSheet.tsx:176-179` (seuls `mutate` et `isPending` lus) ; `super-admin.ts:542-552` type `failed: number`, `PropertyBulkArchiveService.php:38,51-69,106` et `PropertyController::bulkArchive` rendent un tableau `{id, reason}`, `SuperAdminPropertiesTable.tsx:128-129` ne lit pas le résultat (vérifié) ; `DashboardController.php:82,96,110,123` `active_leases` contre `:134` `active_lease`, `grep -rn 'api/dashboard' takussan-web/src` → aucun appel à `dashboard/stats` (vérifié) ; `(dashboard)/layout.tsx:19` cite `/api/users/me`, `route:list --path=users/me` → aucune route, le chemin réel est `/api/auth/me` (`lib/auth.ts:99`, via `getMe`). Les quatre points tiennent. Classement : V8, quatre correctifs sans lien dans deux bases, et la clé du tableau de bord demande de choisir entre unifier et retirer la route (A3 seulement si on retire).
+
+## Angle 46 — Voies d'écriture en double sur l'argent
+
+*Exploré le 2026-10-18 sur `pre-dev` 1011b4c6f, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Les routes viennent de `php artisan route:list`. Les comportements viennent d'un test temporaire (`tests/Feature/TmpAngle46/SondeAngle46Test.php`, base de test PostgreSQL, charge 4,74 sur 8 cœurs), retiré avant la fin. Les effets en aval (tableaux de bord, relevés) sont lus, pas exécutés.*
+
+*Ce qui a été confronté : `POST /api/payments` (`PaymentController::store`) contre `POST /api/leases/{id}/payments`, `POST /api/lease-payments/{id}/mark-paid`, `POST /api/bookings/{id}/payments` et `POST /api/leases/{id}/deposit-refund`. Depuis TCK-681, le front n'appelle plus aucune des deux voies de création d'échéance : il règle par `mark-paid`. Les deux créations n'ont donc que des appelants d'API. `POST /api/payments` n'a toujours aucun appelant (voir P13.05, dont le correctif a gardé la route).*
+
+### `POST /api/payments` laisse un agent sans `payments.record` et un bailleur suspendu enregistrer un loyer payé
+- Réf : P46.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73,86-91,388-421`, `takussan-api/app/Policies/LeasePolicy.php:116-127`, `takussan-api/app/Policies/BasePolicy.php:131-140`, `takussan-api/app/Services/Booking/BookingMoneyAccess.php:29-75`
+- Constat :
+  - La voie imbriquée juge par `LeasePolicy::recordPayment` (TCK-587). Celle-ci exige `payments.record` pour le personnel, et refuse le bailleur suspendu (`landlordWrites`) (lu).
+  - `authorizeLeaseManage` ne lit ni la capacité ni la suspension : `landlord_id === user.id`, ou `staffAgencyId() === agency_id` (lu, `:409-421`). Et le personnel peut passer `status=paid` avec `paid_at` (lu, `:86-91`).
+  - Mesuré, test temporaire : un agent dont le rôle personnalisé est le rôle système moins `payments.record` reçoit 403 sur `POST /api/leases/{id}/payments` et sur `mark-paid`, mais **201 `paid`** sur `POST /api/payments`.
+  - Mesuré : un bailleur dont l'`OwnerProfile` est `blocked` reçoit 403 sur la voie imbriquée et **201 `paid`** sur `POST /api/payments`. C'est la même chose côté réservation : 403 sur `POST /api/bookings/{id}/payments` (`BookingMoneyAccess::isDirectLandlord`), **201 `paid`** sur `/api/payments` (`authorizeBookingManage`, `:388-400`, sans contrôle de suspension).
+  - `BranchedCapabilitiesTest` éprouve `payments.record` sur la voie imbriquée et sur `mark-paid`, pas sur `/api/payments` (lu).
+  - Établi comment : lu, puis mesuré par test temporaire.
+- Piste :
+  - retirer `POST /api/payments`, qui n'a aucun appelant (la piste de P13.05, non retenue alors) ;
+  - à défaut, faire juger ses deux branches par `can('recordPayment', $lease)` et par `BookingMoneyAccess::canRecordAsCollector`.
+  - Garde : ajouter la ligne `payments.record — /api/payments` au fournisseur de `BranchedCapabilitiesTest`, et un cas « bailleur suspendu » sur les deux branches.
+
+### `POST /api/payments` écrit une restitution de caution payée sans reversement, que les tableaux de bord déduisent des cautions détenues
+- Réf : P46.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/PaymentStoreRequest.php:30,44`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:86-91`, `takussan-api/app/Services/Model/LeasePaymentService.php:51-58`, `takussan-api/app/Services/Lease/DepositRefundService.php:85-100`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:281-293`, `takussan-api/app/Services/Reporting/AgingBalanceService.php:103-112`
+- Constat :
+  - Une restitution de caution naît `pending` par `DepositRefundService`, et ne passe `paid` que par son reversement (`PayoutService::markProcessed`). `markPaid` la refuse (`lease_payment.deposit_refund_paid_by_payout`, TCK-594) (lu).
+  - `PaymentStoreRequest` admet `payment_type=deposit_refund` et tout statut sauf `cancelled`, et le contrôleur transmet le statut du personnel tel quel (lu).
+  - Mesuré : le bailleur poste `payment_type=deposit_refund`, `status=paid` → **201 `paid`**. Aucun `Payout` n'est créé, et le bail n'est pas touché (`deposit_refunded_amount`).
+  - `PortfolioMetrics::depositsHeld` et `AgingBalanceService::depositsHeld` calculent « dépôts payés − restitutions payées ». La ligne fait donc baisser les cautions détenues, alors que `Lease::deposit_remaining` ne bouge pas (lu ; l'écran n'a pas été rendu).
+  - Mesuré, même passage : `status=refunded` à la création → 201 `refunded`, sans `refund_amount` ni paiement d'origine.
+  - Établi comment : mesuré par test temporaire ; les effets en aval sont lus.
+- Piste :
+  - le retrait de la route (P46.01) ferme le cas ;
+  - à défaut, refuser `deposit_refund` et les statuts autres que `pending`/`paid` à la création, comme `mark-paid` les refuse.
+  - Garde : un test « restitution payée sans reversement » refusée sur toute voie de création.
+
+### Un loyer payé par `POST /api/payments` ne prévient personne et contourne les gardes de `mark-paid`
+- Réf : P46.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73-98`, `takussan-api/app/Services/Model/LeasePaymentService.php:23-35,40-118`
+- Constat :
+  - `mark-paid` règle sous verrou, refuse une échéance annulée ou déjà réglée, et refuse un checkout ouvert (`assertNoOpenCheckout`). Il trace le règlement manuel (`markManualSettlement`), puis notifie le locataire et le bailleur (lu, `:40-118`).
+  - Une ligne `paid` créée par `POST /api/payments` passe par `create()`, qui ne fait rien de tout cela (lu).
+  - Mesuré : `POST /api/payments` `status=paid` → 0 ligne ajoutée à `app_notifications`. `mark-paid` sur une échéance `pending` du même bail → 2 lignes.
+  - La ligne créée s'ajoute à côté de l'échéance due du même mois, qui reste `pending`. Il n'y a aucun contrôle de période (lu ; les doublons dans les relevés n'ont pas été mesurés, à vérifier).
+  - Établi comment : lu, et mesuré pour les notifications.
+- Piste :
+  - le retrait de la route ferme le cas ;
+  - à défaut, n'accepter que `pending` à la création, pour tout le monde, comme la voie imbriquée depuis TCK-681 : un loyer reçu se règle par `mark-paid`.
+
+### Une seule ligne de paiement avant l'activation supprime tout l'échéancier, et le locataire peut la poser
+- Réf : P46.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Model/LeaseService.php:163-198`, `takussan-api/app/Jobs/GenerateLeasePaymentSchedule.php:23`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:409-421`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-46`
+- Constat :
+  - `scheduleUnderLock` compte **toutes** les lignes du bail (`$lease->payments()->count()`, `:191`). La tâche d'activation se tait s'il y en a une (`:194`). Le bouton manuel refuse alors par `lease.schedule_exists` (`:198`) (lu).
+  - Aucune des deux voies de création ne juge l'état du bail. Mesuré : `POST /api/leases/{id}/payments` sur un bail `draft` → 201.
+  - Mesuré : sur un bail `draft` de 12 mois à 100 000, une caution `pending` saisie avant l'activation donne, après `activate()`, **0 échéance de loyer** (1 ligne au total). `generate-schedule` rend alors 422 « The payment schedule has already been generated. » Le même bail sans caution donne 12 échéances.
+  - Mesuré : le **locataire** d'un bail `pending_signature` poste `amount=1`, `payment_type=rent` sur `POST /api/payments` → 201 `pending`. Après `completeActivation()`, le bail n'a qu'une ligne de loyer, la sienne, à 1 XOF. Aucun moyen ne régénère l'échéancier.
+  - Établi comment : lu, puis mesuré par test temporaire.
+- Piste :
+  - faire compter à `scheduleUnderLock` les seules échéances de loyer qu'il émet lui-même, par exemple `payment_type=rent` hors annulées. Le choix est V1 ;
+  - et refuser la création d'une ligne sur un bail qui n'est pas actif, ou fermer la voie du payeur (P46.01).
+  - Garde : un test de `GenerateLeasePaymentScheduleTest` avec une caution préexistante.
+
+### Petites améliorations
+- Réf : P46.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:40-43`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:149-155`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:388-421`
+- Constat :
+  - `StoreLeasePaymentRequest` admet `payment_type=deposit_refund` et `amount` à 0 (`min:0`, quand `/api/payments` exige `gt:0`). Mesuré : 201 `pending`. Cette ligne n'est rattachée à aucun reversement, et `mark-paid` la refuse : elle reste `pending` pour toujours (lu, `LeasePaymentService.php:51-58`).
+  - `generate-schedule` juge par `update` et non par `recordPayment` (lu). Un agent sans `payments.record` écrit donc des échéances de loyer. Que ce soit voulu n'est écrit nulle part (à vérifier dans TCK-587).
+  - `authorizeBookingManage` et `authorizeLeaseManage` jugent le personnel par `staffAgencyId()`, l'agence active, et ne lisent que `booking.agency_id`. TCK-596 a écarté les deux dans `BookingMoneyAccess` (`isStaffAt`, `agency_id ?? property.agency_id`) (lu). L'effet est un refus à tort, pas une ouverture.
+  - Les deux helpers sont deux des « 19 helpers hors périmètre » de TCK-306, qui recopient une règle au lieu de la déléguer à une policy (lu, docblocks).
+  - Établi comment : lu ; la première puce est aussi mesurée.
+- Piste :
+  - refuser `deposit_refund` et `amount=0` à la création imbriquée ;
+  - décider la capacité de `generate-schedule` ;
+  - si la route `/api/payments` survit, déléguer ses helpers à `LeasePolicy::recordPayment` et à `BookingMoneyAccess`.
