@@ -3362,7 +3362,7 @@ forcée »).*
 
 ### La facture PDF n'est atteignable depuis aucun écran ni aucun envoi
 - Réf : P26.04
-- Statut : validé — un bouton de téléchargement du PDF dans `InvoiceDetailDialog`
+- Statut : fait · TCK-837
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/invoices.php:16-17`, `takussan-api/app/Http/Controllers/Api/DocumentPdfController.php:64-80`, `takussan-web/src/components/payments/InvoiceDetailDialog.tsx`
 - Constat :
@@ -3373,6 +3373,7 @@ forcée »).*
   - Établi comment : lu et mesuré par recherche.
 - Piste : un bouton de téléchargement dans `InvoiceDetailDialog`, par `BoutonTelechargement` comme la quittance. Un test du composant qui vérifie le chemin `/api/invoices/{id}/pdf`.
 - Mesure (2026-10-16, 8ff39d7a, mesureur) : relu `routes/api/invoices.php:16-17` (route `invoices.pdf` présente) ; `grep -rn "invoices/" takussan-web/src` → détail, envoi, paiement, annulation seulement (`lib/queries/payments.ts:167-212`) ; `grep -n -i 'pdf|telecharg|download' InvoiceDetailDialog.tsx` → rien ; `grep -rn 'attachData|->attach(|Attachment::' app` → une seule ligne, un `attach()` de relation (`PropertyConversationResolver.php:92`) ; `docs/features.md:367` et `:598` promettent le PDF des factures, et `TCK-063` (done) laisse non cochée « bouton télécharger PDF si dispo » (`:62`). Classement : V7, un comportement visible neuf, même attendu par un ticket : son emplacement et son public (qui voit la modale, qui passe `InvoicePolicy::view`) restent à décider.
+- Mesure (2026-10-18, 41f289014, implementeur) : avant correctif, `grep -rn "invoices/" takussan-web/src` → aucun appelant de `/pdf`, et `InvoiceDetailDialog.pdf.test.tsx` rougit (aucun bouton « PDF de la facture ») ; `InvoiceDetailDialog` porte un `BoutonTelechargement` vers `/api/invoices/{id}/pdf` (`facture-…pdf`, `avoir-…pdf` pour un avoir), la route passant par la même `InvoicePolicy::view` que le détail → 2 verts ; ablation du composant → 2 rouges.
 
 ### La facture PDF ne dit pas ce qu'elle facture
 - Réf : P26.05
