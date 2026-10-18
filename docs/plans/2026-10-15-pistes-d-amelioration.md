@@ -3702,7 +3702,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### 26 équipements du catalogue sur 35 s'affichent avec l'icône générique
 - Réf : P30.05
-- Statut : validé — clés d'icônes alignées sur les slugs du catalogue, icône Lucide la plus proche, revue à la PR ; un test rougit sur un slug du catalogue sans icône
+- Statut : fait · TCK-914
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/amenity-icons.ts:23-60`, `.../PropertyAmenities.tsx:19`
 - Constat :
@@ -3711,6 +3711,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Une partie des clés ne correspond à aucun slug du catalogue : `cuisine`, `securite`, `salle_sport`, `buanderie`, `internet`, `meuble` (lu).
 - Piste : clés d'icônes alignées sur les slugs du catalogue, et un test qui rougit sur un slug du catalogue sans icône (même lecture du fichier PHP que `libelle-equipement.test.ts`). Le choix des icônes est un choix de design.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `PropertyAmenities.tsx:19` (`tag.icon ?? tag.slug`) et `amenity-icons.ts` ; `SELECT type, status, count(*), count(icon) FROM tags GROUP BY 1,2` en lecture sur la base de développement → 0 icône sur 41 lignes ; script `node` des slugs de `TagCatalog::EQUIPEMENTS` face aux clés de `AMENITY_ICONS` → 9 sur 35 ont une icône (`piscine, climatisation, ascenseur, parking, garage, terrasse, jardin, wifi, tv`), 26 retombent sur `Building2` ; le constat tient. Classement : V7, aligner les clés demande de choisir 26 icônes.
+- Mesure (2026-10-18, f41284c32, implementeur) : reproduit avant correctif : `amenity-icons.tck-914.test.ts` lit `TagCatalog::EQUIPEMENTS` → 26 slugs sur 35 retombent sur `Building2` (les mêmes que la mesure du 2026-10-16), et les clés hors catalogue font rougir le 27e test → `AMENITY_ICONS` indexé par les 35 slugs, une icône Lucide chacun ; ablation (fichier d'avant) → 27 rouges, remis → 37 verts, 170 verts sous `properties/[slug]`.
 
 ### Petites améliorations
 - Réf : P30.06
