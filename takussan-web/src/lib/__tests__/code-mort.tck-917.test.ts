@@ -5,6 +5,10 @@
  * importeur, et ces exports aucun appelant, pas même un test. Ce test ne cherche pas le code mort
  * en général (ce serait une garde neuve) : il empêche celui-ci de revenir.
  *
+ * `Money`, `useAgencyCurrency` et `ShareButton` n'ont pas d'importeur non plus, mais chacun a son
+ * test : retirer un test est fermé à l'agent qui a écrit celui-ci (ADR-0066). Ils restent, au
+ * porteur de trancher.
+ *
  * Deux `formatCurrency` homonymes coexistaient : `lib/format.ts` prend une LANGUE en second
  * argument, `lib/format/currency.ts` une DEVISE. `formatCurrency(prix, 'fr')` écrit au mauvais
  * module rendait `150 000 F CFA` par le repli sur XOF, sans erreur de type (`string`) : la confusion
@@ -18,9 +22,6 @@ import { describe, expect, it } from 'vitest';
 import { RACINE_SRC, sourcesDe } from '@/test/analyse-statique';
 
 const FICHIERS_RETIRES = [
-  'components/shared/Money.tsx',
-  'hooks/useAgencyCurrency.ts',
-  'components/share/ShareButton.tsx',
   'hooks/useRequireAuth.ts',
   'components/shared/StubPlaceholder.tsx',
   'components/property/index.ts',

@@ -75,7 +75,7 @@ describe('formatMontant (TCK-084 multi-currency)', () => {
     expect(formatPriceShort(2_000_000_000, 'en-US')).toBe('2 B');
   });
 
-  it('exposes metadata helpers used by the agency settings preview', () => {
+  it('exposes metadata helpers used by <Money> and the agency settings preview', () => {
     expect(currencySymbol('EUR')).toBe('€');
     expect(currencySymbol('USD')).toBe('$');
     expect(currencySymbol('XOF')).toBe('F CFA');
