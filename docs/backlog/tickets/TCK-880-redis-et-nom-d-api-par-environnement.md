@@ -86,6 +86,13 @@ nom d'hôte désigne toujours un seul service.
 - [ ] **AC4** — `redis-takussan` ne tourne plus ; aucun conteneur orphelin dans le Compose
       `donnees` ; la préproduction répond toujours (AC3 rejoué).
 
+## Reste sur dev
+
+Le code est sur `dev` depuis la PR #630 (2026-10-18). Il ne reste que le serveur. AC3 se mesure
+après le déploiement de `preview` : l'alias, le Redis de la pile, l'isolement sur
+`dokploy-network`. AC4 retire `redis-takussan` du Compose `donnees`, dans une PR à part, une fois
+AC3 mesuré.
+
 ## Hors périmètre
 
 - `API_INTERNAL_URL` et `VISITOR_IP_TRUSTED_HOPS` sur `takussan-web-preview` : au porteur
