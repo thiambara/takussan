@@ -1,7 +1,7 @@
 ---
 id: TCK-892
 title: "Réordonner les photos d'un bien ne change plus leurs URL"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -42,12 +42,12 @@ Une photo déplacée dans la galerie garde son URL, et reste servie depuis le ca
 
 ## Delta à produire
 
-- [ ] `PropertyMediaController::reorder` : `order_column` écrit sans horodatage.
-- [ ] Test : `tests/Feature/Api/PropertyMediaTest.php`.
+- [x] `PropertyMediaController::reorder` : `order_column` écrit sans horodatage.
+- [x] Test : `tests/Feature/Api/PropertyMediaTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Deux photos téléversées, horloge avancée de 5 min, réordonnées : leurs URL
+- [x] AC1 — Deux photos téléversées, horloge avancée de 5 min, réordonnées : leurs URL
   (`thumbnail`, `preview`, `full`, `original`) sont inchangées, et l'ordre est le nouveau.
 
 ## Hypothèses
@@ -59,3 +59,8 @@ Une photo déplacée dans la galerie garde son URL, et reste servie depuis le ca
 - Les autres collections de médias, qui n'ont pas de route de réordonnancement.
 
 ## Notes d'implémentation
+
+- `Media::withoutTimestamps()` couvre aussi le modèle de média de l'application s'il en hérite
+  (Laravel compare par `is_subclass_of`).
+- Ablation : contrôleur remis à `pre-dev` → AC1 rouge (URL `thumbnail` changée) ; correctif remis
+  → 13 verts dans `PropertyMediaTest`.
