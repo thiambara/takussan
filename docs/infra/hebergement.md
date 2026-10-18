@@ -44,7 +44,10 @@ de `@vercel/analytics`, plus d'origine `*.vercel.app` admise par le CORS de l'AP
 | `takussan-api/Dockerfile`, `takussan-api/docker/` | l'image de l'API — `api`, workers, planificateur, `release` et `seed` |
 | `takussan-web/Dockerfile` | l'image du front, **une par commit** : `API_URL`, `SITE_URL` et `MEDIA_URL` se lisent à l'exécution, et `docker/demarrer.mjs` refuse de démarrer sans elles (ADR-0069 § 3) |
 | `deploy/takussan/compose.api.yml` | la pile d'API d'un environnement, déclarée dans Dokploy — déployée par la commande en deux temps du relevé (`run --rm release && up -d --build`, TCK-522), jamais par un simple `up` |
-| `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
+| `deploy/server/compose.data.yml` | Meilisearch, partagé par les environnements ; chaque pile d'API porte son Redis depuis TCK-880 (ADR-0069 § 4) |
+| `deploy/postgres/Dockerfile`, `deploy/postgres/epreuve.sh` | l'image de la base : `pgvector/pgvector:pg17` épinglée, plus WAL-G et l'archivage continu ; l'épreuve archive, sauvegarde et restaure à un instant choisi dans des conteneurs jetables (TCK-930) |
+| `.github/workflows/image-postgres.yml` | construit, éprouve et pousse `ghcr.io/thiambara/takussan-postgres:sha-<commit>` ; **ne déploie jamais** : changer l'image redémarre toutes les bases |
+| `deploy/server/wal-g.sh` | sauvegarde de base WAL-G le dimanche, élagage au-delà de 14 jours, veille de l'archivage toutes les 15 minutes (`bootstrap.sh` § 11) |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
 | `.github/workflows/images.yml` | construit, pousse sur GHCR (`sha-<commit>`, `tree-<arbre>`, `<environnement>`), réétiquette au lieu de reconstruire un arbre déjà construit, déclenche Dokploy, **prouve** par `X-Build-Sha` (ADR-0069 § 3) |
 | `deploy/server/journaux-traefik.sh` | ajoute l'`accessLog` JSON à `traefik.yml` (hors dépôt, réécrit par l'installation de Dokploy) et redémarre Traefik ; idempotent, se rejoue après toute réinstallation (TCK-518) |
@@ -311,6 +314,40 @@ fausse sont une restauration ratée : chaque colonne chiffrée est perdue. Deux 
   `pg_restore --no-owner --no-acl`. Celle de MySQL est bien du SQL compressé ;
 - une préproduction « au repos » écrit (`jobs`, `scheduled_task_runs`) : pour comparer, on l'arrête
   (hors base) avant la sauvegarde, et on la redémarre après le comptage.
+
+**WAL-G : l'archivage continu et la restauration à un instant choisi** (ADR-0069 § 5, TCK-930).
+La base tourne sur `ghcr.io/thiambara/takussan-postgres:sha-<commit>` (`deploy/postgres/`), qui
+archive chaque segment de journal dans `takussan-wal` ; une sauvegarde de base part le dimanche à
+03:30, l'élagage garde 14 jours, et `wal-g-takussan veille` alerte sur Telegram. Le `pg_dump` de
+03:00 reste.
+
+- **Configuration** : dans l'environnement du service Database de Dokploy (clés seules ici) —
+  `WALG_S3_PREFIX` (`s3://takussan-wal/serveur-postgres`), `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY` (le jeton `takussan-wal`, qui n'écrit que là), `AWS_ENDPOINT`
+  (`https://<compte>.r2.cloudflarestorage.com`), `AWS_REGION=auto`, `AWS_S3_FORCE_PATH_STYLE=true`,
+  `WALG_COMPRESSION_METHOD=zstd`, `WALG_PREVENT_WAL_OVERWRITE=true` — ce dernier n'est pas
+  facultatif : sous le verrou de rétention, un segment renvoyé serait refusé à l'écrasement et
+  bloquerait l'archivage, alors qu'avec lui WAL-G constate l'identité et rend 0.
+- **Changer l'image** (une version de WAL-G, de PostgreSQL ou de pgvector) : PR qui touche
+  `deploy/postgres/`, fusion, puis l'étiquette `sha-` poussée par `image-postgres.yml` se déclare
+  dans Dokploy (service Database → Advanced → Docker image) et se redéploie. **Toutes les bases
+  du serveur redémarrent** (quelques secondes) : hors heure de passage.
+- **Installer les unités** : `scp deploy/server/wal-g.sh root@178.18.247.62:/usr/local/sbin/wal-g-takussan`,
+  puis `bootstrap.sh` (§ 11) ou les unités de ce paragraphe à la main. `wal-g-takussan etat`
+  imprime l'archivage et les sauvegardes de base sans alerter.
+- **Restaurer à un instant** (UTC), sur une instance vierge — jamais sur la base en service :
+  ```bash
+  # dans un conteneur jetable de la même image, avec le même environnement WAL-G
+  wal-g backup-fetch "$PGDATA" LATEST     # la dernière sauvegarde de base AVANT l'instant
+  printf '%s\n' "restore_command = 'wal-g wal-fetch %f %p'" \
+    "recovery_target_time = '<AAAA-MM-JJ HH:MM:SS+00>'" "recovery_target_action = 'promote'" \
+    >> "$PGDATA/postgresql.auto.conf"
+  touch "$PGDATA/recovery.signal"
+  postgres -c archive_mode=off           # off : la copie n'écrit pas sa chronologie dans l'archive
+  ```
+  Puis le critère d'ADR-0028 § 7 : les comptes, la dernière ligne écrite avant l'instant, et
+  `backup:verify-encryption` sur la copie. Si `LATEST` est postérieure à l'instant visé,
+  `backup-fetch` prend la sauvegarde nommée par `wal-g backup-list` qui le précède.
 
 **Après une restauration** (piste P42.05, TCK-883). Une restauration rend la base, pas ce qui vit
 autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussan-api-preview-4iza80`) :
