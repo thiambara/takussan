@@ -4070,7 +4070,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
 
 ### `cities()` groupe la ville sans repli de casse, et le front retient alors la graphie la moins fréquente
 - Réf : P35.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-908
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:226-253`, `takussan-web/src/lib/queries/facettes.ts:63-71`, `takussan-web/src/app/sitemap.ts:99-109`, `takussan-api/app/Services/Geo/GeoAddressCanonicalizer.php:41-42,85-91,96-115`
 - Constat :
@@ -4080,10 +4080,11 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Mesuré sur la base de dev : 504 villes au référentiel, 0 adresse publique sans `geo_city_id`, une seule graphie par ville. Le défaut n'y est donc **pas** observable (à vérifier sur la préproduction et la production).
 - Piste : grouper `cities()` comme `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), ce qui rend une entrée par ville, comptée une fois. Un test d'API avec deux graphies de la même ville garde la règle. Côté front, ne pas écraser une graphie déjà présente dans la `Map`.
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `PublicPropertyController::cities()` (`groupBy('addresses.city')` brut) contre `neighborhoods()` (`CaseInsensitive::sql`, `mode()`), `facettes.ts:66-70` et `sitemap.ts:99` (`Map` en minuscules, le dernier `set` gagne) ; test temporaire retiré (quatre biens publics, « Zzvillex » ×3 et « ZZVILLEX » ×1, ville hors référentiel), `php artisan test` (charge 2,4 sur 8 cœurs) → `cities()` rend `[{Zzvillex,3},{ZZVILLEX,1}]`, donc le front retiendrait « ZZVILLEX » ; `construireSitemap` ne dédoublonne pas ; base de dev par `SELECT` → 826 adresses de biens, 10 graphies, 10 en minuscules, 0 sans `geo_city_id` : non observable en dev. Classement : A1, le repli de casse de la ville est le contrat écrit de l'appelant (`facettes.ts`, « `?city=dakar` et `?city=Dakar` désignent la même page ») et de son jumeau `neighborhoods()`, et le correctif ne demande aucun choix de produit.
+- Mesure (2026-10-18, bc1f55227, implementeur) : avant correctif, test neuf de `PropertyCitiesTest` (biens publics « Zzvillé » ×3 et « ZZVILLÉ » ×1, ville hors référentiel) → `cities()` rend deux entrées `{Zzvillé,3}` et `{ZZVILLÉ,1}` ; côté front, `[{Saly,40},{SALY,2}]` → `villesDuCatalogue` retient « SALY » et le sitemap pousse `?city=SALY` deux fois (deux tests neufs rouges). `cities()` groupe par `CaseInsensitive::sql` et rend `mode()` (une entrée `{Zzvillé,4}`), la `Map` du front et la source du sitemap gardent la première graphie lue → 11 verts sur `PropertyCitiesTest`, 26 avec les tests de `neighborhoods()` et des chemins publics, 46 sur `facettes` et `sitemap.route` ; ablation des trois correctifs → 1 rouge API, 2 rouges front.
 
 ### Petites améliorations du maillage des facettes
 - Réf : P35.05
-- Statut : validé — ville du fil d'Ariane liée avec le contrat du maillon précédent ; page de ville indexable à partir de 3 biens, comme le quartier ; paires contrat × ville au sitemap à partir de 3 biens
+- Statut : fait · TCK-909
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/fil-d-ariane.ts:70-84`, `takussan-web/src/app/sitemap.ts:96-120`, `takussan-web/src/lib/queries/facettes.ts:81-90`
 - Constat :
@@ -4092,6 +4093,7 @@ production (P09.01), le 307 des URL sans préfixe (P09.07), les trois langues in
   - Le seuil de 3 biens ne vaut que pour le quartier (lu, `facettes.ts:81-90`). Une ville d'un seul bien public est canonique et entre au sitemap (lu, `sitemap.ts:102-109`), c'est la page mince que le seuil évite au quartier. Dans la base de dev, la plus petite ville publique en compte 3 (mesuré, `cities()` par tinker) : aucune n'est concernée aujourd'hui.
 - Piste : lien de la ville du fil vers `?contract_type=<contrat>&city=<ville>`, la canonique du palier affiché, et l'égalité DOM ⇔ JSON-LD tient puisque les deux dérivent de `maillonsDeFiche`. Paires contrat × ville au sitemap pour les villes au-dessus d'un seuil. Même seuil, ou un seuil propre, pour la page de ville. Le choix des seuils revient au porteur.
 - Mesure (2026-10-17, c9ee68400, mesureur) : relu `fil-d-ariane.ts:80-84` (ville du fil vers `/properties?city=…`, sans le contrat du maillon précédent), `sitemap.ts:96-120` (villes et quartiers seuls, aucune paire contrat × ville), `facettes.ts:81-90` (`SEUIL_QUARTIER_INDEXABLE` ne vaut que pour le quartier) ; aucun commit ni ticket ouvert → les trois points tiennent ; le compte de la plus petite ville de dev n'a pas été repris. Classement : V7, la piste remet elle-même le choix des seuils au porteur, et le lien du fil change une cible visible.
+- Mesure (2026-10-18, bc1f55227, implementeur) : avant correctif, `maillonsDeFiche` lie la ville vers `/properties?city=…` sans contrat, `villesDuCatalogue` admet toute ville (aucun seuil), `sitemap.ts` annonce Thiès à 2 biens et aucune paire contrat × ville, `cities()` ne sert aucun compte par contrat (relu ; 1 test API et 6 tests front neufs rouges). Correctif : `cities()` sert `contracts` (compte par contrat, zéro compris), `SEUIL_VILLE_INDEXABLE = 3` borne le domaine des villes, le sitemap écarte les villes sous le seuil et annonce les paires dont le contrat l'atteint, `hrefDeLaVille` donne au maillon de ville la canonique `?contract_type=…&city=…` ou un libellé hors domaine → 12 verts sur `PropertyCitiesTest`, 27 avec les chemins publics et les quartiers, 487 sur `(public)`, `facettes`, `sitemap`, `canonique` et le fil ; ablation → 1 rouge API, 6 rouges front.
 
 ## Angle 36 — Webhooks de statut SMS et WhatsApp
 

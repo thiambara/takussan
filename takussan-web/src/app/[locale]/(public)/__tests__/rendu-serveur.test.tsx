@@ -115,7 +115,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       // Les cas qui veulent éprouver l'API éteinte lèvent depuis `reponsePour` et ne passent
       // jamais ici : cette branche ne masque donc aucun cas de panne.
       if (path.startsWith('/public/properties/cities')) {
-        return { data: [{ value: 'Dakar' }, { value: 'Thiès' }], meta: { truncated: false } };
+        return { data: [{ value: 'Dakar', count: 12 }, { value: 'Thiès', count: 3 }], meta: { truncated: false } };
       }
       return reponsePour(path);
     }),
