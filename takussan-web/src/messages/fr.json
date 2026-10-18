@@ -3506,7 +3506,9 @@
       "creditNoteTitle": "Avoir {reference}",
       "credits": "Annule la facture n° {id}",
       "creditNotes": "Avoirs émis sur cette facture",
-      "actionFailed": "L'action sur la facture a échoué."
+      "actionFailed": "L'action sur la facture a échoué.",
+      "invoicePdf": "PDF de la facture",
+      "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
       "title": "Préparer un reversement",

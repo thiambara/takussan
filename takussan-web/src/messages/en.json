@@ -3535,7 +3535,9 @@
       "creditNoteTitle": "Credit note {reference}",
       "credits": "Cancels invoice #{id}",
       "creditNotes": "Credit notes issued against this invoice",
-      "actionFailed": "The invoice action failed."
+      "actionFailed": "The invoice action failed.",
+      "invoicePdf": "Invoice PDF",
+      "creditNotePdf": "Credit note PDF"
     },
     "payoutDialog": {
       "title": "Prepare a payout",

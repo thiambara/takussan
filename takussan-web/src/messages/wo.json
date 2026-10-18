@@ -1781,7 +1781,9 @@
       "creditNoteTitle": "Avoir {reference}",
       "credits": "Dafay neenal factuur bi n° {id}",
       "creditNotes": "Avoir yi ñu génne ci factuur bii",
-      "actionFailed": "Jëf ji ci factuur bi antuwul."
+      "actionFailed": "Jëf ji ci factuur bi antuwul.",
+      "invoicePdf": "PDF de la facture",
+      "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
       "title": "Waajal reversement",
