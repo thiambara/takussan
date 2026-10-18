@@ -530,6 +530,7 @@ return [
         'two_factor_already_disabled' => 'Double authentification bi fey nañu ko ba noppi.',
     ],
     'tags' => [
+        'catalog_merge_forbidden' => 'Un équipement du catalogue ne se fusionne pas : seules les propositions se fusionnent.',
         'catalog_rename_forbidden' => 'Un équipement du catalogue ne se renomme pas : seules les propositions se renomment.',
         'merge_into_self' => 'Benn jumtukaay du boole ak boppam.',
         'merge_target_invalid' => 'Li ñu jëm war na doon jumtukaay bu ñu nangu walla buy xaar.',
