@@ -316,10 +316,10 @@ fausse sont une restauration ratée : chaque colonne chiffrée est perdue. Deux 
 autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussan-api-preview-4iza80`) :
 
 1. **Avant** de restaurer : arrêter `worker`, `worker-media` et `scheduler`
-   (`docker stop <pile>-worker-1 <pile>-worker-media-1 <pile>-scheduler-1`), et relever les
-   effacements de compte postérieurs à l'instant restauré
-   (`SELECT user_id, executed_at FROM account_deletion_requests WHERE executed_at > '<instant>'`) :
-   la restauration effacera cette trace (ADR-0044, amendement du 2026-10-18).
+   (`docker stop <pile>-worker-1 <pile>-worker-media-1 <pile>-scheduler-1`), et noter
+   l'**instant restauré** en UTC (l'heure de la sauvegarde, par exemple `2026-10-18T03:00:00Z`).
+   Les effacements n'ont plus à se relever dans la base courante : depuis TCK-885, chacun écrit un
+   objet hors de la base (point 5), et la base courante peut être perdue.
 2. **La file** : les jobs en attente à l'instant restauré sont dans la copie, et seraient rejoués
    (SMS, courriels déjà partis). `SELECT queue, count(*) FROM jobs GROUP BY 1`, puis
    `DELETE FROM jobs` sauf décision contraire : les tâches planifiées se reposent d'elles-mêmes, et
@@ -332,10 +332,27 @@ autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussa
    que la restauration ne touche pas ; `release` ne réimporterait rien. Le supprimer
    (`docker exec <pile>-api-1 rm storage/app/private/.search-shape-importee`), puis rejouer
    `release` (commande du runbook) : il réimporte tous les index.
-5. **Les effacements** : `php artisan account:execute-deletions` rejoue d'elle-même ceux dont la
-   demande est dans la copie (elle y est encore « à exécuter », `executed_at` nul et
-   `scheduled_for` passé). Une demande **créée** après l'instant restauré n'est pas dans la copie :
-   la rejouer depuis le relevé du point 1, avant de rouvrir.
+5. **Les effacements** (TCK-885, ADR-0044 amendé, § B) : la liste vit **hors de la base**, un
+   objet par effacement exécuté sur le seau privé des médias
+   (`effacements/AAAA-MM-JJ/<user_id>-<instant>.json`, l'identifiant et l'instant, rien d'autre),
+   que la restauration ne touche pas. La lire, puis ré-effacer :
+
+   ```bash
+   docker exec <pile>-api-1 php artisan account:list-erasures --since='<instant>'
+   docker exec <pile>-api-1 php artisan account:list-erasures --since='<instant>' --execute
+   ```
+
+   La première dit, pour chaque effacement à partir de l'instant (inclus), ce qu'en garde la base
+   restaurée : `effacé`, `absent` (compte créé après l'instant) ou `à ré-effacer`. La seconde
+   ré-efface ces derniers, par le même chemin que l'effacement d'origine, en recréant la demande
+   que la restauration a emportée, sans renvoyer le courriel de confirmation ; un second passage
+   rend `a_reeffacer=0`. En cas de doute sur l'instant, le prendre plus tôt : le rejeu est
+   idempotent. La commande sort en `1` sur un objet illisible ou un rejeu en échec — ne pas
+   rouvrir tant qu'elle ne sort pas en `0`. Puis `php artisan account:execute-deletions` pour les
+   demandes de la copie devenues échues depuis l'instant.
+   **Si le seau privé est perdu lui aussi**, remettre d'abord le préfixe `effacements/` depuis
+   `vps-sauvegardes/takussan-preview-private/effacements/` (copie nocturne, ci-dessous
+   « Restaurer un média ») : un effacement de moins de 24 h n'y est pas encore.
 6. Redémarrer `worker`, `worker-media` et `scheduler`.
 
 **Restaurer un média** (depuis le 2026-09-22) : un original ou une pièce privée se relit dans
