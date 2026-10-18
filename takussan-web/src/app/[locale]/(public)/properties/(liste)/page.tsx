@@ -8,9 +8,10 @@ import { alternatesPubliques } from '@/lib/alternates';
 import {
   type DomainesDeFacette,
   cheminCanoniqueDeLaListe,
+  filtresCanoniques,
   versParametres,
 } from '@/lib/canonique';
-import { domainesDeLaListe } from '@/lib/queries/facettes';
+import { compteDuLieu, domainesDeLaListe } from '@/lib/queries/facettes';
 import { rechercherBiensPublics } from '@/lib/queries/public-search';
 import {
   clefDeRecherche,
@@ -39,7 +40,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // (TCK-433). `villes` vient du catalogue, `quartiers` du domaine de la ville de l'URL (TCK-598),
   // les deux autres des enums.
   const domaines: DomainesDeFacette = await domainesDeLaListe(params);
-  const { title, description } = await titreEtDescription(params, domaines);
+  // TCK-841 (P35.03) — une page de lieu dit le nombre de biens du lieu, pris au domaine en cache.
+  const retenus = filtresCanoniques(params, domaines);
+  const ville = retenus.get('city');
+  const compte = ville ? await compteDuLieu(ville, retenus.get('location')) : undefined;
+  const { title, description } = await titreEtDescription(params, domaines, compte);
 
   const brut = await getLocale();
   const locale = isLocale(brut) ? brut : 'fr';

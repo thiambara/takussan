@@ -336,7 +336,8 @@
       "titleCity": "{subject} in {city}",
       "subjectAny": "Properties",
       "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood.",
-      "titleQuarter": "{subject} in {quarter}, {city}"
+      "titleQuarter": "{subject} in {quarter}, {city}",
+      "descriptionWithCount": "{title} on Takussan, among {count, plural, one {# listing} other {# listings}} in {place}: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
     },
     "compare": {
       "title": "Compare properties",

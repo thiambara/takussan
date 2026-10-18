@@ -336,7 +336,8 @@
       "titleCity": "{subject} à {city}",
       "subjectAny": "Biens immobiliers",
       "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier.",
-      "titleQuarter": "{subject} à {quarter}, {city}"
+      "titleQuarter": "{subject} à {quarter}, {city}",
+      "descriptionWithCount": "{title} sur Takussan, parmi {count, plural, one {# bien publié} other {# biens publiés}} à {place} : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
     },
     "compare": {
       "title": "Comparer des biens",
