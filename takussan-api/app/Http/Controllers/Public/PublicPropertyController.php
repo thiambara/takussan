@@ -514,8 +514,16 @@ class PublicPropertyController extends Controller
         $minLng = min($swLng, $neLng);
         $maxLng = max($swLng, $neLng);
 
+        // P01.10 (TCK-902) — la vignette ne lit que `getFirstMedia('photos')` : la seule première
+        // photo de chaque bien, dans l'ordre de la galerie, et non tous ses médias.
         $query = Property::query()
-            ->with('address', 'media')
+            ->with([
+                'address',
+                'media' => fn ($q) => $q->where('collection_name', 'photos')
+                    ->orderBy('order_column')
+                    ->orderBy('id')
+                    ->limit(1),
+            ])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereHas('address', function ($q) use ($minLat, $maxLat, $minLng, $maxLng) {
