@@ -1,7 +1,7 @@
 ---
 id: TCK-895
 title: "Fiche d'un bien : un repère <main> dans chacun de ses quatre états"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -43,7 +43,8 @@ Un visiteur au lecteur d'écran saute directement au contenu de la fiche, quel q
 
 - [x] AC1 — Chacun des quatre états rend un seul `main`, qui contient le `h1`.
 - [x] AC2 — `Navbar` et `Footer` restent hors du `main`.
-- [x] AC3 — Aucun rendu visuel ni texte neuf : `main` ne porte pas de classe.
+- [x] AC3 — Aucun rendu visuel ni texte neuf : dans `page.tsx`, `main` ne porte pas de classe ; dans
+  `not-found.tsx`, il remplace le `div` du contenu et garde ses classes.
 
 ## Hors périmètre
 
@@ -52,4 +53,8 @@ Un visiteur au lecteur d'écran saute directement au contenu de la fiche, quel q
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Reproduction** : 4 tests neufs (trouvé, indisponible, retiré dans `page.server.test.tsx` ;
+  introuvable dans `not-found.repere-main.test.tsx`) → 4 rouges, `0` élément `main`.
+- **Ablation** : `page.tsx` et `not-found.tsx` remis → les 4 mêmes rouges ; remis → 24 verts.
+- Le `fetch failed` imprimé par `page.server.test.tsx` (domaine des villes) précède ce ticket : il
+  vient de `domainesDeLaListe`, non simulé dans ce test.
