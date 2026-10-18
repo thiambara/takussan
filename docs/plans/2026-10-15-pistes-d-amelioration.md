@@ -3464,7 +3464,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
 
 ### La chaîne de repli peut durer plus longtemps que le délai du worker, qui tue le job et le rejoue
 - Réf : P27.04
-- Statut : validé — borner la durée totale de la chaîne dans le code et poser `$timeout` sur le job ; reste : le délai du worker, au déploiement (porteur)
+- Statut : fait · TCK-842 — reste : le délai du worker, au déploiement (porteur)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Notifications/Sms/Drivers/OrangeSmsDriver.php:66,98,111,120,215-225,245`, `takussan-api/config/sms.php` (`fallback_chains`), `deploy/takussan/compose.api.yml:55`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:383`
 - Constat :
@@ -3474,6 +3474,7 @@ et le format réel d'une réponse Mtarget à plusieurs numéros, ne se mesurent 
   - Établi comment : lu, somme des délais déduite.
 - Piste : borner la durée totale de la chaîne (budget de temps partagé entre pilotes), et poser `$timeout` sur les notifications SMS au-dessus de ce budget. Le délai du worker est une affaire de déploiement.
 - Mesure (2026-10-16, a76d2fe2, mesureur) : relu `OrangeSmsDriver.php:98,120,218-220,245` (`timeout(10)` par appel, verrou 10 s attendu 5 s), `config/sms.php` (`orange` → `orange, lafricamobile, mtarget`), `compose.api.yml:54` (`queue:work … --tries=3`, sans `--timeout`, ligne 54 et non 55), `grep` sur `CodedNotification.php` → ni `$timeout` ni `$tries` ; `PhoneVerificationService.php:383` envoie l'OTP de façon synchrone. Somme des délais et mise à mort du job non mesurées. Classement : V5, le délai du worker est dans `deploy/`, et le budget partagé est un choix de conception.
+- Mesure (2026-10-18, e673632a0, implementeur) : `SmsChainTimeBudgetTest`, code à usage unique sur un numéro Orange, chaque appel consommant tout son délai (horloge avancée par le faux HTTP) → avant correctif, jeton, envoi en 401, jeton, renvoi en 400, LAM en délai dépassé, Mtarget : 6 appels de 10 s, 60 s, et aucun job SMS ne déclare `$timeout` (2 rouges) → `SmsTimeBudget` (30 s par traversée), aucun pilote ni appel lancé sans temps, chaque appel borné au temps restant, `$timeout = 50` sur `CodedNotification`, `NewBookingNotification` et `SendDeferredSmsJob` : la chaîne finit à 30 s en `time_budget_exhausted` ; ablation : `app/` remis → 2 rouges, pilotes seuls remis → 1 rouge (40 s) ; correctif remis : 3 verts, 295 tests verts sur `Services/Sms`, `Services/Whatsapp` et `tests/Unit/Services`.
 
 ### Petites améliorations du routeur SMS
 - Réf : P27.05
