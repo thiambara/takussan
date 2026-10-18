@@ -4943,7 +4943,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une seule ligne de paiement avant l'activation supprime tout l'échéancier, et le locataire peut la poser
 - Réf : P46.04
-- Statut : validé — `scheduleUnderLock` ne compte que les échéances de loyer qu'il émet (`payment_type=rent` hors annulées), et la création d'une ligne est refusée sur un bail qui n'est pas actif
+- Statut : fait · TCK-957
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:163-198`, `takussan-api/app/Jobs/GenerateLeasePaymentSchedule.php:23`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:409-421`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-46`
 - Constat :
@@ -4957,6 +4957,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - et refuser la création d'une ligne sur un bail qui n'est pas actif, ou fermer la voie du payeur (P46.01).
   - Garde : un test de `GenerateLeasePaymentScheduleTest` avec une caution préexistante.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `LeaseService.php:187-198` (`$lease->payments()->count()`, toutes lignes) ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : bail `draft` de 12 mois à 100 000, caution `pending` posée par la voie imbriquée → 201, puis `activate()` → 0 échéance de loyer, 1 ligne au total, et `POST /api/leases/{id}/payments/generate-schedule` → 422 « The payment schedule has already been generated. » ; témoin sans caution → 12 échéances ; le locataire d'un bail `pending_signature` poste `amount=1` sur `/api/payments` → 201 `pending`, et après `completeActivation()` le bail n'a qu'une ligne de loyer, à 1,00. Note : la route est `leases/{lease}/payments/generate-schedule` (`routes/api/leases.php:33`). Classement : V1, ce que compte l'échéancier et l'état de bail qui autorise une ligne sont des choix sur l'argent.
+- Mesure (2026-10-18, e735ac81e, implementeur) : avant correctif, `GenerateLeasePaymentScheduleTest` rougit sur une caution `pending` préexistante (0 échéance contre celles du bail témoin) et sur un loyer `cancelled` (`lease.schedule_exists`), et `LeaseTest` sur un brouillon (`POST /api/leases/{id}/payments` → 201) → `scheduleUnderLock` ne compte que les loyers non annulés, `LeasePaymentController::store` rend 422 `lease_payment.lease_not_active` hors `active` et `terminating` ; ablation des deux correctifs → les 3 mêmes rouges, remis → verts. `POST /api/payments` laissé à son retrait par TCK-940 (PR #666).
 
 ### Petites améliorations
 - Réf : P46.05
