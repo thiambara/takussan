@@ -114,7 +114,7 @@ voie d'écriture (angle 13, puis 47).
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | fait |
 | 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | fait (couvert par l'angle 12) |
 | 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | fait |
-| 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
+| 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | fait |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
 | 45 | Contrat front ↔ API : chemins, clés de réponse, champs écartés par `validated()` — une garde qui confronte les littéraux du front à `route:list` | à faire |
@@ -149,6 +149,7 @@ voie d'écriture (angle 13, puis 47).
 | 74 | Ce que joint sans authentification un service voisin de `dokploy-network` (Dokploy, Compose `donnees`, autres projets) : API sur 8080, Redis, Meilisearch (clé maîtresse ?), PostgreSQL, front Next — et l'alias `api` partagé entre projets | à faire |
 | 75 | Classes `Notification` historiques de `AppDatabaseChannel::TYPES`, hors `NotificationCode` : sans `code` ni `target` dans la cloche, préférences lues à la main dans `via()`, couvertes par un test ? | à faire |
 | 76 | Effets aval d'un paiement soldé puis passé à `refunded` : quittance déjà envoyée, ligne prise par un reversement de la plateforme (`platform_payout_id`) ou du propriétaire (`PayoutCalculator`), commission, exports et totaux de l'historique | à faire |
+| 77 | Fichiers du disque `local` dans le volume `storage` des conteneurs (archives d'export RGPD, exports de rapports) : écrits par `worker`, servis par `api`, purge réelle, taille, et ce qui reste après `PurgeExpiredDataExports` | à faire |
 
 ---
 
@@ -4538,3 +4539,86 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
 - Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
 - Mesure (2026-10-18, a2dc95960, mesureur) : même test vitest temporaire, retiré → corps `ff 80 00 41` envoyé à `admin-users` part en `ef bf bd ef bf bd 00 41` (`request.text()` toujours l. 32, et `super-admin-properties` l. 31, `announcements` l. 22) ; `feature-flags/me` et `maintenance/status` rendent un JSON amont en `text/plain;charset=UTF-8` ; `find src/app/api -name route.ts | wc -l` → 36 alors que `takussan-web/CLAUDE.md` dit toujours « 31 route handlers » (l. 72) ; les six `forward()` divergents sont relus. Les quatre parties tiennent. Classement : V5, la `Piste` réunit les relais dans une fonction qui pose aussi les en-têtes serveur et `accept-language` de P41.02, donc le même chemin interne ; prises seules, la lecture en octets et le `content-type` (A1, précédent TCK-601) et le compte du document (A6) seraient autonomes.
+
+## Angle 42 — Sauvegardes PostgreSQL : existence, rétention, restauration
+
+*Exploré le 2026-10-18 sur `pre-dev` bcd11595a, par l'explorateur. L'explorateur a tout relu
+lui-même, sans sous-agent : `deploy/`, `takussan-api/docker/release.sh`, `docs/infra/hebergement.md`,
+le plan `2026-09-13-auto-hebergement-vps-dokploy.md` (tâches D6 et F), ADR-0028 § 7, ADR-0044,
+ADR-0069 § 5, l'ardoise (D-05bis) et l'historique git des guides supprimés. **Limite de la mesure :
+rien n'est relu sur le serveur ni dans R2** (sortie du poste interdite). Ce que le relevé
+d'`hebergement.md` affirme de la préproduction est pris comme relevé daté, jamais re-mesuré ici.
+L'existence et la rétention des sauvegardes (`takussan_preview`, `0 3 * * *`, 14 exemplaires,
+restauration à blanc du 2026-09-14) sont déjà écrites, comme le verrou de rétention absent
+(TCK-548, ADR-0069 § 5) : elles ne font pas d'entrée.*
+
+### L'ardoise dit le dump pré-déploiement documenté, mais le seul guide qui l'imposait est supprimé et `release.sh` migre sans dump
+- Réf : P42.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `docs/ardoise.md:341-359`, `takussan-api/docker/release.sh:9`, `docs/infra/hebergement.md:287-295`, `takussan-api/database/migrations/2026_05_18_120000_drop_spatie_permission_tables.php:52`
+- Constat :
+  - D-05bis est marqué « ✅ documenté le 2026-08-12 ». Il affirme que « le guide de déploiement porte un encadré » qui « impose le dump pré-déploiement comme seule marche arrière réelle, avec la vérification que le dump est relisible » (lu, `ardoise.md:341-347`).
+  - Ce guide était `docs/infra/deploy-preview.html` (mesuré : `git grep -n -i relisible 3b991a83e -- docs` → `deploy-preview.html:2024`, « Vérifier que le dump est non vide et relisible avant de lancer le deploy »). Le commit 9f6f6620a (TCK-514) l'a supprimé le 2026-09-13, avec `premier-deploiement.md`, et les a remplacés par `hebergement.md` (mesuré : `git show 9f6f6620a --stat`).
+  - `hebergement.md` ne contient aucune consigne de dump avant un déploiement. Le seul `dump` du fichier est le piège du format `-Fc` à la restauration, l. 292 (mesuré : `grep -n -i "dump\|pré-déploiement" docs/infra/hebergement.md` → l. 292 seule).
+  - Le déploiement joue `php artisan migrate --force` en première ligne du service `release` (lu, `release.sh:9`), sans sauvegarde préalable. La dernière sauvegarde est celle de la nuit (`0 3 * * *`, `hebergement.md:107`). Une migration destructrice ratée en journée n'a donc pour marche arrière qu'un dump vieux de jusqu'à 24 h, ce que D-05bis voulait éviter.
+  - Établi comment : lecture de l'ardoise, de `release.sh`, d'`hebergement.md`, et de l'historique git ci-dessus.
+- Piste : soit rétablir la consigne dans `hebergement.md` (« Déployer une migration irréversible : sauvegarde manuelle Dokploy, relue dans R2, avant l'envoi sur `preview` ou `master` »), soit faire déclencher la sauvegarde par la chaîne (`images.yml` appelle la sauvegarde manuelle de l'API Dokploy avant `compose.deploy`). Dans les deux cas, corriger D-05bis pour qu'il pointe un document qui existe. Garde possible : un `check-*` qui vérifie que les renvois « documenté dans X » de l'ardoise visent un fichier présent.
+
+### `APP_KEY` n'a aucune consigne de sauvegarde hors de l'hébergeur, alors qu'une restauration sans elle perd les colonnes chiffrées
+- Réf : P42.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:48-51`, `:162-164`, `docs/infra/hebergement.md:156`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4151`
+- Constat :
+  - ADR-0044 écrit qu'`APP_KEY` « se sauvegarde hors de l'hébergeur (coffre du porteur) » et qu'« une restauration de base sans la clé de la même époque est une restauration ratée ». Ses conséquences renvoient cette obligation à `docs/infra/hebergement.md`, « à porter par la session » (lu, `:48-51`, `:162-164`).
+  - `hebergement.md` ne cite `APP_KEY` qu'une fois, dans la liste des clés fixées par le plan (« neuve »). Il ne dit ni où elle est gardée, ni comment la retrouver pour une restauration (mesuré : `grep -n APP_KEY docs/infra/hebergement.md` → l. 156 seule).
+  - Le plan F3 fait générer une `APP_KEY` neuve pour la production (`openssl rand -base64 32`, l. 4151), sans étape qui la range hors de Dokploy (lu, l. 4140-4160).
+  - Depuis le 2026-10-08, cette clé chiffre `owner_profiles.rib` et les identifiants légaux des demandes de passage en agence. Depuis le 2026-10-16, elle chiffre aussi `customers.id_number` et `guarantors.id_number` (lu : migrations `2026_10_08_601100`, `2026_10_08_601200`, amendement du 2026-10-16 d'ADR-0044).
+  - À vérifier : la sauvegarde de la configuration de Dokploy (`web-server`, `hebergement.md:110`) contient peut-être l'environnement des Compose, donc la clé. Elle serait alors dans `vps-sauvegardes` à côté des dumps. Ce n'est pas le « coffre du porteur » de l'ADR, et la clé serait perdue avec le seau.
+- Piste : une ligne au relevé d'`hebergement.md` (« `APP_KEY` de chaque environnement : où elle est gardée hors du VPS, relue le … »), et une étape au plan F3 qui range la clé de production avant le premier déploiement. Le relevé peut porter une empreinte (un `sha256` tronqué de la clé) pour vérifier sans l'afficher.
+
+### Le critère de restauration ne compte que les lignes : il passe avec une `APP_KEY` fausse, et n'a pas été rejoué depuis les colonnes chiffrées
+- Réf : P42.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md:149-154`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:3724-3747`, `:4248`, `docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md:152-154`, `docs/infra/hebergement.md:112`
+- Constat :
+  - ADR-0028 § 7 juge la restauration à blanc sur « les comptes de lignes de la copie comparés à l'original » (lu). Le script de D6, étape 2, fait un `count(*)` par table puis un `diff` (lu, plan l. 3738-3741). ADR-0069 § 5 garde le même critère pour WAL-G, et y ajoute « la dernière ligne écrite » (lu, l. 152-154). Aucun ne relit une valeur chiffrée à travers le cast avec l'`APP_KEY` de l'environnement cible. Une restauration sous une clé fausse donne donc un `diff` vide.
+  - La seule restauration à blanc mesurée date du 2026-09-14 : 92 tables, 86 927 lignes (lu, `hebergement.md:112`). Depuis, 88 fichiers de migration sont datés du 2026-09-14 ou après, dont 21 qui créent une table (mesuré : `ls database/migrations | awk -F_ '$1$2$3>="20260914"' | wc -l` → 88 ; même liste `| xargs grep -l "Schema::create" | wc -l` → 21). S'y ajoutent les migrations de chiffrement du 2026-10-08. Le relevé ne dit pas qu'une restauration ait été rejouée sur ce schéma.
+  - L'étape 6 du plan F3 fait rejouer D6, étape 2, contre `takussan_prod` « après sa première sauvegarde nocturne » (lu, l. 4248) : une base de production neuve, donc presque vide, jugée par le même critère.
+- Piste : ajouter un contrôle de lecture au critère de D6, et à celui d'ADR-0069 § 5. Sur la copie, avec l'`APP_KEY` de l'environnement, une commande relit un échantillon de chaque colonne chiffrée sans `DecryptException`. Rejouer la restauration de la préproduction sur le schéma courant, et dater le relevé.
+
+### Rien n'alerte si la sauvegarde nocturne de la base cesse, et l'alerte d'échec de Dokploy n'a jamais été éprouvée pour une base
+- Réf : P42.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `deploy/server/seuils.sh:27-41`, `docs/infra/hebergement.md:96`, `:98`, `:108`
+- Constat :
+  - `seuils.sh` surveille la mémoire, le disque, le vol de CPU et la mémoire de Dokploy, et rien d'autre (lu, `:27-41`). Aucun script de `deploy/server/` ne lit l'âge du dernier objet `postgres/takussan_preview/` dans R2 (mesuré : `grep -n -i "sauvegard\|backup" deploy/server/seuils.sh` → rien). Seul `sauvegarde-seau-prive.sh` alerte, et seulement sur son propre échec.
+  - Le seul échec forcé suivi d'une alerte reçue concerne la copie du seau privé (lu, `hebergement.md:108`). Pour les sauvegardes de base, le relevé dit seulement que l'événement « sauvegardes » est coché (l. 96). Il dit aussi que l'envoi Telegram de Dokploy ne lit jamais sa réponse (l. 98, mesuré le 2026-09-14 sur un échec de build). Le correctif du *Chat ID* a été vérifié par un `sendMessage` direct, pas par une sauvegarde en échec (lu, l. 96).
+  - Une sauvegarde qui ne se lance plus (planification retirée, Dokploy arrêté) ne produit aucun échec, donc aucune notification, même quand l'envoi fonctionne. Le relevé ne mentionne aucun contrôle de fraîcheur dans Dokploy (à vérifier).
+- Piste : un minuteur sous `deploy/server/` (ou une ligne de `seuils.sh`) qui liste `vps-sauvegardes` sous le préfixe réel (`serveur-postgres-…/postgres/<base>/`, `hebergement.md:111`). Il alerte si le dernier objet a plus de 26 h ou pèse moins qu'une borne. Puis l'ablation : un préfixe faux doit alerter une fois, puis se taire. Éprouver une fois l'alerte d'échec de Dokploy pour une sauvegarde de base (destination au jeton révoqué).
+
+### La procédure de restauration s'arrête au chargement : ni réimport de la recherche, ni file `database` rejouée, ni jetons révoqués
+- Réf : P42.05
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/infra/hebergement.md:287-295`, `takussan-api/docker/release.sh:42-46`, `deploy/takussan/compose.api.yml:18`, `docs/infra/prod-drivers.json` (`QUEUE_CONNECTION`, `SESSION_DRIVER`)
+- Constat :
+  - « Restaurer une base » se résume à Dokploy → *Restore*, plus deux pièges de format et de comptage (lu, `hebergement.md:287-295`). Rien sur ce qui vit hors de la base.
+  - Recherche : `release.sh` ne réimporte les index que si l'empreinte de forme diffère du marqueur `storage/app/private/.search-shape-importee` (lu, `:42-46`). Ce marqueur est rangé dans le volume `storage` (lu, `compose.api.yml:18`), que la restauration de base ne touche pas. Après la restauration d'un dump plus ancien sur le même serveur, le marqueur concorde et rien n'est réimporté. Meilisearch garderait alors des documents absents de la base (déduit, à vérifier).
+  - File : `QUEUE_CONNECTION=database` en préproduction (mesuré) et en production (prescrit) (lu, `prod-drivers.json`). Les jobs en attente à l'heure du dump sont dans le dump. Les restaurer les rejoue, y compris des notifications et des SMS déjà partis (déduit, à vérifier).
+  - Jetons : les jetons Sanctum vivent dans la base, les sessions dans Redis (`SESSION_DRIVER=redis`, lu, `prod-drivers.json`). Un jeton révoqué après le dump (déconnexion, changement de mot de passe, effacement de compte) redevient valide après la restauration (déduit, à vérifier).
+- Piste : une section « Après une restauration » dans `hebergement.md`. Elle supprime le marqueur puis rejoue `release` (ou `scout:import` pour chaque modèle). Elle vide ou relit `jobs` avant de relancer les workers. Elle révoque les jetons (tous, ou ceux créés avant l'instant du dump) et vide le cache Redis de l'environnement. La rejouer une fois sur la copie de D6.
+
+### Une restauration ressuscite les comptes effacés depuis le dump, et aucun document ne dit combien de temps une donnée effacée survit dans les sauvegardes
+- Réf : P42.06
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `docs/infra/hebergement.md:107`, `docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md:4020-4023`, `:4175-4176`, `takussan-api/database/migrations/2026_10_08_601400_create_privacy_requests_table.php:21`, `takussan-api/app/Services/Privacy/DataExportBuilder.php:45`, `takussan-api/app/Jobs/Privacy/PurgeExpiredDataExports.php:26`
+- Constat :
+  - L'anonymisation et le registre des demandes (`privacy_requests`, `account_deletion_requests`) sont dans la même base que les données (lu, migrations). Restaurer un dump antérieur à un effacement rend le compte en clair. La même restauration efface la trace qui permettrait de rejouer l'effacement (déduit, à vérifier).
+  - Les dumps gardent 14 exemplaires en préproduction (lu, `hebergement.md:107`), et le plan en prévoit 30 en production (lu, plan l. 4023). Le texte d'effacement montré à l'utilisateur dit « Vos données personnelles sont anonymisées » (lu, `takussan-web/src/messages/fr.json:3085`). Aucun document ne dit que la donnée reste jusqu'à 30 jours dans les sauvegardes (mesuré : `grep -n -i "sauvegard" docs/adr/0044-*.md` → seulement la clé, l. 50 et 163).
+  - Le plan F3 rétablit pour la production les *Volume Backups* du volume `storage`, 14 exemplaires (lu, l. 4175-4176). Ce volume porte le disque `local`, qui reçoit les archives d'export RGPD (`DataExportBuilder.php:45`) et les exports de rapports (`GenerateReportExport.php:52`). `PurgeExpiredDataExports` les supprime du disque (`:26`), mais pas des archives du volume (déduit, à vérifier). La préproduction a désactivé cette sauvegarde le 2026-09-22, parce que les médias étaient partis sur R2 (lu, `hebergement.md:107`).
+- Piste : écrire dans ADR-0044 (ou un amendement) combien de temps une donnée survit dans les sauvegardes, et la règle de restauration : rejouer les effacements postérieurs au dump depuis une liste tenue hors de la base (journal, ou export nocturne des identifiants effacés). Décider si la sauvegarde du volume `storage` de production sert encore. Sinon, la retirer du plan F3.
