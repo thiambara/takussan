@@ -9,6 +9,7 @@ import {
   detachCustomerTagAction,
 } from '@/app/actions/dashboard-customers';
 import { Input } from '@/components/ui/input';
+import { ESPACE_DES_ETIQUETTES_CRM, libelleEquipement } from '@/lib/libelle-equipement';
 import { cn } from '@/lib/utils';
 import type { Tag } from '@/types/tag';
 
@@ -39,11 +40,21 @@ function tagColor(name: string) {
 
 type TagChip = Pick<Tag, 'id' | 'name' | 'slug' | 'color'>;
 
+/**
+ * TCK-922 (P30.06) — le libellé d'une étiquette à l'écran : une étiquette du catalogue CRM est
+ * traduite par son slug, une étiquette saisie par l'agence s'affiche telle quelle. Le NOM en base
+ * reste la valeur (filtre de la liste, couleur, rattachement).
+ */
+function useLibelleEtiquette() {
+  const t = useTranslations(ESPACE_DES_ETIQUETTES_CRM);
+  return (tag: Pick<Tag, 'name'> & { readonly slug?: string | null }) => libelleEquipement(tag, t);
+}
+
 interface Props {
   customerId: number;
   initialTags: TagChip[];
   /** Suggestions fetched server-side — top CRM tags for the agency */
-  suggestions?: Pick<Tag, 'id' | 'name' | 'color'>[];
+  suggestions?: (Pick<Tag, 'id' | 'name' | 'color'> & { slug?: string | null })[];
   /** Deeplink: clicking a tag navigates to list filtered by that tag */
   onTagClick?: (tagName: string) => void;
 }
@@ -55,6 +66,7 @@ export function CustomerTagPicker({
   onTagClick,
 }: Props) {
   const t = useTranslations('crm.tags');
+  const libelle = useLibelleEtiquette();
   const [tags, setTags] = useState<TagChip[]>(initialTags);
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -65,7 +77,7 @@ export function CustomerTagPicker({
   const filteredSuggestions = suggestions.filter(
     (s) =>
       input.trim().length > 0 &&
-      s.name.toLowerCase().includes(input.toLowerCase().trim()) &&
+      libelle(s).toLowerCase().includes(input.toLowerCase().trim()) &&
       !tags.some((t) => t.name === s.name),
   );
 
@@ -145,20 +157,20 @@ export function CustomerTagPicker({
               {onTagClick ? (
                 <button
                   type="button"
-                  aria-label={t('filterAria', { tag: tag.name })}
+                  aria-label={t('filterAria', { tag: libelle(tag) })}
                   className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => onTagClick(tag.name)}
                 >
-                  {tag.name}
+                  {libelle(tag)}
                 </button>
               ) : (
-                tag.name
+                libelle(tag)
               )}
               {/* Cible visible de 20 px, étendue à 24 × 36 px par le pseudo-élément, sans empiéter sur le
                   nom (écart de 2 px) ni sur la pastille voisine (écart de 6 px). */}
               <button
                 type="button"
-                aria-label={t('removeAria', { tag: tag.name })}
+                aria-label={t('removeAria', { tag: libelle(tag) })}
                 className="relative grid size-5 place-items-center rounded-full transition-colors hover:bg-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 after:absolute after:-inset-x-0.5 after:-inset-y-2"
                 onClick={() => detach(tag.id)}
                 disabled={isPending}
@@ -208,7 +220,7 @@ export function CustomerTagPicker({
                         c.border,
                       )}
                     >
-                      {s.name}
+                      {libelle(s)}
                     </span>
                   </button>
                 </li>
@@ -235,6 +247,7 @@ export function CustomerTagChips({
   tags: TagChip[];
   onTagClick?: (name: string) => void;
 }) {
+  const libelle = useLibelleEtiquette();
   if (!tags || tags.length === 0) return null;
   // Cliquable = un vrai `<button>` (clavier, annonce), sinon un simple libellé.
   const Chip = onTagClick ? 'button' : 'span';
@@ -255,7 +268,7 @@ export function CustomerTagChips({
                 'cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
           >
-            {tag.name}
+            {libelle(tag)}
           </Chip>
         );
       })}

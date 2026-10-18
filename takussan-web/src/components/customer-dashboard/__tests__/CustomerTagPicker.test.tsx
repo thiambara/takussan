@@ -15,8 +15,10 @@ vi.mock('@/app/actions/dashboard-customers', () => ({
   detachCustomerTagAction: (...args: unknown[]) => mockDetach(...args),
 }));
 
+// Le slug d'une étiquette saisie par l'agence est suffixé (`CustomerTagController::store`) : `vip`
+// tout court est celui du catalogue CRM, qui se traduit (TCK-922).
 function makeTag(id: number, name: string) {
-  return { id, name, slug: name, color: null };
+  return { id, name, slug: `${name}-x1`, color: null };
 }
 
 describe('CustomerTagChips', () => {

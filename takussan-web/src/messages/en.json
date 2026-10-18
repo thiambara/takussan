@@ -2811,6 +2811,13 @@
       "removeAria": "Remove the tag {tag}",
       "inputLabel": "Add a tag to the customer",
       "filterAria": "See customers tagged {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Hot lead",
+      "etranger": "Foreign national",
+      "famille": "Family",
+      "etudiant": "Student"
     }
   },
   "agentCrm": {
