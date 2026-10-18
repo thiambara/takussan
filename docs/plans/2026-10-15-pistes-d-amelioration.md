@@ -1121,12 +1121,13 @@ Sain (vérifié par l'agent) :
 
 ### Le mouvement réduit est ignoré par les primitives
 - Réf : P07.11
-- Statut : retenu · autonome
+- Statut : fait · TCK-870
 - Gravité : 🟠 risque ou dette (AAA, mais la charte en fait une règle)
 - Où : `ui/sheet.tsx:104-110`, `ui/dialog.tsx:58`, `ui/popover.tsx`, `ui/select.tsx`, `property/cards/PropertyRow.tsx:184`
 - Constat : `slide-in` et `zoom-in` de tw-animate-css ignorent `prefers-reduced-motion`, aucun `motion-reduce:` n'apparaît, et `scrollBy({behavior:'smooth'})` n'est pas conditionné (mesuré).
 - Piste : `motion-reduce:animate-none` dans les primitives.
 - Mesure (2026-10-15, ccabd662, mesureur) : lu `ui/sheet.tsx:100-110` (`slide-in-from-*`), `ui/dialog.tsx:35,58`, `ui/popover.tsx:62-63` (`zoom-in-95`, `slide-in-from-*`), `ui/select.tsx:97` ; `grep motion-reduce` → aucun dans ces quatre primitives (le constat « aucun `motion-reduce:` » est inexact : `button.tsx:31`, `ChatWidget.tsx`, `SelecteurDeTransaction.tsx`, `WizardReprenable.tsx` en portent) ; `grep reduced-motion node_modules/tw-animate-css/dist/tw-animate.css` → 0 ; les deux blocs `@media (prefers-reduced-motion)` de `globals.css:533,606` ne nomment que des `.animate-*` et `.wizard-*` maison ; `PropertyRow.tsx:184` : `scrollBy({ …, behavior: 'smooth' })` non conditionné → tient. Classement : A4 et A1, `docs/design-guidelines.md:365-369` écrit déjà que toute animation se neutralise sous mouvement réduit : poser `motion-reduce:animate-none` sur les contenus et fonds de `sheet`, `dialog`, `popover` et `select`, et `behavior: 'auto'` quand `matchMedia('(prefers-reduced-motion: reduce)')` répond.
+- Mesure (2026-10-18, d7c4e417, implementeur) : relu `ui/sheet.tsx`, `dialog.tsx`, `popover.tsx`, `select.tsx` (et `dropdown-menu.tsx`, `tooltip.tsx`) : `data-open:animate-in`/`data-closed:animate-out` sans neutralisation, et `PropertyRow.tsx:194` en `behavior: 'smooth'` → tient ; compilé avec `tailwindcss` + `tw-animate-css` + `shadcn/tailwind.css` : `motion-reduce:animate-none` (proposé par la mesure du 2026-10-15) sort AVANT `data-open:animate-in`, à spécificité égale (`:where(…)`), donc perdrait ; `motion-reduce:data-open:animate-none` sort après → posé sur chaque animation d'état des six primitives, avec son pendant `data-closed` ; la rangée passe en `behavior: 'instant'` sous `(prefers-reduced-motion: reduce)` (`'auto'` reprendrait le `scroll-smooth` du CSS) et prend `motion-reduce:scroll-auto` ; `src/components/ui/__tests__/mouvement-reduit.test.tsx` : ablation (sources d'avant) → 7 rouges sur 29, correctif remis → verts ; 846 tests verts sur 852 dans `ui`, `property*` et `src/test`, les 6 rouges dans les 3 fichiers `PropertyActions.*.tck-633` et `PropertyListFilters.mobile.tck-644`, non touchés, qui rougissent aussi sur `pre-dev` seul sous une charge de 10 sur 8 cœurs.
 
 ### Le lint d'accessibilité est presque éteint
 - Réf : P07.12
