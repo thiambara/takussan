@@ -63,7 +63,7 @@ final class TagProposals
             $maintenant = now();
             DB::table('tags')->insertOrIgnore([
                 'name' => $nom,
-                'slug' => TagCatalog::slugLibre($nom),
+                'slug' => TagCatalog::slugLibre($nom, horsCatalogue: true),
                 'type' => TagType::Amenity->value,
                 'status' => ReferentialStatus::Pending->value,
                 'created_by_id' => $auteur->id,
