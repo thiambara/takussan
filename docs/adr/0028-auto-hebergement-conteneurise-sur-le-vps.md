@@ -87,7 +87,7 @@ L'image d'API ne porte aucun environnement : toute sa configuration arrive par l
 conteneur, au démarrage. La même image sert la préproduction et la production.
 
 Le front ne le peut pas : `NEXT_PUBLIC_*` est **inliné à la compilation**
-(`docs/infra/frontend-deploiement.md`). Une image de front ne sert donc qu'un environnement, et son
+(le relevé `frontend-deploiement.md` (retiré par TCK-860)). Une image de front ne sert donc qu'un environnement, et son
 Dockerfile **refuse de construire** sans `NEXT_PUBLIC_API_URL` et `NEXT_PUBLIC_SITE_URL`.
 
 Ce refus porte hors de Vercel la protection d'[ADR-0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md).

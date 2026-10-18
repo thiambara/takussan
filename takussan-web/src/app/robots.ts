@@ -20,9 +20,9 @@ import { CHEMINS_INTERDITS_AUX_ROBOTS } from '@/lib/sitemap';
  * Les chemins interdits sont ceux des surfaces internes — console, BFF, authentification,
  * onboarding, publication —, et ils se DÉRIVENT de `SEGMENTS_NON_LOCALISES` (`src/i18n/routing.ts`)
  * plutôt que d'être recopiés : c'est la même liste, elle vit à un seul endroit, et le jour où une
- * surface interne s'y ajoute elle est interdite sans que personne y pense. Deux segments en sont
- * SOUSTRAITS explicitement — `_next` et `_vercel`, qui portent le CSS et le JS : un moteur qui ne
- * peut pas les charger juge une page sans style et sans contenu.
+ * surface interne s'y ajoute elle est interdite sans que personne y pense. Un segment en est
+ * SOUSTRAIT explicitement — `_next`, qui porte le CSS et le JS : un moteur qui ne peut pas les
+ * charger juge une page sans style et sans contenu.
  */
 /**
  * ⚠ Rendu à la demande, et non au build : `Sitemap:` porte l'origine du site, qui se lit à

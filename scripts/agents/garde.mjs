@@ -50,7 +50,7 @@ const COMMANDES = [
   // `Request::create(…)` fabrique une requête en mémoire : c'est une mesure, pas une écriture (faux positif du 2026-10-15).
   [/\b(tinker|php\s+-r)\b[\s\S]*(->(save|update|delete|forceDelete|insert|insertOrIgnore|upsert|truncate|increment|decrement|flush)|(?<!Request)::(create|insert|update|delete|truncate|statement|unprepared|updateOrCreate|firstOrCreate))\s*\(/, 'tinker et php -r : lecture seule'],
   // En position de commande seulement : `grep -rn ssh deploy/` reste une lecture.
-  [/(^|[;&|(`]\s*|\b(xargs|exec|nohup|time)\s+)(ssh|scp|sftp|rsync|vercel|dokploy|flyctl|kubectl|terraform|sudo|launchctl|crontab|osascript|shutdown|reboot|killall|pkill)\b/, 'commande hors du périmètre des agents'],
+  [/(^|[;&|(`]\s*|\b(xargs|exec|nohup|time)\s+)(ssh|scp|sftp|rsync|dokploy|flyctl|kubectl|terraform|sudo|launchctl|crontab|osascript|shutdown|reboot|killall|pkill)\b/, 'commande hors du périmètre des agents'],
   [/\b(curl|wget|http|https|nc|ping|dig|nslookup|openssl)\b[^|;&]*takussan\.com/i, 'aucun accès à un environnement déployé'],
   [/\bsecurity\s+(find|dump|add|delete|export|unlock)-/, 'le trousseau ne se lit pas'],
   [/\b(npm|pnpm|yarn)\s+(add|remove|rm|uninstall|un|update|up|upgrade|publish|login|adduser|link)\b/, 'pas de dépendance ajoutée, retirée ou mise à jour'],

@@ -204,7 +204,9 @@ class SavedSearchTest extends TestCase
         SavedSearch::factory()->create(['user_id' => $user->id, 'name' => 'Coupée', 'notification_frequency' => 'off']);
         Sanctum::actingAs($user);
 
-        $canaux = fn () => collect($this->getJson('/api/saved-searches')->assertOk()->json('data'))->pluck('alert_channels', 'name')->all();
+        // Triées par nom : les deux alertes naissent dans la même seconde, et leur ordre de liste n'est
+        // pas l'objet du test (rouge intermittent, CI de la PR #600).
+        $canaux = fn () => collect($this->getJson('/api/saved-searches')->assertOk()->json('data'))->pluck('alert_channels', 'name')->sortKeys()->all();
 
         $this->assertSame(['Active' => ['inapp', 'email'], 'Coupée' => []], $canaux());
 

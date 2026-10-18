@@ -3954,6 +3954,21 @@ git commit -m "build(web): Vercel ne construit plus que master ; les préproduct
 fusion vers `master` et chaque bascule DNS de cette phase est une **action sortante** : elle se fait
 sur sa demande explicite, au moment où il la donne.
 
+> ⚠️ **2026-10-18 — Vercel est supprimé AVANT cette phase, et l'ordre ci-dessous ne tient plus.**
+> Dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; `www.takussan.com` et
+> `takussan.com` sans enregistrement DNS ; environnement GitHub `Production` supprimé. Ce qui en
+> découle :
+>
+> - **F5, étape 1 est faite** par le porteur, hors de son ordre. Ses relevés préalables (Search
+>   Console à J+7, `dig`) n'ont pas été pris ; le retrait de l'application GitHub Vercel n'est pas
+>   mesuré (`hebergement.md`).
+> - **Il n'y a plus de retour arrière vers Vercel** : toute étape de F1 à F3 qui en parle — le CNAME
+>   Vercel de `www`, le retour arrière par le tableau de bord, le retrait de `@vercel/analytics` à
+>   l'étape 3 — est caduque. **F3 n'est plus une bascule mais une mise en service.** F2 et F3 sont
+>   réécrites par l'étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md).
+> - **F5, étape 2** (le dépôt oublie Vercel) n'a pas attendu F3 : faite par TCK-860. L'étape 3 attend
+>   toujours la production, puisqu'elle solde D-04 et D-10 sur sa mesure.
+
 ### Tâche F1 : re-mesurer, puis préparer les données de production
 
 - [ ] **Étape 1 : les prémisses ont-elles bougé ?**
@@ -4306,7 +4321,7 @@ Au moins **7 jours** après F3, sans retour arrière entre-temps. *(F4 annulée 
 Vercel de CheckPrint Plus a déjà été supprimé par le porteur le même jour : tout ce qui suit ne vise
 plus que Takussan.)*
 
-- [ ] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire**
+- [x] **Étape 1 : supprimer les projets Vercel — sur confirmation du porteur, au moment de le faire** *(faite avant F3 : dernier déploiement le 2026-10-15, constat du 2026-10-18 en tête de phase F)*
 
 C'est irréversible, et c'est le chemin de retour de F3 et F4 qui disparaît. Relever d'abord, dans
 le ticket F, la Search Console à J+7 (ajouté le 2026-10-17, piste P34.01) : pages indexées et
@@ -4316,7 +4331,7 @@ neuves en nombre se comprennent **avant** de supprimer Vercel. Relever ensuite
 attendues), puis supprimer les deux projets dans le tableau de bord Vercel, et retirer l'application
 GitHub Vercel des deux dépôts (*Settings → GitHub Apps*).
 
-- [ ] **Étape 2 : le dépôt Takussan oublie Vercel**
+- [x] **Étape 2 : le dépôt Takussan oublie Vercel** *(faite par TCK-860, le 2026-10-18)*
 
 ```bash
 git rm .github/workflows/front-deploy-map.yml docs/infra/frontend-deploiement.md docs/infra/frontend-deploiement.json takussan-web/vercel.json

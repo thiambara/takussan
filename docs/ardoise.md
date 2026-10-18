@@ -747,6 +747,13 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 > décision du porteur). Jusque-là, `www.takussan.com` reste servi par Vercel et le relevé ci-dessous
 > reste vrai pour `master`. TCK-333 devient sans objet le jour où l'intégration Vercel est coupée.
 
+> **2026-10-18 — Vercel est supprimé, AVANT la phase F.** Dernier déploiement de `vercel[bot]` le
+> 2026-10-15 à 13:32 Z ; `www.takussan.com` et `takussan.com` sans enregistrement DNS ; environnement
+> GitHub `Production` supprimé. L'extériorité que cette entrée décrit n'existe plus, et TCK-333 et
+> TCK-516 sont `obsolete`. **Ce n'est pas une résolution** : il n'y a plus de front public du tout.
+> D-10 se ferme avec la phase F (TCK-517), quand `images.yml` déploiera et prouvera la production ;
+> le relevé ci-dessous est historique.
+
 > **Relecture du 2026-08-20 : « ✅ soldé » tout court était trop généreux, et c'est exactement le
 > défaut que ce fichier existe pour empêcher.** TCK-299 n'a pas ramené le déploiement du front dans
 > le dépôt — il a établi *qui* le fait, l'a **décidé** en ADR, en a écrit le relevé et l'a gardé.
@@ -784,8 +791,8 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 >
 > Soldé par [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) (la décision : Vercel
 > garde le déploiement, le dépôt le relève et le garde),
-> [`docs/infra/frontend-deploiement.md`](infra/frontend-deploiement.md) + son relevé JSON, et
-> `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien).
+> le relevé `frontend-deploiement.md` + son relevé JSON, et
+> `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien) — tous trois retirés par TCK-860.
 
 **❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md).**
 Le front de production est en ligne, **public**, et son bundle porte
@@ -2996,7 +3003,7 @@ Re-mesuré le 2026-10-12 dans les conteneurs servis (`takussan-api-preview-4iza8
 |---|---|---|---|
 | `PUBLIC_CACHE_REVALIDATE_URL` / `_SECRET` | absentes | absente | aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s (ADR-0052) |
 | `API_INTERNAL_URL` | — | absente | le serveur Next appelle l'API par son URL publique, comme avant 598 |
-| `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 (Vercel) : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
+| `VISITOR_IP_TRUSTED_HOPS` | — | absente | défaut 1 : l'API voit l'IP de Cloudflare, pas celle du visiteur ; les limiteurs par visiteur sont partagés |
 | `SEARCH_ALERTS_WHATSAPP_ENABLED` | absente | — | faux : voulu tant que le gabarit Meta n'est pas approuvé |
 | `SMS_LOG_FALLBACK` | absente | — | faux : voulu, jamais hors développement |
 | `PHONE_LOGIN_ENABLED` | **présente** | — | `config:show auth.phone_login` → **`enabled true`** |

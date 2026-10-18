@@ -22,13 +22,20 @@
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 | `api.takussan.com` — **le nom que le front public appelle** | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Depuis `www.takussan.com`, l'appel **échoue sur la poignée de main TLS**, plus sur un 404 : même effet pour l'utilisateur (TCK-332, D-04). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
 
-La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
-Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [relevé](frontend-deploiement.md)).
+La production s'ajoute à ce tableau en phase F du plan. **D'ici là, il n'y a pas de site public** :
+Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md)),
+a été supprimé avant la bascule.
 
-⚠ **Tant que Vercel construit une branche, `next.config.ts` doit rester constructible par Vercel.**
-`output: 'standalone'`, dont l'image a besoin, casse l'adaptateur de Vercel (`ENOENT …
-.next/next-server.js.nft.json`, mesuré le 2026-09-13) : il n'est donc actif que hors de Vercel
-(`VERCEL=1` au build). La condition tombe en phase F, quand plus aucune branche ne passe par Vercel.
+| Constat | Relevé le 2026-10-18 |
+|---|---|
+| `www.takussan.com`, `takussan.com` | aucun enregistrement `A` ni `CNAME` (`dig +short A www.takussan.com`, puis `CNAME`) ; zone servie par Cloudflare |
+| dernier déploiement de Vercel | `vercel[bot]`, `Preview`, 2026-10-15T13:32:26Z (`gh api 'repos/thiambara/takussan/deployments?per_page=3'`) |
+| environnements GitHub de Vercel | `Production` et `Preview` supprimés le 2026-10-18 (le second par AC6 de TCK-832) ; leurs déploiements restent dans l'historique. `gh api repos/thiambara/takussan/environments -q .total_count` → `0` |
+| application GitHub Vercel sur le dépôt | *non mesuré* : le jeton de `gh` ne liste pas les installations. À vérifier dans *Settings → GitHub Apps* |
+
+Le code, les gardes et les textes légaux ne citent plus Vercel depuis TCK-860 : plus de repli
+`NEXT_PUBLIC_*`, `output: 'standalone'` et le loader de Cloudflare inconditionnels au build, plus
+de `@vercel/analytics`, plus d'origine `*.vercel.app` admise par le CORS de l'API.
 
 ## Ce que le dépôt porte
 
@@ -116,7 +123,8 @@ Projets Dokploy :
     crée sur la table de F3, jamais par `environment.duplicate`, qui recopierait les secrets de la
     préproduction.
 
-**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub,
+**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub
+(le dernier, `Preview`, est supprimé le 2026-10-18),
 seulement des secrets et variables de **dépôt**, préfixés par l'environnement Dokploy, de quoi
 déclencher et prouver, rien de la configuration des services :
 
@@ -202,7 +210,8 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
   `API_INTERNAL_URL` (`http://api:8080`, le service `api` sur `dokploy-network`) et
   `VISITOR_IP_TRUSTED_HOPS` (`2` : Cloudflare puis Traefik — inféré, à confirmer par la mesure
-  ci-dessus). Sur Vercel (`www`), `VISITOR_IP_TRUSTED_HOPS=1` et pas d'`API_INTERNAL_URL`.
+  ci-dessus). Sur Vercel (`www`, jusqu'au 2026-10-15), `VISITOR_IP_TRUSTED_HOPS=1` et pas
+  d'`API_INTERNAL_URL`.
 
 **`takussan-web-preview`** (Application) : depuis ADR-0069 § 3, l'image ne porte plus rien de
 l'environnement, et le conteneur **refuse de démarrer** sans trois variables d'exécution, origines

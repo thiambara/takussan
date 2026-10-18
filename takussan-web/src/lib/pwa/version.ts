@@ -3,7 +3,7 @@ import path from 'node:path';
 
 /**
  * La version du déploiement, dans l'ordre : `BUILD_SHA` (argument de build de l'image Docker,
- * ADR-0028 §10), le commit de Vercel, puis l'identifiant du build Next (`.next/BUILD_ID`, présent
+ * ADR-0028 §10), puis l'identifiant du build Next (`.next/BUILD_ID`, présent
  * dans la sortie `standalone`). ⚠ `BUILD_SHA` n'existe qu'au BUILD de l'image, pas dans son
  * étage d'exécution (`takussan-web/Dockerfile`) : sur `preview`, c'est donc `BUILD_ID` qui sert.
  */
@@ -13,7 +13,6 @@ export function versionDuDeploiement(
 ): string {
   const sha = env.BUILD_SHA;
   if (sha && sha !== 'inconnu') return sha;
-  if (env.VERCEL_GIT_COMMIT_SHA) return env.VERCEL_GIT_COMMIT_SHA;
   try {
     const id = readFileSync(path.join(racine, '.next', 'BUILD_ID'), 'utf8').trim();
     if (id) return id;

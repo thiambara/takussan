@@ -223,27 +223,28 @@ qui meurt.
 
 **`dev` est la branche d'intégration** et la branche par défaut du dépôt : toutes les PR la ciblent.
 
-**`master` sert le site public** : un merge vers `master` déploie le front en production par
-l'intégration Git Vercel ([ADR-0017](docs/adr/0017-deploiement-du-front-pilote-par-vercel.md),
-[`docs/infra/frontend-deploiement.md`](docs/infra/frontend-deploiement.md)). Y pousser est une
-**action sortante**, pas un rangement de branche. `master` est un ancêtre strict de `dev` : un
-merge y est un *fast-forward*.
+**Il n'y a plus de site public, et `master` ne déploie plus rien.** Jusqu'au 2026-10-15, un merge
+vers `master` mettait le front en production par l'intégration Git Vercel
+([ADR-0017](docs/adr/0017-deploiement-du-front-pilote-par-vercel.md)). **Vercel a été supprimé
+avant que la production auto-hébergée existe** : dernier déploiement de `vercel[bot]` le
+2026-10-15 à 13:32 Z, et au 2026-10-18 `www.takussan.com` et `takussan.com` n'ont **aucun
+enregistrement DNS**. `master` reste un ancêtre strict de `dev` (un merge y est un
+*fast-forward*), mais aucun workflow ne se déclenche sur elle. Elle redeviendra une **action
+sortante** en phase F du plan (TCK-517), qui se décide par une personne.
 
 > ⚠️ **Depuis le 2026-09-13, [ADR-0028](docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md)
 > remplace ADR-0017 et la chaîne `deploy.yml` / `scripts/deploy.sh`** : l'API et le front tournent
 > en conteneurs sur le VPS, sous Dokploy. Un push sur **`preview`** construit les images, les pousse
 > sur GHCR et déploie la préproduction par `.github/workflows/images.yml` — vert seulement quand
-> l'URL publique rend le commit dans `X-Build-Sha`. **`master` reste servie par Vercel jusqu'à la
-> phase F du plan**, et cette phase se décide par une personne. Runbook et relevé :
-> [`docs/infra/hebergement.md`](docs/infra/hebergement.md).
+> l'URL publique rend le commit dans `X-Build-Sha`. **La préproduction est aujourd'hui le seul
+> environnement servi.** Runbook et relevé : [`docs/infra/hebergement.md`](docs/infra/hebergement.md).
 
-**L'API n'a jamais servi en production, et le front public l'appelle quand même.** Le bundle de
-`www.takussan.com` porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` (inliné à la compilation,
-lisible dans les chunks servis) ; cet hôte pointe sur le VPS sans service derrière et **échoue sur
-la poignée de main TLS** (re-mesuré le 2026-09-14, TCK-523). C'est l'objet de
-[TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md) et de la phase F
-(TCK-517). Relevé et commande : [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui
-sert quoi ».
+**L'API n'a jamais servi en production.** `api.takussan.com` pointe sur le VPS sans service
+derrière et **échoue sur la poignée de main TLS** (re-mesuré le 2026-09-14, TCK-523). Le front de
+Vercel qui l'appelait quand même
+([TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md)) a disparu avec
+Vercel : le front et l'API de production arrivent ensemble en phase F (TCK-517). Relevé et
+commande : [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi ».
 
 > ⚠️ **Une mesure sans sa date devient une croyance.** Ce paragraphe a été faux à plusieurs
 > reprises, toujours dans le sens qui rassure ([J-06](docs/journal-des-corrections.md#j-06)). Le relevé daté de l'ancien

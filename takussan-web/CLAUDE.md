@@ -29,7 +29,7 @@ typage ni dans le lint ne l'empêche.
 
 L'origine de l'API se lit par **`origineApi()`** (`src/lib/config-publique.ts`, ADR-0069 § 3), sans
 le suffixe `/api` : c'est le seul lecteur, et `scripts/check-front-env-keys.mjs` refuse toute lecture
-de `process.env.NEXT_PUBLIC_API_URL` ailleurs. Avant lui, 25 fichiers redéclaraient chacun la
+de `process.env.API_URL` ailleurs, et de toute `NEXT_PUBLIC_*`. Avant lui, 25 fichiers redéclaraient chacun la
 normalisation `.replace(/\/api$/, '')` dans une constante de module.
 
 ## Couche réseau
@@ -319,32 +319,32 @@ npm run test
 `src/lib/config-publique.ts`** ([ADR-0069](../docs/adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md) § 3) —
 `origineApi()`, `origineSite()`, `origineMedia()`. Des fonctions, jamais des constantes de module.
 
-| Valeur | Dans l'image (exécution, Dokploy) | Repli (build : Vercel, `next dev`) |
+| Valeur | Clé (Dokploy dans l'image, `.env.local` sous `next dev`) | Défaut sans la clé |
 |---|---|---|
-| origine de l'API | `API_URL` | `NEXT_PUBLIC_API_URL` |
-| origine du site (canoniques, sitemap) | `SITE_URL` | `NEXT_PUBLIC_SITE_URL` |
-| origine du seau de médias | `MEDIA_URL` | `NEXT_PUBLIC_MEDIA_URL` |
+| origine de l'API | `API_URL` | `http://localhost:8002` |
+| origine du site (canoniques, sitemap) | `SITE_URL` | `https://www.takussan.com` |
+| origine du seau de médias | `MEDIA_URL` | aucune : les images de l'API passent telles quelles |
 
-- **L'image n'en porte aucune** : une `NEXT_PUBLIC_*` est inlinée à la compilation, même dans le
-  code serveur, et referait une image par environnement. Le conteneur **refuse de démarrer** sans
+- **Aucune `NEXT_PUBLIC_*`** pour ces valeurs, ni ailleurs dans le front : Next l'inlinerait à la
+  compilation, même dans le code serveur, et referait une image par environnement. Le conteneur **refuse de démarrer** sans
   les trois clés d'exécution bien formées (`docker/demarrer.mjs`, origine seule) : sans `SITE_URL`,
   une préproduction déclarerait ses pages canoniques en production.
 - **Le navigateur** reçoit l'API et les médias du layout racine, qui écrit
   `window.__TAKUSSAN_CONFIG__` dans `<head>`. Tout ce qui y passe est public :
   `scripts/check-front-env-keys.mjs` ferme la liste des clés.
-- Le repli `NEXT_PUBLIC_*` disparaît avec Vercel (phase F, F5). `.env.example` et `.env.local`
-  pointent sur `http://127.0.0.1:8002`.
+- `.env.example` (et le `.env.local` que `./dev.sh` en tire) pointe `API_URL` sur
+  `http://127.0.0.1:8002`. Un `.env.local` antérieur à TCK-860 porte encore les anciens noms
+  `NEXT_PUBLIC_*`, que plus rien ne lit : `./dev.sh` le signale.
 - `robots.txt` et `sitemap.xml` sont rendus à la demande, pour lire l'origine à l'exécution ; les
   données du sitemap sont en cache une heure (P34.02).
 
-**`NEXT_PUBLIC_MEDIA_URL`** — l'origine du seau public de médias (`https://media-preview.takussan.com`,
+**`MEDIA_URL`** — l'origine du seau public de médias (`https://media-preview.takussan.com`,
 puis `https://media.takussan.com`), [ADR-0029](../docs/adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).
-Dans l'image (`TAKUSSAN_LOADER_MEDIA=1`, posée par le `Dockerfile`), ou posée au build hors de
-l'image, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
-image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`) — **sauf une
-conversion de photo de bien en WebP, rendue telle quelle** (TCK-585, amendement d'ADR-0029) —, et
-**l'optimiseur de Next ne tourne plus**. Vide — développement, et production Vercel jusqu'à la
-phase F —, le loader n'est pas branché et l'optimiseur reste. Le conteneur refuse de démarrer sans
+Tout `next build` — donc l'image — branche `src/lib/image-loader.ts` comme `loaderFile` de
+`next/image` : toute image de ce domaine est servie par Cloudflare Transformations
+(`/cdn-cgi/image/…`) — **sauf une conversion de photo de bien en WebP, rendue telle quelle**
+(TCK-585, amendement d'ADR-0029) —, et **l'optimiseur de Next ne tourne plus**. Sous `next dev`,
+le loader n'est pas branché et l'optimiseur reste. Le conteneur refuse de démarrer sans
 `MEDIA_URL`. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
 les photos de l'API sortent en pleine taille, sans optimiseur. ⚠ Le loader arrondit les largeurs à
 six paliers (`LARGEURS_MEDIA`) et ignore la `quality` d'un composant : Transformations facture la
@@ -369,54 +369,28 @@ transformation unique, 5 000 par mois gratuites.
 déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler-active.md)) et
 `allowedDevOrigins` (ci-dessus).
 
-## Déploiement — ce dossier EST en production, et publiquement
+## Déploiement — la préproduction seule, la production en phase F
 
-> ⚠️ **[ADR-0028](../docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) (2026-09-13)
-> ramène ce déploiement DANS le dépôt, par étapes.** Le front devient une image **par commit**
-> (ADR-0069 § 3) — le `Dockerfile` de ce dossier, `output: 'standalone'` dans `next.config.ts` —
-> construite par `.github/workflows/images.yml` et servie par Dokploy, qui lui pose `API_URL`,
-> `SITE_URL` et `MEDIA_URL` à l'exécution (§ Environnement). Le conteneur refuse de démarrer sans
-> elles, et `scripts/check-front-env-keys.mjs` garde qu'aucune `NEXT_PUBLIC_*` n'entre dans le
-> `Dockerfile` ni dans le workflow. La preuve d'un déploiement est l'en-tête `X-Build-Sha`, posé par `next.config.ts`.
-> Runbook : [`docs/infra/hebergement.md`](../docs/infra/hebergement.md) ; test local de l'image :
-> `deploy/takussan/smoke-web.sh`.
->
-> Jusqu'à ADR-0028, **aucun workflow de ce dépôt ne déployait ce dossier, et pourtant il l'était** —
-> par l'intégration Git du projet Vercel `thiambaras-projects/takussan`, qui sert encore `master`.
-> *Une absence dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le dépôt ne le
-> fait pas.*
+Le front est une image **par commit** (ADR-0069 § 3) — le `Dockerfile` de ce dossier,
+`output: 'standalone'` dans `next.config.ts` — construite par `.github/workflows/images.yml` et
+servie par Dokploy, qui lui pose `API_URL`, `SITE_URL` et `MEDIA_URL` à l'exécution
+(§ Environnement). La preuve d'un déploiement est l'en-tête `X-Build-Sha`, posé par
+`next.config.ts`. Runbook : [`docs/infra/hebergement.md`](../docs/infra/hebergement.md) ; test
+local de l'image : `deploy/takussan/smoke-web.sh`.
 
-| Branche | Environnement | Servi par | Ce qu'on atteint | Public ? |
-|---|---|---|---|---|
-| `master` | **Production** | Vercel, **jusqu'à la phase F** d'ADR-0028 (TCK-517) | `www.takussan.com` (200 au 2026-08-20 ; `takussan.com` y redirige en 307) | **oui** |
-| `preview` | Préproduction | Dokploy, image `takussan-web:preview`, dès TCK-515 | `preview.takussan.com` | *non mesuré* |
-| `dev`, toute PR | Preview | Vercel, jusqu'à TCK-516 | une URL par déploiement | non — SSO Vercel |
+| Branche | Environnement | Servi par | Ce qu'on atteint |
+|---|---|---|---|
+| `preview` | Préproduction | Dokploy, image `takussan-web:preview` | `preview.takussan.com`, derrière une authentification Basic |
+| `master` | Production | **rien** jusqu'à la phase F d'ADR-0028 (TCK-517) | **rien** : `www.takussan.com` et `takussan.com` sans DNS au 2026-10-18 |
+| `dev`, toute PR | — | aucun déploiement ; la CI construit l'image sans la pousser | — |
 
-**Ce que cela change concrètement pour qui travaille ici : un merge vers `master` met CE code en
-ligne, devant des utilisateurs.** Ce n'est pas un rangement de branche, c'est une action sortante.
-
-⚠️ **Et la production appelle une API qui n'existe pas.** Le bundle servi par `www.takussan.com`
-porte `NEXT_PUBLIC_API_URL = https://api.takussan.com`, hôte qui rend **404** au 2026-08-20 (là où
-`preview.api.takussan.com/up` rend 200). Mesuré dans le bundle lui-même — la valeur est inlinée à
-la compilation, elle se lit sans accès à Vercel :
-
-```js
-let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
-```
-
-→ [TCK-332](../docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md), ardoise D-04
-et D-10.
-
-**Source unique du relevé** : [`docs/infra/frontend-deploiement.json`](../docs/infra/frontend-deploiement.json)
-— ne pas recopier ces valeurs ailleurs. La prose et les commandes de re-mesure :
-[`frontend-deploiement.md`](../docs/infra/frontend-deploiement.md). La décision :
-[ADR-0017](../docs/adr/0017-deploiement-du-front-pilote-par-vercel.md). La garde :
-`.github/workflows/front-deploy-map.yml`, qui vérifie et ne déploie rien.
+**Il n'y a pas de site public.** Vercel, qui servait `master` jusqu'au 2026-10-15
+([ADR-0017](../docs/adr/0017-deploiement-du-front-pilote-par-vercel.md)), a été supprimé avant la
+mise en service de la production. Un merge vers `master` ne met donc rien en ligne aujourd'hui ;
+il redeviendra une action sortante quand `images.yml` saura déployer la production (phase F).
 
 ## À ne pas croire
 
-- `README.md` est resté le **template create-next-app par défaut** (Geist, Vercel, « editing
-  app/page.tsx ») — zéro information Takussan.
 - Les constantes de navigation vivent dans `src/data/navigation.ts` — **pas** dans un fichier
   nommé « mock ». Elles y étaient, mêlées à ~300 lignes d'annonces factices sans usage, et un
   nom pareil finit par faire supprimer par mégarde des données que la production consomme.

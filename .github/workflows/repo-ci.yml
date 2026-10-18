@@ -82,6 +82,8 @@ on:
       - 'takussan-api/docker/**'
       - 'takussan-api/Dockerfile'
       - 'takussan-web/Dockerfile'
+      # `check-front-env-keys` exige les clés d'exécution dans le contrat des clés du front.
+      - 'takussan-web/.env.example'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -183,6 +185,8 @@ on:
       - 'takussan-api/docker/**'
       - 'takussan-api/Dockerfile'
       - 'takussan-web/Dockerfile'
+      # `check-front-env-keys` exige les clés d'exécution dans le contrat des clés du front.
+      - 'takussan-web/.env.example'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -287,6 +291,16 @@ jobs:
           sudo curl -fsSL -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
           sudo chmod 755 /usr/local/bin/hadolint
           shellcheck --version | head -2; hadolint --version
+
+      - name: La configuration du front se lit à l'exécution, par un seul module
+        # ADR-0069 § 3 : aucune NEXT_PUBLIC_* lue par le front ni passée à son build, les trois clés
+        # d'exécution lues par `config-publique.ts` seul.
+        run: node scripts/check-front-env-keys.mjs --report
+
+      - name: Aucun workflow ne déclare d'environnement GitHub
+        # ADR-0069 § 2 (TCK-832) : un environnement disparaît avec le dépôt privé, et ses secrets
+        # avec lui. Les secrets et variables sont de dépôt.
+        run: node scripts/check-workflows-sans-environnement.mjs --report
 
       - name: Aucun service Compose de deploy/ ne porte build (rien ne se construit sur le serveur)
         # ADR-0028 §2. Dokploy joue `up -d --build` : un `build:` ferait construire sur le serveur.

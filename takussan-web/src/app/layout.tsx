@@ -19,7 +19,6 @@ import { ChatDraftProvider } from '@/context/ChatDraftContext';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { IntlProviderRacine } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { AudienceSansSecret } from '@/components/shared/AudienceSansSecret';
 import './globals.css';
 
 // TCK-742 (P33.01) — seules les deux familles du design system. Toute famille déclarée ici est
@@ -117,7 +116,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <BandeauxDuSite emplacement="racine" />
                       <ChatWidget />
                       {children}
-                      <AudienceSansSecret />
                     </ChatDraftProvider>
                   </FloatingDockProvider>
                 </UserLocationProvider>

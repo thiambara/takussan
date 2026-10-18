@@ -251,7 +251,12 @@ class SearchSuggestTest extends TestCase
         ]);
         $this->indexProperties();
 
-        $origin = config('cors.allowed_origins')[0] ?? 'http://localhost:3000';
+        // Le CORS n'ajoute `Vary: Origin` que s'il RENVOIE l'origine reçue — plusieurs origines
+        // admises, ou un motif. Une origine seule est posée telle quelle, sans `Vary` (fruitcake/php-cors,
+        // `isSingleOriginAllowed`) : c'est le cas réel depuis TCK-860, qui a retiré le motif `*.vercel.app`.
+        // Deux origines, pour que le défaut gardé ici — un `Vary` qui ÉCRASE au lieu d'ajouter — reste visible.
+        config(['cors.allowed_origins' => ['http://localhost:3000', 'https://autre-front.test']]);
+        $origin = 'http://localhost:3000';
         $fr = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'fr', 'Origin' => $origin])->assertOk();
         $en = $this->getJson($this->url.'?q=ap&limit=10', ['Accept-Language' => 'en', 'Origin' => $origin])->assertOk();
 
