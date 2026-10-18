@@ -4453,7 +4453,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Un webhook `refunded` arrivé avant le `paid` de la même transaction est avalé, et le payable finit `paid`
 - Réf : P39.04
-- Statut : validé — un `refunded` reçu avant le `paid` de la même transaction est gardé en attente sur le payable (`gateway.pending_refund`, avec un `Log::warning`) et appliqué au `paid` de cette transaction ; test : le scénario mesuré (Wave écrit « Events may arrive out of order », docs.wave.com/webhook, relu le 2026-10-18)
+- Statut : fait · TCK-889
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:565-569`, `:1074-1101`
 - Constat :
@@ -4462,6 +4462,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Que Wave ou Orange Money livrent un jour dans le désordre n'est pas établi (à vérifier, aucune documentation des fournisseurs dans le dépôt).
 - Piste : ne marquer un `refunded` traité que s'il a été appliqué (ou le garder en attente sur le payable et l'appliquer au `paid` suivant). Garde : le scénario mesuré en test.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : `checkout.session.refunded` reçu avant le `paid` → 200, échéance restée `late`, `gateway_events = [refunded]` ; puis `paid` → `paid` ; relivraison du `refunded` → toujours `paid` (dédupliquée). L'ordre réel de livraison des fournisseurs reste non établi. Classement : V1, le correctif décide du statut d'un paiement, et garder un remboursement en attente est un choix (V7).
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PaymentWebhookRefundTest` (remboursement par `applyEventToMatchingPayment()` sous l'autorité de l'intégration Wave, paiement par le vrai webhook signé) : `refunded` de `spy_txn_1` reçu avant son `paid` → aucune attente, puis échéance `paid` ; `refunded` du doublon `spy_txn_2` reçu avant son `paid` → entrée de doublon sans `refunded_at`. Correctif : attente `gateway.pending_refund` avec `Log::warning`, appliquée au `paid` de la transaction → échéance `refunded`, `refund_amount = 150000`, `paid_amount = 0`, attente vidée ; doublon noté remboursé, loyer `paid` → 10 verts ; ablation (service remis à `pre-dev`) → 2 rouges.
 
 ### L'ordre des motifs de `WaveDriver` range en `paid` tout événement qui contient `completed`, remboursement compris
 - Réf : P39.05
