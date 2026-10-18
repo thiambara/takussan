@@ -1,7 +1,7 @@
 ---
 id: TCK-889
 title: "Un remboursement reçu avant le paiement de la même transaction est gardé en attente, puis appliqué"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -58,15 +58,15 @@ lequel ses deux webhooks sont arrivés.
 
 ## Delta à produire
 
-- [ ] `PaymentGatewayService` : mise en attente dans la branche `REFUNDED`, application au `paid`.
-- [ ] Tests : `tests/Feature/Api/PaymentWebhookRefundTest.php`.
+- [x] `PaymentGatewayService` : mise en attente dans la branche `REFUNDED`, application au `paid`.
+- [x] Tests : `tests/Feature/Api/PaymentWebhookRefundTest.php`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Échéance ouverte, checkout `spy_txn_1` : `refunded` reçu d'abord (attente, avertissement
+- [x] AC1 — Échéance ouverte, checkout `spy_txn_1` : `refunded` reçu d'abord (attente, avertissement
   journalisé), puis `paid` par le webhook Wave signé → `refunded`, `refund_amount = 150000`,
   attente vidée.
-- [ ] AC2 — Échéance soldée par `spy_txn_1`, `refunded` de `spy_txn_2` reçu avant son `paid` →
+- [x] AC2 — Échéance soldée par `spy_txn_1`, `refunded` de `spy_txn_2` reçu avant son `paid` →
   l'échéance reste `paid`, et l'entrée de doublon de `spy_txn_2` est notée remboursée.
 
 ## Hypothèses
@@ -83,3 +83,11 @@ lequel ses deux webhooks sont arrivés.
 - Une attente qui ne serait jamais suivie de son `paid` : elle reste dans le `metadata`, visible.
 
 ## Notes d'implémentation
+
+- Ablation : service remis à `pre-dev` (tests gardés) → AC1 rouge (aucune attente posée), AC2
+  rouge (entrée de doublon sans `refunded_at`) ; correctif remis → 10 verts dans la classe.
+- Piège : `isSettledBy` rend vrai pour le checkout COURANT d'une échéance ouverte (repli sur
+  `gateway.transaction_id` sans `settled_by`). Il ne compte donc que sur un payable `paid` ou
+  `refunded` pour décider qu'une transaction a déjà payé.
+- `late`/`pending` → `refunded` est permis par la matrice, mais pas `failed` → `refunded` : le
+  payable est sauvegardé `paid` avant d'être remboursé.
