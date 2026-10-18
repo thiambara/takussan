@@ -67,14 +67,16 @@ class MaintenanceRequestResource extends BaseResource
         ];
 
         $user = $request->user();
+        // TCK-900 (P20.02) — une fois par ligne, et l'agence du personnel une fois par requête.
+        $isPrincipal = $this->isPrincipal($user);
 
-        if (! $this->seesQuote($user)) {
+        if (! $this->seesQuote($user, $isPrincipal)) {
             $data = array_diff_key($data, array_flip(self::QUOTE_FIELDS));
         }
 
         // Les consignes d'accès s'écrivent par le donneur d'ordre et se lisent, par le prestataire,
         // dans le bloc `access` — jamais par le demandeur.
-        if (! $this->isPrincipal($user)) {
+        if (! $isPrincipal) {
             unset($data['access_instructions']);
         }
 
@@ -234,22 +236,40 @@ class MaintenanceRequestResource extends BaseResource
         return $isParticipant ? $conversation->id : null;
     }
 
+    /**
+     * TCK-900 (P20.02) — l'agence du personnel est lue une fois par requête et par utilisateur,
+     * comme `LeaseResource` et `CustomerResource` : sur une liste, chaque ligne la résolvait deux
+     * fois, à quatre requêtes de profil chacune.
+     */
     private function isPrincipal(?User $user): bool
     {
-        return $user !== null && MaintenanceRequestPolicy::isPrincipalFor($user, $this->property);
+        if ($user === null) {
+            return false;
+        }
+
+        $request = request();
+        $key = 'maintenance_request_resource.staff_agency_id.'.$user->id;
+
+        return MaintenanceRequestPolicy::isPrincipalFor($user, $this->property, function () use ($request, $user, $key): ?int {
+            if (! $request->attributes->has($key)) {
+                $request->attributes->set($key, $user->staffAgencyId());
+            }
+
+            return $request->attributes->get($key);
+        });
     }
 
     /**
      * Le prestataire assigné et les donneurs d'ordre (bailleur du bien, équipe de l'agence).
      */
-    private function seesQuote(?User $user): bool
+    private function seesQuote(?User $user, ?bool $isPrincipal = null): bool
     {
         if ($user === null) {
             return false;
         }
 
         return ($this->assigned_to !== null && $this->assigned_to === $user->id)
-            || MaintenanceRequestPolicy::isPrincipalFor($user, $this->property);
+            || ($isPrincipal ?? $this->isPrincipal($user));
     }
 
     private function propertySummary(): ?array

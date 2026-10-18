@@ -260,8 +260,14 @@ class MaintenanceRequestPolicy extends BasePolicy
      * un commentaire d'un appel. La reformuler « plus clairement » avec le littéral fait
      * rougir la garde — ce qui est le comportement voulu, un scan de texte ne pouvant pas
      * juger de l'intention.
+     *
+     * TCK-900 (P20.02) — `$staffAgencyId`, facultatif, fournit l'agence du personnel déjà résolue
+     * (une ressource de liste la lit une fois par requête) ; il n'est appelé qu'au besoin, comme
+     * `staffAgencyId()` qu'il remplace. La règle reste ici.
+     *
+     * @param  (\Closure(): ?int)|null  $staffAgencyId
      */
-    public static function isPrincipalFor(User $user, ?Property $property): bool
+    public static function isPrincipalFor(User $user, ?Property $property, ?\Closure $staffAgencyId = null): bool
     {
         if ($user->isSuperAdmin()) {
             return true;
@@ -277,7 +283,7 @@ class MaintenanceRequestPolicy extends BasePolicy
 
         // TCK-592 — un bailleur n'est donneur d'ordre que de SES biens (ligne ci-dessus) ; le
         // personnel (TCK-587), de ceux de l'agence de son profil actif.
-        $staffAgencyId = $user->staffAgencyId();
+        $staffAgencyId = $staffAgencyId !== null ? $staffAgencyId() : $user->staffAgencyId();
 
         return $staffAgencyId !== null && (int) $property->agency_id === $staffAgencyId;
     }
