@@ -3861,7 +3861,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
 - Réf : P33.04
-- Statut : validé — dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après ; reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
+- Statut : fait · TCK-850 — reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
 - Constat :
@@ -3871,6 +3871,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Calcul, non mesuré : à 1,6 Mbit/s (≈ 200 Kio/s), les 580 Kio de JS initial de la fiche demandent environ 3 s de transfert, avant analyse et sans compter les polices (P33.01) ni le document.
 - Piste : différer les dialogues par `next/dynamic` au premier `open`, puis rendre côté serveur les blocs sans interaction (description, caractéristiques, équipements, avertissement de sécurité) en ne gardant client que les îlots qui en ont besoin. Mesurer avant et après par la méthode de P33.05.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyDetailContent.tsx:1` (`'use client'`, 36 lignes `import`), `:21-27` (dialogues de visite, réservation — dont le crochet `useIntentionDeReservation` exporté du même module —, partage, message), `:37` `PropertyReviews` ; `PropertyVisitDialog.tsx:15-16` importe `Calendar` et `Popover`, `PropertyReservationDialog.tsx:13` `DatePicker` ; seule `PropertyLocationMap.tsx:8` passe par `dynamic` ; les octets du constat n'ont pas été rejoués → le constat tient. Classement : V8, la première moitié (dialogues différés par `next/dynamic`, en sortant `useIntentionDeReservation` de leur module) serait A2, mais la seconde découpe toute la fiche en îlots client et tient sur plus d'un ticket.
+- Mesure (2026-10-18, 8cd8c878e, implementeur) : `npm run build` avant correctif, JS initial de la fiche (gzip des `rootMainFiles` et des `entryJSFiles` du manifeste de la route, script temporaire hors dépôt) → 480,1 Kio, react-day-picker compris ; quatre dialogues par `next/dynamic`, montés à la première ouverture, `useIntentionDeReservation` dans son propre module → 441,2 Kio, sans react-day-picker, page légale témoin inchangée à 322,7 Kio ; test neuf `__tests__/dialogues-differes.test.ts` (graphe d'imports) 9 rouges avant, verts après, ablation → les 9 mêmes rouges ; les 124 tests du dossier de la fiche verts.
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
