@@ -92,6 +92,7 @@ function AuthenticatedDialog({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('messagePlaceholder')}
+            aria-label={t('messagePlaceholder')}
           />
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">

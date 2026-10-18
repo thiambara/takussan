@@ -51,6 +51,7 @@ const PER_PAGE_OPTIONS = ['10', '20', '50'] as const;
 
 export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
   const t = useTranslations('property.dashboard.pagination');
+  const tToolbar = useTranslations('search.toolbar');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPerPage = String(meta.per_page ?? 20);
@@ -110,7 +111,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
               onValueChange={(v) => setPerPage((v ?? '20') as string)}
               items={items}
             >
-              <SelectTrigger className="h-8 w-[120px]">
+              <SelectTrigger className="h-8 w-[120px]" aria-label={tToolbar('perPageAria')}>
                 <SelectValue placeholder={t('perPagePlaceholder')} />
               </SelectTrigger>
               <SelectContent>
