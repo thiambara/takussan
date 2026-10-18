@@ -1633,7 +1633,9 @@
         "amount": "Lëmboo",
         "status": "Nekkin",
         "actions": "Jëf",
-        "open": "Ubbi"
+        "open": "Ubbi",
+        "caption": "Factures",
+        "openLabel": "Ouvrir la facture {reference}"
       }
     },
     "payouts": {
@@ -1647,7 +1649,9 @@
         "net": "Net",
         "status": "Nekkin",
         "actions": "Jëf",
-        "open": "Ubbi"
+        "open": "Ubbi",
+        "caption": "Reversements",
+        "openLabel": "Ouvrir le reversement {reference}"
       }
     },
     "history": {
@@ -1688,7 +1692,8 @@
           "lease": "Luwé"
         },
         "entityLease": "Luwé #{id}",
-        "entityBooking": "Réservasioŋ #{id}"
+        "entityBooking": "Réservasioŋ #{id}",
+        "caption": "Historique des paiements"
       }
     },
     "status": {
@@ -2602,6 +2607,7 @@
       "vide_description": "Dindil benn filtar rekk : yeneen yi dinañu des.",
       "vide_description_sans_critere": "Am na kër bu la war : tàmbaliwaatal ak seet bu bees.",
       "vide_criteres_aria": "Dindi benn filtar",
+      "vide_suggestions": "Essayez plutôt",
       "empty_cta": "Faral filtre yépp",
       "error": "Am na njuumte. Jéemaatal su la neexee.",
       "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
@@ -9549,7 +9555,8 @@
         "net": "Net",
         "status": "Nekkin",
         "paidOn": "Fey ci",
-        "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey."
+        "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey.",
+        "caption": "Reversements de la plateforme"
       },
       "close": {
         "title": "Tëj benn jamono",
@@ -9877,7 +9884,8 @@
     "dropzone_hint_short": "walla bësal — {size} la ëpp, ba {max} fiise.",
     "cover": "Nataal bu njëkk",
     "delete_photo_aria": "Far nataal bii",
-    "remove_file_aria": "Jële {name}"
+    "remove_file_aria": "Jële {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {

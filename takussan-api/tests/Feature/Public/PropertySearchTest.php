@@ -108,7 +108,8 @@ class PropertySearchTest extends TestCase
         $this->assertEquals('monthly', $response->json('data.0.rent_period'));
     }
 
-    public function test_returns_facets(): void
+    /** TCK-910 (P01.08) — la clé `facets` a quitté le contrat : personne ne la lisait. */
+    public function test_ne_rend_plus_de_facettes(): void
     {
         $this->published(['bedrooms' => 2], 'Almadies');
         $this->published(['bedrooms' => 3], 'Almadies');
@@ -118,8 +119,8 @@ class PropertySearchTest extends TestCase
         $response = $this->getJson('/api/public/properties/search');
 
         $response->assertOk()
-            ->assertJsonStructure(['data', 'facets' => ['locations', 'bedrooms', 'types'], 'meta']);
-        $this->assertEquals(2, $response->json('facets.locations.Almadies'));
+            ->assertJsonStructure(['data', 'meta'])
+            ->assertJsonMissingPath('facets');
     }
 
     public function test_sort_by_price_ascending(): void

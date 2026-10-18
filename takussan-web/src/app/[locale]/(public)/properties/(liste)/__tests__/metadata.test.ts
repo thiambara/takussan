@@ -95,7 +95,6 @@ vi.mock('@/lib/queries/public-search', () => ({
     if (totalServi === null) return null;
     return {
       data: [],
-      facets: {},
       meta: { current_page: 1, last_page: dernierePageServie, per_page: 30, total: totalServi },
     } as unknown as SearchResult;
   },

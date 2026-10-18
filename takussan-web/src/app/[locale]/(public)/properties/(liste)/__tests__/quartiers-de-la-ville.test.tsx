@@ -39,7 +39,7 @@ vi.mock('@/lib/queries/facettes', async (importOriginal) => {
 
 vi.mock('@/lib/queries/public-search', () => ({
   rechercherBiensPublics: async () =>
-    ({ data: [], facets: {}, meta: { current_page: 1, last_page: 1, per_page: 30, total: 4 } }) as unknown as SearchResult,
+    ({ data: [], meta: { current_page: 1, last_page: 1, per_page: 30, total: 4 } }) as unknown as SearchResult,
 }));
 
 vi.mock('next-intl/server', () => ({

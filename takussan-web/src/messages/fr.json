@@ -3360,7 +3360,9 @@
         "amount": "Montant",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Factures",
+        "openLabel": "Ouvrir la facture {reference}"
       }
     },
     "payouts": {
@@ -3374,7 +3376,9 @@
         "net": "Net",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Reversements",
+        "openLabel": "Ouvrir le reversement {reference}"
       }
     },
     "history": {
@@ -3415,7 +3419,8 @@
           "lease": "Bail"
         },
         "entityLease": "Bail #{id}",
-        "entityBooking": "Réservation #{id}"
+        "entityBooking": "Réservation #{id}",
+        "caption": "Historique des paiements"
       }
     },
     "status": {
@@ -4358,6 +4363,7 @@
       "vide_description": "Retirez un seul critère : les autres restent en place.",
       "vide_description_sans_critere": "Il y a sûrement un bien pour vous : repartez d'une recherche vierge.",
       "vide_criteres_aria": "Retirer un critère",
+      "vide_suggestions": "Essayez plutôt",
       "empty_cta": "Effacer tous les filtres",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
@@ -9549,7 +9555,8 @@
         "net": "Net",
         "status": "Statut",
         "paidOn": "Versé le",
-        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment."
+        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
+        "caption": "Reversements de la plateforme"
       },
       "close": {
         "title": "Clôturer une période",
@@ -9877,7 +9884,8 @@
     "dropzone_hint_short": "ou cliquez — {size} max, jusqu'à {max} fichiers.",
     "cover": "Couverture",
     "delete_photo_aria": "Supprimer cette photo",
-    "remove_file_aria": "Retirer {name}"
+    "remove_file_aria": "Retirer {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {

@@ -159,8 +159,8 @@ class SuggestService
      * La tolerance couvre donc la faute de frappe, pas la recherche partielle :
      * `mrmoz` passe DE JUSTESSE, parce qu'il fait exactement 5 caracteres.
      *
-     * ⚠⚠ `facetDistribution` (celle que `PropertySearchService` rend deja dans
-     * `facets`) est INUTILISABLE ici, et c'est mesure : sur `q=mrmoz` elle liste
+     * ⚠⚠ `facetDistribution` (que `PropertySearchService` rendait dans `facets`
+     * jusqu'a TCK-910) est INUTILISABLE ici, et c'est mesure : sur `q=mrmoz` elle liste
      * les villes des 43 biens TROUVES, donc l'interface afficherait
      * « Ziguinchor (4) » pour la saisie « mrmoz ». Une facette de resultats
      * n'est pas une suggestion de terme.

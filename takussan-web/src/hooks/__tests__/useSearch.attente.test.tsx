@@ -43,7 +43,7 @@ vi.mock('@/lib/api', async () => {
 
 import { useSearch } from '../useSearch';
 
-const REPONSE = { data: [], facets: {}, meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } };
+const REPONSE = { data: [], meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } };
 
 function Routeur({ initiale, children }: { initiale: string; children: ReactNode }) {
   const [etat, setEtat] = useState<EtatDuRouteur>(() => ({

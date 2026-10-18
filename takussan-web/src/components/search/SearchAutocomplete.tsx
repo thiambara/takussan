@@ -13,7 +13,7 @@ import { parametreDe } from '@/types/search';
 import { hrefLocalise } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 
-type SuggestItem =
+export type SuggestItem =
   | { kind: 'city'; data: SuggestCity }
   | { kind: 'neighborhood'; data: SuggestNeighborhood }
   | { kind: 'property_type'; data: SuggestPropertyType };
@@ -26,8 +26,11 @@ type SuggestItem =
  * serveur a proposée, donc `city` / `location` / `type` sont des identités connues. Ce que
  * l'utilisateur tape et n'a choisi nulle part reste du texte, et part en `q` — dans la navbar
  * (`buildSearchUrl`) comme sur la touche Entrée ci-dessous.
+ *
+ * TCK-911 (P01.09) — exportée pour l'état vide de la liste (`SearchEmpty`), qui propose les mêmes
+ * suggestions : une suggestion y mène où elle mène depuis la barre.
  */
-function buildUrl(item: SuggestItem, base: URLSearchParams, locale: Locale): string {
+export function urlDeSuggestion(item: SuggestItem, base: URLSearchParams, locale: Locale): string {
   const params = new URLSearchParams(base.toString());
   if (item.kind === 'city') {
     params.set(parametreDe('city'), item.data.label);
@@ -161,12 +164,12 @@ export function SearchAutocomplete({
   const selectItem = useCallback(
     (item: SuggestItem) => {
       setOpen(false);
-      // `buildUrl` conserve `q` : le champ revient donc à la recherche en vigueur, pas à vide —
+      // `urlDeSuggestion` conserve `q` : le champ revient donc à la recherche en vigueur, pas à vide —
       // sans quoi il cesserait de montrer un terme qui filtre toujours la liste.
       setQuery(enVigueur);
       onQueryChange?.(enVigueur);
       onValider?.();
-      router.push(buildUrl(item, baseImposee(searchParams, imposer), locale));
+      router.push(urlDeSuggestion(item, baseImposee(searchParams, imposer), locale));
     },
     [router, searchParams, imposer, locale, enVigueur, setQuery, onQueryChange, onValider],
   );
