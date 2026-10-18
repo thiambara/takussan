@@ -4731,7 +4731,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### `MatchBankStatementJob` n'a ni `$timeout` ni `failed()`, et fait plusieurs requêtes par ligne : un gros relevé n'est rapproché qu'en partie, sans trace pour l'agence
 - Réf : P43.02
-- Statut : validé — précharger `statement` (ou passer l'agence une fois), et découper le rapprochement en lots, chacun son job, comme `RegenerateAgencyWatermarksJob`
+- Statut : fait · TCK-933
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:15,30-47`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,38-58,65-78`, `deploy/takussan/compose.api.yml:113`
 - Constat :
@@ -4740,6 +4740,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Le nombre de lignes qui fait dépasser 60 s n'est pas mesuré : à vérifier sur une base peuplée.
 - Piste : précharger `statement`, ou passer l'agence une fois. Découper le rapprochement en lots, chacun son job, comme `RegenerateAgencyWatermarksJob` répartit son travail. Ou poser un `$timeout` sous `retry_after`, avec reprise. Test : un relevé de N lignes, avec une durée et un nombre de requêtes bornés.
 - Mesure (2026-10-18, f7873dbab, mesureur) : relu `MatchBankStatementJob.php` (`$tries = 1`, ni `$timeout` ni `failed()`, `cursor()` l. 30-49) et `ReconciliationMatcher.php:38-58,65-81` ; `WorkCommand.php:49` (`--timeout=60`) et `compose.api.yml:113` sans `--timeout` ; test temporaire, retiré : 500 lignes `unmatched` sur une base de test vide, job exécuté → 2 002 requêtes (4 par ligne : `statement`, puis les trois modèles de paiement) en 7,74 s, Xdebug `develop` chargé, charge 2,29 sur 8 cœurs. Cela fait environ 15 ms par ligne, et les 60 s vers 3 900 lignes sur des tables vides (déduit, moins sur une base peuplée). Le constat tient ; « rien ne le signale à l'agence » reste déduit. Classement : V7, la Piste laisse le choix entre précharger (A2, mais une requête sur quatre seulement), découper en jobs ou poser un `$timeout` avec reprise, et signaler l'arrêt à l'agence serait un comportement visible neuf.
+- Mesure (2026-10-18, 68efc4e88, implementeur) : reproduit par `MatchBankStatementBatchesTest` avant correctif : 100 lignes rapprochées → le relevé relu 102 fois, un seul job sans `$timeout` → `MatchBankStatementJob` répartit les lignes `unmatched` en lots de 200, chacun un `MatchBankStatementLinesJob` (`$timeout = 75`, `$tries = 3`) qui lit le relevé une fois et le pose sur ses lignes ; 3 lectures pour 100 lignes (répartiteur, lot, audit de la ligne suggérée), 450 lignes → 3 lots, 4 verts. Ablation : `setRelation` retiré → 1 rouge (103 lectures) ; lot illimité → 1 rouge ; `$timeout` retiré → 1 rouge.
 
 ### Le battement d'une file passe derrière son arriéré : un worker vivant et occupé est déclaré `failed`, et `ops_queue_stalled` part
 - Réf : P43.03
