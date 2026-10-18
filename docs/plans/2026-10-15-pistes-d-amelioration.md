@@ -3803,7 +3803,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
-- Statut : validé — libellés d'onglet courts et neufs (Connexion, Inscription, Mot de passe oublié, Nouveau mot de passe, Vérification de l'e-mail) ; en `wo`, le texte français tel quel ; un test par page
+- Statut : fait · TCK-906 — reste : le titre d'onglet du rappel OAuth (`auth/oauth/[provider]/callback`), que la précision ne nomme pas et qui demande un libellé neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
 - Constat :
@@ -3812,6 +3812,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : `document.title` relevé par CDP, code relu.
 - Piste : un `layout.tsx` serveur par page d'auth (ou un `generateMetadata` dans un `page.tsx` serveur qui monte le composant client) qui remplit le modèle par le titre déjà affiché dans le formulaire, sans texte neuf. Garde : un test qui vérifie que chaque page de `(auth)/auth/` fournit un titre.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx:27-35` (`generateMetadata` qui ne pose que `template` « %s — Takussan » et `default` « Authentification — Takussan », `fr.json:500-503`) ; `grep -c "Metadata"` → 0 dans les cinq `page.tsx` de `auth/*`, dans `verify-email/[id]/[hash]/page.tsx` et dans `oauth/[provider]/callback/page.tsx`, toutes `'use client'` pour les cinq premières ; les titres de formulaire existants sont `auth.login.title` « Content de vous revoir », `auth.register.title` « Créez votre compte », `auth.forgotPassword.title`, `auth.resetPassword.title`, `auth.verifyEmail.title` ; `document.title` non relevé → tient (le titre « six pages » compte sept pages sans titre propre). Classement : V7, reprendre le titre du formulaire donnerait « Content de vous revoir — Takussan » à la connexion, et nommer la page autrement est un texte neuf.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `grep -c Metadata` → toujours 0 dans les cinq `page.tsx` de `auth/*` ; `titres-d-onglet.test.ts` (un test par page) → rouge avant correctif, aucun `layout.tsx` de segment ; un `layout.tsx` serveur par segment pose `auth.meta.titles.<page>`, les cinq libellés de la décision en `fr`, traduits en `en`, français tel quel en `wo` → 6 verts, le modèle « %s — Takussan » du groupe les complète ; ablation (clés `fr` retirées) → 5 rouges. `src/app/(auth)` : 48 verts. `document.title` non relevé au navigateur.
 
 ### Petites améliorations
 - Réf : P31.07
