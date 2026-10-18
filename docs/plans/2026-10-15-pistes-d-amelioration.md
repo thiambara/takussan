@@ -3527,7 +3527,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
-- Statut : validé — retirer `usage_count` de la lecture publique ; la route reste
+- Statut : fait · TCK-844
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
 - Constat :
@@ -3538,6 +3538,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
 - Mesure (2026-10-16, af610be5, mesureur) : `php artisan route:list --path=api/enums -v` → groupe `api` et `SetCacheHeaders:public;max_age=300;etag` seuls, ni `auth` ni limiteur ; relu `BusinessEnumService.php:50` (`usage_count`) et `:213-231` (`usageCounts`, `whereIn` sur toute la table, sans filtre de visibilité) ; test temporaire retiré, un `villa` publié et deux passés en `draft`, `GET /api/enums/property_type` anonyme → 200, `max-age=300, public`, `usage_count: 3` pour `villa` contre 1 bien `public()`, même md5 en `fr` et `en` ; `grep -rn enums takussan-web/src` → seuls les chemins `/api/super-admin/enums/…` et des libellés, aucun appelant de la route publique hors `BusinessEnumTest.php:27` ; le constat tient. Classement : V7, la piste propose deux correctifs (retirer `usage_count` de la lecture publique, ou retirer la route) et renvoie à l'angle 66 sur qui doit lire ces valeurs, ce qui est un choix de produit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `BusinessEnumTest::test_public_read_does_not_expose_usage_count_and_admin_keeps_it`, avant correctif, un `villa` publié et deux en brouillon → `GET /api/enums/property_type` anonyme 200 avec `usage_count` sur chaque valeur (rouge) ; correctif `withUsage: false` sur la lecture publique de `BusinessEnumService::get()` → aucune valeur ne porte `usage_count`, la console super-admin rend toujours `usage_count: 3` pour `villa` (vert) ; ablation (paramètre retiré du contrôleur public) → rouge, remis → `BusinessEnumTest` 7 verts. La route reste.
 
 ## Angle 29 — Langue des destinataires sans compte
 
@@ -3575,7 +3576,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
-- Statut : validé — `fr` (`DEFAULT_LOCALE`), puis la langue de la fiche client une fois P29.03 faite
+- Statut : fait · TCK-845 — reste : la langue de la fiche client une fois P29.03 faite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
 - Constat :
@@ -3586,6 +3587,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu. L'envoi effectif dans la langue de l'agent n'a pas été rejoué (à vérifier).
 - Piste : sur la route de l'agent, enregistrer `ContactSansCompte::DEFAULT_LOCALE` à défaut de compte, comme `fromCustomer()`, ou la langue de la fiche client si P29.03 en crée une. Garder par un test : visite créée sous `Accept-Language: en` pour un client sans compte → `locale` = `fr`.
 - Mesure (2026-10-16, b14cd410, mesureur) : relu `PropertyVisitController.php:190` (`'locale' => $visitor?->preferredLocale() ?? app()->getLocale()` dans `planForCustomer`) et `ContactSansCompte.php:38-47`, `:57-67` ; test temporaire retiré, agent de l'agence, `POST /api/property-visits` avec une fiche client sans compte sous `Accept-Language: en` → 201, `property_visits.locale = en`, `ContactSansCompte::fromVisit()` → `en`, `fromCustomer()` de la même fiche → `fr` ; l'envoi SMS lui-même n'a pas été rejoué, mais il prend la langue de `fromVisit()` (lu) ; le constat tient. Classement : V7, la piste propose deux langues cibles (`fr` explicite, ou celle d'une fiche client que P29.03 créerait), et une langue négociée par l'agent peut être un choix voulu.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `PropertyVisitNotificationTest::test_l_agent_planifie_sous_sa_langue_le_client_sans_compte_garde_le_francais`, avant correctif, agent sous `Accept-Language: en`, `POST /api/property-visits` pour une fiche sans compte puis pour un prospect sans fiche → `property_visits.locale = en` (rouge) ; correctif, repli de `planForCustomer` sur `ContactSansCompte::DEFAULT_LOCALE` → `fr` pour les deux visites et les deux `VisitConfirmed` partent en `fr` (vert) ; ablation (repli remis sur `app()->getLocale()`) → rouge, remis → `PropertyVisitNotificationTest` 12 verts et `PropertyVisitTest` 8 verts. La langue de la fiche client attend P29.03.
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
@@ -3634,7 +3636,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
 
 ### Une fusion qui absorbe un équipement du catalogue est défaite au déploiement suivant
 - Réf : P30.02
-- Statut : validé — refuser en 422 la fusion dont la source est un équipement du catalogue ; pas de trace de fusion
+- Statut : fait · TCK-846
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagModeration.php:80-120`, `takussan-api/app/Services/Tags/TagCatalog.php:17-21`, `:68-81`
 - Constat :
@@ -3644,10 +3646,11 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Aucun test ne fusionne puis resynchronise (lu, `TagCatalogTest.php`, cinq tests).
 - Piste : refuser en 422 la fusion d'une source du catalogue (`in_array($src->name, TagCatalog::EQUIPEMENTS)`), ou garder une trace de la fusion que `synchroniser()` respecte, comme pour un refus. Garder par un test : fusionner puis synchroniser.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagModeration::fusionner()` (aucune exclusion du catalogue, la source est supprimée) et `TagCatalog::assurer()` (recrée tout nom absent) ; test temporaire retiré : catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200, source supprimée ; `synchroniser()` rejoué → `Ventilateurs` recréé sous l'id 82 (ancien 71), approuvé, 0 bien ; le constat tient. Classement : V7, la piste propose deux comportements de modération (422 sur une source du catalogue, ou trace respectée par la synchronisation), et la trace demanderait un stockage neuf (V4).
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogFusionTest`, avant correctif, catalogue chargé, `POST /api/admin/tags/{Ventilateurs}/merge` `{into_id: Climatisation}` → 200 au lieu de 422, et une proposition `VENTILATEURS` de même (2 rouges) ; correctif, 422 `tags.catalog_merge_forbidden` dans `TagModeration::fusionner()` quand `TagCatalog::estUnEquipement()` → la source et sa liaison restent, `synchroniser()` rejoué garde une seule ligne `Ventilateurs` au même identifiant, une proposition se fusionne toujours dans `Climatisation` (3 verts) ; ablation (garde retirée) → 2 rouges, remise → 3 verts et `TagModerationTest` 9 verts.
 
 ### Un équipement ajouté au catalogue prend `<slug>-2` quand une proposition détient déjà son slug, et ne se traduit jamais
 - Réf : P30.03
-- Statut : validé — réserver les slugs du catalogue : suffixe d'office pour une proposition, et synchroniser() reprend le slug exact à une proposition non approuvée qui le détient
+- Statut : fait · TCK-847
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Tags/TagCatalog.php:57-66`, `:73-77`, `takussan-api/app/Services/Tags/TagProposals.php:64-72`, `takussan-web/src/lib/__tests__/libelle-equipement.test.ts:58-62`
 - Constat :
@@ -3657,6 +3660,7 @@ préproduction : on ne sait pas si un équipement du catalogue y a déjà été 
   - Le test du front calcule le slug à partir du nom (`slugDuCatalogue`) ; il ne voit pas le slug réellement écrit en base (lu, l. 58-62).
 - Piste : réserver les slugs du catalogue. `slugLibre()` refuserait à une proposition un slug calculé depuis `TagCatalog::EQUIPEMENTS` (suffixe d'office), et `synchroniser()` reprendrait le slug exact s'il est détenu par une proposition. Garder par le test ci-dessus, inversé.
 - Mesure (2026-10-16, 4c7d8810, mesureur) : relu `TagCatalog::slugLibre()` (suffixe `-n` au premier slug pris) et `TagProposals::proposer()` (même `slugLibre()`) ; test temporaire retiré : proposition `Forage !` en attente, slug `forage`, puis `synchroniser()` → `Forage !|forage|pending ; Forage|forage-2|approved` ; le constat tient, l'affichage en anglais est déduit de `libelleEquipement()` (lu, `libelle-equipement.ts:31-34`), non rejoué. Classement : V4, que `synchroniser()` reprenne le slug détenu par une proposition réécrit des lignes existantes, et le suffixe d'office change le slug qu'une proposition reçoit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `TagCatalogSlugReserveTest`, avant correctif, proposition `Forage !` → slug `forage`, et `Forage !` en attente et `Fibre optique.` refusée détenant `forage` et `fibre-optique` → `synchroniser()` donne `forage-2` et `fibre-optique-2` au catalogue (2 rouges) ; correctif, `TagCatalog::slugLibre(…, horsCatalogue: true)` pour une proposition et reprise du slug exact à un détenteur non approuvé dans `assurer()` → le catalogue a `forage` et `fibre-optique`, les propositions un slug suffixé, une proposition du nom même garde `forage` et une proposition approuvée garde le sien (4 verts) ; ablation de chaque règle → 1 rouge chacune, remises → 4 verts et `tests/Feature/Tags` 72 verts.
 
 ### La recherche plein texte ne connaît les équipements qu'en français : « swimming pool » rend 0 bien, « piscine » 52
 - Réf : P30.04

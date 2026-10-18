@@ -100,6 +100,10 @@ final class TagModeration
                 ->where('taggable_type', '!=', Property::class)
                 ->exists();
             abort_code_if($src->type !== TagType::Amenity || $porteAutreChoseQueDesBiens, 422, 'tags.merge_source_invalid');
+            // TCK-846 (P30.02) — la source est SUPPRIMÉE, et `tags:sync-catalog` recrée au déploiement
+            // tout nom du catalogue absent : la fusion serait défaite. Seules les propositions se
+            // fusionnent, y compris dans un équipement du catalogue.
+            abort_code_if(TagCatalog::estUnEquipement($src->name), 422, 'tags.catalog_merge_forbidden');
             $cbl = Tag::query()->findOrFail($cible->getKey());
             abort_code_if(
                 $cbl->type !== TagType::Amenity || $cbl->status === ReferentialStatus::Rejected,
