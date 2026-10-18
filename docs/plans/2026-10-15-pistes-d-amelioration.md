@@ -4898,6 +4898,18 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : aligner les deux types sur la réponse réelle, unifier la clé du tableau de bord (ou retirer la route si elle reste sans appelant, voir l'angle 13), et corriger le docblock (A6).
 - Mesure (2026-10-18, 5ab3231f9, mesureur) : relu `conversations.ts:481-482` (`ApiResponse<{ user_id; role }>`) contre `ConversationParticipantController.php:81-83` (`ConversationResource`) et `ConversationInfoSheet.tsx:176-179` (seuls `mutate` et `isPending` lus) ; `super-admin.ts:542-552` type `failed: number`, `PropertyBulkArchiveService.php:38,51-69,106` et `PropertyController::bulkArchive` rendent un tableau `{id, reason}`, `SuperAdminPropertiesTable.tsx:128-129` ne lit pas le résultat (vérifié) ; `DashboardController.php:82,96,110,123` `active_leases` contre `:134` `active_lease`, `grep -rn 'api/dashboard' takussan-web/src` → aucun appel à `dashboard/stats` (vérifié) ; `(dashboard)/layout.tsx:19` cite `/api/users/me`, `route:list --path=users/me` → aucune route, le chemin réel est `/api/auth/me` (`lib/auth.ts:99`, via `getMe`). Les quatre points tiennent. Classement : V8, quatre correctifs sans lien dans deux bases, et la clé du tableau de bord demande de choisir entre unifier et retirer la route (A3 seulement si on retire).
 
+### Des réponses construites par `->toArray($request)` direct laissent passer les attributs conditionnels non résolus
+- Réf : P45.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers` (204 appels `->toArray($request)` dans 56 fichiers, `grep -rn -- '->toArray($request)' app/Http/Controllers`), dont `Public/PublicPropertyController.php:340,443,490,594` et `Public/InvitationAcceptController.php:61`
+- Constat :
+  - Appeler `toArray($request)` sur une `JsonResource` saute `resolve()`, donc `filter()` : un `whenLoaded()` sur une relation non chargée, un `when()` faux ou un `mergeWhen()` restent des objets `MissingValue` ou `MergeValue`, que la réponse JSON rend en `{}` au lieu d'omettre la clé (lu, `Illuminate\Http\Resources\Json\JsonResource::resolve()`).
+  - mesuré une fois, en session, sur TCK-952 (P45.03) : la réponse de `PATCH /api/conversations/{id}/participants/{user}` rendait des `{}` pour des relations non chargées ; corrigée par `resolve()`, gardée par `ParticipantRoleResponseShapeTest`.
+  - Les 203 autres appels ne sont pas mesurés : un appel n'est fautif que si sa ressource porte un attribut conditionnel **et** que la relation ou la condition manque à cet endroit. À vérifier appel par appel, ou par un test qui parcourt les réponses.
+  - Établi comment : lu, mesuré sur un appel ; l'étendue est à vérifier.
+- Piste : remplacer `->toArray($request)` par `->resolve($request)` là où la ressource porte un attribut conditionnel (ou partout, le coût étant nul), et une garde : un test d'architecture qui refuse `->toArray($request)` sur une `JsonResource` dans `app/Http/Controllers`, ou un test de réponse qui refuse tout `{}` issu d'un `MissingValue`.
+
 ## Angle 46 — Voies d'écriture en double sur l'argent
 
 *Exploré le 2026-10-18 sur `pre-dev` 1011b4c6f, par l'explorateur. Tout a été relu par l'explorateur lui-même, sans sous-agent. Les routes viennent de `php artisan route:list`. Les comportements viennent d'un test temporaire (`tests/Feature/TmpAngle46/SondeAngle46Test.php`, base de test PostgreSQL, charge 4,74 sur 8 cœurs), retiré avant la fin. Les effets en aval (tableaux de bord, relevés) sont lus, pas exécutés.*
@@ -5018,7 +5030,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### L'écran de configuration d'agence enregistre le fuseau horaire, et l'API le jette
 - Réf : P47.02
-- Statut : retenu · à valider — V7 : garder ou retirer le champ fuseau horaire est un choix de produit
+- Statut : validé — retirer le champ « Fuseau horaire » de l'écran d'agence et ne plus envoyer `settings.timezone`, `settings.currency` ni `settings.default_commission_rate` (la spec range le fuseau sur l'utilisateur, et l'API jette déjà ces trois clés) ; lire la commission et la devise sur leurs seules colonnes : une agence dont le miroir diffère de la colonne affiche et réenregistre la valeur de la colonne, celle que l'API applique (porteur, 2026-10-18, sur la recommandation du délégué)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/agency.ts:152-160`, `takussan-web/src/components/admin-agency/AgencyConfigForm.tsx:57-77,405-410`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63-73`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:109-116`
 - Constat :
@@ -5036,7 +5048,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Deux réglages de `agencies.settings` sont lus, mais rien ne peut les écrire
 - Réf : P47.03
-- Statut : retenu · à valider — V7 : ouvrir les deux réglages ou figer leur défaut est un choix de produit
+- Statut : validé — ouvrir les deux clés dans `AgencyUpdateRequest` (`booking_pending_expiry_hours` entier de 0 à 168, `tenant_onboarding_enabled` booléen), avec le test qui confronte les clés de `agencies.settings` lues par `app/` aux règles d'`AgencyUpdateRequest` (porteur, 2026-10-18, sur la recommandation du délégué) ; reste : le champ d'écran, son libellé et son emplacement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Booking/BookingExpirationService.php:40-57`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:22-40`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:63-73`
 - Constat :
@@ -5110,7 +5122,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P47.08
-- Statut : retenu · à valider — V7 : la liste des clés à porter dépend des choix de P47.02 et P47.03
+- Statut : validé — après P47.03, un accesseur `Agency::setting()` qui porte le défaut et le type de chaque clé validée par `AgencyUpdateRequest`, sur une liste unique que lisent la règle et l'accesseur ; `tenant_onboarding_enabled` y est un booléen (`false` comme `0` coupent la checklist) ; le docblock « spec alignment » d'`agency.ts` se corrige avec P47.02 (porteur, 2026-10-18, sur la recommandation du délégué)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Agency.php:105-112`, `takussan-api/app/Services/Booking/BookingExpirationService.php:42-55`, `takussan-api/app/Services/Tenant/TenantOnboardingService.php:37`, `takussan-api/app/Services/Media/AgencyWatermarkContext.php:79-93`, `takussan-api/app/Services/Media/WatermarkRequirement.php:90`
 - Constat :
