@@ -3914,7 +3914,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : validé — `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport seul, sans seuil ni refus ; le seuil se décide plus tard sur les chiffres
+- Statut : retenu · à valider — chemin fermé : `.github/workflows/web-ci.yml`, la décision branche le script après le build de `web-ci`
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -3923,6 +3923,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - La mesure de ce passage tient en un script de 30 lignes sur des fichiers que `next build` produit déjà (`page_client-reference-manifest.js`, `build-manifest.json`, `next-font-manifest.json`), sans dépendance.
 - Piste : un script `takussan-web/scripts/poids-des-routes.mjs` qui imprime, après le build de `web-ci`, le JS initial gzip et les polices préchargées des routes publiques ; d'abord en rapport seul, le seuil étant à décider à part. Il refuse au moins `zod` dans le layout racine (P33.02).
 - Mesure (2026-10-17, ec405f7a, mesureur) : `grep -rlin 'budget\|gzip' scripts .github/workflows takussan-web/scripts` → `check-super-admin-tokens.mjs`, `check-i18n-namespaces.mjs` et `scripts/agents/pistes.sh` (sans rapport) ; `ls takussan-web/scripts | grep -i poids` → vide ; aucun commit ne cite `poids-des-routes` hors l'angle 33 → aucune garde ne voit le poids des routes, le constat tient. Classement : V5, le script ne sert que branché après le build de `.github/workflows/web-ci.yml`, et V9, son refus de `zod` au layout racine est un seuil de garde neuf.
+- Mesure (2026-10-18, 955796904, implementeur) : `ls takussan-web/scripts | grep -i poids` → vide, et `git log origin/pre-dev --grep=poids-des-routes` → aucun commit : le constat tient ; la décision du porteur branche le script après le build de `web-ci` (`.github/workflows/web-ci.yml:120`), chemin fermé à l'implémenteur (V5). Le script seul, sans branchement, ne servirait pas : la piste revient au porteur.
 
 ### Petites améliorations
 - Réf : P33.06
