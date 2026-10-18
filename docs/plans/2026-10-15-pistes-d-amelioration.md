@@ -811,7 +811,7 @@ défaut avéré : ce sont des risques, dont trois coûtent cher le jour où ils 
 
 ### Petits écarts entre docblock et code
 - Réf : P05.08
-- Statut : retenu · à valider — chemin fermé : retirer `SendDailyNotificationDigest` supprime `tests/Feature/Notifications/NotificationDigestTest.php`, et la garde de l'implémenteur refuse toute suppression de test
+- Statut : retenu · à valider — chemin fermé : retirer `SendDailyNotificationDigest` supprime `tests/Feature/Notifications/NotificationDigestTest.php`, et la garde de l'implémenteur refuse toute suppression de test ; porteur (2026-10-18) : traité hors agents, en session : retrait du code mort (`SendDailyNotificationDigest` et son test, l'appelant mort de `SendRawNotificationEmailJob`), réclamation par `UPDATE … WHERE` dans `boosts:tick`, clé posée avant l'envoi et `SafeExceptionContext::of($e)` dans `SendProspectMatchDigest`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Jobs/SendRawNotificationEmailJob.php:38-48`, `takussan-api/app/Console/Commands/BoostsTick.php:12-15` avec `BoostLifecycle.php:204-218`, `takussan-api/app/Jobs/Crm/SendProspectMatchDigest.php`
 - Constat :
@@ -3063,7 +3063,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
 - Réf : P23.03
-- Statut : retenu · à valider — V8 : le correctif dépasse M et demande plus d'un ticket (quatre colonnes chiffrées par migration réversible, deux lectures dédiées sous step-up et journalisées, le contrat du front), critère distinct de V3, V4 et V6 accordés
+- Statut : retenu · à valider — V8 : le correctif dépasse M et demande plus d'un ticket (quatre colonnes chiffrées par migration réversible, deux lectures dédiées sous step-up et journalisées, le contrat du front), critère distinct de V3, V4 et V6 accordés ; porteur (2026-10-18) : traité hors agents, en session : un ADR qui étend ADR-0044 § 1 aux pièces du locataire et de la caution (chiffrement, forme masquée par défaut, lecture sous step-up journalisée), puis ses tickets
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
 - Constat :
@@ -3201,7 +3201,7 @@ sont pas reprises.*
 
 ### Le remboursement d'une Vedette prolongée répartit le prix cumulé sur la durée cumulée : une Vedette offerte puis achetée ne rend presque rien des jours payés
 - Réf : P24.05
-- Statut : retenu · à valider — chemin fermé : docs/models-spec.md (la table des tranches demande un modèle neuf, que `scripts/check-models-spec.mjs` exige dans la spec, fermée à l'implémenteur)
+- Statut : retenu · à valider — chemin fermé : docs/models-spec.md (la table des tranches demande un modèle neuf, que `scripts/check-models-spec.mjs` exige dans la spec, fermée à l'implémenteur) ; porteur (2026-10-18) : traité hors agents, en session : remboursement par tranche datée (les jours restants les plus tardifs, au prix de la tranche qui les a achetés), le modèle dans `models-spec.md`, tests « offerte puis achetée » et « achetée puis offerte »
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Boost/BoostPurchaseService.php:122-135`, `takussan-api/app/Services/Boost/BoostLifecycle.php:139-152`
 - Constat :
@@ -3816,7 +3816,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : retenu · à valider — chemin fermé : `takussan-web/package.json` ; la garde `heading-order` d'axe que nomme la précision demande `axe-core` en dépendance déclarée (V6), critère autre que le V7 accordé, qui portait sur les titres
+- Statut : retenu · à valider — chemin fermé : `takussan-web/package.json` ; la garde `heading-order` d'axe que nomme la précision demande `axe-core` en dépendance déclarée (V6), critère autre que le V7 accordé, qui portait sur les titres ; porteur (2026-10-18) : traité hors agents, en session : `h2` du pied de page et au-dessus des grilles, et `axe-core` en dépendance de dev pour la règle `heading-order`
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3924,7 +3924,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
-- Statut : retenu · à valider — chemin fermé : `.github/workflows/web-ci.yml`, la décision branche le script après le build de `web-ci`
+- Statut : retenu · à valider — chemin fermé : `.github/workflows/web-ci.yml`, la décision branche le script après le build de `web-ci` ; porteur (2026-10-18) : traité hors agents, en session : `poids-des-routes.mjs` branché après le build de `web-ci`, en rapport sans seuil, qui refuse `zod` dans le layout racine
 - Gravité : 🟢 amélioration
 - Où : `.github/workflows/web-ci.yml`, `takussan-web/scripts/check-i18n-namespaces.mjs`, `takussan-web/next.config.ts`
 - Constat :
@@ -4172,7 +4172,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Un seul jeton d'URL ouvre les trois routes SMS, et LAM le reçoit dans chaque `ret_url`
 - Réf : P36.04
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où les trois clés neuves doivent se déclarer (`check-webhook-env-keys`)
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où les trois clés neuves doivent se déclarer (`check-webhook-env-keys`) ; porteur (2026-10-18) : traité hors agents, en session : un jeton par fournisseur, avec repli sur la clé commune le temps de la bascule
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/config/sms.php:174`, `takussan-api/app/Http/Controllers/Webhook/OrangeSmsStatusController.php:56`, `MtargetSmsStatusController.php:43`, `LAfricaMobileSmsStatusController.php:28`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:128-140`
 - Constat :
@@ -4185,7 +4185,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Le webhook WhatsApp ne répond pas à la vérification d'abonnement de Meta
 - Réf : P36.05
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où la valeur de configuration neuve doit se déclarer (`check-webhook-env-keys`)
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, où la valeur de configuration neuve doit se déclarer (`check-webhook-env-keys`) ; porteur (2026-10-18) : traité hors agents, en session : la route `GET` de vérification d'abonnement de Meta, gardée par le jeton d'URL
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/whatsapp-webhooks.php:15-19`, `takussan-api/config/whatsapp.php:26-31`
 - Constat :
@@ -4223,7 +4223,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, d'où le premier des quatre points retire `WHATSAPP_WEBHOOK_IPS`
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, d'où le premier des quatre points retire `WHATSAPP_WEBHOOK_IPS` ; porteur (2026-10-18) : traité hors agents, en session : `WHATSAPP_WEBHOOK_IPS` retirée, et les trois autres points de la piste
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4519,7 +4519,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Petites améliorations
 - Réf : P39.06
-- Statut : retenu · à valider — V1 : métadonnées d'un paiement
+- Statut : validé — les deux points : le `metadata` d'un événement rangé sous son entrée de `gateway_events`, et un `failed` ignoré sur une transaction `settled_by`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:546-552`, `:577`
 - Constat :
@@ -4715,7 +4715,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Un relevé bancaire de 10 Mo, accepté par la validation, tue le job en erreur fatale de mémoire, et le relevé reste `processing` à vie
 - Réf : P43.01
-- Statut : retenu · à valider — V7 : la Piste offre trois correctifs, dont une borne de taille visible de l'agence ; V1 : réécrire l'insertion des lignes, c'est réécrire l'écriture de leurs montants
+- Statut : validé — un `failed()` qui passe le relevé à `failed` s'il est encore `processing`, et l'insertion des lignes par paquets au fil du générateur, dans la transaction ; la taille acceptée (10 Mo) ne baisse pas
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:23,71-90,127-143`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:22,61-63`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:36-39`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4730,7 +4730,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### `MatchBankStatementJob` n'a ni `$timeout` ni `failed()`, et fait plusieurs requêtes par ligne : un gros relevé n'est rapproché qu'en partie, sans trace pour l'agence
 - Réf : P43.02
-- Statut : retenu · à valider — V7 : choisir entre jobs par lots, `$timeout` avec reprise et signalement à l'agence
+- Statut : validé — précharger `statement` (ou passer l'agence une fois), et découper le rapprochement en lots, chacun son job, comme `RegenerateAgencyWatermarksJob`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:15,30-47`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,38-58,65-78`, `deploy/takussan/compose.api.yml:113`
 - Constat :
@@ -4742,7 +4742,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Le battement d'une file passe derrière son arriéré : un worker vivant et occupé est déclaré `failed`, et `ops_queue_stalled` part
 - Réf : P43.03
-- Statut : retenu · à valider — V7 : redéfinir ce que la console appelle un worker en échec, entre deux mesures proposées
+- Statut : validé — mesurer la vie du worker hors de la file (événements `Looping` ou `JobProcessed` écrits dans le cache) : un arriéré devant le battement ne fait plus déclarer `failed` un worker actif
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/RecordQueueHeartbeat.php:15-35`, `takussan-api/routes/console.php:115-117`, `takussan-api/app/Services/Admin/HealthcheckService.php:41-49,304-334,342-358`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:39-44`
 - Constat :
@@ -4755,7 +4755,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Le conteneur `worker` a la même limite (256 Mo) que `memory_limit` : un job gourmand est tué par le noyau avant l'erreur PHP, sans journal
 - Réf : P43.04
-- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/compose.api.yml`
+- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/compose.api.yml` ; porteur (2026-10-18) : traité hors agents, en session : relever le RSS du worker au repos et sous un job lourd, puis `mem_limit` au-dessus de `memory_limit` plus cette marge
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:105-109`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4779,7 +4779,7 @@ poste.*
 
 ### La sonde de santé et la preuve de déploiement du front ne passent jamais par l'API : un front qui ne la joint pas est déclaré sain, et le déploiement est vert
 - Réf : P44.01
-- Statut : retenu · à valider — V5 : la preuve vit dans `images.yml` et `smoke-web.sh`, et la place de la sonde est laissée au porteur
+- Statut : retenu · à valider — V5 : la preuve vit dans `images.yml` et `smoke-web.sh`, et la place de la sonde est laissée au porteur ; porteur (2026-10-18) : traité hors agents, en session : une route du front qui joint l'API, lue par la preuve d'`images.yml` et par `smoke-web.sh` (étape « API injoignable »), hors du `HEALTHCHECK`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/src/app/robots.ts:32-45`, `.github/workflows/images.yml:185-189`, `takussan-web/docker/demarrer.mjs:17-48`, `takussan-web/src/lib/api.ts:19-27`, `takussan-web/src/lib/queries/public-discovery.ts:66-70`
 - Constat :
@@ -4797,7 +4797,7 @@ poste.*
 
 ### Le serveur Next ferme ses connexions inactives au bout de 5 s, derrière un Traefik qui les garde plus longtemps : 502 intermittents possibles
 - Réf : P44.02
-- Statut : retenu · à valider — V5 : variable d'environnement de l'image ou réglage de Traefik
+- Statut : retenu · à valider — V5 : variable d'environnement de l'image ou réglage de Traefik ; porteur (2026-10-18) : traité hors agents, en session : `KEEP_ALIVE_TIMEOUT` au-dessus du délai d'inactivité de Traefik dans l'image, vérifié par `smoke-web.sh`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:31`, `takussan-web/node_modules/next/dist/server/lib/start-server.js:248-249`, `.next/standalone/server.js` (lecture de `KEEP_ALIVE_TIMEOUT`)
 - Constat :
@@ -4813,7 +4813,7 @@ poste.*
 
 ### Petites améliorations
 - Réf : P44.03
-- Statut : retenu · à valider — V5 : sonde du conteneur déployé, et trois correctifs sans lien (V8)
+- Statut : retenu · à valider — V5 : sonde du conteneur déployé, et trois correctifs sans lien (V8) ; porteur (2026-10-18) : traité hors agents, en session : `poweredByHeader: false` et un `X-Request-Id` par requête ; la sonde sans Node, mesurée à part
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/next.config.ts`, `takussan-web/src/lib/api.ts`, `takussan-api/app/Http/Middleware/ShareRequestLogContext.php:25-29`
 - Constat :
@@ -4871,7 +4871,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations : types de réponse faux sans lecteur, clé divergente sur une route sans appelant, commentaires de chemins périmés
 - Réf : P45.03
-- Statut : retenu · à valider — V8 : quatre correctifs sans lien, dont un choix entre unifier la clé et retirer la route
+- Statut : retenu · à valider — V8 : quatre correctifs sans lien, dont un choix entre unifier la clé et retirer la route ; porteur (2026-10-18) : traité hors agents, en session : types alignés sur la réponse réelle, retrait de `GET /api/dashboard/stats` s'il reste sans appelant, docblock corrigé
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/lib/queries/conversations.ts:481-482`, `takussan-api/app/Http/Controllers/Api/ConversationParticipantController.php:81-82`, `takussan-web/src/lib/queries/super-admin.ts:542-552`, `takussan-api/app/Services/Property/PropertyBulkArchiveService.php:104-107`, `takussan-api/app/Http/Controllers/Api/DashboardController.php:82-134`, `takussan-web/src/app/(dashboard)/layout.tsx:17-20`
 - Constat :
@@ -4891,7 +4891,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `POST /api/payments` laisse un agent sans `payments.record` et un bailleur suspendu enregistrer un loyer payé
 - Réf : P46.01
-- Statut : retenu · à valider — V2 : autorisation de `POST /api/payments`, à fermer par retrait de la route ou par délégation aux policies
+- Statut : retenu · à valider — V2 : autorisation de `POST /api/payments`, à fermer par retrait de la route ou par délégation aux policies ; porteur (2026-10-18) : traité hors agents, en session : retrait de `POST /api/payments`, qui n'a aucun appelant, et de son test ; ferme aussi P46.02 et P46.03
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73,86-91,388-421`, `takussan-api/app/Policies/LeasePolicy.php:116-127`, `takussan-api/app/Policies/BasePolicy.php:131-140`, `takussan-api/app/Services/Booking/BookingMoneyAccess.php:29-75`
 - Constat :
@@ -4909,7 +4909,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `POST /api/payments` écrit une restitution de caution payée sans reversement, que les tableaux de bord déduisent des cautions détenues
 - Réf : P46.02
-- Statut : retenu · à valider — V1 : restitution de caution payée écrite hors reversement
+- Statut : retenu · à valider — V1 : restitution de caution payée écrite hors reversement ; porteur (2026-10-18) : traité hors agents, en session : fermée par le retrait de `POST /api/payments` (P46.01)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/PaymentStoreRequest.php:30,44`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:86-91`, `takussan-api/app/Services/Model/LeasePaymentService.php:51-58`, `takussan-api/app/Services/Lease/DepositRefundService.php:85-100`, `takussan-api/app/Services/Dashboard/PortfolioMetrics.php:281-293`, `takussan-api/app/Services/Reporting/AgingBalanceService.php:103-112`
 - Constat :
@@ -4927,7 +4927,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un loyer payé par `POST /api/payments` ne prévient personne et contourne les gardes de `mark-paid`
 - Réf : P46.03
-- Statut : retenu · à valider — V1 : règlement d'un loyer hors des gardes de `mark-paid`
+- Statut : retenu · à valider — V1 : règlement d'un loyer hors des gardes de `mark-paid` ; porteur (2026-10-18) : traité hors agents, en session : fermée par le retrait de `POST /api/payments` (P46.01)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PaymentController.php:73-98`, `takussan-api/app/Services/Model/LeasePaymentService.php:23-35,40-118`
 - Constat :
@@ -4943,7 +4943,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une seule ligne de paiement avant l'activation supprime tout l'échéancier, et le locataire peut la poser
 - Réf : P46.04
-- Statut : retenu · à valider — V1 : génération de l'échéancier de loyer, et la Piste le dit
+- Statut : validé — `scheduleUnderLock` ne compte que les échéances de loyer qu'il émet (`payment_type=rent` hors annulées), et la création d'une ligne est refusée sur un bail qui n'est pas actif
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Model/LeaseService.php:163-198`, `takussan-api/app/Jobs/GenerateLeasePaymentSchedule.php:23`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:409-421`, `takussan-api/app/Http/Controllers/Api/LeasePaymentController.php:37-46`
 - Constat :
@@ -4960,7 +4960,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P46.05
-- Statut : retenu · à valider — V1 : création d'échéances et capacité de `generate-schedule`, plus V8
+- Statut : validé — refuser `deposit_refund` et `amount=0` à la création imbriquée, et juger `generate-schedule` par `recordPayment` (`payments.record`) ; reste : les helpers de `/api/payments`, route retirée en session avec P46.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:40-43`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:149-155`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:388-421`
 - Constat :
