@@ -3816,7 +3816,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Petites améliorations
 - Réf : P31.07
-- Statut : validé — `min-h-6` et soulignement permanent sur les deux liens de `PropertyAgentCard`, titre de l'invitation par le modèle commun
+- Statut : fait · TCK-907
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
 - Constat :
@@ -3825,6 +3825,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et `document.title` par CDP.
 - Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `PropertyAgentCard.tsx:94-112` : liens `LienLocalise` vers l'agent (`hover:underline`, sans hauteur minimale) et l'agence (`min-w-0 truncate hover:underline`) ; `invitations/accept/page.tsx:17-19` : `generateMetadata` rend `t('metaTitle')` seul (« Accepter une invitation ») et `invitations/layout.tsx` ne pose aucun `template` (`grep -rn template src/app/invitations` → 0), alors que `(public)/layout.tsx:52` pose « %s — Takussan » ; la taille des cibles n'a pas été remesurée → les deux points tiennent. Classement : V7, le titre de l'invitation est mécanique (A4), mais agrandir et souligner en permanence les liens de la carte change son dessin.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : relu `PropertyAgentCard.tsx` (agent : `hover:underline` seul ; agence : `min-w-0 truncate hover:underline`) et `invitations/layout.tsx` (aucun `generateMetadata`) → tient ; `PropertyAgentCard.tck-907.test.tsx` → 2 rouges (ni `min-h-6` ni `underline`) et `invitations/__tests__/titre-d-onglet.test.ts` → 1 rouge (pas de modèle) avant correctif ; `min-h-6`, `underline` sur les deux liens, `inline-block` sur celui de l'agent, modèle « %s — Takussan » posé par le layout des invitations → verts ; ablation → les 3 mêmes rouges. `vitest related` : 8 fichiers, 38 verts. Taille des cibles non remesurée au navigateur.
 
 ## Angle 33 — Poids JS des routes publiques
 
