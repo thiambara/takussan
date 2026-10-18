@@ -4961,7 +4961,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P46.05
-- Statut : validé — refuser `deposit_refund` et `amount=0` à la création imbriquée, et juger `generate-schedule` par `recordPayment` (`payments.record`) ; reste : les helpers de `/api/payments`, route retirée en session avec P46.01
+- Statut : fait · TCK-958 — reste : les helpers de `/api/payments`, route retirée en session avec P46.01
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeasePaymentRequest.php:40-43`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:149-155`, `takussan-api/app/Http/Controllers/Api/PaymentController.php:388-421`
 - Constat :
@@ -4975,6 +4975,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - décider la capacité de `generate-schedule` ;
   - si la route `/api/payments` survit, déléguer ses helpers à `LeasePolicy::recordPayment` et à `BookingMoneyAccess`.
 - Mesure (2026-10-18, 3eaaf24f4, mesureur) : relu `StoreLeasePaymentRequest.php:41` (`min:0`), `LeaseController.php:149-152` (`authorize('update')`), `BookingMoneyAccess.php:45,76` (`isStaffAt`, `agency_id ?? property.agency_id`) contre `PaymentController.php:388-421` ; test temporaire `tests/Feature/TmpMesureur/SondeP46Test.php` (base de test PostgreSQL, charge 2,73 sur 8 cœurs), retiré : `POST /api/leases/{id}/payments` `deposit_refund`, `amount=0` → 201 `pending` ; agent sans `payments.record` → `generate-schedule` 200, `payments_created: 12`. `grep` de `generate-schedule` dans TCK-587 → rien : l'intention n'est écrite nulle part. Classement : V1 et V8, trois correctifs sans lien, dont une décision de capacité sur l'écriture d'échéances.
+- Mesure (2026-10-18, e735ac81e, implementeur) : avant correctif, `LeasePaymentNestedCreationRulesTest` rougit 3 fois (`deposit_refund` → 201, `amount=0` → 201, agent sans `payments.record` → `generate-schedule` 200) → `amount` en `gt:0`, `payment_type` sans `deposit_refund`, `generate-schedule` jugé par `recordPayment` ; ablation → les 3 mêmes rouges, remis → verts ; les cinq autres types restent acceptés.
 
 ## Angle 47 — Réglages d'agence : trois magasins, un seul lecteur ?
 
