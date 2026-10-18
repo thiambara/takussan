@@ -39,7 +39,7 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 | `deploy/takussan/compose.api.yml` | la pile d'API d'un environnement, déclarée dans Dokploy — déployée par la commande en deux temps du relevé (`run --rm release && up -d --build`, TCK-522), jamais par un simple `up` |
 | `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
-| `.github/workflows/images.yml` | construit, pousse sur GHCR, déclenche Dokploy, **prouve** par `X-Build-Sha` |
+| `.github/workflows/images.yml` | construit, pousse sur GHCR (`sha-<commit>`, `tree-<arbre>`, `<environnement>`), réétiquette au lieu de reconstruire un arbre déjà construit, déclenche Dokploy, **prouve** par `X-Build-Sha` (ADR-0069 § 3) |
 | `deploy/server/journaux-traefik.sh` | ajoute l'`accessLog` JSON à `traefik.yml` (hors dépôt, réécrit par l'installation de Dokploy) et redémarre Traefik ; idempotent, se rejoue après toute réinstallation (TCK-518) |
 | `.github/workflows/certificats.yml`, `deploy/server/certificats.sh` | chaque jour, l'échéance des certificats d'**origine**, lus sur le serveur par SNI : rouge — et courriel de GitHub — sous 14 jours, sur un nom non couvert ou un certificat illisible |
 | `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images ; `pile` déploie avec la commande de Dokploy et joue un `release` en échec (TCK-522) |
@@ -116,8 +116,21 @@ Projets Dokploy :
     crée sur la table de F3, jamais par `environment.duplicate`, qui recopierait les secrets de la
     préproduction.
 
-Les identifiants des services sont les variables de l'environnement GitHub `preview` et se relisent
-par `project.all` ou `environment.byProjectId`, jamais recopiés.
+**Ce que GitHub garde pour déployer, depuis ADR-0069 § 2 (TCK-832)** : aucun environnement GitHub,
+seulement des secrets et variables de **dépôt**, préfixés par l'environnement Dokploy, de quoi
+déclencher et prouver, rien de la configuration des services :
+
+| Nom | Genre | Rôle |
+|---|---|---|
+| `DOKPLOY_URL` | variable | l'URL de Dokploy |
+| `DOKPLOY_API_KEY` | secret | déclenche le Compose de l'API (`compose.deploy`) : son webhook exige une charge utile de push GitHub (« Branch Not Match » sans elle, mesuré le 2026-10-18) |
+| `PREVIEW_DOKPLOY_API_COMPOSE_ID` | variable | le Compose à déployer |
+| `PREVIEW_DOKPLOY_WEB_WEBHOOK` | secret | le webhook Dokploy de `takussan-web-preview` (`/api/deploy/<refreshToken>`) : il ne déploie que ce service, et se déclenche sans charge utile (200, mesuré le 2026-10-18) |
+| `PREVIEW_API_URL`, `PREVIEW_SITE_URL` | variables | où `images.yml` prouve ce qui est servi |
+| `PREVIEW_BASIC_AUTH` | secret | le compte `ci` de l'authentification basique |
+
+Les identifiants se relisent par `project.all` ou `environment.byProjectId`, jamais recopiés ailleurs
+que là.
 
 Le projet Compose de l'API Takussan s'appelle `takussan-api-preview-4iza80`, et Dokploy range son
 dépôt dans `/etc/dokploy/compose/takussan-api-preview-4iza80/code/`, avec le `.env` qu'il écrit à côté
@@ -194,12 +207,13 @@ en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeur
 **`takussan-web-preview`** (Application) : depuis ADR-0069 § 3, l'image ne porte plus rien de
 l'environnement, et le conteneur **refuse de démarrer** sans trois variables d'exécution, origines
 seules : `API_URL` (`https://preview.api.takussan.com`), `SITE_URL` (`https://preview.takussan.com`)
-et `MEDIA_URL` (`https://media-preview.takussan.com`). ⚠ **À poser AVANT le premier déploiement
-d'une image qui porte `docker/demarrer.mjs`** : sinon le nouveau conteneur sort en erreur, Swarm
-garde l'ancien, et la preuve d'`images.yml` rougit sur l'ancien commit. Une
+et `MEDIA_URL` (`https://media-preview.takussan.com`). **Posées le 2026-10-18** au niveau du
+service (`application.saveEnvironment`, relues) ; elles s'appliquent au déploiement suivant. ⚠ Sur
+un nouvel environnement, les poser AVANT le premier déploiement : sinon le nouveau conteneur sort en
+erreur, Swarm garde l'ancien, et la preuve d'`images.yml` rougit sur l'ancien commit. Une
 authentification basique (Traefik, onglet *Security* de l'Application) à **trois comptes** depuis le
 2026-09-14 (TCK-525) : ceux du porteur, et le compte **`ci`**, dont `ci:motdepasse` est le secret
-`PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` — la preuve d'`images.yml` ne dépend plus
+de dépôt `PREVIEW_BASIC_AUTH` — la preuve d'`images.yml` ne dépend plus
 d'un mot de passe humain. Le mot de passe de `ci` vit dans le secret GitHub et dans le trousseau
 macOS du poste (`security find-generic-password -s takussan-preview-ci -w`), nulle part ailleurs.
 
@@ -224,23 +238,29 @@ geste : `security.create` `{applicationId, username, password}`, `security.delet
 les comptes se relisent par `application.one` → `security[].username`. Preuve, code seul et jamais
 l'URL effective : `curl -sS -o /dev/null -w '%{http_code}' -u testeur:… https://preview.takussan.com/robots.txt`
 → `200`, puis `401` une fois retiré. Changer le mot de passe du porteur ne touche plus la CI ; changer
-celui de `ci` demande de reposer le secret : `printf '%s' 'ci:…' | gh secret set PREVIEW_BASIC_AUTH --env preview`.
+celui de `ci` demande de reposer le secret de dépôt, par un script qui ne l'affiche pas : `gh secret set PREVIEW_BASIC_AUTH` lit sa valeur sur l'entrée standard.
 Option non décidée : Cloudflare Access à la place de l'authentification basique (le compte `ci`
 deviendrait un *service token*) — à peser avant la production, pas avant.
 
-**Redéployer** : pousser sur `preview` (ou `workflow_dispatch` de *Images et déploiement*). Le
-workflow n'est vert que lorsque `X-Build-Sha` rend le commit. Dokploy joue la commande en deux temps
+**Redéployer** : pousser sur `preview` (ou `workflow_dispatch` de *Images et déploiement*). Une image
+dont l'arbre (`git rev-parse HEAD^{tree}`) a déjà son étiquette `tree-<arbre>` est réétiquetée sur le
+registre, pas reconstruite (ADR-0069 § 3). Le workflow n'est vert que lorsque `X-Build-Sha` rend le
+commit, ou un commit de même arbre : celui qui a construit l'image réétiquetée. Dokploy joue la commande en deux temps
 du relevé : `release` par `run`, puis `up` seulement s'il a réussi — un `release` en échec laisse
 l'ancienne pile servir et le déploiement passe `error` (relevé, ligne « Déploiement en échec »).
 
-⚠ **Sauf tant que l'environnement GitHub n'est pas raccordé à Dokploy** : si une des variables
-`DOKPLOY_*` ou le secret `DOKPLOY_API_KEY` manque, le job *Déploiement et preuve* s'arrête tôt, **en
+⚠ **Sauf tant que l'environnement n'est pas raccordé à Dokploy** : si une des variables
+`DOKPLOY_URL`, `<PREFIXE>_DOKPLOY_API_COMPOSE_ID` ou un des secrets `DOKPLOY_API_KEY`,
+`<PREFIXE>_DOKPLOY_WEB_WEBHOOK` manque, le job *Déploiement et preuve* s'arrête tôt, **en
 vert**, sur la notice « Dokploy n'est pas raccordé à « preview » : images poussées, rien déployé. »
 (premier passage réel le 2026-09-14, run `34792488601`). Un vert de ce workflow ne prouve un
 déploiement que si son journal porte la preuve `X-Build-Sha`, pas cette notice.
 
 **Revenir en arrière** : Dokploy → Compose de l'API → Environment → `IMAGE_TAG=sha-<commit>` →
-*Deploy*. Front : Application → image `…:preview-sha-<commit>` → *Deploy*. ⚠ Une migration déjà
+*Deploy*. Front : Application → image `…:sha-<commit>` → *Deploy* (jusqu'au 2026-10-18 :
+`…:preview-sha-<commit>`). Ou, sans toucher Dokploy, réétiqueter :
+`docker buildx imagetools create -t ghcr.io/thiambara/takussan-web:preview ghcr.io/thiambara/takussan-web:sha-<commit>`,
+puis *Deploy*. ⚠ Une migration déjà
 jouée ne se défait pas par un retour d'image : la revenir d'abord (`php artisan migrate:rollback`
 dans un conteneur `release`) ou avancer par un correctif.
 
