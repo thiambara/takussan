@@ -4983,7 +4983,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### La recherche globale du super-admin ne trouve plus une agence par son NINEA
 - Réf : P47.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-959
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Admin/AdminGlobalSearchService.php:124`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:95-116`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:94-99`, `takussan-api/database/migrations/2026_10_07_200500_add_payout_settings_and_legal_columns_to_agencies_table.php:50-57`, `takussan-api/tests/Feature/Admin/Platform/AdminGlobalSearchTest.php:91-98`
 - Constat :
@@ -4995,6 +4995,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré.
 - Piste : chercher sur la colonne `agencies.ninea`, avec un repli sur `metadata.legal_info` tant que des lignes d'avant la migration peuvent exister. Changer le test pour qu'il sème la colonne, et vérifier par ablation qu'il rougit sur la requête actuelle.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `AdminGlobalSearchService.php:124` (`metadata->'legal_info'->>'ninea'`), `AgencyKindFlipService.php:96-99` (écrit la colonne puis `continue`), `AgencyUpdateRequest.php:94` (règle `ninea`) et `AdminGlobalSearchTest.php:93` (sème `metadata.legal_info`) ; `git log 33535e36a..HEAD -- takussan-api/app` → aucun commit ; test temporaire `tests/Feature/TmpMesureur/SondeP47Test.php` (base de test PostgreSQL, charge 1,67 sur 8 cœurs), retiré : `Agency::factory()->create(['ninea' => '005012345'])` puis `GET /api/admin/search?q=005012345` en opérateur support → `data: []`. Classement : A1, TCK-600 veut le NINEA cherchable « par l'agence » et TCK-594 fait de la colonne `agencies.ninea` la source : chercher la colonne, avec repli sur `metadata.legal_info`, ne demande aucun choix.
+- Mesure (2026-10-18, e735ac81e, implementeur) : `AdminGlobalSearchTest` réécrit pour semer `agencies.ninea` rougit avant correctif (`[]`) → `byToken` cherche la colonne, ou `metadata->'legal_info'->>'ninea'` en repli ; ablation du correctif → ce rouge, du repli seul → le test neuf du repli rougit ; remis → 11 verts.
 
 ### L'écran de configuration d'agence enregistre le fuseau horaire, et l'API le jette
 - Réf : P47.02
