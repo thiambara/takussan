@@ -59,9 +59,11 @@ class AgencyResource extends BaseResource
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
             'settings' => $this->settings ?? null,
             // TCK-269 — metadata carries `welcome.standard_unlocked_at` (read by
-            // the agency-standard welcome modale) and `legal_info.*` (legal
-            // fields backfilled at upgrade approval). Exposed verbatim so the
-            // frontend hook can detect both without a dedicated endpoint.
+            // the agency-standard welcome modale). Exposed verbatim so the
+            // frontend hook can detect it without a dedicated endpoint.
+            // P47.06 (TCK-960) — `legal_info.*` n'est plus écrit (le flip et l'écran d'agence écrivent
+            // les colonnes `legal_name`, `ninea`, `rccm`, `legal_address`, TCK-594) : ce qui en reste
+            // date d'avant la migration, et ne fait pas foi.
             // TCK-601 — jamais `legal_info.rib_pro` : la migration l'a retiré et le flip ne le
             // recopie plus ; ceci couvre une donnée qui lui serait antérieure.
             'metadata' => $this->metadata !== null ? Arr::except($this->metadata, 'legal_info.rib_pro') : null,

@@ -35,10 +35,9 @@ use RuntimeException;
 class AgencyKindFlipService
 {
     /**
-     * Legal fields carried by an upgrade request. When the Agency model
-     * eventually gains real columns for these we will read them off
-     * `Agency::$queryFields` — for now everything below lives in
-     * `metadata.legal_info`.
+     * Legal fields carried by an upgrade request. Each has its column on `agencies` since TCK-594
+     * ({@see self::COLUMN_OF}) and the flip writes only there. `metadata.legal_info` is read, never
+     * written: it holds the values curated by hand before that migration (P47.06, TCK-960).
      *
      * @var array<int,string>
      */
@@ -98,22 +97,12 @@ class AgencyKindFlipService
                     continue;
                 }
 
-                $column = self::COLUMN_OF[$field] ?? null;
-                if ($column !== null) {
-                    if ($agency->{$column} === null || $agency->{$column} === '') {
-                        $curated = $legalInfo[$field] ?? null;
-                        $agency->{$column} = $curated !== null && $curated !== '' ? $curated : $value;
-                    }
-
-                    continue;
-                }
-
-                if (! array_key_exists($field, $legalInfo) || $legalInfo[$field] === null || $legalInfo[$field] === '') {
-                    $legalInfo[$field] = $value;
+                $column = self::COLUMN_OF[$field];
+                if ($agency->{$column} === null || $agency->{$column} === '') {
+                    $curated = $legalInfo[$field] ?? null;
+                    $agency->{$column} = $curated !== null && $curated !== '' ? $curated : $value;
                 }
             }
-
-            $metadata['legal_info'] = $legalInfo;
 
             // Welcome trigger marker — read by the frontend hook so the
             // "Welcome to your standard agency" modale fires once for the
