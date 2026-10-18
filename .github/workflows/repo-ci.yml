@@ -306,6 +306,11 @@ jobs:
         # ADR-0028 §2. Dokploy joue `up -d --build` : un `build:` ferait construire sur le serveur.
         run: node scripts/check-compose-sans-build.mjs --report
 
+      - name: Un réseau, un Redis et un nom d'API par environnement
+        # ADR-0069 § 4 (TCK-880) : sur dokploy-network, l'hôte `api` désigne l'API de chaque
+        # environnement ; un Redis posé là est joignable de toutes les piles.
+        run: node scripts/check-reseau-par-environnement.mjs --report
+
       - name: Le shell du serveur et les Dockerfile passent shellcheck et hadolint
         # Deux trouvailles shellcheck ont été corrigées À LA MAIN pendant la migration (plan
         # d'ADR-0028, « Écarts constatés ») parce qu'aucun workflow ne le lançait ; un Dockerfile

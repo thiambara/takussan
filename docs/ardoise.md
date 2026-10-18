@@ -3021,8 +3021,9 @@ mesuré » : en préproduction, un code de vérification ne peut pas partir aujo
 
 Les valeurs attendues sont écrites dans `docs/infra/hebergement.md`, « À poser par le porteur —
 TCK-598, ADR-0052 ». `VISITOR_IP_TRUSTED_HOPS=2` y est **inféré**, pas mesuré, et
-`API_INTERNAL_URL=http://api:8080` suppose que l'alias `api` est unique sur `dokploy-network`, qui
-porte d'autres projets. À mesurer avant de poser.
+`API_INTERNAL_URL` visait l'hôte `api`, que chaque pile déclare sur `dokploy-network` ; depuis
+TCK-880 (ADR-0069 § 4), la valeur est `http://takussan-api-preview:8080`, un alias propre à
+l'environnement. À mesurer avant de poser.
 
 *Décision du porteur : la préproduction reste sur ces défauts pour l'instant, et il reprend la main
 sur les variables de la production. Condition de réouverture : la pose des clés dans Dokploy, avec

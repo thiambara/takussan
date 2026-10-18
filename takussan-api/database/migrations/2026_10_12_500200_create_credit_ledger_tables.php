@@ -52,7 +52,7 @@ return new class extends Migration
         DB::statement('ALTER TABLE credit_movements ADD CONSTRAINT credit_movements_amount_check CHECK (amount <> 0)');
 
         DB::unprepared(<<<'SQL'
-            CREATE FUNCTION credit_movements_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+            CREATE OR REPLACE FUNCTION credit_movements_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
                 IF TG_OP = 'DELETE' THEN
                     IF pg_trigger_depth() > 1 THEN
