@@ -3573,7 +3573,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Une visite créée par l'agent pour un client sans compte enregistre la langue de l'agent, et le même client reçoit ses rappels de loyer en français
 - Réf : P29.02
-- Statut : validé — `fr` (`DEFAULT_LOCALE`), puis la langue de la fiche client une fois P29.03 faite
+- Statut : fait · TCK-845 — reste : la langue de la fiche client une fois P29.03 faite
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:190`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `:57-67`, `takussan-api/app/Services/Visit/VisitNotifier.php:197`
 - Constat :
@@ -3584,6 +3584,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu. L'envoi effectif dans la langue de l'agent n'a pas été rejoué (à vérifier).
 - Piste : sur la route de l'agent, enregistrer `ContactSansCompte::DEFAULT_LOCALE` à défaut de compte, comme `fromCustomer()`, ou la langue de la fiche client si P29.03 en crée une. Garder par un test : visite créée sous `Accept-Language: en` pour un client sans compte → `locale` = `fr`.
 - Mesure (2026-10-16, b14cd410, mesureur) : relu `PropertyVisitController.php:190` (`'locale' => $visitor?->preferredLocale() ?? app()->getLocale()` dans `planForCustomer`) et `ContactSansCompte.php:38-47`, `:57-67` ; test temporaire retiré, agent de l'agence, `POST /api/property-visits` avec une fiche client sans compte sous `Accept-Language: en` → 201, `property_visits.locale = en`, `ContactSansCompte::fromVisit()` → `en`, `fromCustomer()` de la même fiche → `fr` ; l'envoi SMS lui-même n'a pas été rejoué, mais il prend la langue de `fromVisit()` (lu) ; le constat tient. Classement : V7, la piste propose deux langues cibles (`fr` explicite, ou celle d'une fiche client que P29.03 créerait), et une langue négociée par l'agent peut être un choix voulu.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `PropertyVisitNotificationTest::test_l_agent_planifie_sous_sa_langue_le_client_sans_compte_garde_le_francais`, avant correctif, agent sous `Accept-Language: en`, `POST /api/property-visits` pour une fiche sans compte puis pour un prospect sans fiche → `property_visits.locale = en` (rouge) ; correctif, repli de `planForCustomer` sur `ContactSansCompte::DEFAULT_LOCALE` → `fr` pour les deux visites et les deux `VisitConfirmed` partent en `fr` (vert) ; ablation (repli remis sur `app()->getLocale()`) → rouge, remis → `PropertyVisitNotificationTest` 12 verts et `PropertyVisitTest` 8 verts. La langue de la fiche client attend P29.03.
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
