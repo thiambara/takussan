@@ -3524,7 +3524,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
 
 ### `/api/enums/{key}` rend à tout anonyme le compte de tous les biens par valeur, brouillons et biens privés compris, et n'a aucun appelant hors de la console
 - Réf : P28.02
-- Statut : validé — retirer `usage_count` de la lecture publique ; la route reste
+- Statut : fait · TCK-844
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/routes/api/enums.php:6-8`, `takussan-api/app/Http/Controllers/Api/PublicBusinessEnumController.php:13-16`, `takussan-api/app/Services/Admin/BusinessEnumService.php:29-55`, `:213-231`
 - Constat :
@@ -3535,6 +3535,7 @@ comportement d'un cache partagé (Cloudflare, Traefik) devant `api.takussan.com`
   - Établi comment : lu et mesuré (test temporaire).
 - Piste : retirer `usage_count` de la lecture publique (`activeOnly: true` est déjà le chemin public), ou retirer la route si aucun appelant n'est prévu. Un test : la lecture anonyme ne porte pas `usage_count`. Voir l'angle 66 pour la question de qui lit ces valeurs.
 - Mesure (2026-10-16, af610be5, mesureur) : `php artisan route:list --path=api/enums -v` → groupe `api` et `SetCacheHeaders:public;max_age=300;etag` seuls, ni `auth` ni limiteur ; relu `BusinessEnumService.php:50` (`usage_count`) et `:213-231` (`usageCounts`, `whereIn` sur toute la table, sans filtre de visibilité) ; test temporaire retiré, un `villa` publié et deux passés en `draft`, `GET /api/enums/property_type` anonyme → 200, `max-age=300, public`, `usage_count: 3` pour `villa` contre 1 bien `public()`, même md5 en `fr` et `en` ; `grep -rn enums takussan-web/src` → seuls les chemins `/api/super-admin/enums/…` et des libellés, aucun appelant de la route publique hors `BusinessEnumTest.php:27` ; le constat tient. Classement : V7, la piste propose deux correctifs (retirer `usage_count` de la lecture publique, ou retirer la route) et renvoie à l'angle 66 sur qui doit lire ces valeurs, ce qui est un choix de produit.
+- Mesure (2026-10-18, 51fe0cfa, implementeur) : test neuf `BusinessEnumTest::test_public_read_does_not_expose_usage_count_and_admin_keeps_it`, avant correctif, un `villa` publié et deux en brouillon → `GET /api/enums/property_type` anonyme 200 avec `usage_count` sur chaque valeur (rouge) ; correctif `withUsage: false` sur la lecture publique de `BusinessEnumService::get()` → aucune valeur ne porte `usage_count`, la console super-admin rend toujours `usage_count: 3` pour `villa` (vert) ; ablation (paramètre retiré du contrôleur public) → rouge, remis → `BusinessEnumTest` 7 verts. La route reste.
 
 ## Angle 29 — Langue des destinataires sans compte
 
