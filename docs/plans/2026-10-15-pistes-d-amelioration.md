@@ -4670,7 +4670,7 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
 
 ### Un relevé bancaire de 10 Mo, accepté par la validation, tue le job en erreur fatale de mémoire, et le relevé reste `processing` à vie
 - Réf : P43.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la Piste offre trois correctifs, dont une borne de taille visible de l'agence ; V1 : réécrire l'insertion des lignes, c'est réécrire l'écriture de leurs montants
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Accounting/ParseBankStatementJob.php:23,71-90,127-143`, `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:22,61-63`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:36-39`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4681,10 +4681,11 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Même issue si le job dépasse les 60 s par défaut du worker, faute de `$timeout` : la commande du worker de `compose.api.yml:113` ne pose pas `--timeout` (lu). La durée réelle d'un gros relevé est à vérifier.
   - Établi comment : boucle du job recopiée hors base, `memory_get_peak_usage(true)`, puis `-d memory_limit=256M` ; les fichiers de mesure sont restés dans `/tmp`, hors du dépôt.
 - Piste : un `failed()` qui passe le relevé à `failed` s'il est encore `processing`. Insérer par paquets au fil du générateur, dans la transaction, au lieu de tout accumuler. Ou borner la taille du fichier sous le seuil mesuré. Test : un `failed()` appelé sur un relevé `processing` le rend `failed`, et le ré-import du même fichier passe.
+- Mesure (2026-10-18, f7873dbab, mesureur) : relu `ParseBankStatementJob.php` (accumulation de `$lines` et `$dates` l. 65-90, passage à `failed` seulement dans le `catch` l. 127-143, aucun `failed()`), `StoreBankStatementRequest.php:22` (`max:10240`) et `:61-63`, `BankStatementController.php:36-39`, `docker/php.ini:3` (256M) ; `git log` : aucun commit sur ces fichiers depuis 91998f351 ; boucle du job rejouée sur `CsvDriver` hors base (agence non persistée), CSV générés dans `/tmp` → 10 Mo (95 909 lignes) : pic 720 Mo sans limite, et `Allowed memory size of 268435456 bytes exhausted` sous `-d memory_limit=256M` ; 3 Mo (27 600 lignes) : pic 202 Mo. Le relevé passe par `worker-media` (`compose.api.yml:113`, `mem_limit: 384m`), où l'erreur fatale de PHP arrive avant le noyau (RSS de 283 Mio à l'épuisement, mesuré en P43.04). Le constat tient en entier ; la durée d'un gros relevé face aux 60 s du worker n'est pas mesurée. Classement : V7, la Piste laisse le choix entre trois voies, dont une borne de taille que l'agence verrait, et l'insertion par paquets réécrit l'écriture des montants (V1) ; le `failed()` seul, qui tient la promesse TCK-593 écrite l. 137, relèverait de A1 si le porteur le valide à part.
 
 ### `MatchBankStatementJob` n'a ni `$timeout` ni `failed()`, et fait plusieurs requêtes par ligne : un gros relevé n'est rapproché qu'en partie, sans trace pour l'agence
 - Réf : P43.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : choisir entre jobs par lots, `$timeout` avec reprise et signalement à l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/Accounting/MatchBankStatementJob.php:15,30-47`, `takussan-api/app/Services/Accounting/ReconciliationMatcher.php:26-30,38-58,65-78`, `deploy/takussan/compose.api.yml:113`
 - Constat :
@@ -4692,10 +4693,11 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - `$tries = 1`, pas de `$timeout` : le délai est celui du worker, 60 s par défaut (lu, `WorkCommand.php:49` ; `compose.api.yml:113` ne pose pas `--timeout`). À 60 s, le processus est tué et le job passe en échec sans `failed()`. Les lignes déjà traitées gardent leur suggestion, les suivantes restent `unmatched`, et le relevé est déjà `ready_for_review` (lu, `ParseBankStatementJob.php:113-120`). Rien ne le signale à l'agence (déduit).
   - Le nombre de lignes qui fait dépasser 60 s n'est pas mesuré : à vérifier sur une base peuplée.
 - Piste : précharger `statement`, ou passer l'agence une fois. Découper le rapprochement en lots, chacun son job, comme `RegenerateAgencyWatermarksJob` répartit son travail. Ou poser un `$timeout` sous `retry_after`, avec reprise. Test : un relevé de N lignes, avec une durée et un nombre de requêtes bornés.
+- Mesure (2026-10-18, f7873dbab, mesureur) : relu `MatchBankStatementJob.php` (`$tries = 1`, ni `$timeout` ni `failed()`, `cursor()` l. 30-49) et `ReconciliationMatcher.php:38-58,65-81` ; `WorkCommand.php:49` (`--timeout=60`) et `compose.api.yml:113` sans `--timeout` ; test temporaire, retiré : 500 lignes `unmatched` sur une base de test vide, job exécuté → 2 002 requêtes (4 par ligne : `statement`, puis les trois modèles de paiement) en 7,74 s, Xdebug `develop` chargé, charge 2,29 sur 8 cœurs. Cela fait environ 15 ms par ligne, et les 60 s vers 3 900 lignes sur des tables vides (déduit, moins sur une base peuplée). Le constat tient ; « rien ne le signale à l'agence » reste déduit. Classement : V7, la Piste laisse le choix entre précharger (A2, mais une requête sur quatre seulement), découper en jobs ou poser un `$timeout` avec reprise, et signaler l'arrêt à l'agence serait un comportement visible neuf.
 
 ### Le battement d'une file passe derrière son arriéré : un worker vivant et occupé est déclaré `failed`, et `ops_queue_stalled` part
 - Réf : P43.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : redéfinir ce que la console appelle un worker en échec, entre deux mesures proposées
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Jobs/RecordQueueHeartbeat.php:15-35`, `takussan-api/routes/console.php:115-117`, `takussan-api/app/Services/Admin/HealthcheckService.php:41-49,304-334,342-358`, `takussan-api/app/Console/Commands/EvaluateOperationalAlerts.php:39-44`
 - Constat :
@@ -4704,10 +4706,11 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Un arriéré de cette taille est ordinaire en file `media`. La base de développement porte **3 531** `PerformConversionsJob` en attente, mis en file entre 07:17 et 07:38 UTC le jour même par un peuplement avec médias (mesuré : `SELECT` sur `jobs` groupé par `displayName` ; 3 535 lignes `media` créées dans la même fenêtre). Une régénération de filigranes d'agence met un job par photo (lu, `RegenerateAgencyWatermarksJob.php:79`) : volume du même ordre (déduit).
   - Pendant une panne, un battement s'ajoute chaque minute, et rien ne les déduplique : aucun job n'est `ShouldBeUnique` (lu, `grep -rn ShouldBeUnique app` → rien). Le volume reste petit (déduit).
 - Piste : mesurer la vie du worker hors de la file, par exemple sur les événements `Looping` ou `JobProcessed` du worker, écrits dans le cache. Ou garder le battement en file, et ne déclarer `failed` que si la sonde `queue` n'explique pas le retard. Test : un arriéré de N jobs devant le battement, worker actif → `workers` n'est pas `failed`.
+- Mesure (2026-10-18, f7873dbab, mesureur) : relu `RecordQueueHeartbeat.php:15-35` (job ordinaire, mis sur la file qu'il surveille), `console.php:115-117`, `DatabaseQueue.php:464` (`orderBy('id', 'asc')`), `HealthcheckService.php:41-49` (`queue` `degraded` à 600 s, `workers` `failed` à 300 s) et `:342-358`, `EvaluateOperationalAlerts.php:41` ; `grep -rn ShouldBeUnique app` → rien. Le constat tient, avec une nuance : `ops_queue_stalled` part aussi dès que `queue` n'est pas `ok`, donc l'arriéré seul la lève à 600 s, et le battement ne l'avance que de 300 s ; la sonde `workers` rend bien `failed` pour un worker occupé (lu, non exécuté). Classement : V7, la Piste propose deux définitions de la vie d'un worker, et le choix change le sens d'une sonde et d'une alerte de la console plateforme.
 
 ### Le conteneur `worker` a la même limite (256 Mo) que `memory_limit` : un job gourmand est tué par le noyau avant l'erreur PHP, sans journal
 - Réf : P43.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/compose.api.yml`
 - Gravité : 🟠 risque ou dette
 - Où : `deploy/takussan/compose.api.yml:105-109`, `takussan-api/docker/php.ini:3`
 - Constat :
@@ -4715,3 +4718,4 @@ est un parcours de `jobs_pkey` arrêté au premier job (mesuré : `EXPLAIN` avec
   - Dans ce cas, le noyau tue le processus par `SIGKILL`. Il n'y a ni `Allowed memory size` dans les journaux, ni `failed()`, ni `catch`. Le job reste réservé jusqu'à `retry_after`, puis il est rejoué si `--tries=3` le permet : une notification à moitié partie (SMS envoyé, puis mort) repart (déduit, à vérifier). `worker-media` (384 Mo) laisse cette marge : c'est l'erreur fatale de PHP qui y joue (P43.01).
   - Jamais éprouvé : aucun relevé du RSS d'un worker en préproduction.
 - Piste : relever le RSS d'un worker au repos et sous un job lourd (`docker stats`), puis fixer `mem_limit` au-dessus de `memory_limit` plus cette marge. Ou passer au worker un `memory_limit` sous la limite du conteneur (`php -d memory_limit=…`).
+- Mesure (2026-10-18, f7873dbab, mesureur) : relu `compose.api.yml:105-109` (`worker`, `mem_limit: 256m` l. 109) et `:111-115` (`worker-media`, 384m), `docker/php.ini:3` (`memory_limit = 256M`) ; mesuré en local (macOS, hors conteneur) par `/usr/bin/time -l` : un processus PHP qui épuise `memory_limit=256M` culmine à 296 452 096 octets de RSS (283 Mio), un `php -r` vide à 25 Mio. Le RSS dépasse donc 256 Mio avant l'erreur PHP sur ce poste ; dans l'image et sous `mem_limit`, rien n'est éprouvé. Classement : V5, la Piste change la limite mémoire d'un conteneur déployé.
