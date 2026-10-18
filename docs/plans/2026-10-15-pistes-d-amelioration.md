@@ -4754,7 +4754,7 @@ poste.*
 
 ### La sonde de santé et la preuve de déploiement du front ne passent jamais par l'API : un front qui ne la joint pas est déclaré sain, et le déploiement est vert
 - Réf : P44.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : la preuve vit dans `images.yml` et `smoke-web.sh`, et la place de la sonde est laissée au porteur
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/src/app/robots.ts:32-45`, `.github/workflows/images.yml:185-189`, `takussan-web/docker/demarrer.mjs:17-48`, `takussan-web/src/lib/api.ts:19-27`, `takussan-web/src/lib/queries/public-discovery.ts:66-70`
 - Constat :
@@ -4768,10 +4768,11 @@ poste.*
   - Ajouter une route serveur du front qui joint `apiUrl()` + `/up` et rend son code, puis la faire lire par la preuve d'`images.yml`, en plus de `robots.txt`.
   - La garder hors du `HEALTHCHECK` : sinon une panne de l'API arrêterait aussi le front. Ce choix revient au porteur.
   - Ajouter à `smoke-web.sh` une étape « `API_INTERNAL_URL` injoignable », qui doit faire rougir la preuve.
+- Mesure (2026-10-18, bc1f55227, mesureur) : relu `takussan-web/Dockerfile:39-40` (`HEALTHCHECK` sur `/robots.txt`), `robots.ts:34-46` (seule `origineSite()`, aucun appel d'API), `images.yml:185-189` (`attendre "$API_URL/up"` puis `attendre "$SITE_URL/robots.txt"`), `demarrer.mjs:17` (`API_URL`, `SITE_URL`, `MEDIA_URL`, forme seule, rien n'est joint), `api.ts:19-26` (`API_INTERNAL_URL` prise dès qu'elle est posée), `public-discovery.ts:66-70` (la panne rend `null`) ; `ls takussan-web/src/app/api` → aucune route de santé ; `git log -S` et `grep` des tickets → rien qui la traite ; le comportement API éteinte n'a pas été rejoué (la garde refuse le lancement du standalone), il reste celui de l'explorateur. Le constat tient tel qu'écrit. Classement : V5, la Piste passe par `.github/workflows/images.yml` et `deploy/takussan/smoke-web.sh`, et place la sonde hors du `HEALTHCHECK` par un choix que l'entrée renvoie elle-même au porteur.
 
 ### Le serveur Next ferme ses connexions inactives au bout de 5 s, derrière un Traefik qui les garde plus longtemps : 502 intermittents possibles
 - Réf : P44.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : variable d'environnement de l'image ou réglage de Traefik
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/Dockerfile:31`, `takussan-web/node_modules/next/dist/server/lib/start-server.js:248-249`, `.next/standalone/server.js` (lecture de `KEEP_ALIVE_TIMEOUT`)
 - Constat :
@@ -4783,10 +4784,11 @@ poste.*
 - Piste :
   - Poser `KEEP_ALIVE_TIMEOUT` au-dessus du délai d'inactivité de Traefik dans l'`ENV` du runtime, ou réduire `idleConnTimeout` côté Traefik.
   - Faire vérifier par `smoke-web.sh` l'en-tête `Keep-Alive: timeout=` de la réponse.
+- Mesure (2026-10-18, bc1f55227, mesureur) : relu `start-server.js:248-249` (`keepAliveTimeout` posé seulement s'il est fourni), le `server.js` standalone (`parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)`) et `Dockerfile:31` (pas de `KEEP_ALIVE_TIMEOUT`) ; `grep -rIn KEEP_ALIVE_TIMEOUT` hors `node_modules`, `.next`, `vendor` et ce fichier → rien ; `node -e` sous v24.18.0 → `keepAliveTimeout` 5000 ; `grep -rIn 'idleConnTimeout\|serversTransport' deploy` → rien. L'en-tête `Keep-Alive: timeout=5` n'a pas été re-mesuré (standalone non lancé), et le 502 reste non observé : la partie qui tient est l'écart de configuration, pas la panne. Classement : V5, le correctif est une variable d'environnement de l'image déployée ou un réglage de Traefik, à confronter à la valeur effective du serveur.
 
 ### Petites améliorations
 - Réf : P44.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : sonde du conteneur déployé, et trois correctifs sans lien (V8)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/Dockerfile:39-40`, `takussan-web/next.config.ts`, `takussan-web/src/lib/api.ts`, `takussan-api/app/Http/Middleware/ShareRequestLogContext.php:25-29`
 - Constat :
@@ -4798,3 +4800,4 @@ poste.*
   - Une sonde sans Node (un binaire statique, ou la commande de Swarm de Dokploy), ou au moins la mesure du coût dans l'image.
   - `poweredByHeader: false`.
   - Un `X-Request-Id` tiré par requête dans `apiRequest`, côté serveur, et écrit dans les `console.error` du front.
+- Mesure (2026-10-18, bc1f55227, mesureur) : relu `Dockerfile:39-40` ; `/usr/bin/time -l node -e "<commande de la sonde>"` sur le poste (macOS, cible absente) → 59 293 696 octets de RSS au maximum, 0,36 s ; `grep poweredByHeader takussan-web/next.config.ts` → rien, le `server.js` standalone (build du 2026-10-15) porte `"poweredByHeader":true` ; `grep -rIn -i x-request-id takussan-web/src` → rien, `ShareRequestLogContext.php:25-29` reprend bien un `X-Request-Id` sûr (TCK-774, côté API seulement) ; le journal sur dix lignes n'a pas été re-mesuré. Les trois premiers points tiennent. Classement : V5, la sonde passe par le `HEALTHCHECK` de l'image déployée, et l'entrée mêle trois correctifs sans lien, dont le format des journaux du front, qui demande un choix (V8 pour l'ensemble).
