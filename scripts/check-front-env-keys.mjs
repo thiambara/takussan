@@ -85,7 +85,7 @@ const ENV_EXEMPLE = join(WEB, '.env.example');
 const RELEVE = join(ROOT, 'docs', 'infra', 'frontend-deploiement.json');
 /**
  * ADR-0069 § 3 — ce qui CONSTRUIT l'image : le Dockerfile, et TOUT workflow qui le construit
- * (`context: takussan-web` — images.yml, le build de contrôle de web-ci.yml). Aucune
+ * (`context: takussan-web`, ou en matrice — images.yml, le build de contrôle de web-ci.yml). Aucune
  * `NEXT_PUBLIC_*` n'y passe : une valeur passée là serait inlinée, et l'image servirait un seul
  * environnement. La liste des workflows se dérive : un build de plus est gardé sans qu'on y pense.
  */
@@ -96,7 +96,8 @@ const WORKFLOWS_DU_FRONT = existsSync(WORKFLOWS_DIR)
   ? readdirSync(WORKFLOWS_DIR)
       .filter((f) => /\.ya?ml$/.test(f))
       .map((f) => join(WORKFLOWS_DIR, f))
-      .filter((f) => /^\s*context:\s*takussan-web\s*$/m.test(readFileSync(f, 'utf8')))
+      // `context: takussan-web`, ou la même valeur dans une matrice (`contexte: takussan-web`).
+      .filter((f) => /^\s*context:\s*takussan-web\s*$|\bcontexte:\s*takussan-web\b/m.test(readFileSync(f, 'utf8')))
   : [];
 
 /** Le seul module qui lit la configuration publique, et `next.config.ts` (build de Vercel). */
