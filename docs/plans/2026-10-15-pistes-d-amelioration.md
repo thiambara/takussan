@@ -113,7 +113,7 @@ voie d'écriture (angle 13, puis 47).
 | 38 | Messagerie : `message_received`, `ConversationInviteNotification`, isolation des conversations | fait |
 | 39 | Webhook de paiement `refund` ou `failed` rejoué sur un paiement déjà soldé : effets, fenêtre de temps de la signature | fait |
 | 40 | Ablation réelle, par la session, des trois 🔴 de l'angle 12 (isolation de l'initiation, obligations RGPD, signature OM) | fait (couvert par l'angle 12) |
-| 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | à faire |
+| 41 | Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés (`content-disposition` des exports RGPD) | fait |
 | 42 | Sauvegardes PostgreSQL : existence, rétention, restauration à blanc mesurée | à faire |
 | 43 | File `database` sous charge : `retry_after`, verrous, `jobs` qui grossit | à faire |
 | 44 | Front en conteneur : healthcheck de `takussan-web-preview`, journaux Next | à faire |
@@ -4466,3 +4466,56 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Combiné à P39.01, un loyer bien encaissé peut ainsi sortir des circuits tout en restant quittancé.
 - Piste : relever ces effets un par un (angle 76 proposé) avant de choisir entre interdire, signaler ou compenser.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : lu : la branche `REFUNDED` d'`applyStatusToPayment` n'émet aucun événement, seul `LeasePaymentSettledOnline` part (transition vers `paid`) ; `platform_payout_id` n'est remis à nul que par l'annulation d'un reversement (`PlatformPayoutService.php:178-181`), jamais par un remboursement ; la sélection de clôture (`whereNull('platform_payout_id')`, statut `paid`) est inchangée. Que la ligne remboursée reste comptée dans le reversement clos est lu, non mesuré. Classement : V7 et V1, la piste elle-même demande un choix entre interdire, signaler ou compenser.
+
+## Angle 41 — Chemins nominaux du BFF : cookie → Bearer, en-têtes relayés
+
+*Exploré le 2026-10-18 sur `pre-dev` 51fe0cfa4, par l'explorateur. Relu par l'explorateur lui-même :
+les 36 `route.ts` de `takussan-web/src/app/api/`, `apiRequest` et `enTetesServeurAmont`
+(`src/lib/api.ts`), `origineApi()`, `ResolveActiveProfile` et `SetLocaleMiddleware` côté API, et
+les appelants de la console (`src/lib/queries/super-admin.ts`). Aucun sous-agent. Mesures par un
+test vitest temporaire, retiré depuis (charge `vm.loadavg` 2,42 sur 8 cœurs), qui appelle chaque
+relais avec un `fetch` remplacé ; l'API réelle n'a pas été jointe par le BFF. Le profil actif du
+relais `admin-users` est déjà P03.07 (« Le proxy `admin-users` ne relaie pas le profil actif »,
+`validé`) : il n'est pas repris. L'export RGPD (`data-exports/[id]/download`) et `export/[entity]`
+relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-595).*
+
+### La console super-admin rend une erreur 500 quand l'API répond 204 : la suppression d'un bien, d'une règle d'alerte et la remise d'une prise de modération sont faites, mais affichées en échec
+- Réf : P41.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/app/api/super-admin/[...path]/route.ts:48-56`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:34-40`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:35-41`, `takussan-web/src/app/api/announcements/[...path]/route.ts:25-31`, `takussan-web/src/app/api/impersonation/proxy/[...path]/route.ts:49`
+- Constat :
+  - Ces relais lisent le corps amont (`arrayBuffer()` ou `text()`) puis construisent `new NextResponse(corps, { status: upstream.status })`. Un corps non nul, même vide, avec un statut 204 fait lever le constructeur (mesuré : `node -e "new Response('', {status: 204})"` et la même chose avec `NextResponse` → `TypeError: Response constructor: Invalid response status code 204` ; `null` passe).
+  - Test temporaire, `fetch` remplacé par `new Response(null, { status: 204 })` (mesuré) : `super-admin` DELETE, `super-admin-properties` DELETE, `admin-users` DELETE, `announcements` POST et `impersonation/proxy` DELETE lèvent tous `Invalid response status code 204` ; seul `agencies` rend 204, parce qu'il traite à part 204, 205 et 304 (`agencies/[[...path]]/route.ts:34-36`, lu).
+  - Trois routes de l'API répondent 204 et sont appelées par ces relais (lu) :
+    - `DELETE /api/admin/moderation/{id}/claim` (`ModerationQueueController.php:80`, `assertNoContent()` dans `ModerationQueueConcurrencyTest.php:125`), appelée par `releaseModerationItem` (`super-admin.ts:687-696`) ;
+    - `DELETE /api/admin/alert-rules/{id}` (`AlertRuleController.php:41`), appelée par `deleteAlertRule` (`super-admin.ts:972-976`) ;
+    - `DELETE /api/properties/{id}` (`PropertyController.php:243`, `assertNoContent()` dans `PropertyCrudTest.php:353`), appelée par `deleteProperty` (`super-admin.ts:555-561`) via `super-admin-properties`.
+  - Les appelants attendent bien un 204 (`if (res.status === 204) return null`, `super-admin.ts:559` et `:974` ; commentaire « L'API répond 204, sans corps », `:686`). Le handler qui lève, Next rend un 500 : la mutation passe en `onError` (`SuperAdminPropertiesTable.tsx:132-136`, `moderation.tsx:441-451`), la liste n'est pas rafraîchie et l'erreur s'affiche alors que l'écriture est faite. Le 500 vu du navigateur est déduit du comportement de Next sur un handler qui lève (à vérifier sur un `next start`).
+  - Le test du relais `super-admin` (`super-admin/[...path]/__tests__/route.test.ts`) n'éprouve que des réponses 200 (lu).
+  - Établi comment : lu, et mesuré par le test temporaire.
+- Piste : rendre `null` comme corps quand le statut amont est 204, 205 ou 304, comme le fait déjà `agencies`, dans les cinq relais. Garde : un test par relais qui renvoie un 204 amont et attend un 204, et mieux, une seule fonction de relais partagée (voir P41.03) que les cinq appellent.
+
+### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
+- Réf : P41.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/api/**/route.ts` (22 fichiers qui appellent `origineApi()`), `takussan-web/src/lib/api.ts:20-48,166-171,680-693`, `takussan-api/app/Http/Middleware/SetLocaleMiddleware.php:33-41`
+- Constat :
+  - `grep -rln "origineApi()" src/app/api` → 22 handlers (mesuré). Ils bâtissent l'URL sur `origineApi()`, l'origine **publique** côté serveur (`config-publique.ts:78-83`, lu), et non sur `apiUrl()`/`urlApiServeur()`, qui préfèrent `API_INTERNAL_URL` (`api.ts:20-27`, lu). Seul `impersonation/proxy` passe par `urlApiServeur` et `enTetesServeurAmont`.
+  - Ils n'envoient donc ni `X-Forwarded-For` du visiteur, ni les en-têtes du chemin interne, que `apiRequest` pose de lui-même (`api.ts:690-695`, lu). Le jour où `API_INTERNAL_URL` sera posée, ces relais continueront de traverser Traefik et compteront tous les utilisateurs sous l'IP du serveur Next (déduit ; à vérifier). Aujourd'hui les limiteurs des routes qu'ils servent sont par utilisateur (`invitations-send`, `throttle:10,1` des KYC, lu `AppServiceProvider.php:514-535`) : l'effet visible est l'IP des journaux, pas un refus.
+  - Ils n'envoient pas non plus `Accept-Language`. Le `fetch` de Node pose alors `accept-language: *` (mesuré : serveur `http` local qui imprime les en-têtes reçus → `"accept-language":"*"`), que `negotiateFromHeader` ne retient pas : la langue retombe sur `preferred_language`, puis sur le défaut de l'API (lu, `SetLocaleMiddleware.php:33-41`, `:105`). Or `messageCorpsErreurBff` affiche le `message` de Laravel en le tenant pour « déjà localisé (`Accept-Language`) » (`api.ts:545`, lu) : `KycUploader.tsx:122` l'utilise sur `POST /api/agencies/{id}/kyc/documents`, qui passe par le relais `agencies`. Un utilisateur en `/en` dont `preferred_language` vaut `fr` y lirait donc le refus de validation en français (déduit ; à vérifier sur un 422 réel).
+  - Établi comment : lu, plus les deux mesures ci-dessus.
+- Piste : faire passer les relais par `urlApiServeur()` et `enTetesServeurAmont()`, et relayer `accept-language` du navigateur comme le fait `impersonation/proxy` (`:32-35`). Garde : une garde statique qui refuse `origineApi()` sous `src/app/api/`, ou un test commun qui vérifie les en-têtes envoyés par chaque relais.
+
+### Petites améliorations
+- Réf : P41.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:32`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:31`, `takussan-web/src/app/api/announcements/[...path]/route.ts:22`, `takussan-web/src/app/api/feature-flags/me/route.ts:11-16`, `takussan-web/src/app/api/maintenance/status/route.ts:9-14`, `takussan-web/CLAUDE.md:72`
+- Constat :
+  - **Corps lus en texte.** Trois relais relaient le corps de la requête par `request.text()`, le défaut que TCK-601 a corrigé dans `super-admin` (`super-admin/[...path]/route.ts:41-45`, lu). Mesuré par le test temporaire : un corps `multipart` de quatre octets `ff 80 00 41` envoyé à `admin-users` part à l'API en `ef bf bd ef bf bd 00 41` (U+FFFD deux fois). Aucun appelant n'y envoie de fichier aujourd'hui (lu : `admin-users.ts:65,82`, `super-admin.ts:525-561`, `announcements.ts:14-21`, tous en JSON) : le défaut est latent.
+  - **Type de contenu perdu.** `feature-flags/me` et `maintenance/status` ne relaient que `cache-control` : le JSON sort en `text/plain;charset=UTF-8`, le type par défaut d'un corps texte (lu ; les appelants `FeatureFlagProvider.tsx:16`, `MaintenanceBanner.tsx:15` font `res.json()`, donc sans effet visible aujourd'hui).
+  - **Six copies du même `forward()`.** `super-admin`, `agencies`, `admin-users`, `super-admin-properties`, `announcements` et `impersonation/proxy` réécrivent chacun le relais, et chacun diverge (corps en octets ou en texte, en-têtes de réponse relayés, 204, profil actif) : P41.01, P41.02 et le profil actif d'`admin-users` sont trois effets de cette divergence (lu).
+  - **Document.** `takussan-web/CLAUDE.md:72` annonce « 31 route handlers » ; `find src/app/api -name route.ts | wc -l` → 36 (mesuré), dont les quatre de `impersonation/` et `revalidation/fiche`, absents de la liste des namespaces (`:76-78`).
+- Piste : une fonction `relayerVersApi(request, cheminAmont, options)` dans `src/lib/`, qui lit le corps en octets, rend `null` sur 204/205/304, relaie `content-type`, `content-disposition`, `cache-control` et `accept-language`, et pose les en-têtes serveur ; les six relais l'appellent. Corriger le compte et la liste de `takussan-web/CLAUDE.md`.
