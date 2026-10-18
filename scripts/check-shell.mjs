@@ -12,7 +12,7 @@
  * Ce qu'elle vérifie :
  *   · shellcheck, sévérité `warning` et au-dessus, sur les scripts que le serveur, l'image ou la CI
  *     exécutent : `deploy/**` , `takussan-api/docker/*.sh`, `scripts/*.sh`, `dev.sh` ;
- *   · hadolint, seuil `warning`, sur les deux Dockerfile — les `info` s'affichent, ne rougissent pas.
+ *   · hadolint, seuil `warning`, sur les trois Dockerfile — les `info` s'affichent, ne rougissent pas.
  *
  * Ce qu'elle ne vérifie PAS : qu'un script fait ce qu'il annonce. `test-release-reindex.sh` et les
  * tests de fumée en sont chargés. Et `cmd | grep -q` sous `pipefail` n'est PAS une trouvaille
@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 
-const DOCKERFILES = ['takussan-api/Dockerfile', 'takussan-web/Dockerfile'];
+const DOCKERFILES = ['takussan-api/Dockerfile', 'takussan-web/Dockerfile', 'deploy/postgres/Dockerfile'];
 const RACINES_SHELL = ['deploy', 'takussan-api/docker', 'scripts'];
 const FICHIERS_SHELL = ['dev.sh'];
 

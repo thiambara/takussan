@@ -1,0 +1,58 @@
+# L'image de la base de données, avec WAL-G (ADR-0069 § 5, TCK-930).
+#
+# Construite à part d'`images.yml`, et JAMAIS déployée par un workflow : changer l'image de la base,
+# c'est la redémarrer, et l'instance porte toutes les bases du serveur. Ce workflow construit,
+# ÉPROUVE (`deploy/postgres/epreuve.sh` : archivage, sauvegarde de base, restauration à un instant
+# choisi), puis pousse sur GHCR. Le porteur — ou la session — déclare ensuite l'étiquette `sha-`
+# dans le service Database de Dokploy (runbook, hebergement.md « WAL-G »).
+#
+#   sha-<commit>   ne se déplace jamais : c'est elle que Dokploy tire ;
+#   17-wal-g       la dernière construite, pour lire ce qui existe — jamais déclarée dans Dokploy.
+#
+# Sur une PR : construction et épreuve, sans envoi.
+name: Image de la base
+
+on:
+  push:
+    branches: [pre-dev, dev]
+    paths:
+      - deploy/postgres/**
+      - .github/workflows/image-postgres.yml
+  pull_request:
+    paths:
+      - deploy/postgres/**
+      - .github/workflows/image-postgres.yml
+  workflow_dispatch:
+
+concurrency:
+  group: image-postgres-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: Construire, éprouver, pousser
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ghcr.io/thiambara/takussan-postgres
+    steps:
+      - uses: actions/checkout@v7
+      - name: Construire
+        run: docker build -t "takussan-postgres:epreuve" deploy/postgres
+      - name: Éprouver (archivage, sauvegarde de base, restauration à un instant choisi)
+        run: deploy/postgres/epreuve.sh takussan-postgres:epreuve
+      - name: Pousser sur GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          JETON: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$JETON" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for etiquette in "sha-$GITHUB_SHA" 17-wal-g; do
+            docker tag takussan-postgres:epreuve "$IMAGE:$etiquette"
+            docker push -q "$IMAGE:$etiquette"
+          done
+          echo "### Image poussée : \`$IMAGE:sha-$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
