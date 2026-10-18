@@ -274,12 +274,13 @@ chiffres « mesurés » viennent de l'agent, sur la base et l'index Meilisearch 
 
 ### La carte charge toutes les photos, et les coordonnées ne sont pas indexées
 - Réf : P01.10
-- Statut : retenu · autonome
+- Statut : fait · TCK-902 — reste : l'index `(latitude, longitude)` sur `addresses`, à poser si une mesure de la carte montre une lenteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:521`, `takussan-api/app/Http/Resources/PropertyMapGeoJsonResource.php:49`
 - Constat : `with('media')` charge toutes les photos de jusqu'à 501 biens pour n'en lire qu'une. `addresses` n'a aucun index sur `latitude`/`longitude` (mesuré, `pg_indexes`).
 - Piste : charger la seule première photo, et ajouter un index `(latitude, longitude)` si la carte grossit.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:521` (`->with('address', 'media')`, limite `MAP_MAX_RESULTS + 1` l. 554) et `PropertyMapGeoJsonResource.php:49` (seul `getFirstMedia('photos')` est lu) ; tinker en lecture, `pg_indexes` sur `addresses` → trois index (`addressable`, `geo_city_id`, `geo_neighborhood_id`), aucun sur `latitude`/`longitude`, et aucune migration de l'arbre n'en pose. Les deux faits tiennent ; l'index n'est justifié par aucune mesure de lenteur (842 biens en dev), seule la partie photo est retenue comme correctif. Classement : A2, restreindre le chargement anticipé à la première photo de la collection `photos` ne change pas la vignette rendue.
+- Mesure (2026-10-18, 12be5f485, implementeur) : reproduit avant correctif par `PropertyMapPhotoLoadTest` (deux biens publics à trois photos, la troisième mise en tête de galerie, médias hydratés comptés) → 6 médias pour 2 biens ; correctif : `media` chargé sous contrainte dans `map()` (`photos`, tri `order_column` puis `id`, `limit(1)` par bien) → 2, vignette inchangée ; ablation → 6, rouge ; variante sans le tri `order_column` → vignette fausse, rouge ; remis → vert ; 107 tests qui appellent la carte, verts.
 
 ## Angle 2 — Performances des requêtes
 
