@@ -3791,7 +3791,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : validé — pied de page en `h2`, et un `h2` `sr-only` au-dessus des grilles de résultats et de l'index des agences ; garde : `heading-order` d'axe ; en `wo`, le texte français tel quel
+- Statut : retenu · à valider — chemin fermé : `takussan-web/package.json` ; la garde `heading-order` d'axe que nomme la précision demande `axe-core` en dépendance déclarée (V6), critère autre que le V7 accordé, qui portait sur les titres
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3800,6 +3800,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe, code relu.
 - Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `Footer.tsx:183` et `:216` (`h4`), `h3` dans `PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65` et `ProfileCard.tsx:93`, `h1` dans `IndexDeProfils.tsx:109` ; les cartes sont montées aussi par `ApercuAnnonce.tsx`, `PropertyRow.tsx` et `PortfolioTabs.tsx`, où leur niveau dépend d'autres titres ; axe non rejoué → tient. Classement : V7, le pied de page en `h2` est mécanique, mais l'ordre des titres des cartes demande soit un titre de section neuf (texte), soit un niveau de carte qui vaut pour tous ses conteneurs.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `Footer.tsx:187` et `:220` toujours en `h4` → tient ; `grep axe takussan-web/package.json` → 0 ligne, et `npm ls axe-core` → seulement `eslint-config-next › eslint-plugin-jsx-a11y › axe-core@4.13.0`, transitif. Aucun test du front n'importe axe. La garde que fixe la précision (`heading-order` d'axe dans le test de rendu) passe donc par l'ajout d'`axe-core` (ou d'un `vitest-axe`) à `package.json`, chemin fermé à l'implémenteur (V6, dépendance ajoutée) ; l'importer sans le déclarer en ferait une dépendance de fait. Les titres eux-mêmes restent mécaniques. Non implémenté. Classement : chemin fermé, à trancher par le porteur (ajouter la dépendance, ou une garde maison de l'ordre des titres).
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
