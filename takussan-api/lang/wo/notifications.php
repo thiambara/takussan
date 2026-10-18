@@ -147,12 +147,6 @@ return [
         'contact' => 'Yoonu sa laaj, jokkok ekipu jëfundikuwaay ya.',
     ],
 
-    'conversation_invite' => [
-        'subject' => 'Wax bi : :subject',
-        'greeting' => 'Salaam,',
-        'intro' => ':inviter dafa la wëlbati ci kuréel bu : « :subject ».',
-    ],
-
     'lease_deposit_refunded' => [
         'subject' => 'Delloo kaution — luwé :reference',
         'greeting' => 'Salaam,',
@@ -450,6 +444,12 @@ return [
                 'title' => 'Bataaxal bu bees bu :sender',
                 'body' => ':sender : :excerpt',
                 'sms' => 'Takussan : bataaxal bu bees bu :sender.',
+            ],
+            // TCK-861 (P38.07) — en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16).
+            'group_invite' => [
+                'title' => 'Invitation à un groupe : :subject',
+                'body' => ':inviter vous a ajouté au groupe « :subject ».',
+                'sms' => 'Takussan : :inviter vous a ajouté au groupe « :subject ».',
             ],
         ],
         'lead' => [

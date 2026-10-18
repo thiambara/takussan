@@ -55,6 +55,8 @@ enum NotificationCode: string
     // ─── Visites, messages, leads ───────────────────────────────────────────────────────
     case VisitReminder = 'visit.reminder';
     case MessageReceived = 'message.received';
+    /** TCK-861 (P38.07) — un membre ajouté à un groupe : la cloche ouvre le groupe. */
+    case MessageGroupInvite = 'message.group_invite';
     case LeadReceived = 'lead.received';
 
     // ─── Visites et demandes de contact (TCK-590) ───────────────────────────────────────
@@ -221,7 +223,7 @@ enum NotificationCode: string
             self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled => NotificationType::Visit,
-            self::MessageReceived, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
+            self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator => NotificationType::RoleDelegationRevoked,
@@ -272,7 +274,7 @@ enum NotificationCode: string
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
-            self::MessageReceived, self::LeadReceived => 'message_received',
+            self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
@@ -334,6 +336,7 @@ enum NotificationCode: string
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
+            self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
             // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
             // e-mail). L'extrait de 80 caractères sans téléphone disait qu'on avait été contacté.
             self::LeadReceived => ['name' => self::PARAM_TEXT, 'contact' => self::PARAM_TEXT, 'message' => self::PARAM_TEXT],

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Notifications\NotificationCode;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
@@ -11,7 +12,7 @@ use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
-use App\Notifications\ConversationInviteNotification;
+use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -747,15 +748,17 @@ class GroupConversationCreationTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         foreach ([$b, $c] as $member) {
+            // TCK-861 — l'invitation part par son code, avec la cible du groupe.
             Notification::assertSentTo(
                 $member,
-                ConversationInviteNotification::class,
-                fn (ConversationInviteNotification $n) => $n->conversation->id === $convId
-                    && $n->inviter?->id === $me->id,
+                CodedNotification::class,
+                fn (CodedNotification $n) => $n->code === NotificationCode::MessageGroupInvite
+                    && ($n->target['id'] ?? null) === $convId
+                    && $n->params['inviter'] === $me->nameWithoutContact(),
             );
-            Notification::assertSentToTimes($member, ConversationInviteNotification::class, 1);
+            Notification::assertSentToTimes($member, CodedNotification::class, 1);
         }
-        Notification::assertNotSentTo($me, ConversationInviteNotification::class);
+        Notification::assertNotSentTo($me, CodedNotification::class);
     }
 
     public function test_un_groupe_refuse_n_envoie_aucune_invitation(): void
