@@ -1,7 +1,7 @@
 ---
 id: TCK-916
 title: "Page de ville : liens « Quartiers de <ville> » vers les pages de quartier du sitemap"
-status: doing
+status: done
 phase: P2
 family: applicatif
 estimate: S
@@ -74,4 +74,8 @@ Hypothèses (mode sans humain) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Ablation : la page sans ville retenue et `liensDesQuartiers` vidée → 4 rouges (les deux pages de
+  ville du câblage, les deux AC1 de la fonction) ; remis → 10 verts, et 475 verts sur
+  `(public)`, `components/property` et la route du sitemap.
+- Les URL que rend `app/sitemap.ts` sont déjà échappées pour le XML (`&amp;`) : le test les
+  déséchappe avant de comparer.
