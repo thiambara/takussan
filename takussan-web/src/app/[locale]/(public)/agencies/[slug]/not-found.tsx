@@ -4,6 +4,7 @@ import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * L'écran d'une agence qui n'existe pas (TCK-438).
@@ -23,7 +24,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <NavbarSpacer />
-      <main className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8 focus:outline-none">
         <h1 className="mb-3 font-display text-3xl font-semibold text-foreground">
           {t('notFoundTitle')}
         </h1>

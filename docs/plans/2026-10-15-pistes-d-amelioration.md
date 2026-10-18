@@ -3786,7 +3786,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
 
 ### Aucun lien d'évitement hors de la console super-admin
 - Réf : P31.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-905
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/components/layout/SuperAdminShell.tsx:83-91,102-107`, `takussan-web/src/components/layout/AppShell.tsx:120`, `takussan-web/src/components/home/Navbar.tsx`
 - Constat :
@@ -3796,10 +3796,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : parcours au Tab par CDP, code relu.
 - Piste : le même lien en tête de `Navbar` (ou du layout public) et d'`AppShell`, vers un `<main id tabIndex={-1}>`, avec le libellé déplacé vers un espace commun (`common`), sans texte neuf. Le test d'AC3 de `SuperAdminShell` sert de modèle.
 - Mesure (2026-10-16, 979edb0f, mesureur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → seuls `SuperAdminShell.tsx:88-90`, son test `SuperAdminShell.a11y.test.tsx:111` et la clé `nav.superAdmin.skipToContent` des dictionnaires (`fr.json:190`, `en.json:190`) ; `AppShell.tsx:120` rend `<main className=…>` sans `id` ni `tabIndex` ; `Navbar.tsx` n'a pas de lien d'évitement ; le parcours au Tab n'a pas été rejoué → tient. Classement : A4, le motif (lien `sr-only` révélé au focus vers un `<main id tabIndex={-1}>`) et son libellé existent déjà en trois langues, il se recopie dans la barre publique et `AppShell` avec la clé déplacée vers un espace commun, sans texte neuf.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `grep -rn "skipToContent\|focus:not-sr-only" src` → toujours le seul `SuperAdminShell` ; `Navbar.lien-evitement.test.tsx` et `AppShell.lien-evitement.test.tsx` → 5 rouges avant correctif (aucun lien dans la `Navbar` ni dans `AppShell`, 21 `<main>` de pages qui montent la barre sans cible) ; `LienEvitement` partagé, cible `contenu-principal` posée avec `tabIndex={-1}` sur ces 21 `<main>` et sur celui d'`AppShell`, clé déplacée en `common.skipToContent`, textes inchangés → 5 verts ; ablation → les 5 mêmes rouges. `vitest related` : 52 fichiers, 401 verts. Parcours au Tab non rejoué au navigateur.
 
 ### Des niveaux de titre sautés : pied de page en `h4`, cartes en `h3` sous le `h1`
 - Réf : P31.05
-- Statut : validé — pied de page en `h2`, et un `h2` `sr-only` au-dessus des grilles de résultats et de l'index des agences ; garde : `heading-order` d'axe ; en `wo`, le texte français tel quel
+- Statut : retenu · à valider — chemin fermé : `takussan-web/package.json` ; la garde `heading-order` d'axe que nomme la précision demande `axe-core` en dépendance déclarée (V6), critère autre que le V7 accordé, qui portait sur les titres
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/home/Footer.tsx:183,216`, `takussan-web/src/components/property/cards/PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65`, `takussan-web/src/components/public/index/ProfileCard.tsx:93`
 - Constat :
@@ -3808,10 +3809,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe, code relu.
 - Piste : `h2` pour les colonnes du pied de page ; un `h2` (au besoin `sr-only`) au-dessus de la grille de résultats et de l'index des agences, ou les titres de carte au niveau que leur conteneur appelle. Garde : la règle `heading-order` d'axe dans le test de rendu de ces pages.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `Footer.tsx:183` et `:216` (`h4`), `h3` dans `PropertyCardStandard.tsx:74`, `PropertyCardListing.tsx:82`, `PropertyCardCover.tsx:88`, `PropertyCardCompact.tsx:65` et `ProfileCard.tsx:93`, `h1` dans `IndexDeProfils.tsx:109` ; les cartes sont montées aussi par `ApercuAnnonce.tsx`, `PropertyRow.tsx` et `PortfolioTabs.tsx`, où leur niveau dépend d'autres titres ; axe non rejoué → tient. Classement : V7, le pied de page en `h2` est mécanique, mais l'ordre des titres des cartes demande soit un titre de section neuf (texte), soit un niveau de carte qui vaut pour tous ses conteneurs.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `Footer.tsx:187` et `:220` toujours en `h4` → tient ; `grep axe takussan-web/package.json` → 0 ligne, et `npm ls axe-core` → seulement `eslint-config-next › eslint-plugin-jsx-a11y › axe-core@4.13.0`, transitif. Aucun test du front n'importe axe. La garde que fixe la précision (`heading-order` d'axe dans le test de rendu) passe donc par l'ajout d'`axe-core` (ou d'un `vitest-axe`) à `package.json`, chemin fermé à l'implémenteur (V6, dépendance ajoutée) ; l'importer sans le déclarer en ferait une dépendance de fait. Les titres eux-mêmes restent mécaniques. Non implémenté. Classement : chemin fermé, à trancher par le porteur (ajouter la dépendance, ou une garde maison de l'ordre des titres).
 
 ### Les six pages d'authentification portent le même titre d'onglet
 - Réf : P31.06
-- Statut : validé — libellés d'onglet courts et neufs (Connexion, Inscription, Mot de passe oublié, Nouveau mot de passe, Vérification de l'e-mail) ; en `wo`, le texte français tel quel ; un test par page
+- Statut : fait · TCK-906 — reste : le titre d'onglet du rappel OAuth (`auth/oauth/[provider]/callback`), que la précision ne nomme pas et qui demande un libellé neuf
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/(auth)/layout.tsx:27-35`, `takussan-web/src/messages/fr.json:500-503`, `takussan-web/src/app/(auth)/auth/*/page.tsx`
 - Constat :
@@ -3820,10 +3822,11 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : `document.title` relevé par CDP, code relu.
 - Piste : un `layout.tsx` serveur par page d'auth (ou un `generateMetadata` dans un `page.tsx` serveur qui monte le composant client) qui remplit le modèle par le titre déjà affiché dans le formulaire, sans texte neuf. Garde : un test qui vérifie que chaque page de `(auth)/auth/` fournit un titre.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `(auth)/layout.tsx:27-35` (`generateMetadata` qui ne pose que `template` « %s — Takussan » et `default` « Authentification — Takussan », `fr.json:500-503`) ; `grep -c "Metadata"` → 0 dans les cinq `page.tsx` de `auth/*`, dans `verify-email/[id]/[hash]/page.tsx` et dans `oauth/[provider]/callback/page.tsx`, toutes `'use client'` pour les cinq premières ; les titres de formulaire existants sont `auth.login.title` « Content de vous revoir », `auth.register.title` « Créez votre compte », `auth.forgotPassword.title`, `auth.resetPassword.title`, `auth.verifyEmail.title` ; `document.title` non relevé → tient (le titre « six pages » compte sept pages sans titre propre). Classement : V7, reprendre le titre du formulaire donnerait « Content de vous revoir — Takussan » à la connexion, et nommer la page autrement est un texte neuf.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : `grep -c Metadata` → toujours 0 dans les cinq `page.tsx` de `auth/*` ; `titres-d-onglet.test.ts` (un test par page) → rouge avant correctif, aucun `layout.tsx` de segment ; un `layout.tsx` serveur par segment pose `auth.meta.titles.<page>`, les cinq libellés de la décision en `fr`, traduits en `en`, français tel quel en `wo` → 6 verts, le modèle « %s — Takussan » du groupe les complète ; ablation (clés `fr` retirées) → 5 rouges. `src/app/(auth)` : 48 verts. `document.title` non relevé au navigateur.
 
 ### Petites améliorations
 - Réf : P31.07
-- Statut : validé — `min-h-6` et soulignement permanent sur les deux liens de `PropertyAgentCard`, titre de l'invitation par le modèle commun
+- Statut : fait · TCK-907
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx:94-112`, `takussan-web/src/app/invitations/accept/page.tsx:19`
 - Constat :
@@ -3832,6 +3835,7 @@ animation (mesuré), rien n'est donc ajouté à P07.11.*
   - Établi comment : axe et `document.title` par CDP.
 - Piste : `min-h-6` (24 px) et un soulignement permanent ou décalé sur les deux liens de `PropertyAgentCard` ; le titre de l'invitation par le modèle commun.
 - Mesure (2026-10-16, 979edb0f, mesureur) : relu `PropertyAgentCard.tsx:94-112` : liens `LienLocalise` vers l'agent (`hover:underline`, sans hauteur minimale) et l'agence (`min-w-0 truncate hover:underline`) ; `invitations/accept/page.tsx:17-19` : `generateMetadata` rend `t('metaTitle')` seul (« Accepter une invitation ») et `invitations/layout.tsx` ne pose aucun `template` (`grep -rn template src/app/invitations` → 0), alors que `(public)/layout.tsx:52` pose « %s — Takussan » ; la taille des cibles n'a pas été remesurée → les deux points tiennent. Classement : V7, le titre de l'invitation est mécanique (A4), mais agrandir et souligner en permanence les liens de la carte change son dessin.
+- Mesure (2026-10-18, a5ed738b4, implementeur) : relu `PropertyAgentCard.tsx` (agent : `hover:underline` seul ; agence : `min-w-0 truncate hover:underline`) et `invitations/layout.tsx` (aucun `generateMetadata`) → tient ; `PropertyAgentCard.tck-907.test.tsx` → 2 rouges (ni `min-h-6` ni `underline`) et `invitations/__tests__/titre-d-onglet.test.ts` → 1 rouge (pas de modèle) avant correctif ; `min-h-6`, `underline` sur les deux liens, `inline-block` sur celui de l'agent, modèle « %s — Takussan » posé par le layout des invitations → verts ; ablation → les 3 mêmes rouges. `vitest related` : 8 fichiers, 38 verts. Taille des cibles non remesurée au navigateur.
 
 ## Angle 33 — Poids JS des routes publiques
 

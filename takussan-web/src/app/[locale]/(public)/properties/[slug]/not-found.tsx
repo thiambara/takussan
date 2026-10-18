@@ -3,6 +3,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useTranslations } from 'next-intl';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * TCK-621 — la fiche introuvable porte la chrome du site, comme ses voisines (`page.tsx` rend
@@ -17,7 +18,7 @@ export default function NotFound() {
     <>
       <Navbar />
       <NavbarSpacer />
-      <main className="max-w-3xl mx-auto px-4 py-24 text-center">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="max-w-3xl mx-auto px-4 py-24 text-center focus:outline-none">
         <h1 className="text-3xl font-bold text-foreground mb-3">{t('title')}</h1>
         <p className="text-muted-foreground mb-8">{t('body')}</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

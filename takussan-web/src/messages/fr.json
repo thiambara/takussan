@@ -2,6 +2,7 @@
   "common": {
     "appName": "Takussan",
     "tagline": "Immobilier au Sénégal",
+    "skipToContent": "Aller au contenu principal",
     "actions": {
       "save": "Enregistrer",
       "cancel": "Annuler",
@@ -187,7 +188,6 @@
       "pendingBadge": "{count} en attente",
       "topbarBrand": "Takussan · Console",
       "consoleBadge": "Console",
-      "skipToContent": "Aller au contenu principal",
       "groups": {
         "overview": "Vue d'ensemble",
         "operations": "Opérations",
@@ -500,7 +500,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Authentification — Takussan"
+      "default": "Authentification — Takussan",
+      "titles": {
+        "login": "Connexion",
+        "register": "Inscription",
+        "forgotPassword": "Mot de passe oublié",
+        "resetPassword": "Nouveau mot de passe",
+        "verifyEmail": "Vérification de l'e-mail"
+      }
     },
     "layout": {
       "visualAlt": "Villa contemporaine au Sénégal",

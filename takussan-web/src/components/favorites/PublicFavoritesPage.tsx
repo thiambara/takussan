@@ -19,6 +19,7 @@ import {
 } from '@/lib/favoritesStore';
 import { usePropertiesByIdsChunkedQuery } from '@/lib/queries/favorites';
 import { CARD_SIZES_FAVORITES_PUBLIC } from '@/components/property/card-image-sizes';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 function CardSkeleton() {
   return (
@@ -65,7 +66,7 @@ export function PublicFavoritesPage() {
       {/* Sans cale, le titre passait SOUS la barre fixe à toutes les largeurs (revue design du
           2026-09-16 : « Mes favoris » invisible à 390 comme à 1366). */}
       <NavbarSpacer />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 focus:outline-none">
         <header className="mb-8">
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground text-balance">
             {t('title')}

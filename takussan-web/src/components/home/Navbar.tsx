@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { Logo } from '@/components/brand/Logo';
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { LienEvitement } from '@/components/shared/LienEvitement';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Menu, X, ChevronUp, ChevronRight, Building2, Coins, Plus, PlusCircle, HelpCircle, LogOut, UserCircle, UserRound, Search, Loader2, MapPin, type LucideIcon } from 'lucide-react';
 import { useFormatter, useTranslations, useLocale } from 'next-intl';
@@ -395,6 +396,10 @@ export function Navbar({ className }: NavbarProps) {
     <nav
       className={`fixed top-0 w-full z-50 bg-background border-b border-border ${className || ''}`}
     >
+      {/* TCK-905 (P31.04) — premier élément focalisable de la page : sans lui, 18 Tab
+          traversaient la barre avant le contenu. Chaque page qui monte la barre pose la cible
+          sur son `<main>` (`Navbar.lien-evitement.test.tsx`). */}
+      <LienEvitement />
       {/* TCK-551 (N7) — `px-4` sous `sm`, la gouttière du contenu des pages sur téléphone (logo à
           x = 24 contre 16 pour le `<h1>` de `/properties`, mesuré à 360 et 390) ; `px-6` dès `sm`,
           comme avant. Les pages qui montent la barre sont en `px-4` sous `sm` elles aussi :

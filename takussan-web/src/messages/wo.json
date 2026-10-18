@@ -2,6 +2,7 @@
   "common": {
     "appName": "Takussan",
     "tagline": "Kër yu Senegaal",
+    "skipToContent": "Dem ci ndollent li",
     "actions": {
       "save": "Denc",
       "cancel": "Bàyyi",
@@ -177,7 +178,6 @@
       "pendingBadge": "{count} ñu séq",
       "topbarBrand": "Takussan · Konsol",
       "consoleBadge": "Konsol",
-      "skipToContent": "Dem ci ndollent li",
       "groups": {
         "overview": "Gis-gis bu yaatu",
         "operations": "Liggéey yi",
@@ -454,7 +454,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Dugg — Takussan"
+      "default": "Dugg — Takussan",
+      "titles": {
+        "login": "Connexion",
+        "register": "Inscription",
+        "forgotPassword": "Mot de passe oublié",
+        "resetPassword": "Nouveau mot de passe",
+        "verifyEmail": "Vérification de l'e-mail"
+      }
     },
     "layout": {
       "visualAlt": "Wiila bu bees ci Senegaal",

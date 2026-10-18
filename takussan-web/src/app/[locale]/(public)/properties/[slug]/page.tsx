@@ -19,6 +19,7 @@ import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 import { PropertyDetailContent } from './PropertyDetailContent';
 import { bienRetire, estRetire } from './bien-retire';
 import { CompteurDeVue } from './components/CompteurDeVue';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 type Props = {
   readonly params: Promise<{ slug: string }>;
@@ -175,7 +176,7 @@ export default async function PropertyDetailPage({ params }: Props) {
         <>
           <Navbar />
           <NavbarSpacer />
-          <main>{await bienRetire(etat)}</main>
+          <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{await bienRetire(etat)}</main>
           <Footer />
         </>
       );
@@ -220,7 +221,7 @@ export default async function PropertyDetailPage({ params }: Props) {
       <Navbar />
       <NavbarSpacer />
       {/* TCK-895 (P31.02) — le repère du contenu, posé ici et non dans `PropertyDetailContent`. */}
-      <main>{corps}</main>
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{corps}</main>
       <Footer />
     </>
   );

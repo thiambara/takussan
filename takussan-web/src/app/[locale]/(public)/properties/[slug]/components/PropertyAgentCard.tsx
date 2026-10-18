@@ -91,9 +91,15 @@ export function PropertyAgentCard({
           )}
         </div>
         <div className="min-w-0">
+          {/* TCK-907 (P31.07) — les liens de l'agent et de l'agence : cibles de 24 px (WCAG
+              2.5.8), `min-h-6` sur une boîte (`inline-block` pour l'agent, enfant flex pour
+              l'agence), et soulignés en permanence : la graisse seule ne les distinguait pas. */}
           <p className="font-display font-semibold text-foreground truncate">
             {contact.slug ? (
-              <LienLocalise href={`/agents/${contact.slug}`} className="hover:underline">
+              <LienLocalise
+                href={`/agents/${contact.slug}`}
+                className="inline-block min-h-6 max-w-full truncate align-top leading-6 underline underline-offset-2"
+              >
                 {contact.name}
               </LienLocalise>
             ) : (
@@ -108,7 +114,7 @@ export function PropertyAgentCard({
             <p className="text-sm text-muted-foreground flex items-center gap-1 min-w-0">
               <LienLocalise
                 href={`/agencies/${agency.slug}`}
-                className="min-w-0 truncate hover:underline"
+                className="min-h-6 min-w-0 truncate leading-6 underline underline-offset-2"
               >
                 {agency.name}
               </LienLocalise>

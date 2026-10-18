@@ -8,6 +8,8 @@ import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
+import { LienEvitement } from '@/components/shared/LienEvitement';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 import { ImpersonationBanner } from '@/components/admin/super/ImpersonationBanner';
 import { AgencySuspendedBanner } from '@/components/agency/AgencySuspendedBanner';
 import { AgencyStandardWelcomeWizard } from '@/components/agency/AgencyStandardWelcomeWizard';
@@ -88,6 +90,8 @@ export function AppShell({
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
       <div className="flex h-dvh flex-col bg-background">
+        {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
+        <LienEvitement />
         {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
             ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
         <ImpersonationBanner />
@@ -117,7 +121,12 @@ export function AppShell({
               </Sheet>
             </>
           )}
-          <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
+          <main
+            id={CONTENU_PRINCIPAL_ID}
+            // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
+            tabIndex={-1}
+            className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
+          >
             {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
                 ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
                 à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois

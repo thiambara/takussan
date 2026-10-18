@@ -28,6 +28,7 @@ import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { EmplacementsSponsorises } from '@/components/boost/EmplacementSponsorise';
 import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -413,7 +414,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             total={enCours || error ? null : (meta?.total ?? 0)}
           />
 
-          <main className="flex-1 min-w-0">
+          <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 min-w-0 focus:outline-none">
             {/*
               TCK-432 — le `<h1>` de la liste, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
               sur le HTML servi de `?type=villa` rendait 0). `docs/design-guidelines.md` pose
