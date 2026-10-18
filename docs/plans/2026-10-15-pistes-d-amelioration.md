@@ -687,7 +687,7 @@ contre le code par la session.*
 
 ### Référence fournisseur sans index ; paiement partiel inachevé
 - Réf : P04.11
-- Statut : validé — l'index sur la référence fournisseur ; reste : terminer ou retirer le paiement partiel
+- Statut : fait · TCK-891 — reste : terminer ou retirer le paiement partiel
 - Gravité : 🟢 amélioration
 - Où : `create_lease_payments_table.php:27`, `create_booking_payments_table.php:26`, `takussan-api/app/Models/Concerns/HasPaymentAttributes.php:219-228`
 - Constat :
@@ -696,6 +696,7 @@ contre le code par la session.*
   - Rien n'écrit `metadata.paid_amount` : le statut `partially_paid` n'a pas de montant (lu).
 - Piste : un index sur `transaction_id`, et terminer ou retirer le paiement partiel.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu les migrations `create_lease_payments_table.php:27` et `create_booking_payments_table.php:26` (`transaction_id` sans index), `PaymentGatewayService.php:716-729` (`where('transaction_id', …)` puis `whereJsonContains('metadata->gateway->transactions', …)`) et `HasPaymentAttributes.php:205-235` ; `grep paid_amount app/` → lu et validé, jamais écrit ; tinker en lecture, `pg_indexes` → aucun index sur `transaction_id` pour les deux tables (seul `invoices` en a un). Les deux faits tiennent. Classement : V1, terminer ou retirer le paiement partiel touche l'écriture d'un montant reçu ; l'index seul relèverait d'A2.
+- Mesure (2026-10-18, 91998f351, implementeur) : reproduit avant correctif par `PaymentTransactionIdIndexTest` : `Schema::getIndexes` → aucun index sur `transaction_id` pour `lease_payments` ni `booking_payments`. Correctif : migration neuve `2026_10_18_080000_index_payments_on_transaction_id` (avec `down()`) → index présents, `EXPLAIN` de `where('transaction_id', …)` les emprunte (balayage séquentiel interdit) → 4 verts ; ablation (migration retirée) → 4 rouges. Le paiement partiel reste au porteur.
 
 **Ce qui tient** (lu) :
 - la conversion ×100 est faite une seule fois, puis re-divisée par Wave et Orange Money (`PaymentGatewayService.php:215`, `WaveDriver.php:48`, `OrangeMoneyDriver.php:55`) ;
