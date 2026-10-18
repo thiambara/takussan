@@ -482,13 +482,13 @@ class GroupConversationCreationTest extends TestCase
             ->assertJsonPath('errors.lease_id.0', __('messaging.errors.lease_property_mismatch'));
         $this->assertSame(0, Conversation::query()->where('type', ConversationType::Group->value)->count());
 
-        // La directe partage la garde : même refus.
+        // TCK-888 (ADR-0068 § 1) — la directe ne se rattache plus à un bien : refus sur le bien.
         $avant = Conversation::query()->count();
         $this->postJson('/api/conversations', [
             'participants' => [$a->id],
             'property_id' => $villa->id,
             'lease_id' => $bailDuBureau->id,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['lease_id']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['property_id']);
         $this->assertSame($avant, Conversation::query()->count());
 
         // Témoin : le bail AVEC son bien passe, et chacun seul aussi.
@@ -537,10 +537,10 @@ class GroupConversationCreationTest extends TestCase
             ->assertJsonMissingValidationErrors(['property_id'])
             ->assertJsonPath('errors.lease_id', [__('messaging.errors.group_context_forbidden')]);
 
-        // La directe partage l'ordre : même phrase de visibilité, la sienne.
+        // La directe garde la phrase de visibilité, la sienne. TCK-888 — sans bien : une directe
+        // ne se rattache plus à un bien (ADR-0068 § 1).
         $this->postJson('/api/conversations', [
             'participants' => [$a->id],
-            'property_id' => $monBien->id,
             'lease_id' => $bailAilleurs->id,
         ])->assertUnprocessable()
             ->assertJsonPath('errors.lease_id', [__('messaging.errors.conversation_context_forbidden')]);

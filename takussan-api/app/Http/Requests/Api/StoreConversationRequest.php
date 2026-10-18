@@ -89,6 +89,15 @@ class StoreConversationRequest extends BaseFormRequest
                 return;
             }
 
+            // TCK-888 (ADR-0068 § 1) — une directe rattachée à un bien est un fil de prospect, et
+            // son seul écrivain est `PropertyConversationResolver::firstOrCreate()`. Ce chemin
+            // n'a aucun appelant au front pour une directe (relevé le 2026-10-18).
+            if ($this->filled('property_id')) {
+                $v->errors()->add('property_id', __('messaging.errors.conversation_context_forbidden'));
+
+                return;
+            }
+
             $this->guardContext($v, $actor, [
                 'property_id' => Property::class,
                 'lease_id' => Lease::class,

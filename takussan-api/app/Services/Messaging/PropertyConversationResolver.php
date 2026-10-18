@@ -120,6 +120,36 @@ class PropertyConversationResolver
         });
     }
 
+    /**
+     * TCK-888 (ADR-0068 § 3) — transmet au contact principal ACTUEL du bien tous ses fils de
+     * prospect. Appelée après leur transaction par les chemins qui déplacent le contact principal
+     * par une écriture (désignation, collaboration ajoutée, modifiée ou retirée, passation). Sans
+     * contact principal, rien ne bouge : la branche d'accès de TCK-886 ferme déjà le fil.
+     *
+     * @return int le nombre de fils examinés
+     */
+    public function transmitForProperty(int $propertyId): int
+    {
+        $property = Property::withTrashed()->with(self::eagerLoads())->find($propertyId);
+        $contact = $property !== null ? $this->recipientFor($property) : null;
+        if ($contact === null) {
+            return 0;
+        }
+
+        $conversations = Conversation::query()
+            ->where('property_id', $propertyId)
+            ->where('type', ConversationType::Direct->value)
+            ->where('created_by', '!=', $contact->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($conversations as $conversation) {
+            $this->transmit($conversation, $contact);
+        }
+
+        return $conversations->count();
+    }
+
     /** Le corps de {@see self::transmit()}, pour un appelant qui tient déjà le verrou du fil. */
     private function transmitLocked(Conversation $conversation, User $responder): void
     {
