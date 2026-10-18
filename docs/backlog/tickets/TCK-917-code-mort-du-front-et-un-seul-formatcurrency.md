@@ -1,7 +1,7 @@
 ---
 id: TCK-917
 title: "Code mort du front retiré, et un seul formatCurrency"
-status: doing
+status: done
 phase: P3
 family: technique
 estimate: M
@@ -41,21 +41,21 @@ composant que rien n'utilise, et `formatCurrency` n'a plus qu'une signature.
 
 ## Delta à produire
 
-- [ ] Retirer les fichiers sans importeur : `Money.tsx` et `useAgencyCurrency.ts` (le troisième
+- [x] Retirer les fichiers sans importeur : `Money.tsx` et `useAgencyCurrency.ts` (le troisième
       formateur de montant), `ShareButton.tsx`, `useRequireAuth.ts`, `StubPlaceholder.tsx`, le
       baril `components/property/index.ts`, `types/common.ts`, `types/payment.ts`, avec les tests
       qui ne visaient qu'eux.
-- [ ] Retirer les exports sans aucun appelant (liste dans le test), dont
+- [x] Retirer les exports sans aucun appelant (liste dans le test), dont
       `fetch/upsert/deleteWizardDraft`, `useUpdateLease`, `useRefundDeposit`,
       `useConfirmEarlyTermination`, `switchActiveProfileAction`.
-- [ ] `formatCurrency` de `lib/format/currency.ts` renommé `formatMontant` ; ses appelants suivent.
-- [ ] Test `src/lib/__tests__/code-mort.tck-917.test.ts`.
+- [x] `formatCurrency` de `lib/format/currency.ts` renommé `formatMontant` ; ses appelants suivent.
+- [x] Test `src/lib/__tests__/code-mort.tck-917.test.ts`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Les fichiers et exports listés par le test n'existent plus, et `tsc`, le lint et les
+- [x] AC1 — Les fichiers et exports listés par le test n'existent plus, et `tsc`, le lint et les
       tests des modules touchés restent verts.
-- [ ] AC2 — Seul `lib/format.ts` déclare `formatCurrency`, et rien ne l'importe de
+- [x] AC2 — Seul `lib/format.ts` déclare `formatCurrency`, et rien ne l'importe de
       `lib/format/currency`.
 
 ## Hypothèses
@@ -72,3 +72,17 @@ composant que rien n'utilise, et `formatCurrency` n'a plus qu'une signature.
   Choisir lequel des deux contrats doit l'emporter partout serait un changement visible.
 
 ## Notes d'implémentation
+
+- **Reproduction** : `src/lib/__tests__/code-mort.tck-917.test.ts` → 40 rouges avant correctif
+  (8 fichiers présents, 30 exports déclarés, deux déclarants de `formatCurrency` et sept modules
+  qui l'importaient de `lib/format/currency`).
+- **Ablation** : arbre d'avant remis, test gardé → 40 rouges ; correctif réappliqué → 40 verts.
+- **Piège** : retirer un export en a rendu d'autres morts dans le même module
+  (`buildMembersParams`, `FetchAgencyMembersParams`, `AgencyMembersFilters`,
+  `SwitchProfileActionResult`, `KycUploadResponse`, `RefundDepositPayload`) : le lint les signale
+  comme imports ou déclarations inutilisés, pas le résolveur d'imports.
+- `useConfirmEarlyTermination` était le seul code du front qui visait
+  `POST /api/leases/{id}/early-termination/confirm` : aucun écran ne confirme une résiliation
+  anticipée. Le crochet est retiré comme mort ; le parcours manquant n'est pas traité ici.
+- La clé `serverActions.profiles.switchFailed` n'a plus de lecteur : elle reste, avec le rapport
+  des clés i18n inutilisées (reste du porteur).
