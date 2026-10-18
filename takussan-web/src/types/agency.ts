@@ -66,8 +66,7 @@ export interface Agency {
   commission_rate: number | null;
   /**
    * TCK-084 — agency-level default currency. Populated by `AgencyResource`;
-   * falls back to `XOF` server-side for legacy rows. Use {@link
-   * useAgencyCurrency} on the client to consume it without re-fetching.
+   * falls back to `XOF` server-side for legacy rows.
    */
   currency?: string;
   is_verified: boolean;

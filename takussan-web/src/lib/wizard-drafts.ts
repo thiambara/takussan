@@ -3,9 +3,7 @@ import { brouillonUpgradeEstVierge } from './agency-upgrade-brouillon';
 import type {
   WizardDraft,
   WizardDraftListResponse,
-  WizardDraftResponse,
 } from '@/types/wizard-draft';
-import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-250 — Server-side helpers around `/api/me/wizard-drafts/*`.
@@ -17,42 +15,6 @@ import { cheminApi } from '@/lib/chemin-api';
 
 export async function fetchMyWizardDrafts(token: string): Promise<WizardDraftListResponse> {
   return apiRequest<WizardDraftListResponse>('/api/me/wizard-drafts', { token });
-}
-
-export async function fetchWizardDraft<TData = Record<string, unknown>>(
-  token: string,
-  key: string,
-): Promise<WizardDraftResponse<TData> | null> {
-  try {
-    return await apiRequest<WizardDraftResponse<TData>>(
-      cheminApi`/api/me/wizard-drafts/${key}`,
-      { token },
-    );
-  } catch (err) {
-    // 404 = no draft yet — semantically a "fresh start", not an error.
-    if (err instanceof Error && 'status' in err && (err as { status: number }).status === 404) {
-      return null;
-    }
-    throw err;
-  }
-}
-
-export async function upsertWizardDraft<TData = Record<string, unknown>>(
-  token: string,
-  key: string,
-  payload: { step: number; data: TData },
-): Promise<WizardDraftResponse<TData>> {
-  return apiRequest<WizardDraftResponse<TData>>(
-    cheminApi`/api/me/wizard-drafts/${key}`,
-    { method: 'PUT', token, body: payload },
-  );
-}
-
-export async function deleteWizardDraft(token: string, key: string): Promise<void> {
-  await apiRequest<void>(cheminApi`/api/me/wizard-drafts/${key}`, {
-    method: 'DELETE',
-    token,
-  });
 }
 
 /**

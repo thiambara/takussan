@@ -84,18 +84,6 @@ export function useDocuments(params: UseDocumentsParams = {}) {
   );
 }
 
-export function useDocument(id: number | null | undefined) {
-  const spatieParams: SpatieQueryParams = {
-    fields: { documents: DOCUMENT_LIST_FIELDS },
-  };
-
-  return useApiQuery<ApiResponse<Document>>(
-    documentsQueryKeys.detail(id),
-    cheminApi`/api/documents/${id ?? 0}`,
-    { params: spatieParams, enabled: Boolean(id) },
-  );
-}
-
 export type UploadDocumentPayload = {
   readonly file: File;
   readonly name: string;

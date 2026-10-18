@@ -42,8 +42,6 @@
 /** Le seul régime déclaré à ce jour. Le régime par défaut est l'ABSENCE d'attribut. */
 export type FieldDensity = 'comfortable';
 
-export const FIELD_DENSITY_ATTRIBUTE = 'data-field-density';
-
 /** Hauteur confortable (44 px) — pour une primitive dont la hauteur de base est nue (`h-8`). */
 export const FIELD_DENSITY_HEIGHT = 'in-data-[field-density=comfortable]:h-11';
 

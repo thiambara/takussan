@@ -17,7 +17,7 @@ import { useBookingRequest } from '@/hooks/useBookingRequest';
 import { usePropertyAvailability } from '@/hooks/usePropertyAvailability';
 import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
-import { formatCurrency } from '@/lib/format/currency';
+import { formatMontant } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
@@ -43,7 +43,7 @@ interface PropertyReservationDialogProps {
 }
 
 function formatPrice(price: number, currency: string | null): string {
-  return formatCurrency(price, currency ?? 'XOF');
+  return formatMontant(price, currency ?? 'XOF');
 }
 
 export function PropertyReservationDialog({

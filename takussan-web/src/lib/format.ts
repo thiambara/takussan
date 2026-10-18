@@ -1,5 +1,5 @@
 import { TIMEZONE, type Locale } from '@/i18n/config';
-import { formatCurrency as formatCurrencyCustom } from './format/currency';
+import { formatMontant } from './format/currency';
 
 /**
  * Locale-aware formatters wrapping {@link Intl.DateTimeFormat} and
@@ -153,7 +153,7 @@ export function formatNumber(
  * French number conventions. Delegates to the multi-currency helper so the
  * output matches the UX spec contract (e.g. "150 000 F CFA").
  *
- * For non-XOF currencies, import {@link formatCurrencyCustom} directly.
+ * For non-XOF currencies, import {@link formatMontant} directly.
  */
 export function formatCurrency(
   value: number | null | undefined,
@@ -161,7 +161,7 @@ export function formatCurrency(
   options: Intl.NumberFormatOptions = {},
 ): string {
   const currency = typeof options.currency === 'string' ? options.currency : 'XOF';
-  return formatCurrencyCustom(value, currency, {
+  return formatMontant(value, currency, {
     locale: toIntlLocale(locale),
     minimumFractionDigits: options.minimumFractionDigits as number | undefined,
     maximumFractionDigits: options.maximumFractionDigits as number | undefined,

@@ -10,18 +10,6 @@ import { msgValidation } from './messages';
  * Wave 3 — TCK-039 / TCK-047.
  */
 
-export const contractTypeSchema = z.enum(['sale', 'rent']);
-export const rentPeriodSchema = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
-export const sortSchema = z.enum([
-  'relevance',
-  'price_asc',
-  'price_desc',
-  'created_desc',
-  // TCK-346 — exige `lat` + `lng` côté serveur ; le couplage est tenu par `normaliserGeo()`
-  // (`hooks/useSearch.ts`), pas ici : un `z.enum` ne peut pas voir les autres clés.
-  'distance',
-]);
-
 /*
  * ─────────────────────────────────────────────────────────────────────────────
  * `searchFiltersSchema` a été SUPPRIMÉ ici — TCK-335.

@@ -114,8 +114,3 @@ export interface BlockingProfile {
   readonly user_id: number | null;
   readonly display_name: string | null;
 }
-
-export interface DeleteRoleConflict {
-  readonly message: string;
-  readonly profiles: readonly BlockingProfile[];
-}

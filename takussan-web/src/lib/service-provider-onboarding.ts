@@ -52,17 +52,6 @@ export type AvailabilityResponse = {
   };
 };
 
-export type KycUploadResponse = {
-  data: {
-    id: number;
-    kind: 'cni' | 'insurance';
-    type: string;
-    media_id: number;
-    file_name: string;
-    uploaded_at: string | null;
-  };
-};
-
 export type OnboardCompletePayload = {
   sp_profile_id: number;
   phone_otp?: { code: string };
@@ -97,22 +86,6 @@ export async function patchSpAvailability(
   return apiRequest<AvailabilityResponse>(
     cheminApi`/api/me/profiles/${spProfileId}/availability`,
     { method: 'PATCH', token, body: payload },
-  );
-}
-
-export async function uploadSpKyc(
-  token: string,
-  spProfileId: number,
-  file: File,
-  kind: 'cni' | 'insurance',
-): Promise<KycUploadResponse> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('kind', kind);
-
-  return apiRequest<KycUploadResponse>(
-    cheminApi`/api/me/profiles/${spProfileId}/kyc/upload`,
-    { method: 'POST', token, body: formData, formData: true },
   );
 }
 

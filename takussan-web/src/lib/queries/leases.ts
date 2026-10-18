@@ -277,18 +277,6 @@ export function useCreateLease() {
   );
 }
 
-export function useUpdateLease(id: number) {
-  return useApiMutation<ApiResponse<Lease>, Partial<CreateLeasePayload>>(
-    { path: cheminApi`/api/leases/${id}`, method: 'PUT' },
-    {
-      invalidate: [
-        ['leases', 'list'],
-        ['leases', 'detail', id],
-      ],
-    },
-  );
-}
-
 /**
  * TCK-596 §4B (ADR-0042 §6) — la voie PAPIER : le contrat signé hors plateforme, numérisé (PDF ou
  * image, 10 Mo), est obligatoire. La signature en ligne passe par les trois crochets suivants.
@@ -530,25 +518,6 @@ export function useDepositRefundState(leaseId: number | null | undefined) {
   );
 }
 
-export type RefundDepositPayload = {
-  amount: number;
-  reason?: string;
-  attachments?: number[];
-};
-
-export function useRefundDeposit(leaseId: number) {
-  return useApiMutation<ApiResponse<unknown>, RefundDepositPayload>(
-    { path: cheminApi`/api/leases/${leaseId}/deposit-refund`, method: 'POST' },
-    {
-      invalidate: [
-        ['leases', 'detail', leaseId],
-        ['leases', 'deposit-refund', leaseId],
-        ['leases', 'payments', leaseId],
-      ],
-    },
-  );
-}
-
 // TCK-089 — Renouvellement / avenant + chaîne historique.
 export type RenewLeasePayload = {
   start_date: string;
@@ -622,18 +591,6 @@ export function useRequestEarlyTermination(leaseId: number) {
 export function useCancelEarlyTermination(leaseId: number) {
   return useApiMutation<ApiResponse<Lease>, void>(
     { path: cheminApi`/api/leases/${leaseId}/early-termination`, method: 'DELETE' },
-    {
-      invalidate: [
-        ['leases', 'detail', leaseId],
-        ['leases', 'list'],
-      ],
-    },
-  );
-}
-
-export function useConfirmEarlyTermination(leaseId: number) {
-  return useApiMutation<ApiResponse<Lease>, void>(
-    { path: cheminApi`/api/leases/${leaseId}/early-termination/confirm`, method: 'POST' },
     {
       invalidate: [
         ['leases', 'detail', leaseId],
