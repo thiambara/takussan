@@ -1151,12 +1151,13 @@ Sain (vérifié par l'agent) :
 
 ### Boutons « Ouvrir » sans contexte, tableaux sans titre
 - Réf : P07.13
-- Statut : validé — libellés contextuels et captions en fr/en ; en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16)
+- Statut : fait · TCK-912
 - Gravité : 🟢 amélioration
 - Où : `payments/InvoicesTable.tsx:100-106`, `PayoutsTable.tsx:116`, `PaymentsHistoryTable.tsx`, `billing/PayoutTable.tsx`, `PropertyReviewForm.tsx:76`
 - Constat : « Ouvrir » répété N fois, des tableaux sans `<caption>`, et des `role="radio"` sans navigation aux flèches (lu).
 - Piste : « Ouvrir la facture {réf} », et passer ces tableaux par `console/DataTable`, qui impose une `caption`.
 - Mesure (2026-10-16, ddb5f050, mesureur) : `grep -c caption` → 0 dans `payments/InvoicesTable.tsx`, `payments/PayoutsTable.tsx`, `payments/PaymentsHistoryTable.tsx` et `billing/PayoutTable.tsx`, qui rendent un `<table>` nu (`PayoutsTable.tsx:67`, `PaymentsHistoryTable.tsx:84`, `PayoutTable.tsx:106`) ; `InvoicesTable.tsx:99-106` et `PayoutsTable.tsx:116` rendent `tTable('open')` (« Ouvrir », `messages/fr.json:1779`) sans libellé propre à la ligne ; `PropertyReviewForm.tsx:69,80` pose `role="radiogroup"`/`role="radio"` sans aucun `onKeyDown` ni gestion des flèches ; `console/DataTable.tsx:61-65` impose bien `caption` → tout tient. Classement : V7, chaque caption et chaque libellé contextuel est un texte neuf à écrire dans les trois langues, et passer par `DataTable` refond quatre tableaux.
+- Mesure (2026-10-18, f41284c32, implementeur) : reproduit avant correctif : `payments/__tests__/tableaux-nommes.tck-912.test.tsx` → 6 rouges sur 6 (aucun des quatre `<table>` n'a de nom accessible, aucun bouton « Ouvrir la facture/le reversement <réf> ») → `<caption className="sr-only">` sur les quatre tableaux et `aria-label` contextuel sur les boutons des factures et reversements, clés fr/en, `wo` en français ; ablation (composants d'avant, clés gardées) → 6 rouges, correctif remis → 6 verts, 100 verts dans `payments/__tests__` et `billing/__tests__`. La navigation aux flèches des `role="radio"` de `PropertyReviewForm.tsx`, hors `Piste`, n'est pas faite.
 
 ## Angle 8 — Parcours sur téléphone
 
