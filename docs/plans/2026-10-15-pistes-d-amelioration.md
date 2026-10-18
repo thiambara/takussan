@@ -4162,7 +4162,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
 
 ### Petites améliorations des webhooks de statut
 - Réf : P36.08
-- Statut : validé — les quatre points : retirer `WHATSAPP_WEBHOOK_IPS` et son docblock, déclarer `dlr_signature_ttl_days`, corriger le domaine de `docs/integrations/sms.md`, refuser un statut non signé dès qu'un jeton est posé quel que soit l'environnement
+- Statut : retenu · à valider — chemin fermé : `takussan-api/.env.example` et `takussan-api/.env.docker`, d'où le premier des quatre points retire `WHATSAPP_WEBHOOK_IPS`
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/config/whatsapp.php:61-65`, `takussan-api/.env.example:328`, `takussan-api/app/Services/Notifications/Sms/Drivers/LAfricaMobileSmsDriver.php:131`, `docs/integrations/sms.md:79`, `takussan-api/app/Http/Controllers/Webhook/WhatsappStatusController.php:84-94`
 - Constat :
@@ -4172,6 +4172,7 @@ des docblocks et de `docs/integrations/sms.md`. La validation d'une URL signée 
   - Hors production, un secret WhatsApp vide laisse passer un statut non signé dès que le jeton d'URL est posé (lu, l. 84-94). La préproduction n'a aujourd'hui aucune clé `WHATSAPP_*` (lu, `docs/infra/hebergement.md`), donc la route y répond 404.
 - Piste : retirer la clé morte et son docblock, ou la brancher ; déclarer `dlr_signature_ttl_days` dans la configuration ; corriger le domaine de la documentation ; refuser un statut non signé dès qu'un jeton est posé, quel que soit l'environnement.
 - Mesure (2026-10-17, 0adbd8e9b, mesureur) : `grep -rn "webhook_allowed_ips|dlr_signature_ttl_days" app config` → `whatsapp.webhook_allowed_ips` sans lecteur (`RestrictIpMiddleware` lit `sms.`), `WHATSAPP_WEBHOOK_IPS` dans `.env.example:328` et `.env.docker:353` ; `dlr_signature_ttl_days` lu par le pilote (l. 131), absent de `config/sms.php` ; `docs/integrations/sms.md:78` (et non 79) porte `api.takussan.app`, que `docs/infra/hebergement.md` n'emploie pas (`api.takussan.com`, `preview.api.takussan.com`) ; relu `WhatsappStatusController.php:84-94` (secret vide accepté hors production) → les quatre points tiennent ; le seul domaine de la documentation relèverait de A6 seul. Classement : V5, retirer la clé morte touche deux fichiers d'environnement, et le quatrième point (refuser un statut non signé hors production) touche aussi V2.
+- Mesure (2026-10-18, e673632a0, implementeur) : `grep -rn "webhook_allowed_ips|WHATSAPP_WEBHOOK_IPS" app config .env.example .env.docker` → `config/whatsapp.php:65` sans lecteur (`RestrictIpMiddleware` lit `sms.`), clé aux lignes 328 et 353 des deux fichiers d'environnement ; `dlr_signature_ttl_days` lu par `LAfricaMobileSmsDriver.php:138`, absent de `config/` ; `docs/integrations/sms.md:78` porte toujours `api.takussan.app` ; `WhatsappStatusController.php:86-93` accepte un statut non signé hors production : les quatre points tiennent. Le premier retire une clé de `.env.example` et `.env.docker`, fermés à l'implémenteur, et la décision porte sur les quatre ensemble : la piste revient au porteur, non implémentée, plutôt que livrée aux trois quarts.
 
 ## Angle 37 — `TRUSTED_PROXIES` derrière Traefik et clés des limiteurs par IP
 
