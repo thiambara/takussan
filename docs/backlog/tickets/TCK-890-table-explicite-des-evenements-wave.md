@@ -1,7 +1,7 @@
 ---
 id: TCK-890
 title: "Les événements de webhook Wave se lisent dans une table explicite, et un nom inconnu est ignoré"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -51,20 +51,20 @@ Un webhook Wave ne change l'état d'un paiement que pour un événement que Wave
 
 ## Delta à produire
 
-- [ ] `PaymentEvent::TYPE_IGNORED`.
-- [ ] `WaveDriver::handleWebhook` : table explicite.
-- [ ] `PaymentGatewayService` : un événement ignoré n'est rapproché d'aucun payable.
-- [ ] Tests : `tests/Feature/Api/WaveWebhookEventTableTest.php`, un cas par nom.
-- [ ] `PaymentWebhookTest::test_paid_payment_is_not_regressed_to_pending_on_late_event` envoyait
+- [x] `PaymentEvent::TYPE_IGNORED`.
+- [x] `WaveDriver::handleWebhook` : table explicite.
+- [x] `PaymentGatewayService` : un événement ignoré n'est rapproché d'aucun payable.
+- [x] Tests : `tests/Feature/Api/WaveWebhookEventTableTest.php`, un cas par nom.
+- [x] `PaymentWebhookTest::test_paid_payment_is_not_regressed_to_pending_on_late_event` envoyait
   `checkout.session.pending`, nom que Wave ne documente pas : il garde le même comportement du
   service par un événement `pending` appliqué directement.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `checkout.session.completed` solde l'échéance ouverte.
-- [ ] AC2 — `checkout.session.payment_failed` trace l'échec du checkout, l'échéance garde son statut.
-- [ ] AC3 — `test.test_event`, sans identifiant de transaction → 200, `type: ignored`, rien d'écrit.
-- [ ] AC4 — `merchant.payment_received`, `b2b.payment_received`, `b2b.payment_failed`,
+- [x] AC1 — `checkout.session.completed` solde l'échéance ouverte.
+- [x] AC2 — `checkout.session.payment_failed` trace l'échec du checkout, l'échéance garde son statut.
+- [x] AC3 — `test.test_event`, sans identifiant de transaction → 200, `type: ignored`, rien d'écrit.
+- [x] AC4 — `merchant.payment_received`, `b2b.payment_received`, `b2b.payment_failed`,
   `checkout.session.refunded` et `refund.completed` → 200, `type: ignored`, échéance inchangée,
   trace au journal.
 
@@ -80,3 +80,12 @@ Un webhook Wave ne change l'état d'un paiement que pour un événement que Wave
 - `WaveDriver::verify()`, qui lit le statut de la session et non un nom d'événement.
 
 ## Notes d'implémentation
+
+- Reproduit avant correctif (test temporaire, retiré) : `refund.completed` → 200, type `paid`,
+  échéance `paid` ; `checkout.session.refunded` → `refunded` ; `merchant.payment_received` →
+  `pending` ; `b2b.payment_failed` → `failed`.
+- Ablation : `WaveDriver` remis à `pre-dev` (constante et service gardés) → 6 rouges sur 8
+  (`test.test_event` en 422 faute d'identifiant ; les cinq noms hors table rendent un autre type) ;
+  correctif remis → 8 verts.
+- Un événement ignoré n'annote pas `matched_count` : à 0, le journal des webhooks l'aurait lu
+  comme un « non apparié ».
