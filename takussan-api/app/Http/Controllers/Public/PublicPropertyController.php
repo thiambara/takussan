@@ -222,6 +222,12 @@ class PublicPropertyController extends Controller
      */
     public function cities(): JsonResponse
     {
+        // P35.04 — les variantes de casse d'une ville sont UNE entrée, comptée une fois, sous sa
+        // graphie la plus fréquente : le même repli que `neighborhoods()`. Groupée sur la valeur
+        // brute, « Saly » (40) et « SALY » (2) sortaient en deux entrées, et le front, qui replie
+        // en minuscules et garde la dernière lue, retenait la moins fréquente.
+        $replie = CaseInsensitive::sql('addresses.city');
+
         $lignes = Property::query()
             ->public()
             ->join('addresses', function ($jointure) {
@@ -230,15 +236,19 @@ class PublicPropertyController extends Controller
             })
             ->whereNotNull('addresses.city')
             ->where('addresses.city', '!=', '')
-            ->groupBy('addresses.city')
+            ->groupByRaw($replie)
             ->orderByDesc(DB::raw('count(*)'))
+            ->orderByRaw($replie)
             ->limit(self::citiesMax() + 1)
-            ->pluck(DB::raw('count(*) as cnt'), 'addresses.city');
+            ->get([
+                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.city) as valeur'),
+                DB::raw('count(*) as compte'),
+            ]);
 
         $tronque = $lignes->count() > self::citiesMax();
 
         $data = $lignes->take(self::citiesMax())
-            ->map(fn ($compte, $ville) => ['value' => (string) $ville, 'count' => (int) $compte])
+            ->map(fn ($l) => ['value' => (string) $l->valeur, 'count' => (int) $l->compte])
             ->values()
             ->all();
 

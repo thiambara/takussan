@@ -203,4 +203,27 @@ class PropertyCitiesTest extends TestCase
 
         $this->assertSame(['Dakar'], $villes);
     }
+
+    /**
+     * P35.04 — **une ville, une entrée, comptée une fois**, quelle que soit la casse saisie.
+     *
+     * Le front replie chaque valeur en minuscules (`villesDuCatalogue`, `facettes.ts`) : si l'API
+     * rendait « Zzvillé » (3) et « ZZVILLÉ » (1) séparément, la page de ville prendrait la graphie
+     * de la dernière entrée lue, la MOINS fréquente, et le sitemap annoncerait la même canonique
+     * deux fois. La ville est hors référentiel, seul cas où `GeoAddressCanonicalizer` la laisse
+     * brute ; l'accent vérifie que le repli n'est pas celui de `lower()` nu sous `--locale=C`.
+     */
+    public function test_case_variants_of_a_city_are_one_entry_with_the_most_frequent_spelling(): void
+    {
+        $this->bienA('Zzvillé');
+        $this->bienA('Zzvillé');
+        $this->bienA('Zzvillé');
+        $this->bienA('ZZVILLÉ');
+        $this->bienA('Thiès');
+
+        $this->assertSame(
+            [['value' => 'Zzvillé', 'count' => 4], ['value' => 'Thiès', 'count' => 1]],
+            $this->getJson('/api/public/properties/cities')->assertOk()->json('data'),
+        );
+    }
 }
