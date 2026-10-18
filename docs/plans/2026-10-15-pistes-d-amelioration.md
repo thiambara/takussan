@@ -3623,7 +3623,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
 
 ### Un client sans compte ne peut rien recevoir dans une autre langue que le français : la fiche client ne porte pas de langue
 - Réf : P29.03
-- Statut : validé — langue facultative sur la fiche client, migration et champ de formulaire
+- Statut : fait · TCK-921
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/Customer.php:55-64`, `takussan-api/app/Services/Notifications/ContactSansCompte.php:38-47`, `docs/adr/0032-l-api-n-ecrit-plus-de-prose.md:109-111`
 - Constat :
@@ -3633,6 +3633,7 @@ déclare `fr`, `config/app.php:83` replie sur `en`.*
   - Établi comment : lu.
 - Piste : une langue facultative sur la fiche client (`in:fr,en,wo`), saisie par l'agence et relue par `fromCustomer()` avant le repli `fr`. Elle servirait aussi P29.02. Migration et champ de formulaire neufs : choix de produit.
 - Mesure (2026-10-16, b14cd410, mesureur) : `grep -ln "'customers'" database/migrations/* | xargs grep -n "locale\|lang"` → aucune colonne de langue sur `customers` (seule touche : `property_contact_leads`) ; `Customer.php:55-64` `$fillable` sans langue ; `ContactSansCompte.php:44` rend `user?->preferredLocale() ?? 'fr'` ; le constat tient, comme amélioration et non comme défaut (ADR-0032 § 3). Classement : V4 et V7, la piste demande une migration autre qu'un index et un champ de formulaire neuf.
+- Mesure (2026-10-18, dc3778699, implementeur) : avant correctif, `CustomerTest::test_la_fiche_porte_une_langue_facultative` (neuf) rouge, `POST /api/customers` avec `locale: en` → `data.locale` nul, et `ContactSansCompteTest::test_la_langue_de_la_fiche_sert_le_client_sans_compte` (neuf) rouge, colonne `customers.locale` absente ; côté front, `customer.test.ts` et `CustomerForm.langue.test.tsx` (neuf) rouges sur 4 cas → migration neuve `add_locale_to_customers` (`string(5)` nullable), règle `nullable|in:fr,en,wo` partagée par création et mise à jour, `locale` rendue par `CustomerResource`, `fromCustomer()` lit compte lié → fiche → `fr`, champ « Langue des messages » sur `CustomerForm` avec « Par défaut (français) » qui l'efface : fiche `en` → contact `en` et SMS de retard en anglais, fiche liée à un compte `wo` → `wo`, sans langue → `fr`, `locale: de` → 422, `null` l'efface ; ablation de la relecture → 1 rouge, de la règle → 1 rouge, du corps normalisé → 3 rouges, du champ → 1 rouge ; remis → `CustomerTest` et `ContactSansCompteTest` 22 verts, 19 verts côté front. Les visites planifiées par l'agent (reste de P29.02) ne lisent pas encore cette langue.
 
 ## Angle 30 — Équipements du catalogue : traduction par slug, renommage et fusion
 
