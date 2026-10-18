@@ -417,12 +417,13 @@ Déjà sain (mesuré ou lu) :
 
 ### Tri du catalogue public sans index adapté
 - Réf : P02.12
-- Statut : retenu · autonome
+- Statut : fait · TCK-863
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:156`
 - Constat : `ORDER BY ranked_at DESC NULLS LAST, id DESC` force un Sort : l'index `ranked_at` est en ASC (mesuré).
 - Piste : un index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`.
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `PublicPropertyController.php:156-157` (`orderByRaw('ranked_at DESC NULLS LAST')->orderByDesc('id')`, la ligne n'a pas bougé) et la migration `2026_10_12_500300` (`properties_ranked_at_idx` en ASC) ; tinker en lecture, `EXPLAIN ANALYZE` de la requête de `index()` (scope `public()`, `limit 20`) → `Bitmap Heap Scan` puis `Sort` top-N sur `ranked_at DESC NULLS LAST, id DESC`, 9,2 ms pour 842 biens. Classement : A2, une migration neuve d'ajout d'index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test`, avec son `down()`, ne change pas le résultat.
+- Mesure (2026-10-18, bcd11595a, implementeur) : avant correctif, `PublicCatalogueRankedOrderIndexTest` rougit : la requête émise par `GET /api/public/properties`, rejouée sous `EXPLAIN` avec `enable_seqscan = off`, porte `Sort Key: properties.ranked_at DESC NULLS LAST, properties.id DESC` → migration neuve de l'index partiel `(ranked_at DESC NULLS LAST, id DESC) WHERE visibility = 'public' AND NOT is_test` avec son `down()` ; plan par l'index, sans `Sort`, 2 verts ; ablation : migration retirée, 2 rouges ; remise, verts ; `RankedOrderTest` et `PropertyListTest` verts.
 
 ### Pénalités de retard : le plafond est relu pour chaque échéance
 - Réf : P02.13
