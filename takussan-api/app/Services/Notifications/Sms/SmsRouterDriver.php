@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\Log;
  * - TCK-766 (P27.02) — an AMBIGUOUS failure (timeout, 5xx: the provider may
  *   have accepted the message) ends the chain for that number, so it is not
  *   sent twice; a one-time code (`is_otp`) keeps the fallback.
+ * - TCK-842 (P27.04) — the whole walk shares one time budget
+ *   ({@see SmsTimeBudget}): no driver starts once it is spent, and the numbers
+ *   left end with `time_budget_exhausted`.
  */
 class SmsRouterDriver implements SmsDriverInterface
 {
@@ -62,6 +65,7 @@ class SmsRouterDriver implements SmsDriverInterface
             return $this->deferAll($recipients, $message, $context);
         }
 
+        $context = SmsTimeBudget::start($context);
         $results = [];
         $groups = $this->operators->groupByOperator($recipients);
         foreach ($groups as $operator => $numbers) {
@@ -169,6 +173,13 @@ class SmsRouterDriver implements SmsDriverInterface
                 continue;
             }
 
+            if (SmsTimeBudget::exhausted($context)) {
+                $this->endOnSpentBudget($remaining, $driverId, $attemptIndex, $finalResults, $context);
+                $remaining = [];
+
+                break;
+            }
+
             try {
                 $batch = $driver->send($callable, $message, $context);
             } catch (\Throwable $e) {
@@ -216,6 +227,31 @@ class SmsRouterDriver implements SmsDriverInterface
         }
 
         return $finalResults;
+    }
+
+    /**
+     * TCK-842 (P27.04) — the budget is spent before `$driverId` could be tried:
+     * nothing more is sent, and the reason is written, not `no_provider_available`.
+     *
+     * @param  list<string>  $numbers
+     * @param  array<string,int>  $attemptIndex
+     * @param  array<string,SmsResult>  $finalResults
+     * @param  array<string,mixed>  $context
+     */
+    private function endOnSpentBudget(array $numbers, string $driverId, array &$attemptIndex, array &$finalResults, array $context): void
+    {
+        foreach ($numbers as $n) {
+            $attemptIndex[$n]++;
+            $finalResults[$n] = SmsResult::failed($n, $this->id(), 'time_budget_exhausted');
+            $this->appendAttempt($context['notification_id'] ?? null, $attemptIndex[$n], $finalResults[$n]);
+        }
+        Log::warning('[sms.router] budget de temps épuisé, chaîne arrêtée', [
+            'next_driver' => $driverId,
+            'numbers' => count($numbers),
+            'budget_seconds' => SmsTimeBudget::CHAIN_SECONDS,
+            'agency_id' => $context['agency_id'] ?? null,
+            'notification_id' => $context['notification_id'] ?? null,
+        ]);
     }
 
     /**
