@@ -30,7 +30,7 @@ n'a, contre l'indexation, que l'authentification basique de Dokploy, et l'API au
 
 ## Décision du porteur
 
-`Disallow: /app/` et `/app$` avec un test contre les fichiers de la racine, `robots: { index: false }` sur les passages interdits, `noindex` (front et API) dès que l'origine n'est pas celle de la production
+`Disallow: /app/` et `/app$` avec un test contre les fichiers de la racine, `robots: { index: false }` sur les passages interdits, `noindex` (front et API) dès que l'origine n'est pas celle de la production ; reste : la commande de F3, hors agents en session
 
 ## Reste à faire
 
