@@ -4,6 +4,7 @@ import { enTetesServeurAmont, urlApiServeur } from '@/lib/api';
 import { IMPERSONATION_COOKIE } from '@/lib/impersonation';
 import { effacerLaSession } from '@/lib/impersonation-serveur';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
+import { statutSansCorps } from '@/lib/statut-sans-corps';
 
 /**
  * TCK-600 (ADR-0055 §6) — le relais same-origin de l'espace applicatif pendant une session.
@@ -46,7 +47,7 @@ async function relayer(request: NextRequest, segments: string[]): Promise<NextRe
     if (valeur) enTetesReponse[nom] = valeur;
   }
 
-  const reponse = new NextResponse(await amont.arrayBuffer(), { status: amont.status, headers: enTetesReponse });
+  const reponse = new NextResponse(statutSansCorps(amont.status) ? null : await amont.arrayBuffer(), { status: amont.status, headers: enTetesReponse });
   // 401 : la session est échue, fermée, ou l'opérateur n'est plus `super_admin` — le jeton est mort.
   if (amont.status === 401) effacerLaSession(reponse);
   return reponse;

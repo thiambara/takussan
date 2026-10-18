@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { useFavorite } from '@/hooks/useFavorite';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
@@ -18,13 +19,7 @@ import { PropertyCharacteristics } from './components/PropertyCharacteristics';
 import { PropertyAmenities } from './components/PropertyAmenities';
 import { PropertyBookingCard } from './components/PropertyBookingCard';
 import { PropertyAgentCard } from './components/PropertyAgentCard';
-import { PropertyVisitDialog } from './components/PropertyVisitDialog';
-import {
-  PropertyReservationDialog,
-  useIntentionDeReservation,
-} from './components/PropertyReservationDialog';
-import { PropertyShareDialog } from './components/PropertyShareDialog';
-import { PropertyContactMessageDialog } from './components/PropertyContactMessageDialog';
+import { useIntentionDeReservation } from './components/useIntentionDeReservation';
 import { useAuth } from '@/context/AuthContext';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { usePropertyConversation } from '@/lib/queries/conversations';
@@ -40,6 +35,28 @@ import { PropertySimilar } from './components/PropertySimilar';
 import { PropertyRecentlyViewed } from './components/PropertyRecentlyViewed';
 import { PropertySafetyNotice } from './components/PropertySafetyNotice';
 import { PropertyVirtualTour } from './components/PropertyVirtualTour';
+
+/**
+ * TCK-850 (P33.04) — les quatre dialogues se chargent à la première ouverture, pas avant le premier
+ * clic : importés statiquement, ils portaient au JS initial de la fiche leur code et
+ * react-day-picker (`Calendar`, `DatePicker`). Chacun n'est monté qu'une fois ouvert, puis reste
+ * monté, pour que sa fermeture garde son animation.
+ */
+const PropertyVisitDialog = dynamic(() => import('./components/PropertyVisitDialog').then((m) => m.PropertyVisitDialog));
+const PropertyReservationDialog = dynamic(() =>
+  import('./components/PropertyReservationDialog').then((m) => m.PropertyReservationDialog),
+);
+const PropertyShareDialog = dynamic(() => import('./components/PropertyShareDialog').then((m) => m.PropertyShareDialog));
+const PropertyContactMessageDialog = dynamic(() =>
+  import('./components/PropertyContactMessageDialog').then((m) => m.PropertyContactMessageDialog),
+);
+
+/** Vrai dès que `open` l'a été une fois : le dialogue n'est monté, donc chargé, qu'à l'ouverture. */
+function useDejaOuvert(open: boolean): boolean {
+  const [ouvert, setOuvert] = useState(open);
+  if (open && !ouvert) setOuvert(true);
+  return ouvert || open;
+}
 
 /**
  * Le corps de la fiche — **inchangé**, seulement déplacé (TCK-335, étape 6).
@@ -71,6 +88,10 @@ export function PropertyDetailContent({
   const [reservationOpen, setReservationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
+  const visitMonte = useDejaOuvert(visitOpen);
+  const reservationMonte = useDejaOuvert(reservationOpen);
+  const shareMonte = useDejaOuvert(shareOpen);
+  const messageMonte = useDejaOuvert(messageOpen);
 
   /**
    * TCK-500 — « Envoyer un message » ne mène plus au même endroit selon qui clique.
@@ -255,26 +276,32 @@ export function PropertyDetailContent({
         startIndex={lightboxIndex}
         title={property.title}
       />
-      <PropertyVisitDialog slug={property.slug} open={visitOpen} onOpenChange={setVisitOpen} />
-      <PropertyReservationDialog
-        property={property}
-        open={reservationOpen}
-        onOpenChange={setReservationOpen}
-        intention={intentionReservation}
-      />
-      <PropertyShareDialog
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-        property={property}
-        url={pageUrl}
-      />
-      <PropertyContactMessageDialog
-        slug={property.slug}
-        open={messageOpen}
-        onOpenChange={setMessageOpen}
-        defaultMessage={brouillon}
-        destinataireEstAgent={destinataire?.is_agent}
-      />
+      {visitMonte && <PropertyVisitDialog slug={property.slug} open={visitOpen} onOpenChange={setVisitOpen} />}
+      {reservationMonte && (
+        <PropertyReservationDialog
+          property={property}
+          open={reservationOpen}
+          onOpenChange={setReservationOpen}
+          intention={intentionReservation}
+        />
+      )}
+      {shareMonte && (
+        <PropertyShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          property={property}
+          url={pageUrl}
+        />
+      )}
+      {messageMonte && (
+        <PropertyContactMessageDialog
+          slug={property.slug}
+          open={messageOpen}
+          onOpenChange={setMessageOpen}
+          defaultMessage={brouillon}
+          destinataireEstAgent={destinataire?.is_agent}
+        />
+      )}
     </div>
   );
 }

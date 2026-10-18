@@ -540,12 +540,13 @@ Ce qui tient (lu) :
 
 ### Le proxy `admin-users` ne relaie pas le profil actif
 - Réf : P03.07
-- Statut : validé — le proxy admin-users transmet le profil actif
+- Statut : fait · TCK-849
 - Gravité : 🟢 à vérifier
 - Où : `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:17-40`
 - Constat : seul `Authorization` est relayé, sans `X-Active-Profile-Hint` ni cookie de profil. Pour un admin présent dans plusieurs agences, `UserAdminController:16-22` rendrait 403, et la console d'équipe serait inutilisable pour lui (lu, non mesuré).
 - Piste : relayer l'indice de profil comme les fetchers serveur (`RequestOptions` de `src/lib/api.ts`).
 - Mesure (2026-10-15, 6a221e0f, mesureur) : lu `admin-users/[[...path]]/route.ts:26-29` (seuls `Accept`, `Authorization` et `Content-Type` relayés), `lib/queries/admin-users.ts:64` (le navigateur passe par ce relais), `ResolveActiveProfile.php:101-140` (sans indice ni cookie, auto-bascule seulement si une seule agence) et `UserAdminController.php:16-22` ; test temporaire, retiré depuis, admin de deux agences sur `GET /api/users` → **403** sans indice, **200** avec `X-Active-Profile-Hint: agency_admin:<id>` ; admin d'une seule agence → 200. Le constat « à vérifier » est vérifié côté API. Classement : V2, le correctif change le profil, donc l'agence, sous lequel l'API juge chaque appel de la console d'équipe.
+- Mesure (2026-10-18, 8cd8c878e, implementeur) : relu `admin-users/[[...path]]/route.ts:23-28`, toujours `Accept`, `Authorization` et `Content-Type` seuls ; test neuf `admin-users/[[...path]]/__tests__/route.test.ts` → avant correctif, l'indice manque avec le cookie `active_profile_id` (rouge) ; `X-Active-Profile-Hint` posé par `profilActifEspaceApplicatif`, comme `agencies` → 3 verts, dont l'absence d'indice sans cookie et pendant une impersonation ; ablation → le même rouge. Le 200 côté API pour un admin de deux agences avec l'indice est celui mesuré le 2026-10-15, non rejoué.
 
 ## Angle 4 — Argent : montants, devises, arrondis, factures, paiements
 
@@ -3864,7 +3865,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
 
 ### La fiche bien est un seul composant client qui charge ses quatre dialogues et un calendrier avant le premier clic
 - Réf : P33.04
-- Statut : validé — dialogues de la fiche chargés à l'ouverture par `next/dynamic` (`useIntentionDeReservation` sort de leur module), mesurés avant et après ; reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
+- Statut : fait · TCK-850 — reste : le rendu serveur des blocs sans interaction, en tickets, plus tard
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:1`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:10-42`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/PropertyDetailContent.tsx:251-270`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx:15-16`, `takussan-web/src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx:13`
 - Constat :
@@ -3874,6 +3875,7 @@ simulé** : `next start` demande l'API (absente pendant le passage), et la charg
   - Calcul, non mesuré : à 1,6 Mbit/s (≈ 200 Kio/s), les 580 Kio de JS initial de la fiche demandent environ 3 s de transfert, avant analyse et sans compter les polices (P33.01) ni le document.
 - Piste : différer les dialogues par `next/dynamic` au premier `open`, puis rendre côté serveur les blocs sans interaction (description, caractéristiques, équipements, avertissement de sécurité) en ne gardant client que les îlots qui en ont besoin. Mesurer avant et après par la méthode de P33.05.
 - Mesure (2026-10-17, ec405f7a, mesureur) : relu `PropertyDetailContent.tsx:1` (`'use client'`, 36 lignes `import`), `:21-27` (dialogues de visite, réservation — dont le crochet `useIntentionDeReservation` exporté du même module —, partage, message), `:37` `PropertyReviews` ; `PropertyVisitDialog.tsx:15-16` importe `Calendar` et `Popover`, `PropertyReservationDialog.tsx:13` `DatePicker` ; seule `PropertyLocationMap.tsx:8` passe par `dynamic` ; les octets du constat n'ont pas été rejoués → le constat tient. Classement : V8, la première moitié (dialogues différés par `next/dynamic`, en sortant `useIntentionDeReservation` de leur module) serait A2, mais la seconde découpe toute la fiche en îlots client et tient sur plus d'un ticket.
+- Mesure (2026-10-18, 8cd8c878e, implementeur) : `npm run build` avant correctif, JS initial de la fiche (gzip des `rootMainFiles` et des `entryJSFiles` du manifeste de la route, script temporaire hors dépôt) → 480,1 Kio, react-day-picker compris ; quatre dialogues par `next/dynamic`, montés à la première ouverture, `useIntentionDeReservation` dans son propre module → 441,2 Kio, sans react-day-picker, page légale témoin inchangée à 322,7 Kio ; test neuf `__tests__/dialogues-differes.test.ts` (graphe d'imports) 9 rouges avant, verts après, ablation → les 9 mêmes rouges ; les 124 tests du dossier de la fiche verts.
 
 ### Aucune garde ne voit le poids du JS d'une route
 - Réf : P33.05
@@ -4491,7 +4493,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
 
 ### La console super-admin rend une erreur 500 quand l'API répond 204 : la suppression d'un bien, d'une règle d'alerte et la remise d'une prise de modération sont faites, mais affichées en échec
 - Réf : P41.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-848
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/app/api/super-admin/[...path]/route.ts:48-56`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts:34-40`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts:35-41`, `takussan-web/src/app/api/announcements/[...path]/route.ts:25-31`, `takussan-web/src/app/api/impersonation/proxy/[...path]/route.ts:49`
 - Constat :
@@ -4506,6 +4508,7 @@ relaient bien `content-disposition` et sont tenus par leurs tests (TCK-760, TCK-
   - Établi comment : lu, et mesuré par le test temporaire.
 - Piste : rendre `null` comme corps quand le statut amont est 204, 205 ou 304, comme le fait déjà `agencies`, dans les cinq relais. Garde : un test par relais qui renvoie un 204 amont et attend un 204, et mieux, une seule fonction de relais partagée (voir P41.03) que les cinq appellent.
 - Mesure (2026-10-18, a2dc95960, mesureur) : relu les cinq relais (`super-admin` l. 49-56, `super-admin-properties` l. 35-40, `admin-users` l. 36-41, `announcements` l. 26-31, `impersonation/proxy` l. 49), inchangés : ils construisent `new NextResponse(<corps lu>, { status: upstream.status })` ; `agencies` (l. 34-35) seul rend `null` sur 204/205/304 ; test vitest temporaire, retiré (charge 2,64 sur 8 cœurs), `fetch` remplacé par `new Response(null, { status: 204 })` → les cinq lèvent `Response constructor: Invalid response status code 204`, `agencies` rend 204 ; côté API, `ModerationQueueController.php:80`, `AlertRuleController.php:41` et `PropertyController.php:243` répondent toujours 204, et `super-admin.ts:560,974` attendent toujours `res.status === 204` ; aucun commit ni ticket ne l'a traité (`git log` des relais, `grep` des tickets). Le 500 vu du navigateur reste déduit, non mesuré sur `next start`. Classement : A1, le comportement attendu est écrit par les appelants (`if (res.status === 204) return null`) et par le relais `agencies`, le correctif (corps `null` sur 204/205/304 dans les cinq relais, un test 204 par relais) ne demande aucun choix de produit.
+- Mesure (2026-10-18, 8cd8c878e, implementeur) : test neuf `src/app/api/__tests__/relais-sans-corps.test.ts`, `fetch` remplacé par une réponse amont 204, 205 puis 304 sur les cinq relais → avant correctif, 15 rouges sur 16 (`Invalid response status code 204/205/304`) ; corps `null` sur ces statuts (`statutSansCorps`) → 16 verts ; ablation (correctif retiré) → les 15 mêmes rouges. Le 500 vu du navigateur reste déduit, non mesuré sur `next start`.
 
 ### 22 relais joignent l'API en `fetch` nu, par son URL publique, sans la langue ni l'IP du visiteur que pose `apiRequest`
 - Réf : P41.02
