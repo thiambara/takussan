@@ -1,7 +1,7 @@
 ---
 id: TCK-842
 title: "Le dépôt oublie Vercel : relevé, garde, replis NEXT_PUBLIC_* et conditions de build devenus du code mort"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: M
@@ -14,7 +14,7 @@ spec_refs:
   features:
     - docs/features.md#29-administration--configuration
   models: []
-tags: [infra, front, ci, vercel, adr-0028, adr-0069]
+tags: [infra, front, ci, vercel, legal, adr-0028, adr-0069]
 ---
 
 ## Contexte
@@ -60,27 +60,53 @@ Repris de F5, étape 2, et complété par l'inventaire du 2026-10-18
 - **API** : la règle `takussan-[a-z0-9-]+\.vercel\.app` de `takussan-api/config/cors.php` et son
   commentaire.
 - **`.env.example`** (front) : les commentaires qui citent Vercel ou `VERCEL_URL`.
+- **Textes légaux** (ajouté le 2026-10-18 sur décision du porteur) : Vercel quitte les hébergeurs
+  des mentions légales et des sous-traitants de la politique de confidentialité, avec sa mesure
+  d'audience ; `VERSION_DOCUMENTS` passe au 18 octobre 2026.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `git grep -n -i vercel -- takussan-web/src takussan-web/next.config.ts
+- [x] AC1 — `git grep -n -i vercel -- takussan-web/src takussan-web/next.config.ts
       takussan-web/Dockerfile takussan-api/config scripts .github` ne rend plus que les exceptions
       listées dans les notes, chacune justifiée (ex. `_vercel` dans `robots.ts` et
       `i18n/routing.ts`, si on le garde).
-- [ ] AC2 — `node scripts/check-front-env-keys.mjs` est vert, et rougit toujours par ablation sur
+- [x] AC2 — `node scripts/check-front-env-keys.mjs` est vert, et rougit toujours par ablation sur
       une `NEXT_PUBLIC_*` ajoutée au `Dockerfile`, à `images.yml`, puis à `web-ci.yml`.
-- [ ] AC3 — `deploy/takussan/smoke-web.sh` est vert, sans `TAKUSSAN_LOADER_MEDIA` dans l'image.
+- [x] AC3 — `deploy/takussan/smoke-web.sh` est vert, sans `TAKUSSAN_LOADER_MEDIA` dans l'image.
 - [ ] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test` et tous les `npm run check:*` sont
       verts ; `php artisan test` sur les tests CORS.
-- [ ] AC5 — `node scripts/check-doc-links.mjs` est vert après la suppression du relevé.
+- [x] AC5 — `node scripts/check-doc-links.mjs` est vert après la suppression du relevé.
 
 ## Hors périmètre
 
-- **Les textes légaux** (`src/content/legal/privacy.ts`, `editeur.ts`, `notice.ts`) nomment Vercel
-  comme hébergeur et sa mesure d'audience. C'est du contenu juridique public : il se corrige sur
-  décision du porteur, avec le nouvel hébergeur, pas dans ce ticket.
 - ADR-0017, l'ardoise D-04 et D-10, TCK-332 : F5, étape 3, qui attend la production (TCK-517).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le repli `NEXT_PUBLIC_*` ne servait plus `next dev`** : le serveur lit `API_URL`, `SITE_URL`
+  et `MEDIA_URL` dans `.env.local` comme dans Dokploy, et le navigateur les reçoit du layout dans
+  les deux cas. Retiré entièrement : le front ne lit plus aucune `NEXT_PUBLIC_*`. `.env.example`
+  passe aux nouveaux noms ; `./dev.sh` signale un `.env.local` qui porte encore les anciens.
+- **Le loader se branche sur `NODE_ENV=production`**, que `next build` pose avant de lire
+  `next.config.ts` (`node_modules/next/dist/bin/next` : `NODE_ENV || defaultEnv`), et non plus sur
+  le drapeau `TAKUSSAN_LOADER_MEDIA` du `Dockerfile`. Sous `next dev`, l'optimiseur reste.
+- **La garde `check-front-env-keys` change d'objet** : sans relevé, elle refuse toute lecture de
+  `NEXT_PUBLIC_*` dans le front, et exige les trois clés d'exécution dans `.env.example`. Elle
+  n'était jouée en CI que par `front-deploy-map.yml` : elle passe dans `repo-ci.yml`, avec
+  `check-workflows-sans-environnement` (TCK-832), qu'aucun workflow ne jouait.
+- **Exceptions gardées (AC1)** : les commentaires d'`api-ci.yml` et `check-skip-ci-marker.mjs`
+  (l'incident mesuré qui justifie leur garde), `manifest.test.ts` (refuse le `vercel.svg` du gabarit
+  `create-next-app`) et `Logo.test.tsx` (l'histoire de la favicon). Les ADR, le journal, les
+  tickets clos et le récit de l'ardoise gardent ce qu'ils ont cru.
+- **Mesuré le 2026-10-18** : `npm run lint` 0 erreur, `npx tsc --noEmit` propre, tous les
+  `npm run check:*` verts, `npx vitest run` 789 fichiers et 6 675 tests verts ; toutes les gardes
+  `scripts/check-*.mjs` vertes ; `deploy/takussan/smoke-web.sh` vert (loader branché sans drapeau,
+  `/_next/image` en 404).
+- **Ablations, toutes rouges puis vertes une fois restaurées** : le repli `NEXT_PUBLIC_API_URL`
+  remis dans `origineApi()` (test) ; le loader rebranché sur `TAKUSSAN_LOADER_MEDIA` (test) ;
+  `output` conditionné à `VERCEL` (test) ; une `process.env.NEXT_PUBLIC_MEDIA_URL` dans
+  `image-loader.ts`, un `ARG NEXT_PUBLIC_SITE_URL` dans le `Dockerfile`, une `NEXT_PUBLIC_API_URL`
+  dans les `build-args` d'`images.yml`, `SITE_URL` renommée dans `.env.example`, une lecture de
+  `VERCEL_URL` dans le module (garde).
+- **Non joué en local** : la suite de l'API. Le changement de `config/cors.php` (le motif
+  `*.vercel.app` retiré, aucune origine par motif) est rejoué par la CI.

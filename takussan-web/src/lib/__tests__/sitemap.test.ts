@@ -121,7 +121,7 @@ describe('absolu — TCK-431 · AC5', () => {
   it('refuse une URL portant « undefined »', () => {
     // Le cas réel : une interpolation d'un champ nul (`/properties/${bien.slug}` sur un slug
     // absent). L'URL serait absolue, bien formée, et fausse.
-    expect(() => absolu('/fr/properties/undefined')).toThrow(/NEXT_PUBLIC_SITE_URL/);
+    expect(() => absolu('/fr/properties/undefined')).toThrow(/SITE_URL/);
   });
 });
 
@@ -163,7 +163,6 @@ describe('CHEMINS_INTERDITS_AUX_ROBOTS — TCK-431 · AC2', () => {
     // Un moteur qui ne peut charger ni la feuille de style ni le JS rend la page nue et juge ce
     // qu'il voit. C'est la soustraction explicite de `SEGMENTS_SERVIS_AUX_ROBOTS`.
     expect(CHEMINS_INTERDITS_AUX_ROBOTS).not.toContain('/_next');
-    expect(CHEMINS_INTERDITS_AUX_ROBOTS).not.toContain('/_vercel');
   });
 
   it('n’interdit aucune surface publique', () => {

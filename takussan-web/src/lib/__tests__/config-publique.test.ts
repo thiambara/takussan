@@ -45,26 +45,16 @@ describe('lue à l’appel, jamais figée à l’import', () => {
 });
 
 describe('côté serveur', () => {
-  it('la clé d’exécution gagne sur son repli NEXT_PUBLIC_* (Vercel, développement)', () => {
-    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://127.0.0.1:8002');
-    vi.stubEnv('API_URL', 'https://preview.api.takussan.com');
-    expect(origineApi()).toBe('https://preview.api.takussan.com');
-
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://vercel.takussan.test');
-    vi.stubEnv('SITE_URL', 'https://preview.takussan.com');
-    expect(origineSite()).toBe('https://preview.takussan.com');
-  });
-
-  it('sans clé d’exécution, le repli NEXT_PUBLIC_* sert encore — le build de Vercel', () => {
+  it('ne lit plus aucune NEXT_PUBLIC_* : sans clé d’exécution, les défauts de développement', () => {
     vi.stubEnv('API_URL', '');
-    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.takussan.com/api');
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://ignore.takussan.test');
     vi.stubEnv('MEDIA_URL', '');
-    vi.stubEnv('NEXT_PUBLIC_MEDIA_URL', 'https://media.takussan.com');
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_URL', 'https://ignore-media.takussan.test');
     vi.stubEnv('SITE_URL', '');
-    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://www.takussan.com');
-    expect(origineApi()).toBe('https://api.takussan.com');
-    expect(origineMedia()).toBe('https://media.takussan.com');
-    expect(origineSite()).toBe('https://www.takussan.com');
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://ignore-site.takussan.test');
+    expect(origineApi()).toBe('http://localhost:8002');
+    expect(origineMedia()).toBeUndefined();
+    expect(origineSite()).toBe(ORIGINE_PRODUCTION);
   });
 
   it('retire le suffixe /api et la barre finale, comme les constantes qu’il remplace', () => {
@@ -75,7 +65,7 @@ describe('côté serveur', () => {
   });
 
   it('sans rien : le défaut de développement pour l’API, rien pour les médias, la production pour le site', () => {
-    for (const cle of ['API_URL', 'NEXT_PUBLIC_API_URL', 'MEDIA_URL', 'NEXT_PUBLIC_MEDIA_URL', 'SITE_URL', 'NEXT_PUBLIC_SITE_URL', 'VERCEL_ENV', 'VERCEL_URL']) {
+    for (const cle of ['API_URL', 'MEDIA_URL', 'SITE_URL']) {
       vi.stubEnv(cle, '');
     }
     expect(origineApi()).toBe('http://localhost:8002');
@@ -91,7 +81,6 @@ describe('côté serveur', () => {
 
 describe('côté navigateur', () => {
   it('lit la configuration que le layout a écrite, et non process.env', () => {
-    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://localhost:8002');
     vi.stubEnv('API_URL', 'https://ignore.takussan.test');
     vi.stubGlobal('window', {
       __TAKUSSAN_CONFIG__: { apiUrl: 'https://preview.api.takussan.com', mediaUrl: 'https://media-preview.takussan.com' },
@@ -101,16 +90,15 @@ describe('côté navigateur', () => {
   });
 
   it('une mediaUrl vide vaut absence : le loader rend alors l’image source', () => {
-    vi.stubEnv('NEXT_PUBLIC_MEDIA_URL', '');
     vi.stubGlobal('window', { __TAKUSSAN_CONFIG__: { apiUrl: 'https://api.takussan.com', mediaUrl: '' } });
     expect(origineMedia()).toBeUndefined();
   });
 
-  it('sans configuration écrite, retombe sur NEXT_PUBLIC_* (inlinée par Vercel), jamais sur API_URL', () => {
+  it('sans configuration écrite, retombe sur le défaut — jamais sur API_URL ni sur une NEXT_PUBLIC_*', () => {
     vi.stubEnv('API_URL', 'https://serveur-seulement.takussan.test');
-    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.takussan.com');
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://ignore.takussan.test');
     vi.stubGlobal('window', {});
-    expect(origineApi()).toBe('https://api.takussan.com');
+    expect(origineApi()).toBe('http://localhost:8002');
   });
 });
 

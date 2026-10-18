@@ -23,8 +23,8 @@
 | `api.takussan.com` — **le nom que le front public appelle** | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Depuis `www.takussan.com`, l'appel **échoue sur la poignée de main TLS**, plus sur un 404 : même effet pour l'utilisateur (TCK-332, D-04). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
 
 La production s'ajoute à ce tableau en phase F du plan. **D'ici là, il n'y a pas de site public** :
-Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md),
-[relevé historique](frontend-deploiement.md)), a été supprimé avant la bascule.
+Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md)),
+a été supprimé avant la bascule.
 
 | Constat | Relevé le 2026-10-18 |
 |---|---|
@@ -33,10 +33,9 @@ Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-fr
 | environnements GitHub de Vercel | `Production` et `Preview` supprimés le 2026-10-18 (le second par AC6 de TCK-832) ; leurs déploiements restent dans l'historique. `gh api repos/thiambara/takussan/environments -q .total_count` → `0` |
 | application GitHub Vercel sur le dépôt | *non mesuré* : le jeton de `gh` ne liste pas les installations. À vérifier dans *Settings → GitHub Apps* |
 
-⚠ **`next.config.ts` porte encore une condition pour Vercel** : `output: 'standalone'`, dont l'image a
-besoin, cassait l'adaptateur de Vercel (`ENOENT … .next/next-server.js.nft.json`, mesuré le
-2026-09-13) ; il n'est donc actif que hors de Vercel (`VERCEL=1` au build). Plus aucune branche ne
-passe par Vercel : la condition est du code mort, retiré par TCK-842.
+Le code, les gardes et les textes légaux ne citent plus Vercel depuis TCK-842 : plus de repli
+`NEXT_PUBLIC_*`, `output: 'standalone'` et le loader de Cloudflare inconditionnels au build, plus
+de `@vercel/analytics`, plus d'origine `*.vercel.app` admise par le CORS de l'API.
 
 ## Ce que le dépôt porte
 

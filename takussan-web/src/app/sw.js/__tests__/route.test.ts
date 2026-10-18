@@ -22,13 +22,12 @@ describe('/sw.js', () => {
     expect(script).toContain('Internet bi dagg na');
   });
 
-  it('la version vient de BUILD_SHA, puis du commit Vercel, puis de BUILD_ID', () => {
+  it('la version vient de BUILD_SHA, puis de BUILD_ID', () => {
     const racine = mkdtempSync(path.join(tmpdir(), 'sw-'));
     mkdirSync(path.join(racine, '.next'));
     writeFileSync(path.join(racine, '.next', 'BUILD_ID'), 'build-42\n');
 
     expect(versionDuDeploiement({ BUILD_SHA: 'abc123' }, racine)).toBe('abc123');
-    expect(versionDuDeploiement({ BUILD_SHA: 'inconnu', VERCEL_GIT_COMMIT_SHA: 'def' }, racine)).toBe('def');
     expect(versionDuDeploiement({ BUILD_SHA: 'inconnu' }, racine)).toBe('build-42');
     expect(versionDuDeploiement({}, path.join(racine, 'absent'))).toBe('dev');
   });

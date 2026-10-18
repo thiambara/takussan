@@ -99,7 +99,7 @@ Seuls les membres habilités de notre équipe accèdent à vos données, dans la
 
 Nous faisons appel à des prestataires qui traitent des données pour notre compte, sur nos instructions et sous obligation de confidentialité :
 
-- **Hébergement et infrastructure** : ${HEBERGEURS.serveurs.nom} (Allemagne) — serveurs de l’application, de la base de données et des fichiers ; ${HEBERGEURS.reseau.nom} (États-Unis) — réseau de diffusion, protection contre les attaques et stockage des sauvegardes chiffrées ; ${HEBERGEURS.siteVercel.nom} (États-Unis) — diffusion du site public et mesure d’audience agrégée.
+- **Hébergement et infrastructure** : ${HEBERGEURS.serveurs.nom} (Allemagne) — serveurs de l’application, de la base de données et des fichiers ; ${HEBERGEURS.reseau.nom} (États-Unis) — réseau de diffusion, protection contre les attaques et stockage des sauvegardes chiffrées.
 - **Courriel transactionnel** : Resend (États-Unis).
 - **SMS** : Orange, LAfricaMobile et Mtarget, selon l’opérateur de votre numéro.
 - **WhatsApp** : Meta Platforms (WhatsApp Business), uniquement si vous avez activé ce canal.
@@ -157,7 +157,7 @@ Nous n’utilisons **aucun cookie publicitaire ni de traceur de réseau social**
 - **NEXT_LOCALE** — mémoriser votre langue (1 an) ;
 - **stockage local du navigateur** — biens consultés récemment, favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures).
 
-La mesure d’audience de Vercel fonctionne sans cookie et ne produit que des statistiques agrégées. Vous pouvez effacer ces éléments à tout moment depuis les réglages de votre navigateur ; certaines fonctions, dont la connexion, ne fonctionneront alors plus.
+Vous pouvez effacer ces éléments à tout moment depuis les réglages de votre navigateur ; certaines fonctions, dont la connexion, ne fonctionneront alors plus.
 
 # 9. Vos droits
 
@@ -273,7 +273,7 @@ Only authorised team members access your data, as far as their tasks require (ve
 
 We use providers that process data on our behalf, on our instructions and under confidentiality obligations:
 
-- **Hosting and infrastructure**: ${HEBERGEURS.serveurs.nom} (Germany) — application, database and file servers; ${HEBERGEURS.reseau.nom} (United States) — content delivery, attack protection and storage of encrypted backups; ${HEBERGEURS.siteVercel.nom} (United States) — delivery of the public website and aggregated audience measurement.
+- **Hosting and infrastructure**: ${HEBERGEURS.serveurs.nom} (Germany) — application, database and file servers; ${HEBERGEURS.reseau.nom} (United States) — content delivery, attack protection and storage of encrypted backups.
 - **Transactional email**: Resend (United States).
 - **SMS**: Orange, LAfricaMobile and Mtarget, depending on your number’s operator.
 - **WhatsApp**: Meta Platforms (WhatsApp Business), only if you enabled this channel.
@@ -321,7 +321,7 @@ We use **no advertising cookies or social-network trackers**. Items stored on yo
 - **NEXT_LOCALE** — remembers your language (1 year);
 - **browser local storage** — recently viewed properties, offline favourites and comparison list, last payment method chosen, approximate location (24 hours).
 
-Vercel’s audience measurement works without cookies and produces aggregated statistics only. You can clear these items at any time in your browser settings; some features, including staying signed in, will then stop working.
+You can clear these items at any time in your browser settings; some features, including staying signed in, will then stop working.
 
 # 9. Your rights
 
