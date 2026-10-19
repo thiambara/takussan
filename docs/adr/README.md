@@ -61,7 +61,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0033](0033-le-telephone-verifie-est-un-identifiant-de-connexion.md) | Le numéro de téléphone vérifié est un identifiant de connexion, à côté de l'e-mail ; derrière un drapeau, allumé par environnement après un envoi réel | Accepté |
 | [0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md) | L'agenda sort de la plateforme par un lien secret, haché, révocable, propre à une agence | Accepté |
 | [0035](0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) | L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit | Accepté |
-| [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 |
+| [0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) | L'agent responsable d'un bien est son collaborateur `agent` principal, jamais son propriétaire | Accepté — appliqué à la fusion de TCK-504 ; amendé le 2026-10-19 (le bien passe au bailleur : invitation acceptée, « changer le titulaire ») |
 | [0037](0037-plafond-de-travaux-du-bailleur.md) | Le plafond de travaux du bailleur vit sur son profil d'agence ; au-delà, le bailleur tranche (`awaiting_owner`) | Accepté |
 | [0038](0038-note-vocale-dans-la-messagerie.md) | La note vocale est un message `audio` portant un fichier privé — ≤ 60 s déclarées, ≤ 2 Mo appliqués | Accepté |
 | [0039](0039-les-sorties-d-argent.md) | Les sorties d'argent : brut calculé, bénéficiaire explicite, quatre yeux, décaissement manuel tracé, factures numérotées à l'émission | Accepté |
