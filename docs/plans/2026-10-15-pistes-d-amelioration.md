@@ -5459,7 +5459,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `scout:sync-index-settings` sort en 0 quand Meilisearch refuse : l'arrêt du déploiement de TCK-710 ne se déclenche jamais
 - Réf : P52.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` et `dev.sh`, et fait échouer des déploiements qui passent aujourd'hui
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76`, `takussan-api/docker/release.sh:31-36`, `scripts/test-release-reindex.sh:37-42,94-96`, `dev.sh:774`
 - Constat :
@@ -5471,10 +5471,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - `dev.sh:774` a la même dépendance : son `avert` ne s'affiche jamais, et `>/dev/null 2>&1` cache aussi le message (lu).
   - Établi comment : lu, et mesuré par un test temporaire.
 - Piste : une commande du dépôt (`search:sync-index-settings`, ou une surcharge de `scout:sync-index-settings` enregistrée par l'application) qui appelle le même moteur et sort en `FAILURE` sur toute exception, index par index, et que `release.sh` et `dev.sh` appellent. Un test Feature qui simule un moteur qui lève et exige un code non nul : rouge sur la commande Scout telle quelle.
+- Mesure (2026-10-19, 919403c6e, mesureur) : relu `vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76` (Scout v11.3.0 : boucle dans le `try`, `catch (Exception)` → `$this->error()` seul, aucun code rendu), `release.sh:31-36`, `test-release-reindex.sh:37-42,94-98` (talon `php` qui sort en 1) et `dev.sh:774` ; `grep -rn 'scout:sync\|SyncIndexSettings' app bootstrap routes` → aucune surcharge ; test temporaire retiré ensuite (`MeilisearchEngine` simulé dont `updateIndexSettings()` lève `RuntimeException('injoignable')`, `Artisan::call('scout:sync-index-settings')`, charge 1,37 sur 8 cœurs) → `EXIT=0`, sortie `injoignable` : le constat tient ; aucun ticket ni commit ne le traite (TCK-710 a posé la branche de `release.sh`, pas le code de sortie). Classement : V5, l'attendu est écrit par TCK-710 (A1), mais le correctif touche `docker/release.sh` et `dev.sh` et change l'issue des déploiements de préproduction.
 
 ### Le déploiement n'attend ni ne lit l'issue des tâches Meilisearch : un réglage ou un document refusé passe sans trace
 - Réf : P52.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : attente des tâches et relecture des réglages dans `release.sh` et `smoke-api.sh`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:408-417`, `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/docker/release.sh:47-58`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:117-130`
 - Constat :
@@ -5483,10 +5484,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - La suite attend les tâches en cours (`MeilisearchBarrier`, l. 117-130) mais n'en lit pas le statut. Aucun test ne compare les réglages déclarés à ceux de l'index : `SearchIdCapIndexSettingsTest` ne lit que `pagination` (lu).
   - Ni `smoke-api.sh` ni `images.yml` ne relisent les réglages après déploiement. Seule l'empreinte `.search-shape` est vérifiée (lu, `smoke-api.sh:46`).
 - Piste : après la synchronisation, attendre les tâches rendues et faire échouer `release` sur un statut `failed`. Puis relire `GET /indexes/<index>/settings` et comparer `filterableAttributes`, `sortableAttributes` et `pagination` à `config/scout.php`. Un test Feature qui fait cette comparaison sur l'index de test, et un `smoke-api.sh pile` qui la rejoue.
+- Mesure (2026-10-19, 919403c6e, mesureur) : relu `MeilisearchEngine::updateIndexSettings()` (l. 408-417, la tâche rendue par `updateSettings()` est ignorée), `Indexes::updateSettings()` (l. 249-251, `PATCH …/settings`), `MeilisearchEngine::update()` (l. 83, `addDocuments` sans attente), `release.sh:47-58` ; `grep -rn waitForTask app docker deploy scripts config` → aucun résultat ; `grep -rn 'getSettings()\|getFilterableAttributes\|getSortableAttributes' tests app` → aucun résultat, `SearchIdCapIndexSettingsTest` ne lit que `getPagination()['maxTotalHits']` ; `smoke-api.sh:46-47` ne vérifie que `.search-shape` → le constat tient à la lecture ; l'échec différé d'une tâche reste déduit de la sémantique de Meilisearch, non joué. Classement : V5, le correctif vit dans `docker/release.sh` et `deploy/takussan/smoke-api.sh` ; seul le test Feature de comparaison relèverait de A5.
 
 ### Une perte du volume de Meilisearch n'est rattrapée par aucun déploiement
 - Réf : P52.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : sonde de l'index au `release` ou procédure du runbook de déploiement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:42-45`, `deploy/server/compose.data.yml:19-31`, `docs/infra/hebergement.md:371-374`
 - Constat :
@@ -5494,13 +5496,15 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - La synchronisation des réglages recrée alors sans doute des index vides : Meilisearch crée l'index à la mise à jour de ses réglages (déduit, à vérifier). La recherche publique et les listes `filter[search]` rendraient zéro résultat, sans erreur.
   - Le runbook traite le cas inverse, une base restaurée sous un Meilisearch intact (`hebergement.md:371-374`, supprimer le marqueur). Rien n'est écrit pour une perte ou une montée de version de Meilisearch : `grep -i meili docs/infra/hebergement.md` ne rend que l'inventaire et la clé (mesuré).
 - Piste : au `release`, compter les documents de l'index `Property` (`GET /indexes/<prefix>properties/stats`). Un index vide ou absent face à une table non vide invalide le marqueur et force l'importation. À défaut, écrire la procédure dans le runbook. `test-release-reindex.sh` peut simuler les deux cas.
+- Mesure (2026-10-19, 919403c6e, mesureur) : relu `release.sh:42-45` (seul le marqueur du volume `storage` décide de l'importation), `deploy/takussan/compose.api.yml:36` (`storage:/app/storage/app`), `deploy/server/compose.data.yml:19-31` (volume `meili` du Compose du serveur) et `hebergement.md:371-374` (le seul cas d'une base restaurée) ; `grep -n -i meili docs/infra/hebergement.md` → l'inventaire (l. 47, 91) et la clé (l. 167), aucune procédure de perte ; `grep -rln search-shape-importee docs/backlog/tickets` → TCK-883 seulement, qui ne cite le marqueur que pour la restauration de la base → le constat tient ; la recréation d'un index vide par la synchronisation des réglages reste déduite, non jouée (la garde interdit d'écrire dans le Meilisearch local). Classement : V5, les deux options de la piste touchent `docker/release.sh` ou le runbook de déploiement, et le choix entre elles revient au porteur.
 
 ### Petites améliorations
 - Réf : P52.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V5 : `resetSettings()` au déploiement touche `release.sh` ; la partie `SCOUT_PREFIX` est inexacte
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/config/scout.php:156-300`, `docs/infra/hebergement.md:167`
 - Constat :
   - Les réglages partent en `PATCH`. Un réglage retiré entièrement de `config/scout.php` (une clé comme `typoTolerance` ou `pagination`) garde son ancienne valeur dans un index déployé, quand un index neuf (local, test) prend le défaut. Préproduction et poste divergent alors sans signe (lu ; sémantique de Meilisearch déduite, à vérifier).
   - La clé de préproduction est bornée aux index `preview_*` (plan d'auto-hébergement, étape 6). La valeur réelle de `SCOUT_PREFIX` n'est relevée nulle part dans le dépôt : `hebergement.md:167` ne cite que la clé (lu). Un préfixe d'une autre forme rendrait chaque appel en 403, avalé par P52.01.
 - Piste : `resetSettings()` puis `updateSettings()`, tâches attendues, ou comparer la totalité des réglages (P52.02). Relever `SCOUT_PREFIX` avec les autres valeurs non secrètes du relevé de préproduction.
+- Mesure (2026-10-19, 919403c6e, mesureur) : relu `Indexes::updateSettings()` (l. 249-251, `PATCH`, `resetSettings()` existe l. 254) → la première partie tient à la lecture, la sémantique « clé omise = valeur gardée » restant déduite ; pour la seconde, `grep -n SCOUT_PREFIX docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md` → `preview_` (l. 3529) et `prod_` (l. 4159) : la valeur attendue est écrite dans le dépôt, contrairement au constat ; ce qui manque est un relevé mesuré, `hebergement.md:167` ne citant que la clé. Classement : V5, la remise à zéro des réglages se joue dans `docker/release.sh` et le relevé de `SCOUT_PREFIX` se lit en préproduction, hors poste.
