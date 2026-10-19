@@ -5892,7 +5892,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, un envoi OTP par `SmsDriverInterface` au `phone` du compte et une tentative sans notification à son `secondary_phone`, puis `executeDeletion()` → 2 tentatives portent encore ces numéros → `anonymize()` relève les deux numéros avant le `forceFill` et met `to` à `null` sur les tentatives sans notification qui les visent ; `AccountDeletionExecuteTest::test_execute_efface_le_numero_des_tentatives_sans_notification` vert (une tentative à un autre numéro garde son `to`), ablation du filtre → rouge, 9 verts sur la classe.
 ### Une visite demandée en étant connecté recopie le nom, l'e-mail et le téléphone du compte, que l'effacement ne touche pas
 - Réf : P57.02
-- Statut : validé — dissocier comme pour `customers` : `visitor_id` à `null`, le nom, l'e-mail et le téléphone de la visite gardés par l'agence ; un test : après `executeDeletion()`, la visite ne désigne plus le compte (porteur, 2026-10-19)
+- Statut : fait · TCK-1014
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:841-850`, `takussan-api/database/migrations/2026_04_17_160015_create_property_visits_table.php:15-19`, `takussan-api/app/Http/Resources/PropertyVisitResource.php:27-29`, `takussan-api/app/Services/Account/AccountDeletionService.php:249-250`
 - Constat :
@@ -5904,6 +5904,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Piste : décider entre deux options et l'écrire : dissocier comme pour `customers` (`visitor_id` à `null`, le contact gardé par l'agence), ou effacer les trois champs des visites du compte. Dans les deux cas, un test : après `executeDeletion()`, la visite ne désigne plus le compte. Ablation → rouge.
 
 - Mesure (2026-10-19, bc2d31e79, mesureur) : relu `PublicPropertyController` (l. 839-854 : `visitor_id`, et `visitor_name`/`visitor_email`/`visitor_phone` recopiés du compte à défaut de saisie) ; `grep -n visit AccountDeletionService.php` → rien ; test temporaire retiré : une visite au nom du compte puis `executeDeletion()` → `visitor_id`, nom, e-mail et téléphone inchangés. Classement : V3, la `Piste` laisse deux options (dissocier ou effacer) et ce que l'agence garde d'une visite passée est un choix de conservation.
+- Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, une visite `visitor_id` = le compte puis `executeDeletion()` → la visite désigne toujours le compte (1) → `anonymize()` met `visitor_id` à `null` sur les visites du compte, comme pour `customers` ; `AccountDeletionExecuteTest::test_execute_dissocie_les_visites_du_compte` vert (nom, e-mail et téléphone de la visite inchangés, visite d'un autre compte intacte), ablation → rouge, 10 verts sur la classe.
 ### Le jeton de réinitialisation du mot de passe garde l'e-mail d'origine, et la table n'est jamais purgée
 - Réf : P57.03
 - Statut : validé — supprimer à l'effacement les lignes de `password_reset_tokens` de l'adresse d'origine, relevée avant le `forceFill`, et planifier `auth:clear-resets` chaque jour dans `routes/console.php` ; deux tests (porteur, 2026-10-19)
