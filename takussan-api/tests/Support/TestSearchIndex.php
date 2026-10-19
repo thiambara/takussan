@@ -67,20 +67,28 @@ final class TestSearchIndex
         return self::$prefix ?? self::install();
     }
 
+    /** Vrai une fois la suppression des index de ce processus programmée. */
+    public static function cleanupIsRegistered(): bool
+    {
+        return self::$cleanupRegistered;
+    }
+
     /**
      * Programme la suppression des index de CE processus, et balaie au passage
      * ceux qu'une exécution tuée aurait laissés derrière elle.
      *
-     * Point d'accroche : `register_shutdown_function`, appelé une seule fois
-     * depuis `InteractsWithMeilisearch`. Le choix se justifie sur trois points.
-     *   1. C'est le seul endroit où l'on connaît l'hôte et la clé : ils
+     * Point d'accroche : `register_shutdown_function`, programmé une seule fois
+     * par processus depuis `Tests\TestCase::setUp()`. Le choix se justifie sur
+     * trois points.
+     *   1. C'est le premier endroit où l'on connaît l'hôte et la clé : ils
      *      viennent de `config('scout.meilisearch')`, donc d'une application
      *      Laravel bootée — ce que `tests/bootstrap.php` n'a pas encore.
-     *   2. Depuis que la synchronisation Scout est coupée par défaut
-     *      (cf. `Tests\TestCase`), les SEULS index créés le sont par des tests
-     *      portant ce concern : y accrocher le nettoyage le rend exhaustif.
-     *      Une exécution sans test de recherche ne crée rien, et n'a donc rien
-     *      à nettoyer.
+     *   2. ⚠ TCK-974 (P53.01) : la coupure de la synchronisation Scout
+     *      (cf. `Tests\TestCase`) ne retient que l'observateur de modèle. Un
+     *      `->searchable()` explicite de `app/` pousse quand même le document,
+     *      hors de tout test de recherche. Ce point était accroché au seul
+     *      `InteractsWithMeilisearch`, qu'on croyait seul à écrire : un
+     *      `PropertyTagsTest` lancé seul laissait son index derrière lui.
      *   3. `register_shutdown_function` couvre la fin normale ET l'erreur
      *      fatale, ce qu'une extension PHPUnit (`ApplicationFinished`) ne fait
      *      pas. Il ne couvre PAS `SIGKILL` ni un `Ctrl-C` — d'où le balayage
