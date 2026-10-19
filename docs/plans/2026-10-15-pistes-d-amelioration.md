@@ -5228,7 +5228,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le brouillon du formulaire de passage garde le RIB professionnel et le NINEA en clair, jusqu'à 90 jours
 - Réf : P49.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que le brouillon conserve d'un RIB et d'un NINEA, et retrait des brouillons existants
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/agency/UpgradeRequestForm.tsx:93-101`, `takussan-web/src/lib/agency-upgrade-brouillon.ts:33-40`, `takussan-api/app/Models/WizardDraft.php:29`, `takussan-api/app/Http/Requests/UpsertWizardDraftRequest.php:45-48`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:21-37`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:43-46`
 - Constat :
@@ -5238,10 +5238,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - ADR-0044 § 1 chiffre `agency_upgrade_requests.ninea` et `rib_pro`, et écrit que « tout RIB stocké ailleurs […] suit la même forme » (lu). Une demande abandonnée, ou refusée puis jamais renvoyée, laisse donc en clair ce que la demande envoyée chiffre.
   - Établi comment : lu et mesuré.
 - Piste : ne pas mettre `rib_pro` (ni `ninea`) dans le brouillon du formulaire, comme le fichier des statuts n'y est déjà pas ; retirer les brouillons `agency-upgrade-*` existants qui les portent. Garde : un test du formulaire qui vérifie que le corps du `PUT` ne contient pas `rib_pro`.
+- Mesure (2026-10-19, b9479987b, mesureur) : relu `UpgradeRequestForm.tsx:93-96` (`useAutosaveBrouillon` reçoit `data: form`), `agency-upgrade-brouillon.ts:33-40` (`rib_pro`, `ninea` dans le formulaire et `CHAMPS_TEXTE`), `WizardDraft.php:29` (cast `array`), `UpsertWizardDraftRequest.php:47` (`data` : tout tableau) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : `PUT /api/me/wizard-drafts/agency-upgrade-42` avec `rib_pro` et `ninea`, puis `DB::table('wizard_drafts')->value('data')` → `{"ninea": "005012345", "rib_pro": "SN012 01001 000123456789 12"}`, en clair ; `git log` des fichiers cités et `grep` des tickets : aucun correctif → le constat tient. Classement : V3, le correctif décide de ce qu'on conserve d'un RIB (ne plus l'écrire, ou chiffrer le brouillon), et retirer les brouillons existants supprime des données (V4) ; ADR-0044 § 1 donne la forme attendue d'un RIB stocké, pas le choix entre les deux voies.
 
 ### Après le passage, les reversements de la plateforme à l'agence sont refusés tant qu'un dossier KYC distinct n'est pas vérifié
 - Réf : P49.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : reversements gelés après le passage, trois chemins possibles
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:116-120`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:82-115`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:20,133-139`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:179-191`, `takussan-api/lang/fr/agency_upgrade.php:32`
 - Constat :
@@ -5251,10 +5252,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - La notification d'approbation dit seulement « Votre agence est désormais en mode professionnel » (lu) : rien n'avertit l'hôte, ni le super-admin qui approuve, que l'argent déjà clôturé est gelé jusqu'au KYC.
   - Établi comment : lu et mesuré. Le nombre d'agences concernées n'a pas été mesuré.
 - Piste : décider, au passage, de l'un de trois chemins : exiger un KYC vérifié avant d'approuver la demande, faire de la revue de la demande la vérification (et alimenter le dossier), ou au moins le dire dans la revue et dans la notification. Garde : un test de bout en bout bascule → approbation d'un reversement, qui écrit le comportement choisi.
+- Mesure (2026-10-19, b9479987b, mesureur) : relu `PlatformPayoutService.php:113-117` (`platform_payout.agency_unverified` pour une `standard` non vérifiée), `AgencyKindFlipService::flip` (ne pose ni `is_verified` ni `verified_at`) et `KycWorkflowService.php:134-139` (seul écrivain de `is_verified` sur une agence) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : agence `individual` non vérifiée, `PlatformPayout` créé, demande approuvée (`200`), puis `POST /api/admin/payouts/{id}/approve` → `kind=standard`, `is_verified=false`, `422 platform_payout.agency_unverified` → le constat tient. Classement : V1, la piste touche l'approbation d'un reversement et propose trois chemins entre lesquels seul le porteur peut choisir (V7).
 
 ### Après le passage, « Publier » et l'assistant hôte recréent un second espace individuel
 - Réf : P49.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un espace personnel est-il possible après le passage
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:66-76,149-160,232-238`, `takussan-api/routes/api/onboarding.php:24,29`, `takussan-web/src/hooks/usePublishIntent.ts:92`
 - Constat :
@@ -5263,10 +5265,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le front ne déclenche pas ce chemin de lui-même : `usePublishIntent` ne rend `host-needed` qu'à un compte sans aucun espace (lu). Les deux routes restent appelables, et l'assistant `/onboarding/host` aussi (à vérifier : sa garde côté front n'a pas été lue).
   - Établi comment : lu et mesuré. Si un professionnel peut garder en plus un espace personnel n'est écrit nulle part (`docs/features.md:396,432` n'en dit rien).
 - Piste : trancher si l'espace personnel reste possible après le passage ; sinon, juger l'invariant sur `primary_admin_id` seul, ou sur l'historique `agency_kind_flipped`. Garde : un test « bascule puis auto-onboard » qui écrit la réponse retenue.
+- Mesure (2026-10-19, b9479987b, mesureur) : relu `HostIndividualOnboardingService.php` (`userAlreadyHasIndividualAgency` et `autoOnboard` filtrent sur `kind = individual`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : `POST /api/host/individual/auto-onboard` → `201`, approbation de la demande → `200`, même appel → `201`, `created: true`, et les agences dont le compte est `primary_admin_id` sont `["standard","individual"]` → le constat tient. La garde de `/onboarding/host` côté front n'a pas été lue non plus. Classement : V7, la piste demande d'abord de trancher si un professionnel garde droit à un espace personnel, ce que `docs/features.md` n'écrit pas.
 
 ### L'agence passée en professionnelle garde le nom et l'URL publique « Espace de {prénom} », et son slug ne peut plus changer
 - Réf : P49.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : nom et adresse publique de l'agence après le passage
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:199-207,270,333-347`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:61-66,94-105`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:47-50`, `takussan-api/routes/api/public.php:226-229`, `takussan-web/src/lib/espaces.ts:88-91`
 - Constat :
@@ -5275,10 +5278,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le slug est l'URL de la fiche publique (`/api/public/agencies/{slug}`, lu), et le front le cache tant que l'agence est `individual` parce qu'il « n'apporte rien sous le nom d'un particulier » (lu, `espaces.ts:80-91`). Après la bascule, il s'affiche et reste l'adresse publique de l'agence, prénom compris.
   - Établi comment : lu, et slug initial mesuré.
 - Piste : à la bascule, proposer ou poser un slug tiré de `company_legal_name` (avec redirection de l'ancien), ou ouvrir le slug à l'édition une fois. Garde : un test de la bascule qui écrit ce que deviennent le nom et le slug.
+- Mesure (2026-10-19, b9479987b, mesureur) : relu `AgencyKindFlipService::flip` (ne recopie que les colonnes légales) et `uniqueSlug` ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : espace créé par auto-onboard → `name=Espace de Awa`, `slug=espace-de-awa` ; après approbation → mêmes `name` et `slug`, `legal_name` posé ; `PATCH /api/agencies/{id}` avec `slug` et `name` → `200`, `name` changé, `slug` inchangé → le constat tient. Classement : V7, la piste propose plusieurs options (slug posé à la bascule avec redirection, ou édition unique) et change une URL publique visible.
 
 ### Petites améliorations du passage
 - Réf : P49.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : refuser l'approbation d'une agence non active
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:42-57,144-153`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:68-80`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:86-100`
 - Constat :
@@ -5286,3 +5290,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Les statuts joints à la demande restent un `Document` de l'`AgencyUpgradeRequest` (`type = other`, `is_verified = false`) : la bascule ne les rattache ni à l'agence ni à un dossier KYC, où ils devront être téléversés à nouveau (lu ; voir P49.02).
   - Établi comment : lu.
 - Piste : refuser l'approbation d'une agence non `active` (comme `PlatformPayoutService` le fait pour l'argent) ; réutiliser la pièce de la demande dans le dossier KYC si P49.02 retient ce chemin.
+- Mesure (2026-10-19, b9479987b, mesureur) : relu `AgencyUpgradeReviewService::approve` (seul `assertPending`) et `AgencyKindFlipService::flip` (ne lit pas `status`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : agence `individual` `suspended`, demande approuvée → `200`, puis `kind=standard`, `status=suspended` → le premier point, « non mesuré » dans le constat, tient. Le second point (pièce de la demande non rattachée au dossier KYC) dépend du chemin choisi en P49.02. Classement : V7, refuser l'approbation d'une agence suspendue est une règle neuve que rien n'écrit pour la revue de passage, et le second point suit un choix du porteur.
