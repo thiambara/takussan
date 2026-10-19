@@ -245,7 +245,7 @@ réglages d'index (`searchableAttributes`, `filterableAttributes`,
 `sortableAttributes`, `rankingRules`) sont définis dans `config/scout.php`.
 
 ```bash
-php artisan scout:sync-index-settings           # pousse les réglages d'index
+php artisan search:sync-index-settings          # applique les réglages d'index, attend, relit (TCK-995)
 php artisan scout:import "App\Models\Property"  # peuple un index (1ère fois)
 php artisan scout:import "App\Models\Document"
 php artisan scout:import "App\Models\Message"
@@ -256,16 +256,22 @@ php artisan scout:import "App\Models\Agency"
 php artisan scout:import "App\Models\User"
 ```
 
-- `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
+- `search:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par le service `release` (`takussan-api/docker/release.sh`, ADR-0028) quand
   `SCOUT_DRIVER=meilisearch`. **Son échec arrête le déploiement** : `release` sort en erreur et
   les services ne démarrent pas (TCK-710), car des réglages périmés font échouer la recherche
-  publique au lieu de la dégrader.
+  publique au lieu de la dégrader. Il remplace `scout:sync-index-settings` (TCK-995), qui sortait
+  en 0 sur tout refus de Meilisearch : il attend la tâche de chaque index, relit les réglages
+  appliqués et les compare à `config/scout.php`, et remet à son défaut un réglage que la
+  configuration ne déclare plus.
 - `scout:import` est lancé **par le même service**, pour tous les modèles indexés, quand
   l'empreinte `.search-shape` de l'image — la forme des documents : `config/scout.php`, les
   modèles qui déclarent `toSearchableArray()`, `app/Support/Search/`, `lang/fr/properties.php` —
   diffère de celle de la dernière importation RÉUSSIE, gardée dans le volume `storage`. Un
-  premier déploiement n'a pas de marqueur : il importe tout.
+  premier déploiement n'a pas de marqueur : il importe tout. Depuis TCK-995, il importe aussi
+  quand un index est vide face à une table non vide (`search:verify-indexes --documents` : un
+  Meilisearch perdu ou recréé), et le marqueur ne s'écrit que si les tâches d'importation ont
+  réussi (`search:verify-indexes --depuis=…`).
 
 > ⚠️ **Cette page a porté « le déploiement ne lance AUCUN `scout:import` »**, du temps de
 > `scripts/deploy.sh` : un déploiement créait les index, les paramétrait — et les laissait

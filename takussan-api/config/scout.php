@@ -220,7 +220,7 @@ return [
                 // Sans ce réglage, `sort=distance` produit une erreur moteur
                 // (`invalid_search_sort`, HTTP 400 → 500 côté API), pas un tri
                 // dégradé : c'est un prérequis DUR, et il exige un
-                // `scout:sync-index-settings` au déploiement.
+                // `search:sync-index-settings` au déploiement (TCK-995).
                 // TCK-633 lot F (ADR-0061 §7) — `ranked_at` : l'ordre organique sans mot. `featured`
                 // reste triable pour les appelants existants, mais plus aucun tri par défaut ne le lit.
                 'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', 'ranked_at', '_geo'],

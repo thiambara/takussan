@@ -49,8 +49,13 @@ trait InteractsWithMeilisearch
             $model::enableSearchSyncing();
         }
 
+        // TCK-995 — la commande du déploiement, qui sort en échec sur tout refus et relit les
+        // réglages appliqués : celle de Scout sortait en 0, et la suite tournait alors sur des
+        // index mal réglés en accusant le code.
         if (! self::$meilisearchSettingsSynced) {
-            Artisan::call('scout:sync-index-settings');
+            if (Artisan::call('search:sync-index-settings') !== 0) {
+                throw new \RuntimeException("search:sync-index-settings a échoué :\n".Artisan::output());
+            }
             self::$meilisearchSettingsSynced = true;
         }
 
