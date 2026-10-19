@@ -122,7 +122,7 @@ voie d'écriture (angle 13, puis 47).
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | fait |
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | fait |
 | 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | fait |
-| 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | à faire |
+| 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | fait |
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | à faire |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
@@ -158,6 +158,7 @@ voie d'écriture (angle 13, puis 47).
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
+| 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
 
 ---
 
@@ -5299,3 +5300,55 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : refuser l'approbation d'une agence non `active` (comme `PlatformPayoutService` le fait pour l'argent) ; réutiliser la pièce de la demande dans le dossier KYC si P49.02 retient ce chemin.
 - Mesure (2026-10-19, b9479987b, mesureur) : relu `AgencyUpgradeReviewService::approve` (seul `assertPending`) et `AgencyKindFlipService::flip` (ne lit pas `status`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : agence `individual` `suspended`, demande approuvée → `200`, puis `kind=standard`, `status=suspended` → le premier point, « non mesuré » dans le constat, tient. Le second point (pièce de la demande non rattachée au dossier KYC) dépend du chemin choisi en P49.02. Classement : V7, refuser l'approbation d'une agence suspendue est une règle neuve que rien n'écrit pour la revue de passage, et le second point suit un choix du porteur.
 - Mesure (2026-10-19, 078167cf2, delegue) : relu `AgencyUpgradeReviewService::approve` (seul `assertPending`), `AgencyUpgradeRequestService` (ne lit pas `agencies.status`), `PlatformPayoutService::approve` (gel d'une agence non active, ADR-0039 § 4) et ADR-0048 (une agence `suspended` ne s'écrit plus et ne reçoit plus de travail, mais une agence `inactive` garde son back-office « pour la mise en conformité ») → rien n'écrit la règle pour la revue d'un passage, et la piste (« non `active` ») va plus loin qu'ADR-0048 en bloquant aussi `inactive`. Recommandation : refuser en 422 l'approbation d'une demande dont l'agence est `suspended`, et elle seule, la demande restant `pending` jusqu'à la levée ou au refus par le super-admin, parce qu'ADR-0048 sépare précisément `suspended` (sanction) d'`inactive` (mise en conformité, que le passage peut servir) ; c'est une règle de modération neuve qui engage l'agence demandeuse (V7 non mineur), et le second point dépend du chemin que le porteur choisira en P49.02 ; manque : la décision du porteur sur `inactive`, et sur ce que devient la demande pendant la suspension.
+
+## Angle 50 — Le bailleur invité face aux biens dont l'agent est titulaire
+
+*Exploré le 2026-10-19 sur `pre-dev` d0c98c6ae, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : l'invitation du bailleur (`OwnerInvitationService`), le titulaire d'un bien (`PropertyController::store`, `PropertyDuplicationService`, `PropertyChildrenController`, `PropertyPolicy::view`), le bail (`LeaseService::create`), le relevé (`OwnerStatementPolicy`, `OwnerStatementRequest`, `SendOwnerStatements`), le reversement (`PayoutService::create`, `PayoutCalculator`), et côté front `PropertyForm.tsx`, `CreatePayoutDialog.tsx`, `PaymentsTabs.tsx`, `OwnerStatementPanel.tsx`. Comportements mesurés par deux tests temporaires (`tests/Feature/TmpExplorateur/SondeAngle50Test.php` et `SondeAngle50bTest.php`, base de test PostgreSQL, charge 1,75 sur 8 cœurs), retirés avant la fin ; les étapes de reversement ont été jouées avec les middlewares de second facteur retirés du test. Rien n'a été lu en base de développement. `docs/models-spec.md:549` écrit que le titulaire d'un bien d'agence est « aussi bien le membre du personnel qui l'a saisi » : ce qui suit décrit les effets de ce choix, pas un écart à la spec. Le bail qui désigne l'agent est déjà P15.06 ; le bail d'un agent parti, TCK-616.*
+
+### Le bailleur invité ne peut devenir titulaire d'aucun bien saisi par le personnel : ses biens, ses baux et son relevé restent vides
+- Réf : P50.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:58-67,134-138`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-api/routes/api/agencies.php:79-86`, `takussan-web/src/components/property-form/PropertyForm.tsx:3-11`
+- Constat :
+  - Un bien créé par le personnel a pour `user_id` son auteur, quel que soit le corps (lu, `:136`) ; aucune route ne change ce titulaire après coup (`bulk-assign` et `assigned-agent` changent l'agent responsable, lu). Le bail en hérite (`landlord_id = $property->user_id`, lu).
+  - Le bailleur ne lit que ce qui le désigne (ADR-0031 § 2) : la liste de ses biens filtre `user_id = moi` (lu, `:58-67`).
+  - mesuré : agence `standard`, un agent, un bailleur actif ; l'agent crée un bien (`POST /api/properties` → 201, `user_id` = l'agent), puis un bail en envoyant `landlord_id` = le bailleur → 201, `landlord_id` = l'agent en base. Pour le bailleur : `GET /api/properties` → `total = 0`, `GET /api/leases` → `total = 0`, `GET /api/properties/{id}` → 403. Le relevé du bailleur lu par l'admin → 200, `gross = 0`, alors qu'un loyer de 300 000 est payé sur ce bail.
+  - L'invitation d'un bailleur « depuis le form de création de bien » est annoncée par la route (lu, `agencies.php:80-81`), mais le formulaire ne la monte pas : son en-tête écrit que le sélecteur de propriétaire est « out of scope » de TCK-256 (lu, `PropertyForm.tsx:3-11`). La seule voie qui fait d'un bailleur invité un titulaire est qu'il propose lui-même le bien (`createsProposal`, lu).
+  - Établi comment : lu et mesuré. Combien d'agences gèrent ainsi des biens pour des bailleurs invités n'a pas été mesuré.
+- Piste : le sélecteur de bailleur de P15.06, posé à la création du bien et non du seul bail (il fixe aussi les relevés et les reversements, P50.02), borné aux bailleurs actifs de l'agence, avec l'invitation depuis le formulaire que `PropertyForm.tsx` prévoit. Garde : un test « l'agent saisit le bien de B → B le voit dans sa liste, le bail le désigne ».
+
+### Les loyers d'un bien dont l'agent est titulaire se reversent à l'agent, et aucun relevé de gérance ne les montre à personne
+- Réf : P50.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Policies/OwnerStatementPolicy.php:21-33`, `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:47-51`, `takussan-api/app/Services/Model/PayoutService.php:88-96,508-531`, `takussan-api/app/Services/Payout/PayoutCalculator.php:62,86,113`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:69-81,176-182`
+- Constat :
+  - Le reversement accepte comme bénéficiaire un agent ou un admin de l'agence, pas seulement un bailleur (lu, `PayoutService.php:88-96`) ; ses pièces doivent désigner ce bénéficiaire (`leases.landlord_id`, `properties.user_id`, lu `:508-531` et `PayoutCalculator`).
+  - Le relevé de gérance, lui, exige un `OwnerProfile` du bénéficiaire dans l'agence, pour le lecteur comme pour le personnel (lu, `OwnerStatementPolicy.php:23`), et l'avis mensuel saute tout `landlord_id` sans ce profil (lu, `SendOwnerStatements.php:49`).
+  - mesuré (même jeu que P50.01, loyer de septembre payé) : `GET /api/payouts/preparation?landlord_id=<agent>` par l'admin → 200, le loyer y figure ; `POST /api/payouts` vers l'agent → **201** ; le même loyer vers le bailleur → 422 « does not belong to this agency or this landlord ». Le relevé de l'agent → 403 pour l'admin comme pour l'agent lui-même ; `payouts:send-owner-statements --period=2026-09` → 0 avis à l'agent, 0 au bailleur.
+  - Le dialogue de reversement ne propose que les `OwnerProfile` actifs de l'agence (lu, `CreatePayoutDialog.tsx:69-81`, mesuré `GET /api/owners` → le seul bailleur) : depuis l'écran, ces loyers ne se reversent à personne ; par l'API, ils partent à l'agent sans relevé.
+  - Établi comment : lu et mesuré.
+- Piste : décider qui reçoit l'argent d'un bien saisi par le personnel. Si c'est un bailleur, P50.01 le désigne et le relevé suit. Si l'agence peut garder des biens en propre, aligner le relevé et l'avis sur la règle du reversement (même liste de profils). Garde : un test qui relie, pour un même bien, le bénéficiaire du reversement et le lecteur du relevé.
+
+### Dupliquer le bien d'un bailleur, ou rattacher un lot à son immeuble, fait du personnel le titulaire de la copie ou du lot
+- Réf : P50.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Property/PropertyDuplicationService.php:68`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:136,208-209`, `takussan-api/app/Http/Controllers/Api/PropertyChildrenController.php:19-29`, `takussan-api/app/Policies/PropertyPolicy.php:44-58`
+- Constat :
+  - La copie prend pour titulaire celui qui duplique (`$clone->user_id = $actor->id`, lu) ; un lot créé par le personnel puis rattaché par `parent_id` garde son auteur (lu, `PropertyController.php:136,208`).
+  - mesuré : le bailleur propose un bien (201) ; l'admin le duplique (`POST /api/properties/{id}/duplicate` → 201, `user_id` = l'admin) ; l'agent crée un lot, l'admin le rattache au bien du bailleur (`PUT /api/properties/{lot}` avec `parent_id` → 200, `user_id` = l'agent). Pour le bailleur : `GET /api/properties` → son seul bien d'origine ; `GET /api/properties/{bien}/children` → 200 et **rend le lot** ; `GET /api/properties/{lot}` → **403**.
+  - Les enfants se listent par la seule lecture du parent (lu, `PropertyChildrenController.php:21-23`), le lot par son titulaire (lu, `PropertyPolicy::view`) : le bailleur lit dans la liste un lot qu'il ne peut pas ouvrir, et tout bail sur ce lot désignerait l'agent (P15.06).
+  - Établi comment : lu et mesuré.
+- Piste : la copie et le lot rattaché héritent du titulaire de la source ou du parent, quand c'est un bailleur de l'agence. Garde : deux tests, duplication et rattachement, qui écrivent le titulaire attendu.
+
+### Petites améliorations du bailleur invité
+- Réf : P50.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-web/src/components/payments/PaymentsTabs.tsx:55,119`, `takussan-web/src/lib/queries/payments.ts:404-408`, `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:10-13,36-39`
+- Constat :
+  - L'API sert au personnel tenant `payouts.create` le relevé d'un bailleur (`landlord_id=`, lu, et test `OwnerStatementTest::test_ac5_another_landlord_…`), mais le front n'en a aucun écran : le panneau du relevé n'est monté que pour un bailleur (`estBailleur`, lu) et sa requête n'envoie jamais `landlord_id` (lu, `payments.ts:406-407`). L'agence ne voit pas ce que reçoit son bailleur avant de le reverser.
+  - Établi comment : lu.
+- Piste : ouvrir le relevé d'un bailleur depuis le dialogue de reversement ou le carnet des propriétaires, sur la route existante.
