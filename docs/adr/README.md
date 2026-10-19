@@ -50,7 +50,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0022](0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md) | Le dictionnaire i18n est découpé par groupe de routes, et une clé manquante lève | Accepté |
 | [0023](0023-recherche-geographique-par-distances-sans-postgis.md) | La recherche géographique traite des distances et des rectangles, jamais des géométries — pas de PostGIS | Accepté — amendé par ADR-0050 (chemin 3 : les alertes convergent) |
 | [0024](0024-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
-| [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté |
+| [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté — amendé le 2026-10-19 (le tri des noms de personne aussi) |
 | [0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) | La langue est un segment d'URL, toujours présent, et seulement sur la surface publique | Accepté ; § 3 amendé le 2026-10-17 (308 vers `/fr` à la phase F) |
 | [0027](0027-le-courtier-sort-de-la-surface-commutable.md) | Le courtier sort de la surface commutable, sans quitter la base | Remplacé par ADR-0030 |
 | [0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) | Les deux projets s'auto-hébergent en conteneurs sur le VPS, orchestrés par Dokploy ; Vercel et la chaîne bash sont retirés | Accepté — amendé le 2026-10-04 : CheckPrint Plus arrêté, le serveur ne porte plus que Takussan ; amendé par ADR-0069 (§ 3, 5, 6, 7) |
