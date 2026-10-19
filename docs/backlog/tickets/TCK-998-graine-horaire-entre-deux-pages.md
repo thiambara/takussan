@@ -31,7 +31,7 @@ pages 2 et 3 à hh+1:00 → 19 heures sur 24 donnent un doublon et un absent.
 
 ## Décision du porteur
 
-> la seconde voie : le front transmet aux pages suivantes l'heure de graine de la page 1, que l'API n'accepte que si elle vaut l'heure courante ou la précédente (sinon elle prend l'heure courante, comme aujourd'hui) ; ADR-0061 § 7 inchangé ; le test garde-fou des pages 1, 2 et 3 à hh:59 puis hh+1:00 (porteur, 2026-10-19, sur la recommandation du délégué)
+> la seconde voie : le front transmet aux pages suivantes l'heure de graine de la page 1, que l'API n'accepte que si elle vaut l'heure courante ou la précédente (sinon elle prend l'heure courante, comme aujourd'hui) ; ADR-0061 § 7 inchangé ; le test garde-fou des pages 1, 2 et 3 à hh:59 puis hh+1:00 (porteur, 2026-10-19, sur la recommandation du délégué) ; reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
 
 ## Reste à faire
 
