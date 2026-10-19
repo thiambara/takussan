@@ -43,6 +43,8 @@ interface CustomerDetailTabsProps {
   readonly notes: CustomerNote[];
   readonly documents: CustomerDocument[];
   readonly relationships: CustomerRelationship[];
+  /** TCK-955 — le geste « Afficher » du numéro de pièce, pour l'admin (cf. `CustomerForm`). */
+  readonly canRevealIdNumber?: boolean;
 }
 
 export function CustomerDetailTabs({
@@ -50,6 +52,7 @@ export function CustomerDetailTabs({
   notes,
   documents,
   relationships,
+  canRevealIdNumber = false,
 }: CustomerDetailTabsProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('crm.customerDetail.relationships');
@@ -78,7 +81,7 @@ export function CustomerDetailTabs({
       </div>
 
       <TabsContent value="overview" className="rounded-xl bg-card p-4 sm:p-6">
-        <CustomerForm mode="edit" customer={customer} compact />
+        <CustomerForm mode="edit" customer={customer} compact canRevealIdNumber={canRevealIdNumber} />
       </TabsContent>
 
       <TabsContent value="notes">

@@ -110,4 +110,15 @@ class CustomerPolicy extends BasePolicy
         return $this->isStaffOf($user, $customer->agency_id)
             && $user->can(Capability::CrmViewAll->value, $customer);
     }
+
+    /**
+     * TCK-955 (ADR-0070 § 5) — le numéro de pièce EN CLAIR : un profil d'admin dans l'agence du
+     * client, et lui seul. Pas une capacité : un rôle personnalisé la déléguerait à un agent. Un
+     * client sans agence n'a pas d'admin pour lecteur. Le super-admin passe par `Gate::before`
+     * (amendement d'ADR-0070 du 2026-10-19).
+     */
+    public function viewSensitive(User $user, Customer $customer): bool
+    {
+        return $customer->agency_id !== null && $user->isAgencyAdminAt((int) $customer->agency_id);
+    }
 }

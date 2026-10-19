@@ -113,6 +113,27 @@ export async function fetchDashboardCustomers(
   );
 }
 
+/**
+ * TCK-955 (ADR-0070 § 5) — le numéro de pièce EN CLAIR : admin de l'agence du client (et
+ * super-admin), sous step-up, consultation journalisée par l'API. Hors de React Query, comme
+ * `fetchOwnerSensitive` : la valeur ne vit que le temps de l'affichage.
+ */
+export type CustomerSensitiveData = {
+  readonly id: number;
+  readonly id_type: string | null;
+  readonly id_number: string | null;
+};
+
+export async function fetchCustomerSensitive(
+  token: string,
+  customerId: number,
+): Promise<ApiResponse<CustomerSensitiveData>> {
+  return apiRequest<ApiResponse<CustomerSensitiveData>>(
+    cheminApi`/api/customers/${customerId}/sensitive`,
+    { token },
+  );
+}
+
 export async function fetchDashboardCustomer(
   token: string,
   customerId: number,
