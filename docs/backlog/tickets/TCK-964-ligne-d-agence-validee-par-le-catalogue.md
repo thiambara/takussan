@@ -1,7 +1,7 @@
 ---
 id: TCK-964
 title: "Une ligne d'agence de `POST /api/settings` est validée par le catalogue, et les lecteurs bornent aux limites du catalogue"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
@@ -55,21 +55,21 @@ Une ligne d'agence ne s'écrit que pour une clé du catalogue, dans ses bornes ;
 
 ## Delta à produire
 
-- [ ] `StoreSettingRequest` : autorisation déplacée ; en portée `agency`, clé `rentals` exigée et
+- [x] `StoreSettingRequest` : autorisation déplacée ; en portée `agency`, clé `rentals` exigée et
   valeur validée par `rules`/`item_rules`.
-- [ ] `ScopedSetting::unwrap()` : le déballage partagé par le lecteur et la validation.
-- [ ] `EditablePlatformSettings::clamp()` ; `resolveMaxPct`, `resolvePenaltyMonths` et le plafond
+- [x] `ScopedSetting::unwrap()` : le déballage partagé par le lecteur et la validation.
+- [x] `EditablePlatformSettings::clamp()` ; `resolveMaxPct`, `resolvePenaltyMonths` et le plafond
   de `LateFeeCalculator` bornent.
-- [ ] `GenericSettingsCatalogueBypassTest::test_la_portee_agence_reste_ouverte` et `SettingTest`
+- [x] `GenericSettingsCatalogueBypassTest::test_la_portee_agence_reste_ouverte` et `SettingTest`
   suivent la décision.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — en admin d'agence, `rent_review_max_pct = 500`, `cap_percent = 1000`,
+- [x] AC1 — en admin d'agence, `rent_review_max_pct = 500`, `cap_percent = 1000`,
   `early_termination_penalty_months = 99`, `reminder_offsets_days = "abc"` → 422.
-- [ ] AC2 — `site_name` et `credits.welcome_amount` en portée agence → 422 sur `key`.
-- [ ] AC3 — un agent qui poste une clé hors catalogue reçoit toujours 403.
-- [ ] AC4 — une ligne d'agence déjà écrite à 500 / 99 / 1000 se lit 100 / 24 / 100.
+- [x] AC2 — `site_name` et `credits.welcome_amount` en portée agence → 422 sur `key`.
+- [x] AC3 — un agent qui poste une clé hors catalogue reçoit toujours 403.
+- [x] AC4 — une ligne d'agence déjà écrite à 500 / 99 / 1000 se lit 100 / 24 / 100.
 
 ## Hors périmètre
 
@@ -78,4 +78,13 @@ Une ligne d'agence ne s'écrit que pour une clé du catalogue, dans ses bornes ;
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : 11 des 13 tests d'`AgencySettingRowCatalogueTest` rougissent (201 au lieu de
+  422 ; lecteurs à 500 / 99 / 1000 et plafond à -5) ; les deux verts gardent l'existant (valeur
+  dans les bornes, 403 de l'agent).
+- Ablations, chacune remise ensuite : règle du catalogue retirée (`after()` vide) → 9 rouges ;
+  `authorize()` rendu à `true` → l'agent reçoit 422 au lieu de 403 ; bornes des lecteurs retirées
+  → les 2 tests de lecture rougissent. Remis → 13 verts.
+- Piège : la règle du catalogue court avant le contrôleur ; laissée seule, elle inversait 403 et
+  422 pour un agent. L'autorisation de `store` est passée dans `authorize()`, mêmes codes.
+- `SettingTest` et `GenericSettingsCatalogueBypassTest` posaient `site_name`/`invoice_prefix` en
+  portée agence : leurs attendus suivent la décision.
