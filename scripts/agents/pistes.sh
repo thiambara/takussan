@@ -236,7 +236,7 @@ deplanifier() {
 # l'arbre fusionné, rougit, et l'agent la répare comme toute PR rouge. La PR de synchronisation,
 # dont la tête est `dev`, n'est jamais mise à jour : le refus est journalisé, le porteur tranche.
 essai_de_fusion() {
-  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g echecs=0
+  local num="$1" tete="$2" arbre="$BASE/arbres/essai-${ROLE:-fusionneur}" rapport cle g h echecs=0
   rapport="$BASE/sorties/essais/$num.txt"
   mkdir -p "$BASE/sorties/essais"
   avec_verrou_git git -C "$CLONE" fetch origin --prune --quiet || return 1
@@ -257,6 +257,19 @@ essai_de_fusion() {
       echo "✗ conflit de fusion"
       echecs=1
     else
+      # `check-front-routes` (TCK-998) lit `php artisan route:list` et ÉCHOUE sans `vendor/` : sans
+      # cette installation, toutes les PR étaient refusées (relevé le 2026-10-19, #724 à #734).
+      # `vendor/` est ignoré par git, donc épargné par le `clean -fdq` ci-dessus : il ne se réinstalle
+      # que si le `composer.lock` de l'arbre fusionné change.
+      h="$(shasum "$arbre/takussan-api/composer.lock" | cut -c1-40)"
+      if [ ! -f "$arbre/takussan-api/vendor/autoload.php" ] || [ "$h" != "$(cat "$BASE/etat/composer-essai-${ROLE:-fusionneur}" 2> /dev/null || true)" ]; then
+        if (cd "$arbre/takussan-api" && composer install --no-interaction --no-progress --quiet) > /dev/null 2>&1; then
+          printf '%s' "$h" > "$BASE/etat/composer-essai-${ROLE:-fusionneur}"
+        else
+          echo "✗ composer install dans l'arbre d'essai"
+          echecs=$((echecs + 1))
+        fi
+      fi
       for g in "$arbre"/scripts/check-*.mjs; do
         (cd "$arbre" && node "$g") > /dev/null 2>&1 || {
           echo "✗ $(basename "$g")"

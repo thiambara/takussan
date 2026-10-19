@@ -20,6 +20,7 @@ use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -123,6 +124,26 @@ class CustomerController extends Controller
 
         return $this->json([
             'data' => CustomerResource::make($customer)->resolve($request),
+        ]);
+    }
+
+    /**
+     * TCK-955 (ADR-0070 § 5) — le numéro de pièce EN CLAIR. La garde de step-up a déjà répondu
+     * (`ProtectedActions::STEP_UP`), l'impersonation aussi (`EnforceImpersonationReadOnly`) ; la
+     * consultation est journalisée APRÈS l'autorisation, rattachée à l'agence du client.
+     */
+    public function sensitive(Request $request, Customer $customer, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $customer);
+
+        $accessLog->record($request->user(), $customer, PersonalDataAccessLogger::SURFACE_CUSTOMER_SENSITIVE);
+
+        return $this->json([
+            'data' => [
+                'id' => $customer->id,
+                'id_type' => $customer->id_type?->value,
+                'id_number' => $customer->id_number,
+            ],
         ]);
     }
 
