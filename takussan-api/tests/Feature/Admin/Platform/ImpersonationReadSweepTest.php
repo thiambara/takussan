@@ -65,14 +65,6 @@ class ImpersonationReadSweepTest extends TestCase
      * @var array<string, list<string>>
      */
     private const FUITES_TOLEREES = [
-        // P23.03 (retenu · à valider, V8) — le numéro de pièce du client et de la caution est en
-        // clair partout, sans lecture dédiée ; la session le lit comme le personnel de l'agence.
-        'api/customers' => [self::PIECE_D_IDENTITE],
-        'api/customers/{customer}' => [self::PIECE_D_IDENTITE],
-        'api/leases' => [self::PIECE_D_IDENTITE],
-        'api/leases/{lease}' => [self::PIECE_D_IDENTITE],
-        'api/bookings' => [self::PIECE_D_IDENTITE],
-        'api/bookings/{booking}' => [self::PIECE_D_IDENTITE],
         // Relevé par cette garde (TCK-920) — `documents.recent` liste les pièces des profils de la
         // cible (nom, type), que TCK-697 retire de `GET /api/documents` sous impersonation.
         'api/dashboard/tenant' => [self::PIECE_DE_PROFIL],
@@ -157,7 +149,11 @@ class ImpersonationReadSweepTest extends TestCase
         $this->avecLeJeton($this->cible->createToken('mobile')->plainTextToken);
         $finDeSession = now()->addMinutes(ImpersonationSession::TTL_MINUTES)->getTimestamp();
 
-        $this->assertContains(self::PIECE_D_IDENTITE, $this->marquesDe("/api/customers/{$this->valeurs['customer']}", $finDeSession));
+        // TCK-953 — la pièce du client ne sort plus que masquée, même vers la cible : le masque
+        // témoigne que la fiche en porte une, et le détecteur est éprouvé sur la valeur claire.
+        $this->getJson("/api/customers/{$this->valeurs['customer']}")->assertOk()
+            ->assertJsonPath('data.id_number_masked', '•••• '.substr(self::NUMERO_DE_PIECE, -4));
+        $this->assertSame([self::PIECE_D_IDENTITE], $this->marques('{"id_number":"'.self::NUMERO_DE_PIECE.'"}', $finDeSession));
         $this->assertContains(self::PIECE_DE_PROFIL, $this->marquesDe('/api/documents', $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe("/api/leases/{$this->valeurs['lease']}/deposit-refund", $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe('/api/notifications', $finDeSession));

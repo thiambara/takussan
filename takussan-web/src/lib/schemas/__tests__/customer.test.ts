@@ -64,6 +64,18 @@ describe('customerFormSchema', () => {
       expect(paths).toContain('id_number');
     }
   });
+
+  it('does not force id_number when the record already holds one (TCK-953)', () => {
+    const result = customerFormSchema.safeParse({
+      ...baseValues,
+      email: 'a@b.co',
+      id_type: 'passport',
+      id_number: '',
+      id_number_masked: '•••• 8877',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(normaliseCustomerForm(result.data)).not.toHaveProperty('id_number_masked');
+  });
 });
 
 describe('normaliseCustomerForm', () => {
