@@ -24,6 +24,7 @@ import type { PaginatedResponse } from '@/types/api';
 import type { Locale } from '@/i18n/config';
 
 import { PAYMENT_METHOD_VALUES } from './constants';
+import { OwnerStatementPanel } from './OwnerStatementPanel';
 
 interface CreatePayoutDialogProps {
   readonly open: boolean;
@@ -65,6 +66,8 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const [scheduledAt, setScheduledAt] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // TCK-1012 (P50.04) — le relevé du mois du bailleur choisi, lu avant de reverser.
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const owners = useApiQuery<PaginatedResponse<OwnerProfileSummary>>(
     ['owners', 'payout-dialog', agencyId],
@@ -118,6 +121,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
     setScheduledAt('');
     setNotes('');
     setError(null);
+    setStatementOpen(false);
   };
 
   const submit = async () => {
@@ -201,6 +205,27 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
               />
             </div>
           </div>
+
+          {landlordId ? (
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-expanded={statementOpen}
+                onClick={() => setStatementOpen((ouvert) => !ouvert)}
+              >
+                {t('viewStatement')}
+              </Button>
+              {statementOpen ? (
+                <OwnerStatementPanel
+                  key={landlordId}
+                  landlordId={Number(landlordId)}
+                  initialMonth={periodStart ? periodStart.slice(0, 7) : undefined}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           {preparation.isError ? (
             <p role="alert" className="rounded-xl bg-card p-3 text-sm text-destructive">

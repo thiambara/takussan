@@ -79,7 +79,7 @@ export const paymentsQueryKeys = {
   myPayoutMethods: ['payout-methods', 'me'] as const,
   beneficiaryPayoutMethods: (userId: number | null | undefined) =>
     ['payout-methods', 'beneficiary', userId] as const,
-  ownerStatement: (period: string) => ['owner-statements', period] as const,
+  ownerStatement: (period: string, landlordId?: number) => ['owner-statements', period, landlordId ?? null] as const,
   serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
 };
 
@@ -399,12 +399,15 @@ export function usePayoutCancel(payoutId: number) {
 /**
  * TCK-594 (ADR-0039 §3) — le relevé de gérance du lecteur (bailleur), pour un mois ou une année.
  * Sans `landlord_id`, l'API rend celui du lecteur ; l'autorisation est `OwnerStatementPolicy::view`.
+ * TCK-1012 — avec `landlordId`, celui de ce bailleur, lu par le personnel tenant `payouts.create`.
  */
-export function useOwnerStatement(period: string) {
+export function useOwnerStatement(period: string, landlordId?: number) {
+  const extra: Record<string, string | number> = { period };
+  if (landlordId !== undefined) extra.landlord_id = landlordId;
   return useApiQuery<ApiResponse<OwnerStatement>>(
-    paymentsQueryKeys.ownerStatement(period),
+    paymentsQueryKeys.ownerStatement(period, landlordId),
     '/api/owner-statements',
-    { params: { extra: { period } }, enabled: /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(period) },
+    { params: { extra }, enabled: /^\d{4}(-(0[1-9]|1[0-2]))?$/.test(period) },
   );
 }
 

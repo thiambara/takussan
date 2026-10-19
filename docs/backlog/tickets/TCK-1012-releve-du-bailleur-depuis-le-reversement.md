@@ -1,7 +1,7 @@
 ---
 id: TCK-1012
 title: "Le relevé d'un bailleur s'ouvre depuis le dialogue de reversement, une fois le bailleur choisi"
-status: todo
+status: done
 phase: P2
 family: applicatif
 estimate: S
@@ -53,19 +53,19 @@ Routes existantes, inchangées : `GET /api/owner-statements`, `/pdf`, `/csv`, av
 
 ## Delta à produire
 
-- [ ] `useOwnerStatement(period, landlordId?)` : `landlord_id` envoyé et porté par la clé de cache.
-- [ ] `OwnerStatementPanel` : props `landlordId?` et `initialMonth?`, `landlord_id` passé aussi au
+- [x] `useOwnerStatement(period, landlordId?)` : `landlord_id` envoyé et porté par la clé de cache.
+- [x] `OwnerStatementPanel` : props `landlordId?` et `initialMonth?`, `landlord_id` passé aussi au
       PDF et au CSV.
-- [ ] `CreatePayoutDialog` : bouton « Voir le relevé du mois » (`aria-expanded`), qui monte le
+- [x] `CreatePayoutDialog` : bouton « Voir le relevé du mois » (`aria-expanded`), qui monte le
       panneau avec le bailleur choisi.
-- [ ] Tests vitest du dialogue et du panneau.
+- [x] Tests vitest du dialogue et du panneau.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sans bailleur choisi, le dialogue n'a pas le bouton ; bailleur choisi, le bouton ouvre
+- [x] AC1 — Sans bailleur choisi, le dialogue n'a pas le bouton ; bailleur choisi, le bouton ouvre
       le relevé, demandé avec `landlord_id` = le bailleur et le mois du début de période.
-- [ ] AC2 — Le PDF du panneau ouvert pour un bailleur part avec `landlord_id` dans l'URL.
-- [ ] AC3 — Sans `landlordId`, le panneau du bailleur reste tel quel (tests existants verts).
+- [x] AC2 — Le PDF du panneau ouvert pour un bailleur part avec `landlord_id` dans l'URL.
+- [x] AC3 — Sans `landlordId`, le panneau du bailleur reste tel quel (tests existants verts).
 
 ## Hors périmètre
 
@@ -75,4 +75,10 @@ Routes existantes, inchangées : `GET /api/owner-statements`, `/pdf`, `/csv`, av
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : `payments.ts`, `OwnerStatementPanel.tsx` et `CreatePayoutDialog.tsx` remis à
+  `origin/pre-dev`, tests gardés → 3 rouges sur 12 (bouton absent du dialogue ; panneau sans
+  `landlord_id` ; requête sans `landlord_id`) ; correctif remis → 22 verts (`PaymentsTabs` compris).
+- Le hook est mocké dans les tests du dialogue et du panneau : seul
+  `releve-d-un-bailleur.tck-1012.test.ts` garde que `landlord_id` part dans la requête.
+- Le panneau est remonté (`key`) quand le bailleur change : le mois et le choix « année » ne
+  passent pas d'un bailleur à l'autre.

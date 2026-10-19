@@ -3541,6 +3541,7 @@
       "creditNotePdf": "PDF de l'avoir"
     },
     "payoutDialog": {
+      "viewStatement": "Voir le relevé du mois",
       "title": "Préparer un reversement",
       "description": "Choisissez le bailleur et la période : le calcul se lit, il ne se saisit pas.",
       "periodStart": "Début de période",
