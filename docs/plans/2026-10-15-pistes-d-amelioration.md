@@ -5748,7 +5748,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### Les indicateurs « changements d'étape » et « durée par étape » du pipeline CRM valent toujours 0
 - Réf : P56.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Crm/PipelineStatsService.php:107-109`, `:112-128`, `:136-195`, `takussan-web/src/components/pipeline/PipelineStatsBar.tsx:52,66`, `takussan-api/tests/Feature/Api/CustomerPipelineTest.php:38-60`
 - Constat :
@@ -5761,10 +5761,11 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Le docblock dit encore « tracks `pipeline_stage` in its `properties` JSON column » (lu, l. 114).
   - Établi comment : lecture, test temporaire, `SELECT` sur la base de dev.
 - Piste : lire `attribute_changes->'old'` et `attribute_changes->'attributes'`. Attention : la ligne `created` porte aussi `attributes.pipeline_stage` (mesuré), donc un simple changement de colonne compterait chaque création comme un changement d'étape. Filtrer sur `event = 'updated'`, ou sur un `old` non nul, pour le compte des 30 jours. Un test qui crée un client, change deux fois son étape à dates voyagées, et asserte `stage_changes_last_30d = 2` et une durée non nulle en `lead`. Ablation : remettre `properties` → rouge.
+- Mesure (2026-10-19, 94ac420d2, mesureur) : relu `PipelineStatsService.php` (l. 107-109 : les deux constantes lisent `properties->'old'` et `properties->'attributes'` ; l. 126 et 153 filtrent sur la seconde `IS NOT NULL`) et le cast `attribute_changes` du modèle spatie (`vendor/…/Activity.php:39`), puis test temporaire (retiré), charge 2,77 / 1,94 / 1,75 sur 8 cœurs : client créé en `lead`, passé en `qualified` deux jours plus tard puis revenu en `lead` trois jours après → trois lignes `activity_log`, toutes `properties = []`, le diff sous `attribute_changes` (la ligne `created` porte bien `attributes.pipeline_stage = lead`), et `compute()` rend `stage_changes_last_30d = 0` et `avg_time_in_stage` à 0 partout. Aucun commit n'a touché ces lectures (`git log -S PIPELINE_STAGE_NEW` : la seule création, 744eb9404) ; le défaut est déjà relevé par TCK-591 (relevé hors périmètre, l. 1084-1086) et son correctif est le point 3 de TCK-617, `todo` (contrainte 3 : « Le pipeline lit `attribute_changes` »), un point sans décision du porteur, à la différence des points 5 et 6 de ce ticket. Classement : A1, le comportement attendu est écrit dans TCK-083 (les deux indicateurs) et dans la contrainte 3 de TCK-617 : lire `attribute_changes` et ne compter que les lignes à `old` non nul ne demande aucun choix, et aucun montant n'est en jeu.
 
 ### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
 - Réf : P56.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que l'export d'accès rend des tiers n'est écrit nulle part
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-129`, `takussan-api/app/Models/Customer.php:39-50`
 - Constat :
@@ -5774,10 +5775,11 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Un membre qui demande ses données reçoit donc celles des tiers qu'il a créés ou modifiés (clients, et tout modèle `Auditable` sans liste blanche). Le défaut ne vient pas de v5 (`properties` les portait avant), mais v5 a déplacé le diff dans une colonne qu'aucun lecteur de l'export ne filtre. Si le contenu d'un export d'accès doit exclure les tiers, ce n'est écrit nulle part (à vérifier : ADR-0044, TCK-613).
   - Établi comment : lecture, test temporaire.
 - Piste : pour les lignes où l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`), sans `attribute_changes` ni `properties` ; garder le diff pour les lignes dont il est le sujet, passé par `PropertyRedactor`. Un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client.
+- Mesure (2026-10-19, 94ac420d2, mesureur) : relu `DataExportBuilder::payloads()` (l. 124-129 : `audit-log.json` prend les lignes dont l'utilisateur est causeur ou sujet, rendues par `->toArray()`, sans projection ni `PropertyRedactor`) et `Customer::getActivitylogOptions()` (l. 41-46 : `first_name`, `last_name`, `email`, `phone` journalisés), puis test temporaire (retiré, même charge) : un agent connecté crée un client (e-mail et téléphone témoins) puis change son e-mail → `payloads($agent)['audit-log.json']` porte 3 lignes, dont l'e-mail et le téléphone d'origine du client. L'ADR-0044 (l. 171) dit seulement que « le droit d'accès reste entier » au titulaire, rien sur les tiers ; aucun ticket ne le tranche (`grep attribute_changes` des tickets : TCK-613 et TCK-692 portent sur le journal d'agence et son export CSV). Classement : V3, décider ce qu'un export d'accès rend des données de tiers saisies par le titulaire (l'acte seul, ou le diff expurgé) est un choix sur l'exposition de données personnelles.
 
 ### Les journaux d'audit de l'API ne disent jamais ce qu'un événement de modèle a changé
 - Réf : P56.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : rendre le diff du journal aux lecteurs d'agence et de la console, ou non
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:69,178`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:73`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-web/src/lib/queries/audit-logs.ts:15`
 - Constat :
@@ -5787,10 +5789,11 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - `docs/models-spec.md:1204` dit que `properties` passe par `PropertyRedactor` à la lecture, sans parler d'`attribute_changes`.
   - Établi comment : lecture, `SELECT` sur la base de dev.
 - Piste : rendre `attribute_changes` passé par `PropertyRedactor` à côté de `properties` dans les trois lectures du journal d'agence et de la console, ou décider qu'elles n'en ont pas besoin et le noter. Un test par endpoint : une ligne `updated` porte l'avant et l'après expurgés.
+- Mesure (2026-10-19, 94ac420d2, mesureur) : relu les quatre lectures (`AuditLogController.php:69` et `:178`, `CrossTenantAuditController.php:73`, `UserDetailController.php:179`) : toutes rendent `properties` seul, jamais `attribute_changes` ; le test temporaire de P56.01 montre `properties = []` sur les lignes `created`/`updated` d'un modèle ; côté front, `audit-logs.ts:15` type `properties` et aucun composant du journal (`AuditTrail.tsx`, `CrossTenantAuditTable.tsx`) ne lit `.properties` (`grep`). `docs/models-spec.md:1204` ne parle que de `properties`. Le compte de la base de dev n'est pas repris : elle ne porte que des lignes de seed (25 591, toutes à `properties` vide, aucune avec causeur, `SELECT` du jour). Classement : V3, la `Piste` laisse ouverts deux choix (exposer le diff expurgé aux admins d'agence et à la console, ou noter qu'ils n'en ont pas besoin) qui portent sur des données personnelles exposées.
 
 ### `docs/models-spec.md` décrit le diff du journal dans `properties`, que v5 n'écrit plus
 - Réf : P56.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `docs/models-spec.md:1174`, `:1190`, `:1204`, `takussan-api/app/Services/Crm/PipelineStatsService.php:22-26,111-115`
 - Constat :
@@ -5798,10 +5801,11 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - La l. 1174 cite une table `activity_log_changes` « selon la configuration » ; aucune migration ni aucun fichier de `app/` ou `config/` ne la mentionne (mesuré : `grep -rn activity_log_changes app database config` → rien).
   - Établi comment : lecture, `grep`.
 - Piste : écrire dans la spec que le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), que `properties` ne porte que ce qu'écrit `withProperties()`, et retirer `activity_log_changes`. Corriger les deux docblocks de `PipelineStatsService` avec P56.01.
+- Mesure (2026-10-19, 94ac420d2, mesureur) : relu `docs/models-spec.md` l. 1174 (« `activity_log_changes` selon la configuration »), l. 1190 (`changes` → `properties (json : old, attributes)`) et l. 1204 (seul `properties` passe par `PropertyRedactor`) ; `grep -rn activity_log_changes app database config` → rien ; le test temporaire de P56.01 montre le diff sous `attribute_changes` et `properties = []`. Le docblock faux de `PipelineStatsService` est celui de la l. 114 (« tracks `pipeline_stage` in its `properties` JSON column ») ; celui des l. 22-26 ne nomme pas de colonne et ne ment pas. Classement : A6, la spec et le docblock se corrigent pour dire ce qu'écrit activitylog v5 ; la phrase de la l. 1204 sur `attribute_changes` reste à écrire selon ce que P56.03 décidera, et ne fait pas partie de ce classement.
 
 ### Petites améliorations
 - Réf : P56.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : expurger la lecture de l'activité d'un utilisateur change ce que la console en montre
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-api/tests/Feature/Audit/CrossTenantAuditExportTest.php:26-28`
 - Constat :
@@ -5809,3 +5813,4 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Le témoin d'expurgation de `CrossTenantAuditExportTest` écrit `rib` sous `properties.attributes` (lu, l. 27), une forme qu'aucun événement de modèle n'écrit depuis v5. Le test garde l'expurgation de `properties`, pas celle d'`attribute_changes` que l'export lit aussi depuis TCK-692 L'expurgation d'`attribute_changes` est gardée ailleurs, par `tests/Feature/Api/ActivityLogExporterTest.php::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` (lu, nom trouvé par `grep`) : le témoin de ce test-ci ne décrit simplement plus la forme réelle.
   - Établi comment : lecture.
 - Piste : passer `UserDetailController` par `PropertyRedactor`, comme ses voisins ; poser le témoin d'expurgation de `CrossTenantAuditExportTest` sous `attribute_changes`, la forme qu'écrit un événement de modèle.
+- Mesure (2026-10-19, 94ac420d2, mesureur) : relu `UserDetailController::activity()` (l. 179 : `$log->properties?->toArray()`, sans `PropertyRedactor`, quand les trois autres lectures l'appliquent) et `CrossTenantAuditExportTest.php:27` (témoin `rib` posé sous `properties.attributes`) ; `ActivityLogExporterTest::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` existe (l. 275). Qu'une clé masquée passe aujourd'hui reste non établi : la base de dev n'a aucune ligne à causeur ou sujet `User` dont `properties` soit non vide (`SELECT` + `PropertyRedactor::redact`, 0 sur 25 591), et la lecture des `withProperties()` ne l'a pas tranché. Classement : V3 pour la première partie, l'ADR-0044 § 2 nomme « l'audit plateforme » mais l'expurgation masque aussi `email` et `phone` à l'opérateur qui lit l'activité d'un compte ; le témoin du test (A5) seul serait autonome, et l'implémenteur peut le traiter avec cette entrée une fois validée.
