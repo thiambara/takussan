@@ -35,7 +35,6 @@ function tableau(avecDossier: boolean) {
   return {
     data: {
       tenant_id: 7,
-      customer_id: avecDossier ? 3 : null,
       has_customer_profile: avecDossier,
       leases: { active: 0 },
       bookings: { pending: 0 },
