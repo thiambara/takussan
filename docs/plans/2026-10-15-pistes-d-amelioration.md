@@ -128,7 +128,7 @@ voie d'écriture (angle 13, puis 47).
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | fait |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | fait |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | fait |
-| 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
+| 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | fait |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
@@ -165,6 +165,7 @@ voie d'écriture (angle 13, puis 47).
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
+| 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 
 ---
 
@@ -5724,3 +5725,82 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Établi comment : lecture.
 - Piste : `attributesToRetrieve: ['id']` sur la requête nominale (et sur l'élargie), avec un test qui vérifie que la page rendue est inchangée ; corriger la conséquence de l'ADR-0061 (trois lectures sur toute page qui a des places réservées).
 - Mesure (2026-10-19, 4f449d122, mesureur) : relu la requête nominale (l. 92-109 : ni `attributesToRetrieve` ni autre projection ; seuls le vivier l. 696 et `organicExcluding()` l. 725 portent `['id']`) et tous les lecteurs de `hits` du fichier (l. 149, 204, 646, 708, 737, 769) : aucun ne lit autre chose que `id` ; relu l'ADR-0061, Conséquences l. 206-207 (« une troisième en première page ») face à `placements()`, qui fait la troisième lecture sur toute page dès que `$reserved` n'est pas vide. Le gain en octets n'est pas mesuré. Classement : A2 et A6, une projection sur `id` ne change pas le résultat (l'hydratation relit tout en base), et la phrase de l'ADR se corrige pour dire ce que fait le code.
+
+## Angle 56 — Lecteurs d'`activity_log` restés sur `properties` depuis activitylog v5
+
+*Exploré le 2026-10-19 sur `pre-dev` 5a57ec202, par l'explorateur. Relu par l'explorateur lui-même,
+sans sous-agent : tous les fichiers de `app/` qui lisent `Activity` ou `activity_log`
+(`PipelineStatsService`, `CustomerActivityFeed`, `ActivityLogExporter`, `AuditLogController`,
+`CrossTenantAuditController`, `UserDetailController`, `AgencyDetailController`, `LeaseRentController`,
+`DataExportBuilder`, `AlertRuleService`, `GovernanceAlertService`, `AuditAgencyResolver`,
+`PersonalDataAccessLogger`, `AccountDeletionService`, `RepairReassignedOwners`), le cast du modèle
+spatie (`vendor/…/Models/Activity.php:36-40`), et les lecteurs du front. Deux tests temporaires,
+retirés depuis (charge 1,38 / 1,32 / 1,43 sur 8 cœurs). La base de dev a été lue en `SELECT`
+seulement. L'export du journal (`ActivityLogExporter`) est déjà corrigé par TCK-692 (angle 19) : il
+n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `withProperties()`
+(`reason`, `old_rent`, `failing`, `entity`, `surface`, `agency_id`) sont justes : seules les clés
+`old`/`attributes` des événements de modèle ont quitté `properties`.*
+
+### Les indicateurs « changements d'étape » et « durée par étape » du pipeline CRM valent toujours 0
+- Réf : P56.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Crm/PipelineStatsService.php:107-109`, `:112-128`, `:136-195`, `takussan-web/src/components/pipeline/PipelineStatsBar.tsx:52,66`, `takussan-api/tests/Feature/Api/CustomerPipelineTest.php:38-60`
+- Constat :
+  - Les deux expressions SQL lisent `properties->'old'->>'pipeline_stage'` et `properties->'attributes'->>'pipeline_stage'` (lu, l. 107-109). `stageChangesLast30Days()` et `avgTimeInStage()` filtrent sur la seconde `IS NOT NULL` (lu, l. 126 et 153).
+  - Depuis activitylog v5, le diff d'un modèle vit dans `attribute_changes`, et `properties` vaut `[]` (lu, cast `vendor/spatie/laravel-activitylog/src/Models/Activity.php:39-40` ; mesuré ci-dessous). Le paquet est en v5 depuis la création de la table (`composer.json:27`, migration `2026_04_17_154616_create_activity_log_table.php:18-19`) : ces deux indicateurs n'ont jamais rien compté.
+  - Mesuré par test temporaire : un client créé en `lead`, passé en `qualified` deux jours plus tard, puis revenu en `lead` trois jours après. `activity_log` porte trois lignes, toutes avec `properties = []` et le changement d'étape sous `attribute_changes` (`{"old":{"pipeline_stage":"lead"},"attributes":{"pipeline_stage":"qualified"}}`). `PipelineStatsService::compute()` rend `stage_changes_last_30d = 0` et `avg_time_in_stage` à 0 pour toutes les étapes.
+  - Mesuré en base de dev (`SELECT`) : 564 lignes `Customer` portent `pipeline_stage` sous `attribute_changes->'attributes'`, 0 sous `properties`.
+  - Le front affiche les deux valeurs dans la barre du pipeline (lu, `PipelineStatsBar.tsx:52` et `:66`, durée moyenne en `qualified`).
+  - Le seul test de l'endpoint n'asserte que la présence des clés (lu, `CustomerPipelineTest.php:51-56`) : il serait vert avec n'importe quelle valeur.
+  - Le docblock dit encore « tracks `pipeline_stage` in its `properties` JSON column » (lu, l. 114).
+  - Établi comment : lecture, test temporaire, `SELECT` sur la base de dev.
+- Piste : lire `attribute_changes->'old'` et `attribute_changes->'attributes'`. Attention : la ligne `created` porte aussi `attributes.pipeline_stage` (mesuré), donc un simple changement de colonne compterait chaque création comme un changement d'étape. Filtrer sur `event = 'updated'`, ou sur un `old` non nul, pour le compte des 30 jours. Un test qui crée un client, change deux fois son étape à dates voyagées, et asserte `stage_changes_last_30d = 2` et une durée non nulle en `lead`. Ablation : remettre `properties` → rouge.
+
+### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
+- Réf : P56.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-129`, `takussan-api/app/Models/Customer.php:39-50`
+- Constat :
+  - `audit-log.json` prend toutes les lignes dont l'utilisateur est le **causeur** ou le sujet, et les rend par `->toArray()`, sans `PropertyRedactor` ni projection (lu, l. 124-129). `toArray()` rend `attribute_changes` entier (mesuré : clés de chaque ligne).
+  - `Customer` journalise `first_name`, `last_name`, `email` et `phone` (lu, `Customer.php:42-44`).
+  - Mesuré par test temporaire : un agent connecté crée un client (e-mail et téléphone témoins) puis change son e-mail. `payloads($agent)['audit-log.json']` porte 3 lignes, dont l'e-mail et le téléphone d'origine du client.
+  - Un membre qui demande ses données reçoit donc celles des tiers qu'il a créés ou modifiés (clients, et tout modèle `Auditable` sans liste blanche). Le défaut ne vient pas de v5 (`properties` les portait avant), mais v5 a déplacé le diff dans une colonne qu'aucun lecteur de l'export ne filtre. Si le contenu d'un export d'accès doit exclure les tiers, ce n'est écrit nulle part (à vérifier : ADR-0044, TCK-613).
+  - Établi comment : lecture, test temporaire.
+- Piste : pour les lignes où l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`), sans `attribute_changes` ni `properties` ; garder le diff pour les lignes dont il est le sujet, passé par `PropertyRedactor`. Un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client.
+
+### Les journaux d'audit de l'API ne disent jamais ce qu'un événement de modèle a changé
+- Réf : P56.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:69,178`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:73`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-web/src/lib/queries/audit-logs.ts:15`
+- Constat :
+  - Les quatre lectures rendent `properties` seul, jamais `attribute_changes` (lu). Pour une ligne `created`/`updated`/`deleted` de modèle, `properties` vaut `[]` (mesuré, test de P56.01) : le JSON ne dit pas ce qui a changé.
+  - En base de dev : 6 793 lignes portent `attribute_changes`, 0 ligne n'a de clé `old` ou `attributes` sous `properties` (mesuré, `SELECT`, sur 25 591 lignes).
+  - Aucun écran du front ne lit `properties` du journal (lu, `AuditTrail.tsx`, `CrossTenantAuditTable.tsx`, `user-detail.tsx` : aucune occurrence). La perte ne se voit donc pas aujourd'hui, mais le champ ne sert à rien pour les événements de modèle. L'export CSV, lui, porte le diff depuis TCK-692.
+  - `docs/models-spec.md:1204` dit que `properties` passe par `PropertyRedactor` à la lecture, sans parler d'`attribute_changes`.
+  - Établi comment : lecture, `SELECT` sur la base de dev.
+- Piste : rendre `attribute_changes` passé par `PropertyRedactor` à côté de `properties` dans les trois lectures du journal d'agence et de la console, ou décider qu'elles n'en ont pas besoin et le noter. Un test par endpoint : une ligne `updated` porte l'avant et l'après expurgés.
+
+### `docs/models-spec.md` décrit le diff du journal dans `properties`, que v5 n'écrit plus
+- Réf : P56.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `docs/models-spec.md:1174`, `:1190`, `:1204`, `takussan-api/app/Services/Crm/PipelineStatsService.php:22-26,111-115`
+- Constat :
+  - La table de correspondance dit `changes` → `properties (json : old, attributes)` (lu, l. 1190). Le paquet v5 écrit ce diff dans `attribute_changes` (lu, cast du modèle ; mesuré, test de P56.01). C'est la forme qu'a suivie `PipelineStatsService` (P56.01).
+  - La l. 1174 cite une table `activity_log_changes` « selon la configuration » ; aucune migration ni aucun fichier de `app/` ou `config/` ne la mentionne (mesuré : `grep -rn activity_log_changes app database config` → rien).
+  - Établi comment : lecture, `grep`.
+- Piste : écrire dans la spec que le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), que `properties` ne porte que ce qu'écrit `withProperties()`, et retirer `activity_log_changes`. Corriger les deux docblocks de `PipelineStatsService` avec P56.01.
+
+### Petites améliorations
+- Réf : P56.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-api/tests/Feature/Audit/CrossTenantAuditExportTest.php:26-28`
+- Constat :
+  - `UserDetailController` rend `properties` brut (`$log->properties?->toArray()`), alors que les trois autres lectures du journal le passent par `PropertyRedactor` (lu). Qu'une clé masquée y passe aujourd'hui n'est pas établi (à vérifier : clés écrites par `withProperties()` sur les journaux d'un utilisateur).
+  - Le témoin d'expurgation de `CrossTenantAuditExportTest` écrit `rib` sous `properties.attributes` (lu, l. 27), une forme qu'aucun événement de modèle n'écrit depuis v5. Le test garde l'expurgation de `properties`, pas celle d'`attribute_changes` que l'export lit aussi depuis TCK-692 L'expurgation d'`attribute_changes` est gardée ailleurs, par `tests/Feature/Api/ActivityLogExporterTest.php::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` (lu, nom trouvé par `grep`) : le témoin de ce test-ci ne décrit simplement plus la forme réelle.
+  - Établi comment : lecture.
+- Piste : passer `UserDetailController` par `PropertyRedactor`, comme ses voisins ; poser le témoin d'expurgation de `CrossTenantAuditExportTest` sous `attribute_changes`, la forme qu'écrit un événement de modèle.
