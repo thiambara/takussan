@@ -18,6 +18,7 @@ use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Notifications\Sms\SmsDriverInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -287,6 +288,30 @@ class AccountDeletionExecuteTest extends TestCase
         $this->assertSame('awa@example.test', $visite->visitor_email);
         $this->assertSame('+221771230004', $visite->visitor_phone);
         $this->assertSame($autre->id, $visiteAutre->fresh()->visitor_id);
+    }
+
+    /**
+     * TCK-1015 (P57.03) — `password_reset_tokens` a l'e-mail pour clé : l'effacement retire la
+     * ligne de l'adresse d'origine, relevée avant que le `forceFill` la remplace. Celle d'une
+     * autre adresse reste.
+     */
+    public function test_execute_supprime_le_jeton_de_reinitialisation_de_l_adresse_d_origine(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        DB::table('password_reset_tokens')->insert([
+            ['email' => 'origine@example.test', 'token' => 'h1', 'created_at' => now()],
+            ['email' => 'autre@example.test', 'token' => 'h2', 'created_at' => now()],
+        ]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(
+            ['autre@example.test'],
+            DB::table('password_reset_tokens')->pluck('email')->all(),
+        );
     }
 
     private function tentativeSansNotification(string $to): NotificationDeliveryAttempt
