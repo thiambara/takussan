@@ -66,6 +66,39 @@ class CustomerPipelineTest extends TestCase
         $this->assertEquals(0.5, $response->json('data.conversion_rate'));
     }
 
+    /**
+     * P56.01 — activitylog v5 écrit le diff d'un modèle dans `attribute_changes`, et laisse
+     * `properties` à `[]`. Les deux indicateurs lisaient `properties` : ils valaient 0 pour
+     * toujours, et le test voisin n'assertait que la présence des clés.
+     *
+     * La ligne `created` porte aussi `attributes.pipeline_stage` : elle ne compte pas comme un
+     * changement d'étape, mais elle ouvre la première durée.
+     */
+    public function test_pipeline_stats_compute_stage_changes_and_time_in_stage_from_the_activity_log(): void
+    {
+        $user = User::factory()->create();
+
+        $this->travelTo(now()->subDays(10));
+        $customer = Customer::factory()->create([
+            'added_by_id' => $user->id,
+            'status' => CustomerStatus::Active,
+            'pipeline_stage' => CustomerPipelineStage::Lead,
+        ]);
+        $this->travel(2)->days();
+        $customer->update(['pipeline_stage' => CustomerPipelineStage::Qualified]);
+        $this->travel(3)->days();
+        $customer->update(['pipeline_stage' => CustomerPipelineStage::Lead]);
+        $this->travelBack();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/customers/pipeline-stats')->assertOk();
+
+        $this->assertSame(2, $response->json('data.stage_changes_last_30d'));
+        $this->assertEquals(2.0, $response->json('data.avg_time_in_stage.lead'));
+        $this->assertEquals(3.0, $response->json('data.avg_time_in_stage.qualified'));
+    }
+
     public function test_pipeline_stats_scoped_to_agent_only(): void
     {
         $alice = User::factory()->create();
