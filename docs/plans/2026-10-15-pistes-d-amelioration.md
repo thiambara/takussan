@@ -130,7 +130,7 @@ voie d'écriture (angle 13, puis 47).
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | fait |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | fait |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | fait |
-| 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
+| 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | fait |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
@@ -5901,3 +5901,77 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : lecture, `grep` et test temporaire.
 - Piste : écrire dans `anonymize()`, ou dans un commentaire qui le justifie, le sort de chacune : contact WhatsApp et alertes sans compte au contact vérifié du compte (supprimés, ou gardés avec la raison) ; demandes de contact (durée à écrire dans `privacy.ts`) ; pilote `log` qui masque le code et le numéro comme `PhoneVerificationService` le fait déjà (`phone_suffix`).
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : un `WhatsappContact` au numéro du compte survit à `executeDeletion()` (1) ; `grep -rn "WhatsappContact::" app` → seul `firstOrCreate(['phone' => …])` de `PublicSearchAlertController.php:142` écrit, aucun `user_id` ; `AccountDeletionService` ne cite ni `AlertSubscriber` ni les demandes de contact (lu) ; `LogSmsDriver.php:32-38` journalise `to` normalisé et `message` en entier, code compris (lu). Les pilotes SMS de préproduction ne sont pas relus. Classement : V3, chaque point demande de décider ce qui est gardé ou effacé, et la durée des demandes de contact s'écrit dans `privacy.ts` (V7) ; seul le masquage du pilote `log` serait A, il peut se traiter avec l'entrée une fois validée.
+
+## Angle 58 — Colonnes absentes du sparse fieldset : relation, valeur par défaut ou `null` à la place
+
+*Exploré le 2026-10-19 sur `pre-dev` bceb948f2, par l'explorateur. Relu par l'explorateur : les
+modèles par réflexion (`tinker`, lecture seule : méthodes publiques typées `Relation` confrontées à
+`Schema::getColumnListing`), les ressources de `app/Http/Resources`, `HasQueryBuilder`, les
+contrôleurs des relevés bancaires et des membres d'agence, `Model::toArray()` du framework. Deux
+tests temporaires, retirés avant la fin (charge 1,43 / 1,52 / 1,57 sur 8 cœurs). Le croisement
+« `include=` du front face aux champs demandés » vient d'un sous-agent : 42 appels `fields` +
+`include` examinés, **aucune clé étrangère manquante** sur un endpoint qui passe par `buildQuery`
+(les trois omissions qu'il relève visent des contrôleurs qui ignorent `fields`, sujet de l'angle 60) ;
+résultat négatif non re-mesuré par l'explorateur. Le cas d'origine, `Customer.notes`, est fermé par TCK-705 (P20.01) : `CustomerResource.php:47-54`
+ne rend plus la clé qu'en colonne lue ou en relation chargée.*
+
+### Aucune garde n'empêche une nouvelle collision entre une colonne et une relation, et six paires `fooBy` / `foo_by` se recouvrent déjà à la sérialisation
+- Réf : P58.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/AppNotification.php:22,35,66`, `takussan-api/app/Models/BankStatement.php:59-66`, `takussan-api/app/Models/BankStatementLine.php:58`, `takussan-api/app/Models/Lease.php:191`, `takussan-api/app/Models/RoleDelegation.php:90`, `vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:2033-2039`
+- Constat :
+  - mesuré : réflexion de tous les modèles de `app/Models` (méthodes publiques sans paramètre typées `Relation`) confrontée aux colonnes de leur table → **une seule collision de nom exact, `Customer::notes`**, déjà neutralisée par TCK-705 ; aucune ressource ne lit plus `$this->x` pour un `x` à la fois colonne et relation.
+  - même mesure, en comparant le nom `snake_case` de la relation : six paires — `AppNotification::deliveryAttempts` / `delivery_attempts`, `BankStatement::uploadedBy` / `uploaded_by`, `BankStatement::finalizedBy` / `finalized_by`, `BankStatementLine::confirmedBy` / `confirmed_by`, `Lease::earlyTerminationRequestedBy` / `early_termination_requested_by`, `RoleDelegation::revokedBy` / `revoked_by`.
+  - `Model::toArray()` fusionne `attributesToArray()` puis `relationsToArray()`, qui nomme les relations en `snake_case` (lu, `Model.php:2033-2039`, `HasAttributes.php:158`) : dès que la relation est chargée, l'identifiant de la colonne est remplacé par l'objet dans toute sérialisation brute. `RoleDelegationController.php:38,64` charge `revokedBy` ; qu'un chemin sérialise ce modèle sans sa ressource n'a pas été cherché (à vérifier).
+  - Rien ne garde le premier cas : la collision de `notes` est restée un N+1 silencieux jusqu'à sa mesure par l'angle 20 (lu, P20.01).
+  - Établi comment : réflexion en `tinker` (lecture seule) et lecture.
+- Piste : un test unitaire qui parcourt les modèles par réflexion et rougit sur toute relation dont le nom, ou le nom `snake_case`, est une colonne de la table, avec une liste d'exceptions justifiées pour les six paires existantes (ou leur renommage, `uploader` / `finalizer`…, qui touche les `include=` publics). Ablation : renommer une relation `notes` sur un modèle qui a la colonne.
+
+### Un `include=uploadedBy` ou `finalizedBy` des relevés bancaires sort toujours `null` dès qu'un `fields[bank_statements]` est passé
+- Réf : P58.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/BankStatement.php:42-47`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:29-38`, `takussan-api/app/Models/Agency.php:95-101`
+- Constat :
+  - `$queryFields` n'a ni `uploaded_by` ni `finalized_by` (lu, `BankStatement.php:42-45`), alors que `uploadedBy` et `finalizedBy` sont chargeables (lu, `:47`). Avec un sparse fieldset, la clé étrangère n'est jamais sélectionnée, et la relation `BelongsTo` se charge à vide.
+  - mesuré (test temporaire) : `GET /api/agencies/{id}/bank-statements?include=uploadedBy` → `data.0.uploaded_by` = `{id, first_name, last_name}` ; même appel avec `fields[bank_statements]=id,status` → `uploaded_by: null`, clé présente, alors que le relevé a un auteur. Aucune erreur, ni 400 ni trace.
+  - La même forme, mesurée par réflexion sur tous les modèles qui déclarent `$queryFields` et `$requestLoadable` : `Agency::primaryAdmin` (`primary_admin_id` absent de `Agency::$queryFields`, lu `Agency.php:95-101`) et `Document::verifier` (`verified_by` absent). `DocumentResource` ne rend pas la relation `verifier` (lu, `:37` rend la colonne) : c'est une relation chargée sans être rendue, sujet de l'angle 60.
+  - Le front n'envoie aujourd'hui ni `include=` ni `fields` sur les relevés (lu, `takussan-web/src/lib/queries/reconciliation.ts:30-44`) : aucun écran n'affiche ce `null`.
+  - Établi comment : test temporaire et réflexion en `tinker`.
+- Piste : ajouter les clés étrangères des relations chargeables à `$queryFields`, ou faire sélectionner par `HasQueryBuilder` la clé de toute `BelongsTo` demandée par `include=` ; garder par un test qui, pour chaque modèle, vérifie que chaque relation de `$requestLoadable` a sa clé dans `$queryFields` (la réflexion de ce passage en est la forme).
+
+### La liste des relevés bancaires lance une requête `bank_statement_lines` par relevé pour `reconciled_ratio`
+- Réf : P58.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/BankStatement.php:93-110`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:17-26`
+- Constat :
+  - `reconciled_ratio` est un accesseur (`getReconciledRatioAttribute`) qui lance un `select match_status, count(*) … group by match_status` sur les lignes du relevé (lu, `BankStatement.php:93-99`). La ressource le lit pour chaque élément (lu, `:28`), et l'index pagine sans rien précharger (lu, `BankStatementController.php:23-25`).
+  - mesuré (test temporaire, `DB::listen`) : 2 relevés → 2 requêtes `bank_statement_lines`, 13 relevés → 13, toutes de la forme ci-dessus. Le front demande la liste à `per_page=50` (lu, `reconciliation.ts:34-36`) : jusqu'à 50 requêtes de plus par affichage.
+  - Établi comment : test temporaire.
+- Piste : précharger les comptes par `withCount` filtrés (`lines as confirmed_count` où `match_status = confirmed`, etc.) dans l'index, et faire lire ces alias à l'accesseur quand ils sont présents ; garder par un test de budget « 2 relevés = 12 relevés » sur `GET /api/agencies/{id}/bank-statements`.
+
+### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
+- Réf : P58.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Resources/UserResource.php:30-97`, `takussan-api/app/Models/User.php:234-238`, `takussan-api/tests/Feature/Api/UserResourceSparseFieldsTest.php`
+- Constat :
+  - mesuré (test temporaire, admin d'agence, un membre agent avec `two_factor_enabled`, `force_2fa_at_first_login`, `secondary_phone_whatsapp` vrais, `metadata.force_2fa_reconfigure` vrai, `preferences` non vide, e-mail vérifié) : `GET /api/agencies/{id}/members` → `two_factor_enabled: true`, `force_2fa_at_first_login: true`, `force_2fa_reconfigure: true`, `email_verified_at` daté, `preferences: {x: 1}` ; avec `fields[users]=id,first_name,last_name,email,status` → **`false`, `false`, `false`, `null`, `{}`**.
+  - Ni `two_factor_enabled`, ni `force_2fa_at_first_login`, ni `metadata`, ni `preferences`, ni `email_verified_at` ne sont dans `User::$queryFields` (lu, `User.php:234-238`) : sous un sparse fieldset, ces clés ne peuvent sortir qu'en valeur inventée.
+  - C'est le défaut que TCK-272 a corrigé pour `has_usable_password` seul, par `whenHas` (lu, `UserResource.php:47-67`, et l'en-tête de `UserResourceSparseFieldsTest`) : *« un champ absent se remarque ; un champ faux se croit »*. Les clés voisines sont restées en `(bool)` nu.
+  - Les appelants actuels de la liste avec `fields[users]` ne lisent que les noms (lu : `ContactLeadsInbox.tsx:241`, `AuditTrail.tsx:198`, `role-delegations.ts:161`) ; la console d'équipe lit la 2FA par `GET /api/users`, qui la pose à part (lu, `UserAdminController.php:65-71`). Aucun écran n'affiche donc ce `false` aujourd'hui.
+  - Établi comment : test temporaire et lecture.
+- Piste : étendre `whenHas` aux clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; étendre `UserResourceSparseFieldsTest` à ces clés, avec ablation.
+
+### Petites améliorations
+- Réf : P58.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/AppNotification.php:22,35,63-69`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:19`, `takussan-api/app/Console/Commands/SmsBackfillDeliveryAttempts.php:31-46`, `takussan-api/database/migrations/2026_04_26_160847_add_delivery_attempts_to_app_notifications.php:18`
+- Constat :
+  - **`app_notifications.delivery_attempts` (jsonb) n'a plus d'écrivain** depuis TCK-110 : `SmsRouterDriver.php:19` le dit, et `grep -rn "delivery_attempts" app` ne rend que la déclaration (`$fillable`, `$casts`), des commentaires et la commande de reprise `sms:backfill-delivery-attempts` (lu). La colonne porte le même nom `snake_case` que la relation `deliveryAttempts()` qui l'a remplacée (voir P58.01) : relation chargée, `toArray()` rend la table normalisée sous la clé de la colonne morte.
+  - mesuré : `select count(*) filter (where delivery_attempts is not null), count(*) from app_notifications` sur la base de développement → 0 sur 9 409. L'état de la préproduction n'est pas mesuré : la commande de reprise y a-t-elle été jouée ? (à vérifier).
+  - Établi comment : lecture, `grep` et `SELECT` sur la base de développement.
+- Piste : constater la reprise en préproduction, puis retirer la colonne (migration, V4), la clé de `$fillable` et `$casts` et la commande de reprise. D'ici là, retirer `delivery_attempts` de `$fillable` empêche qu'un appelant la réécrive.
