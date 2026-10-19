@@ -1,13 +1,13 @@
 ---
 id: TCK-955
 title: "La pièce du client et de la caution se lisent en clair par une route dédiée : admin de l'agence seul, sous step-up, refusée sous impersonation, journalisée ; bouton « Afficher » sur la fiche client"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
 wave: null
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 depends_on: [TCK-954]
 blocks: [TCK-956]
 spec_refs:
@@ -56,7 +56,8 @@ bailleur et une session d'impersonation ne le peuvent pas.
     sans agence n'a aucun lecteur ;
   - `GuarantorPolicy::viewSensitive` : un profil d'admin actif dans l'agence que lit `view`
     (`addedBy->agency_id`). Si cette agence est `null`, la caution n'a aucun lecteur ;
-  - ni le super-admin, ni l'agent, ni le bailleur (ADR-0070 § 5).
+  - ni l'agent, ni le bailleur (ADR-0070 § 5). Le super-admin passe par `Gate::before` (amendement
+    d'ADR-0070 du 2026-10-19).
 - `ProtectedActions::STEP_UP` reçoit `CustomerController@sensitive` et `GuarantorController@sensitive`.
 - `PersonalDataAccessLogger` :
   - les surfaces `SURFACE_CUSTOMER_SENSITIVE = 'customer_sensitive'` et
@@ -81,7 +82,9 @@ bailleur et une session d'impersonation ne le peuvent pas.
 - [ ] **AC2** — Sans step-up récent, la même requête rend 403 `two_factor_step_up_required` et
   n'écrit aucune ligne.
 - [ ] **AC3** — Rendent 403, sans écrire de ligne : l'agent auteur de la fiche, le bailleur du bail
-  du client, le super-admin, l'admin d'une autre agence, et toute lecture d'un client sans agence.
+  du client, l'admin d'une autre agence, et l'admin qui lit un client sans agence. Le super-admin,
+  sous step-up, reçoit 200 et une ligne est écrite, client sans agence compris (amendement
+  d'ADR-0070 du 2026-10-19).
 - [ ] **AC4** — Les mêmes cas pour `GET /api/guarantors/{id}/sensitive`. Pour l'admin, la réponse
   porte `monthly_income` en nombre. La ligne de journal porte la surface `guarantor_sensitive` et
   l'agence validée : elle n'est pas nulle, et elle est visible dans `GET /api/audit-log` de cette
