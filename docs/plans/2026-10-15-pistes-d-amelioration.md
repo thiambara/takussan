@@ -5695,7 +5695,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une page 2 servie après le changement d'heure répète un bien de la page 1 et en perd un autre
 - Réf : P55.01
-- Statut : fait · TCK-1003 — reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
+- Statut : fait · TCK-1008 — reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:656-674`, `takussan-api/app/Services/Boost/SponsoredRotation.php:19-25`, `docs/adr/0061-*.md:155-157`
 - Constat :

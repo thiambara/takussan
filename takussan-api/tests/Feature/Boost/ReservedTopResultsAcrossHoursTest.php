@@ -12,7 +12,7 @@ use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 /**
- * TCK-1003 (P55.01) — les places réservées de la page 1 se recalculent à chaque page, et la graine
+ * TCK-1008 (P55.01) — les places réservées de la page 1 se recalculent à chaque page, et la graine
  * de rotation porte l'heure : une page 2 servie après le changement d'heure excluait d'autres biens
  * que ceux que la page 1 avait montrés en tête (un doublon, un absent).
  *
