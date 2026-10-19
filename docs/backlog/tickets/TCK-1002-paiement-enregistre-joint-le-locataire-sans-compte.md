@@ -1,7 +1,7 @@
 ---
 id: TCK-1002
 title: "Le paiement enregistré par l'agence joint le locataire sans compte, et la bienvenue ne se tamponne que partie"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -57,21 +57,21 @@ le lien de sa quittance ; la bienvenue ne se croit plus partie quand elle ne l'e
 
 ## Delta à produire
 
-- [ ] `NotificationCode::LeasePaymentRecorded` : `reachesContacts()`, `mobile()`,
+- [x] `NotificationCode::LeasePaymentRecorded` : `reachesContacts()`, `mobile()`,
   `receipt_url` en paramètre facultatif et porteur.
-- [ ] `LeasePaymentService::markPaid` : sans compte et avec un téléphone valide, envoi au contact
+- [x] `LeasePaymentService::markPaid` : sans compte et avec un téléphone valide, envoi au contact
   avec `receipt_url` (`LeasePaymentLinkService::urlFor`) ; avec compte, `mobileBorne: false`.
-- [ ] `lang/{fr,en,wo}/notifications.php` : `codes.lease_payment.recorded.{body_link,sms_link}`.
-- [ ] `SendTenantWelcomeNotification` : pas de tampon sans compte.
-- [ ] Tests : `LeasePaymentRecordedToContactTest`, `TenantWelcomeNotificationTest`.
+- [x] `lang/{fr,en,wo}/notifications.php` : `codes.lease_payment.recorded.{body_link,sms_link}`.
+- [x] `SendTenantWelcomeNotification` : pas de tampon sans compte.
+- [x] Tests : `LeasePaymentRecordedToContactTest`, `TenantWelcomeNotificationTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un paiement enregistré pour un locataire sans compte, téléphone valide, part une fois
+- [x] AC1 — un paiement enregistré pour un locataire sans compte, téléphone valide, part une fois
   vers son numéro (SMS), avec `receipt_url` = le lien `/pay/{jeton}` de l'échéance.
-- [ ] AC2 — un locataire avec compte le reçoit sur son compte, sans `receipt_url` ni canal mobile.
-- [ ] AC3 — sans compte ni téléphone ni e-mail, rien ne part.
-- [ ] AC4 — la bienvenue d'un bail dont le locataire n'a pas de compte ne pose pas
+- [x] AC2 — un locataire avec compte le reçoit sur son compte, sans `receipt_url` ni canal mobile.
+- [x] AC3 — sans compte ni téléphone ni e-mail, rien ne part.
+- [x] AC4 — la bienvenue d'un bail dont le locataire n'a pas de compte ne pose pas
   `tenant_welcomed_at`.
 
 ## Hors périmètre
@@ -81,4 +81,11 @@ le lien de sa quittance ; la bienvenue ne se croit plus partie quand elle ne l'e
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : `app/` et `lang/` remis à l'état d'origine → 2 rouges sur 8
+  (`LeasePaymentRecordedToContactTest`, aucun envoi au contact ; `TenantWelcomeNotificationTest`,
+  tampon posé) ; correctif remis → 8 verts.
+- **Ablation du seul `mobileBorne: false`** → le test « compte » rougit (un SMS part vers le
+  compte). Pour qu'il garde ce point, le compte y a un numéro vérifié et l'interrupteur SMS de
+  `lease_payment_received` allumé : sans eux, le test était vert même sans la borne.
+- Piège : `NotificationPreference` est semée à la création du compte ; le test l'allume par
+  `updateOrCreate`, un `create` viole l'unicité.
