@@ -807,4 +807,51 @@ class MessagingContactsTest extends ApiTestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['user_ids']);
     }
+
+    /**
+     * P51.02 — un participant RETIRÉ par un administrateur perd la relation née du groupe, dans les
+     * deux sens : ni lui ni les membres restants ne le comptent plus comme correspondant, et la
+     * directe ouverte aussitôt est refusée. Témoins : le départ volontaire garde la relation, et
+     * l'administrateur restant peut toujours ré-inviter le retiré, qui retrouve alors ses contacts.
+     */
+    public function test_un_membre_retire_par_un_administrateur_perd_la_relation_nee_du_groupe(): void
+    {
+        [$admin, $membre, $groupe] = $this->groupe();
+        $retire = $this->user('Retire', 'Groupe');
+        $parti = $this->user('Parti', 'Seul');
+        foreach ([$retire, $parti] as $participant) {
+            $groupe->participants()->attach($participant->id, ['role' => ParticipantRole::Member->value, 'joined_at' => now()]);
+        }
+
+        $this->actingAsApi($admin);
+        $this->deleteJson("/api/conversations/{$groupe->id}/participants/{$retire->id}")->assertOk();
+        $this->actingAsApi($parti);
+        $this->deleteJson("/api/conversations/{$groupe->id}/participants/{$parti->id}")->assertOk();
+
+        // Le retiré ne joint plus personne du groupe, et sa directe vers un membre est refusée.
+        $this->actingAsApi($retire);
+        $this->assertSame([], $this->contactIds());
+        $this->postJson('/api/conversations', ['participants' => [$membre->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+
+        // L'autre sens : le membre restant ne le voit plus, ni ne peut lui écrire en directe.
+        $this->actingAsApi($membre);
+        $this->assertSame(collect([$admin->id, $parti->id])->sort()->values()->all(), $this->contactIds(), 'le départ volontaire garde la relation');
+        $this->postJson('/api/conversations', ['participants' => [$retire->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+
+        // Témoin du départ volontaire, de son côté.
+        $this->actingAsApi($parti);
+        $this->assertSame(collect([$admin->id, $membre->id])->sort()->values()->all(), $this->contactIds());
+
+        // L'administrateur restant ne le propose plus pour un NOUVEAU groupe, mais le ré-invite.
+        $this->actingAsApi($admin);
+        $this->assertNotContains($retire->id, $this->contactIds());
+        $this->assertContains($retire->id, $this->contactIdsPour($groupe));
+        $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$retire->id]])->assertCreated();
+
+        // Ré-invité, il retrouve la relation.
+        $this->actingAsApi($retire);
+        $this->assertSame(collect([$admin->id, $membre->id, $parti->id])->sort()->values()->all(), $this->contactIds());
+    }
 }
