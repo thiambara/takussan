@@ -7,6 +7,7 @@ use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
+use App\Support\Masking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -90,10 +91,12 @@ class GuarantorController extends Controller
             'phone' => $g->phone,
             'email' => $g->email,
             'id_type' => $g->id_type?->value,
-            'id_number' => $g->id_number,
+            // TCK-954 (ADR-0070 § 3) — les masques seulement, réponses de `store` et `update`
+            // comprises : l'agent qui vient de saisir la valeur ne la relit pas en clair.
+            'id_number_masked' => is_string($g->id_number) && $g->id_number !== '' ? Masking::tail($g->id_number) : null,
             'occupation' => $g->occupation,
             'employer' => $g->employer,
-            'monthly_income' => $g->monthly_income !== null ? (float) $g->monthly_income : null,
+            'monthly_income_masked' => Masking::presence($g->monthly_income),
             'relationship_to_tenant' => $g->relationship_to_tenant,
             'notes' => $g->notes,
             'created_at' => $g->created_at?->toISOString(),
