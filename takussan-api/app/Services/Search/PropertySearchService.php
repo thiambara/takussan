@@ -94,6 +94,8 @@ class PropertySearchService
                 'filter' => $filter,
                 'page' => $page,
                 'hitsPerPage' => $perPage,
+                // TCK-984 (P55.03) — `hydrate()` ne lit que `id` et recharge tout depuis la base.
+                'attributesToRetrieve' => ['id'],
                 // TCK-338 — LA ligne de la décision. Paramètre de REQUÊTE, pas
                 // réglage d'index : sa portée s'arrête à cet appelant, et la
                 // révoquer ne demande aucune réindexation. C'est aussi ce qui la
@@ -257,6 +259,7 @@ class PropertySearchService
             ->setQuery($term)
             ->setMatchingStrategy(self::STRATEGY_WIDENED)
             ->setFilter($filter)
+            ->setAttributesToRetrieve(['id'])
             ->setPage($page)
             ->setHitsPerPage($perPage);
 
@@ -645,7 +648,10 @@ class PropertySearchService
         $reservedMax = min($settings->reservedTopResults(), $perPage);
         $organic = fn (): array => $this->withPlacement($this->hydrate($nominal['hits'] ?? []), 'organic');
 
-        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0) {
+        // TCK-983 (P55.02) — au-delà de la dernière page, l'écran ne montre aucun emplacement : rien
+        // ne se sert, et aucune impression ne se compte.
+        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0
+            || $page > max(1, (int) ($nominal['totalPages'] ?? 1))) {
             return [$organic(), []];
         }
 
