@@ -3,6 +3,7 @@
 namespace Tests\Feature\Onboarding;
 
 use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
@@ -10,6 +11,7 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Agency\AgencyKindFlipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
@@ -320,5 +322,29 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame(1, Agency::query()->count());
         $this->assertSame(1, OwnerProfile::query()->count());
         $this->assertSame(1, AgencyAdminProfile::query()->count());
+    }
+
+    /** TCK-990 (P49.03) — après le passage, l'assistant refuse comme pour un hôte déjà installé. */
+    public function test_after_the_upgrade_flip_the_wizard_is_rejected_as_already_onboarded(): void
+    {
+        $user = User::factory()->create(['phone' => '+221770000000', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->defaultPayload();
+        $payload['phone_otp']['code'] = $this->issuePhoneCode($user);
+        $this->postJson('/api/host/individual/onboard', $payload)->assertStatus(201);
+        $id = Agency::query()->sole()->id;
+
+        app(AgencyKindFlipService::class)->flip(
+            AgencyUpgradeRequest::factory()->create(['agency_id' => $id, 'submitted_by' => $user->id]),
+        );
+
+        $payload2 = $this->defaultPayload();
+        $payload2['phone_otp']['code'] = $this->issuePhoneCode($user);
+        $this->postJson('/api/host/individual/onboard', $payload2)
+            ->assertStatus(409)
+            ->assertJsonValidationErrors(['agency']);
+
+        $this->assertSame(1, Agency::query()->count());
     }
 }
