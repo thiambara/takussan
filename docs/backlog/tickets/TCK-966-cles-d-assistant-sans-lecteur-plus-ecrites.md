@@ -30,7 +30,7 @@ front ; `AgencyResource` rendait `settings` brut, donc ces clés sortaient à ch
 
 ## Décision du porteur
 
-> ne plus écrire `primary_city`, `primary_property_type`, `onboarding_source` ni `payment.preferred_provider` dans `agencies.settings`, et ne plus les rendre dans `AgencyResource` ; l'assistant peut garder ses champs sans les enregistrer (porteur, 2026-10-18)
+> ne plus écrire `primary_city`, `primary_property_type`, `onboarding_source` ni `payment.preferred_provider` dans `agencies.settings`, et ne plus les rendre dans `AgencyResource` ; l'assistant peut garder ses champs sans les enregistrer (porteur, 2026-10-18) ; reste : la purge des valeurs déjà enregistrées
 
 ## Reste à faire
 
