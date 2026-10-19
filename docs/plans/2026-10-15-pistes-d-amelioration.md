@@ -5605,7 +5605,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Créer un forfait avec `trial_days`, `is_active` ou `sort_order` à `null` rend 500
 - Réf : P54.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-977
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/Admin/StorePlanRequest.php:22,27,28`, `takussan-api/app/Http/Controllers/Api/Admin/PlanController.php:26`, `takussan-api/database/migrations/2026_05_07_000222_create_plans_and_agency_subscriptions_tables.php:20-23`
 - Constat :
@@ -5614,6 +5614,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - `UpdatePlanRequest` ne déclare aucune de ces trois clés `nullable` (lu) : seule la création est touchée. L'écran `AdminPlansClient.tsx` n'envoie pas ces clés (lu).
 - Piste : remplacer `nullable` par `sometimes` (ou `filled`) sur les trois clés, pour qu'une clé omise prenne le défaut de la colonne et qu'un `null` rende 422. Un test par clé dans `BillingPlansTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePlanRequest.php:22,27,28` (`trial_days`, `is_active`, `sort_order` en `nullable`) → `POST /api/admin/plans` en super-admin : `trial_days: null` → 500, `is_active: null` → 500, `sort_order: null` → 500, clés absentes → 201 ; `UpdatePlanRequest` ne les déclare pas `nullable` (lu). Classement : A1, la colonne `NOT NULL` à défaut et la requête sœur de mise à jour fixent le contrat (omis → défaut, `null` → 422) ; seule la validation change, aucun montant ni échéance n'est calculé ou écrit autrement.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StorePlanRequest.php:22,27,28` (trois clés `nullable`) ; test de garde dans `BillingPlansTest` (fournisseur sur les trois clés) → avant correctif, `POST /api/admin/plans` en super-admin avec chacune à `null` rend 500 (3 rouges sur 13), clés omises → 201 → `filled` sur les trois : 13 verts, et une création sans ces clés garde `0`, `true`, `0` ; ablation (`StorePlanRequest` remise) → 3 rouges, remis → vert.
 
 ### Une note client avec `pinned: null` rend 500
 - Réf : P54.03
