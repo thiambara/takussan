@@ -32,13 +32,9 @@ use Symfony\Component\HttpFoundation\Response;
  *   4. Creates the {@see AgencyAdminProfile} (TCK-271 — agency-side
  *      profile, pinned as the active context cookie) and the
  *      {@see OwnerProfile} (KYC-bearing profile for the owner role).
- *   5. TCK-496 — l'étape « mode de paiement » a quitté l'assistant : on ne
- *      demande plus par quel opérateur être payé à quelqu'un qui n'a pas
- *      encore d'annonce. La clé `settings.payment.preferred_provider` n'est
- *      donc écrite QUE si l'appelant la fournit — un brouillon repris, ou un
- *      client tiers resté sur l'ancien contrat. Une agence sans préférence
- *      n'est pas une agence cassée : la question se repose au premier
- *      encaissement, où elle a un sens immédiat.
+ *   5. TCK-496 — l'étape « mode de paiement » a quitté l'assistant.
+ *      TCK-966 (P47.07) — un `payment_setting.preferred_provider` encore
+ *      reçu est validé, mais plus enregistré : aucun encaissement ne le lisait.
  *   6. Sets the user's `active_profile` (returned to the caller so the
  *      controller can refresh the cookie).
  *   7. Logs the `host_individual_onboarded` activity.
@@ -52,9 +48,6 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class HostIndividualOnboardingService
 {
-    /** TCK-633 (lot C) — la ville d'un espace créé sans question, quand rien n'est reçu. */
-    public const AUTO_SPACE_DEFAULT_CITY = 'Dakar';
-
     public function __construct(private readonly PhoneVerificationService $phoneVerification) {}
 
     /**
@@ -146,9 +139,9 @@ class HostIndividualOnboardingService
      *
      * @return array{created: bool, agency: Agency, agency_admin_profile: AgencyAdminProfile, owner_profile: OwnerProfile, active_profile: AgencyAdminProfile}
      */
-    public function autoOnboard(User $user, ?string $primaryCity): array
+    public function autoOnboard(User $user): array
     {
-        return DB::transaction(function () use ($user, $primaryCity): array {
+        return DB::transaction(function () use ($user): array {
             User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
             $existante = Agency::query()
@@ -161,10 +154,9 @@ class HostIndividualOnboardingService
             $agency = $existante ?? $this->createAgency($user, [
                 'agency' => [
                     'name' => $this->autoSpaceName($user),
-                    'primary_city' => $this->autoSpaceCity($primaryCity),
                     'currency' => Currency::XOF->value,
                 ],
-            ], 'host_auto_space');
+            ]);
 
             $agencyAdminProfile = $this->createAgencyAdminProfile($user, $agency);
             $ownerProfile = $this->createOwnerProfile($user, $agency);
@@ -206,14 +198,6 @@ class HostIndividualOnboardingService
             : (string) __('onboarding.auto_space.name_default', [], $locale);
     }
 
-    /** La ville reçue (texte libre, 120 caractères au plus), Dakar à défaut — sans le référentiel du lot D. */
-    private function autoSpaceCity(?string $primaryCity): string
-    {
-        $ville = trim((string) $primaryCity);
-
-        return $ville !== '' ? $ville : self::AUTO_SPACE_DEFAULT_CITY;
-    }
-
     /**
      * Wrap PhoneVerificationService so tests can stub via the container.
      * TCK-589 — aucun code fixe, dans aucun environnement : le code fixe
@@ -237,33 +221,15 @@ class HostIndividualOnboardingService
             ->exists();
     }
 
-    private function createAgency(User $user, array $payload, string $source = 'host_individual_wizard'): Agency
+    /**
+     * TCK-966 (P47.07) — l'agence naît sans `settings`. La ville, le type de bien préféré, la source
+     * de l'inscription et l'opérateur de paiement y étaient écrits sans que rien ne les lise :
+     * l'assistant garde ses champs (et les valide), mais ne les enregistre plus.
+     */
+    private function createAgency(User $user, array $payload): Agency
     {
         $name = (string) data_get($payload, 'agency.name');
-        $primaryCity = (string) data_get($payload, 'agency.primary_city');
         $currencyValue = (string) data_get($payload, 'agency.currency', Currency::default()->value);
-        // TCK-633 (lot C) — « aucun type de bien préféré » s'écrit `null`, pas `''` : la création
-        // automatique ne le demande pas (même raisonnement que TCK-496 pour le moyen de paiement).
-        $primaryPropertyType = data_get($payload, 'preferences.primary_property_type');
-        $preferredProvider = data_get($payload, 'payment_setting.preferred_provider');
-
-        $settings = [
-            'primary_city' => $primaryCity,
-            'primary_property_type' => is_string($primaryPropertyType) && $primaryPropertyType !== '' ? $primaryPropertyType : null,
-            // Marker so downstream surfaces can distinguish between an
-            // individual created via the wizard and one provisioned by a
-            // super-admin (see TCK-263). TCK-633 : `host_auto_space` pour la création automatique.
-            'onboarding_source' => $source,
-        ];
-
-        // TCK-496 — la clé n'est posée que si elle a été fournie. La version
-        // précédente castait en `(string)` et écrivait donc `''` quand rien
-        // n'était donné : une préférence VIDE, indiscernable en aval d'un choix
-        // délibéré. *Une valeur par défaut fabriquée est un mensonge qui a l'air
-        // d'une donnée.*
-        if (is_string($preferredProvider) && $preferredProvider !== '') {
-            $settings['payment'] = ['preferred_provider' => $preferredProvider];
-        }
 
         return Agency::query()->create([
             'name' => $name,
@@ -274,7 +240,6 @@ class HostIndividualOnboardingService
             'verified_at' => null,
             'currency' => Currency::from(strtoupper($currencyValue)),
             'primary_admin_id' => $user->id,
-            'settings' => $settings,
         ]);
     }
 

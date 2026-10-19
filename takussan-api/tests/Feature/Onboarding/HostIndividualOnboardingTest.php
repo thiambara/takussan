@@ -85,17 +85,20 @@ class HostIndividualOnboardingTest extends TestCase
         // AC5 — la clé n'est pas posée du tout. Surtout PAS posée à `''` : une
         // préférence vide serait indiscernable en aval d'un choix délibéré.
         $this->assertNull(data_get($agency->settings, 'payment'));
-        $this->assertSame('Dakar', data_get($agency->settings, 'primary_city'));
+        // TCK-966 (P47.07) — la ville saisie n'est plus enregistrée dans `settings` : rien ne la lit.
+        $this->assertNull(data_get($agency->settings, 'primary_city'));
     }
 
     /**
      * TCK-496 / AC3 — l'ancien contrat n'est pas cassé.
      *
      * Un brouillon repris, ou un client tiers resté sur la forme d'avant, poste
-     * encore `payment_setting.preferred_provider`. Il doit être accepté ET
-     * enregistré : le ticket change ce qui est DEMANDÉ, pas ce qui est reçu.
+     * encore `payment_setting.preferred_provider`. Il reste accepté.
+     *
+     * TCK-966 (P47.07) — mais il n'est plus enregistré : aucun encaissement ne lit
+     * `settings.payment.preferred_provider`.
      */
-    public function test_une_charge_utile_qui_porte_encore_l_operateur_est_acceptee_et_enregistree(): void
+    public function test_une_charge_utile_qui_porte_encore_l_operateur_est_acceptee_sans_etre_enregistree(): void
     {
         $user = User::factory()->create([
             'phone' => '+221770000000',
@@ -112,7 +115,7 @@ class HostIndividualOnboardingTest extends TestCase
 
         $response->assertStatus(201);
         $agency = Agency::query()->findOrFail($response->json('data.agency.id'));
-        $this->assertSame('orange_money', data_get($agency->settings, 'payment.preferred_provider'));
+        $this->assertNull(data_get($agency->settings, 'payment'));
     }
 
     /**
@@ -167,7 +170,10 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertSame(AgencyStatus::Active, $agency->status);
         $this->assertFalse((bool) $agency->is_verified);
         $this->assertSame($user->id, $agency->primary_admin_id);
-        $this->assertSame('wave', data_get($agency->settings, 'payment.preferred_provider'));
+        // TCK-966 (P47.07) — aucune des quatre clés de l'assistant n'est enregistrée : rien ne les lit.
+        foreach (['primary_city', 'primary_property_type', 'onboarding_source', 'payment'] as $cle) {
+            $this->assertNull(data_get($agency->settings, $cle), $cle);
+        }
 
         // OwnerProfile active and linked (TCK-255 baseline).
         $owner = OwnerProfile::query()
