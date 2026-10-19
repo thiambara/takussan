@@ -9,6 +9,7 @@ use App\Services\Boost\BoostSettings;
 use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
 use App\Support\Search\CleDeQuartier;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -61,6 +62,9 @@ class PropertySearchService
      * l'omettrait recevait une autre page que celle de la liste.
      */
     public const PER_PAGE_PAR_DEFAUT = 40;
+
+    /** TCK-998 (P55.01) — la forme de `seed_hour`, en UTC : `2026-10-19T16`. */
+    public const FORMAT_HEURE_DE_GRAINE = 'Y-m-d\\TH';
 
     /**
      * Plafond de sondes par requête.
@@ -146,8 +150,10 @@ class PropertySearchService
         $avecEmplacements = filter_var($params['placements'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
         // Hors de la graine de rotation : `placements=true` doit servir la même rotation que l'absence.
         unset($params['placements']);
+        $heureDeGraine = $this->heureDeGraine($params['seed_hour'] ?? null);
+        unset($params['seed_hour']);
         [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT && $avecEmplacements
-            ? $this->placements($term, $filter, $sort, $page, $perPage, $params, $result)
+            ? $this->placements($term, $filter, $sort, $page, $perPage, $params, $result, $heureDeGraine)
             : [$this->withPlacement($this->hydrate($result['hits'] ?? []), 'organic'), []];
 
         return [
@@ -162,7 +168,33 @@ class PropertySearchService
                 lastPage: max(1, (int) ($result['totalPages'] ?? 1)),
             ),
             'search' => $search,
+            // TCK-998 (P55.01) — l'heure de la graine de rotation, que le front renvoie avec les
+            // pages suivantes (`seed_hour`) pour qu'elles complètent celle-ci.
+            'seed_hour' => $heureDeGraine->format(self::FORMAT_HEURE_DE_GRAINE),
         ];
+    }
+
+    /**
+     * TCK-998 (P55.01) — l'heure UTC de la graine de rotation (ADR-0061 §7).
+     *
+     * Les places réservées de la page 1 se recalculent à chaque page, et la graine porte l'heure :
+     * une page 2 servie après le changement d'heure excluait d'autres biens que ceux que la page 1
+     * avait montrés en tête (un doublon, un absent). Le front renvoie donc avec les pages suivantes
+     * l'heure de la page 1, qui n'est acceptée que si elle vaut l'heure courante ou la précédente :
+     * au-delà (lien partagé, onglet oublié), c'est l'heure courante, comme avant.
+     */
+    private function heureDeGraine(mixed $demandee): CarbonImmutable
+    {
+        $courante = now()->utc()->startOfHour()->toImmutable();
+        if (! is_string($demandee) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}$/', $demandee) !== 1) {
+            return $courante;
+        }
+        $heure = CarbonImmutable::createFromFormat('!'.self::FORMAT_HEURE_DE_GRAINE, $demandee, 'UTC');
+        if (! $heure instanceof CarbonImmutable || $heure->format(self::FORMAT_HEURE_DE_GRAINE) !== $demandee) {
+            return $courante;
+        }
+
+        return $heure->equalTo($courante) || $heure->equalTo($courante->subHour()) ? $heure : $courante;
     }
 
     /**
@@ -641,7 +673,7 @@ class PropertySearchService
      * @param  array<string, mixed>  $nominal
      * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
      */
-    private function placements(string $term, array $filter, array $sort, int $page, int $perPage, array $params, array $nominal): array
+    private function placements(string $term, array $filter, array $sort, int $page, int $perPage, array $params, array $nominal, CarbonImmutable $heureDeGraine): array
     {
         $settings = app(BoostSettings::class);
         $slots = $settings->sponsoredSlotsPerPage();
@@ -660,7 +692,7 @@ class PropertySearchService
             return [$organic(), []];
         }
 
-        $seed = SponsoredRotation::seed($params);
+        $seed = SponsoredRotation::seed($params, $heureDeGraine);
         $sponsoredIds = SponsoredRotation::pick($pool, $seed, $page, $slots);
         $servedOnFirstPage = $page === 1 ? $sponsoredIds : SponsoredRotation::pick($pool, $seed, 1, $slots);
         $reserved = $reservedMax > 0
