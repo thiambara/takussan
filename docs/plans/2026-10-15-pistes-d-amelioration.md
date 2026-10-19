@@ -131,7 +131,7 @@ voie d'écriture (angle 13, puis 47).
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | fait |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | fait |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | fait |
-| 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
+| 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | fait |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
@@ -5981,3 +5981,69 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 - Piste : constater la reprise en préproduction, puis retirer la colonne (migration, V4), la clé de `$fillable` et `$casts` et la commande de reprise. D'ici là, retirer `delivery_attempts` de `$fillable` empêche qu'un appelant la réécrive.
 - Mesure (2026-10-19, 353c40b57, mesureur) : `grep -rn delivery_attempts takussan-api/app` → `$fillable` et `$casts` d'`AppNotification.php:22,35`, des commentaires et la commande `SmsBackfillDeliveryAttempts` ; aucun écrivain ; `select count(*) filter (where delivery_attempts is not null), count(*) from app_notifications` sur la base de développement (lecture) → 0 sur 9 409 ; TCK-691 laisse la colonne « non mesurée » (lu, hors périmètre). L'état de la préproduction n'est pas mesurable depuis le poste. Classement : V4, le retrait de la colonne est une migration de schéma ; seul le retrait de `$fillable` serait A3, à traiter avec l'entrée.
 - Mesure (2026-10-19, 99abff99b, delegue) : relu `SmsBackfillDeliveryAttempts.php:13-46` (lit la colonne par `getAttribute`, sans `fill`), `NotificationDeliveryAttemptsTableTest.php:121-135` (pose la colonne par une factory, non gardée), TCK-110 `:42` et `:96` (le retrait est déjà prévu « après vérification du backfill », en migration séparée) et TCK-691 `:72-73` (colonne laissée « non mesurée ») → la colonne porte, entrée par entrée, le numéro du destinataire (`to`, forme reprise par le test `:131`) ; la préproduction n'est pas mesurable depuis le poste. Recommandation : ne retirer aujourd'hui que `delivery_attempts` de `$fillable` (A3, réversible en un commit, ni la commande de reprise ni la factory du test n'en dépendent), et garder au porteur la migration qui supprime la colonne, `$casts` et la commande, après un `select count(*) filter (where delivery_attempts is not null)` en préproduction ; pourquoi pas validé : le retrait de la colonne est un V4 destructif, non additif, et il efface des numéros de téléphone, critère V3 réservé que le mesureur n'avait pas nommé ; ce qui manque : la mesure de préproduction, et la décision du porteur sur la suppression de ces données.
+
+## Angle 59 — Requêtes SQL des listes `filter[search]` et de la recherche publique, index peuplé
+
+*Exploré le 2026-10-19 sur `pre-dev` 76d3c2f5a, par l'explorateur, sans sous-agent. Relu par
+l'explorateur : `HasQueryBuilder.php` (callback `search`, `defaultSortsWithRelevance`),
+`SearchRelevanceSort.php`, `PropertySearchService.php` (`search`, `placements`, `hydrate`),
+`DocumentSearchService.php`, `MessageSearchService.php`, `MessageResource.php`,
+`MessagingContactController.php:106-118`, Scout v11.3.0 (`Builder::keys()`,
+`MeilisearchEngine::search()`, `performSearch()`, `keys()`) et les appels du front
+(`properties-server.ts`, `customers.ts`, `conversations.ts`). Mesure par un test temporaire,
+retiré avant la fin : `InteractsWithMeilisearch` (index `testing_*` propres au processus, base de
+test `RefreshDatabase`), lignes garnies comme `ProListQueryBudgetTest` (photo, adresse,
+propriétaire agent avec avatar, étiquette), admin d'agence, appel d'amorce non compté, puis 2 et
+12 lignes. Charge relevée : 7,76 puis 3,36 et 2,94 sur 8 cœurs ; les durées ci-dessous sont
+celles d'un poste chargé, pas une référence. Limites : aucune mesure sur la base ni l'index de
+développement ; le corpus de 5 000 correspondances est synthétique (copies d'un même document
+`toSearchableArray()` sous des ids absents de la base) ; `/api/users` et `/api/admin/…` non
+mesurés.*
+
+Déjà sain (mesuré, 2 puis 12 lignes, appel du front) : `GET /api/properties?filter[search]=…`
+21 → 21 requêtes, autant que la même liste sans recherche ; `GET /api/customers?filter[search]=…`
+21 → 21 ; `GET /api/maintenance-requests?filter[search]=…` 23 → 23 ;
+`GET /api/search/documents?q=…` 8 → 8 ; `GET /api/public/properties/search?q=…` 4 → 4 sans
+vedette, et 7 puis 10 avec des vedettes : une hydratation de trois requêtes par jeu
+(emplacements, places réservées, organique), jamais une par ligne. La recherche ajoute à la liste
+pro le `whereIn` sur les ids rendus par Meilisearch, dans le `count(*)` comme dans la page, et
+le `CASE` de la pertinence.
+
+### `filter[search]` rapatrie de Meilisearch le document entier de chaque correspondance, jusqu'à 5 000, pour n'en lire que l'id
+- Réf : P59.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-236`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:113-119,152-157,281-286`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:112-116`
+- Constat :
+  - `$model::search($value)->take(static::SEARCH_ID_CAP)->keys()` ne passe aucune option (lu, `HasQueryBuilder.php:235`). Scout envoie alors `hitsPerPage = 5000` sans `attributesToRetrieve` (lu, `MeilisearchEngine.php:113-119`), et `keys()` ne garde que la clé de chaque hit (lu, `:281-286`).
+  - mesuré : `Property::search('zorglub')->take(5000)->raw()` → chaque hit porte les 38 attributs de `toSearchableArray()` (`description`, libellés, `tags`, `_geo`…), environ 1 216 octets par hit ; avec 5 000 correspondances, 6 280 107 octets de JSON.
+  - mesuré : sur cet index de 5 000 correspondances, `keys()` → 386 à 474 ms ; la même recherche avec `options(['attributesToRetrieve' => ['id']])` → 177 à 184 ms, 5 000 ids identiques en nombre (trois répétitions).
+  - mesuré : `GET /api/properties` avec les champs et l'`include` du front, admin d'une agence à 2 biens, quand le mot est présent dans 5 000 documents d'autres agences → 627 à 697 ms, contre 130 à 142 ms pour la même liste sans recherche. Les deux requêtes SQL qui portent le `whereIn` lient 5 003 paramètres chacune ; celle de la page fait 124 592 caractères (le `CASE` de `SearchRelevanceSort`) et prend 46 à 48 ms, le `count(*)` 27 à 46 ms.
+  - Le coût suit le nombre de correspondances **sur toute la plateforme**, pas dans l'agence : les ids sont globaux avant l'intersection (lu, docblock `HasQueryBuilder.php:19-27`). Un mot courant (« villa », un nom de quartier) le fait payer à chaque agence. Restreindre la recherche au périmètre dans Meilisearch est le reste non confié de P16.04 ; ce constat-ci n'en dépend pas.
+  - La recherche publique a reçu la projection `['id']` (P55.03, TCK-984) ; le chemin interne, non (lu). `MessagingContactController.php:112-116` a la même forme, sur l'index `users` (non mesuré).
+- Établi comment : relecture de Scout et du callback, test temporaire sur Meilisearch réel.
+- Piste : passer `->options(['attributesToRetrieve' => [$model->getScoutKeyName()]])` dans le callback de `HasQueryBuilder` (et dans `MessagingContactController`), le résultat rendu étant inchangé ; un test qui enregistre la requête envoyée au client Meilisearch, sur le modèle de `PropertySearchProjectionTest`. Le coût SQL des 5 000 ids reste à P16.04.
+
+### `GET /api/search/messages` charge les pièces jointes message par message
+- Réf : P59.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Search/MessageSearchService.php:25-48`, `takussan-api/app/Http/Resources/MessageResource.php:24,35-47`, `takussan-api/app/Services/Search/DocumentSearchService.php:46-47`
+- Constat :
+  - `MessageResource::attachments()` appelle `$this->resource->getMedia('attachments')` sur chaque message (lu, `:39`). `MessageSearchService::search()` rend le paginateur de Scout sans précharger `media` (lu, `:48`), alors que `DocumentSearchService` fait `loadMissing('media')` (lu, `:47`).
+  - mesuré : `GET /api/search/messages?q=…&per_page=20`, participant d'une conversation, messages sans pièce jointe → 19 requêtes pour 2 messages, 29 pour 12 ; une `select * from "media" where "model_id" in (<un id>)` par message.
+  - La route n'a pas d'appelant dans `takussan-web/src` (mesuré : `grep -rn "search/messages"` → rien), ce que P13.08 relevait déjà ; elle est gardée par `MessageSearchTest`, `SearchDateRangeTest` et `MaintenanceThreadAccessTest` (lu).
+- Établi comment : test temporaire avec journal des requêtes, relecture.
+- Piste : `$paginator->getCollection()->loadMissing('media')` dans `MessageSearchService`, comme pour les documents ; un test de budget « 2 lignes = 12 lignes » sur la route. Ou retirer la route, si le retrait de P13.08 l'emporte.
+
+### Aucune garde de budget de requêtes sur un chemin de recherche Scout
+- Réf : P59.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/tests/Feature/Api/ProListQueryBudgetTest.php:56-71`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`, `takussan-api/tests/TestCase.php`
+- Constat :
+  - Les listes de `ProListQueryBudgetTest` et de `PropertyIndexQueryBudgetTest` sont appelées sans `filter[search]` (lu) ; ces classes n'emploient pas `InteractsWithMeilisearch`, et Scout est coupé dans la suite (lu, `takussan-api/CLAUDE.md` § Tests).
+  - mesuré : `grep -l "filter\[search\]"` sur les tests qui posent `enableQueryLog` ou `DB::listen` → `PublicProfileIndexTest` et `MessagingContactsTest` seuls ; le premier vise des profils non `Searchable` (recherche `LIKE`).
+  - Aujourd'hui les comptes sont constants sur les listes mesurées (voir l'en-tête de l'angle), sauf P59.02. Une ressource ou un contrôleur qui lirait une relation seulement quand une recherche est posée (le chargement des ids de pertinence, un `with()` conditionnel) n'aurait aucun témoin (déduit, à vérifier).
+- Établi comment : relecture des tests et `grep`.
+- Piste : une variante « avec recherche » de `ProListQueryBudgetTest` sous `InteractsWithMeilisearch` (biens, clients, interventions, `search/messages`, recherche publique), 2 lignes = 12 lignes ; garde ajoutée sans toucher aux seuils existants.
