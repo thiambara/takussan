@@ -63,7 +63,7 @@ const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
  * `search` est l'alias historique de `q` ; les quatre bornes géographiques servent la
  * vue carte, qui ne passe pas par `SearchFilters` ; `placements` coupe les emplacements pour la
  * rangée « À vendre » de l'accueil (TCK-687), ce n'est pas un filtre du panneau ; `seed_hour`
- * est l'heure de graine que la pagination renvoie (TCK-998), pas un filtre non plus.
+ * est l'heure de graine que la pagination renvoie (TCK-1003), pas un filtre non plus.
  */
 const HORS_INTERFACE = ['search', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements', 'seed_hour'];
 

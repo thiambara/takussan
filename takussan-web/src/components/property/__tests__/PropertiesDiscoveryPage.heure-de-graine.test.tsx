@@ -4,7 +4,7 @@ import { render, screen, within } from '@testing-library/react';
 import { withIntl } from '@/test/intl';
 
 /**
- * TCK-998 (P55.01) — les liens de pagination portent l'heure de graine de la page affichée.
+ * TCK-1003 (P55.01) — les liens de pagination portent l'heure de graine de la page affichée.
  *
  * Les places réservées de la page 1 se recalculent à chaque page, et la graine de rotation porte
  * l'heure : une page 2 servie après le changement d'heure répétait un bien de la page 1 et en
@@ -57,7 +57,7 @@ beforeEach(() => {
   parametres = new URLSearchParams('contract_type=rent');
 });
 
-describe('TCK-998 — l’heure de graine voyage avec la pagination', () => {
+describe('TCK-1003 — l’heure de graine voyage avec la pagination', () => {
   it('les liens vers les pages suivantes portent la `seed_hour` de la réponse', async () => {
     mockApiFetch.mockResolvedValue(reponse(1, '2026-10-13T00'));
     render(withIntl(<PropertiesDiscoveryPage />));

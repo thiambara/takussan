@@ -20,7 +20,7 @@ export interface PaginationProps {
    */
   readonly cibleDuDefilement?: string;
   /**
-   * TCK-998 (P55.01) — l'heure de graine de la page affichée (`seed_hour` de la réponse), que les
+   * TCK-1003 (P55.01) — l'heure de graine de la page affichée (`seed_hour` de la réponse), que les
    * liens vers les pages 2 et suivantes renvoient à l'API : sans elle, une page servie après le
    * changement d'heure recalculait d'autres places réservées que celles de la page 1 (un doublon,
    * un absent). Le lien de la page 1 ne la porte pas : il garde la forme de la canonique.

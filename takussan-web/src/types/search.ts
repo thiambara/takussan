@@ -616,7 +616,7 @@ export interface SearchResult {
   };
   search?: BlocDeRecherche;
   /**
-   * TCK-998 (P55.01) — l'heure UTC de la graine de rotation des emplacements (`2026-10-19T16`),
+   * TCK-1003 (P55.01) — l'heure UTC de la graine de rotation des emplacements (`2026-10-19T16`),
    * que les liens vers les pages suivantes renvoient. Optionnelle : une API antérieure ne la rend
    * pas.
    */

@@ -63,7 +63,7 @@ class PropertySearchService
      */
     public const PER_PAGE_PAR_DEFAUT = 40;
 
-    /** TCK-998 (P55.01) — la forme de `seed_hour`, en UTC : `2026-10-19T16`. */
+    /** TCK-1003 (P55.01) — la forme de `seed_hour`, en UTC : `2026-10-19T16`. */
     public const FORMAT_HEURE_DE_GRAINE = 'Y-m-d\\TH';
 
     /**
@@ -168,14 +168,14 @@ class PropertySearchService
                 lastPage: max(1, (int) ($result['totalPages'] ?? 1)),
             ),
             'search' => $search,
-            // TCK-998 (P55.01) — l'heure de la graine de rotation, que le front renvoie avec les
+            // TCK-1003 (P55.01) — l'heure de la graine de rotation, que le front renvoie avec les
             // pages suivantes (`seed_hour`) pour qu'elles complètent celle-ci.
             'seed_hour' => $heureDeGraine->format(self::FORMAT_HEURE_DE_GRAINE),
         ];
     }
 
     /**
-     * TCK-998 (P55.01) — l'heure UTC de la graine de rotation (ADR-0061 §7).
+     * TCK-1003 (P55.01) — l'heure UTC de la graine de rotation (ADR-0061 §7).
      *
      * Les places réservées de la page 1 se recalculent à chaque page, et la graine porte l'heure :
      * une page 2 servie après le changement d'heure excluait d'autres biens que ceux que la page 1

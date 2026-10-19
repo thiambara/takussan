@@ -176,7 +176,7 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             // `sponsored`, ni `placement: reserved`, ni impression comptée. Pour un appelant qui
             // n'affiche pas les emplacements (la rangée « À vendre » de l'accueil). Absent : `true`.
             'placements' => 'nullable|boolean',
-            // TCK-998 (P55.01) — l'heure de graine de la page 1 (`seed_hour` de sa réponse), que le
+            // TCK-1003 (P55.01) — l'heure de graine de la page 1 (`seed_hour` de sa réponse), que le
             // front renvoie avec les pages suivantes. Jamais de 422 : une heure illisible, trop
             // ancienne ou future est ignorée par `PropertySearchService`, qui prend l'heure courante.
             'seed_hour' => 'nullable|string|max:20',
