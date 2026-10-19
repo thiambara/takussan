@@ -24,8 +24,25 @@ class DashboardTenantTest extends ApiTestCase
         $data = $this->apiGet('/api/dashboard/tenant')->assertOk()->json('data');
 
         $this->assertFalse($data['has_customer_profile']);
-        $this->assertNull($data['customer_id']);
+        $this->assertArrayNotHasKey('customer_id', $data);
         $this->assertSame(0, $data['leases']['active']);
+    }
+
+    /**
+     * TCK-969 (P48.05) — le résumé réunit TOUTES les fiches du compte : il ne désigne plus la
+     * première par un `customer_id`, ni en entier ni sous `fields[summary]`.
+     */
+    public function test_summary_names_no_single_customer(): void
+    {
+        $user = $this->apiActingAsRole('customer');
+        Customer::factory()->count(2)->create(['user_id' => $user->id]);
+
+        $data = $this->apiGet('/api/dashboard/tenant')->assertOk()->json('data');
+        $this->assertTrue($data['has_customer_profile']);
+        $this->assertArrayNotHasKey('customer_id', $data);
+
+        $partiel = $this->apiGet('/api/dashboard/tenant?fields[summary]=leases')->assertOk()->json('data');
+        $this->assertSame(['tenant_id', 'has_customer_profile', 'leases'], array_keys($partiel));
     }
 
     public function test_tenant_with_profile_receives_payments_and_lease(): void

@@ -91,7 +91,6 @@ export type AgentDashboard = {
 
 export type TenantDashboard = {
   tenant_id: number;
-  customer_id: number | null;
   has_customer_profile: boolean;
   leases: { active: number };
   bookings: { pending: number };

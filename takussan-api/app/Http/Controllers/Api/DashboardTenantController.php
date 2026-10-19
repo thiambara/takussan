@@ -24,7 +24,6 @@ class DashboardTenantController extends Controller
         if (is_string($fieldsParam) && $fieldsParam !== '') {
             $keep = array_map('trim', explode(',', $fieldsParam));
             $keep[] = 'tenant_id';
-            $keep[] = 'customer_id';
             $keep[] = 'has_customer_profile';
             $data = array_intersect_key($data, array_flip($keep));
         }

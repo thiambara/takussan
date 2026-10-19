@@ -97,6 +97,29 @@ export function useLeases(params: UseLeasesParams = {}) {
   );
 }
 
+export type ActiveLeaseSummary = Pick<Lease, 'id' | 'reference_number'>;
+
+/**
+ * TCK-968 (P48.01) — les baux actifs du compte, pour la modale de bienvenue et la check-list
+ * d'entrée du locataire. Par l'API Laravel : un `fetch` relatif vers `/api/leases` visait le serveur
+ * Next, qui n'a pas ce relais, et les deux ne s'affichaient jamais. Une seule clé pour les deux
+ * lecteurs de l'accueil, donc une seule requête.
+ */
+export function useActiveLeaseSummaries(enabled = true) {
+  return useApiQuery<PaginatedResponse<ActiveLeaseSummary>>(
+    ['leases', 'active-summaries'],
+    '/api/leases',
+    {
+      params: {
+        fields: { leases: ['id', 'reference_number'] },
+        filter: { status: 'active' },
+        per_page: 50,
+      },
+      enabled,
+    },
+  );
+}
+
 /**
  * TCK-776 (P15.09) — les biens que le sélecteur du bail propose : tous, sauf ceux qu'on a vendus,
  * archivés ou déjà loués. L'API n'exige aucun statut pour ouvrir un bail (`StoreLeaseRequest`) ;
