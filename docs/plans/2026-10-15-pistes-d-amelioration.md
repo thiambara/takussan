@@ -121,7 +121,7 @@ voie d'écriture (angle 13, puis 47).
 | 46 | Voies d'écriture en double sur l'argent : `POST /api/payments` contre les routes imbriquées et `recordPayment` | fait |
 | 47 | Réglages d'agence : table `settings` (portée agence), colonne `agencies.settings`, colonnes dédiées — un seul lecteur | fait |
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | fait |
-| 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | à faire |
+| 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | fait |
 | 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | à faire |
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | à faire |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
@@ -156,6 +156,8 @@ voie d'écriture (angle 13, puis 47).
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | à faire |
 | 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
+| 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
+| 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
 
 ---
 
@@ -5219,3 +5221,68 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : retirer `customer_id` du résumé, ou le remplacer par la liste. Sur `/app/payments`, ajouter la vue client à un compte qui a aussi un bail de locataire.
 - Mesure (2026-10-19, f356e5a5f, mesureur) : relu `DashboardTenantService.php:129` (`customer_id` = première fiche) ; `grep customer_id takussan-web/src/lib/queries/dashboard.ts` → seul le type (l. 94), aucun lecteur `.customer_id` au front ; `payments/page.tsx:32-36` (`isCustomerOnly` = aucun rôle de `PROFESSIONAL_ROLES`, `lib/roles.ts:57-58`) et `PaymentsTabs.tsx:109-112` (historique sans « Payer ») ; `grep -l PayOnlineButton` → `CustomerPayments`, `LeaseSchedule`, `BookingDetail`, rien sous `PaymentsTabs` → les deux points tiennent. Classement : V7, la piste propose deux options pour le champ (retrait ou liste) et la vue client ajoutée à un compte professionnel est un écran neuf.
 - Mesure (2026-10-19, 082179de0, delegue) : relu `DashboardTenantService.php:127-129` (`customer_id` = `$customerIds[0]`, à côté de `has_customer_profile`), `grep -rn customer_id takussan-web/src` sur les lecteurs de `fetchTenantDashboard` → seul le type `lib/queries/dashboard.ts:94`, et un faux dans `overview/__tests__/locataire.tck-595.test.tsx:38` ; côté API, seul `DashboardTenantTest.php:26` l'asserte (`assertNull`) ; rien dans `docs/features.md` ni `docs/models-spec.md` ne décrit ce champ → aucun lecteur, retrait sûr. Délégation : V7, retirer un champ de réponse sans lecteur est un choix mineur qui se défait en un commit, et le retrait est préféré à la liste parce qu'aucun appelant n'en a l'usage (comme pour les clés sans lecteur de P47.02) ; la vue client sur `/app/payments` est un écran neuf, laissée au porteur dans le reste.
+
+## Angle 49 — Passage d'une agence `individual` à `standard`
+
+*Exploré le 2026-10-19 sur `pre-dev` 2e257fc72, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : la chaîne demande → revue → bascule (`AgencyUpgradeRequestService`, `AgencyUpgradeReviewService`, `AgencyKindFlipService`, `FlipAgencyKindOnUpgradeApproved`), tous les lecteurs du `kind` côté API (`AgencyKindGuard`, policies, `PayoutService`, `PlatformPayoutService`, `AgencyUpdateRequest`, onboarding hôte) et côté front (`server-guards.ts`, `pages-admin.ts`, `espaces.ts`, `espaceActif.ts`, `usePublishIntent.ts`, `useAgencyStandardWelcomeOnce.ts`, formulaire de demande). Trois comportements mesurés par un test temporaire (`tests/Feature/TmpExplorateur/SondeAngle49Test.php`, base de test PostgreSQL, charge 1,81 sur 8 cœurs), retiré avant la fin. Rien n'a été lu en base de développement. Ce qui tient sans défaut relevé : les capacités ne dépendent pas du `kind` (`MembershipCapabilityResolver` ne le lit pas), chaque garde relit `agencies.kind` à la requête, et le front relit le profil toutes les 30 s au plus (`useProfiles.ts:60`) : rien n'est figé après la bascule. Les rôles système sont semés à la création, quel que soit le `kind` (`AgencyObserver::created`).*
+
+### Le brouillon du formulaire de passage garde le RIB professionnel et le NINEA en clair, jusqu'à 90 jours
+- Réf : P49.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-web/src/components/agency/UpgradeRequestForm.tsx:93-101`, `takussan-web/src/lib/agency-upgrade-brouillon.ts:33-40`, `takussan-api/app/Models/WizardDraft.php:29`, `takussan-api/app/Http/Requests/UpsertWizardDraftRequest.php:45-48`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:21-37`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:43-46`
+- Constat :
+  - Le formulaire de demande enregistre tout son état (`data: form`) dans le brouillon serveur `agency-upgrade-{id}` à chaque saisie, par `useAutosaveBrouillon` ; cet état porte `rc`, `ninea`, `rib_pro`, `company_legal_name` et `address_fiscale` (lu, `agency-upgrade-brouillon.ts:40`, `CHAMPS_TEXTE`).
+  - `wizard_drafts.data` est un cast `array`, sans chiffrement, et la requête accepte tout tableau (lu). Le brouillon n'est retiré qu'au succès de l'envoi (`clear()`, `UpgradeRequestForm.tsx:179`) ou par la purge à 90 jours d'inactivité (lu).
+  - mesuré : test temporaire, `PUT /api/me/wizard-drafts/agency-upgrade-42` avec `rib_pro` et `ninea`, puis `DB::table('wizard_drafts')->value('data')` → `{"ninea": "005012345", "rib_pro": "SN012 01001 000123456789 12"}`, en clair.
+  - ADR-0044 § 1 chiffre `agency_upgrade_requests.ninea` et `rib_pro`, et écrit que « tout RIB stocké ailleurs […] suit la même forme » (lu). Une demande abandonnée, ou refusée puis jamais renvoyée, laisse donc en clair ce que la demande envoyée chiffre.
+  - Établi comment : lu et mesuré.
+- Piste : ne pas mettre `rib_pro` (ni `ninea`) dans le brouillon du formulaire, comme le fichier des statuts n'y est déjà pas ; retirer les brouillons `agency-upgrade-*` existants qui les portent. Garde : un test du formulaire qui vérifie que le corps du `PUT` ne contient pas `rib_pro`.
+
+### Après le passage, les reversements de la plateforme à l'agence sont refusés tant qu'un dossier KYC distinct n'est pas vérifié
+- Réf : P49.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:116-120`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:82-115`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:20,133-139`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:179-191`, `takussan-api/lang/fr/agency_upgrade.php:32`
+- Constat :
+  - `PlatformPayoutService::approve` refuse en 422 `platform_payout.agency_unverified` une agence `standard` dont `is_verified` est faux ; une agence `individual` passe sans condition (lu ; voulu par ADR-0039 § 5 et gardé par `PlatformPayoutFreezeTest.php:61`).
+  - La bascule ne pose que `kind`, les colonnes légales et le marqueur de bienvenue : `is_verified` reste à `false`, valeur posée à la création de l'espace (lu, `HostIndividualOnboardingService.php:273`). Seule la vérification d'un dossier KYC d'agence l'allume (`KycWorkflowService.php:137`, et `AgencyModerationController::verify`, qui exige ce dossier vérifié). Ce dossier demande `rccm`, `ninea` et `director_id` : la demande de passage ne l'alimente pas, alors qu'elle porte déjà RC, NINEA et statuts.
+  - mesuré : test temporaire, agence `individual` non vérifiée avec un `PlatformPayout` `pending`, demande approuvée par `POST /api/admin/agency-upgrade-requests/{id}/approve`, puis `POST /api/admin/payouts/{id}/approve` par un autre super-admin → `422 platform_payout.agency_unverified`. Le même reversement, avant la bascule, est approuvable.
+  - La notification d'approbation dit seulement « Votre agence est désormais en mode professionnel » (lu) : rien n'avertit l'hôte, ni le super-admin qui approuve, que l'argent déjà clôturé est gelé jusqu'au KYC.
+  - Établi comment : lu et mesuré. Le nombre d'agences concernées n'a pas été mesuré.
+- Piste : décider, au passage, de l'un de trois chemins : exiger un KYC vérifié avant d'approuver la demande, faire de la revue de la demande la vérification (et alimenter le dossier), ou au moins le dire dans la revue et dans la notification. Garde : un test de bout en bout bascule → approbation d'un reversement, qui écrit le comportement choisi.
+
+### Après le passage, « Publier » et l'assistant hôte recréent un second espace individuel
+- Réf : P49.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:66-76,149-160,232-238`, `takussan-api/routes/api/onboarding.php:24,29`, `takussan-web/src/hooks/usePublishIntent.ts:92`
+- Constat :
+  - L'invariant « une agence personnelle par compte » se juge sur le `kind` : `userAlreadyHasIndividualAgency` cherche un `OwnerProfile` dans une agence `individual`, `autoOnboard` une agence dont le compte est `primary_admin_id` **et** `kind = individual` (lu). Après la bascule, aucun des deux ne trouve plus rien.
+  - mesuré : test temporaire, `POST /api/host/individual/auto-onboard` → 201 ; approbation de la demande ; même appel → `201`, `created: true`, et le compte est `primary_admin_id` de deux agences, `["standard","individual"]`.
+  - Le front ne déclenche pas ce chemin de lui-même : `usePublishIntent` ne rend `host-needed` qu'à un compte sans aucun espace (lu). Les deux routes restent appelables, et l'assistant `/onboarding/host` aussi (à vérifier : sa garde côté front n'a pas été lue).
+  - Établi comment : lu et mesuré. Si un professionnel peut garder en plus un espace personnel n'est écrit nulle part (`docs/features.md:396,432` n'en dit rien).
+- Piste : trancher si l'espace personnel reste possible après le passage ; sinon, juger l'invariant sur `primary_admin_id` seul, ou sur l'historique `agency_kind_flipped`. Garde : un test « bascule puis auto-onboard » qui écrit la réponse retenue.
+
+### L'agence passée en professionnelle garde le nom et l'URL publique « Espace de {prénom} », et son slug ne peut plus changer
+- Réf : P49.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:199-207,270,333-347`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:61-66,94-105`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:47-50`, `takussan-api/routes/api/public.php:226-229`, `takussan-web/src/lib/espaces.ts:88-91`
+- Constat :
+  - L'espace créé par « Publier » s'appelle « Espace de {prénom} », et son slug en dérive (`espace-de-awa`, mesuré par le test temporaire). La bascule recopie `company_legal_name` dans `legal_name` seulement : ni `name` ni `slug` ne changent (lu).
+  - `name` reste modifiable par `PATCH /api/agencies/{id}` ; `slug` n'a aucune règle dans `AgencyUpdateRequest`, donc `validated()` l'écarte. Aucun autre écrivain du slug d'agence n'existe hors de la création (lu, `grep "'slug'"` sur `app/Http/Requests` et les contrôleurs d'administration).
+  - Le slug est l'URL de la fiche publique (`/api/public/agencies/{slug}`, lu), et le front le cache tant que l'agence est `individual` parce qu'il « n'apporte rien sous le nom d'un particulier » (lu, `espaces.ts:80-91`). Après la bascule, il s'affiche et reste l'adresse publique de l'agence, prénom compris.
+  - Établi comment : lu, et slug initial mesuré.
+- Piste : à la bascule, proposer ou poser un slug tiré de `company_legal_name` (avec redirection de l'ancien), ou ouvrir le slug à l'édition une fois. Garde : un test de la bascule qui écrit ce que deviennent le nom et le slug.
+
+### Petites améliorations du passage
+- Réf : P49.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:42-57,144-153`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:68-80`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:86-100`
+- Constat :
+  - L'approbation ne regarde que le statut de la demande (`assertPending`) ; ni elle ni la bascule ne lisent `agencies.status`. Une agence suspendue entre la demande et la revue passe donc en `standard` (lu ; non mesuré).
+  - Les statuts joints à la demande restent un `Document` de l'`AgencyUpgradeRequest` (`type = other`, `is_verified = false`) : la bascule ne les rattache ni à l'agence ni à un dossier KYC, où ils devront être téléversés à nouveau (lu ; voir P49.02).
+  - Établi comment : lu.
+- Piste : refuser l'approbation d'une agence non `active` (comme `PlatformPayoutService` le fait pour l'argent) ; réutiliser la pièce de la demande dans le dossier KYC si P49.02 retient ce chemin.
