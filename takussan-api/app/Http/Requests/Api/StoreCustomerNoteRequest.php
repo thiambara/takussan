@@ -34,7 +34,8 @@ class StoreCustomerNoteRequest extends BaseFormRequest
     {
         return [
             'body' => ['required', 'string'],
-            'pinned' => ['nullable', 'boolean'],
+            // TCK-978 (P54.03) — colonne NOT NULL DEFAULT false : omise → défaut, `null` → 422 (était 500).
+            'pinned' => ['filled', 'boolean'],
         ];
     }
 }
