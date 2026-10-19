@@ -38,6 +38,8 @@ class OwnerProfileResource extends BaseResource
             'rib_masked' => $this->masked($profile, 'rib', Masking::iban(...)),
             'tax_id_masked' => $this->masked($profile, 'tax_id', Masking::tail(...)),
             'id_document_number_masked' => $this->masked($profile, 'id_document_number', Masking::tail(...)),
+            // TCK-956 (ADR-0070 § 3) — la présence seulement : aucun chiffre d'un montant.
+            'monthly_income_masked' => Masking::presence($profile->getAttribute('monthly_income')),
         ]);
     }
 

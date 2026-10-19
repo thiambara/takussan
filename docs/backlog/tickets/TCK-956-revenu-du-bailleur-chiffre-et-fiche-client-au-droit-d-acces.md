@@ -1,13 +1,13 @@
 ---
 id: TCK-956
 title: "Le revenu du bailleur est chiffré, masqué et rendu par `owners/{id}/sensitive` ; la fiche client du titulaire, pièce en clair, entre dans l'export du droit d'accès"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: null
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 depends_on: [TCK-955]
 blocks: []
 spec_refs:
@@ -72,19 +72,19 @@ fiche client, pièce comprise, en clair.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'aller-retour de la migration est testé, comme dans TCK-954 : `350000.00` est
+- [x] **AC1** — L'aller-retour de la migration est testé, comme dans TCK-954 : `350000.00` est
   chiffré, un second `up()` ne change rien, et `down()` rend `350000.00` et `numeric(14,2)`.
-- [ ] **AC2** — `GET /api/owners` ne porte pas `monthly_income`, porte `monthly_income_masked`, et
+- [x] **AC2** — `GET /api/owners` ne porte pas `monthly_income`, porte `monthly_income_masked`, et
   `GET /api/owners?fields[owner_profiles]=id,monthly_income` rend 400.
-- [ ] **AC3** — `GET /api/owners/{id}/sensitive`, lu par l'admin de l'agence avec un step-up
+- [x] **AC3** — `GET /api/owners/{id}/sensitive`, lu par l'admin de l'agence avec un step-up
   récent, rend `monthly_income: 350000` (`OwnerProfileSensitiveDataTest`).
-- [ ] **AC4** — L'archive d'export d'un titulaire qui a une fiche client avec la pièce `SN-112233`
+- [x] **AC4** — L'archive d'export d'un titulaire qui a une fiche client avec la pièce `SN-112233`
   contient `customers.json`, où se lit `"id_number": "SN-112233"`, sans `notes` ni `metadata`. Son
   `profile.json` porte le `monthly_income` en clair de son profil de bailleur.
-- [ ] **AC5** — `php artisan backup:verify-encryption` imprime une ligne pour
+- [x] **AC5** — `php artisan backup:verify-encryption` imprime une ligne pour
   `owner_profiles.monthly_income`, sans illisible. `BackupVerifyEncryptionTest` porte désormais les
   quatre colonnes d'ADR-0070.
-- [ ] **AC6 — ablation** : sans `makeVisible(Customer::SENSITIVE)` dans `DataExportBuilder` (copie
+- [x] **AC6 — ablation** : sans `makeVisible(Customer::SENSITIVE)` dans `DataExportBuilder` (copie
   gardée, restaurée par `cp`, `md5` vérifié), AC4 rougit, parce que la pièce manque à
   l'export. Sans le cast `encrypted` sur `OwnerProfile`, AC1 et AC5 rougissent. Correctif remis :
   tout est vert.
@@ -102,3 +102,19 @@ fiche client, pièce comprise, en clair.
   d'`owner_profiles` : il compte des noms, pas des types, et doit rester vert.
 - La prochaine restauration à blanc relèvera plus de colonnes chiffrées que les 20 du relevé de
   `hebergement.md` : c'est attendu (ADR-0070 § 9).
+
+## Mesures (2026-10-19, `02f685616`)
+
+- `OwnerProfileSensitiveDataTest` et `BackupVerifyEncryptionTest` : 17 verts. Classes voisines
+  (profils, export, droit d'accès, sauvegarde, garde d'impersonation) : 323 verts en 159 s.
+  Front : `owners` 5 verts, `tsc --noEmit` et `lint` propres.
+- AC1 : l'aller-retour lit `350000.00` chiffré, inchangé par un second `up()`, puis `350000.00` et
+  `numeric(14,2)` après le `down()`.
+- AC4 : `customers.json` porte `SN-112233` en clair, sans `notes` ni `metadata` ; `profile.json`
+  porte `350000.00` dans le profil de bailleur.
+- AC6, ablations (copies gardées, restaurées par `cp`, `md5` vérifié) :
+  - sans `makeVisible(Customer::SENSITIVE)` dans `DataExportBuilder` : le test d'export rougit, la
+    pièce manque ;
+  - sans le cast `encrypted` sur `OwnerProfile` : l'aller-retour de la migration et la vérification
+    des quatre colonnes rougissent ;
+  - correctif remis : 17 verts.
