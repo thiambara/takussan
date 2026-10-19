@@ -5656,7 +5656,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Créer un bien avec `furnished: null` rend 500
 - Réf : P54.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-981
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:67`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:135-139`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:30`
 - Constat :
@@ -5665,6 +5665,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Le front envoie toujours un booléen (`PropertyWizard.tsx:183`, `PropertyForm.tsx:109`, lu).
 - Piste : `furnished` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null` à côté de ceux d'`AdresseSansVilleTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePropertyRequest.php:67` (`furnished` en `nullable|boolean`) → `POST /api/properties` : `furnished: null` → 500, `currency: null` → 201 (ce cas tient, comme écrit) ; `UpdatePropertyRequest.php:64` porte déjà `sometimes|boolean` (lu). Classement : A1, la colonne `NOT NULL DEFAULT false` et la règle de mise à jour fixent le contrat (`null` → 422), comme TCK-703 pour la ville.
+- Mesure (2026-10-19, 70d05c24b, implementeur) : relu `StorePropertyRequest.php:67` (`furnished` toujours `nullable|boolean`) ; test de garde `PropertyFurnishedNullTest` → avant correctif, `POST /api/properties` en agent avec `furnished: null` rend 500 `QueryException` (1 rouge sur 3), clé omise → 201 et `false` → `filled|boolean` : 3 verts, aucun bien créé sur `null`, `true` gardé ; ablation (requête remise) → 1 rouge, remis → vert ; 12 verts avec `AdresseSansVilleTest`.
 
 ### Aucune garde ne confronte les règles `nullable` au schéma
 - Réf : P54.07
