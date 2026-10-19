@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use Meilisearch\Client;
 use Meilisearch\Contracts\IndexesQuery;
 use Throwable;
@@ -109,7 +110,7 @@ final class TestSearchIndex
         register_shutdown_function(static function () use ($client, $prefix) {
             self::deleteMatching(
                 $client,
-                static fn (string $uid, ?\DateTimeInterface $createdAt) => str_starts_with($uid, $prefix),
+                static fn (string $uid) => str_starts_with($uid, $prefix),
             );
         });
     }
@@ -120,29 +121,83 @@ final class TestSearchIndex
         $cutoff = new DateTimeImmutable('-'.self::ORPHAN_TTL_SECONDS.' seconds');
         $mine = self::prefix();
 
-        self::deleteMatching($client, static function (string $uid, ?\DateTimeInterface $createdAt) use ($cutoff, $mine) {
-            // `$mine` est un PRÉFIXE, `$uid` un nom d'index complet
-            // (`testing_<token>_properties`) : la comparaison doit être un
-            // `str_starts_with`, pas une égalité — laquelle n'aurait jamais
-            // été vraie et aurait laissé le seul garde-fou d'âge protéger nos
-            // propres index.
-            if (str_starts_with($uid, $mine) || ! preg_match(self::PATTERN, $uid)) {
-                return false;
-            }
-
-            // Sans date, on s'abstient : mieux vaut un index de trop qu'un
-            // index arraché sous une exécution concurrente vivante.
-            return $createdAt !== null && $createdAt < $cutoff;
-        });
+        self::deleteMatching(
+            $client,
+            static fn (string $uid, ?DateTimeInterface $createdAt, ?DateTimeInterface $updatedAt) => self::isOrphan($uid, $createdAt, $updatedAt, $mine, $cutoff),
+        );
     }
 
     /**
-     * @param  callable(string, ?\DateTimeInterface): bool  $matches
+     * Le prédicat du balayage, sans moteur : testé par
+     * `tests/Unit/Testing/TestSearchIndexSweepTest.php`.
+     */
+    public static function isOrphan(
+        string $uid,
+        ?DateTimeInterface $createdAt,
+        ?DateTimeInterface $updatedAt,
+        string $mine,
+        DateTimeInterface $cutoff,
+    ): bool {
+        // `$mine` est un PRÉFIXE, `$uid` un nom d'index complet
+        // (`testing_<token>_properties`) : la comparaison doit être un
+        // `str_starts_with`, pas une égalité — laquelle n'aurait jamais
+        // été vraie et aurait laissé le seul garde-fou d'âge protéger nos
+        // propres index.
+        if (str_starts_with($uid, $mine) || ! preg_match(self::PATTERN, $uid)) {
+            return false;
+        }
+
+        // TCK-975 (P53.04) — l'âge se lit sur la DERNIÈRE ÉCRITURE, plus sur
+        // la création : une exécution très chargée (×11 sous charge) dépasse
+        // le seuil, et une exécution concurrente lui arrachait alors un index
+        // encore actif. `updatedAt` suit les écritures (mesuré sur 7701 :
+        // `smoke_*` créés à 07:44 Z, mis à jour à 07:48 Z) ; la plus récente
+        // des deux dates connues fait foi.
+        $lastWrite = max(array_filter([$createdAt, $updatedAt]) ?: [null]);
+
+        // Sans date, on s'abstient : mieux vaut un index de trop qu'un
+        // index arraché sous une exécution concurrente vivante.
+        return $lastWrite !== null && $lastWrite < $cutoff;
+    }
+
+    /**
+     * Lit une liste paginée en entier, page après page.
+     *
+     * @template T
+     *
+     * @param  callable(int $offset, int $limit): array<int, T>  $fetchPage
+     * @return array<int, T>
+     */
+    public static function readAllPages(callable $fetchPage, int $pageSize = 1000, int $maxPages = 100): array
+    {
+        // TCK-975 (P53.04) — `GET /indexes` PAGINE : une seule page de 1 000
+        // laissait le reste ni balayé ni supprimé. `$maxPages` borne la boucle
+        // si un serveur ignorait `offset` et rendait toujours une page pleine.
+        $all = [];
+
+        for ($page = 0; $page < $maxPages; $page++) {
+            $results = array_values($fetchPage($page * $pageSize, $pageSize));
+            array_push($all, ...$results);
+
+            if (count($results) < $pageSize) {
+                break;
+            }
+        }
+
+        return $all;
+    }
+
+    /**
+     * @param  callable(string, ?DateTimeInterface, ?DateTimeInterface): bool  $matches
      */
     private static function deleteMatching(Client $client, callable $matches): void
     {
         try {
-            $indexes = $client->getIndexes((new IndexesQuery)->setLimit(1000))->getResults();
+            $indexes = self::readAllPages(
+                static fn (int $offset, int $limit) => $client->getIndexes(
+                    (new IndexesQuery)->setOffset($offset)->setLimit($limit)
+                )->getResults(),
+            );
         } catch (Throwable) {
             // Le nettoyage ne doit jamais faire échouer une exécution : si le
             // moteur ne répond plus, il n'y a de toute façon plus rien à faire.
@@ -152,7 +207,7 @@ final class TestSearchIndex
         foreach ($indexes as $index) {
             $uid = $index->getUid();
 
-            if ($uid === null || ! $matches($uid, $index->getCreatedAt())) {
+            if ($uid === null || ! $matches($uid, $index->getCreatedAt(), $index->getUpdatedAt())) {
                 continue;
             }
 
