@@ -17,7 +17,8 @@
  *      d'un `plural`) sont ceux de l'API (`:amount`) dans la même langue. Un placeholder retiré
  *      d'une seule traduction, d'un côté ou de l'autre, rougit.
  *
- * Elle lit les fichiers PHP sans PHP (le job « Dépôt » n'en installe pas) : l'enum par ses lignes
+ * Elle lit les fichiers PHP sans PHP (écrite quand le job « Dépôt » n'en installait pas ; depuis
+ * TCK-998, il en installe un, sans base, pour `check-front-routes.mjs`) : l'enum par ses lignes
  * `case X = 'a.b';`, les fichiers de langue par un petit lecteur de tableaux PHP littéraux — ils ne
  * contiennent que des chaînes et des tableaux. Un fichier qu'il ne sait pas lire fait ÉCHOUER la
  * garde plutôt que de passer en silence.
