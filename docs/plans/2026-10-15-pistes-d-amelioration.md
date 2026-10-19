@@ -5212,7 +5212,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un locataire en préavis ne peut plus demander d'intervention, et son accueil compte zéro bail
 - Réf : P48.04
-- Statut : validé — juger la création d'une intervention et le compte de baux de l'accueil du locataire par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES` : un locataire en préavis (`terminating`) habite encore le logement et peut demander une intervention ; un test de création par un locataire en `terminating` (porteur, 2026-10-19)
+- Statut : fait · TCK-1001
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:99-103`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:58-61`, `takussan-api/app/Models/Concerns/HasProfiles.php:38-43`
 - Constat :
@@ -5223,6 +5223,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : juger les deux sites par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`. Garde : un test de création d'intervention par un locataire en `terminating`.
 - Mesure (2026-10-19, f356e5a5f, mesureur) : relu `MaintenanceRequestController.php:99-103` (bail `LeaseStatus::Active` seul), `DashboardTenantService.php:60` et `HasProfiles.php:43` ; test temporaire (`POST /api/maintenance-requests` par un locataire dont le seul bail est `terminating`, puis `DashboardTenantService::summary`), retiré ensuite, charge 2,08 sur 8 cœurs → `403`, `leases.active = 0`, alors que `hasActiveTenantLease()` rend `true` → le constat tient, mesuré. `grep -i 'préavis\|terminating' docs/features.md docs/adr` : rien n'écrit si les interventions restent ouvertes pendant le préavis. Classement : V2, c'est une règle d'autorisation de création que la piste élargit, et l'intention n'est écrite nulle part ; le compte du tableau de bord change aussi ce que voit le locataire (V7).
 
+- Mesure (2026-10-19, 1c1fe5f0f, implementeur) : relu `MaintenanceRequestController.php:99-103` (bail `LeaseStatus::Active` seul) et `DashboardTenantService.php:58-61` (compte des seuls `active`) ; `MaintenanceRequestTest` étendu (bail du demandeur `active`, `terminating` → 201, `terminated`, `expired` → 403) et `DashboardTenantTest` (un bail `terminating` et un `terminated` → `leases.active` = 1) → 2 rouges sur 17 avant correctif (préavis : 403, accueil : 0) ; les deux sites jugés par `User::ACTIVE_TENANT_LEASE_STATUSES` → 17 verts ; ablation (les deux sites remis à `LeaseStatus::Active`) → les mêmes 2 rouges, correctif remis → verts.
 ### Petites améliorations
 - Réf : P48.05
 - Statut : fait · TCK-969 — reste : la vue client sur `/app/payments` pour un compte professionnel qui a aussi un bail de locataire
