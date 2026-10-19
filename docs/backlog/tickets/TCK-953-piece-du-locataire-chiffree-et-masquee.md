@@ -1,13 +1,13 @@
 ---
 id: TCK-953
 title: "Le numéro de pièce du client est chiffré en base et ne sort plus que masqué : migration réversible, `id_number_masked`, hors des sparse fieldsets, et le contrat minimal du front"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
 wave: null
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 depends_on: []
 blocks: [TCK-954]
 spec_refs:
@@ -83,27 +83,27 @@ fiche.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'aller-retour de la migration est testé :
+- [x] **AC1** — L'aller-retour de la migration est testé :
   - sur une ligne en clair `SN-998877`, `up()` écrit une valeur différente, que `Crypt::decryptString` rend `SN-998877` ;
   - un second `up()` ne change pas la ligne ;
   - `down()` rend `SN-998877` et une colonne `character varying(255)` (lu dans `information_schema.columns`).
-- [ ] **AC2** — Aucune réponse par défaut ne porte la clé `id_number` : `GET /api/customers`,
+- [x] **AC2** — Aucune réponse par défaut ne porte la clé `id_number` : `GET /api/customers`,
   `GET /api/customers/{id}`, `GET /api/leases/{id}`, `GET /api/leases?include=tenant` et
   `GET /api/bookings/{id}`. La fiche lue par l'agent auteur porte `id_number_masked = "•••• 8877"`.
-- [ ] **AC3** — `GET /api/customers?fields[customers]=id,id_number` et
+- [x] **AC3** — `GET /api/customers?fields[customers]=id,id_number` et
   `GET /api/leases?include=tenant&fields[customers]=id,id_number` rendent 400.
-- [ ] **AC4** — Le bailleur ne reçoit ni `id_number` ni `id_number_masked`, par le bail ni par la
+- [x] **AC4** — Le bailleur ne reçoit ni `id_number` ni `id_number_masked`, par le bail ni par la
   réservation (la garantie de TCK-808 tient).
-- [ ] **AC5** — `PUT /api/customers/{id}` sans `id_number` laisse le numéro chiffré inchangé. Avec
+- [x] **AC5** — `PUT /api/customers/{id}` sans `id_number` laisse le numéro chiffré inchangé. Avec
   `id_number` de 101 caractères, il rend 422.
-- [ ] **AC6** — `ImpersonationReadSweepTest` est vert avec les six entrées P23.03 retirées de
+- [x] **AC6** — `ImpersonationReadSweepTest` est vert avec les six entrées P23.03 retirées de
   `FUITES_TOLEREES`.
-- [ ] **AC7** — `php artisan backup:verify-encryption` imprime `customers.id_number : 1 lue(s), 0 illisible(s)`.
-- [ ] **AC8** — Front : `npx vitest run` sur les tests du formulaire client montre qu'une fiche qui
+- [x] **AC7** — `php artisan backup:verify-encryption` imprime `customers.id_number : 1 lue(s), 0 illisible(s)`.
+- [x] **AC8** — Front : `npx vitest run` sur les tests du formulaire client montre qu'une fiche qui
   porte `id_type` et `id_number_masked`, sans `id_number`, s'enregistre sans erreur de validation et
   n'envoie pas `id_number`. Une fiche avec un type et sans numéro du tout est encore refusée.
   `npx tsc --noEmit` et `npm run lint` sont propres.
-- [ ] **AC9 — ablation** : sans le cast `encrypted` (copie gardée, restaurée par `cp`, `md5`
+- [x] **AC9 — ablation** : sans le cast `encrypted` (copie gardée, restaurée par `cp`, `md5`
   vérifié), AC1 rougit (la valeur relue n'est pas déchiffrable) et AC7 aussi (la ligne
   `customers.id_number` disparaît). Sans `$hidden`, AC2 rougit. Correctif remis : tout est vert.
 
@@ -123,3 +123,21 @@ fiche.
   toujours sous sa clé `id_number` : la logique de TCK-808 ne change pas.
 - Une écriture brute sur la colonne doit poser une valeur chiffrée ou `null`. Relire les tests qui
   remplissent `customers` par `DB::table()` (`grep -rn "table('customers')" tests`).
+
+- **Livré le 2026-10-19.** La migration est `2026_10_19_100000_encrypt_id_number_on_customers.php`.
+- **La clé `id_number_masked` n'est rendue que si la colonne a été lue.** Une liste sous
+  `fields[customers]` ne la porte donc pas, au lieu de porter un `null` qui voudrait dire « aucun
+  numéro ». La fiche la porte toujours : `show` ajoute la colonne à un `fields[customers]`, `store`
+  et `update` relisent la ligne entière.
+- **Le témoin de `ImpersonationReadSweepTest` est réécrit.** Il exigeait que la cible relise sa
+  pièce en clair sur sa fiche, ce que plus aucune lecture ne fait avant TCK-955. Il vérifie
+  désormais le masque, et éprouve le détecteur sur la valeur claire.
+- `CustomerScopeTest` jugeait la relecture de la fiche par `fields[customers]=id,id_number`. Ce
+  champ rend désormais 400 : la relecture est jugée par `emergency_contact_name`, une autre colonne
+  réservée.
+- **Mesures.** Les classes du ticket donnent 43 verts. Les classes voisines (CRM, baux,
+  réservations, journal, exports, impersonation) donnent 539 verts en 218 s, charge 2 à 4 sur
+  8 cœurs. Côté front, 22 tests du formulaire et du schéma sont verts, ainsi que `tsc`, `lint` et
+  les `check:*`.
+- **Ablations.** Sans le cast : AC1 et AC7 rougissent (2 tests). Sans `$hidden` : AC2 rougit. Le
+  correctif remis par `cp`, avec un `md5` identique, rend 11 verts.

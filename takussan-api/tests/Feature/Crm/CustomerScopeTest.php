@@ -187,7 +187,7 @@ class CustomerScopeTest extends ApiTestCase
         $booking = Booking::factory()->create([
             'property_id' => $property->id, 'customer_id' => $tenant->id, 'agency_id' => $this->agency->id,
         ]);
-        $reserves = ['id_type', 'id_number', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
+        $reserves = ['id_type', 'id_number', 'id_number_masked', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
 
         $this->actingAsApi($landlord)->apiGet("/api/customers/{$tenant->id}")->assertForbidden();
         $vus = [
@@ -208,24 +208,24 @@ class CustomerScopeTest extends ApiTestCase
         // Le lecteur de la fiche les lit, par la fiche comme par le bail.
         $this->actingAsApi($agent)->apiGet("/api/customers/{$tenant->id}")
             ->assertOk()
-            ->assertJsonPath('data.id_number', 'SN-998877')
+            ->assertJsonPath('data.id_number_masked', '•••• 8877')
             ->assertJsonPath('data.emergency_contact_phone', '+221770000009')
             ->assertJsonPath('data.metadata.source', 'salon');
         $this->apiGet("/api/leases/{$lease->id}")
             ->assertOk()
             ->assertJsonPath('data.tenant.id_type', 'id_card')
-            ->assertJsonPath('data.tenant.id_number', 'SN-998877')
+            ->assertJsonPath('data.tenant.id_number_masked', '•••• 8877')
             ->assertJsonPath('data.tenant.emergency_contact_name', 'Fatou Sow')
             ->assertJsonPath('data.tenant.notes', 'Préfère être appelé le soir.');
         $this->app['auth']->forgetGuards();
 
         // Une lecture dont `fields[customers]` omet `agency_id` et `added_by_id` est jugée sur la
         // fiche relue, pas refusée faute des traits que la règle lit — ni accordée.
-        $this->actingAsApi($agent)->apiGet('/api/customers?fields[customers]=id,id_number')
-            ->assertOk()->assertJsonPath('data.0.id_number', 'SN-998877');
+        $this->actingAsApi($agent)->apiGet('/api/customers?fields[customers]=id,emergency_contact_name')
+            ->assertOk()->assertJsonPath('data.0.emergency_contact_name', 'Fatou Sow');
         $this->app['auth']->forgetGuards();
-        $this->actingAsApi($landlord)->apiGet("/api/leases/{$lease->id}?include=tenant&fields[customers]=id,id_number")
-            ->assertOk()->assertJsonMissingPath('data.tenant.id_number');
+        $this->actingAsApi($landlord)->apiGet("/api/leases/{$lease->id}?include=tenant&fields[customers]=id,emergency_contact_name")
+            ->assertOk()->assertJsonMissingPath('data.tenant.emergency_contact_name');
     }
 
     /**

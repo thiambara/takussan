@@ -2790,6 +2790,7 @@
       "idType": "Document type",
       "idTypePlaceholder": "Not provided",
       "idNumber": "Number",
+      "idNumberKept": "{masque} — leave blank to keep it",
       "saving": "Saving…",
       "create": "Create the customer"
     },
