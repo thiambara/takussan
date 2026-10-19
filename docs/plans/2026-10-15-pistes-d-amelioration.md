@@ -5815,7 +5815,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### `docs/models-spec.md` décrit le diff du journal dans `properties`, que v5 n'écrit plus
 - Réf : P56.04
-- Statut : retenu · à valider — chemin fermé : docs/models-spec.md
+- Statut : fait · TCK-1012
 - Gravité : 🟢 amélioration
 - Où : `docs/models-spec.md:1174`, `:1190`, `:1204`, `takussan-api/app/Services/Crm/PipelineStatsService.php:22-26,111-115`
 - Constat :
@@ -5826,6 +5826,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `docs/models-spec.md` l. 1174 (« `activity_log_changes` selon la configuration »), l. 1190 (`changes` → `properties (json : old, attributes)`) et l. 1204 (seul `properties` passe par `PropertyRedactor`) ; `grep -rn activity_log_changes app database config` → rien ; le test temporaire de P56.01 montre le diff sous `attribute_changes` et `properties = []`. Le docblock faux de `PipelineStatsService` est celui de la l. 114 (« tracks `pipeline_stage` in its `properties` JSON column ») ; celui des l. 22-26 ne nomme pas de colonne et ne ment pas. Classement : A6, la spec et le docblock se corrigent pour dire ce qu'écrit activitylog v5 ; la phrase de la l. 1204 sur `attribute_changes` reste à écrire selon ce que P56.03 décidera, et ne fait pas partie de ce classement.
 - Mesure (2026-10-19, 0486616a3, implementeur) : relu `docs/models-spec.md` l. 1174 (`activity_log_changes`) et l. 1191 (`changes` → `properties (json : old, attributes)`), inchangées ; `grep -rn activity_log_changes takussan-api/app takussan-api/database takussan-api/config` → rien. Le défaut tient, mais il est dans la spec, fermée à l'implémenteur. Le volet docblock de la `Piste` (`PipelineStatsService`, l. 114) est fait par TCK-985 avec P56.01 ; il ne reste que la spec. Classement : chemin fermé, `docs/models-spec.md`.
 
+- Mesure (2026-10-19, e46a8d564, humain) : TCK-1012 réécrit `docs/models-spec.md` §13 sur activitylog v5 : le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), `properties` ne porte que ce qu'écrit `withProperties()`, `activity_log_changes` et `activity_logs` sont dites n'avoir jamais existé, et EF6 est close ; `grep -n activity_log_changes docs/models-spec.md` → la seule ligne qui le dit.
 ### Petites améliorations
 - Réf : P56.05
 - Statut : validé — passer `UserDetailController::activity()` par `PropertyRedactor`, comme les trois autres lectures, et poser le témoin de `CrossTenantAuditExportTest` sous `attribute_changes` (porteur, 2026-10-19)
