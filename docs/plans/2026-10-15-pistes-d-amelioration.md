@@ -5683,7 +5683,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une page 2 servie après le changement d'heure répète un bien de la page 1 et en perd un autre
 - Réf : P55.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux voies, dont une change la règle de l'ADR-0061 § 7
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:656-674`, `takussan-api/app/Services/Boost/SponsoredRotation.php:19-25`, `docs/adr/0061-*.md:155-157`
 - Constat :
@@ -5695,10 +5695,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - `ReservedTopResultsTest` joue les pages 2 et 3 avec `slots: 0` seulement, sans voyage dans le temps entre deux pages (lu, l. 48-64) : le cas `slots > 0` sur plusieurs pages n'a aucun test.
   - Établi comment : lecture, puis test temporaire.
 - Piste : ne plus tirer les places réservées de l'emplacement de la page 1. Deux voies : les prendre dans l'ordre organique du vivier, sans en soustraire l'emplacement (ce qui change la règle « un bien déjà servi dans un emplacement de la même page n'y entre pas ») ; ou faire porter à la requête la graine de la page 1 (une heure figée transmise par le front). Le test garde-fou : pages 1, 2 et 3 avec `slots > 0` et `reserved > 0`, la page 1 jouée à hh:59 et les suivantes à hh+1:00, et l'union des identifiants vaut `total`, sans doublon.
+- Mesure (2026-10-19, 4f449d122, mesureur) : relu `PropertySearchService::placements()` (l. 653-674 aujourd'hui : `$servedOnFirstPage` = `pick($pool, $seed, 1, $slots)` recalculé à chaque page, `$reserved` = vivier moins cet emplacement, fenêtre `(p - 1) × per_page - count($reserved)`) et `SponsoredRotation::seed()` (graine `Y-m-d-H` UTC, l. 24), puis test temporaire (retiré), charge 2,65 / 3,02 / 2,95 sur 8 cœurs, même corpus (neuf biens dont trois vedettes, `slots = 1`, `reserved = 2`, `per_page = 4`), journée du 2026-10-13 → page 1 à hh:59 et pages 2-3 à hh+1:00 : **19 heures sur 24** donnent un doublon et un absent (ex. 00:59 : p1 = `f2,f3,o1,o2`, p2 = `o3,o4,o5,o6`, p3 = `f3`, `f1` jamais servie) ; témoin dans la même heure : 0 sur 24. Aucun commit ni ticket depuis TCK-687 ne touche ce calcul (`git log` des deux fichiers). Le cas « vivier qui change entre deux pages » reste non mesuré. Classement : V7, la `Piste` propose deux voies dont l'une change la règle écrite de l'ADR-0061 § 7 (« un bien déjà servi dans un emplacement de la même page n'y entre pas ») et l'autre fait porter au front une graine figée : un choix de produit, à trancher avant le code.
 
 ### Une page au-delà de la dernière compte une impression pour un emplacement que l'écran ne montre pas
 - Réf : P55.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:147-148,648-659`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:595-613`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:39-44`
 - Constat :
@@ -5709,10 +5710,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Le code affirme le contraire : « une impression ne se compte que pour un emplacement montré » (`PropertySearchService.php:142-143`, TCK-687), et l'ADR-0061 § 10 parle d'« une impression par bien réellement servi » (`PropertySearchService.php:657`).
   - Établi comment : lecture des deux côtés, et test temporaire côté API.
 - Piste : dans `placements()`, rendre `[$organic(), []]` sans compter quand `$page` dépasse `totalPages` du résultat nominal. Le test : `page = last_page + 1` → `sponsored = []` et aucune impression ; le témoin `page = last_page` sert toujours.
+- Mesure (2026-10-19, 4f449d122, mesureur) : relu `placements()` (l. 644-664 : seule garde `totalHits === 0`, puis `pick($pool, $seed, $page, $slots)` et `BoostStatsRecorder::impressions()` sans regarder `totalPages`) et `CountBoostImpressions.php:39-44` (commit sur toute réponse < 400 hors robot), puis test temporaire (retiré), même corpus, `slots = 1`, `reserved = 2` → `last_page` 3, `page=9` : `data` vide, `sponsored` = 1 bien ; témoin `page=3` : 1 résultat, 1 emplacement. Les impressions servent au taux de clic (ADR-0061 § 10), pas à un débit. Classement : A1, le contrat est écrit dans le code (« une impression ne se compte que pour un emplacement montré », TCK-687) et dans l'ADR-0061 § 10, et le front ne montre déjà aucun emplacement sur une liste vide : rendre `[$organic(), []]` sans compter quand `$page` dépasse `totalPages` ne change rien de visible.
 
 ### Petites améliorations
 - Réf : P55.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:92-109,668-678,767-773`
 - Constat :
@@ -5720,3 +5722,4 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - La conséquence de l'ADR-0061 annonce la troisième lecture, celle des places réservées, « en première page » (l. 208, lu). Le code la fait sur **toute** page dès que des places réservées existent : la page 2 et les suivantes en ont besoin pour décaler leur fenêtre (lu, `PropertySearchService.php:632-633`, 668-674). Le docblock de `placements()` dit juste (l. 627-630).
   - Établi comment : lecture.
 - Piste : `attributesToRetrieve: ['id']` sur la requête nominale (et sur l'élargie), avec un test qui vérifie que la page rendue est inchangée ; corriger la conséquence de l'ADR-0061 (trois lectures sur toute page qui a des places réservées).
+- Mesure (2026-10-19, 4f449d122, mesureur) : relu la requête nominale (l. 92-109 : ni `attributesToRetrieve` ni autre projection ; seuls le vivier l. 696 et `organicExcluding()` l. 725 portent `['id']`) et tous les lecteurs de `hits` du fichier (l. 149, 204, 646, 708, 737, 769) : aucun ne lit autre chose que `id` ; relu l'ADR-0061, Conséquences l. 206-207 (« une troisième en première page ») face à `placements()`, qui fait la troisième lecture sur toute page dès que `$reserved` n'est pas vide. Le gain en octets n'est pas mesuré. Classement : A2 et A6, une projection sur `id` ne change pas le résultat (l'hydratation relit tout en base), et la phrase de l'ADR se corrige pour dire ce que fait le code.
