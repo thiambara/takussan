@@ -1,7 +1,7 @@
 ---
 id: TCK-1001
 title: "Un locataire en préavis demande une intervention, et son accueil compte son bail"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -40,18 +40,18 @@ dont le bail est `active`.
 
 ## Delta à produire
 
-- [ ] `MaintenanceRequestController::store` : le bail du demandeur se juge par
+- [x] `MaintenanceRequestController::store` : le bail du demandeur se juge par
   `User::ACTIVE_TENANT_LEASE_STATUSES`.
-- [ ] `DashboardTenantService::summary` : `leases.active` compte les baux de cette même liste.
-- [ ] Tests : création par un locataire `active`, `terminating` (201), `terminated`,
+- [x] `DashboardTenantService::summary` : `leases.active` compte les baux de cette même liste.
+- [x] Tests : création par un locataire `active`, `terminating` (201), `terminated`,
   `expired` (403) ; accueil d'un locataire avec un bail `terminating` et un `terminated`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/maintenance-requests` par un locataire dont le seul bail sur le bien est
+- [x] AC1 — `POST /api/maintenance-requests` par un locataire dont le seul bail sur le bien est
   `terminating` rend 201.
-- [ ] AC2 — un bail `terminated` ou `expired` ne l'ouvre pas (403).
-- [ ] AC3 — `GET /api/dashboard/tenant` compte un bail `terminating` dans `leases.active`, et
+- [x] AC2 — un bail `terminated` ou `expired` ne l'ouvre pas (403).
+- [x] AC3 — `GET /api/dashboard/tenant` compte un bail `terminating` dans `leases.active`, et
   pas un bail `terminated`.
 
 ## Hors périmètre
@@ -61,4 +61,8 @@ dont le bail est `active`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : `MaintenanceRequestController` et `DashboardTenantService` remis à
+  `LeaseStatus::Active` → 2 rouges sur 17 (`MaintenanceRequestTest`, cas « en préavis » : 403 ;
+  `DashboardTenantTest` : 0 au lieu de 1) ; correctif remis → 17 verts.
+- La liste se lit par `User::ACTIVE_TENANT_LEASE_STATUSES` (le trait `HasProfiles` la porte),
+  comme dans `AgencyController`.
