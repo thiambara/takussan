@@ -71,6 +71,11 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings.require_team_two_factor' => ['sometimes', 'boolean'],
             // TCK-593 — absent = `false` (`Agency::collectsLateFeesOnline()`).
             'settings.late_fee_online_collection' => ['sometimes', 'nullable', 'boolean'],
+            // TCK-963 — lus par `BookingExpirationService` (0 = désactivé, features.md § 1.3) et par
+            // `TenantOnboardingService` ; sans règle, `validated()` les retirait sans erreur. `null`
+            // retire la clé : le défaut du code revient.
+            'settings.booking_pending_expiry_hours' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
+            'settings.tenant_onboarding_enabled' => ['sometimes', 'nullable', 'boolean'],
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
