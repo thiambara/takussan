@@ -5367,7 +5367,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un compte bloqué est proposé par le sélecteur de participants, et accepté dans un groupe comme dans une directe
 - Réf : P51.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : retirer un compte bloqué du sélecteur et le refuser à la création est un comportement neuf qu'aucune spec n'écrit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:35,78-137`, `takussan-api/app/Models/User.php:671-675`
 - Constat :
@@ -5377,10 +5377,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Ce que reçoit ensuite le compte bloqué (notification, e-mail) n'a pas été mesuré (à vérifier).
   - Établi comment : lu et mesuré.
 - Piste : écarter `UserStatus::Blocked` (et `Deleted` hors corbeille) dans `MessagingReach::query()` : la liste, `outOfReach()` et donc les trois FormRequests suivent. Test : « compte bloqué → absent de la liste, 422 à la création d'un groupe et d'une directe ».
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingReach::query()` (aucun filtre sur `users.status`, seul `SoftDeletes` écarte, en-tête l. 35 « jamais un compte supprimé ») et `User::canOpenSession()` (refuse `Blocked` et `Deleted`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle51Test.php` (base de test PostgreSQL, Meilisearch local, charge 2,97 sur 8 cœurs), retiré ensuite : correspondant passé à `blocked` → `GET /api/conversations/contacts` rend « Autre Ok », « Bloque Compte » ; `POST /api/conversations` → 201 en groupe, 201 en directe → le constat tient ; ce que reçoit ensuite le compte bloqué n'a pas été mesuré, et `git log -S`, `docs/backlog/tickets` (TCK-565, TCK-589) n'écrivent rien sur un compte bloqué comme contact (TCK-565 n'écarte que le profil propriétaire `blocked`). Classement : V7, ni TCK-589 ni TCK-565 n'écrivent qu'un compte bloqué cesse d'être joignable, et ce compte peut être débloqué ; la partie `status = deleted` relèverait seule de A1 par l'en-tête de `MessagingReach`.
 
 ### Un participant retiré d'un groupe par son administrateur garde tous les membres comme contacts et peut ouvrir une directe avec chacun
 - Réf : P51.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste demande de décider si un retrait par un administrateur coupe la relation née du groupe
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:57-62,89-97`, `takussan-api/app/Services/Messaging/ConversationAccess.php:159-168`
 - Constat :
@@ -5389,10 +5390,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - mesuré (test temporaire) : groupe de trois ; l'administrateur retire un membre (`DELETE …/participants/{user}` → 200, `left_at` posé). Le retiré lit ensuite `GET /api/conversations/contacts` → « Admin G », « Membre G », et `POST /api/conversations` d'une directe vers l'autre membre → 201.
   - Établi comment : lu et mesuré.
 - Piste : décider si un retrait par un administrateur coupe la relation née du groupe, dans les deux sens. Si oui, la règle 1 ne compte plus les fils dont l'acteur a été retiré, ni les participants retirés d'un fil, sans toucher à la ré-invitation par un administrateur restant. Test « membre retiré → absent des contacts de l'autre, 422 sur la directe ».
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingReach.php:57-62,89-97` (règle 1 par `participatingQuery($actor, activeOnly: false)`, sans regarder `left_at`) ; même test temporaire, retiré ensuite : groupe de trois créé par l'administrateur → 201 ; `DELETE …/participants/{retiré}` → 200 ; le retiré lit `GET /api/conversations/contacts` → « Admin G », « Membre G », et sa directe vers le membre → 201 ; le membre restant voit aussi « Retire G » → le constat tient, dans les deux sens ; TCK-861 (liste sans anciens membres, ré-invitation lue) ne traite que la liste `participants` de `GET /api/conversations`, pas les contacts. Classement : V7, la piste est une décision (« décider si… ») qu'aucune spec n'écrit, et l'en-tête de `MessagingReach` veut au contraire garder la relation pour la ré-invitation.
 
 ### Un compte ouvert par téléphone apparaît sans nom en tête du sélecteur, et aucune recherche ne le trouve
 - Réf : P51.03
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneLoginService.php:167-180`, `takussan-api/app/Http/Resources/Messaging/MessagingContactResource.php:24`, `takussan-api/app/Models/User.php:240-260`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:76,94-95`, `takussan-web/src/components/messages/ParticipantPicker.tsx:59,239`
 - Constat :
@@ -5404,10 +5406,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Qu'un parcours oblige ce compte à poser un nom avant d'écrire n'a pas été vérifié (à vérifier). La base de dev n'en contient aucun.
   - Établi comment : lu et mesuré.
 - Piste : rendre `name` par `nameWithoutContact()`, comme les trois chemins de TCK-815. Que la recherche porte aussi sur `username` reste un choix : le nom affiché devient alors cherchable, ce qui n'en fait pas un oracle. Test qui épingle `name` d'un compte sans nom.
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `PhoneLoginService::createAccount()` (`first_name` et `last_name` à `''`), `MessagingContactResource::toArray()` (`'name' => $this->full_name`, sans `nameWithoutContact()`), `User::nameWithoutContact()` (TCK-815 : prénom et nom, puis `username`, puis « — ») et `MessagingContactController.php:76,94-95` (recherche sur `first_name`, `last_name`) ; même test temporaire, retiré ensuite : correspondant sans prénom ni nom, `username = pseudo_seul` → la liste le rend en tête, `"name": ""` ; `filter[search]=pseudo_seul` → `[]` → le constat tient ; la base de dev n'a pas été relue. Classement : A1, pour le seul `name` : le docblock de `nameWithoutContact()` (TCK-815, validé) en fait la règle du « nom d'un compte montré à un autre compte », et le `username` y est déjà montré aux correspondants ; la recherche sur `username` reste un choix de la piste et n'est pas couverte par ce classement.
 
 ### Le plafond de 5 000 identifiants se prend sur tous les comptes avant le périmètre, et le correctif de P16.04 ne s'applique pas ici
 - Réf : P51.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : deux architectures de recherche proposées (filtre Meilisearch sur `id` ou recherche SQL sous un seuil), et un réglage d'index à resynchroniser
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:78-100`, `takussan-api/config/scout.php:300-304`
 - Constat :
@@ -5416,10 +5419,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Sur un patronyme courant (Diop, Ndiaye, Fall…), un contact du périmètre classé au-delà du rang 5 000 manque sans signal, et `meta.total` reste cohérent. Le volume de comptes en production est inconnu (à vérifier).
   - Établi comment : lu.
 - Piste : le périmètre est d'ordinaire petit. Le calculer d'abord en SQL (ids), puis le passer à Meilisearch en `filter` sur `id` (attribut `id` filtrable dans `index-settings`), ou chercher en SQL quand il compte moins de N personnes. Test avec un plafond abaissé : un contact du périmètre classé après N homonymes hors périmètre reste trouvé.
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:78-100` (`User::search($terms)->take(5000)->keys()` sur tout l'index `users`, puis `whereIn` sur le périmètre de `MessagingReach`) et l'index `users` de `config/scout.php` (aucun `filterableAttributes`) ; P16.04 est `caduc` et son reste (`agency_id` filtrable) ne vise que `HasQueryBuilder` → le constat de code tient ; non mesuré : le plafond est une constante privée, et le volume de comptes en production est inconnu, donc la perte d'un contact au-delà du rang 5 000 reste déduite. Classement : V6, la piste propose deux options de structure (filtre Meilisearch neuf, qui demande une resynchronisation des réglages d'index au déploiement, ou recherche SQL sous un seuil N à choisir).
 
 ### Le tri alphabétique des contacts suit l'ordre des octets : minuscules et initiales accentuées passent après « Z »
 - Réf : P51.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le premier tri par collation ICU du dépôt change l'ordre visible de la liste, et aucune spec n'écrit l'ordre attendu
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:102,107-111`
 - Constat :
@@ -5428,10 +5432,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - `MessagingContactsTest::test_la_liste_est_paginee_dans_la_forme_canonique` n'épingle que des prénoms ASCII capitalisés (lu, l. 219-237).
   - Établi comment : lu et mesuré.
 - Piste : trier sur `first_name COLLATE "und-x-icu"` (la collation d'ADR-0025) par un tri spatie maison, pour le défaut comme pour `sort=first_name` et `last_name`. Test avec une minuscule et une initiale accentuée.
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:102,107-111` (`defaultSorts('first_name', 'last_name', 'id')`, `ORDER BY` simple sous `--locale=C`) ; même test temporaire, retiré ensuite : contacts « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye » → rendus dans cet ordre → le constat tient ; `grep -rn und-x-icu takussan-api/app` ne trouve cet usage que pour le repli de casse, jamais dans un tri, et ADR-0025 ne porte que sur le repli de casse, pas sur l'ordre. Classement : V7, aucune spec n'écrit l'ordre attendu d'une liste de personnes, et ce serait le premier tri ICU du dépôt, que les autres listes de noms ne suivraient pas.
 
 ### Petites améliorations
 - Réf : P51.06
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : le compteur du sélecteur se corrige par un filtre d'API neuf ou par un autre compte affiché, au choix
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:86`, `takussan-api/app/Models/User.php:476-479,488-490`, `takussan-web/src/components/messages/ParticipantPicker.tsx:103-105,214-217`
 - Constat :
@@ -5439,3 +5444,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le sélecteur retire côté client les personnes déjà choisies de la page de 20 (lu, l. 103), mais « {shown} sur {total} » compte la page entière (`charges`, l. 105, 216). Avec cinq choisis parmi les vingt premiers, quinze lignes s'affichent sous « 20 sur 34 ». Si les vingt sont choisis, la liste dit « Personne ne correspond à cette recherche. » alors que le total en annonce d'autres (déduit, à vérifier au navigateur).
   - Établi comment : lu.
 - Piste : `with(['media' => fn ($q) => $q->where('collection_name', 'avatar')])`. Pour le compteur, exclure les choisis côté serveur (`filter[exclude]` sur des ids) ou compter les lignes affichées. Un test du composant avec des choisis dans la page.
+- Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:86` (`with('media')`), `User::registerMediaCollections()` (quatre collections) et `User::avatarUrl()` (lit la seule `avatar`) ; relu `ParticipantPicker.tsx:102-105,174-179,214-217` (`items` filtre les choisis, `moreResults` affiche `charges` = la page entière, et `Combobox.Empty` affiche `noContact` dès que `items` est vide, même si `total > charges`) → les deux parties tiennent à la lecture ; ni le surcoût des lignes `media` ni le rendu au navigateur n'ont été mesurés. Classement : V7 pour le compteur, la piste laisse le choix entre `filter[exclude]` côté serveur et un compte des lignes affichées ; la partie `media` relèverait seule de A2 (même `avatarUrl()`, moins de lignes lues).
