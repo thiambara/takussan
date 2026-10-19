@@ -132,7 +132,7 @@ voie d'écriture (angle 13, puis 47).
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | fait |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | fait |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | fait |
-| 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
+| 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | fait |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
@@ -166,6 +166,7 @@ voie d'écriture (angle 13, puis 47).
 | 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
+| 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
 
 ---
 
@@ -6050,3 +6051,73 @@ le `CASE` de la pertinence.
   - Aujourd'hui les comptes sont constants sur les listes mesurées (voir l'en-tête de l'angle), sauf P59.02. Une ressource ou un contrôleur qui lirait une relation seulement quand une recherche est posée (le chargement des ids de pertinence, un `with()` conditionnel) n'aurait aucun témoin (déduit, à vérifier).
 - Établi comment : relecture des tests et `grep`.
 - Piste : une variante « avec recherche » de `ProListQueryBudgetTest` sous `InteractsWithMeilisearch` (biens, clients, interventions, `search/messages`, recherche publique), 2 lignes = 12 lignes ; garde ajoutée sans toucher aux seuils existants.
+
+## Angle 60 — `include=` acceptés, chargés et non émis ; `show` qui ignorent `include=` et `fields`
+
+*Exploré le 2026-10-19 sur `pre-dev` 2f829055e, par l'explorateur. Relus par l'explorateur : la garde
+`RequestLoadableEmittedTest`, les `$requestLoadable` des 35 modèles qui en déclarent, les ressources
+qu'emploient leurs listes, et les `show` cités dans les entrées. Un test temporaire, retiré depuis, a
+mesuré trois routes (journal des requêtes SQL, base de test). Le relevé des 19 `show` vient d'un
+sous-agent ; chaque cas cité ici a été relu. P21.05 (TCK-807) a déjà traité `Lease`, `Payout` et
+`Booking`, et compte quatorze modèles exemptés : ce passage ne les reprend pas. Le coût de chaque
+chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
+
+### Quatre modèles acceptent des `include=` que leur ressource n'émet pas, et la garde de TCK-807 ne les voit pas
+- Réf : P60.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Models/PlatformPayout.php:54`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Models/Plan.php:40`, `takussan-api/app/Http/Resources/Api/Admin/PlanResource.php:10-25`, `takussan-api/app/Models/AgencyRole.php:74`, `takussan-api/app/Http/Resources/Agency/AgencyRoleResource.php:34`, `takussan-api/app/Models/BankStatement.php:51`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:14-38`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:75`
+- Constat :
+  - `PlatformPayout::$requestLoadable` vaut `agency`, `approver`, `closer`, `payer`. `PlatformPayoutResource` n'a aucun `whenLoaded`, et ne rend que les colonnes (`approved_by`, `closed_by_id`, `paid_by_id`) (lu).
+  - `Plan::$requestLoadable` vaut `subscriptions`, que `PlanResource` n'émet pas (lu). `AgencyRole` accepte `agency`, et `AgencyRoleResource` n'émet que `capabilities` (lu). `BankStatement` accepte `agency`, et `BankStatementResource` n'émet que `agency_id` (lu).
+  - mesuré : un test temporaire, retiré depuis.
+    - `GET /api/me/payouts?include=agency,approver,closer,payer` rend 200 et joue `select * from "agencies" where "agencies"."id" in (1)`. La ligne rendue n'a aucune clé `agency`, `approver`, `closer` ni `payer`.
+    - `GET /api/admin/payouts?include=agency,approver` rend 200, sans clé `agency`.
+    - `GET /api/admin/plans?include=subscriptions` : 2 requêtes sans l'include, 3 avec. Toutes les souscriptions de chaque plan sont chargées, et aucune clé `subscriptions` n'est rendue.
+    - `GET /api/agencies/{id}/roles?include=agency` rend 200 sans clé `agency`.
+  - La garde cherche la ressource à un seul chemin, `app/Http/Resources/<Modèle>Resource.php` (l. 75). Elle saute donc les ressources rangées en sous-dossier : `Api/Admin/`, `Agency/`, `Accounting/` (lu). Mesuré : `php artisan test tests/Unit/Http/Resources/RequestLoadableEmittedTest.php` → 2 verts, aucun de ces quatre modèles n'est nommé.
+  - Aucun appel du front n'envoie ces `include=` : `grep` sur `takussan-web/src` pour `approver`, `closer`, `payer`, `subscriptions` près d'un `include` → rien (mesuré).
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : retirer ces relations de `$requestLoadable`, puisque aucun appelant ne les demande. La garde trouve la ressource par son nom de classe dans tout `app/Http/Resources`, ou par une table modèle → ressource : elle nommerait alors ces quatre modèles. Ablation : remettre la recherche à un seul chemin et constater qu'elle ne les voit plus.
+
+### Des `show` chargent en dur des relations que leur ressource n'émet pas
+- Réf : P60.02
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-63`, `takussan-api/app/Http/Controllers/Api/BookingController.php:60-68`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:45-52`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:76-86`, `takussan-web/src/lib/queries/leases.ts:215-223`
+- Constat :
+  - `LeaseController::show` charge `payments`. `LeaseResource` n'a aucune clé `payments` : seulement `payment_frequency` et `payment_day`, l. 60-61 (lu). Chaque lecture d'une fiche de bail charge donc tous ses paiements pour rien.
+  - Le front envoie de son côté `include: ['property', 'payments']` à ce `show` (`leases.ts:222`, lu). Ce `show` ignore l'`include` (voir P21.04), et la fiche lit les paiements par une autre route (`useLeasePayments`, d'après le sous-agent : à vérifier).
+  - `InvoiceController::show` charge `customer`, et `InvoiceResource` ne rend que `customer_id` (l. 17, lu). `KycController::show` charge `reviewer`, et `KycDossierResource` ne rend que `reviewed_by` (l. 62, lu).
+  - `BookingController::show` charge `agency`, et `BookingResource` ne rend que `agency_id` (l. 21, lu). `BookingMoneyAccess::canRefund`, appelé juste après, relit l'agence par `Agency::query()->find()` (l. 63, lu) : le chargement ne sert pas non plus là.
+  - `BankStatementController::show` lit `include=` à la main et autorise `agency`, que la ressource n'émet pas (lu, l. 80-83).
+  - Établi comment : lu. Le nombre de requêtes de ces `show` n'est pas mesuré.
+- Piste : retirer du `load()` ce que la ressource n'émet pas, et `agency` de la liste blanche de `BankStatementController::show`. Retirer `payments` de l'`include` du front sur la fiche de bail. Garde : un test de budget de requêtes sur `GET /api/leases/{id}`, qui rougit si `payments` revient.
+
+### Dix-huit `show` sur dix-neuf ignorent `fields[...]` que le front leur envoie, et rendent la ressource entière
+- Réf : P60.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx:39-41`, `takussan-web/src/hooks/useAgencyCurrency.ts:52-57`, `takussan-web/src/lib/queries/properties-server.ts:192-198`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:72-77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:171`
+- Constat :
+  - D'après le sous-agent, seul `CustomerController::show` passe par `buildQuery` et honore `fields` et `include`. Deux `show` lisent `include=` à la main (`MaintenanceRequest`, `BankStatement`) ; aucun autre n'applique `fields`. Relus par l'explorateur : `AgencyController::show` (route-model binding nu, `AgencyResource::make($agency)`), `LeaseController::show` et `BookingController::show` (`load()` fixe).
+  - Pour son seul titre de page, `generateMetadata` de la fiche de bail appelle `/api/leases/{id}?fields[leases]=id,reference_number` (lu). Le `show` charge pourtant le bien et son adresse, le locataire, tous les paiements et les signatures avec leurs signataires, puis rend la ressource entière (lu). Comme la page charge aussi le bail, chaque ouverture de la fiche fait ce travail deux fois (déduit, à vérifier).
+  - `useAgencyCurrency` demande `fields[agencies]=id,currency` à `GET /api/agencies/{id}` (lu) et reçoit l'`AgencyResource` entière. Même cas pour `fetchDashboardProperty` (`fields[properties]`, lu) et pour les fiches d'inventaire, de facture, de reversement et d'utilisateur de la console (rapport du sous-agent, à vérifier).
+  - Le front croit à un contrat qu'aucun `show` ne tient : ni `docs/spatie-query-builder.md` ni `takussan-api/CLAUDE.md` ne disent que `fields` vaut seulement pour les listes (mesuré : `grep -n -i "show\|détail\|fiche" docs/spatie-query-builder.md` → rien).
+  - Établi comment : lu. La taille et le coût des réponses ne sont pas mesurés.
+- Piste : il y a deux voies, et le choix revient au porteur.
+  - Faire honorer `fields` et `include` par les `show` qui servent le front, par `buildQuery($base->whereKey($id))`, comme `CustomerController::show`.
+  - Ou écrire dans `docs/spatie-query-builder.md` que `fields` ne vaut que pour les listes, et retirer du front les `fields` envoyés à un `show`.
+
+  Pour l'en-tête de la fiche de bail, une lecture légère existe déjà : la liste filtrée par id. Garde : un test qui vérifie qu'un `fields[...]` envoyé à un `show` par le front y est honoré, ou bien refusé.
+
+### Petites améliorations
+- Réf : P60.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Models/AgencySubscription.php:42`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:99-102`
+- Constat :
+  - `AgencySubscription::$requestLoadable` (`agency`, `plan`) n'a aucun lecteur : aucun `AgencySubscription::buildQuery(` dans `app/` (mesuré par `grep -rnE '[A-Za-z]+::buildQuery\('`). `AgencySubscriptionController` rend une seule souscription par `new AgencySubscriptionResource(...)` (lu, l. 23 et 33). La déclaration est morte, et `agency` n'est pas émis par la ressource (lu, l. 17).
+  - La garde de TCK-807 reconnaît une relation émise à la seule présence de `whenLoaded('x')` dans le source, commentaires compris (lu, l. 99-102 : `preg_match` sur le fichier brut). Une mention en commentaire suffit donc à la rendre verte (déduit, à vérifier).
+  - Établi comment : lu et `grep`.
+- Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
