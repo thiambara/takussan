@@ -6055,7 +6055,7 @@ le `CASE` de la pertinence.
 
 ### Aucune garde de budget de requêtes sur un chemin de recherche Scout
 - Réf : P59.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1011
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Api/ProListQueryBudgetTest.php:56-71`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`, `takussan-api/tests/TestCase.php`
 - Constat :
@@ -6065,6 +6065,7 @@ le `CASE` de la pertinence.
 - Établi comment : relecture des tests et `grep`.
 - Piste : une variante « avec recherche » de `ProListQueryBudgetTest` sous `InteractsWithMeilisearch` (biens, clients, interventions, `search/messages`, recherche publique), 2 lignes = 12 lignes ; garde ajoutée sans toucher aux seuils existants.
 - Mesure (2026-10-19, 2f829055e, mesureur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 ; tests posant `enableQueryLog`/`DB::listen` et citant `filter[search]` → `PublicProfileIndexTest` et `MessagingContactsTest`, dont le `DB::listen` (`:346`) vise `/api/conversations/contacts` sans recherche ; ceux qui portent aussi `InteractsWithMeilisearch` → `PublicSearchAlertTest` (vérifie l'absence de lecture des tables du contact, pas un budget) et `MessagingContactsTest`. Le « déduit » du constat a un cas réel : P59.02 (19 → 29 requêtes, mesuré ce passage) n'est vu par aucun test. Classement : A5, garde ajoutée sans seuil existant resserré ; la variante `search/messages` rougit tant que P59.02 n'est pas corrigée, à livrer dans le même lot.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 → `SearchQueryBudgetTest` (Meilisearch réel, lignes garnies, URL du front) : biens, clients et interventions sous `filter[search]`, recherche publique `q=`, 2 lignes = 12 lignes, 4 verts ; ablation par un écouteur `retrieved` temporaire (`select 1` par ligne) → 4 rouges (23/33, 23/33, 27/47, 6/16), retiré → verts. La variante `search/messages` est celle de TCK-1010.
 
 ## Angle 60 — `include=` acceptés, chargés et non émis ; `show` qui ignorent `include=` et `fields`
 
