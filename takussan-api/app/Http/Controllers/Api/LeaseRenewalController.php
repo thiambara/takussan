@@ -29,7 +29,7 @@ class LeaseRenewalController extends Controller
         $child = $this->renewals->renew($lease, $request->validated(), $user);
 
         return $this->json([
-            'data' => LeaseResource::make($child->load(['property', 'tenant', 'renewedFrom']))->toArray($request),
+            'data' => LeaseResource::make($child->load(['property', 'tenant', 'renewedFrom']))->resolve($request),
         ], 201);
     }
 }

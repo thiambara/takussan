@@ -68,7 +68,7 @@ class SettingController extends Controller
             ]
         );
 
-        return $this->json(['data' => SettingResource::make($setting)->toArray($request)], $setting->wasRecentlyCreated ? 201 : 200);
+        return $this->json(['data' => SettingResource::make($setting)->resolve($request)], $setting->wasRecentlyCreated ? 201 : 200);
     }
 
     public function update(UpdateSettingRequest $request, Setting $setting): JsonResponse
@@ -83,7 +83,7 @@ class SettingController extends Controller
             'updated_by_id' => $user->id,
         ]);
 
-        return $this->json(['data' => SettingResource::make($setting->refresh())->toArray($request)]);
+        return $this->json(['data' => SettingResource::make($setting->refresh())->resolve($request)]);
     }
 
     public function destroy(Request $request, Setting $setting): JsonResponse

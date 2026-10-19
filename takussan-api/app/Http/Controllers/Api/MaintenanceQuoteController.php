@@ -32,7 +32,7 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->requestQuote($maintenanceRequest, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ]);
     }
 
@@ -49,7 +49,7 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->submitQuote($maintenanceRequest, $data, $attachments, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ]);
     }
 
@@ -61,7 +61,7 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ]);
     }
 
@@ -73,7 +73,7 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ]);
     }
 
@@ -112,7 +112,7 @@ class MaintenanceQuoteController extends Controller
         $mr = $this->workflow->start($maintenanceRequest, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ]);
     }
 }

@@ -64,7 +64,7 @@ class BookingController extends Controller
 
         return $this->json([
             'message' => __('messages.booking_expired_manually'),
-            'data' => BookingResource::make($booking->fresh())->toArray($request),
+            'data' => BookingResource::make($booking->fresh())->resolve($request),
         ]);
     }
 }

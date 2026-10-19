@@ -91,7 +91,7 @@ class PropertyVisitController extends Controller
         $this->authorize('view', $visit);
 
         return $this->json([
-            'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->toArray($request),
+            'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->resolve($request),
         ]);
     }
 
@@ -156,7 +156,7 @@ class PropertyVisitController extends Controller
         $this->notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
-            'data' => PropertyVisitResource::make($visit)->toArray($request),
+            'data' => PropertyVisitResource::make($visit)->resolve($request),
         ], 201);
     }
 
@@ -197,7 +197,7 @@ class PropertyVisitController extends Controller
         $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user);
 
         return $this->json($this->avecSortDuSms([
-            'data' => PropertyVisitResource::make($visit->refresh())->toArray($request),
+            'data' => PropertyVisitResource::make($visit->refresh())->resolve($request),
         ], $sms), 201);
     }
 
@@ -254,7 +254,7 @@ class PropertyVisitController extends Controller
             $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']), $request->user());
         }
 
-        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)], $sms));
     }
 
     /**
@@ -278,7 +278,7 @@ class PropertyVisitController extends Controller
 
         $visit->update(['agent_id' => $user->id]);
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
     /**
@@ -291,7 +291,7 @@ class PropertyVisitController extends Controller
 
         $this->notifier->rescheduledByVisitor($visit->fresh(['property', 'agent']));
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
@@ -311,7 +311,7 @@ class PropertyVisitController extends Controller
 
         $sms = $this->notifier->confirmed($visit, $request->user());
 
-        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->toArray($request)], $sms));
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->resolve($request)], $sms));
     }
 
     public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
@@ -332,7 +332,7 @@ class PropertyVisitController extends Controller
             'completed_at' => now(),
         ]));
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
@@ -367,7 +367,7 @@ class PropertyVisitController extends Controller
             $sms = $this->notifier->cancelledByAgency($fresh, $user);
         }
 
-        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)], $sms));
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)], $sms));
     }
 
     /**
@@ -453,7 +453,7 @@ class PropertyVisitController extends Controller
 
         $visit->update($payload);
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
+        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
     /**

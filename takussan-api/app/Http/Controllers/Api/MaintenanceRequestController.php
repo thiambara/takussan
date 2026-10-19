@@ -140,7 +140,7 @@ class MaintenanceRequestController extends Controller
         }
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($mr)->toArray($request),
+            'data' => MaintenanceRequestResource::make($mr)->resolve($request),
         ], 201);
     }
 
@@ -166,7 +166,7 @@ class MaintenanceRequestController extends Controller
         );
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
+            'data' => MaintenanceRequestResource::make($maintenanceRequest)->resolve($request),
         ]);
     }
 
@@ -206,7 +206,7 @@ class MaintenanceRequestController extends Controller
         }
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->toArray($request),
+            'data' => MaintenanceRequestResource::make($maintenanceRequest->refresh())->resolve($request),
         ]);
     }
 
@@ -229,7 +229,7 @@ class MaintenanceRequestController extends Controller
         $maintenanceRequest = $this->service->transition($maintenanceRequest, $target, $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
+            'data' => MaintenanceRequestResource::make($maintenanceRequest)->resolve($request),
         ]);
     }
 
@@ -248,7 +248,7 @@ class MaintenanceRequestController extends Controller
         $maintenanceRequest = $this->service->complete($maintenanceRequest, $data, is_array($photos) ? $photos : [], $request->user());
 
         return $this->json([
-            'data' => MaintenanceRequestResource::make($maintenanceRequest)->toArray($request),
+            'data' => MaintenanceRequestResource::make($maintenanceRequest)->resolve($request),
         ]);
     }
 
@@ -262,7 +262,7 @@ class MaintenanceRequestController extends Controller
 
         $mr = $this->service->accept($maintenanceRequest, $request->user());
 
-        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }
 
     /**
@@ -272,7 +272,7 @@ class MaintenanceRequestController extends Controller
     {
         $mr = $this->service->decline($maintenanceRequest, $request->user(), $request->validated('reason'));
 
-        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }
 
     /**
@@ -282,7 +282,7 @@ class MaintenanceRequestController extends Controller
     {
         $mr = $this->service->confirmResolution($maintenanceRequest, $request->user());
 
-        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }
 
     /**
@@ -299,7 +299,7 @@ class MaintenanceRequestController extends Controller
             is_array($photos) ? $photos : [],
         );
 
-        return $this->json(['data' => MaintenanceRequestResource::make($mr)->toArray($request)]);
+        return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }
 
     public function uploadPhotos(UploadPhotosMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse

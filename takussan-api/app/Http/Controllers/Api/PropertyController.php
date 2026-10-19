@@ -154,7 +154,7 @@ class PropertyController extends Controller
             }
 
             return $this->json(
-                ['data' => PropertyResource::make($property->load('address'))->toArray($request)],
+                ['data' => PropertyResource::make($property->load('address'))->resolve($request)],
                 201
             );
         } catch (\Throwable $e) {
@@ -180,7 +180,7 @@ class PropertyController extends Controller
         }
 
         return $this->json([
-            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))->toArray($request),
+            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))->resolve($request),
         ]);
     }
 
@@ -231,7 +231,7 @@ class PropertyController extends Controller
         }
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load('address'))->resolve($request),
         ]);
     }
 
@@ -274,7 +274,7 @@ class PropertyController extends Controller
         }
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load('address'))->resolve($request),
         ]);
     }
 
@@ -287,7 +287,7 @@ class PropertyController extends Controller
         $property->update($publication->unpublishedAttributes());
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load('address'))->resolve($request),
         ]);
     }
 
@@ -324,7 +324,7 @@ class PropertyController extends Controller
         }
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load('address'))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load('address'))->resolve($request),
         ]);
     }
 
@@ -352,7 +352,7 @@ class PropertyController extends Controller
         $assigner->assign($property, User::findOrFail($request->validated('user_id')), $request->user());
 
         return $this->json([
-            'data' => PropertyResource::make($property->refresh()->load(['address', ...PrimaryPropertyContact::eagerLoads()]))->toArray($request),
+            'data' => PropertyResource::make($property->refresh()->load(['address', ...PrimaryPropertyContact::eagerLoads()]))->resolve($request),
         ]);
     }
 
@@ -400,7 +400,7 @@ class PropertyController extends Controller
         );
 
         return $this->json(
-            ['data' => PropertyResource::make($clone->load('address'))->toArray($request)],
+            ['data' => PropertyResource::make($clone->load('address'))->resolve($request)],
             201
         );
     }

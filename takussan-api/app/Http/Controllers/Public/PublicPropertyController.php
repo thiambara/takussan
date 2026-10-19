@@ -857,7 +857,7 @@ class PublicPropertyController extends Controller
         $notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
-            'data' => PropertyVisitResource::make($visit)->toArray($request),
+            'data' => PropertyVisitResource::make($visit)->resolve($request),
         ], 201);
     }
 
@@ -1009,7 +1009,7 @@ class PublicPropertyController extends Controller
             BookingRequested::dispatch($booking, $user->id);
 
             return $this->json([
-                'data' => BookingResource::make($booking)->toArray($request),
+                'data' => BookingResource::make($booking)->resolve($request),
             ], 201);
         }
 
@@ -1041,7 +1041,7 @@ class PublicPropertyController extends Controller
         BookingRequested::dispatch($booking, $user->id);
 
         return $this->json([
-            'data' => BookingResource::make($booking)->toArray($request),
+            'data' => BookingResource::make($booking)->resolve($request),
         ], 201);
     }
 
