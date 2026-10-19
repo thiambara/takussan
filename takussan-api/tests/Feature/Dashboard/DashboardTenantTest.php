@@ -5,6 +5,7 @@ namespace Tests\Feature\Dashboard;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -79,6 +80,23 @@ class DashboardTenantTest extends ApiTestCase
         $this->assertSame(1, $data['payments']['overdue_count']);
         // upcoming_30d = entries whose due_date is within [today, today+30d] — 1 matches.
         $this->assertGreaterThanOrEqual(1, count($data['payments']['upcoming_30d']));
+    }
+
+    /**
+     * TCK-1001 (P48.04) — un bail en préavis (`terminating`) est encore en cours pour le
+     * locataire (`HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`) : l'accueil le compte. Un bail
+     * résilié, non.
+     */
+    public function test_lease_under_notice_counts_as_active(): void
+    {
+        $user = $this->apiActingAsRole('customer');
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        Lease::factory()->create(['tenant_id' => $customer->id, 'status' => LeaseStatus::Terminating]);
+        Lease::factory()->create(['tenant_id' => $customer->id, 'status' => LeaseStatus::Terminated]);
+
+        $data = $this->apiGet('/api/dashboard/tenant')->assertOk()->json('data');
+
+        $this->assertSame(1, $data['leases']['active']);
     }
 
     public function test_recent_documents_are_returned(): void
