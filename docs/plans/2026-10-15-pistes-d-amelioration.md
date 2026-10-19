@@ -123,7 +123,7 @@ voie d'écriture (angle 13, puis 47).
 | 48 | Parcours du locataire : de la candidature à la quittance, rattachement fiche ↔ compte, plusieurs agences | fait |
 | 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | fait |
 | 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | fait |
-| 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | à faire |
+| 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | fait |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
@@ -159,6 +159,8 @@ voie d'écriture (angle 13, puis 47).
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
+| 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
+| 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
 
 ---
 
@@ -5358,3 +5360,82 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : ouvrir le relevé d'un bailleur depuis le dialogue de reversement ou le carnet des propriétaires, sur la route existante.
 - Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PaymentsTabs.tsx:55,119` (`OwnerStatementPanel` monté pour le seul `estBailleur`), `useOwnerStatement` (`payments.ts`, n'envoie que `period`), `OwnerStatementRequest` (accepte `landlord_id` et `agency_id`) ; `grep -rln "owner-statements|useOwnerStatement|OwnerStatementPanel" takussan-web/src` → ces trois fichiers seuls ; TCK-594 § 2 ouvre la route au personnel tenant `payouts.create`, mais son parcours n'écrit que « le bailleur trouve ses relevés à côté de ses versements » → le constat tient. Classement : V7, aucun écran du personnel n'est écrit pour ce relevé, et la piste laisse le choix de l'endroit (dialogue de reversement ou carnet des propriétaires).
 - Mesure (2026-10-19, 565d242c8, delegue) : relu `useOwnerStatement` (`payments.ts:403-409`, n'envoie que `period`), `OwnerStatementRequest:31-45` (`landlord_id`, `agency_id`), `OwnerStatementPolicy:14,32` (le personnel lit le relevé d'un bailleur s'il tient `payouts.create`), la page `app/owners/page.tsx` (montée pour tout le personnel, seule l'invitation est réservée à l'admin) et TCK-594 (parcours : « le bailleur trouve ses relevés à côté de ses versements », « l'origine d'un montant se lit toujours avant le bouton qui l'engage », rien pour un écran du personnel) ; `docs/features.md:217` n'annonce le relevé qu'envoyé au bailleur → rien d'écrit ne choisit l'endroit ni le parcours. Recommandation : ouvrir le relevé depuis le dialogue de reversement, une fois le bailleur choisi (« voir le relevé du mois », `OwnerStatementPanel` avec `landlord_id`), et non depuis le carnet des propriétaires, parce que le dialogue n'est ouvert qu'au personnel qui tient déjà `payouts.create`, la capacité exacte de `OwnerStatementPolicy`, alors que le carnet est monté pour tout le personnel et ferait voir un 403 aux agents sans cette capacité ; c'est un écran et un parcours neufs (V7 non mineur, hors délégation), et il montre au personnel les montants d'un bailleur, déjà autorisés par TCK-594 (aucun V1 ni V3 neuf, à confirmer) ; manque : le choix du porteur sur l'endroit, et sur un accès depuis le carnet pour les seuls détenteurs de `payouts.create`.
+
+## Angle 51 — Recherche de contacts de la messagerie
+
+*Exploré le 2026-10-19 sur `pre-dev` 637b7c822, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `MessagingContactController`, `MessagingReach`, `MessagingContactResource`, `SearchRelevanceSort`, `ConversationAccess::participatingQuery()`, l'index `users` de `config/scout.php`, `User` (`toSearchableArray`, `nameWithoutContact`, `canOpenSession`, collections de médias), `PhoneLoginService::createAccount()`, `MessagingContactsTest`, et côté front `ParticipantPicker.tsx` et `useMessagingContacts`. Les mesures viennent de deux tests temporaires (base de test propre, Meilisearch du docker local, charge 1,60 sur 8 cœurs), retirés avant la fin, et de comptes en `SELECT` sur la base de développement (305 comptes, aucun sans nom ni bloqué : elle ne contient pas les cas mesurés). Rien n'a été mesuré en préproduction ni au navigateur.*
+
+### Un compte bloqué est proposé par le sélecteur de participants, et accepté dans un groupe comme dans une directe
+- Réf : P51.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Messaging/MessagingReach.php:35,78-137`, `takussan-api/app/Models/User.php:671-675`
+- Constat :
+  - `MessagingReach::query()` ne filtre aucun `users.status` : seul le `SoftDeletes` du modèle écarte un compte supprimé (lu). Son en-tête promet « jamais un compte supprimé » et ne dit rien d'un compte bloqué (lu, l. 35).
+  - Un compte `blocked` n'ouvre aucune session (`canOpenSession()`, lu, `User.php:671-675`) : il ne lira jamais le fil où on l'ajoute.
+  - mesuré (test temporaire) : un correspondant passé à `status = blocked` sort dans `GET /api/conversations/contacts` (« Bloque Compte »), et `POST /api/conversations` le reçoit → 201 pour un groupe, 201 pour une directe. Même chose pour un compte `inactive`, ce qui est voulu (« un compte qui n'a pas encore servi », lu, `User.php:669`).
+  - Ce que reçoit ensuite le compte bloqué (notification, e-mail) n'a pas été mesuré (à vérifier).
+  - Établi comment : lu et mesuré.
+- Piste : écarter `UserStatus::Blocked` (et `Deleted` hors corbeille) dans `MessagingReach::query()` : la liste, `outOfReach()` et donc les trois FormRequests suivent. Test : « compte bloqué → absent de la liste, 422 à la création d'un groupe et d'une directe ».
+
+### Un participant retiré d'un groupe par son administrateur garde tous les membres comme contacts et peut ouvrir une directe avec chacun
+- Réf : P51.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Messaging/MessagingReach.php:57-62,89-97`, `takussan-api/app/Services/Messaging/ConversationAccess.php:159-168`
+- Constat :
+  - La règle 1 (correspondants) lit `participatingQuery($actor, activeOnly: false)`, donc aussi les fils que l'acteur a quittés, et prend tous leurs participants, `left_at` compris (lu, l. 91-97).
+  - L'en-tête le veut pour la ré-invitation d'un ancien membre (lu, l. 57-62). Il ne distingue pas le départ volontaire du retrait par un administrateur.
+  - mesuré (test temporaire) : groupe de trois ; l'administrateur retire un membre (`DELETE …/participants/{user}` → 200, `left_at` posé). Le retiré lit ensuite `GET /api/conversations/contacts` → « Admin G », « Membre G », et `POST /api/conversations` d'une directe vers l'autre membre → 201.
+  - Établi comment : lu et mesuré.
+- Piste : décider si un retrait par un administrateur coupe la relation née du groupe, dans les deux sens. Si oui, la règle 1 ne compte plus les fils dont l'acteur a été retiré, ni les participants retirés d'un fil, sans toucher à la ré-invitation par un administrateur restant. Test « membre retiré → absent des contacts de l'autre, 422 sur la directe ».
+
+### Un compte ouvert par téléphone apparaît sans nom en tête du sélecteur, et aucune recherche ne le trouve
+- Réf : P51.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Auth/PhoneLoginService.php:167-180`, `takussan-api/app/Http/Resources/Messaging/MessagingContactResource.php:24`, `takussan-api/app/Models/User.php:240-260`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:76,94-95`, `takussan-web/src/components/messages/ParticipantPicker.tsx:59,239`
+- Constat :
+  - `PhoneLoginService::createAccount()` crée le compte avec `first_name = ''` et `last_name = ''` (lu, l. 172-173).
+  - `MessagingContactResource` rend `name` par `full_name`, qui vaut `''` pour ce compte. Le repli `nameWithoutContact()` (prénom et nom, puis `username`, puis « — », TCK-815) n'y est pas appelé (lu).
+  - La recherche ne porte que sur `first_name` et `last_name` (lu, l. 76, 95) : un tel compte ne se trouve qu'en parcourant la liste sans recherche.
+  - mesuré (test temporaire) : correspondant sans prénom ni nom, `username = pseudo_seul` → la liste le rend en premier, `"name": ""` (tri `first_name` ascendant) ; `filter[search]=pseudo_seul` → `[]`.
+  - Côté front, la pastille prend les initiales de `''` (vide) et le bouton de retrait s'annonce « Retirer  » (lu, l. 59, 239).
+  - Qu'un parcours oblige ce compte à poser un nom avant d'écrire n'a pas été vérifié (à vérifier). La base de dev n'en contient aucun.
+  - Établi comment : lu et mesuré.
+- Piste : rendre `name` par `nameWithoutContact()`, comme les trois chemins de TCK-815. Que la recherche porte aussi sur `username` reste un choix : le nom affiché devient alors cherchable, ce qui n'en fait pas un oracle. Test qui épingle `name` d'un compte sans nom.
+
+### Le plafond de 5 000 identifiants se prend sur tous les comptes avant le périmètre, et le correctif de P16.04 ne s'applique pas ici
+- Réf : P51.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:78-100`, `takussan-api/config/scout.php:300-304`
+- Constat :
+  - `User::search($terms)->take(5000)->keys()` interroge l'index `users` de toute la plateforme, puis `whereIn` intersecte avec `MessagingReach` (lu, l. 94-100). C'est le défaut que décrit P16.04, sur un autre chemin que `HasQueryBuilder`.
+  - Le périmètre n'est pas une agence : il réunit des correspondants, des liens CRM et une ou deux équipes (lu, `MessagingReach.php:86-136`). Rendre `agency_id` filtrable, comme le propose P16.04, n'y change rien. L'index `users` ne déclare aucun attribut filtrable (lu, `scout.php:300-304`).
+  - Sur un patronyme courant (Diop, Ndiaye, Fall…), un contact du périmètre classé au-delà du rang 5 000 manque sans signal, et `meta.total` reste cohérent. Le volume de comptes en production est inconnu (à vérifier).
+  - Établi comment : lu.
+- Piste : le périmètre est d'ordinaire petit. Le calculer d'abord en SQL (ids), puis le passer à Meilisearch en `filter` sur `id` (attribut `id` filtrable dans `index-settings`), ou chercher en SQL quand il compte moins de N personnes. Test avec un plafond abaissé : un contact du périmètre classé après N homonymes hors périmètre reste trouvé.
+
+### Le tri alphabétique des contacts suit l'ordre des octets : minuscules et initiales accentuées passent après « Z »
+- Réf : P51.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:102,107-111`
+- Constat :
+  - Sans recherche, le tri par défaut est `first_name, last_name, id`, en `ORDER BY` simple (lu). La base est en `--locale=C` (ADR-0020, `CLAUDE.md` de l'API, piège 9).
+  - mesuré (test temporaire) : contacts « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye » → rendus dans cet ordre, « awa » et « Élodie » après « Zeynab ».
+  - `MessagingContactsTest::test_la_liste_est_paginee_dans_la_forme_canonique` n'épingle que des prénoms ASCII capitalisés (lu, l. 219-237).
+  - Établi comment : lu et mesuré.
+- Piste : trier sur `first_name COLLATE "und-x-icu"` (la collation d'ADR-0025) par un tri spatie maison, pour le défaut comme pour `sort=first_name` et `last_name`. Test avec une minuscule et une initiale accentuée.
+
+### Petites améliorations
+- Réf : P51.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:86`, `takussan-api/app/Models/User.php:476-479,488-490`, `takussan-web/src/components/messages/ParticipantPicker.tsx:103-105,214-217`
+- Constat :
+  - `with('media')` charge toutes les collections de chaque contact (`avatar`, `avatars`, `photos`, `documents`) pour ne lire que `avatar` (lu, `User.php:476-479,490`). Avec des documents, cela fait des lignes `media` lues pour rien à chaque page (non mesuré).
+  - Le sélecteur retire côté client les personnes déjà choisies de la page de 20 (lu, l. 103), mais « {shown} sur {total} » compte la page entière (`charges`, l. 105, 216). Avec cinq choisis parmi les vingt premiers, quinze lignes s'affichent sous « 20 sur 34 ». Si les vingt sont choisis, la liste dit « Personne ne correspond à cette recherche. » alors que le total en annonce d'autres (déduit, à vérifier au navigateur).
+  - Établi comment : lu.
+- Piste : `with(['media' => fn ($q) => $q->where('collection_name', 'avatar')])`. Pour le compteur, exclure les choisis côté serveur (`filter[exclude]` sur des ids) ou compter les lignes affichées. Un test du composant avec des choisis dans la page.
