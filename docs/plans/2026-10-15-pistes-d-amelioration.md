@@ -5643,7 +5643,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Modifier un état des lieux avec `general_condition` ou `rooms` à `null` rend 500
 - Réf : P54.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-980
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:24-25`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:136-145`, `takussan-api/app/Services/Model/InventoryService.php:39-50`, `takussan-api/database/migrations/2026_04_17_160022_create_inventories_table.php:20-21`
 - Constat :
@@ -5652,10 +5652,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Le schéma du front rend ces clés facultatives sans les mettre à `null` (`lib/schemas/inventory.ts:84`, lu).
 - Piste : `general_condition` et `rooms` en `sometimes` + `filled` (le `null` n'est pas un effacement possible pour ces deux colonnes) ; le maintien du `null` reste utile pour `notes`. Un test par clé qui attend 422 et un état des lieux inchangé.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `InventoryUpdateRequest.php:24-25` et `InventoryService::update()` (le `null` d'une clé présente est gardé) → `PATCH /api/inventories/{id}` en propriétaire sur un `draft` : `general_condition: null` → 500 `23502`, `rooms: null` → 500 `23502`, `notes: null` → 200. Classement : A1, le schéma `NOT NULL` sans défaut rend l'effacement impossible pour ces deux colonnes, et la règle `filled` qui en découle ne change que le 500 en 422 ; `notes` garde son effacement.
+- Mesure (2026-10-19, 70d05c24b, implementeur) : relu `InventoryUpdateRequest.php:24-25` (`general_condition` et `rooms` toujours `nullable`) ; test de garde dans `InventoryEditTest` (fournisseur sur les deux clés, et `notes: null`) → avant correctif, `PATCH /api/inventories/{id}` en propriétaire sur un `draft` avec l'une ou l'autre à `null` rend 500 `QueryException` (2 rouges sur 8) → `filled` sur les deux : 8 verts, état des lieux inchangé, `notes: null` efface toujours ; ablation (requête remise) → 2 rouges, remis → vert ; 21 verts avec `InventoryTest`.
 
 ### Créer un bien avec `furnished: null` rend 500
 - Réf : P54.06
-- Statut : retenu · autonome
+- Statut : fait · TCK-981
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:67`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:135-139`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:30`
 - Constat :
@@ -5664,10 +5665,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Le front envoie toujours un booléen (`PropertyWizard.tsx:183`, `PropertyForm.tsx:109`, lu).
 - Piste : `furnished` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null` à côté de ceux d'`AdresseSansVilleTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePropertyRequest.php:67` (`furnished` en `nullable|boolean`) → `POST /api/properties` : `furnished: null` → 500, `currency: null` → 201 (ce cas tient, comme écrit) ; `UpdatePropertyRequest.php:64` porte déjà `sometimes|boolean` (lu). Classement : A1, la colonne `NOT NULL DEFAULT false` et la règle de mise à jour fixent le contrat (`null` → 422), comme TCK-703 pour la ville.
+- Mesure (2026-10-19, 70d05c24b, implementeur) : relu `StorePropertyRequest.php:67` (`furnished` toujours `nullable|boolean`) ; test de garde `PropertyFurnishedNullTest` → avant correctif, `POST /api/properties` en agent avec `furnished: null` rend 500 `QueryException` (1 rouge sur 3), clé omise → 201 et `false` → `filled|boolean` : 3 verts, aucun bien créé sur `null`, `true` gardé ; ablation (requête remise) → 1 rouge, remis → vert ; 12 verts avec `AdresseSansVilleTest`.
 
 ### Aucune garde ne confronte les règles `nullable` au schéma
 - Réf : P54.07
-- Statut : retenu · autonome
+- Statut : fait · TCK-982 — reste : la variante générique, qui rejoue un `null` sur toute clé `nullable` de tout FormRequest dont le contrôleur écrit `validated()` dans un modèle, avec sa table requête → modèle
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/`, `takussan-api/bootstrap/app.php:129-131`
 - Constat :
@@ -5676,6 +5678,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Ce qui tient, relu jusqu'à l'écriture : les créations de `Task` (`TaskController.php:74-75`), `MaintenanceRequest` (`MaintenanceRequestController.php:111`), `Agency` (`AgencyController.php:62-63`), `Customer` (`CustomerController.php:65`), `Lease` (`LeaseService.php:81-82`), `Integration` (`IntegrationController.php:103`), `BookingPayment` (`BookingPaymentService.php:22-39`), `MaintenanceWindow` (`MaintenanceService.php:38`), `Invoice` (`InvoiceService.php:49`), l'onboarding d'agence (`AgencyProvisioningService.php:47-53`) et la cooptation de super-admin (`SuperAdminCooptationService.php:57`) remplacent le `null` par un défaut (`??`) ; le renouvellement de bail lit `isset($data['start_date'])` (`LeaseRenewalService.php:87`).
 - Piste : un test d'architecture qui, pour chaque FormRequest dont le contrôleur écrit `validated()` dans un modèle, rejoue un `null` sur chaque clé `nullable` et refuse un 500 serait le plus sûr, mais il demande la table de correspondance requête → modèle. Plus simple : un test qui liste les couples (requête, clé) connus pour viser une colonne `NOT NULL` et exige qu'ils ne portent pas `nullable`, alimenté par le relevé de cet angle.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : `grep -rln information_schema tests scripts` → 6 fichiers, aucun ne lit un FormRequest ; aucun test ne confronte les règles `nullable` au schéma (`grep nullable` dans les tests → seulement la normalisation de `BaseFormRequest` et `SavedSearchTest`) ; `bootstrap/app.php:129-130` dit en toutes lettres qu'une `QueryException` n'est pas interceptée, et l. 176 la rapporte seulement ; les six 500 de P54.01 à P54.06 re-mesurés ce jour. Classement : A5, une garde ajoutée sans seuil touché ; la forme simple de la `Piste` (liste des couples requête/clé visant une colonne `NOT NULL`) se décrit sans choix de produit, la variante générique restant à l'appréciation de l'implémenteur.
+- Mesure (2026-10-19, 70d05c24b, implementeur) : `grep -rln information_schema tests scripts` → toujours 6 fichiers, aucun ne lit un FormRequest ; garde `ReglesNullableFaceAuSchemaTest`, 15 couples (requête, clé, table, colonne) relevés par l'angle 54 et P17.01, chacun vérifié sur trois points (colonne `NOT NULL` dans `information_schema`, règle sans `nullable`, règle jouée seule sur `null` → erreur sur la clé) → 15 verts ; ablation (`InventoryUpdateRequest` et `StorePropertyRequest` remises à `pre-dev`) → 3 rouges, remises → vert ; un témoin sur `properties.description`, nullable, rougit sur l'assertion de schéma.
 
 ## Angle 55 — Places réservées et emplacements entre deux pages de la recherche
 

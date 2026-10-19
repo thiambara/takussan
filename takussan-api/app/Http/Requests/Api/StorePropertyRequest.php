@@ -64,7 +64,9 @@ class StorePropertyRequest extends BaseFormRequest
             'area' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'bedrooms' => ['nullable', 'integer', 'min:0', 'max:100'],
             'bathrooms' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'furnished' => ['nullable', 'boolean'],
+            // TCK-981 (P54.06) — `properties.furnished` est NOT NULL DEFAULT false : omis, il prend le
+            // défaut ; `null` rendait 500. `filled` le refuse, comme la ville (TCK-703).
+            'furnished' => ['filled', 'boolean'],
             // TCK-633 — les bornes de `UpdatePropertyRequest` ; -5 : un sous-sol est un étage.
             'floor_number' => ['nullable', 'integer', 'min:-5', 'max:200'],
             'total_floors' => ['nullable', 'integer', 'min:1', 'max:200'],
