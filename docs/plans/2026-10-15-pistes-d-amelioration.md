@@ -5307,7 +5307,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le bailleur invité ne peut devenir titulaire d'aucun bien saisi par le personnel : ses biens, ses baux et son relevé restent vides
 - Réf : P50.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : désigner le titulaire à la saisie est un geste neuf, et il décide qui reçoit les loyers (V1)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:58-67,134-138`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-api/routes/api/agencies.php:79-86`, `takussan-web/src/components/property-form/PropertyForm.tsx:3-11`
 - Constat :
@@ -5317,10 +5317,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - L'invitation d'un bailleur « depuis le form de création de bien » est annoncée par la route (lu, `agencies.php:80-81`), mais le formulaire ne la monte pas : son en-tête écrit que le sélecteur de propriétaire est « out of scope » de TCK-256 (lu, `PropertyForm.tsx:3-11`). La seule voie qui fait d'un bailleur invité un titulaire est qu'il propose lui-même le bien (`createsProposal`, lu).
   - Établi comment : lu et mesuré. Combien d'agences gèrent ainsi des biens pour des bailleurs invités n'a pas été mesuré.
 - Piste : le sélecteur de bailleur de P15.06, posé à la création du bien et non du seul bail (il fixe aussi les relevés et les reversements, P50.02), borné aux bailleurs actifs de l'agence, avec l'invitation depuis le formulaire que `PropertyForm.tsx` prévoit. Garde : un test « l'agent saisit le bien de B → B le voit dans sa liste, le bail le désigne ».
+- Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PropertyController::store` (`user_id` = l'auteur), `index` (filtre `user_id` ou agence du personnel), `LeaseService::create` (`landlord_id = $property->user_id`) et l'en-tête de `PropertyForm.tsx` (sélecteur de propriétaire « out of scope » de TCK-256) ; `git log d0c98c6ae..HEAD -- takussan-api/app takussan-web/src` vide, aucun ticket ne cite l'entrée ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite : l'agent crée un bien → 201, `user_id` = l'agent ; bail avec `landlord_id` = le bailleur → 201, `landlord_id` = l'agent ; pour le bailleur `GET /api/properties` → `total = 0`, `GET /api/leases` → `total = 0`, `GET /api/properties/{id}` → 403 ; relevé du bailleur lu par l'admin → 200, `gross = 0` avec un loyer de 300 000 payé → le constat tient en entier. Classement : V7, la piste pose un sélecteur de bailleur et une invitation neufs dans le formulaire de bien, et le titulaire choisi fixe aussi le bénéficiaire des reversements et des relevés (V1).
 
 ### Les loyers d'un bien dont l'agent est titulaire se reversent à l'agent, et aucun relevé de gérance ne les montre à personne
 - Réf : P50.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : décider à qui se reversent les loyers d'un bien saisi par le personnel
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/OwnerStatementPolicy.php:21-33`, `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:47-51`, `takussan-api/app/Services/Model/PayoutService.php:88-96,508-531`, `takussan-api/app/Services/Payout/PayoutCalculator.php:62,86,113`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:69-81,176-182`
 - Constat :
@@ -5330,10 +5331,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le dialogue de reversement ne propose que les `OwnerProfile` actifs de l'agence (lu, `CreatePayoutDialog.tsx:69-81`, mesuré `GET /api/owners` → le seul bailleur) : depuis l'écran, ces loyers ne se reversent à personne ; par l'API, ils partent à l'agent sans relevé.
   - Établi comment : lu et mesuré.
 - Piste : décider qui reçoit l'argent d'un bien saisi par le personnel. Si c'est un bailleur, P50.01 le désigne et le relevé suit. Si l'agence peut garder des biens en propre, aligner le relevé et l'avis sur la règle du reversement (même liste de profils). Garde : un test qui relie, pour un même bien, le bénéficiaire du reversement et le lecteur du relevé.
+- Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PayoutService::create` (bénéficiaire `OwnerProfile`, `AgentProfile` ou `AgencyAdminProfile`), `OwnerStatementPolicy::view` (exige un `OwnerProfile`) et `SendOwnerStatements` (saute un `landlord_id` sans `OwnerProfile`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite, même jeu que P50.01 : `GET /api/payouts/preparation?landlord_id=<agent>&period_start=2026-09-01&period_end=2026-09-30` par l'admin → 200, le loyer y figure ; `POST /api/payouts` vers le bailleur → 422 « Item #1 does not belong to this agency or this landlord » ; vers l'agent → 201 ; relevé de l'agent → 403 pour l'admin comme pour l'agent ; `payouts:send-owner-statements --period=2026-09` → 0 avis à l'agent, 0 au bailleur → le constat tient (l'écran `CreatePayoutDialog` relu, non rejoué). Classement : V1, la piste demande de décider qui reçoit l'argent, et l'option d'alignement change qui lit un relevé de gérance.
 
 ### Dupliquer le bien d'un bailleur, ou rattacher un lot à son immeuble, fait du personnel le titulaire de la copie ou du lot
 - Réf : P50.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V1 : le titulaire de la copie ou du lot décide à qui se reversent ses loyers
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Property/PropertyDuplicationService.php:68`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:136,208-209`, `takussan-api/app/Http/Controllers/Api/PropertyChildrenController.php:19-29`, `takussan-api/app/Policies/PropertyPolicy.php:44-58`
 - Constat :
@@ -5342,13 +5344,15 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Les enfants se listent par la seule lecture du parent (lu, `PropertyChildrenController.php:21-23`), le lot par son titulaire (lu, `PropertyPolicy::view`) : le bailleur lit dans la liste un lot qu'il ne peut pas ouvrir, et tout bail sur ce lot désignerait l'agent (P15.06).
   - Établi comment : lu et mesuré.
 - Piste : la copie et le lot rattaché héritent du titulaire de la source ou du parent, quand c'est un bailleur de l'agence. Garde : deux tests, duplication et rattachement, qui écrivent le titulaire attendu.
+- Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PropertyDuplicationService.php:68` (`$clone->user_id = $actor->id`), `PropertyController::update` (`parent_id` jugé par `updateParent`, `user_id` inchangé), `PropertyChildrenController::index` (autorise sur le parent seul) et `PropertyPolicy::view` (titulaire ou personnel) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite : le bailleur propose un bien → 201 ; l'admin le duplique → 201, `user_id` = l'admin ; l'agent crée un lot, l'admin le rattache au bien du bailleur → 200, `user_id` = l'agent ; pour le bailleur `GET /api/properties` → `total = 1`, `GET /api/properties/{bien}/children` → 200 avec le lot, `GET /api/properties/{lot}` → 403 → le constat tient. Classement : V1, `docs/models-spec.md:549` admet le personnel comme titulaire, donc l'héritage n'est écrit nulle part, et changer le titulaire change le bénéficiaire des baux et reversements du lot ou de la copie.
 
 ### Petites améliorations du bailleur invité
 - Réf : P50.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un écran du relevé d'un bailleur pour le personnel est une fonction visible neuve
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/payments/PaymentsTabs.tsx:55,119`, `takussan-web/src/lib/queries/payments.ts:404-408`, `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:10-13,36-39`
 - Constat :
   - L'API sert au personnel tenant `payouts.create` le relevé d'un bailleur (`landlord_id=`, lu, et test `OwnerStatementTest::test_ac5_another_landlord_…`), mais le front n'en a aucun écran : le panneau du relevé n'est monté que pour un bailleur (`estBailleur`, lu) et sa requête n'envoie jamais `landlord_id` (lu, `payments.ts:406-407`). L'agence ne voit pas ce que reçoit son bailleur avant de le reverser.
   - Établi comment : lu.
 - Piste : ouvrir le relevé d'un bailleur depuis le dialogue de reversement ou le carnet des propriétaires, sur la route existante.
+- Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PaymentsTabs.tsx:55,119` (`OwnerStatementPanel` monté pour le seul `estBailleur`), `useOwnerStatement` (`payments.ts`, n'envoie que `period`), `OwnerStatementRequest` (accepte `landlord_id` et `agency_id`) ; `grep -rln "owner-statements|useOwnerStatement|OwnerStatementPanel" takussan-web/src` → ces trois fichiers seuls ; TCK-594 § 2 ouvre la route au personnel tenant `payouts.create`, mais son parcours n'écrit que « le bailleur trouve ses relevés à côté de ses versements » → le constat tient. Classement : V7, aucun écran du personnel n'est écrit pour ce relevé, et la piste laisse le choix de l'endroit (dialogue de reversement ou carnet des propriétaires).
