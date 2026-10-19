@@ -6,6 +6,7 @@ use App\Events\AgencyUpgradeApproved;
 use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
@@ -259,5 +260,44 @@ class AgencyUpgradeRequestReviewTest extends TestCase
             Activity::query()->where('event', 'agency_upgrade_rejected')->first(),
             'agency_upgrade_rejected activity should be logged',
         );
+    }
+
+    /**
+     * TCK-991 (P49.05) — une agence suspendue entre la demande et la revue ne passe pas en
+     * `standard` : 422, la demande reste `pending`. Une agence `inactive` reste approuvable
+     * (ADR-0048 : la mise en conformité, que le passage peut servir).
+     */
+    public function test_approving_a_request_of_a_suspended_agency_returns_422_and_stays_pending(): void
+    {
+        Event::fake([AgencyUpgradeApproved::class]);
+        Notification::fake();
+
+        $this->asSuperAdmin();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual, 'status' => AgencyStatus::Suspended]);
+        $request = $this->pendingRequest($agency);
+
+        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'agency.suspended');
+
+        $this->assertSame(AgencyUpgradeRequestStatus::Pending, $request->fresh()->status);
+        $this->assertSame(AgencyKind::Individual, $agency->fresh()->kind);
+        Event::assertNotDispatched(AgencyUpgradeApproved::class);
+        Notification::assertNothingSent();
+    }
+
+    public function test_approving_a_request_of_an_inactive_agency_still_flips_it(): void
+    {
+        Event::fake([AgencyUpgradeApproved::class]);
+        Notification::fake();
+
+        $this->asSuperAdmin();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual, 'status' => AgencyStatus::Inactive]);
+        $request = $this->pendingRequest($agency);
+
+        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])->assertOk();
+
+        $this->assertSame(AgencyUpgradeRequestStatus::Approved, $request->fresh()->status);
+        $this->assertSame(AgencyKind::Standard, $agency->fresh()->kind);
     }
 }
