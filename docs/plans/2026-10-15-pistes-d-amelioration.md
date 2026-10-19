@@ -4900,7 +4900,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Des réponses construites par `->toArray($request)` direct laissent passer les attributs conditionnels non résolus
 - Réf : P45.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers` (204 appels `->toArray($request)` dans 56 fichiers, `grep -rn -- '->toArray($request)' app/Http/Controllers`), dont `Public/PublicPropertyController.php:340,443,490,594` et `Public/InvitationAcceptController.php:61`
 - Constat :
@@ -4909,6 +4909,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Les 203 autres appels ne sont pas mesurés : un appel n'est fautif que si sa ressource porte un attribut conditionnel **et** que la relation ou la condition manque à cet endroit. À vérifier appel par appel, ou par un test qui parcourt les réponses.
   - Établi comment : lu, mesuré sur un appel ; l'étendue est à vérifier.
 - Piste : remplacer `->toArray($request)` par `->resolve($request)` là où la ressource porte un attribut conditionnel (ou partout, le coût étant nul), et une garde : un test d'architecture qui refuse `->toArray($request)` sur une `JsonResource` dans `app/Http/Controllers`, ou un test de réponse qui refuse tout `{}` issu d'un `MissingValue`.
+- Mesure (2026-10-18, af79ceda5, mesureur) : `grep -rnF -- '->toArray($request)' app/Http/Controllers` → 204 appels dans 56 fichiers (inchangé), dont 142 sur un `::make(…)` et 56 sur un `::collection(…)` ; lu `vendor/laravel/framework/src/Illuminate/Http/Resources/Json/ResourceCollection.php:100-107`, qui fait `map->resolve($request)` sur chaque élément : les appels sur une collection ne sont **pas** fautifs, le constat est inexact sur ce point ; test temporaire (base de test PostgreSQL, charge 4,36 sur 8 cœurs, retiré) : `GET /api/public/properties/{slug}/reviews` omet bien `target` (collection), mais `POST /api/public/properties/{slug}/visit-request` (`PublicPropertyController.php:860`, `PropertyVisitResource::make($visit)->toArray($request)`) rend `"property":{},"visitor":{},"agent":{},"customer":{}` ; `mergeWhen` n'est employé par aucune ressource (`UserResource.php:75-77`, `CustomerResource.php:60-61`, `MaintenanceRequestResource.php:23-24` étalent à la main pour ce motif), donc aucun `MergeValue` ne fuit ; 31 ressources sur 42 portent un `when*()`. Tient pour les appels sur une ressource unique. Classement : A1 et A5, le contrat est celui de `whenLoaded()`/`when()` (clé omise) déjà appliqué par TCK-952 et gardé par `ParticipantRoleResponseShapeTest`, et le correctif (`->resolve($request)` sur les `::make`/`new …Resource` des contrôleurs, plus une garde qui refuse `->toArray($request)` sur une ressource unique) ne demande aucun choix de produit ; l'implémenteur vérifie, pour chaque réponse changée, qu'aucun lecteur du front n'accède sans `?.` à une clé qui sortait en `{}`.
 
 ## Angle 46 — Voies d'écriture en double sur l'argent
 
