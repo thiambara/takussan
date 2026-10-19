@@ -76,7 +76,8 @@ function Pastille({ contact }: { contact: MessagingContact }) {
  *    `filter={null}` coupe le filtrage interne de Base UI : filtrer côté client une liste déjà
  *    tronquée cacherait sans le dire la personne qu'on cherche.
  * 2. **Le chargement est À LA DEMANDE** : rien ne part tant que le champ n'est pas ouvert.
- * 3. **La troncature est DITE** : « 20 sur 34 — précisez la recherche ».
+ * 3. **La troncature est DITE** : « 20 sur 34 — précisez la recherche ». Les personnes déjà
+ *    choisies partent en `filter[exclude]` : le compte ne les inclut pas (TCK-973).
  *
  * La liste ne propose QUE des personnes que le serveur acceptera (même règle, `MessagingReach`,
  * lue AVEC le groupe quand on en complète un — `conversationId`), et jamais une personne déjà
@@ -97,9 +98,16 @@ export function ParticipantPicker({
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, PARTICIPANT_SEARCH_DEBOUNCE_MS);
 
-  const contacts = useMessagingContacts(debouncedQuery, { enabled: open, conversationId });
-
   const choisis = new Set([...value.map((c) => c.id), ...excludeIds]);
+  // TCK-973 (P51.06) — l'API retire les choisis avant de paginer : « {shown} sur {total} » et la
+  // liste vide lisent la réponse. Le filtre local ne sert plus que pendant le rechargement, où
+  // `placeholderData` montre encore la page d'avant, choisi compris.
+  const contacts = useMessagingContacts(debouncedQuery, {
+    enabled: open,
+    conversationId,
+    exclude: [...choisis],
+  });
+
   const items = (contacts.data?.data ?? []).filter((c) => !choisis.has(c.id));
   const total = contacts.data?.meta.total ?? 0;
   const charges = contacts.data?.data.length ?? 0;
