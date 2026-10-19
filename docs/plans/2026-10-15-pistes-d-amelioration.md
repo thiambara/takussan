@@ -125,7 +125,7 @@ voie d'écriture (angle 13, puis 47).
 | 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | fait |
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | fait |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | fait |
-| 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
+| 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | fait |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
@@ -162,6 +162,7 @@ voie d'écriture (angle 13, puis 47).
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
+| 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
 
 ---
 
@@ -5510,3 +5511,59 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - La clé de préproduction est bornée aux index `preview_*` (plan d'auto-hébergement, étape 6). La valeur réelle de `SCOUT_PREFIX` n'est relevée nulle part dans le dépôt : `hebergement.md:167` ne cite que la clé (lu). Un préfixe d'une autre forme rendrait chaque appel en 403, avalé par P52.01.
 - Piste : `resetSettings()` puis `updateSettings()`, tâches attendues, ou comparer la totalité des réglages (P52.02). Relever `SCOUT_PREFIX` avec les autres valeurs non secrètes du relevé de préproduction.
 - Mesure (2026-10-19, 919403c6e, mesureur) : relu `Indexes::updateSettings()` (l. 249-251, `PATCH`, `resetSettings()` existe l. 254) → la première partie tient à la lecture, la sémantique « clé omise = valeur gardée » restant déduite ; pour la seconde, `grep -n SCOUT_PREFIX docs/plans/2026-09-13-auto-hebergement-vps-dokploy.md` → `preview_` (l. 3529) et `prod_` (l. 4159) : la valeur attendue est écrite dans le dépôt, contrairement au constat ; ce qui manque est un relevé mesuré, `hebergement.md:167` ne citant que la clé. Classement : V5, la remise à zéro des réglages se joue dans `docker/release.sh` et le relevé de `SCOUT_PREFIX` se lit en préproduction, hors poste.
+
+## Angle 53 — Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale
+
+*Exploré le 2026-10-19 sur `pre-dev` f4746633e, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `tests/Support/TestSearchIndex.php`, `tests/Support/TestProcessToken.php`, `tests/Concerns/InteractsWithMeilisearch.php`, `tests/TestCase.php`, `phpunit.xml`, `.github/workflows/api-ci.yml` (l. 284-298, 354-359), `dev.sh:761-775`, `deploy/takussan/smoke-api.sh`, `deploy/takussan/.env.smoke.example`, `takussan-api/docker/release.sh` et `seed.sh`, `vendor/laravel/scout` (`Searchable`, `ModelObserver`). Mesures en lecture sur le Meilisearch du port 7701 (`GET /indexes`, `/stats`, `/tasks`) et sur PostgreSQL 5433 (`SELECT` sur `pg_database`), plus trois classes de test lancées (charge 1,21 sur 8 cœurs). Limites : l'instance a été recréée le 2026-10-18 vers 07:04 Z (première tâche `uid 0` à cette heure, incident de TCK-880) ; son historique ne remonte pas plus loin. Le `.env` du porteur n'a pas été lu : ses index de travail ne sont pas sur le port 7701 (aucun index autre que `smoke_*` et `testing_*`), un Meilisearch natif répond sur 7700 (D-48). Les deux index `testing_*` que les mesures ont laissés n'ont pas été supprimés (écriture dans un index partagé, refusée aux agents) : le balayage des orphelins les retirera au premier test de recherche lancé deux heures plus tard.*
+
+### Un test qui écrit dans l'index sans le concern `InteractsWithMeilisearch` laisse son index `testing_<jeton>_properties` derrière lui
+- Réf : P53.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/tests/Support/TestSearchIndex.php:77-81,90-110`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:50-54`, `takussan-api/tests/TestCase.php:74-75`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:57,68`, `takussan-api/app/Services/Boost/BoostLifecycle.php:233`, `takussan-api/app/Services/Geo/GeoReindexation.php:29`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:59`, `takussan-api/app/Jobs/RefreshNewBuildSearchLabel.php:50`
+- Constat :
+  - Le nettoyage des index d'un processus n'est programmé que par `InteractsWithMeilisearch::setUpInteractsWithMeilisearch()` (`registerCleanup`, l. 53) (lu).
+  - Son docblock le dit exhaustif : « les SEULS index créés le sont par des tests portant ce concern », parce que `Tests\TestCase` coupe la synchronisation Scout (`TestSearchIndex.php:80-81`) (lu).
+  - Or `disableSearchSyncing()` ne coupe que l'observateur de modèle (`ModelObserver::disableSyncingFor`, `vendor/laravel/scout/src/Searchable.php:356-358`). Un appel explicite à `->searchable()` pousse quand même le document (`Searchable.php:236-238`), et `app/` en fait cinq : tags d'un bien, boost, réindexation géo, visibilité d'agence, libellé « neuf » (lu).
+  - Mesuré : aucun index `testing_*` sur 7701, puis `php artisan test tests/Feature/Api/PropertyTagsTest.php` → 8 verts, et l'index `testing_17a93025ca_properties` reste, 6 documents. Puis `BoostPauseAndRefundTest` et `TagVisibilityTest` dans un même processus → 12 verts, et `testing_189116b801_properties` reste.
+  - Une douzaine de classes de test atteignent ces cinq chemins sans le concern (`grep` des classes qui citent ces services ou routes, sans `InteractsWithMeilisearch`) : `PropertyTagsTest`, `TagTest`, `TagWriteAuthorizationTest`, `TagProposalTest`, `TagVisibilityTest`, trois classes de `Feature/Boost`… (lu ; seules trois ont été lancées).
+  - Ces index ne partent qu'au balayage des orphelins (`sweepOrphans`, deux heures d'âge), qui ne tourne que dans un processus portant le concern. Une boucle de `php bin/impacted-tests.php --run` sans test de recherche, celle des agents, les accumule (déduit, à vérifier sur une journée d'agents).
+  - Établi comment : lu, et mesuré par trois classes de test et `GET /indexes`.
+- Piste : programmer `registerCleanup()` depuis `Tests\TestCase::setUp()` pour tout processus (le client se construit de la configuration, sans requête), et non depuis le seul concern ; corriger le docblock. Garde : un test qui appelle `->searchable()` sans le concern, puis vérifie que la fonction d'extinction vise le préfixe du processus (ou qu'un sous-processus PHPUnit ne laisse aucun index `testing_<jeton>_*`).
+
+### `dev.sh` crée sept index `testing_*` que nul test ne lit, sous un commentaire qui décrit un `phpunit.xml` disparu
+- Réf : P53.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `dev.sh:761-775`, `takussan-api/phpunit.xml:57-67`, `takussan-api/tests/Support/TestSearchIndex.php:32,56`, `.github/workflows/api-ci.yml:284-298`
+- Constat :
+  - `dev.sh:762` affirme « `phpunit.xml` pose `SCOUT_PREFIX=testing_` », et `:764` que `api-ci.yml` synchronise sous ce préfixe. Les deux sont faux : `phpunit.xml:57-67` dit que `SCOUT_PREFIX` n'y est plus déclaré, et `api-ci.yml:284-298` que l'étape de synchronisation a été supprimée (lu).
+  - Le préfixe des tests est `testing_<pid+aléa>_` (`TestSearchIndex.php:56`), et le concern synchronise lui-même ses réglages (`InteractsWithMeilisearch.php:52`). Les index `testing_properties`, `testing_users`… que `dev.sh:774` règle ne sont donc lus par aucun test (lu).
+  - Ils ne sont jamais supprimés : le motif du balayage, `/^testing_[0-9a-f]+_/`, exige un jeton hexadécimal suivi d'un `_`. Aucun des sept noms de modèle (`agencies`, `customers`, `documents`, `maintenance_requests`, `messages`, `properties`, `users`) ne le satisfait (lu, `TestSearchIndex.php:32`, vérifié nom par nom).
+  - Que `PATCH /indexes/<uid>/settings` crée l'index absent est le comportement documenté de Meilisearch, non rejoué ici : la garde refuse `scout:*` et toute écriture sur l'instance (à vérifier). Le 2026-10-15, le mesureur relevait 17 index sur l'instance, `takussan_local*` et `testing_*` compris (Mesure de P16.04), ce qui va dans ce sens.
+  - Le message `ok "… ET testing_*"` et l'`avert` « les tests filtrant sur Meilisearch échoueront » décrivent une dépendance qui n'existe plus (lu). Voir aussi P52.01 : l'`avert` ne s'affiche de toute façon jamais.
+- Piste : retirer la seconde synchronisation de `dev.sh:774` et son commentaire. Si des index `testing_<modèle>` existent déjà, les nommer dans `./dev.sh doctor` plutôt que de les supprimer sans le dire.
+
+### `smoke-api.sh pile` laisse sa base `takussan_smoke` et ses sept index `smoke_*` après le nettoyage
+- Réf : P53.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `deploy/takussan/smoke-api.sh:89-121`, `deploy/takussan/.env.smoke.example:18,33`
+- Constat :
+  - `nettoyer_pile()` (trap `EXIT`) retire conteneurs, volumes et réseau du projet `takussan-smoke`, et le `.env` généré (l. 109-121). Il ne touche ni la base `takussan_smoke`, créée sur le PostgreSQL de développement (l. 104-107), ni les index `smoke_*`, créés sur le Meilisearch de développement (lu).
+  - Mesuré : `GET /indexes` sur 7701 → 7 index `smoke_*` créés le 2026-10-18 à 07:44 Z, 6 256 documents (815 biens, 303 utilisateurs, 3 617 messages, 741 documents…), `databaseSize` 123 Mo pour l'instance. `SELECT … FROM pg_database` → `takussan_smoke`, 46 Mo.
+  - La base est remise à zéro au passage suivant (`DROP DATABASE IF EXISTS`, l. 105). Les index ne le sont pas : le premier `release` y importe sans vider, et c'est le `seed.sh` final (`scout:flush` puis import) qui les réaligne (lu, `seed.sh:20,30`). Entre les deux, la pile cherche dans les documents du passage précédent (déduit, sans effet sur les contrôles actuels, qui ne cherchent rien).
+  - Base, préfixe et projet sont des noms fixes : deux `smoke-api.sh pile` lancés depuis deux arbres se détruiraient mutuellement (`DROP DATABASE` de l'un sous l'autre) (déduit, à vérifier).
+- Piste : dans `nettoyer_pile()`, `DROP DATABASE IF EXISTS takussan_smoke` et suppression des index `smoke_*` (par `curl` sur l'hôte de `.env.smoke.example`), ou le dire dans l'en-tête si leur conservation sert au diagnostic. Un verrou (fichier ou `docker ps` sur le projet) qui refuse un second passage simultané.
+
+### Petites améliorations du nettoyage des index de test
+- Réf : P53.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/tests/Support/TestSearchIndex.php:35,118-128,137`
+- Constat :
+  - Le seuil d'orphelin est de deux heures depuis la **création** de l'index (`ORPHAN_TTL_SECONDS = 7200`, l. 35, comparé à `createdAt`, l. 128). La suite prend 470 à 610 s au repos, et environ ×11 sous charge (`CLAUDE.md`, § État courant), soit jusqu'à 6 700 s. Une exécution très chargée approcherait le seuil, et une exécution concurrente pourrait alors supprimer ses index en cours de route (déduit, à vérifier ; ce serait D-44 revenu, sous forte charge seulement).
+  - `getIndexes()` est lu avec `setLimit(1000)` sans pagination (l. 137) : au-delà de 1 000 index, une partie n'est ni balayée ni supprimée (lu ; l'instance en porte 9 aujourd'hui, mesuré).
+  - Le balayage ne tourne qu'au premier test de recherche d'un processus. Un index orphelin peut donc survivre aussi longtemps qu'aucun test de recherche n'est lancé (lu, l. 97-99 ; voir P53.01).
+  - Mesuré, côté sain : aucune base de test orpheline sur 5433 après trois exécutions (`count(*)` hors `postgres`, `template*`, `takussan`, `takussan_smoke` → 0), et 608 suppressions d'index `testing_*` réussies en 1,5 jour (`GET /tasks?types=indexDeletion`) : le nettoyage tient pour les processus qui portent le concern.
+- Piste : comparer l'âge à la dernière mise à jour de l'index (`updatedAt`) plutôt qu'à sa création, et paginer `getIndexes()`. Un test unitaire du prédicat de balayage, sur des index factices (un vieux et actif, un vieux et inerte).
