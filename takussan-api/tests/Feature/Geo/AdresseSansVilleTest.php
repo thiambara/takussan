@@ -105,6 +105,38 @@ class AdresseSansVilleTest extends TestCase
     }
 
     /**
+     * TCK-976 (P54.01) — `addresses.country` est `NOT NULL DEFAULT 'SN'`, même forme que la ville :
+     * un pays `null` rend 422 sur les deux voies, un pays omis prend le défaut ou reste inchangé.
+     */
+    public function test_la_creation_refuse_un_pays_nul(): void
+    {
+        $this->creer(['street' => '12 rue Carnot', 'country' => null])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('address.country');
+
+        $this->assertSame(0, Property::query()->count());
+    }
+
+    public function test_la_creation_sans_pays_prend_toujours_le_defaut(): void
+    {
+        $id = $this->creer(['street' => '12 rue Carnot'])->assertCreated()->json('data.id');
+
+        $this->assertSame('SN', Property::query()->findOrFail($id)->address()->firstOrFail()->country);
+    }
+
+    public function test_la_modification_refuse_un_pays_nul(): void
+    {
+        $bien = $this->bienAvecAdresse();
+        $avant = $bien->address()->firstOrFail()->country;
+
+        $this->patchJson("/api/properties/{$bien->id}", ['address' => ['country' => null]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('address.country');
+
+        $this->assertSame($avant, $bien->address()->firstOrFail()->country);
+    }
+
+    /**
      * TCK-812 — la route à part ne revient pas : une adresse ne s'écrit plus qu'avec son bien, sous
      * les règles de la création. Le bien a une adresse, pour qu'un 404 ne vienne pas d'elle.
      */

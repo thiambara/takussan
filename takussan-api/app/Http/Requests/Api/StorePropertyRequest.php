@@ -85,7 +85,8 @@ class StorePropertyRequest extends BaseFormRequest
             // `null` (et `""`, converti en `null`) sans exiger la clé.
             'address.city' => ['filled', 'string', 'max:120'],
             'address.region' => ['nullable', 'string', 'max:120'],
-            'address.country' => ['nullable', 'string', 'size:2'],
+            // TCK-976 (P54.01) — `addresses.country` est NOT NULL DEFAULT 'SN' : même forme que la ville.
+            'address.country' => ['filled', 'string', 'size:2'],
             'address.postal_code' => ['nullable', 'string', 'max:20'],
             'address.latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'address.longitude' => ['nullable', 'numeric', 'between:-180,180'],
