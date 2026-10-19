@@ -19,7 +19,7 @@ use Tests\TestCase;
  * déclaré, le plafond réel était donc 1000, en silence : `take()` ne lève pas, il tronque, et
  * la pagination publique s'arrête à la page 25 (à 40 par page).
  *
- * Le test lit le réglage sur les index de CE processus, après `scout:sync-index-settings` :
+ * Le test lit le réglage sur les index de CE processus, après `search:sync-index-settings` :
  * c'est l'état que le moteur applique, pas ce que la configuration prétend.
  */
 class SearchIdCapIndexSettingsTest extends TestCase

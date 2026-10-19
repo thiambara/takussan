@@ -20,7 +20,7 @@ use Throwable;
  *
  * `config/scout.php` clé ses `index-settings` par CLASSE DE MODÈLE (vérifié),
  * pas par nom d'index : un préfixe dynamique ne casse donc pas la
- * configuration, et `scout:sync-index-settings` la pousse sur les index
+ * configuration, et `search:sync-index-settings` la pousse sur les index
  * effectivement utilisés.
  *
  * En contrepartie, les index créés doivent être SUPPRIMÉS en fin d'exécution,
