@@ -5786,7 +5786,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
 - Réf : P56.02
-- Statut : retenu · à valider — V3 : ce que l'export d'accès rend des tiers n'est écrit nulle part
+- Statut : validé — pour une ligne dont l'utilisateur n'est que le causeur, ne rendre que l'acte (`event`, `subject_type`, `subject_id`, `created_at`, `description`) ; garder le diff, passé par `PropertyRedactor`, pour les lignes dont il est le sujet ; un test : l'export d'un agent qui a saisi un client ne contient ni l'e-mail ni le téléphone de ce client (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Privacy/DataExportBuilder.php:124-129`, `takussan-api/app/Models/Customer.php:39-50`
 - Constat :
@@ -5800,7 +5800,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### Les journaux d'audit de l'API ne disent jamais ce qu'un événement de modèle a changé
 - Réf : P56.03
-- Statut : retenu · à valider — V3 : rendre le diff du journal aux lecteurs d'agence et de la console, ou non
+- Statut : refusé — les lectures du journal ne rendent pas `attribute_changes` : aucun écran ne lit le détail d'un événement ; à rouvrir avec un écran qui le montre (porteur, 2026-10-19)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/AuditLogController.php:69,178`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:73`, `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-web/src/lib/queries/audit-logs.ts:15`
 - Constat :
@@ -5827,7 +5827,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### Petites améliorations
 - Réf : P56.05
-- Statut : retenu · à valider — V3 : expurger la lecture de l'activité d'un utilisateur change ce que la console en montre
+- Statut : validé — passer `UserDetailController::activity()` par `PropertyRedactor`, comme les trois autres lectures, et poser le témoin de `CrossTenantAuditExportTest` sous `attribute_changes` (porteur, 2026-10-19)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Admin/UserDetailController.php:179`, `takussan-api/tests/Feature/Audit/CrossTenantAuditExportTest.php:26-28`
 - Constat :
@@ -5855,7 +5855,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 
 ### Un SMS envoyé sans notification (code OTP, step-up, signature de bail) garde le numéro du compte après l'effacement
 - Réf : P57.01
-- Statut : retenu · à valider — V3 : ce que l'effacement retire des tentatives d'envoi sans notification
+- Statut : validé — effacer à l'anonymisation le `to` des tentatives sans notification qui visent le `phone` ou le `secondary_phone` du compte, relevés avant le `forceFill`, sans migration ni colonne `user_id` ; un test dans `AccountDeletionExecuteTest`, avec ablation (porteur, 2026-10-19)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:310-316`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:312-321`, `takussan-api/database/migrations/2026_10_17_160000_make_notification_delivery_attempts_notification_nullable.php:8-11`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:394-404`
 - Constat :
@@ -5869,7 +5869,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, bc2d31e79, mesureur) : relu `AccountDeletionService::anonymize()` (l. 309-316, filtre `whereIn('app_notification_id', …)` inchangé), `SmsRouterDriver::writeAttempt()` (l. 312-321, `app_notification_id => null`) et `PhoneVerificationService::deliver()` (l. 395-404, sans `notification_id`) ; `git log 47b6af771..bc2d31e79` sur ces fichiers → rien ; test temporaire retiré (charge 4,84 / 4,09 / 3,16 sur 8 cœurs) : `app(SmsDriverInterface::class)` rend `SmsRouterDriver`, un envoi `is_otp` au numéro du compte puis `executeDeletion()` → 1 tentative au numéro avant, 1 après. Le test de TCK-691 (`test_execute_efface_le_numero_des_tentatives_d_envoi_du_compte`) ne crée que des tentatives liées. Classement : V3, le comportement attendu est écrit (TCK-691, AC1, ce qui relèverait de A1) mais le correctif décide quelles données personnelles l'effacement retire, et rattacher un ancien numéro demanderait une migration (V4).
 ### Une visite demandée en étant connecté recopie le nom, l'e-mail et le téléphone du compte, que l'effacement ne touche pas
 - Réf : P57.02
-- Statut : retenu · à valider — V3 : dissocier ou effacer les visites du compte, choix de conservation non écrit
+- Statut : validé — dissocier comme pour `customers` : `visitor_id` à `null`, le nom, l'e-mail et le téléphone de la visite gardés par l'agence ; un test : après `executeDeletion()`, la visite ne désigne plus le compte (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:841-850`, `takussan-api/database/migrations/2026_04_17_160015_create_property_visits_table.php:15-19`, `takussan-api/app/Http/Resources/PropertyVisitResource.php:27-29`, `takussan-api/app/Services/Account/AccountDeletionService.php:249-250`
 - Constat :
@@ -5883,7 +5883,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, bc2d31e79, mesureur) : relu `PublicPropertyController` (l. 839-854 : `visitor_id`, et `visitor_name`/`visitor_email`/`visitor_phone` recopiés du compte à défaut de saisie) ; `grep -n visit AccountDeletionService.php` → rien ; test temporaire retiré : une visite au nom du compte puis `executeDeletion()` → `visitor_id`, nom, e-mail et téléphone inchangés. Classement : V3, la `Piste` laisse deux options (dissocier ou effacer) et ce que l'agence garde d'une visite passée est un choix de conservation.
 ### Le jeton de réinitialisation du mot de passe garde l'e-mail d'origine, et la table n'est jamais purgée
 - Réf : P57.03
-- Statut : retenu · à valider — V3 : suppression à l'effacement et durée de conservation des jetons
+- Statut : validé — supprimer à l'effacement les lignes de `password_reset_tokens` de l'adresse d'origine, relevée avant le `forceFill`, et planifier `auth:clear-resets` chaque jour dans `routes/console.php` ; deux tests (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/console.php`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -5896,7 +5896,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une ligne `password_reset_tokens` pour l'adresse du compte puis `executeDeletion()` → la ligne existe toujours (1) ; `grep -rn clear-resets routes app` → rien, la purge n'est pas planifiée ; `anonymize()` ne cite pas la table (lu). Classement : V3, supprimer à l'effacement et fixer une durée de conservation touchent à ce qui est conservé ; la seule planification de `auth:clear-resets` est peu discutable mais reste une durée de conservation.
 ### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
 - Réf : P57.04
-- Statut : retenu · à valider — V3 : sort des invitations du compte effacé (révocation, effacement de l'adresse)
+- Statut : validé — révoquer à l'anonymisation les invitations en cours du compte (statut existant) et effacer leur `email` et leur `phone` ; un test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_05_10_000001_create_invitations_table.php:24-29`, `takussan-api/database/migrations/2026_10_07_150300_add_phone_to_invitations_table.php:25`, `takussan-api/app/Services/Invitation/InvitationService.php:224-233`
 - Constat :
@@ -5910,7 +5910,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés ; relu `InvitationService` l. 224-233 (`withProperties(['email' => $email, …])` sur une ligne dont l'invitation est le sujet). Non éprouvé, comme dans le constat : l'acceptation d'une invitation encore `sent` vers un compte effacé. Classement : V3, révoquer et effacer l'adresse des invitations change ce que l'agence conserve, et l'adresse dans `activity_log` relève de P19.01/P56.05.
 ### Petites améliorations
 - Réf : P57.05
-- Statut : retenu · à valider — V3 : sort de quatre données de contact hors de `users`, à décider une à une
+- Statut : validé — supprimer à l'effacement le contact WhatsApp et les alertes sans compte au contact vérifié du compte, et masquer le code et le numéro dans le pilote `log` comme le fait `PhoneVerificationService` (`phone_suffix`) ; la durée de conservation des demandes de contact n'est pas tranchée et reste au porteur (porteur, 2026-10-19)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PublicSearchAlertController.php:142`, `takussan-api/database/migrations/2026_06_17_100000_create_whatsapp_contacts_table.php:23-24`, `takussan-api/database/migrations/2026_10_08_599200_create_alert_subscribers_table.php:21`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:53-90`, `takussan-api/app/Services/Lead/ContactLeadService.php:302-315`, `takussan-api/app/Services/Notifications/Sms/Drivers/LogSmsDriver.php:31-37`
 - Constat :
@@ -5980,7 +5980,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
 - Réf : P58.04
-- Statut : retenu · à valider — V2 : drapeaux 2FA, et contrat « toujours un objet » de `preferences` écrit dans la ressource
+- Statut : validé — `whenHas` sur les clés dérivées de colonnes hors `$queryFields` (`two_factor_enabled`, `force_2fa_*`, `email_verified_at`, `phone_verified_at`, `preferences`), sur le modèle de `has_usable_password` ; `UserResourceSparseFieldsTest` étendu, avec ablation (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Resources/UserResource.php:30-97`, `takussan-api/app/Models/User.php:234-238`, `takussan-api/tests/Feature/Api/UserResourceSparseFieldsTest.php`
 - Constat :
@@ -5994,7 +5994,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### Petites améliorations
 - Réf : P58.05
-- Statut : retenu · à valider — V4 : retrait d'une colonne, après une mesure de préproduction
+- Statut : validé — retirer seulement `delivery_attempts` de `$fillable` ; le retrait de la colonne attend une mesure de la préproduction et reste au porteur (porteur, 2026-10-19)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/AppNotification.php:22,35,63-69`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:19`, `takussan-api/app/Console/Commands/SmsBackfillDeliveryAttempts.php:31-46`, `takussan-api/database/migrations/2026_04_26_160847_add_delivery_attempts_to_app_notifications.php:18`
 - Constat :
