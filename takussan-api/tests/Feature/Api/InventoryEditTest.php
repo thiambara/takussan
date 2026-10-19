@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class InventoryEditTest extends TestCase
@@ -107,5 +108,60 @@ class InventoryEditTest extends TestCase
         $this->patchJson("/api/inventories/{$inventory->id}", [
             'notes' => 'hack',
         ])->assertForbidden();
+    }
+
+    /**
+     * P54.05 (TCK-980) — `general_condition` et `rooms` sont `NOT NULL` sans défaut :
+     * un `null` n'est pas un effacement possible, il rend 422 et l'état des lieux reste intact.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function clesNonEffacables(): array
+    {
+        return [
+            'general_condition' => ['general_condition'],
+            'rooms' => ['rooms'],
+        ];
+    }
+
+    #[DataProvider('clesNonEffacables')]
+    public function test_null_on_a_not_null_column_is_rejected_with_422(string $cle): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $inventory = Inventory::factory()->create([
+            'property_id' => $property->id,
+            'conducted_by' => $owner->id,
+            'status' => InventoryStatus::Draft,
+        ]);
+        $avant = $inventory->fresh()->only(['general_condition', 'rooms', 'notes']);
+
+        Sanctum::actingAs($owner);
+
+        $this->patchJson("/api/inventories/{$inventory->id}", [$cle => null])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors([$cle]);
+
+        $this->assertSame($avant, $inventory->fresh()->only(['general_condition', 'rooms', 'notes']));
+    }
+
+    public function test_null_notes_still_clears_them(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $inventory = Inventory::factory()->create([
+            'property_id' => $property->id,
+            'conducted_by' => $owner->id,
+            'status' => InventoryStatus::Draft,
+            'notes' => 'À effacer',
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->patchJson("/api/inventories/{$inventory->id}", ['notes' => null])
+            ->assertOk()
+            ->assertJsonPath('data.notes', null);
+
+        $this->assertNull($inventory->fresh()->notes);
     }
 }
