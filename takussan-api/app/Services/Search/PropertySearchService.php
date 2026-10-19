@@ -645,7 +645,10 @@ class PropertySearchService
         $reservedMax = min($settings->reservedTopResults(), $perPage);
         $organic = fn (): array => $this->withPlacement($this->hydrate($nominal['hits'] ?? []), 'organic');
 
-        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0) {
+        // TCK-983 (P55.02) — au-delà de la dernière page, l'écran ne montre aucun emplacement : rien
+        // ne se sert, et aucune impression ne se compte.
+        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0
+            || $page > max(1, (int) ($nominal['totalPages'] ?? 1))) {
             return [$organic(), []];
         }
 
