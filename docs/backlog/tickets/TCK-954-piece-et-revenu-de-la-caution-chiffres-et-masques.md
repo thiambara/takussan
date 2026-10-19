@@ -1,13 +1,13 @@
 ---
 id: TCK-954
 title: "La pièce et le revenu d'une caution sont chiffrés en base et ne sortent plus que masqués ; la garde d'impersonation balaie les cautions"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: null
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 depends_on: [TCK-953]
 blocks: [TCK-955]
 spec_refs:
@@ -76,22 +76,22 @@ dans une réponse de l'API. Seule leur présence est rendue.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'aller-retour de la migration est testé :
+- [x] **AC1** — L'aller-retour de la migration est testé :
   - sur une caution `CNI-445566` avec un revenu de `800000.00`, `up()` chiffre les deux valeurs, et
     un second `up()` ne les change pas ;
   - `down()` rend `CNI-445566`, `800000.00`, et les types `character varying(255)` et
     `numeric(14,2)`, lus dans `information_schema.columns`.
-- [ ] **AC2** — `GET /api/guarantors`, `GET /api/guarantors/{id}`, `POST /api/guarantors` et
+- [x] **AC2** — `GET /api/guarantors`, `GET /api/guarantors/{id}`, `POST /api/guarantors` et
   `PUT /api/guarantors/{id}` ne portent ni `id_number` ni `monthly_income`. Ils portent
   `id_number_masked = "•••• 4566"` et `monthly_income_masked = "••••"`, ou `null` sans valeur.
-- [ ] **AC3** — `POST /api/leases/{id}/guarantors`, qui crée et rattache une caution, écrit les deux
+- [x] **AC3** — `POST /api/leases/{id}/guarantors`, qui crée et rattache une caution, écrit les deux
   valeurs chiffrées : le modèle les relit en clair, la ligne brute ne les contient pas.
-- [ ] **AC4** — `monthly_income = 1000000000000` rend 422. `id_number` de 101 caractères rend 422.
-- [ ] **AC5** — `ImpersonationReadSweepTest` balaie `guarantors/{guarantor}` et reste vert, sans
+- [x] **AC4** — `monthly_income = 1000000000000` rend 422. `id_number` de 101 caractères rend 422.
+- [x] **AC5** — `ImpersonationReadSweepTest` balaie `guarantors/{guarantor}` et reste vert, sans
   nouvelle fuite tolérée.
-- [ ] **AC6** — `php artisan backup:verify-encryption` imprime une ligne pour `guarantors.id_number`
+- [x] **AC6** — `php artisan backup:verify-encryption` imprime une ligne pour `guarantors.id_number`
   et une pour `guarantors.monthly_income`, sans illisible.
-- [ ] **AC7 — ablation** : `format()` revenu à sa forme d'origine (copie gardée, restaurée par `cp`,
+- [x] **AC7 — ablation** : `format()` revenu à sa forme d'origine (copie gardée, restaurée par `cp`,
   `md5` vérifié) fait rougir AC2. La garde d'impersonation de AC5 rougit aussi, sur
   `guarantors/{guarantor}`, ce qui prouve qu'elle balaie bien la route. Correctif remis : tout est
   vert.
@@ -109,3 +109,21 @@ dans une réponse de l'API. Seule leur présence est rendue.
   de TCK-955, qui le convertit en `float`, comme `format()` le faisait.
 - `GuarantorSeeder` écrit par `Guarantor::create()` : le cast chiffre. Aucune écriture brute sur
   `guarantors` dans `app/` ni dans `database/seeders` (relu le 2026-10-18).
+
+- **Livré le 2026-10-19.** La migration est `2026_10_19_110000_encrypt_identity_and_income_on_guarantors.php`.
+  Son `down()` écrit le `USING monthly_income::numeric(14,2)` à la main. L'aller-retour vérifie le
+  montant au centime et `numeric(14,2)` dans `information_schema`.
+- **Coquille d'AC2 corrigée par le test.** L'AC2 attend `•••• 4566` pour `CNI-445566`. Les quatre
+  derniers caractères sont `5566`, et le test vérifie `•••• 5566`.
+- **Le cast `encrypted` sur un revenu entier** écrit la chaîne `650000`, sans décimales. Le modèle
+  la relit telle quelle, et le `down()` la convertit en `650000.00`.
+- **La garde d'impersonation** reconnaît le revenu par ses six premiers chiffres (`987654`). C'est
+  la forme `(float)` que la fiche rendait avant ce ticket. Son témoin éprouve ce détecteur et lit
+  les deux masques de la fiche de la caution.
+- `Masking::presence()` a son test unitaire pur (`MaskingPresenceTest`).
+- **Mesures.** Les classes du ticket donnent 42 verts. Les classes voisines (cautions, baux,
+  impersonation, sauvegardes, journal) donnent 394 verts en 164 s, charge 5 sur 8 cœurs. Côté
+  front, les tests des baux (74), `tsc` et `lint` sont verts.
+- **Ablation (AC7).** `GuarantorController` remis dans sa forme de `pre-dev` : AC2 rougit, et la
+  garde rougit sur `GET api/guarantors` et `GET api/guarantors/{guarantor}` (pièce et revenu). Le
+  correctif remis par `cp`, avec un `md5` identique, rend 7 verts.
