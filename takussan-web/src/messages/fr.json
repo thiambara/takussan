@@ -6359,8 +6359,6 @@
         "phone": "Téléphone",
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
-        "timezone": "Fuseau horaire",
-        "timezonePlaceholder": "Africa/Dakar",
         "websitePlaceholder": "https://votre-agence.sn"
       },
       "moderation": {
@@ -9716,7 +9714,6 @@
       "websiteInvalid": "URL invalide. Exemple : https://exemple.sn",
       "commissionRange": "La commission doit être comprise entre 0 et 100.",
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
-      "timezoneTooLong": "Fuseau horaire trop long.",
       "logoTooLarge": "Le logo dépasse 2 Mo.",
       "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP.",
       "taxRateRange": "La TVA doit être comprise entre 0 et 100.",

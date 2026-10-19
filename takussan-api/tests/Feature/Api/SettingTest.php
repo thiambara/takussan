@@ -28,21 +28,22 @@ class SettingTest extends TestCase
 
         $this->actingAsWithStepUp($admin);
 
+        // TCK-964 (P47.04) — une ligne d'agence ne se pose que pour un réglage métier du catalogue.
         $response = $this->postJson('/api/settings', [
-            'key' => 'site_name',
-            'value' => ['name' => 'Takussan'],
+            'key' => 'lease.rent_review_max_pct',
+            'value' => ['value' => 8],
             'scope' => SettingScope::Agency->value,
             'scope_id' => $agency->id,
         ])->assertCreated()
-            ->assertJsonPath('data.key', 'site_name')
+            ->assertJsonPath('data.key', 'lease.rent_review_max_pct')
             ->assertJsonPath('data.scope_id', $agency->id);
 
         $settingId = $response->json('data.id');
 
         $this->putJson("/api/settings/{$settingId}", [
-            'value' => ['name' => 'Takussan Updated'],
+            'value' => ['value' => 9],
         ])->assertOk()
-            ->assertJsonPath('data.value.name', 'Takussan Updated');
+            ->assertJsonPath('data.value.value', 9);
 
         $this->getJson('/api/settings')
             ->assertOk()
@@ -61,8 +62,8 @@ class SettingTest extends TestCase
         Sanctum::actingAs($agencyAdmin);
 
         $this->postJson('/api/settings', [
-            'key' => 'invoice_prefix',
-            'value' => ['prefix' => 'INV-'],
+            'key' => 'invoice.reminder_offsets_days',
+            'value' => ['value' => [3, 9]],
             'scope' => SettingScope::Agency->value,
         ])->assertCreated()
             ->assertJsonPath('data.scope_id', $agency->id);

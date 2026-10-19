@@ -26,7 +26,6 @@ describe('agencyFormSchema', () => {
     website: '',
     commission_rate: '',
     currency: '',
-    timezone: '',
     // TCK-098 added this required boolean to the schema.
     moderation_required: false,
     // TCK-589 — second facteur exigé de l'équipe.
@@ -80,7 +79,7 @@ describe('agencyFormSchema', () => {
     expect(agencyFormSchema.safeParse({ ...base, currency: 'XOF' }).success).toBe(true);
   });
 
-  it('normalises the payload: empty strings become null, commission goes to settings', () => {
+  it('normalises the payload: empty strings become null, commission and currency on their columns', () => {
     const payload = normaliseAgencyForm({
       ...base,
       name: '  Agence ABC  ',
@@ -91,13 +90,20 @@ describe('agencyFormSchema', () => {
     expect(payload.name).toBe('Agence ABC');
     expect(payload.email).toBe('hello@agence.sn');
     expect(payload.commission_rate).toBe(8);
-    // TCK-084 — `currency` is now a first-class column on top of being
-    // mirrored under `settings.currency` for legacy callers.
     expect(payload.currency).toBe('XOF');
-    expect(payload.settings).toMatchObject({
-      default_commission_rate: 8,
-      currency: 'XOF',
-    });
+  });
+
+  /**
+   * TCK-962 (P47.02) — `settings` ne porte que des clés qu'`AgencyUpdateRequest` déclare :
+   * `validated()` retire les autres, et l'API répond 200 en les perdant. `timezone`, `currency` et
+   * `default_commission_rate` partaient ainsi à chaque enregistrement, sans effet.
+   */
+  it('TCK-962 — n’envoie dans `settings` que des clés que l’API accepte', () => {
+    const payload = normaliseAgencyForm({ ...base, commission_rate: '8', currency: 'XOF' });
+    expect(Object.keys(payload.settings ?? {}).sort()).toEqual([
+      'late_fee_online_collection',
+      'require_team_two_factor',
+    ]);
   });
 
   it.each([true, false])(
@@ -126,7 +132,6 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     website: '',
     commission_rate: '',
     currency: '',
-    timezone: '',
     moderation_required: false,
     require_team_two_factor: false,
     late_fee_online_collection: false,

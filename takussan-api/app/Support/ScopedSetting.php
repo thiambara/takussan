@@ -42,8 +42,15 @@ final class ScopedSetting
      */
     public static function value(string $key, ?int $agencyId, mixed $global): mixed
     {
-        $value = self::agencyRow($key, $agencyId)?->value ?? $global;
+        return self::unwrap($key, self::agencyRow($key, $agencyId)?->value ?? $global);
+    }
 
+    /**
+     * TCK-964 (P47.04) — le déballage seul, que `StoreSettingRequest` applique aussi avant de juger
+     * une ligne d'agence : la valeur validée est celle que `value()` rendra.
+     */
+    public static function unwrap(string $key, mixed $value): mixed
+    {
         if (! is_array($value)) {
             return $value;
         }
