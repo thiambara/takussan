@@ -6034,7 +6034,7 @@ le `CASE` de la pertinence.
 
 ### `filter[search]` rapatrie de Meilisearch le document entier de chaque correspondance, jusqu'à 5 000, pour n'en lire que l'id
 - Réf : P59.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1009 — reste : la même projection dans `MessagingContactController::index` (index `users`), laissée tant que la PR #734 (P51.04) réécrit ce bloc
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-236`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:113-119,152-157,281-286`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:112-116`
 - Constat :
@@ -6047,10 +6047,11 @@ le `CASE` de la pertinence.
 - Établi comment : relecture de Scout et du callback, test temporaire sur Meilisearch réel.
 - Piste : passer `->options(['attributesToRetrieve' => [$model->getScoutKeyName()]])` dans le callback de `HasQueryBuilder` (et dans `MessagingContactController`), le résultat rendu étant inchangé ; un test qui enregistre la requête envoyée au client Meilisearch, sur le modèle de `PropertySearchProjectionTest`. Le coût SQL des 5 000 ids reste à P16.04.
 - Mesure (2026-10-19, 2f829055e, mesureur) : lu `HasQueryBuilder.php:235` (`->take(static::SEARCH_ID_CAP)->keys()`, sans option) et `MessagingContactController.php:112-116` (seul `attributesToSearchOn` passé), `MeilisearchEngine::search()`/`performSearch()` (les `options` du builder sont fusionnées, et la clé Scout est ajoutée d'office à `attributesToRetrieve`), `grep attributesToRetrieve app` → les trois seuls appels sont dans `PropertySearchService` (TCK-984) ; test temporaire retiré (client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` en admin d'agence, charge 3,13 sur 8 cœurs) → corps envoyé `{"q":"zorglub","hitsPerPage":5000}`, sans `attributesToRetrieve`, 2 lignes rendues ; les durées de l'explorateur non re-mesurées. Classement : A2, projection de la réponse du moteur sur la clé que `keys()` lit seule, sans changement des ids rendus ni de leur ordre.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` et `GET /api/customers?filter[search]=zorglub` en agent d'agence → recherche envoyée sans `attributesToRetrieve`, lignes justes → `FilterSearchProjectionTest` (2 tests) : `attributesToRetrieve` réduit à `id`, même ligne rendue ; ablation de `HasQueryBuilder.php` → 2 rouges, correctif remis → 2 verts ; 9 classes de recherche voisines, 45 verts.
 
 ### `GET /api/search/messages` charge les pièces jointes message par message
 - Réf : P59.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1010
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Search/MessageSearchService.php:25-48`, `takussan-api/app/Http/Resources/MessageResource.php:24,35-47`, `takussan-api/app/Services/Search/DocumentSearchService.php:46-47`
 - Constat :
@@ -6060,10 +6061,11 @@ le `CASE` de la pertinence.
 - Établi comment : test temporaire avec journal des requêtes, relecture.
 - Piste : `$paginator->getCollection()->loadMissing('media')` dans `MessageSearchService`, comme pour les documents ; un test de budget « 2 lignes = 12 lignes » sur la route. Ou retirer la route, si le retrait de P13.08 l'emporte.
 - Mesure (2026-10-19, 2f829055e, mesureur) : lu `MessageSearchService.php:48` (`return $search->paginate(…)` sans préchargement), `MessageResource.php:39` (`getMedia('attachments')` par message), `DocumentSearchService.php:46-47` (`loadMissing('media')`) ; `git log` du service → aucun commit depuis TCK-786 ; test temporaire retiré (Meilisearch réel, participant d'un fil, appel d'amorce non compté, charge 3,13 sur 8 cœurs) → 19 requêtes pour 2 messages, 29 pour 12, dont 12 `from "media"` ; `grep search/messages takussan-web/src` → rien. Classement : A2, préchargement qui ne change pas la réponse ; le retrait de la route, autre option de la piste, relèverait de V7 et n'est pas le correctif décrit.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : Meilisearch réel, participant d'un fil, appel d'amorce non compté → 19 requêtes pour 2 messages, 29 pour 12, une `from "media"` par message → `SearchQueryBudgetTest::test_la_recherche_des_messages` (2 lignes = 12 lignes) vert avec `loadMissing('media')` ; ablation du service → 19/29, rouge ; correctif remis → vert ; `MessageSearchTest`, `SearchDateRangeTest`, `MaintenanceThreadAccessTest` verts. La route reste sans appelant (P13.08), non retirée.
 
 ### Aucune garde de budget de requêtes sur un chemin de recherche Scout
 - Réf : P59.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-1011
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Api/ProListQueryBudgetTest.php:56-71`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`, `takussan-api/tests/TestCase.php`
 - Constat :
@@ -6073,6 +6075,7 @@ le `CASE` de la pertinence.
 - Établi comment : relecture des tests et `grep`.
 - Piste : une variante « avec recherche » de `ProListQueryBudgetTest` sous `InteractsWithMeilisearch` (biens, clients, interventions, `search/messages`, recherche publique), 2 lignes = 12 lignes ; garde ajoutée sans toucher aux seuils existants.
 - Mesure (2026-10-19, 2f829055e, mesureur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 ; tests posant `enableQueryLog`/`DB::listen` et citant `filter[search]` → `PublicProfileIndexTest` et `MessagingContactsTest`, dont le `DB::listen` (`:346`) vise `/api/conversations/contacts` sans recherche ; ceux qui portent aussi `InteractsWithMeilisearch` → `PublicSearchAlertTest` (vérifie l'absence de lecture des tables du contact, pas un budget) et `MessagingContactsTest`. Le « déduit » du constat a un cas réel : P59.02 (19 → 29 requêtes, mesuré ce passage) n'est vu par aucun test. Classement : A5, garde ajoutée sans seuil existant resserré ; la variante `search/messages` rougit tant que P59.02 n'est pas corrigée, à livrer dans le même lot.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 → `SearchQueryBudgetTest` (Meilisearch réel, lignes garnies, URL du front) : biens, clients et interventions sous `filter[search]`, recherche publique `q=`, 2 lignes = 12 lignes, 4 verts ; ablation par un écouteur `retrieved` temporaire (`select 1` par ligne) → 4 rouges (23/33, 23/33, 27/47, 6/16), retiré → verts. La variante `search/messages` est celle de TCK-1010.
 
 ## Angle 60 — `include=` acceptés, chargés et non émis ; `show` qui ignorent `include=` et `fields`
 
