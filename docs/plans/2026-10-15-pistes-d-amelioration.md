@@ -124,7 +124,7 @@ voie d'écriture (angle 13, puis 47).
 | 49 | Passage d'une agence `individual` à `standard` : capacités débloquées, données reprises | fait |
 | 50 | Ce que voit le bailleur invité quand le titulaire du bien est l'agent : biens, baux, relevés | fait |
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | fait |
-| 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | à faire |
+| 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | fait |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | à faire |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
@@ -161,6 +161,7 @@ voie d'écriture (angle 13, puis 47).
 | 86 | Collaborateurs `co_owner` et `viewer` d'un bien (`property_collaborators`, laissés hors du périmètre par ADR-0031 § 2) : ce qu'ils lisent et écrivent réellement — bien, lots, baux, loyers, relevé, reversement | à faire |
 | 87 | Tris alphabétiques sur colonnes texte sous la collation `C` (`sort=first_name`, `name`, `title` des listes de l'API et de la console) : minuscules et initiales accentuées rejetées après « Z » | à faire |
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
+| 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
 
 ---
 
@@ -5451,3 +5452,55 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : `with(['media' => fn ($q) => $q->where('collection_name', 'avatar')])`. Pour le compteur, exclure les choisis côté serveur (`filter[exclude]` sur des ids) ou compter les lignes affichées. Un test du composant avec des choisis dans la page.
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:86` (`with('media')`), `User::registerMediaCollections()` (quatre collections) et `User::avatarUrl()` (lit la seule `avatar`) ; relu `ParticipantPicker.tsx:102-105,174-179,214-217` (`items` filtre les choisis, `moreResults` affiche `charges` = la page entière, et `Combobox.Empty` affiche `noContact` dès que `items` est vide, même si `total > charges`) → les deux parties tiennent à la lecture ; ni le surcoût des lignes `media` ni le rendu au navigateur n'ont été mesurés. Classement : V7 pour le compteur, la piste laisse le choix entre `filter[exclude]` côté serveur et un compte des lignes affichées ; la partie `media` relèverait seule de A2 (même `avatarUrl()`, moins de lignes lues).
 - Mesure (2026-10-19, cf15ad8e3, delegue) : relu `ParticipantPicker.tsx:94-105,214-217` (`items` retire les choisis et `excludeIds` de la page, `moreResults` affiche `charges` = la page entière, et la liste vide dit « personne » même si `total > charges`) et `MessagingContactController::forConversation()` (l. 63-73, qui retire déjà côté serveur les participants actifs d'un groupe existant, par `whereDoesntHave`) → l'exclusion côté serveur est le patron déjà en place pour la moitié du même sélecteur, et c'est la seule option qui corrige aussi la liste vide ; compter les lignes affichées laisserait un total qui compte les choisis. Délégation : V7, choix d'implémentation d'un compteur qui doit dire vrai, sans texte ni parcours neuf, appuyé sur `forConversation()`, et réversible en un commit ; la partie `media` relève de A2 (mesureur).
+
+## Angle 52 — Réglages Meilisearch réellement appliqués en préproduction
+
+*Exploré le 2026-10-19 sur `pre-dev` fe4966f90, par l'explorateur. Relu par l'explorateur lui-même, sans sous-agent : `docker/release.sh`, `docker/lib.sh`, le `Dockerfile` (empreinte `.search-shape`), `vendor/laravel/scout` v11.3.0 (`SyncIndexSettingsCommand`, `MeilisearchEngine::updateIndexSettings()`), `vendor/meilisearch/meilisearch-php` (`Indexes::updateSettings()`), `config/scout.php` (sept modèles déclarés, les sept `Searchable` de `app/Models`), `scripts/test-release-reindex.sh`, `dev.sh:774`, `deploy/takussan/smoke-api.sh`, `.github/workflows/images.yml`, `deploy/server/compose.data.yml`, `docs/infra/hebergement.md` et l'étape 6 du plan d'auto-hébergement (clé `preview_*`). Une mesure par un test temporaire (moteur et gestionnaire Scout simulés, aucun appel à Meilisearch, charge 1,40 sur 8 cœurs), retiré avant la fin. La garde des agents refuse `php artisan scout:*`, même contre un hôte injoignable : la commande réelle n'a pas été lancée. Rien n'a été lu en préproduction (hors poste) : ce qu'elle a réellement appliqué reste inconnu. Le Meilisearch local du port 7701 ne porte que des index `testing_*` et `smoke_*`, et aucune tâche `settingsUpdate` en échec.*
+
+### `scout:sync-index-settings` sort en 0 quand Meilisearch refuse : l'arrêt du déploiement de TCK-710 ne se déclenche jamais
+- Réf : P52.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76`, `takussan-api/docker/release.sh:31-36`, `scripts/test-release-reindex.sh:37-42,94-96`, `dev.sh:774`
+- Constat :
+  - `handle()` enveloppe toute la boucle des index dans un `try`, et son `catch (Exception)` ne fait qu'un `$this->error()`, sans code de retour : la commande sort en 0 (lu, l. 46-76).
+  - Mesuré : test temporaire, `MeilisearchEngine` simulé dont `updateIndexSettings()` lève `RuntimeException('injoignable')`, puis `Artisan::call('scout:sync-index-settings')` → `EXIT=0`, sortie `injoignable`.
+  - `release.sh:35-36` compte sur ce code pour arrêter le déploiement (`|| { …; exit 1; }`, TCK-710). Hôte injoignable, clé refusée (403 : clé `preview_*` face à un `SCOUT_PREFIX` qui ne commencerait pas par `preview_`), index refusé : le message d'erreur s'imprime, `release` continue, réimporte, et les services démarrent sur les anciens réglages (déduit de la lecture, non joué dans un conteneur).
+  - La première exception abandonne aussi les index suivants : un refus sur `Property` laisse les six autres sans synchronisation, toujours en 0 (lu, la boucle est dans le `try`).
+  - `scripts/test-release-reindex.sh` garde TCK-710 avec un `php` talon qui sort en 1 sur `scout:sync-index-settings` (l. 37-42, 94-96) : il prouve la branche du script, jamais que la commande réelle sort en non-zéro. Il est vert sur un comportement que la commande n'a pas (lu).
+  - `dev.sh:774` a la même dépendance : son `avert` ne s'affiche jamais, et `>/dev/null 2>&1` cache aussi le message (lu).
+  - Établi comment : lu, et mesuré par un test temporaire.
+- Piste : une commande du dépôt (`search:sync-index-settings`, ou une surcharge de `scout:sync-index-settings` enregistrée par l'application) qui appelle le même moteur et sort en `FAILURE` sur toute exception, index par index, et que `release.sh` et `dev.sh` appellent. Un test Feature qui simule un moteur qui lève et exige un code non nul : rouge sur la commande Scout telle quelle.
+
+### Le déploiement n'attend ni ne lit l'issue des tâches Meilisearch : un réglage ou un document refusé passe sans trace
+- Réf : P52.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:408-417`, `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/docker/release.sh:47-58`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:117-130`
+- Constat :
+  - `updateIndexSettings()` envoie un `PATCH …/settings` et ignore la tâche rendue. Meilisearch traite les réglages en asynchrone : une valeur rejetée (attribut mal formé, réglage inconnu de la v1.16) n'échoue qu'ensuite, dans la tâche, et rien ne la lit (lu). Aucun `waitForTask` dans `app/`, `docker/`, `deploy/` ni `scripts/` (mesuré : `grep -rn waitForTask` → aucun résultat).
+  - Même chose pour `scout:import` : « réussi » veut dire « mis en file ». `release.sh:58` écrit le marqueur `.search-shape-importee` alors que des tâches d'ajout de documents peuvent encore échouer : le déploiement suivant se croit à jour et ne réimporte pas (lu ; l'asynchronisme de l'import est déduit du moteur, à vérifier).
+  - La suite attend les tâches en cours (`MeilisearchBarrier`, l. 117-130) mais n'en lit pas le statut. Aucun test ne compare les réglages déclarés à ceux de l'index : `SearchIdCapIndexSettingsTest` ne lit que `pagination` (lu).
+  - Ni `smoke-api.sh` ni `images.yml` ne relisent les réglages après déploiement. Seule l'empreinte `.search-shape` est vérifiée (lu, `smoke-api.sh:46`).
+- Piste : après la synchronisation, attendre les tâches rendues et faire échouer `release` sur un statut `failed`. Puis relire `GET /indexes/<index>/settings` et comparer `filterableAttributes`, `sortableAttributes` et `pagination` à `config/scout.php`. Un test Feature qui fait cette comparaison sur l'index de test, et un `smoke-api.sh pile` qui la rejoue.
+
+### Une perte du volume de Meilisearch n'est rattrapée par aucun déploiement
+- Réf : P52.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/docker/release.sh:42-45`, `deploy/server/compose.data.yml:19-31`, `docs/infra/hebergement.md:371-374`
+- Constat :
+  - Le marqueur de la dernière importation vit dans le volume `storage` de la pile d'API, et les index dans le volume `meili` des données du serveur, partagé par les environnements (lu). Un volume `meili` perdu ou recréé, ou un Meilisearch remplacé, laisse le marqueur dire « forme des index inchangée » : `release` ne réimporte rien (lu, l. 44-45).
+  - La synchronisation des réglages recrée alors sans doute des index vides : Meilisearch crée l'index à la mise à jour de ses réglages (déduit, à vérifier). La recherche publique et les listes `filter[search]` rendraient zéro résultat, sans erreur.
+  - Le runbook traite le cas inverse, une base restaurée sous un Meilisearch intact (`hebergement.md:371-374`, supprimer le marqueur). Rien n'est écrit pour une perte ou une montée de version de Meilisearch : `grep -i meili docs/infra/hebergement.md` ne rend que l'inventaire et la clé (mesuré).
+- Piste : au `release`, compter les documents de l'index `Property` (`GET /indexes/<prefix>properties/stats`). Un index vide ou absent face à une table non vide invalide le marqueur et force l'importation. À défaut, écrire la procédure dans le runbook. `test-release-reindex.sh` peut simuler les deux cas.
+
+### Petites améliorations
+- Réf : P52.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/config/scout.php:156-300`, `docs/infra/hebergement.md:167`
+- Constat :
+  - Les réglages partent en `PATCH`. Un réglage retiré entièrement de `config/scout.php` (une clé comme `typoTolerance` ou `pagination`) garde son ancienne valeur dans un index déployé, quand un index neuf (local, test) prend le défaut. Préproduction et poste divergent alors sans signe (lu ; sémantique de Meilisearch déduite, à vérifier).
+  - La clé de préproduction est bornée aux index `preview_*` (plan d'auto-hébergement, étape 6). La valeur réelle de `SCOUT_PREFIX` n'est relevée nulle part dans le dépôt : `hebergement.md:167` ne cite que la clé (lu). Un préfixe d'une autre forme rendrait chaque appel en 403, avalé par P52.01.
+- Piste : `resetSettings()` puis `updateSettings()`, tâches attendues, ou comparer la totalité des réglages (P52.02). Relever `SCOUT_PREFIX` avec les autres valeurs non secrètes du relevé de préproduction.
