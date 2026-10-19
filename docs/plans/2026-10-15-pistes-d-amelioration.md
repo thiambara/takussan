@@ -5932,7 +5932,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### Un `include=uploadedBy` ou `finalizedBy` des relevés bancaires sort toujours `null` dès qu'un `fields[bank_statements]` est passé
 - Réf : P58.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-987 — reste : faire sélectionner par `HasQueryBuilder` la clé d'une `BelongsTo` demandée par `include=` quand `fields[]` l'omet, sans quoi la relation sort encore `null`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/BankStatement.php:42-47`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:29-38`, `takussan-api/app/Models/Agency.php:95-101`
 - Constat :
@@ -5943,6 +5943,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire et réflexion en `tinker`.
 - Piste : ajouter les clés étrangères des relations chargeables à `$queryFields`, ou faire sélectionner par `HasQueryBuilder` la clé de toute `BelongsTo` demandée par `include=` ; garder par un test qui, pour chaque modèle, vérifie que chaque relation de `$requestLoadable` a sa clé dans `$queryFields` (la réflexion de ce passage en est la forme).
 - Mesure (2026-10-19, 353c40b57, mesureur) : `BankStatement::$queryFields` sans `uploaded_by` ni `finalized_by` (lu, `BankStatement.php:42-45`, inchangé) ; test temporaire retiré, admin d'agence : `GET /api/agencies/{id}/bank-statements?include=uploadedBy` → `uploaded_by` = `{id, first_name, last_name}`, même appel avec `fields[bank_statements]=id,status` → clé `uploaded_by` présente et `null` ; `Agency::$queryFields` sans `primary_admin_id` (lu, `Agency.php:94-100`) alors qu'`AgencyResource.php:76` rend déjà la colonne, `Document::$queryFields` sans `verified_by` (lu, `Document.php:65-68`) alors que `DocumentResource.php:37` la rend. Classement : A1, le contrat est déjà écrit par le code (relation déclarée dans `$requestLoadable` et rendue par la ressource) et ajouter des colonnes que les ressources rendent déjà n'expose rien de neuf.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `GET /api/agencies/{id}/bank-statements?fields[bank_statements]=id,status,uploaded_by,finalized_by&include=uploadedBy,finalizedBy` → 400 avant correctif ; la garde `RelationChargeableACleSelectionnableTest` nomme `Agency::primaryAdmin`, `BankStatement::uploadedBy`, `BankStatement::finalizedBy`, `Document::verifier` → clés ajoutées aux trois `$queryFields`, 200 et auteur rendu, garde verte ; ablation (les trois listes remises) → 2 rouges, remises → 2 verts.
 
 ### La liste des relevés bancaires lance une requête `bank_statement_lines` par relevé pour `reconciled_ratio`
 - Réf : P58.03
