@@ -5835,7 +5835,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 
 ### Un SMS envoyé sans notification (code OTP, step-up, signature de bail) garde le numéro du compte après l'effacement
 - Réf : P57.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ce que l'effacement retire des tentatives d'envoi sans notification
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Account/AccountDeletionService.php:310-316`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:312-321`, `takussan-api/database/migrations/2026_10_17_160000_make_notification_delivery_attempts_notification_nullable.php:8-11`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:394-404`
 - Constat :
@@ -5846,9 +5846,10 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : test temporaire et lecture.
 - Piste : à l'anonymisation, effacer aussi `to` des tentatives sans notification dont le numéro est l'un de ceux du compte (`phone`, `secondary_phone`), relevés avant le `forceFill`. Un ancien numéro remplacé n'y figure plus : le rattacher à la tentative (une colonne `user_id` nullable) le permettrait, ce qui est une migration. Un test dans `AccountDeletionExecuteTest` : un envoi OTP par le routeur, puis `executeDeletion()` → aucune tentative ne porte le numéro. Ablation : retirer l'effacement → rouge.
 
+- Mesure (2026-10-19, bc2d31e79, mesureur) : relu `AccountDeletionService::anonymize()` (l. 309-316, filtre `whereIn('app_notification_id', …)` inchangé), `SmsRouterDriver::writeAttempt()` (l. 312-321, `app_notification_id => null`) et `PhoneVerificationService::deliver()` (l. 395-404, sans `notification_id`) ; `git log 47b6af771..bc2d31e79` sur ces fichiers → rien ; test temporaire retiré (charge 4,84 / 4,09 / 3,16 sur 8 cœurs) : `app(SmsDriverInterface::class)` rend `SmsRouterDriver`, un envoi `is_otp` au numéro du compte puis `executeDeletion()` → 1 tentative au numéro avant, 1 après. Le test de TCK-691 (`test_execute_efface_le_numero_des_tentatives_d_envoi_du_compte`) ne crée que des tentatives liées. Classement : V3, le comportement attendu est écrit (TCK-691, AC1, ce qui relèverait de A1) mais le correctif décide quelles données personnelles l'effacement retire, et rattacher un ancien numéro demanderait une migration (V4).
 ### Une visite demandée en étant connecté recopie le nom, l'e-mail et le téléphone du compte, que l'effacement ne touche pas
 - Réf : P57.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : dissocier ou effacer les visites du compte, choix de conservation non écrit
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:841-850`, `takussan-api/database/migrations/2026_04_17_160015_create_property_visits_table.php:15-19`, `takussan-api/app/Http/Resources/PropertyVisitResource.php:27-29`, `takussan-api/app/Services/Account/AccountDeletionService.php:249-250`
 - Constat :
@@ -5859,9 +5860,10 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : test temporaire et lecture. Ce que l'agence doit garder d'une visite passée est une question de produit, non tranchée ici.
 - Piste : décider entre deux options et l'écrire : dissocier comme pour `customers` (`visitor_id` à `null`, le contact gardé par l'agence), ou effacer les trois champs des visites du compte. Dans les deux cas, un test : après `executeDeletion()`, la visite ne désigne plus le compte. Ablation → rouge.
 
+- Mesure (2026-10-19, bc2d31e79, mesureur) : relu `PublicPropertyController` (l. 839-854 : `visitor_id`, et `visitor_name`/`visitor_email`/`visitor_phone` recopiés du compte à défaut de saisie) ; `grep -n visit AccountDeletionService.php` → rien ; test temporaire retiré : une visite au nom du compte puis `executeDeletion()` → `visitor_id`, nom, e-mail et téléphone inchangés. Classement : V3, la `Piste` laisse deux options (dissocier ou effacer) et ce que l'agence garde d'une visite passée est un choix de conservation.
 ### Le jeton de réinitialisation du mot de passe garde l'e-mail d'origine, et la table n'est jamais purgée
 - Réf : P57.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : suppression à l'effacement et durée de conservation des jetons
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/console.php`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -5871,9 +5873,10 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : test temporaire, lecture et `grep`.
 - Piste : supprimer les lignes de l'adresse d'origine dans `anonymize()` (relevée avant le `forceFill`), et planifier `auth:clear-resets` chaque jour, comme les autres purges de `routes/console.php`. Deux tests : après `executeDeletion()`, aucune ligne pour l'adresse d'origine ; la commande est planifiée. Ablation → rouge.
 
+- Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une ligne `password_reset_tokens` pour l'adresse du compte puis `executeDeletion()` → la ligne existe toujours (1) ; `grep -rn clear-resets routes app` → rien, la purge n'est pas planifiée ; `anonymize()` ne cite pas la table (lu). Classement : V3, supprimer à l'effacement et fixer une durée de conservation touchent à ce qui est conservé ; la seule planification de `auth:clear-resets` est peu discutable mais reste une durée de conservation.
 ### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
 - Réf : P57.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : sort des invitations du compte effacé (révocation, effacement de l'adresse)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_05_10_000001_create_invitations_table.php:24-29`, `takussan-api/database/migrations/2026_10_07_150300_add_phone_to_invitations_table.php:25`, `takussan-api/app/Services/Invitation/InvitationService.php:224-233`
 - Constat :
@@ -5884,9 +5887,10 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : test temporaire et lecture ; l'acceptation n'a pas été éprouvée.
 - Piste : à l'anonymisation, révoquer les invitations en cours du compte (statut existant) et effacer leur `email`/`phone`, ou les masquer. Un test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse. Ablation → rouge.
 
+- Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés ; relu `InvitationService` l. 224-233 (`withProperties(['email' => $email, …])` sur une ligne dont l'invitation est le sujet). Non éprouvé, comme dans le constat : l'acceptation d'une invitation encore `sent` vers un compte effacé. Classement : V3, révoquer et effacer l'adresse des invitations change ce que l'agence conserve, et l'adresse dans `activity_log` relève de P19.01/P56.05.
 ### Petites améliorations
 - Réf : P57.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : sort de quatre données de contact hors de `users`, à décider une à une
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PublicSearchAlertController.php:142`, `takussan-api/database/migrations/2026_06_17_100000_create_whatsapp_contacts_table.php:23-24`, `takussan-api/database/migrations/2026_10_08_599200_create_alert_subscribers_table.php:21`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:53-90`, `takussan-api/app/Services/Lead/ContactLeadService.php:302-315`, `takussan-api/app/Services/Notifications/Sms/Drivers/LogSmsDriver.php:31-37`
 - Constat :
@@ -5896,3 +5900,4 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - **Le pilote `log` de SMS écrit le numéro complet et le texte, code OTP compris**, dans le journal (lu, `LogSmsDriver.php:31-37`). Les pilotes déclarés en préproduction pour le SMS n'ont pas été relus (`prod-drivers.json` ne les porte pas) : à vérifier.
   - Établi comment : lecture, `grep` et test temporaire.
 - Piste : écrire dans `anonymize()`, ou dans un commentaire qui le justifie, le sort de chacune : contact WhatsApp et alertes sans compte au contact vérifié du compte (supprimés, ou gardés avec la raison) ; demandes de contact (durée à écrire dans `privacy.ts`) ; pilote `log` qui masque le code et le numéro comme `PhoneVerificationService` le fait déjà (`phone_suffix`).
+- Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : un `WhatsappContact` au numéro du compte survit à `executeDeletion()` (1) ; `grep -rn "WhatsappContact::" app` → seul `firstOrCreate(['phone' => …])` de `PublicSearchAlertController.php:142` écrit, aucun `user_id` ; `AccountDeletionService` ne cite ni `AlertSubscriber` ni les demandes de contact (lu) ; `LogSmsDriver.php:32-38` journalise `to` normalisé et `message` en entier, code compris (lu). Les pilotes SMS de préproduction ne sont pas relus. Classement : V3, chaque point demande de décider ce qui est gardé ou effacé, et la durée des demandes de contact s'écrit dans `privacy.ts` (V7) ; seul le masquage du pilote `log` serait A, il peut se traiter avec l'entrée une fois validée.
