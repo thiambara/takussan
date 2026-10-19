@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Settings\AgencySettings;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\AgencyKind;
@@ -108,7 +109,17 @@ class Agency extends AbstractModel implements HasMedia
      */
     public function collectsLateFeesOnline(): bool
     {
-        return (bool) data_get($this->settings, 'late_fee_online_collection', false);
+        return $this->setting('late_fee_online_collection');
+    }
+
+    /**
+     * TCK-970 (P47.08) — un réglage de `settings`, dans son type et avec son défaut, tels que les
+     * déclare `AgencySettings`, la liste que lit aussi `AgencyUpdateRequest`. Une clé qu'elle ne
+     * déclare pas lève : un réglage lu sans règle d'écriture ne se règle pas.
+     */
+    public function setting(string $key): mixed
+    {
+        return AgencySettings::read($this->settings, $key);
     }
 
     /**

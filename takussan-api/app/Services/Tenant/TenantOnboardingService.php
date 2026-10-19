@@ -32,10 +32,9 @@ class TenantOnboardingService
     {
         $lease->loadMissing(['agency', 'tenant.user']);
 
-        // Default = activé. Seule la valeur strictement `false` désactive
-        // le workflow ; null / absent / true → on crée la checklist.
-        $enabled = data_get($lease->agency?->settings, 'tenant_onboarding_enabled', true);
-        if ($enabled === false) {
+        // Default = activé. TCK-970 — `false` comme `0` (que la règle `boolean` laisse écrire)
+        // désactivent ; absent / null / true → on crée la checklist.
+        if ($lease->agency?->setting('tenant_onboarding_enabled') === false) {
             return null;
         }
 
