@@ -86,6 +86,9 @@ export const customerFormSchema = z
       msgValidation('customer.idTypeInvalid'),
     ),
     id_number: z.string().max(64, msgValidation('customer.idNumberTooLong')),
+    // TCK-953 — le masque du numéro déjà saisi (fiche en édition) : jamais envoyé. Un champ vide
+    // veut dire « inchangé », et le numéro n'est exigé que si la fiche n'en porte pas encore.
+    id_number_masked: z.string().nullable().optional(),
     locale: z.string().optional().refine(
       (v) => !v || v === CUSTOMER_LOCALE_DEFAULT || (customerLocaleValues as readonly string[]).includes(v),
       msgValidation('customer.localeInvalid'),
@@ -123,7 +126,7 @@ export const customerFormSchema = z
         message: msgValidation('agentCrm.budgetRange'),
       });
     }
-    if (data.id_type && !data.id_number.trim()) {
+    if (data.id_type && !data.id_number.trim() && !data.id_number_masked) {
       ctx.addIssue({
         code: 'custom',
         path: ['id_number'],

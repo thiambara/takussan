@@ -63,6 +63,7 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
       status: 'active',
       id_type: '',
       id_number: '',
+      id_number_masked: null,
       locale: '',
       seeking_contract_type: '',
       budget_min: '',
@@ -84,7 +85,9 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
     pipeline_stage: (customer.pipeline_stage ?? 'lead') as CustomerFormValues['pipeline_stage'],
     status: (customer.status ?? 'active') as CustomerFormValues['status'],
     id_type: (customer.id_type ?? '') as CustomerFormValues['id_type'],
-    id_number: customer.id_number ?? '',
+    // TCK-953 — le numéro ne se relit plus : le champ part vide, le masque sert d'indication.
+    id_number: '',
+    id_number_masked: customer.id_number_masked ?? null,
     locale: customer.locale ?? '',
     seeking_contract_type: customer.seeking_contract_type ?? '',
     budget_min: montant(customer.budget_min),
@@ -390,7 +393,12 @@ export function CustomerForm({
             options={idTypeOptions}
             placeholder={t('idTypePlaceholder')}
           />
-          <FormInput control={control} name="id_number" label={t('idNumber')} />
+          <FormInput
+            control={control}
+            name="id_number"
+            label={t('idNumber')}
+            placeholder={customer?.id_number_masked ? t('idNumberKept', { masque: customer.id_number_masked }) : undefined}
+          />
         </div>
       </div>
 

@@ -31,7 +31,7 @@ const fiche = {
   created_at: '2026-10-18T10:00:00Z',
   birth_date: null,
   id_type: null,
-  id_number: null,
+  id_number_masked: null,
   emergency_contact_name: null,
   emergency_contact_phone: null,
   added_by_id: 1,
