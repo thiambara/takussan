@@ -2762,6 +2762,12 @@
       "idTypePlaceholder": "Non renseigné",
       "idNumber": "Numéro",
       "idNumberKept": "{masque} — laisser vide pour le garder",
+      "idNumberSensitive": {
+        "reveal": "Afficher",
+        "hide": "Masquer",
+        "notice": "« Afficher » révèle le numéro complet et enregistre la consultation dans le journal de l’agence.",
+        "errorTitle": "Impossible d’afficher le numéro de pièce"
+      },
       "saving": "Enregistrement…",
       "create": "Créer le client"
     },
