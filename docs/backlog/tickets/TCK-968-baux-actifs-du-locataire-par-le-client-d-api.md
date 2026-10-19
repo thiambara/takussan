@@ -1,7 +1,7 @@
 ---
 id: TCK-968
 title: "La check-list d'entrée et la modale de bienvenue lisent les baux actifs par le client d'API, et une garde refuse un `fetch('/api/…')` sans relais"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -45,18 +45,18 @@ d'entrée.
 
 ## Delta à produire
 
-- [ ] Un hook de lecture des baux actifs du compte dans `src/lib/queries/leases.ts`.
-- [ ] `TenantOnboardingChecklistWidget` et `useTenantWelcomeOnce` le lisent, au lieu du `fetch`.
-- [ ] Leurs tests servent les baux par `apiRequest`, et `fetch('/api/leases')` y rend 404, comme
+- [x] Un hook de lecture des baux actifs du compte dans `src/lib/queries/leases.ts`.
+- [x] `TenantOnboardingChecklistWidget` et `useTenantWelcomeOnce` le lisent, au lieu du `fetch`.
+- [x] Leurs tests servent les baux par `apiRequest`, et `fetch('/api/leases')` y rend 404, comme
   le serveur Next.
-- [ ] Garde : un test qui relève tout `fetch('/api/…')` littéral de `src/` et échoue si aucun
+- [x] Garde : un test qui relève tout `fetch('/api/…')` littéral de `src/` et échoue si aucun
   `route.ts` de `src/app/api/` ne le sert.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Avec un bail actif servi par l'API et `fetch('/api/leases')` en 404, le widget rend
+- [x] AC1 — Avec un bail actif servi par l'API et `fetch('/api/leases')` en 404, le widget rend
   sa carte et la modale s'ouvre.
-- [ ] AC2 — La garde échoue sur un `fetch('/api/leases…')` littéral, et passe sur l'arbre
+- [x] AC2 — La garde échoue sur un `fetch('/api/leases…')` littéral, et passe sur l'arbre
   corrigé.
 
 ## Hors périmètre
@@ -66,4 +66,10 @@ d'entrée.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : le widget et le hook d'avant remis, les trois fichiers de test rendent 6 rouges
+  sur 12 (la garde nomme exactement les deux `fetch('/api/leases')`, le widget ne rend pas sa
+  carte, la modale ne s'ouvre pas) ; correctif remis, 12 verts.
+- **Piège** : la garde lit aussi les commentaires. Un commentaire qui cite le littéral fautif la
+  fait rougir ; les commentaires du correctif le décrivent sans l'écrire.
+- La file de la modale est désormais dérivée (baux actifs − clés vues − baux écartés pendant le
+  montage) au lieu d'un état posé une fois : les deux lectures n'arrivent plus ensemble.
