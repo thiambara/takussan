@@ -5618,7 +5618,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une note client avec `pinned: null` rend 500
 - Réf : P54.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-978
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreCustomerNoteRequest.php:37`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:30-34`, `takussan-api/database/migrations/2026_04_17_160030_create_customer_notes_table.php:16`
 - Constat :
@@ -5626,6 +5626,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Mesuré (test temporaire, agent de l'agence) : `POST /api/customers/{id}/notes` avec `body` et `pinned: null` → **500** (`23502`, colonne `pinned`) ; sans `pinned` ou avec `pinned: false` → 201.
 - Piste : `pinned` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StoreCustomerNoteRequest.php:37` (`pinned` en `nullable|boolean`) → `POST /api/customers/{id}/notes` en agent : `pinned: null` → 500, clé absente → 201, `pinned: false` → 201. Classement : A1, la colonne `NOT NULL DEFAULT false` fixe le contrat (omis → défaut, `null` → 422), sans choix de produit.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StoreCustomerNoteRequest.php:37` (`pinned` en `nullable|boolean`) ; test de garde dans `CustomerNoteTest` → avant correctif, `POST /api/customers/{id}/notes` avec `pinned: null` rend 500 (1 rouge sur 8) → `filled|boolean` : 8 verts, une note sans `pinned` reste non épinglée ; ablation (règle remise à `nullable`) → 1 rouge, remis → vert.
 
 ### Un relevé bancaire importé avec `source_format` vide ou `null` rend 500
 - Réf : P54.04
