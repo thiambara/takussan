@@ -5147,7 +5147,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### La check-list d'entrée et la modale de bienvenue du locataire ne s'affichent jamais : elles lisent `/api/leases` sur le serveur Next, qui n'a pas cette route
 - Réf : P48.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/tenant/TenantOnboardingChecklistWidget.tsx:56-90`, `takussan-web/src/hooks/useTenantWelcomeOnce.ts:53-70`, `takussan-web/src/app/(dashboard)/app/(accueil)/page.tsx:78`, `takussan-web/src/app/api/`
 - Constat :
@@ -5158,10 +5158,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Le test du widget remplace `globalThis.fetch` par un faux qui sert `/api/leases` (`TenantOnboardingChecklistWidget.test.tsx:36,74`) : il est vert sans la route.
   - Établi comment : lu. Le 404 se déduit de l'absence de relais et de réécriture, il n'a pas été mesuré sur un serveur.
 - Piste : lire les baux actifs par le client d'API (`useApiQuery` avec `cheminApi\`/api/leases\``, comme `useTenantOnboardingChecklist` dans `lib/queries/tenant-onboarding.ts:29-35`), dans les deux sites. Garde : un test qui échoue si un composant appelle `fetch('/api/…')` vers un chemin sans `route.ts` sous `src/app/api/` (voir P45.01, dont la garde ne regarde que les chemins de l'API Laravel).
+- Mesure (2026-10-19, f356e5a5f, mesureur) : relu `TenantOnboardingChecklistWidget.tsx:63-71,89-90` et `useTenantWelcomeOnce.ts:55-69` (deux `fetch('/api/leases…', { credentials: 'same-origin' })` relatifs, sortie muette sur `!res.ok`), `ls takussan-web/src/app/api/` (aucun `leases`, ni relais générique : `git log --diff-filter=D` n'en montre aucun supprimé hormis `roles/[[...path]]`, retiré par TCK-278), `next.config.ts` (aucune `rewrites`), `proxy.ts:223` (le `matcher` exclut `/api`) ; côté API, `LeaseController::index:33-43` rend bien au locataire ses baux par `tenant.user_id`, et `Lease::$queryFields` accepte `id,reference_number` → le constat tient, le 404 reste déduit (aucun front ne tournait : `curl localhost:3000` sans réponse). Nuance : pour un compte à la fois personnel et locataire, `/api/leases` rend aussi les baux de l'agence (l. 39-41), comme le voulait déjà l'appel d'origine. Classement : A1, le comportement attendu est écrit par TCK-265 et TCK-266 (modale et widget sur l'accueil du locataire) et le contrat de l'API existe ; le correctif lit les mêmes baux par le client d'API, sans texte ni choix neuf, et la garde proposée est un test du front (A5).
 
 ### Le locataire sans compte n'apprend ni le paiement enregistré par l'agence, ni la révision de loyer, ni la pénalité, ni le renouvellement, ni la restitution de caution
 - Réf : P48.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : ouvrir aux contacts sans compte des messages qui ne leur partent pas aujourd'hui, code par code
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/LeasePaymentService.php:96-118`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRentReview.php:22-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfLateFee.php:21-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRenewal.php:20-23`, `takussan-api/app/Listeners/Lease/NotifyTenantOfDepositRefund.php:19-22`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:37-46`, `takussan-api/app/Domain/Notifications/NotificationCode.php:483-495`
 - Constat :
@@ -5172,10 +5173,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Selon P15.01, aucune fiche créée par l'agence n'a de `user_id` : ces six messages ne partent aujourd'hui pour aucun bail créé depuis l'écran (déduit de P15.01, à vérifier en base de dev : `SELECT count(*) FROM leases l JOIN customers c ON c.id = l.tenant_id WHERE c.user_id IS NULL`).
   - Établi comment : lu.
 - Piste : ouvrir aux contacts (`reachesContacts`) au moins `lease_payment.recorded`, avec le lien `/pay/{jeton}` de la quittance, comme le paiement en ligne. Décider pour la révision, la pénalité, le renouvellement et la caution. Ne poser `tenant_welcomed_at` que si le message est parti. Garde : un test par code, locataire sans compte avec téléphone valide.
+- Mesure (2026-10-19, f356e5a5f, mesureur) : relu `LeasePaymentService.php:105-110` (`if ($tenantUser)`), les quatre écouteurs (`NotifyTenantOfRentReview:22-23`, `NotifyTenantOfLateFee:21-23`, `NotifyTenantOfRenewal:20-22`, `NotifyTenantOfDepositRefund:19-21`, sortie sur `null`), `SendTenantWelcomeNotification.php:37-47` (tampon posé sans envoi), `NotificationCode::reachesContacts:483-495` (`LeasePaymentRecorded` absent) ; `grep linkUser app` → seule la définition (`CustomerService.php:28`) et un docblock ; `SELECT count(*), count(*) FILTER (WHERE c.user_id IS NULL) FROM leases l JOIN customers c ON c.id = l.tenant_id` en base de dev → `579|322` (base semée, pas l'écran) → tout tient. Classement : V7, la piste elle-même laisse à décider la révision, la pénalité, le renouvellement et la caution, et envoyer un SMS ou un WhatsApp à un contact sans compte est un comportement visible neuf (et touche ce qui part vers une donnée personnelle, V3).
 
 ### Une candidature retenue ne mène à aucun bail : elle devient une réservation datée, et rien ne relie le bail à elle
 - Réf : P48.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : un geste « créer le bail » depuis une candidature est une fonction visible neuve
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:966-986,1016-1040`, `takussan-api/app/Services/Model/BookingService.php:166-209`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:39`, `takussan-api/app/Services/Model/LeaseService.php:46-48`, `takussan-web/src/components/leases/LeasesList.tsx:153`
 - Constat :
@@ -5186,10 +5188,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Même avec ce lien, la fiche du candidat reste invisible au personnel, et `LeaseService` rend 403 (P15.01).
   - Établi comment : lu. L'effet d'une candidature `confirmed` sur le calendrier du bien (nuits bloquées entre ses deux dates) n'a pas été mesuré.
 - Piste : un geste « créer le bail » depuis une candidature confirmée, qui préremplit bien, locataire et `booking_id` ; contrôler côté API que `tenant_id` est le client de la réservation. Dépend de P15.01 pour la visibilité de la fiche.
+- Mesure (2026-10-19, f356e5a5f, mesureur) : relu `BookingRequestPublicPropertyRequest.php:29-30` (`start_date`, `end_date` requis), `BookingService::confirm:166-209` (passe à `confirmed`, prévient par `BookingConfirmed`, ne crée aucun bail), `StoreLeaseRequest.php:39` (`booking_id` borné au seul bien) ; `grep booking_id takussan-web/src` → seuls des types (`types/lease.ts:58`…), et les deux liens vers `/app/leases/new` sont sans paramètre (`(liste)/page.tsx:36`, `LeasesList.tsx:153`) → tout tient. Classement : V7, le geste et son préremplissage sont un parcours neuf ; le contrôle `tenant_id` = client de la réservation change une validation qu'aucun texte n'écrit, et la piste dépend de P15.01.
 
 ### Un locataire en préavis ne peut plus demander d'intervention, et son accueil compte zéro bail
 - Réf : P48.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : élargir au préavis qui peut créer une intervention
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:99-103`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:58-61`, `takussan-api/app/Models/Concerns/HasProfiles.php:38-43`
 - Constat :
@@ -5198,10 +5201,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Ailleurs, le dépôt traite le préavis comme un bail en cours : `ACTIVE_TENANT_LEASE_STATUSES = [Active, Terminating]` pour le rôle `tenant` (lu, l. 43), et une échéance se pose sur un bail actif ou en préavis (`LeasePaymentController.php:43-46`).
   - Établi comment : lu. L'intention (bloquer les interventions pendant le préavis) n'est écrite nulle part que j'aie trouvée : à vérifier.
 - Piste : juger les deux sites par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`. Garde : un test de création d'intervention par un locataire en `terminating`.
+- Mesure (2026-10-19, f356e5a5f, mesureur) : relu `MaintenanceRequestController.php:99-103` (bail `LeaseStatus::Active` seul), `DashboardTenantService.php:60` et `HasProfiles.php:43` ; test temporaire (`POST /api/maintenance-requests` par un locataire dont le seul bail est `terminating`, puis `DashboardTenantService::summary`), retiré ensuite, charge 2,08 sur 8 cœurs → `403`, `leases.active = 0`, alors que `hasActiveTenantLease()` rend `true` → le constat tient, mesuré. `grep -i 'préavis\|terminating' docs/features.md docs/adr` : rien n'écrit si les interventions restent ouvertes pendant le préavis. Classement : V2, c'est une règle d'autorisation de création que la piste élargit, et l'intention n'est écrite nulle part ; le compte du tableau de bord change aussi ce que voit le locataire (V7).
 
 ### Petites améliorations
 - Réf : P48.05
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : deux options pour `customer_id`, et une vue de paiement neuve pour un compte mixte
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Dashboard/DashboardTenantService.php:129`, `takussan-web/src/app/(dashboard)/app/payments/page.tsx:30-37`, `takussan-web/src/components/payments/PaymentsTabs.tsx:109-112`
 - Constat :
@@ -5209,3 +5213,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Un compte qui a un profil professionnel (agent, admin, bailleur, prestataire) et un bail de locataire ailleurs reçoit sur `/app/payments` les onglets de gestion (`isCustomerOnly` faux, l. 32-36). `PaymentsHistoryTable` n'a ni « Payer » ni quittance : seuls `CustomerPayments` et `LeaseSchedule` les portent (lu, `grep` de `PayOnlineButton` et de `/receipts/`). Le détail du bail les garde.
   - Établi comment : lu.
 - Piste : retirer `customer_id` du résumé, ou le remplacer par la liste. Sur `/app/payments`, ajouter la vue client à un compte qui a aussi un bail de locataire.
+- Mesure (2026-10-19, f356e5a5f, mesureur) : relu `DashboardTenantService.php:129` (`customer_id` = première fiche) ; `grep customer_id takussan-web/src/lib/queries/dashboard.ts` → seul le type (l. 94), aucun lecteur `.customer_id` au front ; `payments/page.tsx:32-36` (`isCustomerOnly` = aucun rôle de `PROFESSIONAL_ROLES`, `lib/roles.ts:57-58`) et `PaymentsTabs.tsx:109-112` (historique sans « Payer ») ; `grep -l PayOnlineButton` → `CustomerPayments`, `LeaseSchedule`, `BookingDetail`, rien sous `PaymentsTabs` → les deux points tiennent. Classement : V7, la piste propose deux options pour le champ (retrait ou liste) et la vue client ajoutée à un compte professionnel est un écran neuf.
