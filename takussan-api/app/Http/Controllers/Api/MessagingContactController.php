@@ -47,8 +47,9 @@ use Spatie\QueryBuilder\QueryBuilder;
  * `filter[added_by_id]`, `filter[role]` et `include=` : des questions d'administration sur un
  * compte, pas sur un contact.
  *
- * Cet endpoint déclare donc SA propre liste blanche, étroite : un filtre (`search`, sur
- * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch), deux tris (le
+ * Cet endpoint déclare donc SA propre liste blanche, étroite : deux filtres (`search`, sur
+ * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch ; et `exclude`,
+ * des identifiants que le sélecteur a déjà choisis, TCK-973), deux tris (le
  * nom), trois colonnes. Tout autre paramètre rend 400 (`InvalidQuery` de spatie). La recherche
  * reste celle de Scout, tolérante aux fautes et aux accents, et son ordre de pertinence est
  * restitué ({@see SearchRelevanceSort}) ; sans recherche, tri alphabétique — une liste de personnes.
@@ -83,22 +84,40 @@ class MessagingContactController extends Controller
     {
         $relevance = [];
 
-        $query = QueryBuilder::for($base->with('media'), $request)
+        // TCK-973 (P51.06) — la ressource ne lit que l'avatar : les autres collections du compte
+        // (`documents`, `photos`…) ne se chargent pas.
+        $base->with(['media' => fn ($media) => $media->where('collection_name', 'avatar')]);
+
+        $query = QueryBuilder::for($base, $request)
             ->allowedFields('id', 'first_name', 'last_name')
-            ->allowedFilters(AllowedFilter::callback('search', function (Builder $q, mixed $value) use (&$relevance) {
-                $terms = trim(is_array($value) ? implode(' ', $value) : (string) $value);
-                if ($terms === '') {
-                    return;
-                }
+            ->allowedFilters(
+                // TCK-973 (P51.06) — les personnes déjà choisies dans le sélecteur, retirées AVANT
+                // la pagination : `meta.total` et la page ne comptent que les personnes proposables.
+                // Un identifiant illisible n'exclut rien.
+                AllowedFilter::callback('exclude', function (Builder $q, mixed $value) {
+                    $ids = array_values(array_filter(
+                        array_map('intval', is_array($value) ? $value : explode(',', (string) $value)),
+                        fn (int $id) => $id > 0,
+                    ));
+                    if ($ids !== []) {
+                        $q->whereNotIn('users.id', $ids);
+                    }
+                }),
+                AllowedFilter::callback('search', function (Builder $q, mixed $value) use (&$relevance) {
+                    $terms = trim(is_array($value) ? implode(' ', $value) : (string) $value);
+                    if ($terms === '') {
+                        return;
+                    }
 
-                $relevance = User::search($terms)
-                    ->options(['attributesToSearchOn' => self::SEARCHABLE_NAME])
-                    ->take(self::SEARCH_ID_CAP)
-                    ->keys()
-                    ->all();
+                    $relevance = User::search($terms)
+                        ->options(['attributesToSearchOn' => self::SEARCHABLE_NAME])
+                        ->take(self::SEARCH_ID_CAP)
+                        ->keys()
+                        ->all();
 
-                $q->whereIn('users.id', $relevance);
-            }))
+                    $q->whereIn('users.id', $relevance);
+                }),
+            )
             ->allowedSorts('first_name', 'last_name')
             // Aucune relation : l'appel VIDE est ce qui fait refuser un `include=` (400), qu'on
             // ignorerait sinon en silence.

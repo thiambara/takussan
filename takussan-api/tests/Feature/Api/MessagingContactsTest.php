@@ -21,6 +21,9 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Messaging\MessagingReach;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\ApiTestCase;
 use Tests\Concerns\InteractsWithMeilisearch;
 
@@ -235,6 +238,81 @@ class MessagingContactsTest extends ApiTestCase
             // Tri par défaut alphabétique : c'est une liste de personnes, pas un fil d'activité.
             ->assertJsonPath('data.0.name', 'Awa Sarr')
             ->assertJsonPath('data.1.name', 'Binta Sarr');
+    }
+
+    /**
+     * TCK-973 (P51.06) — le sélecteur retire les personnes déjà choisies. Côté client, sur une page
+     * de 20, « {shown} sur {total} » comptait les choisis, et vingt choisis donnaient une liste
+     * vide sous un total non nul. `filter[exclude]` les retire AVANT la pagination : `meta.total`
+     * et la page ne comptent plus qu'eux.
+     */
+    public function test_filter_exclude_retire_les_choisis_avant_la_pagination(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $contacts = [];
+        foreach (['Awa', 'Binta', 'Coumba', 'Dieynaba'] as $prenom) {
+            $contacts[$prenom] = $this->user($prenom, 'Sarr');
+            $this->shareConversation($moi, $contacts[$prenom]);
+        }
+
+        $this->actingAsApi($moi);
+
+        $exclus = $contacts['Awa']->id.','.$contacts['Coumba']->id;
+        $this->getJson("/api/conversations/contacts?per_page=2&filter[exclude]={$exclus}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 1)
+            ->assertJsonPath('data.0.name', 'Binta Sarr')
+            ->assertJsonPath('data.1.name', 'Dieynaba Sarr');
+
+        // Un identifiant illisible n'exclut rien et ne casse rien.
+        $this->getJson('/api/conversations/contacts?filter[exclude]=abc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 4);
+    }
+
+    /**
+     * TCK-973 (P51.06, A2) — la ressource ne lit que la collection `avatar` : charger toutes les
+     * collections (`documents`, `photos`…) de chaque contact lisait des lignes `media` pour rien.
+     */
+    public function test_seule_la_collection_avatar_est_chargee(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $awa = $this->user('Awa', 'Sarr');
+        $this->shareConversation($moi, $awa);
+        foreach (['documents' => [], 'avatar' => ['thumbnail' => true]] as $collection => $conversions) {
+            Media::query()->forceCreate([
+                'model_type' => $awa->getMorphClass(),
+                'model_id' => $awa->id,
+                'uuid' => (string) Str::uuid(),
+                'collection_name' => $collection,
+                'name' => $collection,
+                'file_name' => "{$collection}.jpg",
+                'mime_type' => 'image/jpeg',
+                'disk' => config('media-library.public_disk_name'),
+                'conversions_disk' => config('media-library.public_disk_name'),
+                'size' => 1,
+                'manipulations' => [],
+                'custom_properties' => [],
+                'generated_conversions' => $conversions,
+                'responsive_images' => [],
+            ]);
+        }
+
+        $this->actingAsApi($moi);
+
+        $lus = [];
+        DB::listen(function ($query) use (&$lus) {
+            if (str_contains($query->sql, 'from "media"')) {
+                $lus[] = $query->sql;
+            }
+        });
+
+        $response = $this->getJson('/api/conversations/contacts')->assertOk();
+
+        $this->assertNotNull($response->json('data.0.avatar_url'), 'l’avatar reste rendu');
+        $this->assertCount(1, $lus, 'une seule requête sur `media`, chargée d’avance');
+        $this->assertStringContainsString('"collection_name" = ?', $lus[0]);
     }
 
     // ---------------------------------------------------------------------------------------------
