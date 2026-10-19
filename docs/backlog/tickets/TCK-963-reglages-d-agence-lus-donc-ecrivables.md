@@ -1,7 +1,7 @@
 ---
 id: TCK-963
 title: "`AgencyUpdateRequest` accepte `booking_pending_expiry_hours` et `tenant_onboarding_enabled`, et un test confronte les clés lues aux règles"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -54,18 +54,18 @@ Un admin d'agence peut écrire les deux réglages par `PATCH /api/agencies/{id}`
 
 ## Delta à produire
 
-- [ ] `AgencyUpdateRequest` : `settings.booking_pending_expiry_hours` (entier 0..168) et
+- [x] `AgencyUpdateRequest` : `settings.booking_pending_expiry_hours` (entier 0..168) et
   `settings.tenant_onboarding_enabled` (booléen).
-- [ ] Test HTTP : les deux clés s'écrivent ; 169, -1 et une chaîne non booléenne → 422.
-- [ ] Test de confrontation : toute clé de `agencies.settings` lue par `app/` a une règle.
+- [x] Test HTTP : les deux clés s'écrivent ; 169, -1 et une chaîne non booléenne → 422.
+- [x] Test de confrontation : toute clé de `agencies.settings` lue par `app/` a une règle.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `PATCH` avec `booking_pending_expiry_hours: 0` et `tenant_onboarding_enabled: false`
+- [x] AC1 — `PATCH` avec `booking_pending_expiry_hours: 0` et `tenant_onboarding_enabled: false`
   → 200, et les deux valeurs sont dans `agencies.settings`.
-- [ ] AC2 — `booking_pending_expiry_hours: 169` ou `-1` → 422 ; `tenant_onboarding_enabled: "x"`
+- [x] AC2 — `booking_pending_expiry_hours: 169` ou `-1` → 422 ; `tenant_onboarding_enabled: "x"`
   → 422.
-- [ ] AC3 — le test de confrontation rougit sur l'arbre d'avant le correctif, en nommant les deux
+- [x] AC3 — le test de confrontation rougit sur l'arbre d'avant le correctif, en nommant les deux
   clés.
 
 ## Hors périmètre
@@ -75,4 +75,10 @@ Un admin d'agence peut écrire les deux réglages par `PATCH /api/agencies/{id}`
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : les 6 tests d'`AgencySettingsWritableTest` rougissent ; la confrontation nomme
+  `booking_pending_expiry_hours (Services/Booking/BookingExpirationService.php)` et
+  `tenant_onboarding_enabled (Services/Tenant/TenantOnboardingService.php)`.
+- Ablation (les deux règles retirées) → 6 rouges ; remises → 6 verts, `AgencySettingsMergeTest`
+  vert.
+- Le balayage épingle ses cinq lecteurs connus (`LECTEURS_CONNUS`) : un motif qui cesserait de les
+  voir rougit au lieu de rendre une liste vide.
