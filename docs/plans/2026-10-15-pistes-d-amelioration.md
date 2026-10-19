@@ -4527,7 +4527,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
 
 ### Petites améliorations
 - Réf : P39.06
-- Statut : validé — les deux points : le `metadata` d'un événement rangé sous son entrée de `gateway_events`, et un `failed` ignoré sur une transaction `settled_by`
+- Statut : fait · TCK-961
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Payments/PaymentGatewayService.php:546-552`, `:577`
 - Constat :
@@ -4535,6 +4535,7 @@ sont atteignables par un webhook légitime, sans rejeu).*
   - Un `failed` reçu sur la transaction qui a soldé l'échéance pose encore `gateway.last_failed_at` (mesuré : 200, échéance `paid`, `last_failed_at` posé). Sans effet trouvé aujourd'hui, `openCheckout` ne servant qu'à un payable ouvert (lu).
 - Piste : ranger le `metadata` d'un événement sous son entrée de `gateway_events` plutôt qu'à la racine ; ignorer un `failed` sur une transaction `settled_by`.
 - Mesure (2026-10-17, 8949e4ede, mesureur) : test temporaire `MesureurTmpP39Test` (charge 3,02 sur 8 cœurs, `LeaseDueFixture` + vrai pilote Wave signé), retiré ensuite : après `paid`, un `checkout.session.payment_failed` sur la transaction `settled_by` → 200, échéance `paid`, `gateway.last_failed_at` posé, `metadata.event = checkout.session.payment_failed` ; après un remboursement, `metadata.event = checkout.session.refunded`. Classement : V1, déplacer le `metadata` d'un événement change la trace d'un règlement que l'argent suit.
+- Mesure (2026-10-18, c448786fc, implementeur) : reproduit avant correctif par `PaymentEventTraceTest` (`LeaseDueFixture`, vrai webhook Wave signé) : échéance soldée par `spy_txn_1`, puis `checkout.session.payment_failed` sur `spy_txn_1` → `metadata.event` à la racine, `gateway.last_failed_at` posé sur l'échéance `paid` ; après un remboursement, `metadata.event` à la racine. Correctif : le `metadata` d'un événement sur son entrée de `gateway_events` (plus de fusion à la racine), un `failed` sur la transaction `settled_by` ignoré → 4 verts, plus `LemonSqueezyEventListenerTest` qui lit les frais sur l'entrée (5 verts) ; ablation (service remis à `pre-dev`) → 4 rouges, correctif remis → 9 verts.
 
 ### Ce qu'un paiement repassé à `refunded` laisse en aval n'est pas défait
 - Réf : P39.07
@@ -4857,7 +4858,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
-- Statut : validé — la garde côté API : un test PHPUnit qui lit `Route::getRoutes()` et les littéraux de `../takussan-web/src`, réécrit les relais BFF par une table tirée des route handlers, échoue sur tout chemin ou verbe sans route et sur un `[...path]` neuf que la table ne couvre pas ; preuve de non-vacuité par `PATCH /api/users/me` réintroduit ; reste : OpenAPI (spec générée, client typé), chantier à part ouvert par un ADR si le porteur le décide
+- Statut : retenu · à valider — chemin fermé : `scripts/ci-attestation.mjs` (`PERIMETRES.api` doit couvrir `takussan-web/src`, que le test lit) et `.github/workflows/api-ci.yml` (`paths`, pour que la garde tourne sur un changement du seul front)
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
 - Constat :
@@ -4871,6 +4872,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Autre voie : un instantané `route:list --json` régénéré par `api-ci` (comme `tests/impact-map.json`) et lu par une garde Node de `repo-ci`. Elle coûte un fichier versionné qui peut vieillir.
   - Preuve de non-vacuité : réintroduire `PATCH /api/users/me` dans `locale.ts` doit faire rougir la garde.
 - Mesure (2026-10-18, 5ab3231f9, mesureur) : `grep -ln 'route:list\|getRoutes\|routes/api' scripts/check-*.mjs` → 3 gardes sur 52, aucune ne lit les appels du front (`check-pro-routes.mjs` confronte les cadenas de la barre latérale, `check-cache-headers-auth.mjs` et `check-auth-controller-namespace.mjs` les seules routes) ; `grep -rln 'getRoutes()' takussan-api/tests` → 13 tests, aucun ne lit `takussan-web/src` ; `check-cache-headers-auth.mjs:178-181` confirme un job `guards` sans PHP ; `locale.ts:22` porte le correctif TCK-655 de `/api/users/me`. L'absence de garde tient ; le balayage complet « aucun chemin absent » n'a pas été rejoué, seul P45.02 a été re-mesuré. Classement : V8, la garde doit déplier relais BFF, préfixe d'`apiFetch` et segments dynamiques, au-delà de M, et la seconde voie (instantané régénéré par `api-ci`) touche `.github/` (V5).
+- Mesure (2026-10-18, c448786fc, implementeur) : un fichier temporaire `takussan-api/tests/MesureTmpP45.php` portant `base_path("../takussan-web/src")`, retiré ensuite → `node scripts/check-ci-attestation.mjs` sort en 1 : « lit « takussan-web/src », hors de la clé de l'API — l'ajouter à PERIMETRES.api dans scripts/ci-attestation.mjs » ; sans lui, 0. `PERIMETRES.api` ne couvre que `takussan-web/src/messages` (lu, `scripts/ci-attestation.mjs:38-44`), et `check-pistes.mjs` interdit à l'implémenteur de modifier une garde existante `scripts/*.mjs` (lu, `GARDES`). Le test validé lit forcément `../takussan-web/src` : il ne passe pas la garde du dépôt sans ce chemin. En outre, `api-ci.yml` ne se déclenche que sur `takussan-api/**` (lu, l. 15-31) : un changement du seul front ne jouerait pas la garde avant la CI suivante de l'API. Rien n'est implémenté. Classement : chemin fermé (V9, garde existante ; V5, déclencheur de la CI), à traiter par le porteur, en session.
 
 ### `useUpdateLease` envoie `PUT` sur `api/leases/{lease}`, qui n'accepte que `PATCH` ; le hook n'a aucun appelant
 - Réf : P45.02

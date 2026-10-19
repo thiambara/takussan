@@ -148,10 +148,12 @@ class LemonSqueezyEventListenerTest extends TestCase
         app(PaymentGatewayService::class)->handleWebhookEvent('order_created', $payload);
 
         $ctx['payment']->refresh();
-        $this->assertSame(2099, $ctx['payment']->metadata['gross_amount']);
-        $this->assertSame(100, $ctx['payment']->metadata['fees_amount']);
-        $this->assertSame(1999, $ctx['payment']->metadata['net_amount']);
-        $this->assertSame('USD', $ctx['payment']->metadata['currency']);
+        // TCK-961 (P39.06) — sous l'entrée de l'événement dans `gateway_events`, plus à la racine.
+        $trace = collect($ctx['payment']->metadata['gateway_events'])->firstWhere('type', 'paid')['metadata'] ?? [];
+        $this->assertSame(2099, $trace['gross_amount'] ?? null);
+        $this->assertSame(100, $trace['fees_amount'] ?? null);
+        $this->assertSame(1999, $trace['net_amount'] ?? null);
+        $this->assertSame('USD', $trace['currency'] ?? null);
     }
 
     /**
