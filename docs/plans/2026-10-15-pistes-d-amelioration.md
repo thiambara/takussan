@@ -5518,7 +5518,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un test qui écrit dans l'index sans le concern `InteractsWithMeilisearch` laisse son index `testing_<jeton>_properties` derrière lui
 - Réf : P53.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-974
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/tests/Support/TestSearchIndex.php:77-81,90-110`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:50-54`, `takussan-api/tests/TestCase.php:74-75`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:57,68`, `takussan-api/app/Services/Boost/BoostLifecycle.php:233`, `takussan-api/app/Services/Geo/GeoReindexation.php:29`, `takussan-api/app/Jobs/Search/SyncAgencyPropertiesSearchIndex.php:59`, `takussan-api/app/Jobs/RefreshNewBuildSearchLabel.php:50`
 - Constat :
@@ -5531,6 +5531,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré par trois classes de test et `GET /indexes`.
 - Piste : programmer `registerCleanup()` depuis `Tests\TestCase::setUp()` pour tout processus (le client se construit de la configuration, sans requête), et non depuis le seul concern ; corriger le docblock. Garde : un test qui appelle `->searchable()` sans le concern, puis vérifie que la fonction d'extinction vise le préfixe du processus (ou qu'un sous-processus PHPUnit ne laisse aucun index `testing_<jeton>_*`).
 - Mesure (2026-10-19, 30601b3a7, mesureur) : relu `TestSearchIndex.php` (`registerCleanup` l. 89-107, docblock l. 79-83 qui le dit exhaustif, l. 25-27 « les index créés doivent être SUPPRIMÉS en fin d'exécution »), `InteractsWithMeilisearch.php:51-54` (seul appel de `registerCleanup`), `TestCase::setUp()` (seul `disableSearchSyncing()`, qui ne coupe que `ModelObserver`) et `grep -rn -- '->searchable()' app` → les six appels explicites cités (dont deux dans `PropertyTagController`) ; `git log` sur les trois fichiers et `grep -rln registerCleanup docs/backlog/tickets` → aucun traitement ; `GET /indexes` sur 7701 → les deux orphelins de l'explorateur toujours là, puis `php artisan test tests/Feature/Api/PropertyTagsTest.php` (charge 2,01 sur 8 cœurs) → 8 verts, et `testing_2005ab3588_properties` reste après la fin du processus → le constat tient ; l'accumulation sur une journée d'agents reste déduite. Classement : A1 + A5, le comportement attendu est écrit dans le docblock de `TestSearchIndex` (suppression des index du processus en fin d'exécution) et le correctif ne touche que le harnais de test, sans choix de produit.
+- Mesure (2026-10-19, 22da7f13d, implementeur) : `php artisan test tests/Feature/Api/PropertyTagsTest.php` → 8 verts, et `testing_29296c0bc4_properties` reste sur 7701 → `Tests\TestCase::setUp()` programme `TestSearchIndex::registerCleanup()` pour tout processus ; `SearchIndexCleanupTest` (processus séparé, sans le concern) vert, et `PropertyTagsTest` + `TagVisibilityTest` + `BoostPauseAndRefundTest` ne laissent plus aucun index neuf ; ablation (appel neutralisé) → test rouge et `testing_2d3797f982_properties` laissé, remis → vert.
 
 ### `dev.sh` crée sept index `testing_*` que nul test ne lit, sous un commentaire qui décrit un `phpunit.xml` disparu
 - Réf : P53.02
