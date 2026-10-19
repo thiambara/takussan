@@ -758,20 +758,18 @@ else
   fi
 fi
 
-# ─────────────────────────────────────── réglages Meilisearch, INDEX DE TEST COMPRIS
-# `phpunit.xml` pose `SCOUT_PREFIX=testing_` : la suite écrit donc dans `testing_properties`,
-# pas dans `properties`. `api-ci.yml` synchronise bien les réglages sous ce préfixe — mais rien
-# ne le faisait sur le poste du développeur. Conséquence : un test qui filtre sur un attribut
-# Meilisearch sans le trait `InteractsWithMeilisearch` PASSE en CI et ÉCHOUE en local, sur
-# « Attribute `status` is not filterable ». Le développeur cherche alors dans son code un
-# défaut qui est dans son environnement, avec une CI verte pour le contredire.
-#
-# Les deux préfixes sont synchronisés : celui du travail, et celui des tests.
-#
-# *Une divergence CI↔local n'est pas une nuisance : c'est une garde qui rend deux verdicts
-# opposés sur le même code, et c'est toujours celui qu'on a sous les yeux qu'on croit.*
+# ─────────────────────────────────────────────────────────────── réglages Meilisearch
+# TCK-995 : la commande du dépôt, qui sort en échec sur tout refus et relit les réglages appliqués
+# (celle de Scout sortait en 0 : l'avertissement ne s'affichait jamais). Les tests n'ont rien à
+# attendre d'ici : chaque processus de la suite synchronise ses propres index, sous un préfixe
+# `testing_<jeton>_` (tests/Support/TestSearchIndex.php) — P53.02.
 if [ "$(env_get "$API/.env" SCOUT_DRIVER)" = "meilisearch" ]; then
-  (cd "$API" && php artisan scout:sync-index-settings >/dev/null 2>&1)     && (cd "$API" && SCOUT_PREFIX=testing_ php artisan scout:sync-index-settings >/dev/null 2>&1)     && ok "réglages Meilisearch synchronisés (index de travail ET testing_*)"     || avert "scout:sync-index-settings a échoué — les tests filtrant sur Meilisearch échoueront."
+  if sortie=$(cd "$API" && php artisan search:sync-index-settings 2>&1); then
+    ok "réglages Meilisearch appliqués et relus"
+  else
+    avert "search:sync-index-settings a échoué — la recherche de l'API locale peut rendre des erreurs :"
+    printf '%s\n' "$sortie" | sed 's/^/      /'
+  fi
 fi
 
 # ───────────────────────────────────────────────────────────── API + file + scheduler

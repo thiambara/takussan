@@ -2306,6 +2306,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - Établi comment : lu.
 - Piste : un champ « bailleur » à la création du bien ou du bail, borné aux bailleurs de l'agence.
 - Mesure (2026-10-15, 96d4feb, mesureur) : lu `PropertyController.php:132` (`'user_id' => $request->user()->id` à la création), `LeaseService.php:78` (`'landlord_id' => $property->user_id`, la valeur envoyée par le formulaire étant écrasée) et `CreateLeaseForm.tsx:118-119,190` (`landlord_id` forcé à l'utilisateur courant, libellé `activeLandlord`) ; `bulk-assign` (`PropertyController.php:446-455`) change l'agent responsable, pas `properties.user_id`. Le constat tient. `TCK-616` (`todo`) touche le `landlord_id` d'un agent parti, pas la désignation d'un bailleur. Classement : V7, un champ « bailleur » est un comportement visible neuf, qui touche aussi qui reçoit les reversements (V1).
+- Mesure (2026-10-19, 1c1fe5f0f, humain) : porteur (2026-10-19) : 1a (l'agence peut garder un bien en propre, choix du bailleur facultatif, relevé et avis alignés sur le reversement), 2a (bien saisi pour un invité transféré à l'acceptation), 3a (titulaire du lot fixé à sa création), 4a (lot d'un autre bailleur rattaché → 422), 5a (geste « changer le titulaire »), 6a (notification du bailleur), consigné dans TCK-997, TCK-999 et TCK-1000, et dans l'amendement d'ADR-0036 du 2026-10-19.
 
 ### L'activation du gérant provisionné passe par un e-mail de « réinitialisation »
 - Réf : P15.07
@@ -4869,7 +4870,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
-- Statut : retenu · à valider — chemin fermé : `scripts/ci-attestation.mjs` (`PERIMETRES.api` doit couvrir `takussan-web/src`, que le test lit) et `.github/workflows/api-ci.yml` (`paths`, pour que la garde tourne sur un changement du seul front) ; porteur (2026-10-19) : traité hors agents, en session : `PERIMETRES.api` de `scripts/ci-attestation.mjs` étendu à `takussan-web/src` et `paths` d'`api-ci.yml` ouvert au front, puis la garde
+- Statut : fait · TCK-998
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
 - Constat :
@@ -4884,6 +4885,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Preuve de non-vacuité : réintroduire `PATCH /api/users/me` dans `locale.ts` doit faire rougir la garde.
 - Mesure (2026-10-18, 5ab3231f9, mesureur) : `grep -ln 'route:list\|getRoutes\|routes/api' scripts/check-*.mjs` → 3 gardes sur 52, aucune ne lit les appels du front (`check-pro-routes.mjs` confronte les cadenas de la barre latérale, `check-cache-headers-auth.mjs` et `check-auth-controller-namespace.mjs` les seules routes) ; `grep -rln 'getRoutes()' takussan-api/tests` → 13 tests, aucun ne lit `takussan-web/src` ; `check-cache-headers-auth.mjs:178-181` confirme un job `guards` sans PHP ; `locale.ts:22` porte le correctif TCK-655 de `/api/users/me`. L'absence de garde tient ; le balayage complet « aucun chemin absent » n'a pas été rejoué, seul P45.02 a été re-mesuré. Classement : V8, la garde doit déplier relais BFF, préfixe d'`apiFetch` et segments dynamiques, au-delà de M, et la seconde voie (instantané régénéré par `api-ci`) touche `.github/` (V5).
 - Mesure (2026-10-18, c448786fc, implementeur) : un fichier temporaire `takussan-api/tests/MesureTmpP45.php` portant `base_path("../takussan-web/src")`, retiré ensuite → `node scripts/check-ci-attestation.mjs` sort en 1 : « lit « takussan-web/src », hors de la clé de l'API — l'ajouter à PERIMETRES.api dans scripts/ci-attestation.mjs » ; sans lui, 0. `PERIMETRES.api` ne couvre que `takussan-web/src/messages` (lu, `scripts/ci-attestation.mjs:38-44`), et `check-pistes.mjs` interdit à l'implémenteur de modifier une garde existante `scripts/*.mjs` (lu, `GARDES`). Le test validé lit forcément `../takussan-web/src` : il ne passe pas la garde du dépôt sans ce chemin. En outre, `api-ci.yml` ne se déclenche que sur `takussan-api/**` (lu, l. 15-31) : un changement du seul front ne jouerait pas la garde avant la CI suivante de l'API. Rien n'est implémenté. Classement : chemin fermé (V9, garde existante ; V5, déclencheur de la CI), à traiter par le porteur, en session.
+- Mesure (2026-10-19, 1c1fe5f0f, humain) : porteur (2026-10-19) : voie B retenue à la place de PERIMETRES.api élargi — garde Node de Repo CI alimentée par route:list, sans toucher l'attestation ni ADR-0063 (coût mesuré de la voie écrite : ~30 min de CI de l'API sur ~1 PR de code sur 5).
 
 ### `useUpdateLease` envoie `PUT` sur `api/leases/{lease}`, qui n'accepte que `PATCH` ; le hook n'a aucun appelant
 - Réf : P45.02
@@ -5329,6 +5331,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu et mesuré. Combien d'agences gèrent ainsi des biens pour des bailleurs invités n'a pas été mesuré.
 - Piste : le sélecteur de bailleur de P15.06, posé à la création du bien et non du seul bail (il fixe aussi les relevés et les reversements, P50.02), borné aux bailleurs actifs de l'agence, avec l'invitation depuis le formulaire que `PropertyForm.tsx` prévoit. Garde : un test « l'agent saisit le bien de B → B le voit dans sa liste, le bail le désigne ».
 - Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PropertyController::store` (`user_id` = l'auteur), `index` (filtre `user_id` ou agence du personnel), `LeaseService::create` (`landlord_id = $property->user_id`) et l'en-tête de `PropertyForm.tsx` (sélecteur de propriétaire « out of scope » de TCK-256) ; `git log d0c98c6ae..HEAD -- takussan-api/app takussan-web/src` vide, aucun ticket ne cite l'entrée ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite : l'agent crée un bien → 201, `user_id` = l'agent ; bail avec `landlord_id` = le bailleur → 201, `landlord_id` = l'agent ; pour le bailleur `GET /api/properties` → `total = 0`, `GET /api/leases` → `total = 0`, `GET /api/properties/{id}` → 403 ; relevé du bailleur lu par l'admin → 200, `gross = 0` avec un loyer de 300 000 payé → le constat tient en entier. Classement : V7, la piste pose un sélecteur de bailleur et une invitation neufs dans le formulaire de bien, et le titulaire choisi fixe aussi le bénéficiaire des reversements et des relevés (V1).
+- Mesure (2026-10-19, 1c1fe5f0f, humain) : porteur (2026-10-19) : 1a (l'agence peut garder un bien en propre, choix du bailleur facultatif, relevé et avis alignés sur le reversement), 2a (bien saisi pour un invité transféré à l'acceptation), 3a (titulaire du lot fixé à sa création), 4a (lot d'un autre bailleur rattaché → 422), 5a (geste « changer le titulaire »), 6a (notification du bailleur), consigné dans TCK-997, TCK-999 et TCK-1000, et dans l'amendement d'ADR-0036 du 2026-10-19.
 
 ### Les loyers d'un bien dont l'agent est titulaire se reversent à l'agent, et aucun relevé de gérance ne les montre à personne
 - Réf : P50.02
@@ -5343,6 +5346,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu et mesuré.
 - Piste : décider qui reçoit l'argent d'un bien saisi par le personnel. Si c'est un bailleur, P50.01 le désigne et le relevé suit. Si l'agence peut garder des biens en propre, aligner le relevé et l'avis sur la règle du reversement (même liste de profils). Garde : un test qui relie, pour un même bien, le bénéficiaire du reversement et le lecteur du relevé.
 - Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PayoutService::create` (bénéficiaire `OwnerProfile`, `AgentProfile` ou `AgencyAdminProfile`), `OwnerStatementPolicy::view` (exige un `OwnerProfile`) et `SendOwnerStatements` (saute un `landlord_id` sans `OwnerProfile`) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite, même jeu que P50.01 : `GET /api/payouts/preparation?landlord_id=<agent>&period_start=2026-09-01&period_end=2026-09-30` par l'admin → 200, le loyer y figure ; `POST /api/payouts` vers le bailleur → 422 « Item #1 does not belong to this agency or this landlord » ; vers l'agent → 201 ; relevé de l'agent → 403 pour l'admin comme pour l'agent ; `payouts:send-owner-statements --period=2026-09` → 0 avis à l'agent, 0 au bailleur → le constat tient (l'écran `CreatePayoutDialog` relu, non rejoué). Classement : V1, la piste demande de décider qui reçoit l'argent, et l'option d'alignement change qui lit un relevé de gérance.
+- Mesure (2026-10-19, 1c1fe5f0f, humain) : porteur (2026-10-19) : 1a (l'agence peut garder un bien en propre, choix du bailleur facultatif, relevé et avis alignés sur le reversement), 2a (bien saisi pour un invité transféré à l'acceptation), 3a (titulaire du lot fixé à sa création), 4a (lot d'un autre bailleur rattaché → 422), 5a (geste « changer le titulaire »), 6a (notification du bailleur), consigné dans TCK-997, TCK-999 et TCK-1000, et dans l'amendement d'ADR-0036 du 2026-10-19.
 
 ### Dupliquer le bien d'un bailleur, ou rattacher un lot à son immeuble, fait du personnel le titulaire de la copie ou du lot
 - Réf : P50.03
@@ -5356,6 +5360,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu et mesuré.
 - Piste : la copie et le lot rattaché héritent du titulaire de la source ou du parent, quand c'est un bailleur de l'agence. Garde : deux tests, duplication et rattachement, qui écrivent le titulaire attendu.
 - Mesure (2026-10-19, 6ecc2d080, mesureur) : relu `PropertyDuplicationService.php:68` (`$clone->user_id = $actor->id`), `PropertyController::update` (`parent_id` jugé par `updateParent`, `user_id` inchangé), `PropertyChildrenController::index` (autorise sur le parent seul) et `PropertyPolicy::view` (titulaire ou personnel) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle50Test.php` (base de test PostgreSQL, charge 3,61 sur 8 cœurs), retiré ensuite : le bailleur propose un bien → 201 ; l'admin le duplique → 201, `user_id` = l'admin ; l'agent crée un lot, l'admin le rattache au bien du bailleur → 200, `user_id` = l'agent ; pour le bailleur `GET /api/properties` → `total = 1`, `GET /api/properties/{bien}/children` → 200 avec le lot, `GET /api/properties/{lot}` → 403 → le constat tient. Classement : V1, `docs/models-spec.md:549` admet le personnel comme titulaire, donc l'héritage n'est écrit nulle part, et changer le titulaire change le bénéficiaire des baux et reversements du lot ou de la copie.
+- Mesure (2026-10-19, 1c1fe5f0f, humain) : porteur (2026-10-19) : 1a (l'agence peut garder un bien en propre, choix du bailleur facultatif, relevé et avis alignés sur le reversement), 2a (bien saisi pour un invité transféré à l'acceptation), 3a (titulaire du lot fixé à sa création), 4a (lot d'un autre bailleur rattaché → 422), 5a (geste « changer le titulaire »), 6a (notification du bailleur), consigné dans TCK-997, TCK-999 et TCK-1000, et dans l'amendement d'ADR-0036 du 2026-10-19.
 
 ### Petites améliorations du bailleur invité
 - Réf : P50.04
@@ -5468,7 +5473,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `scout:sync-index-settings` sort en 0 quand Meilisearch refuse : l'arrêt du déploiement de TCK-710 ne se déclenche jamais
 - Réf : P52.01
-- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` et `dev.sh`, et fait échouer des déploiements qui passent aujourd'hui ; porteur (2026-10-19) : traité hors agents, en session : une commande du dépôt qui sort en échec sur tout refus de Meilisearch, appelée par `release.sh` et `dev.sh`
+- Statut : fait · TCK-995
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76`, `takussan-api/docker/release.sh:31-36`, `scripts/test-release-reindex.sh:37-42,94-96`, `dev.sh:774`
 - Constat :
@@ -5484,7 +5489,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le déploiement n'attend ni ne lit l'issue des tâches Meilisearch : un réglage ou un document refusé passe sans trace
 - Réf : P52.02
-- Statut : retenu · à valider — V5 : attente des tâches et relecture des réglages dans `release.sh` et `smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session, avec P52.01 : tâches attendues, réglages relus et comparés à `config/scout.php`
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:408-417`, `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/docker/release.sh:47-58`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:117-130`
 - Constat :
@@ -5497,7 +5502,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une perte du volume de Meilisearch n'est rattrapée par aucun déploiement
 - Réf : P52.03
-- Statut : retenu · à valider — V5 : sonde de l'index au `release` ou procédure du runbook de déploiement ; porteur (2026-10-19) : traité hors agents, en session : compter les documents de l'index au `release` et forcer l'importation sur un index vide face à une table non vide, plutôt qu'une procédure du runbook
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:42-45`, `deploy/server/compose.data.yml:19-31`, `docs/infra/hebergement.md:371-374`
 - Constat :
@@ -5509,7 +5514,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P52.04
-- Statut : retenu · à valider — V5 : `resetSettings()` au déploiement touche `release.sh` ; la partie `SCOUT_PREFIX` est inexacte ; porteur (2026-10-19) : traité hors agents, en session, avec P52.02 ; relevé de `SCOUT_PREFIX` en préproduction
+- Statut : fait · TCK-995
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/config/scout.php:156-300`, `docs/infra/hebergement.md:167`
 - Constat :
@@ -5541,7 +5546,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `dev.sh` crée sept index `testing_*` que nul test ne lit, sous un commentaire qui décrit un `phpunit.xml` disparu
 - Réf : P53.02
-- Statut : retenu · à valider — V5 : le correctif est dans `dev.sh` ; porteur (2026-10-19) : traité hors agents, en session : retirer la seconde synchronisation de `dev.sh` et son commentaire
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `dev.sh:761-775`, `takussan-api/phpunit.xml:57-67`, `takussan-api/tests/Support/TestSearchIndex.php:32,56`, `.github/workflows/api-ci.yml:284-298`
 - Constat :
@@ -5555,7 +5560,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `smoke-api.sh pile` laisse sa base `takussan_smoke` et ses sept index `smoke_*` après le nettoyage
 - Réf : P53.03
-- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session : base et index `smoke_*` retirés par `nettoyer_pile()`, et un verrou contre deux passages simultanés
+- Statut : fait · TCK-995
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/smoke-api.sh:89-121`, `deploy/takussan/.env.smoke.example:18,33`
 - Constat :

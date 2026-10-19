@@ -107,6 +107,35 @@ preparer_pile() {
     -c "CREATE DATABASE takussan_smoke ENCODING 'UTF8' LOCALE 'C' TEMPLATE template0"
 }
 
+# TCK-995 (P53.03) — base, préfixe et projet sont des noms fixes : deux `pile` lancées depuis deux
+# arbres se détruiraient l'une l'autre (`DROP DATABASE` de l'une sous l'autre, `down -v` du même
+# projet). `mkdir` est atomique : le second passage s'arrête AVANT de poser son `trap`, sans rien
+# nettoyer de ce qui ne lui appartient pas. Un verrou dont le processus est mort se reprend.
+VERROU="${TMPDIR:-/tmp}/takussan-smoke-pile.verrou"
+prendre_verrou() {
+  if ! mkdir "$VERROU" 2>/dev/null; then
+    local pid
+    pid=$(cat "$VERROU/pid" 2>/dev/null || true)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      echec "un autre « smoke-api.sh pile » tourne (pid $pid, verrou $VERROU) : attendre sa fin"
+    fi
+    rm -rf "$VERROU"
+    mkdir "$VERROU" || echec "verrou $VERROU impossible à prendre"
+  fi
+  echo $$ > "$VERROU/pid"
+}
+rendre_verrou() { rm -rf "$VERROU"; }
+
+# Les index `smoke_*` vivent sur le Meilisearch de développement (port 7701, clé de
+# `.env.smoke.example`), que `down -v` ne touche pas.
+supprimer_index_smoke() {
+  local hote=http://127.0.0.1:7701 cle uid
+  cle=$(sed -n 's/^MEILISEARCH_KEY=//p' deploy/takussan/.env.smoke.example)
+  for uid in $(curl -fsS -H "Authorization: Bearer $cle" "$hote/indexes?limit=1000" | grep -o '"uid":"smoke_[^"]*"' | cut -d'"' -f4); do
+    curl -fsS -o /dev/null -X DELETE -H "Authorization: Bearer $cle" "$hote/indexes/$uid" || return 1
+  done
+}
+
 nettoyer_pile() {
   # `down -v` SEULEMENT sur un fichier lisible (voir l'en-tête) ; sinon, par l'étiquette du projet,
   # qui ne peut désigner que lui.
@@ -119,6 +148,11 @@ nettoyer_pile() {
     docker network ls -q --filter "label=com.docker.compose.project=$PROJET" | xargs -r docker network rm >/dev/null 2>&1 || true
   fi
   rm -f "$ENV_LOCAL" "$ENV_LOCAL.sain"
+  # TCK-995 (P53.03) : la base et les index de la pile sont sur les services de développement.
+  "${DEV[@]}" exec -T postgres psql -U takussan -d postgres -q \
+    -c 'DROP DATABASE IF EXISTS takussan_smoke WITH (FORCE)' >/dev/null 2>&1 \
+    || echo "⚠ base takussan_smoke non supprimée" >&2
+  supprimer_index_smoke || echo "⚠ index smoke_* non supprimés" >&2
 }
 
 attendre_api_saine() {
@@ -189,7 +223,8 @@ verifier_reseaux() {
 
 verifier_pile() {
   local api="http://$PROJET-api-1:8080" css n q
-  trap nettoyer_pile EXIT
+  prendre_verrou
+  trap 'nettoyer_pile; rendre_verrou' EXIT
   preparer_pile
 
   # Pas de `--wait` : il exige une sonde sur CHAQUE service, et Compose ne tient pas
