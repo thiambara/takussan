@@ -40,6 +40,27 @@ export const FORMULAIRE_UPGRADE_VIERGE: AgencyUpgradeRequestFormFields = {
 const CHAMPS_TEXTE = ['rc', 'ninea', 'rib_pro', 'company_legal_name', 'address_fiscale'] as const;
 
 /**
+ * TCK-989 (P49.01) — ce que le brouillon serveur garde du formulaire : tout,
+ * SAUF le RIB professionnel et le NINEA. `wizard_drafts.data` est un `jsonb` en
+ * clair, conservé jusqu'à 90 jours d'inactivité, alors que la demande envoyée
+ * chiffre ces deux champs (ADR-0044 § 1). Décision du porteur : pas de brouillon
+ * chiffré, on ne les écrit pas ; l'utilisateur les ressaisit à la reprise, comme
+ * il rattache à nouveau le fichier des statuts.
+ */
+export type BrouillonUpgrade = Omit<AgencyUpgradeRequestFormFields, 'rib_pro' | 'ninea'>;
+
+export function brouillonUpgradeDepuisFormulaire(
+  formulaire: AgencyUpgradeRequestFormFields,
+): BrouillonUpgrade {
+  return {
+    rc: formulaire.rc,
+    company_legal_name: formulaire.company_legal_name,
+    address_fiscale: formulaire.address_fiscale,
+    planned_agents_count: formulaire.planned_agents_count,
+  };
+}
+
+/**
  * Ne garde que les clés du formulaire, chacune dans son type : une chaîne pour
  * les champs texte, un nombre fini ou `null` pour le nombre d'agents. Tout le
  * reste (`null`, clé disparue du formulaire, type inattendu) redevient la valeur
