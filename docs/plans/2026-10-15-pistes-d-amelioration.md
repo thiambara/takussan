@@ -5907,7 +5907,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, une visite `visitor_id` = le compte puis `executeDeletion()` → la visite désigne toujours le compte (1) → `anonymize()` met `visitor_id` à `null` sur les visites du compte, comme pour `customers` ; `AccountDeletionExecuteTest::test_execute_dissocie_les_visites_du_compte` vert (nom, e-mail et téléphone de la visite inchangés, visite d'un autre compte intacte), ablation → rouge, 10 verts sur la classe.
 ### Le jeton de réinitialisation du mot de passe garde l'e-mail d'origine, et la table n'est jamais purgée
 - Réf : P57.03
-- Statut : validé — supprimer à l'effacement les lignes de `password_reset_tokens` de l'adresse d'origine, relevée avant le `forceFill`, et planifier `auth:clear-resets` chaque jour dans `routes/console.php` ; deux tests (porteur, 2026-10-19)
+- Statut : fait · TCK-1015
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/console.php`, `takussan-api/config/auth.php:99`
 - Constat :
@@ -5918,6 +5918,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Piste : supprimer les lignes de l'adresse d'origine dans `anonymize()` (relevée avant le `forceFill`), et planifier `auth:clear-resets` chaque jour, comme les autres purges de `routes/console.php`. Deux tests : après `executeDeletion()`, aucune ligne pour l'adresse d'origine ; la commande est planifiée. Ablation → rouge.
 
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : une ligne `password_reset_tokens` pour l'adresse du compte puis `executeDeletion()` → la ligne existe toujours (1) ; `grep -rn clear-resets routes app` → rien, la purge n'est pas planifiée ; `anonymize()` ne cite pas la table (lu). Classement : V3, supprimer à l'effacement et fixer une durée de conservation touchent à ce qui est conservé ; la seule planification de `auth:clear-resets` est peu discutable mais reste une durée de conservation.
+- Mesure (2026-10-19, 5cd62d286, implementeur) : avant correctif, une ligne `password_reset_tokens` pour l'adresse du compte survit à `executeDeletion()` et le planificateur ne porte aucun `auth:clear-resets` (3 rouges) → `anonymize()` supprime les lignes de l'adresse d'origine, et `routes/console.php` planifie chaque jour `auth:clear-resets activations` : la table est partagée avec le lien d'activation de 7 jours (TCK-781), que la purge par le broker par défaut (60 min) effacerait au bout d'une heure ; `AccountDeletionExecuteTest` et `PasswordResetTokensPruneTest` verts, trois ablations (effacement, planification, commande sans broker) → rouges, 13 verts.
 ### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
 - Réf : P57.04
 - Statut : validé — révoquer à l'anonymisation les invitations en cours du compte (statut existant) et effacer leur `email` et leur `phone` ; un test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse (porteur, 2026-10-19)
