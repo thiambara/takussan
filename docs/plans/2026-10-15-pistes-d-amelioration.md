@@ -5947,7 +5947,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### La liste des relevés bancaires lance une requête `bank_statement_lines` par relevé pour `reconciled_ratio`
 - Réf : P58.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-988
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/BankStatement.php:93-110`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:17-26`
 - Constat :
@@ -5956,6 +5956,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire.
 - Piste : précharger les comptes par `withCount` filtrés (`lines as confirmed_count` où `match_status = confirmed`, etc.) dans l'index, et faire lire ces alias à l'accesseur quand ils sont présents ; garder par un test de budget « 2 relevés = 12 relevés » sur `GET /api/agencies/{id}/bank-statements`.
 - Mesure (2026-10-19, 353c40b57, mesureur) : `getReconciledRatioAttribute` interroge les lignes à chaque appel (lu, `BankStatement.php:93-110`), `BankStatementResource.php:28` le lit et `BankStatementController::index` pagine sans préchargement (lu, `:17-26`) ; test temporaire retiré, journal des requêtes : 2 relevés → 2 requêtes `bank_statement_lines`, 13 relevés → 13. Classement : A2, N+1 dont le correctif ne change pas le résultat rendu.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `BankStatementListQueryBudgetTest`, avant correctif : 2 relevés → 2 requêtes `bank_statement_lines`, 12 → 12 ; sous `fields[bank_statements]=id,status`, 2 requêtes pour 2 relevés → comptes préchargés par `withCount` après `buildQuery()`, une requête quel que soit le nombre, ratio identique ; ablation → 2 rouges, remis → verts ; comptes posés avant `buildQuery()` → rouge sous `fields[]`.
 
 ### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
 - Réf : P58.04
