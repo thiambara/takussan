@@ -1,7 +1,7 @@
 ---
 id: TCK-955
 title: "La pièce du client et de la caution se lisent en clair par une route dédiée : admin de l'agence seul, sous step-up, refusée sous impersonation, journalisée ; bouton « Afficher » sur la fiche client"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M
@@ -75,31 +75,31 @@ bailleur et une session d'impersonation ne le peuvent pas.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'admin de l'agence du client, avec un step-up récent, reçoit 200 et `id_number`
+- [x] **AC1** — L'admin de l'agence du client, avec un step-up récent, reçoit 200 et `id_number`
   en clair par `GET /api/customers/{id}/sensitive`. Une ligne `PersonalDataAccess` est écrite, avec
   la surface `customer_sensitive` et l'`agency_id` du client. Une seconde lecture dans les 15
   minutes n'en écrit pas de seconde.
-- [ ] **AC2** — Sans step-up récent, la même requête rend 403 `two_factor_step_up_required` et
+- [x] **AC2** — Sans step-up récent, la même requête rend 403 `two_factor_step_up_required` et
   n'écrit aucune ligne.
-- [ ] **AC3** — Rendent 403, sans écrire de ligne : l'agent auteur de la fiche, le bailleur du bail
+- [x] **AC3** — Rendent 403, sans écrire de ligne : l'agent auteur de la fiche, le bailleur du bail
   du client, l'admin d'une autre agence, et l'admin qui lit un client sans agence. Le super-admin,
   sous step-up, reçoit 200 et une ligne est écrite, client sans agence compris (amendement
   d'ADR-0070 du 2026-10-19).
-- [ ] **AC4** — Les mêmes cas pour `GET /api/guarantors/{id}/sensitive`. Pour l'admin, la réponse
+- [x] **AC4** — Les mêmes cas pour `GET /api/guarantors/{id}/sensitive`. Pour l'admin, la réponse
   porte `monthly_income` en nombre. La ligne de journal porte la surface `guarantor_sensitive` et
   l'agence validée : elle n'est pas nulle, et elle est visible dans `GET /api/audit-log` de cette
   agence.
-- [ ] **AC5** — Sous impersonation d'un admin d'agence, les deux routes rendent 403
+- [x] **AC5** — Sous impersonation d'un admin d'agence, les deux routes rendent 403
   `impersonation.read_only`. `ImpersonationReadSweepTest` les balaie sans fuite tolérée.
-- [ ] **AC6** — `ProtectedActionsCoverageTest` est vert avec les deux actions dans `STEP_UP`.
-- [ ] **AC7** — Front : un test vitest de la fiche client montre que :
+- [x] **AC6** — `ProtectedActionsCoverageTest` est vert avec les deux actions dans `STEP_UP`.
+- [x] **AC7** — Front : un test vitest de la fiche client montre que :
   - l'admin voit « Afficher », et un clic appelle `/api/customers/{id}/sensitive` puis affiche la
     valeur ;
   - un agent ne voit pas le bouton ;
   - un 403 de step-up ouvre la garde de TCK-589.
 
   `npx tsc --noEmit` et `npm run lint` sont propres.
-- [ ] **AC8 — ablation** : sans l'entrée `CustomerController@sensitive` de `STEP_UP` (copie gardée,
+- [x] **AC8 — ablation** : sans l'entrée `CustomerController@sensitive` de `STEP_UP` (copie gardée,
   restaurée par `cp`, `md5` vérifié), AC2 et AC5 rougissent. Sans l'appel à `record()`, AC1
   rougit. Correctif remis : tout est vert.
 
@@ -115,3 +115,25 @@ bailleur et une session d'impersonation ne le peuvent pas.
   ont un auteur sans agence résolue, sur la base de dev seedée. Ces lignes n'auront aucun lecteur
   en clair (ADR-0070, Conséquences).
 - `isAgencyAdminAt()` (`HasProfiles`) est ce que lit déjà `OwnerProfilePolicy::viewSensitive`.
+
+- **Livré le 2026-10-19.** AC3 suit l'amendement d'ADR-0070 du même jour : le super-admin lit par
+  `Gate::before`, sous step-up, et sa lecture est journalisée. Un test le fixe, client sans agence
+  compris.
+- **Mesuré sur la base de dev seedée** (`takussan`, 2026-10-19) : 564 clients, dont 0 sans agence ;
+  139 cautions, dont 0 dont l'auteur n'a pas d'agence résolue. Aucune ligne n'est donc sans admin
+  pour lecteur.
+- **L'agence de la caution** est lue par `GuarantorPolicy::agencyOf()`, qui sert à la fois la
+  policy et le rattachement du journal. Deux copies de cette jointure implicite auraient pu
+  diverger. `record()` la passe dans `properties.agency_id` (étape 1 du résolveur) ; la clé est
+  omise quand l'agence est nulle.
+- **Front** : le geste vit dans `RevelationNumeroDePiece`, sous le champ du formulaire de la fiche.
+  La page calcule `canRevealIdNumber` par `isAdmin()`, qui compte aussi le super-admin. Le champ de
+  saisie reste vide : la valeur révélée ne remplit jamais le formulaire.
+- **Ablations.** Sans `CustomerController@sensitive` dans `STEP_UP` : AC2 et AC5 rougissent, et
+  `ImpersonationReadSweepTest` rougit aussi sur `GET api/customers/{customer}/sensitive`. Sans
+  `record()` : AC1 rougit. Sans le geste dans le formulaire : 2 des 3 tests vitest rougissent.
+  Chaque fois, le correctif est remis par `cp`, avec un `md5` identique.
+- **Mesures.** Le test du ticket donne 5 verts. Les gardes voisines (couverture du step-up,
+  balayage d'impersonation, lecture du bailleur, journal d'audit, cautions, clients) donnent
+  89 verts. Côté front, les tests de la fiche et du formulaire donnent 35 et 13 verts ; `tsc`,
+  `lint` et `check:*` sont propres.
