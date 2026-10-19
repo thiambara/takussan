@@ -4603,8 +4603,6 @@
         "phone": "Telefon",
         "website": "Site internet",
         "commission": "Komisiyon bu ñu jagleel (%)",
-        "timezone": "Fuseau horaire",
-        "timezonePlaceholder": "Africa/Dakar",
         "websitePlaceholder": "https://sa-ajance.sn"
       },
       "moderation": {
@@ -9741,7 +9739,6 @@
       "websiteInvalid": "URL bu baaxul. Misaal : https://exemple.sn",
       "commissionRange": "Komisioŋ bi war na nekk diggante 0 ak 100.",
       "currencyInvalid": "Kodu xaalis bu baaxul (misaal : XOF, EUR).",
-      "timezoneTooLong": "Goxu waxtu bi dafa gudd lool.",
       "logoTooLarge": "Logo bi rëy lool (2 Mo max).",
       "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP.",
       "taxRateRange": "TVA bi war na nekk diggante 0 ak 100.",
