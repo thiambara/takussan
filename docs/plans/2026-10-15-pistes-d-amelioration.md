@@ -6041,7 +6041,7 @@ le `CASE` de la pertinence.
 
 ### `GET /api/search/messages` charge les pièces jointes message par message
 - Réf : P59.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1010
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Search/MessageSearchService.php:25-48`, `takussan-api/app/Http/Resources/MessageResource.php:24,35-47`, `takussan-api/app/Services/Search/DocumentSearchService.php:46-47`
 - Constat :
@@ -6051,6 +6051,7 @@ le `CASE` de la pertinence.
 - Établi comment : test temporaire avec journal des requêtes, relecture.
 - Piste : `$paginator->getCollection()->loadMissing('media')` dans `MessageSearchService`, comme pour les documents ; un test de budget « 2 lignes = 12 lignes » sur la route. Ou retirer la route, si le retrait de P13.08 l'emporte.
 - Mesure (2026-10-19, 2f829055e, mesureur) : lu `MessageSearchService.php:48` (`return $search->paginate(…)` sans préchargement), `MessageResource.php:39` (`getMedia('attachments')` par message), `DocumentSearchService.php:46-47` (`loadMissing('media')`) ; `git log` du service → aucun commit depuis TCK-786 ; test temporaire retiré (Meilisearch réel, participant d'un fil, appel d'amorce non compté, charge 3,13 sur 8 cœurs) → 19 requêtes pour 2 messages, 29 pour 12, dont 12 `from "media"` ; `grep search/messages takussan-web/src` → rien. Classement : A2, préchargement qui ne change pas la réponse ; le retrait de la route, autre option de la piste, relèverait de V7 et n'est pas le correctif décrit.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : Meilisearch réel, participant d'un fil, appel d'amorce non compté → 19 requêtes pour 2 messages, 29 pour 12, une `from "media"` par message → `SearchQueryBudgetTest::test_la_recherche_des_messages` (2 lignes = 12 lignes) vert avec `loadMissing('media')` ; ablation du service → 19/29, rouge ; correctif remis → vert ; `MessageSearchTest`, `SearchDateRangeTest`, `MaintenanceThreadAccessTest` verts. La route reste sans appelant (P13.08), non retirée.
 
 ### Aucune garde de budget de requêtes sur un chemin de recherche Scout
 - Réf : P59.03
