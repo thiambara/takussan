@@ -6076,7 +6076,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Quatre modèles acceptent des `include=` que leur ressource n'émet pas, et la garde de TCK-807 ne les voit pas
 - Réf : P60.01
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/PlatformPayout.php:54`, `takussan-api/app/Http/Resources/Api/Admin/PlatformPayoutResource.php:10-37`, `takussan-api/app/Models/Plan.php:40`, `takussan-api/app/Http/Resources/Api/Admin/PlanResource.php:10-25`, `takussan-api/app/Models/AgencyRole.php:74`, `takussan-api/app/Http/Resources/Agency/AgencyRoleResource.php:34`, `takussan-api/app/Models/BankStatement.php:51`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:14-38`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:75`
 - Constat :
@@ -6091,10 +6091,11 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Aucun appel du front n'envoie ces `include=` : `grep` sur `takussan-web/src` pour `approver`, `closer`, `payer`, `subscriptions` près d'un `include` → rien (mesuré).
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : retirer ces relations de `$requestLoadable`, puisque aucun appelant ne les demande. La garde trouve la ressource par son nom de classe dans tout `app/Http/Resources`, ou par une table modèle → ressource : elle nommerait alors ces quatre modèles. Ablation : remettre la recherche à un seul chemin et constater qu'elle ne les voit plus.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `PlatformPayout.php:54`, `Plan.php:40`, `AgencyRole.php:74`, `BankStatement.php:51` (`$requestLoadable` inchangés) et leurs ressources sous `Api/Admin/`, `Agency/`, `Accounting/` (aucun `whenLoaded` pour ces relations) ; `RequestLoadableEmittedTest.php:75` cherche toujours `app/Http/Resources/<Modèle>Resource.php` ; test temporaire retiré (charge 2,41 sur 8 cœurs) → `/api/me/payouts?include=agency,approver,closer,payer` 200, une requête `from "agencies" where "agencies"."id" in`, aucune des quatre clés ; `/api/admin/payouts?include=agency,approver` 200 sans `agency` ; `/api/admin/plans` 2 requêtes, 3 avec `include=subscriptions`, sans clé `subscriptions` ; `/api/agencies/{id}/roles?include=agency` 200 sans `agency` ; `grep` du front → `fetchAdminPlans`, `fetchPlatformPayouts`, `fetchMyPlatformPayouts` n'envoient que `fields`/`sort`, `agency-roles.ts:71` n'inclut que `capabilities`. Classement : A3 et A5, includes acceptés sans appelant des deux côtés et garde élargie sans seuil resserré ; l'implémenteur vérifie que la garde élargie ne nomme pas d'autres modèles à traiter dans le même lot.
 
 ### Des `show` chargent en dur des relations que leur ressource n'émet pas
 - Réf : P60.02
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-63`, `takussan-api/app/Http/Controllers/Api/BookingController.php:60-68`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:45-52`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:76-86`, `takussan-web/src/lib/queries/leases.ts:215-223`
 - Constat :
@@ -6105,10 +6106,11 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - `BankStatementController::show` lit `include=` à la main et autorise `agency`, que la ressource n'émet pas (lu, l. 80-83).
   - Établi comment : lu. Le nombre de requêtes de ces `show` n'est pas mesuré.
 - Piste : retirer du `load()` ce que la ressource n'émet pas, et `agency` de la liste blanche de `BankStatementController::show`. Retirer `payments` de l'`include` du front sur la fiche de bail. Garde : un test de budget de requêtes sur `GET /api/leases/{id}`, qui rougit si `payments` revient.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `LeaseController.php:69` (`load([... 'payments' ...])`), `LeaseResource.php` (aucune clé ni accès à `payments`, seulement `payment_frequency`/`payment_day` l. 60-61), `InvoiceController.php:61` (`customer`) contre `InvoiceResource.php:17` (`customer_id`), `Admin/KycController.php:49` (`reviewer`) contre `KycDossierResource.php:62` (`reviewed_by`), `BookingController.php:63` (`agency`) contre `BookingResource.php:21` et `BookingMoneyAccess.php:63` (`Agency::query()->find()`), `BankStatementController.php:80-83` (liste blanche avec `agency`) ; front `leases.ts:222` envoie `include: ['property', 'payments']`, et `useLeasePayments` est lu par `LeaseDetail.tsx`, `LeaseSchedule.tsx` (le « à vérifier » du constat tient). Nombre de requêtes non mesuré. Classement : A2, chargements retirés sans changer la réponse rendue.
 
 ### Dix-huit `show` sur dix-neuf ignorent `fields[...]` que le front leur envoie, et rendent la ressource entière
 - Réf : P60.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : la piste offre deux voies, faire honorer `fields` par les `show` ou écrire qu'il ne vaut que pour les listes
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-web/src/app/(dashboard)/app/leases/[id]/page.tsx:39-41`, `takussan-web/src/hooks/useAgencyCurrency.ts:52-57`, `takussan-web/src/lib/queries/properties-server.ts:192-198`, `takussan-api/app/Http/Controllers/Api/AgencyController.php:72-77`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:171`
 - Constat :
@@ -6122,10 +6124,11 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Ou écrire dans `docs/spatie-query-builder.md` que `fields` ne vaut que pour les listes, et retirer du front les `fields` envoyés à un `show`.
 
   Pour l'en-tête de la fiche de bail, une lecture légère existe déjà : la liste filtrée par id. Garde : un test qui vérifie qu'un `fields[...]` envoyé à un `show` par le front y est honoré, ou bien refusé.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `AgencyController.php:72-77` (route-model binding nu, `AgencyResource::make($agency)`), `LeaseController.php:64-73` (`load()` fixe), `CustomerController.php:117` (seul `show` par `buildQuery`) ; front `leases/[id]/page.tsx:40` (`fields[leases]=id,reference_number`), `useAgencyCurrency.ts:57` (`fields: { agencies: 'id,currency' }`), `properties-server.ts:194` (`fields[properties]` vers `/api/properties/{id}`) ; le doublement de la fiche de bail et les fiches de la console restent non mesurés. Classement : V7, deux voies au choix du porteur, la seconde changeant le contrat documenté du front.
 
 ### Petites améliorations
 - Réf : P60.04
-- Statut : à mesurer
+- Statut : retenu · autonome
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Models/AgencySubscription.php:42`, `takussan-api/tests/Unit/Http/Resources/RequestLoadableEmittedTest.php:99-102`
 - Constat :
@@ -6133,6 +6136,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - La garde de TCK-807 reconnaît une relation émise à la seule présence de `whenLoaded('x')` dans le source, commentaires compris (lu, l. 99-102 : `preg_match` sur le fichier brut). Une mention en commentaire suffit donc à la rendre verte (déduit, à vérifier).
   - Établi comment : lu et `grep`.
 - Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `AgencySubscription.php:42` (`['agency', 'plan']`) ; `grep -rn "AgencySubscription::buildQuery" app` → rien (seuls des `AgencySubscription::query()` dans les services) ; ressource rangée sous `Api/Admin/AgencySubscriptionResource.php`, qui n'émet que `plan` (l. 28) et `agency_id` (l. 17) ; `RequestLoadableEmittedTest.php` cherche par `preg_match` sur `file_get_contents` brut (lu, l. 95-101), donc un `whenLoaded('x')` en commentaire satisfait la garde : établi par lecture, non éprouvé. Classement : A3 et A5, déclaration sans lecteur retirée et garde durcie sans seuil touché.
 
 ## Angle 61 — Modèles rendus bruts par un contrôleur, au-delà de `User`
 
@@ -6148,7 +6152,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
 - Réf : P61.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : compte entier de chaque collaborateur rendu au bailleur, projection et sort de `username` à trancher
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
 - Constat :
@@ -6161,10 +6165,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Le front ne lit du compte que `id`, `first_name`, `last_name` et `username` (`collaboratorName`, `property-collaborators.ts:23-35`, lu). `username` n'est pas dans `IncludedUserResource`.
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : faire passer la ligne par une ressource, avec le compte projeté par `IncludedUserResource` (plus `username` si le front le garde, ou bien le front s'en passe). Une même ressource pour `index`, `store`, `update` et `designatePrimary`. Test : le bailleur et un agent lisent la liste, et `data.0.user` n'a que les clés de la projection. Ablation : remettre `->get()` brut.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `PropertyCollaboratorController.php:64` (`$collaborator->load('user')`), `:91` (`refresh()->load('user')`), `:150` (`collaborators()->with('user')->orderBy('id')->get()`) et `PropertyPolicy.php:51-57` ; aucun commit sur ce contrôleur depuis 89acf8152 ; test temporaire retiré (charge 2,41 sur 8 cœurs) → le bailleur, `GET /api/properties/{id}/collaborators` 200, `data.0.user` à 38 clés dont `google_id`, `metadata`, `secondary_phone`, `last_login_at` et `deletion_requested_at`. Classement : V3, ce qui est exposé d'un compte, avec un choix sur `username` que la piste laisse ouvert.
 
 ### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
 - Réf : P61.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : ligne `agencies` entière, seuil et `bank_csv_mapping` compris, rendue à un prestataire et à un bailleur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:31-69`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Http/Resources/OwnerProfileResource.php:37`, `takussan-api/app/Http/Resources/IncludedUserResource.php:51-61`, `takussan-api/app/Http/Resources/AgencyResource.php:17,31-46,61,70`, `takussan-api/app/Models/Profiles/ServiceProviderAgencyCollaboration.php:51`
 - Constat :
@@ -6178,10 +6183,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Aucun appel du front n'envoie ces `include=agency` : `service-provider/collaborations` n'a aucun appelant, et `fetchOwnerProperties` passe `fields[properties]` sans `include` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API.
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : rendre ces deux listes par une ressource, avec l'agence incluse par `AgencyResource` (qui juge déjà ce que l'appelant voit) ou par une projection publique, comme `/agencies`. `inParent()` projette chaque relation incluse par sa ressource, ou bien l'include est retiré de `$requestLoadable` quand rien ne le demande. Test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping`. Ablation sur la ressource.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `ServiceProviderAgenciesController.php:63` (`$paginator->items()`), `OwnerProfileController.php:181` (`'data' => $paginator->items()`), `ServiceProviderAgencyCollaboration.php:51` (`agency` dans `$requestLoadable`) ; test temporaire retiré (agence à seuil 750 000, `settings`, `metadata`, `bank_csv_mapping`) → prestataire, `/api/me/service-provider/collaborations?include=agency` 200, `data.0.agency` à 36 clés dont `payout_approval_threshold` `"750000.00"`, `settings`, `metadata`, `bank_csv_mapping`, `commission_rate` ; bailleur, `/api/me/owner-profiles/{id}/properties?include=agency` 200, 36 clés, même seuil. Le cas `/api/owners?include=agency` par un agent sans capacité de reversement n'est pas re-mesuré. Classement : V3, exposition de données d'agence à des tiers, et la piste laisse le choix entre `AgencyResource`, projection publique et retrait de l'include.
 
 ### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
 - Réf : P61.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : colonnes de modération (dont l'identifiant du super-admin) rendues au bailleur ; ressource ou projection par défaut à choisir
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
 - Constat :
@@ -6191,10 +6197,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Le seul appelant du front passe `fields[properties]=id,title,price,status,type` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API, comme P21.02.
   - Établi comment : lu, et mesuré par test temporaire.
 - Piste : rendre la liste par `PropertyResource`, ou poser une projection par défaut quand `fields[properties]` est absent. Test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored`. Ablation sur la ressource.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : lu `OwnerProfileController.php:167-184` (`'data' => $paginator->items()` de `Property::buildQuery`) ; test temporaire retiré → le bailleur, sans paramètre, 200 et 60 clés par ligne (61 au constat), dont `platform_hold_at`, `platform_hold_by_id`, `platform_hold_reason`, `admin_monitored`, `is_test`, `metadata`, `rejected_by_user_id`, `approved_by_user_id` et `deleted_at`. Classement : V3, ce qui est exposé au bailleur, avec deux voies dans la piste.
 
 ### Petites améliorations
 - Réf : P61.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : `/profiles/{id}/suspend` rend `metadata` avec le `kyc` ; retraits de routes et garde de `json()` à décider
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:63`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:60`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:160-181`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:37`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:33`
 - Constat :
@@ -6205,3 +6212,4 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `KpiConfigController::index` et `ThresholdAlertController::index` rendent `$paginator->items()` (lu). `threshold` et `last_value` (cast `decimal:4`) sortent en chaîne. Le type du front l'admet déjà (`number | string`, `lib/queries/alerts.ts:13,18`, lu).
   - Établi comment : lu, et test temporaire pour les trois premiers.
 - Piste : une ressource par modèle rendu, ou le retrait de la route sans appelant (`/me/service-provider/collaborations`, `/profiles/{id}/suspend`, à confirmer des deux côtés). Garde commune aux quatre entrées : sous `runningUnitTests()`, `Base\Controller::json()` refuse une charge qui contient un `Model`, une `Eloquent\Collection` ou un paginateur. Toute sortie brute rougit alors au premier test qui frappe la route. Ablation : retirer la vérification et constater que les tests de P61.01 à P61.03 repassent au vert sur le code fautif.
+- Mesure (2026-10-19, bde1d5b43, mesureur) : test temporaire retiré → `/api/me/service-provider/collaborations` rend `id`, `service_provider_profile_id`, `agency_id`, `status`, `started_at` (`2026-09-19T00:00:00.000000Z`), `ended_at`, `metadata`, `deleted_at`, `agency_role_id` bruts ; lu `PropertyTagController.php:60` (`$property->tags()->get()`), `CustomerController.php:208` (`['data' => $relationship]`, la méthode a glissé de 160-181 à 188-208, `relationships()` vers l. 239), `AgentProfileController.php:39` (`$profile->toArray()`), `KpiConfigController.php:37` et `ThresholdAlertController.php:33` (`$paginator->items()`) ; `grep` du front → aucun appel de `service-provider/collab` ni de `/api/profiles/{id}/suspend`. La réponse de `suspend` n'est toujours pas mesurée. Classement : V3 pour `suspend` (données KYC), et la piste mêle retraits de routes et garde générale qui rougirait sur `KpiConfig`/`ThresholdAlert`, à arbitrer.
