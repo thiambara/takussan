@@ -19,13 +19,13 @@ class SettingController extends Controller
 
         $base = Setting::query();
 
+        // TCK-965 (P47.05) — hors super-admin, la liste est à l'admin de l'agence, et ne rend que
+        // les lignes de son agence : jamais les lignes `global`, dont les publiques passent par
+        // `GET /api/settings/public`.
         if (! $user->isSuperAdmin()) {
-            abort_unless($user->agency_id, 403);
-            $base->where(function ($q) use ($user) {
-                $q->where('scope', SettingScope::Agency)
-                    ->where('scope_id', $user->agency_id);
-                $q->orWhere('scope', SettingScope::Global);
-            });
+            abort_unless($user->agency_id !== null && $user->isAgencyAdminAt((int) $user->agency_id), 403);
+            $base->where('scope', SettingScope::Agency)
+                ->where('scope_id', $user->agency_id);
         }
 
         $paginator = Setting::buildQuery($base, $request)
