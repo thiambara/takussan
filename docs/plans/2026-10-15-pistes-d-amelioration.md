@@ -1729,6 +1729,26 @@ Les trois 🔴 ont été relus par la session dans le code :
 - Mesure (2026-10-16, b775f8f6, mesureur) : lu `CodedNotification.php:40` (`ShouldQueue` ; aucun `$tries`, `backoff` ni `failed()` dans le fichier), `deploy/takussan/compose.api.yml:55` et `dev.sh:821` (`queue:work … --tries=3`, sans `--backoff`), `SmsChannel.php:54-57` et `WhatsappChannel.php:77-80` (`'phone' => $phone`, le numéro entier), `PhoneVerificationService.php:396` (`phone_suffix` = `substr($phone, -4)`) → les deux constats tiennent tels quels. Classement : V3, ce que les journaux conservent d'un numéro est une donnée personnelle, et les délais de `backoff` sont une valeur à choisir.
 - Mesure (2026-10-17, 63fb933cd, implementeur) : avant correctif, `NotificationFailureLoggingTest` → un numéro invalide routé (`0012-34-56-7890`) écrit `phone` entier au `warning` de `SmsChannel` et de `WhatsappChannel` ; le job en file d'une `CodedNotification` rend `null` en `backoff()` et son `failed()` n'écrit rien → `phone_suffix` (4 derniers caractères) sur les deux canaux, `backoff()` = `[60, 300, 900]`, `failed()` qui écrit un `error` avec le code, le canal (retenu par `middleware()` à la mise en file) et l'identifiant de la cloche, sans le message de l'exception ; ablation : chacun des cinq morceaux retiré seul → 1 rouge ; correctif remis : 2 verts, et 147 tests voisins (notifications, WhatsApp, canal SMS) verts.
 
+### Le lien `referenceable_*` d'une notification : deux formes, un lecteur de repli, une méthode morte
+- Réf : P11.11
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Notifications/SavedSearchMatchesNotification.php:121`, `takussan-api/app/Models/AppNotification.php` (`reference()`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:146-170`, `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php`
+- Constat :
+  - Depuis le code, une seule classe écrit `referenceable_type` : `SavedSearchMatchesNotification`. Elle y met un **nom de classe** (`SavedSearch::class`), quand la convention de la Règle 3 est un alias court (`booking`, `lease`…). Les autres envois le laissent à `null` (lu, `grep -rn referenceable app`).
+  - Les alias courts ne viennent que du seeder : en base de développement, `lease_payment` 6 063, `property_visit` 2 386, `booking` 400, `lease` 360, `maintenance` 200 (mesuré, `GROUP BY referenceable_type`).
+  - `AppNotification::reference()` ne connaît que cinq alias et n'a **aucun appelant** dans `app/` (lu).
+  - Le seul lecteur est `NotificationTarget::fromReferenceable()`, en repli pour une ligne sans `target`. Il accepte l'alias **ou** le nom de classe, mais ne connaît pas `SavedSearch`. Sans effet aujourd'hui : cette notification pose sa `target` (`saved_searches`) elle-même.
+  - Aucun test ne lit ni n'écrit `referenceable_*` (`grep -rn referenceable tests` : rien). L'index `(referenceable_type, referenceable_id)` ne sert donc qu'au repli et aux lignes du seeder.
+  - Relevé le 2026-10-19 en écrivant `docs/models-spec.md` §12 et la Règle 3 (TCK-1012).
+  - Établi comment : lecture, `grep`, requête sur la base de développement.
+- Piste : trois options, à départager.
+  - (a) Retirer `reference()`, la seule partie morte. C'est le plus sûr, et la spec le dit déjà sans appelant.
+  - (b) Unifier sur l'alias court (`saved_search` dans `SavedSearchMatchesNotification`), et poser un test qui fige la forme écrite et la cible dérivée.
+  - (c) Cesser d'écrire le lien : la cible est désormais `target`. Le retrait des colonnes et de l'index serait une migration (V4).
+
+  Dans tous les cas, mettre à jour `docs/models-spec.md` §12 et la Règle 3.
+
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
 Les trois 🔴 ont été relus par la session dans le code :
