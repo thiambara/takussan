@@ -5441,7 +5441,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le tri alphabétique des contacts suit l'ordre des octets : minuscules et initiales accentuées passent après « Z »
 - Réf : P51.05
-- Statut : validé — trier les contacts en `COLLATE "und-x-icu"` par une classe de tri sous `app/Sorts/` (comme `MaintenancePrioritySort`), pour le défaut et pour `sort=first_name` et `last_name` ; test avec une minuscule et une initiale accentuée ; ADR-0025 amendé le 2026-10-19 pour les autres listes de noms, qui suivent quand on les touche (porteur, 2026-10-19, sur la recommandation du délégué)
+- Statut : fait · TCK-1007
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:102,107-111`
 - Constat :
@@ -5452,6 +5452,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : trier sur `first_name COLLATE "und-x-icu"` (la collation d'ADR-0025) par un tri spatie maison, pour le défaut comme pour `sort=first_name` et `last_name`. Test avec une minuscule et une initiale accentuée.
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:102,107-111` (`defaultSorts('first_name', 'last_name', 'id')`, `ORDER BY` simple sous `--locale=C`) ; même test temporaire, retiré ensuite : contacts « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye » → rendus dans cet ordre → le constat tient ; `grep -rn und-x-icu takussan-api/app` ne trouve cet usage que pour le repli de casse, jamais dans un tri, et ADR-0025 ne porte que sur le repli de casse, pas sur l'ordre. Classement : V7, aucune spec n'écrit l'ordre attendu d'une liste de personnes, et ce serait le premier tri ICU du dépôt, que les autres listes de noms ne suivraient pas.
 - Mesure (2026-10-19, cf15ad8e3, delegue) : relu `MessagingContactController.php:102-111`, ADR-0025 (repli de casse par `COLLATE "und-x-icu"`, rien sur l'ordre), `grep -rn und-x-icu takussan-api/app` (le seul `CaseInsensitive`) et `grep -n -i "alphab\|collat" docs/features.md` → rien d'écrit sur l'ordre d'une liste de personnes. Recommandation : trier en `COLLATE "und-x-icu"` par une classe de tri réutilisable sous `app/Sorts/` (comme `MaintenancePrioritySort`), pour le défaut et pour `sort=first_name`/`last_name` des contacts, parce que « awa » et « Élodie » après « Zeynab » est un défaut visible pour tout lecteur francophone et que le changement se défait en un commit ; je ne le valide pas parce que ce serait le premier tri ICU du dépôt, que les autres listes de noms ne suivraient pas : c'est une convention à poser (un amendement d'ADR-0025, V6) plutôt qu'un réglage local ; manque : la décision du porteur de l'étendre ou non aux autres listes de noms.
+- Mesure (2026-10-19, 800918b4c, implementeur) : avant correctif, `MessagingContactsTest::test_le_tri_des_noms_suit_l_ordre_alphabetique_et_non_celui_des_octets` rouge : « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye », « Omar Écoute » ne sortent pas dans l'ordre alphabétique sans `sort` → `App\Sorts\CollatedNameSort` (`ORDER BY <colonne> COLLATE "und-x-icu"`) pour `first_name` et `last_name`, au défaut et sur demande ; le test épingle le défaut, `sort=first_name`, `sort=-first_name` et `sort=last_name` ; ablation de la collation → 1 rouge, remise → 26 verts.
 
 ### Petites améliorations
 - Réf : P51.06
