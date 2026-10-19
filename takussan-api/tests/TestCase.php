@@ -15,9 +15,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\PersonalAccessToken;
+use Meilisearch\Client;
 use PHPUnit\Framework\Assert;
 use Tests\Support\SearchableModels;
 use Tests\Support\TestDatabase;
+use Tests\Support\TestSearchIndex;
 
 /**
  * LA classe de base des tests qui ont besoin de l'application Laravel.
@@ -76,6 +78,17 @@ abstract class TestCase extends LaravelTestCase
         }
 
         parent::setUp();
+
+        // TCK-974 (P53.01) — la suppression des index `testing_<jeton>_*` se programme pour TOUT
+        // processus, pas seulement pour ceux qui portent `InteractsWithMeilisearch` : la coupure
+        // ci-dessus ne retient que l'observateur de modèle, et un `->searchable()` explicite de
+        // `app/` (tags d'un bien, boost, réindexation géo…) crée l'index quand même. Mesuré : un
+        // `PropertyTagsTest` seul laissait son index derrière lui. Une fois par processus ; le
+        // client se construit de la configuration, sans requête.
+        TestSearchIndex::registerCleanup(new Client(
+            config('scout.meilisearch.host'),
+            config('scout.meilisearch.key'),
+        ));
 
         // Les deux disques de médias sont FACTICES PAR DÉFAUT (ADR-0029, TCK-538). Mesuré le
         // 2026-09-21 : une vingtaine de classes téléversaient sans `Storage::fake`, et chaque
