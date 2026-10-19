@@ -29,7 +29,7 @@ futur n'y verrait qu'une agence.
 
 ## Décision du porteur (déléguée)
 
-> retirer `customer_id` du résumé du locataire (`DashboardTenantService::summary`), du type `TenantDashboard` (`lib/queries/dashboard.ts`) et des tests qui l'assertent ou le simulent, sans le remplacer par une liste
+> retirer `customer_id` du résumé du locataire (`DashboardTenantService::summary`), du type `TenantDashboard` (`lib/queries/dashboard.ts`) et des tests qui l'assertent ou le simulent, sans le remplacer par une liste ; reste : la vue client sur `/app/payments` pour un compte professionnel qui a aussi un bail de locataire
 
 ## Reste à faire
 
