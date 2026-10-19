@@ -5562,7 +5562,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations du nettoyage des index de test
 - Réf : P53.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-975
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Support/TestSearchIndex.php:35,118-128,137`
 - Constat :
@@ -5572,3 +5572,4 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Mesuré, côté sain : aucune base de test orpheline sur 5433 après trois exécutions (`count(*)` hors `postgres`, `template*`, `takussan`, `takussan_smoke` → 0), et 608 suppressions d'index `testing_*` réussies en 1,5 jour (`GET /tasks?types=indexDeletion`) : le nettoyage tient pour les processus qui portent le concern.
 - Piste : comparer l'âge à la dernière mise à jour de l'index (`updatedAt`) plutôt qu'à sa création, et paginer `getIndexes()`. Un test unitaire du prédicat de balayage, sur des index factices (un vieux et actif, un vieux et inerte).
 - Mesure (2026-10-19, 30601b3a7, mesureur) : relu `TestSearchIndex.php` (`ORPHAN_TTL_SECONDS = 7200` l. 35, comparé à `createdAt` l. 127, `setLimit(1000)` sans pagination l. 137, balayage l. 97 seulement depuis `registerCleanup`) → les trois points tiennent à la lecture ; `GET /indexes` sur 7701 → 10 index, et `updatedAt` des index `smoke_*` (07:48 Z) suit les écritures après `createdAt` (07:44 Z), donc `updatedAt ≥ createdAt` rend le prédicat strictement plus prudent ; la suppression d'un index vivant sous forte charge reste déduite, non jouée, et le troisième point est le même défaut que P53.01. Classement : A1 + A5, le contrat écrit du balayage (seuls les index d'exécutions mortes, tous les index orphelins) se tient en paginant et en comparant à `updatedAt`, dans le seul harnais de test, avec un test unitaire du prédicat.
+- Mesure (2026-10-19, 22da7f13d, implementeur) : relu `TestSearchIndex.php` (âge comparé à `createdAt`, `setLimit(1000)` sans `offset`) ; le troisième point est soldé par TCK-974 (balayage dans tout processus) → `isOrphan()` juge la dernière écriture (`updatedAt`, à défaut `createdAt`) et `readAllPages()` lit `GET /indexes` page par page, bornée à 100 pages ; `TestSearchIndexSweepTest` 6 verts ; ablation : `createdAt` seul → 1 rouge, première page seule → 2 rouges, remis → vert ; chemin réel lu par pages de 3 → les 12 index de 7701.
