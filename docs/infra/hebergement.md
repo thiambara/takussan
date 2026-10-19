@@ -164,7 +164,8 @@ vide) :
   `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`,
   `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`,
   `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB`,
-  `SCOUT_DRIVER`, `SCOUT_PREFIX`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY` (la clé `preview_*`, jamais
+  `SCOUT_DRIVER`, `SCOUT_PREFIX` (`preview_`, relevé le 2026-10-19 dans Dokploy et dans le
+  conteneur `api`, TCK-995), `MEILISEARCH_HOST`, `MEILISEARCH_KEY` (la clé `preview_*`, jamais
   la maîtresse), `LOG_CHANNEL`, `LOG_LEVEL`, `FILESYSTEM_DISK`, `LARAVEL_PDF_DRIVER` ;
 - relevées dans le `.env` de l'ancienne préproduction (export A1) : `APP_NAME`, `APP_ENV`,
   `APP_LOCALE`, `APP_FALLBACK_LOCALE`, `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`,
@@ -371,7 +372,9 @@ autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussa
 4. **La recherche** : le marqueur `storage/app/private/.search-shape-importee` vit dans le volume,
    que la restauration ne touche pas ; `release` ne réimporterait rien. Le supprimer
    (`docker exec <pile>-api-1 rm storage/app/private/.search-shape-importee`), puis rejouer
-   `release` (commande du runbook) : il réimporte tous les index.
+   `release` (commande du runbook) : il réimporte tous les index. Le cas inverse, un Meilisearch
+   perdu ou recréé sous une base intacte, se rattrape seul depuis TCK-995 : `release` réimporte
+   quand un index est vide face à une table non vide.
 5. **Les effacements** (TCK-885, ADR-0044 amendé, § B) : la liste vit **hors de la base**, un
    objet par effacement exécuté sur le seau privé des médias
    (`effacements/AAAA-MM-JJ/<user_id>-<instant>.json`, l'identifiant et l'instant, rien d'autre),

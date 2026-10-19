@@ -148,6 +148,9 @@ on:
       # d'attestation de l'API. Ces deux dossiers-là ne l'étaient pas.
       - 'takussan-api/bin/**'
       - 'takussan-api/config/**'
+      # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
+      # de routes et le préfixe `api`.
+      - 'takussan-api/bootstrap/**'
   push:
     branches: [dev, master]
     paths:
@@ -243,6 +246,9 @@ on:
       # d'attestation de l'API. Ces deux dossiers-là ne l'étaient pas.
       - 'takussan-api/bin/**'
       - 'takussan-api/config/**'
+      # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
+      # de routes et le préfixe `api`.
+      - 'takussan-api/bootstrap/**'
 
 jobs:
   guards:
@@ -261,6 +267,32 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+
+      # PHP pour UNE garde : `check-front-routes.mjs` (TCK-998) lit `php artisan route:list --json`,
+      # la seule source exacte des routes de l'API. Ni base, ni Redis, ni Meilisearch : lister les
+      # routes n'en lit aucun. Les autres gardes de ce job restent en Node seul. Même PHP, mêmes
+      # extensions et même clé de cache que `api-ci.yml`, dont le `vendor/` est ainsi réutilisé.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, intl, gd, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: takussan-api/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install composer dependencies
+        working-directory: takussan-api
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Les deux fichiers d'environnement déclarent les mêmes clés
         run: node scripts/check-env-parity.mjs
@@ -387,6 +419,15 @@ jobs:
         # TCK-597 — `/admin/reviews` et `/app/reviews` — et ADR-0064 en déplaçait six autres.
         # Déclenchée par `takussan-api/app/**` ET `takussan-web/src/**` : les deux côtés.
         run: node scripts/check-notification-target-paths.mjs --report
+
+      - name: Tout appel du front a sa route dans l'API, verbe compris
+        # Quatre routes absentes ont vécu dans le code (`PATCH /api/users/me`, `generate-schedule`,
+        # les pièces jointes de la messagerie, les documents de la fiche client), chacune corrigée
+        # avec un test propre à son fichier, aucune gardée comme famille (P45.01, TCK-998). Confronte
+        # les littéraux de `takussan-web/src` à `route:list` et aux route handlers du BFF, relais à
+        # joker dépliés. Déclenchée par `takussan-api/app/**`, `takussan-api/routes/**` ET
+        # `takussan-web/src/**` : les deux côtés. Échoue si PHP ou `vendor/` manque.
+        run: node scripts/check-front-routes.mjs --report
 
       - name: Aucun écran ne réinvente son état vide ni son bloc d'erreur
         # `docs/design-guidelines.md:13` demande « une seule façon d'afficher un état vide ».

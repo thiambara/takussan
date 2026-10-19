@@ -632,7 +632,7 @@ class PropertySearchService
      * de tri vers l'attribut `_geo` et vérifie celui-là. Mesuré sur
      * Meilisearch 1.16 le 2026-08-22, le détail est dans `config/scout.php`.
      * Sans ce réglage le moteur REFUSE la requête (HTTP 400), il ne dégrade pas
-     * le tri. C'est un réglage d'INDEX, donc un `scout:sync-index-settings` au
+     * le tri. C'est un réglage d'INDEX, donc un `search:sync-index-settings` au
      * déploiement.
      *
      * ⚠⚠ Le repli `[]` sur `distance` sans point est INATTEIGNABLE par HTTP :
