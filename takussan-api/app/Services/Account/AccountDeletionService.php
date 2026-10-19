@@ -237,6 +237,8 @@ class AccountDeletionService
     public function anonymize(User $user, bool $notifier = true): array
     {
         $originalEmail = $user->email;
+        // TCK-1013 (P57.01) — relevés avant le `forceFill`, qui les efface.
+        $originalPhones = $this->phoneVariants([$user->phone, $user->secondary_phone]);
 
         // Notify BEFORE we scramble the email so the mail still routes.
         // The notification is queueable and reads `routeNotificationForMail`
@@ -314,6 +316,18 @@ class AccountDeletionService
             ->whereIn('app_notification_id', $user->appNotifications()->select('id'))
             ->whereNotNull('to')
             ->update(['to' => null]);
+
+        // TCK-1013 (P57.01) — depuis TCK-799, un SMS envoyé sans notification (code de
+        // vérification, step-up, signature de bail) écrit sa tentative sans `app_notification_id` :
+        // le filtre ci-dessus ne la voit pas. Elle se retrouve par le numéro, ceux du compte au
+        // moment de l'effacement ; un ancien numéro remplacé n'y figure plus (décision du porteur :
+        // ni migration ni colonne `user_id`).
+        if ($originalPhones !== []) {
+            NotificationDeliveryAttempt::query()
+                ->whereNull('app_notification_id')
+                ->whereIn('to', $originalPhones)
+                ->update(['to' => null]);
+        }
 
         unset($originalEmail);
 
@@ -459,5 +473,26 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1013 — les numéros du compte, tels qu'enregistrés et sans espaces : le routeur SMS
+     * écrit `to` normalisé par `PhoneNumber::normalize()`, qui ne retire que les espaces.
+     *
+     * @param  list<?string>  $phones
+     * @return list<string>
+     */
+    private function phoneVariants(array $phones): array
+    {
+        $variants = [];
+        foreach ($phones as $phone) {
+            if ($phone === null || trim($phone) === '') {
+                continue;
+            }
+            $variants[] = $phone;
+            $variants[] = preg_replace('/\s+/', '', $phone) ?? $phone;
+        }
+
+        return array_values(array_unique($variants));
     }
 }
