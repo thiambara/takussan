@@ -546,8 +546,8 @@ pause, le réactiver les reprend (ADR-0061 §8).
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | parent_id | FK properties | oui | null | Bien parent (ex: immeuble contenant des appartements) | |
-| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000) | ✏️ |
-| pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration (TCK-1000) | ➕ |
+| user_id | FK users | | | Titulaire du bien (`restrictOnDelete`) — son propriétaire pour un particulier ; sur un bien d'agence, **le bailleur désigné à la saisie** (un bailleur actif de l'agence), ou **l'auteur** quand l'agence garde le bien en propre ou en attendant qu'un bailleur invité accepte ; un lot prend à sa création le titulaire bailleur de son parent, et la copie celui de sa source. **Ce n'est pas l'agent responsable** (le collaborateur principal, [§8](#8-propertycollaborator)) : hors création, seules trois voies le réécrivent, jamais depuis un bailleur — la passation d'un bien saisi par un partant (TCK-603), l'acceptation de l'invitation du bailleur en attente, et « changer le titulaire » par l'admin d'agence ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md), amendé le 2026-10-19 ; TCK-997, TCK-999, TCK-1000). **À venir** (les trois tickets sont `todo` au 2026-10-19) : la désignation du bailleur à la saisie, le titulaire bailleur d'un lot, l'invitation en attente et « changer le titulaire ». **Aujourd'hui**, le titulaire est l'auteur de la saisie — celui d'une copie aussi (`PropertyDuplicationService`, l'auteur de la copie) —, et seule la passation (TCK-603) le réécrit | ✏️ |
+| pending_owner_profile_id | FK owner_profiles | oui | null | **À venir — TCK-1000, non migrée au 2026-10-19.** Bailleur invité pour qui le bien a été saisi (`nullOnDelete`) : le bien lui passe quand il accepte l'invitation, et le lien s'efface à l'acceptation, à la révocation ou à l'expiration | ➕ (à venir) |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
 | slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible | |
@@ -591,7 +591,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | ical_export_token_hash | string(64) | oui | null | Empreinte SHA-256 du jeton d'export iCal du bien — **unique** (`properties_ical_token_hash_unique`), cachée (`$hidden`) ; le jeton clair n'est jamais stocké (`2026_10_08_010200`, TCK-596 §3B, ADR-0041 ; cf. [§81](#81-propertycalendarfeed-)) | ➕ |
 | ~~amenities~~ | — | — | — | ~~Remplacé par Tags de type `amenity` (migration P3.10 — données seedées en Tags via TagSeeder)~~ | ➖ |
 | featured | boolean | | false | **État dérivé « une Vedette est active »** depuis TCK-633 ([ADR-0061 §5](adr/0061-credits-d-espace-et-boost-des-annonces.md)) : écrit par `BoostLifecycle::project()` — et une fois par la migration `500400`, qui a converti les mises en avant antérieures (Vedette offerte de 30 jours, ou `false` pour un bien sans agence) —, refusé par le PATCH du bien (`UpdatePropertyRequest` : `prohibited`). Le filtre public `featured=true` et la rangée vedette le lisent ; le tri organique ne le lit plus | ✏️ dérivé |
-| ranked_at | timestamp | oui | null | Ordre organique (`ranked_at DESC`, ADR-0061 §7) : la date de publication, ou la dernière Remontée. Posé à `published_at` par `Property::booted()` (`saving`) s'il est plus ancien ; rattrapé par la migration `500300` sur les biens publiés. Index `properties_ranked_at_idx` (TCK-633) | ➕ |
+| ranked_at | timestamp | oui | null | Ordre organique (`ranked_at DESC`, ADR-0061 §7) : la date de publication, ou la dernière Remontée. Posé à `published_at` par `Property::booted()` (`saving`) s'il est plus ancien ; rattrapé par la migration `500300` sur les biens publiés. Index `properties_ranked_at_idx` (TCK-633) ; l'ordre du catalogue public se lit par `properties_public_ranked_order_idx (ranked_at DESC NULLS LAST, id DESC)`, partiel sur le prédicat de `scopePublic()` (`visibility = 'public' AND NOT is_test`) (TCK-863, `2026_10_18_050100`) | ➕ |
 | sponsored_until | timestamp | oui | null | Projection : fin de la Vedette active (`BoostLifecycle` seul) (TCK-633) | ➕ |
 | badge | string(20) | oui | null | Projection : `BoostBadge` du Badge actif — `urgent`, `price_drop` (TCK-633) | ➕ |
 | badge_until | timestamp | oui | null | Projection : fin du Badge actif (TCK-633) | ➕ |
@@ -802,7 +802,9 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
 
-**Index :** `(booking_id, status)`, `payment_type`, `booking_payments_bank_line_unique` (partiel, ci-dessus).
+**Index :** `(booking_id, status)`, `payment_type`, `booking_payments_bank_line_unique` (partiel, ci-dessus),
+`booking_payments_transaction_id_idx (transaction_id)` — lu à chaque webhook entrant par
+`PaymentGatewayService::paymentsForEvent()` (TCK-891, `2026_10_18_080000`).
 
 Il n'existe **ni `user_id`, ni `payment_date`, ni `confirmed_date`** : la personne est dédoublée en
 payeur (`payer_id`, un client) et encaisseur (`collector_id`, un utilisateur), et la date est
@@ -842,10 +844,11 @@ payeur, par `customers` (`payer_id`). L'ancienne `User::bookingPayments()`, qui 
 | status | CustomerStatus | | 'active' | Statut administratif du contact (active, inactive, blocked, deleted) — indexé | |
 | pipeline_stage | CustomerPipelineStage | | 'lead' | Étape CRM (lead, prospect, qualified, negotiating, converted, lost) — distinct du statut administratif ; indexé | ➕ |
 | id_type | IdType | oui | null | Type de pièce d'identité (id_card, passport, driving_license) — `id_card` couvre la CNI et toute carte nationale | ✏️ |
-| id_number | string | oui | null | Numéro de pièce d'identité | ➕ |
+| id_number | text (cast `encrypted`) | oui | null | Numéro de pièce d'identité — **chiffré** (TCK-953, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md), `2026_10_19_100000`) ; voir « Données sensibles » | ➕ |
 | occupation | string | oui | null | Profession / activité | ➕ |
 | emergency_contact_name | string | oui | null | Nom du contact d'urgence | ➕ |
 | emergency_contact_phone | string(30) | oui | null | Téléphone du contact d'urgence, normalisé comme `phone` | ➕ |
+| locale | string(5) | oui | null | Langue des messages d'un client **sans compte** (`fr`, `en`, `wo`), saisie par l'agence ; sans valeur, `ContactSansCompte::fromCustomer()` garde son repli `fr` (TCK-921, `2026_10_18_163900`) | ➕ |
 | notes | text | oui | null | Note libre de la fiche (les notes datées vivent dans [CustomerNote](#33-customernote-)) | |
 | seeking_contract_type | string(20) | oui | null | Critère de recherche du prospect : `ContractType` (`sale`, `rent`), contrôlé par l'application (ADR-0007) — `2026_10_07_591200`, TCK-591 | ➕ |
 | budget_min | decimal(15,2) | oui | null | Budget minimum recherché | ➕ |
@@ -868,7 +871,17 @@ Il n'existe **pas de colonne `birth_date`**. Les critères de recherche reprenne
 **Index :** `agency_id`, `status`, `pipeline_stage` ; `customers_agency_phone_idx (agency_id, phone)`
 et `customers_agency_email_ci_idx (agency_id, LOWER(email COLLATE "und-x-icu"))` — les deux index du
 détecteur de doublons `CustomerDuplicateDetector`, qui écrit exactement ces expressions (ADR-0025 ;
-`2026_10_07_591200`).
+`2026_10_07_591200`) ; `customers_user_id_index (user_id)`, que lit à chaque `/api/auth/me` la
+jointure de `HasProfiles::hasActiveTenantLease()` (TCK-862, `2026_10_18_050000`).
+
+**Données sensibles** (TCK-953, TCK-955, ADR-0070) : `id_number` (`Customer::SENSITIVE`) est chiffré
+en base, en `text`, absent de toute sérialisation par défaut (`$hidden`) et hors de `$queryFields` —
+`fields[customers]=…,id_number` rend 400. Il ne sort que par trois voies : masqué par
+`CustomerResource` (`id_number_masked`, les quatre derniers caractères) ; en clair par
+`GET /api/customers/{id}/sensitive`, réservé à l'admin de l'agence de la fiche et au super-admin,
+sous second facteur récent, consultation journalisée (surface `customer_sensitive`) — une fiche sans
+agence n'est lisible en clair que par le super-admin ; et par l'export du droit d'accès de
+l'utilisateur lié (`customers.json`, colonnes d'identité seules, ADR-0070 § 7).
 
 **Visibilité (`scopeVisibleTo`)** : un détenteur de `crm.view_all` voit les fiches de son agence de
 personnel, plus celles qu'il a ajoutées ; les autres ne voient que leurs propres ajouts, hors agence
@@ -1351,6 +1364,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 | late_fee_applied_at | timestamp | oui | null | Application de la pénalité ; non nulle, `LateFeeCalculator` ne la réapplique jamais (une pénalité au plus par ligne) |
 | late_fee_paid_at | timestamp | oui | null | Pénalité **réglée** (TCK-593, `2026_10_07_150000`). `status` décrit le loyer : sans cette colonne, un loyer soldé faisait disparaître la pénalité des écrans. `lateFeeOutstanding()` s'en dérive |
 | transaction_id | string | oui | null | ID transaction externe (mobile money, banque) — exclu du journal d'activité |
+| refund_amount | decimal(14,2) | oui | null | Montant remboursé, comme `booking_payments.refund_amount` : `HasPaymentAttributes::paidAmount()` en déduit le reçu d'une échéance `refunded` (TCK-873, `2026_10_18_070000`) |
 | notes | text | oui | null | Notes |
 | metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
@@ -1360,7 +1374,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 **Traits :**
 - `HasPaymentAttributes` (`App\Models\Concerns`) — casts et scopes partagés avec BookingPayment (amount, currency, payment_method, status, transaction_id) ➕
 
-**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_bank_line_unique`
+**Index :** `(due_date, status)`, `(lease_id, period_start)`, `lease_payments_transaction_id_idx (transaction_id)` (TCK-891, `2026_10_18_080000`), `lease_payments_bank_line_unique`
 (partiel, ci-dessus).
 
 **Relations** (`app/Models/LeasePayment.php`) :
@@ -1833,10 +1847,10 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | phone | string | oui | null | Téléphone principal |
 | email | string | oui | null | Email de contact |
 | id_type | IdType | oui | null | Type de pièce d'identité |
-| id_number | string | oui | null | Numéro de pièce d'identité |
+| id_number | text (cast `encrypted`) | oui | null | Numéro de pièce d'identité — **chiffré** (TCK-954, ADR-0070) |
 | occupation | string | oui | null | Profession / activité |
 | employer | string | oui | null | Nom de l'employeur |
-| monthly_income | decimal(14,2) | oui | null | Revenu mensuel déclaré |
+| monthly_income | text (cast `encrypted`) | oui | null | Revenu mensuel déclaré (XOF) — **chiffré** (TCK-954, ADR-0070) ; le `down()` de `2026_10_19_110000` rend `numeric(14,2)` |
 | relationship_to_tenant | string | oui | null | Lien avec le locataire (parent, conjoint, employeur, autre) |
 | added_by_id | FK users | oui | null | Utilisateur ayant saisi le garant (`nullOnDelete`) |
 | notes | text | oui | null | Notes internes |
@@ -1844,6 +1858,15 @@ Le modèle ne déclare ni `documents()` ni de relation vers les deux signataires
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
+
+**Données sensibles** (TCK-954, TCK-955, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) :
+`id_number` et `monthly_income` (`Guarantor::SENSITIVE`) sont chiffrés en base, en `text`, et absents
+de toute sérialisation par défaut (`$hidden`). Ils ne sortent que masqués par
+`GuarantorController::format` — `id_number_masked` (les quatre derniers caractères) et
+`monthly_income_masked` (`••••` ou `null`, sans rien révéler du montant) —, et en clair par
+`GET /api/guarantors/{id}/sensitive`, réservé à l'admin de l'agence de l'auteur (`GuarantorPolicy::agencyOf`,
+par `addedBy`) et au super-admin, sous second facteur récent, consultation journalisée (surface
+`guarantor_sensitive`).
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `id_documents` (CNI, attestations de revenus, fiches de paie)
@@ -2130,7 +2153,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) |
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
 | id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
-| monthly_income | decimal(14,2) | oui | null | Revenus mensuels déclarés (XOF) |
+| monthly_income | text (cast `encrypted`) | oui | null | Revenus mensuels déclarés (XOF) — chiffré (TCK-956, ADR-0070, `2026_10_19_120000`) |
 | works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
@@ -2139,7 +2162,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
-**Données sensibles** (TCK-601, ADR-0044 §1) : `rib`, `tax_id` et `id_document_number` (`OwnerProfile::SENSITIVE`) sont chiffrés en base, en `text` — une valeur chiffrée ne tient pas dans un `varchar(255)` —, absents de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets, de la recherche et du journal d'activité. Ils ne sortent que par `OwnerProfileResource` (masqués), `GET /api/owners/{id}/sensitive` (consultation journalisée) et l'export du droit d'accès.
+**Données sensibles** (TCK-601, ADR-0044 §1 ; TCK-956, ADR-0070) : `rib`, `tax_id`, `id_document_number` et `monthly_income` (`OwnerProfile::SENSITIVE`) sont chiffrés en base, en `text` — une valeur chiffrée ne tient pas dans un `varchar(255)` —, absents de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets, de la recherche et du journal d'activité. Ils ne sortent que par `OwnerProfileResource` (masqués ; le revenu par `monthly_income_masked`, `••••` ou `null`), `GET /api/owners/{id}/sensitive` (consultation journalisée ; le revenu en nombre) et l'export du droit d'accès.
 
 **Contraintes et index** (mesurés sur `2026_05_02_000001` et suivantes) :
 - `(user_id, agency_id)` unique — un user a au plus un profil propriétaire par agence. Les brouillons (`user_id` nul) n'y entrent pas en collision : PostgreSQL tient deux `NULL` pour distincts.
@@ -3106,6 +3129,8 @@ Une ligne par tâche et par exécution enregistrée.
 
 **Index :**
 - `task`
+- `scheduled_task_runs_task_last_run_idx (task, last_run_at DESC, id DESC)` — la dernière exécution
+  de chaque tâche, que lit `ScheduledTaskInspector` sans tri (TCK-802, `2026_10_17_120000`)
 
 **Relations :** aucune.
 
@@ -3481,15 +3506,15 @@ clos **garde la décision qui l'a clos, qui l'a prise et pour quel motif codé**
 ### 69. NotificationDeliveryAttempt ✅
 
 **Table :** `notification_delivery_attempts` *(déclarée explicitement par `$table` sur le modèle)*
-**Description :** Une ligne par **tentative** d'acheminement SMS/WhatsApp d'une notification
-(TCK-110). Remplace la colonne JSON `app_notifications.delivery_attempts` : l'unicité
+**Description :** Une ligne par **tentative** d'acheminement SMS/WhatsApp, d'une notification ou
+d'un envoi direct (TCK-110, TCK-799). Remplace la colonne JSON `app_notifications.delivery_attempts` : l'unicité
 `(provider, provider_message_id)` rend la résolution d'un accusé de réception (DLR) en O(1) et
 supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| app_notification_id | FK app_notifications | | | Notification acheminée (`cascadeOnDelete`) |
+| app_notification_id | FK app_notifications | oui | null | Notification acheminée (`cascadeOnDelete`). **Nulle** pour un SMS envoyé hors notification — contact sans compte, code de signature de bail (TCK-799, `2026_10_17_160000` ; son `down()` supprime d'abord ces tentatives) |
 | attempt | unsignedSmallInteger | | | Rang de la tentative |
 | provider | string | | | Identifiant du driver, tel que rendu par sa méthode `id()` : `orange`, `mtarget`, `lafricamobile`, `log` (SMS) ou `whatsapp_cloud` |
 | provider_message_id | string | oui | null | Identifiant de message côté fournisseur |
