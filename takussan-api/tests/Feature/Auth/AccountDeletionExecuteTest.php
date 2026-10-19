@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
@@ -255,6 +256,37 @@ class AccountDeletionExecuteTest extends TestCase
         );
         $this->assertModelExists($secondaire);
         $this->assertSame('+221779870003', $autre->fresh()->to);
+    }
+
+    /**
+     * TCK-1014 (P57.02) — une visite demandée en étant connecté désigne le compte par
+     * `visitor_id`. L'effacement la dissocie comme une fiche client : `visitor_id` à `null`, le
+     * contact saisi pour la visite reste à l'agence. La visite d'un autre compte ne bouge pas.
+     */
+    public function test_execute_dissocie_les_visites_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $autre = User::factory()->create();
+        $visite = PropertyVisit::factory()->create([
+            'visitor_id' => $user->id,
+            'visitor_name' => 'Awa Diop',
+            'visitor_email' => 'awa@example.test',
+            'visitor_phone' => '+221771230004',
+        ]);
+        $visiteAutre = PropertyVisit::factory()->create(['visitor_id' => $autre->id]);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, PropertyVisit::query()->where('visitor_id', $user->id)->count());
+        $visite->refresh();
+        $this->assertNull($visite->visitor_id);
+        $this->assertSame('Awa Diop', $visite->visitor_name);
+        $this->assertSame('awa@example.test', $visite->visitor_email);
+        $this->assertSame('+221771230004', $visite->visitor_phone);
+        $this->assertSame($autre->id, $visiteAutre->fresh()->visitor_id);
     }
 
     private function tentativeSansNotification(string $to): NotificationDeliveryAttempt

@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
@@ -250,6 +251,12 @@ class AccountDeletionService
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
+
+        // TCK-1014 (P57.02) — de même pour les visites demandées en étant connecté : le compte
+        // n'étant que soft-deleted, la FK `visitor_id` en `nullOnDelete` ne joue pas. Le contact
+        // de la visite (`visitor_name`, `visitor_email`, `visitor_phone`) reste à l'agence
+        // (décision du porteur, 2026-10-19).
+        PropertyVisit::query()->where('visitor_id', $user->id)->update(['visitor_id' => null]);
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
