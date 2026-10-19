@@ -21,8 +21,10 @@ class BankStatementController extends Controller
 
         $query = BankStatement::query()->where('agency_id', $agency->id);
 
+        // TCK-988 — les comptes de `reconciled_ratio` après `buildQuery()` : un `fields[]` y pose
+        // son `select`, qui écraserait les sous-requêtes de comptage posées avant.
         return BankStatementResource::collection(
-            BankStatement::buildQuery($query, $request)->paginate()
+            BankStatement::buildQuery($query, $request)->withReconciledCounts()->paginate()
         );
     }
 

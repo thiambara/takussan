@@ -98,6 +98,8 @@ class Agency extends AbstractModel implements HasMedia
         'founded_at', 'is_verified', 'status', 'moderation_required', 'created_at', 'updated_at',
         // TCK-594 (ADR-0039 §4, §7) — l'écran des réglages les relit ; `AgencyResource` les rend déjà.
         'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
+        // TCK-987 (P58.02) — la clé de `primaryAdmin`, que `AgencyResource` rend déjà.
+        'primary_admin_id',
     ];
 
     /**

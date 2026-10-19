@@ -5917,7 +5917,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### Aucune garde n'empêche une nouvelle collision entre une colonne et une relation, et six paires `fooBy` / `foo_by` se recouvrent déjà à la sérialisation
 - Réf : P58.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-986
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/AppNotification.php:22,35,66`, `takussan-api/app/Models/BankStatement.php:59-66`, `takussan-api/app/Models/BankStatementLine.php:58`, `takussan-api/app/Models/Lease.php:191`, `takussan-api/app/Models/RoleDelegation.php:90`, `vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:2033-2039`
 - Constat :
@@ -5928,10 +5928,11 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : réflexion en `tinker` (lecture seule) et lecture.
 - Piste : un test unitaire qui parcourt les modèles par réflexion et rougit sur toute relation dont le nom, ou le nom `snake_case`, est une colonne de la table, avec une liste d'exceptions justifiées pour les six paires existantes (ou leur renommage, `uploader` / `finalizer`…, qui touche les `include=` publics). Ablation : renommer une relation `notes` sur un modèle qui a la colonne.
 - Mesure (2026-10-19, 353c40b57, mesureur) : réflexion en `tinker` (lecture seule) des modèles de `app/Models`, méthodes publiques sans paramètre typées `Relation` confrontées à `Schema::getColumnListing` → une collision exacte (`Customer::notes`) et les six mêmes paires `snake_case` (`AppNotification::deliveryAttempts`, `BankStatement::uploadedBy`, `BankStatement::finalizedBy`, `BankStatementLine::confirmedBy`, `Lease::earlyTerminationRequestedBy`, `RoleDelegation::revokedBy`) ; aucun test de `tests/` ne fait ce contrôle (`grep -rln getColumnListing tests` → seul `tests/Support/ResourceSubjects.php`, sans rapport) ; le « à vérifier » sur `RoleDelegation` : `RoleDelegationController.php:38,64` charge `revokedBy` mais rend toujours par `RoleDelegationResource` (`:42,53,67`), qui lit la relation par `whenLoaded` (lu, `RoleDelegationResource.php:42`) — aucune sérialisation brute trouvée dans ce contrôleur. Classement : A5, une garde neuve sans seuil existant ; le renommage des relations, qui toucherait les `include=` publics, est hors du correctif.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `RelationSansCollisionDeColonneTest` (réflexion de `app/Models` contre `Schema::getColumnListing`), liste d'exceptions vide → rouge, 7 collisions nommées (`Customer::notes` et les six paires `snake_case` du constat) → exceptions justifiées pour ces 7, vert ; ablation : `Document::verifier` renommée `verifiedBy` → rouge (`Document::verifiedBy ↔ colonne verified_by`), remise en place → vert.
 
 ### Un `include=uploadedBy` ou `finalizedBy` des relevés bancaires sort toujours `null` dès qu'un `fields[bank_statements]` est passé
 - Réf : P58.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-987 — reste : faire sélectionner par `HasQueryBuilder` la clé d'une `BelongsTo` demandée par `include=` quand `fields[]` l'omet, sans quoi la relation sort encore `null`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/BankStatement.php:42-47`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:29-38`, `takussan-api/app/Models/Agency.php:95-101`
 - Constat :
@@ -5942,10 +5943,11 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire et réflexion en `tinker`.
 - Piste : ajouter les clés étrangères des relations chargeables à `$queryFields`, ou faire sélectionner par `HasQueryBuilder` la clé de toute `BelongsTo` demandée par `include=` ; garder par un test qui, pour chaque modèle, vérifie que chaque relation de `$requestLoadable` a sa clé dans `$queryFields` (la réflexion de ce passage en est la forme).
 - Mesure (2026-10-19, 353c40b57, mesureur) : `BankStatement::$queryFields` sans `uploaded_by` ni `finalized_by` (lu, `BankStatement.php:42-45`, inchangé) ; test temporaire retiré, admin d'agence : `GET /api/agencies/{id}/bank-statements?include=uploadedBy` → `uploaded_by` = `{id, first_name, last_name}`, même appel avec `fields[bank_statements]=id,status` → clé `uploaded_by` présente et `null` ; `Agency::$queryFields` sans `primary_admin_id` (lu, `Agency.php:94-100`) alors qu'`AgencyResource.php:76` rend déjà la colonne, `Document::$queryFields` sans `verified_by` (lu, `Document.php:65-68`) alors que `DocumentResource.php:37` la rend. Classement : A1, le contrat est déjà écrit par le code (relation déclarée dans `$requestLoadable` et rendue par la ressource) et ajouter des colonnes que les ressources rendent déjà n'expose rien de neuf.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `GET /api/agencies/{id}/bank-statements?fields[bank_statements]=id,status,uploaded_by,finalized_by&include=uploadedBy,finalizedBy` → 400 avant correctif ; la garde `RelationChargeableACleSelectionnableTest` nomme `Agency::primaryAdmin`, `BankStatement::uploadedBy`, `BankStatement::finalizedBy`, `Document::verifier` → clés ajoutées aux trois `$queryFields`, 200 et auteur rendu, garde verte ; ablation (les trois listes remises) → 2 rouges, remises → 2 verts.
 
 ### La liste des relevés bancaires lance une requête `bank_statement_lines` par relevé pour `reconciled_ratio`
 - Réf : P58.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-988
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/BankStatement.php:93-110`, `takussan-api/app/Http/Resources/Accounting/BankStatementResource.php:28`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:17-26`
 - Constat :
@@ -5954,6 +5956,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : test temporaire.
 - Piste : précharger les comptes par `withCount` filtrés (`lines as confirmed_count` où `match_status = confirmed`, etc.) dans l'index, et faire lire ces alias à l'accesseur quand ils sont présents ; garder par un test de budget « 2 relevés = 12 relevés » sur `GET /api/agencies/{id}/bank-statements`.
 - Mesure (2026-10-19, 353c40b57, mesureur) : `getReconciledRatioAttribute` interroge les lignes à chaque appel (lu, `BankStatement.php:93-110`), `BankStatementResource.php:28` le lit et `BankStatementController::index` pagine sans préchargement (lu, `:17-26`) ; test temporaire retiré, journal des requêtes : 2 relevés → 2 requêtes `bank_statement_lines`, 13 relevés → 13. Classement : A2, N+1 dont le correctif ne change pas le résultat rendu.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `BankStatementListQueryBudgetTest`, avant correctif : 2 relevés → 2 requêtes `bank_statement_lines`, 12 → 12 ; sous `fields[bank_statements]=id,status`, 2 requêtes pour 2 relevés → comptes préchargés par `withCount` après `buildQuery()`, une requête quel que soit le nombre, ratio identique ; ablation → 2 rouges, remis → verts ; comptes posés avant `buildQuery()` → rouge sous `fields[]`.
 
 ### `UserResource` affirme `false` ou `null` sur les colonnes qu'un sparse fieldset n'a pas lues : 2FA, vérification, préférences
 - Réf : P58.04
