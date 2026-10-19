@@ -30,6 +30,9 @@ class PropertyRedactorTest extends TestCase
             // TCK-953 (ADR-0070 § 9) — la pièce du client et de la caution.
             'id_number' => ['id_number'],
             'tenantIdNumber' => ['tenantIdNumber'],
+            // TCK-954 — le revenu de la caution et du bailleur.
+            'monthly_income' => ['monthly_income'],
+            'monthlyIncome' => ['monthlyIncome'],
         ];
     }
 
