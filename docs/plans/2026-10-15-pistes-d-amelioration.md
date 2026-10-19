@@ -134,7 +134,7 @@ voie d'écriture (angle 13, puis 47).
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | fait |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | fait |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | fait |
-| 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
+| 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | fait |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
@@ -168,6 +168,7 @@ voie d'écriture (angle 13, puis 47).
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
+| 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 
 ---
 
@@ -6202,3 +6203,109 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `KpiConfigController::index` et `ThresholdAlertController::index` rendent `$paginator->items()` (lu). `threshold` et `last_value` (cast `decimal:4`) sortent en chaîne. Le type du front l'admet déjà (`number | string`, `lib/queries/alerts.ts:13,18`, lu).
   - Établi comment : lu, et test temporaire pour les trois premiers.
 - Piste : une ressource par modèle rendu, ou le retrait de la route sans appelant (`/me/service-provider/collaborations`, `/profiles/{id}/suspend`, à confirmer des deux côtés). Garde commune aux quatre entrées : sous `runningUnitTests()`, `Base\Controller::json()` refuse une charge qui contient un `Model`, une `Eloquent\Collection` ou un paginateur. Toute sortie brute rougit alors au premier test qui frappe la route. Ablation : retirer la vérification et constater que les tests de P61.01 à P61.03 repassent au vert sur le code fautif.
+
+## Angle 62 — Règles `exists:` des routes ouvertes à tout compte connecté : oracles d'existence
+
+*Exploré le 2026-10-19 sur `pre-dev` 6b21600d9, par l'explorateur. Relu par l'explorateur lui-même : l'inventaire `grep -rnE "exists:|Rule::exists" app/Http app/Services` (37 FormRequests), l'`authorize()` de chacun hors `Admin/`, puis le contrôleur ou le service des treize routes dont l'`authorize()` rend `true` ou `user() !== null` ; middlewares relevés par `php artisan route:list --json -v` (`api` et `auth:sanctum` seuls, aucun `throttle` sauf visites et invitations). Mesuré par un test temporaire, retiré depuis : un compte `User::factory()` sans agence ni profil, face à des lignes d'une agence tierce et à l'identifiant absent `99999999`, charge `{ 2.81 2.67 2.39 }` sur 8 cœurs. Aucun sous-agent. Hors périmètre : les routes en lot (P22.02, faites), `POST /api/documents` (P03.06, fait) et `participants` des conversations, laissé tel quel par la décision de P03.06. Les routes `Admin/` (super-admin) n'ont pas été mesurées.*
+
+### La création d'un bail dit à tout compte connecté quels clients, garants et biens existent, trois par requête
+- Réf : P62.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:28-40`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:52-57`
+- Constat :
+  - `StoreLeaseRequest::authorize()` rend `true` ; `property_id` (`exists:properties,id`), `tenant_id` (`exists:customers,id`), `guarantor_id` (`exists:guarantors,id`) et `booking_id` (`Rule::exists('bookings')->where('property_id', …)`) se jugent avant toute autorisation, qui n'arrive que dans `LeaseService::create()` (lu).
+  - Le commentaire de `LeaseService.php:45-48` relève déjà que « `exists:` seul laissait rattacher le contact de n'importe qui » ; le correctif a ajouté le contrôle `view` et gardé les `exists:` (lu).
+  - Mesuré, compte sans agence, `POST /api/leases` avec un bien tiers, `type` invalide exprès :
+    - client et garant existants → 422, `errors` = `type` seul ;
+    - client et garant absents → 422, `errors` = `tenant_id`, `guarantor_id`, `type`.
+  - Chaque champ répond pour lui-même : une seule requête juge trois identifiants, et sans débit propre à la route. Les fiches clients et les garants sont des données d'agence qu'aucune route publique n'énumère.
+  - Établi comment : lu, et test temporaire.
+- Piste : retirer les `exists:` du FormRequest et juger l'existence dans le service avec la même réponse que le refus (le modèle de TCK-599, contrainte 11, `StoreFavoriteRequest.php:31-33`) ; ou porter l'autorisation du bien dans `authorize()` pour que l'intrus reçoive 403 avant la validation. Test : même statut et même corps pour un client absent et un client d'une autre agence.
+
+### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
+- Réf : P62.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
+- Constat :
+  - `authorize()` rend `true` ; `customer_id` porte `exists:customers,id`, jugé avant `abort_unless(... $user->can('view', $customer), 403)` de `BookingService.php:93` (lu).
+  - Mesuré, compte sans agence, bien publié d'une agence tierce : client existant → 403 `http.forbidden` ; absent → 422 sur `customer_id`.
+  - Pour le bien : absent → 422 sur `property_id` ; bien `draft` de l'agence tierce → 422 `booking.property_unavailable` (mesuré).
+  - Le test d'état (`UNBOOKABLE_STATUSES` : vendu, loué, brouillon, archivé, en maintenance, indisponible, l. 57-61) court avant le test de visibilité (`public()`, l. 78-82), qui rend 403 sous le même code : un bien privé `available`, `pending_review` ou `rejected` rendrait 403 là où un bien brouillon ou vendu rend 422 (lu, non mesuré pour le 403 : à vérifier).
+  - Établi comment : lu, et test temporaire.
+- Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
+
+### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
+- Réf : P62.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:27-30,51`, `takussan-api/app/Http/Controllers/Api/TaskController.php:53-69,89-109`
+- Constat :
+  - `authorize()` rend `true` ; `assigned_to_id` porte `exists:users,id`, jugé avant la résolution du parent (l. 62) et avant `authorizeAssignee()` (l. 89-109), qui rend pourtant la même réponse `task.assignee_not_staff` pour un absent et un non-membre (lu).
+  - Mesuré, compte sans agence, `taskable_id` absent : compte existant → 404 (le parent manque) ; compte absent → 422 sur `assigned_to_id`. Un compte auto-inscrit énumère donc les identifiants de `users`, ce que TCK-817 a fermé sur `bulk-assign` (P22.02).
+  - `taskable_id` est résolu par `findOrFail()` (l. 62) avant `authorize('attachTo')` (l. 63) : mesuré, fiche client d'une agence tierce → 403, absente → 404. Même oracle pour les biens (`TASKABLE_TYPES`, lu).
+  - Établi comment : lu, et test temporaire.
+- Piste : retirer `exists:users,id` (l'assigné est déjà jugé par `authorizeAssignee`) et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` depuis TCK-732 (P03.06). Test : compte absent et compte existant, parent absent et parent tiers, mêmes réponses.
+
+### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
+- Réf : P62.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:28-36`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:27,43-44`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:34,51-52`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:46,66-68,109-112`, `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:28-43`
+- Constat :
+  - Les quatre `authorize()` rendent `true` ou `user() !== null` ; `lease_id` porte `exists:leases,id`, et le groupe `maintenance_request_id` porte `exists:maintenance_requests,id` (lu).
+  - Mesuré, compte sans agence, bail et demande d'une agence tierce, identifiant absent :
+    - `POST /api/inventories` : bail existant → 422 sans erreur sur `lease_id` (les autres champs manquent) ; absent → 422 avec `lease_id` « The selected lease is invalid » ;
+    - `POST /api/maintenance-requests` : existant → 403 ; absent → 422 sur `lease_id` ;
+    - `POST /api/conversations` (directe) : existant → `lease_id` « You cannot link this conversation to this item » ; absent → « The selected lease is invalid » ;
+    - `POST /api/conversations` (groupe) : même partage sur `maintenance_request_id`.
+  - `guardContext()` rend déjà un message unique pour « absent ou illisible » (l. 39-41) : c'est `exists:` qui le précède et sépare les deux cas (lu).
+  - Établi comment : lu, et test temporaire.
+- Piste : dans les conversations, retirer `exists:` des champs que `guardContext()` juge déjà ; dans l'état des lieux et l'intervention, juger le bail dans le contrôleur avec la réponse du refus. Test par route : bail absent et bail tiers, même réponse.
+
+### La recherche dans les messages dit quelles conversations existent
+- Réf : P62.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Search/SearchQueryRequest.php:11-21`, `takussan-api/app/Services/Search/MessageSearchService.php:20-29`
+- Constat :
+  - `authorize()` rend `true` ; `filter.conversation` porte `exists:conversations,id`, alors que le service borne déjà la recherche aux fils de l'appelant (`whereIn('conversation_id', $conversationIds)`, l. 20-26) : un fil tiers ne rend aucun résultat (lu).
+  - Mesuré, `GET /api/search/messages?q=bonjour&filter[conversation]=` : absent → 422 sur `filter.conversation` ; conversation tierce existante → validation passée (la suite a rendu 500 « Index … not found », faute d'index Meilisearch dans la base de test : sans rapport avec la règle).
+  - Seul le nombre de conversations de la plateforme se lit ainsi : gravité faible.
+  - Établi comment : lu, et test temporaire.
+- Piste : `['nullable', 'integer']` seul, le service rendant une page vide pour un fil absent comme pour un fil tiers. Test qui épingle la même réponse.
+
+### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
+- Réf : P62.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:26,37-40`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:45,99`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:119-128`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:43`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-103`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:51`
+- Constat :
+  - Mesuré, compte sans agence, bien `draft` d'une agence tierce et identifiant absent :
+    - `GET /api/calendar?property_id=` : brouillon → 200 ; absent → 422 sur `property_id` (`property_ids.*` porte la même règle, l. 40, non mesuré) ;
+    - `POST /api/property-visits` : brouillon → 422 sur `scheduled_at` seul ; absent → 422 sur `property_id` et `scheduled_at`. Avec un créneau valide, le brouillon rendrait 403 `visit.property_unavailable` (l. 128, lu).
+  - `POST /api/maintenance-requests` : `exists:properties,id`, puis 403 pour un bien tiers (l. 103) ; `POST /api/conversations` directe : `exists:properties,id` puis refus de tout `property_id` (lu, non mesuré pour ces deux biens).
+  - Les identifiants des biens publiés sont publics : seuls les brouillons, privés et archivés s'en déduisent. P22.02 a fermé le même oracle sur les routes en lot.
+  - Établi comment : lu, et test temporaire pour les deux premières.
+- Piste : retirer `exists:properties,id` là où le contrôleur ou le collecteur juge déjà la visibilité, avec la réponse du refus pour un absent. Test par route.
+
+### Petites améliorations : identifiants d'agence, de profil et de rôle
+- Réf : P62.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
+- Constat :
+  - `agency_id` (`exists:agencies,id`) se juge avant le 403 `integration.other_agency_forbidden` (`IntegrationController.php:77-81`), le 403 `calendar.other_agency_forbidden` et le refus de l'invitation : un absent rend 422, une agence tierce 403 (lu, non mesuré). Que les identifiants d'agence soient déjà publics (annuaire, fiche bien) n'a pas été relevé : à vérifier.
+  - `PATCH /api/profiles/{profile}/agency-role` : `authorize()` rend `user() !== null` ; `agency_role_id` porte `exists:agency_roles,id`, et le profil est résolu par `findOrFail()` (l. 36) avant `Gate::authorize('assign')` (l. 41) : profil absent → 404, profil tiers → 403 (lu, non mesuré).
+- Piste : même traitement que les entrées précédentes ; pour le profil, rendre 404 quand `assign` refuse.
+
+### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
+- Réf : P62.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/` (13 FormRequests hors `Admin/` dont l'`authorize()` rend `true` ou `user() !== null` et qui portent un `exists:`), `scripts/`
+- Constat :
+  - Le défaut a été corrigé route par route (TCK-599 sur les favoris, TCK-732 sur les documents, TCK-817 sur les routes en lot), et chaque correctif l'a écrit dans un commentaire (`StoreFavoriteRequest.php:31-33`, `PropertyController.php:454`, `PropertyBulkAssignService.php:87`) ; aucun test ni garde ne porte la règle (lu : aucun `check-*.mjs` ni test d'architecture ne lit `exists:`).
+  - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
+- Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.
