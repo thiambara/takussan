@@ -42,7 +42,7 @@ export const TAG_FIELDS = ['id', 'name', 'slug', 'color'] as const;
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
   'id_type',
-  'id_number',
+  // TCK-953 — pas d'`id_number` : l'API le refuse (400) et rend `id_number_masked` à la fiche.
   'emergency_contact_name',
   'emergency_contact_phone',
   'added_by_id',

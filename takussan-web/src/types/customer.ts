@@ -39,7 +39,8 @@ export interface CustomerListItem {
 export interface CustomerDetail extends CustomerListItem {
   birth_date: string | null;
   id_type: IdType | null;
-  id_number: string | null;
+  /** TCK-953 (ADR-0070) — le numéro de pièce masqué (`•••• 8877`) ; la valeur ne sort plus. */
+  id_number_masked: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   added_by_id: number | null;
