@@ -5083,7 +5083,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `GET /api/settings` rend les réglages globaux de la plateforme à tout membre d'une agence
 - Réf : P47.05
-- Statut : validé — `GET /api/settings` réservé, hors super-admin, à l'admin de l'agence, qui n'y lit que les lignes de son agence, jamais les lignes `global` (les réglages publics passent par `publicSettings()`) ; un test : un agent et un bailleur reçoivent 403, un admin d'agence ne lit aucune ligne `global` (porteur, 2026-10-18)
+- Statut : fait · TCK-965
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:16-35`, `takussan-api/app/Services/Admin/PlatformSettingService.php:45-49`
 - Constat :
@@ -5095,6 +5095,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré.
 - Piste : réserver la liste aux admins de l'agence et ne rendre que leurs lignes d'agence, ou retirer la lecture, puisque rien ne l'appelle. Un test : un agent ne lit aucune ligne `global`.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `SettingController.php:16-35` (`orWhere('scope', Global)`, aucune capacité jugée) ; même test temporaire, retiré : ligne globale `boost.sponsored_slots_per_page` posée, puis `GET /api/settings` en agent → 200 `[["boost.sponsored_slots_per_page","global"]]`, en bailleur (`owner`) → 200, même ligne ; `grep` de `/api/settings` dans `takussan-web/src` → aucun appelant. Classement : V2, la piste resserre une autorisation (ou retire la route) et choisit qui lit quoi ; sans appelant front, rien ne dit qu'aucun client légitime ne l'emploie.
+- Mesure (2026-10-19, f356e5a5f, implementeur) : avant correctif, `SettingIndexAccessTest` rougit 3 fois (agent → 200, bailleur → 200, admin d'agence → 2 lignes dont `boost.sponsored_slots_per_page` en `global`) → `index` refuse en 403 hors super-admin et hors admin de l'agence, et ne rend que `scope = agency` de son agence ; ablation → les 3 mêmes rouges, remis → 4 verts ; `SettingTest` et `tests/Feature/Admin/Platform` verts (237).
 
 ### `metadata.legal_info` reste exposé et décrit comme la source, alors qu'il n'est plus écrit
 - Réf : P47.06
