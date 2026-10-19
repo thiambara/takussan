@@ -10,6 +10,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    // TCK-955 (ADR-0070 § 5) — le numéro de pièce en clair : admin de l'agence du client, sous
+    // step-up, consultation journalisée.
+    Route::get('customers/{customer}/sensitive', [CustomerController::class, 'sensitive'])
+        ->whereNumber('customer')
+        ->name('customers.sensitive');
     Route::put('customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
     Route::patch('customers/{customer}', [CustomerController::class, 'update']);
     Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');

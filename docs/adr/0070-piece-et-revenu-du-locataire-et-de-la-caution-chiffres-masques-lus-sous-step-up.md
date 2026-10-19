@@ -2,7 +2,8 @@
 
 - **Statut** : Accepté le 2026-10-18 par le porteur (décision de session sur la piste P23.03 : « un
   ADR qui étend ADR-0044 § 1 aux pièces du locataire et de la caution (chiffrement, forme masquée
-  par défaut, lecture sous step-up journalisée), puis ses tickets »)
+  par défaut, lecture sous step-up journalisée), puis ses tickets »). **Amendé le 2026-10-19** :
+  le super-admin lit aussi en clair (cf. § *Amendement du 2026-10-19*)
 - **Date** : 2026-10-18
 - **Tickets** : [TCK-953](../backlog/tickets/TCK-953-piece-du-locataire-chiffree-et-masquee.md),
   [TCK-954](../backlog/tickets/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md),
@@ -214,7 +215,7 @@ Chaque route vit dans le fichier de routes de son modèle (`routes/api/customers
 | Admin de l'agence que `GuarantorPolicy::view` lit déjà pour la caution (`addedBy->agency_id`) | oui | la caution n'a pas de colonne d'agence : on reprend la règle qui décide déjà qui la lit |
 | Agent, y compris celui qui a saisi la valeur | non, masque seulement | amendement A, point 7 |
 | Bailleur | ni valeur, ni masque | TCK-587, TCK-808 |
-| Super-admin | non, par ces routes | même règle que `OwnerProfilePolicy::viewSensitive`. La plateforme a sa console et ses voies KYC journalisées |
+| Super-admin | ~~non, par ces routes~~ **oui, par `Gate::before`** (amendement du 2026-10-19) | ~~même règle que `OwnerProfilePolicy::viewSensitive`~~ : cette policy ne le refusait pas, voir l'amendement |
 | Toute session d'impersonation | non (403 `impersonation.read_only`) | § 6 |
 
 **Pourquoi pas une capacité.** Les capacités se délèguent par les rôles d'agence personnalisés
@@ -316,7 +317,7 @@ Les textes passent par next-intl : `fr`, `en`, et en `wo` le texte français tel
 | Une empreinte HMAC pour garder la recherche | Personne ne cherche sur ces colonnes. Une empreinte est une seconde copie à gouverner (ADR-0044 § 1). |
 | Une classe de cast `EncryptedDecimal` pour garder `decimal:2` | `backup:verify-encryption` ne reconnaît que les casts nommés `encrypted*` : la colonne sortirait de la vérification des restaurations sans aucun signal. |
 | Une capacité délégable (`crm.view_identity`) | Un rôle personnalisé la donnerait à un agent, contre le point 7 de l'amendement A. |
-| Ouvrir la lecture claire au super-admin | La console a ses voies, déjà journalisées, et aucun écran de la console ne lit une fiche client. Cela suit `OwnerProfilePolicy::viewSensitive`. |
+| ~~Ouvrir la lecture claire au super-admin~~ | **Retenu par l'amendement du 2026-10-19** : le motif « cela suit `OwnerProfilePolicy::viewSensitive` » reposait sur un refus qui n'existait pas. |
 | Une seule migration pour les trois tables | Chaque table a son modèle, son ticket et son aller-retour. Une migration commune ne pourrait pas être annulée table par table. |
 | Mettre la fiche entière dans `customers.json` | Les notes et les métadonnées de l'agence posent une question juridique (TCK-537) qui n'est pas celle de cet ADR. |
 
@@ -349,3 +350,43 @@ Dans cet ordre. Chaque ticket est de taille M au plus et dépend du précédent 
 
 Après la fusion de TCK-956, `/sync-specs` met à jour `docs/models-spec.md` (§ 7 Customer,
 § 27 Guarantor, § 34 OwnerProfile).
+
+## Amendement du 2026-10-19 — le super-admin lit aussi en clair (TCK-955)
+
+**Ce que la mesure a trouvé.** Le § 5 refusait les lectures claires au super-admin, « même règle
+que `OwnerProfilePolicy::viewSensitive` ». Cette policy ne le refuse pas. `Gate::before`
+(`AppServiceProvider.php:744`) rend `true` pour tout super-admin avant toute policy. Le super-admin
+lit donc déjà en clair le RIB, le NINEA et la pièce d'un bailleur par `owners/{id}/sensitive`, et
+le docblock de `OwnerProfileController::sensitive` le dit (« et le super-admin, par
+`Gate::before` »). Aucun test ne fixait ni ce passage ni son refus. Relevé en préparant TCK-955,
+dont l'AC3 attendait un 403 pour le super-admin.
+
+**Décision du porteur (2026-10-19)** : le super-admin lit en clair les trois lectures dédiées.
+La règle reste celle de `Gate::before`, sans exception. Trois options lui ont été posées :
+
+- a) retirer `viewSensitive` du contournement pour les trois routes ;
+- b) le retirer pour le client et la caution seulement ;
+- c) laisser le super-admin lire les trois. **C'est l'option retenue.**
+
+**Ce qui change :**
+
+- **§ 5, « Qui y a droit ».** Le super-admin lit en clair par `customers/{id}/sensitive` et
+  `guarantors/{id}/sensitive`, comme par `owners/{id}/sensitive`. Les policies ne le nomment pas :
+  c'est `Gate::before` qui l'admet.
+- **§ 5, « Les cas sans agence ».** Un client sans agence, ou une caution dont l'auteur n'a pas
+  d'agence résolue, a un seul lecteur en clair : le super-admin. Sa ligne de journal porte
+  `agency_id` nul, et elle n'est visible que de lui.
+- **Alternatives écartées.** « Ouvrir la lecture claire au super-admin » n'est plus écartée.
+
+**Ce qui ne change pas :**
+
+- Le step-up est exigé de tout lecteur, super-admin compris : les trois actions sont dans
+  `ProtectedActions::STEP_UP`.
+- Chaque lecture est journalisée, quel que soit le lecteur.
+- Une session d'impersonation reste refusée (§ 6) : c'est `EnforceImpersonationReadOnly` qui la
+  refuse, pas une policy, et `Gate::before` ne l'atteint pas.
+- L'agent et le bailleur restent refusés. Le droit ne passe toujours pas par une capacité.
+
+**Ce que le test fixe désormais.** Le super-admin reçoit 200 sous step-up, et une ligne
+`PersonalDataAccess` est écrite. Un retrait futur du contournement fera donc rougir un test au lieu
+de passer en silence.

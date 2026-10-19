@@ -30,6 +30,8 @@ use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CommissionEntryController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\GuarantorController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
@@ -264,6 +266,10 @@ final class ProtectedActions
         // une lecture de secret, comme les codes de secours. Une session volée ne la révèle pas
         // sans le TOTP ; la consultation est en outre journalisée (`PersonalDataAccessLogger`).
         OwnerProfileController::class.'@sensitive',
+        // TCK-955 (ADR-0070 § 5) — la pièce du client, et la pièce et le revenu de la caution, en
+        // clair : même règle que celle du bailleur.
+        CustomerController::class.'@sensitive',
+        GuarantorController::class.'@sensitive',
     ];
 
     /**
