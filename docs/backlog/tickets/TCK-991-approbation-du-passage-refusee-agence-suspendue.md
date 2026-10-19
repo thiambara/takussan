@@ -1,7 +1,7 @@
 ---
 id: TCK-991
 title: "L'approbation d'une demande de passage est refusée tant que l'agence est suspendue"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -69,3 +69,9 @@ approuvable une fois la suspension levée, ou rejetable.
   faire ».
 
 ## Notes d'implémentation
+
+- Avant : agence `suspended` → `200`, demande `approved`, agence `standard`.
+- Ablation : la condition neutralisée → AC1 rouge seul (`200` au lieu de `422`), AC2 vert ;
+  remise → 14 verts.
+- ⚠ `$request->agency()->value('status')` rend l'enum casté, pas la chaîne : la première écriture,
+  qui comparait à `AgencyStatus::Suspended->value`, laissait le test rouge.
