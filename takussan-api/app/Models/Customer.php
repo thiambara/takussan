@@ -32,6 +32,16 @@ class Customer extends AbstractModel
     ];
 
     /**
+     * TCK-953 (ADR-0070 § 1 et 3) — le numéro de pièce : chiffré (cast `encrypted`, colonne `text`),
+     * absent de toute sérialisation par défaut (`$hidden`), hors des sparse fieldsets. Il ne sort
+     * que masqué (`CustomerResource::id_number_masked`). Le cast reste `encrypted` simple, jamais
+     * une classe maison : `backup:verify-encryption` ne verrait plus la colonne.
+     */
+    public const SENSITIVE = ['id_number'];
+
+    protected $hidden = self::SENSITIVE;
+
+    /**
      * Override the default Auditable whitelist to exclude the `id_number`
      * field (government ID), which is sensitive and should not be surfaced
      * in the activity log payloads.
@@ -67,6 +77,7 @@ class Customer extends AbstractModel
 
     protected $casts = [
         'id_type' => IdType::class,
+        'id_number' => 'encrypted',
         'status' => CustomerStatus::class,
         'pipeline_stage' => CustomerPipelineStage::class,
         'metadata' => 'array',
@@ -102,10 +113,11 @@ class Customer extends AbstractModel
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
+    /** TCK-953 — sans `id_number` : `fields[customers]=…,id_number` rend 400 (ADR-0070 § 4). */
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'added_by_id',
         'first_name', 'last_name', 'email', 'phone',
-        'id_type', 'id_number', 'occupation',
+        'id_type', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone',
         'status', 'pipeline_stage', 'metadata',
         'seeking_contract_type', 'budget_min', 'budget_max',
