@@ -33,7 +33,7 @@ le seuil comme un réglage de l'agence.
 
 ## Décision du porteur
 
-> ouvrir les deux clés dans `AgencyUpdateRequest` (`booking_pending_expiry_hours` entier de 0 à 168, `tenant_onboarding_enabled` booléen), avec le test qui confronte les clés de `agencies.settings` lues par `app/` aux règles d'`AgencyUpdateRequest` (porteur, 2026-10-18, sur la recommandation du délégué)
+> ouvrir les deux clés dans `AgencyUpdateRequest` (`booking_pending_expiry_hours` entier de 0 à 168, `tenant_onboarding_enabled` booléen), avec le test qui confronte les clés de `agencies.settings` lues par `app/` aux règles d'`AgencyUpdateRequest` (porteur, 2026-10-18, sur la recommandation du délégué) ; reste : le champ d'écran, son libellé et son emplacement
 
 ## Reste à faire
 
