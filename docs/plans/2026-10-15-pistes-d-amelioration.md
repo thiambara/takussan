@@ -5592,7 +5592,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### `address.country: null` rend 500 à la création et à la modification d'un bien
 - Réf : P54.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-976
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:88`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:84`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:141-142,217-225`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:19`
 - Constat :
@@ -5601,6 +5601,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - C'est le reste annoncé par la `Mesure` de l'implémenteur sur P17.01 (« `country` a la même forme »), jamais repris en entrée : voir P17.01, dont le correctif (`filled` sur `address.city`) s'applique tel quel.
 - Piste : `address.country` en `filled` dans les deux FormRequests, comme `address.city` (TCK-703). Étendre `tests/Feature/Geo/AdresseSansVilleTest.php` d'un cas `country: null` par voie, qui attend 422 et une base intacte.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePropertyRequest.php:88` et `UpdatePropertyRequest.php:84` (`address.country` toujours `nullable`, à côté d'`address.city` en `filled` depuis TCK-703) → `POST /api/properties` avec `address: {street, country: null}` → 500, sans la clé → 201 ; `PATCH` avec `address: {country: null}` → 500 `SQLSTATE[23502]` colonne `country` ; aucun commit ni ticket ne l'a traité (TCK-703 le nomme comme reste). Classement : A1, le contrat « clé omise → défaut, `null` → 422 » est écrit par TCK-703 et `AdresseSansVilleTest`, et s'applique tel quel à `country`.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StorePropertyRequest.php:88` et `UpdatePropertyRequest.php:84` (`address.country` toujours `nullable`) ; trois cas ajoutés à `AdresseSansVilleTest` → avant correctif, `POST` et `PATCH` avec `address.country: null` rendent 500 (2 rouges sur 9) → `address.country` en `filled` (`sometimes` gardé au PATCH) : 9 verts ; ablation (les deux FormRequests remises) → 2 rouges, remis → vert ; un pays omis prend toujours `SN`.
 
 ### Créer un forfait avec `trial_days`, `is_active` ou `sort_order` à `null` rend 500
 - Réf : P54.02
