@@ -109,9 +109,10 @@ class AgencySettingsWritableTest extends TestCase
     /**
      * Les clés que chaque fichier de `app/` lit dans les `settings` d'une agence. Un fichier en est
      * un lecteur s'il nomme les `settings` d'une agence (`$agency->settings`, `agency?->settings`,
-     * `$this->settings` dans `Agency`, `agencies.settings`, ou une requête JSON
-     * `'settings->…'`) ; les clés sont celles de `data_get(…->settings, 'clé'`, de
-     * `$settings['clé']` et de `'settings->clé'`. Les commentaires sont ignorés.
+     * `$this->settings` dans `Agency`, `agencies.settings`, une requête JSON `'settings->…'`, ou
+     * depuis TCK-970 l'accesseur `->setting(` et `AgencySettings::read(`) ; les clés sont celles de
+     * `data_get(…->settings, 'clé'`, de `$settings['clé']`, de `'settings->clé'`, de
+     * `->setting('clé'` et d'`AgencySettings::read(…, 'clé'`. Les commentaires sont ignorés.
      *
      * @return array<string, list<string>>
      */
@@ -125,18 +126,18 @@ class AgencySettingsWritableTest extends TestCase
                 fn (string $ligne): bool => ! preg_match('#^\s*(\*|//|/\*)#', $ligne),
             ));
 
-            $lecteur = preg_match('/agency\??->settings|agencies\.settings|[\'"]settings->/i', $code) === 1
+            $lecteur = preg_match('/agency\??->settings|agencies\.settings|[\'"]settings->|->setting\(|AgencySettings::read\(/i', $code) === 1
                 || ($relatif === 'Models/Agency.php' && str_contains($code, '$this->settings'));
             if (! $lecteur) {
                 continue;
             }
 
             preg_match_all(
-                '/data_get\(\s*\$[\w>?\-]*settings\s*,\s*[\'"]([a-z_]+)|\$settings\[[\'"]([a-z_]+)[\'"]\]|[\'"]settings->([a-z_]+)/',
+                '/data_get\(\s*\$[\w>?\-]*settings\s*,\s*[\'"]([a-z_]+)|\$settings\[[\'"]([a-z_]+)[\'"]\]|[\'"]settings->([a-z_]+)|->setting\(\s*[\'"]([a-z_]+)|AgencySettings::read\([^,]+,\s*[\'"]([a-z_]+)/',
                 $code,
                 $m,
             );
-            $cles = array_values(array_unique(array_filter(array_merge($m[1], $m[2], $m[3]))));
+            $cles = array_values(array_unique(array_filter(array_merge($m[1], $m[2], $m[3], $m[4], $m[5]))));
             if ($cles !== []) {
                 sort($cles);
                 $lues[$relatif] = $cles;

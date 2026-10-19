@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Settings\AgencySettings;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
-use App\Models\Enums\WatermarkPosition;
 use App\Services\Admin\PlatformSettingService;
 use Illuminate\Validation\Rule;
 
@@ -64,18 +64,9 @@ class AgencyUpdateRequest extends BaseFormRequest
             // `AgencyController::update`, et un `null` au premier niveau ne dit pas quelle clé
             // retirer. Une clé à `null`, elle, revient au défaut du code.
             'settings' => ['sometimes', 'array'],
-            'settings.watermark_enabled' => ['sometimes', 'boolean'],
-            'settings.watermark_position' => ['sometimes', Rule::enum(WatermarkPosition::class)],
-            'settings.watermark_opacity' => ['sometimes', 'integer', 'between:10,100'],
-            // TCK-589 — 2FA exigée de tout le personnel de l'agence (contrainte 7).
-            'settings.require_team_two_factor' => ['sometimes', 'boolean'],
-            // TCK-593 — absent = `false` (`Agency::collectsLateFeesOnline()`).
-            'settings.late_fee_online_collection' => ['sometimes', 'nullable', 'boolean'],
-            // TCK-963 — lus par `BookingExpirationService` (0 = désactivé, features.md § 1.3) et par
-            // `TenantOnboardingService` ; sans règle, `validated()` les retirait sans erreur. `null`
-            // retire la clé : le défaut du code revient.
-            'settings.booking_pending_expiry_hours' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
-            'settings.tenant_onboarding_enabled' => ['sometimes', 'nullable', 'boolean'],
+            // TCK-970 — les clés de `settings`, leur type et leur défaut : une seule liste, que lit
+            // aussi `Agency::setting()`.
+            ...AgencySettings::rules(),
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
