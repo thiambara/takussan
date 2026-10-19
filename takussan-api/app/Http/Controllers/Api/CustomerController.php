@@ -65,8 +65,9 @@ class CustomerController extends Controller
             'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
         ]));
 
+        // TCK-953 — relue en entier : le masque de la pièce se calcule même si elle n'a pas été saisie.
         return $this->json([
-            'data' => CustomerResource::make($customer)->resolve($request),
+            'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ], 201);
     }
 
@@ -112,7 +113,13 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         // Re-fetch through the query builder so ?include= params (e.g. tags) are honoured.
-        $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
+        $query = Customer::buildQuery(Customer::where('id', $customer->id), $request);
+        // TCK-953 (ADR-0070 § 3) — `id_number` n'est plus demandable par `fields[customers]` : il est
+        // chargé ici pour que la ressource en calcule le MASQUE. Sans `fields[]`, `select *` le charge.
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect(array_map(static fn (string $column): string => 'customers.'.$column, Customer::SENSITIVE));
+        }
+        $customer = $query->firstOrFail();
 
         return $this->json([
             'data' => CustomerResource::make($customer)->resolve($request),

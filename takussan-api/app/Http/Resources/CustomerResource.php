@@ -6,11 +6,16 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
 use App\Policies\CustomerPolicy;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Masking;
 use Illuminate\Http\Request;
 
 class CustomerResource extends BaseResource
 {
-    /** TCK-808 — les colonnes réservées au lecteur de la fiche. */
+    /**
+     * TCK-808 — les colonnes réservées au lecteur de la fiche, jugées par `getAttributes()`. Le
+     * numéro de pièce y reste sous sa clé de colonne `id_number` : il ne sort plus que masqué
+     * (`id_number_masked`, TCK-953), mais sa présence décide toujours de relire la policy.
+     */
     private const RESERVES = ['id_type', 'id_number', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
 
     public function toArray(Request $request): array
@@ -27,9 +32,14 @@ class CustomerResource extends BaseResource
             'last_name' => $this->last_name,
             'email' => $this->email,
             'phone' => $this->phone,
-            ...($litLaFiche ? [
-                'id_type' => $this->id_type?->value,
-                'id_number' => $this->id_number,
+            ...($litLaFiche ? ['id_type' => $this->id_type?->value] : []),
+            // TCK-953 (ADR-0070 § 3) — le masque seulement, et seulement si la colonne a été lue :
+            // une liste sous `fields[customers]` ne déchiffre aucune ligne. La fiche la charge
+            // toujours (`CustomerController::show`).
+            ...($litLaFiche && array_key_exists('id_number', $this->resource->getAttributes()) ? [
+                'id_number_masked' => is_string($numero = $this->resource->id_number) && $numero !== ''
+                    ? Masking::tail($numero)
+                    : null,
             ] : []),
             'occupation' => $this->occupation,
             ...($litLaFiche ? [

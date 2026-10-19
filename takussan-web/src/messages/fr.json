@@ -2761,6 +2761,7 @@
       "idType": "Type de pièce",
       "idTypePlaceholder": "Non renseigné",
       "idNumber": "Numéro",
+      "idNumberKept": "{masque} — laisser vide pour le garder",
       "saving": "Enregistrement…",
       "create": "Créer le client"
     },
