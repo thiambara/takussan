@@ -170,10 +170,11 @@ export type Guarantor = {
   phone: string | null;
   email: string | null;
   id_type: 'id_card' | 'passport' | 'driving_license' | null;
-  id_number: string | null;
+  /** TCK-954 (ADR-0070) — la pièce et le revenu ne sortent plus que masqués (`•••• 5566`, `••••`). */
+  id_number_masked: string | null;
   occupation: string | null;
   employer: string | null;
-  monthly_income: number | null;
+  monthly_income_masked: string | null;
   relationship_to_tenant: string | null;
   notes: string | null;
   created_at: string;
