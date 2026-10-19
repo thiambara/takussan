@@ -5467,7 +5467,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `scout:sync-index-settings` sort en 0 quand Meilisearch refuse : l'arrêt du déploiement de TCK-710 ne se déclenche jamais
 - Réf : P52.01
-- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` et `dev.sh`, et fait échouer des déploiements qui passent aujourd'hui ; porteur (2026-10-19) : traité hors agents, en session : une commande du dépôt qui sort en échec sur tout refus de Meilisearch, appelée par `release.sh` et `dev.sh`
+- Statut : fait · TCK-995
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76`, `takussan-api/docker/release.sh:31-36`, `scripts/test-release-reindex.sh:37-42,94-96`, `dev.sh:774`
 - Constat :
@@ -5483,7 +5483,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le déploiement n'attend ni ne lit l'issue des tâches Meilisearch : un réglage ou un document refusé passe sans trace
 - Réf : P52.02
-- Statut : retenu · à valider — V5 : attente des tâches et relecture des réglages dans `release.sh` et `smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session, avec P52.01 : tâches attendues, réglages relus et comparés à `config/scout.php`
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:408-417`, `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/docker/release.sh:47-58`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:117-130`
 - Constat :
@@ -5496,7 +5496,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une perte du volume de Meilisearch n'est rattrapée par aucun déploiement
 - Réf : P52.03
-- Statut : retenu · à valider — V5 : sonde de l'index au `release` ou procédure du runbook de déploiement ; porteur (2026-10-19) : traité hors agents, en session : compter les documents de l'index au `release` et forcer l'importation sur un index vide face à une table non vide, plutôt qu'une procédure du runbook
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:42-45`, `deploy/server/compose.data.yml:19-31`, `docs/infra/hebergement.md:371-374`
 - Constat :
@@ -5508,7 +5508,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P52.04
-- Statut : retenu · à valider — V5 : `resetSettings()` au déploiement touche `release.sh` ; la partie `SCOUT_PREFIX` est inexacte ; porteur (2026-10-19) : traité hors agents, en session, avec P52.02 ; relevé de `SCOUT_PREFIX` en préproduction
+- Statut : fait · TCK-995
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/config/scout.php:156-300`, `docs/infra/hebergement.md:167`
 - Constat :
@@ -5540,7 +5540,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `dev.sh` crée sept index `testing_*` que nul test ne lit, sous un commentaire qui décrit un `phpunit.xml` disparu
 - Réf : P53.02
-- Statut : retenu · à valider — V5 : le correctif est dans `dev.sh` ; porteur (2026-10-19) : traité hors agents, en session : retirer la seconde synchronisation de `dev.sh` et son commentaire
+- Statut : fait · TCK-995
 - Gravité : 🟠 risque ou dette
 - Où : `dev.sh:761-775`, `takussan-api/phpunit.xml:57-67`, `takussan-api/tests/Support/TestSearchIndex.php:32,56`, `.github/workflows/api-ci.yml:284-298`
 - Constat :
@@ -5554,7 +5554,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `smoke-api.sh pile` laisse sa base `takussan_smoke` et ses sept index `smoke_*` après le nettoyage
 - Réf : P53.03
-- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session : base et index `smoke_*` retirés par `nettoyer_pile()`, et un verrou contre deux passages simultanés
+- Statut : fait · TCK-995
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/smoke-api.sh:89-121`, `deploy/takussan/.env.smoke.example:18,33`
 - Constat :
