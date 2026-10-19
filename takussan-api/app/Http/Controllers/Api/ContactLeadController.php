@@ -57,7 +57,7 @@ class ContactLeadController extends Controller
         $this->authorize('view', $lead);
 
         return $this->json([
-            'data' => PropertyContactLeadResource::make($lead->load(['property', 'recipient']))->toArray($request),
+            'data' => PropertyContactLeadResource::make($lead->load(['property', 'recipient']))->resolve($request),
         ]);
     }
 
@@ -65,7 +65,7 @@ class ContactLeadController extends Controller
     {
         $lead = $this->leads->markHandled($lead, $request->user());
 
-        return $this->json(['data' => PropertyContactLeadResource::make($lead)->toArray($request)]);
+        return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
     }
 
     public function assign(AssignContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
@@ -74,7 +74,7 @@ class ContactLeadController extends Controller
 
         $lead = $this->leads->assign($lead, $assignee);
 
-        return $this->json(['data' => PropertyContactLeadResource::make($lead)->toArray($request)]);
+        return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
     }
 
     public function convert(ConvertContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
@@ -84,7 +84,7 @@ class ContactLeadController extends Controller
         $customer = $this->leads->convert($lead, $request->user());
 
         return $this->json([
-            'data' => PropertyContactLeadResource::make($lead->refresh())->toArray($request),
+            'data' => PropertyContactLeadResource::make($lead->refresh())->resolve($request),
             'customer' => ['id' => $customer->id],
         ], 201);
     }

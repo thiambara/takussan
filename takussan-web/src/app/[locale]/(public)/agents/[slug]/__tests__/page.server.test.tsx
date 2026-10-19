@@ -192,6 +192,23 @@ describe("fiche d'agent — l'introuvable et l'indisponible", () => {
   });
 });
 
+describe('TCK-915 — la biographie résumée pour la méta', () => {
+  it('une bio longue est coupée au mot, une bio vide prend le résumé', async () => {
+    const bio = 'Belle villa lumineuse avec piscine et jardin arboré, proche de la plage et des commerces, ' .repeat(4);
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: { ...agent(), bio } });
+    const meta = await generateMetadata({ params: params() });
+    expect(String(meta.description).length).toBeLessThanOrEqual(160);
+    expect(String(meta.description).endsWith('…')).toBe(true);
+    // Coupé au mot : le corps est un début du texte, et le texte continue par un blanc ou une ponctuation.
+    const corps = String(meta.description).slice(0, -1);
+    expect(bio.startsWith(corps)).toBe(true);
+    expect(bio[corps.length]).toMatch(/[\s,;:.!?]/);
+
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: { ...agent(), bio: '' } });
+    expect((await generateMetadata({ params: params() })).description).not.toBe('');
+  });
+});
+
 /**
  * TCK-573 — un propriétaire garde sa fiche sous `/agents/…`, mais n'y est JAMAIS présenté comme agent
  * immobilier. Mesuré avant correctif, `curl /fr/agents/owner.agency4` : `<title>Property Owner —

@@ -1,6 +1,6 @@
 # ADR-0025 — Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-10-19** (cf. § *Amendement du 2026-10-19 — le tri des noms*)
 - **Date de la décision** : 2026-08-22
 - **Tickets** : —
 - **ADR liés** : [ADR-0020](0020-postgresql-sur-tous-les-environnements.md) §4.2 (les six contraintes
@@ -158,3 +158,19 @@ laquelle cet ADR porte sur une FORME d'écriture et pas seulement sur un jeu d'i
 | **`unaccent`** | résout un autre problème (les accents), qu'ADR-0020 a délibérément décidé de ne pas résoudre |
 | **Colonne normalisée maintenue par l'application** | déplace la garantie de la base vers le code, c'est-à-dire vers le chemin qui ne couvre ni les seeders, ni les imports, ni `updateQuietly` — soit précisément les chemins que ces index existent pour couvrir |
 | **Ne rien faire** | l'index annonce une garantie qu'il ne tient pas. *Une contrainte qui change de sens ne lève aucune erreur — elle laisse passer un doublon* |
+
+## Amendement du 2026-10-19 — le tri des noms passe aussi par `COLLATE "und-x-icu"` (P51.05)
+
+**Constat.** Sous `--locale=C`, un `ORDER BY first_name` suit l'ordre des octets : toute minuscule
+et toute initiale accentuée passent après « Z » (« awa » et « Élodie » après « Zeynab »), mesuré
+sur la liste des contacts de la messagerie (P51.05 du fichier de pistes). Cet ADR ne parlait que de
+la comparaison ; le tri a le même défaut, pour la même raison.
+
+**Décision.** Une liste triée sur un nom de personne affiché à un lecteur trie en
+`COLLATE "und-x-icu"`, par une classe de tri réutilisable sous `app/Sorts/` (comme
+`MaintenancePrioritySort`) pour les tris exposés par `spatie/laravel-query-builder`, défaut compris.
+La collation reste déterministe : rien de ce qui précède ne change, ni `LIKE`, ni les index.
+
+**Portée.** La liste des contacts d'abord (P51.05). Les autres listes de noms suivent quand on les
+touche : on ne les réécrit pas en masse, et un index de tri ne se pose que par mesure (`EXPLAIN`),
+comme le reste de cet ADR.

@@ -28,6 +28,7 @@ import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { EmplacementsSponsorises } from '@/components/boost/EmplacementSponsorise';
 import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -229,9 +230,15 @@ export type ProprietesDeLaListe = {
   readonly titre?: string;
   /** Ce que le rendu serveur a déjà obtenu, et pour quelle requête. `null` = rien à semer. */
   readonly graine?: GraineDeRecherche | null;
+  /**
+   * TCK-916 (P35.02) — les liens de lieu construits par la page serveur (« Quartiers de
+   * <ville> »), rendus à la fin de `<main>`. Ils arrivent tout faits : leur domaine vient du cache
+   * de données du serveur, comme celui du sitemap.
+   */
+  readonly liensDeLieu?: React.ReactNode;
 };
 
-export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLaListe = {}) {
+export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = null }: ProprietesDeLaListe = {}) {
   const t = useTranslations('search.results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<View>('list');
@@ -413,7 +420,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             total={enCours || error ? null : (meta?.total ?? 0)}
           />
 
-          <main className="flex-1 min-w-0">
+          <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 min-w-0 focus:outline-none">
             {/*
               TCK-432 — le `<h1>` de la liste, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
               sur le HTML servi de `?type=villa` rendait 0). `docs/design-guidelines.md` pose
@@ -558,6 +565,11 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 */}
                 {enCours && !(loading && properties.length === 0) ? <ActualisationDesResultats /> : null}
 
+                {/* TCK-946 — le titre de la grille, pour le seul arbre d'accessibilité : sans lui, le
+                    `<h1>` de la liste menait droit au `<h3>` de la première carte (axe,
+                    `heading-order`). Le compte et le titre visibles sont déjà sur la ligne du haut. */}
+                <h2 className="sr-only">{t('heading')}</h2>
+
                 {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
                   id={ID_DES_RESULTATS}
@@ -636,6 +648,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 )}
               </>
             )}
+            {liensDeLieu}
           </main>
         </div>
       </div>

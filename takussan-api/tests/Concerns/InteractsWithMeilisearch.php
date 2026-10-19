@@ -27,9 +27,10 @@ use Tests\TestCase;
  * `indexSearchable(...)`) so the data is pushed to Meilisearch and indexed
  * before the search endpoint is hit — Meilisearch indexing is asynchronous.
  *
- * Ce concern est le SEUL point du harnais qui écrit dans Meilisearch : c'est
- * pourquoi c'est ici qu'on programme la suppression des index du processus
- * (cf. {@see TestSearchIndex::registerCleanup()}).
+ * Ce concern n'est PAS le seul point qui écrit dans Meilisearch : un
+ * `->searchable()` explicite de `app/` passe outre la coupure de Scout. La
+ * suppression des index du processus se programme donc depuis `Tests\TestCase`,
+ * pour tout processus (TCK-974, cf. {@see TestSearchIndex::registerCleanup()}).
  */
 trait InteractsWithMeilisearch
 {
@@ -48,9 +49,13 @@ trait InteractsWithMeilisearch
             $model::enableSearchSyncing();
         }
 
+        // TCK-995 — la commande du déploiement, qui sort en échec sur tout refus et relit les
+        // réglages appliqués : celle de Scout sortait en 0, et la suite tournait alors sur des
+        // index mal réglés en accusant le code.
         if (! self::$meilisearchSettingsSynced) {
-            Artisan::call('scout:sync-index-settings');
-            TestSearchIndex::registerCleanup($this->meilisearchClient());
+            if (Artisan::call('search:sync-index-settings') !== 0) {
+                throw new \RuntimeException("search:sync-index-settings a échoué :\n".Artisan::output());
+            }
             self::$meilisearchSettingsSynced = true;
         }
 

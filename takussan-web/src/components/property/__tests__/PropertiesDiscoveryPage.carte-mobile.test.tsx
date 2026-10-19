@@ -63,7 +63,6 @@ beforeEach(() => {
   mockApiFetch.mockReset();
   mockApiFetch.mockResolvedValue({
     data: [],
-    facets: {},
     meta: { total: 12, per_page: 30, current_page: 1, last_page: 1 },
   });
   parametres = new URLSearchParams('contract_type=rent');

@@ -21,6 +21,7 @@ use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
@@ -256,5 +257,52 @@ class PaymentWebhookRefundTest extends TestCase
         $this->refundEvent('cs_sans_montant');
         $this->assertEquals(150_000, $other['payment']->refresh()->refund_amount);
         $this->assertEquals(0, $other['payment']->paid_amount);
+    }
+
+    // ── P39.04 (TCK-889) ────────────────────────────────────────────────────────────────────────
+
+    public function test_un_remboursement_recu_avant_le_paiement_est_applique_au_paiement(): void
+    {
+        Log::spy();
+        $ctx = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+
+        $this->assertSame(1, $this->refundEvent('spy_txn_1', 150_000));
+        $payment = $ctx['payment']->refresh();
+        $this->assertNotSame(PaymentStatus::Refunded, $payment->status);
+        $this->assertSame('spy_txn_1', $payment->metadata['gateway']['pending_refund'][0]['transaction_id'] ?? null);
+        Log::shouldHaveReceived('warning')->with('payment_webhook_refund_before_paid', \Mockery::on(
+            fn (array $context): bool => ($context['transaction_id'] ?? null) === 'spy_txn_1',
+        ))->once();
+
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Refunded, $payment->status, 'Le remboursement reçu avant le paiement a été perdu.');
+        $this->assertEquals(150_000, $payment->refund_amount);
+        $this->assertEquals(0, $payment->paid_amount);
+        $this->assertArrayNotHasKey('pending_refund', $payment->metadata['gateway']);
+    }
+
+    public function test_un_remboursement_du_doublon_recu_avant_son_paiement_ne_rembourse_pas_le_loyer(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->spyDriver();
+        Sanctum::actingAs($ctx['tenant']);
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
+        $this->initiate($ctx['payment']->id)->assertOk();
+        $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
+
+        $this->refundEvent('spy_txn_2', 150_000);
+        $this->waveWebhook('spy_txn_2', 150_000)->assertOk();
+
+        $payment = $ctx['payment']->refresh();
+        $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertEquals(150_000, $payment->paid_amount);
+        $this->assertNotNull($this->duplicateEntry($payment->metadata, 'spy_txn_2')['refunded_at'] ?? null, 'Le remboursement du doublon reçu avant son paiement a été perdu.');
+        $this->assertArrayNotHasKey('pending_refund', $payment->metadata['gateway']);
     }
 }

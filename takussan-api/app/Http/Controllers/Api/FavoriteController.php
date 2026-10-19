@@ -80,7 +80,7 @@ class FavoriteController extends Controller
         );
 
         return $this->json([
-            'data' => FavoriteResource::make($this->reload($favorite))->toArray($request),
+            'data' => FavoriteResource::make($this->reload($favorite))->resolve($request),
         ], 201);
     }
 
@@ -96,7 +96,7 @@ class FavoriteController extends Controller
         $favorite->update(['notes' => $request->validated('notes')]);
 
         return $this->json([
-            'data' => FavoriteResource::make($this->reload($favorite))->toArray($request),
+            'data' => FavoriteResource::make($this->reload($favorite))->resolve($request),
         ]);
     }
 

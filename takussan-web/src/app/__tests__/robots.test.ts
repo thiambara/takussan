@@ -36,14 +36,17 @@ describe('robots.txt', () => {
   it.each(['/app', '/admin', '/super-admin', '/api'])(
     'interdit %s — la disparition de l’un des quatre fait rougir',
     (chemin) => {
-      expect(interdits).toContain(chemin);
+      // TCK-926 — deux règles par segment, ancrées : le segment, et ce qu'il contient.
+      expect(interdits).toContain(`${chemin}/`);
+      expect(interdits).toContain(`${chemin}$`);
     },
   );
 
   it.each(['/auth', '/onboarding', '/publish', '/maintenance'])(
     'interdit aussi %s',
     (chemin) => {
-      expect(interdits).toContain(chemin);
+      expect(interdits).toContain(`${chemin}/`);
+      expect(interdits).toContain(`${chemin}$`);
     },
   );
 

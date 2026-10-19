@@ -19,9 +19,9 @@ use Meilisearch\Contracts\SearchQuery;
 /**
  * Public property search, backed by Meilisearch (TCK-280).
  *
- * Issues a single Meilisearch query — filters, facets, geo and sort are all
+ * Issues a single Meilisearch query — filters, geo and sort are all
  * pushed into the engine — so `meta.total` is the exact filtered count and no
- * post-engine filtering is needed. Returns the `{data, facets, meta, search}`
+ * post-engine filtering is needed. Returns the `{data, sponsored, meta, search}`
  * contract expected by `GET /api/public/properties/search`.
  *
  * ── DEUX RÉGIMES (TCK-338, {@see docs/adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md}) ──
@@ -73,12 +73,9 @@ class PropertySearchService
      */
     private const MAX_PROBES = 8;
 
-    /** @var list<string> */
-    private const FACETS = ['neighborhood', 'bedrooms', 'type'];
-
     /**
      * @param  array<string,mixed>  $params
-     * @return array{data:array<int,mixed>,sponsored:list<array<string,mixed>>,facets:array<string,mixed>,meta:array<string,int>,search:array{strategy:string,terms_unmatched:list<string>,widened_total:int|null}}
+     * @return array{data:array<int,mixed>,sponsored:list<array<string,mixed>>,meta:array<string,int>,search:array{strategy:string,terms_unmatched:list<string>,widened_total:int|null}}
      */
     public function search(array $params): array
     {
@@ -95,9 +92,10 @@ class PropertySearchService
         $result = Property::search($term, function ($index, string $query) use ($filter, $sort, $page, $perPage) {
             $searchParams = [
                 'filter' => $filter,
-                'facets' => self::FACETS,
                 'page' => $page,
                 'hitsPerPage' => $perPage,
+                // TCK-984 (P55.03) — `hydrate()` ne lit que `id` et recharge tout depuis la base.
+                'attributesToRetrieve' => ['id'],
                 // TCK-338 — LA ligne de la décision. Paramètre de REQUÊTE, pas
                 // réglage d'index : sa portée s'arrête à cet appelant, et la
                 // révoquer ne demande aucune réindexation. C'est aussi ce qui la
@@ -131,8 +129,8 @@ class PropertySearchService
                 $search = [
                     'strategy' => 'widened',
                     'terms_unmatched' => $unmatched,
-                    // Écho de `meta.total`, par construction : `data`, `facets`
-                    // et `meta` décrivent TOUS le résultat élargi. Ce champ
+                    // Écho de `meta.total`, par construction : `data` et `meta`
+                    // décrivent TOUS DEUX le résultat élargi. Ce champ
                     // existe pour que le message du front ne dépende pas de la
                     // lecture de la pagination, jamais pour porter un compte que
                     // `meta` contredirait.
@@ -155,7 +153,6 @@ class PropertySearchService
         return [
             'data' => $data,
             'sponsored' => $sponsored,
-            'facets' => $this->mapFacets($result['facetDistribution'] ?? []),
             // Meilisearch ne rend pas un paginateur Eloquent : c'est le seul appelant de
             // `PaginationMeta::of()`, l'entrée par compteurs bruts du point canonique (TCK-304).
             'meta' => PaginationMeta::of(
@@ -226,8 +223,8 @@ class PropertySearchService
      * Le repli, en UN SEUL aller-retour : la requête élargie ET les sondes.
      *
      * Position 0 du `/multi-search` : la requête complète rejouée en `last`,
-     * avec la MÊME pagination, le MÊME tri, les MÊMES facettes et le MÊME filtre
-     * que le régime nominal — c'est elle qui devient `data`/`facets`/`meta`.
+     * avec la MÊME pagination, le MÊME tri et le MÊME filtre
+     * que le régime nominal — c'est elle qui devient `data`/`meta`.
      * Positions 1..n : une sonde par terme utile, `all`, `hitsPerPage: 0` (le
      * moteur rend `totalHits` sans rendre un seul document).
      *
@@ -262,7 +259,7 @@ class PropertySearchService
             ->setQuery($term)
             ->setMatchingStrategy(self::STRATEGY_WIDENED)
             ->setFilter($filter)
-            ->setFacets(self::FACETS)
+            ->setAttributesToRetrieve(['id'])
             ->setPage($page)
             ->setHitsPerPage($perPage);
 
@@ -603,7 +600,7 @@ class PropertySearchService
      * de tri vers l'attribut `_geo` et vérifie celui-là. Mesuré sur
      * Meilisearch 1.16 le 2026-08-22, le détail est dans `config/scout.php`.
      * Sans ce réglage le moteur REFUSE la requête (HTTP 400), il ne dégrade pas
-     * le tri. C'est un réglage d'INDEX, donc un `scout:sync-index-settings` au
+     * le tri. C'est un réglage d'INDEX, donc un `search:sync-index-settings` au
      * déploiement.
      *
      * ⚠⚠ Le repli `[]` sur `distance` sans point est INATTEIGNABLE par HTTP :
@@ -631,7 +628,7 @@ class PropertySearchService
 
     /**
      * TCK-633 lot F (ADR-0061 §7). Trois lectures au plus : la requête nominale (déjà faite : elle
-     * donne `total`, `facets`, `last_page`, et les places réservées y comptent puisqu'elles en sont
+     * donne `total`, `last_page`, et les places réservées y comptent puisqu'elles en sont
      * issues), le VIVIER (mêmes filtres + `featured = true`, identifiants seuls, ordre organique),
      * et — seulement quand des places réservées existent — la page organique qui les exclut.
      *
@@ -651,7 +648,10 @@ class PropertySearchService
         $reservedMax = min($settings->reservedTopResults(), $perPage);
         $organic = fn (): array => $this->withPlacement($this->hydrate($nominal['hits'] ?? []), 'organic');
 
-        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0) {
+        // TCK-983 (P55.02) — au-delà de la dernière page, l'écran ne montre aucun emplacement : rien
+        // ne se sert, et aucune impression ne se compte.
+        if (($slots === 0 && $reservedMax === 0) || (int) ($nominal['totalHits'] ?? 0) === 0
+            || $page > max(1, (int) ($nominal['totalPages'] ?? 1))) {
             return [$organic(), []];
         }
 
@@ -796,19 +796,6 @@ class PropertySearchService
             ->values();
 
         return PropertyResource::collection($ordered)->resolve();
-    }
-
-    /**
-     * @param  array<string,array<string,int>>  $distribution
-     * @return array<string,array<string,int>>
-     */
-    private function mapFacets(array $distribution): array
-    {
-        return [
-            'locations' => $distribution['neighborhood'] ?? [],
-            'bedrooms' => $distribution['bedrooms'] ?? [],
-            'types' => $distribution['type'] ?? [],
-        ];
     }
 
     /**

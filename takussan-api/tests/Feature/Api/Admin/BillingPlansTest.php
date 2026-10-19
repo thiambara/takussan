@@ -13,6 +13,7 @@ use App\Models\Property;
 use App\Services\Billing\AgencySubscriptionService;
 use App\Services\Billing\QuotaResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -236,6 +237,51 @@ class BillingPlansTest extends TestCase
             ->where('event', 'super_admin_plan_created')
             ->where('causer_id', $actor->id)
             ->exists());
+    }
+
+    /**
+     * TCK-977 (P54.02) — `trial_days`, `is_active` et `sort_order` sont `NOT NULL` avec un défaut :
+     * une clé omise prend le défaut, un `null` explicite rend 422 (il rendait 500, `SQLSTATE[23502]`).
+     */
+    #[DataProvider('clesNonNullablesDuForfait')]
+    public function test_creer_un_forfait_refuse_un_null_sur_une_colonne_non_nullable(string $cle): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->postJson('/api/admin/plans', array_merge($this->corpsDeForfait(), [$cle => null]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors($cle);
+
+        $this->assertSame(0, Plan::query()->count());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function clesNonNullablesDuForfait(): array
+    {
+        return ['trial_days' => ['trial_days'], 'is_active' => ['is_active'], 'sort_order' => ['sort_order']];
+    }
+
+    public function test_creer_un_forfait_sans_ces_cles_prend_les_defauts(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $id = $this->postJson('/api/admin/plans', $this->corpsDeForfait())->assertCreated()->json('data.id');
+
+        $plan = Plan::query()->findOrFail($id);
+        $this->assertSame(0, $plan->trial_days);
+        $this->assertTrue($plan->is_active);
+        $this->assertSame(0, $plan->sort_order);
+    }
+
+    /** @return array<string, mixed> */
+    private function corpsDeForfait(): array
+    {
+        return [
+            'code' => 'essentiel',
+            'label' => 'Essentiel',
+            'monthly_price_xof' => 15000,
+            'platform_fee_pct' => 3,
+        ];
     }
 
     private function plan(string $code, array $overrides = []): Plan

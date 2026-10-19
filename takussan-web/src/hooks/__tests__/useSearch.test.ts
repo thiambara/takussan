@@ -29,7 +29,7 @@ beforeEach(() => {
   mockReplace.mockClear();
   mockPush.mockClear();
   mockApiFetch.mockReset();
-  mockApiFetch.mockResolvedValue({ data: [], facets: {}, meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } });
+  mockApiFetch.mockResolvedValue({ data: [], meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } });
 });
 
 describe('TCK-335 — lecture des booléens depuis l’URL', () => {
@@ -126,7 +126,7 @@ describe('TCK-335 — l’erreur est portée, pas jetée', () => {
    * la présenterait comme le résultat du filtre demandé.
    */
   it('conserve le résultat précédent sur un 500', async () => {
-    const resultat = { data: [{ id: 1 }], facets: {}, meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 } };
+    const resultat = { data: [{ id: 1 }], meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 } };
     mockApiFetch.mockResolvedValueOnce(resultat);
     const { result, rerender } = monte('city=Dakar');
     await waitFor(() => expect(result.current.data).not.toBeNull());
@@ -139,7 +139,7 @@ describe('TCK-335 — l’erreur est portée, pas jetée', () => {
   });
 
   it('JETTE le résultat précédent sur un 422', async () => {
-    const resultat = { data: [{ id: 1 }], facets: {}, meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 } };
+    const resultat = { data: [{ id: 1 }], meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 } };
     mockApiFetch.mockResolvedValueOnce(resultat);
     const { result, rerender } = monte('city=Dakar');
     await waitFor(() => expect(result.current.data).not.toBeNull());

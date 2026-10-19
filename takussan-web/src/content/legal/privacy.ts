@@ -127,6 +127,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Demandes de contact d’un visiteur sans compte** : 3 ans à compter du dernier échange.
 - **Messages** : tant que la conversation reste active pour l’un de ses participants, et au plus tard jusqu’à la suppression de la plateforme de l’agence concernée, sauf obligation de conservation.
 - **Journal d’activité** : 12 mois.
+- **Notifications dans l’application** : 6 mois après leur lecture.
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
@@ -301,6 +302,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Contact requests from visitors without an account**: 3 years from the last exchange.
 - **Messages**: while the conversation remains active for one of its participants, and at the latest until the agency concerned is removed from the platform, unless retention is required.
 - **Activity log**: 12 months.
+- **In-app notifications**: 6 months after they are read.
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.

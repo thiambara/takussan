@@ -199,3 +199,40 @@ describe('AgencyConfigForm — relâcher le seuil attend un second approbateur (
   });
 });
 
+
+/**
+ * TCK-962 (P47.02) — la commission et la devise se lisent sur leurs colonnes, celles que l'API
+ * applique. Le formulaire lisait `settings.default_commission_rate` AVANT la colonne et le
+ * réenregistrait en `commission_rate` : une agence aux anciennes données voyait, puis réécrivait, la
+ * valeur d'un miroir que l'API n'accepte plus. Le fuseau, que l'API jette, n'a plus de champ.
+ */
+describe('AgencyConfigForm — colonnes seules, sans fuseau (TCK-962)', () => {
+  const ANCIENNE: Agency = {
+    ...AGENCE,
+    commission_rate: 5,
+    currency: null as unknown as Agency['currency'],
+    settings: { default_commission_rate: 12, currency: 'EUR', timezone: 'Africa/Dakar' },
+  };
+
+  it('affiche et réenregistre la commission de la colonne, pas celle du miroir', async () => {
+    CAN.current = { can: false, isLoading: false };
+    vi.mocked(updateAgencyAction).mockReset();
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: AGENCE });
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={ANCIENNE} />));
+
+    expect(screen.getByLabelText(/Commission/)).toHaveValue('5');
+    expect(screen.queryByLabelText('Fuseau horaire')).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Devise' })).not.toHaveTextContent(/EUR/);
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    const payload = vi.mocked(updateAgencyAction).mock.calls[0][1] as unknown as Record<string, unknown>;
+    expect(payload.commission_rate).toBe(5);
+    expect(payload).not.toHaveProperty('currency');
+    expect(Object.keys(payload.settings as object).sort()).toEqual([
+      'late_fee_online_collection',
+      'require_team_two_factor',
+    ]);
+  });
+});

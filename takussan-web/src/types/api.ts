@@ -50,11 +50,6 @@ export type ApiResponse<T> = {
   message?: string;
 };
 
-export type ApiErrorBody = {
-  message: string;
-  errors?: Record<string, string[]>;
-};
-
 /**
  * Query parameters honored by the backend via `spatie/laravel-query-builder`.
  * Callers of {@link buildQueryString} should prefer this shape over raw

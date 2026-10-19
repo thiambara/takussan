@@ -77,13 +77,6 @@ export function startOfMonth(d: Date): Date {
   return x;
 }
 
-export function endOfMonth(d: Date): Date {
-  const x = startOfMonth(d);
-  x.setMonth(x.getMonth() + 1);
-  x.setDate(0); // last day of previous (= target) month
-  return endOfDay(x);
-}
-
 /**
  * Grille mois 6×7 : lundi de la semaine qui contient le 1er du mois →
  * dimanche de la semaine qui contient le dernier jour du mois, étendue
@@ -166,5 +159,3 @@ export function eventTouchesDay(
  * dictionnaires. L'ordre est significatif : `mondayFirstIndex()` indexe ici.
  */
 export const WEEKDAY_SHORT_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
-
-export type WeekdayKey = (typeof WEEKDAY_SHORT_KEYS)[number];

@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-17
+updated: 2026-10-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -67,15 +67,36 @@ où chaque constat est sourcé et daté.
   `preview` à 800 px).
 - [ ] **P10.10** — servir l'avatar par une conversion à sa taille d'affichage, plutôt que
   l'original jusqu'à 2560 px.
-- [ ] **P36.04** — une fois la piste faite par l'implémenteur (un jeton d'URL par fournisseur, repli
-  sur `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons, un par fournisseur et par environnement,
-  dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
+- [ ] **P36.04** — piste faite en session par TCK-943 (un jeton d'URL par fournisseur, repli sur
+  `SMS_WEBHOOK_URL_TOKEN`) : poser les trois jetons `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
+  `SMS_MTARGET_WEBHOOK_URL_TOKEN` et `SMS_LAM_WEBHOOK_URL_TOKEN`, un par environnement, dans Dokploy, puis reporter l'URL de chacun dans le tableau de bord de son fournisseur. Le jeton
   de LAfricaMobile ne doit plus ouvrir la route d'Orange.
+  *2026-10-18 : les trois jetons posés en préproduction (`takussan-api-preview`, 40 caractères
+  aléatoires chacun, relus dans Dokploy puis dans le conteneur redéployé ; copies dans le fichier
+  de secrets du porteur, `PREVIEW_*`). Le code déployé (`preview` = `6bd4778db`) ne les lit pas
+  encore : TCK-943 est sur `pre-dev`, ils prennent effet à la promotion suivante. Restent : la
+  promotion, le report de chaque URL chez son fournisseur, AC6.*
+- [ ] **P36.05** — fait par TCK-944 : poser `WHATSAPP_WEBHOOK_VERIFY_TOKEN` dans Dokploy, de même
+  valeur que le *Verify token* de l'application Meta, puis enregistrer le webhook chez Meta : la
+  vérification `GET` doit rendre le défi.
+  *2026-10-18 : `WHATSAPP_WEBHOOK_VERIFY_TOKEN` posée en préproduction, avec
+  `WHATSAPP_WEBHOOK_URL_TOKEN`, absente jusque-là, sans laquelle la route rend 404 (deux valeurs de
+  40 caractères, relues dans le conteneur ; copies `PREVIEW_*` dans le fichier de secrets du
+  porteur). Le code déployé lit déjà le jeton d'URL ; la route `GET` de vérification rend 405 tant
+  que TCK-944 n'est pas promu. Restent : la promotion, puis l'enregistrement du webhook chez Meta
+  avec ces deux valeurs.*
 - [ ] **P37.03** — préproduction : poser `API_INTERNAL_URL` sur `takussan-web-preview`, après la
   mesure de D-71 (l'alias `api` doit être unique sur `dokploy-network` ; sinon le nom du
   conteneur) et le relevé d'ADR-0052 § 6 avant et après. Sans elle, les trois formulaires anonymes
   envoyés par action serveur (visite, contact d'un bien, contact d'un agent) partagent un seul seau
   de débit pour tout le site.
+  *2026-10-18 : `API_INTERNAL_URL` posée par le porteur, le front redéployé en session et mesuré
+  (le conteneur la lit, `/up` → `200` par `http://takussan-api-preview:8080`). Le relevé « avant »
+  n'a pas été fait. Restent `VISITOR_IP_TRUSTED_HOPS=2` et le relevé « après », depuis deux
+  réseaux, à faire avec la session.*
+  *2026-10-18, plus tard : `VISITOR_IP_TRUSTED_HOPS=2` posée sur `takussan-web-preview` et lue par
+  le conteneur redéployé, après le relevé d'ADR-0052 § 6 le 2026-10-18, depuis le poste du porteur (un réseau), 66 s entre deux expériences : avec `h = 1`, 3 rendus de `/fr/properties` → 0 pour l'IP du poste, l'IP forgée et celle du VPS (l'API comptait le nœud Cloudflare) ; avec `h = 2`, 3 rendus → 3 pour l'IP du poste, 2 rendus portant `X-Forwarded-For: 203.0.113.7` → 2 pour l'IP du poste et 0 pour l'IP forgée, 0 pour le VPS ; témoin, 2 appels directs de l'API → 2 dans les deux états. `h = 2` est confirmé. Reste : le même relevé
+  depuis un second réseau (téléphone en 4G), qui ne peut pas se faire depuis le poste.*
 - [ ] Mettre chaque piste à `fait · TCK-720` dans le fichier de pistes une fois sa part faite.
 
 ## Critères d'acceptation

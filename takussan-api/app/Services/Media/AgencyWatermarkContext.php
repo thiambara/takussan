@@ -3,6 +3,7 @@
 namespace App\Services\Media;
 
 use App\Domain\Features\Flag;
+use App\Domain\Settings\AgencySettings;
 use App\Models\Agency;
 use App\Models\Enums\WatermarkPosition;
 use App\Services\Features\FeatureFlagEvaluator;
@@ -22,15 +23,6 @@ class AgencyWatermarkContext
         public readonly WatermarkPosition $position,
         public readonly int $opacity,
     ) {}
-
-    public static function defaults(): array
-    {
-        return [
-            'watermark_enabled' => true,
-            'watermark_position' => WatermarkPosition::default()->value,
-            'watermark_opacity' => 60,
-        ];
-    }
 
     /**
      * LA règle d'activation du filigrane, écrite une fois (TCK-539, D3) : sans agence, pas de
@@ -76,21 +68,18 @@ class AgencyWatermarkContext
      */
     public static function isEnabledInSettings(?array $settings): bool
     {
-        return (bool) ($settings['watermark_enabled'] ?? self::defaults()['watermark_enabled']);
+        return AgencySettings::read($settings, 'watermark_enabled');
     }
 
     public static function fromAgency(Agency $agency): self
     {
-        $settings = $agency->settings ?? [];
-        $defaults = self::defaults();
-
         return new self(
             agencyName: $agency->name ?? '',
             agencyUrl: $agency->website ?? '',
             logo: self::readLogo($agency),
-            position: WatermarkPosition::tryFrom((string) ($settings['watermark_position'] ?? $defaults['watermark_position']))
+            position: WatermarkPosition::tryFrom($agency->setting('watermark_position'))
                 ?? WatermarkPosition::default(),
-            opacity: (int) ($settings['watermark_opacity'] ?? $defaults['watermark_opacity']),
+            opacity: $agency->setting('watermark_opacity'),
         );
     }
 

@@ -53,8 +53,11 @@ class DocumentController extends Controller
         // `defaultSortsWithRelevance()` s'évalue APRÈS `buildQuery()`, qui interroge Meilisearch.
         $query = Document::buildQuery($base, $request);
 
+        // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
+        // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
             ->defaultSorts(...Document::defaultSortsWithRelevance('-created_at'))
+            ->with('media')
             ->paginate();
 
         return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
@@ -92,7 +95,7 @@ class DocumentController extends Controller
         $document->addMediaFromRequest('file')->toMediaCollection('file');
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->toArray($request),
+            'data' => DocumentResource::make($document->refresh())->resolve($request),
         ], 201);
     }
 
@@ -102,7 +105,7 @@ class DocumentController extends Controller
         $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $this->json([
-            'data' => DocumentResource::make($document)->toArray($request),
+            'data' => DocumentResource::make($document)->resolve($request),
         ]);
     }
 
@@ -121,7 +124,7 @@ class DocumentController extends Controller
         ]);
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->toArray($request),
+            'data' => DocumentResource::make($document->refresh())->resolve($request),
         ]);
     }
 

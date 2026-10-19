@@ -292,6 +292,7 @@ return [
         'cannot_mark_paid' => 'Échéance buy xaar walla bu yéex rekk lañu mën a màndargaal ni lu ñu fay.',
         'deposit_refund_paid_by_payout' => 'Kaution bu ñu delloo, ci reversement bi lañu koy fey, du ak loxo.',
         'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
+        'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
         'receipt_not_a_payment' => 'Kaution bu ñu delloo du fey bu luwékat bi : amul kitaas.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
     ],
@@ -598,6 +599,7 @@ return [
         'signature_missing' => 'Signature bi amul.',
         'signature_not_configured' => 'Dëggal signature bi configurerouñu ko.',
         'transaction_id_missing' => 'Identifiant transaction bi amul.',
+        'verify_token_invalid' => 'Jeton de vérification d\'abonnement invalide.',
     ],
     'wizard_draft' => [
         'not_found' => 'Amul benn brouillon.',

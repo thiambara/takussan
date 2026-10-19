@@ -48,7 +48,7 @@ class InvoiceController extends Controller
         $invoice = $this->invoices->create($request->user(), $customer, $data);
 
         return $this->json([
-            'data' => InvoiceResource::make($invoice)->toArray($request),
+            'data' => InvoiceResource::make($invoice)->resolve($request),
         ], 201);
     }
 
@@ -58,7 +58,7 @@ class InvoiceController extends Controller
 
         return $this->json([
             // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
-            'data' => InvoiceResource::make($invoice->load(['customer', 'creditNotes']))->toArray($request),
+            'data' => InvoiceResource::make($invoice->load(['customer', 'creditNotes']))->resolve($request),
         ]);
     }
 
@@ -69,7 +69,7 @@ class InvoiceController extends Controller
         $invoice = $this->invoices->send($invoice);
 
         return $this->json([
-            'data' => InvoiceResource::make($invoice)->toArray($request),
+            'data' => InvoiceResource::make($invoice)->resolve($request),
         ]);
     }
 
@@ -80,7 +80,7 @@ class InvoiceController extends Controller
         $invoice = $this->invoices->markPaid($invoice);
 
         return $this->json([
-            'data' => InvoiceResource::make($invoice)->toArray($request),
+            'data' => InvoiceResource::make($invoice)->resolve($request),
         ]);
     }
 
@@ -91,7 +91,7 @@ class InvoiceController extends Controller
         $invoice = $this->invoices->cancel($invoice, $request->user());
 
         return $this->json([
-            'data' => InvoiceResource::make($invoice)->toArray($request),
+            'data' => InvoiceResource::make($invoice)->resolve($request),
         ]);
     }
 }

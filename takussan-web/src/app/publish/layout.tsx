@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+
+/**
+ * TCK-926 (P34.05) — interdit aux robots (`CHEMINS_INTERDITS_AUX_ROBOTS`), et `noindex` en plus :
+ * `Disallow` empêche l'exploration, pas l'indexation d'une URL liée de l'extérieur.
+ */
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /**
  * `/publish` n'avait pas de layout, et n'en avait pas besoin — jusqu'à TCK-337.

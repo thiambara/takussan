@@ -50,6 +50,17 @@ const PRET = {
   terms_accepted_at: '2026-10-01T00:00:00Z',
 };
 
+/**
+ * La boîte s'ouvre avant la fin de la transition qui l'a ouverte (`setOuvert` suit l'`await`) :
+ * son « Publier » est encore `disabled={enCours}` à l'apparition. Un clic dans cette fenêtre est
+ * ignoré, et rien ne vient. Sous la charge de la CI, `userEvent` y tombe (PR #644, run 39130984729).
+ */
+async function publierDansLaBoite(dialogue: HTMLElement) {
+  const bouton = within(dialogue).getByRole('button', { name: 'Publier' });
+  await waitFor(() => expect(bouton).toBeEnabled());
+  return bouton;
+}
+
 async function cliquerPublier(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
   await user.click(await screen.findByRole('menuitem', { name: 'Publier' }));
@@ -85,7 +96,7 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
 
     const dialogue = await screen.findByRole('dialog', { name: 'Avant de publier' });
     expect(within(dialogue).getByTestId('phrase-cgu')).toBeInTheDocument();
-    await user.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+    await user.click(await publierDansLaBoite(dialogue));
 
     await waitFor(() => expect(m.publier).toHaveBeenLastCalledWith(47, { acceptTerms: true }));
     expect(await screen.findByRole('status')).toHaveTextContent(/^Bien publié\.$/);
@@ -113,7 +124,7 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
 
     await cliquerPublier(user);
     const dialogue = await screen.findByRole('dialog', { name: 'Avant de publier' });
-    await user.click(within(dialogue).getByRole('button', { name: 'Publier' }));
+    await user.click(await publierDansLaBoite(dialogue));
 
     const alerte = await within(dialogue).findByRole('alert');
     expect(alerte).toHaveTextContent('Il manque encore des informations pour publier');

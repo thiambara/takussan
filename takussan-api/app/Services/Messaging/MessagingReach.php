@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
+use App\Models\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -32,7 +33,8 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * forme d'un test par candidat — impossible à LISTER. La création de groupe, elle, n'en appliquait
  * aucune, malgré un docblock qui affirmait le contraire.
  *
- * Est joignable (union, jamais l'acteur lui-même, jamais un compte supprimé) :
+ * Est joignable (union, jamais l'acteur lui-même, jamais un compte supprimé ni un compte
+ * `blocked` ou `deleted`, qui n'ouvrent aucune session — TCK-972) :
  *
  *  1. **un correspondant** — quelqu'un avec qui l'acteur partage déjà une conversation ;
  *  2. **un lien CRM** (`user_customer_relationships`) — les deux comptes sont rattachés à une même
@@ -85,6 +87,10 @@ class MessagingReach
 
         return User::query()
             ->whereKeyNot($actor->getKey())
+            // TCK-972 (P51.01) — un compte `blocked` ou `deleted` n'ouvre aucune session
+            // (`User::canOpenSession()`, TCK-589) : il ne lirait jamais le fil où on l'ajoute.
+            // `inactive` reste joignable : c'est un compte qui n'a pas encore servi.
+            ->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
             ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId) {
                 // 1. Correspondants. TCK-592 (passe 2, N1) — par les seuls fils que la garde de
                 //    conversation lui ouvre : un fil d'intervention fermé ne garde pas le contact.

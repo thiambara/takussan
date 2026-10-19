@@ -11,10 +11,13 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-591 — ce que la création et la mise à jour d'un client partagent : le téléphone normalisé
  * AVANT d'être jugé (« 77 123 45 67 » est valide une fois ramené en `+221771234567`), le drapeau
- * `allow_duplicate`, et les critères de recherche du prospect.
+ * `allow_duplicate`, les critères de recherche du prospect, et sa langue (TCK-921).
  */
 trait ValidatesCustomerContactAndCriteria
 {
+    /** TCK-921 — les langues que la fiche peut porter, celles de l'interface. */
+    public const LOCALES = ['fr', 'en', 'wo'];
+
     protected function prepareForValidation(): void
     {
         parent::prepareForValidation();
@@ -57,6 +60,8 @@ trait ValidatesCustomerContactAndCriteria
             'seeking_neighborhoods' => [...$optional, 'array', 'max:30'],
             'seeking_neighborhoods.*' => ['string', 'max:100'],
             'min_bedrooms' => [...$optional, 'integer', 'min:0', 'max:50'],
+            // TCK-921 — la langue des messages du client sans compte ; `null` l'efface.
+            'locale' => [...$optional, 'string', Rule::in(self::LOCALES)],
         ];
     }
 }

@@ -30,11 +30,13 @@ existant (`api.ip-du-visiteur.test.ts`) garde `apiRequest` en général, aucune 
 
 ## Décision du porteur
 
-le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+le test du front qui garde qu'une action serveur anonyme ne part jamais sur l'URL publique quand un chemin interne est déclaré ; reste : `VISITOR_IP_TRUSTED_HOPS` et le relevé d'IP d'ADR-0052 § 6, avec le porteur (TCK-720 ; `API_INTERNAL_URL` posée en préproduction le 2026-10-18)
 
 ## Reste à faire
 
-poser `API_INTERNAL_URL` en préproduction (porteur, TCK-720)
+`API_INTERNAL_URL` est posée sur `takussan-web-preview` depuis le 2026-10-18 (mesurée dans le
+conteneur redéployé). Reste `VISITOR_IP_TRUSTED_HOPS` et le relevé d'IP d'ADR-0052 § 6, avec le
+porteur (TCK-720, AC7).
 
 ## Objectif utilisateur
 

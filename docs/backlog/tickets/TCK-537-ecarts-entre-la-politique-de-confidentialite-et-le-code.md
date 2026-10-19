@@ -7,7 +7,7 @@ family: bug
 estimate: L
 wave: 66
 created: 2026-09-17
-updated: 2026-10-06
+updated: 2026-10-18
 depends_on: [TCK-531]
 blocks: []
 spec_refs:
@@ -39,6 +39,7 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 | À la suppression, « les données d'identification du compte **et des profils** sont effacées ou anonymisées » | `privacy.ts` §6, `terms.ts` §17.1 | `AccountDeletionService` anonymise `users` et les médias du compte, **pas** les profils : RIB, `tax_id`, type et numéro de pièce, revenu, employeur de `OwnerProfile` restent en base |
 | Journal d'activité : **12 mois** | `privacy.ts` §6 | `config/activitylog.php` → `clean_after_days = 365`, mais `activitylog:clean` **n'est pas planifiée** (`routes/console.php`) : rien n'est jamais purgé |
 | Pièces KYC : la relation **+ 5 ans** ; demandes de contact anonymes : **3 ans** | `privacy.ts` §6 | aucune purge |
+| Notifications in-app lues : **6 mois** après leur lecture (ajout du 2026-10-18, décision du porteur sur P19.06) | `privacy.ts` §6 | **tenu** par TCK-918 : `notifications:prune-read`, planifiée chaque jour |
 | Avis publics : le texte dit (vrai) « prénom, nom et photo » | `privacy.ts` §4.1 | `ReviewResource` expose le nom complet et l'avatar. **Recommandation** : prénom + initiale, par minimisation (loi 2008-12, principe de proportionnalité) — puis corriger le texte |
 
 Écarts **hors** politique, relevés au passage, à trancher :

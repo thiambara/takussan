@@ -126,7 +126,6 @@ class DashboardTenantService
 
         return [
             'tenant_id' => $user->id,
-            'customer_id' => $customerIds[0] ?? null,
             'has_customer_profile' => $customerIds !== [],
             'leases' => ['active' => $activeLeases],
             'bookings' => ['pending' => $pendingBookings],

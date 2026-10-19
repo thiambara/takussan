@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Search;
 
-use App\Mail\DailyNotificationDigest;
 use App\Mail\NotificationDigestMail;
 use App\Models\Address;
 use App\Models\AppNotification;
@@ -146,9 +145,10 @@ class SaisieDansLesEmailsTest extends TestCase
     }
 
     /**
-     * verif-599 B1-bis, balayage — les deux e-mails de résumé recopient le titre et le corps des
-     * cloches dans le Markdown. Une cloche peut citer une saisie (titre de bien d'une proposition,
-     * nom d'une alerte) : elle reste du texte, dans les deux gabarits.
+     * verif-599 B1-bis, balayage — l'e-mail de résumé recopie le titre et le corps des cloches
+     * dans le Markdown. Une cloche peut citer une saisie (titre de bien d'une proposition, nom
+     * d'une alerte) : elle reste du texte. Le second gabarit, celui du résumé quotidien jamais
+     * planifié, est retiré avec lui (TCK-941, P05.08).
      */
     public function test_les_resumes_rendent_les_cloches_en_texte(): void
     {
@@ -164,7 +164,6 @@ class SaisieDansLesEmailsTest extends TestCase
             ]);
 
             $resumes = [
-                new DailyNotificationDigest(user: $user, notifications: collect([$cloche]), targetLocale: 'fr'),
                 new NotificationDigestMail($user, collect(['system' => collect([$cloche])]), 'https://takussan.test/unsubscribe'),
             ];
             foreach ($resumes as $resume) {

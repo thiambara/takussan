@@ -64,7 +64,9 @@ class StorePropertyRequest extends BaseFormRequest
             'area' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'bedrooms' => ['nullable', 'integer', 'min:0', 'max:100'],
             'bathrooms' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'furnished' => ['nullable', 'boolean'],
+            // TCK-981 (P54.06) — `properties.furnished` est NOT NULL DEFAULT false : omis, il prend le
+            // défaut ; `null` rendait 500. `filled` le refuse, comme la ville (TCK-703).
+            'furnished' => ['filled', 'boolean'],
             // TCK-633 — les bornes de `UpdatePropertyRequest` ; -5 : un sous-sol est un étage.
             'floor_number' => ['nullable', 'integer', 'min:-5', 'max:200'],
             'total_floors' => ['nullable', 'integer', 'min:1', 'max:200'],
@@ -85,7 +87,8 @@ class StorePropertyRequest extends BaseFormRequest
             // `null` (et `""`, converti en `null`) sans exiger la clé.
             'address.city' => ['filled', 'string', 'max:120'],
             'address.region' => ['nullable', 'string', 'max:120'],
-            'address.country' => ['nullable', 'string', 'size:2'],
+            // TCK-976 (P54.01) — `addresses.country` est NOT NULL DEFAULT 'SN' : même forme que la ville.
+            'address.country' => ['filled', 'string', 'size:2'],
             'address.postal_code' => ['nullable', 'string', 'max:20'],
             'address.latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'address.longitude' => ['nullable', 'numeric', 'between:-180,180'],

@@ -3737,7 +3737,7 @@ docker exec restauration createdb -U postgres --encoding=UTF8 --locale=C -T temp
 docker exec restauration sh -c 'gunzip -c /tmp/sauvegarde.gz > /tmp/s; if [ "$(head -c5 /tmp/s)" = PGDMP ]; then pg_restore -U postgres -d r --no-owner --no-acl /tmp/s; else psql -q -U postgres -d r < /tmp/s; fi'
 COMPTE="SELECT table_name, (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I', table_name), false, true, '')))[1]::text AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1"
 docker exec restauration psql -U postgres -d r -At -c "$COMPTE" > /tmp/copie.txt
-ssh root@178.18.247.62 "docker exec \$(docker ps -q -f ancestor=pgvector/pgvector:pg17 | head -1) psql -U pgadmin -d takussan_preview -At -c \"$COMPTE\"" > /tmp/original.txt
+ssh root@178.18.247.62 "docker exec \$(docker ps -q -f name=serveur-postgres | head -1) psql -U pgadmin -d takussan_preview -At -c \"$COMPTE\"" > /tmp/original.txt
 diff /tmp/original.txt /tmp/copie.txt && echo "✓ restauration identique, $(wc -l < /tmp/copie.txt) tables"
 docker rm -f restauration
 ```
@@ -3979,7 +3979,8 @@ sur sa demande explicite, au moment où il la donne.
 > - **Il n'y a plus de retour arrière vers Vercel** : toute étape de F1 à F3 qui en parle — le CNAME
 >   Vercel de `www`, le retour arrière par le tableau de bord, le retrait de `@vercel/analytics` à
 >   l'étape 3 — est caduque. **F3 n'est plus une bascule mais une mise en service.** F2 et F3 sont
->   réécrites par l'étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md).
+>   **réécrites le 2026-10-18** par l'étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md)
+>   (TCK-931), et F1 et F5 débarrassées de ce qui visait Vercel, CheckPrint Plus et MySQL.
 > - **F5, étape 2** (le dépôt oublie Vercel) n'a pas attendu F3 : faite par TCK-860. L'étape 3 attend
 >   toujours la production, puisqu'elle solde D-04 et D-10 sur sa mesure.
 
@@ -3988,23 +3989,22 @@ sur sa demande explicite, au moment où il la donne.
 - [ ] **Étape 1 : les prémisses ont-elles bougé ?**
 
 ```bash
-curl -sS -o /dev/null -D - https://www.takussan.com/ | grep -iE '^(x-vercel-id|server)'
 curl -sS -o /dev/null -w '%{http_code}\n' https://api.takussan.com/up
-dig +short www.takussan.com; dig +short takussan.com; dig +short www.checkprintplus.com; dig +short checkprintplus.com
-curl -sS -L https://www.checkprintplus.com/ | grep -oE '<link rel="canonical"[^>]*>'
+dig +short www.takussan.com; dig +short takussan.com; dig +short api.takussan.com
 ssh root@178.18.247.62 'awk "/MemAvailable/{print int(\$2/1024)}" /proc/meminfo; df -h / | tail -1'
 ```
 
-Noter chaque réponse **dans le ticket F**, avec la date : les enregistrements DNS actuels sont le
-chemin de retour arrière de F3 et F4. Si le `canonical` de CheckPrint Plus a changé, l'origine de C3
-change avec lui. Si la mémoire disponible est déjà sous 1 500 Mo avec les seules préproductions,
+Noter chaque réponse **dans le ticket F**, avec la date. Attendu au 2026-10-18 : `api.takussan.com`
+sans service (échec TLS, TCK-523), `www` et l'apex sans enregistrement — c'est l'état auquel le
+retour arrière de F3 ramène. *(Lignes Vercel et CheckPrint Plus retirées le 2026-10-18, TCK-931 :
+l'un est supprimé, l'autre arrêté.)* Si la mémoire disponible est déjà sous 1 500 Mo avec les seules préproductions,
 **s'arrêter** : le premier geste de montée en charge (ADR-0028) passe avant la production. La
 restauration à blanc de D6 doit être cochée ; sinon, s'arrêter aussi.
 
 - [ ] **Étape 2 : la base PostgreSQL de production, et son étanchéité**
 
 ```bash
-PG=$(docker ps -q -f ancestor=pgvector/pgvector:pg17 | head -1)
+PG=$(docker ps -q -f name=serveur-postgres | head -1)
 read -rs MDP
 docker exec -i "$PG" psql -U pgadmin -d postgres -v ON_ERROR_STOP=1 -v mdp="$MDP" <<'SQL'
 CREATE ROLE takussan_prod LOGIN PASSWORD :'mdp';
@@ -4020,10 +4020,8 @@ docker exec -i "$PG" psql -U pgadmin -d postgres -At -c "SELECT datname, datcoll
 Expected : `permission denied for database "takussan_prod"` pour le rôle de préproduction — c'est la
 preuve que la préproduction ne peut pas écrire en production —, puis `takussan_prod|C|C`.
 
-- [ ] **Étape 3 : la base MySQL de production**
-
-Même geste qu'A4, étape 10, avec `checkprintplus_prod`. Expected : `LENGTH(user)` = `19`, et
-`mysql -ucheckprintplus_preview -p… checkprintplus_prod` refusé (`Access denied`).
+- ~~**Étape 3 : la base MySQL de production**~~ — **sans objet depuis le 2026-10-04** : elle ne
+  servait que CheckPrint Plus, arrêté (F4 annulée), et MySQL a quitté le serveur.
 
 - [ ] **Étape 4 : la clé Meilisearch de production**
 
@@ -4033,13 +4031,17 @@ preuve inverse : la clé de production reçoit `403` sur `preview_sonde`, `202` 
 
 - [ ] **Étape 5 : sauvegardes de production**
 
-`takussan_prod` à `0 2 * * *` et `checkprintplus_prod` à `30 2 * * *`, préfixes `postgres/takussan_prod/`
-et `mysql/checkprintplus_prod/`, **30** exemplaires. Une sauvegarde manuelle chacune, lue dans R2.
+`takussan_prod` à `0 2 * * *`, préfixe `postgres/takussan_prod/`, **30** exemplaires — dont le
+dernier ne s'efface qu'après les 7 jours du verrou de rétention de `vps-sauvegardes` (TCK-548 :
+jamais moins de 8 copies). Une sauvegarde manuelle, lue dans R2. *(`checkprintplus_prod` retirée
+le 2026-10-18 : F4 est annulée.)* L'archivage continu, lui, n'a rien à recevoir : `takussan_prod`
+vit dans l'instance que WAL-G archive déjà (TCK-930).
 
 - [ ] **Étape 6 : les médias de production sur R2 (ADR-0029)**
 
 *Ajoutée le 2026-10-17 (piste P34.03) : aucune tâche F ne parlait des médias de production, alors
-que F2 a besoin de leur domaine pour construire l'image du front.* Mêmes gestes que la préproduction
+que le front de production en a besoin. Depuis ADR-0069 § 3, ce domaine est une variable
+d'exécution (`MEDIA_URL`, F3 étape 1) et non plus une valeur de build.* Mêmes gestes que la préproduction
 (TCK-541), avec les noms de production :
 
 - seau public `takussan-prod-media`, région `WEUR`, domaine personnalisé **`media.takussan.com`**,
@@ -4060,67 +4062,48 @@ n'a aucune URL publique.
 la bascule (P09.01), et la décision ne vivait que dans le fichier de pistes.*
 
 - Propriété **de domaine** `takussan.com` vérifiée par un enregistrement **DNS TXT**
-  (`google-site-verification=…`) chez Cloudflare. Ni fichier ni balise : ce que sert Vercel
-  disparaît à la bascule, l'enregistrement DNS reste.
+  (`google-site-verification=…`) chez Cloudflare. Ni fichier ni balise : l'enregistrement DNS
+  ne dépend d'aucun déploiement.
 - Relever, **dans le ticket F**, avec la date : pages indexées, erreurs de couverture, sitemaps
   connus. C'est le point de comparaison de F5, étape 1.
 
 ### Tâche F2 : le code de la production Takussan
 
+*Réécrite le 2026-10-18 (TCK-931, étape 6 d'[ADR-0069](../adr/0069-deux-environnements-dokploy-configuration-hors-de-github.md)).
+Ce que la version précédente faisait et qui disparaît : l'environnement GitHub `prod` et son
+réviseur (ADR-0069 § 2 : il tomberait avec un dépôt privé ; ce qui garde la production, c'est la
+protection de `master` et la promotion décidée par le porteur), les URL écrites dans `images.yml`
+et la construction d'une image de front par environnement (§ 3 : la configuration se lit à
+l'exécution), le retrait de `@vercel/analytics` (fait par TCK-842).*
+
 **Files:**
 - Modify: `.github/workflows/images.yml`
-- Modify: `takussan-web/src/app/layout.tsx`, `takussan-web/package.json`, `takussan-web/package-lock.json`
 - Modify: `takussan-web/src/proxy.ts`, `takussan-web/src/__tests__/proxy.test.ts`, et les fichiers
-  de la surface publique qui rendent un lien sans préfixe de langue (étape 4)
+  de la surface publique qui rendent un lien sans préfixe de langue (étape 2)
 
 - [ ] **Étape 1 : `images.yml` sert aussi `master`**
 
 `on.push.branches` devient `[preview, master]`, et le `case` du job `cible` gagne, avant `*)` :
 
 ```yaml
-            master)
-              { echo "environnement=prod"
-                echo "api_url=https://api.takussan.com"
-                echo "site_url=https://www.takussan.com"
-                echo "media_url=https://media.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
+            master) { echo "environnement=production"; echo "prefixe=PRODUCTION"; } >> "$GITHUB_OUTPUT" ;;
 ```
 
-⚠ **Quatre sorties, jamais trois** (corrigé le 2026-10-17, piste P34.03) : le build du front passe
-`NEXT_PUBLIC_MEDIA_URL` et `takussan-web/Dockerfile` sort en `exit 1` quand elle est vide. Le domaine
-est celui de F1, étape 6 ; sans les seaux de production, ne pas poser cette valeur : les photos
-sortiraient en pleine taille (`takussan-web/CLAUDE.md`).
+Rien d'autre : la branche choisit la cible, jamais la configuration. Au push sur `master`, l'arbre
+est celui que `preview` a déjà construit (la promotion ne change pas l'arbre) : le job `image`
+**réétiquette** `tree-<arbre>` en `production` et ne construit rien. Le job `deploy` lit
+`PRODUCTION_DOKPLOY_API_COMPOSE_ID`, `PRODUCTION_DOKPLOY_WEB_WEBHOOK`, `PRODUCTION_API_URL` et
+`PRODUCTION_SITE_URL` (posés en F3, étape 2). Sans eux, il pousse l'image et ne déploie rien
+(« Dokploy n'est pas raccordé à « production » », `raccorde=non`) : un vert qui ne prouve rien, et
+c'est pourquoi la fusion vers `master` attend F3.
 
-Avant cette étape, la piste P34.02 doit être fusionnée : le sitemap est rendu à la demande, et non
-plus prérendu par ce build, qui se fait quand l'API de production ne sert encore rien.
+Expected, sur la PR : `node scripts/check-*.mjs` vert ; un push sur `preview` se comporte comme
+avant (le `case` n'a gagné qu'une branche).
 
-- [ ] **Étape 2 : l'environnement GitHub `prod`, avec réviseur**
+Le sitemap n'est plus prérendu au build (P34.02, TCK-831) : réétiqueter une image construite quand
+l'API de production ne servait rien n'est donc pas un sitemap figé.
 
-Le dépôt est public : un réviseur obligatoire est disponible sur le plan gratuit. Le job `deploy`
-attend donc une approbation humaine ; la construction, elle, ne l'attend pas.
-
-```bash
-jq -n --argjson id "$(gh api users/thiambara -q .id)" \
-  '{reviewers: [{type: "User", id: $id}], deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}}' \
-  | gh api -X PUT repos/thiambara/takussan/environments/prod --input -
-gh api -X POST repos/thiambara/takussan/environments/prod/deployment-branch-policies -f name=master
-gh api repos/thiambara/takussan/environments/prod -q '{reviewers: [.protection_rules[] | select(.type == "required_reviewers")] | length, branches: .deployment_branch_policy}'
-```
-
-Expected : un réviseur, et une politique de branches personnalisée (`master` seule).
-
-- [ ] **Étape 3 : retirer `@vercel/analytics`**
-
-```bash
-cd takussan-web && npm uninstall @vercel/analytics
-```
-
-Dans `src/app/layout.tsx`, supprimer l'import de la ligne 19
-(`import { Analytics } from '@vercel/analytics/next';`) et l'élément `<Analytics />` de la ligne 102.
-
-Run: `npm run lint && npx tsc --noEmit && npm run test && npm run build && grep -rn vercel/analytics src package.json; cd ..`
-Expected : tout vert, et le `grep` final ne rend rien.
-
-- [ ] **Étape 4 : les URL sans préfixe redirigent en 308 vers `/fr` (amendement d'ADR-0026 du 2026-10-17)**
+- [ ] **Étape 2 : les URL sans préfixe redirigent en 308 vers `/fr` (amendement d'ADR-0026 du 2026-10-17)**
 
 *Ajoutée le 2026-10-17 (pistes P09.07 et P34.01, décision du porteur).* Dans cet ordre, parce que
 la redirection n'est sûre qu'une fois la condition tenue :
@@ -4140,79 +4123,98 @@ Run: `npm run lint && npx tsc --noEmit && npm run test && npm run build`
 Expected : tout vert ; `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' -H 'Cookie: NEXT_LOCALE=en' http://localhost:3000/properties`
 → `308 http://localhost:3000/fr/properties`.
 
-- [ ] **Étape 5 : commit, puis fusion jusqu'à `master` sur demande du porteur**
+- [ ] **Étape 3 : PR vers `dev`, puis promotion jusqu'à `preview`**
 
-```bash
-git add .github/workflows/images.yml takussan-web/src takussan-web/package.json takussan-web/package-lock.json
-git commit -m "ci(web): images.yml sert la production sur master ; 308 vers /fr ; retrait de @vercel/analytics (ADR-0028, ADR-0026)"
-```
+Le code de F2 se promeut comme tout autre jusqu'à `preview`, où il est servi et mesuré. La
+fusion vers `master` est F3, étape 3 — sur demande du porteur, jamais avant.
 
-Au push sur `master` : les jobs `api` et `web` construisent les images `:prod`, et `deploy` **attend
-l'approbation**. Ne pas approuver avant F3, étape 3. (Vercel construit aussi ce commit : il sert
-encore `www.takussan.com` jusqu'à F3.)
+### Tâche F3 : mettre la production Takussan en service
 
-### Tâche F3 : basculer la production Takussan
+*Réécrite le 2026-10-18 (TCK-931, ADR-0069 étape 6). **Ce n'est plus une bascule** : Vercel est
+supprimé (en-tête de la phase F), `www.takussan.com` et `takussan.com` n'ont aucun enregistrement
+DNS, et rien n'est servi aujourd'hui. Il n'y a donc pas de chemin de retour vers un ancien site :
+revenir en arrière, c'est retirer l'enregistrement de `www` (on retrouve l'état d'avant), ou
+réétiqueter un `sha-` précédent en `production` et redéployer (ADR-0069 § 3).*
 
-- [ ] **Étape 1 : les services de production dans Dokploy**
+- [ ] **Étape 1 : les services de production dans l'environnement Dokploy `production`**
 
-- Le Compose `donnees` passe à la branche `master` (A4 le déclarait sur `preview`), puis *Deploy*.
-- Compose `takussan-api-prod` : comme D1, branche **`master`**, domaine `api.takussan.com`. Son
-  environnement est celui de D1, à ces différences près :
+Créés **à partir de cette table**, jamais par `environment.duplicate`, qui recopierait les secrets
+de la préproduction (ADR-0069 § 1).
+
+- Le Compose `donnees` (projet *Serveur*) passe à la branche `master`, puis *Deploy*. Il ne porte
+  plus que Meilisearch : rien ne redémarre côté données.
+- Compose `takussan-api-production` : `deploy/takussan/compose.api.yml`, branche **`master`**,
+  domaine `api.takussan.com`, même commande de déploiement que la préproduction
+  (`run --rm release && up -d --build`, relevé de `hebergement.md`). Son environnement est celui de
+  la préproduction, à ces différences près :
 
 | Clé | Valeur de production |
 |---|---|
-| `IMAGE_TAG` | `prod` |
+| `IMAGE_TAG` | `production` |
+| `API_ALIAS` | `takussan-api-production` — l'alias de la pile sur `dokploy-network` (ADR-0069 § 4), que vise `API_INTERNAL_URL` du front |
+| `REDIS_PASSWORD` | neuf (`openssl rand -hex 32`) : le Redis est celui de la pile, sur son seul réseau `interne` (TCK-880) ; ni `REDIS_HOST` ni `REDIS_DB` à poser |
 | `APP_KEY` | neuve (`openssl rand -base64 32`) — jamais celle de la préproduction. **Rangée hors du serveur avant le premier déploiement** (gestionnaire de mots de passe du porteur), et son empreinte (`printf %s "$APP_KEY" \| sha256sum \| cut -c1-12`) portée au relevé de `hebergement.md` : sans elle, une restauration perd toutes les colonnes chiffrées (ADR-0044, amendement du 2026-10-18, P42.02) |
 | `APP_URL` / `FRONTEND_URL` / `SANCTUM_STATEFUL_DOMAINS` | `https://api.takussan.com` / `https://www.takussan.com` / `www.takussan.com` |
 | `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | `takussan_prod` / `takussan_prod` / F1, étape 2 |
-| `REDIS_DB` / `REDIS_CACHE_DB` | `2` / `3` |
 | `SCOUT_PREFIX` / `MEILISEARCH_KEY` | `prod_` / la clé `prod_*` de F1, étape 4 |
 | clés des fournisseurs (SMS, WhatsApp, Google…) | celles de **production** de l'export A1 (`/var/www/takussan/shared/.env`) |
 | `MEDIA_PUBLIC_DISK` / `MEDIA_PRIVATE_DISK` | `r2-media` / `r2-private` |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | le jeton `takussan-prod-app` de F1, étape 6 — jamais celui de la préproduction |
 | `R2_MEDIA_BUCKET` / `R2_PRIVATE_BUCKET` / `R2_MEDIA_URL` | `takussan-prod-media` / `takussan-prod-private` / `https://media.takussan.com` |
 | `PUBLIC_CACHE_REVALIDATE_URL` | `https://www.takussan.com/api/revalidation/fiche` — **jamais** celle de la préproduction : la production révoquerait le cache d'un autre site |
-| `PUBLIC_CACHE_REVALIDATE_SECRET` | neuf (`openssl rand -hex 32`), le même que `takussan-web-prod` |
+| `PUBLIC_CACHE_REVALIDATE_SECRET` | neuf (`openssl rand -hex 32`), le même que `takussan-web-production` |
 | réglages de TCK-720 | ceux qui valent par environnement : `CACHE_PREFIX` propre à la production (P05.09), jetons d'accusés SMS (P27.01, P36.04) |
 
-*Lignes `MEDIA_*`, `R2_*` et `PUBLIC_CACHE_*` ajoutées le 2026-10-17 (pistes P34.03, P34.04).*
-
-- Application `takussan-web-prod` : image `ghcr.io/thiambara/takussan-web:prod`, domaine
-  `www.takussan.com`, **sans** authentification basique. Variables d'**exécution** (lues par le
-  serveur Next, jamais inlinées ; ajoutées le 2026-10-17, piste P34.04) :
+- Application `takussan-web-production` : image `ghcr.io/thiambara/takussan-web:production`,
+  domaine `www.takussan.com`, **sans** authentification basique. Variables d'**exécution** — le
+  conteneur refuse de démarrer sans les trois premières (ADR-0069 § 3) :
 
 | Clé | Valeur de production |
 |---|---|
-| `PUBLIC_CACHE_REVALIDATE_SECRET` | celui de `takussan-api-prod`. Vide, le handler de révocation rend `401` à tout appel, et une fiche retirée reste servie jusqu'à la fin du cache |
-| `API_INTERNAL_URL` | `http://<conteneur api de takussan-api-prod>:8080`, **jamais `http://api:8080`** : les deux piles sont sur `dokploy-network`, et l'alias `api` y désignerait aussi la préproduction (D-71). Vérifier depuis le conteneur du front, avant de poser : `getent hosts <nom>` rend une seule adresse |
-| `VISITOR_IP_TRUSTED_HOPS` | `2` : Cloudflare puis Traefik — celle de la préproduction, à confirmer par la mesure d'ADR-0052 § 6 |
-- ~~*Volume Backups* du volume `storage` de production~~ : **retirée le 2026-10-18** (ADR-0044,
-  amendement D, P42.06). Les médias sont sur R2 ; le volume ne porte plus que des fichiers
-  temporaires, dont les exports RGPD, qu'une sauvegarde aurait gardés après leur purge.
+| `API_URL` / `SITE_URL` / `MEDIA_URL` | `https://api.takussan.com` / `https://www.takussan.com` / `https://media.takussan.com` (le domaine de F1, étape 6 ; sans les seaux de production, ne pas la poser : les photos sortiraient en pleine taille) |
+| `PUBLIC_CACHE_REVALIDATE_SECRET` | celui de `takussan-api-production`. Vide, le handler de révocation rend `401` à tout appel, et une fiche retirée reste servie jusqu'à la fin du cache |
+| `API_INTERNAL_URL` | `http://takussan-api-production:8080` — l'alias de la pile, **jamais `http://api:8080`**, que chaque pile déclare sur `dokploy-network`. Vérifier depuis le conteneur du front, avant de poser : `/up` répond `200` par ce nom (mesuré ainsi en préproduction le 2026-10-18) |
+| `VISITOR_IP_TRUSTED_HOPS` | `2` : Cloudflare puis Traefik — **après** la mesure d'ADR-0052 § 6 en préproduction (TCK-720, AC7). Si elle contredit 2, c'est la valeur qui change |
 
-- [ ] **Étape 2 : l'environnement GitHub `prod` reçoit ses identifiants**
+- Aucune *Volume Backup* du volume `storage` (retirée le 2026-10-18, ADR-0044 amendement D) : les
+  médias sont sur R2.
 
-Même bloc que D3, étape 1, avec `takussan-api-prod`, `takussan-web-prod` et `--env prod` ; **pas** de
-`PREVIEW_BASIC_AUTH`.
+- [ ] **Étape 2 : les identifiants de déploiement, au niveau du dépôt**
 
-- [ ] **Étape 3 : approuver, et basculer `www` pendant que la preuve attend**
+Les variables et secrets **de dépôt** que lit `images.yml` pour le préfixe `PRODUCTION`, comme ceux
+de `PREVIEW` (ADR-0069 § 2 : aucun environnement GitHub) — chaque secret lu depuis un fichier par
+un script, jamais tapé dans une commande, sa longueur relue après :
 
-`api.takussan.com` pointe déjà sur le serveur, en DNS seul : son certificat s'émet dès le premier
-déploiement. `www.takussan.com`, lui, pointe sur Vercel : Let's Encrypt ne peut pas émettre son
-certificat avant la bascule. La preuve du workflow attend dix minutes : **c'est la fenêtre de
-bascule.**
+- variables : `PRODUCTION_DOKPLOY_API_COMPOSE_ID` (l'identifiant de `takussan-api-production`),
+  `PRODUCTION_API_URL` (`https://api.takussan.com`), `PRODUCTION_SITE_URL` (`https://www.takussan.com`) ;
+- secret : `PRODUCTION_DOKPLOY_WEB_WEBHOOK` (le webhook de `takussan-web-production`, limité à ce
+  service) ;
+- **pas** de `PRODUCTION_BASIC_AUTH` : la production n'a pas d'authentification basique.
 
-1. Approuver le job `deploy` du dernier run de `master` (onglet *Actions*, ou
-   `gh run view <id> -R thiambara/takussan` puis *Review deployments*).
-2. Attendre la ligne `✓ https://api.takussan.com/up sert <commit>` dans le journal.
-3. Chez Cloudflare, `www.takussan.com` : le CNAME Vercel devient **A `178.18.247.62`, proxifié**.
-4. Attendre `✓ https://www.takussan.com/robots.txt sert <commit>`.
-5. `api.takussan.com` puis `www.takussan.com` rejoignent `NOMS` de `deploy/server/certificats.sh`
-   **dès que leur certificat existe** (les deux lignes `✓` ci-dessus), jamais avant : sans routeur,
-   Traefik présente `TRAEFIK DEFAULT CERT` et le workflow rougirait chaque jour (TCK-523, relevé du
-   2026-09-14 dans hebergement.md).
-6. Le sitemap décrit la production (ajouté le 2026-10-17, pistes P34.01 et P34.02) : la seconde
-   ligne `✓` prouve le commit servi, pas le contenu de `robots.txt` ni celui du sitemap.
+```bash
+gh variable list -R thiambara/takussan | grep '^PRODUCTION_'
+gh secret list -R thiambara/takussan | grep '^PRODUCTION_'
+```
+
+Expected : trois variables, un secret.
+
+- [ ] **Étape 3 : les noms, puis la fusion vers `master`**
+
+`api.takussan.com` pointe déjà sur le serveur, en DNS seul : son certificat s'émet au premier
+déploiement. `www.takussan.com` n'a aucun enregistrement.
+
+1. Chez Cloudflare : `www.takussan.com` → **A `178.18.247.62`, proxifié** — comme
+   `preview.takussan.com`, dont le certificat d'origine s'est émis derrière le proxy. Tant que rien
+   n'est déployé, Cloudflare rend une erreur d'origine, sans rien servir d'autre.
+2. Sur demande du porteur : la PR de promotion `preview → master`, fusionnée sur CI verte.
+3. Le run d'`images.yml` sur `master` : la ligne « réétiquetée » (pas « construite »), puis
+   `✓ https://api.takussan.com/up sert <commit>` et `✓ https://www.takussan.com/robots.txt sert <commit>`.
+   Pendant la minute où Traefik obtient le certificat, Cloudflare peut rendre `526`.
+4. `api.takussan.com` puis `www.takussan.com` rejoignent `NOMS` de `deploy/server/certificats.sh`
+   **dès que leur certificat existe** (les deux lignes `✓`), jamais avant : sans routeur, Traefik
+   présente `TRAEFIK DEFAULT CERT` et le workflow rougirait chaque jour (TCK-523).
+5. Le sitemap décrit la production (pistes P34.01 et P34.02) : la seconde ligne `✓` prouve le
+   commit servi, pas le contenu de `robots.txt` ni celui du sitemap.
 
 ```bash
 curl -sS https://www.takussan.com/robots.txt | grep -i '^sitemap:'
@@ -4220,55 +4222,59 @@ curl -sS https://www.takussan.com/sitemap.xml | grep -c '<loc>'
 curl -sS 'https://api.takussan.com/api/public/properties?per_page=1' | jq '.meta.total'
 ```
 
-   Expected : `Sitemap: https://www.takussan.com/sitemap.xml`, et plus de `<loc>` que de biens
-   publiés (trois langues par fiche, plus les pages statiques, les villes et les profils). Douze
-   `<loc>` seulement, ce sont les pages statiques : le sitemap a été construit sans API, **ne pas
-   le soumettre** (étape 7).
+Expected : `Sitemap: https://www.takussan.com/sitemap.xml`, et plus de `<loc>` que de biens
+publiés (trois langues par fiche, plus les pages statiques, les villes et les profils). Douze
+`<loc>` seulement, ce sont les pages statiques : le sitemap a été construit sans API, **ne pas le
+soumettre** (étape 7).
 
-Expected : le job `deploy` vert. Pendant la minute où Traefik obtient le certificat, Cloudflare peut
-rendre `526`. **Retour arrière** : si la seconde ligne `✓` ne vient pas, remettre le CNAME relevé en
-F1, étape 1 — le projet Vercel sert toujours, et c'est la raison pour laquelle on ne le supprime
-qu'en F5.
+**Retour arrière** : si la seconde ligne `✓` ne vient pas, retirer l'enregistrement de `www` (l'état
+d'avant), puis comprendre. Après la mise en service, revenir à une image : réétiqueter le `sha-`
+voulu en `production` (`docker buildx imagetools create -t ghcr.io/thiambara/takussan-web:production ghcr.io/thiambara/takussan-web:sha-<commit>`,
+de même pour `takussan-api`) et redéployer.
 
 - [ ] **Étape 4 : `api.takussan.com` passe derrière Cloudflare, l'apex redirige**
 
 - `api.takussan.com` : passer l'enregistrement en **proxifié** (son certificat d'origine existe
   depuis l'étape 3, Full (strict) l'accepte).
-- `takussan.com` : l'enregistrement Vercel devient **A `192.0.2.1`, proxifié** (adresse de
-  documentation : Cloudflare répond, aucune origine n'est jamais jointe), et une *Redirect Rule* :
-  hôte égal à `takussan.com` → `https://www.takussan.com${http.request.uri.path}`, code `301`,
-  chaîne de requête conservée.
+- `takussan.com` : **A `192.0.2.1`, proxifié** (adresse de documentation : Cloudflare répond,
+  aucune origine n'est jamais jointe), et une *Redirect Rule* : hôte égal à `takussan.com` →
+  `https://www.takussan.com${http.request.uri.path}`, code `301`, chaîne de requête conservée.
 
 ```bash
 curl -sS -o /dev/null -D - https://api.takussan.com/up | tr -d '\r' | grep -iE '^(HTTP|cf-ray|x-build-sha)'
 curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://takussan.com/fr/properties?page=2'
-curl -sS -o /dev/null -D - https://www.takussan.com/fr | tr -d '\r' | grep -iE '^(HTTP|x-vercel-id|x-build-sha)'
+curl -sS -o /dev/null -D - https://www.takussan.com/fr | tr -d '\r' | grep -iE '^(HTTP|x-build-sha)'
 ```
 
 Expected : `200`, un `cf-ray`, le commit ; `301 https://www.takussan.com/fr/properties?page=2` ;
-`200`, le commit, **aucun** `x-vercel-id`. *(`/fr/biens` jusqu'au 2026-10-17 : un chemin qui
-n'existe pas, dont le 301 se vérifiait sans rien prouver de la cible — piste P34.05.)*
+`200` et le commit.
 
 - [ ] **Étape 5 : l'IP du client à travers Cloudflare — l'ablation de D5, sur l'hôte proxifié**
 
-Rejouer D5, étape 4, contre `https://api.takussan.com`, dans l'environnement `takussan-api-prod` :
-l'IP du poste autorisée → pas de `Source IP not allowed` ; `203.0.113.7` autorisée → `403`, **avec
-et sans** `X-Forwarded-For: 203.0.113.7`. C'est ici que la règle d'ADR-0028 §8 se prouve pour de
-bon : la requête traverse une bordure Cloudflare, et Laravel doit remonter jusqu'au poste sans croire
-l'en-tête qu'il a forgé. Remettre ensuite la valeur de production.
+Rejouer D5, étape 4, contre `https://api.takussan.com`, dans l'environnement
+`takussan-api-production` : l'IP du poste autorisée → pas de `Source IP not allowed` ;
+`203.0.113.7` autorisée → `403`, **avec et sans** `X-Forwarded-For: 203.0.113.7`. C'est ici que la
+règle d'ADR-0028 §8 se prouve pour de bon : la requête traverse une bordure Cloudflare, et Laravel
+doit remonter jusqu'au poste sans croire l'en-tête qu'il a forgé. Remettre ensuite la valeur de
+production.
 
 - [ ] **Étape 6 : files, recherche, restauration, budget**
 
-Rejouer D5, étapes 2 et 3, contre les conteneurs de `takussan-api-prod` (clé attendue : `403` sur
-`preview_properties`). Rejouer D6, étape 2, contre `takussan_prod` après sa première sauvegarde
-nocturne, **déchiffrement compris** (`backup:verify-encryption`). Sur une base neuve, la commande
-sort en `2` tant qu'aucune valeur chiffrée n'existe : la rejouer après la première écriture d'une
-colonne chiffrée. Rejouer D6, étape 4 : c'est la première mesure du budget à **quatre** environnements — la
-reporter dans le relevé et dans le tableau de ce plan.
+- Rejouer D5, étapes 2 et 3, contre les conteneurs de `takussan-api-production` (clé attendue :
+  `403` sur `preview_properties`).
+- **La restauration** : `takussan_prod` vit dans l'instance que WAL-G archive déjà (TCK-930) — rien
+  à installer. Après la première écriture d'une colonne chiffrée, rejouer la restauration à un
+  instant choisi du runbook « WAL-G » de `hebergement.md` contre `takussan_prod` : une ligne écrite
+  avant l'instant présente, une après absente, et `backup:verify-encryption` en `0` avec l'`APP_KEY`
+  de production (en `1` avec `--cle-fausse`). Sur une base sans valeur chiffrée, la commande sort en
+  `2` : attendre la première. La sauvegarde nocturne `pg_dump` de F1, étape 5, se relit une fois
+  aussi (D6, étape 2).
+- Rejouer D6, étape 4 : c'est la première mesure du budget avec la production — la reporter dans le
+  relevé et dans le tableau de ce plan.
 
 - [ ] **Étape 7 : soumettre le sitemap**
 
-*Ajoutée le 2026-10-17 (piste P34.01).* Après l'étape 3, point 6, seulement. Search Console de la
+*Ajoutée le 2026-10-17 (piste P34.01).* Après l'étape 3, point 5, seulement. Search Console de la
 propriété `takussan.com` (F1, étape 7) → *Sitemaps* → `https://www.takussan.com/sitemap.xml`.
 Expected : état « Opération effectuée », et un nombre d'URL découvertes du même ordre que le compte
 de `<loc>` relevé à l'étape 3.
@@ -4373,8 +4379,9 @@ Dans `thiambara/check-print-plus` : `git rm web/vercel.json`.
 
 - **ADR-0017** : statut « Remplacé par ADR-0028 — effectif le `<date de F3>` » ; la ligne d'index du
   `README` suit.
-- **`CLAUDE.md`**, « Workflow git » : `master` déploie la production **par `images.yml`**, derrière le
-  réviseur de l'environnement `prod`, prouvée par `X-Build-Sha`. Le tableau des chiffres faux et le
+- **`CLAUDE.md`**, « Workflow git » : `master` déploie la production **par `images.yml`** — l'image
+  de la préproduction réétiquetée, prouvée par `X-Build-Sha` ; la garde est la protection de
+  `master` et la promotion décidée par le porteur (ADR-0069 § 2). Le tableau des chiffres faux et le
   paragraphe « la production n'a jamais été déployée » cèdent la place à la mesure de F3, étape 4,
   datée — et leur histoire part dans `docs/journal-des-corrections.md`, où vit le récit.
 - **`docs/ardoise.md`** : D-04 et D-10 soldées, avec les commandes et les sorties de F3.
@@ -4385,13 +4392,15 @@ Dans `thiambara/check-print-plus` : `git rm web/vercel.json`.
 ```bash
 ssh root@178.18.247.62 '
   docker exec $(docker ps -q -f name=meilisearch | head -1) meilisearch --version
-  docker exec $(docker ps -q -f name=redis-takussan | head -1) redis-server --version
-  docker exec $(docker ps -q -f name=takussan-api-prod -f name=api | head -1) php -v | head -1
-  docker exec $(docker ps -q -f name=takussan-web-prod | head -1) node -v
-  docker exec $(docker ps -q -f ancestor=pgvector/pgvector:pg17 | head -1) postgres --version'
+  c() { docker ps --format "{{.Names}}" | grep -E "$1" | head -1; }
+  docker exec $(c "^takussan-api-production-.*-redis-1$") redis-server --version
+  docker exec $(c "^takussan-api-production-.*-api-1$") php -v | head -1
+  docker exec $(docker ps -q -f name=takussan-web-production | head -1) node -v
+  docker exec $(docker ps -q -f name=serveur-postgres | head -1) postgres --version'
 ```
 
-Chaque service passe à `"etat": "mesure"`, avec `valeur`, `date` et la commande exacte. `mailpit`
+*(Deux `-f name=` passés à `docker ps` se combinent en OU : l'ancienne forme pouvait mesurer le
+Redis ou l'API de la préproduction — corrigé le 2026-10-18, TCK-931.)* Chaque service passe à `"etat": "mesure"`, avec `valeur`, `date` et la commande exacte. `mailpit`
 reste « sans objet en production ». Run: `node scripts/check-infra-versions.mjs --report` → vert.
 
 - [ ] **Étape 5 : toutes les gardes, et commit**

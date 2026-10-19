@@ -20,7 +20,9 @@ class StoreBankStatementRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'max:10240', 'mimes:csv,txt,ofx'],
-            'source_format' => ['nullable', new Enum(BankStatementSourceFormat::class)],
+            // TCK-979 (P54.04) — colonne NOT NULL sans défaut : le format est déduit plus bas quand
+            // il n'est pas fourni, il est donc toujours présent ici.
+            'source_format' => ['required', new Enum(BankStatementSourceFormat::class)],
             'bank_name' => ['nullable', 'string', 'max:120'],
             'account_iban' => ['nullable', 'string', 'max:34', 'regex:/^[A-Z0-9]+$/'],
         ];
@@ -28,8 +30,10 @@ class StoreBankStatementRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        // Auto-detect source_format from file extension if not provided
-        if (! $this->has('source_format') && $this->hasFile('file')) {
+        // Auto-detect source_format from file extension if not provided.
+        // TCK-979 (P54.04) — une valeur vide (`null`, ou `""` changé en `null` par le middleware) est
+        // une valeur non fournie : `has()` la laissait passer, et l'écriture rendait 500.
+        if (! $this->filled('source_format') && $this->hasFile('file')) {
             $ext = strtolower($this->file('file')->getClientOriginalExtension());
             $this->merge([
                 'source_format' => $ext === 'ofx' ? 'ofx' : 'csv',

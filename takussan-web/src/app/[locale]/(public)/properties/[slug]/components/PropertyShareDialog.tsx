@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { copyToClipboard, liensDePartage } from '@/lib/share';
-import { formatCurrency } from '@/lib/format/currency';
+import { formatMontant } from '@/lib/format/currency';
 import type { PropertyDetail } from '@/types/property';
 
 interface PropertyShareDialogProps {
@@ -37,7 +37,7 @@ export function PropertyShareDialog({ open, onOpenChange, property, url }: Prope
   const [copied, setCopied] = useState(false);
 
   const type = tTypes(property.type);
-  const price = formatCurrency(property.price, property.currency ?? 'XOF');
+  const price = formatMontant(property.price, property.currency ?? 'XOF');
   const quarter = property.location.quarter?.trim() || property.location.city?.trim() || '';
   const texte = (lien: string) =>
     quarter

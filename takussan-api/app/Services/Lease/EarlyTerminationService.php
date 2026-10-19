@@ -2,6 +2,7 @@
 
 namespace App\Services\Lease;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Events\Lease\LeaseEarlyTerminationCancelled;
 use App\Events\Lease\LeaseEarlyTerminationConfirmed;
 use App\Events\Lease\LeaseEarlyTerminationRequested;
@@ -299,7 +300,8 @@ class EarlyTerminationService
 
         $months = (int) $value;
 
-        return $months > 0 ? $months : self::SETTING_DEFAULT_MONTHS;
+        // TCK-964 (P47.04) — au plus la borne du catalogue, pour une ligne écrite avant sa règle.
+        return $months > 0 ? (int) EditablePlatformSettings::clamp(self::SETTING_KEY, $months) : self::SETTING_DEFAULT_MONTHS;
     }
 
     protected function guardRequestable(Lease $lease): void

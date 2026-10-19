@@ -9,7 +9,7 @@ import {
   type DragEvent as ReactDragEvent,
 } from 'react';
 import { useTranslations } from 'next-intl';
-import { GripVertical, Loader2, Star, Trash2, UploadCloud, X } from 'lucide-react';
+import { Camera, GripVertical, Loader2, Star, Trash2, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -521,6 +521,7 @@ export function MediaDropzone({
   accept = DEFAULT_ACCEPT,
   maxSize = DEFAULT_MAX_SIZE,
   maxFiles = DEFAULT_MAX_FILES,
+  camera = false,
 }: {
   readonly onChange: (files: File[]) => void;
   readonly files: File[];
@@ -528,6 +529,12 @@ export function MediaDropzone({
   readonly accept?: readonly string[];
   readonly maxSize?: number;
   readonly maxFiles?: number;
+  /**
+   * TCK-913 (P08.10) — un second bouton « Prendre une photo » (`capture="environment"`) ouvre
+   * directement l'appareil photo, sur les écrans tactiles seulement : sur un ordinateur, `capture`
+   * est ignoré et le bouton doublerait la zone.
+   */
+  readonly camera?: boolean;
 }) {
   const t = useTranslations('media');
   const [isDragOver, setIsDragOver] = useState(false);
@@ -535,6 +542,7 @@ export function MediaDropzone({
   // TCK-596 — un identifiant PAR zone. Un id fixe faisait désigner au `<label for>` de chaque zone
   // le premier input de la page : toucher la zone de la pièce N remplissait la pièce 1.
   const inputId = useId();
+  const cameraId = useId();
 
   const validateAndEmit = async (list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -599,6 +607,27 @@ export function MediaDropzone({
           }}
         />
       </label>
+
+      {camera ? (
+        <label
+          htmlFor={cameraId}
+          className="mt-2 inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted has-focus-visible:ring-3 has-focus-visible:ring-ring pointer-fine:hidden"
+        >
+          <Camera className="size-4 text-primary" aria-hidden="true" />
+          {t('take_photo')}
+          <input
+            id={cameraId}
+            type="file"
+            accept={accept.join(',')}
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => {
+              void validateAndEmit(e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </label>
+      ) : null}
 
       {error ? (
         <p className="mt-2 text-xs text-destructive" role="alert">

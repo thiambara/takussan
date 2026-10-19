@@ -76,15 +76,6 @@ export function useAgencyRoles(agencyId: number, enabled = true) {
   );
 }
 
-/** `GET /api/agencies/{agency}/roles/{role}` */
-export function useAgencyRole(agencyId: number, roleId: number, enabled = true) {
-  return useApiQuery<ApiResponse<AgencyRole>>(
-    agencyRoleKeys.detail(agencyId, roleId),
-    cheminApi`/api/agencies/${agencyId}/roles/${roleId}`,
-    { enabled: enabled && roleId > 0, params: { include: ['capabilities'] } },
-  );
-}
-
 /**
  * `GET /api/agencies/{agency}/role-assignments` — quel rôle porte le profil
  * de chacun des utilisateurs listés, DANS cette agence.

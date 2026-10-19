@@ -97,4 +97,34 @@ class CustomerNoteTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['body']);
     }
+
+    /**
+     * TCK-978 (P54.03) — `customer_notes.pinned` est `NOT NULL DEFAULT false` : un `null` explicite
+     * rend 422 (il rendait 500, `SQLSTATE[23502]`) ; la clé omise prend toujours le défaut.
+     */
+    public function test_une_note_epinglee_a_null_rend_422(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/customers/{$customer->id}/notes", ['body' => 'Rappeler lundi.', 'pinned' => null])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['pinned']);
+
+        $this->assertSame(0, CustomerNote::query()->count());
+    }
+
+    public function test_une_note_sans_pinned_n_est_pas_epinglee(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/customers/{$customer->id}/notes", ['body' => 'Rappeler lundi.'])->assertStatus(201);
+
+        $this->assertFalse((bool) CustomerNote::query()->sole()->pinned);
+    }
 }

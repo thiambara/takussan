@@ -20,7 +20,6 @@ import type {
 import type {
   InventoryCreateInput,
   InventoryDisputeInput,
-  InventoryUpdateInput,
 } from '@/lib/schemas/inventory';
 import { cheminApi } from '@/lib/chemin-api';
 
@@ -104,21 +103,6 @@ export function useInventories(params?: InventoryListParams) {
   );
 }
 
-/** `GET /api/properties/{property}/inventories` — defaults to `-conducted_at` server-side. */
-export function useInventoriesForProperty(
-  propertyId: number | null,
-  params?: InventoryListParams,
-) {
-  return useApiQuery<PaginatedResponse<Inventory>>(
-    inventoryKeys.byProperty(propertyId ?? 0, params),
-    cheminApi`/api/properties/${propertyId}/inventories`,
-    {
-      params: toSpatieParams(params, LIST_FIELDS, '-conducted_at'),
-      enabled: propertyId !== null && propertyId > 0,
-    },
-  );
-}
-
 /** `GET /api/inventories/{id}`. */
 export function useInventory(id: number | null) {
   return useApiQuery<ApiResponse<Inventory>>(
@@ -136,14 +120,6 @@ export function useCreateInventory() {
   return useApiMutation<ApiResponse<Inventory>, InventoryCreateInput>(
     { path: '/api/inventories', method: 'POST' },
     { invalidate: [inventoryKeys.all] },
-  );
-}
-
-/** `PUT /api/inventories/{id}` — only allowed while status is `draft`. */
-export function useUpdateInventory(id: number) {
-  return useApiMutation<ApiResponse<Inventory>, InventoryUpdateInput>(
-    { path: cheminApi`/api/inventories/${id}`, method: 'PUT' },
-    { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
 }
 

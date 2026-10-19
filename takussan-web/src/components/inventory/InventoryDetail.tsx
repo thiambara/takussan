@@ -261,6 +261,7 @@ function RoomCard({
       {canUpload ? (
         <div className="mt-3 space-y-3 rounded-lg border border-dashed border-border p-3">
           <MediaDropzone
+            camera
             maxSize={INVENTORY_PHOTO_MAX_BYTES}
             onChange={(next) => setPhotos((prev) => [...prev, ...next])}
             files={photos}

@@ -1,7 +1,7 @@
-# Règles communes aux trois agents des pistes
+# Règles communes aux agents des pistes
 
-> Lu en premier par `pistes-explorateur`, `pistes-mesureur` et `pistes-implementeur`. La décision,
-> le format du fichier et les critères de classement sont dans
+> Lu en premier par `pistes-explorateur`, `pistes-mesureur`, `pistes-implementeur` et
+> `pistes-delegue`. La décision, le format du fichier et les critères de classement sont dans
 > [ADR-0066](../../../docs/adr/0066-trois-agents-sur-les-pistes-d-amelioration.md). **Lis ses § 2
 > et § 3 avant d'écrire une ligne dans le fichier de pistes.**
 

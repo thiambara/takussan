@@ -41,7 +41,7 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 - [ ] F1 — re-mesure, bases, clé Meilisearch et sauvegardes de production ; seaux R2 et domaine
   `media.takussan.com` (étape 6) ; propriété Search Console par DNS TXT et relevé de l'index
   (étape 7) — ajoutées le 2026-10-17, pistes P34.03 et P34.01
-- [ ] F2 à F3 — Takussan : `images.yml` sur `master`, environnement `prod` avec réviseur, bascule DNS
+- [ ] F2 à F3 — Takussan : `images.yml` sur `master` (image de la préproduction réétiquetée), environnement Dokploy `production`, mise en service DNS — réécrites le 2026-10-18 par TCK-931 (ADR-0069, étape 6)
 - ~~F4 — CheckPrint Plus~~ — **annulée le 2026-10-04** : projet arrêté, retiré du serveur et de Vercel
 - [ ] F5 — retrait de Vercel, des relevés et de la garde qui le mesuraient
 
@@ -67,7 +67,7 @@ l'environnement GitHub `Production` est supprimé.
 
 - F5, étape 1 est faite, hors de son ordre ; F5, étape 2 devient TCK-860 ; TCK-516 est `obsolete`.
 - **Il n'y a plus de site public**, et plus de retour arrière vers Vercel : F3 devient une mise en
-  service, pas une bascule. F2 et F3 sont réécrites par l'étape 6 d'ADR-0069.
+  service, pas une bascule. F2 et F3 sont réécrites par l'étape 6 d'ADR-0069 (TCK-931, fait le 2026-10-18).
 - AC2 garde son sens (le commit servi) ; « sans `x-vercel-id` » ne peut plus échouer.
 - AC5 : le relevé Search Console de J+7 n'a plus de référence d'avant bascule (F1, étape 7), le
   site ayant disparu de l'index pendant l'interruption.

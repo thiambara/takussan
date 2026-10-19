@@ -2,6 +2,7 @@
   "common": {
     "appName": "Takussan",
     "tagline": "Kër yu Senegaal",
+    "skipToContent": "Dem ci ndollent li",
     "actions": {
       "save": "Denc",
       "cancel": "Bàyyi",
@@ -177,7 +178,6 @@
       "pendingBadge": "{count} ñu séq",
       "topbarBrand": "Takussan · Konsol",
       "consoleBadge": "Konsol",
-      "skipToContent": "Dem ci ndollent li",
       "groups": {
         "overview": "Gis-gis bu yaatu",
         "operations": "Liggéey yi",
@@ -454,7 +454,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Dugg — Takussan"
+      "default": "Dugg — Takussan",
+      "titles": {
+        "login": "Connexion",
+        "register": "Inscription",
+        "forgotPassword": "Mot de passe oublié",
+        "resetPassword": "Nouveau mot de passe",
+        "verifyEmail": "Vérification de l'e-mail"
+      }
     },
     "layout": {
       "visualAlt": "Wiila bu bees ci Senegaal",
@@ -1018,6 +1025,8 @@
       "phone": "Telefon",
       "occupation": "Liggéey",
       "occupationPlaceholder": "Jàngalekat, jaaykat, ak yeneen",
+      "locale": "Langue des messages",
+      "localeDefault": "Par défaut (français)",
       "crmSection": "Toppatoo CRM",
       "pipelineStage": "Étape pipeline bi",
       "status": "Nekkin",
@@ -1048,6 +1057,13 @@
       "removeAria": "Dindi tag bi {tag}",
       "inputLabel": "Yokk tag ci kiliyaan bi",
       "filterAria": "Xool kiliyaan yi am tag {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Prospect chaud",
+      "etranger": "Étranger",
+      "famille": "Famille",
+      "etudiant": "Étudiant"
     }
   },
   "agentCrm": {
@@ -1626,7 +1642,9 @@
         "amount": "Lëmboo",
         "status": "Nekkin",
         "actions": "Jëf",
-        "open": "Ubbi"
+        "open": "Ubbi",
+        "caption": "Factures",
+        "openLabel": "Ouvrir la facture {reference}"
       }
     },
     "payouts": {
@@ -1640,7 +1658,9 @@
         "net": "Net",
         "status": "Nekkin",
         "actions": "Jëf",
-        "open": "Ubbi"
+        "open": "Ubbi",
+        "caption": "Reversements",
+        "openLabel": "Ouvrir le reversement {reference}"
       }
     },
     "history": {
@@ -1681,7 +1701,8 @@
           "lease": "Luwé"
         },
         "entityLease": "Luwé #{id}",
-        "entityBooking": "Réservasioŋ #{id}"
+        "entityBooking": "Réservasioŋ #{id}",
+        "caption": "Historique des paiements"
       }
     },
     "status": {
@@ -2595,6 +2616,7 @@
       "vide_description": "Dindil benn filtar rekk : yeneen yi dinañu des.",
       "vide_description_sans_critere": "Am na kër bu la war : tàmbaliwaatal ak seet bu bees.",
       "vide_criteres_aria": "Dindi benn filtar",
+      "vide_suggestions": "Essayez plutôt",
       "empty_cta": "Faral filtre yépp",
       "error": "Am na njuumte. Jéemaatal su la neexee.",
       "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
@@ -2602,7 +2624,8 @@
       "error_retry": "Jéemaat",
       "vide_titre_hors_pages": "Dara amul ci xët wii",
       "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu.",
-      "updating": "Mu ngi yeesal kër yi…"
+      "updating": "Mu ngi yeesal kër yi…",
+      "heading": "Résultats de la recherche"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",
@@ -4580,8 +4603,6 @@
         "phone": "Telefon",
         "website": "Site internet",
         "commission": "Komisiyon bu ñu jagleel (%)",
-        "timezone": "Fuseau horaire",
-        "timezonePlaceholder": "Africa/Dakar",
         "websitePlaceholder": "https://sa-ajance.sn"
       },
       "moderation": {
@@ -4957,6 +4978,7 @@
       "empty": "Amul kër ci tànneef bii ba tey."
     },
     "discovery": {
+      "neighbourhoodsOf": "Quartiers de {city}",
       "viewSwitchAria": "Wonewu njeexital yi",
       "viewList": "Limu",
       "viewMap": "Kart",
@@ -9541,7 +9563,8 @@
         "net": "Net",
         "status": "Nekkin",
         "paidOn": "Fey ci",
-        "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey."
+        "emptyForAgency": "Amul benn peymaan platform bu ñu jot ba tey.",
+        "caption": "Reversements de la plateforme"
       },
       "close": {
         "title": "Tëj benn jamono",
@@ -9716,7 +9739,6 @@
       "websiteInvalid": "URL bu baaxul. Misaal : https://exemple.sn",
       "commissionRange": "Komisioŋ bi war na nekk diggante 0 ak 100.",
       "currencyInvalid": "Kodu xaalis bu baaxul (misaal : XOF, EUR).",
-      "timezoneTooLong": "Goxu waxtu bi dafa gudd lool.",
       "logoTooLarge": "Logo bi rëy lool (2 Mo max).",
       "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP.",
       "taxRateRange": "TVA bi war na nekk diggante 0 ak 100.",
@@ -9736,6 +9758,7 @@
     "customer": {
       "occupationTooLong": "Liggéey bi dafa gudd lool.",
       "idTypeInvalid": "Xeetu kayit bu baaxul.",
+      "localeInvalid": "Langue invalide.",
       "idNumberTooLong": "Nomboro bi dafa gudd lool.",
       "emailOrPhone": "Joxal lu mu néew benn email walla benn telefon.",
       "idNumberRequired": "Nomboro bi fàww la su ñu tànnee xeetu kayit.",
@@ -9869,7 +9892,8 @@
     "dropzone_hint_short": "walla bësal — {size} la ëpp, ba {max} fiise.",
     "cover": "Nataal bu njëkk",
     "delete_photo_aria": "Far nataal bii",
-    "remove_file_aria": "Jële {name}"
+    "remove_file_aria": "Jële {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {

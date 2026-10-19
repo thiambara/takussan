@@ -19,6 +19,7 @@ import { idsToCsv, parseIdsCsv } from '@/lib/compare';
 import type { PropertyDetail } from '@/types/property';
 import { CompareTable, type CompareColumn } from '@/components/compare/CompareTable';
 import { CompareCarousel } from '@/components/compare/CompareCarousel';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * TCK-082 — `/compare` route client.
@@ -102,7 +103,7 @@ export function CompareClient() {
       <Navbar />
       <NavbarSpacer />
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 md:px-8">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 md:px-8 focus:outline-none">
         <header className="mb-6 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
             <Scale className="h-4 w-4" aria-hidden="true" />

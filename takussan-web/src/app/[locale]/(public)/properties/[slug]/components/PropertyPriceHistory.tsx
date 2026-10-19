@@ -2,7 +2,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
-import { formatCurrency } from '@/lib/format/currency';
+import { formatMontant } from '@/lib/format/currency';
 import type { PropertyPriceHistoryItem } from '@/types/property';
 
 interface PropertyPriceHistoryProps {
@@ -11,7 +11,7 @@ interface PropertyPriceHistoryProps {
 
 // TCK-078 — shared helper, XOF default (TCK-084 will swap for multi-currency).
 function formatPrice(price: number, currency: string): string {
-  return formatCurrency(price, currency || 'XOF');
+  return formatMontant(price, currency || 'XOF');
 }
 
 /**

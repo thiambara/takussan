@@ -85,6 +85,8 @@ vi.mock('@/lib/queries/facettes', async () => {
  * catalogue. `totalServi` vaut `null` pour simuler une panne (la fonction rend alors `null`).
  */
 let totalServi: number | null = 3;
+/** TCK-915 — le nombre de pages servi ; 10 par défaut, pour qu'un `page=9` reste dans la liste. */
+let dernierePageServie = 10;
 const recherchesDemandees: Array<[string, string]> = [];
 
 vi.mock('@/lib/queries/public-search', () => ({
@@ -93,8 +95,7 @@ vi.mock('@/lib/queries/public-search', () => ({
     if (totalServi === null) return null;
     return {
       data: [],
-      facets: {},
-      meta: { current_page: 1, last_page: 1, per_page: 30, total: totalServi },
+      meta: { current_page: 1, last_page: dernierePageServie, per_page: 30, total: totalServi },
     } as unknown as SearchResult;
   },
 }));
@@ -125,11 +126,12 @@ const metadonnee = (requete: Record<string, string | string[]>, locale: Locale =
 beforeEach(() => {
   localeCourante = 'fr';
   totalServi = 3;
+  dernierePageServie = 10;
   recherchesDemandees.length = 0;
 });
 
 describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
-  it('l’URL de l’AC se replie sur la facette retenue, préfixée de la langue', async () => {
+  it('l’URL de l’AC se replie sur la facette retenue et sa page, préfixée de la langue', async () => {
     const meta = await metadonnee({
       type: 'villa',
       page: '3',
@@ -137,9 +139,9 @@ describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
       per_page: '48',
     });
 
-    // Elle ne recopie PAS l'URL demandée : ni `page`, ni `sort`, ni `per_page`.
-    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa`);
-    expect(String(meta.alternates!.canonical)).not.toContain('page=');
+    // Elle ne recopie PAS l'URL demandée : ni `sort`, ni `per_page`. La page, elle, reste :
+    // TCK-915 (P09.08), décision du porteur, « canonique propre à chaque page ».
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa&page=3`);
     expect(String(meta.alternates!.canonical)).not.toContain('sort=');
     expect(String(meta.alternates!.canonical)).not.toContain('per_page=');
   });
@@ -162,9 +164,9 @@ describe('TCK-433 · AC1 — la canonique nomme la règle', () => {
   it('les hreflang désignent la MÊME URL canonique, dans les trois langues', async () => {
     const meta = await metadonnee({ type: 'villa', page: '9' });
     const { languages } = meta.alternates!;
-    expect(languages!.fr).toBe(`${origineSite()}/fr/properties?type=villa`);
-    expect(languages!.en).toBe(`${origineSite()}/en/properties?type=villa`);
-    expect(languages!.wo).toBe(`${origineSite()}/wo/properties?type=villa`);
+    expect(languages!.fr).toBe(`${origineSite()}/fr/properties?type=villa&page=9`);
+    expect(languages!.en).toBe(`${origineSite()}/en/properties?type=villa&page=9`);
+    expect(languages!.wo).toBe(`${origineSite()}/wo/properties?type=villa&page=9`);
   });
 });
 
@@ -316,8 +318,8 @@ describe('TCK-598 · AC11 — le quartier dans la canonique et le titre', () => 
 
   it('un quartier du domaine est canonique de lui-même, casse du catalogue', async () => {
     const meta = await metadonnee({ city: 'dakar', location: 'MERMOZ', page: '2' });
-    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?city=Dakar&location=Mermoz`);
-    expect(meta.alternates!.languages!.wo).toBe(`${origineSite()}/wo/properties?city=Dakar&location=Mermoz`);
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?city=Dakar&location=Mermoz&page=2`);
+    expect(meta.alternates!.languages!.wo).toBe(`${origineSite()}/wo/properties?city=Dakar&location=Mermoz&page=2`);
   });
 
   it('un quartier sans ville ne crée pas d’URL indexable', async () => {
@@ -375,5 +377,41 @@ describe('TCK-675 · P09.02 — une liste vide n’est pas une page à indexer',
     attendue.append('tags', 'a');
     attendue.append('tags', 'b');
     expect(recherchesDemandees).toEqual([[clefDeRecherche(parametresDeRecherche(attendue)), 'en']]);
+  });
+});
+
+describe('TCK-915 · P09.08 — chaque page de la liste est canonique d’elle-même', () => {
+  it.each([[{}], [{ page: '1' }], [{ page: '0' }], [{ page: 'abc' }], [{ page: '-2' }], [{ page: '2.5' }]])(
+    '%o : canonique sans `page`',
+    async (requete) => {
+      const meta = await metadonnee({ type: 'villa', ...requete });
+      expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa`);
+    },
+  );
+
+  it('la page nue, en page 2, porte `?page=2`', async () => {
+    const meta = await metadonnee({ page: '2' });
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?page=2`);
+  });
+
+  it('au-delà de `last_page` : `noindex, follow`', async () => {
+    totalServi = 40;
+    dernierePageServie = 2;
+    const meta = await metadonnee({ type: 'villa', page: '9' });
+    expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+
+  it('la dernière page elle-même reste indexable', async () => {
+    totalServi = 40;
+    dernierePageServie = 2;
+    const meta = await metadonnee({ type: 'villa', page: '2' });
+    expect(meta.robots).toBeUndefined();
+    expect(meta.alternates!.canonical).toBe(`${origineSite()}/fr/properties?type=villa&page=2`);
+  });
+
+  it('recherche en panne : rien n’est affirmé sur la page', async () => {
+    totalServi = null;
+    const meta = await metadonnee({ type: 'villa', page: '99' });
+    expect(meta.robots).toBeUndefined();
   });
 });

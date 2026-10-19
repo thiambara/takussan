@@ -85,7 +85,7 @@ describe('TCK-132 — super-admin property queries', () => {
   });
 
   it('archiveProperties posts the bulk-archive payload', async () => {
-    const spy = mockFetch({ archived: 2, failed: 0, archived_ids: [1, 2] });
+    const spy = mockFetch({ archived: 2, failed: [], archived_ids: [1, 2] });
     await archiveProperties([1, 2], 'cleanup');
     const [url, init] = spy.mock.calls[0];
     expect(String(url)).toBe('/api/super-admin-properties/bulk-archive');

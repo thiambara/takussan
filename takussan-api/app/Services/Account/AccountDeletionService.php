@@ -173,8 +173,12 @@ class AccountDeletionService
     /**
      * Execute scheduled deletion: anonymizes the user and seals the request.
      * Idempotent — calling on an already-executed request is a no-op.
+     *
+     * TCK-885 — `$notifier: false` pour un REJEU après une restauration
+     * (`account:list-erasures --execute`) : le titulaire a déjà reçu le courriel de l'effacement
+     * d'origine, il n'en reçoit pas un second.
      */
-    public function executeDeletion(AccountDeletionRequest $request): void
+    public function executeDeletion(AccountDeletionRequest $request, bool $notifier = true): void
     {
         if ($request->executed_at !== null) {
             return;
@@ -187,10 +191,22 @@ class AccountDeletionService
             return;
         }
 
-        DB::transaction(function () use ($user, $request) {
-            $depublies = $this->anonymize($user);
+        // TCK-885 (ADR-0044, amendement du 2026-10-18, § B) — la trace HORS de la base, que la
+        // procédure « Après une restauration » relit. Écrite AVANT l'effacement, jamais après son
+        // commit : si le disque refuse, l'exception sort avant que rien ne soit fait — ni courriel
+        // (il part en synchrone depuis `anonymize()`), ni anonymisation, `executed_at` reste nul —
+        // et le passage suivant de `account:execute-deletions` retente (journal + sortie en 1,
+        // TCK-741). L'ordre inverse pourrait sceller un effacement sans trace : précisément le
+        // compte qu'une restauration ramènerait sans que personne le sache. L'écart qui reste est
+        // un objet sans effacement, si la transaction échoue ensuite : la demande est échue, elle
+        // sera exécutée au passage suivant, et le rejeu après restauration est idempotent.
+        $instant = now();
+        app(ErasureLedger::class)->record($user->id, $instant);
 
-            $request->forceFill(['executed_at' => now()])->save();
+        DB::transaction(function () use ($user, $request, $notifier, $instant) {
+            $depublies = $this->anonymize($user, $notifier);
+
+            $request->forceFill(['executed_at' => $instant])->save();
 
             activity('Account')
                 ->performedOn($request)
@@ -215,17 +231,20 @@ class AccountDeletionService
      * Anonymize a user IN PLACE. Public so admin tooling can call it
      * directly via a separate audited route (out of scope here).
      *
+     * @param  bool  $notifier  TCK-885 — `false` pour un rejeu après une restauration
      * @return list<int> TCK-600 — les biens dépubliés faute de contact
      */
-    public function anonymize(User $user): array
+    public function anonymize(User $user, bool $notifier = true): array
     {
         $originalEmail = $user->email;
 
         // Notify BEFORE we scramble the email so the mail still routes.
         // The notification is queueable and reads `routeNotificationForMail`
         // at dispatch time, hence the order matters.
-        $request = $user->deletionRequest()->first();
-        $user->notify(new AccountDeletionExecutedNotification($request));
+        if ($notifier) {
+            $request = $user->deletionRequest()->first();
+            $user->notify(new AccountDeletionExecutedNotification($request));
+        }
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);

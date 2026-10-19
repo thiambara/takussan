@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { reponseSegmentInvalide, segmentAmont } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { urlApiServeur } from '@/lib/api';
+import { enTetesDuRelais } from '@/lib/relais-api';
 
 
 /**
@@ -13,7 +14,7 @@ import { origineApi } from '@/lib/config-publique';
 
 type Params = Promise<{ id: string }>;
 
-export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
+export async function GET(req: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
   const cookieStore = await cookies();
   const token = jetonEspaceApplicatif(cookieStore);
   if (!token) {
@@ -27,9 +28,10 @@ export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<N
     return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
-  const upstream = await fetch(`${origineApi()}/api/me/agent-profiles/${id}/first-lead`, {
+  const upstream = await fetch(urlApiServeur(`/me/agent-profiles/${id}/first-lead`), {
     method: 'GET',
     headers: {
+      ...(await enTetesDuRelais(req)),
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },

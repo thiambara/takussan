@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif, profilActifEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
+import { relayerVersApi } from '@/lib/relais-api';
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const chemin = cheminAmont(segments);
@@ -10,32 +10,11 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const suffix = chemin !== '' ? `/${chemin}` : '';
-  const url = `${origineApi()}/api/agencies${suffix}${request.nextUrl.search}`;
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+  const enTetes: Record<string, string> = {};
   const activeProfileId = profilActifEspaceApplicatif(request.cookies);
-  if (activeProfileId) headers['X-Active-Profile-Hint'] = activeProfileId;
-  const contentType = request.headers.get('content-type');
-  if (contentType) headers['Content-Type'] = contentType;
+  if (activeProfileId) enTetes['X-Active-Profile-Hint'] = activeProfileId;
 
-  const init: RequestInit = { method: request.method, headers };
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    init.body = await request.arrayBuffer();
-  }
-
-  const upstream = await fetch(url, init);
-  const responseHeaders: HeadersInit = {};
-  const upstreamCt = upstream.headers.get('content-type');
-  if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;
-
-  if (upstream.status === 204 || upstream.status === 205 || upstream.status === 304) {
-    return new NextResponse(null, { status: upstream.status, headers: responseHeaders });
-  }
-
-  return new NextResponse(await upstream.text(), { status: upstream.status, headers: responseHeaders });
+  return relayerVersApi(request, `/agencies${suffix}${request.nextUrl.search}`, { jeton: token, enTetes });
 }
 
 type Ctx = { params: Promise<{ path?: string[] }> };

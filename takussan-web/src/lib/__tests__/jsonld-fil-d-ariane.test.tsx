@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { PropertyBreadcrumb } from '@/app/[locale]/(public)/properties/[slug]/components/PropertyBreadcrumb';
 import { origineSite } from '@/lib/alternates';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
-import { hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
+import { hrefDeLaVille, hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
 import { scriptJsonLd } from '@/lib/jsonld';
 import {
   type DomainesDeFacette,
@@ -81,7 +81,12 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
 
 type ListItem = { '@type': string; position: number; name: string; item?: string };
 
-function balise(p: PropertyDetail, locale: 'fr' | 'en' | 'wo' = 'fr', hrefQuartier?: string) {
+function balise(
+  p: PropertyDetail,
+  locale: 'fr' | 'en' | 'wo' = 'fr',
+  hrefQuartier?: string,
+  hrefVille?: string | null,
+) {
   // Le traducteur SERVEUR est une fonction `(cle) => string` ; le dictionnaire réel est chargé
   // pour que les libellés comparés soient ceux que l'écran rend.
   const t = (cle: string) => {
@@ -93,7 +98,7 @@ function balise(p: PropertyDetail, locale: 'fr' | 'en' | 'wo' = 'fr', hrefQuarti
       );
     return typeof valeur === 'string' ? valeur : cle;
   };
-  return jsonLdFilDAriane(maillonsDeFiche(p, t, hrefQuartier), locale).itemListElement as ListItem[];
+  return jsonLdFilDAriane(maillonsDeFiche(p, t, hrefQuartier, hrefVille), locale).itemListElement as ListItem[];
 }
 
 describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
@@ -220,7 +225,40 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
 
   it('la langue de l’URL suit celle de la page', () => {
     expect(balise(bien(), 'wo')[0]!.item).toBe(`${origineSite()}/wo`);
-    expect(balise(bien(), 'en')[2]!.item).toBe(`${origineSite()}/en/properties?city=Dakar`);
+    expect(balise(bien(), 'en')[2]!.item).toBe(`${origineSite()}/en/properties?contract_type=rent&city=Dakar`);
+  });
+
+  /**
+   * P35.05 — la ville du fil garde le CONTRAT du maillon qui la précède : « Louer › Dakar » mène
+   * aux locations de Dakar, pas à tout Dakar. Calculée par la page (`hrefDeLaVille`), elle prend la
+   * canonique de la liste, et reste un libellé si la ville est sous le seuil de sa page.
+   */
+  it('P35.05 — la ville pointe vers la canonique contrat × ville, des deux côtés', () => {
+    const p = bien({ contract_type: 'sale', location: { ...bien().location, city: 'dakar' } });
+    const domaines = domainesAvecQuartiers(null);
+    const href = hrefDeLaVille(p, domaines);
+    expect(href).toBe('/properties?contract_type=sale&city=Dakar');
+    expect(cheminCanoniqueDeLaListe(new URLSearchParams(href!.split('?')[1]), domaines)).toBe(href);
+
+    render(withIntl(<PropertyBreadcrumb property={p} hrefVille={href} />));
+    const lien = screen.getByRole('link', { name: 'dakar' });
+    expect(lien.getAttribute('href')).toBe('/fr/properties?contract_type=sale&city=Dakar');
+    expect(balise(p, 'fr', undefined, href)[2]!.item).toBe(
+      `${origineSite()}/fr/properties?contract_type=sale&city=Dakar`,
+    );
+  });
+
+  it('P35.05 — une ville hors du domaine (sous le seuil, ou domaine inconnaissable) reste un libellé', () => {
+    const p = bien({ location: { ...bien().location, quarter: null } });
+    const hors = hrefDeLaVille(p, { ...domainesStatiques(), villes: new Map([['thiès', 'Thiès']]) });
+    expect(hors).toBeNull();
+    expect(hrefDeLaVille(p, { ...domainesStatiques(), villes: null })).toBeNull();
+
+    render(withIntl(<PropertyBreadcrumb property={p} hrefVille={hors} />));
+    const nav = screen.getByRole('navigation');
+    expect([...nav.querySelectorAll('a')].map((a) => a.textContent?.trim())).not.toContain('Dakar');
+    expect(nav.textContent).toContain('Dakar');
+    expect(balise(p, 'fr', undefined, hors)[2]).not.toHaveProperty('item');
   });
 
   it('aucune URL relative — un `item` relatif serait résolu contre le document', () => {

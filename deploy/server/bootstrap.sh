@@ -297,4 +297,57 @@ systemctl daemon-reload
 systemctl enable --now fraicheur-sauvegardes.timer
 [ -x /usr/local/sbin/fraicheur-sauvegardes ] || echo "⚠ /usr/local/sbin/fraicheur-sauvegardes absent : copier deploy/server/fraicheur-sauvegardes.sh (runbook), le timer attend."
 
+# ── 11. WAL-G : sauvegarde de base chaque dimanche, veille de l'archivage (ADR-0069 § 5, TCK-930) ──
+# L'archivage continu tourne dans la base elle-même (image deploy/postgres, configuration dans
+# l'environnement du service Database de Dokploy). Ces deux unités font le reste : la sauvegarde de
+# base hebdomadaire avec l'élagage au-delà de 14 jours, et une veille toutes les 15 minutes qui
+# alerte sur Telegram (/etc/default/seuils). Elles attendent /usr/local/sbin/wal-g-takussan —
+# deploy/server/wal-g.sh, copié là par le runbook (« WAL-G », hebergement.md).
+cat > /etc/systemd/system/wal-g-base.service <<'UNIT'
+[Unit]
+Description=Sauvegarde de base WAL-G et élagage (TCK-930)
+ConditionPathExists=/usr/local/sbin/wal-g-takussan
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wal-g-takussan base
+UNIT
+cat > /etc/systemd/system/wal-g-base.timer <<'UNIT'
+[Unit]
+Description=Sauvegarde de base WAL-G, le dimanche à 03:30 (après le dump de 03:00)
+
+[Timer]
+OnCalendar=Sun *-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+cat > /etc/systemd/system/wal-g-veille.service <<'UNIT'
+[Unit]
+Description=Veille de l'archivage WAL-G (TCK-930)
+ConditionPathExists=/usr/local/sbin/wal-g-takussan
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wal-g-takussan veille
+UNIT
+cat > /etc/systemd/system/wal-g-veille.timer <<'UNIT'
+[Unit]
+Description=Veille de l'archivage WAL-G, toutes les 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now wal-g-base.timer wal-g-veille.timer
+[ -x /usr/local/sbin/wal-g-takussan ] || echo "⚠ /usr/local/sbin/wal-g-takussan absent : copier deploy/server/wal-g.sh (runbook), les timers attendent."
+
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."

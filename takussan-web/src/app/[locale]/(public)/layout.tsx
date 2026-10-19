@@ -41,7 +41,9 @@ const LOCALE_OPEN_GRAPH: Record<Locale, string> = { fr: 'fr_SN', en: 'en_US', wo
  * produit. La table est dérivée du graphe d'imports par `scripts/check-i18n-namespaces.mjs` ;
  * ⚠ le provider imbriqué REMPLACE celui du parent, d'où l'ensemble cumulé (cf. `IntlProvider`).
  *
- * SEO: indexable by default; individual pages override `metadata` as needed.
+ * SEO : indexable par défaut, SANS clé `robots` (TCK-915, P09.08) : `index, follow` est la valeur
+ * par défaut des moteurs, et déclarée ici elle s'ajoutait au `noindex` que Next pose sur une page
+ * `notFound()`. Une page qui ne doit pas être indexée le déclare elle-même.
  *
  * i18n d'URL (TCK-434, ADR-0026) : ce groupe vit sous `src/app/[locale]/`. La langue est le premier
  * segment du chemin, TOUJOURS présent — `/fr/properties/<slug>`, `/en/…`, `/wo/…` — et elle ne
@@ -59,7 +61,6 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
       default: t('title'),
     },
     description: t('description'),
-    robots: { index: true, follow: true },
     // Aperçu de partage par défaut (TCK-759, P09.03). Ni titre ni description : Next reprend
     // ceux de la page (`inheritFromMetadata`), quand un titre posé ici serait celui de l'accueil
     // partout. Ni `url` : le layout ne connaît pas le chemin. L'image vient d'`opengraph-image.tsx`,

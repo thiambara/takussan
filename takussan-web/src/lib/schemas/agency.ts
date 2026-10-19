@@ -62,7 +62,6 @@ export const agencyFormSchema = z.object({
       (v) => v === '' || /^[A-Z]{3}$/.test(v),
       msgValidation('agency.currencyInvalid'),
     ),
-  timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
   /** TCK-589 — `settings.require_team_two_factor` : second facteur exigé de toute l'équipe. */
   require_team_two_factor: z.boolean(),
@@ -136,8 +135,10 @@ function emptyToNull(v: string | undefined): string | null {
 
 /**
  * Normalise the UI-friendly form values into the backend payload. Empty
- * strings become `null`; the commission rate is parsed to a number and
- * also mirrored in `settings.default_commission_rate` (spec alignment).
+ * strings become `null`; the commission rate is parsed to a number. La commission et la devise
+ * partent sur leurs seules colonnes (TCK-962) : `AgencyUpdateRequest` n'accepte plus les miroirs
+ * `settings.default_commission_rate` et `settings.currency`, ni `settings.timezone`, et
+ * `validated()` les retirait sans erreur.
  *
  * TCK-593 — `settings` ne porte QUE les clés que cet écran gère. L'API fusionne `settings` clé par
  * clé (`AgencyController::update`) : une clé absente est conservée, une clé à `null` est effacée.
@@ -150,14 +151,7 @@ export function normaliseAgencyForm(
 ): AgencyFormPayload {
   const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
   const settings: Record<string, unknown> = {};
-  if (commission !== null) settings.default_commission_rate = commission;
   const currency = emptyToNull(values.currency);
-  // TCK-084 — keep mirroring `currency` inside `settings` for backwards
-  // compatibility with surfaces that still read the legacy path; the
-  // first-class column is the source of truth.
-  if (currency !== null) settings.currency = currency.toUpperCase();
-  const timezone = emptyToNull(values.timezone);
-  if (timezone !== null) settings.timezone = timezone;
   // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
   // en place faute d'avoir été envoyé.
   settings.require_team_two_factor = values.require_team_two_factor;

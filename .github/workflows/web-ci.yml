@@ -198,6 +198,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Poids des routes publiques (TCK-947)
+        # Next 16 n'imprime plus le « First Load JS » : ce rapport le remplace, lu sur la sortie du
+        # build juste au-dessus — JS initial gzip et polices préchargées, par route publique. SANS
+        # seuil : il ne fait échouer le job que si zod revient dans le JS du layout racine, que
+        # chaque page charge (P33.02), et sur une sortie de build absente (une mesure qui n'a rien
+        # lu n'est pas un vert). Le chiffre se lit dans le journal de cette étape.
+        run: node scripts/poids-des-routes.mjs
+
       # ADR-0063 — lint, types, gardes, tests et build sont verts sur cet arbre : le nom de
       # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en
       # échec), rien à déposer.

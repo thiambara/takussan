@@ -47,7 +47,6 @@ function bien(id: number, slug: string): PropertyListItem {
 const resultat = (ids: number[]): SearchResult =>
   ({
     data: ids.map((i) => bien(i, `bien-${i}`)),
-    facets: {},
     meta: { current_page: 1, last_page: 1, per_page: 30, total: ids.length },
   }) as SearchResult;
 

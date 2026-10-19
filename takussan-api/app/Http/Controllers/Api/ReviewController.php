@@ -167,7 +167,7 @@ class ReviewController extends Controller
         }
 
         return $this->json([
-            'data' => ReviewResource::make($result['review'])->toArray($request),
+            'data' => ReviewResource::make($result['review'])->resolve($request),
         ]);
     }
 
@@ -311,7 +311,7 @@ class ReviewController extends Controller
         });
         $this->notifier->toModerate($review);
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)], 201);
     }
 
     /**
@@ -334,7 +334,7 @@ class ReviewController extends Controller
             'replied_at' => null,
         ]);
 
-        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review->refresh())->resolve($request)]);
     }
 
     public function reply(ReplyReviewRequest $request, Review $review): JsonResponse
@@ -358,7 +358,7 @@ class ReviewController extends Controller
             'replied_at' => now(),
         ]);
 
-        return $this->json(['data' => ReviewResource::make($review->refresh())->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review->refresh())->resolve($request)]);
     }
 
     public function approve(Request $request, Review $review): JsonResponse
@@ -367,7 +367,7 @@ class ReviewController extends Controller
 
         $review = $this->moderationService->approve($review, $request->user());
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)]);
     }
 
     public function reject(Request $request, Review $review): JsonResponse
@@ -376,7 +376,7 @@ class ReviewController extends Controller
 
         $review = $this->moderationService->reject($review, $request->user());
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)]);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)]);
     }
 
     public function indexForAgency(Request $request, Agency $agency): JsonResponse
@@ -407,7 +407,7 @@ class ReviewController extends Controller
         });
         $this->notifier->toModerate($review);
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)], 201);
     }
 
     /**
@@ -444,7 +444,7 @@ class ReviewController extends Controller
         });
         $this->notifier->toModerate($review);
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)], 201);
     }
 
     /**
@@ -482,7 +482,7 @@ class ReviewController extends Controller
             ]));
         });
 
-        return $this->json(['data' => ReviewResource::make($review)->toArray($request)], 201);
+        return $this->json(['data' => ReviewResource::make($review)->resolve($request)], 201);
     }
 
     /** TCK-597 — `GET /api/me/review-opportunities` : ce que l'acteur peut noter, avec la preuve. */

@@ -32,8 +32,11 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   # TCK-710 (P01.07) : un échec ARRÊTE le déploiement, et les services ne démarrent pas. Des
   # réglages périmés ne dégradent pas la recherche, ils la cassent : un attribut triable absent
   # (`ranked_at`) fait échouer la liste publique sans mot en `invalid_search_sort`.
-  php artisan scout:sync-index-settings \
-    || { echo "ERREUR : scout:sync-index-settings a échoué — déploiement arrêté : des filtres et tris de recherche périmés feraient échouer la recherche publique." >&2; exit 1; }
+  # TCK-995 (P52.01) : la commande du dépôt, pas celle de Scout, qui sort en 0 sur tout refus et
+  # ne déclenchait donc jamais cet arrêt. Elle attend aussi la tâche de chaque index et relit les
+  # réglages appliqués (P52.02), et remet à son défaut un réglage retiré de la configuration (P52.04).
+  php artisan search:sync-index-settings \
+    || { echo "ERREUR : search:sync-index-settings a échoué — déploiement arrêté : des filtres et tris de recherche périmés feraient échouer la recherche publique." >&2; exit 1; }
 
   # deploy.sh comparait fichier par fichier avec la release précédente, présente sur le disque.
   # Un conteneur n'en a pas : on compare l'empreinte de la « forme » des index, calculée au build,
@@ -41,9 +44,20 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   # les modèles indexés (ADR-0028, « ce que ça coûte »).
   marqueur="$APP_ROOT/storage/app/private/.search-shape-importee"
   forme=$(cat "$APP_ROOT/.search-shape")
+  importer=1
   if [ "$(cat "$marqueur" 2>/dev/null || true)" = "$forme" ]; then
-    echo "Recherche : forme des index inchangée — pas d'importation."
-  else
+    # TCK-995 (P52.03) : le marqueur vit dans le volume `storage`, les index dans le volume `meili`
+    # du serveur. Un Meilisearch perdu ou recréé laissait le marqueur dire « à jour », et la
+    # recherche rendait zéro résultat, sans erreur.
+    if php artisan search:verify-indexes --documents; then
+      echo "Recherche : forme des index inchangée et index peuplés — pas d'importation."
+      importer=0
+    else
+      echo "Recherche : forme inchangée, mais un index est vide face à sa table — réimportation." >&2
+    fi
+  fi
+  if [ "$importer" = 1 ]; then
+    debut=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     reussi=1
     for modele in $(modeles_indexes); do
       echo "Importation de $modele (synchrone, avec le code de CETTE image)…"
@@ -53,8 +67,12 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
       SCOUT_QUEUE=false php artisan scout:import "$modele" \
         || { echo "AVERTISSEMENT : scout:import $modele a échoué." >&2; reussi=0; }
     done
-    # Le marqueur ne s'écrit qu'après TOUTES les importations : un échec rejoue tout au
-    # déploiement suivant, au lieu de se croire à jour.
+    # TCK-995 (P52.02) : `scout:import` rend la main quand les documents sont MIS EN FILE. Un
+    # document refusé ne se voit que dans sa tâche : on attend la file, et on la lit.
+    php artisan search:verify-indexes --depuis="$debut" \
+      || { echo "AVERTISSEMENT : des tâches d'indexation ont échoué — le déploiement suivant réimportera." >&2; reussi=0; }
+    # Le marqueur ne s'écrit qu'après TOUTES les importations, et leurs tâches : un échec rejoue
+    # tout au déploiement suivant, au lieu de se croire à jour.
     if [ "$reussi" = 1 ]; then echo "$forme" > "$marqueur"; fi
   fi
 fi

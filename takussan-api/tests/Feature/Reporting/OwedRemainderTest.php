@@ -108,8 +108,8 @@ class OwedRemainderTest extends ApiTestCase
         $this->assertSame(5, $agency['overdue_count']);
         $this->assertEquals(300000.0, $agency['overdue_amount']);
 
-        // verif-595 passe 3 — `/api/dashboard/stats` compte ses impayés par la même règle.
-        $this->assertSame(5, $this->getJson('/api/dashboard/stats')->assertOk()->json('data.overdue_payments'));
+        // verif-595 passe 3 éprouvait aussi `/api/dashboard/stats` ici : la route est retirée (TCK-952),
+        // il ne reste que les lecteurs qu'un écran affiche.
 
         $aging = $this->getJson("/api/agencies/{$this->agency->id}/finance/aging")->assertOk()->json('data');
         $this->assertSame(5, $aging['total']['count']);
@@ -124,7 +124,6 @@ class OwedRemainderTest extends ApiTestCase
         $this->assertEquals(300000.0, array_sum($amounts));
 
         $this->actingAsApi($this->landlord);
-        $this->assertSame(5, $this->getJson('/api/dashboard/stats')->assertOk()->json('data.overdue_payments'));
         $owner = $this->getJson('/api/dashboard/owner')->assertOk()->json('data.finance');
         $this->assertSame(5, $owner['overdue_count']);
         $this->assertEquals(300000.0, $owner['overdue_amount']);

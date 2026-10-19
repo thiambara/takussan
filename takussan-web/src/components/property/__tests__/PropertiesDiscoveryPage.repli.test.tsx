@@ -42,7 +42,6 @@ type BlocSearch = { strategy: 'all' | 'widened'; terms_unmatched: string[]; wide
 function reponse(total: number, search: BlocSearch) {
   return {
     data: [{ id: 22, title: 'Villa luxueuse à Grand-Yoff' }],
-    facets: { locations: {}, bedrooms: {}, types: {} },
     meta: { total, per_page: 30, current_page: 1, last_page: Math.max(1, Math.ceil(total / 30)) },
     search,
   };

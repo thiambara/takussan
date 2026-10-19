@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  FormAmountInput,
   FormInput,
   FormSelect,
   FormTextarea,
@@ -116,6 +117,8 @@ export function CreateLeaseForm() {
   const isSale = type === 'sale';
   const selectedPropertyId = useWatch({ control: form.control, name: 'property_id' });
   const selectedTenantId = useWatch({ control: form.control, name: 'tenant_id' });
+  // TCK-913 — la devise décide des décimales admises par `FormAmountInput`.
+  const currency = useWatch({ control: form.control, name: 'currency' });
   const properties = useMemo(() => propertiesQuery.data?.data ?? [], [propertiesQuery.data]);
   const customers = useMemo(() => customersQuery.data?.data ?? [], [customersQuery.data]);
   const aucunBien = !propertiesQuery.isLoading && properties.length === 0;
@@ -251,34 +254,28 @@ export function CreateLeaseForm() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           {isSale ? (
-            <FormInput<CreateLeaseFormValues>
+            <FormAmountInput<CreateLeaseFormValues>
               control={form.control}
               name="sale_price"
-              type="number"
               label={t('salePrice')}
+              currency={currency}
               required
-              min={1}
-              step="any"
             />
           ) : (
-            <FormInput<CreateLeaseFormValues>
+            <FormAmountInput<CreateLeaseFormValues>
               control={form.control}
               name="monthly_rent"
-              type="number"
               label={t('monthlyRent')}
+              currency={currency}
               required
-              min={1}
-              step="any"
             />
           )}
-          <FormInput<CreateLeaseFormValues>
+          <FormAmountInput<CreateLeaseFormValues>
             control={form.control}
             name="deposit_amount"
-            type="number"
             label={t('deposit')}
+            currency={currency}
             required
-            min={0}
-            step="any"
           />
         </div>
 
@@ -299,6 +296,7 @@ export function CreateLeaseForm() {
             control={form.control}
             name="payment_day"
             type="number"
+            inputMode="numeric"
             label={t('paymentDay')}
             min={1}
             max={28}

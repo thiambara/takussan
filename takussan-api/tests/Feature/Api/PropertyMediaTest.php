@@ -258,4 +258,32 @@ class PropertyMediaTest extends TestCase
             'order' => [$r2, $r1],
         ])->assertOk();
     }
+
+    /** TCK-892 (P10.09) — `version_urls` suffixe `?v=<updated_at>` : déplacer une photo ne change pas son URL. */
+    public function test_reordering_keeps_the_photo_urls(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        Sanctum::actingAs($owner);
+
+        $r1 = $this->postJson("/api/properties/{$property->id}/media", [
+            'photos' => [UploadedFile::fake()->image('a.jpg')],
+        ])->json('data.0.id');
+        $r2 = $this->postJson("/api/properties/{$property->id}/media", [
+            'photos' => [UploadedFile::fake()->image('b.jpg')],
+        ])->json('data.0.id');
+        $before = collect($this->getJson("/api/properties/{$property->id}/media")->assertOk()->json('data'))->keyBy('id');
+
+        $this->travel(5)->minutes();
+        $this->putJson("/api/properties/{$property->id}/media/reorder", ['order' => [$r2, $r1]])->assertOk();
+
+        $after = collect($this->getJson("/api/properties/{$property->id}/media")->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame(1, $after[$r2]['order']);
+        $this->assertSame(2, $after[$r1]['order']);
+        foreach ([$r1, $r2] as $id) {
+            foreach (['thumbnail', 'preview', 'full', 'original'] as $key) {
+                $this->assertSame($before[$id][$key], $after[$id][$key], "L'URL {$key} de la photo {$id} a changé au réordonnancement.");
+            }
+        }
+    }
 }

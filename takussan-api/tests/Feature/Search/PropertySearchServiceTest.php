@@ -67,7 +67,11 @@ class PropertySearchServiceTest extends TestCase
         $this->assertCount(2, $result['data']);
     }
 
-    public function test_returns_facets_for_locations_bedrooms_and_types(): void
+    /**
+     * TCK-910 (P01.08) — les facettes ne sont plus demandées au moteur ni rendues : le front ne
+     * les lisait nulle part. Ni en régime nominal, ni sous le repli élargi.
+     */
+    public function test_ne_rend_aucune_facette(): void
     {
         $this->publish(['bedrooms' => 2, 'type' => PropertyType::Apartment], 'Almadies');
         $this->publish(['bedrooms' => 3, 'type' => PropertyType::Apartment], 'Almadies');
@@ -76,11 +80,8 @@ class PropertySearchServiceTest extends TestCase
 
         $result = $this->service()->search([]);
 
-        $this->assertArrayHasKey('locations', $result['facets']);
-        $this->assertArrayHasKey('bedrooms', $result['facets']);
-        $this->assertArrayHasKey('types', $result['facets']);
-        $this->assertSame(2, $result['facets']['locations']['Almadies']);
-        $this->assertSame(1, $result['facets']['locations']['Plateau']);
+        $this->assertArrayNotHasKey('facets', $result);
+        $this->assertSame(3, $result['meta']['total']);
     }
 
     public function test_sort_price_asc_orders_results_ascending(): void

@@ -36,7 +36,8 @@ export const DASHBOARD_CUSTOMER_FIELDS = [
  * Les colonnes des suggestions CRM. `usage_count` n'en est pas une : c'est un compte, que l'API
  * rend toujours et sur lequel elle trie (`sort=-usage_count`). Le demander ici rendait 400 (TCK-712).
  */
-export const TAG_FIELDS = ['id', 'name', 'color'] as const;
+// TCK-922 — le slug traduit une étiquette du catalogue CRM (`ESPACE_DES_ETIQUETTES_CRM`).
+export const TAG_FIELDS = ['id', 'name', 'slug', 'color'] as const;
 
 export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   ...DASHBOARD_CUSTOMER_FIELDS,
@@ -49,6 +50,8 @@ export const DASHBOARD_CUSTOMER_DETAIL_FIELDS = [
   'agency_id',
   'metadata',
   'updated_at',
+  // TCK-921 — la langue des messages du client sans compte.
+  'locale',
   // TCK-591 §5 — critères du prospect.
   'seeking_contract_type',
   'budget_min',
@@ -219,14 +222,14 @@ export async function detachCustomerTag(
 
 export async function fetchCrmTags(
   token: string,
-): Promise<Pick<Tag, 'id' | 'name' | 'color'>[]> {
+): Promise<Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[]> {
   const qs = buildQueryString({
     filter: { type: 'crm' },
     fields: { tags: TAG_FIELDS },
     sort: '-usage_count',
     per_page: 50,
   });
-  const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'color'>[] }>(
+  const res = await apiRequest<{ data: Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[] }>(
     cheminApi`/api/tags${requete(qs)}`,
     { token },
   );
@@ -235,8 +238,6 @@ export async function fetchCrmTags(
 
 /** Client-side upload guard per TCK-042 (10MB, images + PDF). */
 export const CUSTOMER_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
-export const CUSTOMER_DOCUMENT_ACCEPT =
-  'image/jpeg,image/png,image/webp,image/gif,application/pdf';
 
 /**
  * Motif de refus d'un document client — un JETON, pas un libellé (TCK-292).

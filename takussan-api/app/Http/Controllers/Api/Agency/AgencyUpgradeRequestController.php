@@ -73,7 +73,7 @@ class AgencyUpgradeRequestController extends Controller
         );
 
         return $this->json(
-            ['data' => AgencyUpgradeRequestResource::make($upgradeRequest)->toArray($request)],
+            ['data' => AgencyUpgradeRequestResource::make($upgradeRequest)->resolve($request)],
             201,
         );
     }
@@ -98,7 +98,7 @@ class AgencyUpgradeRequestController extends Controller
         $revoked = $this->service->revoke($upgradeRequest, $user);
 
         return $this->json(
-            ['data' => AgencyUpgradeRequestResource::make($revoked)->toArray($request)],
+            ['data' => AgencyUpgradeRequestResource::make($revoked)->resolve($request)],
             200,
         );
     }

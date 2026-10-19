@@ -39,7 +39,7 @@ class LeaseDepositRefundController extends Controller
 
         return $this->json([
             'data' => [
-                'lease' => LeaseResource::make($result['lease'])->toArray($request),
+                'lease' => LeaseResource::make($result['lease'])->resolve($request),
                 'state' => $this->refunds->state($result['lease']),
                 'payment_id' => $result['payment']->id,
                 'payout_id' => $result['payout']->id,

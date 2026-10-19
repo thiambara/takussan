@@ -158,13 +158,24 @@ export function urlApiServeur(path: string): string {
 }
 
 /**
+ * TCK-948 (P44.01) — la sonde de santé de l'API (`/up`, hors du préfixe `/api`), jointe par le même
+ * chemin SERVEUR que les lectures ({@link baseServeur}). Seul lecteur : `GET /api/sante`.
+ */
+export function urlSanteApiServeur(): string {
+  return `${apiUrl()}/up`;
+}
+
+/**
  * Les en-têtes qu'`apiFetch` et `apiRequest` ajoutent d'eux-mêmes côté serveur, pour le même
  * appelant : ceux du chemin interne et l'IP du visiteur par la chaîne de confiance de TCK-598.
  * Sans eux, l'appel part de l'IP du serveur Next — un seul seau de limiteur, une seule IP dans le
  * journal d'impersonation, pour tous les opérateurs.
  */
-export async function enTetesServeurAmont(): Promise<Record<string, string>> {
+export async function enTetesServeurAmont(options: { partage?: boolean } = {}): Promise<Record<string, string>> {
   const enTetes: Record<string, string> = { ...enTetesDuCheminInterne() };
+  // TCK-894 — un appel partagé (mis en cache pour tous) ne parle pour aucun visiteur, comme dans
+  // `apiFetch` : son IP entrerait dans la clé du cache de `fetch`.
+  if (options.partage) return enTetes;
   const visiteur = await resolveVisitorIp();
   if (visiteur) enTetes['X-Forwarded-For'] = visiteur;
   return enTetes;
@@ -338,11 +349,21 @@ function messageBrut(data: unknown): string | undefined {
 }
 
 export class ApiError extends Error {
+  /**
+   * TCK-950 (P44.03) — le `X-Request-Id` de l'appel, quand {@link apiRequest} l'a tiré côté
+   * serveur. L'API l'écrit dans chacun de ses journaux (`ShareRequestLogContext`) ; propriété
+   * propre de l'erreur, il sort dans tout `console.error('[…]', err)` du serveur Next, qui relie
+   * ainsi sa ligne à celles de l'API. `declare` : absente, la propriété n'existe pas du tout.
+   */
+  declare public readonly requestId?: string;
+
   constructor(
     public readonly status: number,
     public readonly data: unknown,
+    requestId?: string,
   ) {
     super(`API error ${status}`);
+    if (requestId !== undefined) this.requestId = requestId;
   }
 
   /**
@@ -694,6 +715,13 @@ export async function apiRequest<T>(
     }
   }
 
+  // TCK-950 (P44.03) — côté serveur, un identifiant par appel : l'API le reprend dans ses journaux,
+  // et l'`ApiError` le porte dans ceux du front. Jamais dans le navigateur : il n'y relie aucun
+  // journal du serveur Next, et l'API devrait l'autoriser en CORS.
+  if (typeof window === 'undefined' && !requestHeaders['X-Request-Id']) {
+    requestHeaders['X-Request-Id'] = crypto.randomUUID();
+  }
+
   // TCK-600 (ADR-0055 §6) — pendant une session d'impersonation, le navigateur n'a AUCUN jeton :
   // l'appel part au relais same-origin, qui ajoute le jeton d'impersonation côté serveur. Le profil
   // actif de l'opérateur ne l'accompagne jamais (invariant 11).
@@ -715,7 +743,7 @@ export async function apiRequest<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(response.status, data);
+    throw new ApiError(response.status, data, requestHeaders['X-Request-Id']);
   }
 
   return data as T;

@@ -76,10 +76,13 @@ function useDejaOuvert(open: boolean): boolean {
 export function PropertyDetailContent({
   property,
   hrefQuartier,
+  hrefVille,
 }: {
   readonly property: PropertyDetail;
   /** TCK-839 — cf. `PropertyBreadcrumb`. */
   readonly hrefQuartier?: string;
+  /** P35.05 — cf. `PropertyBreadcrumb`. */
+  readonly hrefVille?: string | null;
 }) {
   const favorite = useFavorite(property.id, null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -169,7 +172,7 @@ export function PropertyDetailContent({
       */}
       <div className="animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
-          <PropertyBreadcrumb property={property} hrefQuartier={hrefQuartier} />
+          <PropertyBreadcrumb property={property} hrefQuartier={hrefQuartier} hrefVille={hrefVille} />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">

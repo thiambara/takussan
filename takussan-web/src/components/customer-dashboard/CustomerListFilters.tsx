@@ -17,6 +17,7 @@ import {
   customerStatusValues,
   pipelineStageValues,
 } from '@/lib/schemas/customer';
+import { ESPACE_DES_ETIQUETTES_CRM, libelleEquipement } from '@/lib/libelle-equipement';
 import type { Tag as TagType } from '@/types/tag';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
@@ -29,7 +30,7 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 const ALL_VALUE = '__all__';
 
 interface Props {
-  crmTags?: Pick<TagType, 'id' | 'name' | 'color'>[];
+  crmTags?: (Pick<TagType, 'id' | 'name' | 'color'> & { slug?: string | null })[];
 }
 
 export function CustomerListFilters({ crmTags = [] }: Props) {
@@ -138,12 +139,14 @@ function TagFilter({
   onToggle,
   onClear,
 }: {
-  tags: Pick<TagType, 'id' | 'name' | 'color'>[];
+  tags: (Pick<TagType, 'id' | 'name' | 'color'> & { slug?: string | null })[];
   activeTags: string[];
   onToggle: (name: string) => void;
   onClear: () => void;
 }) {
   const t = useTranslations('crm.filters');
+  // TCK-922 — l'option affiche l'étiquette traduite ; sa valeur reste le nom en base.
+  const tEtiquette = useTranslations(ESPACE_DES_ETIQUETTES_CRM);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -211,7 +214,7 @@ function TagFilter({
                         </svg>
                       )}
                     </span>
-                    <span className="truncate text-foreground">{tag.name}</span>
+                    <span className="truncate text-foreground">{libelleEquipement(tag, tEtiquette)}</span>
                   </button>
                 </li>
               );

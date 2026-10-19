@@ -41,9 +41,12 @@ ok "démarrage refusé sans SITE_URL, par sa garde"
 
 docker rm -f "$NOM" >/dev/null 2>&1 || true
 trap 'docker rm -f "$NOM" >/dev/null 2>&1 || true' EXIT
+# lancer <SITE_URL> [options de docker run…] : les options en plus posent une variable d'exécution.
 lancer() {
+  local site=$1
+  shift
   docker rm -f "$NOM" >/dev/null 2>&1 || true
-  docker run -d --name "$NOM" -p "$PORT:3000" -e API_URL="$API" -e SITE_URL="$1" -e MEDIA_URL="$MEDIA" "$IMAGE" >/dev/null
+  docker run -d --name "$NOM" -p "$PORT:3000" -e API_URL="$API" -e SITE_URL="$site" -e MEDIA_URL="$MEDIA" "$@" "$IMAGE" >/dev/null
   for _ in $(seq 30); do
     [ "$(docker inspect -f '{{.State.Health.Status}}' "$NOM")" = healthy ] && break; sleep 2
   done
@@ -80,7 +83,31 @@ code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/_next/ima
 [ "$code" = 404 ] || echec "/_next/image rend $code au lieu de 404 : le loader de Cloudflare n'est pas branché"
 ok "loader de Cloudflare branché, optimiseur absent"
 
+# TCK-950 (P44.03) — le serveur n'annonce pas sa pile.
+grep -qi '^x-powered-by:' <<<"$(entetes "http://127.0.0.1:$PORT/fr")" && echec "X-Powered-By est émis : poweredByHeader n'est pas à false"
+ok "aucun X-Powered-By"
+
+# TCK-949 (P44.02) — Node garde ses connexions inactives PLUS longtemps que Traefik (90 s, défaut de
+# `idleConnTimeout`) : sinon Traefik peut réutiliser une connexion que Node vient de fermer (502).
+garde=$(awk -F'timeout=' 'tolower($1) == "keep-alive: " { print $2 + 0 }' <<<"$(entetes "http://127.0.0.1:$PORT/robots.txt")")
+[ "${garde:-0}" -gt 90 ] || echec "Keep-Alive: timeout=${garde:-absent} : pas au-dessus des 90 s de Traefik (KEEP_ALIVE_TIMEOUT)"
+ok "Keep-Alive: timeout=$garde, au-dessus des 90 s de Traefik"
+
+# TCK-948 (P44.01) — la route que lit la preuve d'images.yml : le front joint l'API, et le dit.
+sante=$(curl -sS -o /dev/null -D - -w '%{http_code}' "http://127.0.0.1:$PORT/api/sante" | tr -d '\r')
+[ "$(tail -1 <<<"$sante")" = 200 ] || echec "/api/sante rend $(tail -1 <<<"$sante") alors que l'API répond"
+grep -qix 'x-build-sha: smoke' <<<"$sante" || echec "/api/sante ne porte pas X-Build-Sha : la preuve ne la relirait pas"
+ok "/api/sante à 200 quand l'API répond, avec X-Build-Sha"
+
 docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' "$NOM"
+
+# TCK-948 (P44.01) — l'API injoignable : `API_INTERNAL_URL` vers un port fermé. Le conteneur reste
+# SAIN (le HEALTHCHECK lit robots.txt, et une panne de l'API ne doit pas arrêter le front), mais la
+# route de santé rougit : c'est elle qui fait échouer la preuve d'images.yml.
+lancer "$SITE" -e API_INTERNAL_URL=http://127.0.0.1:9
+code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/sante")
+[ "$code" = 503 ] || echec "/api/sante rend $code avec une API injoignable, au lieu de 503 : la preuve passerait au vert"
+ok "API injoignable : conteneur sain, /api/sante à 503"
 
 # 3. LA MÊME image sert une autre origine : seule la variable d'exécution change (ADR-0069 §3).
 lancer "$PRODUCTION"

@@ -170,8 +170,24 @@ return [
      * Random secret embedded in the webhook URL — rotated on credential
      * compromise. Provider-side dashboards must be updated when this
      * value changes. Generated via `php artisan tinker` → Str::random(40).
+     *
+     * P36.04 (TCK-943) — clé COMMUNE, repli le temps de la bascule : elle ne
+     * sert qu'au fournisseur qui n'a pas encore son jeton propre ci-dessous.
      */
     'webhook_url_token' => env('SMS_WEBHOOK_URL_TOKEN', ''),
+
+    /**
+     * P36.04 (TCK-943) — un jeton d'URL par fournisseur. Posé, il est le SEUL
+     * accepté sur la route de son fournisseur, et le seul écrit dans l'URL de
+     * retour qu'on lui envoie (`ret_url` de LAM) : le jeton que LAM voit
+     * n'ouvre plus Orange ni Mtarget, et sa rotation ne touche que LAM. Vide,
+     * repli sur `webhook_url_token`. Lu par `App\Services\Notifications\Sms\SmsWebhookUrlToken`.
+     */
+    'webhook_url_tokens' => [
+        'orange' => env('SMS_ORANGE_WEBHOOK_URL_TOKEN', ''),
+        'mtarget' => env('SMS_MTARGET_WEBHOOK_URL_TOKEN', ''),
+        'lafricamobile' => env('SMS_LAM_WEBHOOK_URL_TOKEN', ''),
+    ],
 
     /**
      * Orange-specific runtime constraints (T&C of api.orange.com/sms-sn).
@@ -240,6 +256,12 @@ return [
 
     'lafricamobile' => [
         'send_url' => env('SMS_LAM_SEND_URL', 'https://lampush-tls.lafricamobile.com/api/Send'),
+        /**
+         * P36.08 (TCK-945) — validité, en jours, du `ret_url` signé envoyé à
+         * LAM : passé ce délai, un accusé est refusé (« Invalid signature »).
+         * Lu par le pilote, qui l'a toujours borné à 1 jour au moins.
+         */
+        'dlr_signature_ttl_days' => (int) env('SMS_LAM_DLR_SIGNATURE_TTL_DAYS', 7),
     ],
 
 ];

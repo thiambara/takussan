@@ -117,6 +117,23 @@ class EditablePlatformSettings
         ];
     }
 
+    /**
+     * TCK-964 (P47.04) — ramène une valeur lue dans les bornes `min:`/`max:` des `rules` de sa clé.
+     * Les lecteurs l'appliquent à la ligne d'agence comme à la globale : une valeur écrite hors
+     * borne avant que la ligne d'agence soit validée retombe sur la borne. Les bornes ne
+     * s'écrivent qu'ici, dans les règles.
+     */
+    public static function clamp(string $key, float $value): float
+    {
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^(min|max):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                $value = $m[1] === 'min' ? max($value, (float) $m[2]) : min($value, (float) $m[2]);
+            }
+        }
+
+        return $value;
+    }
+
     public static function has(string $key): bool
     {
         return array_key_exists($key, self::all());

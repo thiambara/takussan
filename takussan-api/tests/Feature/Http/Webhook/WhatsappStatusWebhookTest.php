@@ -21,11 +21,13 @@ class WhatsappStatusWebhookTest extends TestCase
 
     private string $token = 'tck-283-token';
 
+    private string $secret = 'tck-283-secret';
+
     protected function setUp(): void
     {
         parent::setUp();
         config()->set('whatsapp.webhook_url_token', $this->token);
-        config()->set('whatsapp.webhook_app_secret', '');
+        config()->set('whatsapp.webhook_app_secret', $this->secret);
     }
 
     private function attempt(string $messageId, string $status = WhatsappResult::STATUS_SENT): AppNotification
@@ -64,9 +66,16 @@ class WhatsappStatusWebhookTest extends TestCase
         ];
     }
 
+    /** P36.08 (TCK-945) — signé par le secret de l'application, comme Meta le fait. */
     private function postStatus(array $payload, ?string $token = null): TestResponse
     {
-        return $this->postJson('/api/webhooks/whatsapp/status/'.($token ?? $this->token), $payload);
+        $content = (string) json_encode($payload);
+
+        return $this->call('POST', '/api/webhooks/whatsapp/status/'.($token ?? $this->token), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $content, $this->secret),
+        ], $content);
     }
 
     public function test_delivered_marks_attempt_delivered(): void
@@ -162,15 +171,26 @@ class WhatsappStatusWebhookTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_missing_secret_in_production_is_rejected(): void
+    /**
+     * P36.08 (TCK-945) — un secret non configuré refuse le statut non signé dès que le jeton
+     * d'URL est posé, QUEL QUE SOIT l'environnement : hors production, il le laissait passer, et
+     * le jeton d'URL seul suffisait à écrire un statut de livraison.
+     */
+    public function test_missing_secret_rejects_an_unsigned_status_in_any_environment(): void
     {
-        // Fail-closed: an unset app secret in production must not let an
-        // unsigned webhook through (the URL token alone is insufficient).
         config()->set('whatsapp.webhook_app_secret', '');
-        $this->app['env'] = 'production';
-        $this->attempt('wamid.prod');
+        $n = $this->attempt('wamid.nosecret');
 
-        $this->postStatus($this->payload('wamid.prod', 'delivered'))->assertForbidden();
+        foreach (['testing', 'local', 'production'] as $env) {
+            $this->app['env'] = $env;
+            $this->postJson('/api/webhooks/whatsapp/status/'.$this->token, $this->payload('wamid.nosecret', 'delivered'))
+                ->assertForbidden();
+        }
+
+        $this->assertSame(
+            WhatsappResult::STATUS_SENT,
+            NotificationDeliveryAttempt::query()->where('app_notification_id', $n->id)->value('status'),
+        );
     }
 
     public function test_valid_signature_is_accepted(): void

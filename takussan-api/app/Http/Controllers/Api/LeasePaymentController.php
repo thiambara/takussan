@@ -7,6 +7,7 @@ use App\Http\Requests\Api\MarkLateFeePaidRequest;
 use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Lease\LateFeeSettlement;
@@ -36,13 +37,21 @@ class LeasePaymentController extends Controller
 
     public function store(StoreLeasePaymentRequest $request, Lease $lease): JsonResponse
     {
+        // P46.04 (TCK-957) — une ligne ne se pose que sur un bail qui court : actif, ou en préavis
+        // (le loyer reste dû jusqu'à la date d'effet). Posée sur un brouillon, elle tenait lieu
+        // d'échéancier à l'activation, et le bail n'avait plus aucun loyer.
+        abort_code_unless(
+            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::Terminating], true),
+            422,
+            'lease_payment.lease_not_active',
+        );
 
         $data = $request->validated();
 
         $payment = $this->payments->create($lease, $request->user(), $data);
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment)->toArray($request),
+            'data' => LeasePaymentResource::make($payment)->resolve($request),
         ], 201);
     }
 
@@ -56,7 +65,7 @@ class LeasePaymentController extends Controller
         $payment = $this->payments->markPaid($payment, $data, $request->user());
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment)->toArray($request),
+            'data' => LeasePaymentResource::make($payment)->resolve($request),
         ]);
     }
 
@@ -69,7 +78,7 @@ class LeasePaymentController extends Controller
         $payment = $settlement->markPaid($payment, $request->user(), $request->validated());
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment->refresh())->toArray($request),
+            'data' => LeasePaymentResource::make($payment->refresh())->resolve($request),
         ]);
     }
 }

@@ -238,6 +238,23 @@ describe('fiche de bien — rendu serveur', () => {
 
     expect(String(meta.description)).not.toContain('null');
   });
+  it('TCK-915 — une description vide prend le repli, une longue est coupée au mot', async () => {
+    getPropertyMock.mockResolvedValue({ etat: 'trouve', bien: bien({ description: '' }) });
+    const vide = await generateMetadata({ params: params() });
+    expect(String(vide.description)).not.toBe('');
+    expect(String(vide.description)).toContain('Studio');
+
+    const longue = 'Belle villa lumineuse avec piscine et jardin arboré, proche de la plage et des commerces, ' .repeat(4);
+    getPropertyMock.mockResolvedValue({ etat: 'trouve', bien: bien({ description: longue }) });
+    const meta = await generateMetadata({ params: params() });
+    expect(String(meta.description).length).toBeLessThanOrEqual(160);
+    expect(String(meta.description)).toMatch(/ [^ ]+…$/);
+    // Coupé au mot : le corps est un début du texte, et le texte continue par un blanc ou une ponctuation.
+    const corps = String(meta.description).slice(0, -1);
+    expect(longue.startsWith(corps)).toBe(true);
+    expect(longue[corps.length]).toMatch(/[\s,;:.!?]/);
+  });
+
   /**
    * D3 de TCK-461 — **la canonique lue là où elle est PRODUITE, pas là où elle est calculée.**
    *
@@ -340,5 +357,27 @@ describe('fiche de bien — rendu serveur', () => {
     render(await Page({ params: params() }));
 
     expect(screen.getByTestId('compteur-de-vue').dataset.slug).toBe(bien().slug);
+  });
+
+  // TCK-895 (P31.02) — un seul repère `<main>` par état, qui contient le titre, hors barre et pied.
+  it.each([
+    ['trouvé', () => getPropertyMock.mockResolvedValue({ etat: 'trouve', bien: bien() })],
+    ['indisponible', () => getPropertyMock.mockResolvedValue({ etat: 'indisponible' })],
+    [
+      'retiré',
+      () => {
+        getPropertyMock.mockResolvedValue({ etat: 'introuvable' });
+        getEtatDuBienMock.mockResolvedValue(loue);
+      },
+    ],
+  ] as const)('le bien %s rend un seul repère <main>, autour du contenu', async (_etat, preparer) => {
+    preparer();
+
+    const { container } = render(await Page({ params: params() }));
+
+    const mains = container.querySelectorAll('main');
+    expect(mains).toHaveLength(1);
+    expect(mains[0].querySelector('h1')).not.toBeNull();
+    expect(mains[0].querySelector('[data-testid="navbar"], [data-testid="footer"]')).toBeNull();
   });
 });

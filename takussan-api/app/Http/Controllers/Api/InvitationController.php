@@ -78,7 +78,7 @@ class InvitationController extends Controller
         $invitation = $this->service->send($data, $user);
 
         return $this->json(
-            ['data' => InvitationResource::make($invitation)->toArray($request)],
+            ['data' => InvitationResource::make($invitation)->resolve($request)],
             201,
         );
     }
@@ -96,7 +96,7 @@ class InvitationController extends Controller
         }
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 
@@ -115,7 +115,7 @@ class InvitationController extends Controller
         $invitation = $this->service->revoke($invitation, $user);
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 
@@ -134,7 +134,7 @@ class InvitationController extends Controller
         $invitation = $this->service->resend($invitation, $user);
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 

@@ -62,3 +62,15 @@ describe.each(DOCUMENTS_LEGAUX)('texte juridique « %s »', (document) => {
     expect(articles(en)).toBe(articles(fr));
   });
 });
+
+/**
+ * TCK-918 (P19.06) — une nouvelle purge se reporte dans la politique dans le même changement
+ * (README de ce dossier). L'API supprime les notifications lues 6 mois après leur lecture
+ * (`notifications:prune-read`, `PruneReadNotifications::RETENTION_MONTHS`).
+ */
+describe('politique de confidentialité — durées de conservation tenues par une purge', () => {
+  it('donne la durée des notifications lues, en français et en anglais', () => {
+    expect(privacy.fr).toContain('- **Notifications dans l’application** : 6 mois après leur lecture.');
+    expect(privacy.en).toContain('- **In-app notifications**: 6 months after they are read.');
+  });
+});

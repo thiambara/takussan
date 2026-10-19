@@ -184,9 +184,11 @@ export function Footer({ className }: FooterProps) {
                 aria-labelledby={`pied-${colonne.cle}`}
                 className={`lg:col-span-2 lg:row-span-2 lg:row-start-1 ${colonne.piste}`}
               >
-                <h4 id={`pied-${colonne.cle}`} className="text-sm font-semibold text-foreground">
+                {/* TCK-946 — `h2`, et non `h4` : sous un contenu qui n'a qu'un `h1` (mentions
+                    légales, CGU, favoris vides), le pied de page sautait deux niveaux. */}
+                <h2 id={`pied-${colonne.cle}`} className="text-sm font-semibold text-foreground">
                   {colonne.titre}
-                </h4>
+                </h2>
                 <ul className="mt-2 lg:mt-4 lg:space-y-1">
                   {colonne.liens.map((lien) => (
                     <li key={lien.labelKey}>
@@ -217,7 +219,7 @@ export function Footer({ className }: FooterProps) {
         */}
         <div className="mt-10 flex flex-col gap-2 border-t border-border pt-6 md:mt-16 md:flex-row md:items-center md:justify-between md:gap-6">
           <nav aria-labelledby="pied-legal" className="md:order-2">
-            <h4 id="pied-legal" className="sr-only">{t('legalHeading')}</h4>
+            <h2 id="pied-legal" className="sr-only">{t('legalHeading')}</h2>
             <ul className="flex flex-wrap gap-x-5 md:justify-end md:gap-x-6">
               {footerLinks.legal.map((lien) => (
                 <li key={lien.labelKey}>

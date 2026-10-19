@@ -16,7 +16,7 @@ import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
  *
  * Protects every route under `(dashboard)` — i.e. `/app/*` —
  * by calling `getMeAction()`, which reads the auth cookie and actually hits
- * `/api/users/me`. A stale or revoked token redirects to
+ * `/api/auth/me` (`getMe`, `lib/auth.ts`). A stale or revoked token redirects to
  * `/api/auth/session-expired` (handled inside `getMeAction`), which clears the
  * cookies and lands on `/auth/login`, so children never render with an invalid
  * session. Result is cached per-request so

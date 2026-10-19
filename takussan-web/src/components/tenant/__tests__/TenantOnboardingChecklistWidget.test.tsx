@@ -15,10 +15,10 @@ import * as Api from '@/lib/api';
  * rows when an open checklist exists, and disappears entirely once the
  * checklist is completed.
  *
- * The widget orchestrates two fetch surfaces : (1) a client-side
- * `fetch('/api/leases?...')` for the active lease ids, and (2) the
- * `useApiQuery`-backed `apiRequest` for each lease's checklist. We mock
- * both layers separately to keep each test small.
+ * TCK-968 (P48.01) — les baux actifs ET la check-list passent par `apiRequest` (l'API Laravel).
+ * Le serveur Next n'a aucun relais `/api/leases` : le faux `fetch` y rend donc 404, comme lui.
+ * Le faux d'avant servait `/api/leases` par `fetch`, et gardait vert un widget qui ne s'affichait
+ * jamais.
  */
 type FetchMock = ReturnType<typeof vi.fn>;
 
@@ -35,6 +35,27 @@ function setupFetchMap(routes: Record<string, { status?: number; body?: unknown 
   });
   globalThis.fetch = mock as unknown as typeof fetch;
   return mock;
+}
+
+const CHECKLIST_OUVERTE = {
+  id: 1,
+  lease_id: 42,
+  user_id: 1,
+  welcome_seen_at: null,
+  inventory_completed_at: null,
+  first_payment_at: null,
+  documents_acknowledged_at: null,
+  completed_at: null,
+  created_at: '2026-05-01T00:00:00Z',
+  updated_at: '2026-05-01T00:00:00Z',
+};
+
+/** `apiRequest` par chemin : la liste des baux, puis la check-list de chaque bail. */
+function mockApi(leases: Array<{ id: number; reference_number: string | null }>, checklist: unknown) {
+  return vi.spyOn(Api, 'apiRequest').mockImplementation((async (chemin: string) => {
+    if (chemin.startsWith('/api/leases')) return { data: leases };
+    return { data: checklist };
+  }) as never);
 }
 
 function mockAuth() {
@@ -70,9 +91,8 @@ describe('<TenantOnboardingChecklistWidget>', () => {
 
   it('renders nothing when there is no active lease', async () => {
     mockAuth();
-    setupFetchMap({
-      '/api/leases': { body: { data: [] } },
-    });
+    setupFetchMap({});
+    mockApi([], null);
 
     const { container } = render(withProviders(<TenantOnboardingChecklistWidget />));
     await waitFor(() => expect(container.querySelector('section')).toBeNull());
@@ -81,32 +101,21 @@ describe('<TenantOnboardingChecklistWidget>', () => {
 
   it('renders the 4 items when an open checklist exists', async () => {
     mockAuth();
-    setupFetchMap({
-      '/api/leases': {
-        body: { data: [{ id: 42, reference_number: 'LS-ABC' }] },
-      },
-    });
-
-    // Mock apiRequest used by useApiQuery for the checklist read.
-    vi.spyOn(Api, 'apiRequest').mockResolvedValue({
-      data: {
-        id: 1,
-        lease_id: 42,
-        user_id: 1,
-        welcome_seen_at: null,
-        inventory_completed_at: null,
-        first_payment_at: null,
-        documents_acknowledged_at: null,
-        completed_at: null,
-        created_at: '2026-05-01T00:00:00Z',
-        updated_at: '2026-05-01T00:00:00Z',
-      },
-    } as never);
+    // Le serveur Next n'a pas `/api/leases` : le faux `fetch` rend 404 sur tout chemin non servi.
+    const fetchMock = setupFetchMap({});
+    const api = mockApi([{ id: 42, reference_number: 'LS-ABC' }], CHECKLIST_OUVERTE);
 
     render(withProviders(<TenantOnboardingChecklistWidget />));
 
     // Title interpolates the lease reference.
     await screen.findByText(/LS-ABC/);
+
+    // TCK-968 — les baux viennent de l'API Laravel, filtrés et en sparse fieldsets, jamais du
+    // serveur Next.
+    const lectureBaux = api.mock.calls.map((c) => String(c[0])).find((c) => c.startsWith('/api/leases'));
+    expect(decodeURIComponent(lectureBaux ?? '')).toContain('filter[status]=active');
+    expect(decodeURIComponent(lectureBaux ?? '')).toContain('fields[leases]=id,reference_number');
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/leases'))).toBe(false);
 
     // The 4 item titles are rendered.
     expect(screen.getByText("Découvrir votre espace résident")).toBeInTheDocument();
@@ -121,23 +130,8 @@ describe('<TenantOnboardingChecklistWidget>', () => {
     // chaîne — une chaîne fausse serait tout aussi verte. On prend le `href` que le composant
     // REND, et on le confronte à l'inventaire des `page.tsx` du dépôt.
     mockAuth();
-    setupFetchMap({
-      '/api/leases': { body: { data: [{ id: 42, reference_number: 'LS-ABC' }] } },
-    });
-    vi.spyOn(Api, 'apiRequest').mockResolvedValue({
-      data: {
-        id: 1,
-        lease_id: 42,
-        user_id: 1,
-        welcome_seen_at: null,
-        inventory_completed_at: null,
-        first_payment_at: null,
-        documents_acknowledged_at: null,
-        completed_at: null,
-        created_at: '2026-05-01T00:00:00Z',
-        updated_at: '2026-05-01T00:00:00Z',
-      },
-    } as never);
+    setupFetchMap({});
+    mockApi([{ id: 42, reference_number: 'LS-ABC' }], CHECKLIST_OUVERTE);
 
     render(withProviders(<TenantOnboardingChecklistWidget />));
     await screen.findByText(/LS-ABC/);
@@ -202,26 +196,19 @@ describe('<TenantOnboardingChecklistWidget>', () => {
 
   it('hides itself when the checklist is completed', async () => {
     mockAuth();
-    setupFetchMap({
-      '/api/leases': {
-        body: { data: [{ id: 99, reference_number: 'LS-DONE' }] },
-      },
+    setupFetchMap({});
+    mockApi([{ id: 99, reference_number: 'LS-DONE' }], {
+      id: 9,
+      lease_id: 99,
+      user_id: 1,
+      welcome_seen_at: '2026-05-01T00:00:00Z',
+      inventory_completed_at: '2026-05-02T00:00:00Z',
+      first_payment_at: '2026-05-03T00:00:00Z',
+      documents_acknowledged_at: '2026-05-04T00:00:00Z',
+      completed_at: '2026-05-04T00:00:00Z',
+      created_at: '2026-05-01T00:00:00Z',
+      updated_at: '2026-05-04T00:00:00Z',
     });
-
-    vi.spyOn(Api, 'apiRequest').mockResolvedValue({
-      data: {
-        id: 9,
-        lease_id: 99,
-        user_id: 1,
-        welcome_seen_at: '2026-05-01T00:00:00Z',
-        inventory_completed_at: '2026-05-02T00:00:00Z',
-        first_payment_at: '2026-05-03T00:00:00Z',
-        documents_acknowledged_at: '2026-05-04T00:00:00Z',
-        completed_at: '2026-05-04T00:00:00Z',
-        created_at: '2026-05-01T00:00:00Z',
-        updated_at: '2026-05-04T00:00:00Z',
-      },
-    } as never);
 
     const { container } = render(withProviders(<TenantOnboardingChecklistWidget />));
 

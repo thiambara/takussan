@@ -67,6 +67,9 @@ class MaintenanceStructuredQuoteTest extends TestCase
 
     public function test_amount_is_computed_from_the_lines(): void
     {
+        // TCK-899 (P12.10) : la date envoyée et la date assertée sont deux `now()` ; à minuit, entre
+        // les deux, elles différaient d'un jour.
+        $this->freezeTime();
         ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::QuoteRequested);
 
         Sanctum::actingAs($provider);
