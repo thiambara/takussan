@@ -5630,7 +5630,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Un relevé bancaire importé avec `source_format` vide ou `null` rend 500
 - Réf : P54.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-979
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:23,29-37`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:50-53`, `takussan-api/database/migrations/2026_04_28_000001_create_bank_statements_table.php:15`
 - Constat :
@@ -5639,6 +5639,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - L'écran d'import (`ImportStatementForm.tsx:31,41`) envoie toujours `csv` ou `ofx` (lu).
 - Piste : déduire le format quand la valeur est vide (`! $this->filled('source_format')`), et passer la règle en `required` une fois la déduction faite. Un test par forme (`null`, `""`, clé absente) dans `BankStatementPipelineTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StoreBankStatementRequest.php:23,29-37` (`nullable`, déduction sous `! $this->has('source_format')`) → `POST /api/agencies/{id}/bank-statements` (multipart, CSV, file faussée) : `source_format: null` → 500 `23502` colonne `source_format`, `source_format: ""` → 500, clé absente → 202. Classement : A1, le commentaire du code écrit déjà le contrat (« Auto-detect source_format from file extension if not provided ») et une valeur vide est une valeur non fournie ; le correctif étend la déduction existante sans toucher au parseur ni aux montants.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StoreBankStatementRequest.php:23,29-37` (`nullable`, déduction sous `! has()`) ; test de garde dans `BankStatementPipelineTest` (clé absente, `null`, `""`, file faussée) → avant correctif, `null` et `""` rendent 500 (2 rouges sur 21), clé absente → 202 → déduction sous `! filled()` et règle `required` : 21 verts, relevé en `csv` ; ablation (requête remise) → 2 rouges, remis → vert ; 83 tests voisins verts. Le cas OFX n'est pas rejoué : le faux fichier de test est refusé par `mimes` avant la déduction.
 
 ### Modifier un état des lieux avec `general_condition` ou `rooms` à `null` rend 500
 - Réf : P54.05
