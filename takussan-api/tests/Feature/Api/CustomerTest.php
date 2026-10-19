@@ -158,4 +158,35 @@ class CustomerTest extends TestCase
         $this->getJson('/api/customers/'.$customer->id.'?fields[customers]=id,first_name&include=notes,documents,tags')
             ->assertForbidden();
     }
+
+    /** TCK-921 (P29.03) — la langue de la fiche se saisit, se relit et s'efface ; hors `fr`·`en`·`wo`, 422. */
+    public function test_la_fiche_porte_une_langue_facultative(): void
+    {
+        $user = User::factory()->create();
+        $this->materializeRoleProfile($user, 'agent', Agency::factory()->create());
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson('/api/customers', [
+            'first_name' => 'John',
+            'last_name' => 'Smith',
+            'phone' => '+221771234567',
+            'locale' => 'en',
+        ])->assertCreated()
+            ->assertJsonPath('data.locale', 'en')
+            ->json('data.id');
+        $this->assertSame('en', Customer::query()->findOrFail($id)->locale);
+
+        $this->getJson("/api/customers/{$id}?fields[customers]=id,locale")
+            ->assertOk()
+            ->assertJsonPath('data.locale', 'en');
+
+        $this->patchJson("/api/customers/{$id}", ['locale' => 'de'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('locale');
+
+        $this->patchJson("/api/customers/{$id}", ['locale' => null])
+            ->assertOk()
+            ->assertJsonPath('data.locale', null);
+        $this->assertNull(Customer::query()->findOrFail($id)->locale);
+    }
 }

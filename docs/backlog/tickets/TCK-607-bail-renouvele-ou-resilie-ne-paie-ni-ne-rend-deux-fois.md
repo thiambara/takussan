@@ -7,7 +7,7 @@ family: back
 estimate: L
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -54,8 +54,8 @@ H-1 « **mérite un ticket avant toute promotion** ».
    plus tard, le job pose des pénalités sur ce bail résilié.
 3. **m-n — un loyer se crée et se solde après la fin d'un bail relevé.** `LeasePaymentService::create`
    (`app/Services/Model/LeasePaymentService.php:23-34`) ne lit ni le statut du bail ni sa fin.
-   Atteint par `POST /api/payments` (`status: paid` accepté) et `POST /api/leases/{id}/payments` puis
-   `mark-paid`. Sondes H1/H2 de verif-596 passe 8 : parent `renewed`, loyer de novembre → mois doublé
+   Atteint par `POST /api/leases/{id}/payments` puis `mark-paid` (et, jusqu'au 2026-10-18, par
+   `POST /api/payments`, `status: paid` accepté — route retirée par TCK-940). Sondes H1/H2 de verif-596 passe 8 : parent `renewed`, loyer de novembre → mois doublé
    `["2026-11"]` avec l'enfant.
 4. **n3 — un garant se rattache à un bail en vigueur.** `LeaseController::attachGuarantor` et
    `detachGuarantor` (`app/Http/Controllers/Api/LeaseController.php:161`, `:230`) ne regardent pas le
@@ -140,9 +140,10 @@ dette du locataire, relancée et pénalisable) ; seules les échéances dont la 
       passent `cancelled` ; deux mois plus tard (`travel`), `ApplyLateFeesJob` et
       `SendLeasePaymentReminders` n'écrivent rien sur elles. Même assertion par la fin d'un préavis.
       Les échéances déjà échues avant la résiliation restent dues (décision E11).
-- [ ] **AC4 (m-n).** Parent `renewed` dont la fin est coupée au 2026-10-08 : `POST /api/payments`
-      (`status: paid`, loyer de novembre) → 409 `lease.period_after_end` ; même code par
-      `POST /api/leases/{parent}/payments`. Un loyer d'octobre sur le même parent → 201.
+- [ ] **AC4 (m-n).** Parent `renewed` dont la fin est coupée au 2026-10-08 :
+      `POST /api/leases/{parent}/payments` (loyer de novembre) → 409 `lease.period_after_end`, et
+      `mark-paid` sur une telle échéance → même code. *(La voie `POST /api/payments` de la version du
+      2026-10-08 est retirée par TCK-940.)* Un loyer d'octobre sur le même parent → 201.
 - [ ] **AC5 (n3, rouge sur `839be671`).** `POST leases/{id}/guarantors` sur un bail `active` → 409 ;
       sur un bail `draft` → 201. `DELETE leases/{id}/guarantors/{g}` sur un bail `active` → 409.
 - [ ] **AC6 (préavis).** `DELETE guarantors/{g}` d'un garant rattaché à un bail `terminating` → 422

@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl';
 import { Calendar, KeyRound, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/format/currency';
+import { formatMontant } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import type { PropertyDetail } from '@/types/property';
 import { PropertyEntryCost } from './PropertyEntryCost';
@@ -19,10 +19,10 @@ interface PropertyBookingCardProps {
   canMessage?: boolean;
 }
 
-// TCK-078 — thin wrapper over the shared formatCurrency helper so the
+// TCK-078 — thin wrapper over the shared formatMontant helper so the
 // component keeps its existing call signature.
 function formatPrice(price: number, currency: string | null): string {
-  return formatCurrency(price, currency ?? 'XOF');
+  return formatMontant(price, currency ?? 'XOF');
 }
 
 export function PropertyBookingCard({

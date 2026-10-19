@@ -82,8 +82,9 @@ class IncludedUserProjectionTest extends TestCase
         Sanctum::actingAs($agent);
         $response = $this->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending?include=user")->assertOk();
         $this->assertProjection($response->json('data'), $locataire);
-        // La forme du paginateur brut ne change pas.
-        $this->assertNotNull($response->json('current_page'));
+        // TCK-904 (P21.06) — l'enveloppe canonique (TCK-304), plus le paginateur Laravel brut.
+        $this->assertNotNull($response->json('meta.current_page'));
+        $this->assertNull($response->json('current_page'));
     }
 
     public function test_fields_users_restreint_la_projection_sans_jamais_l_elargir(): void

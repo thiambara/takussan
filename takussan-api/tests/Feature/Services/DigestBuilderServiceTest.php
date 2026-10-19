@@ -8,6 +8,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Services\Notifications\DigestBuilderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DigestBuilderServiceTest extends TestCase
@@ -127,8 +128,15 @@ class DigestBuilderServiceTest extends TestCase
 
     public function test_mark_digested_is_noop_for_empty_collection(): void
     {
+        // TCK-899 (P12.10) : « aucune exception » ne prouvait rien ; une collection vide ne doit
+        // émettre aucune requête (sans la garde, un `UPDATE … WHERE 0 = 1` partait).
+        DB::flushQueryLog();
+        DB::enableQueryLog();
         $this->service->markDigested(collect());
-        $this->assertTrue(true); // no exception
+        $requetes = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $this->assertSame([], $requetes);
     }
 
     private function makeNotification(User $user, array $overrides = []): AppNotification

@@ -13,19 +13,21 @@ class StorePlanRequest extends FormRequest
 
     public function rules(): array
     {
+        // TCK-977 (P54.02) — `trial_days`, `is_active` et `sort_order` sont NOT NULL avec un défaut :
+        // `filled` laisse la clé omise prendre le défaut et refuse le `null`, qui rendait 500.
         return [
             'code' => ['required', 'string', 'max:64', 'alpha_dash', 'unique:plans,code'],
             'label' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'monthly_price_xof' => ['required', 'numeric', 'min:0'],
             'platform_fee_pct' => ['required', 'numeric', 'min:0', 'max:100'],
-            'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'trial_days' => ['filled', 'integer', 'min:0', 'max:365'],
             'limits' => ['nullable', 'array'],
             'limits.max_active_listings' => ['nullable', 'integer', 'min:0'],
             'limits.max_agents' => ['nullable', 'integer', 'min:0'],
             'limits.max_branches' => ['nullable', 'integer', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'is_active' => ['filled', 'boolean'],
+            'sort_order' => ['filled', 'integer', 'min:0', 'max:65535'],
         ];
     }
 }

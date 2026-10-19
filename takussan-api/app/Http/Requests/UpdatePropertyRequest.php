@@ -81,7 +81,8 @@ class UpdatePropertyRequest extends BaseFormRequest
             // TCK-703 (P17.01) — `null` rendait 500 (colonne NOT NULL) : 422, la clé reste facultative.
             'address.city' => ['sometimes', 'filled', 'string', 'max:120'],
             'address.region' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
+            // TCK-976 (P54.01) — même forme que la ville : `null` rendait 500, 422 désormais.
+            'address.country' => ['sometimes', 'filled', 'string', 'size:2'],
             'address.postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'address.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],

@@ -91,12 +91,24 @@ verifier "règles d'alerte en échec : release continue" 0 "$?"
 
 # TCK-710 (P01.07) : des réglages d'index périmés font échouer la liste publique sans mot
 # (`sort=ranked_at:desc` → invalid_search_sort). Le déploiement s'arrête au lieu de servir cela.
-fabrique; jouer ECHEC_SUR=scout:sync-index-settings
+fabrique; jouer ECHEC_SUR=search:sync-index-settings
 verifier "réglages d'index en échec : release échoue, les services ne démarrent pas" 1 "$?"
 verifier "réglages d'index en échec : aucune importation tentée" 0 "$(imports)"
 
-fabrique; jouer SCOUT_DRIVER=collection ECHEC_SUR=scout:sync-index-settings
+fabrique; jouer SCOUT_DRIVER=collection ECHEC_SUR=search:sync-index-settings
 verifier "SCOUT_DRIVER=collection : un échec de réglages ne peut pas arrêter release" 0 "$?"
+
+# TCK-995 (P52.03) : un Meilisearch perdu laisse le marqueur à jour et l'index vide. La
+# vérification des documents force alors l'importation.
+fabrique; jouer; jouer ECHEC_SUR="search:verify-indexes --documents"
+verifier "marqueur à jour mais index vide : réimporte tout" 2 "$(imports)"
+fabrique; jouer; jouer
+verifier "marqueur à jour et index peuplés : la vérification est jouée" 1 "$(grep -c '^artisan search:verify-indexes --documents' "$racine/journal" || true)"
+
+# TCK-995 (P52.02) : un document refusé ne se voit que dans sa tâche ; le marqueur ne s'écrit pas.
+fabrique; jouer ECHEC_SUR="search:verify-indexes --depuis"; sortie=$?
+verifier "tâches d'importation échouées : le marqueur ne s'écrit pas" absent "$(marqueur)"
+verifier "tâches d'importation échouées : release continue" 0 "$sortie"
 
 # ── ABLATION : sans l'écriture du marqueur, le second passage DOIT réimporter ──
 # shellcheck disable=SC2016 # `$marqueur` est le TEXTE cherché dans release.sh, pas une variable d'ici.
@@ -111,4 +123,4 @@ else
 fi
 
 [ "$echecs" = 0 ] || { echo "✗ $echecs échec(s)"; exit 1; }
-echo "✓ décision de réindexation de release.sh : 15 vérifications et une ablation"
+echo "✓ décision de réindexation de release.sh : 19 vérifications et une ablation"

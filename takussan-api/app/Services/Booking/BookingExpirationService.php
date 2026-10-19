@@ -20,6 +20,7 @@ class BookingExpirationService
 {
     public const BATCH_SIZE = 100;
 
+    /** Le défaut d'`AgencySettings`, que ce service lit par `Agency::setting()`. */
     public const DEFAULT_EXPIRY_HOURS = 48;
 
     public const LOCK_KEY = 'expire-bookings';
@@ -39,15 +40,14 @@ class BookingExpirationService
      */
     public function getExpiryThresholdHours(Agency $agency): int
     {
-        $settings = $agency->settings ?? [];
-        $hours = $settings['booking_pending_expiry_hours'] ?? self::DEFAULT_EXPIRY_HOURS;
+        // TCK-970 — l'entier, ou le défaut (`DEFAULT_EXPIRY_HOURS`) si la clé est absente ou illisible.
+        $hours = $agency->setting('booking_pending_expiry_hours');
 
         // Validate range: 0 means disabled, otherwise 1-168
-        if ($hours === 0 || $hours === '0') {
+        if ($hours === 0) {
             return 0;
         }
 
-        $hours = (int) $hours;
         if ($hours < 0) {
             return self::DEFAULT_EXPIRY_HOURS;
         }

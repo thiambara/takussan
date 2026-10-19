@@ -12,6 +12,7 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\ParticipantRole;
 use App\Models\Enums\RelationshipType;
+use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -20,6 +21,9 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Messaging\MessagingReach;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\ApiTestCase;
 use Tests\Concerns\InteractsWithMeilisearch;
 
@@ -145,6 +149,47 @@ class MessagingContactsTest extends ApiTestCase
         $this->assertStringNotContainsString('770000001', $response->getContent());
     }
 
+    /**
+     * P51.03 — un compte ouvert par téléphone (`PhoneLoginService::createAccount()`) n'a ni prénom
+     * ni nom : `full_name` vaut `''`, et le sélecteur affichait une ligne vide en tête de liste. Le
+     * nom rendu suit la règle de TCK-815 (`User::nameWithoutContact()`) : prénom et nom, puis
+     * `username`, puis « — », jamais une coordonnée. Joué dans la forme du front
+     * (`fields[users]=id,first_name,last_name`), qui ne demande pas `username`, et sans `fields`.
+     */
+    public function test_un_compte_sans_nom_est_rendu_par_son_identifiant_puis_un_tiret(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $pseudo = User::factory()->create([
+            'first_name' => '',
+            'last_name' => '',
+            'username' => 'pseudo_seul',
+            'email' => 'pseudo.seul@example.test',
+            'phone' => '+221770000002',
+        ]);
+        $anonyme = User::factory()->create([
+            'first_name' => '',
+            'last_name' => '',
+            'username' => null,
+            'email' => 'anonyme@example.test',
+            'phone' => '+221770000003',
+        ]);
+        $this->shareConversation($moi, $pseudo);
+        $this->shareConversation($moi, $anonyme);
+
+        $this->actingAsApi($moi);
+
+        foreach (['', '?fields[users]=id,first_name,last_name'] as $query) {
+            $response = $this->getJson('/api/conversations/contacts'.$query)->assertOk();
+            $noms = collect($response->json('data'))->pluck('name', 'id');
+
+            $this->assertSame('pseudo_seul', $noms[$pseudo->id], $query);
+            $this->assertSame('—', $noms[$anonyme->id], $query);
+            $this->assertSame(['avatar_url', 'id', 'name'], collect($response->json('data.0'))->keys()->sort()->values()->all(), $query);
+            $this->assertStringNotContainsString('example.test', $response->getContent(), $query);
+            $this->assertStringNotContainsString('77000000', $response->getContent(), $query);
+        }
+    }
+
     public function test_la_recherche_par_nom_reste_dans_le_perimetre(): void
     {
         $moi = $this->user('Zulqarnayn', 'Wxyzptlk');
@@ -234,6 +279,81 @@ class MessagingContactsTest extends ApiTestCase
             // Tri par défaut alphabétique : c'est une liste de personnes, pas un fil d'activité.
             ->assertJsonPath('data.0.name', 'Awa Sarr')
             ->assertJsonPath('data.1.name', 'Binta Sarr');
+    }
+
+    /**
+     * TCK-973 (P51.06) — le sélecteur retire les personnes déjà choisies. Côté client, sur une page
+     * de 20, « {shown} sur {total} » comptait les choisis, et vingt choisis donnaient une liste
+     * vide sous un total non nul. `filter[exclude]` les retire AVANT la pagination : `meta.total`
+     * et la page ne comptent plus qu'eux.
+     */
+    public function test_filter_exclude_retire_les_choisis_avant_la_pagination(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $contacts = [];
+        foreach (['Awa', 'Binta', 'Coumba', 'Dieynaba'] as $prenom) {
+            $contacts[$prenom] = $this->user($prenom, 'Sarr');
+            $this->shareConversation($moi, $contacts[$prenom]);
+        }
+
+        $this->actingAsApi($moi);
+
+        $exclus = $contacts['Awa']->id.','.$contacts['Coumba']->id;
+        $this->getJson("/api/conversations/contacts?per_page=2&filter[exclude]={$exclus}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 1)
+            ->assertJsonPath('data.0.name', 'Binta Sarr')
+            ->assertJsonPath('data.1.name', 'Dieynaba Sarr');
+
+        // Un identifiant illisible n'exclut rien et ne casse rien.
+        $this->getJson('/api/conversations/contacts?filter[exclude]=abc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 4);
+    }
+
+    /**
+     * TCK-973 (P51.06, A2) — la ressource ne lit que la collection `avatar` : charger toutes les
+     * collections (`documents`, `photos`…) de chaque contact lisait des lignes `media` pour rien.
+     */
+    public function test_seule_la_collection_avatar_est_chargee(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $awa = $this->user('Awa', 'Sarr');
+        $this->shareConversation($moi, $awa);
+        foreach (['documents' => [], 'avatar' => ['thumbnail' => true]] as $collection => $conversions) {
+            Media::query()->forceCreate([
+                'model_type' => $awa->getMorphClass(),
+                'model_id' => $awa->id,
+                'uuid' => (string) Str::uuid(),
+                'collection_name' => $collection,
+                'name' => $collection,
+                'file_name' => "{$collection}.jpg",
+                'mime_type' => 'image/jpeg',
+                'disk' => config('media-library.public_disk_name'),
+                'conversions_disk' => config('media-library.public_disk_name'),
+                'size' => 1,
+                'manipulations' => [],
+                'custom_properties' => [],
+                'generated_conversions' => $conversions,
+                'responsive_images' => [],
+            ]);
+        }
+
+        $this->actingAsApi($moi);
+
+        $lus = [];
+        DB::listen(function ($query) use (&$lus) {
+            if (str_contains($query->sql, 'from "media"')) {
+                $lus[] = $query->sql;
+            }
+        });
+
+        $response = $this->getJson('/api/conversations/contacts')->assertOk();
+
+        $this->assertNotNull($response->json('data.0.avatar_url'), 'l’avatar reste rendu');
+        $this->assertCount(1, $lus, 'une seule requête sur `media`, chargée d’avance');
+        $this->assertStringContainsString('"collection_name" = ?', $lus[0]);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -554,6 +674,51 @@ class MessagingContactsTest extends ApiTestCase
                 'participants' => [$correspondant->id, $supprime->id],
             ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
         }
+    }
+
+    /**
+     * TCK-972 (P51.01) — un compte `blocked` ou `deleted` n'ouvre aucune session (TCK-589,
+     * `User::canOpenSession()`) : il ne lirait jamais le fil où on l'ajoute. Il sort de la liste,
+     * et les trois FormRequests le refusent, en groupe comme en directe. `inactive` reste joignable :
+     * c'est un compte qui n'a pas encore servi.
+     */
+    public function test_un_compte_bloque_n_est_ni_liste_ni_accepte(): void
+    {
+        [$admin, $membre, $groupe] = $this->groupe();
+        $bloque = $this->user('Bloque', 'Compte');
+        $statutSupprime = $this->user('Statut', 'Supprime');
+        $inactif = $this->user('Inactif', 'Compte');
+        foreach ([$bloque, $statutSupprime, $inactif] as $correspondant) {
+            $this->shareConversation($admin, $correspondant);
+        }
+
+        $this->actingAsApi($admin);
+        // Témoin AVANT changement de statut : les trois sont joignables par la règle 1.
+        $this->assertContains($bloque->id, $this->contactIds());
+        $this->assertContains($statutSupprime->id, $this->contactIds());
+
+        $bloque->update(['status' => UserStatus::Blocked]);
+        $statutSupprime->update(['status' => UserStatus::Deleted]);
+        $inactif->update(['status' => UserStatus::Inactive]);
+
+        $this->assertSame(collect([$membre->id, $inactif->id])->sort()->values()->all(), $this->contactIds());
+        $this->assertSame([$inactif->id], $this->contactIdsPour($groupe));
+
+        foreach ([$bloque, $statutSupprime] as $horsJeu) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Bloqués',
+                'participants' => [$membre->id, $horsJeu->id],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+            $this->postJson('/api/conversations', ['participants' => [$horsJeu->id]])
+                ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+            $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$horsJeu->id]])
+                ->assertUnprocessable()->assertJsonValidationErrors(['user_ids']);
+        }
+
+        // Témoin : `inactive` passe, en directe comme à l'ajout.
+        $this->postJson('/api/conversations', ['participants' => [$inactif->id]])->assertCreated();
+        $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$inactif->id]])->assertCreated();
     }
 
     // ---------------------------------------------------------------------------------------------

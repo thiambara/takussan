@@ -82,6 +82,7 @@ export function PaymentsHistoryTable() {
           <div className="space-y-4">
           <div className="overflow-x-auto rounded-xl border border-border bg-card">
             <table className="w-full text-left text-sm tabular-nums">
+              <caption className="sr-only">{tTable('caption')}</caption>
               <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>

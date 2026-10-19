@@ -14,10 +14,12 @@ import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import { alternatesPubliques } from '@/lib/alternates';
+import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { isLocale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdAgence } from '@/lib/jsonld-profil';
 import { getAgency } from '@/lib/queries/public-agency';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -74,15 +76,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       : t('metaSummary', { count: agency.portfolio_count })
     : null;
   const title = t('metaTitle', { name: agency.name });
+  // TCK-915 (P09.08) — la description résumée au mot, et une description vide prend le résumé.
+  const description = resumePourMeta(agency.description) ?? summary ?? undefined;
   return {
     title,
-    description: agency.description ?? summary ?? undefined,
+    description,
     // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
     // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
     alternates: alternatesPubliques(`/agencies/${slug}`, locale),
     openGraph: {
       title,
-      description: agency.description ?? summary ?? undefined,
+      description,
       images: agency.logo_url ? [agency.logo_url] : undefined,
     },
   };
@@ -112,7 +116,7 @@ async function agenceIndisponible() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <NavbarSpacer />
-      <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 focus:outline-none">
         <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
           {t('unavailableTitle')}
         </h1>
@@ -161,7 +165,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       <Navbar />
       <NavbarSpacer />
 
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-12 pt-10 pb-24 space-y-16">
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-12 pt-10 pb-24 space-y-16 focus:outline-none">
         {/* Hero asymétrique avec watermark bogolan */}
         <section className="relative">
           <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">

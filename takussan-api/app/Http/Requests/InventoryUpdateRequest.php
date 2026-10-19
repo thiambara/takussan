@@ -10,6 +10,10 @@ use Illuminate\Validation\Rule;
 /**
  * Validates edition of a draft inventory. Any subset of fields may be provided;
  * `rooms` schema follows InventoryStoreRequest (see InventoryElementState enum).
+ *
+ * `general_condition` and `rooms` are `filled`, not `nullable`: both columns are NOT NULL
+ * without default, so a null cannot clear them and must be a 422 (TCK-980). `notes` keeps
+ * its nullable clear.
  */
 class InventoryUpdateRequest extends FormRequest
 {
@@ -21,8 +25,8 @@ class InventoryUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'general_condition' => ['nullable', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['nullable', 'array', 'min:1'],
+            'general_condition' => ['filled', Rule::enum(InventoryCondition::class)],
+            'rooms' => ['filled', 'array', 'min:1'],
             'rooms.*.name' => ['required_with:rooms', 'string', 'max:255'],
             'rooms.*.condition' => ['required_with:rooms', Rule::enum(InventoryCondition::class)],
             'rooms.*.notes' => ['nullable', 'string'],

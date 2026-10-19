@@ -104,6 +104,14 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'tenant_id' => $customer->id,
             'agency_id' => $agencyId,
         ]);
+        // P46.04 (TCK-957) — une ligne ne se pose que sur un bail actif : le jeu « encaisser » a le
+        // sien, le brouillon ci-dessus garde les gestes d'avant la signature.
+        $activeLease = Lease::factory()->active()->create([
+            'property_id' => $property->id,
+            'landlord_id' => $landlord->id,
+            'tenant_id' => $customer->id,
+            'agency_id' => $agencyId,
+        ]);
         $payment = LeasePayment::factory()->create([
             'lease_id' => $lease->id,
             'payer_id' => $customer->id,
@@ -170,7 +178,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         $agencyDocument = $attached($this->agency, $this->admin);
 
         return compact(
-            'property', 'customer', 'lease', 'payment', 'paidPayment', 'booking', 'payout',
+            'property', 'customer', 'lease', 'activeLease', 'payment', 'paidPayment', 'booking', 'payout',
             'invoice', 'document', 'inventory', 'visit', 'guarantor',
             'leaseDocument', 'bookingDocument', 'customerDocument', 'inventoryDocument', 'agencyDocument',
         );
@@ -315,7 +323,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
     {
         return [
             'loyers d\'un bail — lister' => ['GET', '/api/leases/{lease}/payments', []],
-            'loyers d\'un bail — encaisser' => ['POST', '/api/leases/{lease}/payments', [
+            'loyers d\'un bail — encaisser' => ['POST', '/api/leases/{activeLease}/payments', [
                 'amount' => 400000,
                 'payment_type' => 'rent',
                 'period_start' => '2026-01-01',
@@ -368,7 +376,9 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
         $properties = $this->idsOf($this->getJson('/api/conversations/context/properties')->assertOk()->json('data'));
 
         // Ensemble attendu, pas une longueur : exactement les siens.
-        $this->assertSame([$this->r2['lease']->id], $leases);
+        $own = [$this->r2['lease']->id, $this->r2['activeLease']->id];
+        sort($own);
+        $this->assertSame($own, $leases);
         $this->assertSame([$this->r2['property']->id], $properties);
 
         $this->actingAsApi($this->agent);

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Controller, useFormState } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,9 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
 import { ApiError } from '@/lib/api';
 import {
+  CUSTOMER_LOCALE_DEFAULT,
   customerFormSchema,
+  customerLocaleValues,
   customerStatusValues,
   idTypeValues,
   normaliseCustomerForm,
@@ -35,6 +37,7 @@ import {
   type CustomerDuplicateMatch,
 } from '@/app/actions/dashboard-customers';
 import type { CustomerDetail } from '@/types/customer';
+import { localeDisplayLabel, type Locale } from '@/i18n/config';
 
 
 /**
@@ -60,6 +63,7 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
       status: 'active',
       id_type: '',
       id_number: '',
+      locale: '',
       seeking_contract_type: '',
       budget_min: '',
       budget_max: '',
@@ -81,6 +85,7 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
     status: (customer.status ?? 'active') as CustomerFormValues['status'],
     id_type: (customer.id_type ?? '') as CustomerFormValues['id_type'],
     id_number: customer.id_number ?? '',
+    locale: customer.locale ?? '',
     seeking_contract_type: customer.seeking_contract_type ?? '',
     budget_min: montant(customer.budget_min),
     budget_max: montant(customer.budget_max),
@@ -106,6 +111,7 @@ export function CustomerForm({
   const tPropertyType = useTranslations('property.types');
   const tContract = useTranslations('property.contractTypes');
   const router = useRouter();
+  const locale = useLocale() as Locale;
 
   // TCK-591 — un 409 `customer.duplicate` n'est pas une erreur mais une aide : on montre la fiche
   // existante, et « Créer quand même » renvoie le même formulaire avec `allow_duplicate`.
@@ -123,6 +129,12 @@ export function CustomerForm({
   const pipelineStageOptions = pipelineStageValues.map((v) => ({ value: v, label: tStage(v) }));
   const customerStatusOptions = customerStatusValues.map((v) => ({ value: v, label: tStatus(v) }));
   const idTypeOptions = idTypeValues.map((v) => ({ value: v, label: tIdType(v) }));
+  // TCK-921 — chaque langue nommée dans celle de l'interface ; « Par défaut » l'efface, comme
+  // « Indifférent » efface un critère.
+  const localeOptions = [
+    { value: CUSTOMER_LOCALE_DEFAULT, label: t('localeDefault') },
+    ...customerLocaleValues.map((v) => ({ value: v, label: localeDisplayLabel(v, locale) })),
+  ];
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<CustomerFormValues, CustomerDetail>({
@@ -254,12 +266,22 @@ export function CustomerForm({
             )}
           />
         </div>
-        <FormInput
-          control={control}
-          name="occupation"
-          label={t('occupation')}
-          placeholder={t('occupationPlaceholder')}
-        />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FormInput
+            control={control}
+            name="occupation"
+            label={t('occupation')}
+            placeholder={t('occupationPlaceholder')}
+          />
+          {/* TCK-921 — la langue des SMS et messages du client tant qu'il n'a pas de compte. */}
+          <FormSelect
+            control={control}
+            name="locale"
+            label={t('locale')}
+            options={localeOptions}
+            placeholder={t('localeDefault')}
+          />
+        </div>
       </div>
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>

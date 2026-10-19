@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jetonEspaceApplicatif } from '@/lib/impersonation';
 import { cheminAmont, reponseSegmentInvalide } from '@/lib/segments-amont';
-import { origineApi } from '@/lib/config-publique';
-import { statutSansCorps } from '@/lib/statut-sans-corps';
+import { relayerVersApi } from '@/lib/relais-api';
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const chemin = cheminAmont(segments);
@@ -10,26 +9,7 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
   const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
-  const url = `${origineApi()}/api/announcements/${chemin}${request.nextUrl.search}`;
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-  const contentType = request.headers.get('content-type');
-  if (contentType) headers['Content-Type'] = contentType;
-
-  const init: RequestInit = { method: request.method, headers };
-  if (!['GET', 'HEAD'].includes(request.method)) {
-    init.body = await request.text();
-  }
-
-  const upstream = await fetch(url, init);
-  const body = statutSansCorps(upstream.status) ? null : await upstream.text();
-  const responseHeaders: HeadersInit = {};
-  const upstreamCt = upstream.headers.get('content-type');
-  if (upstreamCt) responseHeaders['Content-Type'] = upstreamCt;
-
-  return new NextResponse(body, { status: upstream.status, headers: responseHeaders });
+  return relayerVersApi(request, `/announcements/${chemin}${request.nextUrl.search}`, { jeton: token });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

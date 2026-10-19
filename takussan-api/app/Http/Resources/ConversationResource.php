@@ -23,6 +23,9 @@ class ConversationResource extends BaseResource
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->iso($this->last_message_at),
             'created_at' => $this->iso($this->created_at),
+            // TCK-952 — le front le déclare obligatoire (`Conversation.updated_at`), et la liste le
+            // demande dans ses `fields[conversations]`.
+            'updated_at' => $this->iso($this->updated_at),
             // Calculé par la seule liste (`ConversationController::index`) : absent ailleurs.
             'unread_count' => $this->whenHas('unread_count', fn () => (int) $this->unread_count),
             // TCK-671 (P06.02) — chargé par la liste. `last_message_preview` est écrit en français par

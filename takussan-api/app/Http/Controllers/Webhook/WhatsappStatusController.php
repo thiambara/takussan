@@ -7,6 +7,7 @@ use App\Jobs\UpdateWhatsappDeliveryStatusJob;
 use App\Services\Webhooks\WebhookJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -30,12 +31,38 @@ class WhatsappStatusController extends Controller
 {
     public function __invoke(Request $request, WebhookJournal $journal): JsonResponse
     {
+        $this->guardUrlToken($request);
+
+        return $this->process($request, $journal);
+    }
+
+    /**
+     * P36.05 (TCK-944) — la vérification d'abonnement de Meta : pour enregistrer l'URL de rappel,
+     * Meta appelle ce chemin en `GET` avec `hub.mode=subscribe`, `hub.verify_token` et
+     * `hub.challenge`, et attend le défi en texte brut. Gardée par le même jeton d'URL, puis par
+     * `whatsapp.webhook_verify_token`, comparé en temps constant ; un jeton non configuré refuse.
+     *
+     * PHP reçoit `hub.mode` en `hub_mode` : il remplace les points des noms de paramètres.
+     */
+    public function verify(Request $request): Response
+    {
+        $this->guardUrlToken($request);
+
+        $expected = (string) config('whatsapp.webhook_verify_token', '');
+        $candidate = (string) $request->query('hub_verify_token', '');
+        if ($request->query('hub_mode') !== 'subscribe' || $expected === '' || ! hash_equals($expected, $candidate)) {
+            abort_code(403, 'webhook.verify_token_invalid');
+        }
+
+        return new Response((string) $request->query('hub_challenge', ''), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    }
+
+    private function guardUrlToken(Request $request): void
+    {
         $token = (string) config('whatsapp.webhook_url_token', '');
         if ($token === '' || ! hash_equals($token, (string) $request->route('token'))) {
             abort(404);
         }
-
-        return $this->process($request, $journal);
     }
 
     /**
@@ -45,11 +72,8 @@ class WhatsappStatusController extends Controller
     public function process(Request $request, WebhookJournal $journal): JsonResponse
     {
         $this->verifySignature($request);
-        // TCK-602 — un secret non configuré hors production laisse passer sans signature : la ligne
-        // n'est alors pas « authentifiée », donc jamais rejouable.
-        if ((string) config('whatsapp.webhook_app_secret', '') !== '') {
-            $journal->authenticated();
-        }
+        // TCK-602 — le jeton et la signature ont passé : la ligne est authentifiée, donc rejouable.
+        $journal->authenticated();
 
         $dispatched = 0;
         $firstId = null;
@@ -77,21 +101,17 @@ class WhatsappStatusController extends Controller
 
     /**
      * Verify the `X-Hub-Signature-256` HMAC against the raw request body.
-     * Skipped when no app secret is configured — but only outside
-     * production. In production an unset secret is a misconfiguration, not a
-     * convenience: we fail closed rather than silently accept unsigned
-     * webhooks (the URL token alone is not sufficient auth there).
+     *
+     * P36.08 (TCK-945) — an unset app secret fails closed in EVERY
+     * environment: it was skipped outside production, so the URL token alone
+     * let an unsigned status through wherever the token was set.
      */
     private function verifySignature(Request $request): void
     {
         $secret = (string) config('whatsapp.webhook_app_secret', '');
         if ($secret === '') {
-            if (app()->isProduction()) {
-                Log::error('[whatsapp.webhook] app secret not configured in production — rejecting unsigned status webhook');
-                abort_code(403, 'webhook.signature_not_configured');
-            }
-
-            return;
+            Log::error('[whatsapp.webhook] app secret not configured — rejecting unsigned status webhook');
+            abort_code(403, 'webhook.signature_not_configured');
         }
         $header = (string) $request->header('X-Hub-Signature-256', '');
         $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $secret);

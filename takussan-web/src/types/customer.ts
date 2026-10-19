@@ -7,7 +7,6 @@
  * the fields you explicitly requested when consuming these types.
  */
 
-import type { PaginatedResponse } from './api';
 import type { Tag } from './tag';
 
 export type IdType = 'id_card' | 'passport' | 'driving_license';
@@ -47,6 +46,8 @@ export interface CustomerDetail extends CustomerListItem {
   user_id: number | null;
   metadata: Record<string, unknown> | null;
   agency_id?: number | null;
+  /** TCK-921 — la langue des messages du client sans compte ; `null` : `fr`. */
+  locale?: 'fr' | 'en' | 'wo' | null;
   /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). */
   seeking_contract_type?: 'sale' | 'rent' | null;
   budget_min?: string | null;
@@ -92,5 +93,3 @@ export interface CustomerRelationship {
   /** Rendu par `GET /api/customers/{id}/relationships` ; le référent se nomme par lui (TCK-591). */
   user?: { id: number; name: string; email: string | null } | null;
 }
-
-export type PaginatedCustomers = PaginatedResponse<CustomerListItem>;

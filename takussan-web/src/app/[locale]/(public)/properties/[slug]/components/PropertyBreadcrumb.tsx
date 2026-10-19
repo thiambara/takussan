@@ -16,11 +16,13 @@ interface PropertyBreadcrumbProps {
   readonly property: PropertyDetail;
   /** TCK-839 — le chemin canonique du quartier, calculé par la page (`hrefDuQuartier`), s'il est indexable. */
   readonly hrefQuartier?: string;
+  /** P35.05 — le chemin canonique de la ville (`hrefDeLaVille`), ou `null` si elle reste un libellé. */
+  readonly hrefVille?: string | null;
 }
 
-export function PropertyBreadcrumb({ property, hrefQuartier }: PropertyBreadcrumbProps) {
+export function PropertyBreadcrumb({ property, hrefQuartier, hrefVille }: PropertyBreadcrumbProps) {
   const t = useTranslations('property.detail');
-  const crumbs = maillonsDeFiche(property, t, hrefQuartier);
+  const crumbs = maillonsDeFiche(property, t, hrefQuartier, hrefVille);
 
   return (
     <nav aria-label={t('breadcrumbAria')} className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -32,7 +34,10 @@ export function PropertyBreadcrumb({ property, hrefQuartier }: PropertyBreadcrum
               {c.libelle}
             </LienLocalise>
           ) : (
-            <span aria-current="page" className="text-foreground">{c.libelle}</span>
+            // P35.05 — une ville sans lien n'est pas la page courante : seul le dernier maillon l'est.
+            <span aria-current={i === crumbs.length - 1 ? 'page' : undefined} className="text-foreground">
+              {c.libelle}
+            </span>
           )}
         </span>
       ))}

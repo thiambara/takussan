@@ -55,7 +55,7 @@ class DocumentVersionController extends Controller
         );
 
         return $this->json([
-            'data' => DocumentVersionResource::make($media)->toArray($request),
+            'data' => DocumentVersionResource::make($media)->resolve($request),
         ], 201);
     }
 
@@ -89,7 +89,7 @@ class DocumentVersionController extends Controller
         $media = $this->service->restoreVersion($document, $versionId, $request->user());
 
         return $this->json([
-            'data' => DocumentVersionResource::make($media)->toArray($request),
+            'data' => DocumentVersionResource::make($media)->resolve($request),
         ]);
     }
 

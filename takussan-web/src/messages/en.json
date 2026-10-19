@@ -2,6 +2,7 @@
   "common": {
     "appName": "Takussan",
     "tagline": "Real estate in Senegal",
+    "skipToContent": "Skip to main content",
     "actions": {
       "save": "Save",
       "cancel": "Cancel",
@@ -187,7 +188,6 @@
       "pendingBadge": "{count} pending",
       "topbarBrand": "Takussan · Console",
       "consoleBadge": "Console",
-      "skipToContent": "Skip to main content",
       "groups": {
         "overview": "Overview",
         "operations": "Operations",
@@ -529,7 +529,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Sign in — Takussan"
+      "default": "Sign in — Takussan",
+      "titles": {
+        "login": "Sign in",
+        "register": "Sign up",
+        "forgotPassword": "Forgot password",
+        "resetPassword": "New password",
+        "verifyEmail": "Email verification"
+      }
     },
     "layout": {
       "visualAlt": "Contemporary villa in Senegal",
@@ -735,6 +742,7 @@
       "empty": "No properties in this selection yet."
     },
     "discovery": {
+      "neighbourhoodsOf": "Neighbourhoods in {city}",
       "viewSwitchAria": "Results view",
       "viewList": "List",
       "viewMap": "Map",
@@ -2773,6 +2781,8 @@
       "phone": "Phone",
       "occupation": "Occupation",
       "occupationPlaceholder": "Teacher, shopkeeper, etc.",
+      "locale": "Message language",
+      "localeDefault": "Default (French)",
       "crmSection": "CRM tracking",
       "pipelineStage": "Pipeline stage",
       "status": "Status",
@@ -2803,6 +2813,13 @@
       "removeAria": "Remove the tag {tag}",
       "inputLabel": "Add a tag to the customer",
       "filterAria": "See customers tagged {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Hot lead",
+      "etranger": "Foreign national",
+      "famille": "Family",
+      "etudiant": "Student"
     }
   },
   "agentCrm": {
@@ -3381,7 +3398,9 @@
         "amount": "Amount",
         "status": "Status",
         "actions": "Actions",
-        "open": "Open"
+        "open": "Open",
+        "caption": "Invoices",
+        "openLabel": "Open invoice {reference}"
       }
     },
     "payouts": {
@@ -3395,7 +3414,9 @@
         "net": "Net",
         "status": "Status",
         "actions": "Actions",
-        "open": "Open"
+        "open": "Open",
+        "caption": "Payouts",
+        "openLabel": "Open payout {reference}"
       }
     },
     "history": {
@@ -3436,7 +3457,8 @@
           "lease": "Lease"
         },
         "entityLease": "Lease #{id}",
-        "entityBooking": "Booking #{id}"
+        "entityBooking": "Booking #{id}",
+        "caption": "Payment history"
       }
     },
     "status": {
@@ -4350,6 +4372,7 @@
       "vide_description": "Remove just one filter — the others stay in place.",
       "vide_description_sans_critere": "There is surely a home for you — start again from a blank search.",
       "vide_criteres_aria": "Remove a filter",
+      "vide_suggestions": "Try instead",
       "empty_cta": "Clear all filters",
       "error": "Something went wrong. Please try again.",
       "error_invalid_filter": "One of the filters in this search is not valid.",
@@ -4357,7 +4380,8 @@
       "error_retry": "Try again",
       "vide_titre_hors_pages": "Nothing on this page",
       "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones.",
-      "updating": "Updating listings…"
+      "updating": "Updating listings…",
+      "heading": "Search results"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
@@ -6335,8 +6359,6 @@
         "phone": "Phone",
         "website": "Website",
         "commission": "Default commission (%)",
-        "timezone": "Time zone",
-        "timezonePlaceholder": "Africa/Dakar",
         "websitePlaceholder": "https://your-agency.sn"
       },
       "moderation": {
@@ -9541,7 +9563,8 @@
         "net": "Net",
         "status": "Status",
         "paidOn": "Paid on",
-        "emptyForAgency": "No platform payout received yet."
+        "emptyForAgency": "No platform payout received yet.",
+        "caption": "Platform payouts"
       },
       "close": {
         "title": "Close a period",
@@ -9716,7 +9739,6 @@
       "websiteInvalid": "Invalid URL. Example: https://exemple.sn",
       "commissionRange": "The commission must be between 0 and 100.",
       "currencyInvalid": "Invalid currency code (e.g. XOF, EUR).",
-      "timezoneTooLong": "Time zone too long.",
       "logoTooLarge": "The logo exceeds 2 MB.",
       "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP.",
       "taxRateRange": "VAT must be between 0 and 100.",
@@ -9736,6 +9758,7 @@
     "customer": {
       "occupationTooLong": "The occupation is too long.",
       "idTypeInvalid": "Invalid ID type.",
+      "localeInvalid": "Invalid language.",
       "idNumberTooLong": "The number is too long.",
       "emailOrPhone": "Provide at least an email address or a phone number.",
       "idNumberRequired": "The number is required once an ID type is selected.",
@@ -9869,7 +9892,8 @@
     "dropzone_hint_short": "or click — {size} max, up to {max} files.",
     "cover": "Cover",
     "delete_photo_aria": "Delete this photo",
-    "remove_file_aria": "Remove {name}"
+    "remove_file_aria": "Remove {name}",
+    "take_photo": "Take a photo"
   },
   "ui": {
     "datePicker": {

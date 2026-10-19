@@ -359,8 +359,15 @@ const FICHIERS_HORS_JETONS = 5;
  * biens trouvés passe en `text-muted-foreground` à côté du titre, sur le fond de la page posé par
  * un ancêtre (`--muted-foreground` sur `--background` : 5,6:1). Les sept autres fichiers touchés
  * (`PropertyCard`, `PropertyCardCover`, `FilterSidebar`…) gardent exactement leurs entrées.
+ *
+ * **264 → 265 le 2026-10-18 (TCK-916).** `property/QuartiersDeLaVille.tsx`, fichier neuf entré
+ * dans la surface par la page de liste, apporte 1 entrée : ses liens de quartier
+ * (`text-muted-foreground` sans fond propre, sur le fond de la page posé par un ancêtre —
+ * `--muted-foreground` sur `--background` : 5,6:1). Relevé en filtrant la liste des encres
+ * inverses sur ce fichier ; son titre (`text-foreground`) n’en ajoute pas. C’est la seule
+ * différence avec `origin/pre-dev`, où le test est vert à 264.
  */
-const ENCRES_INVERSES = 264;
+const ENCRES_INVERSES = 265;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

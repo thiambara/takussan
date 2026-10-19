@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
@@ -78,7 +79,7 @@ class BranchedCapabilitiesTest extends ApiTestCase
                 'period_start' => '2026-01-01',
                 'period_end' => '2026-01-31',
                 'due_date' => '2026-01-05',
-            ], 'lease'],
+            ], 'activeLease'],
             'payments.record — marquer payé' => [Capability::PaymentsRecord, 'agent', 'POST', '/api/lease-payments/{payment}/mark-paid', [], 'payment'],
             'crm.view_all' => [Capability::CrmViewAll, 'agent', 'GET', '/api/customers/{customer}', [], 'colleagueCustomer'],
             'properties.update_own' => [Capability::PropertiesUpdateOwn, 'agent', 'PATCH', '/api/properties/{property}', ['title' => 'Renommé'], 'ownProperty'],
@@ -150,11 +151,12 @@ class BranchedCapabilitiesTest extends ApiTestCase
     /** @return array<string, int|Model> */
     private function target(string $kind, User $actor): array
     {
-        $lease = fn () => Lease::factory()->create([
+        $lease = fn (array $state = []) => Lease::factory()->create([
             'property_id' => $this->property->id,
             'landlord_id' => $this->landlord->id,
             'tenant_id' => $this->tenant->id,
             'agency_id' => $this->agency->id,
+            ...$state,
         ]);
 
         return match ($kind) {
@@ -168,6 +170,8 @@ class BranchedCapabilitiesTest extends ApiTestCase
             'draftInvoice' => ['invoice' => Invoice::factory()->create(['customer_id' => $this->tenant->id, 'agency_id' => $this->agency->id])],
             'sentInvoice' => ['invoice' => Invoice::factory()->sent()->create(['customer_id' => $this->tenant->id, 'agency_id' => $this->agency->id])],
             'lease' => ['lease' => $lease()],
+            // P46.04 (TCK-957) — une ligne ne se pose que sur un bail actif.
+            'activeLease' => ['lease' => $lease(['status' => LeaseStatus::Active])],
             'payment' => ['payment' => LeasePayment::factory()->create([
                 'lease_id' => $lease()->id,
                 'payer_id' => $this->tenant->id,

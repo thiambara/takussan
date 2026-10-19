@@ -52,4 +52,10 @@ class PropertyBoost extends AbstractModel
     {
         return $this->hasMany(PropertyBoostDailyStat::class);
     }
+
+    /** TCK-942 — les achats et offres d'une Vedette, par rang. Vide : la ligne est sa propre tranche. */
+    public function tranches(): HasMany
+    {
+        return $this->hasMany(PropertyBoostTranche::class)->orderBy('position');
+    }
 }

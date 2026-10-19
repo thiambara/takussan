@@ -4,6 +4,7 @@ namespace Tests\Feature\Public;
 
 use App\Models\Address;
 use App\Models\Customer;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +55,7 @@ class PropertyCitiesTest extends TestCase
 
         $this->assertSame(
             [['value' => 'Dakar', 'count' => 2], ['value' => 'Thiès', 'count' => 1]],
-            $response->json('data'),
+            collect($response->json('data'))->map(fn ($v) => ['value' => $v['value'], 'count' => $v['count']])->all(),
         );
     }
 
@@ -202,5 +203,50 @@ class PropertyCitiesTest extends TestCase
             ->all();
 
         $this->assertSame(['Dakar'], $villes);
+    }
+
+    /**
+     * P35.04 — **une ville, une entrée, comptée une fois**, quelle que soit la casse saisie.
+     *
+     * Le front replie chaque valeur en minuscules (`villesDuCatalogue`, `facettes.ts`) : si l'API
+     * rendait « Zzvillé » (3) et « ZZVILLÉ » (1) séparément, la page de ville prendrait la graphie
+     * de la dernière entrée lue, la MOINS fréquente, et le sitemap annoncerait la même canonique
+     * deux fois. La ville est hors référentiel, seul cas où `GeoAddressCanonicalizer` la laisse
+     * brute ; l'accent vérifie que le repli n'est pas celui de `lower()` nu sous `--locale=C`.
+     */
+    public function test_case_variants_of_a_city_are_one_entry_with_the_most_frequent_spelling(): void
+    {
+        $this->bienA('Zzvillé');
+        $this->bienA('Zzvillé');
+        $this->bienA('Zzvillé');
+        $this->bienA('ZZVILLÉ');
+        $this->bienA('Thiès');
+
+        $this->assertSame(
+            [['value' => 'Zzvillé', 'count' => 4], ['value' => 'Thiès', 'count' => 1]],
+            collect($this->getJson('/api/public/properties/cities')->assertOk()->json('data'))
+                ->map(fn ($v) => ['value' => $v['value'], 'count' => $v['count']])->all(),
+        );
+    }
+
+    /**
+     * P35.05 — le compte de chaque ville PAR CONTRAT, pour que le sitemap n'annonce une paire
+     * contrat × ville (« à louer à Dakar ») qu'à partir de 3 biens. Toujours les deux contrats,
+     * zéro compris : le front n'a pas à deviner une clé absente.
+     */
+    public function test_each_city_carries_its_count_per_contract(): void
+    {
+        $this->bienA('Dakar', ['contract_type' => ContractType::Rent]);
+        $this->bienA('Dakar', ['contract_type' => ContractType::Rent]);
+        $this->bienA('Dakar', ['contract_type' => ContractType::Sale]);
+        $this->bienA('Thiès', ['contract_type' => ContractType::Sale]);
+
+        $this->assertSame(
+            [
+                ['value' => 'Dakar', 'count' => 3, 'contracts' => ['sale' => 1, 'rent' => 2]],
+                ['value' => 'Thiès', 'count' => 1, 'contracts' => ['sale' => 1, 'rent' => 0]],
+            ],
+            $this->getJson('/api/public/properties/cities')->assertOk()->json('data'),
+        );
     }
 }

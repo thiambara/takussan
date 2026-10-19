@@ -99,10 +99,9 @@ describe('AgencyConfigForm — pénalités de retard en ligne (TCK-593 Partie 5)
     );
 
     const payload = await enregistrer(user);
+    // TCK-962 — ni `timezone`, ni les miroirs `currency` et `default_commission_rate` : l'API les
+    // jette, la commission et la devise partent sur leurs colonnes.
     expect(payload.settings).toEqual({
-      default_commission_rate: 5,
-      currency: 'XOF',
-      timezone: 'Africa/Dakar',
       late_fee_online_collection: false,
       // TCK-589 — clé gérée par le même écran, toujours émise (décocher doit lever l'exigence).
       require_team_two_factor: false,

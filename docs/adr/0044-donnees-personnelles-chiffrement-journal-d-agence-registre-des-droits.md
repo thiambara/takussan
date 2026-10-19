@@ -4,6 +4,7 @@
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-601](../backlog/tickets/TCK-601-donnees-personnelles-audit-kyc.md)
 - **Amendement du 2026-10-18 ([TCK-883](../backlog/tickets/TCK-883-sauvegardes-consignes-et-retour-d-une-restauration.md))** : une donnée effacée survit dans les sauvegardes le temps de leur rétention ; après une restauration, les effacements postérieurs à la sauvegarde se rejouent depuis une liste tenue hors de la base ; `APP_KEY` est rangée hors du serveur et son empreinte est au relevé. Voir [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--les-sauvegardes-gardent-ce-que-la-base-a-effacé-tck-883).
+- **Précisé par [ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) (2026-10-18)** : l'application de l'amendement A — périmètre, migrations, masques, lectures claires et leurs lecteurs, exports, contrat du front.
 - **Amendement du 2026-10-16 ([TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md))** : la règle du §1 s'étend au numéro de pièce du locataire et de la caution (`customers.id_number`, `guarantors.id_number`) ; les jobs échoués sont purgés à **30 jours**. le revenu mensuel de la caution et du bailleur suit la même règle, et seul l'admin d'agence lit la valeur claire. Voir [§ Amendement du 2026-10-16](#amendement-du-2026-10-16--la-pièce-du-locataire-et-de-la-caution-et-la-purge-des-jobs-échoués-tck-723).
 
 ## Contexte
@@ -318,9 +319,36 @@ Restaurer une sauvegarde antérieure à un effacement rendrait le compte en clai
 même temps la trace (`account_deletion_requests`, `privacy_requests`) qui permettrait de le
 retrouver. **La liste des effacements se tient donc aussi hors de la base**, et la procédure
 « Après une restauration » de `hebergement.md` rejoue ceux qui sont postérieurs à l'instant
-restauré. La forme de cette liste hors base (export nocturne des identifiants effacés vers le seau
-des sauvegardes) est l'objet de [TCK-885](../backlog/tickets/TCK-885-liste-des-effacements-hors-de-la-base.md) ;
-d'ici là, la procédure dit de relever les effacements dans la base courante **avant** de restaurer.
+restauré.
+
+Sa forme ([TCK-885](../backlog/tickets/TCK-885-liste-des-effacements-hors-de-la-base.md)) :
+**chaque effacement exécuté écrit un objet sur le disque privé des médias**
+(`config('media-library.disk_name')` : `local` en dev et en test, `r2-private` en préproduction et
+en production), sous `effacements/AAAA-MM-JJ/<user_id>-<AAAAMMJJTHHMMSSZ>.json`, qui ne contient
+que l'identifiant du compte et l'instant — ni courriel, ni nom, ni téléphone
+(`App\Services\Account\ErasureLedger`).
+
+- **Pourquoi ce support** : le seau privé vit hors du serveur ; il est copié chaque nuit dans
+  `vps-sauvegardes/takussan-preview-private/` par `rclone copy`, qui ne supprime jamais
+  (`deploy/server/sauvegarde-seau-prive.sh`), et `vps-sauvegardes` porte un verrou de rétention de
+  7 jours ([ADR-0069](0069-deux-environnements-dokploy-configuration-hors-de-github.md)). Aucun
+  jeton ni variable d'environnement de plus. L'export nocturne vers le seau des sauvegardes,
+  envisagé d'abord, aurait demandé à l'application une écriture sur `vps-sauvegardes`, qu'elle n'a
+  pas, et laissé jusqu'à 24 h d'effacements sans trace.
+- **Un objet par effacement** : un objet S3 ne s'allonge pas ; un journal unique serait un
+  lire-réécrire concurrent.
+- **L'objet s'écrit avant l'effacement, et un échec l'annule** : le disque qui refuse fait sortir
+  `AccountDeletionService::executeDeletion()` avant tout effet (ni courriel, ni anonymisation,
+  `executed_at` nul) ; `account:execute-deletions` le journalise, sort en 1 et retente au passage
+  suivant. Écrit après le commit, un échec scellerait un effacement sans trace — le compte même
+  que cette liste existe pour retrouver.
+- **La lecture** : `php artisan account:list-erasures --since=<instant restauré>` dit, pour chaque
+  compte de la liste, ce qu'en garde la base courante (`effacé`, `absent`, `à ré-effacer`) ;
+  `--execute` ré-efface ceux qu'elle a en clair, sans renvoyer le courriel de confirmation.
+
+⚠ Le seau privé de **production** (`takussan-prod-private`) n'existe pas encore : sa copie
+nocturne vers `vps-sauvegardes` se pose avec lui (plan d'auto-hébergement, F1 étape 6), sans quoi
+la liste de production ne vivrait qu'à un endroit.
 
 ### C. La clé se garde hors du serveur
 

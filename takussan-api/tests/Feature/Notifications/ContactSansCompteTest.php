@@ -171,6 +171,29 @@ class ContactSansCompteTest extends TestCase
         $this->assertSame($max, $this->smsSent());
     }
 
+    /**
+     * TCK-921 (P29.03) — la langue de la fiche sert le client sans compte ; celle du compte lié
+     * prime, et sans l'une ni l'autre, `fr`.
+     */
+    public function test_la_langue_de_la_fiche_sert_le_client_sans_compte(): void
+    {
+        $anglophone = Customer::factory()->create(['user_id' => null, 'phone' => $this->phone, 'locale' => 'en']);
+        $this->assertSame('en', ContactSansCompte::fromCustomer($anglophone)->locale);
+
+        $sansLangue = Customer::factory()->create(['user_id' => null, 'phone' => $this->phone, 'locale' => null]);
+        $this->assertSame('fr', ContactSansCompte::fromCustomer($sansLangue)->locale);
+
+        $avecCompte = Customer::factory()->create([
+            'user_id' => User::factory()->create(['preferred_language' => 'wo'])->id,
+            'phone' => $this->phone,
+            'locale' => 'en',
+        ]);
+        $this->assertSame('wo', ContactSansCompte::fromCustomer($avecCompte)->locale);
+
+        $this->send(ContactSansCompte::fromCustomer($anglophone));
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'lampush') && str_contains(json_encode($req->data()), 'is 1 day overdue'));
+    }
+
     public function test_un_destinataire_wo_hors_fenetre_recoit_le_gabarit_fr(): void
     {
         $customer = Customer::factory()->create([

@@ -34,7 +34,7 @@ class SavedSearchController extends Controller
         ]));
 
         return $this->json([
-            'data' => SavedSearchResource::make($search)->toArray($request),
+            'data' => SavedSearchResource::make($search)->resolve($request),
         ], 201);
     }
 
@@ -46,7 +46,7 @@ class SavedSearchController extends Controller
         $savedSearch->fill($data)->save();
 
         return $this->json([
-            'data' => SavedSearchResource::make($savedSearch->refresh())->toArray($request),
+            'data' => SavedSearchResource::make($savedSearch->refresh())->resolve($request),
         ]);
     }
 

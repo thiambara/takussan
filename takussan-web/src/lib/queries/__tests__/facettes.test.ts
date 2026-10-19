@@ -6,6 +6,7 @@ import {
   FRAICHEUR_DOMAINE_VILLES,
   quartiersDeLaVille,
   SEUIL_QUARTIER_INDEXABLE,
+  SEUIL_VILLE_INDEXABLE,
   villesAvecComptes,
   villesDuCatalogue,
 } from '../facettes';
@@ -59,6 +60,16 @@ afterEach(() => {
 });
 
 describe('villesDuCatalogue — réponse normale', () => {
+  it('P35.04 — deux graphies d’une même ville : la plus fréquente, servie la première, est gardée', async () => {
+    // L'API trie par compte décroissant. Une `Map` qui laisse le dernier `set` gagner retenait
+    // « SALY » (2) comme graphie canonique de la page, au lieu de « Saly » (40).
+    servir(reponse([{ value: 'Saly', count: 40 }, { value: 'SALY', count: 2 }]));
+
+    const domaine = await villesDuCatalogue();
+
+    expect(domaine!.get('saly')).toBe('Saly');
+  });
+
   it('rend une Map peuplée, sans rien journaliser', async () => {
     servir(reponse([{ value: 'Dakar', count: 199 }, { value: 'Thiès', count: 7 }]));
 
@@ -120,12 +131,26 @@ describe('villesDuCatalogue — le REPLI DE CASSE des clés', () => {
   });
 
   it('ignore une ville vide plutôt que d’indexer la chaîne vide', async () => {
-    servir(reponse([{ value: '', count: 3 }, { value: 'Dakar', count: 1 }]));
+    servir(reponse([{ value: '', count: 3 }, { value: 'Dakar', count: 3 }]));
 
     const domaine = await villesDuCatalogue();
 
     expect(domaine!.size).toBe(1);
     expect(domaine!.has('')).toBe(false);
+  });
+});
+
+describe('villesDuCatalogue — P35.05, le SEUIL de la page de ville', () => {
+  it('une ville sous `SEUIL_VILLE_INDEXABLE` biens n’entre pas au domaine, comme un quartier', async () => {
+    servir(reponse([
+      { value: 'Dakar', count: SEUIL_VILLE_INDEXABLE },
+      { value: 'Thiès', count: SEUIL_VILLE_INDEXABLE - 1 },
+    ]));
+
+    const domaine = await villesDuCatalogue();
+
+    expect(SEUIL_VILLE_INDEXABLE).toBe(3);
+    expect([...domaine!.values()]).toEqual(['Dakar']);
   });
 });
 

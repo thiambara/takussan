@@ -1,13 +1,75 @@
 'use client';
 
-import React from 'react';
-import { useTranslations } from 'next-intl';
+import React, { useId } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { PucesDeFiltres } from '@/components/search/SearchToolbar';
-import type { SearchFilters } from '@/types/search';
+import { urlDeSuggestion, type SuggestItem } from '@/components/search/SearchAutocomplete';
+import { useSuggest } from '@/hooks/useSuggest';
+import { definitionDe, type SearchFilters } from '@/types/search';
+import type { Locale } from '@/i18n/config';
+
+/** Au plus autant de suggestions : l'état vide propose une issue, pas un second index. */
+const SUGGESTIONS_MAX = 6;
+
+/**
+ * TCK-911 (P01.09) — les suggestions de la barre de recherche (`SuggestService` : villes,
+ * quartiers, types), proposées quand le terme n'a rien trouvé. Avant, `ker` rendait 0 et aucune
+ * piste : le repli conjonctif exige deux termes, et la tolérance aux fautes, cinq lettres.
+ *
+ * ⚠ Une suggestion REMPLACE le terme : `q` (et son alias `search`) est retiré de l'URL, puisque
+ * c'est lui qui ne trouve rien ; les autres critères restent, comme depuis la barre
+ * ({@link urlDeSuggestion}). Pour la même raison, aucun compte n'est affiché : celui de
+ * `SuggestService` est pris sur tout le catalogue public, et les critères gardés le réduisent.
+ *
+ * Rien n'est rendu tant que la réponse n'est pas là, ni quand elle est vide : pas de squelette
+ * pour une issue facultative.
+ */
+function SuggestionsDuVide({ terme }: { readonly terme: string }) {
+  const t = useTranslations('search.results');
+  const locale = useLocale() as Locale;
+  const searchParams = useSearchParams();
+  const titreId = useId();
+  const { data } = useSuggest(terme);
+  const reponse = data?.data;
+  const items: SuggestItem[] = [
+    ...(reponse?.cities ?? []).map((d): SuggestItem => ({ kind: 'city', data: d })),
+    ...(reponse?.neighborhoods ?? []).map((d): SuggestItem => ({ kind: 'neighborhood', data: d })),
+    ...(reponse?.property_types ?? []).map((d): SuggestItem => ({ kind: 'property_type', data: d })),
+  ].slice(0, SUGGESTIONS_MAX);
+  if (items.length === 0) return null;
+
+  const base = new URLSearchParams(searchParams.toString());
+  for (const p of definitionDe('q').params) base.delete(p);
+
+  return (
+    <nav aria-labelledby={titreId} className="flex flex-col items-center gap-2">
+      <p id={titreId} className="text-sm font-medium text-foreground">
+        {t('vide_suggestions')}
+      </p>
+      <ul className="flex flex-wrap justify-center gap-2">
+        {items.map((item) => {
+          const libelle = item.kind === 'neighborhood' ? `${item.data.label}, ${item.data.city}` : item.data.label;
+          return (
+            <li key={`${item.kind}-${libelle}`}>
+              <Link
+                href={urlDeSuggestion(item, base, locale)}
+                className="inline-flex min-h-9 items-center rounded-full border border-border bg-card px-3 text-sm text-foreground underline-offset-2 hover:bg-muted hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {libelle}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
 
 export interface SearchEmptyProps {
   readonly filters: SearchFilters;
@@ -48,7 +110,8 @@ export interface SearchEmptyProps {
  * (`criteresEnCause` faux) : ni puce ni sauvegarde ici — la barre d'outils les porte déjà —, et
  * un titre qui ne dit pas d'élargir une recherche qui trouve des biens.
  *
- * Aucune requête de plus pour « deviner » le filtre le plus restrictif (hors périmètre).
+ * Aucune requête de plus pour « deviner » le filtre le plus restrictif (hors périmètre). Une seule
+ * requête s'ajoute, et seulement sur un terme : les suggestions de la barre ({@link SuggestionsDuVide}).
  */
 export function SearchEmpty({
   filters,
@@ -60,6 +123,7 @@ export function SearchEmpty({
 }: SearchEmptyProps) {
   const t = useTranslations('search.results');
   const aDesCriteres = criteresEnCause && activeCount > 0;
+  const terme = criteresEnCause ? (filters.q ?? '').trim() : '';
   const description = !criteresEnCause
     ? t('vide_description_hors_pages')
     : aDesCriteres
@@ -76,6 +140,7 @@ export function SearchEmpty({
       description={description}
       action={
         <div className="flex flex-col items-center gap-4">
+          {terme ? <SuggestionsDuVide terme={terme} /> : null}
           {criteresEnCause ? (
             <PucesDeFiltres
               filters={filters}

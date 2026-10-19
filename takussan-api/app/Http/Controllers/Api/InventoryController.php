@@ -92,7 +92,7 @@ class InventoryController extends Controller
         $inventory = $this->inventories->create($lease, $user, $data);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory)->toArray($request),
+            'data' => InventoryResource::make($inventory)->resolve($request),
         ], 201);
     }
 
@@ -107,7 +107,7 @@ class InventoryController extends Controller
         return $this->json([
             'data' => InventoryResource::make($inventory)
                 ->forViewer($request->user(), $this->signatures)
-                ->toArray($request),
+                ->resolve($request),
         ]);
     }
 
@@ -145,7 +145,7 @@ class InventoryController extends Controller
         $inventory = $this->inventories->update($inventory, $data, $presentKeys);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory)->toArray($request),
+            'data' => InventoryResource::make($inventory)->resolve($request),
         ]);
     }
 
@@ -155,7 +155,7 @@ class InventoryController extends Controller
         $inventory = $this->inventories->submit($inventory);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory)->toArray($request),
+            'data' => InventoryResource::make($inventory)->resolve($request),
         ]);
     }
 
@@ -176,7 +176,7 @@ class InventoryController extends Controller
         );
 
         return $this->json([
-            'data' => InventoryResource::make($inventory)->toArray($request),
+            'data' => InventoryResource::make($inventory)->resolve($request),
         ]);
     }
 
@@ -274,7 +274,7 @@ class InventoryController extends Controller
         $inventory = $this->inventories->dispute($inventory, $data['reason']);
 
         return $this->json([
-            'data' => InventoryResource::make($inventory)->toArray($request),
+            'data' => InventoryResource::make($inventory)->resolve($request),
         ]);
     }
 

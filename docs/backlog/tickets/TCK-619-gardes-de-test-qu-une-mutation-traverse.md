@@ -1,13 +1,13 @@
 ---
 id: TCK-619
-title: "Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, les branches globale et locataire de `/dashboard/stats`, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596)"
+title: "Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596)"
 status: todo
 phase: P2
 family: technique
 estimate: S
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -46,6 +46,8 @@ manque. *Un test vert ne prouve rien s'il serait vert sans le correctif.*
    que comme admin d'agence et comme bailleur ; le locataire n'y passe que par `/dashboard/tenant`, le
    super-admin jamais. Les deux autres branches peuvent recompter les impayés sans la règle
    `CollectedPayments::leaseOwed()` sans qu'un test rougisse.
+   **Sans objet depuis le 2026-10-18 : `GET /api/dashboard/stats` est retiré (TCK-952, piste
+   P45.03), faute d'appelant.** Le point, sa ligne de Delta et l'AC2 tombent avec la route.
 3. **`mark-paid` : verrou et écriture (596, P9-ML.4).** `LeasePaymentService::markPaid`
    (`app/Services/Lease/LeasePaymentService.php:46-48`) relit l'échéance `FOR UPDATE` dans une
    transaction et y écrit. `LeaseRenewalOverlapTest::test_mark_paid_rereads_the_due_under_lock`
@@ -73,8 +75,8 @@ manque. *Un test vert ne prouve rien s'il serait vert sans le correctif.*
 
 - [ ] `PropertyIndexQueryBudgetTest` : un bien dont le propriétaire est **admin d'agence** (sans profil
       agent) dans la page amorcée ; `is_agent` et la décision de personnel identiques à la ligne seule.
-- [ ] `OwedRemainderTest` : `/api/dashboard/stats` en super-admin (branche globale) et en locataire
-      (branche locataire), sur la même échéance trop payée.
+- ~~`OwedRemainderTest` : `/api/dashboard/stats` en super-admin (branche globale) et en locataire
+      (branche locataire), sur la même échéance trop payée.~~ — sans objet, route retirée (TCK-952).
 - [ ] `LeaseRenewalOverlapTest` (ou `LeasePaymentMarkPaidLockTest`) : le `FOR UPDATE` et l'`UPDATE
       "lease_payments"` relevés dans **la même** transaction — même niveau, sans `COMMIT` ni
       `RELEASE SAVEPOINT` entre les deux.
@@ -85,8 +87,8 @@ manque. *Un test vert ne prouve rien s'il serait vert sans le correctif.*
 
 - [ ] **AC1.** Mutation « `staff` sans les `AgencyAdminProfile` » (`MembershipCapabilityResolver.php:523`)
       → le test de la page amorcée rougit.
-- [ ] **AC2.** Mutation « `globalStats()` compte `overdue_payments` par `status = overdue` » → rouge ;
-      même mutation dans `tenantStats()` → rouge.
+- ~~**AC2.** Mutation « `globalStats()` compte `overdue_payments` par `status = overdue` » → rouge ;
+      même mutation dans `tenantStats()` → rouge.~~ — sans objet, route retirée (TCK-952).
 - [ ] **AC3.** Mutation « verrou dans une première `DB::transaction`, écriture dans une seconde »
       dans `markPaid` → rouge. Le code actuel → vert.
 - [ ] **AC4.** Mutation « `lockForUpdate()` retiré d'`initiate` » → rouge ; mutation « verrou hors de

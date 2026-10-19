@@ -29,6 +29,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
@@ -222,6 +223,12 @@ class PublicPropertyController extends Controller
      */
     public function cities(): JsonResponse
     {
+        // P35.04 — les variantes de casse d'une ville sont UNE entrée, comptée une fois, sous sa
+        // graphie la plus fréquente : le même repli que `neighborhoods()`. Groupée sur la valeur
+        // brute, « Saly » (40) et « SALY » (2) sortaient en deux entrées, et le front, qui replie
+        // en minuscules et garde la dernière lue, retenait la moins fréquente.
+        $replie = CaseInsensitive::sql('addresses.city');
+
         $lignes = Property::query()
             ->public()
             ->join('addresses', function ($jointure) {
@@ -230,15 +237,33 @@ class PublicPropertyController extends Controller
             })
             ->whereNotNull('addresses.city')
             ->where('addresses.city', '!=', '')
-            ->groupBy('addresses.city')
+            ->groupByRaw($replie)
             ->orderByDesc(DB::raw('count(*)'))
+            ->orderByRaw($replie)
             ->limit(self::citiesMax() + 1)
-            ->pluck(DB::raw('count(*) as cnt'), 'addresses.city');
+            ->get([
+                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.city) as valeur'),
+                DB::raw('count(*) as compte'),
+                // P35.05 — le compte par contrat : le sitemap n'annonce une paire contrat × ville
+                // qu'à partir de 3 biens. Les valeurs viennent de l'enum, jamais de la requête.
+                ...array_map(
+                    fn (ContractType $contrat) => DB::raw(
+                        "count(*) FILTER (WHERE properties.contract_type = '{$contrat->value}') as compte_{$contrat->value}"
+                    ),
+                    ContractType::cases(),
+                ),
+            ]);
 
         $tronque = $lignes->count() > self::citiesMax();
 
         $data = $lignes->take(self::citiesMax())
-            ->map(fn ($compte, $ville) => ['value' => (string) $ville, 'count' => (int) $compte])
+            ->map(fn ($l) => [
+                'value' => (string) $l->valeur,
+                'count' => (int) $l->compte,
+                'contracts' => collect(ContractType::cases())
+                    ->mapWithKeys(fn (ContractType $contrat) => [$contrat->value => (int) $l->{'compte_'.$contrat->value}])
+                    ->all(),
+            ])
             ->values()
             ->all();
 
@@ -514,8 +539,16 @@ class PublicPropertyController extends Controller
         $minLng = min($swLng, $neLng);
         $maxLng = max($swLng, $neLng);
 
+        // P01.10 (TCK-902) — la vignette ne lit que `getFirstMedia('photos')` : la seule première
+        // photo de chaque bien, dans l'ordre de la galerie, et non tous ses médias.
         $query = Property::query()
-            ->with('address', 'media')
+            ->with([
+                'address',
+                'media' => fn ($q) => $q->where('collection_name', 'photos')
+                    ->orderBy('order_column')
+                    ->orderBy('id')
+                    ->limit(1),
+            ])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereHas('address', function ($q) use ($minLat, $maxLat, $minLng, $maxLng) {
@@ -824,7 +857,7 @@ class PublicPropertyController extends Controller
         $notifier->requested($visit->fresh(['property', 'agent']));
 
         return $this->json([
-            'data' => PropertyVisitResource::make($visit)->toArray($request),
+            'data' => PropertyVisitResource::make($visit)->resolve($request),
         ], 201);
     }
 
@@ -976,7 +1009,7 @@ class PublicPropertyController extends Controller
             BookingRequested::dispatch($booking, $user->id);
 
             return $this->json([
-                'data' => BookingResource::make($booking)->toArray($request),
+                'data' => BookingResource::make($booking)->resolve($request),
             ], 201);
         }
 
@@ -1008,7 +1041,7 @@ class PublicPropertyController extends Controller
         BookingRequested::dispatch($booking, $user->id);
 
         return $this->json([
-            'data' => BookingResource::make($booking)->toArray($request),
+            'data' => BookingResource::make($booking)->resolve($request),
         ], 201);
     }
 

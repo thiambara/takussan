@@ -65,6 +65,7 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
           <div className="space-y-3">
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
               <table className="w-full text-left text-sm tabular-nums">
+                <caption className="sr-only">{tTable('caption')}</caption>
                 <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
@@ -112,6 +113,9 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
                             type="button"
                             className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             onClick={() => onSelect(payout.id)}
+                            aria-label={tTable('openLabel', {
+                              reference: payout.reference_number ?? `#${payout.id}`,
+                            })}
                           >
                             {tTable('open')}
                           </button>

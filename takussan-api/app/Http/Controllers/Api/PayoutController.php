@@ -54,7 +54,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->create($request->user(), $landlord, $data);
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->toArray($request),
+            'data' => PayoutResource::make($payout)->resolve($request),
         ], 201);
     }
 
@@ -64,7 +64,7 @@ class PayoutController extends Controller
 
         return $this->json([
             // TCK-594 — l'approbateur lit qui a préparé avant d'engager l'argent.
-            'data' => PayoutResource::make($payout->load(['issuer', 'payoutMethod:id,masked_identifier']))->toArray($request),
+            'data' => PayoutResource::make($payout->load(['issuer', 'payoutMethod:id,masked_identifier']))->resolve($request),
         ]);
     }
 
@@ -76,7 +76,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->approve($payout, $request->user(), $request->validated('payout_method_id'));
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->toArray($request),
+            'data' => PayoutResource::make($payout)->resolve($request),
         ]);
     }
 
@@ -88,7 +88,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->markProcessed($payout, $data, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->toArray($request),
+            'data' => PayoutResource::make($payout)->resolve($request),
         ]);
     }
 
@@ -100,7 +100,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->markFailed($payout, $data, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->toArray($request),
+            'data' => PayoutResource::make($payout)->resolve($request),
         ]);
     }
 
@@ -110,7 +110,7 @@ class PayoutController extends Controller
         $payout = $this->payouts->cancel($payout, $request->user());
 
         return $this->json([
-            'data' => PayoutResource::make($payout)->toArray($request),
+            'data' => PayoutResource::make($payout)->resolve($request),
         ]);
     }
 }

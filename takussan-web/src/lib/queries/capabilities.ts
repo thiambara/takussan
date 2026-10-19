@@ -11,7 +11,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { ApiResponse } from '@/types/api';
-import type { CapabilityCatalogue, CapabilityValue } from '@/types/agency-role';
+import type { CapabilityCatalogue } from '@/types/agency-role';
 
 export const capabilityKeys = {
   all: ['capabilities'] as const,
@@ -29,18 +29,4 @@ export function useCapabilityCatalogue() {
     '/api/capabilities',
     { staleTime: Infinity, gcTime: Infinity },
   );
-}
-
-/**
- * `true` si la capacité est réservée à la plateforme et ne peut donc PAS être
- * accordée à un rôle d'agence.
- *
- * La matrice s'en sert pour griser la case. Ce n'est pas une garde — l'API
- * refuse ces valeurs en 422 — c'est ce qui évite d'offrir un geste qui échoue.
- */
-export function isPlatformReserved(
-  catalogue: CapabilityCatalogue | undefined,
-  capability: CapabilityValue,
-): boolean {
-  return catalogue?.platform_reserved.includes(capability) ?? false;
 }

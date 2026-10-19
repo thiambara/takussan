@@ -9,9 +9,10 @@ import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { alternatesPubliques } from '@/lib/alternates';
+import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
-import { hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
+import { hrefDeLaVille, hrefDuQuartier } from '@/lib/fil-d-ariane-quartier';
 import { domainesDeLaListe } from '@/lib/queries/facettes';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
@@ -19,6 +20,7 @@ import { getEtatDuBien, getProperty } from '@/lib/queries/public-property';
 import { PropertyDetailContent } from './PropertyDetailContent';
 import { bienRetire, estRetire } from './bien-retire';
 import { CompteurDeVue } from './components/CompteurDeVue';
+import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 type Props = {
   readonly params: Promise<{ slug: string }>;
@@ -97,8 +99,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // rendait littéralement « null » quand ils l'étaient, et TCK-292 a reproduit le défaut à
   // l'identique plutôt que de le réparer en passant. **Il est réparé ici** : un repli qui n'a pas
   // de lieu à donner n'en invente pas, il n'en met pas.
+  // TCK-915 (P09.08) — coupée au mot, et une description vide prend le repli.
   const description =
-    property.description?.slice(0, 160) ??
+    resumePourMeta(property.description) ??
     tMeta('descriptionFallback', {
       type: property.type_label,
       quarter: property.location.quarter ?? '',
@@ -175,7 +178,7 @@ export default async function PropertyDetailPage({ params }: Props) {
         <>
           <Navbar />
           <NavbarSpacer />
-          {await bienRetire(etat)}
+          <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{await bienRetire(etat)}</main>
           <Footer />
         </>
       );
@@ -183,15 +186,20 @@ export default async function PropertyDetailPage({ params }: Props) {
   }
 
   // TCK-839 (P35.01) — le maillon de quartier pointe vers sa page canonique s'il est indexable dans
-  // sa ville. Domaines PARTAGÉS, en cache de données (une heure) : aucun appel propre au visiteur.
+  // sa ville ; P35.05 — celui de la ville vers la canonique contrat × ville, si la ville atteint le
+  // seuil de sa page. Domaines PARTAGÉS, en cache de données (une heure) : aucun appel propre au
+  // visiteur.
   const lieu = resultat.etat === 'trouve' ? resultat.bien.location : null;
-  const hrefQuartier =
-    resultat.etat === 'trouve' && lieu?.city && lieu.quarter
-      ? hrefDuQuartier(
-          resultat.bien,
-          await domainesDeLaListe(new URLSearchParams({ city: lieu.city, location: lieu.quarter })),
+  const domainesDuFil =
+    resultat.etat === 'trouve' && lieu?.city
+      ? await domainesDeLaListe(
+          new URLSearchParams(lieu.quarter ? { city: lieu.city, location: lieu.quarter } : { city: lieu.city }),
         )
-      : undefined;
+      : null;
+  const hrefQuartier =
+    resultat.etat === 'trouve' && domainesDuFil ? hrefDuQuartier(resultat.bien, domainesDuFil) : undefined;
+  const hrefVille =
+    resultat.etat === 'trouve' && domainesDuFil ? hrefDeLaVille(resultat.bien, domainesDuFil) : undefined;
 
   const corps =
     resultat.etat !== 'trouve' ? (
@@ -206,11 +214,11 @@ export default async function PropertyDetailPage({ params }: Props) {
         */}
         <DonneesStructurees
           donnees={jsonLdFilDAriane(
-            maillonsDeFiche(resultat.bien, await getTranslations('property.detail'), hrefQuartier),
+            maillonsDeFiche(resultat.bien, await getTranslations('property.detail'), hrefQuartier, hrefVille),
             locale,
           )}
         />
-        <PropertyDetailContent property={resultat.bien} hrefQuartier={hrefQuartier} />
+        <PropertyDetailContent property={resultat.bien} hrefQuartier={hrefQuartier} hrefVille={hrefVille} />
         <CompteurDeVue slug={resultat.bien.slug} />
       </>
     );
@@ -219,7 +227,8 @@ export default async function PropertyDetailPage({ params }: Props) {
     <>
       <Navbar />
       <NavbarSpacer />
-      {corps}
+      {/* TCK-895 (P31.02) — le repère du contenu, posé ici et non dans `PropertyDetailContent`. */}
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{corps}</main>
       <Footer />
     </>
   );

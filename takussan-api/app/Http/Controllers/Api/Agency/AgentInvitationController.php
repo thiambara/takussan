@@ -34,7 +34,7 @@ class AgentInvitationController extends Controller
         $invitation = $this->service->invite($agency, $user, $request->validated());
 
         return $this->json(
-            ['data' => InvitationResource::make($invitation)->toArray($request)],
+            ['data' => InvitationResource::make($invitation)->resolve($request)],
             201,
         );
     }

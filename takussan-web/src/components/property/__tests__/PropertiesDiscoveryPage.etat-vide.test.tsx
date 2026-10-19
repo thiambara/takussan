@@ -36,6 +36,9 @@ vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
 // TCK-633 — les listes du référentiel interrogent l'API par React Query ; la page est montée ici
 // sans `QueryClientProvider`.
 vi.mock('@/components/search/ChoixDuReferentiel', () => import('@/components/search/__tests__/doublure-choix-du-referentiel'));
+// TCK-911 — l'état vide interroge les suggestions par React Query, sans provider ici : aucune
+// suggestion, ce que ce fichier n'éprouve pas (`SearchEmpty.suggestions.test.tsx` le fait).
+vi.mock('@/hooks/useSuggest', () => ({ useSuggest: () => ({ data: undefined, isLoading: false, isFetching: false }) }));
 // La VRAIE `SaveSearchButton` est rendue — l'AC4 la vise. Seule sa mutation est remplacée.
 vi.mock('@/lib/queries/saved-searches', () => ({
   useCreateSavedSearchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -45,7 +48,6 @@ import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
 
 const REPONSE_VIDE = {
   data: [],
-  facets: {},
   meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 },
 };
 
@@ -191,7 +193,6 @@ describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide 
   it('page au-delà de la dernière (le total n’est pas nul) : aucune puce, une seule sauvegarde', async () => {
     mockApiFetch.mockResolvedValue({
       data: [],
-      facets: {},
       meta: { total: 180, per_page: 30, current_page: 50, last_page: 6 },
     });
     const vide = await monteAZero('contract_type=rent&page=50');

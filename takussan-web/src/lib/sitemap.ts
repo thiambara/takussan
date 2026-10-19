@@ -332,10 +332,13 @@ export const SEGMENTS_SERVIS_AUX_ROBOTS: readonly string[] = ['_next'];
 /**
  * Ce que `robots.txt` interdit — dérivé de {@link SEGMENTS_NON_LOCALISES}, jamais recopié.
  *
- * Sans barre finale, délibérément : `Disallow: /app` interdit `/app` ET tout ce qui commence par
- * `/app`, là où `Disallow: /app/` laisserait `/app` lui-même explorable. Aucune surface publique
- * ne commence par l'un de ces préfixes — les chemins publics sont tous `/<langue>/…`.
+ * DEUX règles par segment, `/app/` et `/app$` : le segment lui-même, et ce qu'il contient.
+ * ⚠ TCK-926 (P34.05) — elles s'écrivaient `/app`, sans barre finale. Une règle `Disallow` se lit
+ * par PRÉFIXE : `/app` interdisait aussi `/apple-icon.png`, l'icône Apple du site, servie à la
+ * racine, et tout sosie (`/appartements`). Ce docblock affirmait qu'« aucune surface publique ne
+ * commence par l'un de ces préfixes » : c'était vrai des pages, pas des fichiers. Le test
+ * (`sitemap.test.ts`) confronte désormais les règles aux fichiers servis à la racine.
  */
 export const CHEMINS_INTERDITS_AUX_ROBOTS: readonly string[] = SEGMENTS_NON_LOCALISES.filter(
   (segment) => !SEGMENTS_SERVIS_AUX_ROBOTS.includes(segment),
-).map((segment) => `/${segment}`);
+).flatMap((segment) => [`/${segment}/`, `/${segment}$`]);

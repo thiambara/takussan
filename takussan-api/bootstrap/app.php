@@ -2,6 +2,7 @@
 
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
+use App\Http\Middleware\AddRobotsTagOutsideProduction;
 use App\Http\Middleware\CountBoostImpressions;
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
@@ -66,6 +67,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $mappingCsv = fn (Request $request): bool => UpdateBankCsvMappingRequest::estEcritureDeMapping($request);
         $middleware->trimStrings(except: [$brouillon, $mappingCsv]);
         $middleware->convertEmptyStringsToNull(except: [$brouillon, $mappingCsv]);
+
+        // TCK-926 (P34.05) — `X-Robots-Tag: noindex` sur toute réponse hors de la production
+        // (origine d'`APP_URL`) : global, il couvre `api/*`, les routes `web` et les erreurs.
+        $middleware->append(AddRobotsTagOutsideProduction::class);
 
         $middleware->api(prepend: [
             // TCK-620 (ADR-0060) — en tête : il voit la réponse finale de la requête.

@@ -144,8 +144,8 @@ function premierNiveau(corps: string): string {
  *
  * · aucune déclaration littérale de `metadata` / `generateMetadata` dans le fichier → `'inconnu'` ;
  * · une métadonnée réexportée ou affectée depuis un identifiant importé → `'inconnu'` ;
- * · une déclaration lisible SANS `robots` → `'indexable'` (elle hérite du layout du groupe, qui
- *   déclare `robots: { index: true, follow: true }`) ;
+ * · une déclaration lisible SANS `robots` → `'indexable'` (`index, follow` est la valeur par
+ *   défaut ; le layout du groupe ne déclare plus `robots` depuis TCK-915) ;
  * · une déclaration lisible AVEC `robots` sous une forme reconnue → cette forme ;
  * · toute autre forme de `robots` → `'inconnu'`.
  *

@@ -26,7 +26,7 @@ describe('fetchCrmTags', () => {
     const [chemin] = api.apiRequest.mock.calls[0] as [string];
     const params = new URL(chemin, 'http://x').searchParams;
 
-    expect(params.get('fields[tags]')).toBe('id,name,color');
+    expect(params.get('fields[tags]')).toBe('id,name,slug,color');
     expect(params.get('sort')).toBe('-usage_count');
     expect(params.get('filter[type]')).toBe('crm');
   });

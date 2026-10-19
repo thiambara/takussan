@@ -377,6 +377,40 @@ export function cheminCanoniqueDeLaListe(
   return `${CHEMIN_LISTE}?${query.toString()}`;
 }
 
+/**
+ * Le numéro de page que l'URL demande, ou `1` — TCK-915 (P09.08).
+ *
+ * Seul un entier décimal strictement positif compte : `0`, `-2`, `2.5` ou `abc` désignent la
+ * première page, comme le serveur les servirait.
+ */
+export function pageDemandee(params: URLSearchParams): number {
+  const brut = (params.get('page') ?? '').trim();
+  if (!/^\d+$/.test(brut)) return 1;
+  const page = Number(brut);
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+/**
+ * Le chemin canonique d'UNE PAGE de la liste — TCK-915 (P09.08), décision du porteur :
+ * « canonique propre à chaque page ».
+ *
+ * La canonique de la liste (`cheminCanoniqueDeLaListe`), plus `page=N` au-delà de la première.
+ * `page=3` déclarait jusqu'ici la page 1 pour canonique : les biens des pages suivantes n'étaient
+ * annoncés par aucune URL canonique d'elle-même.
+ *
+ * ⚠ `cheminCanoniqueDeLaListe` reste sans `page` : le fil d'Ariane, le sitemap et les liens de
+ * facette désignent une LISTE, donc sa première page.
+ */
+export function cheminCanoniqueDeLaPage(
+  params: URLSearchParams,
+  domaines: DomainesDeFacette,
+): string {
+  const chemin = cheminCanoniqueDeLaListe(params, domaines);
+  const page = pageDemandee(params);
+  if (page === 1) return chemin;
+  return `${chemin}${chemin.includes('?') ? '&' : '?'}page=${page}`;
+}
+
 /** `searchParams` de Next → `URLSearchParams`, une valeur répétée gardant la PREMIÈRE. */
 export function versParametres(
   brut: Readonly<Record<string, string | readonly string[] | undefined>>,

@@ -2,6 +2,7 @@
 
 namespace App\Services\Lease;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Events\Lease\LeaseRentReviewed;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
@@ -213,7 +214,8 @@ class RentReviewService
 
         $pct = (float) $value;
 
-        return $pct > 0 ? $pct : (float) self::DEFAULT_MAX_PCT;
+        // TCK-964 (P47.04) — au plus la borne du catalogue, pour une ligne écrite avant sa règle.
+        return $pct > 0 ? EditablePlatformSettings::clamp(self::SETTING_KEY, $pct) : (float) self::DEFAULT_MAX_PCT;
     }
 
     /**

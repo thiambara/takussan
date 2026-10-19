@@ -1,9 +1,9 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
-import { ComboboxMultiple, replierPourIdentite, type OptionDeListe } from '@/components/ui/combobox';
+import { ComboboxMultiple, replierPourIdentite, replierPourRecherche, type OptionDeListe } from '@/components/ui/combobox';
 import { ESPACE_DU_CATALOGUE, libelleEquipement } from '@/lib/libelle-equipement';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
@@ -41,6 +41,7 @@ export function ChampEquipements({
 }) {
   const t = useTranslations('property.form.amenities');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  const locale = useLocale();
   const { control, setValue } = form;
   const [idsSuivis, nomsSuivis] = useWatch({ control, name: ['tag_ids', 'tag_names'] });
   const ids = (idsSuivis ?? []) as number[];
@@ -54,7 +55,11 @@ export function ChampEquipements({
   const connus = new Map<number, Tag>();
   for (const tag of [...attaches, ...tags]) connus.set(tag.id, tag);
 
-  const options = tags.filter((tag) => tag.status !== 'rejected').map(enOption);
+  // TCK-923 — triées sur le libellé AFFICHÉ : l'API ordonne par le nom français.
+  const options = tags
+    .filter((tag) => tag.status !== 'rejected')
+    .map(enOption)
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
   const valeurs: OptionDeListe[] = [
     ...ids.flatMap((id) => {
       const tag = connus.get(id);
@@ -89,6 +94,14 @@ export function ChampEquipements({
         creation={{
           libelle: (nom) => t('create', { name: nom }),
           surCreation: (nom) => {
+            // TCK-925 — un nom égal, au repli près (casse, accents, tirets, apostrophes), au libellé
+            // AFFICHÉ d'un équipement est cet équipement : le serveur ne replie que sur les noms
+            // français, et « tumble-dryer » y devenait une proposition, doublon de « Sèche-linge ».
+            const connu = options.find((o) => replierPourRecherche(o.label) === replierPourRecherche(nom));
+            if (connu) {
+              if (!ids.includes(Number(connu.value))) setValue('tag_ids', [...ids, Number(connu.value)], { shouldDirty: true });
+              return;
+            }
             // Un nom déjà retenu (à la casse près) ne se double pas.
             if (noms.some((n) => replierPourIdentite(n) === replierPourIdentite(nom))) return;
             setValue('tag_names', [...noms, nom], { shouldDirty: true });

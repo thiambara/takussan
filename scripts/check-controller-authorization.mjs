@@ -131,7 +131,10 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
   // `::authorizeLease` et `CustomerNoteController::authorizeCustomerAccess` recopiaient la règle
   // `view` de leur policy, et lui délèguent.
   //
-  // Chaque entrée retirée est un helper migré.
+  // **10 depuis TCK-940** : `PaymentController::authorizeBookingManage` et `::authorizeLeaseManage`
+  // sont partis avec `POST /api/payments`, la seule action qui les appelait.
+  //
+  // Chaque entrée retirée est un helper migré (ou parti avec son action).
   // ───────────────────────────────────────────────────────────────────────────
   ...[
     'Api/Agency/KycController.php::authorizeAgencyAdmin',
@@ -142,8 +145,6 @@ const EXEMPTIONS_JUSTIFIEES = new Map([
     'Api/KycDocumentController.php::authorizeDocument',
     'Api/Me/TenantOnboardingChecklistController.php::authorizeTenant',
     'Api/MediaController.php::authorizeAttach',
-    'Api/PaymentController.php::authorizeBookingManage',
-    'Api/PaymentController.php::authorizeLeaseManage',
     'Api/TagController.php::authorizeWrite',
     'Api/ThresholdAlertController.php::authorizeAgency',
   ].map((cle) => [cle, 'hors périmètre TCK-306 (qui nomme 25 contrôleurs et 88 appels) — dette mesurée le 2026-08-17, à reprendre par un ticket de suite']),

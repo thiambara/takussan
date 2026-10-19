@@ -52,7 +52,7 @@ class BookingController extends Controller
         $booking = $this->bookings->create($property, $request->user(), $data);
 
         return $this->json([
-            'data' => BookingResource::make($booking->load(['property', 'customer', 'agency']))->toArray($request),
+            'data' => BookingResource::make($booking->load(['property', 'customer', 'agency']))->resolve($request),
         ], 201);
     }
 
@@ -60,7 +60,7 @@ class BookingController extends Controller
     {
         $this->authorize('view', $booking);
 
-        $data = BookingResource::make($booking->load(['property.address', 'customer', 'agency', 'payments']))->toArray($request);
+        $data = BookingResource::make($booking->load(['property.address', 'customer', 'agency', 'payments']))->resolve($request);
         // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
         $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
 
@@ -74,7 +74,7 @@ class BookingController extends Controller
         $booking = $this->bookings->confirm($booking);
 
         return $this->json([
-            'data' => BookingResource::make($booking)->toArray($request),
+            'data' => BookingResource::make($booking)->resolve($request),
         ]);
     }
 
@@ -86,7 +86,7 @@ class BookingController extends Controller
         $booking = $this->bookings->cancel($booking, $request->user(), $data['reason'] ?? null);
 
         return $this->json([
-            'data' => BookingResource::make($booking)->toArray($request),
+            'data' => BookingResource::make($booking)->resolve($request),
         ]);
     }
 
@@ -98,7 +98,7 @@ class BookingController extends Controller
         $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
 
         return $this->json([
-            'data' => BookingResource::make($booking)->toArray($request),
+            'data' => BookingResource::make($booking)->resolve($request),
         ]);
     }
 }

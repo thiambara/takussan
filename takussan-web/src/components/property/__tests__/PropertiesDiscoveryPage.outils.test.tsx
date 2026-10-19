@@ -39,7 +39,6 @@ import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
 function reponse(total: number) {
   return {
     data: [],
-    facets: {},
     meta: { total, per_page: 30, current_page: 1, last_page: 1 },
   };
 }

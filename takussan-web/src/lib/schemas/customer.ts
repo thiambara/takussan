@@ -25,6 +25,14 @@ export const pipelineStageValues = [
 
 export const idTypeValues = ['id_card', 'passport', 'driving_license'] as const;
 
+/**
+ * TCK-921 — la langue des messages d'un client sans compte, celles de l'interface. `default` n'est
+ * pas une valeur de l'API : l'option qui l'efface, que `normaliseCustomerForm` rend en `null`
+ * (l'API replie alors sur `fr`).
+ */
+export const customerLocaleValues = ['fr', 'en', 'wo'] as const;
+export const CUSTOMER_LOCALE_DEFAULT = 'default';
+
 /** TCK-591 §5 — vocabulaire de `ContractType` et `PropertyType` (API), celui de la recherche publique. */
 export const seekingContractTypeValues = ['sale', 'rent'] as const;
 export const seekingPropertyTypeValues = [
@@ -78,6 +86,10 @@ export const customerFormSchema = z
       msgValidation('customer.idTypeInvalid'),
     ),
     id_number: z.string().max(64, msgValidation('customer.idNumberTooLong')),
+    locale: z.string().optional().refine(
+      (v) => !v || v === CUSTOMER_LOCALE_DEFAULT || (customerLocaleValues as readonly string[]).includes(v),
+      msgValidation('customer.localeInvalid'),
+    ),
     // TCK-591 §5 — critères du prospect. Facultatifs ici (le formulaire compact ne les montre
     // pas) ; un champ vide part en `null` et EFFACE le critère côté API.
     seeking_contract_type: z.string().optional().refine(
@@ -132,6 +144,8 @@ export interface CustomerFormPayload {
   status: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number];
   id_number?: string;
+  /** TCK-921 — `null` efface la langue de la fiche. */
+  locale?: (typeof customerLocaleValues)[number] | null;
   /** TCK-591 — `true` après un 409 `customer.duplicate` assumé (« Créer quand même »). */
   allow_duplicate?: boolean;
   seeking_contract_type?: (typeof seekingContractTypeValues)[number] | null;
@@ -194,6 +208,10 @@ export function normaliseCustomerForm(
         ? (values.id_type as (typeof idTypeValues)[number])
         : undefined,
     id_number: blank(values.id_number),
+    locale:
+      values.locale && (customerLocaleValues as readonly string[]).includes(values.locale)
+        ? (values.locale as (typeof customerLocaleValues)[number])
+        : null,
     seeking_contract_type:
       values.seeking_contract_type
       && (seekingContractTypeValues as readonly string[]).includes(values.seeking_contract_type)

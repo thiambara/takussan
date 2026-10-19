@@ -2,6 +2,7 @@
   "common": {
     "appName": "Takussan",
     "tagline": "Immobilier au Sénégal",
+    "skipToContent": "Aller au contenu principal",
     "actions": {
       "save": "Enregistrer",
       "cancel": "Annuler",
@@ -187,7 +188,6 @@
       "pendingBadge": "{count} en attente",
       "topbarBrand": "Takussan · Console",
       "consoleBadge": "Console",
-      "skipToContent": "Aller au contenu principal",
       "groups": {
         "overview": "Vue d'ensemble",
         "operations": "Opérations",
@@ -500,7 +500,14 @@
     },
     "meta": {
       "template": "%s — Takussan",
-      "default": "Authentification — Takussan"
+      "default": "Authentification — Takussan",
+      "titles": {
+        "login": "Connexion",
+        "register": "Inscription",
+        "forgotPassword": "Mot de passe oublié",
+        "resetPassword": "Nouveau mot de passe",
+        "verifyEmail": "Vérification de l'e-mail"
+      }
     },
     "layout": {
       "visualAlt": "Villa contemporaine au Sénégal",
@@ -706,6 +713,7 @@
       "empty": "Pas encore de biens dans cette sélection."
     },
     "discovery": {
+      "neighbourhoodsOf": "Quartiers de {city}",
       "viewSwitchAria": "Vue des résultats",
       "viewList": "Liste",
       "viewMap": "Carte",
@@ -2744,6 +2752,8 @@
       "phone": "Téléphone",
       "occupation": "Profession",
       "occupationPlaceholder": "Enseignant, commerçant, etc.",
+      "locale": "Langue des messages",
+      "localeDefault": "Par défaut (français)",
       "crmSection": "Suivi CRM",
       "pipelineStage": "Étape du pipeline",
       "status": "Statut",
@@ -2774,6 +2784,13 @@
       "removeAria": "Retirer le tag {tag}",
       "inputLabel": "Ajouter un tag au client",
       "filterAria": "Voir les clients tagués {tag}"
+    },
+    "tagCatalog": {
+      "vip": "VIP",
+      "prospect-chaud": "Prospect chaud",
+      "etranger": "Étranger",
+      "famille": "Famille",
+      "etudiant": "Étudiant"
     }
   },
   "agentCrm": {
@@ -3352,7 +3369,9 @@
         "amount": "Montant",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Factures",
+        "openLabel": "Ouvrir la facture {reference}"
       }
     },
     "payouts": {
@@ -3366,7 +3385,9 @@
         "net": "Net",
         "status": "Statut",
         "actions": "Actions",
-        "open": "Ouvrir"
+        "open": "Ouvrir",
+        "caption": "Reversements",
+        "openLabel": "Ouvrir le reversement {reference}"
       }
     },
     "history": {
@@ -3407,7 +3428,8 @@
           "lease": "Bail"
         },
         "entityLease": "Bail #{id}",
-        "entityBooking": "Réservation #{id}"
+        "entityBooking": "Réservation #{id}",
+        "caption": "Historique des paiements"
       }
     },
     "status": {
@@ -4350,6 +4372,7 @@
       "vide_description": "Retirez un seul critère : les autres restent en place.",
       "vide_description_sans_critere": "Il y a sûrement un bien pour vous : repartez d'une recherche vierge.",
       "vide_criteres_aria": "Retirer un critère",
+      "vide_suggestions": "Essayez plutôt",
       "empty_cta": "Effacer tous les filtres",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
@@ -4357,7 +4380,8 @@
       "error_retry": "Réessayer",
       "vide_titre_hors_pages": "Rien sur cette page",
       "vide_description_hors_pages": "Cette recherche compte moins de pages : revenez à l'une des précédentes.",
-      "updating": "Mise à jour des biens…"
+      "updating": "Mise à jour des biens…",
+      "heading": "Résultats de la recherche"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",
@@ -6335,8 +6359,6 @@
         "phone": "Téléphone",
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
-        "timezone": "Fuseau horaire",
-        "timezonePlaceholder": "Africa/Dakar",
         "websitePlaceholder": "https://votre-agence.sn"
       },
       "moderation": {
@@ -9541,7 +9563,8 @@
         "net": "Net",
         "status": "Statut",
         "paidOn": "Versé le",
-        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment."
+        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment.",
+        "caption": "Reversements de la plateforme"
       },
       "close": {
         "title": "Clôturer une période",
@@ -9691,7 +9714,6 @@
       "websiteInvalid": "URL invalide. Exemple : https://exemple.sn",
       "commissionRange": "La commission doit être comprise entre 0 et 100.",
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
-      "timezoneTooLong": "Fuseau horaire trop long.",
       "logoTooLarge": "Le logo dépasse 2 Mo.",
       "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP.",
       "taxRateRange": "La TVA doit être comprise entre 0 et 100.",
@@ -9736,6 +9758,7 @@
     "customer": {
       "occupationTooLong": "La profession est trop longue.",
       "idTypeInvalid": "Type de pièce invalide.",
+      "localeInvalid": "Langue invalide.",
       "idNumberTooLong": "Le numéro est trop long.",
       "emailOrPhone": "Renseignez au moins un e-mail ou un téléphone.",
       "idNumberRequired": "Numéro requis lorsqu’un type de pièce est sélectionné.",
@@ -9869,7 +9892,8 @@
     "dropzone_hint_short": "ou cliquez — {size} max, jusqu'à {max} fichiers.",
     "cover": "Couverture",
     "delete_photo_aria": "Supprimer cette photo",
-    "remove_file_aria": "Retirer {name}"
+    "remove_file_aria": "Retirer {name}",
+    "take_photo": "Prendre une photo"
   },
   "ui": {
     "datePicker": {

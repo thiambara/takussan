@@ -19,6 +19,7 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
+use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -114,6 +115,11 @@ final class ResourceInventory
                 .'(`slug`, `updated_at`) — même écart de nommage que la GeoJSON juste au-dessus : '
                 .'le suffixe décrit le FORMAT DE SORTIE, pas le modèle. Ajoutée par TCK-431 et '
                 .'oubliée ici ; la garde de registre est le seul mécanisme qui l\'ait dit.',
+        ],
+        ServiceProviderDirectoryResource::class => [
+            'modeles' => [ServiceProviderProfile::class],
+            'raison' => 'Une ligne du carnet des prestataires d\'une agence, `metadata` réduite à ce que le front lit (TCK-904, P21.06) — '
+                .'le nom dit la vue, et le modèle vit sous `Profiles\\`.',
         ],
         OwnerProfileResource::class => [
             'modeles' => [OwnerProfile::class],

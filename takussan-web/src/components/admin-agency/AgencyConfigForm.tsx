@@ -17,7 +17,7 @@ import {
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
-import { CURRENCY_METADATA, formatCurrency, type CurrencyCode } from '@/lib/format/currency';
+import { CURRENCY_METADATA, formatMontant, type CurrencyCode } from '@/lib/format/currency';
 import { useTranslations } from 'next-intl';
 import {
   agencyFormSchema,
@@ -54,17 +54,11 @@ interface AgencyConfigFormProps {
 
 function toDefaults(agency: Agency): AgencyFormValues {
   const settings = agency.settings ?? {};
-  const commission =
-    typeof settings.default_commission_rate === 'number'
-      ? settings.default_commission_rate
-      : agency.commission_rate;
-  // TCK-084 — agency-level `currency` is now a first-class column. We still
-  // accept the legacy `settings.currency` value as a fallback so previously
-  // saved agencies migrate without an explicit data backfill.
-  const currency =
-    agency.currency
-    ?? (typeof settings.currency === 'string' ? settings.currency : '')
-    ?? '';
+  // TCK-962 — la commission et la devise se lisent sur leurs colonnes, celles que l'API applique.
+  // Les miroirs `settings.default_commission_rate` et `settings.currency` d'anciennes données ne
+  // sont plus ni lus ni réenregistrés.
+  const commission = agency.commission_rate;
+  const currency = agency.currency ?? '';
   return {
     name: agency.name ?? '',
     license_number: agency.license_number ?? '',
@@ -74,7 +68,6 @@ function toDefaults(agency: Agency): AgencyFormValues {
     website: agency.website ?? '',
     commission_rate: commission !== null && commission !== undefined ? String(commission) : '',
     currency: currency.toUpperCase(),
-    timezone: typeof settings.timezone === 'string' ? settings.timezone : '',
     moderation_required: agency.moderation_required ?? false,
     require_team_two_factor: settings.require_team_two_factor === true,
     // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
@@ -391,7 +384,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               placeholder={tCurrency('placeholder')}
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {tCurrency('preview', { example: formatCurrency(100_000, selectedCurrency) })}
+              {tCurrency('preview', { example: formatMontant(100_000, selectedCurrency) })}
             </p>
             {currencyChanged ? (
               <p
@@ -402,12 +395,6 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               </p>
             ) : null}
           </div>
-          <FormInput
-            control={control}
-            name="timezone"
-            label={t('fields.timezone')}
-            placeholder={t('fields.timezonePlaceholder')}
-          />
         </div>
 
         {/* TCK-098 — moderation toggle */}
@@ -494,7 +481,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
                     {pendingThreshold.threshold == null
                       ? tMoney('thresholdPendingOff')
                       : tMoney('thresholdPendingRaise', {
-                          threshold: formatCurrency(pendingThreshold.threshold, originalCurrency),
+                          threshold: formatMontant(pendingThreshold.threshold, originalCurrency),
                         })}
                   </p>
                   {user != null && pendingThreshold.requested_by_id === user.id ? (

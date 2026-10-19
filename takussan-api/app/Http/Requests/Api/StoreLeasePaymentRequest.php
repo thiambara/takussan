@@ -38,9 +38,12 @@ class StoreLeasePaymentRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:0'],
+            // P46.05 (TCK-958) — une ligne à 0 n'est rien à encaisser, et une caution rendue ne se
+            // crée pas ici : rattachée à aucun reversement, `mark-paid` la refuse, et elle restait
+            // `pending` pour toujours. Elle naît du reversement de caution.
+            'amount' => ['required', 'numeric', 'gt:0'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'payment_type' => ['required', Rule::enum(LeasePaymentType::class)],
+            'payment_type' => ['required', Rule::enum(LeasePaymentType::class)->except(LeasePaymentType::DepositRefund)],
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'due_date' => ['nullable', 'date'],

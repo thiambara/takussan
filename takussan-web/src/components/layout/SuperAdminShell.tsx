@@ -5,6 +5,7 @@ import type { User } from '@/types/user';
 import { useTranslations } from 'next-intl';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
+import { LienEvitement } from '@/components/shared/LienEvitement';
 import { SuperAdminTopbar } from './SuperAdminTopbar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { PlatformAbilitiesProvider } from '@/components/admin/super/PlatformAbilitiesProvider';
@@ -70,25 +71,9 @@ export function SuperAdminShell({ user, abilities, children }: SuperAdminShellPr
     <PlatformAbilitiesProvider value={abilities}>
     <div className="relative flex h-dvh flex-col bg-muted">
       <div className="h-1 shrink-0 bg-primary" aria-hidden="true" />
-      {/*
-        TCK-359 — PREMIER élément focalisable du document : la tabulation depuis le haut de la
-        page tombe ici, pas sur la 1re des 24 entrées de la sidebar.
-
-        ⚠ Le `onClick` n'est PAS une redondance du `href`. La navigation par fragment ne déplace
-        le focus que sur une cible focalisable — d'où le `tabIndex={-1}` sur `<main>` — et Safari
-        ne le déplace pas du tout. Le handler rend le comportement identique partout, et c'est
-        aussi lui qui rend l'AC3 exécutable sous jsdom, qui n'implémente aucune navigation par
-        fragment.
-      */}
-      <a
-        href={`#${SUPER_ADMIN_MAIN_ID}`}
-        onClick={() => {
-          document.getElementById(SUPER_ADMIN_MAIN_ID)?.focus();
-        }}
-        className="sr-only rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:outline-none focus:ring-2 focus:ring-ring"
-      >
-        {t('skipToContent')}
-      </a>
+      {/* TCK-359 — PREMIER élément focalisable du document : la tabulation depuis le haut de la
+          page tombe ici, pas sur la 1re des 24 entrées de la sidebar. */}
+      <LienEvitement cible={SUPER_ADMIN_MAIN_ID} />
       <SuperAdminTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">

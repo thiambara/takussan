@@ -103,15 +103,22 @@ class PipelineStatsService
      * `->>` rend du TEXTE et déquote lui-même : il n'y a pas d'équivalent de
      * `JSON_UNQUOTE` à écrire, l'oublier donnerait des valeurs entourées de guillemets.
      * Les deux opérateurs valent sur `json` comme sur `jsonb`.
+     *
+     * ⚠ La colonne est `attribute_changes`, pas `properties` (P56.01) : activitylog v5 y
+     * écrit le diff d'un événement de modèle (`old`, `attributes`) et laisse `properties` à
+     * ce qu'écrit `withProperties()`, donc `[]` ici. Lire `properties` rendait 0 pour toujours.
      */
-    private const PIPELINE_STAGE_OLD = "properties->'old'->>'pipeline_stage'";
+    private const PIPELINE_STAGE_OLD = "attribute_changes->'old'->>'pipeline_stage'";
 
-    private const PIPELINE_STAGE_NEW = "properties->'attributes'->>'pipeline_stage'";
+    private const PIPELINE_STAGE_NEW = "attribute_changes->'attributes'->>'pipeline_stage'";
 
     /**
      * Count of pipeline_stage transitions for the in-scope customers in the
-     * last 30 days. Uses the spatie activity log (Auditable trait) which
-     * tracks `pipeline_stage` in its `properties` JSON column.
+     * last 30 days. Uses the spatie activity log (Auditable trait), whose
+     * `attribute_changes` JSON column carries the `pipeline_stage` diff.
+     *
+     * The `created` row also carries `attributes.pipeline_stage`: only rows with
+     * a previous stage (`old`) are transitions.
      */
     protected function stageChangesLast30Days(Collection $customerIds): int
     {
@@ -124,6 +131,7 @@ class PipelineStatsService
             ->whereIn('subject_id', $customerIds)
             ->where('created_at', '>=', now()->subDays(30))
             ->whereRaw(self::PIPELINE_STAGE_NEW.' IS NOT NULL')
+            ->whereRaw(self::PIPELINE_STAGE_OLD.' IS NOT NULL')
             ->count();
     }
 

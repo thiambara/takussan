@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\BankStatementStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,9 @@ class BankStatement extends AbstractModel implements HasMedia
     protected static array $queryFields = [
         'id', 'agency_id', 'source_format', 'status', 'bank_name', 'account_iban_masked',
         'period_start', 'period_end', 'lines_count', 'skipped_lines_count', 'finalized_at', 'created_at', 'updated_at',
+        // TCK-987 (P58.02) — les clés de `uploadedBy` / `finalizedBy` : sans elles, ces relations se
+        // chargent à vide sous un sparse fieldset.
+        'uploaded_by', 'finalized_by',
     ];
 
     protected static array $requestLoadable = ['uploadedBy', 'finalizedBy', 'agency'];
@@ -86,12 +90,44 @@ class BankStatement extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-988 (P58.03) — précharge les comptes que lit {@see self::getReconciledRatioAttribute()} :
+     * une liste ne lance plus une requête de lignes par relevé.
+     *
+     * Alias explicites : `lines_count` est une COLONNE de `bank_statements`, l'alias par défaut de
+     * `withCount('lines')` la doublerait (piège PostgreSQL n°7).
+     */
+    public function scopeWithReconciledCounts(Builder $query): Builder
+    {
+        return $query->withCount([
+            'lines as reconciled_total_count',
+            'lines as reconciled_confirmed_count' => fn (Builder $lignes) => $lignes->where('match_status', BankStatementLineMatchStatus::Confirmed->value),
+            'lines as reconciled_ignored_count' => fn (Builder $lignes) => $lignes->where('match_status', BankStatementLineMatchStatus::Ignored->value),
+        ]);
+    }
+
+    /**
      * Computed attribute: reconciliation ratio.
+     *
+     * Lit les comptes préchargés par {@see self::scopeWithReconciledCounts()} quand ils sont là,
+     * sinon interroge les lignes.
      *
      * @return array{confirmed: int, ignored: int, remaining: int, total: int}
      */
     public function getReconciledRatioAttribute(): array
     {
+        if (array_key_exists('reconciled_total_count', $this->attributes)) {
+            $confirmed = (int) $this->attributes['reconciled_confirmed_count'];
+            $ignored = (int) $this->attributes['reconciled_ignored_count'];
+            $total = (int) $this->attributes['reconciled_total_count'];
+
+            return [
+                'confirmed' => $confirmed,
+                'ignored' => $ignored,
+                'remaining' => $total - $confirmed - $ignored,
+                'total' => $total,
+            ];
+        }
+
         $counts = $this->lines()
             ->selectRaw('match_status, count(*) as cnt')
             ->groupBy('match_status')

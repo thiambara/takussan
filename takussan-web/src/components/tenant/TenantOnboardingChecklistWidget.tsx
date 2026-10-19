@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, ChevronRight, Circle, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
+import { useActiveLeaseSummaries, type ActiveLeaseSummary } from '@/lib/queries/leases';
 import { useCompleteOnboardingItem, useTenantOnboardingChecklist } from '@/lib/queries/tenant-onboarding';
 import type { TenantOnboardingChecklist, TenantOnboardingChecklistItem } from '@/types/tenant-onboarding';
 import { cn } from '@/lib/utils';
@@ -19,14 +20,14 @@ import { cn } from '@/lib/utils';
  *  - or every active lease has its checklist completed
  *    (`completed_at !== null`).
  *
- * The widget fetches the lease ids client-side (the dashboard root is a
- * server component but this banner needs the auth-bound tenant context to
- * render correctly). It then drills into each lease's checklist via the
+ * The widget reads the lease ids client-side, through the Laravel API (the
+ * dashboard root is a server component but this banner needs the auth-bound
+ * tenant context to render correctly). It then drills into each lease's checklist via the
  * dedicated `/api/me/leases/{id}/onboarding-checklist` endpoint — N+1 is
  * fine here since a tenant rarely has more than 1-2 active leases.
  */
 
-type LeaseSummary = { id: number; reference_number: string | null };
+type LeaseSummary = ActiveLeaseSummary;
 
 const ITEM_ORDER: TenantOnboardingChecklistItem[] = [
   'welcome_seen',
@@ -50,44 +51,12 @@ function isItemDone(checklist: TenantOnboardingChecklist, item: TenantOnboarding
 
 export function TenantOnboardingChecklistWidget() {
   const { user } = useAuth();
-  const isAuthenticated = user !== null;
-  const [activeLeases, setActiveLeases] = useState<LeaseSummary[]>([]);
-  const [loadedLeases, setLoadedLeases] = useState(false);
+  // TCK-968 — par l'API Laravel. Le `fetch` relatif vers `/api/leases` d'avant visait le serveur Next,
+  // qui n'a pas ce relais : le widget ne s'affichait jamais.
+  const leasesQuery = useActiveLeaseSummaries(user !== null);
+  const activeLeases: LeaseSummary[] = leasesQuery.data?.data ?? [];
 
-  // Fetch active leases for the current user once. Same proxy URL the
-  // welcome wizard uses — sparse fieldset to keep the payload tiny.
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(
-          '/api/leases?filter[status]=active&fields[leases]=id,reference_number&per_page=20',
-          {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-          },
-        );
-        if (cancelled || !res.ok) return;
-        const body = (await res.json()) as { data?: Array<{ id: number; reference_number: string | null }> };
-        const next = (body?.data ?? []).map((l) => ({
-          id: l.id,
-          reference_number: l.reference_number ?? null,
-        }));
-        if (!cancelled) setActiveLeases(next);
-      } catch {
-        // silent — widget is non-critical
-      } finally {
-        if (!cancelled) setLoadedLeases(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
-
-  if (!loadedLeases || activeLeases.length === 0) {
+  if (activeLeases.length === 0) {
     return null;
   }
 

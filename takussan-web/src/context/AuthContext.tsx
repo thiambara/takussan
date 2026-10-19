@@ -60,8 +60,7 @@ type AuthContextValue = {
   /**
    * Revoke the backend token, clear the auth cookies, and drop everything the session left on the
    * client — token, user, React Query cache, local favorites store (TCK-509). Does not navigate —
-   * callers decide where to go next (the `useRequireAuth` hook redirects automatically, while
-   * Navbar redirects to `/`). **La seule sortie** : le menu de `/app` et la `Navbar` passent par ici.
+   * callers decide where to go next (the Navbar redirects to `/`). **La seule sortie** : le menu de `/app` et la `Navbar` passent par ici.
    */
   logout: () => Promise<void>;
 };

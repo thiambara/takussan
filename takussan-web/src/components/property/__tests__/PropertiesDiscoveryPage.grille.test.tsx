@@ -60,7 +60,6 @@ beforeEach(() => {
   mockApiFetch.mockReset();
   mockApiFetch.mockResolvedValue({
     data: [{ id: 22, title: 'Villa', contract_type: 'rent' }],
-    facets: { locations: {}, bedrooms: {}, types: {} },
     meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 },
     search: { strategy: 'all', terms_unmatched: [], widened_total: null },
   });
@@ -108,7 +107,6 @@ describe('TCK-635 — les places payées dans la grille', () => {
         { id: 23, title: 'Studio', contract_type: 'rent', placement: 'organic', badge: 'urgent' },
       ],
       sponsored: [{ id: 90, title: 'Sponsorisé', slug: 'bien-90', contract_type: 'sale', badge: null }],
-      facets: { locations: {}, bedrooms: {}, types: {} },
       meta: { total: 2, per_page: 40, current_page: 1, last_page: 1 },
       search: { strategy: 'all', terms_unmatched: [], widened_total: null },
       ...surcharge,
@@ -153,7 +151,6 @@ describe('TCK-635 — la taille de page vit avec la pagination', () => {
   function repondre(lastPage: number) {
     mockApiFetch.mockResolvedValue({
       data: [{ id: 22, title: 'Villa', contract_type: 'rent' }],
-      facets: { locations: {}, bedrooms: {}, types: {} },
       meta: { total: lastPage * 40, per_page: 40, current_page: 1, last_page: lastPage },
       search: { strategy: 'all', terms_unmatched: [], widened_total: null },
     });

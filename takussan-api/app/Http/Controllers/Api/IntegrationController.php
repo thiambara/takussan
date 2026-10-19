@@ -103,7 +103,7 @@ class IntegrationController extends Controller
             'is_active' => $data['is_active'] ?? true,
         ]));
 
-        return $this->json(['data' => IntegrationResource::make($integration)->toArray($request)], 201);
+        return $this->json(['data' => IntegrationResource::make($integration)->resolve($request)], 201);
     }
 
     public function update(UpdateIntegrationRequest $request, Integration $integration): JsonResponse
@@ -139,7 +139,7 @@ class IntegrationController extends Controller
 
         $integration->fill($data)->save();
 
-        return $this->json(['data' => IntegrationResource::make($integration->refresh())->toArray($request)]);
+        return $this->json(['data' => IntegrationResource::make($integration->refresh())->resolve($request)]);
     }
 
     /**

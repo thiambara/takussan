@@ -75,7 +75,6 @@ describe('TCK-335 — une panne ne se présente plus comme un résultat', () => 
     // trouvé ». L'état vide, lui, ne constate plus rien — il propose les issues.
     mockApiFetch.mockResolvedValue({
       data: [],
-      facets: {},
       meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 },
     });
 

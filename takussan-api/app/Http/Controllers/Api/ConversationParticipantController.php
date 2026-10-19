@@ -78,8 +78,10 @@ class ConversationParticipantController extends Controller
 
         $this->groups->setRole($conversation, $actor, $user, $role);
 
+        // TCK-952 — `resolve()` et non `toArray()` : il retire les `MissingValue` des relations non
+        // chargées, qui sortaient sinon en `{}`.
         return $this->json([
-            'data' => ConversationResource::make($conversation->fresh())->toArray($request),
+            'data' => ConversationResource::make($conversation->fresh())->resolve($request),
         ]);
     }
 }

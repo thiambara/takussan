@@ -69,8 +69,8 @@ class TenantOnboardingPendingController extends Controller
 
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
         IncludedUserResource::preload($page->items());
-        $page->through(fn ($checklist) => IncludedUserResource::inParent($checklist));
 
-        return $this->json($page);
+        // P21.06 (TCK-904) — l'enveloppe canonique (TCK-304), et non le paginateur Laravel brut.
+        return $this->paginated($page, array_map(IncludedUserResource::inParent(...), $page->items()));
     }
 }

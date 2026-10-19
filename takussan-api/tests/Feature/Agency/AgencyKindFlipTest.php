@@ -90,6 +90,26 @@ class AgencyKindFlipTest extends TestCase
         $this->assertSame('NINEA-EXISTING', $fresh->ninea);
         // Field that wasn't pre-set should have been backfilled.
         $this->assertSame($request->company_legal_name, $fresh->legal_name);
+        // P47.06 (TCK-960) — le flip lit `metadata.legal_info`, il n'y écrit plus rien.
+        $this->assertSame($existing, $fresh->metadata['legal_info']);
+    }
+
+    /**
+     * P47.06 (TCK-960) — chaque champ légal d'une demande a sa colonne (TCK-594) : le flip n'écrit
+     * qu'en colonne, et un champ ajouté sans colonne ne retombe plus en silence dans `metadata`.
+     */
+    public function test_every_legal_field_has_its_column(): void
+    {
+        $this->assertSame(
+            AgencyKindFlipService::LEGAL_FIELDS,
+            array_keys(array_intersect_key(
+                AgencyKindFlipService::COLUMN_OF,
+                array_flip(AgencyKindFlipService::LEGAL_FIELDS),
+            )),
+        );
+        foreach (AgencyKindFlipService::COLUMN_OF as $column) {
+            $this->assertContains($column, (new Agency)->getFillable(), "agencies.{$column}");
+        }
     }
 
     public function test_flip_throws_when_agency_is_already_standard(): void

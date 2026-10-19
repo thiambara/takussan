@@ -188,7 +188,13 @@ class LeaseService
         return DB::transaction(function () use ($lease, $failIfExists): int {
             /** @var Lease $lease */
             $lease = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
-            $existing = $lease->payments()->count();
+            // P46.04 (TCK-957) — l'échéancier existe si le bail a des échéances de loyer dues, celles
+            // que cette méthode émet. Compter toutes les lignes faisait d'une caution saisie avant
+            // l'activation un échéancier : la tâche se taisait, et le bail n'avait aucun loyer.
+            $existing = $lease->payments()
+                ->where('payment_type', LeasePaymentType::Rent->value)
+                ->where('status', '!=', PaymentStatus::Cancelled->value)
+                ->count();
             // L'ordre des contrôles de chaque appelant est conservé : la tâche se tait d'abord sur un
             // échéancier existant, la route refuse d'abord un bail inactif.
             if ($existing > 0 && ! $failIfExists) {

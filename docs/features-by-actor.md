@@ -40,9 +40,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 31 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 86 fonctionnalités
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 82 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 114 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 116 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 118 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 121 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 68 fonctionnalités
 
 ---
@@ -442,6 +442,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
 | P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires — un collaborateur appartient à l'agence du bien (agent ou admin pour les rôles agent / gestionnaire, bailleur de l'agence pour co-propriétaire) ; la part de commission et le rôle ne sont jamais exposés sur le site public (TCK-598, TCK-586) |
 | P1 | §1.1 | Désigner l'**agent principal** d'un bien parmi ses collaborateurs agents, un seul par bien (TCK-504, [ADR-0053](adr/0053-l-agent-principal-est-une-marque-unique-par-bien.md)). C'est l'**agent responsable** du bien et son **contact principal** : la fiche publique le nomme et révèle son numéro, il reçoit les messages et les demandes de contact et de visite. Sans désignation, ou si l'agent désigné n'est plus actif dans l'agence, c'est l'agent du bien le plus anciennement ajouté ; sans agent, le titulaire du bien ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
+| P1 | §1.1 | Saisir un bien au nom d'un bailleur de l'agence : le bailleur se choisit à la saisie parmi les bailleurs actifs, facultativement (sans choix, l'agence garde le bien en propre) ; il est prévenu par une notification, voit le bien, ses baux et son relevé, et en reçoit les loyers ; un lot prend le bailleur de son immeuble, une copie celui du bien copié, et un lot ne se rattache qu'à un bien du même titulaire (TCK-997, [ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
+| P1 | §1.1 | Inviter un bailleur depuis le formulaire de bien : le bien reste à l'agence et lui passe quand il accepte l'invitation ; une invitation révoquée ou expirée le laisse à l'agence (TCK-1000) |
 | P0 | §1.1 | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) ; réattribuer désigne la cible comme agent principal et ne change jamais le titulaire du bien (TCK-603) |
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
@@ -664,6 +666,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.1 | Désigner l'**agent principal** d'un bien parmi ses collaborateurs agents, un seul par bien (TCK-504, [ADR-0053](adr/0053-l-agent-principal-est-une-marque-unique-par-bien.md)). C'est l'**agent responsable** du bien et son **contact principal** : la fiche publique le nomme et révèle son numéro, il reçoit les messages et les demandes de contact et de visite. Sans désignation, ou si l'agent désigné n'est plus actif dans l'agence, c'est l'agent du bien le plus anciennement ajouté ; sans agent, le titulaire du bien ([ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
+| P1 | §1.1 | Saisir un bien au nom d'un bailleur de l'agence : le bailleur se choisit à la saisie parmi les bailleurs actifs, facultativement (sans choix, l'agence garde le bien en propre) ; il est prévenu par une notification, voit le bien, ses baux et son relevé, et en reçoit les loyers ; un lot prend le bailleur de son immeuble, une copie celui du bien copié, et un lot ne se rattache qu'à un bien du même titulaire (TCK-997, [ADR-0036](adr/0036-l-agent-responsable-est-le-collaborateur-principal.md)) |
+| P1 | §1.1 | Inviter un bailleur depuis le formulaire de bien : le bien reste à l'agence et lui passe quand il accepte l'invitation ; une invitation révoquée ou expirée le laisse à l'agence (TCK-1000) |
+| P1 | §1.1 | Changer le titulaire d'un bien saisi au nom du personnel vers un bailleur actif de l'agence : ses baux en brouillon le suivent, les baux signés et les reversements déjà faits ne changent pas, et l'écran le dit avant de confirmer (TCK-999) |
 | P0 | §1.1 | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) ; réattribuer désigne la cible comme agent principal et ne change jamais le titulaire du bien (TCK-603) |
 | P2 | §1.1 | Modération et validation avant publication, activable par l'admin d'agence : toute mise en ligne d'un bien jamais validé ou refusé (création, publication, changement de statut, modification) attend l'accord de l'admin (TCK-597) |
 | P2 | §1.1 | Une décision sur un signalement d'annonce agit sur l'annonce : masquer (dépubliée, désindexée, verrouillée jusqu'à levée par la plateforme), retirer (supprimée) ou classer sans suite (TCK-597) |
@@ -950,8 +955,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **380** lignes de fonctionnalité lues,
-  réparties en **516** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **383** lignes de fonctionnalité lues,
+  réparties en **521** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

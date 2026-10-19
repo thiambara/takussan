@@ -7,6 +7,7 @@ use App\Models\Enums\BoostStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\PropertyBoost;
+use App\Models\PropertyBoostTranche;
 use App\Models\User;
 use App\Notifications\Boost\BoostEndedNotification;
 use App\Notifications\Boost\BoostRefundedNotification;
@@ -58,11 +59,9 @@ final class BoostLifecycle
             $public = Property::query()->public()->whereKey($property->getKey())->exists();
             foreach ($boosts as $boost) {
                 if (! $public && $boost->status === BoostStatus::Active) {
-                    $this->pause($boost);
-                    $touched++;
+                    $touched += $this->pause($boost) ? 1 : 0;
                 } elseif ($public && $boost->status === BoostStatus::Paused) {
-                    $this->resume($boost);
-                    $touched++;
+                    $touched += $this->resume($boost) ? 1 : 0;
                 }
             }
         }
@@ -135,7 +134,13 @@ final class BoostLifecycle
         return $boost->fresh();
     }
 
-    /** Jours PLEINS restants, au prorata du prix figé (ADR-0061 §8). */
+    /**
+     * Jours PLEINS restants, au prorata du prix figé (ADR-0061 §8) — et, depuis l'amendement du
+     * 2026-10-18 (TCK-942), tranche par tranche : les jours restants sont les plus tardifs, donc ceux
+     * des dernières tranches, et chacun se rend au prix de la tranche qui l'a acheté. Une tranche
+     * offerte ne rend rien. Le prix cumulé étalé sur la durée cumulée rendait 6 crédits sur les 20
+     * d'une Vedette offerte 30 j puis achetée 7 j, louée au 25ᵉ jour.
+     */
     public function refundableCredits(PropertyBoost $boost): int
     {
         if ($boost->duration_days <= 0 || $boost->price_credits <= 0) {
@@ -148,7 +153,34 @@ final class BoostLifecycle
         };
         $fullDays = min(intdiv($seconds, self::DAY), $boost->duration_days);
 
-        return intdiv($boost->price_credits * $fullDays, $boost->duration_days);
+        $credits = 0;
+        foreach (array_reverse($this->tranchesOf($boost)) as [$price, $days]) {
+            if ($fullDays <= 0) {
+                break;
+            }
+            $taken = min($fullDays, $days);
+            $credits += intdiv($price * $taken, $days);
+            $fullDays -= $taken;
+        }
+
+        return $credits;
+    }
+
+    /**
+     * TCK-942 — `[prix, durée]` de chaque tranche, par rang. Un boost sans tranche (Badge, Vedette
+     * prolongée avant les tranches, Vedette convertie par `LegacyFeaturedConversion`) est sa propre
+     * tranche unique, au prix et à la durée de sa ligne : la reprise de l'amendement.
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    private function tranchesOf(PropertyBoost $boost): array
+    {
+        $tranches = $boost->tranches()->get(['price_credits', 'duration_days']);
+        if ($tranches->isEmpty()) {
+            return [[$boost->price_credits, $boost->duration_days]];
+        }
+
+        return $tranches->map(fn (PropertyBoostTranche $t) => [$t->price_credits, $t->duration_days])->values()->all();
     }
 
     public function project(Property $property): void
@@ -201,20 +233,53 @@ final class BoostLifecycle
         $fresh->shouldBeSearchable() ? $fresh->searchable() : $fresh->unsearchable();
     }
 
-    private function pause(PropertyBoost $boost): void
+    /**
+     * P05.08 (TCK-941) — réclamée par `UPDATE … WHERE`, comme `end()` : un passage qui a lu le boost
+     * avant qu'un autre ne le close ou ne le reprenne n'écrit rien. Sans quoi une pause ranimait un
+     * boost clos, et une reprise rejouée rendait le temps déjà couru. La réclamation porte aussi
+     * sur la valeur lue dont dépend l'écriture (`ends_at` pour la pause, `remaining_seconds` pour la
+     * reprise) : une ligne revenue au même statut avec une autre fin (cas ABA : reprise, prolongation)
+     * n'est pas écrite sur une valeur périmée. Rend false si la transition a été perdue ; le passage
+     * suivant la rejoue sur la ligne à jour.
+     */
+    private function pause(PropertyBoost $boost): bool
     {
         $remaining = max(0, ($boost->ends_at?->getTimestamp() ?? 0) - now()->getTimestamp());
-        $boost->forceFill([
+
+        return $this->claimTransition($boost, BoostStatus::Active, 'ends_at', [
             'status' => BoostStatus::Paused, 'remaining_seconds' => $remaining, 'paused_at' => now(), 'ends_at' => null,
-        ])->save();
+        ]);
     }
 
-    private function resume(PropertyBoost $boost): void
+    private function resume(PropertyBoost $boost): bool
     {
-        $boost->forceFill([
+        return $this->claimTransition($boost, BoostStatus::Paused, 'remaining_seconds', [
             'status' => BoostStatus::Active, 'ends_at' => now()->addSeconds((int) $boost->remaining_seconds),
             'remaining_seconds' => null, 'paused_at' => null,
-        ])->save();
+        ]);
+    }
+
+    /**
+     * Écrit la transition si la ligne est toujours dans l'état `$from` lu ET porte encore la valeur lue
+     * de `$readColumn` ; l'instance suit la ligne dans les deux cas.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function claimTransition(PropertyBoost $boost, BoostStatus $from, string $readColumn, array $attributes): bool
+    {
+        $read = $boost->getRawOriginal($readColumn);
+        $boost->forceFill($attributes);
+        $claimed = PropertyBoost::query()->whereKey($boost->getKey())->where('status', $from->value)
+            ->when($read === null, fn ($q) => $q->whereNull($readColumn), fn ($q) => $q->where($readColumn, $read))
+            ->update($boost->getDirty() + ['updated_at' => now()]);
+        if ($claimed === 0) {
+            $boost->refresh();
+
+            return false;
+        }
+        $boost->syncOriginal();
+
+        return true;
     }
 
     /** Clôt sans remboursement. Rend false si un autre passage l'avait déjà clos. */

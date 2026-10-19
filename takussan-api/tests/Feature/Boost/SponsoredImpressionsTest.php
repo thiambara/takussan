@@ -102,6 +102,28 @@ class SponsoredImpressionsTest extends TestCase
         $this->assertSame(1, $this->impressions());
     }
 
+    /**
+     * TCK-983 (P55.02) — une page au-delà de la dernière ne montre aucun emplacement (le front rend
+     * la liste vide sans eux) : elle n'en sert pas et ne compte aucune impression.
+     */
+    public function test_une_page_au_dela_de_la_derniere_ne_sert_ni_ne_compte_d_emplacement(): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->getJson('/api/public/properties/search?per_page=1&page=3')
+            ->assertOk()
+            ->assertJsonPath('meta.last_page', 3)
+            ->assertJsonPath('sponsored.0.id', $this->property->id);
+        $this->assertSame(1, $this->impressions(), 'témoin : la dernière page sert l’emplacement et le compte');
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.2'])
+            ->getJson('/api/public/properties/search?per_page=1&page=4')
+            ->assertOk()
+            ->assertJsonPath('data', [])
+            ->assertJsonPath('sponsored', [])
+            ->assertJsonPath('meta.total', 3);
+        $this->assertSame(1, $this->impressions(), 'aucune impression pour un emplacement que l’écran ne montre pas');
+    }
+
     /** @param  array<string, string>  $headers */
     private function rechercher(string $ip, array $headers = []): TestResponse
     {

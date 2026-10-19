@@ -35,7 +35,6 @@ function tableau(avecDossier: boolean) {
   return {
     data: {
       tenant_id: 7,
-      customer_id: avecDossier ? 3 : null,
       has_customer_profile: avecDossier,
       leases: { active: 0 },
       bookings: { pending: 0 },
@@ -55,7 +54,6 @@ beforeEach(() => {
   vi.mocked(getMeAction).mockResolvedValue({ id: 7, roles: ['customer'], preferences: { city: 'Dakar', search_intent: 'rent' } } as never);
   vi.mocked(rechercherBiensPublics).mockResolvedValue({
     data: [{ id: 5, slug: 'studio-plateau', title: 'Studio Plateau', price: 150000, currency: 'XOF' }],
-    facets: {},
     meta: { current_page: 1, last_page: 1, per_page: 4, total: 1 },
   } as never);
 });

@@ -54,15 +54,24 @@ export type TraducteurDeFil = (cle: string) => string;
  * et reste un libellé sinon — la forme idiomatique d'un dernier maillon. Le lien est posé ou retiré
  * des DEUX côtés à la fois (écran et `BreadcrumbList`), ce qui garde l'égalité de l'AC1.
  *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LA VILLE GARDE LE CONTRAT DU MAILLON PRÉCÉDENT (P35.05)
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * « Louer › Dakar » mène à `?contract_type=rent&city=Dakar`, pas à tout Dakar. La page passe
+ * `hrefVille` (`hrefDeLaVille`) : la canonique de cette paire, ou `null` quand la ville est sous
+ * `SEUIL_VILLE_INDEXABLE` — sa page se replie alors sur la page nue, et le maillon reste un
+ * libellé, comme un quartier trop mince. Sans `hrefVille`, la paire est composée telle quelle.
+ *
  * **Invariant, qu'un test vérifie** : tout `item` du fil est une URL CANONIQUE d'elle-même. `/`
- * l'est ; `contract_type` vaut `rent` ou `sale`, tous deux dans le domaine ; la ville vient du bien
- * lui-même, qui est public, donc elle appartient au domaine du catalogue par construction ; le
- * quartier n'a de lien que si la canonique le retient.
+ * l'est ; `contract_type` vaut `rent` ou `sale`, tous deux dans le domaine ; la ville et le
+ * quartier n'ont de lien que si la canonique les retient.
  */
 export function maillonsDeFiche(
   property: PropertyDetail,
   t: TraducteurDeFil,
   hrefQuartier?: string,
+  hrefVille?: string | null,
 ): readonly MaillonDuFil[] {
   const estLocation = property.contract_type === 'rent';
 
@@ -75,10 +84,12 @@ export function maillonsDeFiche(
   ];
 
   if (property.location.city) {
-    maillons.push({
-      libelle: property.location.city,
-      href: `/properties?city=${encodeURIComponent(property.location.city)}`,
-    });
+    const contrat = estLocation ? 'rent' : 'sale';
+    const href =
+      hrefVille === undefined
+        ? `/properties?contract_type=${contrat}&city=${encodeURIComponent(property.location.city)}`
+        : hrefVille;
+    maillons.push(href ? { libelle: property.location.city, href } : { libelle: property.location.city });
   }
 
   if (property.location.quarter) {

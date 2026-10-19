@@ -66,7 +66,7 @@ class CustomerController extends Controller
         ]));
 
         return $this->json([
-            'data' => CustomerResource::make($customer)->toArray($request),
+            'data' => CustomerResource::make($customer)->resolve($request),
         ], 201);
     }
 
@@ -115,7 +115,7 @@ class CustomerController extends Controller
         $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
 
         return $this->json([
-            'data' => CustomerResource::make($customer)->toArray($request),
+            'data' => CustomerResource::make($customer)->resolve($request),
         ]);
     }
 
@@ -144,7 +144,7 @@ class CustomerController extends Controller
         }
 
         return $this->json([
-            'data' => CustomerResource::make($customer->refresh())->toArray($request),
+            'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ]);
     }
 
@@ -228,7 +228,7 @@ class CustomerController extends Controller
         }
 
         return $this->json([
-            'data' => CustomerResource::make($customer->refresh())->toArray($request),
+            'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ]);
     }
 

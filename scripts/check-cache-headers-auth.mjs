@@ -176,9 +176,11 @@ const VERBE = /Route::(get|post|put|patch|delete|options|any|match|resource|apiR
  * Analyse statique des fichiers de routes.
  *
  * ⚠ POURQUOI STATIQUE, et pas `php artisan route:list --json` — qui serait exact.
- * Le job `guards` de `repo-ci.yml` n'installe que Node : pas de PHP, pas de
- * `composer install`, pas de base. Les onze autres gardes de ce dossier tiennent la
- * même contrainte. Le prix est écrit dans « ce qu'elle ne vérifie pas ».
+ * Écrite quand le job `guards` de `repo-ci.yml` n'installait que Node : pas de PHP, pas
+ * de `composer install`, pas de base. Depuis TCK-998 (2026-10-19), il installe PHP et les
+ * dépendances de l'API pour `check-front-routes.mjs`, qui lit `route:list --json` — toujours
+ * sans base. Cette garde pourrait donc lire la source exacte ; elle ne le fait pas encore. Le
+ * prix de l'analyse statique est écrit dans « ce qu'elle ne vérifie pas ».
  *
  * L'analyseur a donc été CONFRONTÉ à la source autoritative une fois, le 2026-08-21,
  * plutôt que cru sur parole : `artisan route:list --json` compte 509 routes `api/*`
