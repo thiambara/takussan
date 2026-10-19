@@ -261,8 +261,11 @@ borne, même par une PR fusionnée.
   - **L'implémenteur prend les 🔴 d'abord**, validées puis autonomes, puis les 🟠 validées, puis
     les 🟠 autonomes. Avant, il prenait toutes les validées dans l'ordre du fichier, et les défauts
     de sécurité validés passaient après des pistes d'ergonomie.
+  - Le 2026-10-19, le porteur a posé **30 min pour l'explorateur, 20 pour le mesureur et 20 pour
+    le délégué** ; l'implémenteur reste à 5 min et le fusionneur à 10. Ce sont les valeurs par
+    défaut de `planifier` lancé sans argument (le délégué omis prend 20).
   - Une cadence seule se change sur le plist du job concerné, au repos. `planifier` retire et
-    repose les trois jobs à la fois.
+    repose tous les jobs à la fois : il couperait un passage en cours.
   - L'implémenteur a besoin de PostgreSQL et de Meilisearch locaux.
   - ⚠ **Les agents dorment avec le Mac.** Selon `man launchd.plist` (`StartInterval`), un
     lancement qui tombe pendant la veille est sauté. Capot fermé, rien ne tourne, et la reprise se
