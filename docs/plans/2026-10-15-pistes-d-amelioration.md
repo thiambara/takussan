@@ -6024,7 +6024,7 @@ le `CASE` de la pertinence.
 
 ### `filter[search]` rapatrie de Meilisearch le document entier de chaque correspondance, jusqu'à 5 000, pour n'en lire que l'id
 - Réf : P59.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1009 — reste : la même projection dans `MessagingContactController::index` (index `users`), laissée tant que la PR #734 (P51.04) réécrit ce bloc
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-236`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:113-119,152-157,281-286`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:112-116`
 - Constat :
@@ -6037,6 +6037,7 @@ le `CASE` de la pertinence.
 - Établi comment : relecture de Scout et du callback, test temporaire sur Meilisearch réel.
 - Piste : passer `->options(['attributesToRetrieve' => [$model->getScoutKeyName()]])` dans le callback de `HasQueryBuilder` (et dans `MessagingContactController`), le résultat rendu étant inchangé ; un test qui enregistre la requête envoyée au client Meilisearch, sur le modèle de `PropertySearchProjectionTest`. Le coût SQL des 5 000 ids reste à P16.04.
 - Mesure (2026-10-19, 2f829055e, mesureur) : lu `HasQueryBuilder.php:235` (`->take(static::SEARCH_ID_CAP)->keys()`, sans option) et `MessagingContactController.php:112-116` (seul `attributesToSearchOn` passé), `MeilisearchEngine::search()`/`performSearch()` (les `options` du builder sont fusionnées, et la clé Scout est ajoutée d'office à `attributesToRetrieve`), `grep attributesToRetrieve app` → les trois seuls appels sont dans `PropertySearchService` (TCK-984) ; test temporaire retiré (client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` en admin d'agence, charge 3,13 sur 8 cœurs) → corps envoyé `{"q":"zorglub","hitsPerPage":5000}`, sans `attributesToRetrieve`, 2 lignes rendues ; les durées de l'explorateur non re-mesurées. Classement : A2, projection de la réponse du moteur sur la clé que `keys()` lit seule, sans changement des ids rendus ni de leur ordre.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` et `GET /api/customers?filter[search]=zorglub` en agent d'agence → recherche envoyée sans `attributesToRetrieve`, lignes justes → `FilterSearchProjectionTest` (2 tests) : `attributesToRetrieve` réduit à `id`, même ligne rendue ; ablation de `HasQueryBuilder.php` → 2 rouges, correctif remis → 2 verts ; 9 classes de recherche voisines, 45 verts.
 
 ### `GET /api/search/messages` charge les pièces jointes message par message
 - Réf : P59.02
