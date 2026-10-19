@@ -1,7 +1,7 @@
 ---
 id: TCK-962
 title: "L'écran d'agence n'envoie plus le fuseau ni les miroirs de `settings`, et lit commission et devise sur leurs colonnes"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -51,22 +51,22 @@ commission et la devise que l'API applique.
 
 ## Delta à produire
 
-- [ ] `lib/schemas/agency.ts` : retirer `timezone` du schéma et l'écriture des trois clés de
+- [x] `lib/schemas/agency.ts` : retirer `timezone` du schéma et l'écriture des trois clés de
   `settings` ; docblock corrigé.
-- [ ] `AgencyConfigForm.tsx` : retirer le champ ; `toDefaults` lit `commission_rate` et `currency`
+- [x] `AgencyConfigForm.tsx` : retirer le champ ; `toDefaults` lit `commission_rate` et `currency`
   sur les colonnes seules.
-- [ ] `types/agency.ts` : `AgencySettings` ne déclare plus les trois clés.
-- [ ] Tests : les clés de `settings` envoyées ; les valeurs affichées pour une agence dont les
+- [x] `types/agency.ts` : `AgencySettings` ne déclare plus les trois clés.
+- [x] Tests : les clés de `settings` envoyées ; les valeurs affichées pour une agence dont les
   miroirs diffèrent des colonnes.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `normaliseAgencyForm` n'émet ni `timezone`, ni `currency`, ni
+- [x] AC1 — `normaliseAgencyForm` n'émet ni `timezone`, ni `currency`, ni
   `default_commission_rate` dans `settings`, et `commission_rate`/`currency` restent au premier
   niveau.
-- [ ] AC2 — une agence `commission_rate: 5`, `settings.default_commission_rate: 12` affiche et
+- [x] AC2 — une agence `commission_rate: 5`, `settings.default_commission_rate: 12` affiche et
   réenregistre 5 ; `currency: null`, `settings.currency: 'EUR'` n'affiche pas EUR.
-- [ ] AC3 — l'écran n'a plus de champ « Fuseau horaire ».
+- [x] AC3 — l'écran n'a plus de champ « Fuseau horaire ».
 
 ## Hors périmètre
 
@@ -76,4 +76,13 @@ commission et la devise que l'API applique.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Avant correctif : `admin-schemas.test.ts` rougit (`settings` porte `currency`,
+  `default_commission_rate`), et le test du formulaire aussi (la commission affichée est 12, celle
+  du miroir, au lieu des 5 de la colonne).
+- Ablation (schéma et formulaire remis à leur version d'origine, tests gardés) : les 3 tests qui
+  gardent la décision rougissent (plus 4 qui dépendent du schéma sans `timezone`) ; remis → 57
+  verts.
+- `AgencyConfigForm.penalites.test.tsx` attendait les trois clés dans `settings` : son attendu suit
+  la décision.
+- Les trois clés i18n du champ (`fields.timezone`, `fields.timezonePlaceholder`,
+  `validation.agency.timezoneTooLong`) sont retirées des trois langues ; aucun texte `wo` écrit.
