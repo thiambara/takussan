@@ -51,6 +51,15 @@ final class Masking
         return str_repeat(self::BULLET, 4).' '.mb_substr($clean, -$visible);
     }
 
+    /**
+     * TCK-954 (ADR-0070 § 3) — `••••` si une valeur est saisie, `null` sinon. Aucun caractère n'est
+     * gardé : les derniers chiffres d'un montant laissent deviner son ordre de grandeur.
+     */
+    public static function presence(mixed $value): ?string
+    {
+        return $value === null || trim((string) $value) === '' ? null : str_repeat(self::BULLET, 4);
+    }
+
     private static function compact(string $value): string
     {
         return preg_replace('/\s+/u', '', $value) ?? '';
