@@ -51,7 +51,7 @@ class AgencyRoleController extends Controller
                 'agency_id' => $model->agency_id,
                 'agency_role_id' => $model->agency_role_id,
                 'agency_role' => AgencyRoleResource::make($role->fresh()->load('capabilities'))
-                    ->toArray($request),
+                    ->resolve($request),
             ],
         ]);
     }

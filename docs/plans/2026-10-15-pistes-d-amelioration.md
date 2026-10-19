@@ -4904,7 +4904,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Des réponses construites par `->toArray($request)` direct laissent passer les attributs conditionnels non résolus
 - Réf : P45.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-967
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers` (204 appels `->toArray($request)` dans 56 fichiers, `grep -rn -- '->toArray($request)' app/Http/Controllers`), dont `Public/PublicPropertyController.php:340,443,490,594` et `Public/InvitationAcceptController.php:61`
 - Constat :
@@ -4914,6 +4914,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, mesuré sur un appel ; l'étendue est à vérifier.
 - Piste : remplacer `->toArray($request)` par `->resolve($request)` là où la ressource porte un attribut conditionnel (ou partout, le coût étant nul), et une garde : un test d'architecture qui refuse `->toArray($request)` sur une `JsonResource` dans `app/Http/Controllers`, ou un test de réponse qui refuse tout `{}` issu d'un `MissingValue`.
 - Mesure (2026-10-18, af79ceda5, mesureur) : `grep -rnF -- '->toArray($request)' app/Http/Controllers` → 204 appels dans 56 fichiers (inchangé), dont 142 sur un `::make(…)` et 56 sur un `::collection(…)` ; lu `vendor/laravel/framework/src/Illuminate/Http/Resources/Json/ResourceCollection.php:100-107`, qui fait `map->resolve($request)` sur chaque élément : les appels sur une collection ne sont **pas** fautifs, le constat est inexact sur ce point ; test temporaire (base de test PostgreSQL, charge 4,36 sur 8 cœurs, retiré) : `GET /api/public/properties/{slug}/reviews` omet bien `target` (collection), mais `POST /api/public/properties/{slug}/visit-request` (`PublicPropertyController.php:860`, `PropertyVisitResource::make($visit)->toArray($request)`) rend `"property":{},"visitor":{},"agent":{},"customer":{}` ; `mergeWhen` n'est employé par aucune ressource (`UserResource.php:75-77`, `CustomerResource.php:60-61`, `MaintenanceRequestResource.php:23-24` étalent à la main pour ce motif), donc aucun `MergeValue` ne fuit ; 31 ressources sur 42 portent un `when*()`. Tient pour les appels sur une ressource unique. Classement : A1 et A5, le contrat est celui de `whenLoaded()`/`when()` (clé omise) déjà appliqué par TCK-952 et gardé par `ParticipantRoleResponseShapeTest`, et le correctif (`->resolve($request)` sur les `::make`/`new …Resource` des contrôleurs, plus une garde qui refuse `->toArray($request)` sur une ressource unique) ne demande aucun choix de produit ; l'implémenteur vérifie, pour chaque réponse changée, qu'aucun lecteur du front n'accède sans `?.` à une clé qui sortait en `{}`.
+- Mesure (2026-10-19, f356e5a5f, implementeur) : avant correctif, la garde neuve `RessourceUniqueResolueTest` relève 147 `->toArray($request)` sur une ressource unique dans 45 contrôleurs, et `VisitRequestResponseShapeTest` rougit (`"property":{}`) → les 147 passent à `->resolve($request)` ; ablation → ces 2 rouges, remis → verts ; `impacted-tests --parallel` 3 319 tests OK ; lecteurs du front relus (31 méthodes, ~60 couples route-ressource-clé) : aucun ne lit sans garde une clé qui sortait en `{}`.
 
 ## Angle 46 — Voies d'écriture en double sur l'argent
 
@@ -5088,7 +5089,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `GET /api/settings` rend les réglages globaux de la plateforme à tout membre d'une agence
 - Réf : P47.05
-- Statut : validé — `GET /api/settings` réservé, hors super-admin, à l'admin de l'agence, qui n'y lit que les lignes de son agence, jamais les lignes `global` (les réglages publics passent par `publicSettings()`) ; un test : un agent et un bailleur reçoivent 403, un admin d'agence ne lit aucune ligne `global` (porteur, 2026-10-18)
+- Statut : fait · TCK-965
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/SettingController.php:16-35`, `takussan-api/app/Services/Admin/PlatformSettingService.php:45-49`
 - Constat :
@@ -5100,6 +5101,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu, et mesuré.
 - Piste : réserver la liste aux admins de l'agence et ne rendre que leurs lignes d'agence, ou retirer la lecture, puisque rien ne l'appelle. Un test : un agent ne lit aucune ligne `global`.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `SettingController.php:16-35` (`orWhere('scope', Global)`, aucune capacité jugée) ; même test temporaire, retiré : ligne globale `boost.sponsored_slots_per_page` posée, puis `GET /api/settings` en agent → 200 `[["boost.sponsored_slots_per_page","global"]]`, en bailleur (`owner`) → 200, même ligne ; `grep` de `/api/settings` dans `takussan-web/src` → aucun appelant. Classement : V2, la piste resserre une autorisation (ou retire la route) et choisit qui lit quoi ; sans appelant front, rien ne dit qu'aucun client légitime ne l'emploie.
+- Mesure (2026-10-19, f356e5a5f, implementeur) : avant correctif, `SettingIndexAccessTest` rougit 3 fois (agent → 200, bailleur → 200, admin d'agence → 2 lignes dont `boost.sponsored_slots_per_page` en `global`) → `index` refuse en 403 hors super-admin et hors admin de l'agence, et ne rend que `scope = agency` de son agence ; ablation → les 3 mêmes rouges, remis → 4 verts ; `SettingTest` et `tests/Feature/Admin/Platform` verts (237).
 
 ### `metadata.legal_info` reste exposé et décrit comme la source, alors qu'il n'est plus écrit
 - Réf : P47.06
@@ -5116,7 +5118,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07
-- Statut : validé — ne plus écrire `primary_city`, `primary_property_type`, `onboarding_source` ni `payment.preferred_provider` dans `agencies.settings`, et ne plus les rendre dans `AgencyResource` ; l'assistant peut garder ses champs sans les enregistrer (porteur, 2026-10-18) ; reste : la purge des valeurs déjà enregistrées
+- Statut : fait · TCK-966 — reste : la purge des valeurs déjà enregistrées
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:248-266`, `takussan-api/app/Http/Resources/AgencyResource.php:60`
 - Constat :
@@ -5127,6 +5129,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu.
 - Piste : retirer les écritures sans lecteur, ou nommer leur lecteur. Si `onboarding_source` doit servir à la console, le lire par une colonne ou un accesseur.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `HostIndividualOnboardingService.php:35-41,245-266` (écriture de `primary_city`, `primary_property_type`, `onboarding_source`, `payment.preferred_provider`) ; `grep -rn` de ces clés dans `takussan-api/app` et `takussan-web/src` → seulement les deux FormRequest de l'assistant, `HostAutoOnboardController.php:34` et le formulaire `HostIndividualWizard.tsx` : aucun lecteur dans `agencies.settings` ; `grep` de `settings.payment` et `preferred_provider` côté encaissement → rien. Classement : V7, le commentaire attribue un usage à `onboarding_source` (TCK-263) et à la préférence de paiement : les retirer ou les lire tranche une intention produit, et touche des données conservées (V3).
+- Mesure (2026-10-19, f356e5a5f, implementeur) : relu `HostIndividualOnboardingService::createAgency` (quatre clés toujours écrites) et `AgencyResource` (`settings` brut) ; avant correctif, 6 rouges (`HostAutoOnboardTest`, `HostIndividualOnboardingTest` : clés écrites ; `AgencyResourceOnboardingKeysTest` : clés rendues) → l'agence naît sans `settings`, `autoOnboard` ne prend plus la ville, la ressource retire les quatre clés ; ablation → les 6 mêmes rouges, remis → 23 verts ; 69 verts sur l'onboarding et ses voisins.
 
 ### Petites améliorations
 - Réf : P47.08

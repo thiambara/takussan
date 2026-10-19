@@ -31,8 +31,8 @@ class HostAutoOnboardController extends Controller
         $user = $request->user();
         abort_code_unless(Feature::isEnabled(Flag::HostAutoSpace->value, $user), 403, 'onboarding.auto_space_disabled');
 
-        $city = $request->validated('primary_city');
-        $result = $this->service->autoOnboard($user, is_string($city) ? $city : null);
+        // TCK-966 (P47.07) — `primary_city` reste accepté et validé, mais n'est plus enregistré.
+        $result = $this->service->autoOnboard($user);
         $compositeId = $this->resolver->compositeId($result['active_profile']);
 
         return $this->json([

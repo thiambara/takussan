@@ -37,7 +37,7 @@ class PropertyCalendarFeedController extends Controller
 
         // VERIF-596 m3 — la première synchronisation (appel sortant, 10 s au plus) quitte la
         // requête : le flux est rendu en `pending`, et une tâche de file va le chercher.
-        $payload = PropertyCalendarFeedResource::make($feed)->toArray($request);
+        $payload = PropertyCalendarFeedResource::make($feed)->resolve($request);
         SyncPropertyCalendarFeedJob::dispatch($feed->id);
 
         return $this->json(['data' => $payload], 201);
@@ -55,7 +55,7 @@ class PropertyCalendarFeedController extends Controller
 
         $sync->sync($feed);
 
-        return $this->json(['data' => PropertyCalendarFeedResource::make($feed->refresh())->toArray($request)]);
+        return $this->json(['data' => PropertyCalendarFeedResource::make($feed->refresh())->resolve($request)]);
     }
 
     public function destroy(PropertyCalendarFeed $feed): Response

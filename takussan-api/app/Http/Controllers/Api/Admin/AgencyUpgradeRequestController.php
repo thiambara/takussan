@@ -87,7 +87,7 @@ class AgencyUpgradeRequestController extends Controller
 
         return $this->json([
             'data' => array_merge(
-                AgencyUpgradeRequestResource::make($upgradeRequest)->withClearIdentifiers()->toArray($request),
+                AgencyUpgradeRequestResource::make($upgradeRequest)->withClearIdentifiers()->resolve($request),
                 [
                     'agency' => $agency ? [
                         'id' => $agency->id,
@@ -141,7 +141,7 @@ class AgencyUpgradeRequestController extends Controller
         );
 
         return $this->json(
-            ['data' => AgencyUpgradeRequestResource::make($approved)->toArray($request)],
+            ['data' => AgencyUpgradeRequestResource::make($approved)->resolve($request)],
             200,
         );
     }
@@ -160,7 +160,7 @@ class AgencyUpgradeRequestController extends Controller
         );
 
         return $this->json(
-            ['data' => AgencyUpgradeRequestResource::make($rejected)->toArray($request)],
+            ['data' => AgencyUpgradeRequestResource::make($rejected)->resolve($request)],
             200,
         );
     }

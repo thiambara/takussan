@@ -38,7 +38,7 @@ class NotificationController extends Controller
         abort_unless($notification->user_id === $request->user()->id, 403);
         $notification->update(['read_at' => now(), 'is_read' => true]);
 
-        return $this->json(['data' => AppNotificationResource::make($notification)->toArray($request)]);
+        return $this->json(['data' => AppNotificationResource::make($notification)->resolve($request)]);
     }
 
     public function markAsUnread(Request $request, AppNotification $notification): JsonResponse
@@ -46,7 +46,7 @@ class NotificationController extends Controller
         abort_unless($notification->user_id === $request->user()->id, 403);
         $notification->update(['read_at' => null, 'is_read' => false]);
 
-        return $this->json(['data' => AppNotificationResource::make($notification)->toArray($request)]);
+        return $this->json(['data' => AppNotificationResource::make($notification)->resolve($request)]);
     }
 
     public function markAllRead(Request $request): JsonResponse

@@ -53,7 +53,7 @@ class CommissionEntryController extends Controller
 
         $entry = $this->ledger->markPaid($commissionEntry, $request->user());
 
-        return $this->json(['data' => CommissionEntryResource::make($entry)->toArray($request)]);
+        return $this->json(['data' => CommissionEntryResource::make($entry)->resolve($request)]);
     }
 
     public function cancel(Request $request, CommissionEntry $commissionEntry): JsonResponse
@@ -62,6 +62,6 @@ class CommissionEntryController extends Controller
 
         $entry = $this->ledger->cancel($commissionEntry, $request->user());
 
-        return $this->json(['data' => CommissionEntryResource::make($entry)->toArray($request)]);
+        return $this->json(['data' => CommissionEntryResource::make($entry)->resolve($request)]);
     }
 }

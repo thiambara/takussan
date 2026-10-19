@@ -57,7 +57,7 @@ class LeaseController extends Controller
         $lease = $this->leases->create($property, $request->user(), $data);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property', 'tenant']))->toArray($request),
+            'data' => LeaseResource::make($lease->load(['property', 'tenant']))->resolve($request),
         ], 201);
     }
 
@@ -68,7 +68,7 @@ class LeaseController extends Controller
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
-                ->toArray($request),
+                ->resolve($request),
         ]);
     }
 
@@ -116,7 +116,7 @@ class LeaseController extends Controller
         });
 
         return $this->json([
-            'data' => LeaseResource::make($lease->fresh())->toArray($request),
+            'data' => LeaseResource::make($lease->fresh())->resolve($request),
         ]);
     }
 
@@ -130,7 +130,7 @@ class LeaseController extends Controller
         $lease = $signatures->signOnPaper($lease, $request->file('contract'), $request->user());
 
         return $this->json([
-            'data' => LeaseResource::make($lease)->toArray($request),
+            'data' => LeaseResource::make($lease)->resolve($request),
         ]);
     }
 
@@ -142,7 +142,7 @@ class LeaseController extends Controller
         $lease = $this->leases->terminate($lease, $request->user(), $data['reason'] ?? null);
 
         return $this->json([
-            'data' => LeaseResource::make($lease)->toArray($request),
+            'data' => LeaseResource::make($lease)->resolve($request),
         ]);
     }
 

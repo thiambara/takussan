@@ -58,7 +58,7 @@ class PropertyUnavailabilityController extends Controller
             ]);
         });
 
-        return $this->json(['data' => PropertyUnavailabilityResource::make($row)->toArray($request)], 201);
+        return $this->json(['data' => PropertyUnavailabilityResource::make($row)->resolve($request)], 201);
     }
 
     public function destroy(PropertyUnavailability $unavailability): Response
