@@ -54,6 +54,11 @@ export interface Agency {
   id: number;
   name: string;
   slug: string;
+  /**
+   * TCK-1004 (P49.04) — le slug s'édite UNE fois, après le passage en professionnelle. L'API le
+   * refuse (`prohibited`) partout ailleurs.
+   */
+  slug_editable?: boolean;
   license_number: string | null;
   description: string | null;
   email: string | null;

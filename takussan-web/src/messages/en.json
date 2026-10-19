@@ -6351,6 +6351,8 @@
       "fields": {
         "name": "Agency name",
         "slug": "URL identifier (not editable)",
+        "slugEditable": "URL identifier (can be changed once)",
+        "slugEditableHint": "Your agency is now professional: you can replace this identifier once. Lowercase letters, digits and hyphens. The old address of your public page will stop working.",
         "license": "Licence number",
         "licensePlaceholder": "e.g. SEN-IMMO-2024",
         "description": "Description",

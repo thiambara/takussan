@@ -6351,6 +6351,8 @@
       "fields": {
         "name": "Nom de l’agence",
         "slug": "Identifiant URL (non modifiable)",
+        "slugEditable": "Identifiant URL (modifiable une fois)",
+        "slugEditableHint": "Votre agence est passée en professionnelle : vous pouvez remplacer cet identifiant une seule fois. Lettres minuscules, chiffres et tirets. L'ancienne adresse de votre page publique ne fonctionnera plus.",
         "license": "Numéro de licence",
         "licensePlaceholder": "ex : SEN-IMMO-2024",
         "description": "Description",
