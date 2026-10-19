@@ -5112,7 +5112,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Clés écrites dans `agencies.settings` à la création d'un espace, que rien ne lit
 - Réf : P47.07
-- Statut : validé — ne plus écrire `primary_city`, `primary_property_type`, `onboarding_source` ni `payment.preferred_provider` dans `agencies.settings`, et ne plus les rendre dans `AgencyResource` ; l'assistant peut garder ses champs sans les enregistrer (porteur, 2026-10-18) ; reste : la purge des valeurs déjà enregistrées
+- Statut : fait · TCK-966 — reste : la purge des valeurs déjà enregistrées
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:248-266`, `takussan-api/app/Http/Resources/AgencyResource.php:60`
 - Constat :
@@ -5123,6 +5123,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu.
 - Piste : retirer les écritures sans lecteur, ou nommer leur lecteur. Si `onboarding_source` doit servir à la console, le lire par une colonne ou un accesseur.
 - Mesure (2026-10-18, 0ce2ecdb2, mesureur) : relu `HostIndividualOnboardingService.php:35-41,245-266` (écriture de `primary_city`, `primary_property_type`, `onboarding_source`, `payment.preferred_provider`) ; `grep -rn` de ces clés dans `takussan-api/app` et `takussan-web/src` → seulement les deux FormRequest de l'assistant, `HostAutoOnboardController.php:34` et le formulaire `HostIndividualWizard.tsx` : aucun lecteur dans `agencies.settings` ; `grep` de `settings.payment` et `preferred_provider` côté encaissement → rien. Classement : V7, le commentaire attribue un usage à `onboarding_source` (TCK-263) et à la préférence de paiement : les retirer ou les lire tranche une intention produit, et touche des données conservées (V3).
+- Mesure (2026-10-19, f356e5a5f, implementeur) : relu `HostIndividualOnboardingService::createAgency` (quatre clés toujours écrites) et `AgencyResource` (`settings` brut) ; avant correctif, 6 rouges (`HostAutoOnboardTest`, `HostIndividualOnboardingTest` : clés écrites ; `AgencyResourceOnboardingKeysTest` : clés rendues) → l'agence naît sans `settings`, `autoOnboard` ne prend plus la ville, la ressource retire les quatre clés ; ablation → les 6 mêmes rouges, remis → 23 verts ; 69 verts sur l'onboarding et ses voisins.
 
 ### Petites améliorations
 - Réf : P47.08
