@@ -66,7 +66,8 @@ class UpdateCustomerRequest extends BaseFormRequest
             'last_name' => ['sometimes', 'string'],
             'email' => ['sometimes', 'nullable', 'email'],
             'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
-            'id_number' => ['sometimes', 'nullable', 'string'],
+            // TCK-953 — la valeur doit tenir dans le `varchar(255)` du `down()` (ADR-0070 § 2).
+            'id_number' => ['sometimes', 'nullable', 'string', 'max:100'],
             'occupation' => ['sometimes', 'nullable', 'string'],
             'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
             'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
