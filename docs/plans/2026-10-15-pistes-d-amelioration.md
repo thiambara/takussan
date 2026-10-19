@@ -129,7 +129,7 @@ voie d'écriture (angle 13, puis 47).
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | fait |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | fait |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | fait |
-| 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
+| 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | fait |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | à faire |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | à faire |
@@ -5816,3 +5816,83 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture.
 - Piste : passer `UserDetailController` par `PropertyRedactor`, comme ses voisins ; poser le témoin d'expurgation de `CrossTenantAuditExportTest` sous `attribute_changes`, la forme qu'écrit un événement de modèle.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `UserDetailController::activity()` (l. 179 : `$log->properties?->toArray()`, sans `PropertyRedactor`, quand les trois autres lectures l'appliquent) et `CrossTenantAuditExportTest.php:27` (témoin `rib` posé sous `properties.attributes`) ; `ActivityLogExporterTest::test_l_export_d_une_modification_porte_l_avant_et_l_apres_expurges` existe (l. 275). Qu'une clé masquée passe aujourd'hui reste non établi : la base de dev n'a aucune ligne à causeur ou sujet `User` dont `properties` soit non vide (`SELECT` + `PropertyRedactor::redact`, 0 sur 25 591), et la lecture des `withProperties()` ne l'a pas tranché. Classement : V3 pour la première partie, l'ADR-0044 § 2 nomme « l'audit plateforme » mais l'expurgation masque aussi `email` et `phone` à l'opérateur qui lit l'activité d'un compte ; le témoin du test (A5) seul serait autonome, et l'implémenteur peut le traiter avec cette entrée une fois validée.
+
+## Angle 57 — Téléphones et e-mails hors de `users` face à l'anonymisation
+
+*Exploré le 2026-10-19 sur `pre-dev` 47b6af771, par l'explorateur. Tout a été relu par
+l'explorateur lui-même, sans sous-agent : `AccountDeletionService::anonymize()`, `SmsRouterDriver`,
+`PhoneVerificationService::deliver()`, `PublicPropertyController` (demande de visite),
+`PropertyVisitResource`, `SavedSearchController::claim()`, `PublicSearchAlertController`, les
+migrations des tables qui portent un `email`, un `phone` ou un `to` (relevées par `grep` sur
+`database/migrations`), `routes/console.php`, TCK-691 et TCK-799, `privacy.ts` § 6. Un test
+temporaire, retiré depuis, sur la base de test (charge 3,28 / 2,84 / 2,53 sur 8 cœurs) : un compte
+créé avec un e-mail et un numéro, puis un SMS envoyé par le pilote lié sans notification, une
+visite, un jeton de réinitialisation, une invitation et un contact WhatsApp à son nom, puis
+`executeDeletion()`. Déjà traités, et non repris ici : `activity_log` (P19.01) et les tentatives
+liées à une notification (P19.02). Les journaux applicatifs ont été balayés par `grep` sur les
+`Log::` qui citent un numéro ou une adresse : seuls les pilotes `log` de SMS et de WhatsApp le
+font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et 84).*
+
+### Un SMS envoyé sans notification (code OTP, step-up, signature de bail) garde le numéro du compte après l'effacement
+- Réf : P57.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Account/AccountDeletionService.php:310-316`, `takussan-api/app/Services/Notifications/Sms/SmsRouterDriver.php:312-321`, `takussan-api/database/migrations/2026_10_17_160000_make_notification_delivery_attempts_notification_nullable.php:8-11`, `takussan-api/app/Services/Auth/PhoneVerificationService.php:394-404`
+- Constat :
+  - Depuis TCK-799 (2026-10-17), un SMS envoyé sans `notification_id` écrit une tentative avec `app_notification_id = null` et `to` = le numéro (lu, `SmsRouterDriver.php:314-321`). C'est le cas du code de vérification du téléphone, qui n'en passe pas (lu, `PhoneVerificationService.php:396-404`), du code de signature de bail et des contacts sans compte (lu, docblock de la migration, l. 8-11).
+  - `anonymize()` n'efface `to` que sur les tentatives dont la notification appartient au compte (`whereIn('app_notification_id', $user->appNotifications()->select('id'))`, lu, l. 313-316). Une tentative sans notification n'y entre jamais.
+  - TCK-691, livré avant TCK-799, pose : « Après `executeDeletion()`, aucune tentative ne porte le numéro du compte » (lu, AC1, l. 55). Le changement de TCK-799 a rompu ce critère sans faire rougir son test, qui ne crée que des tentatives liées.
+  - Mesuré par le test temporaire : `app(SmsDriverInterface::class)` rend `SmsRouterDriver` ; un envoi `is_otp` au numéro du compte écrit 1 tentative sans notification ; après `executeDeletion()`, elle porte toujours ce numéro (1 avant, 1 après). La purge à 90 jours (`notifications:prune-delivery-attempts`) la retire plus tard.
+  - Établi comment : test temporaire et lecture.
+- Piste : à l'anonymisation, effacer aussi `to` des tentatives sans notification dont le numéro est l'un de ceux du compte (`phone`, `secondary_phone`), relevés avant le `forceFill`. Un ancien numéro remplacé n'y figure plus : le rattacher à la tentative (une colonne `user_id` nullable) le permettrait, ce qui est une migration. Un test dans `AccountDeletionExecuteTest` : un envoi OTP par le routeur, puis `executeDeletion()` → aucune tentative ne porte le numéro. Ablation : retirer l'effacement → rouge.
+
+### Une visite demandée en étant connecté recopie le nom, l'e-mail et le téléphone du compte, que l'effacement ne touche pas
+- Réf : P57.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:841-850`, `takussan-api/database/migrations/2026_04_17_160015_create_property_visits_table.php:15-19`, `takussan-api/app/Http/Resources/PropertyVisitResource.php:27-29`, `takussan-api/app/Services/Account/AccountDeletionService.php:249-250`
+- Constat :
+  - La demande publique de visite écrit `visitor_id = user.id` et, à défaut de saisie, recopie `first_name last_name`, `email` et `phone` du compte dans `visitor_name`, `visitor_email`, `visitor_phone` (lu, l. 841-850).
+  - `anonymize()` ne lit pas `property_visits` (lu : aucune occurrence de `visit` dans `AccountDeletionService.php`). La FK `visitor_id` est en `nullOnDelete`, mais le compte n'est que soft-deleted : elle ne joue pas (lu, migration l. 15).
+  - Mesuré par le test temporaire : une visite au nom du compte, puis `executeDeletion()` → `visitor_id`, `visitor_name`, `visitor_email` et `visitor_phone` inchangés.
+  - L'agence relit ces trois champs (lu, `PropertyVisitResource.php:27-29`). Pour les fiches CRM, l'effacement dissocie `customers.user_id` et garde le contact, par choix écrit (« preserve CRM history », l. 249-250). Rien de tel n'est dit pour les visites, et `privacy.ts` § 6 ne leur donne aucune durée (lu).
+  - Établi comment : test temporaire et lecture. Ce que l'agence doit garder d'une visite passée est une question de produit, non tranchée ici.
+- Piste : décider entre deux options et l'écrire : dissocier comme pour `customers` (`visitor_id` à `null`, le contact gardé par l'agence), ou effacer les trois champs des visites du compte. Dans les deux cas, un test : après `executeDeletion()`, la visite ne désigne plus le compte. Ablation → rouge.
+
+### Le jeton de réinitialisation du mot de passe garde l'e-mail d'origine, et la table n'est jamais purgée
+- Réf : P57.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/database/migrations/0001_01_01_000000_create_users_table.php:24-28`, `takussan-api/routes/console.php`, `takussan-api/config/auth.php:99`
+- Constat :
+  - `password_reset_tokens` a l'e-mail pour clé (lu, migration l. 24-28). `anonymize()` n'y touche pas (lu).
+  - Mesuré par le test temporaire : une ligne pour l'e-mail du compte, puis `executeDeletion()` → la ligne existe toujours (1).
+  - Le jeton expire en 60 minutes (lu, `config/auth.php:99`), mais la ligne n'est retirée qu'à l'usage ou à une nouvelle demande pour la même adresse. `auth:clear-resets` n'est pas planifiée (mesuré : `grep -rn clear-resets takussan-api/routes takussan-api/app` → rien). Toute demande abandonnée laisse donc son adresse en base pour toujours, compte effacé ou non.
+  - Établi comment : test temporaire, lecture et `grep`.
+- Piste : supprimer les lignes de l'adresse d'origine dans `anonymize()` (relevée avant le `forceFill`), et planifier `auth:clear-resets` chaque jour, comme les autres purges de `routes/console.php`. Deux tests : après `executeDeletion()`, aucune ligne pour l'adresse d'origine ; la commande est planifiée. Ablation → rouge.
+
+### Une invitation adressée au compte garde son e-mail, son lien au compte et son statut « envoyée » après l'effacement
+- Réf : P57.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/database/migrations/2026_05_10_000001_create_invitations_table.php:24-29`, `takussan-api/database/migrations/2026_10_07_150300_add_phone_to_invitations_table.php:25`, `takussan-api/app/Services/Invitation/InvitationService.php:224-233`
+- Constat :
+  - `invitations` porte `email`, `phone` et `invited_user_id` (FK `nullOnDelete`, que le soft-delete ne déclenche pas) (lu).
+  - Mesuré par le test temporaire : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés.
+  - L'envoi journalise aussi l'adresse en clair sous `activity_log.properties.email`, sur une ligne dont l'invitation est le sujet (lu, `InvitationService.php:224-233`) : l'effacement de P19.01 ne vise que les lignes dont le compte est le sujet.
+  - À vérifier : qu'une invitation encore `sent` vers un compte effacé puisse être acceptée par le détenteur de la boîte, et ce que l'acceptation crée ou rattache.
+  - Établi comment : test temporaire et lecture ; l'acceptation n'a pas été éprouvée.
+- Piste : à l'anonymisation, révoquer les invitations en cours du compte (statut existant) et effacer leur `email`/`phone`, ou les masquer. Un test : après `executeDeletion()`, aucune invitation en cours ne vise le compte ni son adresse. Ablation → rouge.
+
+### Petites améliorations
+- Réf : P57.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/PublicSearchAlertController.php:142`, `takussan-api/database/migrations/2026_06_17_100000_create_whatsapp_contacts_table.php:23-24`, `takussan-api/database/migrations/2026_10_08_599200_create_alert_subscribers_table.php:21`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:53-90`, `takussan-api/app/Services/Lead/ContactLeadService.php:302-315`, `takussan-api/app/Services/Notifications/Sms/Drivers/LogSmsDriver.php:31-37`
+- Constat :
+  - **`whatsapp_contacts.user_id` n'est écrit par aucun code** (mesuré : `grep -rn "WhatsappContact::" takussan-api/app` → seul `firstOrCreate(['phone' => …])` de l'alerte publique écrit). La colonne ne permet donc pas de retrouver le numéro d'un compte. Mesuré par le test temporaire : un contact au numéro du compte survit à `executeDeletion()`.
+  - **Les alertes sans compte (`alert_subscribers.contact`, en clair) ne rejoignent le compte que par `claim()`** (lu, `SavedSearchController.php:53-90`). Une alerte non rattachée à l'adresse du compte survit à l'effacement et continue d'écrire à cette adresse (lu : `AccountDeletionService` ne cite pas `AlertSubscriber`). Elle a son propre consentement et son lien de désabonnement : la garder peut se défendre, mais rien ne l'écrit.
+  - **Une demande de contact envoyée en étant connecté** recopie nom, e-mail et téléphone sans aucun lien au compte (lu, `ContactLeadService.php:302-315`) : l'effacement ne peut pas la retrouver, sinon par l'adresse. `privacy.ts` § 6 ne donne une durée qu'aux demandes « d'un visiteur sans compte » (lu).
+  - **Le pilote `log` de SMS écrit le numéro complet et le texte, code OTP compris**, dans le journal (lu, `LogSmsDriver.php:31-37`). Les pilotes déclarés en préproduction pour le SMS n'ont pas été relus (`prod-drivers.json` ne les porte pas) : à vérifier.
+  - Établi comment : lecture, `grep` et test temporaire.
+- Piste : écrire dans `anonymize()`, ou dans un commentaire qui le justifie, le sort de chacune : contact WhatsApp et alertes sans compte au contact vérifié du compte (supprimés, ou gardés avec la raison) ; demandes de contact (durée à écrire dans `privacy.ts`) ; pilote `log` qui masque le code et le numéro comme `PhoneVerificationService` le fait déjà (`phone_suffix`).
