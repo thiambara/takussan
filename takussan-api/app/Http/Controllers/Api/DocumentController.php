@@ -95,7 +95,7 @@ class DocumentController extends Controller
         $document->addMediaFromRequest('file')->toMediaCollection('file');
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->toArray($request),
+            'data' => DocumentResource::make($document->refresh())->resolve($request),
         ], 201);
     }
 
@@ -105,7 +105,7 @@ class DocumentController extends Controller
         $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $this->json([
-            'data' => DocumentResource::make($document)->toArray($request),
+            'data' => DocumentResource::make($document)->resolve($request),
         ]);
     }
 
@@ -124,7 +124,7 @@ class DocumentController extends Controller
         ]);
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->toArray($request),
+            'data' => DocumentResource::make($document->refresh())->resolve($request),
         ]);
     }
 

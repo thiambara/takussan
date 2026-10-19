@@ -57,7 +57,7 @@ class MediaController extends Controller
         $media->refresh();
 
         return $this->json([
-            'data' => (new MediaResource($media))->toArray($request),
+            'data' => (new MediaResource($media))->resolve($request),
         ], Response::HTTP_CREATED);
     }
 

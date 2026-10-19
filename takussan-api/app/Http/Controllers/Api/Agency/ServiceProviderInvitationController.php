@@ -43,7 +43,7 @@ class ServiceProviderInvitationController extends Controller
         $result = $this->service->invite($agency, $user, $request->validated());
 
         return $this->json([
-            'data' => InvitationResource::make($result['invitation'])->toArray($request),
+            'data' => InvitationResource::make($result['invitation'])->resolve($request),
             'meta' => [
                 'existing_sp_other_agency' => $result['existing_sp_other_agency'],
                 'existing_sp_same_agency' => $result['existing_sp_same_agency'],

@@ -100,9 +100,10 @@ class HostAutoOnboardTest extends TestCase
         $this->assertSame(AgencyKind::Individual, $agency->kind);
         $this->assertSame('XOF', $agency->currency->value);
         $this->assertSame($user->id, $agency->primary_admin_id);
-        $this->assertSame('Thiès', $agency->settings['primary_city']);
-        $this->assertNull($agency->settings['primary_property_type']);
-        $this->assertSame('host_auto_space', $agency->settings['onboarding_source']);
+        // TCK-966 (P47.07) — ni ville, ni type de bien, ni source : rien ne les lit dans `settings`.
+        foreach (['primary_city', 'primary_property_type', 'onboarding_source'] as $cle) {
+            $this->assertNull(data_get($agency->settings, $cle), $cle);
+        }
 
         $admin = AgencyAdminProfile::query()->where('user_id', $user->id)->where('agency_id', $agency->id)->sole();
         $this->assertTrue(OwnerProfile::query()->where('user_id', $user->id)->where('agency_id', $agency->id)->exists());
@@ -172,7 +173,8 @@ class HostAutoOnboardTest extends TestCase
         $this->assertLessThan($recherche, $verrou, "le verrou doit précéder la recherche de l'espace");
     }
 
-    public function test_ville_absente_dakar_et_prenom_absent_mon_espace(): void
+    /** TCK-966 (P47.07) — plus de ville par défaut écrite dans `settings` : rien ne la lisait. */
+    public function test_prenom_absent_mon_espace_et_aucune_ville_enregistree(): void
     {
         $user = User::factory()->create();
         $user->forceFill(['first_name' => ''])->save();
@@ -182,7 +184,7 @@ class HostAutoOnboardTest extends TestCase
             ->assertJsonPath('data.agency.name', 'Mon espace')
             ->json('data.agency.id');
 
-        $this->assertSame('Dakar', Agency::query()->findOrFail($id)->settings['primary_city']);
+        $this->assertNull(data_get(Agency::query()->findOrFail($id)->settings, 'primary_city'));
     }
 
     public function test_drapeau_eteint_403_auto_space_disabled(): void

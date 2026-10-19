@@ -66,14 +66,14 @@ class AgencyController extends Controller
         // vérifié, reçoit sa bienvenue : aucun `PhoneVerified` ne viendra plus la rattraper.
         SpaceCreated::dispatch($agency);
 
-        return $this->json(['data' => AgencyResource::make($agency)->toArray($request)], 201);
+        return $this->json(['data' => AgencyResource::make($agency)->resolve($request)], 201);
     }
 
     public function show(Request $request, Agency $agency): JsonResponse
     {
         abort_unless($this->canViewAgency($request->user(), $agency), 404);
 
-        return $this->json(['data' => AgencyResource::make($agency)->toArray($request)]);
+        return $this->json(['data' => AgencyResource::make($agency)->resolve($request)]);
     }
 
     public function update(AgencyUpdateRequest $request, Agency $agency): JsonResponse
@@ -118,7 +118,7 @@ class AgencyController extends Controller
         $agency->fill($data)->save();
 
         return $this->json(
-            ['data' => AgencyResource::make($agency->refresh())->toArray($request)],
+            ['data' => AgencyResource::make($agency->refresh())->resolve($request)],
             $thresholdOutcome === PayoutApprovalThreshold::PENDING ? 202 : 200,
         );
     }
@@ -132,7 +132,7 @@ class AgencyController extends Controller
         // VERIF-594 passe 2, N-5 — la valeur lue et confirmée (`ConfirmPayoutThresholdRequest`).
         app(PayoutApprovalThreshold::class)->confirm($agency, $request->user(), $request->validated('expected_threshold'));
 
-        return $this->json(['data' => AgencyResource::make($agency->refresh())->toArray($request)]);
+        return $this->json(['data' => AgencyResource::make($agency->refresh())->resolve($request)]);
     }
 
     public function destroy(Request $request, Agency $agency): JsonResponse
@@ -278,7 +278,7 @@ class AgencyController extends Controller
                 'user_id' => $target->id,
                 'agency_id' => $agency->id,
                 'role' => $role,
-                'user' => UserResource::make($target->refresh())->toArray($request),
+                'user' => UserResource::make($target->refresh())->resolve($request),
             ],
         ]);
     }

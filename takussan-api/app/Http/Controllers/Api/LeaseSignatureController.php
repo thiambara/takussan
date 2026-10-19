@@ -47,6 +47,6 @@ class LeaseSignatureController extends Controller
     {
         return LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
             ->forViewer($request->user())
-            ->toArray($request);
+            ->resolve($request);
     }
 }

@@ -57,7 +57,8 @@ class AgencyResource extends BaseResource
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
             'reviews_count' => (int) ($this->reviews_count ?? 0), // TCK-597 — avis publiés seulement
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
-            'settings' => $this->settings ?? null,
+            // TCK-966 (P47.07) — les clés que l'assistant écrivait sans lecteur ne sortent plus.
+            'settings' => $this->settings !== null ? self::withoutOnboardingKeys($this->settings) : null,
             // TCK-269 — metadata carries `welcome.standard_unlocked_at` (read by
             // the agency-standard welcome modale). Exposed verbatim so the
             // frontend hook can detect it without a dedicated endpoint.
@@ -84,5 +85,24 @@ class AgencyResource extends BaseResource
 
         return $user instanceof User
             && ($user->canActAt(Capability::PayoutsApprove, $this->resource) || $user->canActAt(Capability::PayoutsCreate, $this->resource));
+    }
+
+    /**
+     * TCK-966 (P47.07) — `primary_city`, `primary_property_type`, `onboarding_source` et
+     * `payment.preferred_provider` n'ont aucun lecteur ; une agence créée avant ce ticket peut encore
+     * les porter. Un `payment` vidé par ce retrait ne sort pas en `[]`.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private static function withoutOnboardingKeys(array $settings): array
+    {
+        $settings = Arr::except($settings, ['primary_city', 'primary_property_type', 'onboarding_source', 'payment.preferred_provider']);
+
+        if (($settings['payment'] ?? null) === []) {
+            unset($settings['payment']);
+        }
+
+        return $settings;
     }
 }

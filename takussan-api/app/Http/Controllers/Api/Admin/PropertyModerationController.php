@@ -73,7 +73,7 @@ class PropertyModerationController extends Controller
 
         $property = $this->service->approve($property, $request->user());
 
-        return $this->json(['data' => PropertyResource::make($property)->toArray($request)]);
+        return $this->json(['data' => PropertyResource::make($property)->resolve($request)]);
     }
 
     /**
@@ -86,7 +86,7 @@ class PropertyModerationController extends Controller
 
         $property = $this->service->reject($property, $request->user(), $request->string('rejection_reason')->value());
 
-        return $this->json(['data' => PropertyResource::make($property)->toArray($request)]);
+        return $this->json(['data' => PropertyResource::make($property)->resolve($request)]);
     }
 
     /**
@@ -99,6 +99,6 @@ class PropertyModerationController extends Controller
 
         $property = $this->service->resubmit($property, $request->user());
 
-        return $this->json(['data' => PropertyResource::make($property)->toArray($request)]);
+        return $this->json(['data' => PropertyResource::make($property)->resolve($request)]);
     }
 }

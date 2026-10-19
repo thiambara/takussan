@@ -58,7 +58,7 @@ class InvitationAcceptController extends Controller
         }
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 }

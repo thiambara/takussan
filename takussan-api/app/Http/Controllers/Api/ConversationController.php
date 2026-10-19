@@ -133,7 +133,7 @@ class ConversationController extends Controller
         $conversation->loadMissing('property');
 
         return $this->json([
-            'data' => ConversationResource::make($conversation)->toArray($request),
+            'data' => ConversationResource::make($conversation)->resolve($request),
         ], 201);
     }
 
@@ -180,7 +180,7 @@ class ConversationController extends Controller
         $conversation->loadMissing('property');
 
         return $this->json([
-            'data' => ConversationResource::make($conversation)->toArray($request),
+            'data' => ConversationResource::make($conversation)->resolve($request),
         ], 201);
     }
 
@@ -202,7 +202,7 @@ class ConversationController extends Controller
         $fresh?->loadMissing('property');
 
         return $this->json([
-            'data' => ConversationResource::make($fresh)->toArray($request),
+            'data' => ConversationResource::make($fresh)->resolve($request),
         ]);
     }
 
@@ -240,7 +240,7 @@ class ConversationController extends Controller
         ]);
 
         return $this->json([
-            'data' => ConversationResource::make($conversation)->toArray($request),
+            'data' => ConversationResource::make($conversation)->resolve($request),
         ]);
     }
 
@@ -347,7 +347,7 @@ class ConversationController extends Controller
         NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([
-            'data' => MessageResource::make($message)->toArray($request),
+            'data' => MessageResource::make($message)->resolve($request),
         ], 201);
     }
 

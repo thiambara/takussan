@@ -116,7 +116,7 @@ class RoleController extends Controller
         Gate::authorize('view', $role);
 
         return $this->json([
-            'data' => AgencyRoleResource::make($role->load('capabilities'))->toArray($request),
+            'data' => AgencyRoleResource::make($role->load('capabilities'))->resolve($request),
         ]);
     }
 
@@ -125,7 +125,7 @@ class RoleController extends Controller
         $role = $this->service->create($agency, $request->validated());
 
         return $this->json([
-            'data' => AgencyRoleResource::make($role->load('capabilities'))->toArray($request),
+            'data' => AgencyRoleResource::make($role->load('capabilities'))->resolve($request),
         ], 201);
     }
 
@@ -136,7 +136,7 @@ class RoleController extends Controller
         $role->fill($request->validated())->save();
 
         return $this->json([
-            'data' => AgencyRoleResource::make($role->fresh()->load('capabilities'))->toArray($request),
+            'data' => AgencyRoleResource::make($role->fresh()->load('capabilities'))->resolve($request),
         ]);
     }
 
@@ -175,7 +175,7 @@ class RoleController extends Controller
         $role = $this->service->replaceCapabilities($role, $capabilities);
 
         return $this->json([
-            'data' => AgencyRoleResource::make($role->load('capabilities'))->toArray($request),
+            'data' => AgencyRoleResource::make($role->load('capabilities'))->resolve($request),
         ]);
     }
 }

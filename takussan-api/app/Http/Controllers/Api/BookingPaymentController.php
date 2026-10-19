@@ -54,7 +54,7 @@ class BookingPaymentController extends Controller
         $payment = $this->payments->create($booking, $user, $data);
 
         return $this->json([
-            'data' => BookingPaymentResource::make($payment)->toArray($request),
+            'data' => BookingPaymentResource::make($payment)->resolve($request),
         ], 201);
     }
 
@@ -93,7 +93,7 @@ class BookingPaymentController extends Controller
         $payment = $this->payments->refund($payment, $data);
 
         return $this->json([
-            'data' => BookingPaymentResource::make($payment)->toArray($request),
+            'data' => BookingPaymentResource::make($payment)->resolve($request),
         ]);
     }
 }

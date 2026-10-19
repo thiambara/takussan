@@ -88,7 +88,7 @@ class SuperAdminInvitationController extends Controller
         );
 
         return $this->json(
-            ['data' => InvitationResource::make($invitation)->toArray($request)],
+            ['data' => InvitationResource::make($invitation)->resolve($request)],
             201,
         );
     }
@@ -123,7 +123,7 @@ class SuperAdminInvitationController extends Controller
         $invitation = $this->cooptation->resendInvitation($request->user(), $invitation);
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 
@@ -138,7 +138,7 @@ class SuperAdminInvitationController extends Controller
         $invitation = $this->cooptation->revokeInvitation($request->user(), $invitation);
 
         return $this->json([
-            'data' => InvitationResource::make($invitation)->toArray($request),
+            'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
     }
 }

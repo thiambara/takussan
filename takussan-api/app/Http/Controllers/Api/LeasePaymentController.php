@@ -51,7 +51,7 @@ class LeasePaymentController extends Controller
         $payment = $this->payments->create($lease, $request->user(), $data);
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment)->toArray($request),
+            'data' => LeasePaymentResource::make($payment)->resolve($request),
         ], 201);
     }
 
@@ -65,7 +65,7 @@ class LeasePaymentController extends Controller
         $payment = $this->payments->markPaid($payment, $data, $request->user());
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment)->toArray($request),
+            'data' => LeasePaymentResource::make($payment)->resolve($request),
         ]);
     }
 
@@ -78,7 +78,7 @@ class LeasePaymentController extends Controller
         $payment = $settlement->markPaid($payment, $request->user(), $request->validated());
 
         return $this->json([
-            'data' => LeasePaymentResource::make($payment->refresh())->toArray($request),
+            'data' => LeasePaymentResource::make($payment->refresh())->resolve($request),
         ]);
     }
 }
