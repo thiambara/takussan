@@ -5643,7 +5643,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Modifier un état des lieux avec `general_condition` ou `rooms` à `null` rend 500
 - Réf : P54.05
-- Statut : retenu · autonome
+- Statut : fait · TCK-980
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:24-25`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:136-145`, `takussan-api/app/Services/Model/InventoryService.php:39-50`, `takussan-api/database/migrations/2026_04_17_160022_create_inventories_table.php:20-21`
 - Constat :
@@ -5652,6 +5652,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Le schéma du front rend ces clés facultatives sans les mettre à `null` (`lib/schemas/inventory.ts:84`, lu).
 - Piste : `general_condition` et `rooms` en `sometimes` + `filled` (le `null` n'est pas un effacement possible pour ces deux colonnes) ; le maintien du `null` reste utile pour `notes`. Un test par clé qui attend 422 et un état des lieux inchangé.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `InventoryUpdateRequest.php:24-25` et `InventoryService::update()` (le `null` d'une clé présente est gardé) → `PATCH /api/inventories/{id}` en propriétaire sur un `draft` : `general_condition: null` → 500 `23502`, `rooms: null` → 500 `23502`, `notes: null` → 200. Classement : A1, le schéma `NOT NULL` sans défaut rend l'effacement impossible pour ces deux colonnes, et la règle `filled` qui en découle ne change que le 500 en 422 ; `notes` garde son effacement.
+- Mesure (2026-10-19, 70d05c24b, implementeur) : relu `InventoryUpdateRequest.php:24-25` (`general_condition` et `rooms` toujours `nullable`) ; test de garde dans `InventoryEditTest` (fournisseur sur les deux clés, et `notes: null`) → avant correctif, `PATCH /api/inventories/{id}` en propriétaire sur un `draft` avec l'une ou l'autre à `null` rend 500 `QueryException` (2 rouges sur 8) → `filled` sur les deux : 8 verts, état des lieux inchangé, `notes: null` efface toujours ; ablation (requête remise) → 2 rouges, remis → vert ; 21 verts avec `InventoryTest`.
 
 ### Créer un bien avec `furnished: null` rend 500
 - Réf : P54.06
