@@ -44,6 +44,12 @@ class PersonalDataAccessLogger
 
     public const SURFACE_AGENCY_UPGRADE_REQUEST = 'agency_upgrade_request';
 
+    /** TCK-955 (ADR-0070 § 5) — le numéro de pièce d'un client, lu en clair. */
+    public const SURFACE_CUSTOMER_SENSITIVE = 'customer_sensitive';
+
+    /** TCK-955 (ADR-0070 § 5) — la pièce et le revenu d'une caution, lus en clair. */
+    public const SURFACE_GUARANTOR_SENSITIVE = 'guarantor_sensitive';
+
     /** TCK-820 (P23.04) — une pièce (`Document::PIECE_TYPES`) lue par un profil plateforme. */
     public const SURFACE_DOCUMENT_PIECE = 'document_piece';
 
@@ -67,7 +73,12 @@ class PersonalDataAccessLogger
         $this->record($viewer, $document, self::SURFACE_DOCUMENT_PIECE);
     }
 
-    public function record(User $viewer, Model $subject, string $surface): void
+    /**
+     * `$agencyId` — TCK-955 (ADR-0070 § 5) : l'agence de rattachement, pour un sujet qui n'a pas de
+     * colonne `agency_id` (une caution). Elle passe par `properties.agency_id`, l'étape 1 du
+     * résolveur (ADR-0044 § 3) ; sans elle, la ligne ne serait visible que du super-admin.
+     */
+    public function record(User $viewer, Model $subject, string $surface, ?int $agencyId = null): void
     {
         $operateur = app(ImpersonationContext::class)->impersonatorId();
 
@@ -94,7 +105,7 @@ class PersonalDataAccessLogger
         activity(self::LOG_NAME)
             ->causedBy($viewer)
             ->performedOn($subject)
-            ->withProperties(['surface' => $surface])
+            ->withProperties(array_filter(['surface' => $surface, 'agency_id' => $agencyId], fn ($v) => $v !== null))
             ->event(self::EVENT)
             ->log(self::EVENT);
     }

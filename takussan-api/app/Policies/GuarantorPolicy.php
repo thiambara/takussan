@@ -48,4 +48,29 @@ class GuarantorPolicy extends BasePolicy
     {
         return $this->view($user, $model);
     }
+
+    /**
+     * TCK-955 (ADR-0070 § 5) — la pièce et le revenu EN CLAIR : un profil d'admin dans l'agence que
+     * `view()` lit déjà ({@see self::agencyOf()}). Une caution dont l'auteur n'a pas d'agence
+     * résolue n'a pas d'admin pour lecteur. Le super-admin passe par `Gate::before` (amendement
+     * d'ADR-0070 du 2026-10-19).
+     */
+    public function viewSensitive(User $user, Guarantor $guarantor): bool
+    {
+        $agencyId = self::agencyOf($guarantor);
+
+        return $agencyId !== null && $user->isAgencyAdminAt($agencyId);
+    }
+
+    /**
+     * L'agence d'une caution, qui n'a pas de colonne `agency_id` : celle de son auteur, par
+     * l'accesseur pont (`null` pour un auteur présent dans plusieurs agences). C'est aussi
+     * l'agence à laquelle se rattache la consultation journalisée (ADR-0044 § 3, étape 1).
+     */
+    public static function agencyOf(Guarantor $guarantor): ?int
+    {
+        $agencyId = $guarantor->addedBy?->agency_id;
+
+        return $agencyId !== null ? (int) $agencyId : null;
+    }
 }

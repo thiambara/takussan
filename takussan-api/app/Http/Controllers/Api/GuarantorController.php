@@ -7,6 +7,8 @@ use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
+use App\Policies\GuarantorPolicy;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\Masking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,6 +52,33 @@ class GuarantorController extends Controller
         $this->authorize('view', $guarantor);
 
         return $this->json(['data' => $this->format($guarantor)]);
+    }
+
+    /**
+     * TCK-955 (ADR-0070 § 5) — la pièce et le revenu EN CLAIR, le revenu en nombre. La caution n'a
+     * pas de colonne d'agence : la consultation est rattachée à l'agence que la policy vient de
+     * valider ({@see GuarantorPolicy::agencyOf()}), sans quoi l'admin ne la verrait pas dans son
+     * journal.
+     */
+    public function sensitive(Request $request, Guarantor $guarantor, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $guarantor);
+
+        $accessLog->record(
+            $request->user(),
+            $guarantor,
+            PersonalDataAccessLogger::SURFACE_GUARANTOR_SENSITIVE,
+            GuarantorPolicy::agencyOf($guarantor),
+        );
+
+        return $this->json([
+            'data' => [
+                'id' => $guarantor->id,
+                'id_type' => $guarantor->id_type?->value,
+                'id_number' => $guarantor->id_number,
+                'monthly_income' => $guarantor->monthly_income !== null ? (float) $guarantor->monthly_income : null,
+            ],
+        ]);
     }
 
     public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
