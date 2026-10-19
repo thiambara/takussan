@@ -2,6 +2,7 @@
 
 namespace App\Services\Lease;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
@@ -221,6 +222,8 @@ class LateFeeCalculator
             return null;
         }
 
-        return (float) $value;
+        // TCK-964 (P47.04) — dans les bornes du catalogue (0 à 100 %), pour une ligne écrite avant sa
+        // règle : un plafond négatif rendait une pénalité négative.
+        return EditablePlatformSettings::clamp('late_fees.cap_percent', (float) $value);
     }
 }

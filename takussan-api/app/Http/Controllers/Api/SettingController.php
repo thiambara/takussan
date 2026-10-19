@@ -41,20 +41,14 @@ class SettingController extends Controller
 
         $user = $request->user();
 
+        // TCK-964 (P47.04) — l'autorisation (portée globale au super-admin, portée agence à l'admin
+        // de l'agence visée) court dans `StoreSettingRequest::authorize()`, avant la validation.
         if ($data['scope'] === SettingScope::Global->value) {
-            abort_code_unless($user->isSuperAdmin(), 403, 'setting.global_forbidden');
             // TCK-651 (ADR-0065) — une clé globale que le code lit s'écrit par son catalogue, et
             // seulement par lui ; toute autre n'a pas de lecteur. La route brute ne fait que l'agence.
             abort_code(422, 'setting.global_not_writable');
-        } else {
-            $targetAgencyId = $data['scope_id'] ?? $user->agency_id;
-            abort_code_unless(
-                $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $targetAgencyId && $user->isAgencyAdminAt((int) $targetAgencyId)),
-                403,
-                'setting.other_agency_forbidden'
-            );
-            $data['scope_id'] = $targetAgencyId;
         }
+        $data['scope_id'] = $data['scope_id'] ?? $user->agency_id;
 
         $setting = Setting::updateOrCreate(
             [

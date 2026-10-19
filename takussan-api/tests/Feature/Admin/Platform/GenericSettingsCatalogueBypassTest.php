@@ -59,7 +59,10 @@ class GenericSettingsCatalogueBypassTest extends TestCase
         $this->assertSame(12.5, app(PlatformSettingService::class)->getValue('lease.rent_review_max_pct'));
     }
 
-    /** La portée `agency` reste ouverte — y compris pour une clé du catalogue : la ligne d'agence l'emporte. */
+    /**
+     * La portée `agency` reste ouverte aux réglages métier du catalogue : la ligne d'agence l'emporte.
+     * TCK-964 (P47.04, décision du porteur) — une clé hors catalogue y est désormais refusée en 422.
+     */
     public function test_la_portee_agence_reste_ouverte(): void
     {
         $agence = Agency::factory()->create();
@@ -71,6 +74,7 @@ class GenericSettingsCatalogueBypassTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.scope_id', $agence->id);
         $this->postJson('/api/settings', ['key' => 'site_name', 'value' => ['name' => 'Takussan'], 'scope' => SettingScope::Agency->value])
-            ->assertCreated();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('key');
     }
 }
