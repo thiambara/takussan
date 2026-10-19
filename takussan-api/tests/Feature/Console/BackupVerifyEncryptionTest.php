@@ -3,6 +3,7 @@
 namespace Tests\Feature\Console;
 
 use App\Models\Customer;
+use App\Models\Guarantor;
 use App\Models\PayoutMethod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,17 @@ class BackupVerifyEncryptionTest extends TestCase
 
         $this->artisan('backup:verify-encryption')
             ->expectsOutputToContain('customers.id_number : 1 lue(s), 0 illisible(s)')
+            ->assertExitCode(0);
+    }
+
+    /** TCK-954 (ADR-0070 § 9) — la pièce et le revenu de la caution entrent par leur cast `encrypted`. */
+    public function test_la_piece_et_le_revenu_de_la_caution_sont_verifies(): void
+    {
+        Guarantor::factory()->create(['id_number' => 'CNI-445566', 'monthly_income' => '800000.00']);
+
+        $this->artisan('backup:verify-encryption')
+            ->expectsOutputToContain('guarantors.id_number : 1 lue(s), 0 illisible(s)')
+            ->expectsOutputToContain('guarantors.monthly_income : 1 lue(s), 0 illisible(s)')
             ->assertExitCode(0);
     }
 
