@@ -638,6 +638,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                       lastPage={meta.last_page}
                       filters={filters}
                       cibleDuDefilement={ID_DES_RESULTATS}
+                      heureDeGraine={data?.seed_hour}
                     />
                     <TailleDePage
                       filters={filters}

@@ -6,6 +6,7 @@ use App\Events\AgencyUpgradeApproved;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Enums\KycDossierStatus;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
 use App\Notifications\AgencyUpgradeRejectedNotification;
@@ -46,6 +47,7 @@ class AgencyUpgradeReviewService
         ?string $comment = null,
     ): AgencyUpgradeRequest {
         $this->assertPending($request);
+        $this->assertKycVerified($request);
 
         // TCK-991 (P49.05) — une agence suspendue ne passe pas en `standard` : la demande reste
         // `pending`, approuvable une fois la suspension levée, ou rejetable. `inactive` reste
@@ -160,6 +162,22 @@ class AgencyUpgradeReviewService
         if ($status !== AgencyUpgradeRequestStatus::Pending) {
             throw new HttpException(422, __('agency_upgrade.review.errors.not_pending'));
         }
+    }
+
+    /**
+     * TCK-1003 (P49.02) — la bascule fait de l'agence une `standard`, dont les reversements de la
+     * plateforme exigent `is_verified` (`PlatformPayoutService::approve`, ADR-0039 § 5). La demande
+     * ne porte pas les pièces du dossier KYC (`KycWorkflowService::AGENCY_REQUIRED_DOCUMENTS`) :
+     * l'approbation exige donc un dossier KYC vérifié, sans quoi l'argent déjà clôturé gèlerait.
+     * Avant toute écriture : la demande reste `pending`.
+     */
+    protected function assertKycVerified(AgencyUpgradeRequest $request): void
+    {
+        abort_code_unless(
+            $request->agency?->kycDossier?->status === KycDossierStatus::Verified,
+            422,
+            'agency_upgrade.kyc_not_verified',
+        );
     }
 
     /**

@@ -19,6 +19,13 @@ export interface PaginationProps {
    * résultats. Sans lui, la vue ne bouge pas.
    */
   readonly cibleDuDefilement?: string;
+  /**
+   * TCK-1008 (P55.01) — l'heure de graine de la page affichée (`seed_hour` de la réponse), que les
+   * liens vers les pages 2 et suivantes renvoient à l'API : sans elle, une page servie après le
+   * changement d'heure recalculait d'autres places réservées que celles de la page 1 (un doublon,
+   * un absent). Le lien de la page 1 ne la porte pas : il garde la forme de la canonique.
+   */
+  readonly heureDeGraine?: string | null;
 }
 
 type Element =
@@ -100,7 +107,7 @@ function clicModifie(e: MouseEvent<HTMLAnchorElement>): boolean {
  * événement de défilement que `useScrollRestoration` (TCK-335) pourrait encore attribuer à
  * l'entrée de la page quittée, dont il écraserait la position.
  */
-export function Pagination({ currentPage, lastPage, filters, cibleDuDefilement }: PaginationProps) {
+export function Pagination({ currentPage, lastPage, filters, cibleDuDefilement, heureDeGraine }: PaginationProps) {
   const t = useTranslations('search.pagination');
   const router = useRouter();
   const pathname = usePathname();
@@ -119,7 +126,9 @@ export function Pagination({ currentPage, lastPage, filters, cibleDuDefilement }
   if (lastPage <= 1) return null;
 
   const hrefDe = (page: number): string => {
-    const qs = filtersToParams({ ...filters, page: page > 1 ? page : undefined }).toString();
+    const params = filtersToParams({ ...filters, page: page > 1 ? page : undefined });
+    if (page > 1 && heureDeGraine) params.set('seed_hour', heureDeGraine);
+    const qs = params.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
 

@@ -9,13 +9,19 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class LeasePaymentService
 {
-    public function __construct(protected NotificationService $notifications) {}
+    public function __construct(
+        protected NotificationService $notifications,
+        private readonly LeasePaymentLinkService $links,
+    ) {}
 
     /**
      * @param  array<string,mixed>  $data
@@ -102,11 +108,19 @@ class LeasePaymentService
             $amount = NotificationRenderer::money($payment->amount, $payment->currency);
             $target = NotificationTarget::of('lease', $lease->id);
 
+            $params = ['amount' => $amount, 'property' => $lease->property?->title];
             if ($tenantUser) {
-                $this->notifications->send($tenantUser, NotificationCode::LeasePaymentRecorded, [
-                    'amount' => $amount,
-                    'property' => $lease->property?->title,
-                ], $target);
+                // TCK-1002 — un compte lit sa quittance dans son espace : ni lien porteur, ni
+                // canal mobile (le code n'est mobile que pour un contact sans compte).
+                $this->notifications->send($tenantUser, NotificationCode::LeasePaymentRecorded, $params, $target, mobileBorne: false);
+            } elseif ($lease->tenant !== null && ($contact = ContactSansCompte::fromCustomer($lease->tenant))->hasPhone()) {
+                // TCK-1002 (P48.02) — le locataire sans compte reçoit le lien `/pay/{jeton}` de sa
+                // quittance, comme après un paiement en ligne (`SendRentReceiptAfterOnlinePayment`).
+                $this->notifications->send($contact, NotificationCode::LeasePaymentRecorded, $params + ['receipt_url' => $this->links->urlFor($payment)], $target);
+            } else {
+                Log::info('[pay-link] paiement enregistré non notifié — locataire sans compte ni téléphone valide', [
+                    'lease_payment_id' => $payment->id,
+                ]);
             }
             if ($landlord) {
                 $this->notifications->send($landlord, NotificationCode::LeasePaymentReceivedLandlord, [

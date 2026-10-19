@@ -232,7 +232,14 @@ trait HasQueryBuilder
                 // refuse d'en voir réapparaître un second, y compris sous un
                 // autre nom.
                 if (in_array(Searchable::class, class_uses_recursive($model), true)) {
-                    $ids = $model::search($value)->take(static::SEARCH_ID_CAP)->keys()->all();
+                    // TCK-1009 (P59.01) — `keys()` ne lit que la clé de chaque hit : sans
+                    // projection, le moteur rendait le document entier de chaque
+                    // correspondance, jusqu'à SEARCH_ID_CAP (≈ 6 Mo pour 5 000 biens).
+                    $ids = $model::search($value)
+                        ->options(['attributesToRetrieve' => [$model->getScoutKeyName()]])
+                        ->take(static::SEARCH_ID_CAP)
+                        ->keys()
+                        ->all();
                     $q->whereIn($model->getQualifiedKeyName(), $ids);
 
                     // TCK-281 — `whereIn` ne dit rien de l'ordre. On mémorise

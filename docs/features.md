@@ -470,7 +470,7 @@ Une agence porte un **`kind`** :
 | P1 | Tous | Verrou de compte après échecs de connexion répétés (mot de passe ou code), levé seul au bout de 15 min ou par le support ; un compte bloqué ou supprimé n'ouvre aucune session, par aucun chemin (TCK-589) |
 | P1 | Tous | L'inscription ouvre la session aussitôt (TCK-589) |
 | P1 | 👤 | L'inscription garde l'intention du visiteur (bien, dates, action) jusqu'au retour sur la fiche, quel que soit le chemin (connexion, inscription, téléphone, OAuth) (TCK-589) |
-| P1 | 🏠🛡️ | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel) chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, consultation journalisée (TCK-601) |
+| P1 | 🏠🛡️ | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
 | P2 | Tous | Suppression de compte avec anonymisation (RGPD) |
 | P2 | Tous | Export des données personnelles (portabilité RGPD — déclenché par l'utilisateur) — une demande par 24 h ; statut suivi jusqu'à la fin de la préparation ; e-mail de fin dans la langue du compte (TCK-567, TCK-575) |
 | P2 | 🛡️ | Déclenchement de l'export RGPD par un super-admin pour le compte d'un utilisateur (support / réquisition) |
@@ -620,7 +620,7 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P1 | 🛡️ | Consultation du journal par entité |
 | P1 | 🛡️ | Filtrage par utilisateur, date, action |
 | P1 | 🛡️ | Le journal d'une agence couvre tout ce qui touche ses objets (actes des admins, du système et des webhooks compris) et rien de ce qui touche une autre agence (TCK-601) |
-| P1 | 🛡️ | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) (TCK-601) |
+| P1 | 🛡️ | Journal des consultations de données personnelles depuis la console (fiche utilisateur, sessions, dossier et pièces KYC, valeurs bancaires) et des valeurs claires lues dans l'application (pièce, revenu) (TCK-601, TCK-955) |
 | P2 | 🛡️ | Export de l'audit trail |
 | P3 | 🛡️ | Alertes sur actions sensibles |
 | P3 | 🛡️ | Alertes d'exploitation à seuil (pic d'échecs de jobs, file bloquée, santé dégradée), en plus des gestes sensibles (TCK-600) |

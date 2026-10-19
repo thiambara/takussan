@@ -71,7 +71,7 @@ class AgencyUpgradeRequestController extends Controller
 
     public function show(Request $request, AgencyUpgradeRequest $upgradeRequest, PersonalDataAccessLogger $accessLog): JsonResponse
     {
-        $upgradeRequest->load(['agency', 'submitter', 'reviewer', 'documents']);
+        $upgradeRequest->load(['agency.kycDossier', 'submitter', 'reviewer', 'documents']);
 
         // TCK-601 (ADR-0044 §4) — le détail rend le NINEA et le RIB professionnel EN CLAIR.
         $accessLog->record($request->user(), $upgradeRequest, PersonalDataAccessLogger::SURFACE_AGENCY_UPGRADE_REQUEST);
@@ -95,6 +95,8 @@ class AgencyUpgradeRequestController extends Controller
                         'slug' => $agency->slug,
                         'kind' => $agency->kind?->value ?? (string) $agency->kind,
                         'status' => $agency->status?->value ?? (string) $agency->status,
+                        // TCK-1003 — l'approbation exige un dossier KYC vérifié : la revue le dit.
+                        'kyc_status' => $agency->kycDossier?->status?->value,
                         'created_at' => $agency->created_at?->toIso8601String(),
                     ] : null,
                     'submitter' => $upgradeRequest->submitter ? [

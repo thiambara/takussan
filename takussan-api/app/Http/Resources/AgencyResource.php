@@ -69,6 +69,8 @@ class AgencyResource extends BaseResource
             // recopie plus ; ceci couvre une donnée qui lui serait antérieure.
             'metadata' => $this->metadata !== null ? Arr::except($this->metadata, 'legal_info.rib_pro') : null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
+            // TCK-1004 (P49.04) — le slug s'édite une fois après la bascule en professionnelle.
+            'slug_editable' => $this->resource->slugEditableOnce(),
             // TCK-633 — le filigrane est-il allumé pour la PLATEFORME (`media_watermark`, éteint par
             // défaut) ? La configuration d'agence ne propose « Regénérer les filigranes » que s'il
             // l'est. Un booléen d'état, pas le drapeau : il reste hors de `feature-flags/me`.

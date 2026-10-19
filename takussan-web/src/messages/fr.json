@@ -6358,6 +6358,8 @@
       "fields": {
         "name": "Nom de l’agence",
         "slug": "Identifiant URL (non modifiable)",
+        "slugEditable": "Identifiant URL (modifiable une fois)",
+        "slugEditableHint": "Votre agence est passée en professionnelle : vous pouvez remplacer cet identifiant une seule fois. Lettres minuscules, chiffres et tirets. L'ancienne adresse de votre page publique ne fonctionnera plus.",
         "license": "Numéro de licence",
         "licensePlaceholder": "ex : SEN-IMMO-2024",
         "description": "Description",
@@ -8228,7 +8230,9 @@
           "decidedOn": "Décidée le",
           "by": "Par",
           "comment": "Commentaire",
-          "userFallback": "User #{id}"
+          "userFallback": "User #{id}",
+          "kycNotVerified": "Le dossier KYC de l'agence n'est pas vérifié : la demande ne peut pas être approuvée tant qu'il ne l'est pas. Sans lui, la plateforme ne pourrait plus reverser à l'agence une fois passée en professionnelle.",
+          "openKyc": "Ouvrir l'agence et son dossier KYC"
         },
         "status": {
           "pending": "En attente",

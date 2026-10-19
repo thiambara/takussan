@@ -133,8 +133,8 @@ voie d'écriture (angle 13, puis 47).
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | fait |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | fait |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | fait |
-| 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
-| 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
+| 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | fait |
+| 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | fait |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
@@ -167,6 +167,8 @@ voie d'écriture (angle 13, puis 47).
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
+| 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
+| 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
 
 ---
 
@@ -3076,7 +3078,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 
 ### La pièce d'identité du locataire et de la caution est en clair partout, quand celle du bailleur est chiffrée, masquée, sous step-up et journalisée
 - Réf : P23.03
-- Statut : retenu · à valider — V8 : le correctif dépasse M et demande plus d'un ticket (quatre colonnes chiffrées par migration réversible, deux lectures dédiées sous step-up et journalisées, le contrat du front), critère distinct de V3, V4 et V6 accordés ; porteur (2026-10-18) : traité hors agents, en session : un ADR qui étend ADR-0044 § 1 aux pièces du locataire et de la caution (chiffrement, forme masquée par défaut, lecture sous step-up journalisée), puis ses tickets
+- Statut : fait · TCK-956
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/database/migrations/2026_04_17_160006_create_customers_table.php:20-21`, `takussan-api/database/migrations/2026_04_17_160007_create_guarantors_table.php:18-21`, `takussan-api/app/Models/Customer.php:106`, `takussan-api/app/Http/Resources/CustomerResource.php:20`, `takussan-api/app/Http/Controllers/Api/GuarantorController.php:84-101`, `takussan-api/app/Models/Profiles/OwnerProfile.php:47-53`, `takussan-api/app/Support/Security/ProtectedActions.php:263-266`
 - Constat :
@@ -3094,6 +3096,7 @@ en clair les comptes de reversement de la cible ») et n'est pas reprise.*
 - Mesure (2026-10-19, 800918b4c, humain) : TCK-953 livré en session. `customers.id_number` est chiffré par migration réversible, et le test d'aller-retour lit `character varying(255)` après le `down()`. Les réponses ne rendent plus que `id_number_masked`, et `fields[customers]=…,id_number` rend 400. Les six fuites P23.03 sont sorties de `FUITES_TOLEREES`, et la garde est verte. Ablations : sans le cast, 2 rouges ; sans `$hidden`, 1 rouge. Restent la caution (TCK-954), les lectures claires (TCK-955) et le revenu du bailleur (TCK-956).
 - Mesure (2026-10-19, ed31d8417, humain) : TCK-954 livré en session. `guarantors.id_number` et `guarantors.monthly_income` sont chiffrés par migration réversible, avec un `down()` qui rend `numeric(14,2)` par `USING`. Les réponses ne rendent que `id_number_masked` et `monthly_income_masked`. La garde d'impersonation balaie maintenant les cautions, et reste verte sans fuite tolérée. Ablation : `format()` d'origine rend 3 tests rouges. Restent TCK-955 et TCK-956.
 - Mesure (2026-10-19, 02f685616, humain) : TCK-955 livré en session. `GET /api/customers/{id}/sensitive` et `GET /api/guarantors/{id}/sensitive` sont réservées à l'admin de l'agence du sujet, et au super-admin par `Gate::before` (ADR-0070 amendé le 2026-10-19, option c du porteur). Elles passent par le step-up, sont journalisées (`customer_sensitive`, `guarantor_sensitive`) et refusées sous impersonation. La fiche client a le geste « Afficher ». Ablations : sans `STEP_UP`, la garde de balayage rougit ; sans `record()`, AC1 rougit. Reste TCK-956.
+- Mesure (2026-10-19, 3cd5d2d66, humain) : TCK-956 livré en session. `owner_profiles.monthly_income` est chiffré par migration réversible (aller-retour testé, `numeric(14,2)` rendu par `USING`), ne sort que par `monthly_income_masked`, et `fields[owner_profiles]=id,monthly_income` rend 400. `owners/{id}/sensitive` le rend en clair. L'export du droit d'accès porte `customers.json`, pièce en clair, limité à l'identité. `backup:verify-encryption` voit les quatre colonnes d'ADR-0070. Ablations : sans `makeVisible`, l'export rougit ; sans le cast, l'aller-retour et la vérification des sauvegardes rougissent. Avec TCK-953 à TCK-955, la piste est entièrement traitée. La décision du porteur, avant passage à `fait` : « V8 : le correctif dépasse M et demande plus d'un ticket […] ; porteur (2026-10-18) : traité hors agents, en session : un ADR qui étend ADR-0044 § 1 aux pièces du locataire et de la caution […], puis ses tickets ».
 
 ### Le super-admin liste et ouvre toutes les pièces d'identité de la plateforme par `GET /api/documents`, hors de la console et sans journal de consultation
 - Réf : P23.04
@@ -5186,7 +5189,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le locataire sans compte n'apprend ni le paiement enregistré par l'agence, ni la révision de loyer, ni la pénalité, ni le renouvellement, ni la restitution de caution
 - Réf : P48.02
-- Statut : validé — ouvrir aux contacts sans compte (`reachesContacts`) les cinq messages : le paiement enregistré par l'agence (`lease_payment.recorded`, avec le lien `/pay/{jeton}` de la quittance, comme le paiement en ligne), la révision de loyer, la pénalité, le renouvellement et la restitution de caution ; ne poser `tenant_welcomed_at` que si le message est parti ; un test par code, locataire sans compte avec un téléphone valide (porteur, 2026-10-19)
+- Statut : fait · TCK-1002 — reste : la révision de loyer, la pénalité, le renouvellement et la restitution de caution vers le locataire sans compte : ces quatre messages sont des classes `Notification` hors du catalogue `NotificationCode` (`LeaseRentReviewedNotification`, `LeasePaymentLateFeeNotification`, `LeaseRenewedNotification`, `LeaseDepositRefundNotification`), que `reachesContacts` ne gouverne pas ; les ouvrir demande de les porter au catalogue, avec leurs textes de cloche, d'e-mail et de SMS des deux côtés
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/LeasePaymentService.php:96-118`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRentReview.php:22-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfLateFee.php:21-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRenewal.php:20-23`, `takussan-api/app/Listeners/Lease/NotifyTenantOfDepositRefund.php:19-22`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:37-46`, `takussan-api/app/Domain/Notifications/NotificationCode.php:483-495`
 - Constat :
@@ -5199,6 +5202,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : ouvrir aux contacts (`reachesContacts`) au moins `lease_payment.recorded`, avec le lien `/pay/{jeton}` de la quittance, comme le paiement en ligne. Décider pour la révision, la pénalité, le renouvellement et la caution. Ne poser `tenant_welcomed_at` que si le message est parti. Garde : un test par code, locataire sans compte avec téléphone valide.
 - Mesure (2026-10-19, f356e5a5f, mesureur) : relu `LeasePaymentService.php:105-110` (`if ($tenantUser)`), les quatre écouteurs (`NotifyTenantOfRentReview:22-23`, `NotifyTenantOfLateFee:21-23`, `NotifyTenantOfRenewal:20-22`, `NotifyTenantOfDepositRefund:19-21`, sortie sur `null`), `SendTenantWelcomeNotification.php:37-47` (tampon posé sans envoi), `NotificationCode::reachesContacts:483-495` (`LeasePaymentRecorded` absent) ; `grep linkUser app` → seule la définition (`CustomerService.php:28`) et un docblock ; `SELECT count(*), count(*) FILTER (WHERE c.user_id IS NULL) FROM leases l JOIN customers c ON c.id = l.tenant_id` en base de dev → `579|322` (base semée, pas l'écran) → tout tient. Classement : V7, la piste elle-même laisse à décider la révision, la pénalité, le renouvellement et la caution, et envoyer un SMS ou un WhatsApp à un contact sans compte est un comportement visible neuf (et touche ce qui part vers une donnée personnelle, V3).
 
+- Mesure (2026-10-19, 1c1fe5f0f, implementeur) : relu `LeasePaymentService::markPaid` (`if ($tenantUser)` seul), `SendTenantWelcomeNotification` (tampon posé sans envoi) et les quatre écouteurs `NotifyTenantOf*`, qui envoient des classes `Notification` à part (`LeaseRentReviewedNotification`, `LeasePaymentLateFeeNotification`, `LeaseRenewedNotification`, `LeaseDepositRefundNotification`) et non des `NotificationCode` : `reachesContacts` ne les gouverne pas, et les ouvrir demande quatre codes neufs et leurs textes des deux côtés, laissés au reste ; `LeasePaymentRecordedToContactTest` (neuf : contact sans compte avec téléphone → un SMS avec `receipt_url` = le lien `/pay/{jeton}` de l'échéance ; compte avec numéro vérifié et SMS allumé → envoi au compte sans lien ni canal mobile ; ni compte ni coordonnées → rien) et `TenantWelcomeNotificationTest` (sans compte → `tenant_welcomed_at` nul) → 2 rouges sur 8 avant correctif ; correctif (`LeasePaymentRecorded` dans `reachesContacts`, `mobile`, `receipt_url` facultatif et porteur, envoi au contact dans `markPaid`, `mobileBorne: false` vers un compte, variantes `body_link`/`sms_link` en fr, en, et en wo le texte français tel quel ; plus de tampon sans compte) → 8 verts ; ablation (`app/` et `lang/` d'origine) → les mêmes 2 rouges, et sans la seule borne `mobileBorne` → le test du compte rougit ; 27 classes qui citent `markPaid` ou ces codes → 385 verts.
 ### Une candidature retenue ne mène à aucun bail : elle devient une réservation datée, et rien ne relie le bail à elle
 - Réf : P48.03
 - Statut : retenu · à valider — V7 : un geste « créer le bail » depuis une candidature est une fonction visible neuve ; porteur (2026-10-19) : plus tard, après le ticket de P15.01, sur la recommandation du délégué : un geste « créer le bail » sur une candidature `confirmed`, prérempli, avec le contrôle `tenant_id` = `customer_id` de la réservation
@@ -5217,7 +5221,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un locataire en préavis ne peut plus demander d'intervention, et son accueil compte zéro bail
 - Réf : P48.04
-- Statut : validé — juger la création d'une intervention et le compte de baux de l'accueil du locataire par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES` : un locataire en préavis (`terminating`) habite encore le logement et peut demander une intervention ; un test de création par un locataire en `terminating` (porteur, 2026-10-19)
+- Statut : fait · TCK-1001
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:99-103`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:58-61`, `takussan-api/app/Models/Concerns/HasProfiles.php:38-43`
 - Constat :
@@ -5228,6 +5232,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : juger les deux sites par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES`. Garde : un test de création d'intervention par un locataire en `terminating`.
 - Mesure (2026-10-19, f356e5a5f, mesureur) : relu `MaintenanceRequestController.php:99-103` (bail `LeaseStatus::Active` seul), `DashboardTenantService.php:60` et `HasProfiles.php:43` ; test temporaire (`POST /api/maintenance-requests` par un locataire dont le seul bail est `terminating`, puis `DashboardTenantService::summary`), retiré ensuite, charge 2,08 sur 8 cœurs → `403`, `leases.active = 0`, alors que `hasActiveTenantLease()` rend `true` → le constat tient, mesuré. `grep -i 'préavis\|terminating' docs/features.md docs/adr` : rien n'écrit si les interventions restent ouvertes pendant le préavis. Classement : V2, c'est une règle d'autorisation de création que la piste élargit, et l'intention n'est écrite nulle part ; le compte du tableau de bord change aussi ce que voit le locataire (V7).
 
+- Mesure (2026-10-19, 1c1fe5f0f, implementeur) : relu `MaintenanceRequestController.php:99-103` (bail `LeaseStatus::Active` seul) et `DashboardTenantService.php:58-61` (compte des seuls `active`) ; `MaintenanceRequestTest` étendu (bail du demandeur `active`, `terminating` → 201, `terminated`, `expired` → 403) et `DashboardTenantTest` (un bail `terminating` et un `terminated` → `leases.active` = 1) → 2 rouges sur 17 avant correctif (préavis : 403, accueil : 0) ; les deux sites jugés par `User::ACTIVE_TENANT_LEASE_STATUSES` → 17 verts ; ablation (les deux sites remis à `LeaseStatus::Active`) → les mêmes 2 rouges, correctif remis → verts.
 ### Petites améliorations
 - Réf : P48.05
 - Statut : fait · TCK-969 — reste : la vue client sur `/app/payments` pour un compte professionnel qui a aussi un bail de locataire
@@ -5263,7 +5268,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Après le passage, les reversements de la plateforme à l'agence sont refusés tant qu'un dossier KYC distinct n'est pas vérifié
 - Réf : P49.02
-- Statut : validé — la revue de la demande de passage vaut vérification KYC : son approbation alimente le dossier KYC de l'agence avec les pièces de la demande et le marque vérifié, si la demande porte les pièces que le dossier exige ; si elle ne les porte pas, exiger un dossier KYC vérifié avant d'approuver la demande, et le dire dans la revue ; un test de bout en bout bascule → approbation d'un reversement, qui écrit le comportement retenu (porteur, 2026-10-19)
+- Statut : fait · TCK-1003
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:116-120`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:82-115`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:20,133-139`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:179-191`, `takussan-api/lang/fr/agency_upgrade.php:32`
 - Constat :
@@ -5274,6 +5279,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu et mesuré. Le nombre d'agences concernées n'a pas été mesuré.
 - Piste : décider, au passage, de l'un de trois chemins : exiger un KYC vérifié avant d'approuver la demande, faire de la revue de la demande la vérification (et alimenter le dossier), ou au moins le dire dans la revue et dans la notification. Garde : un test de bout en bout bascule → approbation d'un reversement, qui écrit le comportement choisi.
 - Mesure (2026-10-19, b9479987b, mesureur) : relu `PlatformPayoutService.php:113-117` (`platform_payout.agency_unverified` pour une `standard` non vérifiée), `AgencyKindFlipService::flip` (ne pose ni `is_verified` ni `verified_at`) et `KycWorkflowService.php:134-139` (seul écrivain de `is_verified` sur une agence) ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : agence `individual` non vérifiée, `PlatformPayout` créé, demande approuvée (`200`), puis `POST /api/admin/payouts/{id}/approve` → `kind=standard`, `is_verified=false`, `422 platform_payout.agency_unverified` → le constat tient. Classement : V1, la piste touche l'approbation d'un reversement et propose trois chemins entre lesquels seul le porteur peut choisir (V7).
+- Mesure (2026-10-19, 800918b4c, implementeur) : relu `KycWorkflowService::AGENCY_REQUIRED_DOCUMENTS` (`rccm`, `ninea`, `director_id`, des pièces téléversées) et `AgencyUpgradeRequestService::submit` (valeurs saisies et un seul fichier, les statuts, `Document` `other`) → la demande ne porte jamais les pièces du dossier : seconde branche de la décision ; `AgencyUpgradeRequestReviewTest` étendu (refus sans dossier ou dossier `submitted`, `agency.kyc_status` au détail, bout en bout : approbation refusée, dossier déposé, soumis et vérifié par `KycWorkflowService`, approbation `200`, puis `POST /api/admin/payouts/{id}/approve` → `200`) → 3 rouges sur 15 avant correctif (`200` au lieu de `422`, `kyc_status` absent) ; correctif (`422 agency_upgrade.kyc_not_verified` avant toute écriture, `agency.kyc_status` au détail, avertissement et « Approuver » désactivé dans la revue) → 15 verts, et `AgencyKindFlipTest`, `AgencyUpgradeRequestEncryptionTest` verts une fois leurs fixtures munies d'un dossier vérifié ; ablation (appel retiré → les 2 rouges du refus ; champ retiré → le rouge du détail ; garde de la page neutralisée → 2 rouges vitest sur 3), tout remis → verts.
 
 ### Après le passage, « Publier » et l'assistant hôte recréent un second espace individuel
 - Réf : P49.03
@@ -5292,7 +5298,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### L'agence passée en professionnelle garde le nom et l'URL publique « Espace de {prénom} », et son slug ne peut plus changer
 - Réf : P49.04
-- Statut : validé — à la bascule, poser un slug tiré de `company_legal_name` par `uniqueSlug()` et laisser `name` à l'admin, qui peut déjà le modifier ; sans redirection de l'ancien slug si aucune page du site ne lie la fiche d'une agence `individual` (à mesurer d'abord) ; si un tel lien existe, garder le slug et l'ouvrir une fois à l'édition ; un test de la bascule qui écrit ce que deviennent le nom et le slug (porteur, 2026-10-19, sur la recommandation du délégué)
+- Statut : fait · TCK-1004
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:199-207,270,333-347`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:61-66,94-105`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:47-50`, `takussan-api/routes/api/public.php:226-229`, `takussan-web/src/lib/espaces.ts:88-91`
 - Constat :
@@ -5303,6 +5309,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : à la bascule, proposer ou poser un slug tiré de `company_legal_name` (avec redirection de l'ancien), ou ouvrir le slug à l'édition une fois. Garde : un test de la bascule qui écrit ce que deviennent le nom et le slug.
 - Mesure (2026-10-19, b9479987b, mesureur) : relu `AgencyKindFlipService::flip` (ne recopie que les colonnes légales) et `uniqueSlug` ; test temporaire `tests/Feature/TmpMesureur/SondeAngle49Test.php` (base de test PostgreSQL, charge 1,66 sur 8 cœurs), retiré ensuite : espace créé par auto-onboard → `name=Espace de Awa`, `slug=espace-de-awa` ; après approbation → mêmes `name` et `slug`, `legal_name` posé ; `PATCH /api/agencies/{id}` avec `slug` et `name` → `200`, `name` changé, `slug` inchangé → le constat tient. Classement : V7, la piste propose plusieurs options (slug posé à la bascule avec redirection, ou édition unique) et change une URL publique visible.
 - Mesure (2026-10-19, 078167cf2, delegue) : relu le constat et la `Mesure` du mesureur, `espaces.ts:78-91` (slug masqué à l'écran tant que l'agence est `individual`) et `PublicAgencyController.php:379` (`/api/public/agencies/{slug}` ne filtre que `status = active`, pas le `kind`) → l'adresse « espace-de-… » est servie publiquement dès avant le passage, et rien n'écrit si elle a pu être diffusée ; `grep -i slug` dans `docs/features.md` et les tickets du passage (TCK-248, TCK-255) : aucune règle sur le slug d'agence après la bascule. Recommandation : à la bascule, poser un slug tiré de `company_legal_name` par `uniqueSlug()` et laisser `name` à l'admin (il est déjà modifiable), sans redirection de l'ancien si l'on établit qu'aucune page du site ne lie la fiche d'une agence `individual` ; sinon garder le slug et l'ouvrir une fois à l'édition ; c'est un changement d'URL publique visible, avec plusieurs options dont une redirection qui demanderait de conserver l'ancien slug (V4, colonne ou table neuve), donc V7 non mineur ; manque : la mesure des liens publics vers une agence `individual`, et le choix du porteur entre slug posé et slug éditable.
+- Mesure (2026-10-19, 800918b4c, implementeur) : mesuré d'abord le lien public : `PropertyAgentCard.tsx:116` lie `/agencies/${agency.slug}` dès que l'agence est présente, et `PropertyResource::buildAgency` la rend quel que soit le `kind` (lu) → un lien existe, seconde branche de la décision (garder le slug, l'ouvrir une fois) ; `AgencySlugAfterUpgradeTest` (bascule : `name` et `slug` gardés, `slug_editable` ; changement unique ; slug courant renvoyé sans consommer ; slug pris ou mal formé ; agence `individual` ou jamais basculée) → 5 rouges sur 5 avant correctif (`slug_editable` absent, `PATCH` du slug `200` sans effet) ; correctif (`Agency::slugEditableOnce()` sur la marque `welcome.standard_unlocked_at`, règle `slug` ouverte une fois et `prohibited` sinon, marque `metadata.slug_changed_at`, champ au formulaire de configuration) → 5 verts, 4 verts vitest, 215 verts sur les classes qui touchent la mise à jour et la ressource d'agence ; ablation (règle fermée → 3 rouges ; marque retirée → 1 rouge ; front : champ fermé → 1 rouge, slug envoyé inchangé → 1 rouge), tout remis → verts.
 
 ### Petites améliorations du passage
 - Réf : P49.05
@@ -5400,7 +5407,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un participant retiré d'un groupe par son administrateur garde tous les membres comme contacts et peut ouvrir une directe avec chacun
 - Réf : P51.02
-- Statut : validé — un participant retiré par un administrateur perd la relation née du groupe dans les deux sens (la règle 1 ne compte plus ce fil pour lui, ni lui pour les autres), lu par le message système `removed`, sans migration ; un départ volontaire, la règle 4 et la ré-invitation par un administrateur restant ne changent pas ; test « membre retiré → absent des contacts de l'autre, 422 sur la directe » (porteur, 2026-10-19, sur la recommandation du délégué)
+- Statut : fait · TCK-1005
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:57-62,89-97`, `takussan-api/app/Services/Messaging/ConversationAccess.php:159-168`
 - Constat :
@@ -5411,6 +5418,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : décider si un retrait par un administrateur coupe la relation née du groupe, dans les deux sens. Si oui, la règle 1 ne compte plus les fils dont l'acteur a été retiré, ni les participants retirés d'un fil, sans toucher à la ré-invitation par un administrateur restant. Test « membre retiré → absent des contacts de l'autre, 422 sur la directe ».
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingReach.php:57-62,89-97` (règle 1 par `participatingQuery($actor, activeOnly: false)`, sans regarder `left_at`) ; même test temporaire, retiré ensuite : groupe de trois créé par l'administrateur → 201 ; `DELETE …/participants/{retiré}` → 200 ; le retiré lit `GET /api/conversations/contacts` → « Admin G », « Membre G », et sa directe vers le membre → 201 ; le membre restant voit aussi « Retire G » → le constat tient, dans les deux sens ; TCK-861 (liste sans anciens membres, ré-invitation lue) ne traite que la liste `participants` de `GET /api/conversations`, pas les contacts. Classement : V7, la piste est une décision (« décider si… ») qu'aucune spec n'écrit, et l'en-tête de `MessagingReach` veut au contraire garder la relation pour la ré-invitation.
 - Mesure (2026-10-19, cf15ad8e3, delegue) : relu `GroupConversationService::removeParticipant()` (l. 212-296) et `leave()` (l. 298-301, qui l'appelle avec l'acteur lui-même), la migration `2026_04_17_160017_create_conversation_participants_table` (seule `left_at`, aucune colonne qui dise qui a retiré) et l'en-tête de `MessagingReach` (ré-invitation d'un ancien membre, voulue) ; `grep -rn "retir" docs/features.md docs/backlog/tickets/TCK-565*` → rien sur la relation après un retrait. Recommandation : couper la relation dans les deux sens pour un participant retiré par un administrateur (la règle 1 ne compte plus ce fil pour lui, ni lui pour les autres), en gardant la règle 4 et la ré-invitation par un administrateur restant, parce qu'un retrait est un geste de modération qu'une directe ouverte aussitôt contourne ; manque : la décision du porteur, et le moyen de distinguer un retrait d'un départ volontaire, que le schéma ne porte pas (une colonne `removed_by` serait un V4 additif, lire le message système `removed` éviterait la migration).
+- Mesure (2026-10-19, 800918b4c, implementeur) : avant correctif, `MessagingContactsTest::test_un_membre_retire_par_un_administrateur_perd_la_relation_nee_du_groupe` rouge : après `DELETE …/participants/{retiré}` → 200, le retiré lit encore l'administrateur, le membre et un membre parti de lui-même (3 contacts au lieu de 0) → la règle 1 de `MessagingReach` écarte les participations closes par un retrait, lues par le dernier message système `participant_removed` du participant dans le fil (`self_leave` faux), sauf pour le groupe qu'on complète ; le test épingle les deux sens, le 422 sur la directe, le départ volontaire (relation gardée) et la ré-invitation (201, contacts retrouvés) ; ablation de la condition → 1 rouge, de l'exception du groupe complété → 1 rouge, remises → 24 verts.
 
 ### Un compte ouvert par téléphone apparaît sans nom en tête du sélecteur, et aucune recherche ne le trouve
 - Réf : P51.03
@@ -5431,7 +5439,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le plafond de 5 000 identifiants se prend sur tous les comptes avant le périmètre, et le correctif de P16.04 ne s'applique pas ici
 - Réf : P51.04
-- Statut : validé — calculer d'abord en SQL les identifiants du périmètre, puis les passer à Meilisearch en `filter` sur `id`, rendu filtrable dans les réglages d'index (pas de recherche SQL sous un seuil) ; test avec un plafond abaissé : un contact du périmètre classé après N homonymes hors périmètre reste trouvé (porteur, 2026-10-19, sur la recommandation du délégué)
+- Statut : fait · TCK-1006
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:78-100`, `takussan-api/config/scout.php:300-304`
 - Constat :
@@ -5442,10 +5450,11 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : le périmètre est d'ordinaire petit. Le calculer d'abord en SQL (ids), puis le passer à Meilisearch en `filter` sur `id` (attribut `id` filtrable dans `index-settings`), ou chercher en SQL quand il compte moins de N personnes. Test avec un plafond abaissé : un contact du périmètre classé après N homonymes hors périmètre reste trouvé.
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:78-100` (`User::search($terms)->take(5000)->keys()` sur tout l'index `users`, puis `whereIn` sur le périmètre de `MessagingReach`) et l'index `users` de `config/scout.php` (aucun `filterableAttributes`) ; P16.04 est `caduc` et son reste (`agency_id` filtrable) ne vise que `HasQueryBuilder` → le constat de code tient ; non mesuré : le plafond est une constante privée, et le volume de comptes en production est inconnu, donc la perte d'un contact au-delà du rang 5 000 reste déduite. Classement : V6, la piste propose deux options de structure (filtre Meilisearch neuf, qui demande une resynchronisation des réglages d'index au déploiement, ou recherche SQL sous un seuil N à choisir).
 - Mesure (2026-10-19, cf15ad8e3, delegue) : relu `MessagingContactController.php:76-100` (`User::search()->take(5000)->keys()` puis `whereIn` sur le périmètre), l'index `users` de `config/scout.php:300-304` (aucun `filterableAttributes`), `takussan-api/CLAUDE.md` § Recherche (le même plafond silencieux est nommé pour `HasQueryBuilder`) et le statut de P16.04 (`caduc`, reste « agency_id filtrable et passé à Scout » non fait). Recommandation : calculer d'abord les ids du périmètre en SQL, puis les passer à Meilisearch en `filter` sur `id` rendu filtrable, plutôt qu'une recherche SQL sous un seuil N, parce que cela garde la tolérance aux fautes et la pertinence sur tout le périmètre au lieu de deux comportements selon sa taille, et que le même réglage d'index servirait au reste de P16.04 ; manque : la décision du porteur sur cette structure (V6, peut-être un ADR, puisqu'elle vaudrait aussi pour `HasQueryBuilder`) et sur la resynchronisation des réglages d'index au déploiement, qui touche la préproduction et la production (V5, non délégable).
+- Mesure (2026-10-19, 800918b4c, implementeur) : avant correctif, `MessagingContactsTest::test_un_contact_classe_apres_le_plafond_d_homonymes_hors_perimetre_reste_trouve` rouge : plafond abaissé à 2 (sous-classe du contrôleur), trois homonymes « Diop Diop » hors périmètre indexés avant le contact « Moussa Diop » → `filter[search]=Diop` rend `[]` → le périmètre est calculé en SQL et passé à `User::search()` par `whereIn('id', …)`, `id` filtrable sur l'index `users` (poussé au déploiement par `search:sync-index-settings` de `docker/release.sh`) ; ablation du filtre → 1 rouge (`[]`), du réglage d'index → 1 rouge (Meilisearch 400 « Attribute `id` is not filterable »), remis → 25 verts.
 
 ### Le tri alphabétique des contacts suit l'ordre des octets : minuscules et initiales accentuées passent après « Z »
 - Réf : P51.05
-- Statut : validé — trier les contacts en `COLLATE "und-x-icu"` par une classe de tri sous `app/Sorts/` (comme `MaintenancePrioritySort`), pour le défaut et pour `sort=first_name` et `last_name` ; test avec une minuscule et une initiale accentuée ; ADR-0025 amendé le 2026-10-19 pour les autres listes de noms, qui suivent quand on les touche (porteur, 2026-10-19, sur la recommandation du délégué)
+- Statut : fait · TCK-1007
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:102,107-111`
 - Constat :
@@ -5456,6 +5465,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : trier sur `first_name COLLATE "und-x-icu"` (la collation d'ADR-0025) par un tri spatie maison, pour le défaut comme pour `sort=first_name` et `last_name`. Test avec une minuscule et une initiale accentuée.
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `MessagingContactController.php:102,107-111` (`defaultSorts('first_name', 'last_name', 'id')`, `ORDER BY` simple sous `--locale=C`) ; même test temporaire, retiré ensuite : contacts « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye » → rendus dans cet ordre → le constat tient ; `grep -rn und-x-icu takussan-api/app` ne trouve cet usage que pour le repli de casse, jamais dans un tri, et ADR-0025 ne porte que sur le repli de casse, pas sur l'ordre. Classement : V7, aucune spec n'écrit l'ordre attendu d'une liste de personnes, et ce serait le premier tri ICU du dépôt, que les autres listes de noms ne suivraient pas.
 - Mesure (2026-10-19, cf15ad8e3, delegue) : relu `MessagingContactController.php:102-111`, ADR-0025 (repli de casse par `COLLATE "und-x-icu"`, rien sur l'ordre), `grep -rn und-x-icu takussan-api/app` (le seul `CaseInsensitive`) et `grep -n -i "alphab\|collat" docs/features.md` → rien d'écrit sur l'ordre d'une liste de personnes. Recommandation : trier en `COLLATE "und-x-icu"` par une classe de tri réutilisable sous `app/Sorts/` (comme `MaintenancePrioritySort`), pour le défaut et pour `sort=first_name`/`last_name` des contacts, parce que « awa » et « Élodie » après « Zeynab » est un défaut visible pour tout lecteur francophone et que le changement se défait en un commit ; je ne le valide pas parce que ce serait le premier tri ICU du dépôt, que les autres listes de noms ne suivraient pas : c'est une convention à poser (un amendement d'ADR-0025, V6) plutôt qu'un réglage local ; manque : la décision du porteur de l'étendre ou non aux autres listes de noms.
+- Mesure (2026-10-19, 800918b4c, implementeur) : avant correctif, `MessagingContactsTest::test_le_tri_des_noms_suit_l_ordre_alphabetique_et_non_celui_des_octets` rouge : « Binta Sarr », « Zeynab Sow », « awa ba », « Élodie Faye », « Omar Écoute » ne sortent pas dans l'ordre alphabétique sans `sort` → `App\Sorts\CollatedNameSort` (`ORDER BY <colonne> COLLATE "und-x-icu"`) pour `first_name` et `last_name`, au défaut et sur demande ; le test épingle le défaut, `sort=first_name`, `sort=-first_name` et `sort=last_name` ; ablation de la collation → 1 rouge, remise → 26 verts.
 
 ### Petites améliorations
 - Réf : P51.06
@@ -5699,7 +5709,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une page 2 servie après le changement d'heure répète un bien de la page 1 et en perd un autre
 - Réf : P55.01
-- Statut : validé — la seconde voie : le front transmet aux pages suivantes l'heure de graine de la page 1, que l'API n'accepte que si elle vaut l'heure courante ou la précédente (sinon elle prend l'heure courante, comme aujourd'hui) ; ADR-0061 § 7 inchangé ; le test garde-fou des pages 1, 2 et 3 à hh:59 puis hh+1:00 (porteur, 2026-10-19, sur la recommandation du délégué) ; reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
+- Statut : fait · TCK-1008 — reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:656-674`, `takussan-api/app/Services/Boost/SponsoredRotation.php:19-25`, `docs/adr/0061-*.md:155-157`
 - Constat :
@@ -5713,6 +5723,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 - Piste : ne plus tirer les places réservées de l'emplacement de la page 1. Deux voies : les prendre dans l'ordre organique du vivier, sans en soustraire l'emplacement (ce qui change la règle « un bien déjà servi dans un emplacement de la même page n'y entre pas ») ; ou faire porter à la requête la graine de la page 1 (une heure figée transmise par le front). Le test garde-fou : pages 1, 2 et 3 avec `slots > 0` et `reserved > 0`, la page 1 jouée à hh:59 et les suivantes à hh+1:00, et l'union des identifiants vaut `total`, sans doublon.
 - Mesure (2026-10-19, 4f449d122, mesureur) : relu `PropertySearchService::placements()` (l. 653-674 aujourd'hui : `$servedOnFirstPage` = `pick($pool, $seed, 1, $slots)` recalculé à chaque page, `$reserved` = vivier moins cet emplacement, fenêtre `(p - 1) × per_page - count($reserved)`) et `SponsoredRotation::seed()` (graine `Y-m-d-H` UTC, l. 24), puis test temporaire (retiré), charge 2,65 / 3,02 / 2,95 sur 8 cœurs, même corpus (neuf biens dont trois vedettes, `slots = 1`, `reserved = 2`, `per_page = 4`), journée du 2026-10-13 → page 1 à hh:59 et pages 2-3 à hh+1:00 : **19 heures sur 24** donnent un doublon et un absent (ex. 00:59 : p1 = `f2,f3,o1,o2`, p2 = `o3,o4,o5,o6`, p3 = `f3`, `f1` jamais servie) ; témoin dans la même heure : 0 sur 24. Aucun commit ni ticket depuis TCK-687 ne touche ce calcul (`git log` des deux fichiers). Le cas « vivier qui change entre deux pages » reste non mesuré. Classement : V7, la `Piste` propose deux voies dont l'une change la règle écrite de l'ADR-0061 § 7 (« un bien déjà servi dans un emplacement de la même page n'y entre pas ») et l'autre fait porter au front une graine figée : un choix de produit, à trancher avant le code.
 - Mesure (2026-10-19, c164b2d8c, delegue) : relu `PropertySearchService::placements()` (l. 641-680 : `$servedOnFirstPage` recalculé par `pick($pool, $seed, 1, $slots)` à chaque page), `SponsoredRotation::seed()` (graine `Y-m-d-H` UTC), l'ADR-0061 § 7 (« Un bien déjà servi dans un emplacement de la même page n'y entre pas » ; « n'apparaît pas une seconde fois plus bas dans la page 1 ni dans les suivantes » ; graine « des filtres normalisés et de l'heure courante »), `docs/features.md:117` (« sans doublon ») et TCK-633 l. 334-359 → aucune décision écrite ne tranche entre les deux voies, aucune décision du porteur sur l'angle 55. Recommandation : la seconde voie, une heure de graine figée à la page 1 et transmise par le front avec les pages suivantes, que l'API n'accepte que si elle vaut l'heure courante ou la précédente (sinon elle prend l'heure courante, comme aujourd'hui) ; elle tient les deux phrases de l'ADR-0061 § 7 sans l'amender, alors que la première voie réécrit sa règle et demande donc un amendement de l'ADR (V6 non délégable, en plus du V7) ; pas validée par délégation parce qu'elle ajoute un paramètre au contrat de la recherche publique, touche le front et l'API, et engage l'exposition achetée par les annonceurs en vedette ; reste à trancher par le porteur : la voie, la borne d'heure acceptée, et si le cas « vivier qui change entre deux pages » (`boosts:tick`, non mesuré) entre dans le même ticket ou reste à mesurer.
+- Mesure (2026-10-19, 1c1fe5f0f, implementeur) : relu `placements()` (`$servedOnFirstPage` toujours recalculé par `pick($pool, $seed, 1, $slots)` à chaque page, graine `Y-m-d-H` de l'heure courante) ; test de garde `ReservedTopResultsAcrossHoursTest`, même corpus (neuf biens dont trois vedettes, `slots = 1`, `reserved = 2`, `per_page = 4`), journée du 2026-10-13, page 1 à hh:59 puis pages 2-3 à hh+1:00 avec la `seed_hour` de la page 1 → avant correctif (l'API la rendait sans la lire), 19 heures sur 24 avec un doublon et un absent (ex. 00:59 : `f2,f3,o1,o2 | o3,o4,o5,o6 | f3`) → `seed_hour` acceptée si elle vaut l'heure courante ou la précédente, sinon l'heure courante, rendue par l'API et écrite par la pagination dans les liens des pages 2 et suivantes ; 3 verts (24 heures sans doublon ni absent, heure trop ancienne, future ou illisible ignorée, route publique) ; ablation (`heureDeGraine()` réduite à l'heure courante) → 3 rouges, remis → vert ; front `PropertiesDiscoveryPage.heure-de-graine.test.tsx` 3 verts, ligne de `Pagination` retirée → 2 rouges. Le vivier qui change entre deux pages n'est pas mesuré.
 
 ### Une page au-delà de la dernière compte une impression pour un emplacement que l'écran ne montre pas
 - Réf : P55.02
@@ -6026,7 +6037,7 @@ le `CASE` de la pertinence.
 
 ### `filter[search]` rapatrie de Meilisearch le document entier de chaque correspondance, jusqu'à 5 000, pour n'en lire que l'id
 - Réf : P59.01
-- Statut : à mesurer
+- Statut : fait · TCK-1009 — reste : la même projection dans `MessagingContactController::index` (index `users`), laissée tant que la PR #734 (P51.04) réécrit ce bloc
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/Concerns/HasQueryBuilder.php:234-236`, `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:113-119,152-157,281-286`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:112-116`
 - Constat :
@@ -6038,10 +6049,12 @@ le `CASE` de la pertinence.
   - La recherche publique a reçu la projection `['id']` (P55.03, TCK-984) ; le chemin interne, non (lu). `MessagingContactController.php:112-116` a la même forme, sur l'index `users` (non mesuré).
 - Établi comment : relecture de Scout et du callback, test temporaire sur Meilisearch réel.
 - Piste : passer `->options(['attributesToRetrieve' => [$model->getScoutKeyName()]])` dans le callback de `HasQueryBuilder` (et dans `MessagingContactController`), le résultat rendu étant inchangé ; un test qui enregistre la requête envoyée au client Meilisearch, sur le modèle de `PropertySearchProjectionTest`. Le coût SQL des 5 000 ids reste à P16.04.
+- Mesure (2026-10-19, 2f829055e, mesureur) : lu `HasQueryBuilder.php:235` (`->take(static::SEARCH_ID_CAP)->keys()`, sans option) et `MessagingContactController.php:112-116` (seul `attributesToSearchOn` passé), `MeilisearchEngine::search()`/`performSearch()` (les `options` du builder sont fusionnées, et la clé Scout est ajoutée d'office à `attributesToRetrieve`), `grep attributesToRetrieve app` → les trois seuls appels sont dans `PropertySearchService` (TCK-984) ; test temporaire retiré (client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` en admin d'agence, charge 3,13 sur 8 cœurs) → corps envoyé `{"q":"zorglub","hitsPerPage":5000}`, sans `attributesToRetrieve`, 2 lignes rendues ; les durées de l'explorateur non re-mesurées. Classement : A2, projection de la réponse du moteur sur la clé que `keys()` lit seule, sans changement des ids rendus ni de leur ordre.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : client Meilisearch enregistreur, `GET /api/properties?filter[search]=zorglub` et `GET /api/customers?filter[search]=zorglub` en agent d'agence → recherche envoyée sans `attributesToRetrieve`, lignes justes → `FilterSearchProjectionTest` (2 tests) : `attributesToRetrieve` réduit à `id`, même ligne rendue ; ablation de `HasQueryBuilder.php` → 2 rouges, correctif remis → 2 verts ; 9 classes de recherche voisines, 45 verts.
 
 ### `GET /api/search/messages` charge les pièces jointes message par message
 - Réf : P59.02
-- Statut : à mesurer
+- Statut : fait · TCK-1010
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Search/MessageSearchService.php:25-48`, `takussan-api/app/Http/Resources/MessageResource.php:24,35-47`, `takussan-api/app/Services/Search/DocumentSearchService.php:46-47`
 - Constat :
@@ -6050,10 +6063,12 @@ le `CASE` de la pertinence.
   - La route n'a pas d'appelant dans `takussan-web/src` (mesuré : `grep -rn "search/messages"` → rien), ce que P13.08 relevait déjà ; elle est gardée par `MessageSearchTest`, `SearchDateRangeTest` et `MaintenanceThreadAccessTest` (lu).
 - Établi comment : test temporaire avec journal des requêtes, relecture.
 - Piste : `$paginator->getCollection()->loadMissing('media')` dans `MessageSearchService`, comme pour les documents ; un test de budget « 2 lignes = 12 lignes » sur la route. Ou retirer la route, si le retrait de P13.08 l'emporte.
+- Mesure (2026-10-19, 2f829055e, mesureur) : lu `MessageSearchService.php:48` (`return $search->paginate(…)` sans préchargement), `MessageResource.php:39` (`getMedia('attachments')` par message), `DocumentSearchService.php:46-47` (`loadMissing('media')`) ; `git log` du service → aucun commit depuis TCK-786 ; test temporaire retiré (Meilisearch réel, participant d'un fil, appel d'amorce non compté, charge 3,13 sur 8 cœurs) → 19 requêtes pour 2 messages, 29 pour 12, dont 12 `from "media"` ; `grep search/messages takussan-web/src` → rien. Classement : A2, préchargement qui ne change pas la réponse ; le retrait de la route, autre option de la piste, relèverait de V7 et n'est pas le correctif décrit.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : Meilisearch réel, participant d'un fil, appel d'amorce non compté → 19 requêtes pour 2 messages, 29 pour 12, une `from "media"` par message → `SearchQueryBudgetTest::test_la_recherche_des_messages` (2 lignes = 12 lignes) vert avec `loadMissing('media')` ; ablation du service → 19/29, rouge ; correctif remis → vert ; `MessageSearchTest`, `SearchDateRangeTest`, `MaintenanceThreadAccessTest` verts. La route reste sans appelant (P13.08), non retirée.
 
 ### Aucune garde de budget de requêtes sur un chemin de recherche Scout
 - Réf : P59.03
-- Statut : à mesurer
+- Statut : fait · TCK-1011
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/tests/Feature/Api/ProListQueryBudgetTest.php:56-71`, `takussan-api/tests/Feature/Property/PropertyIndexQueryBudgetTest.php`, `takussan-api/tests/TestCase.php`
 - Constat :
@@ -6062,6 +6077,8 @@ le `CASE` de la pertinence.
   - Aujourd'hui les comptes sont constants sur les listes mesurées (voir l'en-tête de l'angle), sauf P59.02. Une ressource ou un contrôleur qui lirait une relation seulement quand une recherche est posée (le chargement des ids de pertinence, un `with()` conditionnel) n'aurait aucun témoin (déduit, à vérifier).
 - Établi comment : relecture des tests et `grep`.
 - Piste : une variante « avec recherche » de `ProListQueryBudgetTest` sous `InteractsWithMeilisearch` (biens, clients, interventions, `search/messages`, recherche publique), 2 lignes = 12 lignes ; garde ajoutée sans toucher aux seuils existants.
+- Mesure (2026-10-19, 2f829055e, mesureur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 ; tests posant `enableQueryLog`/`DB::listen` et citant `filter[search]` → `PublicProfileIndexTest` et `MessagingContactsTest`, dont le `DB::listen` (`:346`) vise `/api/conversations/contacts` sans recherche ; ceux qui portent aussi `InteractsWithMeilisearch` → `PublicSearchAlertTest` (vérifie l'absence de lecture des tables du contact, pas un budget) et `MessagingContactsTest`. Le « déduit » du constat a un cas réel : P59.02 (19 → 29 requêtes, mesuré ce passage) n'est vu par aucun test. Classement : A5, garde ajoutée sans seuil existant resserré ; la variante `search/messages` rougit tant que P59.02 n'est pas corrigée, à livrer dans le même lot.
+- Mesure (2026-10-19, bde1d5b43, implementeur) : `grep -c 'filter\[search\]'` sur `ProListQueryBudgetTest` et `PropertyIndexQueryBudgetTest` → 0 et 0 → `SearchQueryBudgetTest` (Meilisearch réel, lignes garnies, URL du front) : biens, clients et interventions sous `filter[search]`, recherche publique `q=`, 2 lignes = 12 lignes, 4 verts ; ablation par un écouteur `retrieved` temporaire (`select 1` par ligne) → 4 rouges (23/33, 23/33, 27/47, 6/16), retiré → verts. La variante `search/messages` est celle de TCK-1010.
 
 ## Angle 60 — `include=` acceptés, chargés et non émis ; `show` qui ignorent `include=` et `fields`
 
@@ -6132,3 +6149,181 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - La garde de TCK-807 reconnaît une relation émise à la seule présence de `whenLoaded('x')` dans le source, commentaires compris (lu, l. 99-102 : `preg_match` sur le fichier brut). Une mention en commentaire suffit donc à la rendre verte (déduit, à vérifier).
   - Établi comment : lu et `grep`.
 - Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
+
+## Angle 61 — Modèles rendus bruts par un contrôleur, au-delà de `User`
+
+*Exploré le 2026-10-19 sur `pre-dev` 89acf8152, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : les sorties de `app/Http/Controllers` repérées par `grep` (`->items()`,
+`relationsToArray()`, `->toArray()`, `'data' => $modèle`, `'data' => …->get()`), puis chaque
+contrôleur retenu ici, `IncludedUserResource`, `OwnerProfileResource`, `AgencyResource` et les
+appelants du front. Un test temporaire, retiré depuis, a mesuré les clés rendues sur la base de test
+(`vm.loadavg` 2,93 sur 8 cœurs). P21.01, P21.02 et P21.06 ont déjà traité le `User` inclus des
+listes d'agence et `/api/users` : ce passage ne les reprend pas. Les vues PDF qui reçoivent des
+modèles (`DocumentPdfController`, `InventoryController::pdf`) ne rendent pas de JSON et sont hors
+du relevé. Le format des dates hors ressource relève de l'angle 94.*
+
+### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
+- Réf : P61.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
+- Constat :
+  - `collaboratorsPayload()` rend `$property->collaborators()->with('user')->orderBy('id')->get()`, sans ressource (lu, l. 150). Il sert `index` et `designatePrimary`. `store` et `update` rendent de même `$collaborator->load('user')` (lu, l. 64 et 91). Seul `User::$hidden` filtre le compte inclus.
+  - `index` est ouvert par `PropertyPolicy::view` : le propriétaire du bien (`user_id`) et tout membre de l'agence (lu, l. 51-57).
+  - mesuré par test temporaire : un agent collaborateur porte `google_id`, `metadata`, `secondary_phone` et `last_login_at`.
+    - `GET /api/properties/{id}/collaborators` par le **bailleur** du bien → 200. `data.0.user` porte 38 clés, dont `google_id`, `metadata`, `secondary_phone`, `last_login_at` et `deletion_requested_at`.
+    - `POST /api/properties/{id}/collaborators` par l'admin d'agence → 201, `data.user` à 38 clés, `google_id` compris.
+  - La même ligne a déjà une projection ailleurs : `PropertyResource` rend les collaborateurs avec `user: {id, name, email}` et `commission_share` en nombre (lu, l. 217-230). Ici, `commission_share` sort en chaîne (cast `decimal:2`), et le type du front le suit (`string | null`, lu).
+  - Le front ne lit du compte que `id`, `first_name`, `last_name` et `username` (`collaboratorName`, `property-collaborators.ts:23-35`, lu). `username` n'est pas dans `IncludedUserResource`.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : faire passer la ligne par une ressource, avec le compte projeté par `IncludedUserResource` (plus `username` si le front le garde, ou bien le front s'en passe). Une même ressource pour `index`, `store`, `update` et `designatePrimary`. Test : le bailleur et un agent lisent la liste, et `data.0.user` n'a que les clés de la projection. Ablation : remettre `->get()` brut.
+
+### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
+- Réf : P61.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:31-69`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Http/Resources/OwnerProfileResource.php:37`, `takussan-api/app/Http/Resources/IncludedUserResource.php:51-61`, `takussan-api/app/Http/Resources/AgencyResource.php:17,31-46,61,70`, `takussan-api/app/Models/Profiles/ServiceProviderAgencyCollaboration.php:51`
+- Constat :
+  - `GET /api/me/service-provider/collaborations` rend `$paginator->items()` (lu, l. 63), et le modèle accepte `include=agency` (lu, `$requestLoadable` l. 51). `GET /api/me/owner-profiles/{id}/properties` rend `'data' => $paginator->items()` (lu, l. 181), et `Property` accepte `include=agency`.
+  - `AgencyResource` réserve `payout_approval_threshold` et la demande de relâchement en attente à qui détient `payouts.approve` ou `payouts.create` dans l'agence. Son commentaire dit pourquoi : « le connaître aide à fractionner sous lui » (lu, l. 31-46). Elle filtre aussi `settings` (l. 61) et `metadata` (l. 70).
+  - mesuré par test temporaire, avec une agence portant un seuil de 750 000, des `settings`, un `metadata` et un `bank_csv_mapping` :
+    - le **prestataire** collaborateur, `GET /api/me/service-provider/collaborations?include=agency` → 200, `data.0.agency` porte 36 clés. Entre autres : `payout_approval_threshold` (`"750000.00"`), `pending_payout_threshold`, `pending_payout_threshold_requested_by_id`, `settings`, `metadata`, `bank_csv_mapping`, `commission_rate` et `primary_admin_id` ;
+    - le **bailleur**, `GET /api/me/owner-profiles/{id}/properties?include=agency` → 200, les mêmes 36 clés.
+  - Le même contrôleur sait projeter l'agence : `GET /api/me/service-provider/agencies` n'en rend que `id`, `name`, `slug`, `kind`, `status` (lu, l. 106-115 ; mesuré).
+  - `OwnerProfileResource` passe `relationsToArray()` à `IncludedUserResource::inParent()`, qui ne projette que `user` (lu, l. 55-58). Les autres relations incluses (`agency`, `invitations`, `agencyRole`) sortent brutes. Mesuré : `GET /api/owners?include=agency` par un agent rend la ligne `agencies` entière. L'agent du test lisait aussi le seuil par `AgencyResource`, donc ce cas n'établit pas une fuite de plus pour lui (à vérifier avec un agent sans capacité de reversement).
+  - Aucun appel du front n'envoie ces `include=agency` : `service-provider/collaborations` n'a aucun appelant, et `fetchOwnerProperties` passe `fields[properties]` sans `include` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : rendre ces deux listes par une ressource, avec l'agence incluse par `AgencyResource` (qui juge déjà ce que l'appelant voit) ou par une projection publique, comme `/agencies`. `inParent()` projette chaque relation incluse par sa ressource, ou bien l'include est retiré de `$requestLoadable` quand rien ne le demande. Test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping`. Ablation sur la ressource.
+
+### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
+- Réf : P61.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
+- Constat :
+  - Le contrôleur rend `$paginator->items()` de `Property::buildQuery()` (lu). Sans `fields[properties]`, spatie fait un `select *`, et seul `$hidden` filtre : il ne retire que `ical_export_token_hash` (lu, l. 134).
+  - mesuré par test temporaire : le bailleur, sans paramètre → 200, 61 clés par ligne. Entre autres : `platform_hold_at`, `platform_hold_by_id`, `platform_hold_reason`, `admin_monitored`, `is_test`, `metadata`, `rejected_by_user_id`, `approved_by_user_id` et `deleted_at`.
+  - `platform_hold_by_id` est l'identifiant du super-admin qui a masqué le bien (lu, `PropertyModerationService::hold`, l. 260-262). `grep -rn "platform_hold\|admin_monitored\|is_test" app/Http/Resources` → rien : aucune ressource n'émet ces colonnes (mesuré).
+  - Le seul appelant du front passe `fields[properties]=id,title,price,status,type` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API, comme P21.02.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : rendre la liste par `PropertyResource`, ou poser une projection par défaut quand `fields[properties]` est absent. Test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored`. Ablation sur la ressource.
+
+### Petites améliorations
+- Réf : P61.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:63`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:60`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:160-181`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:37`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:33`
+- Constat :
+  - `GET /api/me/service-provider/collaborations` rend la collaboration brute (lu, l. 63). Mesuré : `metadata` entier (`paused_by`, l'identifiant du membre qui a mis en pause, et toute autre clé), `agency_role_id` et `deleted_at`. `started_at`, casté `date`, sort en `2026-09-19T00:00:00.000000Z`, alors que `/agencies` du même contrôleur le rend en `2026-09-19`. La route n'a aucun appelant du front (mesuré : `grep "service-provider/collab"` → rien).
+  - `POST /api/properties/{id}/tags` rend les `Tag` bruts avec leur `pivot`. Mesuré : `pivot.taggable_type` vaut `App\Models\Property`, le nom de classe PHP. `TagController::format` projette les mêmes étiquettes (lu, l. 139-161). Le front ignore la réponse (`apiRequest<unknown>`, `properties-server.ts:394`, lu).
+  - `POST /api/customers/{id}/primary-contact` rend la relation brute (mesuré : `id`, `customer_id`, `user_id`, `relationship_type`, `is_primary` et les horodatages en `.000000Z`). `relationships()` du même contrôleur projette la même ligne, avec `status`, `start_date` et `user` (lu, l. 183-215). Le front ignore la réponse (`agent-crm.ts:117`, lu).
+  - `PATCH /api/profiles/{id}/suspend` rend `$profile->toArray()` (lu), donc `metadata` entier, `kyc` compris (`Me\AgentProfileController` y écrit, voir P15.02). La route n'a aucun appelant du front (`grep "api/profiles/"` → seulement `…/agency-role`). La réponse n'est pas mesurée : le test temporaire a reçu 403 de l'admin d'agence, et la cause n'a pas été cherchée.
+  - `KpiConfigController::index` et `ThresholdAlertController::index` rendent `$paginator->items()` (lu). `threshold` et `last_value` (cast `decimal:4`) sortent en chaîne. Le type du front l'admet déjà (`number | string`, `lib/queries/alerts.ts:13,18`, lu).
+  - Établi comment : lu, et test temporaire pour les trois premiers.
+- Piste : une ressource par modèle rendu, ou le retrait de la route sans appelant (`/me/service-provider/collaborations`, `/profiles/{id}/suspend`, à confirmer des deux côtés). Garde commune aux quatre entrées : sous `runningUnitTests()`, `Base\Controller::json()` refuse une charge qui contient un `Model`, une `Eloquent\Collection` ou un paginateur. Toute sortie brute rougit alors au premier test qui frappe la route. Ablation : retirer la vérification et constater que les tests de P61.01 à P61.03 repassent au vert sur le code fautif.
+
+## Angle 62 — Règles `exists:` des routes ouvertes à tout compte connecté : oracles d'existence
+
+*Exploré le 2026-10-19 sur `pre-dev` 6b21600d9, par l'explorateur. Relu par l'explorateur lui-même : l'inventaire `grep -rnE "exists:|Rule::exists" app/Http app/Services` (37 FormRequests), l'`authorize()` de chacun hors `Admin/`, puis le contrôleur ou le service des treize routes dont l'`authorize()` rend `true` ou `user() !== null` ; middlewares relevés par `php artisan route:list --json -v` (`api` et `auth:sanctum` seuls, aucun `throttle` sauf visites et invitations). Mesuré par un test temporaire, retiré depuis : un compte `User::factory()` sans agence ni profil, face à des lignes d'une agence tierce et à l'identifiant absent `99999999`, charge `{ 2.81 2.67 2.39 }` sur 8 cœurs. Aucun sous-agent. Hors périmètre : les routes en lot (P22.02, faites), `POST /api/documents` (P03.06, fait) et `participants` des conversations, laissé tel quel par la décision de P03.06. Les routes `Admin/` (super-admin) n'ont pas été mesurées.*
+
+### La création d'un bail dit à tout compte connecté quels clients, garants et biens existent, trois par requête
+- Réf : P62.01
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:28-40`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:52-57`
+- Constat :
+  - `StoreLeaseRequest::authorize()` rend `true` ; `property_id` (`exists:properties,id`), `tenant_id` (`exists:customers,id`), `guarantor_id` (`exists:guarantors,id`) et `booking_id` (`Rule::exists('bookings')->where('property_id', …)`) se jugent avant toute autorisation, qui n'arrive que dans `LeaseService::create()` (lu).
+  - Le commentaire de `LeaseService.php:45-48` relève déjà que « `exists:` seul laissait rattacher le contact de n'importe qui » ; le correctif a ajouté le contrôle `view` et gardé les `exists:` (lu).
+  - Mesuré, compte sans agence, `POST /api/leases` avec un bien tiers, `type` invalide exprès :
+    - client et garant existants → 422, `errors` = `type` seul ;
+    - client et garant absents → 422, `errors` = `tenant_id`, `guarantor_id`, `type`.
+  - Chaque champ répond pour lui-même : une seule requête juge trois identifiants, et sans débit propre à la route. Les fiches clients et les garants sont des données d'agence qu'aucune route publique n'énumère.
+  - Établi comment : lu, et test temporaire.
+- Piste : retirer les `exists:` du FormRequest et juger l'existence dans le service avec la même réponse que le refus (le modèle de TCK-599, contrainte 11, `StoreFavoriteRequest.php:31-33`) ; ou porter l'autorisation du bien dans `authorize()` pour que l'intrus reçoive 403 avant la validation. Test : même statut et même corps pour un client absent et un client d'une autre agence.
+
+### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
+- Réf : P62.02
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
+- Constat :
+  - `authorize()` rend `true` ; `customer_id` porte `exists:customers,id`, jugé avant `abort_unless(... $user->can('view', $customer), 403)` de `BookingService.php:93` (lu).
+  - Mesuré, compte sans agence, bien publié d'une agence tierce : client existant → 403 `http.forbidden` ; absent → 422 sur `customer_id`.
+  - Pour le bien : absent → 422 sur `property_id` ; bien `draft` de l'agence tierce → 422 `booking.property_unavailable` (mesuré).
+  - Le test d'état (`UNBOOKABLE_STATUSES` : vendu, loué, brouillon, archivé, en maintenance, indisponible, l. 57-61) court avant le test de visibilité (`public()`, l. 78-82), qui rend 403 sous le même code : un bien privé `available`, `pending_review` ou `rejected` rendrait 403 là où un bien brouillon ou vendu rend 422 (lu, non mesuré pour le 403 : à vérifier).
+  - Établi comment : lu, et test temporaire.
+- Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
+
+### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
+- Réf : P62.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:27-30,51`, `takussan-api/app/Http/Controllers/Api/TaskController.php:53-69,89-109`
+- Constat :
+  - `authorize()` rend `true` ; `assigned_to_id` porte `exists:users,id`, jugé avant la résolution du parent (l. 62) et avant `authorizeAssignee()` (l. 89-109), qui rend pourtant la même réponse `task.assignee_not_staff` pour un absent et un non-membre (lu).
+  - Mesuré, compte sans agence, `taskable_id` absent : compte existant → 404 (le parent manque) ; compte absent → 422 sur `assigned_to_id`. Un compte auto-inscrit énumère donc les identifiants de `users`, ce que TCK-817 a fermé sur `bulk-assign` (P22.02).
+  - `taskable_id` est résolu par `findOrFail()` (l. 62) avant `authorize('attachTo')` (l. 63) : mesuré, fiche client d'une agence tierce → 403, absente → 404. Même oracle pour les biens (`TASKABLE_TYPES`, lu).
+  - Établi comment : lu, et test temporaire.
+- Piste : retirer `exists:users,id` (l'assigné est déjà jugé par `authorizeAssignee`) et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` depuis TCK-732 (P03.06). Test : compte absent et compte existant, parent absent et parent tiers, mêmes réponses.
+
+### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
+- Réf : P62.04
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:28-36`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:27,43-44`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:34,51-52`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:46,66-68,109-112`, `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:28-43`
+- Constat :
+  - Les quatre `authorize()` rendent `true` ou `user() !== null` ; `lease_id` porte `exists:leases,id`, et le groupe `maintenance_request_id` porte `exists:maintenance_requests,id` (lu).
+  - Mesuré, compte sans agence, bail et demande d'une agence tierce, identifiant absent :
+    - `POST /api/inventories` : bail existant → 422 sans erreur sur `lease_id` (les autres champs manquent) ; absent → 422 avec `lease_id` « The selected lease is invalid » ;
+    - `POST /api/maintenance-requests` : existant → 403 ; absent → 422 sur `lease_id` ;
+    - `POST /api/conversations` (directe) : existant → `lease_id` « You cannot link this conversation to this item » ; absent → « The selected lease is invalid » ;
+    - `POST /api/conversations` (groupe) : même partage sur `maintenance_request_id`.
+  - `guardContext()` rend déjà un message unique pour « absent ou illisible » (l. 39-41) : c'est `exists:` qui le précède et sépare les deux cas (lu).
+  - Établi comment : lu, et test temporaire.
+- Piste : dans les conversations, retirer `exists:` des champs que `guardContext()` juge déjà ; dans l'état des lieux et l'intervention, juger le bail dans le contrôleur avec la réponse du refus. Test par route : bail absent et bail tiers, même réponse.
+
+### La recherche dans les messages dit quelles conversations existent
+- Réf : P62.05
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Search/SearchQueryRequest.php:11-21`, `takussan-api/app/Services/Search/MessageSearchService.php:20-29`
+- Constat :
+  - `authorize()` rend `true` ; `filter.conversation` porte `exists:conversations,id`, alors que le service borne déjà la recherche aux fils de l'appelant (`whereIn('conversation_id', $conversationIds)`, l. 20-26) : un fil tiers ne rend aucun résultat (lu).
+  - Mesuré, `GET /api/search/messages?q=bonjour&filter[conversation]=` : absent → 422 sur `filter.conversation` ; conversation tierce existante → validation passée (la suite a rendu 500 « Index … not found », faute d'index Meilisearch dans la base de test : sans rapport avec la règle).
+  - Seul le nombre de conversations de la plateforme se lit ainsi : gravité faible.
+  - Établi comment : lu, et test temporaire.
+- Piste : `['nullable', 'integer']` seul, le service rendant une page vide pour un fil absent comme pour un fil tiers. Test qui épingle la même réponse.
+
+### Le calendrier, la visite et l'intervention disent quels biens existent, brouillons compris
+- Réf : P62.06
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:26,37-40`, `takussan-api/app/Http/Requests/Api/StorePropertyVisitRequest.php:45,99`, `takussan-api/app/Http/Controllers/Api/PropertyVisitController.php:119-128`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:43`, `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:92-103`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:51`
+- Constat :
+  - Mesuré, compte sans agence, bien `draft` d'une agence tierce et identifiant absent :
+    - `GET /api/calendar?property_id=` : brouillon → 200 ; absent → 422 sur `property_id` (`property_ids.*` porte la même règle, l. 40, non mesuré) ;
+    - `POST /api/property-visits` : brouillon → 422 sur `scheduled_at` seul ; absent → 422 sur `property_id` et `scheduled_at`. Avec un créneau valide, le brouillon rendrait 403 `visit.property_unavailable` (l. 128, lu).
+  - `POST /api/maintenance-requests` : `exists:properties,id`, puis 403 pour un bien tiers (l. 103) ; `POST /api/conversations` directe : `exists:properties,id` puis refus de tout `property_id` (lu, non mesuré pour ces deux biens).
+  - Les identifiants des biens publiés sont publics : seuls les brouillons, privés et archivés s'en déduisent. P22.02 a fermé le même oracle sur les routes en lot.
+  - Établi comment : lu, et test temporaire pour les deux premières.
+- Piste : retirer `exists:properties,id` là où le contrôleur ou le collecteur juge déjà la visibilité, avec la réponse du refus pour un absent. Test par route.
+
+### Petites améliorations : identifiants d'agence, de profil et de rôle
+- Réf : P62.07
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/Api/StoreIntegrationRequest.php:25,37`, `takussan-api/app/Http/Requests/Api/IndexCalendarRequest.php:42`, `takussan-api/app/Http/Controllers/Api/CalendarController.php:34-37`, `takussan-api/app/Http/Requests/Invitation/CreateInvitationRequest.php:20-27,71`, `takussan-api/app/Http/Requests/Agency/AssignAgencyRoleRequest.php:25-28,43`, `takussan-api/app/Http/Controllers/Api/Profile/AgencyRoleController.php:28-43`
+- Constat :
+  - `agency_id` (`exists:agencies,id`) se juge avant le 403 `integration.other_agency_forbidden` (`IntegrationController.php:77-81`), le 403 `calendar.other_agency_forbidden` et le refus de l'invitation : un absent rend 422, une agence tierce 403 (lu, non mesuré). Que les identifiants d'agence soient déjà publics (annuaire, fiche bien) n'a pas été relevé : à vérifier.
+  - `PATCH /api/profiles/{profile}/agency-role` : `authorize()` rend `user() !== null` ; `agency_role_id` porte `exists:agency_roles,id`, et le profil est résolu par `findOrFail()` (l. 36) avant `Gate::authorize('assign')` (l. 41) : profil absent → 404, profil tiers → 403 (lu, non mesuré).
+- Piste : même traitement que les entrées précédentes ; pour le profil, rendre 404 quand `assign` refuse.
+
+### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
+- Réf : P62.08
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Requests/` (13 FormRequests hors `Admin/` dont l'`authorize()` rend `true` ou `user() !== null` et qui portent un `exists:`), `scripts/`
+- Constat :
+  - Le défaut a été corrigé route par route (TCK-599 sur les favoris, TCK-732 sur les documents, TCK-817 sur les routes en lot), et chaque correctif l'a écrit dans un commentaire (`StoreFavoriteRequest.php:31-33`, `PropertyController.php:454`, `PropertyBulkAssignService.php:87`) ; aucun test ni garde ne porte la règle (lu : aucun `check-*.mjs` ni test d'architecture ne lit `exists:`).
+  - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
+- Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.

@@ -38,11 +38,9 @@ class SendTenantWelcomeNotification implements ShouldQueue
         $tenantUser = $lease->tenant?->user;
 
         if ($tenantUser === null) {
-            // No linked user account yet (rare — the lease was created
-            // before the customer claimed their invite). Stamp anyway so
-            // we don't try again forever; the welcome is best-effort.
-            $lease->forceFill(['tenant_welcomed_at' => now()])->save();
-
+            // TCK-1002 (P48.02) — aucun compte rattaché : rien ne part, donc rien ne se tamponne.
+            // Le tampon dit « la bienvenue est partie » ; posé ici, un compte rattaché plus tard ne
+            // la recevait jamais.
             return;
         }
 
