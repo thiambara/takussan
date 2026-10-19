@@ -133,7 +133,7 @@ voie d'écriture (angle 13, puis 47).
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | fait |
 | 59 | Requêtes SQL par page des listes passées par `filter[search]` (Scout puis Eloquent) et de la recherche publique, index peuplé | fait |
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | fait |
-| 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | à faire |
+| 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | fait |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | à faire |
 | 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
@@ -167,6 +167,7 @@ voie d'écriture (angle 13, puis 47).
 | 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 | 93 | Indicateurs calculés des tableaux de bord et rapports (`DashboardAgencyService`, `KpiResolver`, `PortfolioMetrics`, `TeamPerformanceService`, `OwnerStatementService`) dont les tests n'assertent que la structure JSON : valeur toujours nulle ou fausse sur des données réelles ? | à faire |
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
+| 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 
 ---
 
@@ -6129,3 +6130,75 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - La garde de TCK-807 reconnaît une relation émise à la seule présence de `whenLoaded('x')` dans le source, commentaires compris (lu, l. 99-102 : `preg_match` sur le fichier brut). Une mention en commentaire suffit donc à la rendre verte (déduit, à vérifier).
   - Établi comment : lu et `grep`.
 - Piste : retirer `AgencySubscription::$requestLoadable`. La garde retire les commentaires du source avant de chercher (`token_get_all`, en écartant `T_COMMENT` et `T_DOC_COMMENT`).
+
+## Angle 61 — Modèles rendus bruts par un contrôleur, au-delà de `User`
+
+*Exploré le 2026-10-19 sur `pre-dev` 89acf8152, par l'explorateur, sans sous-agent. Relus par
+l'explorateur : les sorties de `app/Http/Controllers` repérées par `grep` (`->items()`,
+`relationsToArray()`, `->toArray()`, `'data' => $modèle`, `'data' => …->get()`), puis chaque
+contrôleur retenu ici, `IncludedUserResource`, `OwnerProfileResource`, `AgencyResource` et les
+appelants du front. Un test temporaire, retiré depuis, a mesuré les clés rendues sur la base de test
+(`vm.loadavg` 2,93 sur 8 cœurs). P21.01, P21.02 et P21.06 ont déjà traité le `User` inclus des
+listes d'agence et `/api/users` : ce passage ne les reprend pas. Les vues PDF qui reçoivent des
+modèles (`DocumentPdfController`, `InventoryController::pdf`) ne rendent pas de JSON et sont hors
+du relevé. Le format des dates hors ressource relève de l'angle 94.*
+
+### `/api/properties/{id}/collaborators` rend la ligne `users` entière de chaque collaborateur, au bailleur du bien comme à tout membre de l'agence
+- Réf : P61.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:64`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:91`, `takussan-api/app/Http/Controllers/Api/PropertyCollaboratorController.php:150`, `takussan-api/app/Policies/PropertyPolicy.php:45-60`, `takussan-api/app/Http/Resources/PropertyResource.php:217-230`, `takussan-web/src/lib/queries/property-collaborators.ts:23-35`
+- Constat :
+  - `collaboratorsPayload()` rend `$property->collaborators()->with('user')->orderBy('id')->get()`, sans ressource (lu, l. 150). Il sert `index` et `designatePrimary`. `store` et `update` rendent de même `$collaborator->load('user')` (lu, l. 64 et 91). Seul `User::$hidden` filtre le compte inclus.
+  - `index` est ouvert par `PropertyPolicy::view` : le propriétaire du bien (`user_id`) et tout membre de l'agence (lu, l. 51-57).
+  - mesuré par test temporaire : un agent collaborateur porte `google_id`, `metadata`, `secondary_phone` et `last_login_at`.
+    - `GET /api/properties/{id}/collaborators` par le **bailleur** du bien → 200. `data.0.user` porte 38 clés, dont `google_id`, `metadata`, `secondary_phone`, `last_login_at` et `deletion_requested_at`.
+    - `POST /api/properties/{id}/collaborators` par l'admin d'agence → 201, `data.user` à 38 clés, `google_id` compris.
+  - La même ligne a déjà une projection ailleurs : `PropertyResource` rend les collaborateurs avec `user: {id, name, email}` et `commission_share` en nombre (lu, l. 217-230). Ici, `commission_share` sort en chaîne (cast `decimal:2`), et le type du front le suit (`string | null`, lu).
+  - Le front ne lit du compte que `id`, `first_name`, `last_name` et `username` (`collaboratorName`, `property-collaborators.ts:23-35`, lu). `username` n'est pas dans `IncludedUserResource`.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : faire passer la ligne par une ressource, avec le compte projeté par `IncludedUserResource` (plus `username` si le front le garde, ou bien le front s'en passe). Une même ressource pour `index`, `store`, `update` et `designatePrimary`. Test : le bailleur et un agent lisent la liste, et `data.0.user` n'a que les clés de la projection. Ablation : remettre `->get()` brut.
+
+### `include=agency` rend la ligne `agencies` entière à un prestataire et à un bailleur, seuil des reversements compris
+- Réf : P61.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:31-69`, `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Http/Resources/OwnerProfileResource.php:37`, `takussan-api/app/Http/Resources/IncludedUserResource.php:51-61`, `takussan-api/app/Http/Resources/AgencyResource.php:17,31-46,61,70`, `takussan-api/app/Models/Profiles/ServiceProviderAgencyCollaboration.php:51`
+- Constat :
+  - `GET /api/me/service-provider/collaborations` rend `$paginator->items()` (lu, l. 63), et le modèle accepte `include=agency` (lu, `$requestLoadable` l. 51). `GET /api/me/owner-profiles/{id}/properties` rend `'data' => $paginator->items()` (lu, l. 181), et `Property` accepte `include=agency`.
+  - `AgencyResource` réserve `payout_approval_threshold` et la demande de relâchement en attente à qui détient `payouts.approve` ou `payouts.create` dans l'agence. Son commentaire dit pourquoi : « le connaître aide à fractionner sous lui » (lu, l. 31-46). Elle filtre aussi `settings` (l. 61) et `metadata` (l. 70).
+  - mesuré par test temporaire, avec une agence portant un seuil de 750 000, des `settings`, un `metadata` et un `bank_csv_mapping` :
+    - le **prestataire** collaborateur, `GET /api/me/service-provider/collaborations?include=agency` → 200, `data.0.agency` porte 36 clés. Entre autres : `payout_approval_threshold` (`"750000.00"`), `pending_payout_threshold`, `pending_payout_threshold_requested_by_id`, `settings`, `metadata`, `bank_csv_mapping`, `commission_rate` et `primary_admin_id` ;
+    - le **bailleur**, `GET /api/me/owner-profiles/{id}/properties?include=agency` → 200, les mêmes 36 clés.
+  - Le même contrôleur sait projeter l'agence : `GET /api/me/service-provider/agencies` n'en rend que `id`, `name`, `slug`, `kind`, `status` (lu, l. 106-115 ; mesuré).
+  - `OwnerProfileResource` passe `relationsToArray()` à `IncludedUserResource::inParent()`, qui ne projette que `user` (lu, l. 55-58). Les autres relations incluses (`agency`, `invitations`, `agencyRole`) sortent brutes. Mesuré : `GET /api/owners?include=agency` par un agent rend la ligne `agencies` entière. L'agent du test lisait aussi le seuil par `AgencyResource`, donc ce cas n'établit pas une fuite de plus pour lui (à vérifier avec un agent sans capacité de reversement).
+  - Aucun appel du front n'envoie ces `include=agency` : `service-provider/collaborations` n'a aucun appelant, et `fetchOwnerProperties` passe `fields[properties]` sans `include` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : rendre ces deux listes par une ressource, avec l'agence incluse par `AgencyResource` (qui juge déjà ce que l'appelant voit) ou par une projection publique, comme `/agencies`. `inParent()` projette chaque relation incluse par sa ressource, ou bien l'include est retiré de `$requestLoadable` quand rien ne le demande. Test : le prestataire avec `include=agency` ne reçoit ni `payout_approval_threshold` ni `bank_csv_mapping`. Ablation sur la ressource.
+
+### `/api/me/owner-profiles/{id}/properties` sans `fields` rend au bailleur des colonnes qu'aucune ressource n'émet (gel plateforme, suivi admin, bien de test)
+- Réf : P61.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:167-184`, `takussan-api/app/Models/Property.php:134-144`, `takussan-api/app/Services/Property/PropertyModerationService.php:250-263`
+- Constat :
+  - Le contrôleur rend `$paginator->items()` de `Property::buildQuery()` (lu). Sans `fields[properties]`, spatie fait un `select *`, et seul `$hidden` filtre : il ne retire que `ical_export_token_hash` (lu, l. 134).
+  - mesuré par test temporaire : le bailleur, sans paramètre → 200, 61 clés par ligne. Entre autres : `platform_hold_at`, `platform_hold_by_id`, `platform_hold_reason`, `admin_monitored`, `is_test`, `metadata`, `rejected_by_user_id`, `approved_by_user_id` et `deleted_at`.
+  - `platform_hold_by_id` est l'identifiant du super-admin qui a masqué le bien (lu, `PropertyModerationService::hold`, l. 260-262). `grep -rn "platform_hold\|admin_monitored\|is_test" app/Http/Resources` → rien : aucune ressource n'émet ces colonnes (mesuré).
+  - Le seul appelant du front passe `fields[properties]=id,title,price,status,type` (lu, `owner-onboarding.ts:78-86`). L'exposition tient au contrat de l'API, comme P21.02.
+  - Établi comment : lu, et mesuré par test temporaire.
+- Piste : rendre la liste par `PropertyResource`, ou poser une projection par défaut quand `fields[properties]` est absent. Test sans `fields` : ni `platform_hold_by_id` ni `admin_monitored`. Ablation sur la ressource.
+
+### Petites améliorations
+- Réf : P61.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderAgenciesController.php:63`, `takussan-api/app/Http/Controllers/Api/PropertyTagController.php:60`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:160-181`, `takussan-api/app/Http/Controllers/Api/AgentProfileController.php:39`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:37`, `takussan-api/app/Http/Controllers/Api/ThresholdAlertController.php:33`
+- Constat :
+  - `GET /api/me/service-provider/collaborations` rend la collaboration brute (lu, l. 63). Mesuré : `metadata` entier (`paused_by`, l'identifiant du membre qui a mis en pause, et toute autre clé), `agency_role_id` et `deleted_at`. `started_at`, casté `date`, sort en `2026-09-19T00:00:00.000000Z`, alors que `/agencies` du même contrôleur le rend en `2026-09-19`. La route n'a aucun appelant du front (mesuré : `grep "service-provider/collab"` → rien).
+  - `POST /api/properties/{id}/tags` rend les `Tag` bruts avec leur `pivot`. Mesuré : `pivot.taggable_type` vaut `App\Models\Property`, le nom de classe PHP. `TagController::format` projette les mêmes étiquettes (lu, l. 139-161). Le front ignore la réponse (`apiRequest<unknown>`, `properties-server.ts:394`, lu).
+  - `POST /api/customers/{id}/primary-contact` rend la relation brute (mesuré : `id`, `customer_id`, `user_id`, `relationship_type`, `is_primary` et les horodatages en `.000000Z`). `relationships()` du même contrôleur projette la même ligne, avec `status`, `start_date` et `user` (lu, l. 183-215). Le front ignore la réponse (`agent-crm.ts:117`, lu).
+  - `PATCH /api/profiles/{id}/suspend` rend `$profile->toArray()` (lu), donc `metadata` entier, `kyc` compris (`Me\AgentProfileController` y écrit, voir P15.02). La route n'a aucun appelant du front (`grep "api/profiles/"` → seulement `…/agency-role`). La réponse n'est pas mesurée : le test temporaire a reçu 403 de l'admin d'agence, et la cause n'a pas été cherchée.
+  - `KpiConfigController::index` et `ThresholdAlertController::index` rendent `$paginator->items()` (lu). `threshold` et `last_value` (cast `decimal:4`) sortent en chaîne. Le type du front l'admet déjà (`number | string`, `lib/queries/alerts.ts:13,18`, lu).
+  - Établi comment : lu, et test temporaire pour les trois premiers.
+- Piste : une ressource par modèle rendu, ou le retrait de la route sans appelant (`/me/service-provider/collaborations`, `/profiles/{id}/suspend`, à confirmer des deux côtés). Garde commune aux quatre entrées : sous `runningUnitTests()`, `Base\Controller::json()` refuse une charge qui contient un `Model`, une `Eloquent\Collection` ou un paginateur. Toute sortie brute rougit alors au premier test qui frappe la route. Ablation : retirer la vérification et constater que les tests de P61.01 à P61.03 repassent au vert sur le code fautif.
