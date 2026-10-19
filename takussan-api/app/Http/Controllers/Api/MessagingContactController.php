@@ -123,6 +123,12 @@ class MessagingContactController extends Controller
             // ignorerait sinon en silence.
             ->allowedIncludes();
 
+        // P51.03 — `fields[users]` restreint le SELECT aux colonnes demandées ; le repli du nom
+        // (`User::nameWithoutContact()`) lit aussi `username`, qui ne sort jamais en tant que tel.
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect('users.username');
+        }
+
         $defaults = ['first_name', 'last_name', 'id'];
         if (count($relevance) > 1 && SearchRelevanceSort::supports($relevance)) {
             array_unshift($defaults, AllowedSort::custom('search_relevance', new SearchRelevanceSort($relevance)));

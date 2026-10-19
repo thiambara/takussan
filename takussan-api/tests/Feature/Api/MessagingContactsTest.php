@@ -149,6 +149,47 @@ class MessagingContactsTest extends ApiTestCase
         $this->assertStringNotContainsString('770000001', $response->getContent());
     }
 
+    /**
+     * P51.03 — un compte ouvert par téléphone (`PhoneLoginService::createAccount()`) n'a ni prénom
+     * ni nom : `full_name` vaut `''`, et le sélecteur affichait une ligne vide en tête de liste. Le
+     * nom rendu suit la règle de TCK-815 (`User::nameWithoutContact()`) : prénom et nom, puis
+     * `username`, puis « — », jamais une coordonnée. Joué dans la forme du front
+     * (`fields[users]=id,first_name,last_name`), qui ne demande pas `username`, et sans `fields`.
+     */
+    public function test_un_compte_sans_nom_est_rendu_par_son_identifiant_puis_un_tiret(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $pseudo = User::factory()->create([
+            'first_name' => '',
+            'last_name' => '',
+            'username' => 'pseudo_seul',
+            'email' => 'pseudo.seul@example.test',
+            'phone' => '+221770000002',
+        ]);
+        $anonyme = User::factory()->create([
+            'first_name' => '',
+            'last_name' => '',
+            'username' => null,
+            'email' => 'anonyme@example.test',
+            'phone' => '+221770000003',
+        ]);
+        $this->shareConversation($moi, $pseudo);
+        $this->shareConversation($moi, $anonyme);
+
+        $this->actingAsApi($moi);
+
+        foreach (['', '?fields[users]=id,first_name,last_name'] as $query) {
+            $response = $this->getJson('/api/conversations/contacts'.$query)->assertOk();
+            $noms = collect($response->json('data'))->pluck('name', 'id');
+
+            $this->assertSame('pseudo_seul', $noms[$pseudo->id], $query);
+            $this->assertSame('—', $noms[$anonyme->id], $query);
+            $this->assertSame(['avatar_url', 'id', 'name'], collect($response->json('data.0'))->keys()->sort()->values()->all(), $query);
+            $this->assertStringNotContainsString('example.test', $response->getContent(), $query);
+            $this->assertStringNotContainsString('77000000', $response->getContent(), $query);
+        }
+    }
+
     public function test_la_recherche_par_nom_reste_dans_le_perimetre(): void
     {
         $moi = $this->user('Zulqarnayn', 'Wxyzptlk');

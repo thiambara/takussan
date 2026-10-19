@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Messaging;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 /**
@@ -14,6 +15,10 @@ use Illuminate\Http\Request;
  * `fields[users]=id,first_name,last_name`, et tout paramètre hors liste rend 400. Rien d'autre que
  * le nom et l'avatar ne sort d'ici : les coordonnées d'un correspondant ne sont pas une donnée de
  * la messagerie. `MessagingContactsTest` l'épingle.
+ *
+ * P51.03 — le nom suit la règle de TCK-815, {@see User::nameWithoutContact()} : prénom
+ * et nom, puis `username`, puis « — ». Un compte ouvert par téléphone n'a ni prénom ni nom, et
+ * `full_name` rendait une ligne vide. Le contrôleur charge `username` pour ce repli seul.
  */
 class MessagingContactResource extends BaseResource
 {
@@ -21,7 +26,7 @@ class MessagingContactResource extends BaseResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->full_name,
+            'name' => $this->nameWithoutContact(),
             'avatar_url' => $this->avatarUrl(),
         ];
     }
