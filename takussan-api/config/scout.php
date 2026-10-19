@@ -297,8 +297,12 @@ return [
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,
             ],
+            // P51.04 — `id` filtrable : la recherche de contacts de la messagerie passe son
+            // périmètre (calculé en SQL) à Meilisearch, pour que le plafond d'identifiants se
+            // prenne dans le périmètre et non sur tous les comptes.
             User::class => [
                 'searchableAttributes' => ['first_name', 'last_name', 'email', 'username', 'phone'],
+                'filterableAttributes' => ['id'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,
             ],

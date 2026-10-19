@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Controllers\Api\MessagingContactController;
 use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -854,4 +855,32 @@ class MessagingContactsTest extends ApiTestCase
         $this->actingAsApi($retire);
         $this->assertSame(collect([$admin->id, $membre->id, $parti->id])->sort()->values()->all(), $this->contactIds());
     }
+
+    /**
+     * P51.04 — le plafond d'identifiants se prend APRÈS le périmètre, plus avant : le périmètre est
+     * calculé en SQL, puis passé à Meilisearch en filtre sur `id`. Plafond abaissé à 2 : trois
+     * homonymes hors périmètre, indexés avant le contact, le rejetaient au-delà du plafond, et la
+     * recherche ne le trouvait pas.
+     */
+    public function test_un_contact_classe_apres_le_plafond_d_homonymes_hors_perimetre_reste_trouve(): void
+    {
+        $moi = $this->user('Zulqarnayn', 'Wxyzptlk');
+        foreach (range(1, 3) as $_) {
+            $this->user('Diop', 'Diop');
+        }
+        $contact = $this->user('Moussa', 'Diop');
+        $this->shareConversation($moi, $contact);
+        $this->indexSearchable(User::class);
+
+        $this->app->bind(MessagingContactController::class, MessagingContactControllerAuPlafondAbaisse::class);
+        $this->actingAsApi($moi);
+
+        $this->assertSame([$contact->id], $this->contactIds('?filter[search]=Diop'));
+    }
+}
+
+/** P51.04 — le même contrôleur, au plafond abaissé à 2 identifiants. */
+class MessagingContactControllerAuPlafondAbaisse extends MessagingContactController
+{
+    protected const SEARCH_ID_CAP = 2;
 }
