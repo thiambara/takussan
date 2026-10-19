@@ -38,6 +38,7 @@ import {
 } from '@/app/actions/dashboard-customers';
 import type { CustomerDetail } from '@/types/customer';
 import { localeDisplayLabel, type Locale } from '@/i18n/config';
+import { RevelationNumeroDePiece } from './RevelationNumeroDePiece';
 
 
 /**
@@ -49,6 +50,11 @@ interface CustomerFormProps {
   readonly customer?: CustomerDetail;
   readonly onSuccess?: (customer: CustomerDetail) => void;
   readonly compact?: boolean;
+  /**
+   * TCK-955 — l'admin (ou le super-admin) a le geste « Afficher » du numéro de pièce. L'API tranche
+   * de toute façon : ce drapeau n'évite que de proposer un geste voué au refus.
+   */
+  readonly canRevealIdNumber?: boolean;
 }
 
 function toDefaults(customer?: CustomerDetail): CustomerFormValues {
@@ -104,6 +110,7 @@ export function CustomerForm({
   customer,
   onSuccess,
   compact,
+  canRevealIdNumber = false,
 }: CustomerFormProps) {
   const t = useTranslations('crm.form');
   const tCommon = useTranslations('common.actions');
@@ -393,12 +400,17 @@ export function CustomerForm({
             options={idTypeOptions}
             placeholder={t('idTypePlaceholder')}
           />
-          <FormInput
-            control={control}
-            name="id_number"
-            label={t('idNumber')}
-            placeholder={customer?.id_number_masked ? t('idNumberKept', { masque: customer.id_number_masked }) : undefined}
-          />
+          <div>
+            <FormInput
+              control={control}
+              name="id_number"
+              label={t('idNumber')}
+              placeholder={customer?.id_number_masked ? t('idNumberKept', { masque: customer.id_number_masked }) : undefined}
+            />
+            {canRevealIdNumber && customer?.id_number_masked ? (
+              <RevelationNumeroDePiece customerId={customer.id} masque={customer.id_number_masked} />
+            ) : null}
+          </div>
         </div>
       </div>
 
