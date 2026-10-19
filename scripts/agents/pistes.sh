@@ -7,8 +7,9 @@
 #
 # Usage, depuis le dépôt :
 #   scripts/agents/pistes.sh installer [--sans-etiquettes]   # outils figés, réglages, étiquettes GitHub
-#   scripts/agents/pistes.sh planifier X Y Z [W]  # launchd : explorateur toutes les X min, mesureur Y,
-#                                                 # implémenteur Z, délégué W (30 par défaut)
+#   scripts/agents/pistes.sh planifier [X Y Z [W]]  # launchd : explorateur toutes les X min, mesureur Y,
+#                                                   # implémenteur Z, délégué W ; sans argument
+#                                                   # 30 20 5 20, W seul omis : 20 (porteur, 2026-10-19)
 #   scripts/agents/pistes.sh deplanifier
 # Puis, depuis n'importe où (copie figée) :
 #   ~/.takussan-agents/outils/pistes.sh lancer <rôle>   # un passage, à la main ou par launchd
@@ -200,9 +201,11 @@ PLIST
 
 planifier() {
   charger_config
-  [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier <x> <y> <z> [w]  (minutes : explorateur, mesureur, implementeur, délégué)"
+  [ $# -eq 0 ] || [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage : planifier [<x> <y> <z> [w]]  (minutes : explorateur, mesureur, implementeur, délégué ; défaut 30 20 5 20)"
   local minutes role
-  set -- "$@" 30
+  # Cadences par défaut, posées par le porteur le 2026-10-19 (ADR-0066, Q2).
+  [ $# -gt 0 ] || set -- 30 20 5
+  set -- "$@" 20
   for role in $ROLES; do
     minutes="$1"
     shift
