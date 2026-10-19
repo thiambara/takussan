@@ -42,6 +42,9 @@ class BankStatement extends AbstractModel implements HasMedia
     protected static array $queryFields = [
         'id', 'agency_id', 'source_format', 'status', 'bank_name', 'account_iban_masked',
         'period_start', 'period_end', 'lines_count', 'skipped_lines_count', 'finalized_at', 'created_at', 'updated_at',
+        // TCK-987 (P58.02) — les clés de `uploadedBy` / `finalizedBy` : sans elles, ces relations se
+        // chargent à vide sous un sparse fieldset.
+        'uploaded_by', 'finalized_by',
     ];
 
     protected static array $requestLoadable = ['uploadedBy', 'finalizedBy', 'agency'];

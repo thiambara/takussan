@@ -66,6 +66,8 @@ class Document extends AbstractModel implements HasMedia
         'id', 'documentable_id', 'documentable_type', 'uploaded_by',
         'name', 'type', 'description', 'is_verified', 'expiry_date',
         'created_at', 'updated_at',
+        // TCK-987 (P58.02) — la clé de `verifier`, que `DocumentResource` rend déjà.
+        'verified_by',
     ];
 
     /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */
