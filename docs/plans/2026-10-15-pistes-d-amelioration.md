@@ -5917,7 +5917,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
 
 ### Aucune garde n'empêche une nouvelle collision entre une colonne et une relation, et six paires `fooBy` / `foo_by` se recouvrent déjà à la sérialisation
 - Réf : P58.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-986
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Models/AppNotification.php:22,35,66`, `takussan-api/app/Models/BankStatement.php:59-66`, `takussan-api/app/Models/BankStatementLine.php:58`, `takussan-api/app/Models/Lease.php:191`, `takussan-api/app/Models/RoleDelegation.php:90`, `vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:2033-2039`
 - Constat :
@@ -5928,6 +5928,7 @@ ne rend plus la clé qu'en colonne lue ou en relation chargée.*
   - Établi comment : réflexion en `tinker` (lecture seule) et lecture.
 - Piste : un test unitaire qui parcourt les modèles par réflexion et rougit sur toute relation dont le nom, ou le nom `snake_case`, est une colonne de la table, avec une liste d'exceptions justifiées pour les six paires existantes (ou leur renommage, `uploader` / `finalizer`…, qui touche les `include=` publics). Ablation : renommer une relation `notes` sur un modèle qui a la colonne.
 - Mesure (2026-10-19, 353c40b57, mesureur) : réflexion en `tinker` (lecture seule) des modèles de `app/Models`, méthodes publiques sans paramètre typées `Relation` confrontées à `Schema::getColumnListing` → une collision exacte (`Customer::notes`) et les six mêmes paires `snake_case` (`AppNotification::deliveryAttempts`, `BankStatement::uploadedBy`, `BankStatement::finalizedBy`, `BankStatementLine::confirmedBy`, `Lease::earlyTerminationRequestedBy`, `RoleDelegation::revokedBy`) ; aucun test de `tests/` ne fait ce contrôle (`grep -rln getColumnListing tests` → seul `tests/Support/ResourceSubjects.php`, sans rapport) ; le « à vérifier » sur `RoleDelegation` : `RoleDelegationController.php:38,64` charge `revokedBy` mais rend toujours par `RoleDelegationResource` (`:42,53,67`), qui lit la relation par `whenLoaded` (lu, `RoleDelegationResource.php:42`) — aucune sérialisation brute trouvée dans ce contrôleur. Classement : A5, une garde neuve sans seuil existant ; le renommage des relations, qui toucherait les `include=` publics, est hors du correctif.
+- Mesure (2026-10-19, 99abff99b, implementeur) : `RelationSansCollisionDeColonneTest` (réflexion de `app/Models` contre `Schema::getColumnListing`), liste d'exceptions vide → rouge, 7 collisions nommées (`Customer::notes` et les six paires `snake_case` du constat) → exceptions justifiées pour ces 7, vert ; ablation : `Document::verifier` renommée `verifiedBy` → rouge (`Document::verifiedBy ↔ colonne verified_by`), remise en place → vert.
 
 ### Un `include=uploadedBy` ou `finalizedBy` des relevés bancaires sort toujours `null` dès qu'un `fields[bank_statements]` est passé
 - Réf : P58.02
