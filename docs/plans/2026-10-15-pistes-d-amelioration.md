@@ -5396,7 +5396,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un compte ouvert par téléphone apparaît sans nom en tête du sélecteur, et aucune recherche ne le trouve
 - Réf : P51.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-971 — reste : la recherche (`filter[search]`) ne porte toujours pas sur `username`, un compte sans nom ne se trouve qu'en parcourant la liste ; choix de produit laissé ouvert par la piste
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Auth/PhoneLoginService.php:167-180`, `takussan-api/app/Http/Resources/Messaging/MessagingContactResource.php:24`, `takussan-api/app/Models/User.php:240-260`, `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:76,94-95`, `takussan-web/src/components/messages/ParticipantPicker.tsx:59,239`
 - Constat :
@@ -5409,6 +5409,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
   - Établi comment : lu et mesuré.
 - Piste : rendre `name` par `nameWithoutContact()`, comme les trois chemins de TCK-815. Que la recherche porte aussi sur `username` reste un choix : le nom affiché devient alors cherchable, ce qui n'en fait pas un oracle. Test qui épingle `name` d'un compte sans nom.
 - Mesure (2026-10-19, ca8e99115, mesureur) : relu `PhoneLoginService::createAccount()` (`first_name` et `last_name` à `''`), `MessagingContactResource::toArray()` (`'name' => $this->full_name`, sans `nameWithoutContact()`), `User::nameWithoutContact()` (TCK-815 : prénom et nom, puis `username`, puis « — ») et `MessagingContactController.php:76,94-95` (recherche sur `first_name`, `last_name`) ; même test temporaire, retiré ensuite : correspondant sans prénom ni nom, `username = pseudo_seul` → la liste le rend en tête, `"name": ""` ; `filter[search]=pseudo_seul` → `[]` → le constat tient ; la base de dev n'a pas été relue. Classement : A1, pour le seul `name` : le docblock de `nameWithoutContact()` (TCK-815, validé) en fait la règle du « nom d'un compte montré à un autre compte », et le `username` y est déjà montré aux correspondants ; la recherche sur `username` reste un choix de la piste et n'est pas couverte par ce classement.
+- Mesure (2026-10-19, cf15ad8e3, implementeur) : test `MessagingContactsTest::test_un_compte_sans_nom_est_rendu_par_son_identifiant_puis_un_tiret` avant correctif → `"name": ""` pour un correspondant sans prénom ni nom (`username = pseudo_seul`), le constat tient → `name` par `nameWithoutContact()`, et `users.username` chargé quand `fields[users]` restreint le SELECT (la forme du front) ; ablation : `full_name` remis → rouge (`''`), chargement de `username` retiré → rouge dans la forme du front (`—`) ; remis → 20 verts sur la classe.
 
 ### Le plafond de 5 000 identifiants se prend sur tous les comptes avant le périmètre, et le correctif de P16.04 ne s'applique pas ici
 - Réf : P51.04
