@@ -566,21 +566,27 @@ export const MESSAGING_CONTACTS_PER_PAGE = 20;
  */
 export function useMessagingContacts(
   search: string,
-  options: { enabled?: boolean; conversationId?: number } = {},
+  options: { enabled?: boolean; conversationId?: number; exclude?: readonly number[] } = {},
 ) {
   const { user } = useAuth();
   const terme = search.trim();
   const { conversationId } = options;
+  // TCK-973 (P51.06) — les personnes déjà choisies, retirées par l'API AVANT la pagination : le
+  // total et la page ne comptent plus qu'elles. Triées, pour qu'un même ensemble fasse une même clé.
+  const exclus = [...new Set(options.exclude ?? [])].sort((a, b) => a - b);
+  const filter: Record<string, string | number[]> = {};
+  if (terme) filter.search = terme;
+  if (exclus.length > 0) filter.exclude = exclus;
   const params: SpatieQueryParams = {
     fields: { users: MESSAGING_CONTACT_FIELDS },
-    filter: terme ? { search: terme } : {},
+    filter,
     per_page: MESSAGING_CONTACTS_PER_PAGE,
   };
 
   return useApiQuery<PaginatedResponse<MessagingContact>>(
     conversationId
-      ? ['conversations', conversationId, 'contacts', terme]
-      : ['conversations', 'contacts', terme],
+      ? ['conversations', conversationId, 'contacts', terme, exclus]
+      : ['conversations', 'contacts', terme, exclus],
     conversationId
       ? cheminApi`/api/conversations/${conversationId}/contacts`
       : '/api/conversations/contacts',
