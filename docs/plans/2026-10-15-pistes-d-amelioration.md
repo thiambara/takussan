@@ -127,7 +127,7 @@ voie d'écriture (angle 13, puis 47).
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | fait |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | fait |
 | 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | fait |
-| 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
+| 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | fait |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
 | 58 | Ressources qui lisent `$this->x` quand `x` est à la fois une colonne et une relation (`Customer.notes`…) : relation chargée en repli sous sparse fieldset | à faire |
@@ -5672,3 +5672,47 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Ce qui tient, relu jusqu'à l'écriture : les créations de `Task` (`TaskController.php:74-75`), `MaintenanceRequest` (`MaintenanceRequestController.php:111`), `Agency` (`AgencyController.php:62-63`), `Customer` (`CustomerController.php:65`), `Lease` (`LeaseService.php:81-82`), `Integration` (`IntegrationController.php:103`), `BookingPayment` (`BookingPaymentService.php:22-39`), `MaintenanceWindow` (`MaintenanceService.php:38`), `Invoice` (`InvoiceService.php:49`), l'onboarding d'agence (`AgencyProvisioningService.php:47-53`) et la cooptation de super-admin (`SuperAdminCooptationService.php:57`) remplacent le `null` par un défaut (`??`) ; le renouvellement de bail lit `isset($data['start_date'])` (`LeaseRenewalService.php:87`).
 - Piste : un test d'architecture qui, pour chaque FormRequest dont le contrôleur écrit `validated()` dans un modèle, rejoue un `null` sur chaque clé `nullable` et refuse un 500 serait le plus sûr, mais il demande la table de correspondance requête → modèle. Plus simple : un test qui liste les couples (requête, clé) connus pour viser une colonne `NOT NULL` et exige qu'ils ne portent pas `nullable`, alimenté par le relevé de cet angle.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : `grep -rln information_schema tests scripts` → 6 fichiers, aucun ne lit un FormRequest ; aucun test ne confronte les règles `nullable` au schéma (`grep nullable` dans les tests → seulement la normalisation de `BaseFormRequest` et `SavedSearchTest`) ; `bootstrap/app.php:129-130` dit en toutes lettres qu'une `QueryException` n'est pas interceptée, et l. 176 la rapporte seulement ; les six 500 de P54.01 à P54.06 re-mesurés ce jour. Classement : A5, une garde ajoutée sans seuil touché ; la forme simple de la `Piste` (liste des couples requête/clé visant une colonne `NOT NULL`) se décrit sans choix de produit, la variante générique restant à l'appréciation de l'implémenteur.
+
+## Angle 55 — Places réservées et emplacements entre deux pages de la recherche
+
+*Exploré le 2026-10-19 sur `pre-dev` bcd756f2f, par l'explorateur. Relu par l'explorateur lui-même : `PropertySearchService::search()` et `placements()`, `featuredPool()`, `organicExcluding()`, `hydrate()`, `SponsoredRotation`, `CountBoostImpressions`, `ReservedTopResultsTest`, l'ADR-0061 § 7, et côté front `(liste)/page.tsx`, `useSearch.ts`, `public-search.ts`, `PropertiesDiscoveryPage.tsx`. Aucun sous-agent. Mesure par un test temporaire sur le Meilisearch de test (retiré depuis), charge 3,42 sur 8 cœurs. Ce qui tient : à heure constante, le décalage `count($reserved)` est juste. Neuf biens dont trois vedettes, un emplacement et deux places réservées, `per_page=4` : pages 1 à 3 jouées dans la même heure, pour chacune des 24 heures d'une journée → aucun doublon, aucun absent, `total` 9. Les places réservées sont un sous-ensemble du résultat nominal, donc `total` et `last_page` restent justes. La graine ignore `page` et `per_page`, et le front construit la même requête au rendu serveur et au client (`parametresDeRecherche`). La réponse de recherche n'a pas de `Cache-Control` partagé.*
+
+### Une page 2 servie après le changement d'heure répète un bien de la page 1 et en perd un autre
+- Réf : P55.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Search/PropertySearchService.php:656-674`, `takussan-api/app/Services/Boost/SponsoredRotation.php:19-25`, `docs/adr/0061-*.md:155-157`
+- Constat :
+  - Chaque page recalcule les places réservées de la page 1 : `$reserved` = le vivier moins `SponsoredRotation::pick($pool, $seed, 1, $slots)`, puis la fenêtre organique de la page p ≥ 2 commence à `(p - 1) × per_page - count($reserved)` et exclut ce `$reserved` (lu, l. 659-661 et 672-674).
+  - La graine porte l'heure UTC (`format('Y-m-d-H')`, lu, `SponsoredRotation.php:24`). Quand l'heure change entre la page 1 et la page 2, l'emplacement de la page 1 change, donc l'ensemble des places réservées aussi. La page 2 exclut alors d'autres biens que ceux que la page 1 a montrés en tête (lu).
+  - Mesuré par le test temporaire, sur le même corpus (neuf biens dont trois vedettes, `slots = 1`, `reserved = 2`, `per_page = 4`), avec la page 1 demandée à hh:59 et les pages 2 et 3 à hh+1:00 : **20 heures sur 24** donnent un doublon et un absent. Exemple à 00:59 → 01:00 : p1 = `[f2, f3, o1, o2]`, p2 = `[o3, o4, o5, o6]`, p3 = `[f3]`. `f3` est montrée deux fois, et `f1`, une vedette payante, n'est jamais montrée, alors que `total` vaut 9. Témoin dans la même heure : 0 heure sur 24.
+  - L'ADR-0061 § 7 l. 155-157 écrit que le bien d'une place réservée « n'apparaît pas une seconde fois plus bas dans la page 1 ni dans les suivantes » (lu). La graine horaire est voulue pour la rotation (« deux visiteurs voient la même chose dans la même heure ») ; rien ne dit qu'elle doive aussi déplacer les places réservées d'une session déjà commencée.
+  - Même mécanisme, sans mesure : une vedette qui commence, se met en pause ou expire (`boosts:tick`) entre deux pages change le vivier, donc aussi `$reserved` (déduit, à vérifier).
+  - `ReservedTopResultsTest` joue les pages 2 et 3 avec `slots: 0` seulement, sans voyage dans le temps entre deux pages (lu, l. 48-64) : le cas `slots > 0` sur plusieurs pages n'a aucun test.
+  - Établi comment : lecture, puis test temporaire.
+- Piste : ne plus tirer les places réservées de l'emplacement de la page 1. Deux voies : les prendre dans l'ordre organique du vivier, sans en soustraire l'emplacement (ce qui change la règle « un bien déjà servi dans un emplacement de la même page n'y entre pas ») ; ou faire porter à la requête la graine de la page 1 (une heure figée transmise par le front). Le test garde-fou : pages 1, 2 et 3 avec `slots > 0` et `reserved > 0`, la page 1 jouée à hh:59 et les suivantes à hh+1:00, et l'union des identifiants vaut `total`, sans doublon.
+
+### Une page au-delà de la dernière compte une impression pour un emplacement que l'écran ne montre pas
+- Réf : P55.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Services/Search/PropertySearchService.php:147-148,648-659`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:595-613`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:39-44`
+- Constat :
+  - `placements()` ne regarde que `totalHits > 0`, qui porte sur toute la recherche, et pas sur la page demandée. Au-delà de `last_page`, il tire quand même la tranche p des emplacements (`pick($pool, $seed, $page, …)` boucle sur le vivier) et compte leurs impressions (lu, l. 648, 658-659).
+  - Mesuré par le test temporaire (même corpus, `last_page` = 3) : `page=9` → `data` vide, `sponsored` contient 1 bien (`f2`).
+  - Le front ne montre pas les emplacements sur une liste vide. Quand `properties.length === 0`, il rend `SearchEmpty`, et `EmplacementsSponsorises` n'est que dans l'autre branche (lu, `PropertiesDiscoveryPage.tsx:595-613`).
+  - Le middleware valide les impressions de toute réponse 200 qui ne vient pas d'un robot (lu, `CountBoostImpressions.php:39-44`). Un visiteur humain sur une URL `?page=N` devenue trop grande (lien partagé, catalogue qui a rétréci, `per_page` changé) compte donc une impression pour chaque bien de la tranche, sans rien voir.
+  - Le code affirme le contraire : « une impression ne se compte que pour un emplacement montré » (`PropertySearchService.php:142-143`, TCK-687), et l'ADR-0061 § 10 parle d'« une impression par bien réellement servi » (`PropertySearchService.php:657`).
+  - Établi comment : lecture des deux côtés, et test temporaire côté API.
+- Piste : dans `placements()`, rendre `[$organic(), []]` sans compter quand `$page` dépasse `totalPages` du résultat nominal. Le test : `page = last_page + 1` → `sponsored = []` et aucune impression ; le témoin `page = last_page` sert toujours.
+
+### Petites améliorations
+- Réf : P55.03
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Services/Search/PropertySearchService.php:92-109,668-678,767-773`
+- Constat :
+  - La requête nominale demande les documents entiers, alors que `hydrate()` ne lit que `id` dans chaque hit et recharge tout depuis la base (lu, l. 92-109 et 769). Quand des places réservées existent, ses hits ne servent même pas : la page vient de `organicExcluding()` (lu, l. 668-678). Elle n'est alors lue que pour `totalHits` et `totalPages`. Le gain en octets n'est pas mesuré.
+  - La conséquence de l'ADR-0061 annonce la troisième lecture, celle des places réservées, « en première page » (l. 208, lu). Le code la fait sur **toute** page dès que des places réservées existent : la page 2 et les suivantes en ont besoin pour décaler leur fenêtre (lu, `PropertySearchService.php:632-633`, 668-674). Le docblock de `placements()` dit juste (l. 627-630).
+  - Établi comment : lecture.
+- Piste : `attributesToRetrieve: ['id']` sur la requête nominale (et sur l'élargie), avec un test qui vérifie que la page rendue est inchangée ; corriger la conséquence de l'ADR-0061 (trois lectures sur toute page qui a des places réservées).
