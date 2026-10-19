@@ -1,7 +1,7 @@
 ---
 id: TCK-969
 title: "Le résumé du locataire ne rend plus `customer_id`"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -47,18 +47,18 @@ Le résumé du locataire ne prétend plus désigner une fiche client unique.
 
 ## Delta à produire
 
-- [ ] `DashboardTenantService::summary` : plus de clé `customer_id`.
-- [ ] `DashboardTenantController::show` : `customer_id` retiré des clés gardées.
-- [ ] Front : `customer_id` retiré du type `TenantDashboard` et du faux de
+- [x] `DashboardTenantService::summary` : plus de clé `customer_id`.
+- [x] `DashboardTenantController::show` : `customer_id` retiré des clés gardées.
+- [x] Front : `customer_id` retiré du type `TenantDashboard` et du faux de
   `overview/__tests__/locataire.tck-595.test.tsx`.
-- [ ] Test : `DashboardTenantTest` asserte l'absence de la clé, avec et sans fiche, avec et sans
+- [x] Test : `DashboardTenantTest` asserte l'absence de la clé, avec et sans fiche, avec et sans
   `fields[summary]`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/dashboard/tenant` ne rend aucune clé `customer_id`, que le compte ait une
+- [x] AC1 — `GET /api/dashboard/tenant` ne rend aucune clé `customer_id`, que le compte ait une
   fiche ou non, et avec `fields[summary]`.
-- [ ] AC2 — `has_customer_profile` reste rendu.
+- [x] AC2 — `has_customer_profile` reste rendu.
 
 ## Hors périmètre
 
@@ -67,4 +67,8 @@ Le résumé du locataire ne prétend plus désigner une fiche client unique.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Ablation** : la ligne `customer_id` remise dans `DashboardTenantService::summary` →
+  `DashboardTenantTest` 2 rouges sur 5 ; retirée → 5 verts.
+- La ligne retirée de `DashboardTenantController` (`$keep[] = 'customer_id'`) n'est observable
+  par aucun test une fois le service corrigé : `array_intersect_key` ignore une clé absente. Elle
+  part pour que la liste ne nomme plus une clé qui n'existe pas.
