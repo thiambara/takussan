@@ -98,3 +98,5 @@ Chaque test est rouge sans son correctif (ablation consignée dans les notes).
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+- À la fusion : retirer de `docs/models-spec.md` §3 la marque « à venir » de « changer le titulaire » (ligne `user_id`), et mettre à jour la phrase « Aujourd'hui » (passe `/sync-specs` 015, MD7).
