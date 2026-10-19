@@ -5592,7 +5592,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### `address.country: null` rend 500 à la création et à la modification d'un bien
 - Réf : P54.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-976
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:88`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:84`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:141-142,217-225`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:19`
 - Constat :
@@ -5601,10 +5601,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - C'est le reste annoncé par la `Mesure` de l'implémenteur sur P17.01 (« `country` a la même forme »), jamais repris en entrée : voir P17.01, dont le correctif (`filled` sur `address.city`) s'applique tel quel.
 - Piste : `address.country` en `filled` dans les deux FormRequests, comme `address.city` (TCK-703). Étendre `tests/Feature/Geo/AdresseSansVilleTest.php` d'un cas `country: null` par voie, qui attend 422 et une base intacte.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePropertyRequest.php:88` et `UpdatePropertyRequest.php:84` (`address.country` toujours `nullable`, à côté d'`address.city` en `filled` depuis TCK-703) → `POST /api/properties` avec `address: {street, country: null}` → 500, sans la clé → 201 ; `PATCH` avec `address: {country: null}` → 500 `SQLSTATE[23502]` colonne `country` ; aucun commit ni ticket ne l'a traité (TCK-703 le nomme comme reste). Classement : A1, le contrat « clé omise → défaut, `null` → 422 » est écrit par TCK-703 et `AdresseSansVilleTest`, et s'applique tel quel à `country`.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StorePropertyRequest.php:88` et `UpdatePropertyRequest.php:84` (`address.country` toujours `nullable`) ; trois cas ajoutés à `AdresseSansVilleTest` → avant correctif, `POST` et `PATCH` avec `address.country: null` rendent 500 (2 rouges sur 9) → `address.country` en `filled` (`sometimes` gardé au PATCH) : 9 verts ; ablation (les deux FormRequests remises) → 2 rouges, remis → vert ; un pays omis prend toujours `SN`.
 
 ### Créer un forfait avec `trial_days`, `is_active` ou `sort_order` à `null` rend 500
 - Réf : P54.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-977
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/Admin/StorePlanRequest.php:22,27,28`, `takussan-api/app/Http/Controllers/Api/Admin/PlanController.php:26`, `takussan-api/database/migrations/2026_05_07_000222_create_plans_and_agency_subscriptions_tables.php:20-23`
 - Constat :
@@ -5613,10 +5614,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - `UpdatePlanRequest` ne déclare aucune de ces trois clés `nullable` (lu) : seule la création est touchée. L'écran `AdminPlansClient.tsx` n'envoie pas ces clés (lu).
 - Piste : remplacer `nullable` par `sometimes` (ou `filled`) sur les trois clés, pour qu'une clé omise prenne le défaut de la colonne et qu'un `null` rende 422. Un test par clé dans `BillingPlansTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StorePlanRequest.php:22,27,28` (`trial_days`, `is_active`, `sort_order` en `nullable`) → `POST /api/admin/plans` en super-admin : `trial_days: null` → 500, `is_active: null` → 500, `sort_order: null` → 500, clés absentes → 201 ; `UpdatePlanRequest` ne les déclare pas `nullable` (lu). Classement : A1, la colonne `NOT NULL` à défaut et la requête sœur de mise à jour fixent le contrat (omis → défaut, `null` → 422) ; seule la validation change, aucun montant ni échéance n'est calculé ou écrit autrement.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StorePlanRequest.php:22,27,28` (trois clés `nullable`) ; test de garde dans `BillingPlansTest` (fournisseur sur les trois clés) → avant correctif, `POST /api/admin/plans` en super-admin avec chacune à `null` rend 500 (3 rouges sur 13), clés omises → 201 → `filled` sur les trois : 13 verts, et une création sans ces clés garde `0`, `true`, `0` ; ablation (`StorePlanRequest` remise) → 3 rouges, remis → vert.
 
 ### Une note client avec `pinned: null` rend 500
 - Réf : P54.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-978
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Api/StoreCustomerNoteRequest.php:37`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:30-34`, `takussan-api/database/migrations/2026_04_17_160030_create_customer_notes_table.php:16`
 - Constat :
@@ -5624,10 +5626,11 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Mesuré (test temporaire, agent de l'agence) : `POST /api/customers/{id}/notes` avec `body` et `pinned: null` → **500** (`23502`, colonne `pinned`) ; sans `pinned` ou avec `pinned: false` → 201.
 - Piste : `pinned` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StoreCustomerNoteRequest.php:37` (`pinned` en `nullable|boolean`) → `POST /api/customers/{id}/notes` en agent : `pinned: null` → 500, clé absente → 201, `pinned: false` → 201. Classement : A1, la colonne `NOT NULL DEFAULT false` fixe le contrat (omis → défaut, `null` → 422), sans choix de produit.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StoreCustomerNoteRequest.php:37` (`pinned` en `nullable|boolean`) ; test de garde dans `CustomerNoteTest` → avant correctif, `POST /api/customers/{id}/notes` avec `pinned: null` rend 500 (1 rouge sur 8) → `filled|boolean` : 8 verts, une note sans `pinned` reste non épinglée ; ablation (règle remise à `nullable`) → 1 rouge, remis → vert.
 
 ### Un relevé bancaire importé avec `source_format` vide ou `null` rend 500
 - Réf : P54.04
-- Statut : retenu · autonome
+- Statut : fait · TCK-979
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:23,29-37`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:50-53`, `takussan-api/database/migrations/2026_04_28_000001_create_bank_statements_table.php:15`
 - Constat :
@@ -5636,6 +5639,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - L'écran d'import (`ImportStatementForm.tsx:31,41`) envoie toujours `csv` ou `ofx` (lu).
 - Piste : déduire le format quand la valeur est vide (`! $this->filled('source_format')`), et passer la règle en `required` une fois la déduction faite. Un test par forme (`null`, `""`, clé absente) dans `BankStatementPipelineTest`.
 - Mesure (2026-10-19, 7d86d29f7, mesureur) : test Feature temporaire (retiré), charge 1,71 / 1,64 / 1,49 sur 8 cœurs, et relu `StoreBankStatementRequest.php:23,29-37` (`nullable`, déduction sous `! $this->has('source_format')`) → `POST /api/agencies/{id}/bank-statements` (multipart, CSV, file faussée) : `source_format: null` → 500 `23502` colonne `source_format`, `source_format: ""` → 500, clé absente → 202. Classement : A1, le commentaire du code écrit déjà le contrat (« Auto-detect source_format from file extension if not provided ») et une valeur vide est une valeur non fournie ; le correctif étend la déduction existante sans toucher au parseur ni aux montants.
+- Mesure (2026-10-19, 1da537089, implementeur) : relu `StoreBankStatementRequest.php:23,29-37` (`nullable`, déduction sous `! has()`) ; test de garde dans `BankStatementPipelineTest` (clé absente, `null`, `""`, file faussée) → avant correctif, `null` et `""` rendent 500 (2 rouges sur 21), clé absente → 202 → déduction sous `! filled()` et règle `required` : 21 verts, relevé en `csv` ; ablation (requête remise) → 2 rouges, remis → vert ; 83 tests voisins verts. Le cas OFX n'est pas rejoué : le faux fichier de test est refusé par `mimes` avant la déduction.
 
 ### Modifier un état des lieux avec `general_condition` ou `rooms` à `null` rend 500
 - Réf : P54.05

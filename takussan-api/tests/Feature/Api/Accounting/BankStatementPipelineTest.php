@@ -23,6 +23,7 @@ use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\AssertionFailedError;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 use Tests\Support\RemoteDiskFake;
 
@@ -479,6 +480,39 @@ class BankStatementPipelineTest extends ApiTestCase
         // Le même texte en UTF-8 passe.
         $statement = $this->upload("date,amount,label\n01/04/2026,1000,Loyer réglé Médina\n");
         $this->assertSame('Loyer réglé Médina', $statement->lines()->sole()->label);
+    }
+
+    /**
+     * TCK-979 (P54.04) — `bank_statements.source_format` est `NOT NULL` sans défaut. La déduction
+     * par l'extension ne jouait que sur une clé ABSENTE : `null` (ou `""`, changé en `null` par le
+     * middleware) passait la règle `nullable` et rendait 500 (`SQLSTATE[23502]`). Une valeur vide
+     * est une valeur non fournie : elle se déduit de l'extension, comme l'absence.
+     */
+    #[DataProvider('formatsNonFournis')]
+    public function test_un_format_non_fourni_se_deduit_de_l_extension(bool $avecCle, ?string $valeur, string $fichier, string $attendu): void
+    {
+        Queue::fake();
+
+        $corps = ['file' => UploadedFile::fake()->createWithContent($fichier, $this->fixture())];
+        if ($avecCle) {
+            $corps['source_format'] = $valeur;
+        }
+
+        $response = $this->actingAs($this->admin)
+            ->postJson("/api/agencies/{$this->agency->id}/bank-statements", $corps)
+            ->assertStatus(202);
+
+        $this->assertSame($attendu, BankStatement::findOrFail($response->json('data.id'))->source_format->value);
+    }
+
+    /** @return array<string, array{bool, ?string, string, string}> */
+    public static function formatsNonFournis(): array
+    {
+        return [
+            'clé absente' => [false, null, 'statement.csv', 'csv'],
+            'null, csv' => [true, null, 'statement.csv', 'csv'],
+            'chaîne vide, csv' => [true, '', 'statement.csv', 'csv'],
+        ];
     }
 
     // ─── Helpers ─────────────────────────────────────────────────
