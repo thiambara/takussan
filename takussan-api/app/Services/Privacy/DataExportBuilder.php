@@ -24,6 +24,7 @@ class DataExportBuilder
 {
     public const DOMAINS = [
         'profile.json',
+        'customers.json',
         'bookings.json',
         'leases.json',
         'payments.json',
@@ -33,6 +34,16 @@ class DataExportBuilder
         'documents.json',
         'audit-log.json',
         'media/manifest.json',
+    ];
+
+    /**
+     * TCK-956 (ADR-0070 § 7) — les colonnes d'une fiche client qui entrent dans l'export : son
+     * identité, pièce comprise. `notes`, `metadata` et les critères de recherche n'y entrent pas.
+     */
+    private const CUSTOMER_IDENTITY = [
+        'id', 'agency_id', 'first_name', 'last_name', 'email', 'phone',
+        'id_type', 'id_number', 'occupation', 'emergency_contact_name', 'emergency_contact_phone',
+        'locale', 'created_at', 'updated_at',
     ];
 
     public function build(DataExport $export): DataExport
@@ -91,6 +102,14 @@ class DataExportBuilder
                     'service_provider' => $user->serviceProviderProfile()->first()?->toArray(),
                 ],
             ],
+            // TCK-956 (ADR-0070 § 7) — les fiches client du titulaire, pièce EN CLAIR, limitées à
+            // l'identité : ni les notes, ni les métadonnées, ni les critères de recherche de
+            // l'agence, dont TCK-537 et le conseil juridique décideront.
+            'customers.json' => Customer::query()
+                ->where('user_id', $user->id)
+                ->get(self::CUSTOMER_IDENTITY)
+                ->each->makeVisible(Customer::SENSITIVE)
+                ->toArray(),
             'bookings.json' => Booking::query()
                 ->whereIn('customer_id', $customerIds)
                 ->orWhere('created_by_id', $user->id)
