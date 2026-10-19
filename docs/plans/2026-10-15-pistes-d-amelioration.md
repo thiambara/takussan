@@ -5699,7 +5699,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une page au-delà de la dernière compte une impression pour un emplacement que l'écran ne montre pas
 - Réf : P55.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-983
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:147-148,648-659`, `takussan-web/src/components/property/PropertiesDiscoveryPage.tsx:595-613`, `takussan-api/app/Http/Middleware/CountBoostImpressions.php:39-44`
 - Constat :
@@ -5711,6 +5711,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Établi comment : lecture des deux côtés, et test temporaire côté API.
 - Piste : dans `placements()`, rendre `[$organic(), []]` sans compter quand `$page` dépasse `totalPages` du résultat nominal. Le test : `page = last_page + 1` → `sponsored = []` et aucune impression ; le témoin `page = last_page` sert toujours.
 - Mesure (2026-10-19, 4f449d122, mesureur) : relu `placements()` (l. 644-664 : seule garde `totalHits === 0`, puis `pick($pool, $seed, $page, $slots)` et `BoostStatsRecorder::impressions()` sans regarder `totalPages`) et `CountBoostImpressions.php:39-44` (commit sur toute réponse < 400 hors robot), puis test temporaire (retiré), même corpus, `slots = 1`, `reserved = 2` → `last_page` 3, `page=9` : `data` vide, `sponsored` = 1 bien ; témoin `page=3` : 1 résultat, 1 emplacement. Les impressions servent au taux de clic (ADR-0061 § 10), pas à un débit. Classement : A1, le contrat est écrit dans le code (« une impression ne se compte que pour un emplacement montré », TCK-687) et dans l'ADR-0061 § 10, et le front ne montre déjà aucun emplacement sur une liste vide : rendre `[$organic(), []]` sans compter quand `$page` dépasse `totalPages` ne change rien de visible.
+- Mesure (2026-10-19, c164b2d8c, implementeur) : test de garde `SponsoredImpressionsTest::test_une_page_au_dela_de_la_derniere_ne_sert_ni_ne_compte_d_emplacement` (trois biens dont une vedette, `slots = 1`, `per_page=1` → `last_page` 3), avant correctif : `page=4` → `data` vide, `sponsored` = la vedette, rouge → `placements()` rend `[$organic(), []]` quand `$page` dépasse `totalPages` ; 5 verts, témoin `page=3` servi et compté ; ablation (service remis à `pre-dev`) → le même rouge, correctif remis → vert.
 
 ### Petites améliorations
 - Réf : P55.03
