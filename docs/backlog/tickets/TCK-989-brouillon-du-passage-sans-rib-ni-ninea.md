@@ -1,7 +1,7 @@
 ---
 id: TCK-989
 title: "Le brouillon du formulaire de passage n'enregistre ni le RIB professionnel ni le NINEA"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: S
@@ -75,3 +75,13 @@ Un RIB professionnel ou un NINEA saisi dans le formulaire de passage n'est jamai
 - Une garde côté API qui refuserait ces clés dans `PUT /api/me/wizard-drafts/agency-upgrade-*`.
 
 ## Notes d'implémentation
+
+- Avant : formulaire rempli → `save(0, { …, ninea: '005012345', rib_pro: 'SN012 …' })` ; saisir le
+  seul NINEA écrivait déjà un brouillon (AC1, AC2 rouges).
+- Ablation front : composant remis à sa version d'avant (tests gardés) → AC1 et AC2 rouges, les
+  12 autres verts ; remis → 14 verts. ⚠ Remettre `data: form` sans remettre l'état vierge fait
+  rougir 5 tests de TCK-566 : l'état vierge doit se sérialiser sur la même forme que `data`.
+- Ablation API : `->delete()` remplacé par `->count()` → rouge ; la clause `ninea` retirée → rouge
+  sur le brouillon qui ne porte que le NINEA ; remise → vert.
+- Pas de `useMemo` autour du brouillon : React Compiler (ADR-0015) ; le hook compare des états
+  sérialisés, un objet neuf par rendu ne réécrit rien.
