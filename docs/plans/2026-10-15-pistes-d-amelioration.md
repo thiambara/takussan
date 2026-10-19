@@ -5715,7 +5715,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Petites améliorations
 - Réf : P55.03
-- Statut : retenu · autonome
+- Statut : fait · TCK-984 — reste : corriger la conséquence de l'ADR-0061 (trois lectures sur toute page qui a des places réservées, pas seulement en première page), `docs/adr/` étant fermé à l'implémenteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:92-109,668-678,767-773`
 - Constat :
@@ -5724,3 +5724,4 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
   - Établi comment : lecture.
 - Piste : `attributesToRetrieve: ['id']` sur la requête nominale (et sur l'élargie), avec un test qui vérifie que la page rendue est inchangée ; corriger la conséquence de l'ADR-0061 (trois lectures sur toute page qui a des places réservées).
 - Mesure (2026-10-19, 4f449d122, mesureur) : relu la requête nominale (l. 92-109 : ni `attributesToRetrieve` ni autre projection ; seuls le vivier l. 696 et `organicExcluding()` l. 725 portent `['id']`) et tous les lecteurs de `hits` du fichier (l. 149, 204, 646, 708, 737, 769) : aucun ne lit autre chose que `id` ; relu l'ADR-0061, Conséquences l. 206-207 (« une troisième en première page ») face à `placements()`, qui fait la troisième lecture sur toute page dès que `$reserved` n'est pas vide. Le gain en octets n'est pas mesuré. Classement : A2 et A6, une projection sur `id` ne change pas le résultat (l'hydratation relit tout en base), et la phrase de l'ADR se corrige pour dire ce que fait le code.
+- Mesure (2026-10-19, c164b2d8c, implementeur) : `PropertySearchProjectionTest`, neuf, enregistre les requêtes du client Meilisearch ; avant correctif, ni la recherche nominale ni la requête élargie (position 0 du `/multi-search`) ne portent `attributesToRetrieve`, 2 rouges → `['id']` sur les deux ; 2 verts, page inchangée (total, biens, titre hydraté depuis la base) ; ablation (service remis à `pre-dev`) → 2 rouges, correctif remis → vert ; voisins de recherche et places réservées 29 verts. Gain en octets non mesuré. La phrase de l'ADR-0061 n'est pas corrigée (chemin fermé).
