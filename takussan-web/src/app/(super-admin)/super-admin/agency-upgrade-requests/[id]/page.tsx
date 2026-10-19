@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   CalendarDays,
@@ -251,6 +252,9 @@ function DecisionSection({
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
   const fmt = useFormatteurs();
   const isPending = detail.status === 'pending';
+  // TCK-1003 (P49.02) — l'API refuse l'approbation tant que le dossier KYC de l'agence n'est pas
+  // vérifié (`agency_upgrade.kyc_not_verified`) : la revue le dit avant le geste.
+  const kycVerified = detail.agency?.kyc_status === 'verified';
 
   return (
     <Card>
@@ -262,15 +266,36 @@ function DecisionSection({
       </CardHeader>
       <CardContent>
         {isPending ? (
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={onApprove}>
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              <span>{t('decision.approve')}</span>
-            </Button>
-            <Button variant="destructive" onClick={onReject}>
-              <XCircle className="size-4" aria-hidden="true" />
-              <span>{t('decision.reject')}</span>
-            </Button>
+          <div className="space-y-4">
+            {!kycVerified ? (
+              <div
+                className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-foreground"
+                data-testid="upgrade-kyc-not-verified"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-pretty">{t('decision.kycNotVerified')}</p>
+                  {detail.agency ? (
+                    <Link
+                      href={`/super-admin/agencies/${detail.agency.id}`}
+                      className="text-sm underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                    >
+                      {t('decision.openKyc')}
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={onApprove} disabled={!kycVerified}>
+                <CheckCircle2 className="size-4" aria-hidden="true" />
+                <span>{t('decision.approve')}</span>
+              </Button>
+              <Button variant="destructive" onClick={onReject}>
+                <XCircle className="size-4" aria-hidden="true" />
+                <span>{t('decision.reject')}</span>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3 rounded-lg border border-border bg-muted p-4">

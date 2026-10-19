@@ -7,10 +7,15 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Enums\KycDossierStatus;
+use App\Models\KycDossier;
+use App\Models\PlatformPayout;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
 use App\Notifications\AgencyUpgradeRejectedNotification;
+use App\Services\Kyc\KycWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
@@ -40,10 +45,20 @@ class AgencyUpgradeRequestReviewTest extends TestCase
         return $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
     }
 
-    private function pendingRequest(?Agency $agency = null, ?User $submitter = null): AgencyUpgradeRequest
+    /**
+     * TCK-1003 (P49.02) — la demande ne s'approuve que si le dossier KYC de l'agence est vérifié :
+     * l'aide le pose par défaut, pour que chaque test ne dise que ce qu'il garde.
+     */
+    private function pendingRequest(?Agency $agency = null, ?User $submitter = null, bool $kycVerified = true): AgencyUpgradeRequest
     {
         $agency ??= Agency::factory()->create(['kind' => AgencyKind::Individual]);
         $submitter ??= User::factory()->create();
+        if ($kycVerified) {
+            KycDossier::query()->firstOrCreate(
+                ['subject_type' => Agency::class, 'subject_id' => $agency->id],
+                ['status' => KycDossierStatus::Verified, 'metadata' => []],
+            );
+        }
 
         return AgencyUpgradeRequest::factory()->pending()->create([
             'agency_id' => $agency->id,
@@ -259,5 +274,91 @@ class AgencyUpgradeRequestReviewTest extends TestCase
             Activity::query()->where('event', 'agency_upgrade_rejected')->first(),
             'agency_upgrade_rejected activity should be logged',
         );
+    }
+
+    /**
+     * TCK-1003 (P49.02) — la demande ne porte pas les pièces du dossier KYC (`rccm`, `ninea`,
+     * `director_id`) : un dossier vérifié est exigé avant l'approbation, sans quoi la bascule
+     * gèlerait les reversements de la plateforme (`platform_payout.agency_unverified`).
+     */
+    public function test_approving_a_request_without_a_verified_kyc_dossier_returns_422_and_stays_pending(): void
+    {
+        Event::fake([AgencyUpgradeApproved::class]);
+        Notification::fake();
+        $this->asSuperAdmin();
+
+        $sansDossier = $this->pendingRequest(kycVerified: false);
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        KycDossier::query()->create([
+            'subject_type' => Agency::class, 'subject_id' => $agency->id,
+            'status' => KycDossierStatus::Submitted, 'metadata' => [],
+        ]);
+        $dossierSoumis = $this->pendingRequest($agency, kycVerified: false);
+
+        foreach ([$sansDossier, $dossierSoumis] as $request) {
+            $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'agency_upgrade.kyc_not_verified');
+
+            $this->assertSame(AgencyUpgradeRequestStatus::Pending, $request->fresh()->status);
+            $this->assertSame(AgencyKind::Individual, $request->agency->fresh()->kind);
+        }
+
+        Event::assertNotDispatched(AgencyUpgradeApproved::class);
+        Notification::assertNothingSent();
+    }
+
+    /** TCK-1003 — la revue le dit avant le geste : le détail porte l'état du dossier KYC. */
+    public function test_request_detail_exposes_the_agency_kyc_status(): void
+    {
+        $this->asSuperAdmin();
+        $verified = $this->pendingRequest();
+        $missing = $this->pendingRequest(kycVerified: false);
+
+        $this->getJson("/api/admin/agency-upgrade-requests/{$verified->id}")
+            ->assertOk()
+            ->assertJsonPath('data.agency.kyc_status', 'verified');
+        $this->getJson("/api/admin/agency-upgrade-requests/{$missing->id}")
+            ->assertOk()
+            ->assertJsonPath('data.agency.kyc_status', null);
+    }
+
+    /**
+     * TCK-1003 (P49.02) — de bout en bout : sans KYC, la demande est refusée et l'agence, restée
+     * `individual`, garde ses reversements approuvables ; avec un dossier vérifié par le parcours
+     * réel, la bascule passe et le reversement de la plateforme s'approuve encore.
+     */
+    public function test_end_to_end_upgrade_then_platform_payout_approval(): void
+    {
+        Notification::fake();
+        $this->asSuperAdmin();
+        $agency = Agency::factory()->individual()->create(['is_verified' => false, 'verified_at' => null]);
+        $payout = PlatformPayout::factory()->create(['agency_id' => $agency->id]);
+        $request = $this->pendingRequest($agency, kycVerified: false);
+
+        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'agency_upgrade.kyc_not_verified');
+        $this->assertSame(AgencyKind::Individual, $agency->fresh()->kind);
+
+        // Le dossier KYC suit son parcours : trois pièces, soumission, vérification.
+        $kyc = app(KycWorkflowService::class);
+        $reviewer = $this->asSuperAdmin();
+        $dossier = $kyc->dossierForAgency($agency);
+        foreach (KycWorkflowService::AGENCY_REQUIRED_DOCUMENTS as $type) {
+            $kyc->upload($dossier, UploadedFile::fake()->create("{$type}.pdf", 10, 'application/pdf'), $type, $type === 'director_id' ? now()->addYear()->toDateString() : null);
+        }
+        $kyc->submit($dossier->fresh(), $reviewer);
+        $kyc->verify($dossier->fresh(), $reviewer);
+
+        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])->assertOk();
+        $fresh = $agency->fresh();
+        $this->assertSame(AgencyKind::Standard, $fresh->kind);
+        $this->assertTrue($fresh->is_verified);
+
+        $this->asSuperAdmin();
+        $this->postJson("/api/admin/payouts/{$payout->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
     }
 }
