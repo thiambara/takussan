@@ -283,6 +283,30 @@ class MessagingContactsTest extends ApiTestCase
     }
 
     /**
+     * P51.05 — sous `--locale=C`, `ORDER BY first_name` suivait l'ordre des octets : « awa » et
+     * « Élodie » passaient après « Zeynab ». Le tri des noms passe par `COLLATE "und-x-icu"`
+     * (ADR-0025, amendement du 2026-10-19), pour le défaut comme pour `sort=first_name` et
+     * `sort=last_name`, dans les deux sens.
+     */
+    public function test_le_tri_des_noms_suit_l_ordre_alphabetique_et_non_celui_des_octets(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        foreach ([['Binta', 'Sarr'], ['Zeynab', 'Sow'], ['awa', 'ba'], ['Élodie', 'Faye'], ['Omar', 'Écoute']] as [$prenom, $nom]) {
+            $this->shareConversation($moi, $this->user($prenom, $nom));
+        }
+
+        $this->actingAsApi($moi);
+        $noms = fn (string $query) => collect($this->getJson('/api/conversations/contacts'.$query)->assertOk()->json('data'))
+            ->pluck('name')->all();
+
+        $alphabetique = ['awa ba', 'Binta Sarr', 'Élodie Faye', 'Omar Écoute', 'Zeynab Sow'];
+        $this->assertSame($alphabetique, $noms(''));
+        $this->assertSame($alphabetique, $noms('?sort=first_name'));
+        $this->assertSame(array_reverse($alphabetique), $noms('?sort=-first_name'));
+        $this->assertSame(['awa ba', 'Omar Écoute', 'Élodie Faye', 'Binta Sarr', 'Zeynab Sow'], $noms('?sort=last_name'));
+    }
+
+    /**
      * TCK-973 (P51.06) — le sélecteur retire les personnes déjà choisies. Côté client, sur une page
      * de 20, « {shown} sur {total} » comptait les choisis, et vingt choisis donnaient une liste
      * vide sous un total non nul. `filter[exclude]` les retire AVANT la pagination : `meta.total`
