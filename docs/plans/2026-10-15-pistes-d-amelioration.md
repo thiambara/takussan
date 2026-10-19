@@ -135,7 +135,7 @@ voie d'écriture (angle 13, puis 47).
 | 60 | `$requestLoadable` confronté aux clés émises par chaque ressource : relations chargées sans être rendues, et contrôleurs `show` qui ignorent `include=`/`fields` | fait |
 | 61 | Modèles rendus bruts par un contrôleur (`->items()`, `relationsToArray()`, paginateur brut) : colonnes qui sortent sans projection, au-delà de `User` | fait |
 | 62 | Règles `exists:` des FormRequests reçues par une route ouverte à tout compte connecté (`exists:users,id`, `exists:properties,id`…) : oracles d'existence par identifiant séquentiel, au-delà des routes en lot de P22.02 | fait |
-| 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | à faire |
+| 63 | URL signées rangées en base ou dans un `metadata` (`app_notifications.data`, `LeaseDepositRefundNotification`, `DepositRefundService`, `MaintenanceRequestService::addPhotos`) : durée, lecteurs, liens morts à la relecture | fait |
 | 64 | Pièces KYC des profils (`Document` d'`OwnerProfile`, `AgentProfile`, `ServiceProviderProfile`) à l'effacement du compte, à la fin du profil et au re-téléversement : fichier, versions et lignes réellement supprimés ? | à faire |
 | 65 | Durée cumulée des appels sortants synchrones dans une requête HTTP (OTP SMS, step-up, initiation de paiement) face au délai de PHP, du serveur web et de Traefik | à faire |
 | 66 | Valeurs d'enum métier ajoutées ou désactivées par le super-admin (`BusinessEnumService`, `settings` `enum.*.values`) : lues par aucune validation ni aucun écran hors de la console ? | à faire |
@@ -169,6 +169,7 @@ voie d'écriture (angle 13, puis 47).
 | 94 | Réponses assemblées à la main dans un contrôleur (`TaskController::format`, `Admin\AgencyUpgradeRequestController::show`, `Me\ServiceProviderProfileController::show`, 25 `toISOString()` sous `app/Http/Controllers`) : dates hors ADR-0018 et enums bruts, que `check-resource-date-format.mjs` ne lit pas | à faire |
 | 95 | Réponse d'une écriture (`store`, `update`, action) face au `show` ou à la liste du même modèle : forme, ressource, types (`commission_share` en chaîne ou en nombre), clés — `PropertyCollaboratorController`, `CustomerController::setPrimaryContact`, `PropertyTagController::sync` | à faire |
 | 96 | Règles `exists:` sans `whereNull('deleted_at')` sur une table à `SoftDeletes` (`exists:customers,id`, `exists:users,id`, `exists:leases,id`…) suivies d'un `find()` masqué par la portée : 404 ou 500 au lieu de 422, ou clé étrangère écrite vers une ligne supprimée | à faire |
+| 97 | Liens d'action des courriels (`->action(…)` des `toMail()`, boutons des Mailables) : la route ou la page visée existe-t-elle, un clic depuis un client de courriel porte-t-il l'authentification qu'elle exige, et vise-t-il l'hôte du front ou celui de l'API | à faire |
 
 ---
 
@@ -6324,3 +6325,75 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Le défaut a été corrigé route par route (TCK-599 sur les favoris, TCK-732 sur les documents, TCK-817 sur les routes en lot), et chaque correctif l'a écrit dans un commentaire (`StoreFavoriteRequest.php:31-33`, `PropertyController.php:454`, `PropertyBulkAssignService.php:87`) ; aucun test ni garde ne porte la règle (lu : aucun `check-*.mjs` ni test d'architecture ne lit `exists:`).
   - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
 - Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.
+
+## Angle 63 — URL signées et liens de téléchargement rangés ou envoyés : durée, lecteurs, liens morts
+
+*Exploré le 2026-10-19 sur `pre-dev` e46a8d564, par l'explorateur. Tout a été relu par
+l'explorateur, sans sous-agent : les appelants de `URL::temporarySignedRoute`, `URL::signedRoute`
+et `PrivateMediaAccess::signedUrl()` sous `app/`, les notifications qui portent une URL,
+`NotificationService::send` (les paramètres porteurs y sont retirés, `bearerParams()`), et les
+écrans du front qui affichent une URL signée. Les quatre noms de l'intitulé : la notification de
+caution est déjà traitée par P23.05 (TCK-821) ; `DepositRefundService::state()` et
+`MaintenanceRequestService::addPhotos()` ne rangent rien, ils rendent l'URL dans la réponse qui
+l'a autorisée (lu, `DepositRefundService.php:248-256`, `MaintenanceRequestService.php:406-421`,
+appelés par `LeaseDepositRefundController` et `MaintenanceRequestController.php:332`). Aucune URL
+signée n'est donc rangée en base aujourd'hui ; les défauts trouvés portent sur les liens de
+téléchargement envoyés par courriel. Deux tests temporaires, retirés depuis, sur la base de test
+(charge 2,67 sur 8 cœurs). Le désabonnement signé sans expiration est déjà relevé (mesure de
+P11.08) ; le schéma et l'hôte des URL signées relèvent de l'angle 73, la purge des fichiers
+d'export de l'angle 77.*
+
+### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
+- Réf : P63.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
+- Constat :
+  - Au-delà de 5 000 lignes, l'export passe par `ExportActivityLogJob` (lu, contrôleur l. 44). Le job écrit le fichier sous `exports/audit/<filename>.<format>` et envoie par courriel une URL signée de 24 h qui ne porte que ce chemin (lu, job l. 39-49).
+  - Le nom vaut `audit-trail-{agence}-{from}-{to}`, où `{agence}` est le nom de l'agence réduit à `[a-z0-9-]`, ou `platform` pour un super-admin ou sans agence (lu, exporteur l. 51-57). Aucun aléa, aucun identifiant d'agence ni de demandeur, aucun des filtres `causer_id`, `event`, `subject_type`, `search`. Le nom d'agence n'est pas unique en base (lu, `create_agencies_table.php:14-15` : seuls `slug` et `license_number` le sont).
+  - `download` vérifie la signature, puis sert le fichier présent au chemin au moment du clic (lu, contrôleur l. 59-71). Le contenu n'est lié ni au demandeur ni à son agence.
+  - Mesuré (test temporaire, retiré) : agences « Immo Dakar » et « Immo-Dakar », un export par leur admin, mêmes dates par défaut → un seul fichier `audit-trail-immo-dakar-2026-09-19-2026-10-19.csv` ; l'URL reçue par l'admin de la première rend 200 avec le témoin de la seconde, et sans le sien.
+  - Mesuré (même test) : agence nommée « Platform », export de son admin, puis export d'un super-admin (`operateur(SuperAdmin)`, agence nulle) → l'URL reçue par l'admin de l'agence rend le journal de toute la plateforme, avec le témoin d'une troisième agence.
+  - Deux admins de la même agence, avec des filtres différents, s'écrasent aussi : le premier reçoit l'export du second (déduit de la lecture : à vérifier).
+  - L'export synchrone et celui de la console (`CrossTenantAuditController.php:94`, suffixe `random_bytes(6)`) ne sont pas touchés (lu).
+  - Établi comment : lu, et mesuré par deux tests temporaires qui appellent `handle()` du job comme `AgencyAuditScopeTest::test_le_fichier_du_job_porte_l_agence_active_et_elle_seule`.
+- Piste : nommer le fichier d'un identifiant opaque (aléa, ou identifiant d'une ligne d'export), et garder le nom lisible pour le seul `Content-Disposition`. Mieux encore, lier la signature au demandeur (paramètre `user` vérifié au téléchargement). Test : deux exports de deux agences de même nom, puis chaque lien ne rend que son agence ; et la variante « Platform » contre le super-admin.
+
+### Le courriel « export de rapport prêt » mène à une route qui n'existe pas
+- Réf : P63.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Notifications/ReportExportReadyNotification.php:26`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:51-63`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:108-143`, `takussan-api/lang/fr/notifications.php:867-872`
+- Constat :
+  - Un export de rapport de la console de plus de 10 000 lignes part en file (`ASYNC_THRESHOLD_ROWS`, lu, contrôleur l. 24, 108-143). Le job écrit `reports/{report}-{id}.csv` sur le disque `local`, pose `expires_at` à J+7, puis notifie le demandeur (lu, job l. 51-63).
+  - Le courriel pointe sur `url("/api/admin/reports/{report}/exports/{id}/download")` (lu, notification l. 26). Mesuré : `php artisan route:list --path=reports` → six routes, dont `api/admin/reports/{report}/export`, et aucune en `…/exports/{id}/download`. Le clic rend donc 404.
+  - Aucune autre voie ne lit le fichier : `ReportExport` n'est lu que par le contrôleur qui le crée et par le job (mesuré : `grep -rn "ReportExport::\|report_exports" app routes`). Le front ne connaît que la réponse 202 (`export_id`, lu, `super-admin-reports.test.ts:58-62`).
+  - Le texte annonce « Ce lien expire dans 7 jours » (lu, `lang/fr/notifications.php:871`) : rien ne l'applique, puisque rien ne sert le fichier.
+  - C'est le défaut que TCK-575 a corrigé pour l'archive RGPD (`DataExportReadyNotification.php:20-24` : lien vers l'API derrière `auth:sanctum`, 401 au clic). Même avec une route, un lien vers `/api/admin/*` ne porterait pas le jeton Bearer depuis un client de courriel (déduit de ce docblock : à vérifier).
+  - Aucun test ne cite `ReportExportReadyNotification` (mesuré : `grep -rln ReportExportReadyNotification tests/Feature tests/Unit` → rien).
+  - Établi comment : lu, et mesuré par `route:list` et grep.
+- Piste : soit une route de téléchargement (signée, ou authentifiée et ouverte depuis une page de la console comme pour l'archive RGPD) avec un courriel qui mène à la console, soit le retrait du chemin asynchrone si le seuil n'est jamais atteint. Le choix est au porteur. Test : la notification rend une URL que `route:list` connaît, et le téléchargement rend le fichier à son demandeur.
+
+### Une URL signée de 15 ou 30 minutes reste affichée sans limite de temps dans un écran ouvert
+- Réf : P63.03
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Services/Media/PrivateMediaAccess.php:35,41-48`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-web/src/lib/query-client.ts:18-19`, `takussan-web/src/components/kyc/kyc-components.tsx:143`, `takussan-web/src/components/documents/DocumentsLibrary.tsx:459-466`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:72-79`, `takussan-web/src/components/messages/ChatView.tsx:426,462`
+- Constat :
+  - Les ressources émettent l'URL signée de `media.private.show` pour 30 min (`SIGNED_ROUTE_TTL_MINUTES`), et celle des pièces KYC pour 15 min (lu, `PrivateMediaAccess.php:35`, `KycDossierResource.php:84`).
+  - Le front les pose telles quelles dans des `<a href>`, `<img src>` et `<audio src>` (lu, fichiers cités). Le cache de TanStack Query les garde fraîches 5 min. Ensuite, il ne refetche qu'au montage, au retour du focus ou à la reconnexion (lu, `query-client.ts:11-19`). Aucun de ces écrans ne pose de `refetchInterval` (mesuré : grep sur `src/components/kyc`, `documents`, `maintenance` et `src/lib/queries/documents*`, `maintenance*`).
+  - Un onglet resté au premier plan plus de 15 ou 30 min garde donc des liens expirés. Le clic ouvre un nouvel onglet sur la réponse JSON du refus de signature (403 mesuré au-delà de l'expiration par P23.05). Le comportement à l'écran n'est pas rejoué (à vérifier).
+  - Établi comment : lu ; le délai réel avant un refetch n'est pas mesuré.
+- Piste : rafraîchir la requête avant l'expiration (`staleTime` et `refetchInterval` sous la durée du lien, pour les requêtes qui en portent), ou passer par un point qui signe au clic (`GET …/sign`, comme `media.sign`). Test vitest : une requête qui porte une URL signée déclare un `refetchInterval` plus court que sa durée.
+
+### Petites améliorations
+- Réf : P63.04
+- Statut : à mesurer
+- Gravité : 🟢 amélioration
+- Où : `takussan-api/app/Notifications/ActivityLogExportReadyNotification.php:23-26,43-50`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:59-71`, `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:42`
+- Constat :
+  - `ActivityLogExportReadyNotification::toArray()` range `download_url`, l'URL signée de 24 h, alors que `via()` ne rend que `mail` (lu). Le jour où le canal de la cloche s'y ajoute, l'URL passe dans `app_notifications`, comme avant TCK-821. Le code est mort aujourd'hui.
+  - Le lien de 24 h n'est rattaché à personne. Un admin retiré de l'agence, ou un destinataire qui fait suivre le courriel, télécharge le journal jusqu'à l'échéance (lu, `download` ne lit que la signature).
+  - Les fichiers `exports/audit/*` ne sont purgés par rien (mesuré : `grep -rn "exports/" app routes config` → les deux écrivains et aucun effaceur). Ils restent donc lisibles à qui retrouverait un chemin signé plus tard, et s'accumulent (voir l'angle 77).
+  - Établi comment : lu et grep.
+- Piste : retirer `toArray()`, ou n'y ranger que le nom du fichier ; lier le lien au demandeur (P63.01) ; purger les fichiers d'export d'audit à l'échéance du lien, dans le job de purge que retiendra l'angle 77.
