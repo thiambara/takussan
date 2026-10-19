@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-10-16
-updated: 2026-10-18
+updated: 2026-10-19
 depends_on: []
 blocks: []
 spec_refs:
@@ -76,6 +76,11 @@ où chaque constat est sourcé et daté.
   de secrets du porteur, `PREVIEW_*`). Le code déployé (`preview` = `6bd4778db`) ne les lit pas
   encore : TCK-943 est sur `pre-dev`, ils prennent effet à la promotion suivante. Restent : la
   promotion, le report de chaque URL chez son fournisseur, AC6.*
+  *2026-10-19 : promu (`preview` = `90c77243a`, déploiement vert). AC6 mesuré en préproduction,
+  sur un accusé non terminal (`DeliveredToNetwork`, accepté sans rien écrire) : route d'Orange +
+  jeton d'Orange → `200` ; + jeton de LAfricaMobile → `404` ; + jeton de MTarget → `404` ; + jeton
+  faux → `404`. Reste : le report de l'URL chez Orange et MTarget (LAfricaMobile reçoit la sienne
+  avec chaque SMS, dans `ret_url`).*
 - [ ] **P36.05** — fait par TCK-944 : poser `WHATSAPP_WEBHOOK_VERIFY_TOKEN` dans Dokploy, de même
   valeur que le *Verify token* de l'application Meta, puis enregistrer le webhook chez Meta : la
   vérification `GET` doit rendre le défi.
@@ -85,6 +90,9 @@ où chaque constat est sourcé et daté.
   porteur). Le code déployé lit déjà le jeton d'URL ; la route `GET` de vérification rend 405 tant
   que TCK-944 n'est pas promu. Restent : la promotion, puis l'enregistrement du webhook chez Meta
   avec ces deux valeurs.*
+  *2026-10-19 : promu. Mesuré en préproduction : `GET` avec le bon jeton de vérification → `200`
+  et le défi rendu tel quel ; jeton de vérification faux → `403` ; jeton d'URL faux → `404`.
+  Reste : l'enregistrement du webhook chez Meta.*
 - [ ] **P37.03** — préproduction : poser `API_INTERNAL_URL` sur `takussan-web-preview`, après la
   mesure de D-71 (l'alias `api` doit être unique sur `dokploy-network` ; sinon le nom du
   conteneur) et le relevé d'ADR-0052 § 6 avant et après. Sans elle, les trois formulaires anonymes
@@ -111,7 +119,7 @@ où chaque constat est sourcé et daté.
   `which jpegoptim` dans le conteneur), ou le bloc d'optimiseurs n'existe plus.
 - [ ] AC5 — `next build` en mode production ne déclare plus `dangerouslyAllowSVG` ni
   `dangerouslyAllowLocalIP` sans `contentSecurityPolicy`.
-- [ ] AC6 — en préproduction, un accusé posté sur la route d'Orange avec le jeton de LAfricaMobile
+- [x] AC6 — en préproduction, un accusé posté sur la route d'Orange avec le jeton de LAfricaMobile
   est refusé, et le jeton d'Orange l'ouvre.
 - [ ] AC7 — en préproduction, `API_INTERNAL_URL` est présente dans `takussan-web-preview`
   (commande de D-71, qui n'imprime que des noms), et six demandes de contact anonymes venues de
