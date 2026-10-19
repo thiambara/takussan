@@ -1034,6 +1034,7 @@
       "idType": "Xeetu kayit",
       "idTypePlaceholder": "Ñu ko binduwul",
       "idNumber": "Nomboro",
+      "idNumberKept": "{masque} — laisser vide pour le garder",
       "saving": "Mu ngi denc…",
       "create": "Sos kiliyaan bi"
     },
