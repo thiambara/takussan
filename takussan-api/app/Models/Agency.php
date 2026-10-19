@@ -239,6 +239,24 @@ class Agency extends AbstractModel implements HasMedia
         return $this->hasMany(BankStatement::class);
     }
 
+    /**
+     * TCK-1004 (P49.04) — la marque du changement de slug unique, dans `metadata`.
+     */
+    public const SLUG_CHANGED_AT = 'slug_changed_at';
+
+    /**
+     * TCK-1004 (P49.04) — le slug d'une agence passée en professionnelle s'édite UNE fois. La bascule
+     * le garde (l'adresse « espace-de-… » a pu circuler : la fiche publique d'un bien lie
+     * `/agencies/{slug}` quel que soit le `kind`) ; l'admin peut ensuite le remplacer, une seule
+     * fois. La bascule se lit sur sa marque `metadata.welcome.standard_unlocked_at`.
+     */
+    public function slugEditableOnce(): bool
+    {
+        return $this->kind === AgencyKind::Standard
+            && filled(data_get($this->metadata, 'welcome.standard_unlocked_at'))
+            && blank(data_get($this->metadata, self::SLUG_CHANGED_AT));
+    }
+
     public function kycDossier(): MorphOne
     {
         return $this->morphOne(KycDossier::class, 'subject');
