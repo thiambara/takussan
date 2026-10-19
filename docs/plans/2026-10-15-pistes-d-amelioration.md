@@ -5748,7 +5748,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### Les indicateurs « changements d'étape » et « durée par étape » du pipeline CRM valent toujours 0
 - Réf : P56.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-985
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Crm/PipelineStatsService.php:107-109`, `:112-128`, `:136-195`, `takussan-web/src/components/pipeline/PipelineStatsBar.tsx:52,66`, `takussan-api/tests/Feature/Api/CustomerPipelineTest.php:38-60`
 - Constat :
@@ -5762,6 +5762,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture, test temporaire, `SELECT` sur la base de dev.
 - Piste : lire `attribute_changes->'old'` et `attribute_changes->'attributes'`. Attention : la ligne `created` porte aussi `attributes.pipeline_stage` (mesuré), donc un simple changement de colonne compterait chaque création comme un changement d'étape. Filtrer sur `event = 'updated'`, ou sur un `old` non nul, pour le compte des 30 jours. Un test qui crée un client, change deux fois son étape à dates voyagées, et asserte `stage_changes_last_30d = 2` et une durée non nulle en `lead`. Ablation : remettre `properties` → rouge.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `PipelineStatsService.php` (l. 107-109 : les deux constantes lisent `properties->'old'` et `properties->'attributes'` ; l. 126 et 153 filtrent sur la seconde `IS NOT NULL`) et le cast `attribute_changes` du modèle spatie (`vendor/…/Activity.php:39`), puis test temporaire (retiré), charge 2,77 / 1,94 / 1,75 sur 8 cœurs : client créé en `lead`, passé en `qualified` deux jours plus tard puis revenu en `lead` trois jours après → trois lignes `activity_log`, toutes `properties = []`, le diff sous `attribute_changes` (la ligne `created` porte bien `attributes.pipeline_stage = lead`), et `compute()` rend `stage_changes_last_30d = 0` et `avg_time_in_stage` à 0 partout. Aucun commit n'a touché ces lectures (`git log -S PIPELINE_STAGE_NEW` : la seule création, 744eb9404) ; le défaut est déjà relevé par TCK-591 (relevé hors périmètre, l. 1084-1086) et son correctif est le point 3 de TCK-617, `todo` (contrainte 3 : « Le pipeline lit `attribute_changes` »), un point sans décision du porteur, à la différence des points 5 et 6 de ce ticket. Classement : A1, le comportement attendu est écrit dans TCK-083 (les deux indicateurs) et dans la contrainte 3 de TCK-617 : lire `attribute_changes` et ne compter que les lignes à `old` non nul ne demande aucun choix, et aucun montant n'est en jeu.
+- Mesure (2026-10-19, 0486616a3, implementeur) : `CustomerPipelineTest::test_pipeline_stats_compute_stage_changes_and_time_in_stage_from_the_activity_log`, neuf (client créé en `lead`, `qualified` deux jours plus tard, revenu en `lead` trois jours après), rouge avant correctif (`stage_changes_last_30d = 0` au lieu de 2) → constantes sur `attribute_changes`, compte restreint aux lignes à `old.pipeline_stage` non nul ; vert (2 changements, 2,0 jours en `lead`, 3,0 en `qualified`) ; ablation 1 (constantes remises sur `properties`) → rouge, 0 ; ablation 2 (filtre `old` retiré) → rouge, 3, la ligne `created` comptée ; correctif remis → `CustomerPipelineTest` 12 verts. Le docblock de la l. 114 (volet de P56.04) est corrigé avec.
 
 ### L'export RGPD d'un membre contient les e-mails et téléphones des clients qu'il a saisis
 - Réf : P56.02
@@ -5793,7 +5794,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
 
 ### `docs/models-spec.md` décrit le diff du journal dans `properties`, que v5 n'écrit plus
 - Réf : P56.04
-- Statut : retenu · autonome
+- Statut : retenu · à valider — chemin fermé : docs/models-spec.md
 - Gravité : 🟢 amélioration
 - Où : `docs/models-spec.md:1174`, `:1190`, `:1204`, `takussan-api/app/Services/Crm/PipelineStatsService.php:22-26,111-115`
 - Constat :
@@ -5802,6 +5803,7 @@ n'est pas repris ici. Les lectures de `properties` pour des clés écrites par `
   - Établi comment : lecture, `grep`.
 - Piste : écrire dans la spec que le diff d'un modèle vit dans `attribute_changes` (`old`, `attributes`), que `properties` ne porte que ce qu'écrit `withProperties()`, et retirer `activity_log_changes`. Corriger les deux docblocks de `PipelineStatsService` avec P56.01.
 - Mesure (2026-10-19, 94ac420d2, mesureur) : relu `docs/models-spec.md` l. 1174 (« `activity_log_changes` selon la configuration »), l. 1190 (`changes` → `properties (json : old, attributes)`) et l. 1204 (seul `properties` passe par `PropertyRedactor`) ; `grep -rn activity_log_changes app database config` → rien ; le test temporaire de P56.01 montre le diff sous `attribute_changes` et `properties = []`. Le docblock faux de `PipelineStatsService` est celui de la l. 114 (« tracks `pipeline_stage` in its `properties` JSON column ») ; celui des l. 22-26 ne nomme pas de colonne et ne ment pas. Classement : A6, la spec et le docblock se corrigent pour dire ce qu'écrit activitylog v5 ; la phrase de la l. 1204 sur `attribute_changes` reste à écrire selon ce que P56.03 décidera, et ne fait pas partie de ce classement.
+- Mesure (2026-10-19, 0486616a3, implementeur) : relu `docs/models-spec.md` l. 1174 (`activity_log_changes`) et l. 1191 (`changes` → `properties (json : old, attributes)`), inchangées ; `grep -rn activity_log_changes takussan-api/app takussan-api/database takussan-api/config` → rien. Le défaut tient, mais il est dans la spec, fermée à l'implémenteur. Le volet docblock de la `Piste` (`PipelineStatsService`, l. 114) est fait par TCK-985 avec P56.01 ; il ne reste que la spec. Classement : chemin fermé, `docs/models-spec.md`.
 
 ### Petites améliorations
 - Réf : P56.05
