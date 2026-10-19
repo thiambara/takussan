@@ -2791,6 +2791,12 @@
       "idTypePlaceholder": "Not provided",
       "idNumber": "Number",
       "idNumberKept": "{masque} — leave blank to keep it",
+      "idNumberSensitive": {
+        "reveal": "Show",
+        "hide": "Hide",
+        "notice": "“Show” reveals the full number and records the access in the agency log.",
+        "errorTitle": "Unable to show the ID number"
+      },
       "saving": "Saving…",
       "create": "Create the customer"
     },

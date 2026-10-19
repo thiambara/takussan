@@ -6,6 +6,8 @@ import { getTranslations } from 'next-intl/server';
 
 
 import { getToken } from '@/lib/session';
+import { getMeAction } from '@/app/actions/auth';
+import { isAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
 import {
   fetchCrmTags,
@@ -66,6 +68,9 @@ export default async function Page({ params }: { params: Params }) {
   // *Ce qu'elle ne fait SURTOUT pas, c'est rediriger : sous un `loading.tsx`, un `redirect()` de
   // page rend 200 + le squelette au lieu du 307.*
   if (!token) return null;
+  // TCK-955 — le geste « Afficher » du numéro de pièce. `getMeAction` est mémoïsé par requête : le
+  // layout l'a déjà appelé.
+  const canRevealIdNumber = isAdmin((await getMeAction()).roles);
 
   const t = await getTranslations('crm.customerDetail');
   const tPage = await getTranslations('dashboard.pages.customerDetail');
@@ -174,6 +179,7 @@ export default async function Page({ params }: { params: Params }) {
         notes={notes}
         documents={documents}
         relationships={relationships}
+        canRevealIdNumber={canRevealIdNumber}
       />
     </div>
   );
