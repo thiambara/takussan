@@ -6,6 +6,8 @@ use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Enums\KycDossierStatus;
+use App\Models\KycDossier;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Services\Agency\AgencyKindFlipService;
@@ -35,6 +37,11 @@ class AgencyKindFlipTest extends TestCase
     private function pendingRequestForAgency(Agency $agency, ?User $submitter = null): AgencyUpgradeRequest
     {
         $submitter ??= User::factory()->create();
+        // TCK-1003 — l'approbation exige un dossier KYC vérifié.
+        KycDossier::query()->firstOrCreate(
+            ['subject_type' => Agency::class, 'subject_id' => $agency->id],
+            ['status' => KycDossierStatus::Verified, 'metadata' => []],
+        );
 
         return AgencyUpgradeRequest::factory()->pending()->create([
             'agency_id' => $agency->id,

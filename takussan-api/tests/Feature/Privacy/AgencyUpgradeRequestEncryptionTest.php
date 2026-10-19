@@ -5,6 +5,8 @@ namespace Tests\Feature\Privacy;
 use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\KycDossierStatus;
+use App\Models\KycDossier;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Privacy\PersonalDataAccessLogger;
@@ -81,6 +83,8 @@ class AgencyUpgradeRequestEncryptionTest extends ApiTestCase
     {
         $agency = Agency::factory()->individual()->create(['metadata' => null]);
         $request = $this->submit($agency, self::longRib());
+        // TCK-1003 — l'approbation exige un dossier KYC vérifié.
+        KycDossier::query()->create(['subject_type' => Agency::class, 'subject_id' => $agency->id, 'status' => KycDossierStatus::Verified, 'metadata' => []]);
 
         $this->apiActingAsRole('super_admin');
         $this->apiPost("/api/admin/agency-upgrade-requests/{$request->id}/approve", [])->assertOk();

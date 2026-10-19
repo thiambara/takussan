@@ -55,6 +55,10 @@ return [
         'platform_capability' => 'Capacité bu plateforme bi rekk: :capabilities. Benn rôle agence mënu ko yor.',
         'profile_type_mismatch' => 'Rôle bii jubluwul ci benn xeetu profil.',
     ],
+    'agency_upgrade' => [
+        // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
+        'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
+    ],
     'agent_absence' => [
         'overlaps' => 'Ñàkk bu jëm ci moom dafa am ba noppi walla mu ngi dox ci diir boobu.',
     ],
