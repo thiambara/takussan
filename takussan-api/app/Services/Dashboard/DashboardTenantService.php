@@ -6,7 +6,6 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
@@ -57,7 +56,8 @@ class DashboardTenantService
         if ($customerIds !== []) {
             $activeLeases = Lease::query()
                 ->whereIn('tenant_id', $customerIds)
-                ->where('status', LeaseStatus::Active->value)
+                // TCK-1001 — un bail en préavis est encore en cours pour le locataire.
+                ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
                 ->count();
 
             $pendingBookings = Booking::query()

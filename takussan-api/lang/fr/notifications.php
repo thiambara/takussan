@@ -317,6 +317,8 @@ return [
                 'title' => 'Paiement enregistré',
                 'body' => 'Votre paiement de :amount pour :property a été enregistré.',
                 'sms' => 'Takussan : paiement de :amount enregistré (:property).',
+                'body_link' => 'Votre paiement de :amount pour :property a été enregistré. Votre quittance : :receipt_url',
+                'sms_link' => 'Takussan : paiement de :amount enregistré (:property). Quittance : :receipt_url',
             ],
             'received_landlord' => [
                 'title' => 'Loyer reçu : :property',
