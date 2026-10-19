@@ -1,7 +1,7 @@
 ---
 id: TCK-990
 title: "Après le passage en agence professionnelle, « Publier » et l'assistant hôte ne recréent pas d'espace individuel"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -71,3 +71,10 @@ un espace individuel de plus.
   l'API.
 
 ## Notes d'implémentation
+
+- Avant : bascule puis auto-onboard → `201` (second espace) ; bascule puis assistant → `201`.
+- Ablation : le filtre `kind = individual` remis dans `autoOnboard` → AC1 rouge seul ; le test
+  `primary_admin_id` retiré de l'assistant → AC2 rouge seul ; remis → 23 verts. Chaque moitié du
+  correctif a donc son propre test.
+- Le test de bascule passe par `AgencyKindFlipService::flip` directement, sans la revue : c'est la
+  bascule qui change le `kind`, la revue n'y ajoute rien pour ce défaut.
