@@ -4868,7 +4868,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Aucune garde ne confronte les chemins et les verbes du front aux routes de l'API, et la mesure du jour les trouve tous justes
 - Réf : P45.01
-- Statut : retenu · à valider — chemin fermé : `scripts/ci-attestation.mjs` (`PERIMETRES.api` doit couvrir `takussan-web/src`, que le test lit) et `.github/workflows/api-ci.yml` (`paths`, pour que la garde tourne sur un changement du seul front)
+- Statut : retenu · à valider — chemin fermé : `scripts/ci-attestation.mjs` (`PERIMETRES.api` doit couvrir `takussan-web/src`, que le test lit) et `.github/workflows/api-ci.yml` (`paths`, pour que la garde tourne sur un changement du seul front) ; porteur (2026-10-19) : traité hors agents, en session : `PERIMETRES.api` de `scripts/ci-attestation.mjs` étendu à `takussan-web/src` et `paths` d'`api-ci.yml` ouvert au front, puis la garde
 - Gravité : 🟠 risque ou dette
 - Où : `scripts/check-*.mjs` (aucune ne lit les routes de l'API), `scripts/check-cache-headers-auth.mjs:178-181` (le job `guards` de `repo-ci.yml` n'a pas PHP), `takussan-web/src/lib/api.ts:95-130` (`apiFetch` préfixe `/api`), `takussan-web/src/app/api/super-admin/[...path]/route.ts`, `takussan-web/src/app/api/admin-users/[[...path]]/route.ts`, `takussan-web/src/app/api/super-admin-properties/[[...path]]/route.ts`
 - Constat :
@@ -5180,7 +5180,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le locataire sans compte n'apprend ni le paiement enregistré par l'agence, ni la révision de loyer, ni la pénalité, ni le renouvellement, ni la restitution de caution
 - Réf : P48.02
-- Statut : retenu · à valider — V7 : ouvrir aux contacts sans compte des messages qui ne leur partent pas aujourd'hui, code par code
+- Statut : validé — ouvrir aux contacts sans compte (`reachesContacts`) les cinq messages : le paiement enregistré par l'agence (`lease_payment.recorded`, avec le lien `/pay/{jeton}` de la quittance, comme le paiement en ligne), la révision de loyer, la pénalité, le renouvellement et la restitution de caution ; ne poser `tenant_welcomed_at` que si le message est parti ; un test par code, locataire sans compte avec un téléphone valide (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Model/LeasePaymentService.php:96-118`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRentReview.php:22-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfLateFee.php:21-24`, `takussan-api/app/Listeners/Lease/NotifyTenantOfRenewal.php:20-23`, `takussan-api/app/Listeners/Lease/NotifyTenantOfDepositRefund.php:19-22`, `takussan-api/app/Listeners/Lease/SendTenantWelcomeNotification.php:37-46`, `takussan-api/app/Domain/Notifications/NotificationCode.php:483-495`
 - Constat :
@@ -5195,7 +5195,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une candidature retenue ne mène à aucun bail : elle devient une réservation datée, et rien ne relie le bail à elle
 - Réf : P48.03
-- Statut : retenu · à valider — V7 : un geste « créer le bail » depuis une candidature est une fonction visible neuve
+- Statut : retenu · à valider — V7 : un geste « créer le bail » depuis une candidature est une fonction visible neuve ; porteur (2026-10-19) : plus tard, après le ticket de P15.01, sur la recommandation du délégué : un geste « créer le bail » sur une candidature `confirmed`, prérempli, avec le contrôle `tenant_id` = `customer_id` de la réservation
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Public/PublicPropertyController.php:966-986,1016-1040`, `takussan-api/app/Services/Model/BookingService.php:166-209`, `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:39`, `takussan-api/app/Services/Model/LeaseService.php:46-48`, `takussan-web/src/components/leases/LeasesList.tsx:153`
 - Constat :
@@ -5211,7 +5211,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un locataire en préavis ne peut plus demander d'intervention, et son accueil compte zéro bail
 - Réf : P48.04
-- Statut : retenu · à valider — V2 : élargir au préavis qui peut créer une intervention
+- Statut : validé — juger la création d'une intervention et le compte de baux de l'accueil du locataire par `HasProfiles::ACTIVE_TENANT_LEASE_STATUSES` : un locataire en préavis (`terminating`) habite encore le logement et peut demander une intervention ; un test de création par un locataire en `terminating` (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MaintenanceRequestController.php:99-103`, `takussan-api/app/Services/Dashboard/DashboardTenantService.php:58-61`, `takussan-api/app/Models/Concerns/HasProfiles.php:38-43`
 - Constat :
@@ -5242,7 +5242,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le brouillon du formulaire de passage garde le RIB professionnel et le NINEA en clair, jusqu'à 90 jours
 - Réf : P49.01
-- Statut : retenu · à valider — V3 : ce que le brouillon conserve d'un RIB et d'un NINEA, et retrait des brouillons existants
+- Statut : validé — ne mettre ni `rib_pro` ni `ninea` dans le brouillon du formulaire de passage (pas de brouillon chiffré), et retirer les brouillons `agency-upgrade-*` existants qui les portent ; un test du formulaire qui vérifie que le corps du `PUT` ne contient ni `rib_pro` ni `ninea` (porteur, 2026-10-19)
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/agency/UpgradeRequestForm.tsx:93-101`, `takussan-web/src/lib/agency-upgrade-brouillon.ts:33-40`, `takussan-api/app/Models/WizardDraft.php:29`, `takussan-api/app/Http/Requests/UpsertWizardDraftRequest.php:45-48`, `takussan-api/app/Console/Commands/PurgeOldWizardDrafts.php:21-37`, `docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md:43-46`
 - Constat :
@@ -5256,7 +5256,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Après le passage, les reversements de la plateforme à l'agence sont refusés tant qu'un dossier KYC distinct n'est pas vérifié
 - Réf : P49.02
-- Statut : retenu · à valider — V1 : reversements gelés après le passage, trois chemins possibles
+- Statut : validé — la revue de la demande de passage vaut vérification KYC : son approbation alimente le dossier KYC de l'agence avec les pièces de la demande et le marque vérifié, si la demande porte les pièces que le dossier exige ; si elle ne les porte pas, exiger un dossier KYC vérifié avant d'approuver la demande, et le dire dans la revue ; un test de bout en bout bascule → approbation d'un reversement, qui écrit le comportement retenu (porteur, 2026-10-19)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Billing/PlatformPayoutService.php:116-120`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:82-115`, `takussan-api/app/Services/Kyc/KycWorkflowService.php:20,133-139`, `takussan-api/app/Http/Controllers/Api/Admin/AgencyModerationController.php:179-191`, `takussan-api/lang/fr/agency_upgrade.php:32`
 - Constat :
@@ -5270,7 +5270,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Après le passage, « Publier » et l'assistant hôte recréent un second espace individuel
 - Réf : P49.03
-- Statut : retenu · à valider — V7 : un espace personnel est-il possible après le passage
+- Statut : validé — pas de second espace : l'invariant se juge sur une agence dont le compte est `primary_admin_id`, quel que soit son `kind` ; `autoOnboard` rend l'agence existante (`created: false`) et `/onboarding/host` refuse comme pour un hôte déjà installé ; un test « bascule puis auto-onboard » (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:66-76,149-160,232-238`, `takussan-api/routes/api/onboarding.php:24,29`, `takussan-web/src/hooks/usePublishIntent.ts:92`
 - Constat :
@@ -5284,7 +5284,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### L'agence passée en professionnelle garde le nom et l'URL publique « Espace de {prénom} », et son slug ne peut plus changer
 - Réf : P49.04
-- Statut : retenu · à valider — V7 : nom et adresse publique de l'agence après le passage
+- Statut : validé — à la bascule, poser un slug tiré de `company_legal_name` par `uniqueSlug()` et laisser `name` à l'admin, qui peut déjà le modifier ; sans redirection de l'ancien slug si aucune page du site ne lie la fiche d'une agence `individual` (à mesurer d'abord) ; si un tel lien existe, garder le slug et l'ouvrir une fois à l'édition ; un test de la bascule qui écrit ce que deviennent le nom et le slug (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Onboarding/HostIndividualOnboardingService.php:199-207,270,333-347`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:61-66,94-105`, `takussan-api/app/Http/Requests/AgencyUpdateRequest.php:47-50`, `takussan-api/routes/api/public.php:226-229`, `takussan-web/src/lib/espaces.ts:88-91`
 - Constat :
@@ -5298,7 +5298,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations du passage
 - Réf : P49.05
-- Statut : retenu · à valider — V7 : refuser l'approbation d'une agence non active
+- Statut : validé — refuser en 422 l'approbation d'une demande dont l'agence est `suspended`, et elle seule (`inactive` reste approuvable, ADR-0048), la demande restant `pending` ; réutiliser la pièce de la demande dans le dossier KYC, suivant P49.02 (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Services/Agency/AgencyUpgradeReviewService.php:42-57,144-153`, `takussan-api/app/Services/Agency/AgencyKindFlipService.php:68-80`, `takussan-api/app/Services/Agency/AgencyUpgradeRequestService.php:86-100`
 - Constat :
@@ -5315,7 +5315,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le bailleur invité ne peut devenir titulaire d'aucun bien saisi par le personnel : ses biens, ses baux et son relevé restent vides
 - Réf : P50.01
-- Statut : retenu · à valider — V7 : désigner le titulaire à la saisie est un geste neuf, et il décide qui reçoit les loyers (V1)
+- Statut : retenu · à valider — V7 : désigner le titulaire à la saisie est un geste neuf, et il décide qui reçoit les loyers (V1) ; porteur (2026-10-19) : prioritaire, dans le ticket de P15.06, à cadrer avant de le confier : le bailleur se désigne à la création du bien, parmi les bailleurs actifs de l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/PropertyController.php:58-67,134-138`, `takussan-api/app/Services/Model/LeaseService.php:78`, `takussan-api/routes/api/agencies.php:79-86`, `takussan-web/src/components/property-form/PropertyForm.tsx:3-11`
 - Constat :
@@ -5329,7 +5329,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Les loyers d'un bien dont l'agent est titulaire se reversent à l'agent, et aucun relevé de gérance ne les montre à personne
 - Réf : P50.02
-- Statut : retenu · à valider — V1 : décider à qui se reversent les loyers d'un bien saisi par le personnel
+- Statut : retenu · à valider — V1 : décider à qui se reversent les loyers d'un bien saisi par le personnel ; porteur (2026-10-19) : prioritaire, dans le ticket de P15.06 : le bailleur désigné par P50.01 reçoit les loyers ; si l'agence garde des biens en propre, le relevé et l'avis suivent la règle du reversement
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Policies/OwnerStatementPolicy.php:21-33`, `takussan-api/app/Console/Commands/Payouts/SendOwnerStatements.php:47-51`, `takussan-api/app/Services/Model/PayoutService.php:88-96,508-531`, `takussan-api/app/Services/Payout/PayoutCalculator.php:62,86,113`, `takussan-web/src/components/payments/CreatePayoutDialog.tsx:69-81,176-182`
 - Constat :
@@ -5343,7 +5343,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Dupliquer le bien d'un bailleur, ou rattacher un lot à son immeuble, fait du personnel le titulaire de la copie ou du lot
 - Réf : P50.03
-- Statut : retenu · à valider — V1 : le titulaire de la copie ou du lot décide à qui se reversent ses loyers
+- Statut : retenu · à valider — V1 : le titulaire de la copie ou du lot décide à qui se reversent ses loyers ; porteur (2026-10-19) : prioritaire, dans le ticket de P15.06 : la copie et le lot héritent du titulaire de la source ou du parent quand c'est un bailleur de l'agence
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Property/PropertyDuplicationService.php:68`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:136,208-209`, `takussan-api/app/Http/Controllers/Api/PropertyChildrenController.php:19-29`, `takussan-api/app/Policies/PropertyPolicy.php:44-58`
 - Constat :
@@ -5356,7 +5356,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations du bailleur invité
 - Réf : P50.04
-- Statut : retenu · à valider — V7 : un écran du relevé d'un bailleur pour le personnel est une fonction visible neuve
+- Statut : validé — ouvrir le relevé d'un bailleur depuis le dialogue de reversement, une fois le bailleur choisi (« voir le relevé du mois », `OwnerStatementPanel` avec `landlord_id`), et non depuis le carnet des propriétaires (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟢 amélioration
 - Où : `takussan-web/src/components/payments/PaymentsTabs.tsx:55,119`, `takussan-web/src/lib/queries/payments.ts:404-408`, `takussan-api/app/Http/Requests/Api/OwnerStatementRequest.php:10-13,36-39`
 - Constat :
@@ -5388,7 +5388,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Un participant retiré d'un groupe par son administrateur garde tous les membres comme contacts et peut ouvrir une directe avec chacun
 - Réf : P51.02
-- Statut : retenu · à valider — V7 : la piste demande de décider si un retrait par un administrateur coupe la relation née du groupe
+- Statut : validé — un participant retiré par un administrateur perd la relation née du groupe dans les deux sens (la règle 1 ne compte plus ce fil pour lui, ni lui pour les autres), lu par le message système `removed`, sans migration ; un départ volontaire, la règle 4 et la ré-invitation par un administrateur restant ne changent pas ; test « membre retiré → absent des contacts de l'autre, 422 sur la directe » (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Messaging/MessagingReach.php:57-62,89-97`, `takussan-api/app/Services/Messaging/ConversationAccess.php:159-168`
 - Constat :
@@ -5419,7 +5419,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le plafond de 5 000 identifiants se prend sur tous les comptes avant le périmètre, et le correctif de P16.04 ne s'applique pas ici
 - Réf : P51.04
-- Statut : retenu · à valider — V6 : deux architectures de recherche proposées (filtre Meilisearch sur `id` ou recherche SQL sous un seuil), et un réglage d'index à resynchroniser
+- Statut : validé — calculer d'abord en SQL les identifiants du périmètre, puis les passer à Meilisearch en `filter` sur `id`, rendu filtrable dans les réglages d'index (pas de recherche SQL sous un seuil) ; test avec un plafond abaissé : un contact du périmètre classé après N homonymes hors périmètre reste trouvé (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:78-100`, `takussan-api/config/scout.php:300-304`
 - Constat :
@@ -5433,7 +5433,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le tri alphabétique des contacts suit l'ordre des octets : minuscules et initiales accentuées passent après « Z »
 - Réf : P51.05
-- Statut : retenu · à valider — V7 : le premier tri par collation ICU du dépôt change l'ordre visible de la liste, et aucune spec n'écrit l'ordre attendu
+- Statut : validé — trier les contacts en `COLLATE "und-x-icu"` par une classe de tri sous `app/Sorts/` (comme `MaintenancePrioritySort`), pour le défaut et pour `sort=first_name` et `last_name` ; test avec une minuscule et une initiale accentuée ; ADR-0025 amendé le 2026-10-19 pour les autres listes de noms, qui suivent quand on les touche (porteur, 2026-10-19, sur la recommandation du délégué)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/MessagingContactController.php:102,107-111`
 - Constat :
@@ -5465,7 +5465,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `scout:sync-index-settings` sort en 0 quand Meilisearch refuse : l'arrêt du déploiement de TCK-710 ne se déclenche jamais
 - Réf : P52.01
-- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` et `dev.sh`, et fait échouer des déploiements qui passent aujourd'hui
+- Statut : retenu · à valider — V5 : le correctif passe par `docker/release.sh` et `dev.sh`, et fait échouer des déploiements qui passent aujourd'hui ; porteur (2026-10-19) : traité hors agents, en session : une commande du dépôt qui sort en échec sur tout refus de Meilisearch, appelée par `release.sh` et `dev.sh`
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/vendor/laravel/scout/src/Console/SyncIndexSettingsCommand.php:46-76`, `takussan-api/docker/release.sh:31-36`, `scripts/test-release-reindex.sh:37-42,94-96`, `dev.sh:774`
 - Constat :
@@ -5481,7 +5481,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Le déploiement n'attend ni ne lit l'issue des tâches Meilisearch : un réglage ou un document refusé passe sans trace
 - Réf : P52.02
-- Statut : retenu · à valider — V5 : attente des tâches et relecture des réglages dans `release.sh` et `smoke-api.sh`
+- Statut : retenu · à valider — V5 : attente des tâches et relecture des réglages dans `release.sh` et `smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session, avec P52.01 : tâches attendues, réglages relus et comparés à `config/scout.php`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/vendor/laravel/scout/src/Engines/MeilisearchEngine.php:408-417`, `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/docker/release.sh:47-58`, `takussan-api/tests/Concerns/InteractsWithMeilisearch.php:117-130`
 - Constat :
@@ -5494,7 +5494,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Une perte du volume de Meilisearch n'est rattrapée par aucun déploiement
 - Réf : P52.03
-- Statut : retenu · à valider — V5 : sonde de l'index au `release` ou procédure du runbook de déploiement
+- Statut : retenu · à valider — V5 : sonde de l'index au `release` ou procédure du runbook de déploiement ; porteur (2026-10-19) : traité hors agents, en session : compter les documents de l'index au `release` et forcer l'importation sur un index vide face à une table non vide, plutôt qu'une procédure du runbook
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/docker/release.sh:42-45`, `deploy/server/compose.data.yml:19-31`, `docs/infra/hebergement.md:371-374`
 - Constat :
@@ -5506,7 +5506,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### Petites améliorations
 - Réf : P52.04
-- Statut : retenu · à valider — V5 : `resetSettings()` au déploiement touche `release.sh` ; la partie `SCOUT_PREFIX` est inexacte
+- Statut : retenu · à valider — V5 : `resetSettings()` au déploiement touche `release.sh` ; la partie `SCOUT_PREFIX` est inexacte ; porteur (2026-10-19) : traité hors agents, en session, avec P52.02 ; relevé de `SCOUT_PREFIX` en préproduction
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/vendor/meilisearch/meilisearch-php/src/Endpoints/Indexes.php:249-251`, `takussan-api/config/scout.php:156-300`, `docs/infra/hebergement.md:167`
 - Constat :
@@ -5538,7 +5538,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `dev.sh` crée sept index `testing_*` que nul test ne lit, sous un commentaire qui décrit un `phpunit.xml` disparu
 - Réf : P53.02
-- Statut : retenu · à valider — V5 : le correctif est dans `dev.sh`
+- Statut : retenu · à valider — V5 : le correctif est dans `dev.sh` ; porteur (2026-10-19) : traité hors agents, en session : retirer la seconde synchronisation de `dev.sh` et son commentaire
 - Gravité : 🟠 risque ou dette
 - Où : `dev.sh:761-775`, `takussan-api/phpunit.xml:57-67`, `takussan-api/tests/Support/TestSearchIndex.php:32,56`, `.github/workflows/api-ci.yml:284-298`
 - Constat :
@@ -5552,7 +5552,7 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 
 ### `smoke-api.sh pile` laisse sa base `takussan_smoke` et ses sept index `smoke_*` après le nettoyage
 - Réf : P53.03
-- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/smoke-api.sh`
+- Statut : retenu · à valider — V5 : le correctif est dans `deploy/takussan/smoke-api.sh` ; porteur (2026-10-19) : traité hors agents, en session : base et index `smoke_*` retirés par `nettoyer_pile()`, et un verrou contre deux passages simultanés
 - Gravité : 🟢 amélioration
 - Où : `deploy/takussan/smoke-api.sh:89-121`, `deploy/takussan/.env.smoke.example:18,33`
 - Constat :
@@ -5687,7 +5687,7 @@ formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucu
 
 ### Une page 2 servie après le changement d'heure répète un bien de la page 1 et en perd un autre
 - Réf : P55.01
-- Statut : retenu · à valider — V7 : deux voies, dont une change la règle de l'ADR-0061 § 7
+- Statut : validé — la seconde voie : le front transmet aux pages suivantes l'heure de graine de la page 1, que l'API n'accepte que si elle vaut l'heure courante ou la précédente (sinon elle prend l'heure courante, comme aujourd'hui) ; ADR-0061 § 7 inchangé ; le test garde-fou des pages 1, 2 et 3 à hh:59 puis hh+1:00 (porteur, 2026-10-19, sur la recommandation du délégué) ; reste : le vivier qui change entre deux pages (`boosts:tick`), à mesurer
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Services/Search/PropertySearchService.php:656-674`, `takussan-api/app/Services/Boost/SponsoredRotation.php:19-25`, `docs/adr/0061-*.md:155-157`
 - Constat :
