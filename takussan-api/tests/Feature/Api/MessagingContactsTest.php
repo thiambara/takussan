@@ -12,6 +12,7 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\ParticipantRole;
 use App\Models\Enums\RelationshipType;
+use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -554,6 +555,51 @@ class MessagingContactsTest extends ApiTestCase
                 'participants' => [$correspondant->id, $supprime->id],
             ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
         }
+    }
+
+    /**
+     * TCK-972 (P51.01) — un compte `blocked` ou `deleted` n'ouvre aucune session (TCK-589,
+     * `User::canOpenSession()`) : il ne lirait jamais le fil où on l'ajoute. Il sort de la liste,
+     * et les trois FormRequests le refusent, en groupe comme en directe. `inactive` reste joignable :
+     * c'est un compte qui n'a pas encore servi.
+     */
+    public function test_un_compte_bloque_n_est_ni_liste_ni_accepte(): void
+    {
+        [$admin, $membre, $groupe] = $this->groupe();
+        $bloque = $this->user('Bloque', 'Compte');
+        $statutSupprime = $this->user('Statut', 'Supprime');
+        $inactif = $this->user('Inactif', 'Compte');
+        foreach ([$bloque, $statutSupprime, $inactif] as $correspondant) {
+            $this->shareConversation($admin, $correspondant);
+        }
+
+        $this->actingAsApi($admin);
+        // Témoin AVANT changement de statut : les trois sont joignables par la règle 1.
+        $this->assertContains($bloque->id, $this->contactIds());
+        $this->assertContains($statutSupprime->id, $this->contactIds());
+
+        $bloque->update(['status' => UserStatus::Blocked]);
+        $statutSupprime->update(['status' => UserStatus::Deleted]);
+        $inactif->update(['status' => UserStatus::Inactive]);
+
+        $this->assertSame(collect([$membre->id, $inactif->id])->sort()->values()->all(), $this->contactIds());
+        $this->assertSame([$inactif->id], $this->contactIdsPour($groupe));
+
+        foreach ([$bloque, $statutSupprime] as $horsJeu) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group',
+                'subject' => 'Bloqués',
+                'participants' => [$membre->id, $horsJeu->id],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+            $this->postJson('/api/conversations', ['participants' => [$horsJeu->id]])
+                ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+            $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$horsJeu->id]])
+                ->assertUnprocessable()->assertJsonValidationErrors(['user_ids']);
+        }
+
+        // Témoin : `inactive` passe, en directe comme à l'ajout.
+        $this->postJson('/api/conversations', ['participants' => [$inactif->id]])->assertCreated();
+        $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$inactif->id]])->assertCreated();
     }
 
     // ---------------------------------------------------------------------------------------------
