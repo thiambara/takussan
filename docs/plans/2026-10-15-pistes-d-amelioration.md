@@ -126,7 +126,7 @@ voie d'écriture (angle 13, puis 47).
 | 51 | Recherche de contacts de la messagerie (`MessagingContactController.php:94`, `User::search`) | fait |
 | 52 | `index-settings` Meilisearch réellement appliqués en préproduction (`scout:sync-index-settings` joué partout ?) | fait |
 | 53 | Index Meilisearch `testing_*` et `smoke_*` laissés sur l'instance docker locale | fait |
-| 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | à faire |
+| 54 | FormRequests dont une règle `nullable` vise une colonne `NOT NULL` : 500 au lieu de 422 (confronter les règles à `information_schema.columns`) | fait |
 | 55 | Places réservées et emplacements entre la page 1 et la page 2 de la recherche (`PropertySearchService::placements`, décalage `count($reserved)`) : biens sautés ou répétés, `total` | à faire |
 | 56 | Lecteurs d'`activity_log` depuis activitylog v5 : qui lit encore `properties` pour `old`/`attributes` au lieu d'`attribute_changes` (export, alertes, flux, `PropertyRedactor`) | à faire |
 | 57 | Téléphones et e-mails hors de `users` (`notification_delivery_attempts.to`, journaux, métadonnées, messages) face à `AccountDeletionService::anonymize` | à faire |
@@ -163,6 +163,8 @@ voie d'écriture (angle 13, puis 47).
 | 88 | Comptes `blocked` (`UserStatus::Blocked`), qui n'ouvrent plus de session : ce qu'ils reçoivent encore (notifications, e-mails, SMS) et les sélecteurs qui les proposent encore (participants, agent responsable, collaborateurs, destinataires) | à faire |
 | 89 | Commandes jouées par `release.sh` et `seed.sh` (`geo:sync-referential`, `tags:sync-catalog`, `alerts:ensure-ops-rules`, `membership:reconcile-system-roles`, `scout:import`) : code de sortie réel sur une erreur, face à ce que le script en conclut | à faire |
 | 90 | Écritures explicites dans l'index (`->searchable()` / `unsearchable()` de `PropertyTagController`, `BoostLifecycle`, `GeoReindexation`, `SyncAgencyPropertiesSearchIndex`) : appelées dans une transaction qui peut être annulée, face à `SCOUT_AFTER_COMMIT` et `SCOUT_QUEUE` de chaque environnement | à faire |
+| 91 | FormRequests dont la borne `max:` dépasse la longueur `varchar(N)` de la colonne écrite, ou qui n'en ont pas : 500 (`22001`) au lieu de 422 — le pendant « longueur » de l'angle 54 | à faire |
+| 92 | Contraintes `UNIQUE` de la base sans règle `unique` ni verrou dans le FormRequest ou le service qui écrit : un doublon rend 500 (`23505`, que `bootstrap/app.php` ne traduit pas) au lieu de 422 ou 409 | à faire |
 
 ---
 
@@ -5573,3 +5575,93 @@ sous-agent chargé de cette partie a été arrêté avant son rapport, faute de 
 - Piste : comparer l'âge à la dernière mise à jour de l'index (`updatedAt`) plutôt qu'à sa création, et paginer `getIndexes()`. Un test unitaire du prédicat de balayage, sur des index factices (un vieux et actif, un vieux et inerte).
 - Mesure (2026-10-19, 30601b3a7, mesureur) : relu `TestSearchIndex.php` (`ORPHAN_TTL_SECONDS = 7200` l. 35, comparé à `createdAt` l. 127, `setLimit(1000)` sans pagination l. 137, balayage l. 97 seulement depuis `registerCleanup`) → les trois points tiennent à la lecture ; `GET /indexes` sur 7701 → 10 index, et `updatedAt` des index `smoke_*` (07:48 Z) suit les écritures après `createdAt` (07:44 Z), donc `updatedAt ≥ createdAt` rend le prédicat strictement plus prudent ; la suppression d'un index vivant sous forte charge reste déduite, non jouée, et le troisième point est le même défaut que P53.01. Classement : A1 + A5, le contrat écrit du balayage (seuls les index d'exécutions mortes, tous les index orphelins) se tient en paginant et en comparant à `updatedAt`, dans le seul harnais de test, avec un test unitaire du prédicat.
 - Mesure (2026-10-19, 22da7f13d, implementeur) : relu `TestSearchIndex.php` (âge comparé à `createdAt`, `setLimit(1000)` sans `offset`) ; le troisième point est soldé par TCK-974 (balayage dans tout processus) → `isOrphan()` juge la dernière écriture (`updatedAt`, à défaut `createdAt`) et `readAllPages()` lit `GET /indexes` page par page, bornée à 100 pages ; `TestSearchIndexSweepTest` 6 verts ; ablation : `createdAt` seul → 1 rouge, première page seule → 2 rouges, remis → vert ; chemin réel lu par pages de 3 → les 12 index de 7701.
+
+## Angle 54 — Règles `nullable` face aux colonnes `NOT NULL`
+
+*Exploré le 2026-10-19 sur `pre-dev` 22da7f13d, par l'explorateur, sans sous-agent. Méthode : les
+colonnes `NOT NULL` lues dans `information_schema.columns` de la base de développement (5433, en
+`SELECT` ; toutes les migrations du dépôt y sont jouées, la table `migrations` en compte 5 de plus,
+venues d'autres branches), puis rapprochées par nom des clés `nullable` des 286 FormRequests
+(`app/Http/Requests`) : 182 rapprochements, dont une quarantaine visent la table que la requête écrit
+et ont été relus jusqu'à l'écriture. Les 500 ont été établis par un test Feature temporaire, un cas par
+méthode (la transaction abandonnée masque les cas suivants), retiré depuis ; charge 1,63 / 1,93 / 1,75
+sur 8 cœurs. Rappel qui élargit la portée : `ConvertEmptyStringsToNull` et
+`BaseFormRequest::prepareForValidation()` changent `""` en `null`, si bien qu'un champ vide d'un
+formulaire non JS vaut un `null` explicite. Le front de ce dépôt n'envoie aucun des `null` ci-dessous
+(lu) : le défaut touche les clients directs de l'API.*
+
+### `address.country: null` rend 500 à la création et à la modification d'un bien
+- Réf : P54.01
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:88`, `takussan-api/app/Http/Requests/UpdatePropertyRequest.php:84`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:141-142,217-225`, `takussan-api/database/migrations/2026_04_17_160003_create_addresses_table.php:19`
+- Constat :
+  - `addresses.country` est `string(2)->default('SN')`, donc `NOT NULL` (lu, et `information_schema` → `is_nullable = NO`) ; les deux règles la déclarent `nullable` (lu).
+  - Mesuré (test temporaire) : `POST /api/properties` avec `address: {street: 'Rue 1', country: null}` → **500** `SQLSTATE[23502] null value in column "country"` ; sans la clé → 201. `PATCH /api/properties/{id}` avec `address: {country: null}` → **500**, même exception.
+  - C'est le reste annoncé par la `Mesure` de l'implémenteur sur P17.01 (« `country` a la même forme »), jamais repris en entrée : voir P17.01, dont le correctif (`filled` sur `address.city`) s'applique tel quel.
+- Piste : `address.country` en `filled` dans les deux FormRequests, comme `address.city` (TCK-703). Étendre `tests/Feature/Geo/AdresseSansVilleTest.php` d'un cas `country: null` par voie, qui attend 422 et une base intacte.
+
+### Créer un forfait avec `trial_days`, `is_active` ou `sort_order` à `null` rend 500
+- Réf : P54.02
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/Admin/StorePlanRequest.php:22,27,28`, `takussan-api/app/Http/Controllers/Api/Admin/PlanController.php:26`, `takussan-api/database/migrations/2026_05_07_000222_create_plans_and_agency_subscriptions_tables.php:20-23`
+- Constat :
+  - Les trois colonnes sont `NOT NULL` avec un défaut (`0`, `true`, `0`) ; les règles sont `nullable` et le contrôleur passe `$request->validated()` tel quel à `Plan::create()` (lu).
+  - Mesuré (test temporaire, super-admin) : `POST /api/admin/plans` avec un corps valide et `trial_days: null` → **500** (`23502`, colonne `trial_days`) ; de même `is_active: null` → 500 et `sort_order: null` → 500 ; le même corps sans ces clés → 201.
+  - `UpdatePlanRequest` ne déclare aucune de ces trois clés `nullable` (lu) : seule la création est touchée. L'écran `AdminPlansClient.tsx` n'envoie pas ces clés (lu).
+- Piste : remplacer `nullable` par `sometimes` (ou `filled`) sur les trois clés, pour qu'une clé omise prenne le défaut de la colonne et qu'un `null` rende 422. Un test par clé dans `BillingPlansTest`.
+
+### Une note client avec `pinned: null` rend 500
+- Réf : P54.03
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StoreCustomerNoteRequest.php:37`, `takussan-api/app/Http/Controllers/Api/CustomerNoteController.php:30-34`, `takussan-api/database/migrations/2026_04_17_160030_create_customer_notes_table.php:16`
+- Constat :
+  - `customer_notes.pinned` est `boolean()->default(false)`, `NOT NULL` ; la règle est `nullable|boolean`, et `validated()` part tel quel dans `$customer->notes()->create(...)` (lu).
+  - Mesuré (test temporaire, agent de l'agence) : `POST /api/customers/{id}/notes` avec `body` et `pinned: null` → **500** (`23502`, colonne `pinned`) ; sans `pinned` ou avec `pinned: false` → 201.
+- Piste : `pinned` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null`.
+
+### Un relevé bancaire importé avec `source_format` vide ou `null` rend 500
+- Réf : P54.04
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Accounting/StoreBankStatementRequest.php:23,29-37`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:50-53`, `takussan-api/database/migrations/2026_04_28_000001_create_bank_statements_table.php:15`
+- Constat :
+  - `bank_statements.source_format` est `string(8)` sans défaut, `NOT NULL` (lu). La règle est `nullable` ; `prepareForValidation()` ne déduit le format de l'extension que si la clé est **absente** (`! $this->has('source_format')`), et une clé présente à `null` passe ce test (lu).
+  - Mesuré (test temporaire, multipart avec un CSV) : `source_format: null` → **500** (`23502`, colonne `source_format`) ; `source_format: ""` → **500**, la chaîne vide étant changée en `null` avant `prepareForValidation()` ; sans la clé → 202.
+  - L'écran d'import (`ImportStatementForm.tsx:31,41`) envoie toujours `csv` ou `ofx` (lu).
+- Piste : déduire le format quand la valeur est vide (`! $this->filled('source_format')`), et passer la règle en `required` une fois la déduction faite. Un test par forme (`null`, `""`, clé absente) dans `BankStatementPipelineTest`.
+
+### Modifier un état des lieux avec `general_condition` ou `rooms` à `null` rend 500
+- Réf : P54.05
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/InventoryUpdateRequest.php:24-25`, `takussan-api/app/Http/Controllers/Api/InventoryController.php:136-145`, `takussan-api/app/Services/Model/InventoryService.php:39-50`, `takussan-api/database/migrations/2026_04_17_160022_create_inventories_table.php:20-21`
+- Constat :
+  - `inventories.general_condition` (`string`) et `inventories.rooms` (`jsonb`) sont `NOT NULL` sans défaut (lu). Les règles de mise à jour sont `nullable`, et `InventoryService::update()` garde **délibérément** un `null` dont la clé est présente (« null can be preserved as an intentional clear », l. 37), ce que la colonne refuse (lu).
+  - Mesuré (test temporaire, propriétaire, état des lieux `draft`) : `PATCH /api/inventories/{id}` avec `general_condition: null` → **500** (`23502`) ; avec `rooms: null` → **500** (`23502`). `PUT` mène à la même action (`routes/api/inventories.php:10-11`, lu).
+  - Le schéma du front rend ces clés facultatives sans les mettre à `null` (`lib/schemas/inventory.ts:84`, lu).
+- Piste : `general_condition` et `rooms` en `sometimes` + `filled` (le `null` n'est pas un effacement possible pour ces deux colonnes) ; le maintien du `null` reste utile pour `notes`. Un test par clé qui attend 422 et un état des lieux inchangé.
+
+### Créer un bien avec `furnished: null` rend 500
+- Réf : P54.06
+- Statut : à mesurer
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Requests/Api/StorePropertyRequest.php:67`, `takussan-api/app/Http/Controllers/Api/PropertyController.php:135-139`, `takussan-api/database/migrations/2026_04_17_160005_create_properties_table.php:30`
+- Constat :
+  - `properties.furnished` est `boolean()->default(false)`, `NOT NULL` ; la règle est `nullable|boolean`, et `Property::create(array_merge($data, …))` ne remplace que `status` et `visibility` (lu).
+  - Mesuré (test temporaire, administrateur d'agence) : `POST /api/properties` avec `furnished: null` → **500** (`23502`, colonne `furnished`). Le même corps avec `currency: null` → 201 : ce cas-là tient.
+  - Le front envoie toujours un booléen (`PropertyWizard.tsx:183`, `PropertyForm.tsx:109`, lu).
+- Piste : `furnished` en `sometimes|boolean` (ou `filled`). Un test qui attend 422 sur `null` à côté de ceux d'`AdresseSansVilleTest`.
+
+### Aucune garde ne confronte les règles `nullable` au schéma
+- Réf : P54.07
+- Statut : à mesurer
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/`, `takussan-api/bootstrap/app.php:129-131`
+- Constat :
+  - Le défaut d'entrée P17.01 a été corrigé sur une clé (TCK-703), et six autres formes du même défaut existent encore (P54.01 à P54.06, mesuré). Rien n'empêche une septième : aucun test ni script ne lit `information_schema` face aux règles (mesuré : `grep -rln information_schema tests scripts` → 6 tests, qui épinglent chacun une colonne ou cherchent un jeton en base, aucun ne lit un FormRequest).
+  - Une `QueryException` n'est pas interceptée par le rendu de `bootstrap/app.php` (l. 129-130, lu) : chacun de ces cas rend un 500 générique et un rapport d'erreur, jamais un 422 nommant le champ.
+  - Ce qui tient, relu jusqu'à l'écriture : les créations de `Task` (`TaskController.php:74-75`), `MaintenanceRequest` (`MaintenanceRequestController.php:111`), `Agency` (`AgencyController.php:62-63`), `Customer` (`CustomerController.php:65`), `Lease` (`LeaseService.php:81-82`), `Integration` (`IntegrationController.php:103`), `BookingPayment` (`BookingPaymentService.php:22-39`), `MaintenanceWindow` (`MaintenanceService.php:38`), `Invoice` (`InvoiceService.php:49`), l'onboarding d'agence (`AgencyProvisioningService.php:47-53`) et la cooptation de super-admin (`SuperAdminCooptationService.php:57`) remplacent le `null` par un défaut (`??`) ; le renouvellement de bail lit `isset($data['start_date'])` (`LeaseRenewalService.php:87`).
+- Piste : un test d'architecture qui, pour chaque FormRequest dont le contrôleur écrit `validated()` dans un modèle, rejoue un `null` sur chaque clé `nullable` et refuse un 500 serait le plus sûr, mais il demande la table de correspondance requête → modèle. Plus simple : un test qui liste les couples (requête, clé) connus pour viser une colonne `NOT NULL` et exige qu'ils ne portent pas `nullable`, alimenté par le relevé de cet angle.
