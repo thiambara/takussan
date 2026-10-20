@@ -6150,7 +6150,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
 
 ### Des `show` chargent en dur des relations que leur ressource n'émet pas
 - Réf : P60.02
-- Statut : retenu · autonome
+- Statut : fait · TCK-1028
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/LeaseController.php:64-73`, `takussan-api/app/Http/Controllers/Api/InvoiceController.php:55-63`, `takussan-api/app/Http/Controllers/Api/BookingController.php:60-68`, `takussan-api/app/Http/Controllers/Api/Admin/KycController.php:45-52`, `takussan-api/app/Http/Controllers/Api/Accounting/BankStatementController.php:76-86`, `takussan-web/src/lib/queries/leases.ts:215-223`
 - Constat :
@@ -6162,6 +6162,7 @@ chargement mort n'est pas mesuré au-delà du nombre de requêtes.*
   - Établi comment : lu. Le nombre de requêtes de ces `show` n'est pas mesuré.
 - Piste : retirer du `load()` ce que la ressource n'émet pas, et `agency` de la liste blanche de `BankStatementController::show`. Retirer `payments` de l'`include` du front sur la fiche de bail. Garde : un test de budget de requêtes sur `GET /api/leases/{id}`, qui rougit si `payments` revient.
 - Mesure (2026-10-19, bde1d5b43, mesureur) : lu `LeaseController.php:69` (`load([... 'payments' ...])`), `LeaseResource.php` (aucune clé ni accès à `payments`, seulement `payment_frequency`/`payment_day` l. 60-61), `InvoiceController.php:61` (`customer`) contre `InvoiceResource.php:17` (`customer_id`), `Admin/KycController.php:49` (`reviewer`) contre `KycDossierResource.php:62` (`reviewed_by`), `BookingController.php:63` (`agency`) contre `BookingResource.php:21` et `BookingMoneyAccess.php:63` (`Agency::query()->find()`), `BankStatementController.php:80-83` (liste blanche avec `agency`) ; front `leases.ts:222` envoie `include: ['property', 'payments']`, et `useLeasePayments` est lu par `LeaseDetail.tsx`, `LeaseSchedule.tsx` (le « à vérifier » du constat tient). Nombre de requêtes non mesuré. Classement : A2, chargements retirés sans changer la réponse rendue.
+- Mesure (2026-10-20, 9ddfe61fa, implementeur) : test neuf `ShowChargementsNonEmisTest` (requêtes de forme `where "<table>"."<clé>" in`), charge 1,50 sur 8 cœurs : avant correctif, 5 rouges, chacun sur sa requête (`lease_payments`, `customers`, `agencies` pour la réservation et pour `include=agency` du relevé, `users` pour le relecteur KYC) → relations retirées des `load()` des quatre `show` et `agency` de la liste blanche du relevé, `payments` retiré de l'`include` de `useLease` : 5 verts, et 129 verts sur les classes qui lisent ces `show` ; ablation (correctif retiré) → 5 rouges ; remis → 5 verts. Réponses inchangées : aucune de ces relations n'était émise.
 
 ### Dix-huit `show` sur dix-neuf ignorent `fields[...]` que le front leur envoie, et rendent la ressource entière
 - Réf : P60.03
