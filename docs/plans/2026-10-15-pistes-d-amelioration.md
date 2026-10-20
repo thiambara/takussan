@@ -6847,7 +6847,7 @@ de violation hors `region`.*
 
 ### La page « Passer en agence » d'une agence individuelle rend la page d'erreur, et la barre latérale ignore la demande en cours
 - Réf : P68.01
-- Statut : retenu · autonome
+- Statut : fait · TCK-1029 — reste : la garde qui confronte toutes les constantes `*_FIELDS` du front au `$queryFields` de leur modèle (angle proposé 100) ; seule `AGENCY_UPGRADE_REQUEST_FIELDS` est gardée ici
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/queries/agency-upgrade.ts:22-39,49-58`, `takussan-web/src/app/(dashboard)/app/settings/agency/upgrade/page.tsx:42-45`, `takussan-web/src/app/(dashboard)/app/layout.tsx:38-41,54-55`, `takussan-api/app/Models/AgencyUpgradeRequest.php:88-94`
 - Constat :
@@ -6858,6 +6858,7 @@ de violation hors `region`.*
   - Établi comment : faux API (l'API réelle en lecture seule), CDP, code relu.
 - Piste : retirer `ninea` et `rib_pro` de `AGENCY_UPGRADE_REQUEST_FIELDS` (le formulaire les envoie, la liste n'en a pas besoin ; vérifier `types/agency-upgrade.ts:20` et `UpgradeRequestStatus`). Garde : un test qui confronte chaque constante `*_FIELDS` du front au `$queryFields` du modèle visé (voir l'angle proposé 100), à défaut un test de la page qui joue un 400 et attend autre chose que l'erreur.
 - Mesure (2026-10-20, 8150df982, mesureur) : relu `AGENCY_UPGRADE_REQUEST_FIELDS` (`agency-upgrade.ts`, demande toujours `ninea` et `rib_pro`), `$queryFields` d'`AgencyUpgradeRequest` (ne les porte plus, docblock TCK-601 : « un `fields[]` qui les demande est refusé (400) »), `Promise.all` sans `catch` de `upgrade/page.tsx` et `.catch(() => null)` du layout ; test temporaire (retiré) sur `GET /api/agencies/{id}/upgrade-requests` par un admin d'agence individuelle : avec les champs exacts du front → 400 `http.bad_request`, sans `ninea`/`rib_pro` → 200 ; `grep` : aucune lecture de `.ninea`/`.rib_pro` sur la liste côté front (seul le détail de la console les lit, par une autre requête) → le constat tient. Classement : A1, le contrat est écrit dans le modèle (TCK-601) et le front s'y aligne en retirant deux champs que la liste n'affiche pas, sans choix de produit.
+- Mesure (2026-10-20, c6e71581f, implementeur) : relu `AGENCY_UPGRADE_REQUEST_FIELDS` (porte toujours `ninea` et `rib_pro`) et `AgencyUpgradeRequest::$queryFields` (ne les porte pas) → test `agency-upgrade.fields.tck-1029.test.ts`, qui lit le `$queryFields` PHP et la constante importée : rouge avant correctif (`["ninea", "rib_pro"]` refusés), vert après ; ablation (constante d'origine remise) → rouge, correctif remis → vert ; tests du layout et du formulaire qui importent le module verts (23 sur 4 fichiers).
 
 ### Le sélecteur de locataire du nouveau bail n'a pas de nom accessible
 - Réf : P68.02
