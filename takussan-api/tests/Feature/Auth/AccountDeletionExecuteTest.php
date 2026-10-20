@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\AccountDeletionRequest;
+use App\Models\AlertSubscriber;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
@@ -13,7 +14,9 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\PropertyVisit;
+use App\Models\SavedSearch;
 use App\Models\User;
+use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Notifications\Sms\SmsRouterDriver;
@@ -316,6 +319,76 @@ class AccountDeletionExecuteTest extends TestCase
             ['autre@example.test'],
             DB::table('password_reset_tokens')->pluck('email')->all(),
         );
+    }
+
+    /**
+     * TCK-1025 (P57.05) — le contact WhatsApp du numéro VÉRIFIÉ du compte part avec lui ; celui
+     * d'un numéro non vérifié (qui peut être celui d'un tiers) et celui d'un autre numéro restent.
+     */
+    public function test_execute_supprime_le_contact_whatsapp_du_numero_verifie(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['phone' => '+221 77 123 00 05', 'phone_verified_at' => now()]);
+        $user->forceFill(['secondary_phone' => '+221771230006', 'secondary_phone_verified_at' => null])->save();
+        WhatsappContact::query()->create(['phone' => '+221771230005', 'opt_in_status' => WhatsappContact::OPT_IN_OPTED_IN]);
+        $nonVerifie = WhatsappContact::query()->create(['phone' => '+221771230006']);
+        $autre = WhatsappContact::query()->create(['phone' => '+221779870007']);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, WhatsappContact::query()->where('phone', '+221771230005')->count());
+        $this->assertModelExists($nonVerifie);
+        $this->assertModelExists($autre);
+    }
+
+    /**
+     * TCK-1025 (P57.05) — les alertes sans compte à l'adresse ou au numéro vérifiés du compte
+     * partent avec lui, et leurs recherches par la cascade ; la casse saisie n'y change rien
+     * (empreinte repliée, comme `claim()`). L'alerte d'un autre contact reste.
+     */
+    public function test_execute_supprime_les_alertes_sans_compte_du_contact_verifie(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'Awa@Exemple.sn',
+            'email_verified_at' => now(),
+            'phone' => '+221771230008',
+            'phone_verified_at' => now(),
+        ]);
+        $parMail = $this->abonneSansCompte(AlertSubscriber::CHANNEL_EMAIL, 'AWA@exemple.sn');
+        $parNumero = $this->abonneSansCompte(AlertSubscriber::CHANNEL_WHATSAPP, '+221771230008');
+        $autre = $this->abonneSansCompte(AlertSubscriber::CHANNEL_EMAIL, 'autre@exemple.sn');
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertModelMissing($parMail);
+        $this->assertModelMissing($parNumero);
+        $this->assertSame(0, SavedSearch::query()->whereIn('alert_subscriber_id', [$parMail->id, $parNumero->id])->count());
+        $this->assertModelExists($autre);
+        $this->assertSame(1, SavedSearch::query()->where('alert_subscriber_id', $autre->id)->count());
+    }
+
+    private function abonneSansCompte(string $channel, string $contact): AlertSubscriber
+    {
+        $abonne = AlertSubscriber::create([
+            'channel' => $channel,
+            'contact' => AlertSubscriber::normalizeContact($channel, $contact),
+            'contact_hash' => AlertSubscriber::contactHash($channel, $contact),
+            'locale' => 'fr',
+            'confirmed_at' => now(),
+            'unsubscribe_token' => $jeton = AlertSubscriber::newToken(),
+            'unsubscribe_token_hash' => AlertSubscriber::tokenHash($jeton),
+            'consent_at' => now(),
+            'consent_source' => 'public_search_alert',
+            'consent_version' => AlertSubscriber::CONSENT_VERSION,
+        ]);
+        SavedSearch::create(['alert_subscriber_id' => $abonne->id, 'name' => 'Dakar', 'criteria' => ['city' => 'Dakar']]);
+
+        return $abonne;
     }
 
     private function tentativeSansNotification(string $to): NotificationDeliveryAttempt

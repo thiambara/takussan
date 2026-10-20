@@ -4,6 +4,7 @@ namespace App\Services\Account;
 
 use App\Models\AccountDeletionRequest;
 use App\Models\Activity;
+use App\Models\AlertSubscriber;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
@@ -17,8 +18,10 @@ use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
+use App\Services\Notifications\Sms\PhoneNumber;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -240,6 +243,10 @@ class AccountDeletionService
         $originalEmail = $user->email;
         // TCK-1013 (P57.01) — relevés avant le `forceFill`, qui les efface.
         $originalPhones = $this->phoneVariants([$user->phone, $user->secondary_phone]);
+        // TCK-1025 (P57.05) — le contact VÉRIFIÉ du compte, lu comme `claim()` le lit : un numéro
+        // ou une adresse non vérifiés peuvent être ceux d'un tiers.
+        $verifiedEmail = $user->email_verified_at !== null ? $user->email : null;
+        $verifiedPhones = $this->verifiedPhones($user);
 
         // Notify BEFORE we scramble the email so the mail still routes.
         // The notification is queueable and reads `routeNotificationForMail`
@@ -342,6 +349,23 @@ class AccountDeletionService
         DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
             ->where('email', $originalEmail)
             ->delete();
+
+        // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
+        // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
+        // suivent par la FK en cascade.
+        if ($verifiedPhones !== []) {
+            WhatsappContact::query()->whereIn('phone', $verifiedPhones)->delete();
+        }
+        $alertHashes = array_map(
+            fn (string $phone) => AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_WHATSAPP, $phone),
+            $verifiedPhones,
+        );
+        if ($verifiedEmail !== null && $verifiedEmail !== '') {
+            $alertHashes[] = AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_EMAIL, $verifiedEmail);
+        }
+        if ($alertHashes !== []) {
+            AlertSubscriber::query()->whereIn('contact_hash', $alertHashes)->delete();
+        }
 
         unset($originalEmail);
 
@@ -487,6 +511,26 @@ class AccountDeletionService
             ->orderBy('scheduled_for')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * TCK-1025 — les numéros VÉRIFIÉS du compte, en E.164 (forme de `whatsapp_contacts.phone` et de
+     * l'empreinte des alertes). Un numéro qui n'a pas cette forme n'a pu être écrit ni par l'une
+     * ni par l'autre.
+     *
+     * @return list<string>
+     */
+    private function verifiedPhones(User $user): array
+    {
+        $phones = [];
+        foreach ([[$user->phone, $user->phone_verified_at], [$user->secondary_phone, $user->secondary_phone_verified_at]] as [$phone, $verifiedAt]) {
+            $clean = preg_replace('/\s+/', '', (string) $phone) ?? '';
+            if ($verifiedAt !== null && PhoneNumber::isValid($clean)) {
+                $phones[] = $clean;
+            }
+        }
+
+        return array_values(array_unique($phones));
     }
 
     /**

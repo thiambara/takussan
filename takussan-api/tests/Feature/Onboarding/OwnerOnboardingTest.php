@@ -115,8 +115,8 @@ class OwnerOnboardingTest extends TestCase
             ->where('documentable_id', $owner->id)
             ->count());
 
-        $owner->refresh();
-        $docs = (array) data_get($owner->metadata, 'kyc.docs');
+        // TCK-1026 (P64.05) — plus de miroir `metadata.kyc.docs` : `submitKyc` lit les pièces.
+        $docs = (array) $this->postJson("/api/me/owner-profiles/{$owner->id}/kyc/submit")->assertOk()->json('data.kyc.docs');
         sort($docs);
         $this->assertSame(['cni', 'ninea', 'rib'], $docs);
 

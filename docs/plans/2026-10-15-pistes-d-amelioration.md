@@ -1734,7 +1734,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le lien `referenceable_*` d'une notification : deux formes, un lecteur de repli, une méthode morte
 - Réf : P11.11
-- Statut : validé (délégué) — option (a) : retirer `AppNotification::reference()`, sans appelant, et mettre à jour `docs/models-spec.md` §12 et la Règle 3 ; reste : (b) unifier sur l'alias court ou (c) cesser d'écrire le lien et retirer les colonnes, au porteur
+- Statut : retenu · à valider — chemin fermé : `docs/models-spec.md` (l. 1259 et 5059 décrivent `reference()` ; la décision (a) retire la méthode et demande cette mise à jour, que l'implémenteur ne peut pas écrire)
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/SavedSearchMatchesNotification.php:121`, `takussan-api/app/Models/AppNotification.php` (`reference()`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:146-170`, `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php`
 - Constat :
@@ -1753,6 +1753,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   Dans tous les cas, mettre à jour `docs/models-spec.md` §12 et la Règle 3.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `AppNotification.php:71-83` (`reference()`, cinq alias), `NotificationTarget.php:146-170` (`fromReferenceable()`, sans `SavedSearch`), `SavedSearchMatchesNotification.php:121` (`SavedSearch::class`) ; `grep -rn "reference()" app routes resources database tests` → aucun appelant de la méthode ; `grep -rn referenceable tests` → rien ; seul autre écrivain le seeder (`AppNotificationSeeder.php:46`, `property_visit`) → le constat tient tel quel, la répartition en base de développement n'est pas re-mesurée. Classement : V4, la `Piste` propose trois options dont (c) est une migration, et seul (a), le retrait de `reference()`, serait A3 ; le choix revient au porteur.
 - Mesure (2026-10-20, 31d408855, delegue) : relu `AppNotification.php:71-83` ; `grep -rn "reference()\|->reference\b" app routes resources database tests` → seule la définition l. 71, aucun appelant ; `docs/models-spec.md:5059` décrit déjà la méthode « sans appelant », et la Règle 3 admet les deux formes de `referenceable_type` (l. 1198) → (a) est du code mort sans choix de produit. Délégation : V4, seul (a) est accordé, qui ne touche aucun schéma ; (c) supprime des colonnes (V4 non additif) et (b) engage la forme du lien que (c) abandonnerait, d'où le reste au porteur, sur le modèle de sa décision pour P58.05 (retrait du code, colonne au porteur). La PR #755 touche aussi `AppNotification.php` : conflit possible, sans recouvrement de sujet.
+- Mesure (2026-10-20, bb1524a12, implementeur) : `grep -rn "reference()" app tests` → seule la définition `AppNotification.php:74`, aucun appelant : la partie morte tient ; `grep -n "reference()" docs/models-spec.md` → l. 1259 (§12, « pas une relation Eloquent ») et l. 5059 (Règle 3, « aucun appelant ») la décrivent. Retirer la méthode sans réécrire ces deux lignes laisserait la spec fausse, et `docs/models-spec.md` est fermé à l'implémenteur. Rien implémenté. Classement : chemin fermé, distinct du V4 accordé (aucun schéma n'est en cause) ; le retrait du code et les deux lignes de spec peuvent partir ensemble, en session.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -5947,7 +5948,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
 - Mesure (2026-10-19, 5cd62d286, implementeur) : test temporaire retiré (charge 1,40 / 2,38 / 2,98 sur 8 cœurs) : une invitation `sent` à l'adresse du compte, `invited_user_id` = le compte, puis `executeDeletion()` → `email`, `invited_user_id` et `status = sent` inchangés, le défaut tient ; puis `UPDATE invitations SET email = NULL, phone = NULL` sur cette ligne → `SQLSTATE[23514]` « violates check constraint invitations_email_or_phone_check » (lu : `2026_10_07_150300_add_phone_to_invitations_table.php:29-32`, `CHECK (email IS NOT NULL OR phone IS NOT NULL)`). Rien implémenté : révoquer sans effacer serait une partie de la décision seulement, et effacer exige une migration (V4) ou un masquage que le porteur n'a pas choisi. Classement : V4, distinct du V3 accordé, qui portait sur ce que l'effacement retire et non sur le schéma.
 ### Petites améliorations
 - Réf : P57.05
-- Statut : validé — supprimer à l'effacement le contact WhatsApp et les alertes sans compte au contact vérifié du compte, et masquer le code et le numéro dans le pilote `log` comme le fait `PhoneVerificationService` (`phone_suffix`) ; la durée de conservation des demandes de contact n'est pas tranchée et reste au porteur (porteur, 2026-10-19)
+- Statut : fait · TCK-1025 — reste : la durée de conservation des demandes de contact (`ContactLeadService`, `privacy.ts` § 6), au porteur
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/PublicSearchAlertController.php:142`, `takussan-api/database/migrations/2026_06_17_100000_create_whatsapp_contacts_table.php:23-24`, `takussan-api/database/migrations/2026_10_08_599200_create_alert_subscribers_table.php:21`, `takussan-api/app/Http/Controllers/Api/SavedSearchController.php:53-90`, `takussan-api/app/Services/Lead/ContactLeadService.php:302-315`, `takussan-api/app/Services/Notifications/Sms/Drivers/LogSmsDriver.php:31-37`
 - Constat :
@@ -5958,6 +5959,7 @@ font. Non relus : le corps des messages et `metadata` des modèles (angles 83 et
   - Établi comment : lecture, `grep` et test temporaire.
 - Piste : écrire dans `anonymize()`, ou dans un commentaire qui le justifie, le sort de chacune : contact WhatsApp et alertes sans compte au contact vérifié du compte (supprimés, ou gardés avec la raison) ; demandes de contact (durée à écrire dans `privacy.ts`) ; pilote `log` qui masque le code et le numéro comme `PhoneVerificationService` le fait déjà (`phone_suffix`).
 - Mesure (2026-10-19, bc2d31e79, mesureur) : test temporaire retiré : un `WhatsappContact` au numéro du compte survit à `executeDeletion()` (1) ; `grep -rn "WhatsappContact::" app` → seul `firstOrCreate(['phone' => …])` de `PublicSearchAlertController.php:142` écrit, aucun `user_id` ; `AccountDeletionService` ne cite ni `AlertSubscriber` ni les demandes de contact (lu) ; `LogSmsDriver.php:32-38` journalise `to` normalisé et `message` en entier, code compris (lu). Les pilotes SMS de préproduction ne sont pas relus. Classement : V3, chaque point demande de décider ce qui est gardé ou effacé, et la durée des demandes de contact s'écrit dans `privacy.ts` (V7) ; seul le masquage du pilote `log` serait A, il peut se traiter avec l'entrée une fois validée.
+- Mesure (2026-10-20, bb1524a12, implementeur) : avant correctif (charge 1,62 / 2,57 / 7,41 sur 8 cœurs), `AccountDeletionExecuteTest` : un `WhatsappContact` au numéro vérifié et deux alertes sans compte (adresse vérifiée en casse différente, numéro vérifié) survivent à `executeDeletion()` → 2 rouges ; `LogSmsDriverTest` : le code `482913` est au journal → 1 rouge. Correctif : suppression par numéros vérifiés (E.164) et par `contact_hash`, pilote `log` en `phone_suffix` + `message_length`. Ablation de chacune des quatre parties (contact, alertes, pilote, filtre « vérifié ») → 1 rouge chacune ; remis → 14 verts.
 
 ## Angle 58 — Colonnes absentes du sparse fieldset : relation, valeur par défaut ou `null` à la place
 
@@ -6374,7 +6376,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### Rien n'empêche une règle `exists:` neuve sur une route dont l'`authorize()` laisse passer tout compte
 - Réf : P62.08
-- Statut : retenu · autonome
+- Statut : fait · TCK-1027
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Requests/` (13 FormRequests hors `Admin/` dont l'`authorize()` rend `true` ou `user() !== null` et qui portent un `exists:`), `scripts/`
 - Constat :
@@ -6382,6 +6384,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Les entrées P62.01 à P62.07 montrent que la même forme est restée ouverte sur treize autres routes.
 - Piste : un test d'architecture qui liste les FormRequests dont l'`authorize()` ne juge rien et qui portent `exists:` sur une table d'agence (`customers`, `leases`, `guarantors`, `users`, `conversations`, `maintenance_requests`, `properties`), avec une liste d'exceptions motivées, vide une fois les entrées faites.
 - Mesure (2026-10-20, 0ba226223, mesureur) : relevé des FormRequests hors `Admin/` qui portent `exists:` et dont l'`authorize()` rend `true` ou `user() !== null` → 14 fichiers, dont `StoreFavoriteRequest` (TCK-599) : 13 autres, comme le constat ; `grep exists:` dans `scripts/check-*.mjs` et dans les tests d'architecture → aucun. Classement : A5, un test neuf qui liste les FormRequests de cette forme, avec les 13 actuels en exceptions motivées par leur Réf (P62.01 à P62.07), sans changer aucune réponse ni resserrer un seuil existant.
+- Mesure (2026-10-20, bb1524a12, implementeur) : relevé refait par la garde même : 13 FormRequests hors `Admin/` et `Auth/`, `authorize()` ouvert et `exists:`/`Rule::exists()` sur une table d'agence, commentaires exclus (`StoreFavoriteRequest` n'en garde qu'un commentaire, TCK-599, et n'est pas compté) ; aucune garde ne lisait `exists:`. `ExistsSurRouteOuverteTest` les fige avec leur Réf. Ablations : exceptions vidées → rouge (les 13 nommés) ; `exists:properties,id` ajouté à `StoreFavoriteRequest` → rouge ; exception fantôme → rouge ; commentaires lus → rouge ; remis → 3 verts. Tables retenues : celles de la `Piste`, plus `agencies`, `agency_roles` et `bookings`, sans lesquelles trois des treize échappaient.
 
 ## Angle 63 — URL signées et liens de téléchargement rangés ou envoyés : durée, lecteurs, liens morts
 
@@ -6532,7 +6535,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 
 ### Petites améliorations
 - Réf : P64.05
-- Statut : validé (délégué) — dériver `kyc.docs` des `Document` vivants du profil dans `submitKyc` (réponse et journal) d'Owner et d'Agent, et cesser d'écrire le miroir `metadata.kyc.docs` dans `uploadKyc`, qui n'a pas d'autre lecteur ; retirer `clearMediaCollection('file')` avant `addMedia()` dans les trois contrôleurs, la collection `singleFile` retirant l'ancien fichier après l'ajout du nouveau
+- Statut : fait · TCK-1026
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Http/Controllers/Api/Me/OwnerProfileController.php:74-90,121-131`, `takussan-api/app/Http/Controllers/Api/Me/AgentProfileController.php:83-99`, `takussan-api/app/Http/Controllers/Api/Me/ServiceProviderProfileController.php:76-80`
 - Constat :
@@ -6542,6 +6545,7 @@ profils (RIB, `tax_id`, pièce, revenu) que l'effacement laisse, et l'absence de
 - Piste : dériver `kyc.docs` des `Document` vivants du profil au lieu de le tenir à la main, ou le mettre à jour à la suppression ; ajouter le nouveau média avant de retirer l'ancien (la collection `singleFile` remplace d'elle-même), dans les trois contrôleurs.
 - Mesure (2026-10-20, eb4dde5a0, mesureur) : relu les trois `Me\*ProfileController` : `clearMediaCollection('file')` avant `addMedia()` (Owner l. 74-75, Agent l. 83-84, ServiceProvider l. 76-77), hors transaction ; `kyc.docs` n'est écrit que par Owner et Agent (`array_merge`, l. 85 et 94) et `grep -rln "'docs'" app` ne trouve aucun autre écrivain, donc aucune suppression ne le met à jour ; le test temporaire de l'explorateur n'a pas été rejoué → les deux points tiennent, le second reste non éprouvé ; `ServiceProviderProfileController` ne tient pas `kyc.docs`. Classement : V7, dériver `kyc.docs` des documents vivants change ce que l'assistant et `submitKyc` affichent.
 - Mesure (2026-10-20, 40b509849, delegue) : relu `OwnerProfileController.php:55-155` (miroir écrit par `array_merge`, relu par `submitKyc` seul), `Document::registerMediaCollections()` (`file` est `singleFile()`, l. 121), `grep` de `'docs'` et `kyc` dans `takussan-api/app` (aucun autre lecteur) et de `kyc.docs` dans `takussan-web/src` (seuls deux montages de test, `OwnerOnboardingWizard.test.tsx:101` et `AgentOnboardingWizard.test.tsx:108` ; les assistants ne lisent pas `docs` de la réponse) → aucun écran ne change, seule la réponse de `submitKyc` et son journal cessent de nommer une pièce supprimée. Délégation : V7, choix mineur et réversible en un commit (un champ sans lecteur retiré, une liste rendue juste) ; le remplacement non atomique est un défaut sans choix, la rétention des fichiers ne change pas (l'ancien part toujours, après le nouveau) ; ce que deviennent les pièces supprimées n'est pas tranché ici : c'est P64.03, qui reste au porteur.
+- Mesure (2026-10-20, bb1524a12, implementeur) : avant correctif, `KycDocumentsDerivedTest` → 5 rouges sur 8 : `uploadKyc` écrit le miroir (Owner, Agent), et un ajout de média qui échoue (`Media::creating` qui lève) laisse la pièce sans fichier dans les trois contrôleurs ; le second point du constat, « non éprouvé », l'est donc. Correctif : `submitKyc` lit les `Document` non supprimés du profil, miroir et `clearMediaCollection()` retirés. Ablations : miroir relu → 2 rouges ; `clearMediaCollection()` remis dans chaque contrôleur → 1 rouge chacun ; remis → 8 verts, `tests/Feature/Onboarding` et `tests/Feature/Kyc` verts.
 
 ## Angle 65 — Durée des appels sortants synchrones d'une requête HTTP face aux délais de PHP, du serveur web et de Traefik
 
