@@ -131,7 +131,8 @@ export interface CustomerFormPayload {
   phone?: string;
   occupation?: string;
   pipeline_stage: (typeof pipelineStageValues)[number];
-  status: (typeof customerStatusValues)[number];
+  /** TCK-1064 — absent à la création : l'API crée toujours un client `active`. */
+  status?: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number];
   id_number?: string;
   /** TCK-921 — `null` efface la langue de la fiche. */
@@ -160,6 +161,12 @@ export const CRITERIA_KEYS = [
   'seeking_neighborhoods',
   'min_bedrooms',
 ] as const;
+
+/** TCK-1064 (P80.01) — le corps de création : `StoreCustomerRequest` n'a pas de règle `status`. */
+export function sansStatut(payload: CustomerFormPayload): CustomerFormPayload {
+  const { status: _status, ...reste } = payload;
+  return reste;
+}
 
 /** Le corps sans les critères : pour qui ne les a pas lus, les envoyer vides les effacerait. */
 export function sansCriteres(payload: CustomerFormPayload): CustomerFormPayload {

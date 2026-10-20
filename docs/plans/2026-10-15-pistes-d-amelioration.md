@@ -154,7 +154,7 @@ voie d'écriture (angle 13, puis 47).
 | 79 | Appels du serveur Next vers l'API sans délai (`apiFetch`, `apiRequest`, relais BFF : aucun `AbortSignal.timeout`) : rendu d'une page publique ou d'une action quand l'API répond lentement, face au `requestTimeout` de Node (300 s) et aux délais de Traefik | fait |
 | 80 | Champs envoyés par les formulaires montés du front et écartés en silence par `validated()` (aucune règle dans le FormRequest), et champs `required` jamais envoyés : reste de l'angle 45, non relevé | fait |
 | 81 | État du bail face aux écritures d'argent (création d'échéance, `mark-paid`, lien de paiement, pénalité, restitution) sur un bail `draft`, `pending_signature`, `terminated` ou `renewed` | fait |
-| 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | à faire |
+| 82 | Routes qui jugent un bailleur ou un membre par `landlord_id === user.id`, `user_id ===` ou `staffAgencyId()` en dur, au lieu de `landlordWrites` / `isStaffAt` / la policy : bailleur suspendu, rôle personnalisé sans la capacité, membre de plusieurs agences | fait |
 | 83 | Clés des colonnes JSON hors `agencies.settings` (`agencies.metadata`, `users`, `properties`, `leases`, `customers` : `metadata`, `settings`, `preferences`) : lues sans écrivain, écrites sans lecteur — le relevé de l'angle 47 sur les autres modèles | à faire |
 | 84 | Valeurs qu'ADR-0044 chiffre (RIB, NINEA, numéro de pièce, revenu) recopiées en clair ailleurs : `wizard_drafts.data` des autres parcours (bailleur, prestataire, hôte), `metadata`, `activity_log.properties`, `app_notifications.data` | à faire |
 | 85 | Ce que le site public montre d'une agence `individual` : annuaire `/agencies`, fiche `/agencies/{slug}`, carte d'agence de la fiche bien (`PropertyResource.php:441-449`) — nom « Espace de {prénom} », slug, badge vérifié | à faire |
@@ -189,6 +189,7 @@ voie d'écriture (angle 13, puis 47).
 | 113 | Appels du navigateur vers l'API sans délai (`useApiQuery`, `apiRequest` client, mutations TanStack, `fetch` direct des composants) : bouton `isPending` figé et requête jamais abandonnée sur un réseau mobile qui ne coupe pas — le pendant client de l'angle 79 | à faire |
 | 114 | Champs écartés par `validated()` sur les modules `src/lib/queries/*.ts` de l à z et les server actions `src/app/actions/*.ts` : la moitié de l'angle 80 laissée sans relevé | à faire |
 | 115 | Statuts d'enum qu'aucun chemin de `app/` n'écrit et que seuls les seeders posent (`LeaseStatus::Expired`, les autres enums de statut de `app/Models/Enums`) : gardes, filtres, tableaux de bord et écrans du front qui attendent un état que la production n'atteindra jamais | à faire |
+| 116 | Gestes d'agence jugés par le type de profil (`isAgencyAdminAt`, `isAgentAt` : une quarantaine d'appels dans `app/Http` et `app/Services`) au lieu d'une capacité (`canActAt`) : admin à qui un rôle personnalisé retire la capacité, membre à qui il la donne — le relevé de P82.04 et P82.05 sur le reste de l'API | à faire |
 
 ---
 
@@ -6317,7 +6318,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
-- Statut : validé — (a) comme P62.01 : `customer_id` jugé dans le service avec la réponse du refus, visibilité avant état pour un appelant hors personnel (porteur, 2026-10-20)
+- Statut : fait · TCK-1066
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
 - Constat :
@@ -6329,6 +6330,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 - Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
 - Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreBookingRequest.php` (`exists:customers,id`), `BookingService.php` ; test temporaire retiré, compte sans agence → client d'une agence tierce : 403 `http.forbidden` ; client absent : 422 sur `customer_id` ; bien `draft` tiers : 422 `booking.property_unavailable` ; bien absent : 422 sur `property_id`. Le 403 d'un bien privé non brouillon n'est pas mesuré. Classement : V2, le correctif change le statut rendu aux appelants et l'ordre « visibilité avant état » de la réservation.
 
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingExistenceOracleTest` neuf, compte sans agence face à une agence tierce → 3 rouges : client absent 422 sur `customer_id` contre 403 `http.forbidden` pour un client tiers ; bien privé 403 `booking.property_unavailable` (le cas non mesuré du constat, confirmé) contre 422 pour un brouillon ou un vendu ; `property_id=abc` → 500 ; correctif (`integer` sans `exists:`, bien absent → 403 `booking.property_unavailable` dans le contrôleur, visibilité avant état hors personnel et propriétaire) → 4 verts, et `BookingTest` réaligné (vendu → 403) ; ablations : `exists:` remis → 2 rouges, ancien ordre du service → 2 rouges ; 212 verts sur les onze classes voisines.
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
 - Statut : fait · TCK-1069
@@ -8004,7 +8006,7 @@ n'ont pas été rouverts.*
 
 ### Le statut choisi à la création d'un client est écarté, et le client est enregistré « actif »
 - Réf : P80.01
-- Statut : validé (délégué) — retirer le sélecteur `status` du formulaire en mode `create` (il reste en `edit`), et ne plus envoyer `status` dans le corps de création ; `StoreCustomerRequest` inchangé, le contrôleur garde `CustomerStatus::Active` forcé, le défaut déjà en vigueur ; test : en `create` le sélecteur n'est pas rendu et le corps n'a pas de `status`, en `edit` il l'est ; reste : créer un client directement `inactive` ou `blocked`, au porteur
+- Statut : fait · TCK-1064 — reste : créer un client directement `inactive` ou `blocked`, au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/components/customer-form/CustomerForm.tsx:308-313`, `takussan-web/src/lib/schemas/customer.ts:195`, `takussan-api/app/Http/Requests/Api/StoreCustomerRequest.php:40-49`, `takussan-api/app/Http/Controllers/Api/CustomerController.php:49-68`
 - Constat :
@@ -8016,9 +8018,10 @@ n'ont pas été rouverts.*
 - Mesure (2026-10-20, 92a755f9f, mesureur) : relu `CustomerForm.tsx:308-313` (sélecteur `status` sans condition de `mode`), `customer.ts:195` (`status` envoyé), `StoreCustomerRequest.php:38-51` (aucune règle `status`, `ValidatesCustomerContactAndCriteria` non plus : `grep status` → rien), `CustomerController.php:65` (`'status' => CustomerStatus::Active->value` forcé), `UpdateCustomerRequest.php:73` (accepte `status`) ; test temporaire (retiré) `POST /api/customers` avec `status=inactive` → 201, réponse et ligne en base `active` (charge 2,13 sur 8 cœurs) → le constat tient en entier. Classement : V7, la piste offre deux options visibles (retirer le champ en création ou enregistrer le statut choisi), qui sont un choix de produit.
 
 - Mesure (2026-10-20, 0aa821e99, delegue) : relu `CustomerForm.tsx:134,308-313` (sélecteur `status` hors de toute condition de `mode`), `CustomerController.php:47-68` (`'status' => CustomerStatus::Active->value` forcé à la création), `UpdateCustomerRequest.php:73` (accepte `status`), `docs/models-spec.md:923` (défaut `'active'`) → la création enregistre toujours `active`, le sélecteur ne commande rien en `create`. Délégation : V7, choix mineur et réversible en un commit : le retrait aligne l'écran sur le défaut déjà en vigueur côté serveur et dans `models-spec.md:923`, aucun statut enregistré ne change, et la fonction retirée n'a jamais fonctionné ; honorer le statut choisi serait une règle neuve (créer un client `blocked` ou `deleted`), laissée au porteur.
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `CustomerForm.statut.test.tsx` neuf → 1 rouge, le champ « Statut » rendu en `create` ; correctif (sélecteur rendu en `edit` seul, `sansStatut()` sur le corps de création) → 2 verts, 15 sur `customer-form/__tests__` ; ablation de `sansStatut()` → 1 rouge (`status` présent dans le corps de création) ; l'API n'est pas touchée.
 ### Le nombre de voyageurs du tunnel de réservation est exigé du visiteur et jamais enregistré
 - Réf : P80.02
-- Statut : validé (délégué) — accepter `guests` dans `StoreBookingRequest` (`['sometimes', 'integer', 'min:1', 'max:20']`, la borne du tunnel en vigueur) et l'écrire dans `metadata.guests`, comme `PublicPropertyController.php:1036` ; aucune migration, le tunnel ne change pas ; test : `POST /api/bookings` avec `guests=3` → la ligne porte `metadata.guests = 3`, et sans `guests` → `metadata` inchangé ; reste : l'affichage du nombre à l'agence, et l'écart de borne avec le flux public (50), au porteur
+- Statut : fait · TCK-1065 — reste : l'affichage du nombre à l'agence, et l'écart de borne avec le flux public (50), au porteur
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-web/src/lib/schemas/booking.ts:27-31`, `takussan-web/src/components/bookings/BookingTunnel.tsx:49,151,358`, `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:33-47`, `takussan-api/app/Http/Controllers/Api/BookingController.php:49-52`
 - Constat :
@@ -8030,6 +8033,7 @@ n'ont pas été rouverts.*
 - Mesure (2026-10-20, 92a755f9f, mesureur) : relu `booking.ts:27-31` (min 1 max 20), `BookingTunnel.tsx:49,151,358` (champ obligatoire de l'étape 0, envoyé), `StoreBookingRequest.php:30-48` (aucune règle `guests` ni `metadata`), `BookingController.php:47-52` ; `grep -rn guests takussan-api/app` → seul le flux public (`BookingRequestPublicPropertyRequest.php:31`, max 50 et non 20, `PublicPropertyController.php:1036` vers `metadata.guests`) ; test temporaire (retiré) `POST /api/bookings` avec `guests=3` → 201, ligne avec `metadata` à `null` (charge 2,13 sur 8 cœurs) → le constat tient. Classement : V7, la piste laisse le choix entre enregistrer le nombre (et sa borne, 20 côté tunnel contre 50 côté flux public) ou retirer un champ visible.
 
 - Mesure (2026-10-20, 0aa821e99, delegue) : relu `BookingTunnel.tsx:49,151,358` (champ obligatoire, envoyé), `booking.ts:27-31` (1 à 20), `StoreBookingRequest.php:30-48` (aucune règle `guests`), `Booking.php:26,41` (`metadata` fillable, casté `array`), `PublicPropertyController.php:1036` (`metadata => ['guests' => …]`) ; `grep -rn guests takussan-api/app takussan-web/src` → aucun lecteur de `metadata.guests`, ni API ni front, et `BookingQuote` ne le lit pas. Délégation : V7, garder un champ sans lecteur : l'option suit la forme déjà écrite par le flux public, ne change rien de ce que voient le visiteur et l'agence, ne demande aucune colonne (`metadata` existe), et se défait en un commit ; retirer le champ changerait le tunnel visible, et toucher la borne du flux public serait un choix, tous deux laissés au porteur.
+- Mesure (2026-10-20, 88d019565, implementeur) : avant correctif, `BookingGuestsTest` neuf → 2 rouges : `guests=3` laissait `metadata` à `null`, et `guests=21` rendait 201 ; correctif (règle `['sometimes', 'integer', 'min:1', 'max:20']`, `guests` → `metadata.guests` dans `BookingService::create()`) → 3 verts, 38 sur les quatre classes de réservation ; ablation de la conversion dans le service → 1 rouge (`metadata` à `null`).
 ### Aucune garde ne signale une clé envoyée par le front que le FormRequest ignore
 - Réf : P80.03
 - Statut : retenu · à valider — V6 : signal transverse sur tous les FormRequest, avec liste d'exceptions
@@ -8105,3 +8109,84 @@ n'ont pas été rouverts.*
   - Établi comment : lu.
 - Piste : écrire dans TCK-957 si les types `regularization` et `charges` restent permis après la sortie ; juger les baux en cours de `collectOpenObligations` par `User::ACTIVE_TENANT_LEASE_STATUSES`.
 - Mesure (2026-10-20, 04ec6c724, mesureur) : relu `LeasePaymentController::store` (l. 38-47, refus hors `active`/`terminating`), TCK-957 « Hypothèses » (résilié et expiré refusés, rien sur `regularization` ni `charges` après la sortie), `AccountDeletionService` l. 390 et 410 (baux en cours : `active` et `pending_signature` seuls) et `HasProfiles.php:43` (`ACTIVE_TENANT_LEASE_STATUSES` = `active`, `terminating`) ; la PR #820 touche ce service sans changer ces deux listes → les deux parties tiennent. Classement : V3, élargir les baux qui bloquent l'effacement change ce qui retient des données personnelles, et permettre une régularisation après la sortie est un choix de produit (V7).
+
+## Angle 82 — Bailleur et membre jugés en dur, hors de `landlordWrites` et des capacités
+
+*Exploré le 2026-10-20 sur `pre-dev` 8dd5b10d6, par l'explorateur. Tout est relu par l'explorateur
+lui-même, sans sous-agent : les `landlord_id ===`, `user_id ===`, `staffAgencyId()` et
+`isAgencyAdminAt()` de `app/Http`, `app/Rules`, `app/Services` et `app/Policies`, et les dix helpers
+d'`EXEMPTIONS_JUSTIFIEES` de `scripts/check-controller-authorization.mjs`. Deux tests temporaires,
+retirés, sur la base de test PostgreSQL (charge 2,95 sur 8 cœurs) : bailleur dont l'`OwnerProfile`
+est `blocked`, admin d'agence dont le rôle ne porte aucune capacité, agent dont le rôle les porte
+toutes (`CreatesAgencyMembers`). Relus et conformes, donc sans entrée : `MarkPaidLeasePaymentRequest`
+et `MarkLateFeePaidRequest` (la policy passe avant la branche en dur), `InvoiceService::create`,
+`BookingService::create`, `LeaseService::create`, `PropertyVisitController`,
+`SuspendTeamMemberRequest`, `ExportController::show`, `PropertyPolicy::update`. Le membre de
+plusieurs agences jugé sur l'agence de son profil actif (`staffAgencyId()`) est la règle écrite de
+TCK-591 : il n'a pas d'entrée ici. Le cas `POST /api/payments` est déjà en P46.*
+
+### Un bailleur suspendu reste donneur d'ordre des interventions sur ses biens : devis, statut, prestataire
+- Réf : P82.01
+- Statut : retenu · à valider — V2 : en `awaiting_owner` le bailleur seul tranche le devis, le lui retirer suspendu laisse la demande sans décideur
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/MaintenanceRequestPolicy.php:49-58`, `:126-155`, `:168-180`, `:270-283`
+- Constat :
+  - `isPrincipalFor()` rend vrai dès que `property.user_id === user.id`, sans lire le statut du profil de bailleur (lu, `:280-282`). `update`, `manageQuotes`, `actAsPrincipal`, `decideQuote` et `transitionTo` en dépendent (lu).
+  - `actAsPrincipal` n'exige `maintenance.assign` que pour la branche équipe : « Le bailleur du bien commande sur SON bien sans capacité d'agence » (lu, `:176-179`).
+  - ADR-0031 § 2 retire au bailleur suspendu les écritures dans l'agence qui l'a suspendu, et `BasePolicy::landlordWrites` étend la règle à « tout ce que le bailleur écrit en son nom propre dans l'agence » (lu, `BasePolicy.php:119-140`).
+  - mesuré (test temporaire retiré) : bailleur `blocked` dans l'agence de son bien, demande `open` → `can('update')`, `can('manageQuotes')`, `can('actAsPrincipal')`, `can('decideQuote')` et `can('transitionTo', cancelled)` rendent tous `true`.
+  - Établi comment : lecture de la policy, et la Gate interrogée dans le test.
+- Piste : faire passer la branche bailleur de `isPrincipalFor()` par la même règle que `landlordWrites` (bailleur non suspendu dans l'agence du bien) pour les gestes d'écriture, en gardant la lecture (`view`, `viewQuote`), comme ADR-0031 § 2 la garde. Test : bailleur `blocked` refusé sur l'approbation de devis et un changement de statut, lecture conservée.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `MaintenanceRequestPolicy::isPrincipalFor` (l. 270-292 : `property.user_id === user.id` sans lecture du statut), `actAsPrincipal` (l. 168-180), `decideQuote` (l. 148-156 : en `awaiting_owner`, le seul `property.user_id`) et `BasePolicy::landlordWrites` (l. 119-140) ; test temporaire retiré (charge 2,70 sur 8 cœurs) : bailleur `blocked` dans l'agence de son bien, demande `open` → `update`, `manageQuotes`, `actAsPrincipal`, `decideQuote`, `transitionTo(cancelled)`, `view` et `viewQuote` rendent tous `true` ; aucun commit ni ticket ne l'a traité (`grep -rln isPrincipalFor docs/backlog/tickets` : TCK-592, TCK-900, TCK-445, sans la suspension) → le constat tient, lignes inchangées. Classement : V2, ADR-0031 § 2 appuie le retrait des écritures, mais en `awaiting_owner` aucun autre acteur ne décide du devis (ADR-0037), et qui tranche quand le bailleur est suspendu est un choix.
+
+### Un bailleur suspendu joint encore des documents à son bail, son bien, sa réservation et son état des lieux
+- Réf : P82.02
+- Statut : retenu · à valider — V2 : `attachTo` sert aussi la lecture (`view`), la piste telle qu'écrite retirerait la lecture que l'ADR-0031 garde
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Policies/DocumentPolicy.php:147-192`, `takussan-api/app/Http/Controllers/Api/DocumentController.php:79`
+- Constat :
+  - `attachTo()` juge le bailleur par `landlord_id === user.id` (bail) et `property.user_id === user.id` (bien, réservation, état des lieux), sans `landlordWrites` (lu, `:153-191`).
+  - Dans la même policy, `update`, `share` et `delete` passent par `landlordWrites` et refusent le bailleur suspendu (lu, `:70-101`). `DocumentController::store` autorise par `attachTo` (lu, `:79`).
+  - mesuré (test temporaire retiré) : bailleur `blocked`, document de son bail → `can('update')` et `can('share')` `false`, `can('attachTo', [Document::class, $lease])` et `[…, $property]` `true`.
+  - Établi comment : lecture, et la Gate interrogée dans le test. Le `POST /api/documents` lui-même n'a pas été rejoué (à vérifier).
+- Piste : remplacer les comparaisons d'identité de `attachTo()` par `landlordWrites($user, <colonne>, <agence du porteur>)`, comme le reste de la policy. Test : bailleur `blocked` → 403 sur `POST /api/documents` vers son bail et son bien ; le locataire et le personnel inchangés.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentPolicy::attachTo` (l. 147-192, comparaisons d'identité sans `landlordWrites`), `DocumentPolicy::view` (l. 37-54 : `return $documentable !== null && $this->attachTo(...)`) et `DocumentController::store` (l. 77-82 : `attachTo`, refus en 404 `document.owner_not_found`, TCK-732) ; test temporaire retiré : bailleur `blocked`, son bail → `can('update')` et `can('share')` `false`, `can('attachTo')` `true` sur le bail et le bien, et `POST /api/documents` vers son bail (PDF de 2 Ko) rend 201 → le constat tient, le POST est désormais rejoué. Inexact : la piste remplace les comparaisons dans `attachTo()`, que `view()` appelle, ce qui retirerait au bailleur suspendu la lecture des documents de son bail ; le refus attendu est 404, pas 403. Classement : V2, le correctif doit séparer le rattachement (écriture) de la lecture, par une ability neuve ou une branche de `store`, et ce découpage de l'autorisation n'est écrit nulle part.
+
+### Les liens de partage d'un document se listent et se révoquent sans la règle `share` : le bailleur suspendu lit les jetons et révoque
+- Réf : P82.03
+- Statut : retenu · à valider — V2 : retirer la révocation au bailleur suspendu l'empêche de fermer un lien public vers son propre document
+- Gravité : 🔴 défaut avéré
+- Où : `takussan-api/app/Http/Controllers/Api/DocumentShareLinkController.php:30-32`, `:103-105`, `:131-150`
+- Constat :
+  - `store` autorise par `DocumentPolicy::share` (lu, `StoreDocumentShareLinkRequest.php:28-33`). `index` et `destroy` passent par `authorizeDocument()`, recopie de l'ancienne règle : téléverseur, `documentable.user_id`, personnel de l'agence, sans `landlordWrites` (lu, `:131-143`).
+  - `index` rend le `token` de chaque lien actif (lu, `format()`, `:152-165`) : c'est l'URL publique du document.
+  - mesuré (test temporaire retiré) : bailleur `blocked`, téléverseur d'un document de son bail avec un lien actif → `POST …/share` 403, `GET …/share-links` 200 avec le jeton, `DELETE …/share/{link}` 204 et le lien est révoqué.
+  - `authorizeDocument` est dans les exemptions de `check-controller-authorization.mjs` (lu, `:143`), comme dette « hors périmètre TCK-306 ».
+  - La ligne 98 en double du tableau des angles (documents « que l'on ne fait que lire ») cite ce contrôleur ; aucune section ne la porte (lu).
+- Piste : autoriser `index` et `destroy` par `can('share', $document)` et retirer `authorizeDocument()` et son exemption. Test : bailleur `blocked` → 403 sur la liste et la révocation ; personnel et téléverseur actif inchangés.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `DocumentShareLinkController::authorizeDocument` (l. 131-143, sans `landlordWrites`), `index` et `destroy` (l. 30-32, 103-105), `format()` (l. 152-165, rend `token`), `DocumentPolicy::share` (l. 90-103) et l'exemption de `scripts/check-controller-authorization.mjs:143` ; test temporaire retiré : bailleur `blocked`, téléverseur d'un document de son bail avec un lien actif → `POST …/share` 403, `GET …/share-links` 200 avec le jeton, `DELETE …/share/{link}` 204 et `revoked_at` posé → le constat tient. Relu : `share` ne diffère d'`authorizeDocument` que pour le bailleur suspendu (mêmes branches téléverseur, `user_id` du porteur, personnel de l'agence). Classement : V2, `index` par `share` suit ADR-0031 § 2, mais refuser au bailleur suspendu la révocation d'un lien public vers son propre bail est un choix (exposition de ses données) que l'ADR ne tranche pas.
+
+### Indicateurs et alertes de seuil : jugés par le type de profil admin, jamais par une capacité
+- Réf : P82.04
+- Statut : retenu · à valider — V2 : l'admin d'agence sans capacité crée aujourd'hui KPI et alertes ; la capacité à exiger est un choix
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Requests/Api/StoreKpiConfigRequest.php:31-37`, `UpdateKpiConfigRequest.php:31-38`, `StoreThresholdAlertRequest.php:31-37`, `UpdateThresholdAlertRequest.php:31-38`, `takussan-api/app/Http/Controllers/Api/KpiConfigController.php:87-94`, `ThresholdAlertController.php:72-79`
+- Constat :
+  - Créer, modifier et supprimer exigent `isAgencyAdminAt(user.agency_id)`, et rien d'autre (lu). Aucune capacité du catalogue ne garde ces écrans (lu, `Capability.php`).
+  - mesuré (test temporaire retiré) : admin dont le rôle ne porte aucune capacité (`adminWithout(...Capability::cases())`, `agency.update` `false`) → `POST /api/kpi-configs` 201, `POST /api/threshold-alerts` 201 ; agent dont le rôle les porte toutes → 403 sur les deux. La lecture (`GET /api/kpi-configs`) rend 200 aux deux.
+  - Le front appelle ces routes (lu, `takussan-web/src/app/actions/kpis.ts:26`, `alerts.ts:26`).
+  - Établi comment : test temporaire. Quelle capacité devrait les garder n'est écrit nulle part (à vérifier).
+- Piste : juger ces gestes par une capacité (`agency.update`, ou une capacité neuve si l'on veut la distinguer) au lieu du type de profil, et faire porter la règle par une policy `KpiConfig` / `ThresholdAlert`. Le choix de la capacité revient au porteur. Test : admin sans la capacité refusé, membre qui la tient accepté.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `StoreKpiConfigRequest` et `StoreThresholdAlertRequest` (l. 31-37), `UpdateKpiConfigRequest` et `UpdateThresholdAlertRequest` (l. 31-38), `KpiConfigController::authorizeAgency` (l. 87-94), `ThresholdAlertController::authorizeAgency` (l. 72-79) : `isAgencyAdminAt` seul ; `docs/features.md:604-605` et TCK-295 ne nomment aucune capacité ; test temporaire retiré : admin sans aucune capacité (`adminWithout(...Capability::cases())`) → `POST /api/kpi-configs` 201, `POST /api/threshold-alerts` (corps vide) 422, donc autorisé ; agent qui les tient toutes → 403 et 403 ; `GET /api/kpi-configs` 200 aux deux → le constat tient. Classement : V2, le correctif retire le geste à un admin qui l'a aujourd'hui, et la capacité (`agency.update` ou une neuve) n'est écrite nulle part.
+
+### Dossier KYC de l'agence : on le soumet avec `agency.update_kyc`, on ne le lit qu'en étant admin
+- Réf : P82.05
+- Statut : retenu · à valider — V2 : l'admin sans `agency.update_kyc` lit aujourd'hui le dossier KYC ; séparer ou non lecture et soumission est un choix
+- Gravité : 🟠 risque ou dette
+- Où : `takussan-api/app/Http/Controllers/Api/Agency/KycController.php:18-21`, `:57-69`, `takussan-api/app/Http/Controllers/Api/KycDocumentController.php:31-45`, `takussan-api/app/Policies/AgencyPolicy.php:114-128`
+- Constat :
+  - `upload` et `submit` autorisent par `AgencyPolicy::updateKyc` : `agency.update_kyc` sous le profil actif de l'agence, et la policy dit « Un rôle personnalisé peut la donner à un membre, la retirer à un admin » (lu, `:114-128`).
+  - `show` et la lecture d'une pièce (`KycDocumentController`) exigent `isAgencyAdminAt` sous le profil actif, sans lire la capacité (lu, `authorizeAgencyAdmin`, `authorizeDocument`).
+  - mesuré (test temporaire retiré) : agent dont le rôle porte toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé, dossier incomplet) ; admin sans aucune capacité → `GET` 200, `submit` 403.
+- Piste : juger `show` et la lecture des pièces par la même règle que `updateKyc` (ou une capacité de lecture, si le porteur veut les séparer), et retirer les deux helpers et leurs exemptions de `check-controller-authorization.mjs`. Test : membre qui tient `agency.update_kyc` lit le dossier qu'il soumet.
+- Mesure (2026-10-20, 979ae6e95, mesureur) : relu `Agency/KycController` (`show` par `authorizeAgencyAdmin`, l. 18-21 et 57-69 ; `upload` et `submit` par `updateKyc`, l. 30 et 48), `KycDocumentController::authorizeDocument` (l. 31-45, `isAgencyAdminAt`), `AgencyPolicy::updateKyc` (l. 114-128) ; même test temporaire retiré : agent qui tient toutes les capacités → `GET /api/agencies/{a}/kyc` 403, `POST …/kyc/submit` 422 (autorisé) ; admin sans aucune capacité → `GET` 200, `submit` 403 → le constat tient. Classement : V2, juger la lecture par `updateKyc` la retire à l'admin sans la capacité, appelant légitime aujourd'hui de pièces d'identité (V3 voisin), et la Piste laisse au porteur le choix d'une capacité de lecture.
