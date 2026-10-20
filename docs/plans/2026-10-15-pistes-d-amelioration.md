@@ -1731,7 +1731,7 @@ Les trois 🔴 ont été relus par la session dans le code :
 
 ### Le lien `referenceable_*` d'une notification : deux formes, un lecteur de repli, une méthode morte
 - Réf : P11.11
-- Statut : à mesurer
+- Statut : retenu · à valider — V4 : trois options à départager, dont le retrait des colonnes
 - Gravité : 🟢 amélioration
 - Où : `takussan-api/app/Notifications/SavedSearchMatchesNotification.php:121`, `takussan-api/app/Models/AppNotification.php` (`reference()`), `takussan-api/app/Domain/Notifications/NotificationTarget.php:146-170`, `takussan-api/database/seeders/Engagement/AppNotificationSeeder.php`
 - Constat :
@@ -1748,6 +1748,7 @@ Les trois 🔴 ont été relus par la session dans le code :
   - (c) Cesser d'écrire le lien : la cible est désormais `target`. Le retrait des colonnes et de l'index serait une migration (V4).
 
   Dans tous les cas, mettre à jour `docs/models-spec.md` §12 et la Règle 3.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `AppNotification.php:71-83` (`reference()`, cinq alias), `NotificationTarget.php:146-170` (`fromReferenceable()`, sans `SavedSearch`), `SavedSearchMatchesNotification.php:121` (`SavedSearch::class`) ; `grep -rn "reference()" app routes resources database tests` → aucun appelant de la méthode ; `grep -rn referenceable tests` → rien ; seul autre écrivain le seeder (`AppNotificationSeeder.php:46`, `property_visit`) → le constat tient tel quel, la répartition en base de développement n'est pas re-mesurée. Classement : V4, la `Piste` propose trois options dont (c) est une migration, et seul (a), le retrait de `reference()`, serait A3 ; le choix revient au porteur.
 
 ## Angle 12 — Tests : zones non gardées, tests verts sans leur code
 
@@ -6259,7 +6260,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
 
 ### La création d'un bail dit à tout compte connecté quels clients, garants et biens existent, trois par requête
 - Réf : P62.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la réponse de `POST /api/leases` à ses appelants
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreLeaseRequest.php:28-40`, `takussan-api/app/Services/Model/LeaseService.php:36-54`, `takussan-api/app/Http/Controllers/Api/LeaseController.php:52-57`
 - Constat :
@@ -6271,10 +6272,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Chaque champ répond pour lui-même : une seule requête juge trois identifiants, et sans débit propre à la route. Les fiches clients et les garants sont des données d'agence qu'aucune route publique n'énumère.
   - Établi comment : lu, et test temporaire.
 - Piste : retirer les `exists:` du FormRequest et juger l'existence dans le service avec la même réponse que le refus (le modèle de TCK-599, contrainte 11, `StoreFavoriteRequest.php:31-33`) ; ou porter l'autorisation du bien dans `authorize()` pour que l'intrus reçoive 403 avant la validation. Test : même statut et même corps pour un client absent et un client d'une autre agence.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreLeaseRequest.php` (`authorize()` rend `true`, `exists:` sur `property_id`, `tenant_id`, `guarantor_id`, `booking_id`), `LeaseService.php:45-54` (contrôle `view` après la validation) ; test temporaire retiré, compte sans agence, bien publié d'une agence tierce, `type` invalide → client et garant tiers : 422 sur `type`, `start_date` ; absents : 422 sur `tenant_id`, `guarantor_id`, `type`, `start_date`. Classement : V2, comme P22.02 et P03.06 : le correctif change le statut rendu à des appelants légitimes, et la `Piste` laisse le choix entre « juger dans le service » et « autoriser dans `authorize()` ».
 
 ### La création d'une réservation distingue un client absent d'un client d'une autre agence, et l'état d'un bien non publié
 - Réf : P62.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change l'ordre et le code des refus de `POST /api/bookings`
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreBookingRequest.php:24-34`, `takussan-api/app/Services/Model/BookingService.php:32-39,55-93`
 - Constat :
@@ -6284,10 +6286,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - Le test d'état (`UNBOOKABLE_STATUSES` : vendu, loué, brouillon, archivé, en maintenance, indisponible, l. 57-61) court avant le test de visibilité (`public()`, l. 78-82), qui rend 403 sous le même code : un bien privé `available`, `pending_review` ou `rejected` rendrait 403 là où un bien brouillon ou vendu rend 422 (lu, non mesuré pour le 403 : à vérifier).
   - Établi comment : lu, et test temporaire.
 - Piste : juger `customer_id` dans le service avec la réponse du refus ; pour un appelant qui n'est pas du personnel, tester la visibilité avant l'état et rendre la même réponse qu'un bien absent. Test : client absent et client tiers, bien absent, brouillon et privé, mêmes statut et corps.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreBookingRequest.php` (`exists:customers,id`), `BookingService.php` ; test temporaire retiré, compte sans agence → client d'une agence tierce : 403 `http.forbidden` ; client absent : 422 sur `customer_id` ; bien `draft` tiers : 422 `booking.property_unavailable` ; bien absent : 422 sur `property_id`. Le 403 d'un bien privé non brouillon n'est pas mesuré. Classement : V2, le correctif change le statut rendu aux appelants et l'ordre « visibilité avant état » de la réservation.
 
 ### La création d'une tâche énumère les comptes de la plateforme, et ses fiches clients
 - Réf : P62.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change le code rendu par `POST /api/tasks` pour un parent refusé
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/Api/StoreTaskRequest.php:27-30,51`, `takussan-api/app/Http/Controllers/Api/TaskController.php:53-69,89-109`
 - Constat :
@@ -6296,10 +6299,11 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `taskable_id` est résolu par `findOrFail()` (l. 62) avant `authorize('attachTo')` (l. 63) : mesuré, fiche client d'une agence tierce → 403, absente → 404. Même oracle pour les biens (`TASKABLE_TYPES`, lu).
   - Établi comment : lu, et test temporaire.
 - Piste : retirer `exists:users,id` (l'assigné est déjà jugé par `authorizeAssignee`) et rendre 404 quand `attachTo` refuse, comme `DocumentController::store()` depuis TCK-732 (P03.06). Test : compte absent et compte existant, parent absent et parent tiers, mêmes réponses.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `StoreTaskRequest.php:51` (`assigned_to_id` : `exists:users,id`, `authorize()` rend `true`) ; test temporaire retiré, compte sans agence → `taskable_id` absent avec un compte existant : 404 `http.not_found`, avec un compte absent : 422 sur `assigned_to_id` ; fiche client tierce : 403 `http.forbidden`, absente : 404. Classement : V2, rendre 404 au lieu de 403 quand `attachTo` refuse change la réponse d'une autorisation à des appelants légitimes, comme pour P03.06.
 
 ### Quatre routes disent quels baux existent, et deux quelles demandes d'intervention
 - Réf : P62.04
-- Statut : à mesurer
+- Statut : retenu · à valider — V2 : change la réponse de quatre routes à leurs appelants
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Http/Requests/InventoryStoreRequest.php:28-36`, `takussan-api/app/Http/Requests/Api/StoreMaintenanceRequestRequest.php:27,43-44`, `takussan-api/app/Http/Requests/Api/StoreConversationRequest.php:34,51-52`, `takussan-api/app/Http/Requests/Conversation/CreateGroupConversationRequest.php:46,66-68,109-112`, `takussan-api/app/Http/Requests/Conversation/Concerns/GuardsConversationScope.php:28-43`
 - Constat :
@@ -6312,6 +6316,7 @@ du relevé. Le format des dates hors ressource relève de l'angle 94.*
   - `guardContext()` rend déjà un message unique pour « absent ou illisible » (l. 39-41) : c'est `exists:` qui le précède et sépare les deux cas (lu).
   - Établi comment : lu, et test temporaire.
 - Piste : dans les conversations, retirer `exists:` des champs que `guardContext()` juge déjà ; dans l'état des lieux et l'intervention, juger le bail dans le contrôleur avec la réponse du refus. Test par route : bail absent et bail tiers, même réponse.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : test temporaire retiré, compte sans agence, bail et demande d'intervention d'une agence tierce → `POST /api/inventories` : bail tiers sans erreur sur `lease_id`, absent « The selected lease is invalid » ; `POST /api/maintenance-requests` : bail tiers : 422 sans erreur sur `lease_id`, absent : 422 avec « The selected lease is invalid » (le constat disait 403 pour le tiers, mesuré avec un corps complet ; ici `property_id` et `category` manquaient) ; conversation directe : « You cannot link this conversation to this item » contre « The selected lease is invalid » ; groupe : « You cannot link this group to this item » contre « The selected maintenance request id is invalid ». Classement : V2, la `Piste` change le statut et le corps rendus par quatre routes, comme P22.02.
 
 ### La recherche dans les messages dit quelles conversations existent
 - Réf : P62.05
@@ -6378,7 +6383,7 @@ d'export de l'angle 77.*
 
 ### Le lien de l'export d'audit asynchrone d'une agence peut servir le journal d'une autre agence, ou celui de toute la plateforme
 - Réf : P63.01
-- Statut : à mesurer
+- Statut : retenu · à valider — V3 : le lien sert le journal d'audit d'une autre agence
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Jobs/Audit/ExportActivityLogJob.php:39-49`, `takussan-api/app/Services/Audit/ActivityLogExporter.php:51-57`, `takussan-api/app/Http/Controllers/Api/ActivityLogExportController.php:44,59-71`, `takussan-api/routes/api/audit-log.php:22-24`
 - Constat :
@@ -6391,10 +6396,11 @@ d'export de l'angle 77.*
   - L'export synchrone et celui de la console (`CrossTenantAuditController.php:94`, suffixe `random_bytes(6)`) ne sont pas touchés (lu).
   - Établi comment : lu, et mesuré par deux tests temporaires qui appellent `handle()` du job comme `AgencyAuditScopeTest::test_le_fichier_du_job_porte_l_agence_active_et_elle_seule`.
 - Piste : nommer le fichier d'un identifiant opaque (aléa, ou identifiant d'une ligne d'export), et garder le nom lisible pour le seul `Content-Disposition`. Mieux encore, lier la signature au demandeur (paramètre `user` vérifié au téléchargement). Test : deux exports de deux agences de même nom, puis chaque lien ne rend que son agence ; et la variante « Platform » contre le super-admin.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `ExportActivityLogJob.php:39-49` et `ActivityLogExporter.php:51-57` (inchangés) ; test temporaire retiré qui appelle `handle()` du job pour les admins de « Immo Dakar » et « Immo-Dakar » → un seul fichier `exports/audit/audit-trail-immo-dakar-2026-09-20-2026-10-20.csv`, et l'URL signée reçue par l'admin de la première rend 200 avec le témoin de la seconde et sans le sien. Variante « Platform » et écrasement entre deux admins de la même agence non re-mesurés. Classement : V3, le défaut expose les actions et acteurs d'une autre agence, et la `Piste` propose aussi de lier la signature au demandeur (V2).
 
 ### Le courriel « export de rapport prêt » mène à une route qui n'existe pas
 - Réf : P63.02
-- Statut : à mesurer
+- Statut : retenu · à valider — V7 : route de téléchargement neuve ou retrait du chemin asynchrone
 - Gravité : 🔴 défaut avéré
 - Où : `takussan-api/app/Notifications/ReportExportReadyNotification.php:26`, `takussan-api/app/Jobs/Reporting/GenerateReportExport.php:51-63`, `takussan-api/app/Http/Controllers/Api/Admin/ReportingController.php:108-143`, `takussan-api/lang/fr/notifications.php:867-872`
 - Constat :
@@ -6406,10 +6412,11 @@ d'export de l'angle 77.*
   - Aucun test ne cite `ReportExportReadyNotification` (mesuré : `grep -rln ReportExportReadyNotification tests/Feature tests/Unit` → rien).
   - Établi comment : lu, et mesuré par `route:list` et grep.
 - Piste : soit une route de téléchargement (signée, ou authentifiée et ouverte depuis une page de la console comme pour l'archive RGPD) avec un courriel qui mène à la console, soit le retrait du chemin asynchrone si le seuil n'est jamais atteint. Le choix est au porteur. Test : la notification rend une URL que `route:list` connaît, et le téléchargement rend le fichier à son demandeur.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `ReportExportReadyNotification.php:26` (`url("/api/admin/reports/{report}/exports/{id}/download")`) ; `php artisan route:list --path=reports` → six routes, aucune en `…/exports/{id}/download` ; `grep -rln ReportExportReadyNotification tests/Feature tests/Unit` → rien ; `ReportExport` n'est lu que par `ReportingController.php:111,134` et `GenerateReportExport.php`. Classement : V7, la `Piste` laisse au porteur le choix entre une route neuve avec un courriel qui mène à la console, et le retrait d'une fonction.
 
 ### Une URL signée de 15 ou 30 minutes reste affichée sans limite de temps dans un écran ouvert
 - Réf : P63.03
-- Statut : à mesurer
+- Statut : retenu · à valider — V6 : rafraîchir la requête ou signer au clic, à départager
 - Gravité : 🟠 risque ou dette
 - Où : `takussan-api/app/Services/Media/PrivateMediaAccess.php:35,41-48`, `takussan-api/app/Http/Resources/KycDossierResource.php:84`, `takussan-web/src/lib/query-client.ts:18-19`, `takussan-web/src/components/kyc/kyc-components.tsx:143`, `takussan-web/src/components/documents/DocumentsLibrary.tsx:459-466`, `takussan-web/src/components/maintenance/MaintenanceGallery.tsx:72-79`, `takussan-web/src/components/messages/ChatView.tsx:426,462`
 - Constat :
@@ -6418,6 +6425,7 @@ d'export de l'angle 77.*
   - Un onglet resté au premier plan plus de 15 ou 30 min garde donc des liens expirés. Le clic ouvre un nouvel onglet sur la réponse JSON du refus de signature (403 mesuré au-delà de l'expiration par P23.05). Le comportement à l'écran n'est pas rejoué (à vérifier).
   - Établi comment : lu ; le délai réel avant un refetch n'est pas mesuré.
 - Piste : rafraîchir la requête avant l'expiration (`staleTime` et `refetchInterval` sous la durée du lien, pour les requêtes qui en portent), ou passer par un point qui signe au clic (`GET …/sign`, comme `media.sign`). Test vitest : une requête qui porte une URL signée déclare un `refetchInterval` plus court que sa durée.
+- Mesure (2026-10-20, 3280ae0c3, mesureur) : lu `PrivateMediaAccess.php:35` (30 min), `KycDossierResource.php:84-85` (15 min), `query-client.ts:18` (`staleTime` 5 min) ; `grep -rn refetchInterval` sur `components/kyc`, `documents`, `maintenance` et `lib/queries` → aucun pour ces écrans. Constat à nuancer pour `ChatView` : la requête « live » des messages se rafraîchit toutes les 3 s (`conversations.ts:279`), mais ne porte que les messages après l'ancre, donc les pièces jointes déjà chargées gardent leur URL (lu, non rejoué à l'écran). Classement : V6, deux voies à départager, dont un point de signature au clic qui change la livraison des médias privés (ADR-0029).
 
 ### Petites améliorations
 - Réf : P63.04
