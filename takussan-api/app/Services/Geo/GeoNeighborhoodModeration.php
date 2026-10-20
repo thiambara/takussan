@@ -66,7 +66,10 @@ final class GeoNeighborhoodModeration
                 ->whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($nom)])
                 ->exists();
             abort_code_if($pris, 409, 'geo.name_taken');
-            $ligne->forceFill(['name' => $nom, 'renamed_at' => now()])->save();
+            // TCK-1080 (P67.02) — l'ancien nom reste un nom du quartier : une recherche
+            // sauvegardée qui le porte continue de le trouver (décision du porteur).
+            $anciens = array_values(array_unique([...($ligne->former_names ?? []), $ligne->name]));
+            $ligne->forceFill(['name' => $nom, 'renamed_at' => now(), 'former_names' => $anciens])->save();
 
             return $this->reecrireAdresses($ligne, $ligne);
         });
