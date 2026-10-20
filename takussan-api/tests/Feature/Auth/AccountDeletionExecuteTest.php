@@ -8,7 +8,9 @@ use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -319,6 +321,43 @@ class AccountDeletionExecuteTest extends TestCase
             ['autre@example.test'],
             DB::table('password_reset_tokens')->pluck('email')->all(),
         );
+    }
+
+    /**
+     * TCK-1060 (P57.04) — les invitations en cours qui visent le compte, par son identifiant ou
+     * par son adresse d'origine, sont révoquées et leur adresse masquée comme `users.email`.
+     * Une invitation acceptée, et celle d'une autre adresse, restent telles quelles.
+     */
+    public function test_execute_revoque_et_masque_les_invitations_en_cours_du_compte(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'origine@example.test']);
+        $parAdresse = Invitation::factory()->create(['email' => 'origine@example.test']);
+        $parCompte = Invitation::factory()->create(['email' => 'ancienne@example.test', 'phone' => '+221770000001', 'invited_user_id' => $user->id]);
+        $expiree = Invitation::factory()->expired()->create(['email' => 'origine@example.test']);
+        $acceptee = Invitation::factory()->accepted()->create(['email' => 'origine@example.test', 'invited_user_id' => $user->id]);
+        $autre = Invitation::factory()->create(['email' => 'autre@example.test']);
+        $request = AccountDeletionRequest::factory()->for($user)->due()->create();
+
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $masque = sprintf('deleted-%d@takussan.local', $user->id);
+        foreach ([$parAdresse, $parCompte, $expiree] as $invitation) {
+            $invitation->refresh();
+            $this->assertSame(InvitationStatus::Revoked, $invitation->status);
+            $this->assertNotNull($invitation->revoked_at);
+            $this->assertSame($masque, $invitation->email);
+            $this->assertNull($invitation->phone);
+        }
+        $this->assertSame(0, Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($q) => $q->where('invited_user_id', $user->id)->orWhere('email', 'origine@example.test'))
+            ->count());
+
+        $this->assertSame(InvitationStatus::Accepted, $acceptee->fresh()->status);
+        $this->assertSame(InvitationStatus::Sent, $autre->fresh()->status);
+        $this->assertSame('autre@example.test', $autre->fresh()->email);
     }
 
     /**
