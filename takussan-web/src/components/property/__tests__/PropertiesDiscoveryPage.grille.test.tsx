@@ -39,17 +39,20 @@ vi.mock('@/components/property/PropertyCard', () => ({
     transactionFiltree,
     robe,
     badge,
+    priority,
   }: {
     property: { id: number };
     transactionFiltree?: string;
     robe?: string;
     badge?: string | null;
+    priority?: boolean;
   }) => (
     <article
       data-testid={`carte-${property.id}`}
       data-transaction-filtree={transactionFiltree ?? ''}
       data-robe={robe}
       data-badge={badge ?? undefined}
+      data-priority={priority ? 'oui' : 'non'}
     />
   ),
 }));
@@ -144,6 +147,45 @@ describe('TCK-635 — les places payées dans la grille', () => {
     render(withIntl(<PropertiesDiscoveryPage />));
     await screen.findByText(/Aucun bien trouvé/);
     expect(screen.queryByTestId('carte-90')).toBeNull();
+  });
+});
+
+/**
+ * TCK-1036 (P69.01) — les emplacements sponsorisés sont les premières cellules de la grille : ils
+ * consomment le budget des cartes prioritaires. Sans `priority`, `PropertyCard` sort du rendu
+ * serveur en `opacity-0` jusqu'à l'hydratation, et le LCP de la liste attendait 10 s sous 3G.
+ */
+describe('TCK-1036 — les quatre premières cellules de la grille sont prioritaires', () => {
+  const organiques = [22, 23, 24].map((id) => ({ id, title: `Bien ${id}`, contract_type: 'rent' }));
+
+  it('deux emplacements puis trois biens : les deux emplacements et les deux premiers biens', async () => {
+    parametres = new URLSearchParams('');
+    mockApiFetch.mockResolvedValue({
+      data: organiques,
+      sponsored: [
+        { id: 90, title: 'Sponsorisé 1', slug: 'bien-90', contract_type: 'sale', badge: null },
+        { id: 91, title: 'Sponsorisé 2', slug: 'bien-91', contract_type: 'sale', badge: null },
+      ],
+      meta: { total: 3, per_page: 40, current_page: 1, last_page: 1 },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+    });
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByTestId('carte-22');
+    const priorites = [90, 91, 22, 23, 24].map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-priority'));
+    expect(priorites).toEqual(['oui', 'oui', 'oui', 'oui', 'non']);
+  });
+
+  it('sans emplacement, les quatre premiers biens restent prioritaires', async () => {
+    parametres = new URLSearchParams('');
+    mockApiFetch.mockResolvedValue({
+      data: [...organiques, { id: 25, title: 'Bien 25' }, { id: 26, title: 'Bien 26' }],
+      meta: { total: 5, per_page: 40, current_page: 1, last_page: 1 },
+      search: { strategy: 'all', terms_unmatched: [], widened_total: null },
+    });
+    render(withIntl(<PropertiesDiscoveryPage />));
+    await screen.findByTestId('carte-22');
+    const priorites = [22, 23, 24, 25, 26].map((id) => screen.getByTestId(`carte-${id}`).getAttribute('data-priority'));
+    expect(priorites).toEqual(['oui', 'oui', 'oui', 'oui', 'non']);
   });
 });
 

@@ -10,6 +10,12 @@ import { badgeDe } from './lecture-recherche';
 export interface EmplacementsSponsorisesProps {
   readonly biens: readonly PropertyListItem[];
   readonly sizes?: string;
+  /**
+   * TCK-1036 — combien des premiers emplacements sont `priority`. Ils sont rendus en tête de la
+   * grille appelante : sans `priority`, `PropertyCard` sort du rendu serveur en `opacity-0`
+   * jusqu'à l'hydratation, et la première carte visible ne compte pas pour le LCP.
+   */
+  readonly prioritaires?: number;
 }
 
 /**
@@ -22,7 +28,7 @@ export interface EmplacementsSponsorisesProps {
  * sémantique (une région nommée, une liste), et chaque `<li>` devient une cellule de la grille
  * appelante. ⚠ Ce composant se rend donc DANS une grille.
  */
-export function EmplacementsSponsorises({ biens, sizes }: EmplacementsSponsorisesProps) {
+export function EmplacementsSponsorises({ biens, sizes, prioritaires = 0 }: EmplacementsSponsorisesProps) {
   const t = useTranslations('search.sponsored');
   if (biens.length === 0) return null;
 
@@ -33,7 +39,14 @@ export function EmplacementsSponsorises({ biens, sizes }: EmplacementsSponsorise
         <ul role="list" className="contents">
           {biens.map((bien, i) => (
             <li key={bien.id} data-emplacement="sponsorise">
-              <PropertyCard property={bien} index={i} sizes={sizes} robe="sponsorise" badge={badgeDe(bien)} />
+              <PropertyCard
+                property={bien}
+                index={i}
+                priority={i < prioritaires}
+                sizes={sizes}
+                robe="sponsorise"
+                badge={badgeDe(bien)}
+              />
             </li>
           ))}
         </ul>
