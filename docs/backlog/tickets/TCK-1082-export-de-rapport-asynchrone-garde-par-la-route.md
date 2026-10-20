@@ -37,7 +37,7 @@ tests qui exercent le job appellent `handle()` à la main
 
 ## Décision du porteur (déléguée)
 
-> garder le chemin asynchrone de `ReportingController::export()` et son seuil de 10 000 lignes, comme TCK-227 l'écrit ; aucun code de production changé ; test par la route : un `PlatformReportingService` substitué dans le conteneur rend 10 001 lignes → 202, `GenerateReportExport` mis en file (`Queue::fake`), ligne `report_exports` `queued`
+> garder le chemin asynchrone de `ReportingController::export()` et son seuil de 10 000 lignes, comme TCK-227 l'écrit ; aucun code de production changé ; test par la route : un `PlatformReportingService` substitué dans le conteneur rend 10 001 lignes → 202, `GenerateReportExport` mis en file (`Queue::fake`), ligne `report_exports` `queued` ; reste : le retrait du chemin ou un seuil abaissé, au porteur
 
 ## Reste à faire
 
