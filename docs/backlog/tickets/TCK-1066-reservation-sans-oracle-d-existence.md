@@ -89,3 +89,4 @@ TCK-599) ; test : même statut et même corps pour un absent et un tiers ».
 - Avant correctif, `property_id=abc` faisait répondre **500** : `exists:properties,id` interrogeait une colonne entière avec une chaîne (PostgreSQL). La règle `integer` le ferme ; AC4 le garde.
 - `BookingTest::test_cannot_create_booking_on_unbookable_property` attendait 422 pour un client sur un bien vendu : c'est l'ordre que la décision inverse. Il attend désormais 403 `booking.property_unavailable`.
 - Le propriétaire est exclu du test de visibilité préalable : il garde l'ordre d'avant (état, puis `booking.own_property`), sans oracle puisqu'il connaît son bien.
+- `StoreBookingRequest` sort des `EXCEPTIONS` de `ExistsSurRouteOuverteTest` (TCK-1027), qui rougissait sur l'exception devenue sans objet ; un `exists:customers,id` remis le fait rougir à nouveau (ablation).
