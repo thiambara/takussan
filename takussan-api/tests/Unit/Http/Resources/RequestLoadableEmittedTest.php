@@ -34,8 +34,6 @@ class RequestLoadableEmittedTest extends TestCase
      */
     private const EXEMPTIONS = [
         'Agency' => ['primaryAdmin', 'addresses'],
-        // P60.04 — déclaration sans lecteur, retirée par son propre ticket.
-        'AgencySubscription' => ['agency'],
         'AgencyUpgradeRequest' => ['agency', 'submitter', 'reviewer', 'documents'],
         'Customer' => ['user', 'agency', 'addresses', 'tasks'],
         'Document' => ['uploader', 'verifier'],
@@ -129,8 +127,22 @@ class RequestLoadableEmittedTest extends TestCase
     private function relationsNonEmises(string $classe, string $ressource): array
     {
         $propriete = (new ReflectionClass($classe))->getProperty('requestLoadable');
-        $relations = $propriete->getValue() ?? [];
-        $source = (string) file_get_contents($ressource);
+
+        return $this->absentesDuSource($propriete->getValue() ?? [], (string) file_get_contents($ressource));
+    }
+
+    /**
+     * @param  list<string>  $relations
+     * @return list<string>
+     */
+    private function absentesDuSource(array $relations, string $source): array
+    {
+        // TCK-1023 (P60.04) — le source sans ses commentaires : une mention de `whenLoaded('x')` en
+        // commentaire ne rend pas la relation émise.
+        $source = implode('', array_map(
+            fn ($jeton): string => is_array($jeton) ? (in_array($jeton[0], [T_COMMENT, T_DOC_COMMENT], true) ? '' : $jeton[1]) : $jeton,
+            token_get_all($source),
+        ));
 
         return array_values(array_filter($relations, fn (string $relation): bool => preg_match(
             '/(whenLoaded|relationLoaded)\(\s*[\'"]'.preg_quote($relation, '/').'[\'"]/',
@@ -180,5 +192,23 @@ class RequestLoadableEmittedTest extends TestCase
         }
 
         $this->assertSame([], $perimees, 'Exemptions à retirer : la relation est émise, ou plus déclarée.');
+    }
+
+    /** TCK-1023 (P60.04) — une relation citée en commentaire n'est pas émise. */
+    public function test_un_when_loaded_en_commentaire_ne_compte_pas(): void
+    {
+        $source = <<<'PHP'
+            <?php
+            // 'agency' => $this->whenLoaded('ligne'),
+            # $this->whenLoaded('diese');
+            /* $this->relationLoaded('bloc') */
+            /** @see whenLoaded('doc') */
+            return ['plan' => $this->whenLoaded('plan')];
+            PHP;
+
+        $this->assertSame(
+            ['ligne', 'diese', 'bloc', 'doc'],
+            $this->absentesDuSource(['ligne', 'diese', 'bloc', 'doc', 'plan'], $source),
+        );
     }
 }
